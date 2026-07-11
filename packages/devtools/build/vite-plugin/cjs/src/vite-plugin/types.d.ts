@@ -1,0 +1,60 @@
+import { CompilerOptions } from 'typescript';
+export interface AOTCacheOptions {
+    excludedFns?: string[];
+    excludedPureFns?: string[];
+    cache?: boolean | string;
+    excludeReflection?: boolean;
+    customVirtualModuleId?: string;
+    isClient?: boolean;
+}
+export interface MionServerConfig {
+    startScript: string;
+    viteConfig?: string;
+    runMode: 'buildOnly' | 'childProcess' | 'middleware';
+    waitTimeout?: number;
+    env?: Record<string, string>;
+    args?: string[];
+}
+export interface PureServerFnRegistryEntry {
+    readonly namespace: string;
+    readonly fnName: string;
+    readonly paramNames: string[];
+    readonly code: string;
+    readonly bodyHash: string;
+    readonly dependencies: Set<string>;
+    readonly isFactory: boolean;
+}
+export interface PureServerFnRegistry {
+    readonly version: string;
+    readonly entries: Record<string, PureServerFnRegistryEntry>;
+}
+export interface ServerPureFunctionsOptions {
+    clientSrcPath: string;
+    include?: string[];
+    exclude?: string[];
+    noViteClient?: boolean;
+}
+export interface ExtractedPureFn {
+    namespace: string;
+    fnName: string;
+    paramNames: string[];
+    fnBody: string;
+    bodyHash: string;
+    dependencies: Set<string>;
+    sourceFile: string;
+    isFactory: boolean;
+}
+export interface ParsedFactoryFn {
+    readonly bodyHash: string;
+    readonly paramNames: string[];
+    readonly code: string;
+}
+export type ReflectionMode = 'default' | 'explicit' | 'never';
+export interface DeepkitTypeOptions {
+    include?: string | string[];
+    exclude?: string | string[];
+    tsConfig?: string;
+    reflection?: ReflectionMode;
+    compilerOptions?: CompilerOptions;
+}
+//# sourceMappingURL=types.d.ts.map

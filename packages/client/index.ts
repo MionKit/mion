@@ -5,9 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/types';
-export * from './src/constants';
-export * from './src/reflection';
-export * from './src/clientMethodsMetadata';
-export * from './src/request';
-export * from './src/client';
+export * from './src/types.ts';
+export * from './src/constants.ts';
+export * from './src/lib/storage.ts';
+export * from './src/lib/validation.ts';
+export * from './src/lib/serializer.ts';
+export * from './src/lib/clientMethodsMetadata.ts';
+export * from './src/lib/fetchRemoteMethodsMetadata.ts';
+export * from './src/request.ts';
+export * from './src/client.ts';
+export * from './src/lib/typedEvent.ts';
+export * from './src/lib/handlersRegistry.ts';
+export * from './src/routesFlow.ts';

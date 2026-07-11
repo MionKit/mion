@@ -1,0 +1,77 @@
+# Standalone pnpm workspace for tarball-consumer simulation.
+# Intentionally isolated from the monorepo root — this package
+# consumes mion via local tarballs (file:./tarballs/*.tgz).
+packages: []
+
+# ── Dependency overrides ─────────────────────────────────
+# Force every transitive @mionjs/* reference to the local tarball.
+# Without this, the platform tarballs (which declare e.g. `@mionjs/router: ^X.Y.Z`
+# as their dep) cause pnpm to ALSO install the npm-registry copy of @mionjs/*
+# alongside the local tarball — yielding two parallel copies of @mionjs/core,
+# @mionjs/router, etc. The registry copy is the last published version, which
+# may be stale (e.g. missing exports added after the version was published
+# without a bump) and breaks vite-node's module resolution at runtime.
+# Pinning every @mionjs/* to file: forces consistent resolution.
+overrides:
+  '@mionjs/core': file:./tarballs/mionjs-core.tgz
+  '@mionjs/run-types': file:./tarballs/mionjs-run-types.tgz
+  '@mionjs/router': file:./tarballs/mionjs-router.tgz
+  '@mionjs/platform-node': file:./tarballs/mionjs-platform-node.tgz
+  '@mionjs/client': file:./tarballs/mionjs-client.tgz
+  '@mionjs/type-formats': file:./tarballs/mionjs-type-formats.tgz
+  '@mionjs/drizzle': file:./tarballs/mionjs-drizzle.tgz
+  '@mionjs/platform-aws': file:./tarballs/mionjs-platform-aws.tgz
+  '@mionjs/platform-bun': file:./tarballs/mionjs-platform-bun.tgz
+  '@mionjs/platform-cloudflare': file:./tarballs/mionjs-platform-cloudflare.tgz
+  '@mionjs/platform-gcloud': file:./tarballs/mionjs-platform-gcloud.tgz
+  '@mionjs/platform-vercel': file:./tarballs/mionjs-platform-vercel.tgz
+  '@mionjs/devtools': file:./tarballs/mionjs-devtools.tgz
+
+# ── Build-script allowlist ───────────────────────────────
+# SECURITY: Explicitly deny lifecycle scripts for these packages.
+# Without these explicit entries, pnpm 11 nags on every install with a
+# "set this to true or false" placeholder.
+# - @deepkit/type-compiler's postinstall patches node_modules/typescript/lib/tsc.js
+#   to inject deepkit's reflection transformer for direct `tsc` CLI usage. mion
+#   never invokes tsc directly — its Vite plugin calls `ts.transpileModule(...,
+#   { transformers })` programmatically — so this patch is unused dead weight.
+# - esbuild's postinstall validates/locates the native binary. The binary
+#   already ships inside the platform-specific optional dep (e.g.
+#   @esbuild/darwin-arm64), so esbuild works fine without the postinstall —
+#   install already runs under `ignoreScripts: true` and nothing breaks.
+allowBuilds:
+  '@deepkit/type-compiler': false
+  esbuild: false
+
+# ── Lockfile / install integrity ─────────────────────────
+# NOT preferFrozenLockfile: tarballs get repacked frequently, lockfile churns.
+preferFrozenLockfile: false
+verifyStoreIntegrity: true
+
+# ── Version pinning ──────────────────────────────────────
+# Empty savePrefix means exact pinning (replaces legacy save-exact=true).
+savePrefix: ''
+resolutionMode: highest
+
+# ── Supply-chain protection: minimum release age ─────────
+# Same 30-day policy as root and website — declares the intended posture.
+# The pre-publish flow (scripts/pack-and-install.sh + scripts/pre-publish-test.sh)
+# overrides this to 0 at install-time via `--config.minimum-release-age=0`,
+# because tarball hashes change on every pack and trigger fresh resolution
+# that would otherwise fail on whatever transitive happens to be young that day.
+# The override is install-only; this file always declares the strict policy.
+minimumReleaseAge: 43200
+# Exempt @mionjs/* — those come from local tarballs anyway.
+minimumReleaseAgeExclude:
+  - '@mionjs/*'
+
+# ── Lifecycle scripts ────────────────────────────────────
+ignoreScripts: true
+
+# ── Allow file: protocol (required for tarball consumption) ─
+allowNonRegistryProtocols: true
+
+# ── Peer / hoisting ──────────────────────────────────────
+strictPeerDependencies: false
+autoInstallPeers: false
+nodeLinker: isolated

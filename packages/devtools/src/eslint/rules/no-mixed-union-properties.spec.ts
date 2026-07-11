@@ -1,0 +1,159 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {RuleTester} from '@typescript-eslint/rule-tester';
+import rule from './no-mixed-union-properties.ts';
+
+const ruleTester = new RuleTester();
+
+ruleTester.run('no-mixed-union-properties', rule, {
+    valid: [
+        // Return object matching single union type
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => ({a: 'hello'}));
+            `,
+        },
+        // Return object matching single union type (second type)
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => ({b: 123}));
+            `,
+        },
+        // Non-router function (should not be checked)
+        {
+            code: `
+                const fn = (): {a: string} | {b: number} => ({a: 'hello', b: 123});
+            `,
+        },
+        // Import from different package (should not be checked)
+        {
+            code: `
+                import { route } from 'other-package';
+                route((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+            `,
+        },
+        // Union with atomic types only
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): string | number | boolean => 'hello');
+            `,
+        },
+        // Object with shared properties only (no unique properties from multiple types)
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string; b: number} | {a: string; c: boolean} => ({a: 'hello'}));
+            `,
+        },
+        // Block statement with single-type returns
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => {
+                    if (Math.random() > 0.5) {
+                        return {a: 'hello'};
+                    }
+                    return {b: 123};
+                });
+            `,
+        },
+    ],
+    invalid: [
+        // Return object with properties from multiple union types
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => ({a: 'hello', b: 123}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // MiddleFn with mixed properties
+        {
+            code: `
+                import { middleFn } from '@mionjs/router';
+                middleFn((ctx): {name: string} | {age: number} => ({name: 'John', age: 25}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // headersFn with mixed properties
+        {
+            code: `
+                import { headersFn } from '@mionjs/router';
+                headersFn((ctx, [t]: [string]): {valid: boolean} | {userId: string} => ({valid: true, userId: '123'}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Block statement with mixed return
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => {
+                    return {a: 'hello', b: 123};
+                });
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Multiple mixed returns in block statement
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                route((ctx): {a: string} | {b: number} => {
+                    if (Math.random() > 0.5) {
+                        return {a: 'hello', b: 123};
+                    }
+                    return {a: 'world', b: 456};
+                });
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with mixed properties in return
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                type MixedResult = {success: true; data: string} | {success: false; error: string};
+                route((ctx): MixedResult => ({success: true, data: 'ok', error: 'also has error'}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with unique properties from different union types
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                type UserOrProduct = {userId: string; userName: string} | {productId: string; productName: string};
+                route((ctx): UserOrProduct => ({userId: '1', productId: '2'}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with multiple mixed returns in conditional
+        {
+            code: `
+                import { route } from '@mionjs/router';
+                type Status = {active: boolean; lastSeen: Date} | {active: boolean; reason: string};
+                route((ctx): Status => {
+                    if (Math.random() > 0.5) {
+                        return {active: true, lastSeen: new Date(), reason: 'mixed'};
+                    }
+                    return {active: false, lastSeen: new Date(), reason: 'also mixed'};
+                });
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}, {messageId: 'mixedUnionProperties'}],
+        },
+        // Type alias with middleFn and mixed properties
+        {
+            code: `
+                import { middleFn } from '@mionjs/router';
+                type MiddleFnData = {name: string} | {age: number};
+                middleFn((ctx): MiddleFnData => ({name: 'John', age: 25}));
+            `,
+            errors: [{messageId: 'mixedUnionProperties'}],
+        },
+    ],
+});

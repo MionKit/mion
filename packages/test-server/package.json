@@ -1,0 +1,65 @@
+{
+  "name": "@mionjs/test-server",
+  "version": "0.8.10",
+  "description": "Test server utilities for mion packages",
+  "keywords": [
+    "mion",
+    "test",
+    "server",
+    "testing"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./index.ts",
+      "types": "./.dist/esm/index.d.ts",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "main": "./.dist/esm/index.js",
+  "module": "./.dist/esm/index.js",
+  "types": "./.dist/esm/index.d.ts",
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist",
+    "index.ts",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo 'No tests for test-server package'",
+    "dev": "vite build --watch",
+    "lint": "eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build && vite build --config vite.edge.config.ts && vite build --config vite.cloudflare.config.ts",
+    "build:edge": "vite build --config vite.edge.config.ts",
+    "build:cloudflare": "vite build --config vite.cloudflare.config.ts",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionjs/core": "workspace:*",
+    "@mionjs/platform-cloudflare": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/platform-vercel": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/type-formats": "workspace:*"
+  }
+}

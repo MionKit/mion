@@ -1,0 +1,75 @@
+{
+  "name": "@mionjs/platform-bun",
+  "version": "0.8.10",
+  "description": "mion server for bun runtime",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node",
+    "runtime types"
+  ],
+  "author": "ma jerez",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "source": "./index.ts",
+      "types": "./.dist/esm/index.d.ts",
+      "require": "./.dist/cjs/index.cjs",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist",
+    "index.ts",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "bun": ">=1.0.1"
+  },
+  "scripts": {
+    "test": "bun test",
+    "dev": "vite build --watch",
+    "dev:test": "bun test --watch",
+    "lint": "eslint src",
+    "format": "prettier --write src/**/*.ts",
+    "build": "vite build",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "pnpm run clean && rimraf node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionjs/core": "workspace:*",
+    "@mionjs/router": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepkit/core": "1.0.19",
+    "@deepkit/type-compiler": "1.0.19",
+    "bun-types": "1.3.12"
+  },
+  "peerDependencies": {
+    "typescript": ">=6.0.0"
+  },
+  "gitHead": "afd6e1d61525b4bf11bb84b3f85089038d70062d"
+}

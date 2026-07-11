@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".dist/esm",
+    "composite": true,
+    "rootDir": "."
+  },
+  "references": [],
+  "reflection": false,
+  "include": ["."],
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
+}

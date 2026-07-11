@@ -1,6 +1,7 @@
 {
-  "name": "@mionkit/client",
-  "version": "0.7.2",
+  "name": "@mionjs/client",
+  "version": "0.8.10",
+  "type": "module",
   "description": "Browser client for mion Apps.",
   "keywords": [
     "typescript",
@@ -14,15 +15,14 @@
     "framework",
     "node"
   ],
-  "author": "ma jerez <jerez.m82@gmail.com>",
+  "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": ".dist/cjs/index.js",
-  "module": ".dist/esm/index.js",
-  "types": ".dist/types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./.dist/cjs/index.js",
+      "source": "./index.ts",
+      "types": "./.dist/esm/index.d.ts",
+      "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
     }
   },
@@ -30,7 +30,11 @@
     "lib": ".dist"
   },
   "files": [
-    ".dist"
+    ".dist",
+    "index.ts",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts"
   ],
   "repository": {
     "type": "git",
@@ -40,29 +44,31 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
-    "dev:test": "jest --watch",
-    "lint": "eslint src --ext .ts",
+    "test": "vitest run && pnpm run test:e2e:ssr",
+    "test:e2e:ssr": "node --experimental-strip-types src/aotSSR.e2e.test.ts",
+    "dev": "vite build --watch",
+    "dev:test": "vitest watch",
+    "lint": "eslint src",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir .dist/cjs",
-    "build:esm": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist/esm",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir .dist/types",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
-    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage"
+    "build": "vite build",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "pnpm run clean && rimraf node_modules",
+    "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
-  "dependencies": {
-    "@mionkit/reflection": "^0.7.2"
-  },
-  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a",
+  "gitHead": "afd6e1d61525b4bf11bb84b3f85089038d70062d",
   "devDependencies": {
-    "@mionkit/http": "^0.7.2",
-    "@mionkit/router": "^0.7.2",
-    "dom-storage": "^2.1.0",
-    "jest-environment-jsdom": "^29.6.2"
+    "@mionjs/devtools": "workspace:*",
+    "@mionjs/platform-node": "workspace:*",
+    "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
+    "@mionjs/test-server": "workspace:*",
+    "@mionjs/type-formats": "workspace:*",
+    "jest-environment-jsdom": "29.7.0"
+  },
+  "dependencies": {
+    "@mionjs/core": "workspace:*"
   }
 }

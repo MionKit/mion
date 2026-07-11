@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": [],
+    "outDir": ".dist/esm",
+    "types": ["bun-types"],
+    "composite": true
+  },
+  "references": [{"path": "../core"}, {"path": "../router"}],
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", ".dist", "vite.config.ts"]
+}

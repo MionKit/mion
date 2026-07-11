@@ -1,0 +1,4633 @@
+(function(exports) {
+  "use strict";
+  function _mergeNamespaces(n, m) {
+    for (var i = 0; i < m.length; i++) {
+      const e = m[i];
+      if (typeof e !== "string" && !Array.isArray(e)) {
+        for (const k in e) {
+          if (k !== "default" && !(k in n)) {
+            const d = Object.getOwnPropertyDescriptor(e, k);
+            if (d) {
+              Object.defineProperty(n, k, d.get ? d : {
+                enumerable: true,
+                get: () => e[k]
+              });
+            }
+          }
+        }
+      }
+    }
+    return Object.freeze(Object.defineProperty(n, Symbol.toStringTag, { value: "Module" }));
+  }
+  const __ΩReadonly$3 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩOmit$2 = ["T", "K", () => __ΩPick$4, () => __ΩExclude$2, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩRecord$7 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩIterableIterator = ["T", "TReturn", "TNext", () => __ΩIterator, 0, () => Symbol.iterator, "IterableIterator", `b!"c""c#Pe"!e""e"#o$$Pe#!e#"e##o%$1&Mw'y`];
+  const __ΩPick$4 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩExclude$2 = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
+  const __ΩIterator = ["T", "TReturn", "TNext", "param0", () => __ΩIteratorResult, "next", "value", () => __ΩIteratorResult, "return", "e", () => __ΩIteratorResult, "throw", "Iterator", `b!"c""c#PPPPGPe%#GJ@2$e#!e#"o%#1&Pe#"2'8e#!e#"o(#1)8P"2*8e#!e#"o+#1,8Mw-y`];
+  const __ΩIteratorResult = ["T", "TReturn", () => __ΩIteratorYieldResult, () => __ΩIteratorReturnResult, "IteratorResult", 'b!"c"Pe"!o#"e""o$"Jw%y'];
+  const __ΩIteratorYieldResult = ["TYield", false, "done", "value", "IteratorYieldResult", 'b!P."4#8e"!4$Mw%y'];
+  const __ΩIteratorReturnResult = ["TReturn", true, "done", "value", "IteratorReturnResult", 'b!P."4#e"!4$Mw%y'];
+  const __ΩCallContext = ["ContextData", "path", () => __ΩMionRequest, "request", () => __ΩMionResponse, "response", "shared", "MethodsExecutionChain", "executionChain", "urlQuery", "routesFlowRouteIds", "CallContext", `"c!P&4"9n#4$9n%4&9e"!4'"w(4)9&4*89&F4+89Mw,y`];
+  const __ΩRawRequestBody = ["AnyObject", "RawRequestBody", 'P&_W"w!Jw"y'];
+  const __ΩRawResponseBody = ["AnyObject", "RawResponseBody", 'P&_W"w!Jw"y'];
+  const __ΩMionRequest = [() => __ΩReadonly$3, () => __ΩOmit$2, () => __ΩMionHeaders, "append", "set", "delete", "headers", () => __ΩRawRequestBody, "rawBody", "SerializerCode", "bodyType", () => __ΩReadonly$3, "AnyObject", "body", () => __ΩReadonly$3, () => __ΩRecord$7, "RpcError", "thrownErrors", "MionRequest", `Pn#P.$.%.&Jo"#o!"4'9n(4)9"w*4+9"w-o,"4.9&"w1o0#o/"4289Mw3y`];
+  const __ΩMionResponse = ["statusCode", () => __ΩReadonly$3, () => __ΩMionHeaders, "headers", () => __ΩRawResponseBody, "rawBody", "SerializerCode", "serializer", () => __ΩReadonly$3, () => __ΩResponseBody, "body", "hasErrors", "DataViewSerializer", "binSerializer", "MionResponse", `P'4!9n#o""4$9n%4&9"w'4(9n*o)"4+9)4,9P"w--J4.89Mw/y`];
+  const __ΩMionHeaders = ["name", "value", "append", "delete", "set", "get", "has", () => __ΩIterableIterator, "entries", () => __ΩIterableIterator, "keys", () => __ΩIterableIterator, "values", "MionHeaders", `PP&2!&2"$1#P&2!$1$P&2!&2"$1%P&2!P&-,J1&P&2!)1'PP&&Go("1)P&o*"1+P&o,"1-Mw.y`];
+  const __ΩContextDataFactory = ["ContextData", "", "ContextDataFactory", 'b!Pe"!/"w#y'];
+  const __ΩResponseBody = [() => __ΩRecord$7, () => __ΩRecord$7, "RpcError", "@thrownErrors", "ResponseBody", 'P&"o!#&"w#o"#4$8Mw%y'];
+  const __ΩRoutesFlowExecutionResult = ["MethodsExecutionChain", "executionChain", "routesFlowRouteIds", "RoutesFlowMapping", "mappings", "RoutesFlowExecutionResult", 'P"w!4"&F4#8"w$F4%8Mw&y'];
+  const __ΩPartial$1 = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  const __ΩPick$3 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩRemoteMethod = ["AnyHandler", "H", "MethodWithJitFns", "RemoteMethodOpts", "options", "handler", "args", "", "methodCaller", "RemoteMethod", `"w!c"P"w#"w$4%e"!4&P"@2'"/(4)8Mw*y`];
+  const __ΩRouteMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.route, "type", "RouteOnlyOptions", "options", "RouteMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
+  const __ΩMiddleFnMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.middleFn, "type", "MiddleFnMethod", '"c!Pe"!o""i#4$Mw%y'];
+  const __ΩHeadersMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.headersMiddleFn, "type", "HeadersMethodWithJitFns", "headersParam", "HeadersMethod", `"c!Pe"!o""i#4$"w%4&Mw'y`];
+  const __ΩRawMethod = ["H", () => __ΩRemoteMethod, () => HandlerType.rawMiddleFn, "type", "RemoteMethodOpts", false, "validateParams", false, "validateReturn", "options", "RawMethod", `"c!Pe"!o""i#4$P"w%P.&4'.(4)8MK4*Mw+y`];
+  const __ΩRouteOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩRouteMethod, "options", "description", "validateParams", "validateReturn", "serializer", "isMutation", "strictTypes", "RouteOptions", `n#.$fP.%.&.'.(.).*Jo"#o!"w+y`];
+  const __ΩMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩMiddleFnMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "MiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
+  const __ΩHeadersMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩHeadersMethod, "options", "description", "validateParams", "validateReturn", "runOnError", "strictTypes", "HeadersMiddleFnOptions", `n#.$fP.%.&.'.(.)Jo"#o!"w*y`];
+  const __ΩRawMiddleFnOptions = [() => __ΩPartial$1, () => __ΩPick$3, () => __ΩRawMethod, "options", "description", "runOnError", "RawMiddleFnOptions", `n#.$fP.%.&Jo"#o!"w'y`];
+  const __ΩMethodsExecutionChain = ["routeIndex", () => __ΩRemoteMethod, "methods", "SerializerCode", "serializer", "MethodsExecutionChain", `P'4!n"F4#"w$4%Mw&y`];
+  const __ΩPick$2 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩRouteDef = ["H", () => __ΩPick$2, () => __ΩRouteMethod, "type", "handler", () => __ΩRouteOptions, "options", "RouteDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩMiddleFnMethod, "type", "handler", () => __ΩMiddleFnOptions, "options", "MiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩHeadersMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩHeadersMethod, "type", "handler", () => __ΩHeadersMiddleFnOptions, "options", "HeadersMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const __ΩRawMiddleFnDef = ["H", () => __ΩPick$2, () => __ΩRawMethod, "type", "handler", () => __ΩRawMiddleFnOptions, "options", "RawMiddleFnDef", `"c!Pe"!o#"P.$.%Jo"#Pn&4'8MKw(y`];
+  const DEFAULT_CORE_OPTIONS = {
+    /** automatically generate and uuid */
+    autoGenerateErrorId: false,
+    basePath: "",
+    suffix: ""
+  };
+  const PATH_SEPARATOR = "/";
+  const ROUTE_PATH_ROOT = PATH_SEPARATOR;
+  const ROUTER_ITEM_SEPARATOR_CHAR = "/";
+  const MAX_STACK_DEPTH = 50;
+  const MION_ROUTES = {
+    /** get remote methods metadata by method id */
+    methodsMetadataById: "mion@methodsMetadataById",
+    /** Middleware that returns methods metadata alongside any route response */
+    methodsMetadata: "mion@methodsMetadata",
+    /** Platform or adapters errors that occur before reaching the router or outside the router and are platform/adapter related */
+    platformError: "mion@platformError",
+    /** not-found route. This route is called when a requested route doesn't exist */
+    notFound: "mion@notFound",
+    /**
+     * !IMPORTANT!!
+     * This is technically not a route, but a special key used to store unexpected errors in the response body.
+     * is declared as a route to reuse existing router serialization/deserialization logic.
+     * Errors thrown by routes/middleFns, these are not strongly typed
+     * */
+    thrownErrors: "@thrownErrors"
+  };
+  const StatusCodes = {
+    /** Any error in the server that is not related to the application, ie: server not ready, etc... */
+    SERVER_ERROR: 500,
+    /** Any expected and strongly typed error returned by a route/middleFn. ie: entity not found, etc. */
+    APPLICATION_ERROR: 400,
+    /**  Any thrown or unexpected error in the application, ie: validation error, not found, etc, database error, serialization error, etc...
+     * These are are typically irrecoverable and can be handled globally, ie redirect to login page if auth fails
+     */
+    UNEXPECTED_ERROR: 422,
+    /** Not found error */
+    NOT_FOUND: 404,
+    /** Standard success code */
+    OK: 200
+  };
+  const HandlerType$1 = {
+    route: 1,
+    middleFn: 2,
+    headersMiddleFn: 3,
+    rawMiddleFn: 4
+  };
+  const JIT_FUNCTION_IDS = {
+    isType: "is",
+    typeErrors: "te",
+    prepareForJson: "tj",
+    restoreFromJson: "fj",
+    stringifyJson: "sj",
+    toJSCode: "tc",
+    toBinary: "tBi",
+    fromBinary: "fBi"
+  };
+  const EMPTY_HASH = "";
+  const __ΩReadonly$2 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  let options = { ...DEFAULT_CORE_OPTIONS };
+  function setErrorOptions(opts2) {
+    options = opts2;
+  }
+  setErrorOptions.__type = ["CoreRouterOptions", "opts", "setErrorOptions", 'P"w!2""/#'];
+  class TypedError extends Error {
+    /**
+     * Unique error identifier,
+     * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
+     */
+    // eslint-disable-next-line @typescript-eslint/prefer-as-const
+    "mion@isΣrrθr" = true;
+    /** Error type, can be used as discriminator in union types*/
+    type;
+    // Note: message and name are NOT declared as properties here
+    // They are inherited from Error class and assigned in constructor
+    // This prevents them from being included in type reflection for JIT validation
+    constructor({ message, originalError, type }) {
+      const errorMessage = message || originalError?.message || "";
+      super(errorMessage);
+      this.type = type;
+      Object.defineProperty(this, "message", {
+        value: errorMessage,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      Object.defineProperty(this, "name", {
+        value: "TypedError",
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      if (originalError?.stack) {
+        try {
+          this.stack = originalError.stack;
+        } catch {
+          try {
+            Object.defineProperty(this, "stack", {
+              value: originalError.stack,
+              writable: true,
+              configurable: true
+            });
+          } catch {
+          }
+        }
+      }
+      Object.setPrototypeOf(this, TypedError.prototype);
+    }
+    static __type = ["ErrType", () => Error, true, "mion@isΣrrθr", function() {
+      return true;
+    }, "type", "TypedErrorParams", "param0", "constructor", "TypedError", `b!P7".#3$9>%e!!3&9P"w'2("0)5w*`];
+  }
+  class RpcError extends TypedError {
+    // Note: name is NOT declared as a property here
+    // It is inherited from Error class and assigned in constructor
+    // This prevents it from being included in type reflection for JIT validation
+    /**
+     * id of the error, ideally each error should unique identifiable
+     * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
+     * */
+    id;
+    /** the message that will be returned in the response */
+    publicMessage;
+    /** options data related to the error, ie validation data, must be json serializable */
+    errorData;
+    /** optional http status code */
+    statusCode;
+    constructor({ message, publicMessage, originalError, errorData, type, id, statusCode }) {
+      const originalMessage = message || originalError?.message || publicMessage || "";
+      super({
+        message: originalMessage,
+        originalError,
+        type
+      });
+      const { autoGenerateErrorId } = options;
+      this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : void 0);
+      this.publicMessage = publicMessage || "";
+      this.errorData = errorData;
+      this.statusCode = statusCode;
+      Object.defineProperty(this, "name", {
+        value: "RpcError",
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+      Object.setPrototypeOf(this, RpcError.prototype);
+    }
+    static __type = ["ErrType", "ErrData", () => TypedError, "id", "publicMessage", () => __ΩReadonly$2, "errorData", "statusCode", "AnyErrorParams", "param0", "constructor", "RpcErrorParams", "RpcError", `b!"c"Pe"!7#P'&J3$89&3%9e!"o&"3'89'3(8P"w)2*"0+5e!!6""w,x"w-`];
+  }
+  function restoreCompiledJitFns(jitCache, pureCache, jUtil) {
+    const visitedPure = /* @__PURE__ */ new Set();
+    const visitedJit = /* @__PURE__ */ new Set();
+    for (const namespace in pureCache) {
+      const nsCache = pureCache[namespace];
+      const keysPureFns = Object.keys(nsCache);
+      keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, namespace, key, jUtil, visitedPure));
+    }
+    const keysJitFns = Object.keys(jitCache);
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key, jUtil, visitedPure, visitedJit));
+  }
+  function restoreCompiledPureFn(pureCache, namespace, fnName, jUtil, visited) {
+    const visitedKey = `${namespace}:${fnName}`;
+    if (visited.has(visitedKey)) return;
+    visited.add(visitedKey);
+    const nsCache = pureCache[namespace];
+    if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+    const pureCompiled = nsCache[fnName];
+    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found in namespace ${namespace}`);
+    if (pureCompiled.fn) return;
+    const dependencies = pureCompiled.pureFnDependencies || [];
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, namespace, depName, jUtil, visited));
+    if (pureCompiled.createPureFn) {
+      pureCompiled.fn = pureCompiled.createPureFn(jUtil);
+      return;
+    }
+    restorePureFunction(pureCompiled, jUtil);
+  }
+  function restoreCompiledJitFn(jitCache, pureCache, fnHash, jUtil, visitedPure, visitedJit) {
+    if (visitedJit.has(fnHash)) return;
+    visitedJit.add(fnHash);
+    const jitCompiled = jitCache[fnHash];
+    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
+    if (jitCompiled.fn) return;
+    const pureDependencies = jitCompiled.pureFnDependencies || [];
+    pureDependencies.forEach((dep) => {
+      const parts = dep.split("::");
+      if (parts.length !== 2) throw new Error(`Invalid pure function dependency format: ${dep}, expected "namespace::fnHash"`);
+      const [namespace, fnHash2] = parts;
+      restoreCompiledPureFn(pureCache, namespace, fnHash2, jUtil, visitedPure);
+    });
+    const dependencies = jitCompiled.jitDependencies || [];
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep, jUtil, visitedPure, visitedJit));
+    if (jitCompiled.createJitFn) {
+      jitCompiled.fn = jitCompiled.createJitFn(jUtil);
+      return;
+    }
+    restoreCreateJitFn(jitCompiled, jUtil);
+  }
+  function restoreCreateJitFn(fnData, jUtil) {
+    const fnName = fnData.jitFnHash;
+    const fnWithContext = `'use strict'; ${fnData.code}`;
+    try {
+      const wrapperWithContext = new Function("utl", fnWithContext);
+      const fn = wrapperWithContext(jUtil);
+      const jitFn = fnData;
+      jitFn.createJitFn = wrapperWithContext;
+      jitFn.fn = fn;
+      return jitFn;
+    } catch (e) {
+      throw new TypedError({
+        type: "jit-fn-restore-error",
+        message: `Failed to restore JIT function ${fnName}: ${e?.message}`
+      });
+    }
+  }
+  function restorePureFunction(pureFnData, jUtil) {
+    const fnName = pureFnData.fnName;
+    const fnWithContext = `'use strict'; ${pureFnData.code}`;
+    try {
+      const wrapperWithContext = new Function("utl", fnWithContext);
+      const fn = wrapperWithContext(jUtil);
+      const pureFn = pureFnData;
+      pureFn.createPureFn = wrapperWithContext;
+      pureFn.fn = fn;
+      return pureFn;
+    } catch (e) {
+      throw new TypedError({
+        type: "pure-fn-restore-error",
+        message: `Failed to restore pure function ${fnName}: ${e?.message}`
+      });
+    }
+  }
+  const jitFnsCache$1 = getOrCreateGlobal("mion.jit.jitFnsCache", () => ({}));
+  const pureFnsCache$1 = getOrCreateGlobal("mion.jit.pureFnsCache", () => ({}));
+  const deserializeFnsRegistry = getOrCreateGlobal(
+    "mion.jit.deserializeFnsRegistry",
+    () => /* @__PURE__ */ new Map()
+  );
+  const serializableClassRegistry = getOrCreateGlobal(
+    "mion.jit.serializableClassRegistry",
+    () => /* @__PURE__ */ new Map()
+  );
+  const jitUtils = {
+    addToJitCache(comp) {
+      jitFnsCache$1[comp.jitFnHash] = comp;
+    },
+    removeFromJitCache(comp) {
+      if (!jitFnsCache$1[comp.jitFnHash]) return;
+      jitFnsCache$1[comp.jitFnHash] = void 0;
+    },
+    getJIT(jitFnHash) {
+      return jitFnsCache$1[jitFnHash];
+    },
+    getJitFn(jitFnHash) {
+      const comp = jitFnsCache$1[jitFnHash];
+      if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
+      return comp.fn;
+    },
+    hasJitFn(jitFnHash) {
+      return !!jitFnsCache$1[jitFnHash]?.fn;
+    },
+    /**
+     * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
+     * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
+     * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
+     *  */
+    addPureFn(namespace, compiledFn) {
+      const fnHash = compiledFn.fnName;
+      if (!fnHash) throw new Error("Pure function must have a name and must be unique");
+      const nsCache = ensureNamespace(namespace);
+      const existing = nsCache[fnHash];
+      if (existing) {
+        if (existing.bodyHash && compiledFn.bodyHash && existing.bodyHash !== compiledFn.bodyHash) {
+          console.warn(
+            `Pure function ${namespace}::${fnHash} body hash mismatch. Existing: ${existing.bodyHash}, New: ${compiledFn.bodyHash}. Replacing with new version.`
+          );
+          nsCache[fnHash] = compiledFn;
+          return compiledFn;
+        }
+        return existing;
+      }
+      nsCache[fnHash] = compiledFn;
+      return compiledFn;
+    },
+    usePureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) throw new Error(`Pure function namespace ${namespace} not found`);
+      const compiled = nsCache[fnHash];
+      if (!compiled) throw new Error(`Pure function with name ${fnHash} not found in namespace ${namespace}`);
+      initPureFunction(compiled);
+      return compiled.fn;
+    },
+    getPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return;
+      const compiled = nsCache[fnHash];
+      if (!compiled) return;
+      initPureFunction(compiled);
+      return compiled.fn;
+    },
+    getCompiledPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return;
+      return nsCache[fnHash];
+    },
+    hasPureFn(namespace, fnHash) {
+      const nsCache = pureFnsCache$1[namespace];
+      if (!nsCache) return false;
+      return !!nsCache[fnHash];
+    },
+    findCompiledPureFn(fnHash) {
+      for (const namespace of Object.keys(pureFnsCache$1)) {
+        const nsCache = pureFnsCache$1[namespace];
+        if (nsCache && nsCache[fnHash]) return nsCache[fnHash];
+      }
+      return void 0;
+    },
+    setSerializableClass(cls) {
+      const className = cls.name;
+      const existingClass = serializableClassRegistry.get(className);
+      if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
+      serializableClassRegistry.set(className, cls);
+    },
+    useSerializeClass(className) {
+      const cls = serializableClassRegistry.get(className);
+      if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
+      return cls;
+    },
+    getSerializeClass(className) {
+      return serializableClassRegistry.get(className);
+    },
+    setDeserializeFn(cls, deserializeFn) {
+      const className = cls.name;
+      const fn = deserializeFnsRegistry.get(className);
+      if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
+      if (fn) return;
+      deserializeFnsRegistry.set(className, deserializeFn);
+    },
+    useDeserializeFn(className) {
+      const fn = deserializeFnsRegistry.get(className);
+      if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
+      return fn;
+    },
+    getDeserializeFn(className) {
+      return deserializeFnsRegistry.get(className);
+    }
+  };
+  function getJitUtils() {
+    return jitUtils;
+  }
+  function addAOTCaches(aotFnsCache, aotPureCache) {
+    restoreCaches(aotFnsCache, aotPureCache);
+  }
+  function restoreCaches(fnsCache, pureCache) {
+    for (const key in fnsCache) {
+      if (!(key in jitFnsCache$1)) {
+        jitFnsCache$1[key] = { ...fnsCache[key] };
+      }
+    }
+    for (const namespace in pureCache) {
+      const nsCache = ensureNamespace(namespace);
+      const sourceNsCache = pureCache[namespace];
+      for (const key in sourceNsCache) {
+        const existing = nsCache[key];
+        const incoming = sourceNsCache[key];
+        if (existing) {
+          if (existing.bodyHash && incoming.bodyHash && existing.bodyHash !== incoming.bodyHash) {
+            console.warn(
+              `Pure function ${namespace}::${key} cache eviction: bodyHash mismatch (cached: ${existing.bodyHash}, server: ${incoming.bodyHash})`
+            );
+            nsCache[key] = { ...incoming };
+          }
+        } else {
+          nsCache[key] = { ...incoming };
+        }
+      }
+    }
+    restoreCompiledJitFns(jitFnsCache$1, pureFnsCache$1, getJitUtils());
+  }
+  function getJitFnCaches() {
+    return {
+      jitFnsCache: jitFnsCache$1,
+      pureFnsCache: pureFnsCache$1
+    };
+  }
+  function ensureNamespace(namespace) {
+    if (!pureFnsCache$1[namespace]) {
+      pureFnsCache$1[namespace] = {};
+    }
+    return pureFnsCache$1[namespace];
+  }
+  function getOrCreateGlobal(key, factory) {
+    const sym = Symbol.for(key);
+    return globalThis[sym] ??= factory();
+  }
+  function randomUUID_V7() {
+    const uuid = crypto.randomUUID();
+    const tHex = Date.now().toString(16).padStart(12, "0");
+    return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
+  }
+  function getENV(key) {
+    if (typeof process !== "undefined" && process.env) {
+      return process.env[key];
+    }
+    return void 0;
+  }
+  function fromBase64Url(encoded) {
+    return atob(encoded.replace(/-/g, "+").replace(/_/g, "/"));
+  }
+  let isTest = void 0;
+  function isMionCompileMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "buildOnly" || val === "middleware";
+  }
+  function isMionAOTEmitMode() {
+    const val = getENV("MION_COMPILE");
+    return val === "buildOnly" || val === "middleware" || val === "childProcess";
+  }
+  function isTestEnv() {
+    if (isTest !== void 0) return isTest;
+    isTest = getENV("VITEST") !== void 0 || getENV("NODE_ENV") === "test";
+    return isTest;
+  }
+  function initPureFunction(compiled) {
+    if (compiled.fn) return;
+    compiled.fn = compiled.createPureFn(getJitUtils());
+  }
+  const __ΩPureFunction = ["args", "", "PureFunction", 'P"@2!"/"w#y'];
+  const __ΩPureFunctionFactory = ["JITUtils", "jitUtils", () => __ΩPureFunction, "", "PureFunctionFactory", 'P"w!2"n#/$w%y'];
+  const __ΩPureFunctionData = ["namespace", "paramNames", "code", "fnName", "bodyHash", "pureFnDependencies", "PureFunctionData", `P&4!9&F4"9&4#9&4$9&4%9&F4&89Mw'y`];
+  const __ΩCompiledPureFunction = [() => __ΩPureFunctionData, () => __ΩPureFunctionFactory, "createPureFn", () => __ΩPureFunction, "fn", "CompiledPureFunction", 'Pn!n"4#n$4%8Mw&y'];
+  const __ΩOmit$1 = ["T", "K", () => __ΩPick$1, () => __ΩExclude$1, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩRecord$6 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩPick$1 = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩExclude$1 = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
+  const SerializerModes = {
+    /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
+    json: 1,
+    /** Use toBinary JIT function for binary serialization */
+    binary: 2,
+    /** Use stringifyJson JIT function that do not mutates objects. */
+    stringifyJson: 3,
+    /** Client-only: sends plain JSON without JIT, fetches metadata in the same response */
+    optimistic: 4
+  };
+  const __ΩSerializerMode = [() => SerializerModes, "SerializerMode", 'i!gw"y'];
+  const __ΩSerializerCode = [() => SerializerModes, () => __ΩSerializerMode, "SerializerCode", 'i!n"fw#y'];
+  const __ΩCoreRouterOptions = ["autoGenerateErrorId", "basePath", "suffix", "CoreRouterOptions", 'P)4!&4"&4#Mw$y'];
+  const __ΩJitFnArgs = ["vλl", "JitFnArgs", 'P&4!&&LMw"y'];
+  const __ΩJitCompiledFnData = ["typeName", "fnID", "jitFnHash", () => __ΩJitFnArgs, "args", () => __ΩJitFnArgs, "defaultParamValues", "isNoop", "code", "jitDependencies", "pureFnDependencies", "paramNames", "JitCompiledFnData", `P&4!9&4"9&4#9n$4%9n&4'9)4(89&4)9&F4*89&F4+89&F4,8Mw-y`];
+  const __ΩJitCompiledFn = [() => __ΩAnyFn, "Fn", () => __ΩJitCompiledFnData, "JITUtils", "utl", "", "createJitFn", "fn", "JitCompiledFn", `n!c"Pn#P"w$2%e#!/&4'9e"!4(9Mw)y`];
+  const __ΩJitFunctionsCache = [() => __ΩRecord$6, () => __ΩJitCompiledFn, "JitFunctionsCache", '&n"o!#w#y'];
+  const __ΩPureFunctionsCache = [() => __ΩRecord$6, () => __ΩRecord$6, () => __ΩCompiledPureFunction, "PureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩFnsDataCache = [() => __ΩRecord$6, () => __ΩJitCompiledFnData, "FnsDataCache", '&n"o!#w#y'];
+  const __ΩPureFnsDataCache = [() => __ΩRecord$6, () => __ΩRecord$6, () => __ΩPureFunctionData, "PureFnsDataCache", '&&n#o"#o!#w$y'];
+  const __ΩSrcCodeJitCompiledFn = [() => __ΩJitCompiledFnData, "JITUtils", "utl", () => __ΩAnyFn, "", "createJitFn", "fn", "SrcCodeJitCompiledFn", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
+  const __ΩSrcCodeCompiledPureFunction = [() => __ΩPureFunctionData, "JITUtils", "utl", () => __ΩAnyFn, "", "createPureFn", "fn", "SrcCodeCompiledPureFunction", `Pn!P"w"2#n$/%4&9-4'9Mw(y`];
+  const __ΩSrcCodeJITCompiledFnsCache = [() => __ΩRecord$6, () => __ΩSrcCodeJitCompiledFn, "SrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩSrcCodePureFunctionsCache = [() => __ΩRecord$6, () => __ΩRecord$6, () => __ΩSrcCodeCompiledPureFunction, "SrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩClientSrcCodeJitCompiledFn = [() => __ΩOmit$1, () => __ΩSrcCodeJitCompiledFn, "code", "args", "defaultParamValues", "fnID", "paramNames", "ClientSrcCodeJitCompiledFn", `n"P.#.$.%.&.'Jo!#w(y`];
+  const __ΩClientSrcCodeCompiledPureFunction = [() => __ΩOmit$1, () => __ΩSrcCodeCompiledPureFunction, "code", "paramNames", "ClientSrcCodeCompiledPureFunction", 'n"P.#.$Jo!#w%y'];
+  const __ΩClientSrcCodeJITCompiledFnsCache = [() => __ΩRecord$6, () => __ΩClientSrcCodeJitCompiledFn, "ClientSrcCodeJITCompiledFnsCache", '&n"o!#w#y'];
+  const __ΩClientSrcCodePureFunctionsCache = [() => __ΩRecord$6, () => __ΩRecord$6, () => __ΩClientSrcCodeCompiledPureFunction, "ClientSrcCodePureFunctionsCache", '&&n#o"#o!#w$y'];
+  const __ΩAnyFn = ["args", "", "AnyFn", 'P"@2!"/"w#y'];
+  const __ΩAnyObject = [() => __ΩRecord$6, "AnyObject", '&#o!#w"y'];
+  const __ΩRecord$5 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩMethodMetadata = ["type", "id", "isAsync", "hasReturnData", "paramNames", "paramsJitHash", "returnJitHash", () => __ΩHeadersMetaData, "headersParam", () => __ΩHeadersMetaData, "headersReturn", "middleFnIds", "pointer", "nestLevel", "MethodMetadata", `P'4!&4")4#)4$&F4%8&4&&4'n(4)8n*4+8&F4,8&F4-'4.Mw/y`];
+  const __ΩRemoteMethodOpts = ["runOnError", "validateParams", "validateReturn", "description", () => __ΩSerializerMode, "serializer", "isMutation", "strictTypes", "RemoteMethodOpts", `P)4!8)4"8)4#8&4$8n%4&8P)-J4'8)4(8Mw)y`];
+  const __ΩMethodWithOptions = [() => __ΩMethodMetadata, () => __ΩRemoteMethodOpts, "options", "MethodWithOptions", 'Pn!n"4#Mw$y'];
+  const __ΩMethodsCache = [() => __ΩRecord$5, () => __ΩMethodWithOptions, "MethodsCache", '&n"o!#w#y'];
+  const __ΩHeadersMetaData = ["headerNames", "jitHash", "HeadersMetaData", 'P&F4!&4"Mw#y'];
+  const __ΩSerializableMethodsData = [() => __ΩMethodsCache, "methods", () => __ΩFnsDataCache, "deps", () => __ΩPureFnsDataCache, "purFnDeps", "SerializableMethodsData", `Pn!4"n#4$n%4&Mw'y`];
+  const STR = 1;
+  const NUM = 2;
+  const POW_2_32 = 2 ** 32;
+  const LE = true;
+  const DEFAULT_OPTIONS = {
+    maxPoolItems: 100,
+    maxStrCacheLength: 64,
+    maxCacheSize: 1e3,
+    bufferSize: 2 ** 24,
+    averageResponseSizeMultiplier: 2,
+    responseAverageSizes: /* @__PURE__ */ new Map(),
+    stringBytesCache: /* @__PURE__ */ new Map()
+  };
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+  let opts = { ...DEFAULT_OPTIONS };
+  function createDataViewSerializer(routeId, workflowRouteIds) {
+    const size = calculateBufferSizeForRequest(routeId, workflowRouteIds);
+    if (size >= POW_2_32) throw new Error("bufferSize option must be strictly less than 2 ** 32");
+    return new DataViewSerializerImpl(routeId, size);
+  }
+  function createDataViewDeserializer(routeId, input) {
+    if (ArrayBuffer.isView(input)) {
+      const buffer = input.buffer;
+      return new DataViewDeserializerImpl(routeId, buffer, input.byteOffset, input.byteLength);
+    }
+    return new DataViewDeserializerImpl(routeId, input);
+  }
+  class DataViewSerializerImpl {
+    buffer;
+    uint8View;
+    // Reusable view
+    routeId;
+    index = 0;
+    // byte offset
+    view;
+    hasEnded = false;
+    constructor(routeId, size) {
+      this.routeId = routeId;
+      this.buffer = new ArrayBuffer(size);
+      this.view = new DataView(this.buffer);
+      this.uint8View = new Uint8Array(this.buffer);
+    }
+    reset() {
+      this.index = 0;
+      this.hasEnded = false;
+    }
+    resize(size) {
+      this.buffer = new ArrayBuffer(size);
+      this.view = new DataView(this.buffer);
+      this.uint8View = new Uint8Array(this.buffer);
+    }
+    getBuffer() {
+      const buff = this.buffer.slice(0, this.index);
+      return buff;
+    }
+    getBufferView() {
+      return new Uint8Array(this.buffer, 0, this.index);
+    }
+    markAsEnded() {
+      this.hasEnded = true;
+      updateResponseSize(this.routeId, this.index);
+    }
+    getLength() {
+      return this.index;
+    }
+    serString(str, skipCache) {
+      if (str.length >= opts.maxStrCacheLength || skipCache) {
+        const targetView2 = this.uint8View.subarray(this.index + 4);
+        const result2 = textEncoder.encodeInto(str, targetView2);
+        this.view.setUint32(this.index, result2.written, LE);
+        this.index += 4 + result2.written;
+        return;
+      }
+      const cached = opts.stringBytesCache.get(str);
+      if (cached) {
+        this.uint8View.set(cached, this.index + 4);
+        this.view.setUint32(this.index, cached.length, LE);
+        this.index += 4 + cached.length;
+        return;
+      }
+      const targetView = this.uint8View.subarray(this.index + 4);
+      const result = textEncoder.encodeInto(str, targetView);
+      const written = result.written;
+      this.view.setUint32(this.index, written, LE);
+      this.index += 4 + written;
+      if (opts.stringBytesCache.size >= opts.maxCacheSize) evictStringBytesCache();
+      opts.stringBytesCache.set(str, this.uint8View.slice(this.index - written, this.index));
+    }
+    serFloat64(n) {
+      this.view.setFloat64(this.index, n, LE);
+      this.index += 8;
+    }
+    serEnum(n) {
+      if (typeof n === "number") {
+        this.view.setUint32(this.index, NUM, LE);
+        this.index += 4;
+        this.view.setUint32(this.index, n, LE);
+        this.index += 4;
+        return;
+      }
+      this.view.setUint32(this.index, STR, LE);
+      this.index += 4;
+      this.serString(n);
+    }
+    setBitMask(bitMaskIndex, bitIndex) {
+      const newBitmask = this.view.getUint8(bitMaskIndex) | 1 << bitIndex;
+      this.view.setUint8(bitMaskIndex, newBitmask);
+    }
+  }
+  class DataViewDeserializerImpl {
+    buffer;
+    uint8View;
+    // Reusable view
+    routeId;
+    index = 0;
+    view;
+    hasEnded = false;
+    constructor(routeId, buffer, byteOffset, byteLength) {
+      this.routeId = routeId;
+      this.buffer = buffer;
+      this.index = 0;
+      this.view = new DataView(buffer, byteOffset, byteLength);
+      this.uint8View = new Uint8Array(buffer, byteOffset, byteLength);
+    }
+    reset() {
+      this.index = 0;
+      this.hasEnded = false;
+    }
+    setBuffer(buffer, byteOffset, byteLength) {
+      this.index = 0;
+      this.buffer = buffer;
+      this.view = new DataView(buffer, byteOffset, byteLength);
+      this.uint8View = new Uint8Array(buffer, byteOffset, byteLength);
+      this.hasEnded = false;
+    }
+    markAsEnded() {
+      this.hasEnded = true;
+    }
+    getLength() {
+      return this.index;
+    }
+    desString() {
+      const len = this.view.getUint32(this.index, LE);
+      this.index += 4;
+      const decoded = textDecoder.decode(this.uint8View.subarray(this.index, this.index + len));
+      this.index += len;
+      return decoded;
+    }
+    /** Deserialize a string that will be used as a property name, with prototype pollution protection */
+    desSafePropName() {
+      const key = this.desString();
+      const len = key.length;
+      if (len === 9) {
+        if (key === "__proto__" || key === "prototype") throw new Error(`Unsafe property name: ${key}`);
+      } else if (len === 11) {
+        if (key === "constructor") throw new Error(`Unsafe property name: ${key}`);
+      }
+      return key;
+    }
+    desFloat64() {
+      const value = this.view.getFloat64(this.index, LE);
+      this.index += 8;
+      return value;
+    }
+    desEnum() {
+      const type = this.view.getUint32(this.index, LE);
+      this.index += 4;
+      if (type === NUM) {
+        const value = this.view.getUint32(this.index, LE);
+        this.index += 4;
+        return value;
+      }
+      return this.desString();
+    }
+  }
+  function calculateBufferSizeForRequest(routeId, workflowRouteIds) {
+    if (!workflowRouteIds || workflowRouteIds.length === 0) {
+      return calculateDefaultBufferSize(routeId);
+    }
+    let totalSize = 0;
+    for (const id of workflowRouteIds) {
+      totalSize += calculateDefaultBufferSize(id);
+    }
+    return totalSize;
+  }
+  function calculateDefaultBufferSize(routeId) {
+    const size = opts.responseAverageSizes.get(routeId);
+    if (!size) return opts.bufferSize;
+    return size * opts.averageResponseSizeMultiplier;
+  }
+  function updateResponseSize(routeId, responseSize) {
+    const currentSize = opts.responseAverageSizes.get(routeId) || opts.bufferSize;
+    const average = (currentSize + responseSize) / 2;
+    opts.responseAverageSizes.set(routeId, Math.floor(average));
+  }
+  function evictStringBytesCache() {
+    const entries = Array.from(opts.stringBytesCache.entries());
+    opts.stringBytesCache.clear();
+    for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
+      opts.stringBytesCache.set(entries[i][0], entries[i][1]);
+    }
+  }
+  function serializeBinaryBody$1(path, executionChain, body, isResponse, workflowRouteIds) {
+    try {
+      const serializer = createDataViewSerializer(path, workflowRouteIds);
+      const itemsLengthIndex = serializer.index;
+      serializer.index += 4;
+      let itemsLength = 0;
+      for (let i = 0; i < executionChain.length; i++) {
+        const method = executionChain[i];
+        const key = method.id;
+        const value = body[key];
+        if (serializeMethod(key, method, value, serializer, isResponse)) {
+          itemsLength++;
+        }
+      }
+      serializer.view.setUint32(itemsLengthIndex, itemsLength, true);
+      serializer.markAsEnded();
+      return { serializer, buffer: serializer.getBuffer() };
+    } catch (err) {
+      if (err instanceof RpcError) throw err;
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "binary-response-Serialization-error",
+        publicMessage: `Failed to serialize body to binary: ${err?.message || "unknown error"}`,
+        originalError: err
+      });
+    }
+  }
+  function serializeMethod(key, method, value, serializer, isResponse) {
+    const toBinary = method.returnJitFns.toBinary;
+    if (!toBinary?.fn || toBinary.isNoop) return false;
+    if (key === MION_ROUTES.thrownErrors) return false;
+    if (!method.hasReturnData || typeof value === "undefined") return false;
+    serializer.serString(key);
+    toBinary.fn(value, serializer);
+    return true;
+  }
+  const methodsCache = getOrCreateGlobal("mion.routerUtils.methodsCache", () => ({}));
+  getOrCreateGlobal(
+    "mion.routerUtils.methodsOptionsCache",
+    () => ({})
+  );
+  const jitFunctionsCache = getOrCreateGlobal("mion.routerUtils.jitFunctionsCache", () => /* @__PURE__ */ new Map());
+  const headerJitFunctionsCache = getOrCreateGlobal(
+    "mion.routerUtils.headerJitFunctionsCache",
+    () => /* @__PURE__ */ new Map()
+  );
+  const routesCache = {
+    /**
+     * Get method metadata from the router cache by id.
+     * @param id - The method id
+     * @returns The method metadata or undefined if not found
+     */
+    getMetadata(id) {
+      return methodsCache[id];
+    },
+    /**
+     * Set method metadata in the router cache
+     * @param id - The method id
+     * @param methodData - The method metadata
+     */
+    setMetadata(id, methodData) {
+      methodsCache[id] = methodData;
+    },
+    /**
+     * Check if the router cache contains a method by id.
+     * @param id - The method id
+     * @returns True if the method exists in the cache
+     */
+    hasMetadata(id) {
+      return id in methodsCache;
+    },
+    /**
+     * Get the raw router cache object.
+     * Use with caution - prefer using get/set/has methods.
+     * @returns The router cache object
+     */
+    getCache() {
+      return methodsCache;
+    },
+    /**
+     * Get method metadata with JIT functions restored from the router cache by id.
+     * This augments the MethodWithOptions with paramsJitFns and returnJitFns.
+     * JIT functions are cached in the entry after first access for performance.
+     * @param id - The method id
+     * @returns The method metadata with JIT functions or undefined if not found
+     */
+    getMethodJitFns(id) {
+      if (id in methodsCache) {
+        const cached = methodsCache[id];
+        if (cached.paramsJitFns && cached.returnJitFns) {
+          return cached;
+        }
+      }
+      const metadata = this.getMetadata(id);
+      if (!metadata) return void 0;
+      const paramsJitFns = getJitFunctionsFromHash(metadata.paramsJitHash);
+      const returnJitFns = getJitFunctionsFromHash(metadata.returnJitHash);
+      const headersParam = metadata.headersParam ? { ...metadata.headersParam, jitFns: getHeaderJitFunctionsFromHash(metadata.headersParam.jitHash) } : void 0;
+      const headersReturn = metadata.headersReturn ? { ...metadata.headersReturn, jitFns: getHeaderJitFunctionsFromHash(metadata.headersReturn.jitHash) } : void 0;
+      const result = {
+        ...metadata,
+        paramsJitFns,
+        returnJitFns,
+        headersParam,
+        headersReturn
+      };
+      methodsCache[id] = result;
+      return result;
+    },
+    /**
+     * Get method metadata with JIT functions restored from the router cache by id.
+     * @param id
+     * @returns
+     */
+    useMethodJitFns(id) {
+      const MethodWithOptsAndJitFns = this.getMethodJitFns(id);
+      if (!MethodWithOptsAndJitFns) throw new Error(`Metadata for remote method ${id} not found`);
+      return MethodWithOptsAndJitFns;
+    },
+    /**
+     * Set method metadata with JIT functions in the router cache.
+     * This stores the complete MethodWithOptsAndJitFns object directly.
+     * @param id - The method id
+     * @param MethodWithOptsAndJitFns - The method metadata with JIT functions
+     */
+    setMethodJitFns(id, MethodWithOptsAndJitFns) {
+      methodsCache[id] = MethodWithOptsAndJitFns;
+    }
+  };
+  function addRoutesToCache(newCache) {
+    for (const key in newCache) {
+      if (!(key in methodsCache)) {
+        methodsCache[key] = { ...newCache[key] };
+      }
+    }
+  }
+  function getJitFnHashes(jitHash, needsBinary = false) {
+    return {
+      isType: `${JIT_FUNCTION_IDS.isType}_${jitHash}`,
+      typeErrors: `${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`,
+      prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
+      restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
+      stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
+      ...needsBinary ? {
+        toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
+        fromBinary: `${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`
+      } : {}
+    };
+  }
+  function getJitFunctionsFromHash(jitHash) {
+    if (jitHash === EMPTY_HASH) return noopJitFns;
+    const cached = jitFunctionsCache.get(jitHash);
+    if (cached) return cached;
+    const jUtils = getJitUtils();
+    const jitFns = {
+      isType: jUtils.getJIT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
+      typeErrors: jUtils.getJIT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
+      prepareForJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
+      restoreFromJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
+      stringifyJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`)
+    };
+    const toBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
+    const fromBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
+    if (toBinaryJit) jitFns.toBinary = toBinaryJit;
+    if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit;
+    for (const key of ["isType", "typeErrors", "prepareForJson", "restoreFromJson", "stringifyJson"]) {
+      if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
+    }
+    jitFunctionsCache.set(jitHash, jitFns);
+    return jitFns;
+  }
+  function getHeaderJitFunctionsFromHash(jitHash) {
+    const cached = headerJitFunctionsCache.get(jitHash);
+    if (cached) return cached;
+    const hashes = getJitFnHashes(jitHash);
+    const jUtils = getJitUtils();
+    const jitFns = {
+      isType: jUtils.getJIT(hashes.isType),
+      typeErrors: jUtils.getJIT(hashes.typeErrors)
+    };
+    headerJitFunctionsCache.set(jitHash, jitFns);
+    return jitFns;
+  }
+  function getRouterItemId(itemPointer) {
+    return itemPointer.join(ROUTER_ITEM_SEPARATOR_CHAR);
+  }
+  function getRoutePath(pathPointer, routerOptions2) {
+    const pathId = getRouterItemId(pathPointer);
+    const basePath = routerOptions2.basePath.startsWith(ROUTE_PATH_ROOT) ? routerOptions2.basePath : `${ROUTE_PATH_ROOT}${routerOptions2.basePath}`;
+    const routePath = basePath.endsWith(PATH_SEPARATOR) ? `${basePath}${pathId}` : `${basePath}${PATH_SEPARATOR}${pathId}`;
+    return routerOptions2.suffix ? routePath + routerOptions2.suffix : routePath;
+  }
+  function resetRoutesCache() {
+    for (const k in methodsCache) delete methodsCache[k];
+  }
+  const noopJitFns = {
+    isType: fakeJitFn(JIT_FUNCTION_IDS.isType),
+    typeErrors: fakeJitFn(JIT_FUNCTION_IDS.typeErrors),
+    prepareForJson: fakeJitFn(JIT_FUNCTION_IDS.prepareForJson),
+    restoreFromJson: fakeJitFn(JIT_FUNCTION_IDS.restoreFromJson),
+    stringifyJson: fakeJitFn(JIT_FUNCTION_IDS.stringifyJson)
+  };
+  function fakeJitFn(fnID) {
+    return {
+      typeName: "mionNoopJit",
+      fnID,
+      jitFnHash: EMPTY_HASH,
+      args: { vλl: "v" },
+      defaultParamValues: { vλl: "v" },
+      isNoop: true,
+      code: "",
+      createJitFn: () => {
+        throw new Error("isNoop JIT functions should not be called, this is a function when jit is never used");
+      },
+      fn: () => {
+        throw new Error("isNoop JIT functions should not be called, this is a function when jit is never used");
+      }
+    };
+  }
+  function getNoopJitFns() {
+    return noopJitFns;
+  }
+  function deserializeBinaryBody(path, buffer, isResponse) {
+    try {
+      const deserializer = createDataViewDeserializer(path, buffer);
+      const body = {};
+      const itemsLength = deserializer.view.getUint32(0, true);
+      deserializer.index += 4;
+      for (let i = 0; i < itemsLength; i++) {
+        const key = deserializer.desString();
+        const method = routesCache.getMethodJitFns(key);
+        if (!method) {
+          throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: isResponse ? "binary-response-method-Deserialization-error" : "binary-request-method-Deserialization-error",
+            publicMessage: `Unknown method key in binary body: ${key}`,
+            errorData: { methodId: key }
+          });
+        }
+        const value = deserializeMethod(key, method, deserializer, isResponse);
+        body[key] = value;
+      }
+      deserializer.markAsEnded();
+      return { deserializer, body };
+    } catch (err) {
+      if (err instanceof RpcError) throw err;
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "binary-request-Deserialization-error",
+        publicMessage: `Failed to deserialize body from binary: ${err?.message || "unknown error"}`,
+        originalError: err
+      });
+    }
+  }
+  function deserializeMethod(key, method, deserializer, isResponse) {
+    const jitFns = method.paramsJitFns;
+    if (!jitFns.fromBinary?.fn)
+      throw new RpcError({
+        type: "missing-fromBinary-jit-fn",
+        publicMessage: `Missing fromBinary JIT function for method ${key}`
+      });
+    try {
+      return jitFns.fromBinary.fn(void 0, deserializer);
+    } catch (e) {
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "binary-request-method-Deserialization-error",
+        publicMessage: `Failed to deserialize method ${key} from binary`,
+        originalError: e,
+        errorData: { methodId: key }
+      });
+    }
+  }
+  class HeadersSubset {
+    headers;
+    constructor(headers) {
+      this.headers = headers;
+    }
+    static __type = ["Required", "Optional", "headers", "constructor", "HeadersSubset", `l+&R&R&R&Rb!!c"PPde#!N#!Pde#"N%"K3#9PPPde$!N'!Pde$"N)"K2#"0$5w%`];
+  }
+  const PURE_SERVER_FN_NAMESPACE = "pureServerFn";
+  getOrCreateGlobal("mion.quickHash.hashes", () => /* @__PURE__ */ new Map());
+  getOrCreateGlobal("mion.quickHash.literalHashes", () => /* @__PURE__ */ new Map());
+  const __mionLoadCounter = getOrCreateGlobal("mion.core.loadCounter", () => ({ count: 0 }));
+  __mionLoadCounter.count += 1;
+  if (__mionLoadCounter.count > 1 && typeof process !== "undefined" && !process.env?.MION_SUPPRESS_DUAL_LOAD_WARN) {
+    console.warn(`[mion] @mionjs/core has been loaded ${__mionLoadCounter.count} times in this process. This indicates @mionjs/* is not properly bundled — most often a missing/incorrect ssr.noExternal config. mion requires ssr.noExternal: [/@mionjs\\//] to guarantee single-instance state. Set MION_SUPPRESS_DUAL_LOAD_WARN=1 to silence.`);
+  }
+  const __ΩRouterEntry = [() => __ΩRoutes, () => __ΩMiddleFnDef, () => __ΩRouteDef, () => __ΩRawMiddleFnDef, () => __ΩHeadersMiddleFnDef, "RouterEntry", 'Pn!n"n#n$n%Jw&y'];
+  const __ΩRoutes = [() => __ΩRouterEntry, "Routes", 'P&n!LMw"y'];
+  const __ΩRouterOptions = ["Req", "ContextData", () => __ΩCoreRouterOptions, "basePath", "suffix", "request", "path", "", "pathTransform", () => __ΩContextDataFactory, "contextDataFactory", () => __ΩSerializerMode, "serializer", "RunTypeOptions", "runTypeOptions", "strictTypes", "getPublicRoutesData", "autoGenerateErrorId", "skipClientRoutes", "aot", "maxContextPoolSize", "maxRoutesFlowsCacheSize", "RouterOptions", `"c!"c"Pn#&4$&4%Pe#!2&&2'&/(4)8e""o*"4+8n,4-"w.4/)408)41)42)43)44'45'46Mw7y`];
+  function isMiddleFnDef(entry) {
+    return entry.type === HandlerType$1.middleFn;
+  }
+  isMiddleFnDef.__type = [() => __ΩRouterEntry, "entry", "isMiddleFnDef", 'Pn!2"!/#'];
+  function isRawMiddleFnDef(entry) {
+    return entry.type === HandlerType$1.rawMiddleFn;
+  }
+  isRawMiddleFnDef.__type = [() => __ΩRouterEntry, "entry", "isRawMiddleFnDef", 'Pn!2"!/#'];
+  function isHeadersMiddleFnDef(entry) {
+    return entry.type === HandlerType$1.headersMiddleFn;
+  }
+  isHeadersMiddleFnDef.__type = [() => __ΩRouterEntry, "entry", "isHeadersMiddleFnDef", 'Pn!2"!/#'];
+  function isAnyMiddleFnDef(entry) {
+    return isMiddleFnDef(entry) || isRawMiddleFnDef(entry) || isHeadersMiddleFnDef(entry);
+  }
+  isAnyMiddleFnDef.__type = [() => __ΩRouterEntry, "entry", "isAnyMiddleFnDef", 'Pn!2"!/#'];
+  function isRoute(entry) {
+    return entry.type === HandlerType$1.route;
+  }
+  isRoute.__type = [() => __ΩRouterEntry, "entry", "isRoute", 'Pn!2"!/#'];
+  function isRoutes(entry) {
+    return typeof entry === "object";
+  }
+  isRoutes.__type = [() => __ΩRouterEntry, () => __ΩRoutes, "entry", "isRoutes", 'PPn!n"J2#!/$'];
+  function isExecutable(entry) {
+    return typeof entry?.id === "string" && (entry.routes === "undefined" || typeof entry.handler === "function");
+  }
+  isExecutable.__type = [() => __ΩRemoteMethod, "pathPointer", "entry", "isExecutable", 'PPn!P&F4"MJ2#!/$'];
+  function isPublicExecutable(entry) {
+    return entry.hasReturnData || entry.type === HandlerType$1.route || !!entry.paramNames?.length || !!entry.headersParam?.headerNames?.length;
+  }
+  isPublicExecutable.__type = [() => __ΩRemoteMethod, "entry", "isPublicExecutable", 'Pn!2"!/#'];
+  const __ΩMayReturnError = ["RpcError", "MayReturnError", 'P$"w!P"w!$J`Jw"y'];
+  const __ΩHandler = ["Context", "Params", "Ret", "context", "parameters", "", "Handler", '"c!"Fc""c#Pe"!2$e""@2%Pe##e##`J/&w\'y'];
+  const __ΩAnyHandler = ["Context", "Params", "Ret", () => __ΩHandler, "AnyHandler", '"c!"c""c#e!!e!"e!#o$$w%y'];
+  const IS_TEST_ENV = getENV("JEST_WORKER_ID") !== void 0 || getENV("NODE_ENV") === "test";
+  const ROUTE_DEFAULT_PARAMS = ["context"];
+  const HEADER_HOOK_DEFAULT_PARAMS = ["context", "headers"];
+  const DEFAULT_ROUTE_OPTIONS = {
+    /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
+    basePath: "",
+    /** Suffix for all routes, i.e: .json. No path separator is added between the route and the suffix */
+    suffix: "",
+    /** Function that transforms the path before finding a route */
+    pathTransform: void 0,
+    /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
+    serializer: "json",
+    /** Default run type compiling options for routes and middleFns, can't be configured by the user as would break functionality  */
+    runTypeOptions: {},
+    /** set to true to generate router spec for clients.  */
+    getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === "true",
+    /** Set true to automatically generate and id for every error.  */
+    autoGenerateErrorId: false,
+    /** client routes are initialized by default */
+    skipClientRoutes: IS_TEST_ENV,
+    /** AOT mode is disabled by default */
+    aot: false,
+    /** Context pooling size == 100 by default */
+    maxContextPoolSize: 100,
+    /** RoutesFlow cache size == 100 by default */
+    maxRoutesFlowsCacheSize: 100
+  };
+  const MAX_ROUTE_NESTING = 10;
+  const WORKFLOW_KEY = `mion-routes-flow`;
+  const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
+  const __ΩReadonly$1 = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  let persistedMethods = {};
+  function addToPersistedMethods(id, method) {
+    if (!shouldCompile() || !!persistedMethods[id])
+      return;
+    persistedMethods[id] = method;
+  }
+  addToPersistedMethods.__type = ["id", () => __ΩRemoteMethod, "method", "addToPersistedMethods", 'P&2!n"2#"/$'];
+  function getPersistedMethod(id, handler) {
+    const method = persistedMethods?.[id];
+    if (!method)
+      return;
+    return restorePersistedMethod(method, handler);
+  }
+  getPersistedMethod.__type = ["id", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "getPersistedMethod", 'P&2!n"2#Pn$-J/%'];
+  function getPersistedMethodMetadata(id) {
+    const method = persistedMethods[id];
+    return method;
+  }
+  getPersistedMethodMetadata.__type = ["id", () => __ΩMethodMetadata, "getPersistedMethodMetadata", 'P&2!Pn"-J/#'];
+  function getPersistedMethods() {
+    return persistedMethods;
+  }
+  getPersistedMethods.__type = [() => __ΩReadonly$1, () => __ΩMethodsCache, "getPersistedMethods", 'Pn"o!"/#'];
+  function resetPersistedMethods() {
+    persistedMethods = {};
+  }
+  resetPersistedMethods.__type = ["resetPersistedMethods", 'P"/!'];
+  function restorePersistedMethod(method, handler) {
+    const restored = method;
+    if (restored.paramsJitFns && restored.returnJitFns && restored.paramNames && !!restored.handler)
+      return method;
+    restored.handler = handler;
+    restored.paramsJitFns = getJitFunctionsFromHash(method.paramsJitHash);
+    restored.returnJitFns = getJitFunctionsFromHash(method.returnJitHash);
+    if (IS_TEST_ENV)
+      restored.isRestored = true;
+    return restored;
+  }
+  restorePersistedMethod.__type = [() => __ΩMethodMetadata, "method", () => __ΩAnyHandler, "handler", () => __ΩRemoteMethod, "restorePersistedMethod", 'Pn!2"n#2$n%/&'];
+  function shouldCompile() {
+    return isMionAOTEmitMode();
+  }
+  shouldCompile.__type = ["shouldCompile", 'P"/!'];
+  function loadCompiledMethods(compiledMethods) {
+    for (const [key, value] of Object.entries(compiledMethods)) {
+      if (!(key in persistedMethods)) {
+        persistedMethods[key] = value;
+      }
+    }
+  }
+  loadCompiledMethods.__type = [() => __ΩMethodsCache, "compiledMethods", "loadCompiledMethods", 'Pn!2""/#'];
+  const __ΩOmit = ["T", "K", () => __ΩPick, () => __ΩExclude, "Omit", 'b!b"e!!e!!ge!"o$#o##w%y'];
+  const __ΩPick = ["T", "K", "Pick", 'l+e#!e"!fRb!b"Pde""N#!w#y'];
+  const __ΩExclude = ["T", "U", "Exclude", 'l6!Re$!RPe#!e$"qk#%QRb!b"Pde"!p)w#y'];
+  function __assignType$8(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const __ΩMethodReflect = [() => __ΩOmit, "MethodWithJitFns", "id", "type", "nestLevel", "pointer", "options", "MethodReflect", `"w"P.#.$.%.&.'Jo!#w(y`];
+  class AOTCacheError extends Error {
+    constructor(routeId, type = "route") {
+      const typeLabel = type === "rawMiddleFn" ? "Raw middleFn" : type === "middleFn" ? "MiddleFn" : "Route/middleFn";
+      super(`${typeLabel} "${routeId}" not found in AOT cache.
+Regenerate AOT caches using 'mion-build-aot' command.`);
+      this.name = "AOTCacheError";
+    }
+    static __type = [() => Error, "routeId", "route", "middleFn", "rawMiddleFn", "type", () => "route", "constructor", "AOTCacheError", `P7!P&2"P.#.$.%J2&>'"0(5w)`];
+  }
+  const __ΩRunTypesModule = ["RunTypesModule", "!w!y"];
+  const __ΩRunTypesFunctions = [() => __ΩRunTypesModule, "JitFunctions", "JitFunctions", () => __ΩRunTypesModule, "reflectFunction", "reflectFunction", () => __ΩRunTypesModule, "isUnionRunType", "isUnionRunType", () => __ΩRunTypesModule, "isClassRunType", "isClassRunType", () => __ΩRunTypesModule, "isLiteralRunType", "isLiteralRunType", () => __ΩRunTypesModule, "isNeverRunType", "isNeverRunType", "RunTypesFunctions", `Pn!."f4#n$.%f4&n'.(f4)n*.+f4,n-..f4/n0.1f42Mw3y`];
+  let runTypesModule = null;
+  let runTypesLoadPromise = null;
+  async function loadRunTypesModule() {
+    if (runTypesModule)
+      return runTypesModule;
+    if (runTypesLoadPromise)
+      return runTypesLoadPromise;
+    runTypesLoadPromise = Promise.resolve().then(() => runTypes$1).then(__assignType$8((module) => {
+      runTypesModule = {
+        JitFunctions: module.JitFunctions,
+        reflectFunction: module.reflectFunction,
+        isUnionRunType: module.isUnionRunType,
+        isClassRunType: module.isClassRunType,
+        isLiteralRunType: module.isLiteralRunType,
+        isNeverRunType: module.isNeverRunType
+      };
+      return runTypesModule;
+    }, ["module", "", 'P"2!"/"']));
+    return runTypesLoadPromise;
+  }
+  loadRunTypesModule.__type = [() => __ΩRunTypesFunctions, "loadRunTypesModule", 'Pn!`/"'];
+  const rawMiddleFnReflectionCache = getOrCreateGlobal("mion.reflection.rawMiddleFnReflectionCache", () => (Map.Ω = [["&"], [() => __ΩMethodReflect, "n!"]], /* @__PURE__ */ new Map()));
+  function createRawMiddleFnReflection(isAsync, hasReturnData = false, paramNames = []) {
+    const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(",")}`;
+    const cached = rawMiddleFnReflectionCache.get(cacheKey);
+    if (cached)
+      return cached;
+    const reflection = {
+      paramNames,
+      paramsJitFns: getNoopJitFns(),
+      returnJitFns: getNoopJitFns(),
+      paramsJitHash: EMPTY_HASH,
+      returnJitHash: EMPTY_HASH,
+      hasReturnData,
+      isAsync
+    };
+    rawMiddleFnReflectionCache.set(cacheKey, reflection);
+    return reflection;
+  }
+  createRawMiddleFnReflection.__type = ["isAsync", "hasReturnData", () => false, "paramNames", () => [], () => __ΩMethodReflect, "createRawMiddleFnReflection", `P)2!)2">#&F2$>%n&/'`];
+  const __ΩCachedMethodMetadata = ["MethodMetadata", () => __ΩMethodReflect, "_cachedReflection", "CachedMethodMetadata", 'P"w!Pn"4#8MKw$y'];
+  function extractReflectionFromCached(cached) {
+    if (cached._cachedReflection)
+      return cached._cachedReflection;
+    const reflectionItems = {
+      paramNames: cached.paramNames || [],
+      paramsJitFns: getJitFunctionsFromHash(cached.paramsJitHash),
+      returnJitFns: getJitFunctionsFromHash(cached.returnJitHash),
+      paramsJitHash: cached.paramsJitHash,
+      returnJitHash: cached.returnJitHash,
+      hasReturnData: cached.hasReturnData,
+      isAsync: cached.isAsync
+    };
+    if (cached.headersParam) {
+      reflectionItems.headersParam = {
+        headerNames: cached.headersParam.headerNames,
+        jitFns: getJitFunctionsFromHash(cached.headersParam.jitHash),
+        jitHash: cached.headersParam.jitHash
+      };
+    }
+    if (cached.headersReturn) {
+      reflectionItems.headersReturn = {
+        headerNames: cached.headersReturn.headerNames,
+        jitFns: getJitFunctionsFromHash(cached.headersReturn.jitHash),
+        jitHash: cached.headersReturn.jitHash
+      };
+    }
+    cached._cachedReflection = reflectionItems;
+    return reflectionItems;
+  }
+  extractReflectionFromCached.__type = [() => __ΩCachedMethodMetadata, "cached", () => __ΩMethodReflect, "extractReflectionFromCached", 'Pn!2"n#/$'];
+  async function getHandlerReflection(handler, routeId, routerOptions2, handlerOptions = {}, isHeadersMiddleFn = false, methodStrictTypes) {
+    const cached = getPersistedMethodMetadata(routeId);
+    if (cached)
+      return extractReflectionFromCached(cached);
+    if (routerOptions2.aot)
+      throw new AOTCacheError(routeId, isHeadersMiddleFn ? "middleFn" : "route");
+    const rt = await loadRunTypesModule();
+    return generateHandlerReflection(handler, routeId, routerOptions2, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+  }
+  getHandlerReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩRouteOptions, () => __ΩMiddleFnOptions, () => __ΩHeadersMiddleFnOptions, "handlerOptions", () => ({}), "isHeadersMiddleFn", () => false, "methodStrictTypes", () => __ΩMethodReflect, "getHandlerReflection", "Pn!2\"&2#n$2%Pn&n'n(J2)>*)2+>,)2-8n.`//"];
+  async function getRawMethodReflection(handler, routeId, routerOptions2) {
+    const cached = getPersistedMethodMetadata(routeId);
+    if (cached)
+      return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
+    if (routerOptions2.aot)
+      return createRawMiddleFnReflection(true);
+    const rt = await loadRunTypesModule();
+    return generateRawMethodReflection(handler, routeId, rt);
+  }
+  getRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩMethodReflect, "getRawMethodReflection", "Pn!2\"&2#n$2%n&`/'"];
+  function generateHandlerReflection(handler, routeId, routerOptions2, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes) {
+    const reflectionItems = {};
+    let handlerRunType;
+    const needsBinary = (handlerOptions?.serializer ?? routerOptions2.serializer) === "binary";
+    const effectiveStrictTypes = methodStrictTypes ?? routerOptions2.strictTypes;
+    const runTypeOptions = {
+      ...routerOptions2?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions,
+      ...effectiveStrictTypes !== void 0 ? { strictTypes: effectiveStrictTypes } : {}
+    };
+    try {
+      handlerRunType = rt.reflectFunction(handler);
+    } catch (error) {
+      throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
+    }
+    const paramsSlice = isHeadersMiddleFn ? { start: HEADER_HOOK_DEFAULT_PARAMS.length } : { start: ROUTE_DEFAULT_PARAMS.length };
+    const paramsOpts = { ...runTypeOptions, paramsSlice };
+    try {
+      reflectionItems.paramNames = handlerRunType.getParameterNames(paramsOpts);
+      if (reflectionItems.paramNames.length === 0) {
+        reflectionItems.paramsJitHash = EMPTY_HASH;
+        reflectionItems.paramsJitFns = getNoopJitFns();
+      } else {
+        reflectionItems.paramsJitFns = getFunctionJitFns(handler, paramsOpts, rt, false, needsBinary);
+        reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
+      }
+    } catch (error) {
+      throw new Error(`Can not compile Jit Functions for Parameters of route/middleFn "${routeId}." Error: ${error?.message}`);
+    }
+    if (isHeadersMiddleFn) {
+      const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions2, rt);
+      const headerNames = getHeaderNames(headersRunType, routeId, rt);
+      try {
+        const opts2 = {
+          ...runTypeOptions,
+          paramsSlice: void 0
+        };
+        const jitFns = getTypeJitFunctions(headersRunType, opts2, rt, false);
+        const jitHash = headersRunType.getJitHash(opts2);
+        reflectionItems.headersParam = { headerNames, jitFns, jitHash };
+      } catch (error) {
+        throw new Error(`Can not compile Jit Functions for Headers of Headers MiddleFn "${routeId}." Error: ${error?.message}`);
+      }
+    }
+    const returnHeadersRunType = getReturnHeadersRunType(handlerRunType, rt);
+    if (returnHeadersRunType) {
+      const opts2 = {};
+      const headerNames = getHeaderNames(returnHeadersRunType, routeId, rt);
+      const jitFns = getFunctionJitFns(handler, opts2, rt, true, false);
+      const jitHash = returnHeadersRunType.getJitHash(opts2);
+      reflectionItems.headersReturn = { headerNames, jitFns, jitHash };
+    }
+    const returnOpts = runTypeOptions;
+    reflectionItems.hasReturnData = handlerRunType.hasReturnData();
+    try {
+      if (!reflectionItems.hasReturnData) {
+        reflectionItems.returnJitFns = getNoopJitFns();
+        reflectionItems.returnJitHash = EMPTY_HASH;
+      } else {
+        reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true, needsBinary);
+        reflectionItems.returnJitHash = handlerRunType.getResolvedReturnType().getJitHash(returnOpts);
+      }
+    } catch (error) {
+      throw new Error(`Can not get Jit Functions for Return of route/middleFn "${routeId}." Error: ${error?.message}`);
+    }
+    reflectionItems.isAsync = handlerRunType.isAsync();
+    return reflectionItems;
+  }
+  generateHandlerReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩRouteOptions, () => __ΩMiddleFnOptions, () => __ΩHeadersMiddleFnOptions, "handlerOptions", "isHeadersMiddleFn", () => __ΩRunTypesFunctions, "rt", "methodStrictTypes", () => __ΩMethodReflect, "generateHandlerReflection", `Pn!2"&2#n$2%Pn&n'n(J2))2*n+2,)2-8n.//`];
+  function generateRawMethodReflection(handler, routeId, rt) {
+    let handlerRunType;
+    try {
+      handlerRunType = rt.reflectFunction(handler);
+    } catch (error) {
+      throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
+    }
+    const isAsync = handlerRunType?.isAsync() || true;
+    return createRawMiddleFnReflection(isAsync);
+  }
+  generateRawMethodReflection.__type = [() => __ΩHandler, "handler", "routeId", () => __ΩRunTypesFunctions, "rt", () => __ΩMethodReflect, "generateRawMethodReflection", `Pn!2"&2#n$2%n&/'`];
+  function getParamsHeadersRunType(handlerRunType, routeId, routerOptions2, rt) {
+    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions2));
+    const headersSubset = paramRunTypes[1]?.getMemberType?.();
+    if (!isHeaderSubSetRunType(headersSubset, rt)) {
+      throw new Error(`Headers MiddleFn '${routeId}' second parameter must be a HeadersSubset.`);
+    }
+    return headersSubset;
+  }
+  getParamsHeadersRunType.__type = ["FunctionRunType", "handlerRunType", "routeId", () => __ΩRouterOptions, "routerOptions", () => __ΩRunTypesFunctions, "rt", "BaseRunType", "getParamsHeadersRunType", `P"w!2"&2#n$2%n&2'"w(/)`];
+  function getReturnHeadersRunType(handlerRunType, rt) {
+    const returnRunType = handlerRunType.getReturnType();
+    if (rt.isUnionRunType(returnRunType)) {
+      const headersSubset = returnRunType.getChildRunTypes().find(__assignType$8((child) => isHeaderSubSetRunType(child, rt), ["child", "", 'P"2!"/"']));
+      if (!headersSubset)
+        return void 0;
+      return headersSubset;
+    }
+    if (!isHeaderSubSetRunType(returnRunType, rt))
+      return void 0;
+    return returnRunType;
+  }
+  getReturnHeadersRunType.__type = ["FunctionRunType", "handlerRunType", () => __ΩRunTypesFunctions, "rt", "BaseRunType", "getReturnHeadersRunType", 'P"w!2"n#2$P"w%-J/&'];
+  function isHeaderSubSetRunType(runType, rt) {
+    if (!runType)
+      return false;
+    return rt.isClassRunType(runType, HeadersSubset);
+  }
+  isHeaderSubSetRunType.__type = ["BaseRunType", "runType", () => __ΩRunTypesFunctions, "rt", "isHeaderSubSetRunType", 'PP"w!-J2"n#2$!/%'];
+  function getHeaderNames(runType, routeId, rt) {
+    const typeArguments = runType.src.typeArguments;
+    if (!typeArguments || typeArguments.length === 0) {
+      throw new Error(`HeadersSubset must have type arguments in route/middleFn ${routeId}`);
+    }
+    const headerNames = [];
+    const requiredArg = typeArguments[0];
+    if (requiredArg) {
+      const requiredNames = extractLiteralStringsFromType(requiredArg._rt, rt);
+      headerNames.push(...requiredNames);
+    }
+    if (typeArguments.length > 1) {
+      const optionalArg = typeArguments[1];
+      if (optionalArg) {
+        const optionalNames = extractLiteralStringsFromType(optionalArg._rt, rt);
+        headerNames.push(...optionalNames);
+      }
+    }
+    if (headerNames.length === 0)
+      throw new Error(`Header names array cannot be empty in route/middleFn ${routeId}`);
+    return headerNames;
+  }
+  getHeaderNames.__type = ["BaseRunType", "runType", "routeId", () => __ΩRunTypesFunctions, "rt", "getHeaderNames", 'P"w!2"&2#n$2%&F/&'];
+  function extractLiteralStringsFromTypeRecursive(runType, rt) {
+    if (rt.isLiteralRunType(runType)) {
+      const literal = runType.getLiteralValue();
+      if (typeof literal === "string") {
+        return [literal];
+      }
+      return [];
+    }
+    if (rt.isUnionRunType(runType)) {
+      const children = runType.getChildRunTypes();
+      const literals = [];
+      for (const child of children) {
+        const childLiterals = extractLiteralStringsFromTypeRecursive(child, rt);
+        literals.push(...childLiterals);
+      }
+      return literals;
+    }
+    return [];
+  }
+  extractLiteralStringsFromTypeRecursive.__type = ["BaseRunType", "runType", () => __ΩRunTypesFunctions, "rt", "extractLiteralStringsFromTypeRecursive", 'P"w!2"n#2$&F/%'];
+  function extractLiteralStringsFromType(runType, rt) {
+    if (rt.isNeverRunType(runType))
+      return [];
+    return extractLiteralStringsFromTypeRecursive(runType, rt);
+  }
+  extractLiteralStringsFromType.__type = ["BaseRunType", "runType", () => __ΩRunTypesFunctions, "rt", "extractLiteralStringsFromType", 'P"w!2"n#2$&F/%'];
+  function getFakeCompiler(routerOptions2) {
+    return { opts: routerOptions2 };
+  }
+  getFakeCompiler.__type = [() => __ΩRouterOptions, "routerOptions", "JitFnCompiler", "getFakeCompiler", 'Pn!2""w#/$'];
+  function getTypeJitFunctions(runType, opts2, rtModule, needsBinary = false) {
+    const jitFns = {
+      isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, void 0, opts2),
+      typeErrors: runType.createJitCompiledFunction(rtModule.JitFunctions.typeErrors.id, void 0, opts2),
+      prepareForJson: runType.createJitCompiledFunction(rtModule.JitFunctions.prepareForJson.id, void 0, opts2),
+      restoreFromJson: runType.createJitCompiledFunction(rtModule.JitFunctions.restoreFromJson.id, void 0, opts2),
+      stringifyJson: runType.createJitCompiledFunction(rtModule.JitFunctions.stringifyJson.id, void 0, opts2),
+      ...needsBinary ? {
+        toBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.toBinary.id, void 0, opts2),
+        fromBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.fromBinary.id, void 0, opts2)
+      } : {}
+    };
+    return jitFns;
+  }
+  getTypeJitFunctions.__type = ["BaseRunType", "runType", "RunTypeOptions", "opts", () => __ΩRunTypesFunctions, "rtModule", "needsBinary", () => false, "JitCompiledFunctions", "getTypeJitFunctions", `P"w!2"P"w#-J2$n%2&)2'>("w)/*`];
+  const functionRunTypeCache = (WeakMap.Ω = [["AnyFn", '"w!'], ["FunctionRunType", '"w!']], /* @__PURE__ */ new WeakMap());
+  function getFunctionJitFns(fn, opts2, rtModule, isReturn, needsBinary = false) {
+    let runType = functionRunTypeCache.get(fn);
+    if (!runType) {
+      runType = rtModule.reflectFunction(fn);
+      functionRunTypeCache.set(fn, runType);
+    }
+    const createFn = isReturn ? runType.createJitCompiledReturnFunction.bind(runType) : runType.createJitCompiledParamsFunction.bind(runType);
+    const jitFunctions = {
+      isType: createFn(rtModule.JitFunctions.isType, opts2),
+      typeErrors: createFn(rtModule.JitFunctions.typeErrors, opts2),
+      prepareForJson: createFn(rtModule.JitFunctions.prepareForJson, opts2),
+      restoreFromJson: createFn(rtModule.JitFunctions.restoreFromJson, opts2),
+      stringifyJson: createFn(rtModule.JitFunctions.stringifyJson, opts2),
+      ...needsBinary ? {
+        toBinary: createFn(rtModule.JitFunctions.toBinary, opts2),
+        fromBinary: createFn(rtModule.JitFunctions.fromBinary, opts2)
+      } : {}
+    };
+    return jitFunctions;
+  }
+  getFunctionJitFns.__type = ["fn", "RunTypeOptions", "opts", () => __ΩRunTypesFunctions, "rtModule", "isReturn", "needsBinary", () => false, "JitCompiledFunctions", "getFunctionJitFns", `P"2!P"w"-J2#n$2%)2&)2'>("w)/*`];
+  async function ensureBinaryJitFns(method) {
+    if (method.paramsJitFns.toBinary && method.returnJitFns.toBinary)
+      return;
+    const rt = await loadRunTypesModule();
+    const isHeader = method.type === HandlerType$1.headersMiddleFn;
+    const paramsSlice = isHeader ? { start: HEADER_HOOK_DEFAULT_PARAMS.length } : { start: ROUTE_DEFAULT_PARAMS.length };
+    const opts2 = { paramsSlice };
+    if (!method.paramsJitFns.toBinary && method.paramsJitHash !== EMPTY_HASH) {
+      const runType = rt.reflectFunction(method.handler);
+      const createFn = runType.createJitCompiledParamsFunction.bind(runType);
+      method.paramsJitFns.toBinary = createFn(rt.JitFunctions.toBinary, opts2);
+      method.paramsJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary, opts2);
+    }
+    if (!method.returnJitFns.toBinary && method.returnJitHash !== EMPTY_HASH && method.hasReturnData) {
+      const runType = rt.reflectFunction(method.handler);
+      const createFn = runType.createJitCompiledReturnFunction.bind(runType);
+      method.returnJitFns.toBinary = createFn(rt.JitFunctions.toBinary);
+      method.returnJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary);
+    }
+  }
+  ensureBinaryJitFns.__type = [() => __ΩMiddleFnMethod, () => __ΩHeadersMethod, "method", "ensureBinaryJitFns", 'PPn!n"J2#$`/$'];
+  function route(handler, opts2) {
+    return {
+      type: HandlerType$1.route,
+      handler,
+      options: opts2
+    };
+  }
+  route.__type = ["handler", () => __ΩRouteOptions, "opts", () => __ΩRouteDef, "route", 'P"2!n"2#8"o$"/%'];
+  function middleFn(handler, opts2) {
+    return {
+      type: HandlerType$1.middleFn,
+      handler,
+      options: opts2
+    };
+  }
+  middleFn.__type = ["handler", () => __ΩMiddleFnOptions, "opts", () => __ΩMiddleFnDef, "middleFn", 'P"2!n"2#8"o$"/%'];
+  function rawMiddleFn(handler, opts2) {
+    return {
+      type: HandlerType$1.rawMiddleFn,
+      handler,
+      options: opts2
+    };
+  }
+  rawMiddleFn.__type = ["handler", () => __ΩRawMiddleFnOptions, "opts", () => __ΩRawMiddleFnDef, "rawMiddleFn", 'P"2!n"2#8"o$"/%'];
+  const __ΩError = ["name", "message", "stack", "Error", 'P&4!&4"&4#8Mw$y'];
+  function getRouterFatalErrorResponse(returnErr, respHeaders) {
+    const body = {
+      "@thrownErrors": { [MION_ROUTES.platformError]: returnErr }
+    };
+    respHeaders.set("content-type", "application/json; charset=utf-8");
+    const response = {
+      statusCode: returnErr.statusCode || StatusCodes.SERVER_ERROR,
+      // Global errors are always unexpected
+      hasErrors: true,
+      headers: respHeaders,
+      body,
+      rawBody: JSON.stringify(body),
+      serializer: SerializerModes.json
+      // global errors are always json
+    };
+    return response;
+  }
+  getRouterFatalErrorResponse.__type = [() => RpcError, "returnErr", "MionHeaders", "respHeaders", "MionResponse", "getRouterFatalErrorResponse", 'PP&7!2""w#2$"w%/&'];
+  function onExecutableError(context, executable, err) {
+    const response = context.response;
+    const path = executable.id;
+    const rpcError = err instanceof RpcError ? err : new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      publicMessage: `Unknown error in handler "${path}" of route ExecutionChain.`,
+      originalError: err,
+      type: "unknown-error"
+    });
+    if (!response.hasErrors)
+      response.headers.set("x-rpc-error", rpcError.type);
+    response.statusCode = rpcError.statusCode ?? StatusCodes.UNEXPECTED_ERROR;
+    response.hasErrors = true;
+    const thrownErrors = context.request.thrownErrors || {};
+    thrownErrors[path] = rpcError;
+    context.request.thrownErrors = thrownErrors;
+  }
+  onExecutableError.__type = ["CallContext", "context", "RemoteMethod", "executable", () => RpcError, () => __ΩError, "err", "onExecutableError", `P"w!2""w#2$P"P&7%n&J2'"/(`];
+  function deserializeRequestBody(context) {
+    if (!context.request.rawBody)
+      return;
+    let parsedBody;
+    switch (context.request.bodyType) {
+      case SerializerModes.stringifyJson:
+        try {
+          parsedBody = JSON.parse(context.request.rawBody);
+        } catch (err) {
+          throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: "parsing-json-request-error",
+            publicMessage: `Invalid json request body: ${err?.message || "unknown parsing error."}`
+          });
+        }
+        break;
+      case SerializerModes.binary: {
+        const rawBody = context.request.rawBody;
+        const { body } = deserializeBinaryBody(context.path, rawBody, false);
+        parsedBody = body;
+        break;
+      }
+      case SerializerModes.json:
+        parsedBody = context.request.rawBody;
+        break;
+      default:
+        throw new Error(`Invalid body type ${context.request.bodyType}`);
+    }
+    if (parsedBody) {
+      if (Array.isArray(parsedBody)) {
+        parsedBody = { [getRouteExecutableFromPath(context.path).id]: parsedBody };
+      }
+      if (typeof parsedBody !== "object")
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "invalid-request-body",
+          publicMessage: "Wrong request body. Expecting a body containing the route name and parameters."
+        });
+      context.request.body = parsedBody;
+    }
+  }
+  deserializeRequestBody.__type = [() => __ΩCallContext, "context", () => __ΩMayReturnError, "deserializeRequestBody", 'Pn!2"n#/$'];
+  function serializeResponseBody(context, opts2) {
+    const response = context.response;
+    const respBody = response.body;
+    const bodyType = context.response.serializer;
+    const thrownErrors = context.request.thrownErrors;
+    if (thrownErrors)
+      response.body["@thrownErrors"] = thrownErrors;
+    switch (bodyType) {
+      case SerializerModes.stringifyJson: {
+        response.headers.set("content-type", "application/json; charset=utf-8");
+        const body = stringifyBody(context, context.executionChain.methods, respBody);
+        response.rawBody = body;
+        break;
+      }
+      case SerializerModes.json: {
+        response.headers.set("content-type", "application/json; charset=utf-8");
+        prepareBodyForJson(context, context.executionChain.methods, respBody);
+        break;
+      }
+      case SerializerModes.binary: {
+        response.headers.set("content-type", "application/octet-stream");
+        serializeBinaryBody(context, context.executionChain.methods, respBody);
+        break;
+      }
+      default:
+        throw new Error(`Invalid body type ${context.request.bodyType}`);
+    }
+  }
+  serializeResponseBody.__type = [() => __ΩCallContext, "context", () => __ΩRouterOptions, "opts", () => __ΩMayReturnError, "serializeResponseBody", 'Pn!2"n#2$n%/&'];
+  function serializeBinaryBody(context, executionChain, respBody) {
+    const response = context.response;
+    const { serializer, buffer } = serializeBinaryBody$1(context.path, executionChain, respBody, true, context.routesFlowRouteIds);
+    response.binSerializer = serializer;
+    response.rawBody = new Uint8Array(buffer);
+  }
+  serializeBinaryBody.__type = [() => __ΩCallContext, "context", () => __ΩRemoteMethod, "executionChain", () => __ΩResponseBody, "respBody", "serializeBinaryBody", `Pn!2"n#F2$n%2&$/'`];
+  function stringifyBody(context, executionChain, respBody) {
+    const props = [];
+    for (let i = 0; i < executionChain.length; i++) {
+      const method = executionChain[i];
+      const returnValue = respBody[method.id];
+      if (!method.hasReturnData || typeof returnValue === "undefined")
+        continue;
+      try {
+        const jsonValue = stringifyHandlerReturnValue(method, returnValue);
+        if (!jsonValue)
+          continue;
+        props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
+      } catch (e) {
+        onStringifyExecutableError(context, method, e);
+      }
+    }
+    const thrownErrors = respBody["@thrownErrors"];
+    if (thrownErrors) {
+      const method = getRouteExecutable(MION_ROUTES.thrownErrors);
+      try {
+        const jsonValue = stringifyHandlerReturnValue(method, thrownErrors);
+        if (jsonValue)
+          props.push(`${JSON.stringify(method.id)}:${jsonValue}`);
+      } catch (e) {
+        onStringifyExecutableError(context, method, e);
+      }
+    }
+    return `{${props.join(",")}}`;
+  }
+  stringifyBody.__type = [() => __ΩCallContext, "context", () => __ΩRemoteMethod, "executionChain", () => __ΩResponseBody, "respBody", "stringifyBody", `Pn!2"n#F2$n%2&&/'`];
+  function onStringifyExecutableError(context, method, e) {
+    const err = new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: "json-stringify-response-error",
+      publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.stringifyJson.typeName}`,
+      originalError: e,
+      errorData: { methodId: method.id }
+    });
+    onExecutableError(context, method, err);
+  }
+  onStringifyExecutableError.__type = [() => __ΩCallContext, "context", () => __ΩRemoteMethod, "method", "e", "onStringifyExecutableError", 'Pn!2"n#2$"2%"/&'];
+  function stringifyHandlerReturnValue(method, returnValue) {
+    if (!method.hasReturnData)
+      return "";
+    if (method.returnJitFns.prepareForJson.isNoop)
+      JSON.stringify(returnValue);
+    return method.returnJitFns.stringifyJson.fn(returnValue);
+  }
+  stringifyHandlerReturnValue.__type = [() => __ΩRemoteMethod, "method", "returnValue", "stringifyHandlerReturnValue", 'Pn!2""2#&/$'];
+  function prepareBodyForJson(context, executionChain, respBody) {
+    for (let i = 0; i < executionChain.length; i++) {
+      const method = executionChain[i];
+      const returnValue = respBody[method.id];
+      if (!method.hasReturnData || typeof returnValue === "undefined")
+        continue;
+      try {
+        const preparedValue = prepareHandlerReturnValue(method, returnValue);
+        if (preparedValue !== void 0)
+          respBody[method.id] = preparedValue;
+      } catch (e) {
+        onPrepareForJsonExecutableError(context, method, e);
+      }
+    }
+    const thrownErrors = respBody["@thrownErrors"];
+    if (thrownErrors) {
+      const method = getRouteExecutable(MION_ROUTES.thrownErrors);
+      try {
+        const preparedValue = prepareHandlerReturnValue(method, thrownErrors);
+        if (preparedValue !== void 0)
+          respBody[method.id] = preparedValue;
+      } catch (e) {
+        onPrepareForJsonExecutableError(context, method, e);
+      }
+    }
+  }
+  prepareBodyForJson.__type = [() => __ΩCallContext, "context", () => __ΩRemoteMethod, "executionChain", () => __ΩResponseBody, "respBody", "prepareBodyForJson", `Pn!2"n#F2$n%2&$/'`];
+  function onPrepareForJsonExecutableError(context, method, e) {
+    const err = new RpcError({
+      statusCode: StatusCodes.UNEXPECTED_ERROR,
+      type: "prepare-for-json-response-error",
+      publicMessage: `Failed to prepare return value for JSON for handler ${method.id}, expected response type: ${method.returnJitFns.prepareForJson.typeName}`,
+      originalError: e,
+      errorData: { methodId: method.id }
+    });
+    onExecutableError(context, method, err);
+  }
+  onPrepareForJsonExecutableError.__type = [() => __ΩCallContext, "context", () => __ΩRemoteMethod, "method", "e", "onPrepareForJsonExecutableError", 'Pn!2"n#2$"2%"/&'];
+  function prepareHandlerReturnValue(method, returnValue) {
+    if (!method.hasReturnData)
+      return void 0;
+    if (method.returnJitFns.prepareForJson.isNoop)
+      return returnValue;
+    return method.returnJitFns.prepareForJson.fn(returnValue);
+  }
+  prepareHandlerReturnValue.__type = [() => __ΩRemoteMethod, "method", "returnValue", "prepareHandlerReturnValue", 'Pn!2""2#"/$'];
+  const serializerMiddleFns = {
+    mionDeserializeRequest: rawMiddleFn(deserializeRequestBody, { runOnError: true }),
+    mionSerializeResponse: rawMiddleFn(serializeResponseBody, { runOnError: true })
+  };
+  const __ΩRecord$4 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  function __assignType$7(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const publicMethods = getOrCreateGlobal("mion.remoteMethods.publicMethods", () => (Map.Ω = [["&"], ["MethodWithOptions", '"w!']], /* @__PURE__ */ new Map()));
+  function resetRemoteMethodsMetadata() {
+    publicMethods.clear();
+  }
+  resetRemoteMethodsMetadata.__type = ["resetRemoteMethodsMetadata", 'P"/!'];
+  function getPublicApi(routes) {
+    return recursiveGetSerializableRoutes(routes);
+  }
+  getPublicApi.__type = ["routes", "PublicApi", "getPublicApi", 'P"2!"w"/#'];
+  function recursiveGetSerializableRoutes(routes, currentPointer = [], publicData = {}) {
+    const entries = Object.entries(routes);
+    entries.forEach(__assignType$7(([key, item]) => {
+      const itemPointer = [...currentPointer, key];
+      const id = getRouterItemId(itemPointer);
+      if (isPrivateDefinition(item, id)) {
+        publicData[key] = null;
+      } else if (isMiddleFnDef(item) || isHeadersMiddleFnDef(item) || isRoute(item)) {
+        const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
+        if (!executable)
+          throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
+        publicData[key] = getSerializableMethod(executable);
+      } else {
+        const subRoutes = routes[key];
+        publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
+      }
+    }, ["RouterEntry", "param0", "", 'PP&"w!G2""/#']));
+    return publicData;
+  }
+  recursiveGetSerializableRoutes.__type = ["routes", "currentPointer", () => [], "AnyObject", "publicData", () => ({}), "recursiveGetSerializableRoutes", `P"2!&F2">#"w$2%>&"w$/'`];
+  function getSerializableMethod(executable) {
+    const existing = publicMethods.get(executable.id);
+    if (existing)
+      return existing;
+    const newRemoteMethod = {
+      type: executable.type,
+      id: executable.id,
+      nestLevel: executable.nestLevel,
+      isAsync: executable.isAsync,
+      hasReturnData: executable.hasReturnData,
+      paramsJitHash: executable.paramsJitHash,
+      returnJitHash: executable.returnJitHash,
+      pointer: executable.pointer,
+      ...executable.paramNames ? { paramNames: executable.paramNames } : {},
+      options: executable.options
+    };
+    if (executable.headersParam)
+      newRemoteMethod.headersParam = executable.headersParam;
+    if (executable.middleFnIds)
+      newRemoteMethod.middleFnIds = executable.middleFnIds;
+    publicMethods.set(executable.id, newRemoteMethod);
+    return newRemoteMethod;
+  }
+  getSerializableMethod.__type = ["RemoteMethod", "executable", "MethodWithOptions", "getSerializableMethod", 'P"w!2""w#/$'];
+  function serializePureDeps(namespacedDepHash, purFnDeps, depth = 0) {
+    if (depth >= MAX_STACK_DEPTH)
+      throw new Error(`Max depth reached serializing pure function dependencies, for: ${namespacedDepHash}`);
+    const parts = namespacedDepHash.split("::");
+    if (parts.length !== 2)
+      throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
+    const [namespace, fnHash] = parts;
+    if (!purFnDeps[namespace])
+      purFnDeps[namespace] = {};
+    if (purFnDeps[namespace][fnHash])
+      return;
+    const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
+    if (!pureDep)
+      throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
+    const serializedPureDep = {
+      ...pureDep,
+      pureFnDependencies: pureDep.pureFnDependencies ? [...pureDep.pureFnDependencies] : void 0
+    };
+    purFnDeps[namespace][fnHash] = serializedPureDep;
+    pureDep.pureFnDependencies?.forEach(__assignType$7((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1), ["depFnHash", "", 'P"2!"/"']));
+  }
+  serializePureDeps.__type = ["namespacedDepHash", "PureFnsDataCache", "purFnDeps", "depth", "serializePureDeps", 'P&2!"w"2#"2$"/%'];
+  function serializeJitFn(jitFnHash, deps, purFnDeps, depth = 0) {
+    if (depth >= MAX_STACK_DEPTH)
+      throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
+    const jitFn = getJitUtils().getJIT(jitFnHash);
+    if (!jitFn)
+      throw new Error(`Jit function ${jitFnHash} not found`);
+    if (deps[jitFnHash])
+      return;
+    const serializedJitFn = getSerializableJitCompiler(jitFn);
+    deps[jitFnHash] = serializedJitFn;
+    jitFn.jitDependencies?.forEach(__assignType$7((h) => serializeJitFn(h, deps, purFnDeps, depth + 1), ["h", "", 'P"2!"/"']));
+    jitFn.pureFnDependencies?.forEach(__assignType$7((h) => serializePureDeps(h, purFnDeps), ["h", "", 'P"2!"/"']));
+  }
+  serializeJitFn.__type = ["jitFnHash", () => __ΩRecord$4, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "depth", "serializeJitFn", `P&2!&"w#o"#2$"w%2&"2'"/(`];
+  function serializeMethodDeps(method, deps, purFnDeps) {
+    const { paramsJitHash, returnJitHash } = method;
+    if (paramsJitHash !== EMPTY_HASH) {
+      const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
+      for (const k in paramsJitHashes) {
+        if (getJitUtils().getJIT(paramsJitHashes[k]))
+          serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+      }
+    }
+    if (returnJitHash !== EMPTY_HASH) {
+      const returnJitHashes = getJitFnHashes(returnJitHash, true);
+      let foundAny = false;
+      for (const k in returnJitHashes) {
+        if (getJitUtils().getJIT(returnJitHashes[k])) {
+          serializeJitFn(returnJitHashes[k], deps, purFnDeps);
+          foundAny = true;
+        }
+      }
+      if (!foundAny) {
+        throw new Error(`Method "${method.id}" declares returnJitHash="${returnJitHash}" but no JIT functions are registered under that hash. This usually means a Promise/Function return type was not unwrapped before computing the hash.`);
+      }
+    }
+  }
+  serializeMethodDeps.__type = ["MethodWithOptions", "method", () => __ΩRecord$4, "JitCompiledFnData", "deps", "PureFnsDataCache", "purFnDeps", "serializeMethodDeps", `P"w!2"&"w$o##2%"w&2'"/(`];
+  function getSerializableJitCompiler(comp) {
+    return {
+      typeName: comp.typeName,
+      fnID: comp.fnID,
+      jitFnHash: comp.jitFnHash,
+      args: structuredClone(comp.args),
+      isNoop: comp.isNoop,
+      defaultParamValues: structuredClone(comp.defaultParamValues),
+      code: comp.code,
+      jitDependencies: comp.jitDependencies ? [...comp.jitDependencies] : void 0,
+      pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : void 0,
+      ...comp.paramNames ? { paramNames: [...comp.paramNames] } : {}
+    };
+  }
+  getSerializableJitCompiler.__type = ["JitCompiledFn", "comp", "JitCompiledFnData", "getSerializableJitCompiler", 'P"w!2""w#/$'];
+  function __assignType$6(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const __ΩClientRouteOptions = [() => __ΩRouterOptions, "getAllRemoteMethodsMaxNumber", "ClientRouteOptions", `Pn!'4"8Mw#y`];
+  const defaultClientRouteOptions = {
+    getAllRemoteMethodsMaxNumber: 100
+  };
+  const mionInternalRoutes$1 = Object.values(MION_ROUTES);
+  function mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods) {
+    const resp = {
+      methods: {},
+      deps: {},
+      purFnDeps: {}
+    };
+    const errorData = {};
+    const maxMethods = (getRouterOptions.Ω = [[() => __ΩClientRouteOptions, "n!"]], getRouterOptions()).getAllRemoteMethodsMaxNumber || defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
+    const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
+    const idsToReturn = shouldReturnAll ? getAllExecutablesIds().filter(__assignType$6((id) => !mionInternalRoutes$1.includes(id) && !isPrivateExecutable(getAnyExecutable(id)), ["id", "", 'P"2!"/"'])) : methodsIds;
+    idsToReturn.forEach(__assignType$6((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData), ["id", "", 'P"2!"/"']));
+    if (Object.keys(errorData).length)
+      return new RpcError({
+        type: "rpc-metadata-not-found",
+        publicMessage: "Errors getting Remote Methods Metadata",
+        errorData
+      });
+    return resp;
+  }
+  mionGetRemoteMethodsDataById.__type = ["ctx", "methodsIds", "getAllRemoteMethods", () => __ΩSerializableMethodsData, "rpc-metadata-not-found", () => RpcError, "mionGetRemoteMethodsDataById", `P"2!&F2")2#8Pn$P.%7&J/'`];
+  function mionMethodsMetadata(ctx, methodsIds, getAllRemoteMethods) {
+    if (!methodsIds || methodsIds.length === 0)
+      return;
+    ctx.response.serializer = SerializerModes.stringifyJson;
+    return mionGetRemoteMethodsDataById(ctx, methodsIds, getAllRemoteMethods);
+  }
+  mionMethodsMetadata.__type = [() => __ΩCallContext, "ctx", "methodsIds", "getAllRemoteMethods", () => __ΩSerializableMethodsData, "rpc-metadata-not-found", () => RpcError, "mionMethodsMetadata", `Pn!2"&F2#8)2$8Pn%P.&7'$J/(`];
+  function addRequiredRemoteMethodsToResponse(id, resp, errorData) {
+    const { methods, deps, purFnDeps } = resp;
+    if (methods[id])
+      return;
+    if (mionInternalRoutes$1.includes(id))
+      return;
+    const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
+    if (!executable) {
+      errorData[id] = `Remote Method ${id} not found`;
+      return;
+    }
+    if (isPrivateExecutable(executable))
+      return;
+    const method = getSerializableMethod(executable);
+    methods[id] = method;
+    method.middleFnIds?.forEach(__assignType$6((middleFnId) => addRequiredRemoteMethodsToResponse(middleFnId, resp, errorData), ["middleFnId", "", 'P"2!"/"']));
+    serializeMethodDeps(method, deps, purFnDeps);
+  }
+  addRequiredRemoteMethodsToResponse.__type = ["id", () => __ΩSerializableMethodsData, "resp", () => __ΩAnyObject, "errorData", "addRequiredRemoteMethodsToResponse", 'P&2!n"2#n$2%$/&'];
+  const mionClientMiddleFns = {
+    [MION_ROUTES.methodsMetadata]: middleFn(mionMethodsMetadata, { runOnError: true })
+  };
+  const mionClientRoutes = {
+    // Client routes always use stringifyJson serialization to avoid mutating data as is cached
+    // These routes are used by the client to fetch metadata and must work regardless of router's default serialization
+    [MION_ROUTES.methodsMetadataById]: route(mionGetRemoteMethodsDataById, { serializer: "stringifyJson" })
+  };
+  const __ΩRecord$3 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  function __assignType$5(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const mionErrorsRoutes = {
+    /**
+     * !IMPORTANT!
+     * This is declared as route mostly to reuse existing router serialization/deserialization functionality.
+     * But "@thrownErrors" is expected to be a field in response body that contain all thrown errors from other executables.
+     * thrown Errors are not strongly typed and are all serialized/deserialized as RpcError<string>.
+     * this also prevents users to register a route with the same name.
+     */
+    [MION_ROUTES.thrownErrors]: route(__assignType$5((ctx) => {
+      return ctx.request.thrownErrors || {};
+    }, ["CallContext", "ctx", () => __ΩRecord$3, () => RpcError, "", 'P"w!2"&P&7$o##/%'])),
+    /**
+     * Route that handles not-found scenarios when a requested route doesn't exist.
+     * This route is registered as an internal mion route.
+     * The route is called by dispatch logic when no matching route is found.
+     * Throws an RpcError that will be caught and stored in thrownErrors by the router.
+     */
+    [MION_ROUTES.notFound]: route(__assignType$5((ctx) => {
+      throw new RpcError({
+        statusCode: StatusCodes.NOT_FOUND,
+        publicMessage: `Route not found`,
+        type: "route-not-found"
+      });
+    }, ["CallContext", "ctx", "route-not-found", () => RpcError, "", 'P"w!2"P.#7$/%'])),
+    /**
+     * Platform error route for strongly typing platform/adapter errors.
+     * Platform errors occur before reaching the router or outside the router
+     * and are platform/adapter related (e.g., HTTP server errors, connection issues).
+     * This route is used for serialization/deserialization of platform errors.
+     * This also prevents users to register a route with the same name.
+     */
+    [MION_ROUTES.platformError]: route(__assignType$5((_ctx) => {
+      return new RpcError({
+        publicMessage: "Platform error",
+        type: "platform-error"
+      });
+    }, ["CallContext", "_ctx", () => RpcError, "", 'P"w!2"P&7#/$']))
+  };
+  const serverPureFnsCache = {
+    "pureServerFn": {
+      "U0iYTkE-RN3NIs": {
+        namespace: "pureServerFn",
+        fnName: "U0iYTkE-RN3NIs",
+        paramNames: ["c"],
+        code: "return c.preferenceId",
+        bodyHash: "U0iYTkE-RN3NIs",
+        isFactory: false,
+        fn: function U0iYTkE_RN3NIs(c) {
+          return c.preferenceId;
+        }
+      }
+    }
+  };
+  function __assignType$4(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const routesFlowCache = getOrCreateGlobal("mion.routesFlow.routesFlowCache", () => (Map.Ω = [["&"], [() => __ΩMethodsExecutionChain, "n!"]], /* @__PURE__ */ new Map()));
+  const cacheOrder = getOrCreateGlobal("mion.routesFlow.cacheOrder", () => []);
+  const mappingMethodCache = getOrCreateGlobal("mion.routesFlow.mappingMethodCache", () => (Map.Ω = [["&"], [() => __ΩRemoteMethod, "n!"]], /* @__PURE__ */ new Map()));
+  function clearRoutesFlowCache() {
+    routesFlowCache.clear();
+    cacheOrder.length = 0;
+    mappingMethodCache.clear();
+  }
+  clearRoutesFlowCache.__type = ["clearRoutesFlowCache", "P$/!"];
+  function addToRoutesFlowCache(query, chain) {
+    const routerOpts = getRouterOptions();
+    const maxSize = routerOpts.maxRoutesFlowsCacheSize;
+    if (maxSize <= 0)
+      return;
+    while (cacheOrder.length >= maxSize) {
+      const oldestKey = cacheOrder.shift();
+      if (oldestKey)
+        routesFlowCache.delete(oldestKey);
+    }
+    routesFlowCache.set(query, chain);
+    cacheOrder.push(query);
+  }
+  addToRoutesFlowCache.__type = ["query", () => __ΩMethodsExecutionChain, "chain", "addToRoutesFlowCache", 'P&2!n"2#$/$'];
+  function decodeRoutesFlowQuery(urlQuery) {
+    try {
+      const dataParam = urlQuery.startsWith("data=") ? urlQuery.slice(5) : urlQuery;
+      const jsonString = fromBase64Url(dataParam);
+      return JSON.parse(jsonString);
+    } catch (e) {
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "routesFlow-invalid-query",
+        publicMessage: "RoutesFlow query string is not valid base64url-encoded JSON.",
+        errorData: { parseError: e?.message || "Unknown error" }
+      });
+    }
+  }
+  decodeRoutesFlowQuery.__type = ["urlQuery", "RoutesFlowQuery", "decodeRoutesFlowQuery", 'P&2!"w"/#'];
+  function getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery) {
+    if (!urlQuery) {
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "routesFlow-missing-query",
+        publicMessage: "RoutesFlow request requires a query string with route paths."
+      });
+    }
+    const query = decodeRoutesFlowQuery(urlQuery);
+    const routePaths = query.routes;
+    const mappings = query.mappings;
+    if (!routePaths || routePaths.length === 0) {
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "routesFlow-empty-routes",
+        publicMessage: "RoutesFlow request requires at least one route path in query string."
+      });
+    }
+    const routeIds = routePaths.map(__assignType$4((path) => path.startsWith("/") ? path.slice(1) : path, ["path", "", 'P"2!"/"']));
+    let executionChain = routesFlowCache.get(urlQuery);
+    if (executionChain)
+      return { executionChain, routesFlowRouteIds: routeIds, mappings };
+    executionChain = buildMergedExecutionChain(routePaths, rawRequest, opts2, mappings);
+    addToRoutesFlowCache(urlQuery, executionChain);
+    return { executionChain, routesFlowRouteIds: routeIds, mappings };
+  }
+  getRoutesFlowExecutionChain.__type = ["rawRequest", () => __ΩRouterOptions, "opts", "urlQuery", () => __ΩRoutesFlowExecutionResult, "getRoutesFlowExecutionChain", 'P#2!n"2#&2$8n%/&'];
+  function buildMergedExecutionChain(routePaths, rawRequest, opts2, mappings) {
+    const seenIds = (Set.Ω = [["&"]], /* @__PURE__ */ new Set());
+    const middleMethods = [];
+    let resolvedSerializer;
+    let firstRouteIndex = -1;
+    const defaultSerializerCode = SerializerModes[opts2.serializer];
+    const startMiddleFnIds = new Set(startMiddleFns.map(__assignType$4((m) => m.id, ["m", "", 'P"2!"/"'])));
+    const endMiddleFnIds = new Set(endMiddleFns.map(__assignType$4((m) => m.id, ["m", "", 'P"2!"/"'])));
+    for (const routePath of routePaths) {
+      const transformedPath = opts2.pathTransform?.(rawRequest, routePath) || routePath;
+      const chain = getRouteExecutionChain(transformedPath);
+      if (!chain) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "routesFlow-route-not-found",
+          publicMessage: `Route not found in routesFlow: ${routePath}`,
+          errorData: { routePath }
+        });
+      }
+      if (!resolvedSerializer) {
+        resolvedSerializer = chain.serializer;
+        firstRouteIndex = chain.routeIndex;
+      } else if (resolvedSerializer !== chain.serializer) {
+        resolvedSerializer = defaultSerializerCode;
+      }
+      for (const method of chain.methods) {
+        if (seenIds.has(method.id))
+          continue;
+        if (startMiddleFnIds.has(method.id))
+          continue;
+        if (endMiddleFnIds.has(method.id))
+          continue;
+        seenIds.add(method.id);
+        middleMethods.push(method);
+      }
+    }
+    if (mappings && mappings.length > 0) {
+      insertMappingMethods(middleMethods, mappings);
+    }
+    const mergedMethods = [...startMiddleFns, ...middleMethods, ...endMiddleFns];
+    return {
+      // Use the first route's routeIndex since that's where the first route handler is
+      routeIndex: firstRouteIndex,
+      methods: mergedMethods,
+      serializer: resolvedSerializer ?? defaultSerializerCode
+    };
+  }
+  buildMergedExecutionChain.__type = ["routePaths", "rawRequest", () => __ΩRouterOptions, "opts", "RoutesFlowMapping", "mappings", () => __ΩMethodsExecutionChain, "buildMergedExecutionChain", `P&F2!#2"n#2$"w%F2&8n'/(`];
+  function insertMappingMethods(middleMethods, mappings) {
+    const idToIndex = (Map.Ω = [["&"], ["'"]], /* @__PURE__ */ new Map());
+    for (let i = 0; i < middleMethods.length; i++) {
+      idToIndex.set(middleMethods[i].id, i);
+    }
+    const insertions = [];
+    for (const mapping of mappings) {
+      const fromIndex = idToIndex.get(mapping.fromId);
+      const toIndex = idToIndex.get(mapping.toId);
+      if (fromIndex === void 0) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "routesFlow-mapping-invalid-source",
+          publicMessage: `Mapping source route '${mapping.fromId}' not found in routesFlow execution chain.`,
+          errorData: { mapping }
+        });
+      }
+      if (toIndex === void 0) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "routesFlow-mapping-invalid-target",
+          publicMessage: `Mapping target route '${mapping.toId}' not found in routesFlow execution chain.`,
+          errorData: { mapping }
+        });
+      }
+      if (!serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash]?.fn) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "routesFlow-mapping-missing-pure-fn",
+          publicMessage: `Mapping pure function '${mapping.bodyHash}' not found. Ensure the function is registered on the server.`,
+          errorData: { mapping }
+        });
+      }
+      insertions.push({
+        index: fromIndex + 1,
+        method: createMappingMethod(mapping)
+      });
+    }
+    insertions.sort(__assignType$4((a, b) => b.index - a.index, ["a", "b", "", 'P"2!"2""/#']));
+    for (const { index, method } of insertions) {
+      middleMethods.splice(index, 0, method);
+    }
+  }
+  insertMappingMethods.__type = [() => __ΩRemoteMethod, "middleMethods", "RoutesFlowMapping", "mappings", "insertMappingMethods", 'Pn!F2""w#F2$$/%'];
+  function createMappingMethod(mapping) {
+    const id = `mionMapFrom_${mapping.fromId}_${mapping.bodyHash}_to_${mapping.toId}`;
+    const cached = mappingMethodCache.get(id);
+    if (cached)
+      return cached;
+    const noopJitFns2 = getNoopJitFns();
+    const method = {
+      type: HandlerType$1.rawMiddleFn,
+      id,
+      isAsync: false,
+      hasReturnData: false,
+      paramsJitHash: "",
+      returnJitHash: "",
+      paramsJitFns: noopJitFns2,
+      returnJitFns: noopJitFns2,
+      handler: createMappingHandler(mapping),
+      options: { runOnError: false, validateParams: false },
+      methodCaller: runMappingHandler
+    };
+    mappingMethodCache.set(id, method);
+    return method;
+  }
+  createMappingMethod.__type = ["RoutesFlowMapping", "mapping", () => __ΩRemoteMethod, "createMappingMethod", 'P"w!2"n#/$'];
+  function createMappingHandler(mapping) {
+    return __assignType$4((ctx) => {
+      const sourceOutput = ctx.response.body[mapping.fromId];
+      const entry = serverPureFnsCache[PURE_SERVER_FN_NAMESPACE]?.[mapping.bodyHash];
+      if (!entry?.fn) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "routesFlow-mapping-missing-pure-fn",
+          publicMessage: `Mapping pure function '${mapping.bodyHash}' not found at runtime.`
+        });
+      }
+      const mappedValue = entry.fn(sourceOutput);
+      const targetParams = ctx.request.body[mapping.toId];
+      if (targetParams)
+        targetParams[mapping.paramIndex] = mappedValue;
+    }, ["CallContext", "ctx", "", 'P"w!2""/#']);
+  }
+  createMappingHandler.__type = ["RoutesFlowMapping", "mapping", "createMappingHandler", 'P"w!2""/#'];
+  async function runMappingHandler(context, executable, ...args) {
+    return executable.handler(context);
+  }
+  runMappingHandler.__type = ["CallContext", "context", () => __ΩRemoteMethod, "executable", "args", "runMappingHandler", 'P"w!2"n#2$#@2%"/&'];
+  let contextPool = [];
+  function clearContextPool() {
+    contextPool = [];
+  }
+  clearContextPool.__type = ["clearContextPool", "P$/!"];
+  function createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
+    const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
+    const { executionChain, routesFlowRouteIds } = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts2);
+    return {
+      path: transformedPath,
+      request: {
+        headers: reqHeaders,
+        rawBody: reqRawBody,
+        bodyType: reqBodyType ?? getRequestBodyType(reqRawBody),
+        body: {},
+        thrownErrors: void 0
+      },
+      response: {
+        statusCode: StatusCodes.OK,
+        hasErrors: false,
+        headers: respHeaders,
+        body: {},
+        rawBody: "",
+        serializer: SerializerModes.json,
+        binSerializer: void 0
+      },
+      executionChain,
+      shared: opts2.contextDataFactory ? opts2.contextDataFactory() : {},
+      urlQuery,
+      routesFlowRouteIds
+    };
+  }
+  createCallContext.__type = ["path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "createCallContext", `P&2!"w"2#"w$2%#2&"w'2("w'2)n*2+8&2,8"w-/.`];
+  function acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery) {
+    if (!usePooling)
+      return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    const pooledContext = contextPool.pop();
+    const transformedPath = opts2.pathTransform?.(rawRequest, path) || path;
+    if (pooledContext) {
+      const ctx = pooledContext;
+      ctx.path = transformedPath;
+      const req = ctx.request;
+      req.headers = reqHeaders;
+      req.rawBody = reqRawBody;
+      req.bodyType = reqBodyType ?? getRequestBodyType(reqRawBody);
+      req.body = {};
+      req.thrownErrors = void 0;
+      const resp = ctx.response;
+      resp.statusCode = StatusCodes.OK;
+      resp.hasErrors = false;
+      resp.headers = respHeaders;
+      resp.body = {};
+      resp.rawBody = "";
+      resp.serializer = SerializerModes.json;
+      resp.binSerializer = void 0;
+      const { executionChain, routesFlowRouteIds } = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts2);
+      ctx.executionChain = executionChain;
+      ctx.routesFlowRouteIds = routesFlowRouteIds;
+      ctx.shared = opts2.contextDataFactory ? opts2.contextDataFactory() : {};
+      ctx.urlQuery = urlQuery;
+      return ctx;
+    }
+    return createCallContext(path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+  }
+  acquireCallContext.__type = ["usePooling", "path", "RouterOptions", "opts", "RawRequestBody", "reqRawBody", "rawRequest", "MionHeaders", "reqHeaders", "respHeaders", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "CallContext", "acquireCallContext", `P)2!&2""w#2$"w%2&#2'"w(2)"w(2*n+2,8&2-8"w.//`];
+  function releaseCallContext(ctx, maxPoolSize) {
+    if (contextPool.length < maxPoolSize) {
+      const mutableCtx = ctx;
+      const req = mutableCtx.request;
+      req.rawBody = "";
+      req.body = null;
+      req.thrownErrors = void 0;
+      mutableCtx.response = {
+        statusCode: StatusCodes.OK,
+        hasErrors: false,
+        headers: null,
+        // Will be set when context is acquired
+        body: null,
+        // Will be set when context is acquired
+        rawBody: "",
+        serializer: SerializerModes.json,
+        binSerializer: void 0
+      };
+      mutableCtx.shared = null;
+      mutableCtx.executionChain = null;
+      mutableCtx.routesFlowRouteIds = void 0;
+      contextPool.push(ctx);
+    }
+  }
+  releaseCallContext.__type = ["CallContext", "ctx", "maxPoolSize", "releaseCallContext", `P"w!2"'2#$/$`];
+  function getRequestBodyType(rawBody) {
+    if (typeof rawBody === "string")
+      return SerializerModes.stringifyJson;
+    if (rawBody instanceof ArrayBuffer || rawBody instanceof Uint8Array)
+      return SerializerModes.binary;
+    return SerializerModes.json;
+  }
+  getRequestBodyType.__type = ["RawRequestBody", "rawBody", () => __ΩSerializerCode, "getRequestBodyType", 'P"w!2"n#/$'];
+  function getExecutionChain(originalPath, transformedPath, urlQuery, rawRequest, opts2) {
+    const hasPrefix = !!opts2.basePath;
+    const isRoutesFlowPath = hasPrefix ? originalPath.endsWith(WORKFLOW_PATH) : originalPath === WORKFLOW_PATH;
+    if (isRoutesFlowPath)
+      return getRoutesFlowExecutionChain(rawRequest, opts2, urlQuery);
+    let executionChain = getRouteExecutionChain(transformedPath);
+    if (!executionChain) {
+      const notFoundPath = getRoutePath([MION_ROUTES.notFound], opts2);
+      executionChain = getRouteExecutionChain(notFoundPath);
+      if (!executionChain) {
+        throw new RpcError({
+          statusCode: StatusCodes.UNEXPECTED_ERROR,
+          type: "not-found",
+          publicMessage: "Not-found route is not registered. This should never happen."
+        });
+      }
+    }
+    return { executionChain };
+  }
+  getExecutionChain.__type = ["originalPath", "transformedPath", "urlQuery", "rawRequest", "RouterOptions", "opts", "RoutesFlowExecutionResult", "getExecutionChain", `P&2!&2"P&-J2##2$"w%2&"w'/(`];
+  const __ΩReadonly = ["T", "Readonly", 'l+e#!e"!fRb!Pde"!gN#%w"y'];
+  const __ΩRecord$2 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  const __ΩPartial = ["T", "Partial", 'l+e#!e"!fRb!Pde"!gN#"w"y'];
+  const __ΩReturnType$1 = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
+  function __assignType$3(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const __ΩRouterKeyEntryList = ["RouterEntry", "RouterKeyEntryList", 'P&"w!GFw"y'];
+  const __ΩRoutesWithId = ["pathPointer", "Routes", "routes", "RoutesWithId", 'P&F4!"w"4#Mw$y'];
+  const mionInternalRoutes = Object.values(MION_ROUTES);
+  const flatRouter = getOrCreateGlobal("mion.router.flatRouter", () => (Map.Ω = [["&"], ["MethodsExecutionChain", '"w!']], /* @__PURE__ */ new Map()));
+  const middleFnsById = getOrCreateGlobal("mion.router.middleFnsById", () => (Map.Ω = [["&"], ["MiddleFnMethod", "HeadersMethod", "RawMethod", 'P"w!"w""w#J']], /* @__PURE__ */ new Map()));
+  const routesById = getOrCreateGlobal("mion.router.routesById", () => (Map.Ω = [["&"], ["RouteMethod", '"w!']], /* @__PURE__ */ new Map()));
+  const rawMiddleFnsById = getOrCreateGlobal("mion.router.rawMiddleFnsById", () => (Map.Ω = [["&"], ["RawMethod", '"w!']], /* @__PURE__ */ new Map()));
+  const middleFnNames = getOrCreateGlobal("mion.router.middleFnNames", () => (Set.Ω = [["&"]], /* @__PURE__ */ new Set()));
+  const routeNames = getOrCreateGlobal("mion.router.routeNames", () => (Set.Ω = [["&"]], /* @__PURE__ */ new Set()));
+  let routerOptions = { ...DEFAULT_ROUTE_OPTIONS };
+  let isRouterInitialized = false;
+  let allExecutablesIds;
+  let platformConfig;
+  const defaultStartMiddleFns = {
+    mionDeserializeRequest: serializerMiddleFns.mionDeserializeRequest
+  };
+  const defaultEndMiddleFns = {
+    ...mionClientMiddleFns,
+    mionSerializeResponse: serializerMiddleFns.mionSerializeResponse
+  };
+  let startMiddleFnsDef = { ...defaultStartMiddleFns };
+  let endMiddleFnsDef = { ...defaultEndMiddleFns };
+  let startMiddleFns = [];
+  let endMiddleFns = [];
+  const getRouteExecutionChain = __assignType$3((path) => flatRouter.get(path), ["path", "", 'P&2!"/"']);
+  const getRouteExecutable = __assignType$3((id) => routesById.get(id), ["id", "", 'P&2!"/"']);
+  const getMiddleFnExecutable = __assignType$3((id) => middleFnsById.get(id), ["id", "", 'P&2!"/"']);
+  const getRouterOptions = __assignType$3(() => routerOptions, [() => __ΩReadonly, "", 'P"o!"/"']);
+  const getAnyExecutable = __assignType$3((id) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id), ["id", "", 'P&2!"/"']);
+  function setPlatformConfig(config) {
+    platformConfig = config;
+    if (isMionAOTEmitMode() && typeof process.send === "function") {
+      const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(__assignType$3(([, v]) => typeof v !== "function", ["param0", "", 'P"2!"/"'])));
+      try {
+        process.send({ type: "mion-platform-ready", routerConfig, platformConfig: config });
+      } catch (err) {
+        console.error("[mion] Failed to send platform-ready IPC:", err);
+      }
+    }
+  }
+  setPlatformConfig.__type = [() => __ΩRecord$2, "config", "setPlatformConfig", 'P&#o!#2"$/#'];
+  __assignType$3(() => platformConfig, [() => __ΩReadonly, () => __ΩRecord$2, "", 'PP&#o"#o!"-J/#']);
+  const resetRouter = () => {
+    flatRouter.clear();
+    middleFnsById.clear();
+    routesById.clear();
+    rawMiddleFnsById.clear();
+    middleFnNames.clear();
+    routeNames.clear();
+    routerOptions = { ...DEFAULT_ROUTE_OPTIONS };
+    startMiddleFnsDef = { ...defaultStartMiddleFns };
+    endMiddleFnsDef = { ...defaultEndMiddleFns };
+    startMiddleFns = [];
+    endMiddleFns = [];
+    isRouterInitialized = false;
+    allExecutablesIds = void 0;
+    platformConfig = void 0;
+    resetRemoteMethodsMetadata();
+    resetPersistedMethods();
+    resetRoutesCache();
+    clearContextPool();
+    clearRoutesFlowCache();
+  };
+  async function initMionRouter(routes, opts2) {
+    await initRouter(opts2);
+    const publicApi = await registerRoutes(routes);
+    await emitAOTCaches$1();
+    return publicApi;
+  }
+  initMionRouter.__type = ["routes", () => __ΩPartial, "RouterOptions", "opts", "PublicApi", "initMionRouter", 'P"2!"w#o""2$8"w%`/&'];
+  async function initRouter(opts2) {
+    if (isRouterInitialized)
+      throw new Error("Router has already been initialized");
+    routerOptions = { ...routerOptions, ...opts2 };
+    validateSharedDataFactory(routerOptions);
+    Object.freeze(routerOptions);
+    setErrorOptions(routerOptions);
+    if (routerOptions.aot)
+      await loadAOTCaches$1();
+    isRouterInitialized = true;
+    await registerRoutes({ ...mionErrorsRoutes });
+    if (!routerOptions.skipClientRoutes)
+      await registerRoutes({ ...mionClientRoutes });
+    if (!isTestEnv())
+      console.log("mion router initialized", { routerOptions });
+    return routerOptions;
+  }
+  initRouter.__type = [() => __ΩPartial, "RouterOptions", "opts", () => __ΩReadonly, "initRouter", 'P"w"o!"2#8"w"o$"`/%'];
+  async function registerRoutes(routes) {
+    if (!isRouterInitialized)
+      throw new Error("initRouter should be called first");
+    startMiddleFns = await getExecutablesFromMiddleFnsCollection(startMiddleFnsDef);
+    endMiddleFns = await getExecutablesFromMiddleFnsCollection(endMiddleFnsDef);
+    const binaryMiddlewares = (Set.Ω = [["&"]], /* @__PURE__ */ new Set());
+    await recursiveFlatRoutes(routes, [], [], [], binaryMiddlewares, 0);
+    if (binaryMiddlewares.size > 0)
+      await compileBinaryForMiddleware(binaryMiddlewares);
+    if (shouldFullGenerateSpec()) {
+      return getPublicApi(routes);
+    }
+    return {};
+  }
+  registerRoutes.__type = ["routes", "PublicApi", "registerRoutes", 'P"2!"w"`/#'];
+  function isPrivateDefinition(entry, id) {
+    if (isRoute(entry))
+      return false;
+    if (isRawMiddleFnDef(entry))
+      return true;
+    try {
+      const executable = getMiddleFnExecutable(id) || getRouteExecutable(id);
+      if (!executable)
+        throw new Error(`Route or MiddleFn ${id} not found. Please check you have called router.registerRoutes first.`);
+      return isPrivateExecutable(executable);
+    } catch {
+      return false;
+    }
+  }
+  isPrivateDefinition.__type = ["RouterEntry", "entry", "id", "isPrivateDefinition", 'P"w!2"&2#!/$'];
+  function isPrivateExecutable(executable) {
+    if (executable.type === HandlerType$1.rawMiddleFn)
+      return true;
+    if (executable.type === HandlerType$1.route)
+      return false;
+    const hasPublicParams = !!executable.paramNames?.length;
+    const hasHeaderParams = !!executable.headersParam?.headerNames?.length;
+    return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
+  }
+  isPrivateExecutable.__type = ["RemoteMethod", "executable", "isPrivateExecutable", 'P"w!2")/#'];
+  function getTotalExecutables() {
+    return routesById.size + middleFnsById.size + rawMiddleFnsById.size;
+  }
+  getTotalExecutables.__type = ["getTotalExecutables", "P'/!"];
+  function getAllExecutablesIds() {
+    if (allExecutablesIds)
+      return allExecutablesIds;
+    allExecutablesIds = [...routesById.keys(), ...middleFnsById.keys(), ...rawMiddleFnsById.keys()];
+    return allExecutablesIds;
+  }
+  getAllExecutablesIds.__type = ["getAllExecutablesIds", "P&F/!"];
+  function shouldFullGenerateSpec() {
+    return routerOptions.getPublicRoutesData || getENV("GENERATE_ROUTER_SPEC") === "true" || isMionCompileMode();
+  }
+  shouldFullGenerateSpec.__type = ["shouldFullGenerateSpec", "P)/!"];
+  function getRouteExecutableFromPath(path) {
+    const executionChain = flatRouter.get(path);
+    if (!executionChain) {
+      return getAnyExecutable(MION_ROUTES.notFound);
+    }
+    return executionChain.methods[executionChain.routeIndex];
+  }
+  getRouteExecutableFromPath.__type = ["path", "RouteMethod", "getRouteExecutableFromPath", 'P&2!"w"/#'];
+  async function loadAOTCaches$1() {
+    const loader = await Promise.resolve().then(() => aotCacheLoader);
+    return loader.loadRouterAOTCaches();
+  }
+  loadAOTCaches$1.__type = ["loadAOTCaches", 'P"/!'];
+  async function emitAOTCaches$1() {
+    if (!isMionAOTEmitMode())
+      return;
+    const aotEmitter$1 = await Promise.resolve().then(() => aotEmitter);
+    return aotEmitter$1.emitAOTCaches();
+  }
+  emitAOTCaches$1.__type = ["emitAOTCaches", 'P"/!'];
+  async function recursiveFlatRoutes(routes, currentPointer = [], preMiddleFns = [], postMiddleFns = [], binaryMiddlewares = /* @__PURE__ */ new Set(), nestLevel = 0) {
+    if (nestLevel > MAX_ROUTE_NESTING)
+      throw new Error("Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels");
+    const entries = Object.entries(routes);
+    if (entries.length === 0)
+      throw new Error(`Invalid route: ${currentPointer.length ? joinPath(...currentPointer) : "*"}. Can Not define empty routes`);
+    let minus1Props = null;
+    for (let index = 0; index < entries.length; index++) {
+      const [key, item] = entries[index];
+      const newPointer = [...currentPointer, key];
+      let routeEntry;
+      if (typeof key !== "string" || !isNaN(key))
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Numeric route names are not allowed`);
+      if (key.includes(","))
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Route names cannot contain commas.`);
+      if (key === WORKFLOW_KEY)
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. '${WORKFLOW_KEY}' is a reserved mion route name.`);
+      if (isAnyMiddleFnDef(item)) {
+        routeEntry = await getExecutableFromAnyMiddleFn(item, newPointer, nestLevel);
+        if (middleFnNames.has(routeEntry.id))
+          throw new Error(`Invalid middleFn: ${joinPath(...newPointer)}. Naming collision, Naming collision, duplicated middleFn.`);
+        middleFnNames.add(routeEntry.id);
+      } else if (isRoute(item)) {
+        routeEntry = await getExecutableFromRoute(item, newPointer, nestLevel);
+        if (routeNames.has(routeEntry.id))
+          throw new Error(`Invalid route: ${joinPath(...newPointer)}. Naming collision, duplicated route`);
+        routeNames.add(routeEntry.id);
+      } else if (isRoutes(item)) {
+        routeEntry = {
+          pathPointer: newPointer,
+          routes: item
+        };
+      } else {
+        const itemType = typeof item;
+        throw new Error(`Invalid route: ${joinPath(...newPointer)}. Type <${itemType}> is not a valid route.`);
+      }
+      minus1Props = await recursiveCreateExecutionChain(routeEntry, newPointer, preMiddleFns, postMiddleFns, binaryMiddlewares, nestLevel, index, entries, minus1Props);
+    }
+  }
+  recursiveFlatRoutes.__type = ["Routes", "routes", "currentPointer", () => [], "RemoteMethod", "preMiddleFns", () => [], "postMiddleFns", () => [], "binaryMiddlewares", () => /* @__PURE__ */ new Set(), "nestLevel", "recursiveFlatRoutes", `P"w!2"&F2#>$"w%F2&>'"w%F2(>)&D2*>+"2,"/-`];
+  async function recursiveCreateExecutionChain(routeEntry, currentPointer, preMiddleFns, postMiddleFns, binaryMiddlewares, nestLevel, index, routeKeyedEntries, minus1Props) {
+    const minus1 = getEntry(index - 1, routeKeyedEntries);
+    const plus1 = getEntry(index + 1, routeKeyedEntries);
+    const props = getRouteEntryProperties(minus1, routeEntry, plus1);
+    if (props.isBetweenRoutes && minus1Props) {
+      props.preLevelMiddleFns = minus1Props.preLevelMiddleFns;
+      props.postLevelMiddleFns = minus1Props.postLevelMiddleFns;
+    } else {
+      for (let i = 0; i < routeKeyedEntries.length; i++) {
+        const [k, entry] = routeKeyedEntries[i];
+        if (!isAnyMiddleFnDef(entry))
+          continue;
+        const newPointer = [...currentPointer.slice(0, -1), k];
+        const executable = await getExecutableFromAnyMiddleFn(entry, newPointer, nestLevel);
+        if (i < index)
+          props.preLevelMiddleFns.push(executable);
+        if (i > index)
+          props.postLevelMiddleFns.push(executable);
+      }
+    }
+    const isExec = isExecutable(routeEntry);
+    if (isExec && props.isRoute) {
+      const path = getRoutePath(routeEntry.pointer, routerOptions);
+      const routeMethod = routeEntry;
+      const levelMethods = [
+        ...preMiddleFns,
+        ...props.preLevelMiddleFns,
+        routeEntry,
+        ...props.postLevelMiddleFns,
+        ...postMiddleFns
+      ];
+      const methods = [...startMiddleFns, ...levelMethods, ...endMiddleFns];
+      const executionChain = {
+        routeIndex: startMiddleFns.length + preMiddleFns.length + props.preLevelMiddleFns.length,
+        methods,
+        serializer: getSerializerCodeFromMode(routeMethod.options.serializer)
+      };
+      const middleFnIds = getPublicMiddleFnIds(methods);
+      if (middleFnIds.length)
+        routeMethod.middleFnIds = middleFnIds;
+      flatRouter.set(path, executionChain);
+      if (routeMethod.options.serializer === "binary") {
+        for (const method of methods) {
+          if (method.type === HandlerType$1.middleFn || method.type === HandlerType$1.headersMiddleFn) {
+            binaryMiddlewares.add(method.id);
+          }
+        }
+      }
+    } else if (!isExec) {
+      await recursiveFlatRoutes(routeEntry.routes, routeEntry.pathPointer, [...preMiddleFns, ...props.preLevelMiddleFns], [...props.postLevelMiddleFns, ...postMiddleFns], binaryMiddlewares, nestLevel + 1);
+    }
+    return props;
+  }
+  recursiveCreateExecutionChain.__type = ["RemoteMethod", () => __ΩRoutesWithId, "routeEntry", "currentPointer", "preMiddleFns", "postMiddleFns", "binaryMiddlewares", "nestLevel", "index", () => __ΩRouterKeyEntryList, "routeKeyedEntries", () => __ΩReturnType$1, () => getRouteEntryProperties, "minus1Props", "recursiveCreateExecutionChain", `PP"w!n"J2#&F2$"w!F2%"w!F2&&D2''2('2)n*2+Pi-o,",J2."//`];
+  async function getExecutableFromAnyMiddleFn(middleFn2, middleFnPointer, nestLevel) {
+    if (isRawMiddleFnDef(middleFn2))
+      return getExecutableFromRawMiddleFn(middleFn2, middleFnPointer, nestLevel);
+    return getExecutableFromMiddleFn(middleFn2, middleFnPointer, nestLevel);
+  }
+  getExecutableFromAnyMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "getExecutableFromAnyMiddleFn", `PP"w!"w""w#J2$&F2%'2&"/'`];
+  async function getExecutableFromMiddleFn(middleFn2, middleFnPointer, nestLevel) {
+    const isHeader = isHeadersMiddleFnDef(middleFn2);
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = middleFnsById.get(middleFnId);
+    if (existing)
+      return existing;
+    const compiledMethod = getPersistedMethod(middleFnId, middleFn2.handler);
+    let executable;
+    if (compiledMethod) {
+      executable = compiledMethod;
+    } else {
+      const reflectionData = await getHandlerReflection(middleFn2.handler, middleFnId, routerOptions, middleFn2.options ?? {}, isHeader, middleFn2.options?.strictTypes);
+      executable = {
+        id: middleFnId,
+        type: isHeader ? HandlerType$1.headersMiddleFn : HandlerType$1.middleFn,
+        nestLevel,
+        handler: middleFn2.handler,
+        pointer: middleFnPointer,
+        ...reflectionData,
+        options: {
+          runOnError: !!middleFn2.options?.runOnError,
+          validateParams: middleFn2.options?.validateParams ?? true,
+          validateReturn: middleFn2.options?.validateReturn ?? false,
+          description: middleFn2.options?.description,
+          strictTypes: middleFn2.options?.strictTypes ?? routerOptions.strictTypes
+        }
+      };
+      addToPersistedMethods(middleFnId, executable);
+    }
+    middleFnsById.set(middleFnId, executable);
+    routesCache.setMethodJitFns(middleFnId, executable);
+    return executable;
+  }
+  getExecutableFromMiddleFn.__type = ["MiddleFnDef", "HeadersMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "MiddleFnMethod", "HeadersMethod", "getExecutableFromMiddleFn", `PP"w!"w"J2#&F2$'2%P"w&"w'J\`/(`];
+  async function getExecutableFromRawMiddleFn(middleFn2, middleFnPointer, nestLevel) {
+    const middleFnId = getRouterItemId(middleFnPointer);
+    const existing = rawMiddleFnsById.get(middleFnId);
+    if (existing)
+      return existing;
+    const reflectionData = await getRawMethodReflection(middleFn2.handler, middleFnId, routerOptions);
+    const executable = {
+      id: middleFnId,
+      type: HandlerType$1.rawMiddleFn,
+      nestLevel,
+      handler: middleFn2.handler,
+      pointer: middleFnPointer,
+      ...reflectionData,
+      options: {
+        runOnError: !!middleFn2.options?.runOnError,
+        validateParams: false,
+        validateReturn: false,
+        description: middleFn2.options?.description
+      }
+    };
+    rawMiddleFnsById.set(middleFnId, executable);
+    routesCache.setMethodJitFns(middleFnId, executable);
+    return executable;
+  }
+  getExecutableFromRawMiddleFn.__type = ["RawMiddleFnDef", "middleFn", "middleFnPointer", "nestLevel", "RawMethod", "getExecutableFromRawMiddleFn", 'P"w!2"&F2#\'2$"w%`/&'];
+  async function compileBinaryForMiddleware(binaryMiddlewareIds) {
+    for (const id of binaryMiddlewareIds) {
+      const method = middleFnsById.get(id);
+      if (method)
+        await ensureBinaryJitFns(method);
+    }
+  }
+  compileBinaryForMiddleware.__type = ["binaryMiddlewareIds", "compileBinaryForMiddleware", 'P&D2!$`/"'];
+  async function getExecutableFromRoute(route2, routePointer, nestLevel) {
+    const routeId = getRouterItemId(routePointer);
+    const existing = routesById.get(routeId);
+    if (existing)
+      return existing;
+    const compiledMethod = getPersistedMethod(routeId, route2.handler);
+    let executable;
+    if (compiledMethod) {
+      executable = compiledMethod;
+    } else {
+      const resolvedRouteOptions = { ...route2.options, serializer: route2.options?.serializer ?? routerOptions.serializer };
+      const reflectionData = await getHandlerReflection(route2.handler, routeId, routerOptions, resolvedRouteOptions, false, route2.options?.strictTypes);
+      executable = {
+        id: routeId,
+        type: HandlerType$1.route,
+        nestLevel,
+        handler: route2.handler,
+        pointer: routePointer,
+        ...reflectionData,
+        options: {
+          runOnError: false,
+          validateParams: route2.options?.validateParams ?? true,
+          validateReturn: route2.options?.validateReturn ?? false,
+          description: route2.options?.description,
+          serializer: route2.options?.serializer ?? routerOptions.serializer,
+          isMutation: route2.options?.isMutation,
+          strictTypes: route2.options?.strictTypes ?? routerOptions.strictTypes
+        }
+      };
+      addToPersistedMethods(routeId, executable);
+    }
+    routesById.set(routeId, executable);
+    routesCache.setMethodJitFns(routeId, executable);
+    return executable;
+  }
+  getExecutableFromRoute.__type = ["Route", "route", "routePointer", "nestLevel", "RouteMethod", "getExecutableFromRoute", 'P"w!2"&F2#\'2$"w%`/&'];
+  function getPublicMiddleFnIds(methods) {
+    const ids = methods.filter(__assignType$3((exec) => isPublicExecutable(exec), ["exec", "", 'P"2!"/"'])).map(__assignType$3((exec) => getRouterItemId(exec.pointer), ["exec", "", 'P"2!"/"'])).filter(__assignType$3((mfId) => {
+      if (mionInternalRoutes.includes(mfId))
+        return false;
+      const exec = getMiddleFnExecutable(mfId);
+      return exec && isPublicExecutable(exec);
+    }, ["mfId", "", 'P"2!"/"']));
+    return ids;
+  }
+  getPublicMiddleFnIds.__type = ["RemoteMethod", "methods", "getPublicMiddleFnIds", 'P"w!F2"&F/#'];
+  function getEntry(index, keyEntryList) {
+    return keyEntryList[index]?.[1];
+  }
+  getEntry.__type = ["index", () => __ΩRouterKeyEntryList, "keyEntryList", "getEntry", `P'2!n"2#"/$`];
+  function getRouteEntryProperties(minus1, zero, plus1) {
+    const minus1IsRoute = minus1 && isRoute(minus1);
+    const zeroIsRoute = zero.type === HandlerType$1.route;
+    const plus1IsRoute = plus1 && isRoute(plus1);
+    const isExec = !!zero.handler;
+    return {
+      isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
+      isExecutable: isExec,
+      isRoute: zeroIsRoute,
+      preLevelMiddleFns: [],
+      postLevelMiddleFns: []
+    };
+  }
+  getRouteEntryProperties.__type = ["RouterEntry", "minus1", "RemoteMethod", () => __ΩRoutesWithId, "zero", "plus1", "getRouteEntryProperties", `PP"w!-J2"P"w#n$J2%P"w!-J2&"/'`];
+  async function getExecutablesFromMiddleFnsCollection(middleFnsDef) {
+    const results = [];
+    for (const [key, middleFn2] of Object.entries(middleFnsDef)) {
+      if (isRawMiddleFnDef(middleFn2)) {
+        results.push(await getExecutableFromRawMiddleFn(middleFn2, [key], 0));
+      } else if (isHeadersMiddleFnDef(middleFn2) || isMiddleFnDef(middleFn2)) {
+        results.push(await getExecutableFromMiddleFn(middleFn2, [key], 0));
+      } else {
+        throw new Error(`Invalid middleFn: ${key}. Invalid middleFn definition`);
+      }
+    }
+    return results;
+  }
+  getExecutablesFromMiddleFnsCollection.__type = ["MiddleFnsCollection", "middleFnsDef", "RawMethod", "MiddleFnMethod", "HeadersMethod", "getExecutablesFromMiddleFnsCollection", 'P"w!2"P"w#"w$"w%JF`/&'];
+  function validateSharedDataFactory(opts2) {
+    if (!opts2?.contextDataFactory)
+      return;
+    const testSharedData = opts2.contextDataFactory();
+    if (typeof testSharedData !== "object" || Array.isArray(testSharedData) || testSharedData === null || Object.keys(testSharedData).length === 0) {
+      throw new Error("contextDataFactory must return a plain object with at least one property");
+    }
+  }
+  validateSharedDataFactory.__type = [() => __ΩPartial, "RouterOptions", "opts", "validateSharedDataFactory", 'P"w"o!"2#8$/$'];
+  function getSerializerCodeFromMode(mode) {
+    switch (mode) {
+      case "binary":
+        return SerializerModes.binary;
+      case "stringifyJson":
+        return SerializerModes.stringifyJson;
+      case "optimistic":
+        return SerializerModes.stringifyJson;
+      case "json":
+      default:
+        return SerializerModes.json;
+    }
+  }
+  getSerializerCodeFromMode.__type = [() => __ΩSerializerMode, "mode", () => __ΩSerializerCode, "getSerializerCodeFromMode", 'PPn!-J2"n#/$'];
+  function joinPath(...parts) {
+    return parts.filter(Boolean).join("/");
+  }
+  joinPath.__type = ["parts", "joinPath", 'P&@2!&/"'];
+  function __assignType$2(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  async function dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, rawRequest, rawResponse, reqBodyType, urlQuery) {
+    const opts2 = getRouterOptions();
+    const usePooling = opts2.maxContextPoolSize > 0;
+    const context = acquireCallContext(usePooling, path, opts2, reqRawBody, rawRequest, reqHeaders, respHeaders, reqBodyType, urlQuery);
+    try {
+      await runExecutionChain(context, rawRequest, rawResponse, opts2);
+      return context.response;
+    } catch (err) {
+      return Promise.reject(err);
+    } finally {
+      if (usePooling) {
+        releaseCallContext(context, opts2.maxContextPoolSize);
+      }
+    }
+  }
+  dispatchRoute.__type = ["path", "RawRequestBody", "reqRawBody", "MionHeaders", "reqHeaders", "respHeaders", "rawRequest", "rawResponse", () => __ΩSerializerCode, "reqBodyType", "urlQuery", "MionResponse", "dispatchRoute", 'P&2!"w"2#"w$2%"w$2&"2\'"2(8n)2*8&2+8"w,`/-'];
+  async function runExecutionChain(context, rawRequest, rawResponse, opts2) {
+    const { response, request } = context;
+    const executionList = context.executionChain.methods;
+    response.serializer = context.executionChain.serializer;
+    for (let i = 0; i < executionList.length; i++) {
+      const executable = executionList[i];
+      if (response.hasErrors && !executable.options.runOnError)
+        continue;
+      try {
+        const methodCaller = executable.methodCaller || getMethodCaller(executable);
+        const result = await methodCaller(context, executable, request, response, opts2, rawRequest, rawResponse);
+        if (result === void 0 || !executable.hasReturnData)
+          continue;
+        if (executable.headersReturn && result instanceof HeadersSubset) {
+          const headersMap = result.headers;
+          for (const name in headersMap) {
+            const value = headersMap[name];
+            if (value !== void 0 && value !== null) {
+              response.headers.set(name, value);
+            }
+          }
+          continue;
+        }
+        response.body[executable.id] = result;
+      } catch (err) {
+        onExecutableError(context, executable, err);
+      }
+    }
+    return context.response;
+  }
+  runExecutionChain.__type = ["CallContext", "context", "rawRequest", "rawResponse", "RouterOptions", "opts", "MionResponse", "runExecutionChain", 'P"w!2"#2##2$"w%2&"w\'`/('];
+  async function runRawMiddleFn(context, executable, req, resp, opts2, rawRequest, rawResponse) {
+    const result = await executable.handler(context, rawRequest, rawResponse, opts2);
+    return result;
+  }
+  runRawMiddleFn.__type = ["CallContext", "context", () => __ΩRawMethod, "executable", "req", "resp", "RouterOptions", "opts", "rawRequest", "rawResponse", "runRawMiddleFn", `P"w!2"n#2$"2%"2&"w'2(#2)#2*"/+`];
+  async function runHeadersMiddleFn(context, executable, request) {
+    const headerNames = executable.headersParam.headerNames;
+    const params = deserializeBodyParamsOrThrow(request, executable);
+    const headersMap = {};
+    headerNames.forEach(__assignType$2((name) => {
+      const value = request.headers.get(name);
+      if (value)
+        headersMap[name] = value;
+    }, ["name", "", 'P"2!"/"']));
+    const headersSubset = new HeadersSubset(headersMap);
+    validateHeaderParamsOrThrow(headersSubset, executable);
+    if (executable.options.validateParams)
+      validateParametersOrThrow(params, executable);
+    const result = await executable.handler(context, headersSubset, ...params);
+    return result;
+  }
+  runHeadersMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runHeadersMiddleFn", `P"w!2"n#2$"w%2&"/'`];
+  async function runRouteOrMiddleFn(context, executable, request) {
+    const params = deserializeBodyParamsOrThrow(request, executable);
+    if (executable.options.validateParams)
+      validateParametersOrThrow(params, executable);
+    const result = await executable.handler(context, ...params);
+    return result;
+  }
+  runRouteOrMiddleFn.__type = ["CallContext", "context", () => __ΩHeadersMethod, "executable", "MionRequest", "request", "runRouteOrMiddleFn", `P"w!2"n#2$"w%2&"/'`];
+  function getMethodCaller(executable) {
+    if (executable.type === HandlerType$1.rawMiddleFn) {
+      executable.methodCaller = runRawMiddleFn;
+    } else if (executable.type === HandlerType$1.headersMiddleFn) {
+      executable.methodCaller = runHeadersMiddleFn;
+    } else {
+      executable.methodCaller = runRouteOrMiddleFn;
+    }
+    return executable.methodCaller;
+  }
+  getMethodCaller.__type = [() => __ΩRemoteMethod, "executable", "getMethodCaller", 'Pn!2""/#'];
+  function deserializeBodyParamsOrThrow(request, executable) {
+    const params = request.body[executable.id] || [];
+    if (request.bodyType === SerializerModes.binary)
+      return params;
+    if (executable.paramsJitFns.restoreFromJson.isNoop)
+      return params;
+    try {
+      request.body[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
+      return request.body[executable.id];
+    } catch (e) {
+      throw new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "serialization-error",
+        publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
+        originalError: e,
+        errorData: {
+          deserializeError: e?.message || "Unknown error"
+        }
+      });
+    }
+  }
+  deserializeBodyParamsOrThrow.__type = ["MionRequest", "request", () => __ΩRemoteMethod, "executable", "deserializeBodyParamsOrThrow", 'P"w!2"n#2$"F/%'];
+  function validateParametersOrThrow(params, executable) {
+    if (executable.paramsJitFns.isType.isNoop)
+      return;
+    if (!executable.paramsJitFns.isType.fn(params)) {
+      const validationError = new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "validation-error",
+        publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+        errorData: {
+          typeErrors: executable.paramsJitFns.typeErrors.fn(params)
+        }
+      });
+      throw validationError;
+    }
+  }
+  validateParametersOrThrow.__type = ["params", () => __ΩRemoteMethod, "executable", "validateParametersOrThrow", 'P"F2!n"2#$/$'];
+  function validateHeaderParamsOrThrow(headers, executable) {
+    if (!executable.headersParam.jitFns.isType.fn(headers)) {
+      const validationError = new RpcError({
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+        type: "validation-error",
+        publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+        errorData: {
+          typeErrors: executable.headersParam.jitFns.typeErrors.fn(headers)
+        }
+      });
+      throw validationError;
+    }
+  }
+  validateHeaderParamsOrThrow.__type = [() => HeadersSubset, "headers", () => __ΩHeadersMethod, "executable", "validateHeaderParamsOrThrow", 'PP&&7!2"n#2$$/%'];
+  const __ΩQueryBodyResult = ["rawBody", "SerializerCode", "bodyType", "QueryBodyResult", 'P&4!"w"4#Mw$y'];
+  function decodeQueryBody(urlQuery, rawBody) {
+    if (rawBody)
+      return void 0;
+    if (!urlQuery)
+      return void 0;
+    const dataValue = extractDataParam(urlQuery);
+    if (!dataValue)
+      return void 0;
+    return {
+      rawBody: fromBase64Url(dataValue),
+      bodyType: SerializerModes.stringifyJson
+    };
+  }
+  decodeQueryBody.__type = ["urlQuery", "rawBody", () => __ΩQueryBodyResult, "decodeQueryBody", 'PP&-J2!#2"Pn#-J/$'];
+  function extractDataParam(urlQuery) {
+    if (urlQuery.startsWith("data=")) {
+      const ampIndex2 = urlQuery.indexOf("&", 5);
+      return ampIndex2 === -1 ? urlQuery.slice(5) : urlQuery.slice(5, ampIndex2);
+    }
+    const idx = urlQuery.indexOf("&data=");
+    if (idx === -1)
+      return void 0;
+    const start = idx + 6;
+    const ampIndex = urlQuery.indexOf("&", start);
+    return ampIndex === -1 ? urlQuery.slice(start) : urlQuery.slice(start, ampIndex);
+  }
+  extractDataParam.__type = ["urlQuery", "extractDataParam", 'P&2!P&-J/"'];
+  const DEFAULT_VERCEL_OPTIONS = {
+    defaultResponseHeaders: {}
+  };
+  let vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
+  let defaultHeaders = [["server", "@mionjs"]];
+  function resetVercelHandlerOpts() {
+    vercelOptions = { ...DEFAULT_VERCEL_OPTIONS };
+    defaultHeaders = [["server", "@mionjs"]];
+    resetRouter();
+  }
+  function setVercelHandlerOpts(options2) {
+    vercelOptions = {
+      ...vercelOptions,
+      ...options2
+    };
+    defaultHeaders = [["server", "@mionjs"], ...Object.entries(vercelOptions.defaultResponseHeaders)];
+    setPlatformConfig({ ...vercelOptions });
+    return vercelOptions;
+  }
+  async function handleRequest(req) {
+    const reqUrl = req.url;
+    const urlObj = new URL(reqUrl);
+    const path = urlObj.pathname;
+    const urlQuery = urlObj.search ? urlObj.search.slice(1) : void 0;
+    const contentType = req.headers.get("content-type") || "";
+    const isBinary = contentType.startsWith("application/octet-stream");
+    let rawBody = req.body ? isBinary ? await req.arrayBuffer() : await req.json() : void 0;
+    let reqBodyType = isBinary ? SerializerModes.binary : SerializerModes.json;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+      rawBody = queryBody.rawBody;
+      reqBodyType = queryBody.bodyType;
+    }
+    const responseHeaders = new Headers(defaultHeaders);
+    try {
+      const platformResp = await dispatchRoute(
+        path,
+        rawBody,
+        req.headers,
+        responseHeaders,
+        req,
+        void 0,
+        reqBodyType,
+        urlQuery
+      );
+      return reply(platformResp, responseHeaders);
+    } catch (e) {
+      const error = e instanceof RpcError ? e : new RpcError({
+        publicMessage: "Unknown Error",
+        type: "unknown-error",
+        originalError: e
+      });
+      return fatalFail(error, responseHeaders);
+    }
+  }
+  function createVercelHandler(options2) {
+    setVercelHandlerOpts(options2);
+    return {
+      GET: handleRequest,
+      POST: handleRequest,
+      PUT: handleRequest,
+      DELETE: handleRequest,
+      PATCH: handleRequest
+    };
+  }
+  function fatalFail(err, responseHeaders) {
+    const routeResponse = getRouterFatalErrorResponse(err, responseHeaders);
+    return reply(routeResponse, responseHeaders);
+  }
+  function reply(mionResp, responseHeaders) {
+    const bodyType = mionResp.serializer;
+    switch (bodyType) {
+      case SerializerModes.stringifyJson: {
+        return new Response(mionResp.rawBody, {
+          status: mionResp.statusCode,
+          headers: responseHeaders
+        });
+      }
+      case SerializerModes.json: {
+        return Response.json(mionResp.body, {
+          status: mionResp.statusCode,
+          headers: responseHeaders
+        });
+      }
+      case SerializerModes.binary: {
+        const serializer = mionResp.binSerializer;
+        responseHeaders.set("content-length", String(serializer.getLength()));
+        const response = new Response(serializer.getBufferView(), {
+          status: mionResp.statusCode,
+          headers: responseHeaders
+        });
+        serializer.markAsEnded();
+        return response;
+      }
+      default: {
+        const error = new RpcError({
+          publicMessage: "unknown-mion-response-format",
+          type: "unknown-error",
+          errorData: { bodyType }
+        });
+        return fatalFail(error, responseHeaders);
+      }
+    }
+  }
+  const __ΩReturnType = ["T", "args", "", "ReturnType", `l>e"!R"RPde#!P"@2"h"!/#qk#'QRb!Pde"!p)w$y`];
+  const __ΩRecord$1 = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  function __assignType$1(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const __ΩSimpleUser = ["name", "surname", "SimpleUser", 'P&4!&4"Mw#y'];
+  const __ΩDataPoint = ["date", "DataPoint", 'PT4!Mw"y'];
+  const __ΩMySharedData = [() => __ΩReturnType, () => getSharedData, "MySharedData", 'i"o!"w#y'];
+  const __ΩContext = [() => __ΩCallContext, () => __ΩMySharedData, "Context", 'n"o!"w#y'];
+  const getSharedData = () => ({ auth: { me: null } });
+  const changeUserName = route(__assignType$1((ctx, user) => {
+    return { name: "NewName", surname: user.surname };
+  }, [() => __ΩContext, "ctx", () => __ΩSimpleUser, "user", () => __ΩSimpleUser, "", 'Pn!2"n#2$n%/&']));
+  const getDate = route(__assignType$1((ctx, dataPoint) => {
+    return dataPoint || { date: /* @__PURE__ */ new Date("2022-04-10T02:13:00.000Z") };
+  }, [() => __ΩContext, "ctx", () => __ΩDataPoint, "dataPoint", () => __ΩDataPoint, "", 'Pn!2"n#2$8n%/&']));
+  const updateHeaders = route(__assignType$1((context) => {
+    context.response.headers.set("x-something", "true");
+    context.response.headers.set("server", "my-server");
+  }, [() => __ΩContext, "context", "", 'Pn!2"$/#']));
+  const edgeRoutes = { changeUserName, getDate, updateHeaders };
+  (async () => {
+    const mionCompile = typeof process !== "undefined" ? process.env?.MION_COMPILE : void 0;
+    if (mionCompile === "buildOnly" || mionCompile === "middleware") {
+      await initMionRouter(edgeRoutes, {
+        contextDataFactory: getSharedData,
+        basePath: "api/"
+      });
+    }
+  })();
+  const __ΩEdgeSetupOptions = ["basePath", "stringifyJson", "json", "serializer", () => __ΩRecord$1, "defaultResponseHeaders", "EdgeSetupOptions", `P&4!8P.".#J4$8&&o%#4&8Mw'y`];
+  async function setup(options2) {
+    resetVercelHandlerOpts();
+    resetRouter();
+    await initMionRouter(edgeRoutes, {
+      contextDataFactory: getSharedData,
+      basePath: "api/",
+      serializer: options2?.serializer,
+      aot: true
+      // Use pre-compiled AOT caches (bundled via virtual modules)
+    });
+    const handler = createVercelHandler({
+      defaultResponseHeaders: options2?.defaultResponseHeaders ?? {}
+    });
+    globalThis.handler = handler;
+    return handler;
+  }
+  setup.__type = [() => __ΩEdgeSetupOptions, "options", "setup", 'Pn!2"8"/#'];
+  function resetServer() {
+    resetVercelHandlerOpts();
+    resetRouter();
+    globalThis.handler = void 0;
+  }
+  resetServer.__type = ["resetServer", 'P"/!'];
+  const runTypes = {};
+  const runTypes$1 = /* @__PURE__ */ _mergeNamespaces({
+    __proto__: null,
+    default: runTypes
+  }, [runTypes]);
+  const pureFnsCache = { "mion": { "asJSONString": { namespace: "mion", paramNames: [], code: `if (typeof Bun !== "undefined") return JSON.stringify;
+  const STR_ESCAPE = /[\\u0000-\\u001f\\u0022\\u005c\\ud800-\\udfff]/;
+  const MAX_SCAPE_TEST_LENGTH = 1e3;
+  return function _asJSONStringRegexOnly(str) {
+    if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
+      return '"' + str + '"';
+    } else {
+      return JSON.stringify(str);
+    }
+  };`, fnName: "asJSONString", bodyHash: "4WYkR03dXOzAUe", createPureFn: function get_asJSONString() {
+    if (typeof Bun !== "undefined") return JSON.stringify;
+    const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
+    const MAX_SCAPE_TEST_LENGTH = 1e3;
+    return function _asJSONStringRegexOnly(str) {
+      if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
+        return '"' + str + '"';
+      } else {
+        return JSON.stringify(str);
+      }
+    };
+  }, fn: void 0 }, "getUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: 'const MAX_UNKNOWN_KEYS = 10;\n  return function _getUnknownKeysFromArray(obj, keys) {\n    const unknownKeys = [];\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) {\n        unknownKeys.push(prop);\n        if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error("Too many unknown keys");\n      }\n    }\n    return unknownKeys;\n  };', fnName: "getUnknownKeysFromArray", bodyHash: "D2CDXI8OoGLGyW", createPureFn: function get_getUnknownKeysFromArray() {
+    const MAX_UNKNOWN_KEYS = 10;
+    return function _getUnknownKeysFromArray(obj, keys) {
+      const unknownKeys = [];
+      for (const prop in obj) {
+        let found = false;
+        for (let j = 0; j < keys.length; j++) {
+          if (keys[j] === prop) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          unknownKeys.push(prop);
+          if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error("Too many unknown keys");
+        }
+      }
+      return unknownKeys;
+    };
+  }, fn: void 0 }, "hasUnknownKeysFromArray": { namespace: "mion", paramNames: [], code: "return function _hasUnknownKeysFromArray(obj, keys) {\n    for (const prop in obj) {\n      let found = false;\n      for (let j = 0; j < keys.length; j++) {\n        if (keys[j] === prop) {\n          found = true;\n          break;\n        }\n      }\n      if (!found) return true;\n    }\n    return false;\n  };", fnName: "hasUnknownKeysFromArray", bodyHash: "K7uzDGNnPwcqQ9", createPureFn: function get_hasUnknownKeysFromArray() {
+    return function _hasUnknownKeysFromArray(obj, keys) {
+      for (const prop in obj) {
+        let found = false;
+        for (let j = 0; j < keys.length; j++) {
+          if (keys[j] === prop) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) return true;
+      }
+      return false;
+    };
+  }, fn: void 0 }, "newRunTypeErr": { namespace: "mion", paramNames: [], code: "return function _err(p\\u03BBth, \\u03B5rr, expected, accessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const runTypeErr = { expected, path };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "newRunTypeErr", bodyHash: "eCwDrS1nuSv7ge", createPureFn: function get_newRunTypeErr() {
+    return function _err(pλth, εrr, expected, accessPath) {
+      const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+      const runTypeErr = { expected, path };
+      εrr.push(runTypeErr);
+    };
+  }, fn: void 0 }, "formatErr": { namespace: "mion", paramNames: [], code: "return function _formatErr(p\\u03BBth, \\u03B5rr, expected, fmtName, paramName, paramVal, fmtPath, accessPath, fmtAccessPath) {\n    const path = accessPath?.length ? [...p\\u03BBth, ...accessPath] : [...p\\u03BBth];\n    const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];\n    const format = { name: fmtName, formatPath, val: paramVal };\n    const runTypeErr = { expected, path, format };\n    \\u03B5rr.push(runTypeErr);\n  };", fnName: "formatErr", bodyHash: "2isPiuLWPtohVR", createPureFn: function get_formatErr() {
+    return function _formatErr(pλth, εrr, expected, fmtName, paramName, paramVal, fmtPath, accessPath, fmtAccessPath) {
+      const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+      const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
+      const format = { name: fmtName, formatPath, val: paramVal };
+      const runTypeErr = { expected, path, format };
+      εrr.push(runTypeErr);
+    };
+  }, fn: void 0 }, "safeIterableKey": { namespace: "mion", paramNames: [], code: 'return function _safeKey(value) {\n    if (value === void 0) return null;\n    if (value === null) return null;\n    const type = typeof value;\n    if (type === "number" || type === "string" || type === "boolean") return value;\n    return null;\n  };', fnName: "safeIterableKey", bodyHash: "BrjL47E-GRjUpQ", createPureFn: function get_safeIterableKey() {
+    return function _safeKey(value) {
+      if (value === void 0) return null;
+      if (value === null) return null;
+      const type = typeof value;
+      if (type === "number" || type === "string" || type === "boolean") return value;
+      return null;
+    };
+  }, fn: void 0 } } };
+  const jitFnsCache = { "is_RXdbj3": { isNoop: false, jitDependencies: ["is_b1N57x"], typeName: "params", fnID: "is", jitFnHash: "is_RXdbj3", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_b1N57x = utl.getJIT("is_b1N57x"); return function is_RXdbj3(v){return (v.length <= 2 && (v[0] === undefined || (is_b1N57x.fn(v[0]))) && (v[1] === undefined || (typeof v[1] === 'boolean')))}`, createJitFn: function get_is_RXdbj3(utl) {
+    const is_b1N57x = utl.getJIT("is_b1N57x");
+    return function is_RXdbj3(v) {
+      return v.length <= 2 && (v[0] === void 0 || is_b1N57x.fn(v[0])) && (v[1] === void 0 || typeof v[1] === "boolean");
+    };
+  }, fn: void 0 }, "is_b1N57x": { isNoop: false, typeName: "array", fnID: "is", jitFnHash: "is_b1N57x", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_b1N57x(v){\n if (!Array.isArray(v)) return false;\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = typeof v[i0] === 'string';\n if (!(res0)) return false;\n }\n return true;\n }", createJitFn: function get_is_b1N57x(utl) {
+    return function is_b1N57x(v) {
+      if (!Array.isArray(v)) return false;
+      for (let i0 = 0; i0 < v.length; i0++) {
+        const res0 = typeof v[i0] === "string";
+        if (!res0) return false;
+      }
+      return true;
+    };
+  }, fn: void 0 }, "te_RXdbj3": { isNoop: false, jitDependencies: ["te_b1N57x"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "params", fnID: "te", jitFnHash: "te_RXdbj3", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const te_b1N57x = utl.getJIT("te_b1N57x");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_RXdbj3(v,pth=[],er=[]){if (v.length > 2) Iqa2M8Ms(pth,er,"params"); else {if (v[0] !== undefined) {pth.push(0); te_b1N57x.fn(v[0],pth,er); pth.splice(-1);};if (v[1] !== undefined) {if (typeof v[1] !== 'boolean') Iqa2M8Ms(pth,er,"boolean",[1]);}} return er}`, createJitFn: function get_te_RXdbj3(utl) {
+    const te_b1N57x = utl.getJIT("te_b1N57x");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_RXdbj3(v, pth = [], er = []) {
+      if (v.length > 2) Iqa2M8Ms(pth, er, "params");
+      else {
+        if (v[0] !== void 0) {
+          pth.push(0);
+          te_b1N57x.fn(v[0], pth, er);
+          pth.splice(-1);
+        }
+        if (v[1] !== void 0) {
+          if (typeof v[1] !== "boolean") Iqa2M8Ms(pth, er, "boolean", [1]);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "te_b1N57x": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "array", fnID: "te", jitFnHash: "te_b1N57x", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_b1N57x(v,pth=[],er=[]){if (!Array.isArray(v)) {Iqa2M8Ms(pth,er,"array")} else {for (let i0 = 0; i0 < v.length; i0++) {if (typeof v[i0] !== 'string') Iqa2M8Ms(pth,er,"string",[i0]);}} return er}`, createJitFn: function get_te_b1N57x(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_b1N57x(v, pth = [], er = []) {
+      if (!Array.isArray(v)) {
+        Iqa2M8Ms(pth, er, "array");
+      } else {
+        for (let i0 = 0; i0 < v.length; i0++) {
+          if (typeof v[i0] !== "string") Iqa2M8Ms(pth, er, "string", [i0]);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_RXdbj3": { isNoop: false, typeName: "params", fnID: "tj", jitFnHash: "tj_RXdbj3", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_RXdbj3(v){if (v[0] === undefined ) {if (v.length > 0) v[0] = null};if (v[1] === undefined ) {if (v.length > 1) v[1] = null} return v}", createJitFn: function get_tj_RXdbj3(utl) {
+    return function tj_RXdbj3(v) {
+      if (v[0] === void 0) {
+        if (v.length > 0) v[0] = null;
+      }
+      if (v[1] === void 0) {
+        if (v.length > 1) v[1] = null;
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_b1N57x": { isNoop: true, typeName: "array", fnID: "tj", jitFnHash: "tj_b1N57x", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_b1N57x(v){return v}", createJitFn: function get_tj_b1N57x(utl) {
+    return function tj_b1N57x(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_RXdbj3": { isNoop: false, typeName: "params", fnID: "fj", jitFnHash: "fj_RXdbj3", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_RXdbj3(v){if (v[0] === null ) {v[0] = undefined};if (v[1] === null ) {v[1] = undefined} return v}", createJitFn: function get_fj_RXdbj3(utl) {
+    return function fj_RXdbj3(v) {
+      if (v[0] === null) {
+        v[0] = void 0;
+      }
+      if (v[1] === null) {
+        v[1] = void 0;
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_b1N57x": { isNoop: true, typeName: "array", fnID: "fj", jitFnHash: "fj_b1N57x", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_b1N57x(v){return v}", createJitFn: function get_fj_b1N57x(utl) {
+    return function fj_b1N57x(v) {
+      return v;
+    };
+  }, fn: void 0 }, "sj_RXdbj3": { isNoop: false, jitDependencies: ["sj_b1N57x"], typeName: "params", fnID: "sj", jitFnHash: "sj_RXdbj3", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_b1N57x = utl.getJIT("sj_b1N57x"); return function sj_RXdbj3(v){return '['+(v[0] === undefined ? 'null' : sj_b1N57x.fn(v[0]))+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}`, createJitFn: function get_sj_RXdbj3(utl) {
+    const sj_b1N57x = utl.getJIT("sj_b1N57x");
+    return function sj_RXdbj3(v) {
+      return "[" + (v[0] === void 0 ? "null" : sj_b1N57x.fn(v[0])) + (v[1] === void 0 ? ",null" : "," + (v[1] ? "true" : "false")) + "]";
+    };
+  }, fn: void 0 }, "sj_b1N57x": { isNoop: false, typeName: "array", fnID: "sj", jitFnHash: "sj_b1N57x", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function sj_b1N57x(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = JSON.stringify(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }", createJitFn: function get_sj_b1N57x(utl) {
+    return function sj_b1N57x(v) {
+      const ls0 = [];
+      for (let i0 = 0; i0 < v.length; i0++) {
+        const res0 = JSON.stringify(v[i0]);
+        ls0.push(res0);
+      }
+      return "[" + ls0.join(",") + "]";
+    };
+  }, fn: void 0 }, "is_A8gCSq": { isNoop: false, jitDependencies: ["is_EkaMeW", "is_OQaagS"], typeName: "union", fnID: "is", jitFnHash: "is_A8gCSq", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS"); return function is_A8gCSq(v){return (v === undefined || (typeof v === 'object' && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v))))}`, createJitFn: function get_is_A8gCSq(utl) {
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    return function is_A8gCSq(v) {
+      return v === void 0 || typeof v === "object" && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v));
+    };
+  }, fn: void 0 }, "is_EkaMeW": { isNoop: false, jitDependencies: ["is_lvnZPj", "is_R5rLxp", "is_aW6MAW"], typeName: "SerializableMethodsData", fnID: "is", jitFnHash: "is_EkaMeW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_lvnZPj = utl.getJIT("is_lvnZPj");
+const is_R5rLxp = utl.getJIT("is_R5rLxp");
+const is_aW6MAW = utl.getJIT("is_aW6MAW"); return function is_EkaMeW(v){return (is_lvnZPj.fn(v.purFnDeps) && is_R5rLxp.fn(v.methods) && is_aW6MAW.fn(v.deps))}`, createJitFn: function get_is_EkaMeW(utl) {
+    const is_lvnZPj = utl.getJIT("is_lvnZPj");
+    const is_R5rLxp = utl.getJIT("is_R5rLxp");
+    const is_aW6MAW = utl.getJIT("is_aW6MAW");
+    return function is_EkaMeW(v) {
+      return is_lvnZPj.fn(v.purFnDeps) && is_R5rLxp.fn(v.methods) && is_aW6MAW.fn(v.deps);
+    };
+  }, fn: void 0 }, "is_lvnZPj": { isNoop: false, jitDependencies: ["is_UmgAaQ"], typeName: "PureFnsDataCache", fnID: "is", jitFnHash: "is_lvnZPj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_UmgAaQ = utl.getJIT("is_UmgAaQ"); return function is_lvnZPj(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(is_UmgAaQ.fn(v[p0]))) return false;} return true;})())}`, createJitFn: function get_is_lvnZPj(utl) {
+    const is_UmgAaQ = utl.getJIT("is_UmgAaQ");
+    return function is_lvnZPj(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (function() {
+        for (const p0 in v) {
+          if (!is_UmgAaQ.fn(v[p0])) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_UmgAaQ": { isNoop: false, jitDependencies: ["is_XbPxPF"], typeName: "Record", fnID: "is", jitFnHash: "is_UmgAaQ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_XbPxPF = utl.getJIT("is_XbPxPF"); return function is_UmgAaQ(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(is_XbPxPF.fn(v[p0]))) return false;} return true;})())}`, createJitFn: function get_is_UmgAaQ(utl) {
+    const is_XbPxPF = utl.getJIT("is_XbPxPF");
+    return function is_UmgAaQ(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (function() {
+        for (const p0 in v) {
+          if (!is_XbPxPF.fn(v[p0])) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_XbPxPF": { isNoop: false, jitDependencies: ["is_Ei8qua"], typeName: "PureFunctionData", fnID: "is", jitFnHash: "is_XbPxPF", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_Ei8qua = utl.getJIT("is_Ei8qua"); return function is_XbPxPF(v){return (typeof v === 'object' && v !== null && typeof v.namespace === 'string' && is_Ei8qua.fn(v.paramNames) && typeof v.code === 'string' && typeof v.fnName === 'string' && typeof v.bodyHash === 'string' && (v.pureFnDependencies === undefined || is_Ei8qua.fn(v.pureFnDependencies)))}`, createJitFn: function get_is_XbPxPF(utl) {
+    const is_Ei8qua = utl.getJIT("is_Ei8qua");
+    return function is_XbPxPF(v) {
+      return typeof v === "object" && v !== null && typeof v.namespace === "string" && is_Ei8qua.fn(v.paramNames) && typeof v.code === "string" && typeof v.fnName === "string" && typeof v.bodyHash === "string" && (v.pureFnDependencies === void 0 || is_Ei8qua.fn(v.pureFnDependencies));
+    };
+  }, fn: void 0 }, "is_Ei8qua": { isNoop: false, typeName: "array", fnID: "is", jitFnHash: "is_Ei8qua", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_Ei8qua(v){\n if (!Array.isArray(v)) return false;\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = typeof v[i0] === 'string';\n if (!(res0)) return false;\n }\n return true;\n }", createJitFn: function get_is_Ei8qua(utl) {
+    return function is_Ei8qua(v) {
+      if (!Array.isArray(v)) return false;
+      for (let i0 = 0; i0 < v.length; i0++) {
+        const res0 = typeof v[i0] === "string";
+        if (!res0) return false;
+      }
+      return true;
+    };
+  }, fn: void 0 }, "is_R5rLxp": { isNoop: false, jitDependencies: ["is_YKoM0i"], typeName: "MethodsCache", fnID: "is", jitFnHash: "is_R5rLxp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_YKoM0i = utl.getJIT("is_YKoM0i"); return function is_R5rLxp(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(is_YKoM0i.fn(v[p0]))) return false;} return true;})())}`, createJitFn: function get_is_R5rLxp(utl) {
+    const is_YKoM0i = utl.getJIT("is_YKoM0i");
+    return function is_R5rLxp(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (function() {
+        for (const p0 in v) {
+          if (!is_YKoM0i.fn(v[p0])) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_YKoM0i": { isNoop: false, jitDependencies: ["is_Ei8qua", "is_s8eky2", "is_Tnp7jJ"], typeName: "MethodWithOptions", fnID: "is", jitFnHash: "is_YKoM0i", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_Ei8qua = utl.getJIT("is_Ei8qua");
+const is_s8eky2 = utl.getJIT("is_s8eky2");
+const is_Tnp7jJ = utl.getJIT("is_Tnp7jJ"); return function is_YKoM0i(v){return (typeof v === 'object' && v !== null && Number.isFinite(v.type) && typeof v.id === 'string' && typeof v.isAsync === 'boolean' && typeof v.hasReturnData === 'boolean' && (v.paramNames === undefined || is_Ei8qua.fn(v.paramNames)) && typeof v.paramsJitHash === 'string' && typeof v.returnJitHash === 'string' && (v.headersParam === undefined || is_s8eky2.fn(v.headersParam)) && (v.headersReturn === undefined || is_s8eky2.fn(v.headersReturn)) && (v.middleFnIds === undefined || is_Ei8qua.fn(v.middleFnIds)) && is_Ei8qua.fn(v.pointer) && Number.isFinite(v.nestLevel) && is_Tnp7jJ.fn(v.options))}`, createJitFn: function get_is_YKoM0i(utl) {
+    const is_Ei8qua = utl.getJIT("is_Ei8qua");
+    const is_s8eky2 = utl.getJIT("is_s8eky2");
+    const is_Tnp7jJ = utl.getJIT("is_Tnp7jJ");
+    return function is_YKoM0i(v) {
+      return typeof v === "object" && v !== null && Number.isFinite(v.type) && typeof v.id === "string" && typeof v.isAsync === "boolean" && typeof v.hasReturnData === "boolean" && (v.paramNames === void 0 || is_Ei8qua.fn(v.paramNames)) && typeof v.paramsJitHash === "string" && typeof v.returnJitHash === "string" && (v.headersParam === void 0 || is_s8eky2.fn(v.headersParam)) && (v.headersReturn === void 0 || is_s8eky2.fn(v.headersReturn)) && (v.middleFnIds === void 0 || is_Ei8qua.fn(v.middleFnIds)) && is_Ei8qua.fn(v.pointer) && Number.isFinite(v.nestLevel) && is_Tnp7jJ.fn(v.options);
+    };
+  }, fn: void 0 }, "is_s8eky2": { isNoop: false, jitDependencies: ["is_Ei8qua"], typeName: "HeadersMetaData", fnID: "is", jitFnHash: "is_s8eky2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_Ei8qua = utl.getJIT("is_Ei8qua"); return function is_s8eky2(v){return (typeof v === 'object' && v !== null && is_Ei8qua.fn(v.headerNames) && typeof v.jitHash === 'string')}`, createJitFn: function get_is_s8eky2(utl) {
+    const is_Ei8qua = utl.getJIT("is_Ei8qua");
+    return function is_s8eky2(v) {
+      return typeof v === "object" && v !== null && is_Ei8qua.fn(v.headerNames) && typeof v.jitHash === "string";
+    };
+  }, fn: void 0 }, "is_Tnp7jJ": { isNoop: false, jitDependencies: ["is_MwSoc2"], typeName: "RemoteMethodOpts", fnID: "is", jitFnHash: "is_Tnp7jJ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_MwSoc2 = utl.getJIT("is_MwSoc2"); return function is_Tnp7jJ(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (v.runOnError === undefined || typeof v.runOnError === 'boolean') && (v.validateParams === undefined || typeof v.validateParams === 'boolean') && (v.validateReturn === undefined || typeof v.validateReturn === 'boolean') && (v.description === undefined || typeof v.description === 'string') && (v.serializer === undefined || is_MwSoc2.fn(v.serializer)) && (v.isMutation === undefined || typeof v.isMutation === 'boolean') && (v.strictTypes === undefined || typeof v.strictTypes === 'boolean'))}`, createJitFn: function get_is_Tnp7jJ(utl) {
+    const is_MwSoc2 = utl.getJIT("is_MwSoc2");
+    return function is_Tnp7jJ(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (v.runOnError === void 0 || typeof v.runOnError === "boolean") && (v.validateParams === void 0 || typeof v.validateParams === "boolean") && (v.validateReturn === void 0 || typeof v.validateReturn === "boolean") && (v.description === void 0 || typeof v.description === "string") && (v.serializer === void 0 || is_MwSoc2.fn(v.serializer)) && (v.isMutation === void 0 || typeof v.isMutation === "boolean") && (v.strictTypes === void 0 || typeof v.strictTypes === "boolean");
+    };
+  }, fn: void 0 }, "is_MwSoc2": { isNoop: false, typeName: "SerializerMode", fnID: "is", jitFnHash: "is_MwSoc2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function is_MwSoc2(v){return (v === "json" || v === "binary" || v === "stringifyJson" || v === "optimistic")}`, createJitFn: function get_is_MwSoc2(utl) {
+    return function is_MwSoc2(v) {
+      return v === "json" || v === "binary" || v === "stringifyJson" || v === "optimistic";
+    };
+  }, fn: void 0 }, "is_aW6MAW": { isNoop: false, jitDependencies: ["is_xrf3pH"], typeName: "FnsDataCache", fnID: "is", jitFnHash: "is_aW6MAW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_xrf3pH = utl.getJIT("is_xrf3pH"); return function is_aW6MAW(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(is_xrf3pH.fn(v[p0]))) return false;} return true;})())}`, createJitFn: function get_is_aW6MAW(utl) {
+    const is_xrf3pH = utl.getJIT("is_xrf3pH");
+    return function is_aW6MAW(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (function() {
+        for (const p0 in v) {
+          if (!is_xrf3pH.fn(v[p0])) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_xrf3pH": { isNoop: false, jitDependencies: ["is_gCQYSg", "is_Ei8qua"], typeName: "JitCompiledFnData", fnID: "is", jitFnHash: "is_xrf3pH", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_gCQYSg = utl.getJIT("is_gCQYSg");
+const is_Ei8qua = utl.getJIT("is_Ei8qua"); return function is_xrf3pH(v){return (typeof v === 'object' && v !== null && typeof v.typeName === 'string' && typeof v.fnID === 'string' && typeof v.jitFnHash === 'string' && is_gCQYSg.fn(v.args) && is_gCQYSg.fn(v.defaultParamValues) && (v.isNoop === undefined || typeof v.isNoop === 'boolean') && typeof v.code === 'string' && (v.jitDependencies === undefined || is_Ei8qua.fn(v.jitDependencies)) && (v.pureFnDependencies === undefined || is_Ei8qua.fn(v.pureFnDependencies)) && (v.paramNames === undefined || is_Ei8qua.fn(v.paramNames)))}`, createJitFn: function get_is_xrf3pH(utl) {
+    const is_gCQYSg = utl.getJIT("is_gCQYSg");
+    const is_Ei8qua = utl.getJIT("is_Ei8qua");
+    return function is_xrf3pH(v) {
+      return typeof v === "object" && v !== null && typeof v.typeName === "string" && typeof v.fnID === "string" && typeof v.jitFnHash === "string" && is_gCQYSg.fn(v.args) && is_gCQYSg.fn(v.defaultParamValues) && (v.isNoop === void 0 || typeof v.isNoop === "boolean") && typeof v.code === "string" && (v.jitDependencies === void 0 || is_Ei8qua.fn(v.jitDependencies)) && (v.pureFnDependencies === void 0 || is_Ei8qua.fn(v.pureFnDependencies)) && (v.paramNames === void 0 || is_Ei8qua.fn(v.paramNames));
+    };
+  }, fn: void 0 }, "is_gCQYSg": { isNoop: false, typeName: "JitFnArgs", fnID: "is", jitFnHash: "is_gCQYSg", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function is_gCQYSg(v){return (typeof v === 'object' && v !== null && typeof v["vλl"] === 'string' && (function(){for (const p0 in v){if ("vλl" === p0) continue; if (!(typeof v[p0] === 'string')) return false;} return true;})())}`, createJitFn: function get_is_gCQYSg(utl) {
+    return function is_gCQYSg(v) {
+      return typeof v === "object" && v !== null && typeof v["vλl"] === "string" && (function() {
+        for (const p0 in v) {
+          if ("vλl" === p0) continue;
+          if (!(typeof v[p0] === "string")) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_OQaagS": { isNoop: false, jitDependencies: ["is_WEWIGI"], typeName: "RpcError", fnID: "is", jitFnHash: "is_OQaagS", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_OQaagS(v){return ((v.statusCode === undefined || Number.isFinite(v.statusCode)) && v["mion@isΣrrθr"] === true && v.type === "rpc-metadata-not-found" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)))}`, createJitFn: function get_is_OQaagS(utl) {
+    const is_WEWIGI = utl.getJIT("is_WEWIGI");
+    return function is_OQaagS(v) {
+      return (v.statusCode === void 0 || Number.isFinite(v.statusCode)) && v["mion@isΣrrθr"] === true && v.type === "rpc-metadata-not-found" && (v.id === void 0 || (Number.isFinite(v.id) || typeof v.id === "string")) && typeof v.publicMessage === "string" && (v.errorData === void 0 || is_WEWIGI.fn(v.errorData));
+    };
+  }, fn: void 0 }, "is_WEWIGI": { isNoop: false, typeName: "Readonly", fnID: "is", jitFnHash: "is_WEWIGI", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_WEWIGI(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(true)) return false;} return true;})())}", createJitFn: function get_is_WEWIGI(utl) {
+    return function is_WEWIGI(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && /* @__PURE__ */ (function() {
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "te_A8gCSq": { isNoop: false, jitDependencies: ["is_EkaMeW", "is_OQaagS"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "union", fnID: "te", jitFnHash: "te_A8gCSq", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_A8gCSq(v,pth=[],er=[]){if (!(v === undefined || (typeof v === 'object' && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v))))) Iqa2M8Ms(pth,er,"union"); return er}`, createJitFn: function get_te_A8gCSq(utl) {
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_A8gCSq(v, pth = [], er = []) {
+      if (!(v === void 0 || typeof v === "object" && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v)))) Iqa2M8Ms(pth, er, "union");
+      return er;
+    };
+  }, fn: void 0 }, "tj_A8gCSq": { isNoop: false, jitDependencies: ["is_EkaMeW", "tj_EkaMeW", "fj_EkaMeW", "is_OQaagS", "tj_OQaagS", "fj_OQaagS"], typeName: "union", fnID: "tj", jitFnHash: "tj_A8gCSq", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union";
+const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const tj_OQaagS = utl.getJIT("tj_OQaagS");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function tj_A8gCSq(v){if (v === undefined) {v = v = undefined; v = [2, v]}else if (typeof v === 'object' && v !== null && is_EkaMeW.fn(v)) {v = tj_EkaMeW.fn(v); v = [0, v]}else if (typeof v === 'object' && v !== null && is_OQaagS.fn(v)) {v = tj_OQaagS.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}`, createJitFn: function get_tj_A8gCSq(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+    utl.getJIT("fj_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const tj_OQaagS = utl.getJIT("tj_OQaagS");
+    utl.getJIT("fj_OQaagS");
+    return function tj_A8gCSq(v) {
+      if (v === void 0) {
+        v = v = void 0;
+        v = [2, v];
+      } else if (typeof v === "object" && v !== null && is_EkaMeW.fn(v)) {
+        v = tj_EkaMeW.fn(v);
+        v = [0, v];
+      } else if (typeof v === "object" && v !== null && is_OQaagS.fn(v)) {
+        v = tj_OQaagS.fn(v);
+        v = [1, v];
+      } else {
+        throw new Error(uErr0);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_EkaMeW": { isNoop: false, jitDependencies: ["tj_R5rLxp"], typeName: "SerializableMethodsData", fnID: "tj", jitFnHash: "tj_EkaMeW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const tj_R5rLxp = utl.getJIT("tj_R5rLxp"); return function tj_EkaMeW(v){v.methods = tj_R5rLxp.fn(v.methods); return v}`, createJitFn: function get_tj_EkaMeW(utl) {
+    const tj_R5rLxp = utl.getJIT("tj_R5rLxp");
+    return function tj_EkaMeW(v) {
+      v.methods = tj_R5rLxp.fn(v.methods);
+      return v;
+    };
+  }, fn: void 0 }, "tj_lvnZPj": { isNoop: true, typeName: "PureFnsDataCache", fnID: "tj", jitFnHash: "tj_lvnZPj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_lvnZPj(v){return v}", createJitFn: function get_tj_lvnZPj(utl) {
+    return function tj_lvnZPj(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_UmgAaQ": { isNoop: true, typeName: "Record", fnID: "tj", jitFnHash: "tj_UmgAaQ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_UmgAaQ(v){return v}", createJitFn: function get_tj_UmgAaQ(utl) {
+    return function tj_UmgAaQ(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_XbPxPF": { isNoop: true, typeName: "PureFunctionData", fnID: "tj", jitFnHash: "tj_XbPxPF", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_XbPxPF(v){return v}", createJitFn: function get_tj_XbPxPF(utl) {
+    return function tj_XbPxPF(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_Ei8qua": { isNoop: true, typeName: "array", fnID: "tj", jitFnHash: "tj_Ei8qua", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_Ei8qua(v){return v}", createJitFn: function get_tj_Ei8qua(utl) {
+    return function tj_Ei8qua(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_R5rLxp": { isNoop: false, jitDependencies: ["tj_YKoM0i"], typeName: "MethodsCache", fnID: "tj", jitFnHash: "tj_R5rLxp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const tj_YKoM0i = utl.getJIT("tj_YKoM0i"); return function tj_R5rLxp(v){for (const p0 in v){ v[p0] = tj_YKoM0i.fn(v[p0]);} return v}`, createJitFn: function get_tj_R5rLxp(utl) {
+    const tj_YKoM0i = utl.getJIT("tj_YKoM0i");
+    return function tj_R5rLxp(v) {
+      for (const p0 in v) {
+        v[p0] = tj_YKoM0i.fn(v[p0]);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_YKoM0i": { isNoop: false, jitDependencies: ["tj_Tnp7jJ"], typeName: "MethodWithOptions", fnID: "tj", jitFnHash: "tj_YKoM0i", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const tj_Tnp7jJ = utl.getJIT("tj_Tnp7jJ"); return function tj_YKoM0i(v){v.options = tj_Tnp7jJ.fn(v.options); return v}`, createJitFn: function get_tj_YKoM0i(utl) {
+    const tj_Tnp7jJ = utl.getJIT("tj_Tnp7jJ");
+    return function tj_YKoM0i(v) {
+      v.options = tj_Tnp7jJ.fn(v.options);
+      return v;
+    };
+  }, fn: void 0 }, "tj_s8eky2": { isNoop: true, typeName: "HeadersMetaData", fnID: "tj", jitFnHash: "tj_s8eky2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_s8eky2(v){return v}", createJitFn: function get_tj_s8eky2(utl) {
+    return function tj_s8eky2(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_Tnp7jJ": { isNoop: false, jitDependencies: ["tj_MwSoc2"], typeName: "RemoteMethodOpts", fnID: "tj", jitFnHash: "tj_Tnp7jJ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const tj_MwSoc2 = utl.getJIT("tj_MwSoc2"); return function tj_Tnp7jJ(v){if (v.serializer !== undefined) {v.serializer = tj_MwSoc2.fn(v.serializer);} return v}`, createJitFn: function get_tj_Tnp7jJ(utl) {
+    const tj_MwSoc2 = utl.getJIT("tj_MwSoc2");
+    return function tj_Tnp7jJ(v) {
+      if (v.serializer !== void 0) {
+        v.serializer = tj_MwSoc2.fn(v.serializer);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_MwSoc2": { isNoop: false, typeName: "SerializerMode", fnID: "tj", jitFnHash: "tj_MwSoc2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union"; return function tj_MwSoc2(v){if (v === "json") { /*noop*/}else if (v === "binary") { /*noop*/}else if (v === "stringifyJson") { /*noop*/}else if (v === "optimistic") { /*noop*/}else {throw new Error(uErr0);} return v}`, createJitFn: function get_tj_MwSoc2(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    return function tj_MwSoc2(v) {
+      if (v === "json") ;
+      else if (v === "binary") ;
+      else if (v === "stringifyJson") ;
+      else if (v === "optimistic") ;
+      else {
+        throw new Error(uErr0);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_aW6MAW": { isNoop: true, typeName: "FnsDataCache", fnID: "tj", jitFnHash: "tj_aW6MAW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_aW6MAW(v){return v}", createJitFn: function get_tj_aW6MAW(utl) {
+    return function tj_aW6MAW(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_xrf3pH": { isNoop: true, typeName: "JitCompiledFnData", fnID: "tj", jitFnHash: "tj_xrf3pH", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_xrf3pH(v){return v}", createJitFn: function get_tj_xrf3pH(utl) {
+    return function tj_xrf3pH(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_gCQYSg": { isNoop: true, typeName: "JitFnArgs", fnID: "tj", jitFnHash: "tj_gCQYSg", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_gCQYSg(v){return v}", createJitFn: function get_tj_gCQYSg(utl) {
+    return function tj_gCQYSg(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_EkaMeW": { isNoop: false, jitDependencies: ["fj_R5rLxp"], typeName: "SerializableMethodsData", fnID: "fj", jitFnHash: "fj_EkaMeW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_R5rLxp = utl.getJIT("fj_R5rLxp"); return function fj_EkaMeW(v){v.methods = fj_R5rLxp.fn(v.methods); return v}`, createJitFn: function get_fj_EkaMeW(utl) {
+    const fj_R5rLxp = utl.getJIT("fj_R5rLxp");
+    return function fj_EkaMeW(v) {
+      v.methods = fj_R5rLxp.fn(v.methods);
+      return v;
+    };
+  }, fn: void 0 }, "fj_lvnZPj": { isNoop: true, typeName: "PureFnsDataCache", fnID: "fj", jitFnHash: "fj_lvnZPj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_lvnZPj(v){return v}", createJitFn: function get_fj_lvnZPj(utl) {
+    return function fj_lvnZPj(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_UmgAaQ": { isNoop: true, typeName: "Record", fnID: "fj", jitFnHash: "fj_UmgAaQ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_UmgAaQ(v){return v}", createJitFn: function get_fj_UmgAaQ(utl) {
+    return function fj_UmgAaQ(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_XbPxPF": { isNoop: true, typeName: "PureFunctionData", fnID: "fj", jitFnHash: "fj_XbPxPF", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_XbPxPF(v){return v}", createJitFn: function get_fj_XbPxPF(utl) {
+    return function fj_XbPxPF(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_Ei8qua": { isNoop: true, typeName: "array", fnID: "fj", jitFnHash: "fj_Ei8qua", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_Ei8qua(v){return v}", createJitFn: function get_fj_Ei8qua(utl) {
+    return function fj_Ei8qua(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_R5rLxp": { isNoop: false, jitDependencies: ["fj_YKoM0i"], typeName: "MethodsCache", fnID: "fj", jitFnHash: "fj_R5rLxp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_YKoM0i = utl.getJIT("fj_YKoM0i"); return function fj_R5rLxp(v){for (const p0 in v){ v[p0] = fj_YKoM0i.fn(v[p0]);} return v}`, createJitFn: function get_fj_R5rLxp(utl) {
+    const fj_YKoM0i = utl.getJIT("fj_YKoM0i");
+    return function fj_R5rLxp(v) {
+      for (const p0 in v) {
+        v[p0] = fj_YKoM0i.fn(v[p0]);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_YKoM0i": { isNoop: false, jitDependencies: ["fj_Tnp7jJ"], typeName: "MethodWithOptions", fnID: "fj", jitFnHash: "fj_YKoM0i", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_Tnp7jJ = utl.getJIT("fj_Tnp7jJ"); return function fj_YKoM0i(v){v.options = fj_Tnp7jJ.fn(v.options); return v}`, createJitFn: function get_fj_YKoM0i(utl) {
+    const fj_Tnp7jJ = utl.getJIT("fj_Tnp7jJ");
+    return function fj_YKoM0i(v) {
+      v.options = fj_Tnp7jJ.fn(v.options);
+      return v;
+    };
+  }, fn: void 0 }, "fj_s8eky2": { isNoop: true, typeName: "HeadersMetaData", fnID: "fj", jitFnHash: "fj_s8eky2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_s8eky2(v){return v}", createJitFn: function get_fj_s8eky2(utl) {
+    return function fj_s8eky2(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_Tnp7jJ": { isNoop: false, jitDependencies: ["fj_MwSoc2"], typeName: "RemoteMethodOpts", fnID: "fj", jitFnHash: "fj_Tnp7jJ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_MwSoc2 = utl.getJIT("fj_MwSoc2"); return function fj_Tnp7jJ(v){if (v.serializer !== undefined) {v.serializer = fj_MwSoc2.fn(v.serializer);} return v}`, createJitFn: function get_fj_Tnp7jJ(utl) {
+    const fj_MwSoc2 = utl.getJIT("fj_MwSoc2");
+    return function fj_Tnp7jJ(v) {
+      if (v.serializer !== void 0) {
+        v.serializer = fj_MwSoc2.fn(v.serializer);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_MwSoc2": { isNoop: false, typeName: "SerializerMode", fnID: "fj", jitFnHash: "fj_MwSoc2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index"; return function fj_MwSoc2(v){
+ if (v?.length === 2 && Array.isArray(v) && typeof v[0] === 'number') {
+ const dec0 = v[0]; v = v[1];
+ if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}else if (dec0 === 2) {/*noop*/}else if (dec0 === 3) {/*noop*/}
+ else {throw new Error(uErr0)}
+ }
+ ; return v}`, createJitFn: function get_fj_MwSoc2(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    return function fj_MwSoc2(v) {
+      if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
+        const dec0 = v[0];
+        v = v[1];
+        if (dec0 === 0) ;
+        else if (dec0 === 1) ;
+        else if (dec0 === 2) ;
+        else if (dec0 === 3) ;
+        else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_aW6MAW": { isNoop: true, typeName: "FnsDataCache", fnID: "fj", jitFnHash: "fj_aW6MAW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_aW6MAW(v){return v}", createJitFn: function get_fj_aW6MAW(utl) {
+    return function fj_aW6MAW(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_xrf3pH": { isNoop: true, typeName: "JitCompiledFnData", fnID: "fj", jitFnHash: "fj_xrf3pH", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_xrf3pH(v){return v}", createJitFn: function get_fj_xrf3pH(utl) {
+    return function fj_xrf3pH(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_gCQYSg": { isNoop: true, typeName: "JitFnArgs", fnID: "fj", jitFnHash: "fj_gCQYSg", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_gCQYSg(v){return v}", createJitFn: function get_fj_gCQYSg(utl) {
+    return function fj_gCQYSg(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_OQaagS": { isNoop: false, typeName: "RpcError", fnID: "tj", jitFnHash: "tj_OQaagS", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union"; return function tj_OQaagS(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/}else {throw new Error(uErr0);}} return v}`, createJitFn: function get_tj_OQaagS(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    return function tj_OQaagS(v) {
+      if (v.id !== void 0) {
+        if (Number.isFinite(v.id)) ;
+        else if (typeof v.id === "string") ;
+        else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_WEWIGI": { isNoop: true, typeName: "Readonly", fnID: "tj", jitFnHash: "tj_WEWIGI", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_WEWIGI(v){return v}", createJitFn: function get_tj_WEWIGI(utl) {
+    return function tj_WEWIGI(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_OQaagS": { isNoop: false, typeName: "RpcError", fnID: "fj", jitFnHash: "fj_OQaagS", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index"; return function fj_OQaagS(v){
+ if (v.id !== undefined) {
+ if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === 'number') {
+ const dec0 = v.id[0]; v.id = v.id[1];
+ if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}
+ else {throw new Error(uErr0)}
+ }
+ ;};
+ let desFn1 = utl.getDeserializeFn("RpcError");
+ if (desFn1) {v = desFn1(v)}
+ else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}
+ ; return v}`, createJitFn: function get_fj_OQaagS(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    return function fj_OQaagS(v) {
+      if (v.id !== void 0) {
+        if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === "number") {
+          const dec0 = v.id[0];
+          v.id = v.id[1];
+          if (dec0 === 0) ;
+          else if (dec0 === 1) ;
+          else {
+            throw new Error(uErr0);
+          }
+        }
+      }
+      let desFn1 = utl.getDeserializeFn("RpcError");
+      if (desFn1) {
+        v = desFn1(v);
+      } else if (desFn1 = utl.getSerializeClass("RpcError")) {
+        v = new desFn1(v);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_WEWIGI": { isNoop: true, typeName: "Readonly", fnID: "fj", jitFnHash: "fj_WEWIGI", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_WEWIGI(v){return v}", createJitFn: function get_fj_WEWIGI(utl) {
+    return function fj_WEWIGI(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_A8gCSq": { isNoop: false, jitDependencies: ["fj_EkaMeW", "fj_OQaagS"], typeName: "union", fnID: "fj", jitFnHash: "fj_A8gCSq", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index";
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function fj_A8gCSq(v){
+ if (v?.length === 2 && Array.isArray(v) && typeof v[0] === 'number') {
+ const dec0 = v[0]; v = v[1];
+ if (dec0 === 0) {v = fj_EkaMeW.fn(v)}else if (dec0 === 1) {v = fj_OQaagS.fn(v)}else if (dec0 === 2) {v = v = undefined}
+ else {throw new Error(uErr0)}
+ }
+ ; return v}`, createJitFn: function get_fj_A8gCSq(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+    const fj_OQaagS = utl.getJIT("fj_OQaagS");
+    return function fj_A8gCSq(v) {
+      if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
+        const dec0 = v[0];
+        v = v[1];
+        if (dec0 === 0) {
+          v = fj_EkaMeW.fn(v);
+        } else if (dec0 === 1) {
+          v = fj_OQaagS.fn(v);
+        } else if (dec0 === 2) {
+          v = v = void 0;
+        } else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "sj_A8gCSq": { isNoop: false, jitDependencies: ["is_EkaMeW", "sj_EkaMeW", "tj_EkaMeW", "fj_EkaMeW", "is_OQaagS", "sj_OQaagS", "tj_OQaagS", "fj_OQaagS"], typeName: "union", fnID: "sj", jitFnHash: "sj_A8gCSq", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const sj_EkaMeW = utl.getJIT("sj_EkaMeW");
+const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const sj_OQaagS = utl.getJIT("sj_OQaagS");
+const tj_OQaagS = utl.getJIT("tj_OQaagS");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function sj_A8gCSq(v){if (v === undefined) {return ('[2,' + undefined + ']')}else if (typeof v === 'object' && v !== null && is_EkaMeW.fn(v)) {return '[0,' + sj_EkaMeW.fn(v) + ']'}else if (typeof v === 'object' && v !== null && is_OQaagS.fn(v)) {return '[1,' + sj_OQaagS.fn(v) + ']'}else {throw new Error(uErr0);}}`, createJitFn: function get_sj_A8gCSq(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const sj_EkaMeW = utl.getJIT("sj_EkaMeW");
+    utl.getJIT("tj_EkaMeW");
+    utl.getJIT("fj_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const sj_OQaagS = utl.getJIT("sj_OQaagS");
+    utl.getJIT("tj_OQaagS");
+    utl.getJIT("fj_OQaagS");
+    return function sj_A8gCSq(v) {
+      if (v === void 0) {
+        return "[2,undefined]";
+      } else if (typeof v === "object" && v !== null && is_EkaMeW.fn(v)) {
+        return "[0," + sj_EkaMeW.fn(v) + "]";
+      } else if (typeof v === "object" && v !== null && is_OQaagS.fn(v)) {
+        return "[1," + sj_OQaagS.fn(v) + "]";
+      } else {
+        throw new Error(uErr0);
+      }
+    };
+  }, fn: void 0 }, "sj_EkaMeW": { isNoop: false, jitDependencies: ["sj_lvnZPj", "sj_R5rLxp", "sj_aW6MAW"], typeName: "SerializableMethodsData", fnID: "sj", jitFnHash: "sj_EkaMeW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_lvnZPj = utl.getJIT("sj_lvnZPj");
+const sj_R5rLxp = utl.getJIT("sj_R5rLxp");
+const sj_aW6MAW = utl.getJIT("sj_aW6MAW"); return function sj_EkaMeW(v){return '{'+'"purFnDeps":'+sj_lvnZPj.fn(v.purFnDeps)+","+'"methods":'+sj_R5rLxp.fn(v.methods)+","+'"deps":'+sj_aW6MAW.fn(v.deps)+'}'}`, createJitFn: function get_sj_EkaMeW(utl) {
+    const sj_lvnZPj = utl.getJIT("sj_lvnZPj");
+    const sj_R5rLxp = utl.getJIT("sj_R5rLxp");
+    const sj_aW6MAW = utl.getJIT("sj_aW6MAW");
+    return function sj_EkaMeW(v) {
+      return '{"purFnDeps":' + sj_lvnZPj.fn(v.purFnDeps) + ',"methods":' + sj_R5rLxp.fn(v.methods) + ',"deps":' + sj_aW6MAW.fn(v.deps) + "}";
+    };
+  }, fn: void 0 }, "sj_lvnZPj": { isNoop: false, jitDependencies: ["sj_UmgAaQ"], pureFnDependencies: ["mion::asJSONString"], typeName: "PureFnsDataCache", fnID: "sj", jitFnHash: "sj_lvnZPj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_UmgAaQ = utl.getJIT("sj_UmgAaQ");
+const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_lvnZPj(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + sj_UmgAaQ.fn(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_lvnZPj(utl) {
+    const sj_UmgAaQ = utl.getJIT("sj_UmgAaQ");
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_lvnZPj(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + sj_UmgAaQ.fn(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_UmgAaQ": { isNoop: false, jitDependencies: ["sj_XbPxPF"], pureFnDependencies: ["mion::asJSONString"], typeName: "Record", fnID: "sj", jitFnHash: "sj_UmgAaQ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_XbPxPF = utl.getJIT("sj_XbPxPF");
+const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_UmgAaQ(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + sj_XbPxPF.fn(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_UmgAaQ(utl) {
+    const sj_XbPxPF = utl.getJIT("sj_XbPxPF");
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_UmgAaQ(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + sj_XbPxPF.fn(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_XbPxPF": { isNoop: false, jitDependencies: ["sj_Ei8qua"], typeName: "PureFunctionData", fnID: "sj", jitFnHash: "sj_XbPxPF", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_Ei8qua = utl.getJIT("sj_Ei8qua"); return function sj_XbPxPF(v){return '{'+(v.pureFnDependencies === undefined ? '' : '"pureFnDependencies":'+sj_Ei8qua.fn(v.pureFnDependencies)+",")+'"namespace":'+JSON.stringify(v.namespace)+","+'"paramNames":'+sj_Ei8qua.fn(v.paramNames)+","+'"code":'+JSON.stringify(v.code)+","+'"fnName":'+JSON.stringify(v.fnName)+","+'"bodyHash":'+JSON.stringify(v.bodyHash)+'}'}`, createJitFn: function get_sj_XbPxPF(utl) {
+    const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+    return function sj_XbPxPF(v) {
+      return "{" + (v.pureFnDependencies === void 0 ? "" : '"pureFnDependencies":' + sj_Ei8qua.fn(v.pureFnDependencies) + ",") + '"namespace":' + JSON.stringify(v.namespace) + ',"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ',"code":' + JSON.stringify(v.code) + ',"fnName":' + JSON.stringify(v.fnName) + ',"bodyHash":' + JSON.stringify(v.bodyHash) + "}";
+    };
+  }, fn: void 0 }, "sj_Ei8qua": { isNoop: false, typeName: "array", fnID: "sj", jitFnHash: "sj_Ei8qua", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function sj_Ei8qua(v){\n const ls0 = [];\n for (let i0 = 0; i0 < v.length; i0++) {\n const res0 = JSON.stringify(v[i0]);\n ls0.push(res0);\n }\n return '[' + ls0.join(',') + ']';\n }", createJitFn: function get_sj_Ei8qua(utl) {
+    return function sj_Ei8qua(v) {
+      const ls0 = [];
+      for (let i0 = 0; i0 < v.length; i0++) {
+        const res0 = JSON.stringify(v[i0]);
+        ls0.push(res0);
+      }
+      return "[" + ls0.join(",") + "]";
+    };
+  }, fn: void 0 }, "sj_R5rLxp": { isNoop: false, jitDependencies: ["sj_YKoM0i"], pureFnDependencies: ["mion::asJSONString"], typeName: "MethodsCache", fnID: "sj", jitFnHash: "sj_R5rLxp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_YKoM0i = utl.getJIT("sj_YKoM0i");
+const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_R5rLxp(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + sj_YKoM0i.fn(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_R5rLxp(utl) {
+    const sj_YKoM0i = utl.getJIT("sj_YKoM0i");
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_R5rLxp(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + sj_YKoM0i.fn(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_YKoM0i": { isNoop: false, jitDependencies: ["sj_Ei8qua", "sj_s8eky2", "sj_Tnp7jJ"], typeName: "MethodWithOptions", fnID: "sj", jitFnHash: "sj_YKoM0i", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+const sj_s8eky2 = utl.getJIT("sj_s8eky2");
+const sj_Tnp7jJ = utl.getJIT("sj_Tnp7jJ"); return function sj_YKoM0i(v){return '{'+(v.paramNames === undefined ? '' : '"paramNames":'+sj_Ei8qua.fn(v.paramNames)+",")+(v.headersParam === undefined ? '' : '"headersParam":'+sj_s8eky2.fn(v.headersParam)+",")+(v.headersReturn === undefined ? '' : '"headersReturn":'+sj_s8eky2.fn(v.headersReturn)+",")+(v.middleFnIds === undefined ? '' : '"middleFnIds":'+sj_Ei8qua.fn(v.middleFnIds)+",")+'"type":'+v.type+","+'"id":'+JSON.stringify(v.id)+","+'"isAsync":'+(v.isAsync ? 'true' : 'false')+","+'"hasReturnData":'+(v.hasReturnData ? 'true' : 'false')+","+'"paramsJitHash":'+JSON.stringify(v.paramsJitHash)+","+'"returnJitHash":'+JSON.stringify(v.returnJitHash)+","+'"pointer":'+sj_Ei8qua.fn(v.pointer)+","+'"nestLevel":'+v.nestLevel+","+'"options":'+sj_Tnp7jJ.fn(v.options)+'}'}`, createJitFn: function get_sj_YKoM0i(utl) {
+    const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+    const sj_s8eky2 = utl.getJIT("sj_s8eky2");
+    const sj_Tnp7jJ = utl.getJIT("sj_Tnp7jJ");
+    return function sj_YKoM0i(v) {
+      return "{" + (v.paramNames === void 0 ? "" : '"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ",") + (v.headersParam === void 0 ? "" : '"headersParam":' + sj_s8eky2.fn(v.headersParam) + ",") + (v.headersReturn === void 0 ? "" : '"headersReturn":' + sj_s8eky2.fn(v.headersReturn) + ",") + (v.middleFnIds === void 0 ? "" : '"middleFnIds":' + sj_Ei8qua.fn(v.middleFnIds) + ",") + '"type":' + v.type + ',"id":' + JSON.stringify(v.id) + ',"isAsync":' + (v.isAsync ? "true" : "false") + ',"hasReturnData":' + (v.hasReturnData ? "true" : "false") + ',"paramsJitHash":' + JSON.stringify(v.paramsJitHash) + ',"returnJitHash":' + JSON.stringify(v.returnJitHash) + ',"pointer":' + sj_Ei8qua.fn(v.pointer) + ',"nestLevel":' + v.nestLevel + ',"options":' + sj_Tnp7jJ.fn(v.options) + "}";
+    };
+  }, fn: void 0 }, "sj_s8eky2": { isNoop: false, jitDependencies: ["sj_Ei8qua"], typeName: "HeadersMetaData", fnID: "sj", jitFnHash: "sj_s8eky2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_Ei8qua = utl.getJIT("sj_Ei8qua"); return function sj_s8eky2(v){return '{'+'"headerNames":'+sj_Ei8qua.fn(v.headerNames)+","+'"jitHash":'+JSON.stringify(v.jitHash)+'}'}`, createJitFn: function get_sj_s8eky2(utl) {
+    const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+    return function sj_s8eky2(v) {
+      return '{"headerNames":' + sj_Ei8qua.fn(v.headerNames) + ',"jitHash":' + JSON.stringify(v.jitHash) + "}";
+    };
+  }, fn: void 0 }, "sj_Tnp7jJ": { isNoop: false, jitDependencies: ["sj_MwSoc2"], typeName: "RemoteMethodOpts", fnID: "sj", jitFnHash: "sj_Tnp7jJ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_MwSoc2 = utl.getJIT("sj_MwSoc2"); return function sj_Tnp7jJ(v){return (function(){const ns0 = [];if (v.runOnError !== undefined){ns0.push((v.runOnError === undefined ? '' : '"runOnError":'+(v.runOnError ? 'true' : 'false')))}if (v.validateParams !== undefined){ns0.push((v.validateParams === undefined ? '' : '"validateParams":'+(v.validateParams ? 'true' : 'false')))}if (v.validateReturn !== undefined){ns0.push((v.validateReturn === undefined ? '' : '"validateReturn":'+(v.validateReturn ? 'true' : 'false')))}if (v.description !== undefined){ns0.push((v.description === undefined ? '' : '"description":'+JSON.stringify(v.description)))}if (v.serializer !== undefined){ns0.push((v.serializer === undefined ? '' : '"serializer":'+sj_MwSoc2.fn(v.serializer)))}if (v.isMutation !== undefined){ns0.push((v.isMutation === undefined ? '' : '"isMutation":'+(v.isMutation ? 'true' : 'false')))}if (v.strictTypes !== undefined){ns0.push((v.strictTypes === undefined ? '' : '"strictTypes":'+(v.strictTypes ? 'true' : 'false')))};return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_Tnp7jJ(utl) {
+    const sj_MwSoc2 = utl.getJIT("sj_MwSoc2");
+    return function sj_Tnp7jJ(v) {
+      return (function() {
+        const ns0 = [];
+        if (v.runOnError !== void 0) {
+          ns0.push(v.runOnError === void 0 ? "" : '"runOnError":' + (v.runOnError ? "true" : "false"));
+        }
+        if (v.validateParams !== void 0) {
+          ns0.push(v.validateParams === void 0 ? "" : '"validateParams":' + (v.validateParams ? "true" : "false"));
+        }
+        if (v.validateReturn !== void 0) {
+          ns0.push(v.validateReturn === void 0 ? "" : '"validateReturn":' + (v.validateReturn ? "true" : "false"));
+        }
+        if (v.description !== void 0) {
+          ns0.push(v.description === void 0 ? "" : '"description":' + JSON.stringify(v.description));
+        }
+        if (v.serializer !== void 0) {
+          ns0.push(v.serializer === void 0 ? "" : '"serializer":' + sj_MwSoc2.fn(v.serializer));
+        }
+        if (v.isMutation !== void 0) {
+          ns0.push(v.isMutation === void 0 ? "" : '"isMutation":' + (v.isMutation ? "true" : "false"));
+        }
+        if (v.strictTypes !== void 0) {
+          ns0.push(v.strictTypes === void 0 ? "" : '"strictTypes":' + (v.strictTypes ? "true" : "false"));
+        }
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_MwSoc2": { isNoop: false, typeName: "SerializerMode", fnID: "sj", jitFnHash: "sj_MwSoc2", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union"; return function sj_MwSoc2(v){if (v === "json") {return JSON.stringify(v)}else if (v === "binary") {return JSON.stringify(v)}else if (v === "stringifyJson") {return JSON.stringify(v)}else if (v === "optimistic") {return JSON.stringify(v)}else {throw new Error(uErr0);}}`, createJitFn: function get_sj_MwSoc2(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    return function sj_MwSoc2(v) {
+      if (v === "json") {
+        return JSON.stringify(v);
+      } else if (v === "binary") {
+        return JSON.stringify(v);
+      } else if (v === "stringifyJson") {
+        return JSON.stringify(v);
+      } else if (v === "optimistic") {
+        return JSON.stringify(v);
+      } else {
+        throw new Error(uErr0);
+      }
+    };
+  }, fn: void 0 }, "sj_aW6MAW": { isNoop: false, jitDependencies: ["sj_xrf3pH"], pureFnDependencies: ["mion::asJSONString"], typeName: "FnsDataCache", fnID: "sj", jitFnHash: "sj_aW6MAW", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_xrf3pH = utl.getJIT("sj_xrf3pH");
+const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_aW6MAW(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + sj_xrf3pH.fn(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_aW6MAW(utl) {
+    const sj_xrf3pH = utl.getJIT("sj_xrf3pH");
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_aW6MAW(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + sj_xrf3pH.fn(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_xrf3pH": { isNoop: false, jitDependencies: ["sj_Ei8qua", "sj_gCQYSg"], typeName: "JitCompiledFnData", fnID: "sj", jitFnHash: "sj_xrf3pH", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+const sj_gCQYSg = utl.getJIT("sj_gCQYSg"); return function sj_xrf3pH(v){return '{'+(v.isNoop === undefined ? '' : '"isNoop":'+(v.isNoop ? 'true' : 'false')+",")+(v.jitDependencies === undefined ? '' : '"jitDependencies":'+sj_Ei8qua.fn(v.jitDependencies)+",")+(v.pureFnDependencies === undefined ? '' : '"pureFnDependencies":'+sj_Ei8qua.fn(v.pureFnDependencies)+",")+(v.paramNames === undefined ? '' : '"paramNames":'+sj_Ei8qua.fn(v.paramNames)+",")+'"typeName":'+JSON.stringify(v.typeName)+","+'"fnID":'+JSON.stringify(v.fnID)+","+'"jitFnHash":'+JSON.stringify(v.jitFnHash)+","+'"args":'+sj_gCQYSg.fn(v.args)+","+'"defaultParamValues":'+sj_gCQYSg.fn(v.defaultParamValues)+","+'"code":'+JSON.stringify(v.code)+'}'}`, createJitFn: function get_sj_xrf3pH(utl) {
+    const sj_Ei8qua = utl.getJIT("sj_Ei8qua");
+    const sj_gCQYSg = utl.getJIT("sj_gCQYSg");
+    return function sj_xrf3pH(v) {
+      return "{" + (v.isNoop === void 0 ? "" : '"isNoop":' + (v.isNoop ? "true" : "false") + ",") + (v.jitDependencies === void 0 ? "" : '"jitDependencies":' + sj_Ei8qua.fn(v.jitDependencies) + ",") + (v.pureFnDependencies === void 0 ? "" : '"pureFnDependencies":' + sj_Ei8qua.fn(v.pureFnDependencies) + ",") + (v.paramNames === void 0 ? "" : '"paramNames":' + sj_Ei8qua.fn(v.paramNames) + ",") + '"typeName":' + JSON.stringify(v.typeName) + ',"fnID":' + JSON.stringify(v.fnID) + ',"jitFnHash":' + JSON.stringify(v.jitFnHash) + ',"args":' + sj_gCQYSg.fn(v.args) + ',"defaultParamValues":' + sj_gCQYSg.fn(v.defaultParamValues) + ',"code":' + JSON.stringify(v.code) + "}";
+    };
+  }, fn: void 0 }, "sj_gCQYSg": { isNoop: false, pureFnDependencies: ["mion::asJSONString"], typeName: "JitFnArgs", fnID: "sj", jitFnHash: "sj_gCQYSg", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_gCQYSg(v){return '{'+(function(){
+ const ls0 = [];
+ for (const p0 in v) {
+ if ("vλl" === p0) continue;
+ if (p0 !== undefined) ls0.push(zT3pfXdp(p0) + ':' + JSON.stringify(v[p0]));
+ }
+ if (!ls0.length) return '';
+ return ls0.join(',')+",";
+ })()+"\\"vλl\\""+':'+JSON.stringify(v["vλl"])+'}'}`, createJitFn: function get_sj_gCQYSg(utl) {
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_gCQYSg(v) {
+      return "{" + (function() {
+        const ls0 = [];
+        for (const p0 in v) {
+          if ("vλl" === p0) continue;
+          if (p0 !== void 0) ls0.push(zT3pfXdp(p0) + ":" + JSON.stringify(v[p0]));
+        }
+        if (!ls0.length) return "";
+        return ls0.join(",") + ",";
+      })() + '"vλl":' + JSON.stringify(v["vλl"]) + "}";
+    };
+  }, fn: void 0 }, "sj_OQaagS": { isNoop: false, jitDependencies: ["sj_WEWIGI"], typeName: "RpcError", fnID: "sj", jitFnHash: "sj_OQaagS", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+const sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_OQaagS(v){return '{'+(v.statusCode === undefined ? '' : '"statusCode":'+v.statusCode+",")+(v.id === undefined ? '' : '"id":'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === 'string') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? '' : '"errorData":'+sj_WEWIGI.fn(v.errorData)+",")+"\\"mion@isΣrrθr\\""+':'+(v["mion@isΣrrθr"] ? 'true' : 'false')+","+'"type":'+JSON.stringify(v.type)+","+'"publicMessage":'+JSON.stringify(v.publicMessage)+'}'}`, createJitFn: function get_sj_OQaagS(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+    return function sj_OQaagS(v) {
+      return "{" + (v.statusCode === void 0 ? "" : '"statusCode":' + v.statusCode + ",") + (v.id === void 0 ? "" : '"id":' + (function() {
+        if (Number.isFinite(v.id)) {
+          return v.id;
+        } else if (typeof v.id === "string") {
+          return JSON.stringify(v.id);
+        } else {
+          throw new Error(uErr0);
+        }
+      })() + ",") + (v.errorData === void 0 ? "" : '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") + '"mion@isΣrrθr":' + (v["mion@isΣrrθr"] ? "true" : "false") + ',"type":' + JSON.stringify(v.type) + ',"publicMessage":' + JSON.stringify(v.publicMessage) + "}";
+    };
+  }, fn: void 0 }, "sj_WEWIGI": { isNoop: false, pureFnDependencies: ["mion::asJSONString"], typeName: "Readonly", fnID: "sj", jitFnHash: "sj_WEWIGI", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_WEWIGI(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + JSON.stringify(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_WEWIGI(utl) {
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_WEWIGI(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + JSON.stringify(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "is_cm6MsK": { isNoop: false, jitDependencies: ["is_zxRrbt"], typeName: "Record", fnID: "is", jitFnHash: "is_cm6MsK", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_zxRrbt = utl.getJIT("is_zxRrbt"); return function is_cm6MsK(v){return (typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]') && (function(){for (const p0 in v){ if (!(is_zxRrbt.fn(v[p0]))) return false;} return true;})())}`, createJitFn: function get_is_cm6MsK(utl) {
+    const is_zxRrbt = utl.getJIT("is_zxRrbt");
+    return function is_cm6MsK(v) {
+      return typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]") && (function() {
+        for (const p0 in v) {
+          if (!is_zxRrbt.fn(v[p0])) return false;
+        }
+        return true;
+      })();
+    };
+  }, fn: void 0 }, "is_zxRrbt": { isNoop: false, jitDependencies: ["is_WEWIGI"], typeName: "RpcError", fnID: "is", jitFnHash: "is_zxRrbt", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_zxRrbt(v){return (typeof v === 'object' && v !== null && v["mion@isΣrrθr"] === true && typeof v.type === 'string' && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}`, createJitFn: function get_is_zxRrbt(utl) {
+    const is_WEWIGI = utl.getJIT("is_WEWIGI");
+    return function is_zxRrbt(v) {
+      return typeof v === "object" && v !== null && v["mion@isΣrrθr"] === true && typeof v.type === "string" && (v.id === void 0 || (Number.isFinite(v.id) || typeof v.id === "string")) && typeof v.publicMessage === "string" && (v.errorData === void 0 || is_WEWIGI.fn(v.errorData)) && (v.statusCode === void 0 || Number.isFinite(v.statusCode));
+    };
+  }, fn: void 0 }, "te_cm6MsK": { isNoop: false, jitDependencies: ["te_zxRrbt"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "Record", fnID: "te", jitFnHash: "te_cm6MsK", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const te_zxRrbt = utl.getJIT("te_zxRrbt");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_cm6MsK(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ for (const p0 in v) { pth.push(p0); te_zxRrbt.fn(v[p0],pth,er); pth.splice(-1);}
+ 
+ }
+ ; return er}`, createJitFn: function get_te_cm6MsK(utl) {
+    const te_zxRrbt = utl.getJIT("te_zxRrbt");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_cm6MsK(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]"))) {
+        Iqa2M8Ms(pth, er, "object");
+      } else {
+        for (const p0 in v) {
+          pth.push(p0);
+          te_zxRrbt.fn(v[p0], pth, er);
+          pth.splice(-1);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "te_zxRrbt": { isNoop: false, jitDependencies: ["te_WEWIGI"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "RpcError", fnID: "te", jitFnHash: "te_zxRrbt", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_zxRrbt(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"class");
+ } else {
+ if (v["mion@isΣrrθr"] !== true) Iqa2M8Ms(pth,er,"literal",["mion@isΣrrθr"]);if (typeof v.type !== 'string') Iqa2M8Ms(pth,er,"string",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === 'string')) Iqa2M8Ms(pth,er,"union",["id"]);};if (typeof v.publicMessage !== 'string') Iqa2M8Ms(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) Iqa2M8Ms(pth,er,"number",["statusCode"]);}
+ 
+ }
+ ; return er}`, createJitFn: function get_te_zxRrbt(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    const te_WEWIGI = utl.getJIT("te_WEWIGI");
+    return function te_zxRrbt(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "class");
+      } else {
+        if (v["mion@isΣrrθr"] !== true) Iqa2M8Ms(pth, er, "literal", ["mion@isΣrrθr"]);
+        if (typeof v.type !== "string") Iqa2M8Ms(pth, er, "string", ["type"]);
+        if (v.id !== void 0) {
+          if (!(Number.isFinite(v.id) || typeof v.id === "string")) Iqa2M8Ms(pth, er, "union", ["id"]);
+        }
+        if (typeof v.publicMessage !== "string") Iqa2M8Ms(pth, er, "string", ["publicMessage"]);
+        if (v.errorData !== void 0) {
+          pth.push("errorData");
+          te_WEWIGI.fn(v.errorData, pth, er);
+          pth.splice(-1);
+        }
+        if (v.statusCode !== void 0) {
+          if (!Number.isFinite(v.statusCode)) Iqa2M8Ms(pth, er, "number", ["statusCode"]);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "te_WEWIGI": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "Readonly", fnID: "te", jitFnHash: "te_WEWIGI", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_WEWIGI(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'))) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ 
+ 
+ }
+ ; return er}`, createJitFn: function get_te_WEWIGI(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_WEWIGI(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null && (!Array.isArray(v) && Object.prototype.toString.call(v) === "[object Object]"))) {
+        Iqa2M8Ms(pth, er, "object");
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_cm6MsK": { isNoop: false, jitDependencies: ["tj_zxRrbt"], typeName: "Record", fnID: "tj", jitFnHash: "tj_cm6MsK", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const tj_zxRrbt = utl.getJIT("tj_zxRrbt"); return function tj_cm6MsK(v){for (const p0 in v){ v[p0] = tj_zxRrbt.fn(v[p0]);} return v}`, createJitFn: function get_tj_cm6MsK(utl) {
+    const tj_zxRrbt = utl.getJIT("tj_zxRrbt");
+    return function tj_cm6MsK(v) {
+      for (const p0 in v) {
+        v[p0] = tj_zxRrbt.fn(v[p0]);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_zxRrbt": { isNoop: false, typeName: "RpcError", fnID: "tj", jitFnHash: "tj_zxRrbt", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union"; return function tj_zxRrbt(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/}else {throw new Error(uErr0);}} return v}`, createJitFn: function get_tj_zxRrbt(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    return function tj_zxRrbt(v) {
+      if (v.id !== void 0) {
+        if (Number.isFinite(v.id)) ;
+        else if (typeof v.id === "string") ;
+        else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_cm6MsK": { isNoop: false, jitDependencies: ["fj_zxRrbt"], typeName: "Record", fnID: "fj", jitFnHash: "fj_cm6MsK", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_zxRrbt = utl.getJIT("fj_zxRrbt"); return function fj_cm6MsK(v){for (const p0 in v){ v[p0] = fj_zxRrbt.fn(v[p0]);} return v}`, createJitFn: function get_fj_cm6MsK(utl) {
+    const fj_zxRrbt = utl.getJIT("fj_zxRrbt");
+    return function fj_cm6MsK(v) {
+      for (const p0 in v) {
+        v[p0] = fj_zxRrbt.fn(v[p0]);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_zxRrbt": { isNoop: false, typeName: "RpcError", fnID: "fj", jitFnHash: "fj_zxRrbt", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index"; return function fj_zxRrbt(v){
+ if (v.id !== undefined) {
+ if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === 'number') {
+ const dec0 = v.id[0]; v.id = v.id[1];
+ if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}
+ else {throw new Error(uErr0)}
+ }
+ ;};
+ let desFn1 = utl.getDeserializeFn("RpcError");
+ if (desFn1) {v = desFn1(v)}
+ else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}
+ ; return v}`, createJitFn: function get_fj_zxRrbt(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    return function fj_zxRrbt(v) {
+      if (v.id !== void 0) {
+        if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === "number") {
+          const dec0 = v.id[0];
+          v.id = v.id[1];
+          if (dec0 === 0) ;
+          else if (dec0 === 1) ;
+          else {
+            throw new Error(uErr0);
+          }
+        }
+      }
+      let desFn1 = utl.getDeserializeFn("RpcError");
+      if (desFn1) {
+        v = desFn1(v);
+      } else if (desFn1 = utl.getSerializeClass("RpcError")) {
+        v = new desFn1(v);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "sj_cm6MsK": { isNoop: false, jitDependencies: ["sj_zxRrbt"], pureFnDependencies: ["mion::asJSONString"], typeName: "Record", fnID: "sj", jitFnHash: "sj_cm6MsK", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_zxRrbt = utl.getJIT("sj_zxRrbt");
+const zT3pfXdp = utl.getPureFn("mion", "asJSONString"); return function sj_cm6MsK(v){return (function(){const ns0 = [];ns0.push((function(){
+ const ls1 = [];
+ for (const p1 in v) {
+ 
+ if (p1 !== undefined) ls1.push(zT3pfXdp(p1) + ':' + sj_zxRrbt.fn(v[p1]));
+ }
+ if (!ls1.length) return '';
+ return ls1.join(',');
+ })());return '{'+ns0.join(',')+'}'})()}`, createJitFn: function get_sj_cm6MsK(utl) {
+    const sj_zxRrbt = utl.getJIT("sj_zxRrbt");
+    const zT3pfXdp = utl.getPureFn("mion", "asJSONString");
+    return function sj_cm6MsK(v) {
+      return (function() {
+        const ns0 = [];
+        ns0.push((function() {
+          const ls1 = [];
+          for (const p1 in v) {
+            if (p1 !== void 0) ls1.push(zT3pfXdp(p1) + ":" + sj_zxRrbt.fn(v[p1]));
+          }
+          if (!ls1.length) return "";
+          return ls1.join(",");
+        })());
+        return "{" + ns0.join(",") + "}";
+      })();
+    };
+  }, fn: void 0 }, "sj_zxRrbt": { isNoop: false, jitDependencies: ["sj_WEWIGI"], typeName: "RpcError", fnID: "sj", jitFnHash: "sj_zxRrbt", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+const sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_zxRrbt(v){return '{'+(v.id === undefined ? '' : '"id":'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === 'string') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? '' : '"errorData":'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? '' : '"statusCode":'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+':'+(v["mion@isΣrrθr"] ? 'true' : 'false')+","+'"type":'+JSON.stringify(v.type)+","+'"publicMessage":'+JSON.stringify(v.publicMessage)+'}'}`, createJitFn: function get_sj_zxRrbt(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+    return function sj_zxRrbt(v) {
+      return "{" + (v.id === void 0 ? "" : '"id":' + (function() {
+        if (Number.isFinite(v.id)) {
+          return v.id;
+        } else if (typeof v.id === "string") {
+          return JSON.stringify(v.id);
+        } else {
+          throw new Error(uErr0);
+        }
+      })() + ",") + (v.errorData === void 0 ? "" : '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") + (v.statusCode === void 0 ? "" : '"statusCode":' + v.statusCode + ",") + '"mion@isΣrrθr":' + (v["mion@isΣrrθr"] ? "true" : "false") + ',"type":' + JSON.stringify(v.type) + ',"publicMessage":' + JSON.stringify(v.publicMessage) + "}";
+    };
+  }, fn: void 0 }, "is_a8UQwC": { isNoop: false, jitDependencies: ["is_WEWIGI"], typeName: "RpcError", fnID: "is", jitFnHash: "is_a8UQwC", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_WEWIGI = utl.getJIT("is_WEWIGI"); return function is_a8UQwC(v){return (typeof v === 'object' && v !== null && v["mion@isΣrrθr"] === true && v.type === "route-not-found" && (v.id === undefined || (Number.isFinite(v.id) || typeof v.id === 'string')) && typeof v.publicMessage === 'string' && (v.errorData === undefined || is_WEWIGI.fn(v.errorData)) && (v.statusCode === undefined || Number.isFinite(v.statusCode)))}`, createJitFn: function get_is_a8UQwC(utl) {
+    const is_WEWIGI = utl.getJIT("is_WEWIGI");
+    return function is_a8UQwC(v) {
+      return typeof v === "object" && v !== null && v["mion@isΣrrθr"] === true && v.type === "route-not-found" && (v.id === void 0 || (Number.isFinite(v.id) || typeof v.id === "string")) && typeof v.publicMessage === "string" && (v.errorData === void 0 || is_WEWIGI.fn(v.errorData)) && (v.statusCode === void 0 || Number.isFinite(v.statusCode));
+    };
+  }, fn: void 0 }, "te_a8UQwC": { isNoop: false, jitDependencies: ["te_WEWIGI"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "RpcError", fnID: "te", jitFnHash: "te_a8UQwC", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+const te_WEWIGI = utl.getJIT("te_WEWIGI"); return function te_a8UQwC(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"class");
+ } else {
+ if (v["mion@isΣrrθr"] !== true) Iqa2M8Ms(pth,er,"literal",["mion@isΣrrθr"]);if (v.type !== "route-not-found") Iqa2M8Ms(pth,er,"literal",["type"]);if (v.id !== undefined) {if (!(Number.isFinite(v.id) || typeof v.id === 'string')) Iqa2M8Ms(pth,er,"union",["id"]);};if (typeof v.publicMessage !== 'string') Iqa2M8Ms(pth,er,"string",["publicMessage"]);if (v.errorData !== undefined) {pth.push("errorData"); te_WEWIGI.fn(v.errorData,pth,er); pth.splice(-1);};if (v.statusCode !== undefined) {if(!(Number.isFinite(v.statusCode))) Iqa2M8Ms(pth,er,"number",["statusCode"]);}
+ 
+ }
+ ; return er}`, createJitFn: function get_te_a8UQwC(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    const te_WEWIGI = utl.getJIT("te_WEWIGI");
+    return function te_a8UQwC(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "class");
+      } else {
+        if (v["mion@isΣrrθr"] !== true) Iqa2M8Ms(pth, er, "literal", ["mion@isΣrrθr"]);
+        if (v.type !== "route-not-found") Iqa2M8Ms(pth, er, "literal", ["type"]);
+        if (v.id !== void 0) {
+          if (!(Number.isFinite(v.id) || typeof v.id === "string")) Iqa2M8Ms(pth, er, "union", ["id"]);
+        }
+        if (typeof v.publicMessage !== "string") Iqa2M8Ms(pth, er, "string", ["publicMessage"]);
+        if (v.errorData !== void 0) {
+          pth.push("errorData");
+          te_WEWIGI.fn(v.errorData, pth, er);
+          pth.splice(-1);
+        }
+        if (v.statusCode !== void 0) {
+          if (!Number.isFinite(v.statusCode)) Iqa2M8Ms(pth, er, "number", ["statusCode"]);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_a8UQwC": { isNoop: false, typeName: "RpcError", fnID: "tj", jitFnHash: "tj_a8UQwC", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union"; return function tj_a8UQwC(v){if (v.id !== undefined) {if (Number.isFinite(v.id)) { /*noop*/}else if (typeof v.id === 'string') { /*noop*/}else {throw new Error(uErr0);}} return v}`, createJitFn: function get_tj_a8UQwC(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    return function tj_a8UQwC(v) {
+      if (v.id !== void 0) {
+        if (Number.isFinite(v.id)) ;
+        else if (typeof v.id === "string") ;
+        else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_a8UQwC": { isNoop: false, typeName: "RpcError", fnID: "fj", jitFnHash: "fj_a8UQwC", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index"; return function fj_a8UQwC(v){
+ if (v.id !== undefined) {
+ if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === 'number') {
+ const dec0 = v.id[0]; v.id = v.id[1];
+ if (dec0 === 0) {/*noop*/}else if (dec0 === 1) {/*noop*/}
+ else {throw new Error(uErr0)}
+ }
+ ;};
+ let desFn1 = utl.getDeserializeFn("RpcError");
+ if (desFn1) {v = desFn1(v)}
+ else if (desFn1 = utl.getSerializeClass("RpcError")) {v = new desFn1(v)}
+ ; return v}`, createJitFn: function get_fj_a8UQwC(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    return function fj_a8UQwC(v) {
+      if (v.id !== void 0) {
+        if (v.id?.length === 2 && Array.isArray(v.id) && typeof v.id[0] === "number") {
+          const dec0 = v.id[0];
+          v.id = v.id[1];
+          if (dec0 === 0) ;
+          else if (dec0 === 1) ;
+          else {
+            throw new Error(uErr0);
+          }
+        }
+      }
+      let desFn1 = utl.getDeserializeFn("RpcError");
+      if (desFn1) {
+        v = desFn1(v);
+      } else if (desFn1 = utl.getSerializeClass("RpcError")) {
+        v = new desFn1(v);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "sj_a8UQwC": { isNoop: false, jitDependencies: ["sj_WEWIGI"], typeName: "RpcError", fnID: "sj", jitFnHash: "sj_a8UQwC", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+const sj_WEWIGI = utl.getJIT("sj_WEWIGI"); return function sj_a8UQwC(v){return '{'+(v.id === undefined ? '' : '"id":'+(function(){if (Number.isFinite(v.id)) {return v.id}else if (typeof v.id === 'string') {return JSON.stringify(v.id)}else {throw new Error(uErr0);}})()+",")+(v.errorData === undefined ? '' : '"errorData":'+sj_WEWIGI.fn(v.errorData)+",")+(v.statusCode === undefined ? '' : '"statusCode":'+v.statusCode+",")+"\\"mion@isΣrrθr\\""+':'+(v["mion@isΣrrθr"] ? 'true' : 'false')+","+'"type":'+JSON.stringify(v.type)+","+'"publicMessage":'+JSON.stringify(v.publicMessage)+'}'}`, createJitFn: function get_sj_a8UQwC(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    const sj_WEWIGI = utl.getJIT("sj_WEWIGI");
+    return function sj_a8UQwC(v) {
+      return "{" + (v.id === void 0 ? "" : '"id":' + (function() {
+        if (Number.isFinite(v.id)) {
+          return v.id;
+        } else if (typeof v.id === "string") {
+          return JSON.stringify(v.id);
+        } else {
+          throw new Error(uErr0);
+        }
+      })() + ",") + (v.errorData === void 0 ? "" : '"errorData":' + sj_WEWIGI.fn(v.errorData) + ",") + (v.statusCode === void 0 ? "" : '"statusCode":' + v.statusCode + ",") + '"mion@isΣrrθr":' + (v["mion@isΣrrθr"] ? "true" : "false") + ',"type":' + JSON.stringify(v.type) + ',"publicMessage":' + JSON.stringify(v.publicMessage) + "}";
+    };
+  }, fn: void 0 }, "is_JtnVhp": { isNoop: false, jitDependencies: ["is_b1N57x"], typeName: "params", fnID: "is", jitFnHash: "is_JtnVhp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_b1N57x = utl.getJIT("is_b1N57x"); return function is_JtnVhp(v){return (v.length <= 2 && is_b1N57x.fn(v[0]) && (v[1] === undefined || (typeof v[1] === 'boolean')))}`, createJitFn: function get_is_JtnVhp(utl) {
+    const is_b1N57x = utl.getJIT("is_b1N57x");
+    return function is_JtnVhp(v) {
+      return v.length <= 2 && is_b1N57x.fn(v[0]) && (v[1] === void 0 || typeof v[1] === "boolean");
+    };
+  }, fn: void 0 }, "te_JtnVhp": { isNoop: false, jitDependencies: ["te_b1N57x"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "params", fnID: "te", jitFnHash: "te_JtnVhp", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const te_b1N57x = utl.getJIT("te_b1N57x");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_JtnVhp(v,pth=[],er=[]){if (v.length > 2) Iqa2M8Ms(pth,er,"params"); else {pth.push(0); te_b1N57x.fn(v[0],pth,er); pth.splice(-1);if (v[1] !== undefined) {if (typeof v[1] !== 'boolean') Iqa2M8Ms(pth,er,"boolean",[1]);}} return er}`, createJitFn: function get_te_JtnVhp(utl) {
+    const te_b1N57x = utl.getJIT("te_b1N57x");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_JtnVhp(v, pth = [], er = []) {
+      if (v.length > 2) Iqa2M8Ms(pth, er, "params");
+      else {
+        pth.push(0);
+        te_b1N57x.fn(v[0], pth, er);
+        pth.splice(-1);
+        if (v[1] !== void 0) {
+          if (typeof v[1] !== "boolean") Iqa2M8Ms(pth, er, "boolean", [1]);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_JtnVhp": { isNoop: false, typeName: "params", fnID: "tj", jitFnHash: "tj_JtnVhp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_JtnVhp(v){if (v[1] === undefined ) {if (v.length > 1) v[1] = null} return v}", createJitFn: function get_tj_JtnVhp(utl) {
+    return function tj_JtnVhp(v) {
+      if (v[1] === void 0) {
+        if (v.length > 1) v[1] = null;
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_JtnVhp": { isNoop: false, typeName: "params", fnID: "fj", jitFnHash: "fj_JtnVhp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_JtnVhp(v){if (v[1] === null ) {v[1] = undefined} return v}", createJitFn: function get_fj_JtnVhp(utl) {
+    return function fj_JtnVhp(v) {
+      if (v[1] === null) {
+        v[1] = void 0;
+      }
+      return v;
+    };
+  }, fn: void 0 }, "sj_JtnVhp": { isNoop: false, jitDependencies: ["sj_b1N57x"], typeName: "params", fnID: "sj", jitFnHash: "sj_JtnVhp", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_b1N57x = utl.getJIT("sj_b1N57x"); return function sj_JtnVhp(v){return '['+sj_b1N57x.fn(v[0])+(v[1] === undefined ? ','+'null' : ','+(v[1] ? 'true' : 'false'))+']'}`, createJitFn: function get_sj_JtnVhp(utl) {
+    const sj_b1N57x = utl.getJIT("sj_b1N57x");
+    return function sj_JtnVhp(v) {
+      return "[" + sj_b1N57x.fn(v[0]) + (v[1] === void 0 ? ",null" : "," + (v[1] ? "true" : "false")) + "]";
+    };
+  }, fn: void 0 }, "is_txBnRj": { isNoop: false, jitDependencies: ["is_EkaMeW", "is_OQaagS"], typeName: "union", fnID: "is", jitFnHash: "is_txBnRj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS"); return function is_txBnRj(v){return ((typeof v === 'object' && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v))))}`, createJitFn: function get_is_txBnRj(utl) {
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    return function is_txBnRj(v) {
+      return typeof v === "object" && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v));
+    };
+  }, fn: void 0 }, "te_txBnRj": { isNoop: false, jitDependencies: ["is_EkaMeW", "is_OQaagS"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "union", fnID: "te", jitFnHash: "te_txBnRj", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_txBnRj(v,pth=[],er=[]){if (!((typeof v === 'object' && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v))))) Iqa2M8Ms(pth,er,"union"); return er}`, createJitFn: function get_te_txBnRj(utl) {
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_txBnRj(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null && (is_EkaMeW.fn(v) || is_OQaagS.fn(v)))) Iqa2M8Ms(pth, er, "union");
+      return er;
+    };
+  }, fn: void 0 }, "tj_txBnRj": { isNoop: false, jitDependencies: ["is_EkaMeW", "tj_EkaMeW", "fj_EkaMeW", "is_OQaagS", "tj_OQaagS", "fj_OQaagS"], typeName: "union", fnID: "tj", jitFnHash: "tj_txBnRj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json encode union: item does not belong to the union";
+const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const tj_OQaagS = utl.getJIT("tj_OQaagS");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function tj_txBnRj(v){if (typeof v === 'object' && v !== null && is_EkaMeW.fn(v)) {v = tj_EkaMeW.fn(v); v = [0, v]}else if (typeof v === 'object' && v !== null && is_OQaagS.fn(v)) {v = tj_OQaagS.fn(v); v = [1, v]}else {throw new Error(uErr0);} return v}`, createJitFn: function get_tj_txBnRj(utl) {
+    const uErr0 = "Can not json encode union: item does not belong to the union";
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+    utl.getJIT("fj_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const tj_OQaagS = utl.getJIT("tj_OQaagS");
+    utl.getJIT("fj_OQaagS");
+    return function tj_txBnRj(v) {
+      if (typeof v === "object" && v !== null && is_EkaMeW.fn(v)) {
+        v = tj_EkaMeW.fn(v);
+        v = [0, v];
+      } else if (typeof v === "object" && v !== null && is_OQaagS.fn(v)) {
+        v = tj_OQaagS.fn(v);
+        v = [1, v];
+      } else {
+        throw new Error(uErr0);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_txBnRj": { isNoop: false, jitDependencies: ["fj_EkaMeW", "fj_OQaagS"], typeName: "union", fnID: "fj", jitFnHash: "fj_txBnRj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not json decode union: invalid union index";
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function fj_txBnRj(v){
+ if (v?.length === 2 && Array.isArray(v) && typeof v[0] === 'number') {
+ const dec0 = v[0]; v = v[1];
+ if (dec0 === 0) {v = fj_EkaMeW.fn(v)}else if (dec0 === 1) {v = fj_OQaagS.fn(v)}
+ else {throw new Error(uErr0)}
+ }
+ ; return v}`, createJitFn: function get_fj_txBnRj(utl) {
+    const uErr0 = "Can not json decode union: invalid union index";
+    const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+    const fj_OQaagS = utl.getJIT("fj_OQaagS");
+    return function fj_txBnRj(v) {
+      if (v?.length === 2 && Array.isArray(v) && typeof v[0] === "number") {
+        const dec0 = v[0];
+        v = v[1];
+        if (dec0 === 0) {
+          v = fj_EkaMeW.fn(v);
+        } else if (dec0 === 1) {
+          v = fj_OQaagS.fn(v);
+        } else {
+          throw new Error(uErr0);
+        }
+      }
+      return v;
+    };
+  }, fn: void 0 }, "sj_txBnRj": { isNoop: false, jitDependencies: ["is_EkaMeW", "sj_EkaMeW", "tj_EkaMeW", "fj_EkaMeW", "is_OQaagS", "sj_OQaagS", "tj_OQaagS", "fj_OQaagS"], typeName: "union", fnID: "sj", jitFnHash: "sj_txBnRj", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+const is_EkaMeW = utl.getJIT("is_EkaMeW");
+const sj_EkaMeW = utl.getJIT("sj_EkaMeW");
+const tj_EkaMeW = utl.getJIT("tj_EkaMeW");
+const fj_EkaMeW = utl.getJIT("fj_EkaMeW");
+const is_OQaagS = utl.getJIT("is_OQaagS");
+const sj_OQaagS = utl.getJIT("sj_OQaagS");
+const tj_OQaagS = utl.getJIT("tj_OQaagS");
+const fj_OQaagS = utl.getJIT("fj_OQaagS"); return function sj_txBnRj(v){if (typeof v === 'object' && v !== null && is_EkaMeW.fn(v)) {return '[0,' + sj_EkaMeW.fn(v) + ']'}else if (typeof v === 'object' && v !== null && is_OQaagS.fn(v)) {return '[1,' + sj_OQaagS.fn(v) + ']'}else {throw new Error(uErr0);}}`, createJitFn: function get_sj_txBnRj(utl) {
+    const uErr0 = "Can not StringifyJson union: item does not belong to the union";
+    const is_EkaMeW = utl.getJIT("is_EkaMeW");
+    const sj_EkaMeW = utl.getJIT("sj_EkaMeW");
+    utl.getJIT("tj_EkaMeW");
+    utl.getJIT("fj_EkaMeW");
+    const is_OQaagS = utl.getJIT("is_OQaagS");
+    const sj_OQaagS = utl.getJIT("sj_OQaagS");
+    utl.getJIT("tj_OQaagS");
+    utl.getJIT("fj_OQaagS");
+    return function sj_txBnRj(v) {
+      if (typeof v === "object" && v !== null && is_EkaMeW.fn(v)) {
+        return "[0," + sj_EkaMeW.fn(v) + "]";
+      } else if (typeof v === "object" && v !== null && is_OQaagS.fn(v)) {
+        return "[1," + sj_OQaagS.fn(v) + "]";
+      } else {
+        throw new Error(uErr0);
+      }
+    };
+  }, fn: void 0 }, "is_rjFxDZ": { isNoop: false, jitDependencies: ["is_aQ6a8G"], typeName: "params", fnID: "is", jitFnHash: "is_rjFxDZ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_aQ6a8G = utl.getJIT("is_aQ6a8G"); return function is_rjFxDZ(v){return (v.length <= 1 && is_aQ6a8G.fn(v[0]))}`, createJitFn: function get_is_rjFxDZ(utl) {
+    const is_aQ6a8G = utl.getJIT("is_aQ6a8G");
+    return function is_rjFxDZ(v) {
+      return v.length <= 1 && is_aQ6a8G.fn(v[0]);
+    };
+  }, fn: void 0 }, "is_aQ6a8G": { isNoop: false, typeName: "SimpleUser", fnID: "is", jitFnHash: "is_aQ6a8G", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_aQ6a8G(v){return (typeof v === 'object' && v !== null && typeof v.name === 'string' && typeof v.surname === 'string')}", createJitFn: function get_is_aQ6a8G(utl) {
+    return function is_aQ6a8G(v) {
+      return typeof v === "object" && v !== null && typeof v.name === "string" && typeof v.surname === "string";
+    };
+  }, fn: void 0 }, "te_rjFxDZ": { isNoop: false, jitDependencies: ["te_aQ6a8G"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "params", fnID: "te", jitFnHash: "te_rjFxDZ", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const te_aQ6a8G = utl.getJIT("te_aQ6a8G");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_rjFxDZ(v,pth=[],er=[]){if (v.length > 1) Iqa2M8Ms(pth,er,"params"); else {pth.push(0); te_aQ6a8G.fn(v[0],pth,er); pth.splice(-1);} return er}`, createJitFn: function get_te_rjFxDZ(utl) {
+    const te_aQ6a8G = utl.getJIT("te_aQ6a8G");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_rjFxDZ(v, pth = [], er = []) {
+      if (v.length > 1) Iqa2M8Ms(pth, er, "params");
+      else {
+        pth.push(0);
+        te_aQ6a8G.fn(v[0], pth, er);
+        pth.splice(-1);
+      }
+      return er;
+    };
+  }, fn: void 0 }, "te_aQ6a8G": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "SimpleUser", fnID: "te", jitFnHash: "te_aQ6a8G", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_aQ6a8G(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ if (typeof v.name !== 'string') Iqa2M8Ms(pth,er,"string",["name"]);if (typeof v.surname !== 'string') Iqa2M8Ms(pth,er,"string",["surname"]);
+ 
+ }
+ ; return er}`, createJitFn: function get_te_aQ6a8G(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_aQ6a8G(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "object");
+      } else {
+        if (typeof v.name !== "string") Iqa2M8Ms(pth, er, "string", ["name"]);
+        if (typeof v.surname !== "string") Iqa2M8Ms(pth, er, "string", ["surname"]);
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_rjFxDZ": { isNoop: true, typeName: "params", fnID: "tj", jitFnHash: "tj_rjFxDZ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_rjFxDZ(v){return v}", createJitFn: function get_tj_rjFxDZ(utl) {
+    return function tj_rjFxDZ(v) {
+      return v;
+    };
+  }, fn: void 0 }, "tj_aQ6a8G": { isNoop: true, typeName: "SimpleUser", fnID: "tj", jitFnHash: "tj_aQ6a8G", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_aQ6a8G(v){return v}", createJitFn: function get_tj_aQ6a8G(utl) {
+    return function tj_aQ6a8G(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_rjFxDZ": { isNoop: true, typeName: "params", fnID: "fj", jitFnHash: "fj_rjFxDZ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_rjFxDZ(v){return v}", createJitFn: function get_fj_rjFxDZ(utl) {
+    return function fj_rjFxDZ(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_aQ6a8G": { isNoop: true, typeName: "SimpleUser", fnID: "fj", jitFnHash: "fj_aQ6a8G", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_aQ6a8G(v){return v}", createJitFn: function get_fj_aQ6a8G(utl) {
+    return function fj_aQ6a8G(v) {
+      return v;
+    };
+  }, fn: void 0 }, "sj_rjFxDZ": { isNoop: false, jitDependencies: ["sj_aQ6a8G"], typeName: "params", fnID: "sj", jitFnHash: "sj_rjFxDZ", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_aQ6a8G = utl.getJIT("sj_aQ6a8G"); return function sj_rjFxDZ(v){return '['+sj_aQ6a8G.fn(v[0])+']'}`, createJitFn: function get_sj_rjFxDZ(utl) {
+    const sj_aQ6a8G = utl.getJIT("sj_aQ6a8G");
+    return function sj_rjFxDZ(v) {
+      return "[" + sj_aQ6a8G.fn(v[0]) + "]";
+    };
+  }, fn: void 0 }, "sj_aQ6a8G": { isNoop: false, typeName: "SimpleUser", fnID: "sj", jitFnHash: "sj_aQ6a8G", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function sj_aQ6a8G(v){return '{'+'"name":'+JSON.stringify(v.name)+","+'"surname":'+JSON.stringify(v.surname)+'}'}`, createJitFn: function get_sj_aQ6a8G(utl) {
+    return function sj_aQ6a8G(v) {
+      return '{"name":' + JSON.stringify(v.name) + ',"surname":' + JSON.stringify(v.surname) + "}";
+    };
+  }, fn: void 0 }, "is_jRXlR9": { isNoop: false, typeName: "SimpleUser", fnID: "is", jitFnHash: "is_jRXlR9", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_jRXlR9(v){return (typeof v === 'object' && v !== null && typeof v.name === 'string' && typeof v.surname === 'string')}", createJitFn: function get_is_jRXlR9(utl) {
+    return function is_jRXlR9(v) {
+      return typeof v === "object" && v !== null && typeof v.name === "string" && typeof v.surname === "string";
+    };
+  }, fn: void 0 }, "te_jRXlR9": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "SimpleUser", fnID: "te", jitFnHash: "te_jRXlR9", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_jRXlR9(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ if (typeof v.name !== 'string') Iqa2M8Ms(pth,er,"string",["name"]);if (typeof v.surname !== 'string') Iqa2M8Ms(pth,er,"string",["surname"]);
+ 
+ }
+ ; return er}`, createJitFn: function get_te_jRXlR9(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_jRXlR9(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "object");
+      } else {
+        if (typeof v.name !== "string") Iqa2M8Ms(pth, er, "string", ["name"]);
+        if (typeof v.surname !== "string") Iqa2M8Ms(pth, er, "string", ["surname"]);
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_jRXlR9": { isNoop: true, typeName: "SimpleUser", fnID: "tj", jitFnHash: "tj_jRXlR9", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_jRXlR9(v){return v}", createJitFn: function get_tj_jRXlR9(utl) {
+    return function tj_jRXlR9(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_jRXlR9": { isNoop: true, typeName: "SimpleUser", fnID: "fj", jitFnHash: "fj_jRXlR9", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_jRXlR9(v){return v}", createJitFn: function get_fj_jRXlR9(utl) {
+    return function fj_jRXlR9(v) {
+      return v;
+    };
+  }, fn: void 0 }, "sj_jRXlR9": { isNoop: false, typeName: "SimpleUser", fnID: "sj", jitFnHash: "sj_jRXlR9", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function sj_jRXlR9(v){return '{'+'"name":'+JSON.stringify(v.name)+","+'"surname":'+JSON.stringify(v.surname)+'}'}`, createJitFn: function get_sj_jRXlR9(utl) {
+    return function sj_jRXlR9(v) {
+      return '{"name":' + JSON.stringify(v.name) + ',"surname":' + JSON.stringify(v.surname) + "}";
+    };
+  }, fn: void 0 }, "is_gqqoWu": { isNoop: false, jitDependencies: ["is_btp3Jb"], typeName: "params", fnID: "is", jitFnHash: "is_gqqoWu", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const is_btp3Jb = utl.getJIT("is_btp3Jb"); return function is_gqqoWu(v){return (v.length <= 1 && (v[0] === undefined || (is_btp3Jb.fn(v[0]))))}`, createJitFn: function get_is_gqqoWu(utl) {
+    const is_btp3Jb = utl.getJIT("is_btp3Jb");
+    return function is_gqqoWu(v) {
+      return v.length <= 1 && (v[0] === void 0 || is_btp3Jb.fn(v[0]));
+    };
+  }, fn: void 0 }, "is_btp3Jb": { isNoop: false, typeName: "DataPoint", fnID: "is", jitFnHash: "is_btp3Jb", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_btp3Jb(v){return (typeof v === 'object' && v !== null && (v.date instanceof Date && !isNaN(v.date.getTime())))}", createJitFn: function get_is_btp3Jb(utl) {
+    return function is_btp3Jb(v) {
+      return typeof v === "object" && v !== null && (v.date instanceof Date && !isNaN(v.date.getTime()));
+    };
+  }, fn: void 0 }, "te_gqqoWu": { isNoop: false, jitDependencies: ["te_btp3Jb"], pureFnDependencies: ["mion::newRunTypeErr"], typeName: "params", fnID: "te", jitFnHash: "te_gqqoWu", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const te_btp3Jb = utl.getJIT("te_btp3Jb");
+const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_gqqoWu(v,pth=[],er=[]){if (v.length > 1) Iqa2M8Ms(pth,er,"params"); else {if (v[0] !== undefined) {pth.push(0); te_btp3Jb.fn(v[0],pth,er); pth.splice(-1);}} return er}`, createJitFn: function get_te_gqqoWu(utl) {
+    const te_btp3Jb = utl.getJIT("te_btp3Jb");
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_gqqoWu(v, pth = [], er = []) {
+      if (v.length > 1) Iqa2M8Ms(pth, er, "params");
+      else {
+        if (v[0] !== void 0) {
+          pth.push(0);
+          te_btp3Jb.fn(v[0], pth, er);
+          pth.splice(-1);
+        }
+      }
+      return er;
+    };
+  }, fn: void 0 }, "te_btp3Jb": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "DataPoint", fnID: "te", jitFnHash: "te_btp3Jb", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_btp3Jb(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ if (!(v.date instanceof Date && !isNaN(v.date.getTime()))) Iqa2M8Ms(pth,er,"date",["date"]);
+ 
+ }
+ ; return er}`, createJitFn: function get_te_btp3Jb(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_btp3Jb(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "object");
+      } else {
+        if (!(v.date instanceof Date && !isNaN(v.date.getTime()))) Iqa2M8Ms(pth, er, "date", ["date"]);
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_gqqoWu": { isNoop: false, typeName: "params", fnID: "tj", jitFnHash: "tj_gqqoWu", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_gqqoWu(v){if (v[0] === undefined ) {if (v.length > 0) v[0] = null} return v}", createJitFn: function get_tj_gqqoWu(utl) {
+    return function tj_gqqoWu(v) {
+      if (v[0] === void 0) {
+        if (v.length > 0) v[0] = null;
+      }
+      return v;
+    };
+  }, fn: void 0 }, "tj_btp3Jb": { isNoop: true, typeName: "DataPoint", fnID: "tj", jitFnHash: "tj_btp3Jb", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_btp3Jb(v){return v}", createJitFn: function get_tj_btp3Jb(utl) {
+    return function tj_btp3Jb(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_gqqoWu": { isNoop: false, jitDependencies: ["fj_btp3Jb"], typeName: "params", fnID: "fj", jitFnHash: "fj_gqqoWu", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const fj_btp3Jb = utl.getJIT("fj_btp3Jb"); return function fj_gqqoWu(v){if (v[0] === null ) {v[0] = undefined} else if (v[0] !== undefined) {v[0] = fj_btp3Jb.fn(v[0]);} return v}`, createJitFn: function get_fj_gqqoWu(utl) {
+    const fj_btp3Jb = utl.getJIT("fj_btp3Jb");
+    return function fj_gqqoWu(v) {
+      if (v[0] === null) {
+        v[0] = void 0;
+      } else if (v[0] !== void 0) {
+        v[0] = fj_btp3Jb.fn(v[0]);
+      }
+      return v;
+    };
+  }, fn: void 0 }, "fj_btp3Jb": { isNoop: false, typeName: "DataPoint", fnID: "fj", jitFnHash: "fj_btp3Jb", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_btp3Jb(v){v.date = new Date(v.date); return v}", createJitFn: function get_fj_btp3Jb(utl) {
+    return function fj_btp3Jb(v) {
+      v.date = new Date(v.date);
+      return v;
+    };
+  }, fn: void 0 }, "sj_gqqoWu": { isNoop: false, jitDependencies: ["sj_btp3Jb"], typeName: "params", fnID: "sj", jitFnHash: "sj_gqqoWu", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict'; const sj_btp3Jb = utl.getJIT("sj_btp3Jb"); return function sj_gqqoWu(v){return '['+(v[0] === undefined ? 'null' : sj_btp3Jb.fn(v[0]))+']'}`, createJitFn: function get_sj_gqqoWu(utl) {
+    const sj_btp3Jb = utl.getJIT("sj_btp3Jb");
+    return function sj_gqqoWu(v) {
+      return "[" + (v[0] === void 0 ? "null" : sj_btp3Jb.fn(v[0])) + "]";
+    };
+  }, fn: void 0 }, "sj_btp3Jb": { isNoop: false, typeName: "DataPoint", fnID: "sj", jitFnHash: "sj_btp3Jb", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function sj_btp3Jb(v){return '{'+'"date":'+'"'+v.date.toJSON()+'"'+'}'}`, createJitFn: function get_sj_btp3Jb(utl) {
+    return function sj_btp3Jb(v) {
+      return '{"date":"' + v.date.toJSON() + '"}';
+    };
+  }, fn: void 0 }, "is_MKk6Uk": { isNoop: false, typeName: "DataPoint", fnID: "is", jitFnHash: "is_MKk6Uk", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function is_MKk6Uk(v){return (typeof v === 'object' && v !== null && (v.date instanceof Date && !isNaN(v.date.getTime())))}", createJitFn: function get_is_MKk6Uk(utl) {
+    return function is_MKk6Uk(v) {
+      return typeof v === "object" && v !== null && (v.date instanceof Date && !isNaN(v.date.getTime()));
+    };
+  }, fn: void 0 }, "te_MKk6Uk": { isNoop: false, pureFnDependencies: ["mion::newRunTypeErr"], typeName: "DataPoint", fnID: "te", jitFnHash: "te_MKk6Uk", args: { "pλth": "pth", "εrr": "er", "vλl": "v" }, defaultParamValues: { "pλth": "[]", "εrr": "[]", "vλl": "" }, code: `'use strict'; const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr"); return function te_MKk6Uk(v,pth=[],er=[]){
+ if (!(typeof v === 'object' && v !== null)) {
+ Iqa2M8Ms(pth,er,"object");
+ } else {
+ if (!(v.date instanceof Date && !isNaN(v.date.getTime()))) Iqa2M8Ms(pth,er,"date",["date"]);
+ 
+ }
+ ; return er}`, createJitFn: function get_te_MKk6Uk(utl) {
+    const Iqa2M8Ms = utl.getPureFn("mion", "newRunTypeErr");
+    return function te_MKk6Uk(v, pth = [], er = []) {
+      if (!(typeof v === "object" && v !== null)) {
+        Iqa2M8Ms(pth, er, "object");
+      } else {
+        if (!(v.date instanceof Date && !isNaN(v.date.getTime()))) Iqa2M8Ms(pth, er, "date", ["date"]);
+      }
+      return er;
+    };
+  }, fn: void 0 }, "tj_MKk6Uk": { isNoop: true, typeName: "DataPoint", fnID: "tj", jitFnHash: "tj_MKk6Uk", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function tj_MKk6Uk(v){return v}", createJitFn: function get_tj_MKk6Uk(utl) {
+    return function tj_MKk6Uk(v) {
+      return v;
+    };
+  }, fn: void 0 }, "fj_MKk6Uk": { isNoop: false, typeName: "DataPoint", fnID: "fj", jitFnHash: "fj_MKk6Uk", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: "'use strict';  return function fj_MKk6Uk(v){v.date = new Date(v.date); return v}", createJitFn: function get_fj_MKk6Uk(utl) {
+    return function fj_MKk6Uk(v) {
+      v.date = new Date(v.date);
+      return v;
+    };
+  }, fn: void 0 }, "sj_MKk6Uk": { isNoop: false, typeName: "DataPoint", fnID: "sj", jitFnHash: "sj_MKk6Uk", args: { "vλl": "v" }, defaultParamValues: { "vλl": "" }, code: `'use strict';  return function sj_MKk6Uk(v){return '{'+'"date":'+'"'+v.date.toJSON()+'"'+'}'}`, createJitFn: function get_sj_MKk6Uk(utl) {
+    return function sj_MKk6Uk(v) {
+      return '{"date":"' + v.date.toJSON() + '"}';
+    };
+  }, fn: void 0 } };
+  const routerCache = { "mion@methodsMetadata": { paramNames: ["methodsIds", "getAllRemoteMethods"], type: 2, id: "mion@methodsMetadata", isAsync: false, hasReturnData: true, paramsJitHash: "RXdbj3", returnJitHash: "A8gCSq", pointer: ["mion@methodsMetadata"], nestLevel: 0, options: { runOnError: true, validateParams: true, validateReturn: false } }, "@thrownErrors": { paramNames: [], type: 1, id: "@thrownErrors", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "cm6MsK", pointer: ["@thrownErrors"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@notFound": { paramNames: [], type: 1, id: "mion@notFound", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "a8UQwC", pointer: ["mion@notFound"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@platformError": { paramNames: [], type: 1, id: "mion@platformError", isAsync: false, hasReturnData: true, paramsJitHash: "", returnJitHash: "zxRrbt", pointer: ["mion@platformError"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "mion@methodsMetadataById": { paramNames: ["methodsIds", "getAllRemoteMethods"], type: 1, id: "mion@methodsMetadataById", isAsync: false, hasReturnData: true, paramsJitHash: "JtnVhp", returnJitHash: "txBnRj", pointer: ["mion@methodsMetadataById"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "stringifyJson" } }, "changeUserName": { paramNames: ["user"], type: 1, id: "changeUserName", isAsync: false, hasReturnData: true, paramsJitHash: "rjFxDZ", returnJitHash: "jRXlR9", pointer: ["changeUserName"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "getDate": { paramNames: ["dataPoint"], type: 1, id: "getDate", isAsync: false, hasReturnData: true, paramsJitHash: "gqqoWu", returnJitHash: "MKk6Uk", pointer: ["getDate"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } }, "updateHeaders": { paramNames: [], type: 1, id: "updateHeaders", isAsync: false, hasReturnData: false, paramsJitHash: "", returnJitHash: "", pointer: ["updateHeaders"], nestLevel: 0, options: { runOnError: false, validateParams: true, validateReturn: false, serializer: "json" } } };
+  addAOTCaches(jitFnsCache, pureFnsCache);
+  addRoutesToCache(routerCache);
+  function loadAOTCaches() {
+    addAOTCaches(jitFnsCache, pureFnsCache);
+    addRoutesToCache(routerCache);
+  }
+  loadAOTCaches.__type = ["loadAOTCaches", "P$/!"];
+  function getRawAOTCaches() {
+    return {
+      jitFnsCache,
+      pureFnsCache,
+      routerCache
+    };
+  }
+  getRawAOTCaches.__type = ["getRawAOTCaches", 'P"/!'];
+  function loadRouterAOTCaches() {
+    loadAOTCaches();
+    loadCompiledMethods(getRawAOTCaches().routerCache);
+  }
+  loadRouterAOTCaches.__type = ["loadRouterAOTCaches", "P$/!"];
+  const aotCacheLoader = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    loadRouterAOTCaches
+  }, Symbol.toStringTag, { value: "Module" }));
+  const __ΩRecord = ["K", "T", "Record", `l'e#"Rb!b"Pde"!N#!w#y`];
+  function __assignType(fn, args) {
+    fn.__type = args;
+    return fn;
+  }
+  const __ΩAOTCacheMessage = ["mion-aot-caches", "type", "jitFnsCode", "pureFnsCode", "routerCacheCode", "AOTCacheMessage", 'P.!4"&4#&4$&4%Mw&y'];
+  const __ΩPlatformReadyMessage = ["mion-platform-ready", "type", () => __ΩRecord, "routerConfig", () => __ΩRecord, "platformConfig", "PlatformReadyMessage", `P.!4"&#o##4$&#o%#4&Mw'y`];
+  const __ΩSerializedCaches = ["jitFnsCode", "pureFnsCode", "routerCacheCode", "SerializedCaches", 'P&4!&4"&4#Mw$y'];
+  const EXCLUDED_JIT_FN_IDS = [JIT_FUNCTION_IDS.toJSCode];
+  const EXCLUDED_PURE_FN_NAMES = ["sanitizeCompiledFn"];
+  async function getSerializedCaches() {
+    const { jitFnsCache: jitFnsCache2, pureFnsCache: pureFnsCache2 } = getJitFnCaches();
+    const routerCache2 = getPersistedMethods();
+    return serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2);
+  }
+  getSerializedCaches.__type = [() => __ΩSerializedCaches, "getSerializedCaches", 'Pn!`/"'];
+  async function emitAOTCaches() {
+    if (!isMionAOTEmitMode())
+      return;
+    if (getENV("MION_COMPILE") === "middleware")
+      return;
+    if (typeof process.send !== "function")
+      return;
+    const { jitFnsCache: jitFnsCache2, pureFnsCache: pureFnsCache2 } = getJitFnCaches();
+    const routerCache2 = getPersistedMethods();
+    const serialized = await serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2);
+    const message = {
+      type: "mion-aot-caches",
+      ...serialized
+    };
+    process.send(message);
+  }
+  emitAOTCaches.__type = ["emitAOTCaches", "P$`/!"];
+  async function serializeCachesToCode(jitFnsCache2, pureFnsCache2, routerCache2) {
+    const isClient = getENV("MION_AOT_IS_CLIENT") === "true";
+    const jitToJSCode = isClient ? (runTypes.createToJavascriptFn.Ω = [[() => __ΩClientSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn()) : (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodeJITCompiledFnsCache, "n!"]], runTypes.createToJavascriptFn());
+    const pureToJSCode = isClient ? (runTypes.createToJavascriptFn.Ω = [[() => __ΩClientSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn()) : (runTypes.createToJavascriptFn.Ω = [[() => __ΩSrcCodePureFunctionsCache, "n!"]], runTypes.createToJavascriptFn());
+    const routerToJSCode = (runTypes.createToJavascriptFn.Ω = [[() => __ΩMethodsCache, "n!"]], runTypes.createToJavascriptFn());
+    const finalJitFns = filterExcludedJitFns(jitFnsCache2, EXCLUDED_JIT_FN_IDS);
+    const finalPureFns = filterExcludedPureFns(pureFnsCache2, EXCLUDED_PURE_FN_NAMES);
+    return {
+      jitFnsCode: jitToJSCode(finalJitFns),
+      pureFnsCode: pureToJSCode(finalPureFns),
+      routerCacheCode: routerToJSCode(routerCache2)
+    };
+  }
+  serializeCachesToCode.__type = [() => __ΩJitFunctionsCache, "jitFnsCache", () => __ΩPureFunctionsCache, "pureFnsCache", () => __ΩMethodsCache, "routerCache", () => __ΩSerializedCaches, "serializeCachesToCode", "Pn!2\"n#2$n%2&n'`/("];
+  function filterExcludedJitFns(jitFnsCache2, excludedFnIds) {
+    if (!excludedFnIds.length)
+      return jitFnsCache2;
+    return Object.fromEntries(Object.entries(jitFnsCache2).filter(__assignType(([, value]) => !excludedFnIds.includes(value.fnID), ["param0", "", 'P"2!"/"'])));
+  }
+  filterExcludedJitFns.__type = [() => __ΩJitFunctionsCache, "jitFnsCache", "excludedFnIds", () => __ΩJitFunctionsCache, "filterExcludedJitFns", 'Pn!2"&F2#n$/%'];
+  function filterExcludedPureFns(pureFnsCache2, excludedFnNames) {
+    if (!excludedFnNames.length)
+      return pureFnsCache2;
+    return Object.fromEntries(Object.entries(pureFnsCache2).map(__assignType(([namespace, nsCache]) => [
+      namespace,
+      Object.fromEntries(Object.entries(nsCache).filter(__assignType(([, value]) => !excludedFnNames.includes(value.fnName), ["param0", "", 'P"2!"/"'])))
+    ], ["param0", "", 'P"2!"/"'])));
+  }
+  filterExcludedPureFns.__type = [() => __ΩPureFunctionsCache, "pureFnsCache", "excludedFnNames", () => __ΩPureFunctionsCache, "filterExcludedPureFns", 'Pn!2"&F2#n$/%'];
+  const aotEmitter = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+    __proto__: null,
+    __ΩAOTCacheMessage,
+    __ΩPlatformReadyMessage,
+    __ΩSerializedCaches,
+    emitAOTCaches,
+    getSerializedCaches,
+    serializeCachesToCode
+  }, Symbol.toStringTag, { value: "Module" }));
+  exports.__ΩEdgeSetupOptions = __ΩEdgeSetupOptions;
+  exports.resetServer = resetServer;
+  exports.setup = setup;
+  Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+})(this.EdgeTestServer = this.EdgeTestServer || {});
+//# sourceMappingURL=test-server-edge.js.map

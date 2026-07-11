@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": ".dist/cjs"
-  },
-  "reflection": true,
-  "include": [".", "src/test/.spec/result-spec-api.ts"],
-  "exclude": ["examples", ".dist", "src/test/.spec"]
-}

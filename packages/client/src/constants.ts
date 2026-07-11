@@ -5,40 +5,33 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
-import {ClientOptions} from './types';
+import {ClientOptions} from './types.ts';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     baseURL: '',
-    storage: 'localStorage',
-
     fetchOptions: {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
     },
-
-    /** Prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
-    prefix: '',
-
-    /** Suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
+    /** Prefix for all routes, i.e: api/v1 */
+    basePath: '',
+    /** Suffix for all routes, i.e: .json */
     suffix: '',
-
     /** Enables automatic parameter validation */
-    useValidation: true,
-
-    /** Enables automatic serialization/deserialization */
-    useSerialization: true,
-
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
-
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
-
-    /** Set true to automatically generate and id for every error.  */
+    validateParams: true,
+    /** Set true to automatically generate and id for every error */
     autoGenerateErrorId: false,
+    /** Default serializer mode - stringifyJson as default native serializer */
+    serializer: 'stringifyJson',
 };
 
-export const STORAGE_KEY = 'mionkit:client';
+/** Maximum safe URL length for GET requests with ?data= query param */
+export const MAX_GET_URL_LENGTH = 4096;
+
+export const STORAGE_KEY = 'mion:client';
+
+/** RoutesFlow route key - matches router constant */
+export const ROUTES_FLOW_KEY = 'mion-routes-flow';
+
+/** RoutesFlow route path - matches router constant */
+export const ROUTES_FLOW_PATH = `/${ROUTES_FLOW_KEY}`;

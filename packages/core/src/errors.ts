@@ -5,72 +5,220 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {randomUUID} from 'crypto';
-import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, AnyErrorParams, AnonymRpcError} from './types';
-import {DEFAULT_CORE_OPTIONS} from './constants';
+import type {
+    CoreRouterOptions,
+    AnyErrorParams,
+    TypedErrorParams,
+    DataOnly,
+    RpcErrorParams,
+    RunTypeError,
+    StrNumber,
+} from './types/general.types.ts';
+import {DEFAULT_CORE_OPTIONS} from './constants.ts';
+import {randomUUID_V7} from './utils.ts';
+import {getJitUtils} from './jit/jitUtils.ts';
 
-let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
+// ############# Validation Error Types #############
 
-export function setErrorOptions(opts: CoreOptions) {
+/**
+ * Error data structure for validation errors.
+ * Contains the list of type errors from parameter validation.
+ */
+export interface ValidationErrorData {
+    /** List of type validation errors with paths and expected types */
+    typeErrors: RunTypeError[];
+}
+
+/**
+ * Strongly typed validation error.
+ * Thrown when route or middleFn parameters fail type validation.
+ * This type is included in the client error unions so validation errors can be properly typed.
+ */
+export type ValidationError = RpcError<'validation-error', ValidationErrorData>;
+
+let options: CoreRouterOptions = {...DEFAULT_CORE_OPTIONS};
+
+export function setErrorOptions(opts: CoreRouterOptions) {
     options = opts;
 }
 
-export class RpcError extends Error {
-    /** id of the error, if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated */
-    public readonly id?: number | string;
-    /** response status code */
-    public readonly statusCode: number;
-    /** the message that will be returned in the response */
-    public readonly publicMessage: string;
-    /** options data related to the error, ie validation data */
-    public readonly errorData?: Readonly<unknown>;
+/**
+ * Generic strongly typed error class that can be used outside RPC context.
+ * Contains the core error properties: mion@isΣrrθr, type, and message.
+ */
+export class TypedError<ErrType extends string> extends Error {
+    /**
+     * Unique error identifier,
+     * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
+     */
+    // eslint-disable-next-line @typescript-eslint/prefer-as-const
+    public readonly 'mion@isΣrrθr': true = true;
+    /** Error type, can be used as discriminator in union types*/
+    public readonly type: ErrType;
+    // Note: message and name are NOT declared as properties here
+    // They are inherited from Error class and assigned in constructor
+    // This prevents them from being included in type reflection for JIT validation
 
-    constructor({statusCode, message, publicMessage, originalError, errorData, name, id}: AnyErrorParams) {
-        super(message || originalError?.message || publicMessage);
-        super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
-        if (originalError?.stack) super.stack = originalError?.stack;
-        const {autoGenerateErrorId} = options;
-        this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}@${randomUUID()}` : undefined;
-        this.statusCode = statusCode;
-        this.publicMessage = publicMessage || '';
-        this.errorData = errorData as Readonly<unknown>;
-        Object.setPrototypeOf(this, RpcError.prototype);
-        // sets proper json serialization for message
-        Object.defineProperty(this, 'message', {enumerable: true});
-    }
+    constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
+        const errorMessage = message || originalError?.message || '';
+        super(errorMessage);
+        this.type = type;
 
-    /** returns an error without stack trace an massage is swapped by public message */
-    toAnonymizedError(): AnonymRpcError {
-        const err: AnonymRpcError = {
-            name: this.name,
-            statusCode: this.statusCode,
-            message: this.publicMessage,
-        };
-        if (this.errorData) err.errorData = this.errorData;
-        if (this.id) err.id = this.id;
-        return err;
+        // Set message and name as non-enumerable to exclude from JSON.stringify
+        Object.defineProperty(this, 'message', {
+            value: errorMessage,
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+        Object.defineProperty(this, 'name', {
+            value: 'TypedError',
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+
+        if (originalError?.stack) {
+            try {
+                this.stack = originalError.stack;
+            } catch {
+                // Fallback to defineProperty if direct assignment fails
+                try {
+                    Object.defineProperty(this, 'stack', {
+                        value: originalError.stack,
+                        writable: true,
+                        configurable: true,
+                    });
+                } catch {
+                    // If both methods fail, the error will use its own generated stack
+                }
+            }
+        }
+
+        Object.setPrototypeOf(this, TypedError.prototype);
     }
 }
 
+// type-rpc-error-start
+export class RpcError<ErrType extends string, ErrData = any>
+    extends TypedError<ErrType>
+    implements RpcErrorParams<ErrType, ErrData>
+{
+    // Note: name is NOT declared as a property here
+    // It is inherited from Error class and assigned in constructor
+    // This prevents it from being included in type reflection for JIT validation
+    /**
+     * id of the error, ideally each error should unique identifiable
+     * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
+     * */
+    public readonly id?: number | string;
+    /** the message that will be returned in the response */
+    public readonly publicMessage: string;
+    /** options data related to the error, ie validation data, must be json serializable */
+    public readonly errorData?: Readonly<ErrData>;
+    /** optional http status code */
+    statusCode?: number;
+
+    constructor({message, publicMessage, originalError, errorData, type, id, statusCode}: AnyErrorParams<ErrType, ErrData>) {
+        const originalMessage = message || originalError?.message || publicMessage || '';
+
+        // Call parent TypedError constructor
+        super({
+            message: originalMessage,
+            originalError,
+            type,
+        });
+
+        const {autoGenerateErrorId} = options;
+        this.id = id ?? (autoGenerateErrorId ? randomUUID_V7() : undefined);
+        this.publicMessage = publicMessage || '';
+        this.errorData = errorData;
+        this.statusCode = statusCode;
+
+        // Override name to be non-enumerable
+        Object.defineProperty(this, 'name', {
+            value: 'RpcError',
+            writable: true,
+            enumerable: false,
+            configurable: true,
+        });
+
+        Object.setPrototypeOf(this, RpcError.prototype);
+    }
+}
+// type-rpc-error-end
+
 // #######  Error Type Guards #######
 
-const hasUnknownKeys = (knownKeys, error) => {
-    if (typeof error !== 'object') return true;
-    const unknownKeys = Object.keys(error);
-    return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
-};
+function hasUnknownKeys(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
+    for (const prop in obj) {
+        // iterates over the object keys and if not found prop adds to unknownKeys
+        let found = false;
+        for (let j = 0; j < keys.length; j++) {
+            if (keys[j] === prop) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return true;
+    }
+    return false;
+}
+
+/** Returns true if the error is a TypedError or has the same structure. */
+export function isTypedError(error: any): error is TypedError<any> {
+    if (!error) return false;
+    if (error instanceof TypedError) return true;
+    return (
+        error &&
+        error['mion@isΣrrθr'] === true &&
+        (typeof error.type === 'string' || typeof error.type === 'number') &&
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message'])
+    );
+}
 
 /** Returns true if the error is a RpcError or has the same structure. */
-export function isRpcError(error: any): error is RpcError {
+export function isRpcError(error: any): error is RpcError<string> {
     if (!error) return false;
     if (error instanceof RpcError) return true;
     return (
         error &&
-        typeof error.statusCode === 'number' &&
-        typeof error.name === 'string' &&
-        (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
-        (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !hasUnknownKeys(['id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'], error)
+        error['mion@isΣrrθr'] === true &&
+        (typeof error.type === 'string' || typeof error.type === 'number') &&
+        (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
     );
+}
+
+/**
+ * Returns true if the error is a TypedError, RpcError, or any other Javascript Error.
+ * if available uses Error.isError() or 'mion@isΣrrθr' prop from TypedError
+ * Does not do strict type checking. This function is intended to quickly identify errors.
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+ */
+export function isAnyError(error: any): error is TypedError<any> | RpcError<string> | Error {
+    if (!error) return false;
+    const tErr = error as TypedError<string>;
+    if (tErr['mion@isΣrrθr'] === true) return true;
+    if (typeof (Error as any).isError === 'function') return (Error as any).isError(error);
+    return error instanceof Error;
+}
+
+let errorDeserializersRegistered = false;
+/**
+ * Registers error deserializers for TypedError and RpcError.
+ * This is required to automatically restore TypedError and RpcError sent over the network.
+ */
+export function registerErrorDeserializers() {
+    if (errorDeserializersRegistered) return;
+    if (!TypedError || !RpcError) return; // Not loaded yet
+    errorDeserializersRegistered = true;
+
+    getJitUtils().setDeserializeFn(TypedError, (data: DataOnly<any>) => {
+        return new TypedError(data);
+    });
+
+    getJitUtils().setDeserializeFn(RpcError, (data: DataOnly<any>) => {
+        return new RpcError(data);
+    });
 }

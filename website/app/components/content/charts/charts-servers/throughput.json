@@ -1,0 +1,1 @@
+{"data":{"x":"x","columns":[["x","Throughput (Mb/s)"],["mion.bun","50.74"],["hono.bun","48.04"],["elysia.bun","40.10"],["mion","40.60"],["http-node","38.36"],["fastify","33.66"],["express","29.42"],["hapi","26.86"],["hono","24.25"]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}

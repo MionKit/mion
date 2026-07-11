@@ -1,0 +1,1 @@
+{"data":{"x":"x","columns":[["x","Max Memory (Mb)"],["elysia.bun","89"],["hono.bun","71"],["mion.bun","64"],["http-node","136"],["mion","142"],["fastify","254"],["express","173"],["hapi","223"],["hono",1089]],"type":"bar","labels":true},"axis":{"x":{"type":"category","labels":{"rotate":75}}},"transition":{"duration":0}}

@@ -1,0 +1,50 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect} from 'vitest';
+import {JitFunctions} from '../../constants.functions.ts';
+import {runType} from '../../createRunType.ts';
+
+// Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation
+// Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>
+
+describe.skip('Uppercase typescript utility type', () => {
+    const rt = runType<Uppercase<string>>();
+
+    const upperString: Uppercase<string> = 'HELLO';
+    const lowerString: string = 'hello';
+
+    it('validate', () => {
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        expect(isType(upperString)).toEqual(true);
+        expect(isType(lowerString)).toEqual(false);
+    });
+
+    it('validate errors', () => {
+        const invalidParams = {a: 'world', b: 2, c: 'not a date'};
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(typeErrors(invalidParams)).toEqual([{path: ['c'], expected: 'date'}]);
+        expect(typeErrors(lowerString)).toEqual([{path: [], expected: 'string'}]); // TODO: we need extra info in the errors fo type format
+    });
+
+    it('json encode/decode', () => {
+        const encode = rt.createJitFunction(JitFunctions.prepareForJson);
+        const decode = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const encoded = encode(upperString);
+        const decoded = decode(JSON.parse(JSON.stringify(encoded)));
+        expect(decoded).toEqual(upperString);
+    });
+
+    // Note: Test was skipped in original (describe.skip), not moved
+
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        expect(isType(mocked)).toEqual(true);
+        expect(mocked.c instanceof Date).toBe(true);
+    });
+});

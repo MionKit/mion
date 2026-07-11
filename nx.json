@@ -12,20 +12,19 @@
       "dependsOn": []
     },
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["@mionjs/client:test"],
       "outputs": ["{workspaceRoot}/.coverage"]
     },
     "build": {
-      "dependsOn": ["lint", "test", "^build"],
-      "outputs": ["{workspaceRoot}/.dist"]
-    },
-    "auto-readme": {
-      "dependsOn": [],
-      "outputs": ["{workspaceRoot}/**/*.md"]
+      "dependsOn": ["lint", "^build"],
+      "outputs": ["{projectRoot}/.dist"]
     },
     "clean": {
       "dependsOn": []
     }
   },
-  "defaultBase": "master"
+  "defaultBase": "master",
+  "release": {
+    "projects": ["packages/*", "!packages/test-server"]
+  }
 }

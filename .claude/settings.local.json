@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec vitest:*)",
+      "Bash(pnpm run test:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter:*)",
+      "Bash(lsof -ti:8086)",
+      "Bash(xargs kill:*)",
+      "Bash(find /Users/majerez/Projects/mion/packages/platform-* -name \"*.spec.ts\" -type f)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|md\\)$\")",
+      "Bash(chmod +x /Users/majerez/Projects/mion/scripts/pack-packages.sh)",
+      "Bash(grep -r \"sourceMapText\\\\|sourceMap\\\\|map:\" /Users/majerez/Projects/mion/packages/devtools/src/vite-plugin/*.ts)",
+      "Bash(grep -r \"sourceMap\\\\|map:\" /Users/majerez/Projects/mion/packages/devtools/src/vite-plugin/*.spec.ts)",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

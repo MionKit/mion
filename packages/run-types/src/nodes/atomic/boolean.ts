@@ -1,0 +1,26 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {TypeBoolean} from '@deepkit/type';
+import type {JitCode} from '../../types.ts';
+import type {JitFnCompiler, JitErrorsFnCompiler} from '../../lib/jitFnCompiler.ts';
+import {AtomicRunType} from '../../lib/baseRunTypes.ts';
+
+export class BooleanRunType extends AtomicRunType<TypeBoolean> {
+    emitIsType(comp: JitFnCompiler): JitCode {
+        return {code: `typeof ${comp.vλl} === 'boolean'`, type: 'E'};
+    }
+    emitTypeErrors(comp: JitErrorsFnCompiler): JitCode {
+        return {code: `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`, type: 'S'};
+    }
+    emitPrepareForJson(): JitCode {
+        return {code: undefined, type: 'S'};
+    }
+    emitRestoreFromJson(): JitCode {
+        return {code: undefined, type: 'S'};
+    }
+}

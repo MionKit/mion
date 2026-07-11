@@ -5,200 +5,200 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
-import {type RouterOptions} from './types/general';
-import {HeaderProcedure, type Procedure} from './types/procedures';
-import {ProcedureType} from './types/procedures';
-import type {Handler} from './types/handlers';
-import {isNotFoundExecutable} from './types/guards';
-import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
-import {isPromise} from 'node:util/types';
-import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
-import {FunctionReflection} from '@mionkit/reflection';
-import {handleRpcErrors} from './errors';
-
-// ############# PUBLIC METHODS #############
+import type {CallContext, MionResponse, MionRequest, MionHeaders, RawRequestBody} from './types/context.ts';
+import {type RouterOptions} from './types/general.ts';
+import {HeadersMethod, RemoteMethod, RawMethod} from './types/remoteMethods.ts';
+import {getRouterOptions} from './router.ts';
+import {Mutable, AnyObject, StatusCodes, HeadersSubset, SerializerModes, SerializerCode} from '@mionjs/core';
+import {RpcError, HandlerType, ValidationError} from '@mionjs/core';
+import {onExecutableError} from './lib/dispatchError.ts';
+import {acquireCallContext, releaseCallContext} from './callContext.ts';
 
 /*
- * NOTE:
+ * PERFORMANCE PROFILING NOTE:
  * different options has been tested to improve performance but were discarded due to worst or no noticeable improvements
  * - using promisify(setImmediate): worst or no improvement
  * - using queueMicrotask instead of setImmediate: definitely worst
  * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
  */
 
+// ############# PUBLIC METHODS #############
+
 export async function dispatchRoute<Req, Resp>(
     path: string,
-    reqRawBody: string,
+    reqRawBody: RawRequestBody,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
     rawRequest: Req,
-    rawResponse?: Resp
+    rawResponse?: Resp,
+    reqBodyType?: SerializerCode,
+    urlQuery?: string
 ): Promise<MionResponse> {
+    const opts = getRouterOptions();
+    const usePooling = opts.maxContextPoolSize > 0;
+    const context = acquireCallContext(
+        usePooling,
+        path,
+        opts,
+        reqRawBody,
+        rawRequest,
+        reqHeaders,
+        respHeaders,
+        reqBodyType,
+        urlQuery
+    );
+
     try {
-        const opts = getRouterOptions();
-        // this is the call context that will be passed to all handlers
-        // we should keep it as small as possible
-        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
-
-        const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-        await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
-
+        await runExecutionChain(context, rawRequest, rawResponse, opts);
         return context.response;
-    } catch (err: any | RpcError | Error) {
+    } catch (err: any | RpcError<string> | Error) {
+        // this should never happen, exceptions should be handled inside runExecutionChain
         return Promise.reject(err);
+    } finally {
+        // Release context back to pool if pooling is enabled
+        if (usePooling) {
+            releaseCallContext(context, opts.maxContextPoolSize);
+        }
     }
 }
 
 // ############# PRIVATE METHODS #############
-async function runExecutionPath(
+
+// runs the ExecutionChain of a route
+async function runExecutionChain(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executables: Procedure[],
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
-
-    for (let i = 0; i < executables.length; i++) {
-        const executable = executables[i];
+    const executionList = context.executionChain.methods;
+    (response as Mutable<MionResponse>).serializer = context.executionChain.serializer;
+    for (let i = 0; i < executionList.length; i++) {
+        const executable = executionList[i];
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
-            const deserializedParams = deserializeParameters(request, executable);
-            const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.type === ProcedureType.headerHook) request.headers.set(executable.id, validatedParams);
-            else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
+            const methodCaller = executable.methodCaller || getMethodCaller(executable);
+            // runRawMiddleFn , runHeadersMiddleFn & runRouteOrMiddleFn must always accept the same parameters in the same order
+            const result = await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
 
-            const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
-            // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
-            serializeResponse(executable, response, result);
-        } catch (err: any | RpcError | Error) {
-            const path = isNotFoundExecutable(executable) ? context.path : executable.id;
-            handleRpcErrors(path, request, response, err, i);
+            if (result === undefined || !executable.hasReturnData) continue;
+            if (executable.headersReturn && result instanceof HeadersSubset) {
+                const headersMap = result.headers;
+                for (const name in headersMap) {
+                    const value = headersMap[name];
+                    if (value !== undefined && value !== null) {
+                        response.headers.set(name, value);
+                    }
+                }
+                continue;
+            }
+            (response.body as Mutable<AnyObject>)[executable.id] = result;
+        } catch (err: any | RpcError<string> | Error) {
+            // All thrown errors are unexpected
+            onExecutableError(context, executable, err);
         }
     }
     return context.response;
 }
 
-async function runHandler(
-    handlerParams: any[],
+async function runRawMiddleFn(
     context: CallContext,
-    rawRequest: unknown,
-    rawResponse: unknown,
-    executable: Procedure,
-    opts: RouterOptions
-): Promise<any> {
-    const resp = getHandlerResponse(handlerParams, context, rawRequest, rawResponse, executable, opts);
-    if (isPromise(resp)) {
-        return resp as Promise<any>;
-    } else if (resp instanceof Error || resp instanceof RpcError) {
-        return Promise.reject(resp);
-    } else {
-        return Promise.resolve(resp);
-    }
-}
-
-function getHandlerResponse(
-    handlerParams: any[],
-    context: CallContext,
-    rawRequest: unknown,
-    rawResponse: unknown,
-    executable: Procedure,
-    opts: RouterOptions
-): any {
-    if (executable.type === ProcedureType.rawHook) {
-        return executable.handler(context, rawRequest, rawResponse, opts);
-    }
-
-    return (executable.handler as Handler)(context, ...handlerParams);
-}
-
-function deserializeParameters(request: MionRequest, executable: Procedure): any[] {
-    if (!executable.reflection) return [];
-    const path = executable.id;
-    let params;
-
-    if (executable.type !== ProcedureType.headerHook) {
-        params = request.body[path] || [];
-        // params sent in body can only be sent in an array
-        if (!Array.isArray(params))
-            throw new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Params Array',
-                publicMessage: `Invalid params '${path}'. input parameters can only be sent in an array.`,
-            });
-    } else {
-        params = request.headers.get((executable as HeaderProcedure).headerName) || [];
-        // headers could be arrays or individual values, so we need to normalize to an array
-        if (!Array.isArray(params)) params = [params];
-    }
-
-    if (params.length && executable.options.useSerialization) {
-        try {
-            params = executable.reflection.deserializeParams(params);
-        } catch (e: any) {
-            throw new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Serialization Error',
-                publicMessage: `Invalid params '${path}', can not deserialize. Parameters might be of the wrong type.`,
-                originalError: e,
-                errorData: e?.errors,
-            });
-        }
-    }
-    return params;
-}
-
-function validateParameters(params: any[], executable: Procedure): any[] {
-    if (!executable.reflection) return params;
-    if (executable.options.useValidation) {
-        const validationResponse = executable.reflection.validateParams(params);
-        if (validationResponse.hasErrors) {
-            throw new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Validation Error',
-                publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-                errorData: validationResponse,
-            });
-        }
-    }
-    return params;
-}
-
-function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
-    if (!executable.options.canReturnData || result === undefined) return;
-    const serialized = executable.options.useSerialization
-        ? (executable.reflection as FunctionReflection).serializeReturn(result)
-        : result;
-    if (executable.type !== ProcedureType.headerHook) (response.body as Mutable<AnyObject>)[executable.id] = serialized;
-    else response.headers.set((executable as HeaderProcedure).headerName, serialized);
-}
-
-export function getEmptyCallContext(
-    path: string,
+    executable: RawMethod,
+    req,
+    resp,
     opts: RouterOptions,
-    reqRawBody: string,
     rawRequest: unknown,
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders
-): CallContext {
-    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-    return {
-        path: transformedPath,
-        request: {
-            headers: reqHeaders,
-            rawBody: reqRawBody,
-            body: {},
-            internalErrors: [],
-        },
-        response: {
-            statusCode: StatusCodes.OK,
-            hasErrors: false,
-            headers: respHeaders,
-            body: {},
-            rawBody: '',
-        },
-        shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
-    };
+    rawResponse: unknown
+) {
+    const result = await executable.handler(context, rawRequest, rawResponse, opts);
+    return result;
+}
+
+async function runHeadersMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+    const headerNames = executable.headersParam.headerNames;
+    const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
+    const headersMap: Record<string, string> = {};
+    headerNames.forEach((name) => {
+        const value = request.headers.get(name);
+        if (value) headersMap[name] = value;
+    });
+    const headersSubset = new HeadersSubset(headersMap);
+    validateHeaderParamsOrThrow(headersSubset, executable as HeadersMethod);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeadersMethod);
+
+    const result = await executable.handler(context, headersSubset, ...params);
+    return result;
+}
+
+async function runRouteOrMiddleFn(context: CallContext, executable: HeadersMethod, request: MionRequest) {
+    const params = deserializeBodyParamsOrThrow(request, executable as RemoteMethod);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as RemoteMethod);
+    const result = await executable.handler(context, ...params);
+    return result;
+}
+
+function getMethodCaller(executable: RemoteMethod) {
+    if (executable.type === HandlerType.rawMiddleFn) {
+        executable.methodCaller = runRawMiddleFn;
+    } else if (executable.type === HandlerType.headersMiddleFn) {
+        executable.methodCaller = runHeadersMiddleFn;
+    } else {
+        executable.methodCaller = runRouteOrMiddleFn;
+    }
+    return executable.methodCaller;
+}
+
+function deserializeBodyParamsOrThrow(request: MionRequest, executable: RemoteMethod): any[] {
+    const params: any[] = (request.body[executable.id] as any[]) || [];
+    // For binary requests, params are already deserialized in the serializer middleFn
+    // (deserializeBinaryRequestBody in serializer.routes.ts)
+    if (request.bodyType === SerializerModes.binary) return params;
+
+    // For JSON requests, use restoreFromJson to deserialize
+    if (executable.paramsJitFns.restoreFromJson.isNoop) return params;
+    try {
+        (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.restoreFromJson.fn(params);
+        return request.body[executable.id] as any[];
+    } catch (e: any) {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'serialization-error',
+            publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
+            originalError: e,
+            errorData: {
+                deserializeError: e?.message || 'Unknown error',
+            },
+        });
+    }
+}
+
+function validateParametersOrThrow(params: any[], executable: RemoteMethod): void {
+    if (executable.paramsJitFns.isType.isNoop) return;
+    if (!executable.paramsJitFns.isType.fn(params)) {
+        const validationError: ValidationError = new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'validation-error',
+            publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+            errorData: {
+                typeErrors: executable.paramsJitFns.typeErrors.fn(params),
+            },
+        });
+        throw validationError;
+    }
+}
+
+function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {
+    if (!executable.headersParam.jitFns.isType.fn(headers)) {
+        const validationError: ValidationError = new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'validation-error',
+            publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+            errorData: {
+                typeErrors: executable.headersParam.jitFns.typeErrors.fn(headers),
+            },
+        });
+        throw validationError;
+    }
 }

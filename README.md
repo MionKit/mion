@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# mion : Type Safe APIs at the speed of light 🚀
+# mion : Full Stack APIs at the speed of light 🚀
 
 mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
 
@@ -61,11 +61,11 @@ To learn more about the router, refer to the [Router Documentation](./packages/r
 
 ## Automatic Serialization & Validation
 
-mion utilizes [Deepkit's runtime types](https://deepkit.io/) for automatic validation and serialization. Deepkit's magic enables type information to be available at runtime, allowing for automatic validation and serialization of data.
+mion utilizes RunTypes for automatic validation and serialization. RunTypes enables type information to be available at runtime, allowing for automatic validation and serialization of data.
 
 By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
-## Type Safe Apis
+## Full Stack APIs
 
 ![type safes apis](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 
@@ -78,28 +78,33 @@ Contributors and maintainers are welcome 👍
 
 Mion's philosophy is simplicity, so we don't want to add many features! As an small open source project we want to keep it simple and keep features to maintain at a minimum, that said contributions to mion are encouraged! Please open issues and submit pull requests for any improvements or bug fixes.
 
-The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Jest.
+The project is organized as a monorepo using pnpm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Vitest.
+
+### Install
+
+This repo uses **pnpm** (with a security-hardened `.npmrc`: pinned versions, 30-day minimum release age, no install scripts, no non-registry sources). Do not run `npm install`.
+
+```sh
+pnpm install --frozen-lockfile
+```
 
 ### Publishing
 
 To publish packages we need to make sure the packages are built first.
 
 ```sh
-npm run build
-npx lerna version --no-private
-npx lerna publish from-package --no-private
+pnpm run build
+pnpm exec lerna version --no-private
+pnpm exec lerna publish from-package --no-private
 ```
 
 ## Powered by:
 
 - [Typescript](https://www.typescriptlang.org/)
-- [Deepkit](https://deepkit.io/)
 - [@MaJerez](https://github.com/M-jerez)
   <!-- - [Serverless Framework](https://www.serverless.com/)  -->
   <!-- - [AWS Cognito](https://aws.amazon.com/cognito/) -->
   <!-- - [Postgres.js](https://github.com/porsager/postgres) -->
-
-<!-- ![powered by: deepkit, serverless, mion](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp; -->
 
 ---
 

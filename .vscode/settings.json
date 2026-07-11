@@ -1,0 +1,9 @@
+{
+  "files.associations": {
+    "**/.augment-*": "plaintext",
+    "**/AGENTS.md": "plaintext"
+  },
+  "cSpell.words": ["itεm", "Itεms", "pλth", "rεsult", "rεsultλrr", "εrrors"],
+  "javascript.preferences.importModuleSpecifier": "project-relative",
+  "typescript.preferences.importModuleSpecifier": "project-relative"
+}

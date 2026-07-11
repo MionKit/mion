@@ -1,0 +1,40 @@
+{
+  "name": "@mionjs/test-publish",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "E2E verification - simulates a real project consuming mion packages from npm tarballs",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest run",
+    "build": "vite build --config vite.build.config.ts",
+    "test:aot": "vitest run --config vitest.aot.config.ts",
+    "verify": "pnpm run test && pnpm run build && pnpm run test:aot",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@mionjs/core": "file:./tarballs/mionjs-core.tgz",
+    "@mionjs/run-types": "file:./tarballs/mionjs-run-types.tgz",
+    "@mionjs/router": "file:./tarballs/mionjs-router.tgz",
+    "@mionjs/platform-node": "file:./tarballs/mionjs-platform-node.tgz",
+    "@mionjs/client": "file:./tarballs/mionjs-client.tgz",
+    "@mionjs/type-formats": "file:./tarballs/mionjs-type-formats.tgz",
+    "@mionjs/drizzle": "file:./tarballs/mionjs-drizzle.tgz",
+    "@mionjs/platform-aws": "file:./tarballs/mionjs-platform-aws.tgz",
+    "@mionjs/platform-bun": "file:./tarballs/mionjs-platform-bun.tgz",
+    "@mionjs/platform-cloudflare": "file:./tarballs/mionjs-platform-cloudflare.tgz",
+    "@mionjs/platform-gcloud": "file:./tarballs/mionjs-platform-gcloud.tgz",
+    "@mionjs/platform-vercel": "file:./tarballs/mionjs-platform-vercel.tgz"
+  },
+  "devDependencies": {
+    "@mionjs/devtools": "file:./tarballs/mionjs-devtools.tgz",
+    "dom-storage": "2.1.0",
+    "vitest": "4.1.4",
+    "vite": "7.3.2",
+    "typescript": "6.0.2",
+    "rimraf": "6.1.3",
+    "eslint": "9.39.4",
+    "@eslint/js": "9.39.4",
+    "typescript-eslint": "8.58.1"
+  }
+}
