@@ -84,3 +84,6 @@ tmp
 .coverage
 coverage
 .nx
+
+# ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin)
+__runtypes/
