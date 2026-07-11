@@ -19,3 +19,6 @@ export * from '@ts-runtypes/core';
 // mion-specific adapter: turns injected marker payloads into the
 // JitCompiledFunctions / reflection shapes the router consumes.
 export * from './src/mionAdapter.ts';
+
+// mion pure functions: ts-runtypes pure-fn registry under the 'mionjs' namespace.
+export * from './src/mionPureFns.ts';

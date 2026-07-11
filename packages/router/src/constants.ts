@@ -30,8 +30,6 @@ export const DEFAULT_ROUTE_OPTIONS = {
     autoGenerateErrorId: false,
     /** client routes are initialized by default */
     skipClientRoutes: IS_TEST_ENV,
-    /** AOT mode is disabled by default */
-    aot: false,
     /** Context pooling size == 100 by default */
     maxContextPoolSize: 100,
     /** RoutesFlow cache size == 100 by default */

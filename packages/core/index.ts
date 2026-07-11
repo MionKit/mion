@@ -36,6 +36,3 @@ export * from './src/jit/jitUtils.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
-export * from './src/pureFns/pureFn.ts';
-export * from './src/pureFns/pureServerFn.ts';
-export * from './src/pureFns/quickHash.ts';

@@ -50,6 +50,31 @@
 7. Rewrite/delete legacy specs; update `handlers.spec` expectations.
 8. Website/docs refresh (mion-build-aot removal, new plugin options).
 
+## 2026-07-11 — session 1 addendum 2 (pure fns + core cleanup)
+
+Per maintainer direction: audited core feature-by-feature vs ts-runtypes
+([05-core-audit.md](05-core-audit.md)) and removed everything that existed only to support the
+old run-types:
+
+- **core**: deleted `src/pureFns/` (registerPureFnFactory — the name that collided with the
+  ts-runtypes probe — pureServerFn, quickHash, restoreJitFns), `src/aot/` (+ `./aot-caches`,
+  `./server-pure-fns` subpath exports), the jit/pure caches (jitUtils.ts is now a slim compat
+  stub: class registries functional, jit/pure lookups inert), `initPureFunction`.
+- **router**: deleted `src/aot/`, `lib/aotEmitter.ts`, `lib/methodsCache.ts` and the AOT-era
+  specs (reflection-aot, reflection-optimization, aotEmitter, aotCacheLoader); pruned
+  router.ts persisted-method/AOT-cache paths and the `aot` RouterOptions flag.
+- **pure functions** now live in the ts-runtypes registry under the **`mionjs` namespace**:
+  `registerMionPureFn` / `getMionPureFn` / `hasMionPureFn` / `mionPureFnId` in
+  `@mionjs/run-types` (src/mionPureFns.ts); routesFlow mapping validation/execution rewired to
+  it (`RoutesFlowMapping.bodyHash` = fn name under `mionjs::`).
+- **Upstream gap found + filed** (ts-run-types `docs/todos/purefn-extraction-skips-reexports-and-wrappers.md`):
+  pure-fn build extraction only happens for DIRECT `@ts-runtypes/core` imports with literal
+  ids — re-export barrels and branded wrappers silently fall back to runtime registration
+  (works, but no bodyHash/purity checks/client code). mion helpers documented as runtime-lane.
+- Tests: core 56/56, run-types 9/9 (incl. direct-literal extraction with real bodyHash),
+  router migration 8/8 + routesFlow 19/19; full router suite failures reduced to the known
+  deferred buckets (binary, headersFn, handlers def-shape, strictTypes, legacy metadata).
+
 ## 2026-07-11 — session 1 addendum (references fix upstreamed)
 
 The project-references issue (#8 above) got a REAL fix in ts-run-types (PR #216, commit

@@ -56,14 +56,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
     /**
-     * Enable AOT (Ahead-of-Time) mode.
-     * When true, router will use pre-compiled JIT functions from cache
-     * and will NOT load @mionjs/run-types package.
-     * Throws error if any route/middleFn is missing from AOT cache.
-     * @default false
-     */
-    aot: boolean;
-    /**
      * Maximum size of the CallContext pool for reduced memory allocations.
      * When set to a value > 0, CallContext objects are reused from a pool
      * instead of creating new ones for each request. This can improve
