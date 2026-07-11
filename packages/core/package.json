@@ -26,18 +26,6 @@
       "types": "./.dist/esm/index.d.ts",
       "require": "./.dist/cjs/index.cjs",
       "default": "./.dist/esm/index.js"
-    },
-    "./aot-caches": {
-      "source": "./src/aot/aotCaches.ts",
-      "types": "./.dist/esm/src/aot/aotCaches.d.ts",
-      "require": "./.dist/cjs/src/aot/aotCaches.cjs",
-      "default": "./.dist/esm/src/aot/aotCaches.js"
-    },
-    "./server-pure-fns": {
-      "source": "./src/aot/serverPureFnsCaches.ts",
-      "types": "./.dist/esm/src/aot/serverPureFnsCaches.d.ts",
-      "require": "./.dist/cjs/src/aot/serverPureFnsCaches.cjs",
-      "default": "./.dist/esm/src/aot/serverPureFnsCaches.js"
     }
   },
   "directories": {

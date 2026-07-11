@@ -5,9 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import {getJitUtils} from './jit/jitUtils.ts';
-import type {CompiledPureFunction} from './types/pureFunctions.types.ts';
-
 /** Stores singleton state on globalThis so it survives dual module loading (e.g. CJS + ESM copies).
  *  noExternal remains the primary mechanism — this is defense-in-depth and a code-level signal that
  *  the binding is intended to be a process-wide singleton. */
@@ -70,14 +67,4 @@ export function isTestEnv() {
     if (isTest !== undefined) return isTest;
     isTest = getENV('VITEST') !== undefined || getENV('NODE_ENV') === 'test';
     return isTest;
-}
-
-/**
- * Restores the full state of a compiled pure function,
- * The pure function itself can't be compiled to code as it contains references to context code and jitUtils.
- * So we need to restore it manually by invoking the closure function.
- * */
-export function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
-    if (compiled.fn) return;
-    compiled.fn = compiled.createPureFn(getJitUtils());
 }
