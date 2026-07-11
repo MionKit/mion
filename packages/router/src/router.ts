@@ -459,7 +459,7 @@ export async function getExecutableFromMiddleFn(
         executable = compiledMethod as MixedMiddleFn;
     } else {
         const reflectionData = await getHandlerReflection(
-            middleFn.handler,
+            middleFn,
             middleFnId,
             routerOptions,
             middleFn.options ?? {},
@@ -537,7 +537,7 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     } else {
         const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
         const reflectionData = await getHandlerReflection(
-            route.handler,
+            route,
             routeId,
             routerOptions,
             resolvedRouteOptions,

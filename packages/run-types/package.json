@@ -62,9 +62,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@deepkit/core": "1.0.19",
-    "@deepkit/type": "1.0.19",
-    "@mionjs/core": "workspace:*"
+    "@mionjs/core": "workspace:*",
+    "@ts-runtypes/core": "file:../../vendor/ts-runtypes/ts-runtypes-core-0.9.0-local.1.tgz"
   },
   "peerDependencies": {
     "typescript": ">=6.0.0"
