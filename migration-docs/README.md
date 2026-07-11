@@ -19,14 +19,8 @@ Target end state of this spike: a **semi-working devtools + router** — at leas
 - As little modification to `@mionjs/router` as possible; `@mionjs/run-types` becomes a proxy over `@ts-runtypes/core`.
 - `@ts-runtypes/*` is published as 0.9.0; mion publishes as 0.9 once migrated.
 
-## Version/dependency status (2026-07-11)
+## Version/dependency status (2026-07-12: on the registry)
 
-- npm has `@ts-runtypes/{core,devtools,bin}@0.9.0` + 7 platform binary packages (published 2026-07-10).
-- **The published 0.9.0 predates the `getRTFunction` API** (`feat/refactor(marker)` commits `a1c7f1d`, `eb7b618` on ts-run-types `main`) that this migration is built on. Until a `0.9.1` is published, mion consumes **locally packed tarballs** built from ts-run-types `main` → committed under [`vendor/ts-runtypes/`](../vendor/ts-runtypes/) (~210 KB total).
-- The resolver **binary** is NOT vendored (32 MB). `@ts-runtypes/bin`'s platform optional-deps are only injected at publish time, so in this repo the vite plugin gets an explicit `binary` path: `TS_RUNTYPES_BIN` env var, falling back to the sibling checkout `../ts-run-types/bin/ts-runtypes`.
-- mion's `minimumReleaseAge: 43200` (30 days) blocks `unplugin@3.3.0` (dep of `@ts-runtypes/devtools`, published 2026-06-29) → excluded in `pnpm-workspace.yaml`.
-
-## After @ts-runtypes 0.9.1 is published
-
-1. Delete `vendor/ts-runtypes/` and swap the three `file:` specifiers for registry versions (add `@ts-runtypes/*` to `minimumReleaseAgeExclude` until they age 30 days).
-2. Drop the explicit `binary` path plumbing — `@ts-runtypes/bin`'s `getExePath()` resolves the platform package automatically.
+- mion consumes **`@ts-runtypes/{core,devtools,bin}@0.9.1` from npm** (published 2026-07-11T23:30Z from ts-run-types `main`, including the three fixes upstreamed by this migration). The platform resolver binary installs via `@ts-runtypes/bin`'s `@ts-runtypes/binary-<os>-<arch>` optional deps — no local checkout or explicit `binary` path needed (the `TS_RUNTYPES_BIN` env var and sibling-checkout fallback in `mionVitePlugin` remain as dev conveniences).
+- The interim `vendor/ts-runtypes/` tarballs and the `.gitignore` `!vendor` exception were removed with the swap.
+- `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` covers `unplugin` (published 2026-06-29) and `@ts-runtypes/*` (published 2026-07-11) until they age past the 30-day policy — remove the entries then.
