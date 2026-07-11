@@ -15,26 +15,6 @@ function resolveRtBinary(explicit) {
   }
   return void 0;
 }
-function deriveRuntypesTsconfig(tsConfigPath, cwd = process.cwd()) {
-  if (!tsConfigPath) return void 0;
-  const absConfig = path.isAbsolute(tsConfigPath) ? tsConfigPath : path.resolve(cwd, tsConfigPath);
-  try {
-    const raw = JSON.parse(fs.readFileSync(absConfig, "utf8"));
-    if (!Array.isArray(raw.references) || raw.references.length === 0) return absConfig;
-  } catch {
-    return absConfig;
-  }
-  const cacheDir = path.join(path.dirname(absConfig), "node_modules", ".cache", "mion-devtools");
-  const derived = path.join(cacheDir, "tsconfig.ts-runtypes.json");
-  const content = JSON.stringify({ extends: absConfig, references: [] }, null, 2) + "\n";
-  try {
-    fs.mkdirSync(cacheDir, { recursive: true });
-    if (!fs.existsSync(derived) || fs.readFileSync(derived, "utf8") !== content) fs.writeFileSync(derived, content);
-    return derived;
-  } catch {
-    return absConfig;
-  }
-}
 function mionVitePlugin(options = {}) {
   const rt = options.runTypes ?? {};
   if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || options.server || rt.compilerOptions)) {
@@ -45,7 +25,7 @@ function mionVitePlugin(options = {}) {
   }
   return tsRuntypes({
     binary: resolveRtBinary(rt.binary),
-    tsconfig: deriveRuntypesTsconfig(rt.tsConfig),
+    tsconfig: rt.tsConfig,
     outDir: rt.outDir,
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,
@@ -55,7 +35,6 @@ function mionVitePlugin(options = {}) {
 }
 const serverReady = Promise.resolve();
 export {
-  deriveRuntypesTsconfig,
   mionVitePlugin,
   resolveRtBinary,
   serverReady
