@@ -50,6 +50,10 @@ typings/
 
 # Output of 'npm pack'
 *.tgz
+# EXCEPT the temporary vendored @ts-runtypes tarballs (ts-runtypes migration) —
+# consumed via file: refs until the fresh @ts-runtypes/* npm publish lands.
+# See migration-docs/README.md; delete this exception together with vendor/.
+!vendor/ts-runtypes/*.tgz
 
 # Yarn Integrity file
 .yarn-integrity
