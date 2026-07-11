@@ -47,3 +47,13 @@ export type RawMiddleFnHandler<
 
 // Handler technically covers any of the other handlers
 export type AnyHandler<Context extends CallContext = any, Params extends any[] = any, Ret = any> = Handler<Context, Params, Ret>;
+
+// #######  Type-level extraction for ts-runtypes markers #######
+// These are instantiated by the type checker AT EACH route()/middleFn() CALL SITE;
+// the @ts-runtypes resolver then compiles validators/serializers for the result.
+
+/** The handler's public params tuple: everything after the leading CallContext param. Keeps tuple labels (= param names). */
+export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ...infer P] ? P : [];
+
+/** The handler's resolved (awaited) return type. */
+export type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;

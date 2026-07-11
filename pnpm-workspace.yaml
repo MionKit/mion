@@ -30,7 +30,14 @@ minimumReleaseAge: 43200
 # Applied to FUTURE bumps (lockfile-frozen entries are not re-checked).
 # Keep empty by default; add per-package entries only if a future bump is
 # blocked by a transitive we trust (e.g. UnJS-ecosystem packages).
-minimumReleaseAgeExclude: []
+# - unplugin: runtime dep of @ts-runtypes/devtools (exact-pinned there at
+#   3.3.0, published 2026-06-29 — younger than 30 days at migration time).
+#   Remove once it ages past the policy window.
+# - '@ts-runtypes/*': needed as soon as mion consumes the registry-published
+#   packages instead of the temporary vendor/ tarballs (see migration-docs/).
+minimumReleaseAgeExclude:
+  - unplugin
+  - '@ts-runtypes/*'
 
 # ── Block lifecycle scripts ──────────────────────────────
 # Hard-block ALL build scripts. Specific packages are re-enabled

@@ -6,6 +6,7 @@
  * ######## */
 
 import {Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts';
+import type {RtMarkerPayload} from '@mionjs/run-types';
 import {
     HeadersMiddleFnOptions,
     HeadersMethod,
@@ -23,6 +24,8 @@ import {
 /** Route definition */
 export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'handler'> & {
     options?: RouteOptions;
+    /** build-time injected ts-runtypes payload (filled by the route()/query()/mutation() factories) */
+    rtFns?: RtMarkerPayload;
 };
 // type-route-def-end
 
@@ -30,6 +33,8 @@ export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'h
 /** MiddleFn definition, a function that middleFns into the ExecutionChain */
 export type MiddleFnDef<H extends Handler = any> = Pick<MiddleFnMethod<H>, 'type' | 'handler'> & {
     options?: MiddleFnOptions;
+    /** build-time injected ts-runtypes payload (filled by the middleFn() factory) */
+    rtFns?: RtMarkerPayload;
 };
 // type-middleFn-def-end
 
@@ -37,6 +42,8 @@ export type MiddleFnDef<H extends Handler = any> = Pick<MiddleFnMethod<H>, 'type
 /** Headers MiddleFn definition, used to handle header params */
 export type HeadersMiddleFnDef<H extends HeaderHandler = any> = Pick<HeadersMethod<H>, 'type' | 'handler'> & {
     options?: HeadersMiddleFnOptions;
+    /** build-time injected ts-runtypes payload (headersFn support pending in the ts-runtypes migration) */
+    rtFns?: RtMarkerPayload;
 };
 // type-header-middleFn-def-end
 

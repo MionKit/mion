@@ -3,6 +3,7 @@
     "allowImportingTsExtensions": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "customConditions": ["source"],
     "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,

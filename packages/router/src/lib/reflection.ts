@@ -5,89 +5,55 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {MethodWithJitFns, AnyFn, JitCompiledFunctions, MethodMetadata} from '@mionjs/core';
-// Type-only imports from run-types - these don't load the module at runtime
-import type {FunctionRunType, BaseRunType, MemberRunType, RunTypeOptions, JitFnCompiler} from '@mionjs/run-types';
+import type {MethodWithJitFns} from '@mionjs/core';
+import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal} from '@mionjs/core';
+import {getReflectionFromMarkers, isAsyncHandler} from '@mionjs/run-types';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
-import {DEFAULT_ROUTE_OPTIONS, HEADER_HOOK_DEFAULT_PARAMS, ROUTE_DEFAULT_PARAMS} from '../constants.ts';
-import {EMPTY_HASH, HeadersSubset, getJitFunctionsFromHash, getNoopJitFns, HandlerType, getOrCreateGlobal} from '@mionjs/core';
-import {getPersistedMethodMetadata} from './methodsCache.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
+import {AnyHandlerDef} from '../types/definitions.ts';
 
-// ############ This file is the only one importing '@mionjs/run-types' within the router ########
-// In AOT mode, run-types is NOT loaded - all reflection data comes from the AOT cache
+// ############ This file is the only one consuming type reflection within the router ########
+// ts-runtypes migration: all type information is injected AT BUILD TIME into the
+// route()/middleFn() factory call sites (see lib/handlers.ts). This module only adapts
+// those injected payloads into the MethodReflect shape the router consumes. There is no
+// runtime reflection, no JIT compilation and no AOT cache layer anymore — the generated
+// function modules emitted by the ts-runtypes vite plugin ARE the AOT artifacts.
 
 type MethodReflect = Omit<MethodWithJitFns, 'id' | 'type' | 'nestLevel' | 'pointer' | 'options'>;
 
-// ############ AOT Cache Error ############
-
 /**
- * Error thrown when AOT mode is enabled but required data is missing from the AOT cache.
- * This indicates that the AOT caches need to be regenerated using 'mion-build-aot' command.
+ * Error thrown when a route/middleFn definition carries no injected type information.
+ * This means the code was built/executed without the mion vite plugin being active.
  */
+export class MissingRtFnsError extends Error {
+    constructor(routeId: string, cause?: string) {
+        super(
+            `Route/middleFn "${routeId}" has no build-time type information.\n` +
+                `Declare it through route()/middleFn() and make sure mionVitePlugin (@mionjs/devtools) is active in the build.` +
+                (cause ? `\nCause: ${cause}` : '')
+        );
+        this.name = 'MissingRtFnsError';
+    }
+}
+
+/** @deprecated AOT caches were removed in the ts-runtypes migration; kept for import compatibility. */
 export class AOTCacheError extends Error {
-    constructor(routeId: string, type: 'route' | 'middleFn' | 'rawMiddleFn' = 'route') {
-        const typeLabel = type === 'rawMiddleFn' ? 'Raw middleFn' : type === 'middleFn' ? 'MiddleFn' : 'Route/middleFn';
-        super(`${typeLabel} "${routeId}" not found in AOT cache.\n` + `Regenerate AOT caches using 'mion-build-aot' command.`);
+    constructor(routeId: string) {
+        super(`AOT caches were removed in the ts-runtypes migration (route "${routeId}").`);
         this.name = 'AOTCacheError';
     }
 }
 
-// ############ Run-Types Module Loading ############
-type RunTypesModule = typeof import('@mionjs/run-types');
-// Type definition for the dynamically imported run-types module
-interface RunTypesFunctions {
-    JitFunctions: RunTypesModule['JitFunctions'];
-    reflectFunction: RunTypesModule['reflectFunction'];
-    isUnionRunType: RunTypesModule['isUnionRunType'];
-    isClassRunType: RunTypesModule['isClassRunType'];
-    isLiteralRunType: RunTypesModule['isLiteralRunType'];
-    isNeverRunType: RunTypesModule['isNeverRunType'];
-}
+/** No-op since the ts-runtypes migration (kept so existing specs/utilities keep working). */
+export function resetRunTypesCache(): void {}
 
-// Cached run-types module - loaded once and reused
-let runTypesModule: RunTypesFunctions | null = null;
-let runTypesLoadPromise: Promise<RunTypesFunctions> | null = null;
-
-/** Dynamically loads the @mionjs/run-types module. The module is cached after first load. */
-async function loadRunTypesModule(): Promise<RunTypesFunctions> {
-    // Return cached module if already loaded
-    if (runTypesModule) return runTypesModule;
-
-    // Return existing promise if load is in progress
-    if (runTypesLoadPromise) return runTypesLoadPromise;
-
-    // Start loading the module
-    runTypesLoadPromise = import('@mionjs/run-types').then((module) => {
-        runTypesModule = {
-            JitFunctions: module.JitFunctions,
-            reflectFunction: module.reflectFunction,
-            isUnionRunType: module.isUnionRunType,
-            isClassRunType: module.isClassRunType,
-            isLiteralRunType: module.isLiteralRunType,
-            isNeverRunType: module.isNeverRunType,
-        };
-        return runTypesModule;
-    });
-
-    return runTypesLoadPromise;
-}
-
-/** Resets the run-types module cache. Useful for testing purposes only. */
-export function resetRunTypesCache(): void {
-    runTypesModule = null;
-    runTypesLoadPromise = null;
-}
-
-/** Resets all reflection caches. Useful for testing purposes only. */
+/** Resets reflection caches. Only the raw-middleFn memo remains since the ts-runtypes migration. */
 export function resetReflectionCaches(): void {
     rawMiddleFnReflectionCache.clear();
-    // Note: functionRunTypeCache uses WeakMap so it doesn't need explicit clearing
-    // Note: _cachedReflection on MethodMetadata objects will be cleared when persistedMethods is reset
 }
 
-// ############ Raw MiddleFn Reflection Helper ############
+// ############ Raw MiddleFn Reflection ############
 
 // Cache for common raw middleFn reflections
 const rawMiddleFnReflectionCache = getOrCreateGlobal(
@@ -95,15 +61,9 @@ const rawMiddleFnReflectionCache = getOrCreateGlobal(
     () => new Map<string, MethodReflect>()
 );
 
-/**
- * Creates a MethodReflect for raw middleFns.
- * Raw middleFns don't need JIT functions - they always use NoopJitFns.
- * Results are cached to avoid creating duplicate objects.
- */
+/** Creates a MethodReflect for raw middleFns: no type info, NoopJitFns. */
 function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
-    // Create cache key from parameters
     const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(',')}`;
-
     const cached = rawMiddleFnReflectionCache.get(cacheKey);
     if (cached) return cached;
 
@@ -121,400 +81,53 @@ function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = 
     return reflection;
 }
 
-// ############ AOT Cache Extraction ############
-
-// Extend MethodMetadata type to include cached reflection
-type CachedMethodMetadata = MethodMetadata & {
-    _cachedReflection?: MethodReflect;
-};
-
-/**
- * Extracts reflection data from a cached method.
- * Used in AOT mode to restore method reflection without loading run-types.
- * Results are cached on the metadata object to avoid creating duplicate objects.
- */
-function extractReflectionFromCached(cached: CachedMethodMetadata): MethodReflect {
-    // Return cached reflection if available
-    if (cached._cachedReflection) return cached._cachedReflection;
-
-    const reflectionItems: MethodReflect = {
-        paramNames: cached.paramNames || [],
-        paramsJitFns: getJitFunctionsFromHash(cached.paramsJitHash),
-        returnJitFns: getJitFunctionsFromHash(cached.returnJitHash),
-        paramsJitHash: cached.paramsJitHash,
-        returnJitHash: cached.returnJitHash,
-        hasReturnData: cached.hasReturnData,
-        isAsync: cached.isAsync,
-    };
-
-    // Restore headers param if present
-    if (cached.headersParam) {
-        reflectionItems.headersParam = {
-            headerNames: cached.headersParam.headerNames,
-            jitFns: getJitFunctionsFromHash(cached.headersParam.jitHash) as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>,
-            jitHash: cached.headersParam.jitHash,
-        };
-    }
-
-    // Restore headers return if present
-    if (cached.headersReturn) {
-        reflectionItems.headersReturn = {
-            headerNames: cached.headersReturn.headerNames,
-            jitFns: getJitFunctionsFromHash(cached.headersReturn.jitHash) as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>,
-            jitHash: cached.headersReturn.jitHash,
-        };
-    }
-
-    // Cache for future calls
-    cached._cachedReflection = reflectionItems;
-    return reflectionItems;
-}
-
 // ############ Main Reflection Functions ############
 
 /**
- * Gets reflection data for a handler (route or middleFn).
- * In AOT mode, returns cached data without loading run-types.
- * In non-AOT mode, dynamically loads run-types and generates reflection.
- * Throws AOTCacheError if AOT mode is enabled and route is not in cache.
+ * Gets reflection data for a route or middleFn definition.
+ * All data derives from the ts-runtypes marker payload the factory stashed on the definition
+ * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
  */
 export async function getHandlerReflection(
-    handler: Handler,
+    def: AnyHandlerDef,
     routeId: string,
     routerOptions: RouterOptions,
-    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {},
+    // handlerOptions/strictTypes are not honored yet: per-method ValidateOptions must become
+    // call-site literals (CompTimeFnArgs) in the ts-runtypes model — see migration-docs/.
+    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
     isHeadersMiddleFn: boolean = false,
-    methodStrictTypes?: boolean
+    methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<MethodReflect> {
-    // Check AOT cache first
-    const cached = getPersistedMethodMetadata(routeId);
-    if (cached) return extractReflectionFromCached(cached);
-    if (routerOptions.aot) throw new AOTCacheError(routeId, isHeadersMiddleFn ? 'middleFn' : 'route');
-    // Non-AOT mode: dynamically load run-types and generate reflection
-    const rt = await loadRunTypesModule();
-    return generateHandlerReflection(handler, routeId, routerOptions, handlerOptions, isHeadersMiddleFn, rt, methodStrictTypes);
+    if (isHeadersMiddleFn)
+        throw new Error(
+            `Headers middleFn "${routeId}" is not supported yet by the ts-runtypes migration. ` +
+                `See migration-docs/04-progress-log.md (headersFn support pending).`
+        );
+    try {
+        return getReflectionFromMarkers(def.rtFns, def.handler, routeId);
+    } catch (error: any) {
+        throw new MissingRtFnsError(routeId, error?.message);
+    }
 }
 
 /**
- * Gets reflection data for a raw middleFn.
- * Raw middleFns don't use full reflection - they don't need JIT functions.
- * Raw middleFns don't NEED to be in the AOT cache, but if they are, we can use
- * the cached data (especially the isAsync flag).
- * In AOT mode, this function does NOT load run-types.
+ * Gets reflection data for a raw middleFn. Raw middleFns receive raw request/response and
+ * handle their own (de)serialization, so they carry no type info at all.
  */
 export async function getRawMethodReflection(
     handler: Handler,
-    routeId: string,
-    routerOptions: RouterOptions
+    routeId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    routerOptions: RouterOptions // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<MethodReflect> {
-    // Check if raw middleFn is in cache - if so, use cached data (especially isAsync)
-    const cached = getPersistedMethodMetadata(routeId);
-    if (cached) return createRawMiddleFnReflection(cached.isAsync, cached.hasReturnData, cached.paramNames || []);
-    // Raw middleFns don't need JIT functions, so we don't need to load run-types in AOT mode
-    if (routerOptions.aot) return createRawMiddleFnReflection(true);
-    // Non-AOT mode: dynamically load run-types to properly detect if handler is async
-    const rt = await loadRunTypesModule();
-    return generateRawMethodReflection(handler, routeId, rt);
+    return createRawMiddleFnReflection(isAsyncHandler(handler));
 }
 
-// ############ Reflection Generation (requires run-types) ############
+// ############ Binary serialization (pending migration) ############
 
-/**
- * Generates reflection data for a handler using run-types.
- * This function is only called in non-AOT mode.
- */
-function generateHandlerReflection(
-    handler: Handler,
-    routeId: string,
-    routerOptions: RouterOptions,
-    handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions,
-    isHeadersMiddleFn: boolean,
-    rt: RunTypesFunctions,
-    methodStrictTypes?: boolean
-): MethodReflect {
-    const reflectionItems: Partial<MethodReflect> = {};
-    let handlerRunType: FunctionRunType;
-    const needsBinary = ((handlerOptions as RouteOptions)?.serializer ?? routerOptions.serializer) === 'binary';
-    const effectiveStrictTypes = methodStrictTypes ?? routerOptions.strictTypes;
-    const runTypeOptions: RunTypeOptions = {
-        ...(routerOptions?.runTypeOptions || DEFAULT_ROUTE_OPTIONS.runTypeOptions),
-        ...(effectiveStrictTypes !== undefined ? {strictTypes: effectiveStrictTypes} : {}),
-    };
-    try {
-        handlerRunType = rt.reflectFunction(handler);
-    } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
-    }
-    const paramsSlice = isHeadersMiddleFn ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
-    const paramsOpts: RunTypeOptions = {...runTypeOptions, paramsSlice};
-
-    try {
-        reflectionItems.paramNames = handlerRunType.getParameterNames(paramsOpts);
-        // Skip JIT generation if handler has no params (optimization for AOT cache size)
-        if (reflectionItems.paramNames.length === 0) {
-            reflectionItems.paramsJitHash = EMPTY_HASH;
-            reflectionItems.paramsJitFns = getNoopJitFns();
-        } else {
-            reflectionItems.paramsJitFns = getFunctionJitFns(handler, paramsOpts, rt, false, needsBinary);
-            reflectionItems.paramsJitHash = handlerRunType.getParameters().getJitHash(paramsOpts);
-        }
-    } catch (error: any) {
-        throw new Error(`Can not compile Jit Functions for Parameters of route/middleFn "${routeId}." Error: ${error?.message}`);
-    }
-
-    if (isHeadersMiddleFn) {
-        const headersRunType = getParamsHeadersRunType(handlerRunType, routeId, routerOptions, rt);
-        const headerNames: string[] = getHeaderNames(headersRunType, routeId, rt);
-
-        try {
-            const opts: RunTypeOptions = {
-                ...runTypeOptions,
-                paramsSlice: undefined,
-            };
-
-            const jitFns: JitCompiledFunctions = getTypeJitFunctions(headersRunType, opts, rt, false);
-            const jitHash = headersRunType.getJitHash(opts);
-            reflectionItems.headersParam = {headerNames, jitFns, jitHash};
-        } catch (error: any) {
-            throw new Error(
-                `Can not compile Jit Functions for Headers of Headers MiddleFn "${routeId}." Error: ${error?.message}`
-            );
-        }
-    }
-
-    const returnHeadersRunType = getReturnHeadersRunType(handlerRunType, rt);
-    if (returnHeadersRunType) {
-        const opts: RunTypeOptions = {};
-        const headerNames: string[] = getHeaderNames(returnHeadersRunType, routeId, rt);
-        const jitFns: JitCompiledFunctions = getFunctionJitFns(handler, opts, rt, true, false);
-        const jitHash: string = returnHeadersRunType.getJitHash(opts);
-        reflectionItems.headersReturn = {headerNames, jitFns, jitHash};
-    }
-
-    const returnOpts: RunTypeOptions = runTypeOptions;
-    // If the return type is HeadersSubset or if it's a headersFn with array return, don't treat it as return data
-    reflectionItems.hasReturnData = handlerRunType.hasReturnData();
-
-    try {
-        // Skip JIT generation if handler has void return (optimization for AOT cache size)
-        if (!reflectionItems.hasReturnData) {
-            reflectionItems.returnJitFns = getNoopJitFns();
-            reflectionItems.returnJitHash = EMPTY_HASH;
-        } else {
-            // returnJitFns contains all run type functionality for the return value, it compiles when the property is first accessed
-            reflectionItems.returnJitFns = getFunctionJitFns(handler, returnOpts, rt, true, needsBinary);
-            reflectionItems.returnJitHash = handlerRunType.getResolvedReturnType().getJitHash(returnOpts);
-        }
-    } catch (error: any) {
-        throw new Error(`Can not get Jit Functions for Return of route/middleFn "${routeId}." Error: ${error?.message}`);
-    }
-
-    reflectionItems.isAsync = handlerRunType.isAsync();
-
-    return reflectionItems as MethodReflect;
-}
-
-/**
- * Generates reflection data for a raw middleFn using run-types.
- * This function is only called in non-AOT mode.
- */
-function generateRawMethodReflection(handler: Handler, routeId: string, rt: RunTypesFunctions): MethodReflect {
-    let handlerRunType: FunctionRunType;
-    try {
-        handlerRunType = rt.reflectFunction(handler);
-    } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/middleFn "${routeId}." Error: ${error?.message}`);
-    }
-    const isAsync = handlerRunType?.isAsync() || true;
-    return createRawMiddleFnReflection(isAsync);
-}
-
-// ############ Helper Functions (require run-types module) ############
-
-function getParamsHeadersRunType(
-    handlerRunType: FunctionRunType,
-    routeId: string,
-    routerOptions: RouterOptions,
-    rt: RunTypesFunctions
-): BaseRunType {
-    const paramRunTypes = handlerRunType.getParameters().getParamRunTypes(getFakeCompiler(routerOptions));
-    const headersSubset = (paramRunTypes[1] as MemberRunType<any>)?.getMemberType?.(); // HeadersSubset is always index 1 after context
-
-    if (!isHeaderSubSetRunType(headersSubset, rt)) {
-        throw new Error(`Headers MiddleFn '${routeId}' second parameter must be a HeadersSubset.`);
-    }
-    return headersSubset;
-}
-
-function getReturnHeadersRunType(handlerRunType: FunctionRunType, rt: RunTypesFunctions): BaseRunType | undefined {
-    const returnRunType = handlerRunType.getReturnType();
-    if (rt.isUnionRunType(returnRunType)) {
-        const headersSubset = returnRunType.getChildRunTypes().find((child) => isHeaderSubSetRunType(child, rt));
-        if (!headersSubset) return undefined;
-        return headersSubset;
-    }
-    if (!isHeaderSubSetRunType(returnRunType, rt)) return undefined;
-    return returnRunType;
-}
-
-function isHeaderSubSetRunType(runType: BaseRunType | undefined, rt: RunTypesFunctions): runType is BaseRunType {
-    if (!runType) return false;
-    return rt.isClassRunType(runType, HeadersSubset);
-}
-
-function getHeaderNames(runType: BaseRunType, routeId: string, rt: RunTypesFunctions): string[] {
-    // HeadersSubset is a generic class: HeadersSubset<Required, Optional>
-    // We need to extract the literal string values from the Required and Optional type arguments
-    // Use 'typeArguments' (not 'arguments') to get both Required and Optional with their defaults
-    const typeArguments = (runType.src as any).typeArguments;
-    if (!typeArguments || typeArguments.length === 0) {
-        throw new Error(`HeadersSubset must have type arguments in route/middleFn ${routeId}`);
-    }
-    const headerNames: string[] = [];
-    // Extract header names from Required type argument (first argument)
-    const requiredArg = typeArguments[0];
-    if (requiredArg) {
-        const requiredNames = extractLiteralStringsFromType(requiredArg._rt, rt);
-        headerNames.push(...requiredNames);
-    }
-    // Extract header names from Optional type argument (second argument, if present)
-    if (typeArguments.length > 1) {
-        const optionalArg = typeArguments[1];
-        if (optionalArg) {
-            const optionalNames = extractLiteralStringsFromType(optionalArg._rt, rt);
-            headerNames.push(...optionalNames);
-        }
-    }
-    if (headerNames.length === 0) throw new Error(`Header names array cannot be empty in route/middleFn ${routeId}`);
-    return headerNames;
-}
-
-/**
- * Internal recursive function to extract literal string values from a type.
- * Handles single literal strings and union types (including nested unions).
- */
-function extractLiteralStringsFromTypeRecursive(runType: BaseRunType, rt: RunTypesFunctions): string[] {
-    // Handle single literal string
-    if (rt.isLiteralRunType(runType)) {
-        const literal = (runType as any).getLiteralValue();
-        if (typeof literal === 'string') {
-            return [literal];
-        }
-        return [];
-    }
-
-    // Handle union of literal strings (recursively for nested unions)
-    if (rt.isUnionRunType(runType)) {
-        const children = runType.getChildRunTypes();
-        const literals: string[] = [];
-        for (const child of children) {
-            // Recursively extract from each child (handles nested unions)
-            const childLiterals = extractLiteralStringsFromTypeRecursive(child, rt);
-            literals.push(...childLiterals);
-        }
-        return literals;
-    }
-
-    return [];
-}
-
-/**
- * Extracts literal string values from a type.
- * Handles 'never' type only at the root level, then delegates to recursive extraction.
- */
-function extractLiteralStringsFromType(runType: BaseRunType, rt: RunTypesFunctions): string[] {
-    // Handle 'never' type at root level only (no headers)
-    if (rt.isNeverRunType(runType)) return [];
-    return extractLiteralStringsFromTypeRecursive(runType, rt);
-}
-
-// Create a fake compiler object with just the opts property needed by getParamRunTypes.
-// getParamRunTypes() requires a JitFnCompiler but we only need the opts property to slice parameters.
-// This is a workaround to avoid updating getParamRunTypes() signature
-function getFakeCompiler(routerOptions: RouterOptions): JitFnCompiler {
-    return {opts: routerOptions} as any as JitFnCompiler;
-}
-
-function getTypeJitFunctions(
-    runType: BaseRunType,
-    opts: RunTypeOptions | undefined,
-    rtModule: RunTypesFunctions,
-    needsBinary: boolean = false
-): JitCompiledFunctions {
-    const jitFns: JitCompiledFunctions = {
-        isType: runType.createJitCompiledFunction(rtModule.JitFunctions.isType.id, undefined, opts),
-        typeErrors: runType.createJitCompiledFunction(rtModule.JitFunctions.typeErrors.id, undefined, opts),
-        prepareForJson: runType.createJitCompiledFunction(rtModule.JitFunctions.prepareForJson.id, undefined, opts),
-        restoreFromJson: runType.createJitCompiledFunction(rtModule.JitFunctions.restoreFromJson.id, undefined, opts),
-        stringifyJson: runType.createJitCompiledFunction(rtModule.JitFunctions.stringifyJson.id, undefined, opts),
-        ...(needsBinary
-            ? {
-                  toBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.toBinary.id, undefined, opts),
-                  fromBinary: runType.createJitCompiledFunction(rtModule.JitFunctions.fromBinary.id, undefined, opts),
-              }
-            : {}),
-    };
-    return jitFns;
-}
-
-// Cache for function RunTypes to avoid duplicate reflectFunction calls
-const functionRunTypeCache = new WeakMap<AnyFn, FunctionRunType>();
-
-function getFunctionJitFns<Fn extends AnyFn>(
-    fn: Fn,
-    opts: RunTypeOptions | undefined,
-    rtModule: RunTypesFunctions,
-    isReturn: boolean,
-    needsBinary: boolean = false
-): JitCompiledFunctions {
-    // Check cache first
-    let runType = functionRunTypeCache.get(fn);
-    if (!runType) {
-        runType = rtModule.reflectFunction(fn);
-        functionRunTypeCache.set(fn, runType);
-    }
-
-    const createFn = isReturn
-        ? runType.createJitCompiledReturnFunction.bind(runType)
-        : runType.createJitCompiledParamsFunction.bind(runType);
-    const jitFunctions: JitCompiledFunctions = {
-        isType: createFn(rtModule.JitFunctions.isType, opts),
-        typeErrors: createFn(rtModule.JitFunctions.typeErrors, opts),
-        prepareForJson: createFn(rtModule.JitFunctions.prepareForJson, opts),
-        restoreFromJson: createFn(rtModule.JitFunctions.restoreFromJson, opts),
-        stringifyJson: createFn(rtModule.JitFunctions.stringifyJson, opts),
-        ...(needsBinary
-            ? {
-                  toBinary: createFn(rtModule.JitFunctions.toBinary, opts),
-                  fromBinary: createFn(rtModule.JitFunctions.fromBinary, opts),
-              }
-            : {}),
-    };
-    return jitFunctions;
-}
-
-// ############ Retroactive Binary JIT Compilation ############
-
-/** Compiles toBinary/fromBinary JIT functions for middleware that was initially compiled without binary support */
+/** Binary serializer support is not migrated to ts-runtypes yet ('tb'/'fb' fn keys pending). */
 export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
-    if (method.paramsJitFns.toBinary && method.returnJitFns.toBinary) return;
-    const rt = await loadRunTypesModule();
-    const isHeader = method.type === HandlerType.headersMiddleFn;
-    const paramsSlice = isHeader ? {start: HEADER_HOOK_DEFAULT_PARAMS.length} : {start: ROUTE_DEFAULT_PARAMS.length};
-    const opts: RunTypeOptions = {paramsSlice};
-
-    if (!method.paramsJitFns.toBinary && method.paramsJitHash !== EMPTY_HASH) {
-        const runType = rt.reflectFunction(method.handler);
-        const createFn = runType.createJitCompiledParamsFunction.bind(runType);
-        method.paramsJitFns.toBinary = createFn(rt.JitFunctions.toBinary, opts);
-        method.paramsJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary, opts);
-    }
-    if (!method.returnJitFns.toBinary && method.returnJitHash !== EMPTY_HASH && method.hasReturnData) {
-        const runType = rt.reflectFunction(method.handler);
-        const createFn = runType.createJitCompiledReturnFunction.bind(runType);
-        method.returnJitFns.toBinary = createFn(rt.JitFunctions.toBinary);
-        method.returnJitFns.fromBinary = createFn(rt.JitFunctions.fromBinary);
-    }
+    throw new Error(
+        `Binary serialization for "${method.id}" is not supported yet by the ts-runtypes migration ` +
+            `(toBinary/fromBinary wiring pending, see migration-docs/).`
+    );
 }
-
-// ############ Null JIT Functions ############

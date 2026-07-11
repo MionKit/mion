@@ -5,23 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Vite plugin for mion (pure functions, virtual modules, AOT caches, etc.) */
-export {mionVitePlugin, serverReady} from './mionVitePlugin.ts';
-export type {MionPluginOptions} from './mionVitePlugin.ts';
-export type {
-    AOTCacheOptions,
-    MionServerConfig,
-    ServerPureFunctionsOptions as PureFunctionsPluginOptions,
-    DeepkitTypeOptions,
-} from './types.ts';
+/** Vite plugin for mion — a thin wrapper over @ts-runtypes/devtools since the ts-runtypes migration */
+export {mionVitePlugin, serverReady, resolveRtBinary} from './mionVitePlugin.ts';
+export type {MionPluginOptions, MionRunTypesOptions} from './mionVitePlugin.ts';
 
 /** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */
 export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';
-
-// Re-export virtual module constants for advanced usage
-export {
-    VIRTUAL_AOT_JIT_FNS,
-    VIRTUAL_AOT_PURE_FNS,
-    VIRTUAL_AOT_ROUTER_CACHE,
-    VIRTUAL_SERVER_PURE_FNS as VIRTUAL_PURE_FUNCTIONS,
-} from './constants.ts';
