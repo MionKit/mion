@@ -44,7 +44,6 @@ import {serializerMiddleFns} from './routes/serializer.routes.ts';
 import {getRouterItemId, getRoutePath, getENV, MION_ROUTES, routesCache} from '@mionjs/core';
 import {setErrorOptions} from '@mionjs/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './lib/remoteMethods.ts';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './lib/methodsCache.ts';
 import {mionClientRoutes, mionClientMiddleFns} from './routes/client.routes.ts';
 import {mionErrorsRoutes} from './routes/errors.routes.ts';
 import {clearRoutesFlowCache} from './routesFlow.ts';
@@ -134,7 +133,6 @@ export const resetRouter = () => {
     allExecutablesIds = undefined;
     platformConfig = undefined;
     resetRemoteMethodsMetadata();
-    resetPersistedMethods();
     resetRoutesCache();
     clearContextPool();
     clearRoutesFlowCache();
@@ -150,8 +148,6 @@ export const resetRouter = () => {
 export async function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): Promise<PublicApi<R>> {
     await initRouter(opts);
     const publicApi = await registerRoutes(routes);
-    // Emit AOT caches once after ALL routes (error, client, user) are registered
-    await emitAOTCaches();
     return publicApi;
 }
 
@@ -168,7 +164,6 @@ export async function initRouter(opts?: Partial<RouterOptions>): Promise<Readonl
     validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
-    if (routerOptions.aot) await loadAOTCaches();
     isRouterInitialized = true;
     await registerRoutes({...mionErrorsRoutes});
     if (!routerOptions.skipClientRoutes) await registerRoutes({...mionClientRoutes});
@@ -256,19 +251,6 @@ export function getRouteExecutableFromPath(path: string): RouteMethod {
 }
 
 // ############# PRIVATE METHODS #############
-
-async function loadAOTCaches() {
-    const loader = await import('./aot/aotCacheLoader.ts');
-    return loader.loadRouterAOTCaches();
-}
-
-async function emitAOTCaches() {
-    if (!isMionAOTEmitMode()) return;
-    // Dynamic import resolves relative to this source file.
-    // This only runs via vite-node (MION_COMPILE=buildOnly|childProcess), which always resolves from source.
-    const aotEmitter = await import('./lib/aotEmitter.ts');
-    return aotEmitter.emitAOTCaches();
-}
 
 /**
  * Optimized algorithm to flatten the routes object into a list of Executable objects.
@@ -453,11 +435,8 @@ export async function getExecutableFromMiddleFn(
         type: typeof HandlerType.middleFn | typeof HandlerType.headersMiddleFn;
     };
 
-    const compiledMethod = getPersistedMethod(middleFnId, middleFn.handler);
     let executable: MixedMiddleFn;
-    if (compiledMethod) {
-        executable = compiledMethod as MixedMiddleFn;
-    } else {
+    {
         const reflectionData = await getHandlerReflection(
             middleFn,
             middleFnId,
@@ -481,7 +460,6 @@ export async function getExecutableFromMiddleFn(
                 strictTypes: middleFn.options?.strictTypes ?? routerOptions.strictTypes,
             },
         };
-        addToPersistedMethods(middleFnId, executable);
     }
 
     middleFnsById.set(middleFnId, executable as any);
@@ -530,11 +508,8 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteMethod;
 
-    const compiledMethod = getPersistedMethod(routeId, route.handler);
     let executable: RouteMethod;
-    if (compiledMethod) {
-        executable = compiledMethod as RouteMethod;
-    } else {
+    {
         const resolvedRouteOptions = {...route.options, serializer: route.options?.serializer ?? routerOptions.serializer};
         const reflectionData = await getHandlerReflection(
             route,
@@ -561,7 +536,6 @@ export async function getExecutableFromRoute(route: Route, routePointer: string[
                 strictTypes: route.options?.strictTypes ?? routerOptions.strictTypes,
             },
         };
-        addToPersistedMethods(routeId, executable);
     }
     routesById.set(routeId, executable);
     routesCache.setMethodJitFns(routeId, executable as any);
