@@ -50,6 +50,15 @@
 7. Rewrite/delete legacy specs; update `handlers.spec` expectations.
 8. Website/docs refresh (mion-build-aot removal, new plugin options).
 
+## 2026-07-12 — registry swap (@ts-runtypes 0.9.1)
+
+`@ts-runtypes/*@0.9.1` published to npm (from ts-run-types `main`, PR #216 fixes included).
+mion swapped the vendored tarballs for registry deps: `@ts-runtypes/core@0.9.1` (run-types),
+`@ts-runtypes/{devtools,bin}@0.9.1` (devtools); `vendor/` and the `.gitignore` exception
+deleted. Verified against the REGISTRY-resolved platform binary (sibling checkout hidden so
+`getExePath()` took over — the CI path): router migration+routesFlow 27/27, run-types 9/9,
+core 56/56. PR #123 CI can now resolve `@ts-runtypes/binary-linux-x64`.
+
 ## 2026-07-11 — session 1 addendum 2 (pure fns + core cleanup)
 
 Per maintainer direction: audited core feature-by-feature vs ts-runtypes
