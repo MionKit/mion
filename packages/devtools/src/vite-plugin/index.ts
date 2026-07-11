@@ -7,6 +7,7 @@
 
 /** Vite plugin for mion — a thin wrapper over @ts-runtypes/devtools since the ts-runtypes migration */
 export {mionVitePlugin, serverReady, resolveRtBinary} from './mionVitePlugin.ts';
+// (deriveRuntypesTsconfig workaround removed — the resolver now ignores tsconfig project references itself)
 export type {MionPluginOptions, MionRunTypesOptions} from './mionVitePlugin.ts';
 
 /** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */

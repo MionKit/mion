@@ -75,36 +75,6 @@ export function resolveRtBinary(explicit?: string): string | undefined {
 }
 
 /**
- * mion package tsconfigs carry project `references` for tsc --build. The ts-runtypes
- * resolver program must NOT see them: references redirect `@mionjs/*` imports to the
- * referenced projects' declaration OUTPUTS (`.dist/esm`, never built during dev), which
- * silently resolves the injection markers to nothing → zero marker sites program-wide.
- * This derives a references-free twin config (extends the original by absolute path)
- * under `node_modules/.cache/mion-devtools/` next to the package. Remove once mion drops
- * per-package references or ts-runtypes learns to fall back to referenced sources.
- */
-export function deriveRuntypesTsconfig(tsConfigPath: string | undefined, cwd: string = process.cwd()): string | undefined {
-    if (!tsConfigPath) return undefined;
-    const absConfig = path.isAbsolute(tsConfigPath) ? tsConfigPath : path.resolve(cwd, tsConfigPath);
-    try {
-        const raw = JSON.parse(fs.readFileSync(absConfig, 'utf8'));
-        if (!Array.isArray(raw.references) || raw.references.length === 0) return absConfig;
-    } catch {
-        return absConfig;
-    }
-    const cacheDir = path.join(path.dirname(absConfig), 'node_modules', '.cache', 'mion-devtools');
-    const derived = path.join(cacheDir, 'tsconfig.ts-runtypes.json');
-    const content = JSON.stringify({extends: absConfig, references: []}, null, 2) + '\n';
-    try {
-        fs.mkdirSync(cacheDir, {recursive: true});
-        if (!fs.existsSync(derived) || fs.readFileSync(derived, 'utf8') !== content) fs.writeFileSync(derived, content);
-        return derived;
-    } catch {
-        return absConfig;
-    }
-}
-
-/**
  * Creates the mion Vite plugin (ts-runtypes powered).
  *
  * @example
@@ -126,9 +96,11 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
                 'are ignored since the ts-runtypes migration. See migration-docs/ at the repo root.'
         );
     }
+    // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
+    // drops them when building its scan program (they are a tsc --build concept).
     return tsRuntypes({
         binary: resolveRtBinary(rt.binary),
-        tsconfig: deriveRuntypesTsconfig(rt.tsConfig),
+        tsconfig: rt.tsConfig,
         outDir: rt.outDir,
         emitMode: rt.emitMode,
         moduleMode: rt.moduleMode,

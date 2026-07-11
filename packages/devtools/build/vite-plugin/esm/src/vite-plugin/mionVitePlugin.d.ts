@@ -19,7 +19,6 @@ export interface MionPluginOptions {
     server?: unknown;
 }
 export declare function resolveRtBinary(explicit?: string): string | undefined;
-export declare function deriveRuntypesTsconfig(tsConfigPath: string | undefined, cwd?: string): string | undefined;
 export declare function mionVitePlugin(options?: MionPluginOptions): import('vite').Plugin<any> | import('vite').Plugin<any>[];
 export declare const serverReady: Promise<void>;
 //# sourceMappingURL=mionVitePlugin.d.ts.map
