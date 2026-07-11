@@ -15,11 +15,14 @@ import type {PureFnId} from '@ts-runtypes/core';
 //
 // Two registration lanes:
 // - FULL build extraction (bodyHash, purity checks PFE9xxx, shippable code): call
-//   registerPureFnFactory('mionjs::<name>', factory) with the id as a call-site literal.
-//   ⚠️ Import it from '@ts-runtypes/core' directly for now — the scanner does not yet
-//   extract calls made through a re-export barrel (verified 2026-07-11; filed upstream).
-// - RUNTIME registration (this module's helpers): works everywhere, no build metadata —
-//   fine for server-side execution (routesFlow mappings), not for shipping code to clients.
+//   registerPureFnFactory('mionjs::<name>', factory) with the id as a call-site literal —
+//   imported from '@mionjs/run-types' (this package re-exports it), renamed imports and
+//   branded wrappers included (extraction fix upstreamed 2026-07-11, ts-run-types
+//   docs/done/purefn-extraction-skips-reexports-and-wrappers.md).
+// - RUNTIME registration (this module's helpers): name-only convenience — the full id is
+//   computed here, so comptime extraction can't see it. Works everywhere, no build
+//   metadata — fine for server-side execution (routesFlow mappings), not for shipping
+//   code to clients.
 
 /** Namespace for every mion-owned pure function in the ts-runtypes registry. */
 export const MION_PURE_FN_NAMESPACE = 'mionjs';

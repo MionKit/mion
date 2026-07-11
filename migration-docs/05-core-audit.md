@@ -39,13 +39,14 @@ The client-side `pureServerFn` API (refs with build-injected hashes) is deleted;
 package must switch to explicit names + `registerPureFnFactory('mionjs::<name>', …)` when it
 migrates.
 
-## Upstream gap filed (ts-run-types)
+## Upstream gap — FIXED (ts-run-types PR #216)
 
-Pure-fn **build extraction does not survive re-export barrels or wrappers** — a direct
-`registerPureFnFactory('mionjs::x', () => …)` import from `@ts-runtypes/core` is extracted
-(real bodyHash, purity checks); the same call through `export * from '@ts-runtypes/core'` or a
-wrapper with the same brands silently takes the runtime-fallback lane (`bodyHash: ''`).
-Markers (`InjectTypeFnArgs`/`InjectRunTypeId`) DO survive barrels, so this is an upstream
-inconsistency — filed as `docs/todos/purefn-extraction-skips-reexports-and-wrappers.md`.
-Until fixed, full extraction requires importing `registerPureFnFactory` from
-`@ts-runtypes/core` directly; mion's `registerMionPureFn` helper is runtime-lane only.
+Pure-fn build extraction used to gate on the literal callee name, silently skipping RENAMED
+imports and branded wrapper factories (unrenamed barrels always worked). Fixed upstream: the
+extraction pre-filter also accepts calls whose first argument is a `"<ns>::<name>"`-shaped
+string literal, with the brand check as the authoritative gate (Go + FE regressions; spec in
+ts-run-types `docs/done/purefn-extraction-skips-reexports-and-wrappers.md`; the FE suite lives
+in the renamed `packages/ts-runtypes/test/third_party/` folder). Consequence for mion:
+`registerPureFnFactory('mionjs::x', …)` imported from `@mionjs/run-types` — renamed or
+wrapped — gets full extraction. `registerMionPureFn('x', …)` stays runtime-lane by
+construction (it computes the id, so no call-site literal exists to extract).
