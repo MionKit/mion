@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types.ts';
 
 /** Validates that provided table config matches the TypeScript type */
@@ -116,10 +117,10 @@ function getExpectedColumnTypes(prop: PropertyInfo): string[] {
     // Check primitive types
     if (prop.primitiveKind !== undefined) return getExpectedTypesForPrimitive(prop.primitiveKind);
     // Check for Date type
-    const kind = prop.runType.src.kind;
-    if (kind === ReflectionKind.class) {
+    const kind = prop.runType.kind;
+    if (kind === RunTypeKind.class) {
         // Could be Date or other class
-        const typeName = prop.runType.getTypeName();
+        const typeName = prop.runType.typeName;
         if (typeName === 'Date') return ['timestamp', 'date', 'datetime', 'integer', 'text'];
     }
 
@@ -153,17 +154,17 @@ function getExpectedTypesForFormat(formatName: string): string[] {
 }
 
 /** Gets expected column types for a primitive kind */
-function getExpectedTypesForPrimitive(kind: ReflectionKind): string[] {
+function getExpectedTypesForPrimitive(kind: RunTypeKindValue): string[] {
     switch (kind) {
-        case ReflectionKind.string:
+        case RunTypeKind.string:
             // 'string' is the dataType returned by drizzle for text-based columns
             return ['text', 'varchar', 'char', 'uuid', 'inet', 'string'];
-        case ReflectionKind.number:
+        case RunTypeKind.number:
             // 'number' is the dataType returned by drizzle for numeric columns
             return ['integer', 'int', 'smallint', 'real', 'double', 'doublePrecision', 'numeric', 'decimal', 'number'];
-        case ReflectionKind.boolean:
+        case RunTypeKind.boolean:
             return ['boolean', 'integer'];
-        case ReflectionKind.bigint:
+        case RunTypeKind.bigint:
             return ['bigint', 'blob'];
         default:
             return [];

@@ -7,7 +7,8 @@
 
 import {mysqlTable, type MySqlTableWithColumns, type MySqlColumnBuilderBase} from 'drizzle-orm/mysql-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
-import type {ReceiveType} from '@deepkit/type';
+// Note: Must use regular import (not `import type`) for the injection marker to work
+import {getRunType, InjectRunTypeId, RunTypeKind} from '@mionjs/run-types';
 import {TypedError} from '@mionjs/core';
 import {extractTypeInfo} from './core/typeTraverser.ts';
 import {validateConfig} from './core/validator.ts';
@@ -63,15 +64,27 @@ export function toDrizzleMySqlTable<T, TN extends string = string, TConfig exten
     tableName: TN,
     tableConfig?: TConfig,
     mapperConfig: DrizzleMapperConfig = DEFAULT_CONFIG,
-    type?: ReceiveType<T>
+    id?: InjectRunTypeId<T>
 ): MySqlTableWithColumns<{
     name: TN;
     schema: undefined;
     columns: BuildColumns<TN, MergedMySqlColumns<T, TConfig>, 'mysql'>;
     dialect: 'mysql';
 }> {
-    // Validate that a type parameter was provided via type reflection
-    if (!type) {
+    // The id marker is filled at build time by the mion vite plugin; undefined means the plugin was not active
+    if (id === undefined) {
+        throw new TypedError({
+            type: 'drizzle-table-missing-type',
+            message:
+                'toDrizzleMySqlTable requires a type parameter resolved at build time: the mion vite plugin must be active. Usage: toDrizzleMySqlTable<YourType>(tableName) or toDrizzleMySqlTable<YourType>(tableName, tableConfig)',
+        });
+    }
+
+    // Resolve the ts-runtypes graph for T
+    const rt = getRunType<T>(undefined, id);
+
+    // A call site that omits the type parameter resolves T to the unknown type
+    if (rt.kind === RunTypeKind.unknown) {
         throw new TypedError({
             type: 'drizzle-table-missing-type',
             message:
@@ -79,8 +92,8 @@ export function toDrizzleMySqlTable<T, TN extends string = string, TConfig exten
         });
     }
 
-    // Extract type information using mion's RunType system
-    const typeInfo = extractTypeInfo<T>(type);
+    // Extract type information from the RunType graph
+    const typeInfo = extractTypeInfo(rt);
 
     // Validate provided config against type
     if (tableConfig) {
