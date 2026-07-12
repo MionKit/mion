@@ -6,9 +6,11 @@
  * ######## */
 
 import {int, boolean, double, bigint, timestamp, date, time, varchar, json, datetime} from 'drizzle-orm/mysql-core';
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
+import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils.ts';
@@ -18,15 +20,15 @@ import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 // Default Mapping Objects
 // ============================================================================
 
-/** Default primitive-to-column mapping for MySQL, keyed by ReflectionKind */
+/** Default primitive-to-column mapping for MySQL, keyed by RunTypeKind */
 const mysqlPrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
-    [ReflectionKind.string]: (p) => ({
+    [RunTypeKind.string]: (p) => ({
         builder: varchar(p, {length: DEFAULT_VARCHAR_LENGTH}),
         drizzleType: DrizzleTypesMySQL.varchar,
     }),
-    [ReflectionKind.number]: (p) => ({builder: double(p), drizzleType: DrizzleTypesMySQL.double}),
-    [ReflectionKind.boolean]: (p) => ({builder: boolean(p), drizzleType: DrizzleTypesMySQL.boolean}),
-    [ReflectionKind.bigint]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesMySQL.bigint}),
+    [RunTypeKind.number]: (p) => ({builder: double(p), drizzleType: DrizzleTypesMySQL.double}),
+    [RunTypeKind.boolean]: (p) => ({builder: boolean(p), drizzleType: DrizzleTypesMySQL.boolean}),
+    [RunTypeKind.bigint]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesMySQL.bigint}),
 };
 
 /** Default format-to-column mapping for MySQL, keyed by FormatName */
@@ -71,12 +73,12 @@ export class MySQLColumnMapper extends BaseColumnMapper {
         super(config);
     }
 
-    mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
+    mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping {
         const factory = mysqlPrimitiveDefaults[kind];
         if (!factory) {
             throw new TypedError({
                 type: 'drizzle-column-mapping-failed',
-                message: `Cannot map property "${propName}" to MySQL column. TypeScript primitive type "${ReflectionKind[kind]}" has no corresponding drizzle column type.`,
+                message: `Cannot map property "${propName}" to MySQL column. TypeScript primitive type "${getRunTypeKindName(kind)}" has no corresponding drizzle column type.`,
             });
         }
         return factory(propName);
