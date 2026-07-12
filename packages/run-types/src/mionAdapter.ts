@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTFunction, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
+import {getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
 import type {
     GetValidationErrorsFn,
     InjectRunTypeId,
@@ -15,7 +15,8 @@ import type {
     StringifyJsonFn,
     ValidateFn,
 } from '@ts-runtypes/core';
-import type {AnyFn, JitCompiledFn, JitCompiledFunctions} from '@mionjs/core';
+import {getJitFnHashes, installJitLookupBackend} from '@mionjs/core';
+import type {AnyFn, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from '@mionjs/core';
 
 // ############# mion <-> ts-runtypes adapter #############
 // mion's route()/middleFn() factories declare trailing ts-runtypes injection markers;
@@ -52,7 +53,49 @@ const alwaysTrue = (() => true) as unknown as ValidateFn;
 const noErrors: GetValidationErrorsFn = () => [];
 const nativeStringify: StringifyJsonFn = (value: unknown) => JSON.stringify(value);
 
-/** Wraps a compiled ts-runtypes fn into the JitCompiledFn shape mion dispatch consumes (.fn/.isNoop reads). */
+/** ts-runtypes fn-cache entry shape consumed by the adapter (subset of CompiledTypeFn). */
+interface RtCacheEntry {
+    typeName: string;
+    familyTag?: string;
+    rtFnHash: string;
+    args: Record<string, string>;
+    defaultParamValues: Record<string, string>;
+    isNoop?: boolean;
+    code?: string;
+    rtDependencies?: string[];
+    pureFnDependencies?: string[];
+    createRTFn?: (utl: unknown) => AnyFn;
+    fn?: AnyFn;
+}
+
+/** Normalizes entry arg maps to mion's JitFnArgs contract (string values only). */
+function normalizeArgs(args: unknown): JitCompiledFn['args'] {
+    const out: Record<string, string> = {};
+    if (args && typeof args === 'object') {
+        for (const [key, value] of Object.entries(args)) if (typeof value === 'string') out[key] = value;
+    }
+    if (!('vλl' in out)) out.vλl = 'v';
+    return out as JitCompiledFn['args'];
+}
+
+/** Wraps a resolved ts-runtypes cache entry into the JitCompiledFn shape mion consumes. */
+function wrapRtEntry<Fn extends AnyFn>(entry: RtCacheEntry, fnID: string): JitCompiledFn<Fn> {
+    return {
+        typeName: entry.typeName,
+        fnID,
+        jitFnHash: entry.rtFnHash,
+        args: normalizeArgs(entry.args),
+        defaultParamValues: normalizeArgs(entry.defaultParamValues),
+        isNoop: !!entry.isNoop,
+        code: entry.code ?? '',
+        jitDependencies: entry.rtDependencies,
+        pureFnDependencies: entry.pureFnDependencies,
+        createJitFn: (entry.createRTFn ?? (() => entry.fn)) as JitCompiledFn<Fn>['createJitFn'],
+        fn: entry.fn as Fn,
+    };
+}
+
+/** Fabricates a JitCompiledFn wrapper for fns with no cache entry (fallback lane). */
 function toJitCompiledFn<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, jitFnHash: string): JitCompiledFn<Fn> {
     return {
         typeName,
@@ -67,9 +110,34 @@ function toJitCompiledFn<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: strin
     };
 }
 
+/** Looks up the full ts-runtypes cache entry for a mion jit hash (`<fnHashPrefix>_<typeId>`). */
+function getRtEntry(rtFnHash: string): RtCacheEntry | undefined {
+    return getRTUtils().getRT(rtFnHash) as RtCacheEntry | undefined;
+}
+
+// ############# jit lookup backend #############
+// Lets mion core (routerUtils metadata serialization, client metadata restore) resolve
+// jit hashes and pure fns from the ts-runtypes runtime cache without depending on it.
+installJitLookupBackend({
+    getJIT(jitFnHash: string): JitCompiledFn | undefined {
+        const entry = getRtEntry(jitFnHash);
+        return entry ? wrapRtEntry(entry, entry.familyTag ?? 'rtFn') : undefined;
+    },
+    getCompiledPureFn(namespace: string, name: string) {
+        return getRTUtils().getCompiledPureFn(`${namespace}::${name}` as never) as never;
+    },
+});
+
 /** True when the injected value looks like the multi-key marker payload (array of entry tuples). */
 function isInjectedFnsArray(injected: unknown): injected is unknown[] {
     return Array.isArray(injected);
+}
+
+/** Wraps one resolved fn, preferring the full ts-runtypes cache entry (real code/isNoop/deps) when present. */
+function wrapResolvedFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): JitCompiledFn<Fn> {
+    const entry = getRtEntry(rtFnHash);
+    if (entry) return wrapRtEntry<Fn>(entry, fnID);
+    return toJitCompiledFn(fn, fnID, label, rtFnHash);
 }
 
 /**
@@ -89,17 +157,20 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
     const prepareForJson = getRTFunction<'pj'>(pjT, identity as PrepareForJsonFn);
     const restoreFromJson = getRTFunction<'rj'>(rjT, identity as RestoreFromJsonFn);
     const stringifyJson = getRTFunction<'sj'>(sjT, nativeStringify);
+    // getRTFunction initialized the injected tuples, so the full entries are now
+    // resolvable from the ts-runtypes cache under `<fnHashPrefix>_<typeId>`.
+    const hashes: JitFunctionsHashes = getJitFnHashes(typeId);
     return {
-        isType: toJitCompiledFn(isType as AnyFn, 'isType', label, `val_${typeId}`),
-        typeErrors: toJitCompiledFn(
+        isType: wrapResolvedFn(isType as AnyFn, 'isType', label, hashes.isType),
+        typeErrors: wrapResolvedFn(
             typeErrors as AnyFn,
             'typeErrors',
             label,
-            `verr_${typeId}`
+            hashes.typeErrors
         ) as JitCompiledFunctions['typeErrors'],
-        prepareForJson: toJitCompiledFn(prepareForJson as AnyFn, 'prepareForJson', label, `pj_${typeId}`),
-        restoreFromJson: toJitCompiledFn(restoreFromJson as AnyFn, 'restoreFromJson', label, `rj_${typeId}`),
-        stringifyJson: toJitCompiledFn(stringifyJson as AnyFn, 'stringifyJson', label, `sj_${typeId}`),
+        prepareForJson: wrapResolvedFn(prepareForJson as AnyFn, 'prepareForJson', label, hashes.prepareForJson),
+        restoreFromJson: wrapResolvedFn(restoreFromJson as AnyFn, 'restoreFromJson', label, hashes.restoreFromJson),
+        stringifyJson: wrapResolvedFn(stringifyJson as AnyFn, 'stringifyJson', label, hashes.stringifyJson),
     } as JitCompiledFunctions;
 }
 
@@ -118,11 +189,93 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
     return getRunType<unknown>(undefined, idHandle as InjectRunTypeId<unknown>);
 }
 
-/** Extracts parameter names from a params-tuple RunType (labeled tuple members). */
-export function getParamNamesFromRunType(paramsRunType: RunType<unknown>): string[] {
-    const children = (paramsRunType as {children?: {name?: unknown}[]}).children;
-    if (!children) return [];
-    return children.map((member, index) => (typeof member.name === 'string' ? member.name : `param${index}`));
+// ############# param names #############
+// ⚠️ paramNames come from the HANDLER SOURCE, not from the runtype graph: ts-runtypes
+// dedupes types structurally and tuple labels are NOT part of the structural id, so the
+// canonical node for `[s: string]` may carry the labels of whichever call site got
+// interned first (e.g. `[name: string]`). Parsing the function source gives the exact
+// declared names. Known limitation: minified server bundles degrade these names
+// (metadata/docs only — mion params travel positionally on the wire).
+
+/** Extracts declared parameter names from a handler's source, skipping the leading context param. */
+export function getParamNamesFromHandler(handler: AnyFn, skipParams = 1): string[] {
+    const src = handler.toString();
+    const params = splitParamList(extractParamList(src));
+    return params.slice(skipParams).map((param, index) => {
+        const name = paramName(param);
+        return name ?? `param${index}`;
+    });
+}
+
+/** Returns the raw text between the param parens (or the bare identifier of a paren-less arrow). */
+function extractParamList(src: string): string {
+    const noComments = src.replace(/\/\*[^]*?\*\//g, ' ');
+    const start = noComments.search(/\(/);
+    const arrow = noComments.indexOf('=>');
+    // paren-less single-param arrow: `ctx => ...` / `async ctx => ...`
+    if (arrow !== -1 && (start === -1 || start > arrow)) {
+        const head = noComments
+            .slice(0, arrow)
+            .replace(/^async\b/, '')
+            .trim();
+        return head;
+    }
+    if (start === -1) return '';
+    let depth = 0;
+    for (let i = start; i < noComments.length; i++) {
+        const ch = noComments[i];
+        if (ch === '(') depth++;
+        else if (ch === ')') {
+            depth--;
+            if (depth === 0) return noComments.slice(start + 1, i);
+        } else if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipString(noComments, i);
+        }
+    }
+    return '';
+}
+
+/** Advances past a string literal starting at `start`, honoring escapes. */
+function skipString(src: string, start: number): number {
+    const quote = src[start];
+    for (let i = start + 1; i < src.length; i++) {
+        if (src[i] === '\\') i++;
+        else if (src[i] === quote) return i;
+    }
+    return src.length;
+}
+
+/** Splits a param-list string on top-level commas (default values / destructuring stay intact). */
+function splitParamList(list: string): string[] {
+    if (!list.trim()) return [];
+    const params: string[] = [];
+    let depth = 0;
+    let current = '';
+    for (let i = 0; i < list.length; i++) {
+        const ch = list[i];
+        if (ch === '(' || ch === '[' || ch === '{') depth++;
+        else if (ch === ')' || ch === ']' || ch === '}') depth--;
+        else if (ch === "'" || ch === '"' || ch === '`') {
+            const end = skipString(list, i);
+            current += list.slice(i, end + 1);
+            i = end;
+            continue;
+        } else if (ch === ',' && depth === 0) {
+            params.push(current);
+            current = '';
+            continue;
+        }
+        current += ch;
+    }
+    if (current.trim()) params.push(current);
+    return params;
+}
+
+/** Resolves the declared name of one param text; undefined for destructuring patterns. */
+function paramName(param: string): string | undefined {
+    const head = param.trim().replace(/^\.\.\./, '');
+    const match = /^([A-Za-z_$][\w$]*)\s*(?:=[^]*)?$/.exec(head);
+    return match ? match[1] : undefined;
 }
 
 const NO_DATA_KINDS: unknown[] = [RunTypeKind.void, RunTypeKind.never, RunTypeKind.undefined];
@@ -153,10 +306,9 @@ export function getReflectionFromMarkers(
         );
     const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
     const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
-    const paramsRunType = resolveInjectedRunType(rtFns.paramsId);
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
     return {
-        paramNames: getParamNamesFromRunType(paramsRunType),
+        paramNames: getParamNamesFromHandler(handler),
         paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
         returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
         paramsJitHash: paramsTypeId,

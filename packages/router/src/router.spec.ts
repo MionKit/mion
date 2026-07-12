@@ -336,7 +336,6 @@ describe('Create routes should', () => {
 
     it('differentiate async vs non async routes', async () => {
         await initRouter();
-        // !! Important return types must always be declared as the type compiler does not infer the type
         const defaultRouteValues = {
             sayHello: route((): null => null),
             asyncSayHello: route(async (): Promise<string> => {
@@ -346,15 +345,19 @@ describe('Create routes should', () => {
                 return hello;
             }),
             noReturnType: route(() => null),
+            asyncNoReturnType: route(async () => null),
         };
         await registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')?.isAsync).toEqual(false);
         expect(getRouteExecutable('asyncSayHello')?.isAsync).toEqual(true);
 
-        // when there is no return type we assume the function is async.
-        // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(true);
+        // Since the ts-runtypes migration return types are always resolved by the checker
+        // (inference included), so an un-annotated sync handler is correctly detected as
+        // sync (the old runtime reflection assumed async when it could not see the type).
+        // Dispatch always awaits results, so isAsync is metadata only.
+        expect(getRouteExecutable('noReturnType')?.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncNoReturnType')?.isAsync).toEqual(true);
     });
 
     it('add start and end global middleFns', async () => {

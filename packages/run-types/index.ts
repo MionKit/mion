@@ -22,3 +22,7 @@ export * from './src/mionAdapter.ts';
 
 // mion pure functions: ts-runtypes pure-fn registry under the 'mionjs' namespace.
 export * from './src/mionPureFns.ts';
+
+// side effect: registers mion error classes (TypedError/RpcError) with the
+// ts-runtypes class-serializer registry so decoders rebuild real instances.
+import './src/mionClassSerializers.ts';
