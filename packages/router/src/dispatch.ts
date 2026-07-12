@@ -187,6 +187,26 @@ function validateParametersOrThrow(params: any[], executable: RemoteMethod): voi
         });
         throw validationError;
     }
+    rejectUnknownKeysOrThrow(params, executable);
+}
+
+/** strictTypes: rejects params carrying properties not present in the declared types */
+function rejectUnknownKeysOrThrow(params: any[], executable: RemoteMethod): void {
+    if (!executable.options.strictTypes) return;
+    const hasUnknownKeys = executable.paramsJitFns.hasUnknownKeys;
+    if (!hasUnknownKeys || hasUnknownKeys.isNoop) return;
+    if (hasUnknownKeys.fn(params)) {
+        const unknownKeyErrors = executable.paramsJitFns.unknownKeyErrors;
+        const validationError: ValidationError = new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'validation-error',
+            publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+            errorData: {
+                typeErrors: unknownKeyErrors && !unknownKeyErrors.isNoop ? unknownKeyErrors.fn(params) : [],
+            },
+        });
+        throw validationError;
+    }
 }
 
 function validateHeaderParamsOrThrow(headers: HeadersSubset<string, string>, executable: HeadersMethod): void {

@@ -188,6 +188,10 @@ export interface JitCompiledFunctions {
     prepareForJson: JitCompiledFn<PrepareForJsonFn>;
     restoreFromJson: JitCompiledFn<RestoreFromJsonFn>;
     stringifyJson: JitCompiledFn<JsonStringifyFn>;
+    /** strictTypes support: true when the value carries properties not present in the type */
+    hasUnknownKeys?: JitCompiledFn<HasUnknownKeysFn>;
+    /** strictTypes support: RunTypeError entries for every unknown property found */
+    unknownKeyErrors?: JitCompiledFn<TypeErrorsFn>;
     toBinary?: JitCompiledFn<ToBinaryFn>;
     fromBinary?: JitCompiledFn<FromBinaryFn>;
 }
@@ -206,6 +210,8 @@ export interface JitFunctionsHashes {
     prepareForJson: string;
     restoreFromJson: string;
     stringifyJson: string;
+    hasUnknownKeys?: string;
+    unknownKeyErrors?: string;
     toBinary?: string;
     fromBinary?: string;
 }
@@ -214,6 +220,7 @@ export type RestoreFromJsonFn = (value: JSONValue) => any;
 export type PrepareForJsonFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
+export type HasUnknownKeysFn = (value: any) => boolean;
 export type ToCodeFn = (value: any) => string;
 /** Binary serialization function - serializes value to the serializer context */
 export type ToBinaryFn = (value: any, serializer: DataViewSerializer) => void;
