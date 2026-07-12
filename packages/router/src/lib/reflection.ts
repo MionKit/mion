@@ -7,7 +7,7 @@
 
 import type {MethodWithJitFns} from '@mionjs/core';
 import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal} from '@mionjs/core';
-import {getReflectionFromMarkers, isAsyncHandler} from '@mionjs/run-types';
+import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/run-types';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
@@ -92,19 +92,16 @@ export async function getHandlerReflection(
     def: AnyHandlerDef,
     routeId: string,
     routerOptions: RouterOptions,
-    // handlerOptions/strictTypes are not honored yet: per-method ValidateOptions must become
-    // call-site literals (CompTimeFnArgs) in the ts-runtypes model — see migration-docs/.
+    // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)
+    // is runtime-gated at dispatch against the compiled unknown-keys fns.
     handlerOptions: RouteOptions | MiddleFnOptions | HeadersMiddleFnOptions = {}, // eslint-disable-line @typescript-eslint/no-unused-vars
     isHeadersMiddleFn: boolean = false,
     methodStrictTypes?: boolean // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<MethodReflect> {
-    if (isHeadersMiddleFn)
-        throw new Error(
-            `Headers middleFn "${routeId}" is not supported yet by the ts-runtypes migration. ` +
-                `See migration-docs/04-progress-log.md (headersFn support pending).`
-        );
     try {
-        return getReflectionFromMarkers(def.rtFns, def.handler, routeId);
+        return isHeadersMiddleFn
+            ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
+            : getReflectionFromMarkers(def.rtFns, def.handler, routeId);
     } catch (error: any) {
         throw new MissingRtFnsError(routeId, error?.message);
     }
