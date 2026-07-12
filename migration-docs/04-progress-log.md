@@ -1,5 +1,52 @@
 # Progress log
 
+## 2026-07-12 — full-suite campaign (session 2)
+
+Goal: every mion test green on ts-runtypes (maintainer directive). Progress by area:
+
+1. **Barrel fix**: router/index.ts still exported deleted `methodsCache`/`aotEmitter` —
+   crashed every platform + drizze suite at import. Removed (plus the `./aot` package export).
+2. **jit-hash lane wired to the ts-runtypes cache**: `JIT_FUNCTION_IDS` now hold the
+   ts-runtypes per-family fn-hash prefixes (`val→Qgu, verr→yIk, pj→C6W, rj→MWO, sj→rVH,
+   huk→y8Q, uke→kuM, tb→iAm, fb→jtJ`, discovered empirically, pinned by an adapter spec), so
+   mion jit hashes `<prefix>_<typeId>` ARE the ts-runtypes cache keys. Core jitUtils gained a
+   pluggable lookup backend (`installJitLookupBackend`) that @mionjs/run-types installs:
+   `getJIT()` returns real entries (code, deps, isNoop) wrapped as JitCompiledFn — the whole
+   client-metadata serialization machinery (serializeMethodDeps/getJitFnHashes) works again
+   through its ORIGINAL code paths.
+3. **paramNames**: now parsed from the handler source (skip ctx), NOT from runtype tuple
+   labels — ts-runtypes dedupes `[s: string]`/`[name: string]` into one canonical node and
+   the first-interned label wins (upstream todo filed: tuple-labels-unreliable-on-canonical-nodes).
+4. **strictTypes restored**: factory markers request `huk`/`uke`; dispatch rejects unknown
+   props when the method's resolved strictTypes option is on (global or per-route).
+5. **headersFn migrated**: markers for the HeadersSubset param (val/verr + id); header names
+   extracted from the runtype graph (class HeadersSubset → headers prop → prop names, which
+   ARE id-relevant, unlike tuple labels); HeadersSubset returns from ANY handler populate
+   headersReturn (unions included). headers.spec 25/25.
+6. **Binary migrated**: markers request `tb`/`fb` (only attached when real cache entries
+   exist — identity fallbacks would corrupt streams); core dataView now PROXIES
+   @ts-runtypes/core's serializer (the emitted fns target its varint wire protocol; core
+   gained the dep); `ensureBinaryJitFns` verifies presence instead of compiling.
+7. **RpcError/TypedError round-trips**: registered with ts-runtypes' class-serializer
+   registry (`RpcError<string>` projection). Two upstream gaps filed:
+   generic-class-serializers-single-instantiation (other instantiations fall back to
+   structural data) and error-subclass-projections-leak-stack (inherited name/message/stack
+   ride the wire — mion guards now accept those keys; leak itself unmitigated).
+8. **type-formats → proxy over @ts-runtypes/core/formats**: mion names re-exported as
+   aliases (FormatString=String, FormatEmail=Email, …); old deepkit-era format compiler
+   classes deleted; specs migrated to createValidate/createGetValidationErrors/createMockData
+   (same error shapes!). @mionjs/run-types side-effect-imports the formats module — type-only
+   alias imports get transpiler-erased, so registration must ride a value import.
+9. **Client**: devtools wrapper re-grew managed-server orchestration (vite-node child
+   process, buildStart-deferred, serverReady port gate); `addSerializedJitCaches` +
+   `resetJitFnCaches` reimplemented over the rt cache (lazy materialization from code
+   strings); `serverMapFrom` redesigned to reference SERVER-REGISTERED mion pure fns by
+   name (the old implicit build-time body extraction is gone — mappers are shared explicit
+   code now, registerMionPureFn on the server; wire contract unchanged: bodyHash carries
+   the name).
+10. **isAsync semantics**: un-annotated handlers are now correctly inferred (checker sees
+    everything); dispatch always awaits, so the flag is metadata-only. router.spec updated.
+
 ## 2026-07-11 — initial spike (session 1)
 
 ### Landed
