@@ -121,11 +121,16 @@ export async function getRawMethodReflection(
 
 // ############ Binary serialization ############
 
+const binaryWarned = getOrCreateGlobal('mion.reflection.binaryWarned', () => new Set<string>());
+
 /**
- * Verifies binary (de)serialization fns are available for a method in a binary route's
- * execution chain. Since the ts-runtypes migration tb/fb are compiled AT BUILD TIME for
- * every factory call site (no retroactive compilation), so this only checks presence:
- * params need fromBinary (requests) and returns need toBinary (responses).
+ * Checks binary (de)serialization fns for a middleFn in a binary route's execution chain.
+ * Since the ts-runtypes migration tb/fb are compiled AT BUILD TIME per call site; a type
+ * that is not binary-serializable (e.g. the mion metadata middleFn's union, which always
+ * forces stringifyJson responses anyway) simply has no entries. That is a WARNING, not an
+ * error: the wire already degrades safely — serializeBinaryBody skips methods without
+ * toBinary, and deserializeBinaryBody throws a clear error only if a binary body actually
+ * carries the method's key.
  */
 export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
     const missing: string[] = [];
@@ -134,10 +139,11 @@ export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod)
     if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
     if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
     if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
-    if (missing.length) {
-        throw new Error(
-            `Binary serialization fns missing for "${method.id}" (${missing.join(', ')}). ` +
-                `The type may not be binary-serializable, or the code was built without mionVitePlugin.`
+    if (missing.length && !binaryWarned.has(method.id)) {
+        binaryWarned.add(method.id);
+        console.warn(
+            `mion: middleFn "${method.id}" has no binary serialization fns (${missing.join(', ')}); ` +
+                `its data will not ride binary bodies (type not binary-serializable, or built without mionVitePlugin).`
         );
     }
 }
