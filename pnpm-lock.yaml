@@ -110,7 +110,11 @@ importers:
         specifier: 29.7.0
         version: 29.7.0
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@ts-runtypes/core':
+        specifier: 0.9.1
+        version: 0.9.1
 
   packages/devtools:
     dependencies:
@@ -327,6 +331,9 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
       '@mionjs/type-formats':
         specifier: workspace:*
         version: link:../type-formats

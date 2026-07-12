@@ -169,11 +169,12 @@ function hasUnknownKeys(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean
 export function isTypedError(error: any): error is TypedError<any> {
     if (!error) return false;
     if (error instanceof TypedError) return true;
+    // name/stack are Error base props: serialized error shapes may carry them
     return (
         error &&
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message'])
+        !hasUnknownKeys(error, ['mion@isΣrrθr', 'type', 'message', 'name', 'stack'])
     );
 }
 
@@ -181,12 +182,23 @@ export function isTypedError(error: any): error is TypedError<any> {
 export function isRpcError(error: any): error is RpcError<string> {
     if (!error) return false;
     if (error instanceof RpcError) return true;
+    // name/stack are Error base props: serialized error shapes may carry them
     return (
         error &&
         error['mion@isΣrrθr'] === true &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
         (error.id === undefined || typeof error.id === 'string' || typeof error.id === 'number') &&
-        !hasUnknownKeys(error, ['mion@isΣrrθr', 'id', 'message', 'publicMessage', 'errorData', 'type', 'statusCode'])
+        !hasUnknownKeys(error, [
+            'mion@isΣrrθr',
+            'id',
+            'message',
+            'publicMessage',
+            'errorData',
+            'type',
+            'statusCode',
+            'name',
+            'stack',
+        ])
     );
 }
 

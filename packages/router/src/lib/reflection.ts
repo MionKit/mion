@@ -119,12 +119,25 @@ export async function getRawMethodReflection(
     return createRawMiddleFnReflection(isAsyncHandler(handler));
 }
 
-// ############ Binary serialization (pending migration) ############
+// ############ Binary serialization ############
 
-/** Binary serializer support is not migrated to ts-runtypes yet ('tb'/'fb' fn keys pending). */
+/**
+ * Verifies binary (de)serialization fns are available for a method in a binary route's
+ * execution chain. Since the ts-runtypes migration tb/fb are compiled AT BUILD TIME for
+ * every factory call site (no retroactive compilation), so this only checks presence:
+ * params need fromBinary (requests) and returns need toBinary (responses).
+ */
 export async function ensureBinaryJitFns(method: MiddleFnMethod | HeadersMethod): Promise<void> {
-    throw new Error(
-        `Binary serialization for "${method.id}" is not supported yet by the ts-runtypes migration ` +
-            `(toBinary/fromBinary wiring pending, see migration-docs/).`
-    );
+    const missing: string[] = [];
+    const hasParams = !method.paramsJitFns.isType.isNoop;
+    if (hasParams && !method.paramsJitFns.fromBinary) missing.push('params fromBinary');
+    if (hasParams && !method.paramsJitFns.toBinary) missing.push('params toBinary');
+    if (method.hasReturnData && !method.returnJitFns.toBinary) missing.push('return toBinary');
+    if (method.hasReturnData && !method.returnJitFns.fromBinary) missing.push('return fromBinary');
+    if (missing.length) {
+        throw new Error(
+            `Binary serialization fns missing for "${method.id}" (${missing.join(', ')}). ` +
+                `The type may not be binary-serializable, or the code was built without mionVitePlugin.`
+        );
+    }
 }
