@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import {getPersistedMethods, initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionjs/router';
+import {initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody} from '@mionjs/core';
+import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody, routesCache} from '@mionjs/core';
 import type {Server} from 'http';
 
 describe('node http router', () => {
@@ -187,10 +187,14 @@ describe('node http router', () => {
             await initRouter(routerOpts);
             await registerRoutes({changeUserName, getDate, updateHeaders});
             const smallServer = await startNodeServer();
-            const persistedMethods = getPersistedMethods();
             expect(smallServer.listening).toBe(false);
+            // registration still populated the methods cache even though the server never listened
+            // (ts-runtypes migration: the AOT persisted-methods registry is gone; routesCache is the record)
+            const registeredIds = Object.keys(routesCache.getCache());
             const mionRoutes = ['mion@methodsMetadata', '@thrownErrors', 'mion@notFound', 'mion@platformError'];
-            expect(Object.keys(persistedMethods)).toEqual([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders']);
+            expect(registeredIds).toEqual(
+                expect.arrayContaining([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders'])
+            );
         });
     });
 
