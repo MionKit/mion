@@ -156,6 +156,8 @@ export function getJitFnHashes(jitHash: string, needsBinary: boolean = false): J
         prepareForJson: `${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`,
         restoreFromJson: `${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`,
         stringifyJson: `${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`,
+        hasUnknownKeys: `${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`,
+        unknownKeyErrors: `${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`,
         ...(needsBinary
             ? {
                   toBinary: `${JIT_FUNCTION_IDS.toBinary}_${jitHash}`,
@@ -186,6 +188,11 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
         restoreFromJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
         stringifyJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
     } as JitCompiledFunctions;
+    // strictTypes fns are optional: only present when the type has object members
+    const hasUnknownKeysJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
+    const unknownKeyErrorsJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+    if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit;
+    if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit;
     // Only include binary functions if they exist in the store
     const toBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
     const fromBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);

@@ -19,13 +19,13 @@ import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
 // marker is not recognized by the ts-runtypes scanner. Fn keys must match MION_FN_KEYS
-// in @mionjs/run-types (val, verr, pj, rj, sj).
+// in @mionjs/run-types (val, verr, pj, rj, sj, huk, uke).
 
 export function route<H extends Handler>(
     handler: H,
     opts?: RouteOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
+    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -41,8 +41,8 @@ export function route<H extends Handler>(
 export function query<H extends Handler>(
     handler: H,
     opts?: RouteOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
+    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -58,8 +58,8 @@ export function query<H extends Handler>(
 export function mutation<H extends Handler>(
     handler: H,
     opts?: RouteOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
+    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): RouteDef<H> {
@@ -74,8 +74,8 @@ export function mutation<H extends Handler>(
 export function middleFn<H extends Handler>(
     handler: H,
     opts?: MiddleFnOptions,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
+    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): MiddleFnDef<H> {
