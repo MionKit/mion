@@ -340,6 +340,12 @@ importers:
 
   packages/type-formats:
     dependencies:
+      '@mionjs/core':
+        specifier: workspace:*
+        version: link:../core
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
       '@ts-runtypes/core':
         specifier: 0.9.1
         version: 0.9.1
