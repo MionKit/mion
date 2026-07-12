@@ -57,3 +57,9 @@ export type HandlerParams<H extends AnyHandler> = Parameters<H> extends [any, ..
 
 /** The handler's resolved (awaited) return type. */
 export type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
+
+/** The HeadersSubset param (2nd param) of a headers middleFn handler. */
+export type HeaderHandlerHeaders<H extends HeaderHandler> = Parameters<H> extends [any, infer HS, ...any[]] ? HS : never;
+
+/** The body params of a headers middleFn handler: everything after CallContext + HeadersSubset. */
+export type HeaderHandlerParams<H extends HeaderHandler> = Parameters<H> extends [any, any, ...infer P] ? P : [];

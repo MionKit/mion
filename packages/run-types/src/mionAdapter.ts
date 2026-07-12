@@ -29,12 +29,25 @@ import type {AnyFn, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} fro
  *  a local type alias over the marker is NOT recognized by the ts-runtypes scanner (verified 2026-07-11). */
 export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'] as const;
 
+/** fn keys requested for the HeadersSubset marker side (validation only, no serialization). */
+export const MION_HEADER_FN_KEYS = ['val', 'verr'] as const;
+
 /** Injected marker payloads stashed on a route/middleFn definition by the factory helpers. */
 export interface RtMarkerPayload {
     paramsFns?: unknown;
     returnFns?: unknown;
     paramsId?: string;
     returnId?: string;
+    /** headers middleFns only: fns + id for the handler's HeadersSubset param */
+    headersFns?: unknown;
+    headersId?: string;
+}
+
+/** Header validation fns + metadata derived from a HeadersSubset marker/runtype. */
+export interface RtHeadersReflection {
+    headerNames: string[];
+    jitHash: string;
+    jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }
 
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
@@ -46,6 +59,8 @@ export interface RtMethodReflection {
     returnJitHash: string;
     hasReturnData: boolean;
     isAsync: boolean;
+    headersParam?: RtHeadersReflection;
+    headersReturn?: RtHeadersReflection;
 }
 
 const identity = (value: unknown) => value;
@@ -313,7 +328,7 @@ export function getReflectionFromMarkers(
     const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
     const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
-    return {
+    const reflection: RtMethodReflection = {
         paramNames: getParamNamesFromHandler(handler),
         paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
         returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
@@ -322,4 +337,108 @@ export function getReflectionFromMarkers(
         hasReturnData: runTypeHasData(returnRunType),
         isAsync: isAsyncHandler(handler),
     };
+    // any handler returning a HeadersSubset (directly or in a union) sets response headers:
+    // expose the declared names + validation fns so dispatch can apply/validate them
+    const returnHeaderNames = getHeaderNamesFromRunType(returnRunType);
+    if (returnHeaderNames) {
+        reflection.headersReturn = {
+            headerNames: returnHeaderNames,
+            jitHash: returnTypeId,
+            jitFns: {isType: reflection.returnJitFns.isType, typeErrors: reflection.returnJitFns.typeErrors},
+        };
+    }
+    return reflection;
+}
+
+// ############# headers middleFns #############
+
+/** Node shape used while walking the runtype graph for header names. */
+interface RtNodeLike {
+    kind?: unknown;
+    typeName?: unknown;
+    name?: unknown;
+    optional?: unknown;
+    child?: RtNodeLike;
+    children?: RtNodeLike[];
+}
+
+/**
+ * Extracts the declared header names from a HeadersSubset<Required, Optional> runtype:
+ * class node -> 'headers' property -> object literal props (one per header name).
+ * Unions are searched for a HeadersSubset member (e.g. `HeadersSubset<'x'> | RpcError<...>`).
+ * Returns undefined when the type contains no HeadersSubset class.
+ */
+export function getHeaderNamesFromRunType(runType: RunType<unknown>): string[] | undefined {
+    const root = runType as RtNodeLike;
+    if (root.kind === RunTypeKind.union) {
+        for (const member of root.children ?? []) {
+            const names = getHeaderNamesFromRunType(member as RunType<unknown>);
+            if (names) return names;
+        }
+        return undefined;
+    }
+    if (root.kind !== RunTypeKind.class || root.typeName !== 'HeadersSubset') return undefined;
+    const headersProp = root.children?.find((child) => child.name === 'headers');
+    const propNodes = headersProp?.child?.children;
+    if (!propNodes) return [];
+    return propNodes.map((prop) => prop.name).filter((name): name is string => typeof name === 'string');
+}
+
+/** Builds the isType/typeErrors pair from a 2-key ('val','verr') HeadersSubset marker payload. */
+export function buildHeaderJitFnsFromMarker(
+    injected: unknown,
+    typeId: string,
+    label: string
+): Pick<JitCompiledFunctions, 'isType' | 'typeErrors'> {
+    if (!isInjectedFnsArray(injected))
+        throw new Error(
+            `mion run-types: no compiled header type functions injected for '${label}'. ` +
+                `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
+        );
+    const [valT, verrT] = injected;
+    const isType = getRTFunction<'val'>(valT, alwaysTrue);
+    const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
+    const hashes: JitFunctionsHashes = getJitFnHashes(typeId);
+    return {
+        isType: wrapResolvedFn(isType as AnyFn, 'isType', label, hashes.isType),
+        typeErrors: wrapResolvedFn(
+            typeErrors as AnyFn,
+            'typeErrors',
+            label,
+            hashes.typeErrors
+        ) as JitCompiledFunctions['typeErrors'],
+    };
+}
+
+/**
+ * Builds the mion method reflection for a headers middleFn: body params/return as usual,
+ * plus headersParam (extracted from the HeadersSubset param) and headersReturn (when the
+ * handler returns a HeadersSubset, its headers get written onto the response).
+ */
+export function getHeadersReflectionFromMarkers(
+    rtFns: RtMarkerPayload | undefined,
+    handler: AnyFn,
+    methodId: string
+): RtMethodReflection {
+    if (!rtFns || rtFns.headersId === undefined)
+        throw new Error(
+            `mion run-types: headers middleFn '${methodId}' has no injected header type information. ` +
+                `Handlers must be declared through the headersFn() factory (2nd param a HeadersSubset) ` +
+                `and built with mionVitePlugin active.`
+        );
+    const headersTypeId = resolveInjectedTypeId(rtFns.headersId, `${methodId}#headers`);
+    const headersRunType = resolveInjectedRunType(rtFns.headersId);
+    const headerNames = getHeaderNamesFromRunType(headersRunType);
+    if (!headerNames)
+        throw new Error(
+            `mion run-types: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`
+        );
+    const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
+    reflection.paramNames = getParamNamesFromHandler(handler, 2); // skip ctx + headers params
+    reflection.headersParam = {
+        headerNames,
+        jitHash: headersTypeId,
+        jitFns: buildHeaderJitFnsFromMarker(rtFns.headersFns, headersTypeId, `${methodId}#headers`),
+    };
+    return reflection;
 }
