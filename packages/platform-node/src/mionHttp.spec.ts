@@ -192,9 +192,7 @@ describe('node http router', () => {
             // (ts-runtypes migration: the AOT persisted-methods registry is gone; routesCache is the record)
             const registeredIds = Object.keys(routesCache.getCache());
             const mionRoutes = ['mion@methodsMetadata', '@thrownErrors', 'mion@notFound', 'mion@platformError'];
-            expect(registeredIds).toEqual(
-                expect.arrayContaining([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders'])
-            );
+            expect(registeredIds).toEqual(expect.arrayContaining([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders']));
         });
     });
 
