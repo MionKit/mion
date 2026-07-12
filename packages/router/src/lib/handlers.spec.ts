@@ -36,10 +36,20 @@ describe('route & middleFns init functions', () => {
         });
     });
 
+    // Since the ts-runtypes migration, factory defs also carry the build-time-injected
+    // type functions payload (rtFns): compiled fn tuples per side + the two type id handles.
+    const expectedRtFns = {
+        paramsFns: expect.any(Array),
+        returnFns: expect.any(Array),
+        paramsId: expect.anything(),
+        returnId: expect.anything(),
+    };
+
     it('should initialize a middleFn object', () => {
         expect(routes.timestamp).toEqual({
             type: HandlerType.middleFn,
             handler: expect.any(Function),
+            rtFns: expectedRtFns,
         });
     });
 
@@ -54,6 +64,7 @@ describe('route & middleFns init functions', () => {
         expect(routes.print).toEqual({
             type: HandlerType.route,
             handler: expect.any(Function),
+            rtFns: expectedRtFns,
         });
     });
 
@@ -63,6 +74,7 @@ describe('route & middleFns init functions', () => {
             type: HandlerType.route,
             handler: expect.any(Function),
             options: {isMutation: false},
+            rtFns: expectedRtFns,
         });
     });
 
@@ -72,6 +84,7 @@ describe('route & middleFns init functions', () => {
             type: HandlerType.route,
             handler: expect.any(Function),
             options: {isMutation: true},
+            rtFns: expectedRtFns,
         });
     });
 

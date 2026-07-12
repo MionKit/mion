@@ -26,7 +26,7 @@ import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {runType, JitFunctions} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@mionjs/run-types';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {
@@ -43,8 +43,7 @@ describe('PublicMethods run type functionality', () => {
     afterEach(() => resetRouter());
 
     it('can validate return type ClientReturn', () => {
-        const rt = runType<ClientReturn>();
-        const validate = rt.createJitFunction(JitFunctions.isType);
+        const validate = createValidate<ClientReturn>();
         expect(
             validate(
                 new RpcError({
@@ -68,16 +67,12 @@ describe('PublicMethods run type functionality', () => {
             purFnDeps: {},
         };
 
-        const rt = runType<ClientReturn>();
-        const rtMethodsData = runType<SerializableMethodsData>();
-        const rtPublicMethods = runType<MethodsCache>();
-        const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
-        const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
-        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsMethodsData = createGetValidationErrors<SerializableMethodsData>();
+        const typeErrorsPublicMethods = createGetValidationErrors<MethodsCache>();
+        const typeErrors = createGetValidationErrors<ClientReturn>();
 
         expect(typeErrorsPublicMethods({hello: publicMethod})).toEqual([]);
-        expect(typeErrorsMethodsData(response)).toEqual([]); // seems this is working but not the union type so we need to review runType Union errors
-        // also only returning the Error a Union is not usefull, maybe if we detect is one of the types in the union we should return the errors of that type
+        expect(typeErrorsMethodsData(response)).toEqual([]);
         expect(typeErrors(response)).toEqual([]);
         expect(
             typeErrors(
@@ -100,9 +95,8 @@ describe('PublicMethods run type functionality', () => {
             deps: {},
             purFnDeps: {},
         };
-        const rt = runType<ClientReturn>();
-        const stringifyJson = rt.createJitFunction(JitFunctions.stringifyJson);
-        const restoreFromJson = rt.createJitFunction(JitFunctions.restoreFromJson);
+        const encodeJson = createJsonEncoder<ClientReturn>();
+        const decodeJson = createJsonDecoder<ClientReturn>();
         const error = new RpcError({
             publicMessage: 'error',
             message: 'error',
@@ -113,18 +107,17 @@ describe('PublicMethods run type functionality', () => {
             message: 'error',
             type: 'test-error',
         });
-        // operations modify the original object so we need to clone it before serializing
-        const roundTrip = restoreFromJson(JSON.parse(stringifyJson(errorClone)));
+        // operations may modify the original object so we clone it before serializing
+        const roundTrip = decodeJson(encodeJson(errorClone)!);
         expect(roundTrip instanceof RpcError).toBeTruthy();
         expect(roundTrip).toEqual(error);
-        // operations modify the original object so we need to clone it before serializing
         const responseClone: SerializableMethodsData = {
             methods: {[publicMethod.id]: structuredClone(publicMethod)},
             deps: {},
             purFnDeps: {},
         };
-        const jsonStr = stringifyJson(responseClone);
-        const roundTrip2 = restoreFromJson(JSON.parse(jsonStr));
+        const jsonStr = encodeJson(responseClone);
+        const roundTrip2 = decodeJson(jsonStr!);
         delete (publicMethod as any).handler;
         expect(roundTrip2).toEqual(response);
     });
@@ -269,9 +262,12 @@ describe('Client Routes should', () => {
     const methodsId = MION_ROUTES.methodsMetadataById;
     const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
     const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
-    const jitFnRt = runType<JitCompiledFnData>();
-    const isJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.isType);
-    const restoreJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.restoreFromJson);
+    const isJitCompiledFn = createValidate<JitCompiledFnData>();
+    // deps ride the (already parsed) JSON response; encode+decode replays the wire trip
+    const encodeJitCompiledFn = createJsonEncoder<JitCompiledFnData>();
+    const decodeJitCompiledFn = createJsonDecoder<JitCompiledFnData>();
+    const restoreJitCompiledFn = (dep: unknown) =>
+        decodeJitCompiledFn(encodeJitCompiledFn(structuredClone(dep) as JitCompiledFnData)!);
 
     afterEach(() => resetRouter());
 
