@@ -38,4 +38,8 @@ jobs:
         run: pnpm run lint
 
       - name: Test
-        run: pnpm run test
+        # Batched: each vitest invocation initializes its projects' ts-runtypes
+        # resolvers concurrently (~200MB each); running all 12 projects in one go
+        # OOMs the runner since programs grew with the ts-runtypes migration.
+        # The client batch runs alone because it spawns the managed test server.
+        run: pnpm run test:ci

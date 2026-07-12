@@ -66,11 +66,16 @@ function startManagedServer(server) {
     env: { ...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: "true" },
     stdio: ["ignore", "inherit", "inherit"]
   });
+  child.unref();
   serverChild = child;
   const killChild = () => {
     if (serverChild && !serverChild.killed) serverChild.kill("SIGTERM");
   };
   process.once("exit", killChild);
+  child.once("error", (err) => {
+    serverChild = void 0;
+    serverReadyReject?.(new Error(`[mionVitePlugin] failed to spawn managed server: ${err.message}`));
+  });
   child.once("exit", (code) => {
     serverChild = void 0;
     if (code && code !== 0) serverReadyReject?.(new Error(`[mionVitePlugin] managed server exited with code ${code}`));

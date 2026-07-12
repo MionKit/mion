@@ -8,6 +8,7 @@
   "packageManager": "pnpm@11.1.1",
   "scripts": {
     "test": "vitest run",
+    "test:ci": "vitest run --project core --project run-types --project router --project type-formats && vitest run --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
     "format": "prettier --write 'packages/**/*.{ts,md}'",
     "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
