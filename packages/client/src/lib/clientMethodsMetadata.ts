@@ -16,7 +16,8 @@ import type {
     SerializableMethodsData,
     PureFnsDataCache,
 } from '@mionjs/core';
-import {routesCache, addSerializedJitCaches} from '@mionjs/core';
+import {routesCache} from '@mionjs/core';
+import {addSerializedJitCaches} from '@mionjs/run-types';
 import {STORAGE_KEY} from '../constants.ts';
 import {getStorage} from './storage.ts';
 

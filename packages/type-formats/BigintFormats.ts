@@ -5,32 +5,31 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// ############### Import modules to execute side effects (registerFormatter calls) ###############
+// ts-runtypes migration: proxy over @ts-runtypes/core/formats (see StringFormats.ts).
 
-// Import main bigint format module to register the formatter
-import './src/bigint/bigIntFormat.runtype.ts';
+import '@ts-runtypes/core/formats';
+import type {
+    BigInt as RtBigInt,
+    BigIntParams,
+    BigPositive,
+    BigNegative,
+    BigPositiveInt,
+    BigNegativeInt,
+    BigInt64,
+    BigUInt64,
+} from '@ts-runtypes/core/formats';
 
-// Import default bigint format modules to register formatters
-import './src/bigint/defaultBigNumberFormats.ts';
+export type {BigIntParams} from '@ts-runtypes/core/formats';
 
-// ############### Main BigIntFormat Export ###############
+/** BigInt format with optional branding. Unbranded by default. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatBigInt<P extends BigIntParams = {}, BrandName extends string = never> = RtBigInt<P, BrandName>;
 
-// TEMPORARY WORKAROUND: Using export * instead of named exports due to metadata compilation issue
-// See: https://github.com/deepkit/deepkit-framework/issues/634
-// TODO: Revert to named exports once the issue is fixed
+// ############### Default bigint formats ###############
 
-// Re-export everything from bigint format modules
-export * from './src/bigint/bigIntFormat.runtype.ts';
-export * from './src/bigint/defaultBigNumberFormats.ts';
-
-// COMMENTED OUT - Original named exports (to be restored after issue is fixed):
-// // Re-export the main BigIntFormat type
-// export {FormatBigInt as FormatBigInt} from './bigint/bigIntFormat.runtype';
-//
-// // ############### Default BigInt Formats ###############
-//
-// export {FormatBigPositive} from './bigint/defaultBigNumberFormats';
-// export {FormatBigNegative} from './bigint/defaultBigNumberFormats';
-// export {FormatBigPositiveInt} from './bigint/defaultBigNumberFormats';
-// export {FormatBigNegativeInt} from './bigint/defaultBigNumberFormats';
-// export {FormatBigInt64} from './bigint/defaultBigNumberFormats';
+export type FormatBigPositive = BigPositive;
+export type FormatBigNegative = BigNegative;
+export type FormatBigPositiveInt = BigPositiveInt;
+export type FormatBigNegativeInt = BigNegativeInt;
+export type FormatBigInt64 = BigInt64;
+export type FormatBigUInt64 = BigUInt64;

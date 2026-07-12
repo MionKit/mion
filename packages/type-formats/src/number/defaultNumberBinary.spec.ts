@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {it, expect} from 'vitest';
-import {JitFunctions, type RunType, runType} from '@mionjs/run-types';
+import {createBinaryEncoder, createBinaryDecoder} from '@mionjs/run-types';
 import {
     FormatInteger,
     FormatFloat,
@@ -19,137 +19,107 @@ import {
     FormatUInt8,
     FormatUInt16,
     FormatUInt32,
-} from './defaultNumberFormats.ts';
-import {
-    createDataViewDeserializer,
-    createDataViewSerializer,
-    DataViewDeserializer,
-    DataViewSerializer,
-    setSerializationOptions,
-    StrictArrayBuffer,
-} from '@mionjs/core';
+} from '../../NumberFormats.ts';
 
-setSerializationOptions({bufferSize: 1024});
-const SERIALIZE_FN = JitFunctions.toBinary;
-const DESERIALIZE_FN = JitFunctions.fromBinary;
-const serContext: DataViewSerializer = createDataViewSerializer('test');
-const desContext: DataViewDeserializer = createDataViewDeserializer('test', new ArrayBuffer(1024));
-
-function createSerializationFns(rt: RunType) {
-    const toBinary = rt.createJitFunction(SERIALIZE_FN);
-    const fromBinary = rt.createJitFunction(DESERIALIZE_FN);
-    const serialize = (v: any) => (toBinary(v, serContext), serContext.getBuffer());
-    const deserialize = (data: StrictArrayBuffer) => (desContext.setBuffer(data), fromBinary(undefined, desContext));
-    return {serialize, deserialize};
-}
+// ts-runtypes migration: the old runType<T>() + createJitFunction(toBinary/fromBinary) +
+// DataViewSerializer plumbing is replaced by createBinaryEncoder<T>() / createBinaryDecoder<T>()
+// (the encoder sizes its own buffer and returns a Uint8Array view of the exact written bytes).
 
 it('FormatInteger uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatInteger>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatInteger>();
+    const fromBinary = createBinaryDecoder<FormatInteger>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatFloat uses 8 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatFloat>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10.5);
+    const toBinary = createBinaryEncoder<FormatFloat>();
+    const fromBinary = createBinaryDecoder<FormatFloat>();
+    const buffer = toBinary(10.5);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(10.5);
+    expect(fromBinary(buffer)).toBe(10.5);
 });
 
 it('FormatPositive uses 8 bytes as we do not know if it could be integer or float', async () => {
-    serContext.reset();
-    const rt = runType<FormatPositive>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10.5);
+    const toBinary = createBinaryEncoder<FormatPositive>();
+    const fromBinary = createBinaryDecoder<FormatPositive>();
+    const buffer = toBinary(10.5);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(10.5);
+    expect(fromBinary(buffer)).toBe(10.5);
 });
 
 it('FormatNegative uses 8 bytes as we do not know if it could be integer or float', async () => {
-    serContext.reset();
-    const rt = runType<FormatNegative>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(-10.5);
+    const toBinary = createBinaryEncoder<FormatNegative>();
+    const fromBinary = createBinaryDecoder<FormatNegative>();
+    const buffer = toBinary(-10.5);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(-10.5);
+    expect(fromBinary(buffer)).toBe(-10.5);
 });
 
 it('FormatPositiveInt uses 8 bytes as MAX_SAFE_INTEGER does not fit in 4 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatPositiveInt>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(Number.MAX_SAFE_INTEGER);
+    const toBinary = createBinaryEncoder<FormatPositiveInt>();
+    const fromBinary = createBinaryDecoder<FormatPositiveInt>();
+    const buffer = toBinary(Number.MAX_SAFE_INTEGER);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(fromBinary(buffer)).toBe(Number.MAX_SAFE_INTEGER);
 });
 
 it('FormatNegativeInt uses 8 bytes as MIN_SAFE_INTEGER does not fit in 4 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatNegativeInt>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(Number.MIN_SAFE_INTEGER);
+    const toBinary = createBinaryEncoder<FormatNegativeInt>();
+    const fromBinary = createBinaryDecoder<FormatNegativeInt>();
+    const buffer = toBinary(Number.MIN_SAFE_INTEGER);
     expect(buffer.byteLength).toBe(8);
-    expect(deserialize(buffer)).toBe(Number.MIN_SAFE_INTEGER);
+    expect(fromBinary(buffer)).toBe(Number.MIN_SAFE_INTEGER);
 });
 
 // SERIALIZAION/DESERIALIZATION DOES NOT CHECK CORRECTNESS OF THE VALUE, that should be checked before serialization/deserialization
 // so passing wrong number here could send incorrect values
 
 it('FormatInt8 uses 1 byte', async () => {
-    serContext.reset();
-    const rt = runType<FormatInt8>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatInt8>();
+    const fromBinary = createBinaryDecoder<FormatInt8>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(1);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatInt16 uses 2 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatInt16>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatInt16>();
+    const fromBinary = createBinaryDecoder<FormatInt16>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(2);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatInt32 uses 4 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatInt32>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatInt32>();
+    const fromBinary = createBinaryDecoder<FormatInt32>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(4);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatUInt8 uses 1 byte', async () => {
-    serContext.reset();
-    const rt = runType<FormatUInt8>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatUInt8>();
+    const fromBinary = createBinaryDecoder<FormatUInt8>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(1);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatUInt16 uses 2 bytes', async () => {
-    serContext.reset();
-    const rt = runType<FormatUInt16>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatUInt16>();
+    const fromBinary = createBinaryDecoder<FormatUInt16>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(2);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });
 
 it('FormatUInt32 correct length and roundtrip', async () => {
-    serContext.reset();
-    const rt = runType<FormatUInt32>();
-    const {serialize, deserialize} = createSerializationFns(rt);
-    const buffer = serialize(10);
+    const toBinary = createBinaryEncoder<FormatUInt32>();
+    const fromBinary = createBinaryDecoder<FormatUInt32>();
+    const buffer = toBinary(10);
     expect(buffer.byteLength).toBe(4);
-    expect(deserialize(buffer)).toBe(10);
+    expect(fromBinary(buffer)).toBe(10);
 });

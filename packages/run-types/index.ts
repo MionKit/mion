@@ -16,6 +16,11 @@
 
 export * from '@ts-runtypes/core';
 
+// side effect: registers every ts-runtypes format (patterns, pure fns, mocking fns).
+// Type-only imports of format aliases get erased by the transpiler, so registration
+// must ride a module that is always value-imported — this one is.
+import '@ts-runtypes/core/formats';
+
 // mion-specific adapter: turns injected marker payloads into the
 // JitCompiledFunctions / reflection shapes the router consumes.
 export * from './src/mionAdapter.ts';

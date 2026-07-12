@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PURE_SERVER_FN_NAMESPACE, RpcError} from '@mionjs/core';
+import {RpcError} from '@mionjs/core';
+import {MION_PURE_FN_NAMESPACE} from '@mionjs/run-types';
 import type {MiddlewareSubRequest, RouteSubRequest, RoutesFlowBuilder, SubRequest} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
 import {MapFromServerFnRef} from '@mionjs/core';
@@ -59,32 +60,24 @@ export function routesFlow<Routes extends RouteSubRequest<any>[]>(routeSubReques
 
 const mapFromSymbol = Symbol('MapFromServerFnRef');
 
-// ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  WARNING: This function's call signature is parsed by the mion vite plugin  ║
-// ║  at build time (see devtools/src/vite-plugin/extractPureFn.ts).             ║
-// ║  Do NOT rename, change the parameter order, or modify the function          ║
-// ║  signature without updating the corresponding AST extraction and            ║
-// ║  transformer logic in @mionjs/devtools.                                    ║
-// ╚══════════════════════════════════════════════════════════════════════════════╝
 /**
  * Maps the output of one route SubRequest to the input of another within a routesFlow.
- * The mapper function must be pure (same rules as pureServerFn).
- * The bodyHash is injected at build time by the mion vite plugin.
+ *
+ * ts-runtypes migration: the mapper is referenced BY NAME — it must be registered on the
+ * SERVER with registerMionPureFn(fnName, factory) (ts-runtypes registry, 'mionjs'
+ * namespace). The old implicit build-time body extraction is gone: mappers are shared,
+ * explicitly registered server code, and the wire only carries the name.
  */
-
-export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput>(
+export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput = any>(
     source: FromSR,
-    mapper: (value: FromSR['resolvedValue']) => MappedInput,
-    bodyHash?: string // injected by mion vite plugin
+    fnName: string
 ): MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> {
-    // Important: bodyHash is injected at build time by mion vite plugin
-    if (!bodyHash) throw new Error('serverMapFrom() requires mion vite plugin transform to inject bodyHash');
-    const ref: MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput> = {
+    if (!fnName) throw new Error('serverMapFrom() requires the name of a server-registered mion pure fn');
+    const ref = {
         mapFromSymbol,
-        namespace: PURE_SERVER_FN_NAMESPACE,
-        fnName: bodyHash,
-        bodyHash,
-        pureFn: mapper,
+        namespace: MION_PURE_FN_NAMESPACE,
+        fnName,
+        bodyHash: fnName,
         isFactory: false,
         fromRequestId: source.id,
         toRequestId: '',
@@ -92,7 +85,7 @@ export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput>(
         asArg() {
             return ref as unknown as MappedInput;
         },
-    };
+    } as unknown as MapFromServerFnRef<(value: FromSR['resolvedValue']) => MappedInput>;
     return ref;
 }
 

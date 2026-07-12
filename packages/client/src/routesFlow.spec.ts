@@ -9,7 +9,8 @@ import {describe, it, expect} from 'vitest';
 import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
-import {HeadersSubset, PURE_SERVER_FN_NAMESPACE} from '@mionjs/core';
+import {HeadersSubset} from '@mionjs/core';
+import {MION_PURE_FN_NAMESPACE} from '@mionjs/run-types';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
@@ -282,41 +283,34 @@ describe('serverMapFrom()', () => {
     const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
     it('should return a MapFromServerFnRef with correct properties', () => {
-        const mapper = (x: number) => x * 2;
-        const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
-        expect(ref.namespace).toBe(PURE_SERVER_FN_NAMESPACE);
-        expect(ref.fnName).toBe('testHash123456');
-        expect(ref.bodyHash).toBe('testHash123456');
-        expect(ref.pureFn).toBe(mapper);
+        // ts-runtypes migration: mappers are referenced by the NAME of a server-registered
+        // mion pure fn (registerMionPureFn); the wire mapping still travels in bodyHash.
+        const ref = rawMapFrom(fakeSubRequest, 'toPreferenceId');
+        expect(ref.namespace).toBe(MION_PURE_FN_NAMESPACE);
+        expect(ref.fnName).toBe('toPreferenceId');
+        expect(ref.bodyHash).toBe('toPreferenceId');
         expect(ref.isFactory).toBe(false);
         expect(ref.fromRequestId).toBe('test');
         expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
     });
 
-    it('should use bodyHash as fnName', () => {
-        const ref = rawMapFrom(fakeSubRequest, (x: number) => x.toString(), 'abcdef12345678');
-        expect(ref.fnName).toBe('abcdef12345678');
-        expect(ref.bodyHash).toBe('abcdef12345678');
+    it('should use the fn name as bodyHash (wire mapping id)', () => {
+        const ref = rawMapFrom(fakeSubRequest, 'someMapper');
+        expect(ref.fnName).toBe('someMapper');
+        expect(ref.bodyHash).toBe('someMapper');
     });
 
-    it('should throw when bodyHash is not provided', () => {
-        expect(() => rawMapFrom(fakeSubRequest, (x: number) => x * 2)).toThrow(
-            'serverMapFrom() requires mion vite plugin transform to inject bodyHash'
+    it('should throw when the fn name is not provided', () => {
+        expect(() => rawMapFrom(fakeSubRequest, '')).toThrow(
+            'serverMapFrom() requires the name of a server-registered mion pure fn'
         );
     });
 
     it('fake() should return the ref itself', () => {
-        const ref = rawMapFrom(fakeSubRequest, (x: number) => x * 2, 'testHash123456');
+        const ref = rawMapFrom(fakeSubRequest, 'someMapper');
         const fakeResult = ref.asArg();
         // fake() returns the ref cast as ReturnType<F>
         expect(fakeResult).toBe(ref);
-    });
-
-    it('should preserve the mapper function as pureFn', () => {
-        const mapper = (user: {name: string}) => user.name.toUpperCase();
-        const ref = rawMapFrom(fakeSubRequest, mapper, 'testHash123456');
-        expect(ref.pureFn).toBe(mapper);
-        expect(ref.pureFn({name: 'alice'})).toBe('ALICE');
     });
 });
 
@@ -331,7 +325,7 @@ describe('serverMapFrom e2e in routesFlow', () => {
         const customer = routes.getCustomerById(42);
         const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
             customer,
-            routes.getPreferencesById(serverMapFrom(customer, (c) => c!.preferenceId).asArg()),
+            routes.getPreferencesById(serverMapFrom<typeof customer, number>(customer, 'toPreferenceId').asArg()),
         ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
         expect(customerError).toBeUndefined();

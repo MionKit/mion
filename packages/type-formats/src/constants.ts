@@ -1,33 +1,26 @@
-import {BigIntRunTypeFormat} from '../BigintFormats.ts';
-import {NumberRunTypeFormat} from '../NumberFormats.ts';
-import {
-    DateStringRunTypeFormat,
-    DateTimeRunTypeFormat,
-    DomainRunTypeFormat,
-    EmailRunTypeFormat,
-    IPRunTypeFormat,
-    StringRunTypeFormat,
-    TimeStringRunTypeFormat,
-    URLRunTypeFormat,
-    UUIDRunTypeFormat,
-} from '../StringFormats.ts';
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
 
-/** Format name constants for type formats - values imported from RunTypeFormat classes */
+/** Format name constants — the ts-runtypes format ids (TypeFormat 2nd type argument). */
 export const FormatNames = {
     // String formats
-    stringFormat: StringRunTypeFormat.id,
-    uuid: UUIDRunTypeFormat.id,
-    email: EmailRunTypeFormat.id,
-    url: URLRunTypeFormat.id,
-    domain: DomainRunTypeFormat.id,
-    ip: IPRunTypeFormat.id,
-    date: DateStringRunTypeFormat.id,
-    time: TimeStringRunTypeFormat.id,
-    dateTime: DateTimeRunTypeFormat.id,
+    stringFormat: 'stringFormat',
+    uuid: 'uuid',
+    email: 'email',
+    url: 'url',
+    domain: 'domain',
+    ip: 'ip',
+    date: 'date',
+    time: 'time',
+    dateTime: 'dateTime',
     // Number formats
-    numberFormat: NumberRunTypeFormat.id,
+    numberFormat: 'numberFormat',
     // BigInt formats
-    bigintFormat: BigIntRunTypeFormat.id,
+    bigintFormat: 'bigintFormat',
 } as const;
 
 export type FormatName = (typeof FormatNames)[keyof typeof FormatNames];
