@@ -50,3 +50,25 @@ in the renamed `packages/ts-runtypes/test/third_party/` folder). Consequence for
 `registerPureFnFactory('mionjs::x', …)` imported from `@mionjs/run-types` — renamed or
 wrapped — gets full extraction. `registerMionPureFn('x', …)` stays runtime-lane by
 construction (it computes the id, so no call-site literal exists to extract).
+
+## 2026-07-12 addenda (session 2 verdict changes)
+
+- **core/binary/dataView — now PROXY** over @ts-runtypes/core's DataView serializer (the
+  emitted tb/fb code targets ITS varint wire protocol + method surface: serLength, serByte,
+  Temporal). mion creation signatures kept; `@mionjs/core` gained the `@ts-runtypes/core`
+  dependency (external — no workspace cycle). The in-house seqproto implementation is gone.
+- **core jitUtils — pluggable backend** (`installJitLookupBackend`): @mionjs/run-types
+  installs a resolver over the ts-runtypes fn cache; getJIT/getJitFn/getPureFn/
+  getCompiledPureFn are LIVE again (no longer inert), keyed by the pinned per-family
+  prefixes in `JIT_FUNCTION_IDS` (verified by the adapter spec).
+- **client metadata restore — LIVE**: `addSerializedJitCaches`/`resetJitFnCaches`
+  reimplemented in @mionjs/run-types over `getRTUtils().addToRTCache` (fns lazily
+  materialize from code strings upstream).
+- **@mionjs/type-formats — now PROXY** over `@ts-runtypes/core/formats` (type aliases with
+  the historical Format* names + the side-effect registration ride
+  `@mionjs/run-types`' index import).
+- **serverMapFrom — name-referenced**: mappers are server-registered mion pure fns
+  (`registerMionPureFn`); the implicit build-time body extraction is not coming back.
+- **Follow-up (docs scope, not tests)**: packages/examples still contains deepkit/AOT-era
+  example sources (src/codegen/aot-*, introduction/pure-functions-examples, old vite
+  configs) — rewrite together with the website refresh.
