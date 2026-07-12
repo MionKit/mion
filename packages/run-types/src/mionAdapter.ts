@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
+import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
 import type {
     GetValidationErrorsFn,
     InjectRunTypeId,
@@ -16,7 +16,14 @@ import type {
     ValidateFn,
 } from '@ts-runtypes/core';
 import {getJitFnHashes, installJitLookupBackend} from '@mionjs/core';
-import type {AnyFn, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from '@mionjs/core';
+import type {
+    AnyFn,
+    JitCompiledFn,
+    JitCompiledFnData,
+    JitCompiledFunctions,
+    JitFunctionsHashes,
+    PureFnsDataCache,
+} from '@mionjs/core';
 
 // ############# mion <-> ts-runtypes adapter #############
 // mion's route()/middleFn() factories declare trailing ts-runtypes injection markers;
@@ -144,6 +151,55 @@ installJitLookupBackend({
         return getRTUtils().getCompiledPureFn(`${namespace}::${name}` as never) as never;
     },
 });
+
+// ############# serialized cache restore (client metadata lane) #############
+
+/**
+ * Registers serialized fn caches + pure fns (from server methods-metadata payloads) into
+ * the ts-runtypes runtime cache. Fns materialize lazily from their code strings on first
+ * lookup; entries already present (e.g. build-injected) are never overwritten.
+ */
+export function addSerializedJitCaches(deps: Record<string, JitCompiledFnData>, pureFnDeps: PureFnsDataCache): void {
+    const utl = getRTUtils();
+    for (const [rtFnHash, data] of Object.entries(deps)) {
+        if (utl.hasRTFn(rtFnHash)) continue;
+        utl.addToRTCache({
+            typeName: data.typeName,
+            familyTag: data.fnID,
+            rtFnHash,
+            args: data.args,
+            defaultParamValues: data.defaultParamValues,
+            isNoop: data.isNoop,
+            code: data.code,
+            rtDependencies: data.jitDependencies,
+            pureFnDependencies: data.pureFnDependencies,
+            ...(data.paramNames ? {paramNames: [...data.paramNames]} : {}),
+        } as never);
+    }
+    for (const [namespace, fns] of Object.entries(pureFnDeps)) {
+        for (const [fnName, pureFnData] of Object.entries(fns)) {
+            const key = `${namespace}::${fnName}`;
+            if (utl.hasPureFn(key as never)) continue;
+            utl.addPureFn(key, {
+                ...pureFnData,
+                createPureFn: (rtu: unknown) => new Function('utl', `'use strict'; ${pureFnData.code}`)(rtu),
+            } as never);
+        }
+    }
+}
+
+/**
+ * Clears every compiled fn from the ts-runtypes cache. Tests only (simulates a fresh
+ * client): build-injected entries re-register from their tuples on next use; runtime
+ * pure-fn/format registrations are left in place.
+ */
+export function resetJitFnCaches(): void {
+    const utl = getRTUtils();
+    const cache = getRTFnCaches().rtFnsCache as Record<string, {rtFnHash: string} | undefined>;
+    for (const entry of Object.values(cache)) {
+        if (entry) utl.removeFromRTCache(entry as never);
+    }
+}
 
 /** True when the injected value looks like the multi-key marker payload (array of entry tuples). */
 function isInjectedFnsArray(injected: unknown): injected is unknown[] {

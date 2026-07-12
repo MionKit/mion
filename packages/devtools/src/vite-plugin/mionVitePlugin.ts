@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {spawn, type ChildProcess} from 'node:child_process';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
 
@@ -43,6 +44,21 @@ export interface MionRunTypesOptions {
     reflectionMode?: unknown;
 }
 
+/** Managed mion server process (client test/e2e builds): spawned via vite-node so the
+ *  server code gets its own vite pipeline (marker injection under its own tsconfig). */
+export interface MionServerOptions {
+    /** Absolute path to the server entry script. */
+    startScript: string;
+    /** Vite config used to transform the server (defaults to vite-node's lookup from cwd). */
+    viteConfig?: string;
+    /** Only 'childProcess' is supported since the ts-runtypes migration (server keeps running). */
+    runMode?: 'childProcess' | 'middleware' | 'buildOnly';
+    /** Max ms to wait for the server port to accept connections (default 30000). */
+    waitTimeout?: number;
+    /** Extra env vars for the server process (e.g. MION_TEST_PORT). */
+    env?: Record<string, string>;
+}
+
 /** Options for the unified mion vite plugin (legacy sections accepted and ignored). */
 export interface MionPluginOptions {
     /** ts-runtypes type transformation options. */
@@ -51,8 +67,8 @@ export interface MionPluginOptions {
     serverPureFunctions?: unknown;
     /** LEGACY AOT cache generation — obsolete, ts-runtypes output IS the AOT artifact. Ignored. */
     aotCaches?: unknown;
-    /** LEGACY mion server process orchestration (client e2e builds). Ignored (pending migration). */
-    server?: unknown;
+    /** Managed mion server process for client tests/e2e (spawned with vite-node, awaited via serverReady). */
+    server?: MionServerOptions;
 }
 
 let legacyOptionsNoticeShown = false;
@@ -89,16 +105,16 @@ export function resolveRtBinary(explicit?: string): string | undefined {
  */
 export function mionVitePlugin(options: MionPluginOptions = {}) {
     const rt = options.runTypes ?? {};
-    if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || options.server || rt.compilerOptions)) {
+    if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions)) {
         legacyOptionsNoticeShown = true;
         console.warn(
-            '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/server/runTypes.compilerOptions) ' +
+            '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) ' +
                 'are ignored since the ts-runtypes migration. See migration-docs/ at the repo root.'
         );
     }
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
-    return tsRuntypes({
+    const plugins = tsRuntypes({
         binary: resolveRtBinary(rt.binary),
         tsconfig: rt.tsConfig,
         outDir: rt.outDir,
@@ -107,8 +123,76 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
         inlineMode: rt.inlineMode,
         transformMode: rt.transformMode,
     });
+    if (!options.server) return plugins;
+    const server = options.server;
+    // Server startup is deferred to buildStart so only the project actually RUNNING
+    // spawns it (in vitest workspace mode every project config gets evaluated).
+    const orchestrator = {
+        name: 'mion-server-orchestrator',
+        buildStart() {
+            startManagedServer(server);
+        },
+    };
+    return [orchestrator, plugins];
 }
 
-/** LEGACY compat: resolves immediately. The old plugin resolved this once the managed mion
- *  server process was ready; server orchestration is pending migration. */
-export const serverReady: Promise<void> = Promise.resolve();
+// ############# managed server process #############
+
+let serverReadyResolve: (() => void) | undefined;
+let serverReadyReject: ((err: Error) => void) | undefined;
+let serverStarted = false;
+let serverChild: ChildProcess | undefined;
+
+/** Resolves once the managed mion server (options.server) accepts connections.
+ *  Only ever resolves in processes whose running project configured `server` —
+ *  await it from that project's globalSetup (the old plugin's contract). */
+export const serverReady: Promise<void> = new Promise((resolve, reject) => {
+    serverReadyResolve = resolve;
+    serverReadyReject = reject;
+});
+
+/** Spawns the server entry through vite-node (its own vite config → its own marker injection). */
+function startManagedServer(server: MionServerOptions): void {
+    if (serverStarted) return;
+    serverStarted = true;
+    const port = parseInt(server.env?.MION_TEST_PORT ?? process.env.MION_TEST_PORT ?? '8076', 10);
+    const waitTimeout = server.waitTimeout ?? 30000;
+    const args = ['exec', 'vite-node'];
+    if (server.viteConfig) args.push('--config', server.viteConfig);
+    args.push(server.startScript);
+    const child = spawn('pnpm', args, {
+        cwd: server.viteConfig ? path.dirname(server.viteConfig) : path.dirname(server.startScript),
+        env: {...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: 'true'},
+        stdio: ['ignore', 'inherit', 'inherit'],
+    });
+    serverChild = child;
+    const killChild = () => {
+        if (serverChild && !serverChild.killed) serverChild.kill('SIGTERM');
+    };
+    process.once('exit', killChild);
+    child.once('exit', (code) => {
+        serverChild = undefined;
+        if (code && code !== 0) serverReadyReject?.(new Error(`[mionVitePlugin] managed server exited with code ${code}`));
+    });
+    void waitForPort(port, waitTimeout).then(
+        () => serverReadyResolve?.(),
+        (err) => {
+            killChild();
+            serverReadyReject?.(err);
+        }
+    );
+}
+
+/** Polls the port until something accepts a TCP connection (any HTTP response counts). */
+async function waitForPort(port: number, timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            await fetch(`http://127.0.0.1:${port}/`, {method: 'GET'});
+            return; // any response means the server is listening
+        } catch {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+    }
+    throw new Error(`[mionVitePlugin] managed server did not accept connections on port ${port} within ${timeoutMs}ms`);
+}

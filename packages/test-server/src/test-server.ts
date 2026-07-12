@@ -14,7 +14,10 @@ import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/Stri
 import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
 // Server pure functions live in the ts-runtypes registry under the 'mionjs' namespace.
 // For the e2e scenario they are defined in packages/client/src/vitePlugin.e2e.spec.ts.
-import {getMionPureFn} from '@mionjs/run-types';
+import {getMionPureFn, registerMionPureFn} from '@mionjs/run-types';
+
+// routesFlow mapping fns must be registered server-side by name (serverMapFrom references them)
+registerMionPureFn('toPreferenceId', () => (customer: {preferenceId: number}) => customer.preferenceId);
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};

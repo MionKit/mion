@@ -5,35 +5,47 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// ############### Import modules to execute side effects (registerFormatter calls) ###############
+// ts-runtypes migration: proxy over @ts-runtypes/core/formats (see StringFormats.ts).
 
-// Import main number format module to register the formatter
-import './src/number/numberFormat.runtype.ts';
+import '@ts-runtypes/core/formats';
+import type {
+    Number as RtNumber,
+    NumberParams,
+    Currency,
+    Integer,
+    Float,
+    Positive,
+    Negative,
+    PositiveInt,
+    NegativeInt,
+    Int8,
+    Int16,
+    Int32,
+    UInt8,
+    UInt16,
+    UInt32,
+} from '@ts-runtypes/core/formats';
 
-// Import default number format modules to register formatters
-import './src/number/defaultNumberFormats.ts';
+export type {NumberParams, Currency} from '@ts-runtypes/core/formats';
 
-// ############### Main NumberFormat Export ###############
+/** Number format with optional branding. Unbranded by default. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatNumber<P extends NumberParams = {}, BrandName extends string = never> = RtNumber<P, BrandName>;
 
-// TEMPORARY WORKAROUND: Using export * instead of named exports due to metadata compilation issue
-// See: https://github.com/deepkit/deepkit-framework/issues/634
-// TODO: Revert to named exports once the issue is fixed
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatCurrency<P extends NumberParams = {}, BrandName extends string = never> = Currency<P, BrandName>;
 
-// Re-export everything from number format modules
-export * from './src/number/numberFormat.runtype.ts';
-export * from './src/number/defaultNumberFormats.ts';
+// ############### Default number formats ###############
 
-// COMMENTED OUT - Original named exports (to be restored after issue is fixed):
-// // Re-export the main NumberFormat type
-// export {FormatNumber} from './number/numberFormat.runtype';
-//
-// // ############### Default Number Formats ###############
-//
-// export {FormatInteger} from './number/defaultNumberFormats';
-// export {FormatFloat} from './number/defaultNumberFormats';
-// export {FormatPositive} from './number/defaultNumberFormats';
-// export {FormatNegative} from './number/defaultNumberFormats';
-// export {FormatPositiveInt} from './number/defaultNumberFormats';
-// export {FormatNegativeInt} from './number/defaultNumberFormats';
-// export {FormatInt32} from './number/defaultNumberFormats';
-// export {FormatUInt32 as NumUint32} from './number/defaultNumberFormats';
+export type FormatInteger = Integer;
+export type FormatFloat = Float;
+export type FormatPositive = Positive;
+export type FormatNegative = Negative;
+export type FormatPositiveInt = PositiveInt;
+export type FormatNegativeInt = NegativeInt;
+export type FormatInt8 = Int8;
+export type FormatInt16 = Int16;
+export type FormatInt32 = Int32;
+export type FormatUInt8 = UInt8;
+export type FormatUInt16 = UInt16;
+export type FormatUInt32 = UInt32;

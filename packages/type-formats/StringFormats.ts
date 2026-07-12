@@ -5,89 +5,116 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// ############### Import modules to execute side effects (registerFormatter calls) ###############
+// ts-runtypes migration: @mionjs/type-formats is now a thin proxy over
+// @ts-runtypes/core/formats (the published successor of this package's old
+// deepkit-era format compilers). The side-effect import registers every format
+// pattern, pure fn and mocking fn; the aliases keep mion's historical names.
 
-// TEMPORARY WORKAROUND: Using export * instead of named exports due to metadata compilation issue
-// See: https://github.com/deepkit/deepkit-framework/issues/634
-// TODO: Revert to named exports once the issue is fixed
+import '@ts-runtypes/core/formats';
+import type {
+    String as RtString,
+    StringParams,
+    Alpha,
+    AlphaNumeric,
+    Numeric,
+    Lowercase as RtLowercase,
+    Uppercase as RtUppercase,
+    Capitalize as RtCapitalize,
+    UUIDv4,
+    UUIDv7,
+    IP,
+    IPv4,
+    IPv6,
+    IPWithPort,
+    IPv4WithPort,
+    IPv6WithPort,
+    Domain,
+    DomainUnicode,
+    DomainPunycode,
+    DomainStrict,
+    Email,
+    EmailPunycode,
+    EmailStrict,
+    Url,
+    UrlHttp,
+    UrlFile,
+    StringDate,
+    StringTime,
+    StringDateTime,
+    DateParams,
+    TimeParams,
+    DateTimeParams,
+    DEFAULT_DATE_PARAMS,
+    DEFAULT_TIME_FORMAT_PARAMS,
+    DEFAULT_DATE_TIME_PARAMS,
+} from '@ts-runtypes/core/formats';
 
-// Import pure functions module to register all pure functions
-import './src/type-formats-pure-fns.ts';
+// re-export the underlying param/pattern types so consumers can type params
+export type {
+    StringParams,
+    PatternParam,
+    Samples,
+    AllowedCharsParam,
+    DisallowedCharsParam,
+    AllowedValuesParam,
+    DisallowedValuesParam,
+    DateParams,
+    TimeParams,
+    DateTimeParams,
+    DateFmt,
+    TimeFmt,
+} from '@ts-runtypes/core/formats';
 
-// Import date/time format modules to register formatters
-import './src/string/date.runtype.ts';
-import './src/string/dateTime.runtype.ts';
-import './src/string/time.runtype.ts';
+// ############### Main StringFormat ###############
 
-// Import network/web format modules to register formatters
-import './src/string/email.runtype.ts';
-import './src/string/domain.runtype.ts';
-import './src/string/url.runtype.ts';
-import './src/string/ip.runtype.ts';
+/** String format with optional branding. Unbranded by default. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatString<P extends StringParams = {}, BrandName extends string = never> = RtString<P, BrandName>;
 
-// Import identifier format modules to register formatters
-import './src/string/uuid.runtype.ts';
+// ############### Default string formats ###############
 
-// Import default string format modules to register formatters
-import './src/string/defaultStringFormats.runtype.ts';
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatAlpha<P extends StringParams = {}> = Alpha<P>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatAlphaNumeric<P extends StringParams = {}> = AlphaNumeric<P>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatNumeric<P extends StringParams = {}> = Numeric<P>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatLowercase<P extends StringParams = {}> = RtLowercase<P>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatUppercase<P extends StringParams = {}> = RtUppercase<P>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type FormatCapitalize<P extends StringParams = {}> = RtCapitalize<P>;
 
-// Re-export everything from string format modules
-export * from './src/string/stringFormat.runtype.ts';
-export * from './src/string/date.runtype.ts';
-export * from './src/string/dateTime.runtype.ts';
-export * from './src/string/time.runtype.ts';
-export * from './src/string/email.runtype.ts';
-export * from './src/string/domain.runtype.ts';
-export * from './src/string/url.runtype.ts';
-export * from './src/string/ip.runtype.ts';
-export * from './src/string/uuid.runtype.ts';
-export * from './src/string/defaultStringFormats.runtype.ts';
+// ############### Date/Time formats ###############
 
-// Re-export pure functions for easy access
-export * from './src/type-formats-pure-fns.ts';
+export type FormatStringDate<P extends Partial<DateParams> = DEFAULT_DATE_PARAMS> = StringDate<P>;
+export type FormatStringTime<P extends Partial<TimeParams> = DEFAULT_TIME_FORMAT_PARAMS> = StringTime<P>;
+export type FormatStringDateTime<P extends Partial<DateTimeParams> = DEFAULT_DATE_TIME_PARAMS> = StringDateTime<P>;
 
-// COMMENTED OUT - Original named exports (to be restored after issue is fixed):
-// // ############### Main StringFormat Export ###############
-// export {FormatString};
-//
-// // ############### Date/Time Formats ###############
-//
-// export {FormatStringDate} from './string/date.runtype';
-// export {FormatStringDateTime} from './string/dateTime.runtype';
-// export {FormatStringTime} from './string/time.runtype';
-//
-// // ############### Network/Web Formats ###############
-//
-// export {FormatEmail} from './string/email.runtype';
-// export {FormatEmailStrict} from './string/email.runtype';
-// export {FormatEmailPattern} from './string/email.runtype';
-// export {FormatEmailPunycode} from './string/email.runtype';
-//
-// export {FormatDomain} from './string/domain.runtype';
-// export {FormatDomainStrict} from './string/domain.runtype';
-//
-// export {FormatUrl} from './string/url.runtype';
-// export {FormatUrlHttp} from './string/url.runtype';
-// export {FormatUrlFile} from './string/url.runtype';
-// export {FormatUrlSocialMedia} from './string/url.runtype';
-//
-// export {FormatIP} from './string/ip.runtype';
-// export {FormatIPv4} from './string/ip.runtype';
-// export {FormatIPv6} from './string/ip.runtype';
-// export {FormatIPWithPort} from './string/ip.runtype';
-// export {FormatIPv4WithPort} from './string/ip.runtype';
-// export {FormatIPv6WithPort} from './string/ip.runtype';
-//
-// // ############### Identifier Formats ###############
-//
-// export {FormatUUIDv4} from './string/uuid.runtype';
-// export {FormatUUIDv7} from './string/uuid.runtype';
-//
-// // ############### Default String Formats ###############
-//
-// export {FormatAlphaNumeric} from './string/defaultStringFormats.runtype';
-// export {FormatAlpha} from './string/defaultStringFormats.runtype';
-// export {FormatNumeric} from './string/defaultStringFormats.runtype';
-// export {FormatLowercase} from './string/defaultStringFormats.runtype';
-// export {FormatUppercase} from './string/defaultStringFormats.runtype';
-// export {FormatCapitalize} from './string/defaultStringFormats.runtype';
+// ############### Network/Web formats ###############
+
+export type FormatEmail = Email;
+export type FormatEmailStrict = EmailStrict;
+export type FormatEmailPunycode = EmailPunycode;
+
+export type FormatDomain = Domain;
+export type FormatDomainUnicode = DomainUnicode;
+export type FormatDomainPunycode = DomainPunycode;
+export type FormatDomainStrict = DomainStrict;
+
+export type FormatUrl = Url;
+export type FormatUrlHttp = UrlHttp;
+export type FormatUrlFile = UrlFile;
+
+export type FormatIP = IP;
+export type FormatIPv4 = IPv4;
+export type FormatIPv6 = IPv6;
+export type FormatIPWithPort = IPWithPort;
+export type FormatIPv4WithPort = IPv4WithPort;
+export type FormatIPv6WithPort = IPv6WithPort;
+
+// ############### Identifier formats ###############
+
+export type FormatUUIDv4 = UUIDv4;
+export type FormatUUIDv7 = UUIDv7;
