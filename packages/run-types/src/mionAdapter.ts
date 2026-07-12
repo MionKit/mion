@@ -27,7 +27,7 @@ import type {AnyFn, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} fro
 /** fn keys requested per marker side, IN ORDER. Keep in sync with the markers declared in router lib/handlers.ts.
  *  ⚠️ The markers in factory signatures MUST be spelled as InjectTypeFnArgs<T, 'val', 'verr', 'pj', 'rj', 'sj'> —
  *  a local type alias over the marker is NOT recognized by the ts-runtypes scanner (verified 2026-07-11). */
-export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj'] as const;
+export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'] as const;
 
 /** Injected marker payloads stashed on a route/middleFn definition by the factory helpers. */
 export interface RtMarkerPayload {
@@ -50,7 +50,9 @@ export interface RtMethodReflection {
 
 const identity = (value: unknown) => value;
 const alwaysTrue = (() => true) as unknown as ValidateFn;
+const alwaysFalse = () => false;
 const noErrors: GetValidationErrorsFn = () => [];
+const noUnknownKeyErrors = () => [];
 const nativeStringify: StringifyJsonFn = (value: unknown) => JSON.stringify(value);
 
 /** ts-runtypes fn-cache entry shape consumed by the adapter (subset of CompiledTypeFn). */
@@ -151,12 +153,14 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
             `mion run-types: no compiled type functions injected for '${label}'. ` +
                 `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
         );
-    const [valT, verrT, pjT, rjT, sjT] = injected;
+    const [valT, verrT, pjT, rjT, sjT, hukT, ukeT] = injected;
     const isType = getRTFunction<'val'>(valT, alwaysTrue);
     const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
     const prepareForJson = getRTFunction<'pj'>(pjT, identity as PrepareForJsonFn);
     const restoreFromJson = getRTFunction<'rj'>(rjT, identity as RestoreFromJsonFn);
     const stringifyJson = getRTFunction<'sj'>(sjT, nativeStringify);
+    const hasUnknownKeys = getRTFunction<'huk'>(hukT, alwaysFalse);
+    const unknownKeyErrors = getRTFunction<'uke'>(ukeT, noUnknownKeyErrors);
     // getRTFunction initialized the injected tuples, so the full entries are now
     // resolvable from the ts-runtypes cache under `<fnHashPrefix>_<typeId>`.
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId);
@@ -171,6 +175,8 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
         prepareForJson: wrapResolvedFn(prepareForJson as AnyFn, 'prepareForJson', label, hashes.prepareForJson),
         restoreFromJson: wrapResolvedFn(restoreFromJson as AnyFn, 'restoreFromJson', label, hashes.restoreFromJson),
         stringifyJson: wrapResolvedFn(stringifyJson as AnyFn, 'stringifyJson', label, hashes.stringifyJson),
+        hasUnknownKeys: wrapResolvedFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
+        unknownKeyErrors: wrapResolvedFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
     } as JitCompiledFunctions;
 }
 

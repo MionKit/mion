@@ -24,8 +24,8 @@ type HandlerReturn<H extends AnyHandler> = Awaited<ReturnType<H>>;
 
 function fakeRoute<H extends AnyHandler>(
     handler: H,
-    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
-    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj'>,
+    paramsFns?: InjectTypeFnArgs<HandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
     paramsId?: InjectRunTypeId<HandlerParams<H>>,
     returnId?: InjectRunTypeId<HandlerReturn<H>>
 ): {handler: H; rtFns: RtMarkerPayload} {

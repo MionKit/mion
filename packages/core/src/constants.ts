@@ -91,6 +91,8 @@ export const JIT_FUNCTION_IDS = {
     prepareForJson: 'C6W', // ts-runtypes 'pj'
     restoreFromJson: 'MWO', // ts-runtypes 'rj'
     stringifyJson: 'rVH', // ts-runtypes 'sj'
+    hasUnknownKeys: 'y8Q', // ts-runtypes 'huk' (strictTypes)
+    unknownKeyErrors: 'kuM', // ts-runtypes 'uke' (strictTypes)
     toBinary: 'tBi', // pending: ts-runtypes 'tb' prefix (binary migration)
     fromBinary: 'fBi', // pending: ts-runtypes 'fb' prefix (binary migration)
 } as const;
