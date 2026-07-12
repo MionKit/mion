@@ -93,8 +93,8 @@ export const JIT_FUNCTION_IDS = {
     stringifyJson: 'rVH', // ts-runtypes 'sj'
     hasUnknownKeys: 'y8Q', // ts-runtypes 'huk' (strictTypes)
     unknownKeyErrors: 'kuM', // ts-runtypes 'uke' (strictTypes)
-    toBinary: 'tBi', // pending: ts-runtypes 'tb' prefix (binary migration)
-    fromBinary: 'fBi', // pending: ts-runtypes 'fb' prefix (binary migration)
+    toBinary: 'iAm', // ts-runtypes 'tb'
+    fromBinary: 'jtJ', // ts-runtypes 'fb'
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

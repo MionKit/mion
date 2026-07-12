@@ -60,6 +60,7 @@
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/platform-vercel": "workspace:*",
     "@mionjs/router": "workspace:*",
+    "@mionjs/run-types": "workspace:*",
     "@mionjs/type-formats": "workspace:*"
   }
 }

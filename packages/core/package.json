@@ -55,6 +55,9 @@
     "clean": "rimraf .dist & rimraf .coverage",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
+  "dependencies": {
+    "@ts-runtypes/core": "0.9.1"
+  },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
