@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
@@ -6,14 +5,6 @@ let legacyOptionsNoticeShown = false;
 function resolveRtBinary(explicit) {
   if (explicit) return explicit;
   if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;
-  let dir = process.cwd();
-  for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, "ts-run-types", "bin", "ts-runtypes");
-    if (fs.existsSync(candidate)) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
   return void 0;
 }
 function mionVitePlugin(options = {}) {

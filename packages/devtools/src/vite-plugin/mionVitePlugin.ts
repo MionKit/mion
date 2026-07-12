@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import {spawn, type ChildProcess} from 'node:child_process';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
@@ -26,8 +25,7 @@ export interface MionRunTypesOptions {
     /** Path to tsconfig.json (absolute, or relative to the vite root). */
     tsConfig?: string;
     /** Explicit path to the ts-runtypes resolver binary. Default resolution:
-     *  TS_RUNTYPES_BIN env var → sibling `ts-run-types/bin/ts-runtypes` checkout →
-     *  the published platform binary via @ts-runtypes/bin getExePath(). */
+     *  TS_RUNTYPES_BIN env var → the published platform binary via @ts-runtypes/bin getExePath(). */
     binary?: string;
     /** RunTypes output root (generated modules land under `<outDir>/types/`, gitignored). */
     outDir?: string;
@@ -73,20 +71,13 @@ export interface MionPluginOptions {
 
 let legacyOptionsNoticeShown = false;
 
-/** Resolves the ts-runtypes resolver binary: explicit option → env var → sibling checkout → published platform package. */
+/** Resolves the ts-runtypes resolver binary: explicit option → env var → published platform package.
+ *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId and
+ *  per-family fn hash, so a locally built binary at a different version silently produces
+ *  caches that diverge from CI/user installs (JIT_FUNCTION_IDS prefixes stop matching). */
 export function resolveRtBinary(explicit?: string): string | undefined {
     if (explicit) return explicit;
     if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;
-    // Migration period: prefer a sibling ts-run-types checkout (the vendored JS tarballs
-    // under vendor/ts-runtypes must match the binary, and the published 0.9.0 binary predates them).
-    let dir = process.cwd();
-    for (let i = 0; i < 6; i++) {
-        const candidate = path.join(dir, 'ts-run-types', 'bin', 'ts-runtypes');
-        if (fs.existsSync(candidate)) return candidate;
-        const parent = path.dirname(dir);
-        if (parent === dir) break;
-        dir = parent;
-    }
     return undefined; // @ts-runtypes/bin getExePath() takes over (published platform binary)
 }
 

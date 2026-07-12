@@ -81,20 +81,20 @@ export const HandlerType = {
  * Per-function cache-key prefixes. Since the ts-runtypes migration these are the
  * ts-runtypes per-family fn hashes (3-char, stable per family + default options + binary
  * version), so `<prefix>_<typeId>` matches the ts-runtypes runtime fn cache keys exactly
- * (see @mionjs/run-types mionAdapter). Pinned to @ts-runtypes 0.9.x and verified by the
+ * (see @mionjs/run-types mionAdapter). Pinned to @ts-runtypes 0.9.1 EXACTLY (0.9.0 already hashed differently) and verified by the
  * run-types adapter spec — a ts-runtypes version bump that re-hashes families will fail
  * that spec loudly.
  */
 export const JIT_FUNCTION_IDS = {
-    isType: 'Qgu', // ts-runtypes 'val'
-    typeErrors: 'yIk', // ts-runtypes 'verr'
-    prepareForJson: 'C6W', // ts-runtypes 'pj'
-    restoreFromJson: 'MWO', // ts-runtypes 'rj'
-    stringifyJson: 'rVH', // ts-runtypes 'sj'
-    hasUnknownKeys: 'y8Q', // ts-runtypes 'huk' (strictTypes)
-    unknownKeyErrors: 'kuM', // ts-runtypes 'uke' (strictTypes)
-    toBinary: 'iAm', // ts-runtypes 'tb'
-    fromBinary: 'jtJ', // ts-runtypes 'fb'
+    isType: 'dzd', // ts-runtypes 'val'
+    typeErrors: 'nnv', // ts-runtypes 'verr'
+    prepareForJson: 'Hrx', // ts-runtypes 'pj'
+    restoreFromJson: 'hxf', // ts-runtypes 'rj'
+    stringifyJson: 'wS2', // ts-runtypes 'sj'
+    hasUnknownKeys: 'Dtr', // ts-runtypes 'huk' (strictTypes)
+    unknownKeyErrors: 'dRv', // ts-runtypes 'uke' (strictTypes)
+    toBinary: 'fjF', // ts-runtypes 'tb'
+    fromBinary: 'ocw', // ts-runtypes 'fb'
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

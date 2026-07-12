@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-const fs = require("node:fs");
 const path = require("node:path");
 const node_child_process = require("node:child_process");
 const tsRuntypes = require("@ts-runtypes/devtools/vite");
@@ -8,14 +7,6 @@ let legacyOptionsNoticeShown = false;
 function resolveRtBinary(explicit) {
   if (explicit) return explicit;
   if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;
-  let dir = process.cwd();
-  for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, "ts-run-types", "bin", "ts-runtypes");
-    if (fs.existsSync(candidate)) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
   return void 0;
 }
 function mionVitePlugin(options = {}) {
