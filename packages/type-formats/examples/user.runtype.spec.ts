@@ -6,18 +6,18 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
-import {User, exampleUser, userExamples} from './user.runtype';
+import {createValidate, createMockData, createGetValidationErrors} from '@mionjs/run-types';
+import {User, exampleUser, userExamples} from './user.runtype.ts';
 
 // ############### Basic User Validation Tests ###############
 
 it('should validate complete valid user', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     expect(isType(exampleUser)).toBe(true);
 });
 
 it('should validate minimal valid user', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const minimalUser = {
         id: '550e8400-e29b-41d4-a716-446655440000',
         email: 'test@example.com',
@@ -35,7 +35,7 @@ it('should validate minimal valid user', async () => {
 });
 
 it('should validate example users from userExamples', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     for (const user of userExamples.validUsers) {
         expect(isType(user)).toBe(true);
     }
@@ -45,7 +45,7 @@ it('should validate example users from userExamples', async () => {
 
 // firstName validation tests
 it('should accept valid international names', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validNames = ['John', 'María', 'Jean-Pierre', "O'Connor", 'Александр', '田中', 'محمد'];
 
     for (const name of validNames) {
@@ -55,20 +55,20 @@ it('should accept valid international names', async () => {
 });
 
 it('should reject names that are too short', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, firstName: 'A'};
     expect(isType(exampleUser)).toBe(true);
     expect(isType(user)).toBe(false);
 });
 
 it('should reject names that are too long', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, firstName: 'A'.repeat(51)};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject names with invalid characters', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidNames = ['John123', 'John@Doe', 'John.Doe', 'John_Doe'];
 
     for (const name of invalidNames) {
@@ -79,7 +79,7 @@ it('should reject names with invalid characters', async () => {
 
 // username validation tests
 it('should accept valid usernames', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validUsernames = ['john_doe', 'user123', 'cool-user', 'alpha_beta'];
 
     for (const username of validUsernames) {
@@ -89,13 +89,13 @@ it('should accept valid usernames', async () => {
 });
 
 it('should reject usernames that are too short', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, username: 'ab'};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject usernames with invalid characters', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidUsernames = ['john.doe', 'john@doe', 'john doe', 'john+doe'];
 
     for (const username of invalidUsernames) {
@@ -106,7 +106,7 @@ it('should reject usernames with invalid characters', async () => {
 
 // phoneNumber validation tests
 it('should accept valid international phone numbers', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validPhones = ['+1234567890', '+447700900123', '+33123456789', '+81312345678'];
 
     for (const phone of validPhones) {
@@ -116,13 +116,13 @@ it('should accept valid international phone numbers', async () => {
 });
 
 it('should reject phone numbers without country code', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, phoneNumber: '1234567890'};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject phone numbers with invalid format', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidPhones = ['+0123456789', '123-456-7890', '+1-234-567-890', '+12345'];
 
     for (const phone of invalidPhones) {
@@ -133,7 +133,7 @@ it('should reject phone numbers with invalid format', async () => {
 
 // email validation tests
 it('should accept valid email addresses', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validEmails = ['user@example.com', 'test.email@domain.co.uk', 'user123@test-domain.org'];
 
     for (const email of validEmails) {
@@ -143,7 +143,7 @@ it('should accept valid email addresses', async () => {
 });
 
 it('should reject invalid email addresses', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidEmails = ['invalid-email', '@domain.com', 'user@', 'user@@domain.com'];
 
     for (const email of invalidEmails) {
@@ -156,7 +156,7 @@ it('should reject invalid email addresses', async () => {
 
 // age validation tests
 it('should accept valid ages', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validAges = [13, 25, 65, 120];
 
     for (const age of validAges) {
@@ -166,26 +166,26 @@ it('should accept valid ages', async () => {
 });
 
 it('should reject ages below minimum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, age: 12};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject ages above maximum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, age: 121};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject non-integer ages', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, age: 25.5};
     expect(isType(user)).toBe(false);
 });
 
 // accountBalance validation tests
 it('should accept valid account balances', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validBalances = [-10000, -500.5, 0, 1250.75, 1000000];
 
     for (const balance of validBalances) {
@@ -195,20 +195,20 @@ it('should accept valid account balances', async () => {
 });
 
 it('should reject balances below minimum overdraft', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, accountBalance: -10000.01};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject balances above maximum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, accountBalance: 1000000.01};
     expect(isType(user)).toBe(false);
 });
 
 // creditScore validation tests
 it('should accept valid credit scores', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validScores = [300, 650, 750, 850];
 
     for (const score of validScores) {
@@ -218,20 +218,20 @@ it('should accept valid credit scores', async () => {
 });
 
 it('should reject credit scores below minimum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, creditScore: 299};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject credit scores above maximum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, creditScore: 851};
     expect(isType(user)).toBe(false);
 });
 
 // rating validation tests
 it('should accept valid ratings', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validRatings = [1, 2.5, 4, 5, 3.7, 4.2]; // Any precision allowed
 
     for (const rating of validRatings) {
@@ -241,20 +241,20 @@ it('should accept valid ratings', async () => {
 });
 
 it('should accept undefined rating', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser};
     delete user.rating;
     expect(isType(user)).toBe(true);
 });
 
 it('should reject ratings below minimum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, rating: 0.5};
     expect(isType(user)).toBe(false);
 });
 
 it('should reject ratings above maximum', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser, rating: 5.5};
     expect(isType(user)).toBe(false);
 });
@@ -263,7 +263,7 @@ it('should reject ratings above maximum', async () => {
 
 // address validation tests (flattened)
 it('should accept valid address fields', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {
         ...exampleUser,
         street: '123 Main Street',
@@ -275,7 +275,7 @@ it('should accept valid address fields', async () => {
 });
 
 it('should accept international address fields', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const internationalAddresses = [
         {street: 'Champs-Élysées 123', city: 'Paris', zipCode: '75001', country: 'FR'},
         {street: 'Alexanderplatz 1', city: 'Berlin', zipCode: '10178', country: 'DE'},
@@ -290,7 +290,7 @@ it('should accept international address fields', async () => {
 });
 
 it('should accept undefined address fields', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {...exampleUser};
     delete user.street;
     delete user.city;
@@ -300,7 +300,7 @@ it('should accept undefined address fields', async () => {
 });
 
 it('should reject invalid country codes', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidCountries = ['USA', 'United States', 'us', '1', 'ABC'];
 
     for (const country of invalidCountries) {
@@ -310,7 +310,7 @@ it('should reject invalid country codes', async () => {
 });
 
 it('should reject invalid zip codes', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidZipCodes = ['12', '12345678901', 'invalid-zip', ''];
 
     for (const zipCode of invalidZipCodes) {
@@ -321,7 +321,7 @@ it('should reject invalid zip codes', async () => {
 
 // preferences validation tests (flattened)
 it('should accept valid preference fields', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const user = {
         ...exampleUser,
         theme: 'dark' as const,
@@ -332,7 +332,7 @@ it('should accept valid preference fields', async () => {
 });
 
 it('should accept all valid theme values', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validThemes = ['light', 'dark', 'auto'] as const;
 
     for (const theme of validThemes) {
@@ -342,7 +342,7 @@ it('should accept all valid theme values', async () => {
 });
 
 it('should accept various language codes', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validLanguages = ['en', 'es', 'fr', 'de', 'ja', 'en-US', 'es-ES', 'fr-CA'];
 
     for (const language of validLanguages) {
@@ -352,7 +352,7 @@ it('should accept various language codes', async () => {
 });
 
 it('should accept various timezone formats', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const validTimezones = ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney', 'America/Los_Angeles'];
 
     for (const timezone of validTimezones) {
@@ -362,7 +362,7 @@ it('should accept various timezone formats', async () => {
 });
 
 it('should reject invalid theme values', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidThemes = ['bright', 'night', 'custom', ''];
 
     for (const theme of invalidThemes) {
@@ -372,7 +372,7 @@ it('should reject invalid theme values', async () => {
 });
 
 it('should reject invalid language codes', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidLanguages = ['english', 'EN', 'en_US', 'en-us', 'e', 'eng'];
 
     for (const language of invalidLanguages) {
@@ -382,7 +382,7 @@ it('should reject invalid language codes', async () => {
 });
 
 it('should reject invalid timezone formats', async () => {
-    const isType = await createIsTypeFn<User>();
+    const isType = createValidate<User>();
     const invalidTimezones = ['EST', 'UTC+5', 'New York', 'America-New_York', 'america/new_york'];
 
     for (const timezone of invalidTimezones) {
@@ -395,7 +395,7 @@ it('should reject invalid timezone formats', async () => {
 
 // error reporting tests
 it('should return specific errors for invalid firstName', async () => {
-    const typeErrors = await createTypeErrorsFn<User>();
+    const typeErrors = createGetValidationErrors<User>();
     const userWithInvalidName = {...exampleUser, firstName: 'A'};
     const errors = typeErrors(userWithInvalidName);
 
@@ -406,7 +406,7 @@ it('should return specific errors for invalid firstName', async () => {
 });
 
 it('should return specific errors for invalid age', async () => {
-    const typeErrors = await createTypeErrorsFn<User>();
+    const typeErrors = createGetValidationErrors<User>();
     const userWithInvalidAge = {...exampleUser, age: 12};
     const errors = typeErrors(userWithInvalidAge);
 
@@ -417,7 +417,7 @@ it('should return specific errors for invalid age', async () => {
 });
 
 it('should return specific errors for invalid email', async () => {
-    const typeErrors = await createTypeErrorsFn<User>();
+    const typeErrors = createGetValidationErrors<User>();
     const userWithInvalidEmail = {...exampleUser, email: 'invalid-email'};
     const errors = typeErrors(userWithInvalidEmail);
 
@@ -428,7 +428,7 @@ it('should return specific errors for invalid email', async () => {
 });
 
 it('should return specific errors for invalid flattened address field', async () => {
-    const typeErrors = await createTypeErrorsFn<User>();
+    const typeErrors = createGetValidationErrors<User>();
     const userWithInvalidAddress = {
         ...exampleUser,
         country: 'USA', // Invalid country code (should be 2 letters)
@@ -442,7 +442,7 @@ it('should return specific errors for invalid flattened address field', async ()
 });
 
 it('should return multiple errors for multiple invalid fields', async () => {
-    const typeErrors = await createTypeErrorsFn<User>();
+    const typeErrors = createGetValidationErrors<User>();
     const userWithMultipleErrors = {
         ...exampleUser,
         firstName: 'A', // Too short
@@ -461,8 +461,8 @@ it('should return multiple errors for multiple invalid fields', async () => {
 
 // mock generation tests
 it('should generate valid user mocks', async () => {
-    const mockType = await createMockTypeFn<User>();
-    const isType = await createIsTypeFn<User>();
+    const mockType = createMockData<User>();
+    const isType = createValidate<User>();
 
     // Generate multiple mocks to test consistency
     const mocks = Array.from({length: 10}, () => mockType());
@@ -473,7 +473,7 @@ it('should generate valid user mocks', async () => {
 });
 
 it('should generate mocks with proper string constraints', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
 
     for (const mock of mocks) {
@@ -496,7 +496,7 @@ it('should generate mocks with proper string constraints', async () => {
 });
 
 it('should generate mocks with proper number constraints', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
 
     for (const mock of mocks) {
@@ -521,7 +521,7 @@ it('should generate mocks with proper number constraints', async () => {
 });
 
 it('should generate mocks with valid optional rating when present', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
     const mocksWithRating = mocks.filter((mock) => mock.rating !== undefined);
 
@@ -533,7 +533,7 @@ it('should generate mocks with valid optional rating when present', async () => 
 });
 
 it('should generate mocks with valid optional website when present', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
     const mocksWithWebsite = mocks.filter((mock) => mock.website !== undefined);
 
@@ -544,7 +544,7 @@ it('should generate mocks with valid optional website when present', async () =>
 });
 
 it('should generate mocks with valid optional address fields when present', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
     const mocksWithCountry = mocks.filter((mock) => mock.country !== undefined);
     const mocksWithZipCode = mocks.filter((mock) => mock.zipCode !== undefined);
@@ -561,7 +561,7 @@ it('should generate mocks with valid optional address fields when present', asyn
 });
 
 it('should generate mocks with valid optional preference fields when present', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 20}, () => mockType());
     const mocksWithTheme = mocks.filter((mock) => mock.theme !== undefined);
     const mocksWithLanguage = mocks.filter((mock) => mock.language !== undefined);
@@ -584,7 +584,7 @@ it('should generate mocks with valid optional preference fields when present', a
 });
 
 it('should generate diverse mock data', async () => {
-    const mockType = await createMockTypeFn<User>();
+    const mockType = createMockData<User>();
     const mocks = Array.from({length: 50}, () => mockType());
 
     // Check that we get diverse data (not all the same)

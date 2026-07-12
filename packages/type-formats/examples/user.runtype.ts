@@ -14,10 +14,12 @@ import {
     FormatStringDate,
     FormatStringDateTime,
 } from '@mionjs/type-formats/StringFormats';
-// Import brand types for type assertions
-import {BrandUUID, BrandEmail, BrandUrl, BrandDate, BrandDateTime} from '@mionjs/core';
 // Import number formats types
 import {FormatNumber, FormatPositiveInt, FormatPositive} from '@mionjs/type-formats/NumberFormats';
+// registerFormatPattern registers a reusable regex pattern: it validates every mockSample
+// against the regex at registration time and keeps source/flags/mockSamples/message as
+// literal types on `typeof <pattern>` so the build-time resolver can read them.
+import {registerFormatPattern} from '@mionjs/run-types';
 
 /**
  * Example User object demonstrating various Runtype Formats
@@ -34,12 +36,12 @@ export type User = {
     email: FormatEmail; // Email validation
 
     // Personal information with string constraints
-    firstName: FormatString<{minLength: 2; maxLength: 50; pattern: NamePattern; trim: true}>;
+    firstName: FormatString<{minLength: 2; maxLength: 50; pattern: typeof namePattern; trim: true}>;
 
     lastName: FormatString<{
         minLength: 2;
         maxLength: 50;
-        pattern: NamePattern;
+        pattern: typeof namePattern;
         trim: true;
     }>;
 
@@ -47,14 +49,14 @@ export type User = {
     username: FormatString<{
         minLength: 3;
         maxLength: 20;
-        pattern: UsernamePattern;
+        pattern: typeof usernamePattern;
         lowercase: true;
         trim: true;
     }>;
 
     // Phone number with international format
     phoneNumber: FormatString<{
-        pattern: PhonePattern;
+        pattern: typeof phonePattern;
         minLength: 7; // Minimum E.164 format: +1234567 (country code + 6 digits)
         maxLength: 15; // Maximum E.164 format: +123456789012345 (15 digits total)
     }>;
@@ -119,51 +121,51 @@ export type User = {
     city?: FormatString<{
         minLength: 2;
         maxLength: 50;
-        pattern: CityPattern;
+        pattern: typeof cityPattern;
         trim: true;
     }>;
     zipCode?: FormatString<{
-        pattern: PostalCodePattern;
+        pattern: typeof postalCodePattern;
         uppercase: true;
         trim: true;
     }>;
     country?: FormatString<{
         minLength: 2;
         maxLength: 2;
-        pattern: CountryCodePattern;
+        pattern: typeof countryCodePattern;
         uppercase: true;
     }>;
 
     // Preferences (flattened)
     theme?: FormatString<{allowedValues: ThemeValues}>;
-    language?: FormatString<{pattern: LanguageCodePattern}>;
-    timezone?: FormatString<{pattern: TimezonePattern}>;
+    language?: FormatString<{pattern: typeof languageCodePattern}>;
+    timezone?: FormatString<{pattern: typeof timezonePattern}>;
 };
 
 // ############### Example Usage ###############
 
 /**
  * Example of a valid user object that satisfies all format constraints
- * Use BrandUUID, BrandEmail, etc from core package so no need to import type-formats package
+ * Format aliases are assignable from plain strings/numbers (branding is
+ * structural upstream), so no type assertions are needed.
  */
 export const exampleUser: User = {
-    // Branded types require type assertions since they are nominally typed
-    id: '550e8400-e29b-41d4-a716-446655440000' as BrandUUID,
-    email: 'john.doe@example.com' as BrandEmail,
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    email: 'john.doe@example.com',
     firstName: 'John',
     lastName: 'Doe',
     username: 'john_doe',
     phoneNumber: '+1234567890',
-    website: 'https://johndoe.com' as BrandUrl,
+    website: 'https://johndoe.com',
     bio: 'Software developer passionate about TypeScript and web technologies.',
     age: 30,
     accountBalance: 1250.75,
     creditScore: 750,
     rating: 4.5,
-    followersCount: 1500 as FormatPositiveInt,
-    monthlyIncome: 5000.0 as FormatPositive,
-    birthDate: '1994-01-15' as BrandDate,
-    lastLoginAt: '2025-01-15T10:30:00Z' as BrandDateTime,
+    followersCount: 1500,
+    monthlyIncome: 5000.0,
+    birthDate: '1994-01-15',
+    lastLoginAt: '2025-01-15T10:30:00Z',
     street: '123 Main Street',
     city: 'New York',
     zipCode: '10001',
@@ -177,7 +179,7 @@ export const exampleUser: User = {
  * Example of how to use the User type with validation functions
  *
  * Note: In a real application, you would use these with mion's
- * validation functions like isTypeFn, mockTypeFn, etc.
+ * validation functions like createValidate, createMockData, etc.
  */
 export const userExamples = {
     // Valid examples
@@ -236,10 +238,12 @@ export const userExamples = {
     } as Partial<User>,
 };
 
-// ############### Regex Patterns ###############
+// ############### Format Patterns ###############
+// Each pattern is registered as a value with an inline literal (comptime-validated);
+// the User type references it via `pattern: typeof <pattern>`.
 
 /**
- * Pattern for names and city names - supports international characters
+ * Pattern for names - supports international characters
  *
  * Includes:
  * - Basic Latin: A-Z, a-z
@@ -251,17 +255,24 @@ export const userExamples = {
  * - Arabic: ا, ب, ت, ث, etc. (Arabic, Persian, Urdu, etc.)
  * - Spaces, hyphens, and apostrophes for compound names
  *
- * Examples: John, María, Jean-Pierre, O'Connor, Александр, 田中, محمد, São Paulo, München
+ * Examples: John, María, Jean-Pierre, O'Connor, Александр, 田中, محمد
  */
-const internationalNamePattern =
-    /^[a-zA-ZÀ-ÿ\u0100-\u017F\u0400-\u04FF\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\u0600-\u06FF\s'-]+$/;
+export const namePattern = registerFormatPattern({
+    source: "^[a-zA-ZÀ-ÿ\\u0100-\\u017F\\u0400-\\u04FF\\u3040-\\u309F\\u30A0-\\u30FF\\u4E00-\\u9FAF\\u0600-\\u06FF\\s'-]+$",
+    mockSamples: ['John', 'María', 'Jean-Pierre', "O'Connor", 'Александр', '田中', 'محمد'],
+    message: 'Name must contain only letters, spaces, hyphens, and apostrophes (supports Unicode)',
+});
 
 /**
  * Pattern for usernames - simple alphanumeric with underscore and hyphen
  * Examples: john_doe, user123, cool-user, alpha_beta
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const usernamePattern = /^[a-zA-Z0-9_-]+$/;
+const usernamePattern = registerFormatPattern({
+    source: '^[a-zA-Z0-9_-]+$',
+    mockSamples: ['john_doe', 'user123', 'cool-user', 'alpha_beta'],
+    message: 'Username can only contain letters, numbers, underscores, and hyphens',
+});
 
 /**
  * Pattern for international phone numbers in E.164 format
@@ -269,11 +280,22 @@ const usernamePattern = /^[a-zA-Z0-9_-]+$/;
  * Examples: +1234567890, +447700900123, +33123456789
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const phonePattern = /^\+[1-9]\d{1,14}$/;
+const phonePattern = registerFormatPattern({
+    source: '^\\+[1-9]\\d{1,14}$',
+    mockSamples: ['+1234567890', '+447700900123', '+33123456789', '+81312345678'],
+    message: 'Phone number must be in international format (+1234567890)',
+});
 
-// City names use the same pattern as personal names
+/**
+ * Pattern for city names - same character set as personal names
+ * Examples: New York, São Paulo, München, Москва, 東京, القاهرة
+ */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const cityPattern = internationalNamePattern;
+const cityPattern = registerFormatPattern({
+    source: "^[a-zA-ZÀ-ÿ\\u0100-\\u017F\\u0400-\\u04FF\\u3040-\\u309F\\u30A0-\\u30FF\\u4E00-\\u9FAF\\u0600-\\u06FF\\s'-]+$",
+    mockSamples: ['New York', 'São Paulo', 'München', 'Москва', '東京', 'القاهرة'],
+    message: 'City name must contain only letters, spaces, hyphens, and apostrophes',
+});
 
 /**
  * Pattern for postal codes - flexible international format
@@ -281,21 +303,33 @@ const cityPattern = internationalNamePattern;
  * Allows: uppercase letters, numbers, spaces, and hyphens (3-10 characters)
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const postalCodePattern = /^[A-Z0-9\s-]{3,10}$/;
+const postalCodePattern = registerFormatPattern({
+    source: '^[A-Z0-9\\s-]{3,10}$',
+    mockSamples: ['12345', '10001', 'SW1A 1AA', 'K1A 0A6', '75001'],
+    message: 'Invalid postal code format',
+});
 
 /**
  * Pattern for country codes (ISO 3166-1 alpha-2)
  * Exactly 2 uppercase letters: US, CA, GB, DE, FR, JP, AU, etc.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const countryCodePattern = /^[A-Z]{2}$/;
+const countryCodePattern = registerFormatPattern({
+    source: '^[A-Z]{2}$',
+    mockSamples: ['US', 'CA', 'GB', 'DE', 'FR', 'JP', 'AU'],
+    message: 'Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)',
+});
 
 /**
  * Pattern for language codes (ISO 639-1 with optional country)
  * Format: "en" or "en-US" (language code optionally followed by country)
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
+const languageCodePattern = registerFormatPattern({
+    source: '^[a-z]{2}(-[A-Z]{2})?$',
+    mockSamples: ['en', 'es', 'fr', 'de', 'ja', 'en-US', 'es-ES', 'fr-CA'],
+    message: 'Language code must be in format "en" or "en-US"',
+});
 
 /**
  * Pattern for timezone in IANA format
@@ -303,57 +337,13 @@ const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
  * Strict IANA format: Capital first letter, then lowercase/underscores/capitals for compound names
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const timezonePattern = /^[A-Z][a-zA-Z_]*\/[A-Z][a-zA-Z_]*$/;
+const timezonePattern = registerFormatPattern({
+    source: '^[A-Z][a-zA-Z_]*\\/[A-Z][a-zA-Z_]*$',
+    mockSamples: ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'],
+    message: 'Timezone must be in IANA format (e.g., America/New_York)',
+});
 
-// ############### Pattern Types ###############
-
-export type NamePattern = {
-    val: typeof internationalNamePattern;
-    errorMessage: 'Name must contain only letters, spaces, hyphens, and apostrophes (supports Unicode)';
-    mockSamples: ['John', 'María', 'Jean-Pierre', "O'Connor", 'Александр', '田中', 'محمد'];
-};
-
-type UsernamePattern = {
-    val: typeof usernamePattern;
-    errorMessage: 'Username can only contain letters, numbers, underscores, and hyphens';
-    mockSamples: ['john_doe', 'user123', 'cool-user', 'alpha_beta'];
-};
-
-type PhonePattern = {
-    val: typeof phonePattern;
-    errorMessage: 'Phone number must be in international format (+1234567890)';
-    mockSamples: ['+1234567890', '+447700900123', '+33123456789', '+81312345678'];
-};
-
-type CityPattern = {
-    val: typeof cityPattern;
-    errorMessage: 'City name must contain only letters, spaces, hyphens, and apostrophes';
-    mockSamples: ['New York', 'São Paulo', 'München', 'Москва', '東京', 'القاهرة'];
-};
-
-type PostalCodePattern = {
-    val: typeof postalCodePattern;
-    errorMessage: 'Invalid postal code format';
-    mockSamples: ['12345', '10001', 'SW1A 1AA', 'K1A 0A6', '75001'];
-};
-
-type CountryCodePattern = {
-    val: typeof countryCodePattern;
-    errorMessage: 'Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)';
-    mockSamples: ['US', 'CA', 'GB', 'DE', 'FR', 'JP', 'AU'];
-};
-
-type LanguageCodePattern = {
-    val: typeof languageCodePattern;
-    errorMessage: 'Language code must be in format "en" or "en-US"';
-    mockSamples: ['en', 'es', 'fr', 'de', 'ja', 'en-US', 'es-ES', 'fr-CA'];
-};
-
-type TimezonePattern = {
-    val: typeof timezonePattern;
-    errorMessage: 'Timezone must be in IANA format (e.g., America/New_York)';
-    mockSamples: ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'];
-};
+// ############### Allowed Values Params ###############
 
 type ThemeValues = {
     val: ['light', 'dark', 'auto'];

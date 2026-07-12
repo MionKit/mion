@@ -6,15 +6,31 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createMockData, registerFormatPattern} from '@mionjs/run-types';
 import {RunTypeError} from '@mionjs/core';
-import {FormatUrl, FormatUrlFile, FormatUrlHttp, FormatUrlSocialMedia} from './url.runtype';
+import {FormatUrl, FormatUrlFile, FormatUrlHttp, FormatString} from '../../StringFormats.ts';
+
+// FormatUrlSocialMedia no longer exists in ts-runtypes; the equivalent behavior
+// (http/https only + social media domains only) is recreated with a registered pattern
+const socialMediaUrlPattern = registerFormatPattern({
+    source: '^https?:\\/\\/(?:www\\.)?(?:facebook|twitter|instagram|linkedin|tiktok)\\.com(?:[/?#][^\\s]*)?$',
+    flags: 'i',
+    mockSamples: [
+        'http://facebook.com',
+        'https://twitter.com',
+        'http://instagram.com',
+        'https://linkedin.com',
+        'http://tiktok.com',
+    ],
+    message: 'invalid social media URL format',
+});
+type FormatUrlSocialMedia = FormatString<{pattern: typeof socialMediaUrlPattern}>;
 
 // ####### URL isType #######
 
 // URL format is a string that starts with a valid protocol and has a valid domain
 it('validate URL', async () => {
-    const isType = await createIsTypeFn<FormatUrl>();
+    const isType = createValidate<FormatUrl>();
     // valid URLs
     expect(isType('http://example.com')).toBe(true);
     expect(isType('https://example.com')).toBe(true);
@@ -53,7 +69,7 @@ it('validate URL', async () => {
 });
 
 it('validate FILE URL', async () => {
-    const isType = await createIsTypeFn<FormatUrlFile>();
+    const isType = createValidate<FormatUrlFile>();
     // valid URLs
     expect(isType('file://hello.png')).toBe(true);
     expect(isType('file:///c:/lorem/ipsum.jpeg')).toBe(true);
@@ -74,7 +90,7 @@ it('validate FILE URL', async () => {
 });
 
 it('validate Http only URL', async () => {
-    const isType = await createIsTypeFn<FormatUrlHttp>();
+    const isType = createValidate<FormatUrlHttp>();
     // valid URLs
     expect(isType('http://example.com')).toBe(true);
     expect(isType('https://example.com')).toBe(true);
@@ -88,7 +104,7 @@ it('validate Http only URL', async () => {
 });
 
 it('validate Social media URL', async () => {
-    const isType = await createIsTypeFn<FormatUrlSocialMedia>();
+    const isType = createValidate<FormatUrlSocialMedia>();
     // valid URLs
     expect(isType('http://facebook.com')).toBe(true);
     expect(isType('https://twitter.com')).toBe(true);
@@ -109,16 +125,17 @@ it('validate Social media URL', async () => {
 
 // URL typeErrors
 it('get URL errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatUrl>();
+    const typeErrors = createGetValidationErrors<FormatUrl>();
     const maxLengthError: RunTypeError = {
         expected: 'string',
         path: [],
         format: {name: 'url', formatPath: ['maxLength'], val: 2048},
     };
+    // built-in url pattern carries no custom message so val is the fallback 'pattern'
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'url', formatPath: ['pattern'], val: 'invalid URL format'},
+        format: {name: 'url', formatPath: ['pattern'], val: 'pattern'},
     };
     // valid URLs
     expect(typeErrors('http://example.com')).toEqual([]);
@@ -144,11 +161,12 @@ it('get URL errors', async () => {
 });
 
 it('get FILE URL errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatUrlFile>();
+    const typeErrors = createGetValidationErrors<FormatUrlFile>();
+    // built-in file url pattern carries no custom message so val is the fallback 'pattern'
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'url', formatPath: ['pattern'], val: 'invalid file URL format'},
+        format: {name: 'url', formatPath: ['pattern'], val: 'pattern'},
     };
     // valid URLs
     expect(typeErrors('file://hello.png')).toEqual([]);
@@ -170,14 +188,15 @@ it('get FILE URL errors', async () => {
 });
 
 it('get Http only URL errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatUrlHttp>();
+    const typeErrors = createGetValidationErrors<FormatUrlHttp>();
     // Valid Http URL cases
     expect(typeErrors('http://example.com')).toEqual([]);
     expect(typeErrors('https://example.com')).toEqual([]);
+    // built-in http url pattern carries no custom message so val is the fallback 'pattern'
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'url', formatPath: ['pattern'], val: 'invalid Http URL format'},
+        format: {name: 'url', formatPath: ['pattern'], val: 'pattern'},
     };
     // invalid protocols
     expect(typeErrors('ftp://example.com')).toEqual([formatError]);
@@ -190,54 +209,48 @@ it('get Http only URL errors', async () => {
 });
 
 it('get Social media errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatUrlSocialMedia>();
+    const typeErrors = createGetValidationErrors<FormatUrlSocialMedia>();
     // Valid Social Media URL cases
     expect(typeErrors('http://facebook.com')).toEqual([]);
     expect(typeErrors('https://twitter.com')).toEqual([]);
     expect(typeErrors('http://instagram.com')).toEqual([]);
     expect(typeErrors('https://linkedin.com')).toEqual([]);
     expect(typeErrors('http://tiktok.com')).toEqual([]);
+    // the recreated pattern-based format reports name 'stringFormat' with the default
+    // 'Invalid pattern' val (registerFormatPattern message is not surfaced in errors);
+    // the old per-part 'domain allowedValues' error no longer exists
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'url', formatPath: ['pattern'], val: 'invalid social media URL format'},
-    };
-    const wrongDomainErr: RunTypeError = {
-        expected: 'string',
-        path: [],
-        format: {
-            name: 'url',
-            formatPath: ['domain', 'names', 0, 'allowedValues'],
-            val: 'Only social media domains are allowed',
-        },
+        format: {name: 'stringFormat', formatPath: ['pattern'], val: 'Invalid pattern'},
     };
     // invalid cases
     expect(typeErrors('ftp://facebook.com')).toEqual([formatError]);
-    expect(typeErrors('http://example.com')).toEqual([wrongDomainErr]);
+    expect(typeErrors('http://example.com')).toEqual([formatError]);
 });
 
 // URL mock
 it('mock URL', async () => {
-    const mockType = await createMockTypeFn<FormatUrl>();
-    const isType = await createIsTypeFn<FormatUrl>();
+    const mockType = createMockData<FormatUrl>();
+    const isType = createValidate<FormatUrl>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock FILE URL', async () => {
-    const mockType = await createMockTypeFn<FormatUrlFile>();
-    const isType = await createIsTypeFn<FormatUrlFile>();
+    const mockType = createMockData<FormatUrlFile>();
+    const isType = createValidate<FormatUrlFile>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Http URL', async () => {
-    const mockType = await createMockTypeFn<FormatUrlHttp>();
-    const isType = await createIsTypeFn<FormatUrlHttp>();
+    const mockType = createMockData<FormatUrlHttp>();
+    const isType = createValidate<FormatUrlHttp>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Social media URL', async () => {
-    const mockType = await createMockTypeFn<FormatUrlSocialMedia>();
-    const isType = await createIsTypeFn<FormatUrlSocialMedia>();
+    const mockType = createMockData<FormatUrlSocialMedia>();
+    const isType = createValidate<FormatUrlSocialMedia>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });

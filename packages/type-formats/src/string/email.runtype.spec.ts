@@ -6,12 +6,12 @@
  * ######## */
 
 import {it, expect} from 'vitest';
-import {createIsTypeFn, createMockTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createMockData} from '@mionjs/run-types';
 import {RunTypeError} from '@mionjs/core';
-import {FormatEmail, FormatEmailStrict, FormatEmailPunycode} from './email.runtype';
+import {FormatEmail, FormatEmailStrict, FormatEmailPunycode} from '../../StringFormats.ts';
 
 it('should validate strict email values', async () => {
-    const isType = await createIsTypeFn<FormatEmailStrict>();
+    const isType = createValidate<FormatEmailStrict>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -31,20 +31,22 @@ it('should validate strict email values', async () => {
 });
 
 it('should return strict email errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatEmailStrict>();
+    const typeErrors = createGetValidationErrors<FormatEmailStrict>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
+    // ts-runtypes emits sub-part errors without the 'localPart'/'domain'/'tld' formatPath prefixes;
+    // domain sub-errors report format name 'domain' instead of 'email'
     const localPartErr: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['localPart', 'disallowedChars'], val: 'Invalid characters in email local part'},
+        format: {name: 'email', formatPath: ['disallowedChars'], val: 'Invalid characters in email local part'},
     };
     const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
-    const localMaxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['localPart', 'maxLength'], val: 64}};
-    const localMinlengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['localPart', 'minLength'], val: 1}};
+    const localMaxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 64}};
+    const localMinlengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['minLength'], val: 1}};
     const localDisallowedCharsErr: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['localPart', 'disallowedChars'], val: 'Invalid characters in email local part'},
+        format: {name: 'email', formatPath: ['disallowedChars'], val: 'Invalid characters in email local part'},
     };
-    const domainMinLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['domain', 'minLength'], val: 5}};
+    const domainMinLengthErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['minLength'], val: 5}};
     const missingPartsErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['@'], val: 'Email missing @ symbol'}};
     // Valid cases
     expect(typeErrors('user@example.com')).toEqual([]);
@@ -54,35 +56,28 @@ it('should return strict email errors', async () => {
     const longEmail = 'a'.repeat(255) + '@example.com';
     const localMaxLengthErr2: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['localPart', 'maxLength'], val: 64},
+        format: {name: 'email', formatPath: ['maxLength'], val: 64},
     };
     expect(typeErrors(longEmail)).toEqual([maxLengthErr, localMaxLengthErr2]);
     // Invalid local maxLength
     const longLocalPart = 'a'.repeat(65) + '@example.com';
     expect(typeErrors(longLocalPart)).toEqual([localMaxLengthErr]);
-    // Missing parts - now returns multiple errors
-    const localMinLengthErr2: RunTypeError = {
-        ...err,
-        format: {name: 'email', formatPath: ['localPart', 'minLength'], val: 1},
-    };
-    expect(typeErrors('userexample.com')).toEqual([missingPartsErr, localMinLengthErr2]);
+    // Missing @ - ts-runtypes short-circuits to a single error (old impl also emitted a localPart minLength error)
+    expect(typeErrors('userexample.com')).toEqual([missingPartsErr]);
     expect(typeErrors('@example.com')).toEqual([localMinlengthErr]);
-    // Missing domain - now returns multiple errors
+    // Missing domain - returns multiple errors (domain minLength, minParts, tld minLength, tld pattern)
     const domainMinPartsErr: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['domain', 'minParts'], val: 2},
+        format: {name: 'domain', formatPath: ['minParts'], val: 2},
     };
     const domainTldMinLengthErr: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['domain', 'tld', 'minLength'], val: 2},
+        format: {name: 'domain', formatPath: ['minLength'], val: 2},
     };
+    // built-in tld pattern carries no custom message so val is the default 'Invalid pattern'
     const domainTldPatternErr: RunTypeError = {
         ...err,
-        format: {
-            name: 'email',
-            formatPath: ['domain', 'tld', 'pattern'],
-            val: 'top level domain can only contain letters and dots',
-        },
+        format: {name: 'domain', formatPath: ['pattern'], val: 'Invalid pattern'},
     };
     expect(typeErrors('user@')).toEqual([domainMinLengthErr, domainMinPartsErr, domainTldMinLengthErr, domainTldPatternErr]);
     // Disallowed characters
@@ -92,9 +87,9 @@ it('should return strict email errors', async () => {
 });
 
 it('should mock strict email values', async () => {
-    const mockType = await createMockTypeFn<FormatEmailStrict>();
-    const isType = await createIsTypeFn<FormatEmailStrict>();
-    const typeErrors = await createTypeErrorsFn<FormatEmailStrict>();
+    const mockType = createMockData<FormatEmailStrict>();
+    const isType = createValidate<FormatEmailStrict>();
+    const typeErrors = createGetValidationErrors<FormatEmailStrict>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -105,7 +100,7 @@ it('should mock strict email values', async () => {
 // ########## QUick Email ##########
 
 it('should validate quick email values', async () => {
-    const isType = await createIsTypeFn<FormatEmail>();
+    const isType = createValidate<FormatEmail>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -126,10 +121,11 @@ it('should validate quick email values', async () => {
 });
 
 it('should return quick email errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatEmail>();
+    const typeErrors = createGetValidationErrors<FormatEmail>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
-    const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'}};
+    // built-in email pattern carries no custom message so val is the fallback 'pattern'
+    const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'pattern'}};
     const minlengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['minLength'], val: 7}};
     // Valid cases
     expect(typeErrors('user@example.com')).toEqual([]);
@@ -140,7 +136,7 @@ it('should return quick email errors', async () => {
     const longEmail = 'a'.repeat(255) + '@example.com';
     const patternErr2: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+        format: {name: 'email', formatPath: ['pattern'], val: 'pattern'},
     };
     expect(typeErrors(longEmail)).toEqual([maxLengthErr, patternErr2]);
     // Invalid local maxLength
@@ -152,7 +148,7 @@ it('should return quick email errors', async () => {
     // Missing domain - now returns multiple errors
     const patternErr4: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+        format: {name: 'email', formatPath: ['pattern'], val: 'pattern'},
     };
     expect(typeErrors('user@')).toEqual([minlengthErr, patternErr4]);
     // Disallowed characters (quick email does not validate special characters)
@@ -162,9 +158,9 @@ it('should return quick email errors', async () => {
 });
 
 it('should mock quick email values', async () => {
-    const mockType = await createMockTypeFn<FormatEmail>();
-    const isType = await createIsTypeFn<FormatEmail>();
-    const typeErrors = await createTypeErrorsFn<FormatEmail>();
+    const mockType = createMockData<FormatEmail>();
+    const isType = createValidate<FormatEmail>();
+    const typeErrors = createGetValidationErrors<FormatEmail>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -173,18 +169,28 @@ it('should mock quick email values', async () => {
 });
 
 it('quick email validation should be faster than normal email', async () => {
-    const isType = await createIsTypeFn<FormatEmailStrict>();
-    const isTypeQuick = await createIsTypeFn<FormatEmail>();
-    const mockType = await createMockTypeFn<FormatEmailStrict>();
+    const isType = createValidate<FormatEmailStrict>();
+    const isTypeQuick = createValidate<FormatEmail>();
+    const mockType = createMockData<FormatEmailStrict>();
     const mockedItems = Array.from({length: 50}, () => mockType());
-    const start = performance.now();
+    // warmup + repeated loops so the timing comparison is stable under parallel test workers
     for (const item of mockedItems) {
         isType(item);
+        isTypeQuick(item);
+    }
+    const repetitions = 200;
+    const start = performance.now();
+    for (let r = 0; r < repetitions; r++) {
+        for (const item of mockedItems) {
+            isType(item);
+        }
     }
     const end = performance.now();
     const startQuick = performance.now();
-    for (const item of mockedItems) {
-        isTypeQuick(item);
+    for (let r = 0; r < repetitions; r++) {
+        for (const item of mockedItems) {
+            isTypeQuick(item);
+        }
     }
     const endQuick = performance.now();
     const normalTime = Math.round((end - start) * 1000);
@@ -201,7 +207,7 @@ it('quick email validation should be faster than normal email', async () => {
 // ########## Punycode Email ##########
 
 it('should validate punycode email values', async () => {
-    const isType = await createIsTypeFn<FormatEmailPunycode>();
+    const isType = createValidate<FormatEmailPunycode>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -225,10 +231,11 @@ it('should validate punycode email values', async () => {
 });
 
 it('should return punycode email errors', async () => {
-    const typeErrors = await createTypeErrorsFn<FormatEmailPunycode>();
+    const typeErrors = createGetValidationErrors<FormatEmailPunycode>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
-    const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'}};
+    // built-in email pattern carries no custom message so val is the fallback 'pattern'
+    const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'pattern'}};
     const minlengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['minLength'], val: 7}};
     // Valid cases
     expect(typeErrors('user@example.com')).toEqual([]);
@@ -242,7 +249,7 @@ it('should return punycode email errors', async () => {
     const longEmail = 'a'.repeat(255) + '@example.com';
     const patternErr3: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+        format: {name: 'email', formatPath: ['pattern'], val: 'pattern'},
     };
     expect(typeErrors(longEmail)).toEqual([maxLengthErr, patternErr3]);
     // Invalid local maxLength
@@ -254,7 +261,7 @@ it('should return punycode email errors', async () => {
     // Missing domain - now returns multiple errors
     const patternErr5: RunTypeError = {
         ...err,
-        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+        format: {name: 'email', formatPath: ['pattern'], val: 'pattern'},
     };
     expect(typeErrors('user@')).toEqual([minlengthErr, patternErr5]);
     // Special characters in local part (allowed in pattern-based validation)
@@ -264,9 +271,9 @@ it('should return punycode email errors', async () => {
 });
 
 it('should mock punycode email values', async () => {
-    const mockType = await createMockTypeFn<FormatEmailPunycode>();
-    const isType = await createIsTypeFn<FormatEmailPunycode>();
-    const typeErrors = await createTypeErrorsFn<FormatEmailPunycode>();
+    const mockType = createMockData<FormatEmailPunycode>();
+    const isType = createValidate<FormatEmailPunycode>();
+    const typeErrors = createGetValidationErrors<FormatEmailPunycode>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
