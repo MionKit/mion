@@ -5,255 +5,52 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// this code is based on from seqproto library https://github.com/oramasearch/seqproto
+// ts-runtypes migration: the in-house seqproto-based implementation was replaced by
+// the @ts-runtypes/core DataView serializer — the compiled toBinary/fromBinary functions
+// are emitted against ITS wire protocol (varint lengths, string cache, Temporal support),
+// so the serializer objects must come from the same package. This module keeps mion's
+// historical creation signatures as thin proxies.
 
-import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
+import {
+    createDataViewSerializer as rtCreateDataViewSerializer,
+    createDataViewDeserializer as rtCreateDataViewDeserializer,
+    setSerializationOptions as rtSetSerializationOptions,
+} from '@ts-runtypes/core';
+import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
 
-const STR = 1;
-const NUM = 2;
-const POW_2_32 = 2 ** 32;
-const LE = true; // always use little endian
+/** Legacy mion serialization options, mapped onto the ts-runtypes equivalents. */
+export interface SerializationOptions {
+    /** initial buffer size when a route has no recorded size history (ts-runtypes defaultBufferSize) */
+    bufferSize: number;
+    /** stddev multiplier for the per-route predicted buffer size (ts-runtypes sizeMultiplier) */
+    averageResponseSizeMultiplier: number;
+    /** strings longer than this are never cached (ts-runtypes maxStrCacheLength) */
+    maxStrCacheLength: number;
+    /** max entries in the encoded-string cache (ts-runtypes maxCacheSize) */
+    maxCacheSize: number;
+}
 
-// ############## create serializer & deserializer ##############
-
-const DEFAULT_OPTIONS = {
-    maxPoolItems: 100,
-    maxStrCacheLength: 64,
-    maxCacheSize: 1000,
-    bufferSize: 2 ** 24,
-    averageResponseSizeMultiplier: 2,
-    responseAverageSizes: new Map<string, number>(),
-    stringBytesCache: new Map<string, Uint8Array>(),
-};
-
-export type SerializationOptions = typeof DEFAULT_OPTIONS;
-
-// ############## DataView-based serializer & deserializer ##############
-// Uses byte-level precision (1-byte minimum unit) instead of 4-byte units
-
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
-
-let opts = {...DEFAULT_OPTIONS};
-
+/** Applies serialization options (proxied to the ts-runtypes DataView serializer). */
 export function setSerializationOptions(options: Partial<SerializationOptions>) {
-    opts = {...opts, ...options};
+    rtSetSerializationOptions({
+        ...(options.bufferSize !== undefined ? {defaultBufferSize: options.bufferSize} : {}),
+        ...(options.averageResponseSizeMultiplier !== undefined ? {sizeMultiplier: options.averageResponseSizeMultiplier} : {}),
+        ...(options.maxStrCacheLength !== undefined ? {maxStrCacheLength: options.maxStrCacheLength} : {}),
+        ...(options.maxCacheSize !== undefined ? {maxCacheSize: options.maxCacheSize} : {}),
+    });
 }
 
 /**
  * Creates a DataView-based serializer for binary serialization.
- * @param routeId - The route ID for buffer size calculation and tracking
- * @param workflowRouteIds - Optional array of route IDs for routesFlow requests.
- *                           When provided, buffer size is calculated by summing sizes for each route.
+ * Buffer size is predicted from the route's recorded response sizes; for routesFlow
+ * requests pass the involved route ids so their sizes are summed.
  */
 export function createDataViewSerializer(routeId: string, workflowRouteIds?: string[]): DataViewSerializer {
-    const size = calculateBufferSizeForRequest(routeId, workflowRouteIds);
-    if (size >= POW_2_32) throw new Error('bufferSize option must be strictly less than 2 ** 32');
-    return new DataViewSerializerImpl(routeId, size);
+    const options = workflowRouteIds?.length ? {relatedKeys: workflowRouteIds} : undefined;
+    return rtCreateDataViewSerializer(routeId, options) as unknown as DataViewSerializer;
 }
 
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
 export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
-    // Extract ArrayBuffer and offset/length from typed array views (Uint8Array, Buffer, etc.)
-    if (ArrayBuffer.isView(input)) {
-        const buffer = input.buffer as StrictArrayBuffer;
-        return new DataViewDeserializerImpl(routeId, buffer, input.byteOffset, input.byteLength);
-    }
-    // Plain ArrayBuffer
-    return new DataViewDeserializerImpl(routeId, input as StrictArrayBuffer);
-}
-
-// TODO: at the moment we do not resize the buffer, if data does not fit it will throw an error,
-// anything that uses the serializer should catch the error and resize the buffer
-class DataViewSerializerImpl implements DataViewSerializer {
-    readonly buffer: ArrayBuffer;
-    private uint8View: Uint8Array; // Reusable view
-    readonly routeId: string;
-    index: number = 0; // byte offset
-    view: DataView;
-    hasEnded: boolean = false;
-    constructor(routeId: string, size: number) {
-        this.routeId = routeId;
-        this.buffer = new ArrayBuffer(size);
-        this.view = new DataView(this.buffer);
-        this.uint8View = new Uint8Array(this.buffer);
-    }
-    reset(): void {
-        this.index = 0;
-        this.hasEnded = false;
-    }
-    resize(size: number): void {
-        (this as any).buffer = new ArrayBuffer(size);
-        this.view = new DataView(this.buffer);
-        this.uint8View = new Uint8Array(this.buffer);
-    }
-    getBuffer(): StrictArrayBuffer {
-        const buff = this.buffer.slice(0, this.index);
-        return buff;
-    }
-    getBufferView(): Uint8Array {
-        return new Uint8Array(this.buffer, 0, this.index);
-    }
-    markAsEnded(): void {
-        this.hasEnded = true;
-        updateResponseSize(this.routeId, this.index);
-    }
-    getLength(): number {
-        return this.index;
-    }
-    serString(str: string, skipCache?: boolean): void {
-        if (str.length >= opts.maxStrCacheLength || skipCache) {
-            const targetView = this.uint8View.subarray(this.index + 4);
-            const result = textEncoder.encodeInto(str, targetView);
-            this.view.setUint32(this.index, result.written, LE);
-            this.index += 4 + result.written;
-            return;
-        }
-        const cached = opts.stringBytesCache.get(str);
-        if (cached) {
-            this.uint8View.set(cached, this.index + 4);
-            this.view.setUint32(this.index, cached.length, LE);
-            this.index += 4 + cached.length;
-            return;
-        }
-
-        // Encode directly into working view
-        const targetView = this.uint8View.subarray(this.index + 4);
-        const result = textEncoder.encodeInto(str, targetView);
-        const written = result.written!;
-
-        this.view.setUint32(this.index, written, LE);
-        this.index += 4 + written;
-
-        // Cache the encoded bytes (create slice only for caching)
-        if (opts.stringBytesCache.size >= opts.maxCacheSize) evictStringBytesCache();
-        opts.stringBytesCache.set(str, this.uint8View.slice(this.index - written, this.index));
-    }
-    serFloat64(n: number): void {
-        this.view.setFloat64(this.index, n, LE);
-        this.index += 8;
-    }
-    serEnum(n: number | string): void {
-        if (typeof n === 'number') {
-            this.view.setUint32(this.index, NUM, LE);
-            this.index += 4;
-            this.view.setUint32(this.index, n, LE);
-            this.index += 4;
-            return;
-        }
-        this.view.setUint32(this.index, STR, LE);
-        this.index += 4;
-        this.serString(n);
-    }
-    setBitMask(bitMaskIndex: number, bitIndex: number): void {
-        const newBitmask = this.view.getUint8(bitMaskIndex) | (1 << bitIndex);
-        this.view.setUint8(bitMaskIndex, newBitmask);
-    }
-}
-
-class DataViewDeserializerImpl implements DataViewDeserializer {
-    readonly buffer: StrictArrayBuffer;
-    private uint8View: Uint8Array; // Reusable view
-    readonly routeId: string;
-    index: number = 0;
-    view: DataView;
-    hasEnded: boolean = false;
-    constructor(routeId: string, buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) {
-        this.routeId = routeId;
-        this.buffer = buffer;
-        // index should always start at 0 because DataView/Uint8Array already account for byteOffset
-        this.index = 0;
-        this.view = new DataView(buffer, byteOffset, byteLength);
-        this.uint8View = new Uint8Array(buffer, byteOffset, byteLength);
-    }
-    reset(): void {
-        this.index = 0;
-        this.hasEnded = false;
-    }
-    setBuffer(buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number): void {
-        // index should always start at 0 because DataView/Uint8Array already account for byteOffset
-        this.index = 0;
-        (this as any).buffer = buffer;
-        this.view = new DataView(buffer, byteOffset, byteLength);
-        this.uint8View = new Uint8Array(buffer, byteOffset, byteLength); // Update working view
-        this.hasEnded = false;
-    }
-    markAsEnded(): void {
-        this.hasEnded = true;
-    }
-    getLength(): number {
-        return this.index;
-    }
-    desString(): string {
-        const len = this.view.getUint32(this.index, LE);
-        this.index += 4;
-
-        const decoded = textDecoder.decode(this.uint8View.subarray(this.index, this.index + len));
-        this.index += len;
-        return decoded;
-    }
-    /** Deserialize a string that will be used as a property name, with prototype pollution protection */
-    desSafePropName(): string {
-        const key = this.desString();
-        const len = key.length;
-        if (len === 9) {
-            if (key === '__proto__' || key === 'prototype') throw new Error(`Unsafe property name: ${key}`);
-        } else if (len === 11) {
-            if (key === 'constructor') throw new Error(`Unsafe property name: ${key}`);
-        }
-        return key;
-    }
-    desFloat64(): number {
-        const value = this.view.getFloat64(this.index, LE);
-        this.index += 8;
-        return value;
-    }
-    desEnum(): number | string {
-        const type = this.view.getUint32(this.index, LE);
-        this.index += 4;
-        if (type === NUM) {
-            const value = this.view.getUint32(this.index, LE);
-            this.index += 4;
-            return value;
-        }
-        return this.desString();
-    }
-}
-
-/**
- * Calculates buffer size for a request, handling both single routes and routesFlows.
- * For routesFlows, sums up the buffer sizes for each individual route.
- */
-function calculateBufferSizeForRequest(routeId: string, workflowRouteIds?: string[]): number {
-    if (!workflowRouteIds || workflowRouteIds.length === 0) {
-        return calculateDefaultBufferSize(routeId);
-    }
-
-    // For routesFlows, sum up the buffer sizes for each individual route
-    let totalSize = 0;
-    for (const id of workflowRouteIds) {
-        totalSize += calculateDefaultBufferSize(id);
-    }
-    return totalSize;
-}
-
-/** Returns the average response size for the given route, multiplied by a factor for safety margin */
-function calculateDefaultBufferSize(routeId: string): number {
-    const size = opts.responseAverageSizes.get(routeId);
-    if (!size) return opts.bufferSize;
-    return size * opts.averageResponseSizeMultiplier;
-}
-
-function updateResponseSize(routeId: string, responseSize: number) {
-    const currentSize = opts.responseAverageSizes.get(routeId) || opts.bufferSize;
-    const average = (currentSize + responseSize) / 2;
-    opts.responseAverageSizes.set(routeId, Math.floor(average));
-}
-
-function evictStringBytesCache(): void {
-    const entries = Array.from(opts.stringBytesCache.entries());
-    opts.stringBytesCache.clear();
-    for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
-        opts.stringBytesCache.set(entries[i][0], entries[i][1]);
-    }
+    return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer) as unknown as DataViewDeserializer;
 }

@@ -12,9 +12,9 @@ import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/StringFormats';
 import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
-// Import server pure functions extracted from client source at build time.
-// for this specific scenario server function are defined in packages/client/src/vitePlugin.e2e.spec.ts
-import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
+// Server pure functions live in the ts-runtypes registry under the 'mionjs' namespace.
+// For the e2e scenario they are defined in packages/client/src/vitePlugin.e2e.spec.ts.
+import {getMionPureFn} from '@mionjs/run-types';
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};
@@ -271,18 +271,18 @@ const routes = {
         lang: 'en',
     })),
 
-    // Route that invokes a server pure function extracted from client source at build time
+    // Route that invokes a server pure function from the ts-runtypes registry (mionjs namespace)
     getGreetingsPureFnResult: route((): string => {
-        const pureFn = serverPureFnsCache.pureServerFn?.greeting;
-        if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
-        return pureFn.fn();
+        const pureFn = getMionPureFn('greeting');
+        if (!pureFn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
+        return pureFn() as string;
     }),
 
     // Route that looks up and invokes any server pure function by name, with an optional argument
     callPureFnByName: route((_ctx, fnName: string, arg?: number): any => {
-        const pureFn = serverPureFnsCache.pureServerFn?.[fnName];
-        if (!pureFn?.fn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
-        return arg !== undefined ? pureFn.fn(arg) : pureFn.fn();
+        const pureFn = getMionPureFn(fnName);
+        if (!pureFn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
+        return arg !== undefined ? pureFn(arg) : pureFn();
     }),
 
     // rawMiddleFn to capture HTTP method from the raw IncomingMessage into ctx.shared
