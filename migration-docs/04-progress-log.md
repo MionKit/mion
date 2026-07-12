@@ -1,8 +1,13 @@
 # Progress log
 
-## 2026-07-12 — full-suite campaign (session 2)
+## 2026-07-12 — full-suite campaign (session 2) — ✅ ALL GREEN
 
-Goal: every mion test green on ts-runtypes (maintainer directive). Progress by area:
+Goal: every mion test green on ts-runtypes (maintainer directive). **Final state: the whole
+monorepo passes — 1122 tests / 63 files across every project (core, run-types, router,
+type-formats, drizze, devtools, platform-aws/gcloud/node/vercel/cloudflare, client), plus
+lint with zero errors.** Baseline at session start was 510 failing / 457 passing (+9 suites
+crashing at import). Test updates preserved the original assertions' intent throughout
+(details per area below and in the spec files' comments). Work by area:
 
 1. **Barrel fix**: router/index.ts still exported deleted `methodsCache`/`aotEmitter` —
    crashed every platform + drizze suite at import. Removed (plus the `./aot` package export).
@@ -46,6 +51,26 @@ Goal: every mion test green on ts-runtypes (maintainer directive). Progress by a
    the name).
 10. **isAsync semantics**: un-annotated handlers are now correctly inferred (checker sees
     everything); dispatch always awaits, so the flag is metadata-only. router.spec updated.
+11. **⚠️ Binary-version pin (the big one)**: the sibling ts-run-types checkout's binary was
+    0.9.0 while npm ships 0.9.1 — and the binary version folds into every typeId AND
+    per-family fn hash. All local caches silently diverged from CI until cold runs exposed
+    it (the adapter pin-guard spec caught it exactly as designed). JIT_FUNCTION_IDS
+    re-pinned against the published 0.9.1 binary (val→dzd, verr→nnv, pj→Hrx, rj→hxf,
+    sj→wS2, huk→Dtr, uke→dRv, tb→fjF, fb→ocw) and mionVitePlugin no longer falls back to a
+    sibling checkout binary (env var TS_RUNTYPES_BIN remains for explicit override).
+12. **CI**: tests run in four batches (`pnpm run test:ci`) — each project boots its own
+    ~200MB resolver at init and the single all-projects run OOM-killed resolvers on the
+    7GB runner. The client batch runs alone (it spawns the managed test server).
+13. **Managed test server**: mionVitePlugin's `server` option is back (vite-node child
+    process, port-poll readiness, unref'd so vitest can exit); client globalSetup polls
+    the port directly (module-instance duality under the `source` condition made the
+    serverReady-promise handshake deadlock).
+14. **Upstream findings filed in ts-run-types docs/todos this session**: tuple labels
+    unreliable on canonical nodes; generic-class serializers cover one instantiation;
+    Error-subclass projections leak stack; format-pattern samples dedup + length
+    soundness; FMT002 errors don't halt the test lane; unresolved import degrades marker
+    type to any silently; RunTypeSubKind not exported from index; mocking gaps (fmt
+    transforms never applied, domain allowedValues ignored, pattern message not surfaced).
 
 ## 2026-07-11 — initial spike (session 1)
 
