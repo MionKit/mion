@@ -7,7 +7,15 @@
 
 import {HeadersMiddleFnOptions, MiddleFnOptions, RawMiddleFnOptions, RouteOptions} from '../types/remoteMethods.ts';
 import {HandlerType} from '@mionjs/core';
-import {Handler, HandlerParams, HandlerReturn, HeaderHandler, RawMiddleFnHandler} from '../types/handlers.ts';
+import {
+    Handler,
+    HandlerParams,
+    HandlerReturn,
+    HeaderHandler,
+    HeaderHandlerHeaders,
+    HeaderHandlerParams,
+    RawMiddleFnHandler,
+} from '../types/handlers.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
 import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 
@@ -89,23 +97,33 @@ export function middleFn<H extends Handler>(
 
 /**
  * MiddleFn for handling HTTP header parameters
- * Used to define middleFns that receive values from HTTP headers
- *
- * ⚠️ ts-runtypes migration: headersFn is NOT migrated yet (header-name extraction from
- * HeadersSubset type args pending); registering one throws at router initialization.
+ * Used to define middleFns that receive values from HTTP headers.
+ * The handler's 2nd param must be a HeadersSubset<Required, Optional>; the required/optional
+ * header names are extracted at build time from its runtype graph. A HeadersSubset return
+ * gets its headers written onto the response.
  *
  * @example
  * ```ts
- * headersFn(['authorization'], (ctx, token: string): void => {
- *   // token contains the value of the 'authorization' header
+ * headersFn((ctx, h: HeadersSubset<'authorization'>): void => {
+ *   // h.headers.authorization contains the value of the 'authorization' header
  * })
  * ```
  */
-export function headersFn<H extends HeaderHandler>(handler: H, opts?: HeadersMiddleFnOptions): HeadersMiddleFnDef<H> {
+export function headersFn<H extends HeaderHandler>(
+    handler: H,
+    opts?: HeadersMiddleFnOptions,
+    headersFns?: InjectTypeFnArgs<HeaderHandlerHeaders<H>, 'val', 'verr'>,
+    paramsFns?: InjectTypeFnArgs<HeaderHandlerParams<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    returnFns?: InjectTypeFnArgs<HandlerReturn<H>, 'val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke'>,
+    headersId?: InjectRunTypeId<HeaderHandlerHeaders<H>>,
+    paramsId?: InjectRunTypeId<HeaderHandlerParams<H>>,
+    returnId?: InjectRunTypeId<HandlerReturn<H>>
+): HeadersMiddleFnDef<H> {
     return {
         type: HandlerType.headersMiddleFn,
         handler,
         options: opts,
+        rtFns: {paramsFns, returnFns, paramsId, returnId, headersFns, headersId},
     };
 }
 

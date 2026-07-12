@@ -397,7 +397,7 @@ describe('Dispatch routes', () => {
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: `validation-error`,
                 publicMessage: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: {typeErrors: [{expected: 'object', path: [0]}]},
+                errorData: {typeErrors: [{expected: 'objectLiteral', path: [0]}]},
             });
             expect(error).toEqual(expected);
         });

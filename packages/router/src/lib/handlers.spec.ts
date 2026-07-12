@@ -29,13 +29,6 @@ describe('route & middleFns init functions', () => {
         print: route((ctx, name: string): string => `name: ${name}`),
     } satisfies Routes;
 
-    it('should initialize a Headers MiddleFn object', () => {
-        expect(routes.auth).toEqual({
-            type: HandlerType.headersMiddleFn,
-            handler: expect.any(Function),
-        });
-    });
-
     // Since the ts-runtypes migration, factory defs also carry the build-time-injected
     // type functions payload (rtFns): compiled fn tuples per side + the two type id handles.
     const expectedRtFns = {
@@ -44,6 +37,18 @@ describe('route & middleFns init functions', () => {
         paramsId: expect.anything(),
         returnId: expect.anything(),
     };
+
+    it('should initialize a Headers MiddleFn object', () => {
+        expect(routes.auth).toEqual({
+            type: HandlerType.headersMiddleFn,
+            handler: expect.any(Function),
+            rtFns: {
+                ...expectedRtFns,
+                headersFns: expect.any(Array),
+                headersId: expect.anything(),
+            },
+        });
+    });
 
     it('should initialize a middleFn object', () => {
         expect(routes.timestamp).toEqual({
