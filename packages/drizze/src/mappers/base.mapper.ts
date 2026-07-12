@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {shouldBeJson} from '../core/utils.ts';
@@ -25,7 +26,7 @@ export abstract class BaseColumnMapper {
     }
 
     /** Maps a primitive TypeScript type to a drizzle column */
-    abstract mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping;
+    abstract mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping;
     /** Maps a format type to a drizzle column */
     abstract mapFormat(formatName: FormatName, formatParams: Record<string, any> | undefined, propName: string): ColumnMapping;
     /** Maps an array type to a JSON column */
@@ -51,7 +52,7 @@ export abstract class BaseColumnMapper {
         // Primitive type
         else if (prop.primitiveKind !== undefined) mapping = this.mapPrimitive(prop.primitiveKind, name);
         // Fallback to text for unknown types
-        else mapping = this.mapPrimitive(ReflectionKind.string, name);
+        else mapping = this.mapPrimitive(RunTypeKind.string, name);
         // Apply notNull for required properties
         if (!isOptional && mapping.builder.notNull) mapping.builder = mapping.builder.notNull();
         return mapping;

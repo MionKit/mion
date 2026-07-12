@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {BaseRunType} from '@mionjs/run-types';
-import type {ReflectionKind} from '@deepkit/type';
+import type {RunType, RunTypeKindValue} from '@mionjs/run-types';
 import type {
     BrandEmail,
     BrandUUID,
@@ -140,8 +139,8 @@ export type FormatColumnFactory = (
 export interface PropertyInfo {
     /** Property name */
     name: string;
-    /** The RunType for this property's type */
-    runType: BaseRunType;
+    /** The RunType graph node for this property's type */
+    runType: RunType;
     /** Whether the property is optional (?) */
     isOptional: boolean;
     /** Whether the type is a nested object (will become JSON column) */
@@ -154,8 +153,8 @@ export interface PropertyInfo {
     formatName?: string;
     /** Format parameters if the type has a format annotation */
     formatParams?: Record<string, any>;
-    /** The primitive kind if this is a primitive type */
-    primitiveKind?: ReflectionKind;
+    /** The primitive RunTypeKind value if this is a primitive type */
+    primitiveKind?: RunTypeKindValue;
 }
 
 /** Information about a TypeScript type */

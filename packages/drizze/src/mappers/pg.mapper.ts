@@ -6,9 +6,11 @@
  * ######## */
 
 import {integer, boolean, doublePrecision, bigint, timestamp, date, time, uuid, jsonb, inet, varchar} from 'drizzle-orm/pg-core';
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
+import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesPostgres, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, getLengthFromParams, isIntegerFormat} from '../core/utils.ts';
@@ -18,15 +20,15 @@ import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 // Default Mapping Objects
 // ============================================================================
 
-/** Default primitive-to-column mapping for PostgreSQL, keyed by ReflectionKind */
+/** Default primitive-to-column mapping for PostgreSQL, keyed by RunTypeKind */
 const pgPrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
-    [ReflectionKind.string]: (p) => ({
+    [RunTypeKind.string]: (p) => ({
         builder: varchar(p, {length: DEFAULT_VARCHAR_LENGTH}),
         drizzleType: DrizzleTypesPostgres.varchar,
     }),
-    [ReflectionKind.number]: (p) => ({builder: doublePrecision(p), drizzleType: DrizzleTypesPostgres.doublePrecision}),
-    [ReflectionKind.boolean]: (p) => ({builder: boolean(p), drizzleType: DrizzleTypesPostgres.boolean}),
-    [ReflectionKind.bigint]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesPostgres.bigint}),
+    [RunTypeKind.number]: (p) => ({builder: doublePrecision(p), drizzleType: DrizzleTypesPostgres.doublePrecision}),
+    [RunTypeKind.boolean]: (p) => ({builder: boolean(p), drizzleType: DrizzleTypesPostgres.boolean}),
+    [RunTypeKind.bigint]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesPostgres.bigint}),
 };
 
 /** Default format-to-column mapping for PostgreSQL, keyed by FormatName */
@@ -74,12 +76,12 @@ export class PGColumnMapper extends BaseColumnMapper {
         super(config);
     }
 
-    mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
+    mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping {
         const factory = pgPrimitiveDefaults[kind];
         if (!factory) {
             throw new TypedError({
                 type: 'drizzle-column-mapping-failed',
-                message: `Cannot map property "${propName}" to PostgreSQL column. TypeScript primitive type "${ReflectionKind[kind]}" has no corresponding drizzle column type.`,
+                message: `Cannot map property "${propName}" to PostgreSQL column. TypeScript primitive type "${getRunTypeKindName(kind)}" has no corresponding drizzle column type.`,
             });
         }
         return factory(propName);

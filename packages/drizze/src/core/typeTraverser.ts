@@ -5,119 +5,106 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {runType, getRunTypeFormat, isInterfaceRunType, isPropertyRunType, isPropertySignatureRunType} from '@mionjs/run-types';
-import type {BaseRunType, InterfaceRunType, PropertyRunType} from '@mionjs/run-types';
-import {ReflectionKind, type ReceiveType} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunType, RunTypeKindValue} from '@mionjs/run-types';
 import {TypedError} from '@mionjs/core';
 import type {PropertyInfo, TypeInfo} from '../types/common.types.ts';
 
-/** Extracts property information from a TypeScript type using mion's RunType system */
-export function extractTypeInfo<T>(type?: ReceiveType<T>): TypeInfo {
-    const rt = runType(type) as BaseRunType;
+/** Resolves the RunTypeKind name for a kind value (RunTypeKind is a const object, no reverse lookup) */
+export function getRunTypeKindName(kind: unknown): string {
+    const entry = Object.entries(RunTypeKind).find(([, value]) => value === kind);
+    return entry ? entry[0] : `unknown-kind(${String(kind)})`;
+}
 
+/** Extracts property information from a resolved ts-runtypes RunType graph node */
+export function extractTypeInfo(rt: RunType): TypeInfo {
     // Must be an interface/object type
-    if (!isInterfaceRunType(rt)) {
+    if (!isObjectLikeNode(rt)) {
         throw new TypedError({
             type: 'drizzle-table-invalid-source-type',
-            message: `Cannot create drizzle table from type "${rt.getKindName()}". Expected an interface or object type with properties to map to table columns.`,
+            message: `Cannot create drizzle table from type "${getRunTypeKindName(rt.kind)}". Expected an interface or object type with properties to map to table columns.`,
         });
     }
 
-    const interfaceRt = rt as InterfaceRunType;
     const properties: PropertyInfo[] = [];
-
-    // Get all property children
-    const children = interfaceRt.getChildRunTypes();
-
-    for (const child of children) {
-        if (isPropertyRunType(child) || isPropertySignatureRunType(child)) {
-            const propRt = child as PropertyRunType;
-            const memberType = propRt.getMemberType() as BaseRunType;
-            const propInfo = extractPropertyInfo(propRt, memberType);
-            properties.push(propInfo);
-        }
+    // Property nodes hang off `children`; each carries the value type on `child`
+    for (const child of rt.children ?? []) {
+        if (!isPropertyNode(child) || !child.child) continue;
+        properties.push(extractPropertyInfo(child, child.child));
     }
 
     return {
-        typeName: rt.getTypeName(),
+        typeName: getNodeTypeName(rt),
         properties,
     };
 }
 
 /** Extracts information about a single property */
-function extractPropertyInfo(propRt: PropertyRunType, memberType: BaseRunType): PropertyInfo {
-    const kind = memberType.src.kind;
-    const formatInfo = getFormatInfo(memberType);
+function extractPropertyInfo(propNode: RunType, memberType: RunType): PropertyInfo {
+    const kind = memberType.kind as RunTypeKindValue;
+    const format = memberType.formatAnnotation;
     const isDate = checkIsDateType(memberType);
 
     return {
-        name: propRt.getPropertyName() as string,
+        name: String(propNode.name),
         runType: memberType,
-        isOptional: propRt.isOptional(),
+        isOptional: !!propNode.optional,
         isNestedObject: isNestedObjectType(kind) && !isDate,
-        isArray: kind === ReflectionKind.array,
+        isArray: kind === RunTypeKind.array,
         isDate,
-        formatName: formatInfo?.name,
-        formatParams: formatInfo?.params,
+        formatName: format?.name,
+        formatParams: format?.params as Record<string, any> | undefined,
         primitiveKind: isPrimitiveKind(kind) ? kind : undefined,
     };
 }
 
-/** Checks if a ReflectionKind represents a nested object type */
-function isNestedObjectType(kind: ReflectionKind): boolean {
-    return kind === ReflectionKind.objectLiteral || kind === ReflectionKind.class;
+/** Checks if a RunType node is an interface/object-like type (objectLiteral or class) */
+function isObjectLikeNode(rt: RunType): boolean {
+    return rt.kind === RunTypeKind.objectLiteral || rt.kind === RunTypeKind.class;
 }
 
-/** Checks if a ReflectionKind represents a primitive type */
-function isPrimitiveKind(kind: ReflectionKind): boolean {
+/** Checks if a RunType node is a property node (property or propertySignature) */
+function isPropertyNode(rt: RunType): boolean {
+    return rt.kind === RunTypeKind.property || rt.kind === RunTypeKind.propertySignature;
+}
+
+/** Gets the declared type name of a node, falling back to its kind name */
+function getNodeTypeName(rt: RunType): string {
+    return typeof rt.typeName === 'string' ? rt.typeName : getRunTypeKindName(rt.kind);
+}
+
+/** Checks if a RunTypeKind represents a nested object type */
+function isNestedObjectType(kind: RunTypeKindValue): boolean {
+    return kind === RunTypeKind.objectLiteral || kind === RunTypeKind.class;
+}
+
+/** Checks if a RunTypeKind represents a primitive type */
+function isPrimitiveKind(kind: RunTypeKindValue): boolean {
     return (
-        kind === ReflectionKind.string ||
-        kind === ReflectionKind.number ||
-        kind === ReflectionKind.boolean ||
-        kind === ReflectionKind.bigint
+        kind === RunTypeKind.string || kind === RunTypeKind.number || kind === RunTypeKind.boolean || kind === RunTypeKind.bigint
     );
 }
 
-/** Gets format information from a RunType if it has a format annotation */
-function getFormatInfo(rt: BaseRunType): {name: string; params: Record<string, any>} | undefined {
-    const format = getRunTypeFormat(rt);
-    if (!format) return undefined;
-
-    return {
-        name: format.name,
-        params: format.getParams(rt),
-    };
+/** Checks if a type is a Date type (builtin classes project atomically as kind class + typeName) */
+function checkIsDateType(rt: RunType): boolean {
+    return rt.kind === RunTypeKind.class && rt.typeName === 'Date';
 }
 
-/** Checks if a type is a Date type by examining the class name */
-function checkIsDateType(rt: BaseRunType): boolean {
-    if (rt.src.kind !== ReflectionKind.class) return false;
-    // Check if the class is Date by looking at the type name or classType
-    const src = rt.src as any;
-    if (src.classType === Date) return true;
-    // Also check the type name
-    const typeName = rt.getTypeName();
-    return typeName === 'Date';
-}
-
-/** Checks if a type is a Date type */
-export function isDateType(kind: ReflectionKind): boolean {
-    return kind === ReflectionKind.class; // Date is a class type
+/** Checks if a kind could be a Date type (Date is a class type) */
+export function isDateType(kind: RunTypeKindValue): boolean {
+    return kind === RunTypeKind.class;
 }
 
 /** Gets the underlying type kind, unwrapping unions with null/undefined */
-export function getUnderlyingKind(rt: BaseRunType): ReflectionKind {
-    const kind = rt.src.kind;
+export function getUnderlyingKind(rt: RunType): RunTypeKindValue {
+    const kind = rt.kind as RunTypeKindValue;
 
-    // Handle union types (e.g., string | null)
-    if (kind === ReflectionKind.union) {
-        const children = (rt as any).getChildRunTypes?.() || [];
-        for (const child of children) {
-            const childKind = (child as BaseRunType).src.kind;
+    // Handle union types (e.g. string | null)
+    if (kind === RunTypeKind.union) {
+        for (const child of rt.children ?? []) {
+            const childKind = child.kind as RunTypeKindValue;
             // Skip null and undefined
-            if (childKind !== ReflectionKind.null && childKind !== ReflectionKind.undefined) {
-                return childKind;
-            }
+            if (childKind !== RunTypeKind.null && childKind !== RunTypeKind.undefined) return childKind;
         }
     }
 

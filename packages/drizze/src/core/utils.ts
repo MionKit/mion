@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import type {PropertyInfo} from '../types/common.types.ts';
 
 /** Converts a camelCase property name to snake_case for database column names */
@@ -27,8 +28,8 @@ export function getParamValue<T>(param: T | {val: T}): T {
 }
 
 /** Checks if a type is a Date class */
-export function isDateClass(kind: ReflectionKind, typeName?: string): boolean {
-    return kind === ReflectionKind.class && typeName === 'Date';
+export function isDateClass(kind: RunTypeKindValue, typeName?: string): boolean {
+    return kind === RunTypeKind.class && typeName === 'Date';
 }
 
 /** Gets the max length from format params if available */

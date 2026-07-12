@@ -6,9 +6,11 @@
  * ######## */
 
 import {text, integer, real, blob} from 'drizzle-orm/sqlite-core';
-import {ReflectionKind} from '@deepkit/type';
+import {RunTypeKind} from '@mionjs/run-types';
+import type {RunTypeKindValue} from '@mionjs/run-types';
 import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
+import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
 import {isIntegerFormat} from '../core/utils.ts';
@@ -18,12 +20,12 @@ import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
 // Default Mapping Objects
 // ============================================================================
 
-/** Default primitive-to-column mapping for SQLite, keyed by ReflectionKind */
+/** Default primitive-to-column mapping for SQLite, keyed by RunTypeKind */
 const sqlitePrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
-    [ReflectionKind.string]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [ReflectionKind.number]: (p) => ({builder: real(p), drizzleType: DrizzleTypesSQLite.real}),
-    [ReflectionKind.boolean]: (p) => ({builder: integer(p, {mode: 'boolean'}), drizzleType: DrizzleTypesSQLite.integer}),
-    [ReflectionKind.bigint]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
+    [RunTypeKind.string]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [RunTypeKind.number]: (p) => ({builder: real(p), drizzleType: DrizzleTypesSQLite.real}),
+    [RunTypeKind.boolean]: (p) => ({builder: integer(p, {mode: 'boolean'}), drizzleType: DrizzleTypesSQLite.integer}),
+    [RunTypeKind.bigint]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
 };
 
 /** Default format-to-column mapping for SQLite, keyed by FormatName */
@@ -54,12 +56,12 @@ export class SQLiteColumnMapper extends BaseColumnMapper {
         super(config);
     }
 
-    mapPrimitive(kind: ReflectionKind, propName: string): ColumnMapping {
+    mapPrimitive(kind: RunTypeKindValue, propName: string): ColumnMapping {
         const factory = sqlitePrimitiveDefaults[kind];
         if (!factory) {
             throw new TypedError({
                 type: 'drizzle-column-mapping-failed',
-                message: `Cannot map property "${propName}" to SQLite column. TypeScript primitive type "${ReflectionKind[kind]}" has no corresponding drizzle column type.`,
+                message: `Cannot map property "${propName}" to SQLite column. TypeScript primitive type "${getRunTypeKindName(kind)}" has no corresponding drizzle column type.`,
             });
         }
         return factory(propName);
