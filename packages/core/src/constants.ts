@@ -77,23 +77,22 @@ export const HandlerType = {
     rawMiddleFn: 4,
 } as const;
 
+/**
+ * Per-function cache-key prefixes. Since the ts-runtypes migration these are the
+ * ts-runtypes per-family fn hashes (3-char, stable per family + default options + binary
+ * version), so `<prefix>_<typeId>` matches the ts-runtypes runtime fn cache keys exactly
+ * (see @mionjs/run-types mionAdapter). Pinned to @ts-runtypes 0.9.x and verified by the
+ * run-types adapter spec — a ts-runtypes version bump that re-hashes families will fail
+ * that spec loudly.
+ */
 export const JIT_FUNCTION_IDS = {
-    isType: 'is',
-    typeErrors: 'te',
-    prepareForJson: 'tj',
-    restoreFromJson: 'fj',
-    stringifyJson: 'sj',
-    toJSCode: 'tc',
-    toBinary: 'tBi',
-    fromBinary: 'fBi',
-    format: 'fmt',
-    unknownKeyErrors: 'uk',
-    hasUnknownKeys: 'hk',
-    stripUnknownKeys: 'sk',
-    unknownKeysToUndefined: 'ku',
-    aux: 'aux',
-    mock: 'mock',
-    pureFunction: 'pf',
+    isType: 'Qgu', // ts-runtypes 'val'
+    typeErrors: 'yIk', // ts-runtypes 'verr'
+    prepareForJson: 'C6W', // ts-runtypes 'pj'
+    restoreFromJson: 'MWO', // ts-runtypes 'rj'
+    stringifyJson: 'rVH', // ts-runtypes 'sj'
+    toBinary: 'tBi', // pending: ts-runtypes 'tb' prefix (binary migration)
+    fromBinary: 'fBi', // pending: ts-runtypes 'fb' prefix (binary migration)
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

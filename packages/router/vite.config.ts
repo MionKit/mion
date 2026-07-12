@@ -44,7 +44,6 @@ export default defineConfig({
                 exclude: [
                     '**/dispatch.ts',
                     '**/headers.ts',
-                    '**/methodsCache.ts',
                     '**/dispatchError.ts',
                     '**/callContext.ts',
                     '**/workflows.ts',

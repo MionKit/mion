@@ -8,20 +8,28 @@ import type {JitCompiledFn, DeserializeClassFn, AnyClass, SerializableClass} fro
 import {CompiledPureFunction, PureFunction} from '../types/pureFunctions.types.ts';
 import {getOrCreateGlobal} from '../utils.ts';
 
-// ############# LEGACY COMPAT STUB — ts-runtypes migration #############
+// ############# ts-runtypes-BACKED LOOKUPS #############
 // The old JIT/pure-fn caches existed only to support the old @mionjs/run-types
-// runtime type system. Precompiled functions now arrive as ts-runtypes entry
-// tuples (see @mionjs/run-types mionAdapter); pure functions live in the
-// ts-runtypes registry under the 'mionjs' namespace (registerMionPureFn /
-// getMionPureFn in @mionjs/run-types). Class serialization has a ts-runtypes
-// equivalent too (registerClassSerializer in @ts-runtypes/core).
-//
-// This stub keeps the JITUtils shape compiling for the remaining legacy
-// consumers (routerUtils client-metadata serialization, pureFunctions.types)
-// while the caches themselves are gone: jit/pure lookups resolve to nothing.
-// The class registries stay functional until callers move to
-// registerClassSerializer. Scheduled for full removal with the core cleanup —
-// see migration-docs/05-core-audit.md.
+// runtime type system. Precompiled functions now live in the ts-runtypes runtime
+// cache; @mionjs/run-types installs a lookup backend here (installJitLookupBackend)
+// that resolves mion jit hashes (`<JIT_FUNCTION_IDS.x>_<typeId>`, which match the
+// ts-runtypes fn-cache keys exactly) and mion pure fns straight from that cache.
+// Core itself stays dependency-free: without a backend installed, jit/pure lookups
+// resolve to nothing. The class registries remain local until callers move to
+// registerClassSerializer (@ts-runtypes/core) — see migration-docs/05-core-audit.md.
+
+/** Lookup backend installed by @mionjs/run-types to resolve jit/pure fns from the ts-runtypes cache */
+export interface JitLookupBackend {
+    getJIT(jitFnHash: string): JitCompiledFn | undefined;
+    getCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined;
+}
+
+const backendRef = getOrCreateGlobal('mion.jit.lookupBackend', () => ({current: undefined as JitLookupBackend | undefined}));
+
+/** Installs the ts-runtypes-backed lookup (called by @mionjs/run-types at import time) */
+export function installJitLookupBackend(backend: JitLookupBackend): void {
+    backendRef.current = backend;
+}
 
 const deserializeFnsRegistry = getOrCreateGlobal(
     'mion.jit.deserializeFnsRegistry',
@@ -56,20 +64,26 @@ export interface JITUtils {
 const jitUtils: JITUtils = {
     addToJitCache() {},
     removeFromJitCache() {},
-    getJIT: () => undefined,
+    getJIT: (jitFnHash: string) => backendRef.current?.getJIT(jitFnHash),
     getJitFn(jitFnHash: string) {
-        throw new Error(`Jit function caches were removed in the ts-runtypes migration (requested ${jitFnHash}).`);
+        const compiled = backendRef.current?.getJIT(jitFnHash);
+        if (!compiled) throw new Error(`Jit function ${jitFnHash} not found in the ts-runtypes cache.`);
+        return compiled.fn;
     },
-    hasJitFn: () => false,
+    hasJitFn: (jitFnHash: string) => !!backendRef.current?.getJIT(jitFnHash),
     addPureFn() {
         throw new Error('The mion pure-fn cache was removed. Register through registerMionPureFn (@mionjs/run-types) instead.');
     },
     usePureFn(namespace: string, name: string): PureFunction {
-        throw new Error(`Pure fn ${namespace}::${name} not available: use getMionPureFn (@mionjs/run-types).`);
+        const compiled = backendRef.current?.getCompiledPureFn(namespace, name);
+        if (!compiled)
+            throw new Error(`Pure fn ${namespace}::${name} not available: use registerMionPureFn (@mionjs/run-types).`);
+        return compiled.fn as PureFunction;
     },
-    getPureFn: () => undefined,
-    getCompiledPureFn: () => undefined,
-    hasPureFn: () => false,
+    getPureFn: (namespace: string, name: string) =>
+        backendRef.current?.getCompiledPureFn(namespace, name)?.fn as PureFunction | undefined,
+    getCompiledPureFn: (namespace: string, name: string) => backendRef.current?.getCompiledPureFn(namespace, name),
+    hasPureFn: (namespace: string, name: string) => !!backendRef.current?.getCompiledPureFn(namespace, name),
     findCompiledPureFn: () => undefined,
     setSerializableClass<C extends SerializableClass>(cls: C) {
         const className = cls.name;
