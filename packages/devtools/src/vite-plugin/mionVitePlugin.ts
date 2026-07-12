@@ -165,11 +165,18 @@ function startManagedServer(server: MionServerOptions): void {
         env: {...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: 'true'},
         stdio: ['ignore', 'inherit', 'inherit'],
     });
+    // unref so the child never keeps the parent's event loop alive (vitest must be able
+    // to exit when tests finish); the exit hook below still tears the server down.
+    child.unref();
     serverChild = child;
     const killChild = () => {
         if (serverChild && !serverChild.killed) serverChild.kill('SIGTERM');
     };
     process.once('exit', killChild);
+    child.once('error', (err) => {
+        serverChild = undefined;
+        serverReadyReject?.(new Error(`[mionVitePlugin] failed to spawn managed server: ${err.message}`));
+    });
     child.once('exit', (code) => {
         serverChild = undefined;
         if (code && code !== 0) serverReadyReject?.(new Error(`[mionVitePlugin] managed server exited with code ${code}`));
