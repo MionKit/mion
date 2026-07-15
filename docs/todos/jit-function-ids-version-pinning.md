@@ -1,7 +1,22 @@
 # `JIT_FUNCTION_IDS` prefixes are pinned per ts-runtypes binary version
 
-**Status:** todo
+**Status:** todo — ROOT fix is upstream in ts-runtypes (see below); mion's pin is a workaround.
 **Created:** 2026-07-15
+
+## Root cause lives in ts-runtypes (filed upstream)
+
+The churn below is caused by ts-runtypes folding `constants.Version` into the fn-hash salt
+**redundantly** — the typeID already carries the version, so the composite cache key
+`<fnHash>_<typeId>` is already version-invalidated by its typeID half; folding it into the
+fnHash too is what makes the per-family PREFIX move on every release. The fix belongs upstream:
+drop `constants.Version` from `fnHashSalt` so family prefixes are version-STABLE (the typeID
+keeps carrying the version). Filed as ts-runtypes
+`docs/todos/fnhash-version-independent-family-prefixes.md`.
+
+Once that ships, mion's `JIT_FUNCTION_IDS` needs ONE final refresh to the version-independent
+hashes and then never churns again — or mion drops the pin entirely per the "Fix plan" below
+(discover the key from the injected tuple + ship `family → prefix` with the deps). Until the
+upstream release lands, the pin below stays as the workaround.
 
 ## Problem
 
