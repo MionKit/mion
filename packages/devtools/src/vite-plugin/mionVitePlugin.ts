@@ -35,6 +35,16 @@ export interface MionRunTypesOptions {
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
+    /** Halt the build on Error-severity ts-runtypes diagnostics (default true).
+     *  Set false for packages that deliberately wrap ts-runtypes marker APIs with
+     *  runtime arguments (e.g. @mionjs/run-types' pure-fn adapter), where CTA/PFN
+     *  diagnostics are expected and non-fatal. */
+    failOnError?: TsRuntypesPluginOptions['failOnError'];
+    /** Allow TypeFormat patterns that carry mockSamples but use JS-only regex features
+     *  (unicode `\u…` escapes, lookarounds, backreferences) RE2 cannot compile — the
+     *  build-time sample check is skipped (FMT004 suppressed) and delegated to the JS
+     *  lint lane. Set true for packages whose formats use such patterns. */
+    allowUncheckedPatterns?: TsRuntypesPluginOptions['allowUncheckedPatterns'];
     /** LEGACY (deepkit) — accepted and ignored. */
     compilerOptions?: unknown;
     include?: string | string[];
@@ -113,6 +123,15 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
         moduleMode: rt.moduleMode,
         inlineMode: rt.inlineMode,
         transformMode: rt.transformMode,
+        // mion defaults ts-runtypes' failOnError to FALSE (its strict default is 0.9.2-new;
+        // mion never had it). mion's run-types adapter deliberately wraps ts-runtypes pure-fn
+        // registry APIs (registerPureFnFactory / getPureFn / getCompiledPureFn) with
+        // runtime-computed keys, so the scanner emits benign CTA003/PFN001 for those call
+        // sites — and since every consumer scans that adapter source, a strict default would
+        // halt every build. Diagnostics still surface as warnings and through the lint lane.
+        // A package can opt back into strict with `failOnError: true`.
+        failOnError: rt.failOnError ?? false,
+        allowUncheckedPatterns: rt.allowUncheckedPatterns,
     });
     if (!options.server) return plugins;
     const server = options.server;

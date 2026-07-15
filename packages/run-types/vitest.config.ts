@@ -9,6 +9,9 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
+                // failOnError defaults to false in mionVitePlugin (see its comment): this
+                // adapter's pure-fn helpers wrap ts-runtypes marker APIs with runtime keys,
+                // producing expected non-fatal CTA003/PFN001 diagnostics.
                 compilerOptions: {
                     sourceMap: true,
                 },

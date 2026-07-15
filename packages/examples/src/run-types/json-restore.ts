@@ -1,4 +1,4 @@
-import {createRestoreFromJsonFn} from '@mionjs/run-types';
+import {createJsonDecoder} from '@mionjs/run-types';
 
 interface Event {
     name: string;
@@ -6,10 +6,11 @@ interface Event {
     metadata: Map<string, any>;
 }
 
-const restoreEvent = await createRestoreFromJsonFn<Event>();
+// createJsonDecoder returns a JSON-string -> value decoder. It parses and revives
+// every member back to its declared type (ISO string -> Date, entries -> Map).
+const decodeEvent = createJsonDecoder<Event>();
 
 const jsonString = '{"name":"Click","timestamp":"2025-01-15T00:00:00.000Z","metadata":[["source","web"]]}';
-const parsed = JSON.parse(jsonString);
-const event = restoreEvent(parsed);
+const event = decodeEvent(jsonString);
 // event.timestamp is now a Date object
 // event.metadata is now a Map
