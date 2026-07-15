@@ -110,6 +110,27 @@ import type {TypeFormatParams, Brand} from '@mionjs/core';
 import {TypeFormatParams, Brand} from '@mionjs/core';
 ```
 
+## Migration docs & follow-up tracking (`migration-docs/`)
+
+The run-types → `@ts-runtypes/*` migration is recorded under [`migration-docs/`](migration-docs/):
+the top-level narrative docs (README, the numbered `01`–`05`, `04-progress-log.md`) are the
+history + current-architecture reference, and discrete follow-up ISSUES are tracked as one spec
+file per issue under [`migration-docs/todos/`](migration-docs/todos/) and, once implemented,
+[`migration-docs/done/`](migration-docs/done/) (mirrors the `docs/todos` → `docs/done` flow in
+the sibling `ts-run-types` repo). Each spec is `# Title` + `**Status:**` + `**Created:**` +
+evidence + a concrete fix plan.
+
+- **Found a defect or gap outside your current task's scope? Tell the user AND file it.** Any
+  latent bug, doc-vs-code drift, or adopted-with-a-caveat compromise discovered along the way
+  gets BOTH: (1) surfaced in your reply (what it is, where it came from, whether it predates your
+  change — bisect if cheap), and (2) recorded as a spec file under
+  [`migration-docs/todos/`](migration-docs/todos/) with evidence + a fix plan, so it survives the
+  session. Never let an out-of-scope finding live only in chat, and never silently widen your task
+  to fix it without asking.
+- **If a change implements a [`migration-docs/todos/`](migration-docs/todos/) spec, `git mv` it
+  into [`migration-docs/done/`](migration-docs/done/) and update it to match what shipped** (set
+  `Status: done`, note the commit/PR). Use a `partially/` note if only part shipped.
+
 ## Documentation Website
 
 - Located in `./website` directory

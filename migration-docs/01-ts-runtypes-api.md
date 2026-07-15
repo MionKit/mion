@@ -1,6 +1,10 @@
 # @ts-runtypes/* — the API mion consumes
 
-Facts verified against ts-run-types `main` (`eb7b618`), 2026-07-11. Source references are into the sibling `ts-run-types` repo.
+> mion now consumes **`@ts-runtypes/*@0.9.2`** from npm. This reference was first written against
+> ts-run-types `main` (`eb7b618`, 2026-07-11); the marker / factory / `getRTFunction` surface
+> below is unchanged and still accurate. 0.9.2 additions mion relies on (enumerability guard +
+> `@nonEnumerable`, generic class serializers, id-relevant tuple labels, pattern-message,
+> mockSample validation) are covered in [04-progress-log.md](04-progress-log.md) and [done/](done/).
 
 ## Packages
 
@@ -93,4 +97,8 @@ Behavior: registers the tuple's dep closure, returns the compiled fn. Missing-st
 - Options seen in repo: `binary`, `transformMode: 'go' | 'edits'` (default `edits`), `moduleMode`, `inlineMode`, `emitMode: 'code' | 'functions' | 'both'`, disk cache dir.
 - Works under vitest (ts-run-types' own plugin tests run through vitest + the plugin).
 
-*(exact plugin option interface + wiring recipe: see agent findings in 02/03 once consolidated)*
+- mion wires it through `mionVitePlugin` (`@mionjs/devtools/vite-plugin`), which maps the legacy
+  option shape onto `tsRuntypes({...})` and adds `failOnError` (default false in mion) +
+  `allowUncheckedPatterns` passthroughs. Full 0.9.2 plugin options: `binary`, `tsconfig`, `outDir`,
+  `emitMode`, `moduleMode`, `inlineMode`, `transformMode`, `sourcesContent`, `failOnError`,
+  `allowUncheckedPatterns`.

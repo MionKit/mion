@@ -1,5 +1,12 @@
 # mion architecture before/after the migration (router-centric)
 
+> **Status: migration COMPLETE (on @ts-runtypes 0.9.2).** This doc was written during the
+> initial spike (2026-07-11); the "spike scope" / "expected broken" items at the bottom
+> (client, type-formats, binary, headersFn, routesFlow, core `jit`/`pureFns`/`aot` cleanup)
+> are all DONE. See [04-progress-log.md](04-progress-log.md), [05-core-audit.md](05-core-audit.md),
+> and [done/](done/). The before/after mapping below remains an accurate description of the
+> current architecture.
+
 How the pieces fit, from firsthand code reading (2026-07-11, master @ 9089d9f).
 
 ## The old pipeline (deepkit-era)
