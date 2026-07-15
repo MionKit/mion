@@ -16,7 +16,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 // ts-runtypes fn-cache keys exactly) and mion pure fns straight from that cache.
 // Core itself stays dependency-free: without a backend installed, jit/pure lookups
 // resolve to nothing. The class registries remain local until callers move to
-// registerClassSerializer (@ts-runtypes/core) — see migration-docs/05-core-audit.md.
+// registerClassSerializer (@ts-runtypes/core) — see docs/done/core-audit.md.
 
 /** Lookup backend installed by @mionjs/run-types to resolve jit/pure fns from the ts-runtypes cache */
 export interface JitLookupBackend {

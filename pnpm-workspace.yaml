@@ -34,7 +34,7 @@ minimumReleaseAge: 43200
 #   3.3.0, published 2026-06-29 — younger than 30 days at migration time).
 #   Remove once it ages past the policy window.
 # - '@ts-runtypes/*': needed as soon as mion consumes the registry-published
-#   packages instead of the temporary vendor/ tarballs (see migration-docs/).
+#   packages instead of the temporary vendor/ tarballs (see docs/).
 minimumReleaseAgeExclude:
   - unplugin
   - '@ts-runtypes/*'

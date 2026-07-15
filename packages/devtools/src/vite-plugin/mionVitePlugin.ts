@@ -110,7 +110,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
         legacyOptionsNoticeShown = true;
         console.warn(
             '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) ' +
-                'are ignored since the ts-runtypes migration. See migration-docs/ at the repo root.'
+                'are ignored since the ts-runtypes migration. See docs/ at the repo root.'
         );
     }
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver

@@ -12,7 +12,7 @@
 // functions with trailing injection-marker params get precompiled function
 // tuples injected; there is no runtime reflection and no JIT compilation left.
 //
-// See migration-docs/ at the repo root for the full migration story.
+// See docs/done/migration-overview.md for the full migration story.
 
 export * from '@ts-runtypes/core';
 

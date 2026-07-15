@@ -1,10 +1,13 @@
 # Migration plan — run-types → @ts-runtypes/core
 
+**Status:** done (completed-migration record)
+**Created:** 2026-07-11
+
 > **Status: EXECUTED (migration complete, on @ts-runtypes 0.9.2).** Every phase below landed,
 > and the "out of spike scope / deferred" items (headersFn, binary `tb`/`fb`, routesFlow
 > pure-fn mappings, client, type-formats, core `jit`/`pureFns`/`aot` cleanup) are all DONE.
-> This doc is kept as the historical plan-of-record. See [04-progress-log.md](04-progress-log.md)
-> and [done/](done/).
+> This doc is kept as the historical plan-of-record. See [04-progress-log.md](progress-log.md)
+> and [done/](./).
 
 ## The one architectural shift
 
@@ -12,7 +15,7 @@ Old model: `@mionjs/devtools` ran the deepkit type-compiler over every file so `
 
 New model: **no runtime reflection exists.** The `@ts-runtypes/devtools` vite plugin rewrites *call sites* of functions that declare trailing injection-marker params, injecting precompiled function tuples. Everything is AOT by construction — the entire mion AOT cache layer (devtools aotCacheGenerator, router aotCacheLoader/aotEmitter, core jit hashes, `mion-build-aot`) becomes obsolete.
 
-The injection point is mion's own `route()` / `query()` / `mutation()` / `middleFn()` factories ([packages/router/src/lib/handlers.ts](../packages/router/src/lib/handlers.ts)). Since mion routes are **always** declared through these factories (`Route = RouteDef`, bare handlers are not valid routes), every existing user call site gets build-time types with **zero user-code changes**.
+The injection point is mion's own `route()` / `query()` / `mutation()` / `middleFn()` factories ([packages/router/src/lib/handlers.ts](../../packages/router/src/lib/handlers.ts)). Since mion routes are **always** declared through these factories (`Route = RouteDef`, bare handlers are not valid routes), every existing user call site gets build-time types with **zero user-code changes**.
 
 ## Verified by standalone smoke test (scratchpad, 2026-07-11)
 
@@ -27,7 +30,7 @@ A minimal external consumer project (vendored tarballs + local binary, vite plug
 
 ## Mapping old jit surface → new fn keys
 
-`MethodReflect`/`JitCompiledFunctions` ([core general.types.ts:185](../packages/core/src/types/general.types.ts)) stays the router's internal currency; only how it's produced changes.
+`MethodReflect`/`JitCompiledFunctions` ([core general.types.ts:185](../../packages/core/src/types/general.types.ts)) stays the router's internal currency; only how it's produced changes.
 
 | mion `JitCompiledFunctions` slot | ts-runtypes fnKey | note |
 | --- | --- | --- |

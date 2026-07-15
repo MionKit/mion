@@ -1,5 +1,8 @@
 # Progress log
 
+**Status:** done (completed-migration record)
+**Created:** 2026-07-11
+
 ## 2026-07-15 — upgrade to @ts-runtypes 0.9.2 (session 3) — ✅ ALL GREEN
 
 ts-runtypes shipped **0.9.2** with the upstream follow-ups this migration filed. mion now
@@ -160,15 +163,15 @@ crashing at import). Test updates preserved the original assertions' intent thro
 
 ### Landed
 
-1. **Vendored `@ts-runtypes/*` tarballs** under [vendor/ts-runtypes/](../vendor/ts-runtypes/) built from ts-run-types `main` (`eb7b618` + two fixes below). npm's 0.9.0 predates `getRTFunction` + the multi-slot marker work, so `file:` refs are used until the next publish (see README).
+1. **Vendored `@ts-runtypes/*` tarballs** under `vendor/ts-runtypes/` (since removed) built from ts-run-types `main` (`eb7b618` + two fixes below). npm's 0.9.0 predates `getRTFunction` + the multi-slot marker work, so `file:` refs are used until the next publish (see README).
 2. **pnpm policy**: `minimumReleaseAgeExclude: [unplugin, '@ts-runtypes/*']` (unplugin@3.3.0 is 12 days old; the scope entry is for the registry switch later).
-3. **`@mionjs/run-types` → proxy**: legacy deepkit runtime type system deleted (JIT compilers, nodes, mocking, microbenchs); new surface = `export * from '@ts-runtypes/core'` + [mionAdapter](../packages/run-types/src/mionAdapter.ts) (`getReflectionFromMarkers`, `buildJitFnsFromMarker`, paramNames/hasReturnData/isAsync derivation). Deps: `@deepkit/*` out, `@ts-runtypes/core` in.
-4. **Router adapted (minimal)**: factory markers in [lib/handlers.ts](../packages/router/src/lib/handlers.ts) (`'val','verr','pj','rj','sj'` per side + two `InjectRunTypeId`), `rtFns` payload on defs, [lib/reflection.ts](../packages/router/src/lib/reflection.ts) rewritten to consume markers. dispatch/serializer code untouched.
+3. **`@mionjs/run-types` → proxy**: legacy deepkit runtime type system deleted (JIT compilers, nodes, mocking, microbenchs); new surface = `export * from '@ts-runtypes/core'` + [mionAdapter](../../packages/run-types/src/mionAdapter.ts) (`getReflectionFromMarkers`, `buildJitFnsFromMarker`, paramNames/hasReturnData/isAsync derivation). Deps: `@deepkit/*` out, `@ts-runtypes/core` in.
+4. **Router adapted (minimal)**: factory markers in [lib/handlers.ts](../../packages/router/src/lib/handlers.ts) (`'val','verr','pj','rj','sj'` per side + two `InjectRunTypeId`), `rtFns` payload on defs, [lib/reflection.ts](../../packages/router/src/lib/reflection.ts) rewritten to consume markers. dispatch/serializer code untouched.
 5. **`@mionjs/devtools`**: `mionVitePlugin` is now a wrapper over `@ts-runtypes/devtools/vite` accepting the legacy option shape — **all ~20 existing vite/vitest configs work unmodified**. deepkit/AOT/pure-fn modules deleted; `@deepkit/type-compiler` dep removed; eslint plugin + `cjsPackageJsonPlugin` kept; `serverReady` kept as resolved-promise compat.
 6. **Root tsconfig**: `customConditions: ["source"]` (tsgo resolves `@mionjs/*` to sources like vitest does).
 7. **Tests**:
-   - [router migration.spec.ts](../packages/router/src/migration.spec.ts): **8/8 green** — register+reflection data, dispatch+validate+respond, Date revival both directions, invalid params → validation-error, arity check, async handler, void route, middleFn chain.
-   - [run-types mionAdapter.spec.ts](../packages/run-types/src/mionAdapter.spec.ts): **6/6 green**.
+   - [router migration.spec.ts](../../packages/router/src/migration.spec.ts): **8/8 green** — register+reflection data, dispatch+validate+respond, Date revival both directions, invalid params → validation-error, arity check, async handler, void route, middleFn chain.
+   - [run-types mionAdapter.spec.ts](../../packages/run-types/src/mionAdapter.spec.ts): **6/6 green**.
    - Full router project: **78 pass / 137 fail** — every failure in an expected deferred/legacy bucket (below).
 
 ### Issues found & fixed along the way
@@ -218,7 +221,7 @@ core 56/56. PR #123 CI can now resolve `@ts-runtypes/binary-linux-x64`.
 ## 2026-07-11 — session 1 addendum 2 (pure fns + core cleanup)
 
 Per maintainer direction: audited core feature-by-feature vs ts-runtypes
-([05-core-audit.md](05-core-audit.md)) and removed everything that existed only to support the
+([05-core-audit.md](core-audit.md)) and removed everything that existed only to support the
 old run-types:
 
 - **core**: deleted `src/pureFns/` (registerPureFnFactory — the name that collided with the

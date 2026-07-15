@@ -1,10 +1,13 @@
 # @ts-runtypes/* — the API mion consumes
 
+**Status:** done (completed-migration record)
+**Created:** 2026-07-11
+
 > mion now consumes **`@ts-runtypes/*@0.9.2`** from npm. This reference was first written against
 > ts-run-types `main` (`eb7b618`, 2026-07-11); the marker / factory / `getRTFunction` surface
 > below is unchanged and still accurate. 0.9.2 additions mion relies on (enumerability guard +
 > `@nonEnumerable`, generic class serializers, id-relevant tuple labels, pattern-message,
-> mockSample validation) are covered in [04-progress-log.md](04-progress-log.md) and [done/](done/).
+> mockSample validation) are covered in [04-progress-log.md](progress-log.md) and [done/](./).
 
 ## Packages
 
