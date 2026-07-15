@@ -12,7 +12,7 @@ function mionVitePlugin(options = {}) {
   if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions)) {
     legacyOptionsNoticeShown = true;
     console.warn(
-      "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) are ignored since the ts-runtypes migration. See migration-docs/ at the repo root."
+      "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) are ignored since the ts-runtypes migration. See docs/ at the repo root."
     );
   }
   const plugins = tsRuntypes({
