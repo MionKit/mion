@@ -1,5 +1,12 @@
 # @mionjs/core feature audit vs ts-runtypes
 
+> **Status: migration COMPLETE.** Every **NEXT** verdict below has since landed — the binary
+> serializer proxies ts-runtypes' DataView codec, the client-metadata lane is live over the
+> ts-runtypes cache, and `type-formats` proxies `@ts-runtypes/core/formats` (see the 2026-07-12
+> addenda at the end and [04-progress-log.md](04-progress-log.md)). Read **NEXT** as "done".
+> The one remaining item is the examples/website refresh, tracked at
+> [todos/examples-and-website-refresh.md](todos/examples-and-website-refresh.md).
+
 Requested by the maintainer: go through each core (and run-types) feature and check whether
 `@ts-runtypes/core` already provides it. Verdicts: **DELETED** (removed in this branch),
 **PROXY** (mion re-exports/wraps ts-runtypes), **KEEP** (genuinely mion/router-specific),
