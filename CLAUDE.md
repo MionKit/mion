@@ -110,26 +110,34 @@ import type {TypeFormatParams, Brand} from '@mionjs/core';
 import {TypeFormatParams, Brand} from '@mionjs/core';
 ```
 
-## Migration docs & follow-up tracking (`migration-docs/`)
+## Docs & follow-up tracking (`docs/`)
 
-The run-types → `@ts-runtypes/*` migration is recorded under [`migration-docs/`](migration-docs/):
-the top-level narrative docs (README, the numbered `01`–`05`, `04-progress-log.md`) are the
-history + current-architecture reference, and discrete follow-up ISSUES are tracked as one spec
-file per issue under [`migration-docs/todos/`](migration-docs/todos/) and, once implemented,
-[`migration-docs/done/`](migration-docs/done/) (mirrors the `docs/todos` → `docs/done` flow in
-the sibling `ts-run-types` repo). Each spec is `# Title` + `**Status:**` + `**Created:**` +
-evidence + a concrete fix plan.
+mion's dev docs live under [`docs/`](docs/), following the SAME layout as the sibling
+`ts-run-types` repo. **Every doc is an ISSUE/RECORD spec that lives in one of the three
+subdirs — nothing loose in `docs/` itself:**
+
+- [`docs/todos/`](docs/todos/) — open follow-ups (one spec file per issue).
+- [`docs/done/`](docs/done/) — implemented follow-ups + completed-work records (e.g. the whole
+  run-types → `@ts-runtypes/*` migration record — see
+  [`docs/done/migration-overview.md`](docs/done/migration-overview.md)).
+- [`docs/partially/`](docs/partially/) — specs whose fix only partially shipped.
+
+**Spec format (match exactly):** `# Title` + `**Status:**` + `**Created:**` + evidence + a
+concrete fix plan. Use kebab-case filenames.
+
+### Workflow
 
 - **Found a defect or gap outside your current task's scope? Tell the user AND file it.** Any
   latent bug, doc-vs-code drift, or adopted-with-a-caveat compromise discovered along the way
   gets BOTH: (1) surfaced in your reply (what it is, where it came from, whether it predates your
-  change — bisect if cheap), and (2) recorded as a spec file under
-  [`migration-docs/todos/`](migration-docs/todos/) with evidence + a fix plan, so it survives the
-  session. Never let an out-of-scope finding live only in chat, and never silently widen your task
-  to fix it without asking.
-- **If a change implements a [`migration-docs/todos/`](migration-docs/todos/) spec, `git mv` it
-  into [`migration-docs/done/`](migration-docs/done/) and update it to match what shipped** (set
-  `Status: done`, note the commit/PR). Use a `partially/` note if only part shipped.
+  change — bisect if cheap), and (2) recorded as a spec file under [`docs/todos/`](docs/todos/)
+  with evidence + a fix plan, so it survives the session. Never let an out-of-scope finding live
+  only in chat, and never silently widen your task to fix it without asking.
+- **When a change implements a [`docs/todos/`](docs/todos/) spec, `git mv` it into
+  [`docs/done/`](docs/done/)** and update it to match what shipped (set `**Status:** done`, note
+  the commit/PR). If only part shipped, `git mv` it into [`docs/partially/`](docs/partially/) and
+  record what landed vs what is left.
+- **Never leave a spec loose in `docs/` root** — it belongs in `todos/`, `done/`, or `partially/`.
 
 ## Documentation Website
 
