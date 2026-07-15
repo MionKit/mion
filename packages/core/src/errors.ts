@@ -42,11 +42,19 @@ export function setErrorOptions(opts: CoreRouterOptions) {
     options = opts;
 }
 
+// `Error` re-typed so `message`/`name` are NOT inherited as required members. They are
+// re-added below as OPTIONAL + @nonEnumerable so @ts-runtypes emits a runtime enumerability
+// guard for them; the constructor defines them non-enumerable, so they are skipped when
+// serializing (mion keeps the internal message off the wire and exposes `publicMessage`),
+// while `DataOnly<T>` stays consistent (they are optional in the projected shape). Runtime
+// is still `Error`, so `instanceof Error` holds. `stack`/`cause` stay inherited (optional).
+const ErrorBase = Error as unknown as {new (message?: string): Omit<Error, 'message' | 'name'>};
+
 /**
  * Generic strongly typed error class that can be used outside RPC context.
  * Contains the core error properties: mion@isΣrrθr, type, and message.
  */
-export class TypedError<ErrType extends string> extends Error {
+export class TypedError<ErrType extends string> extends ErrorBase {
     /**
      * Unique error identifier,
      * Ideally this should be a symbol but we need to be able to serialize it so a namespaced prop is used instead
@@ -55,9 +63,12 @@ export class TypedError<ErrType extends string> extends Error {
     public readonly 'mion@isΣrrθr': true = true;
     /** Error type, can be used as discriminator in union types*/
     public readonly type: ErrType;
-    // Note: message and name are NOT declared as properties here
-    // They are inherited from Error class and assigned in constructor
-    // This prevents them from being included in type reflection for JIT validation
+    // Re-added as optional + @nonEnumerable (see the ErrorBase note above); the constructor
+    // defines them non-enumerable, so they are dropped from the serialized envelope.
+    /** @nonEnumerable */
+    declare message?: string;
+    /** @nonEnumerable */
+    declare name?: string;
 
     constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
         const errorMessage = message || originalError?.message || '';
@@ -104,9 +115,9 @@ export class RpcError<ErrType extends string, ErrData = any>
     extends TypedError<ErrType>
     implements RpcErrorParams<ErrType, ErrData>
 {
-    // Note: name is NOT declared as a property here
-    // It is inherited from Error class and assigned in constructor
-    // This prevents it from being included in type reflection for JIT validation
+    // `name`/`message` are inherited from TypedError as OPTIONAL + @nonEnumerable
+    // (see there), so they stay off the wire here too; the constructor just overrides
+    // `name`'s value to 'RpcError' (still non-enumerable).
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
