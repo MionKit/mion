@@ -7,6 +7,8 @@ export interface MionRunTypesOptions {
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
+    failOnError?: TsRuntypesPluginOptions['failOnError'];
+    allowUncheckedPatterns?: TsRuntypesPluginOptions['allowUncheckedPatterns'];
     compilerOptions?: unknown;
     include?: string | string[];
     exclude?: string | string[];

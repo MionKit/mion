@@ -37,15 +37,16 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
         expect(back instanceof RpcError).toBe(true);
     });
 
-    it('other generic instantiations fall back to structural data (upstream limitation)', () => {
-        // ts-runtypes keys class serializers by the registration site's type id and holds
-        // ONE key per class, so only the registered RpcError<string> projection reconstructs.
-        // Pinned here so an upstream generic-class-serializer feature shows up as a failure.
+    it('other generic instantiations ALSO reconstruct via the class-name lane', () => {
+        // Since @ts-runtypes 0.9.2 the class-serializer registry has a class-NAME fallback
+        // lane, so ONE `registerClassSerializer(RpcError, …)` covers EVERY instantiation the
+        // program uses, not just the registered RpcError<string> projection. A previously
+        // unregistered instantiation now rebuilds a real instance (was the old upstream gap).
         const encode = createJsonEncoder<RpcError<'other', {n: number}>>();
         const decode = createJsonDecoder<RpcError<'other', {n: number}>>();
         const back = decode(encode(new RpcError({publicMessage: 'x', message: 'x', type: 'other', errorData: {n: 1}}))!);
-        expect(back instanceof RpcError).toBe(false);
-        expect((back as {type: string}).type).toBe('other');
-        expect((back as {errorData: {n: number}}).errorData).toEqual({n: 1});
+        expect(back instanceof RpcError).toBe(true);
+        expect((back as RpcError<'other', {n: number}>).type).toBe('other');
+        expect((back as RpcError<'other', {n: number}>).errorData).toEqual({n: 1});
     });
 });

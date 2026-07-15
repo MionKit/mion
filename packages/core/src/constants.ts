@@ -81,20 +81,23 @@ export const HandlerType = {
  * Per-function cache-key prefixes. Since the ts-runtypes migration these are the
  * ts-runtypes per-family fn hashes (3-char, stable per family + default options + binary
  * version), so `<prefix>_<typeId>` matches the ts-runtypes runtime fn cache keys exactly
- * (see @mionjs/run-types mionAdapter). Pinned to @ts-runtypes 0.9.1 EXACTLY (0.9.0 already hashed differently) and verified by the
- * run-types adapter spec — a ts-runtypes version bump that re-hashes families will fail
- * that spec loudly.
+ * (see @mionjs/run-types mionAdapter). The prefixes are TYPE-INDEPENDENT (folded from the
+ * family + default options + binary version only), so one value per family covers every type.
+ * Pinned to @ts-runtypes 0.9.2 EXACTLY (every version bump re-hashes all families) and
+ * verified by the run-types adapter spec — a ts-runtypes version bump that re-hashes
+ * families fails that spec loudly, signalling these constants must be refreshed (dump them
+ * from an injected tuple's key: `entryTupleKey(tuple).slice(0, tuple[3].indexOf('_'))`).
  */
 export const JIT_FUNCTION_IDS = {
-    isType: 'dzd', // ts-runtypes 'val'
-    typeErrors: 'nnv', // ts-runtypes 'verr'
-    prepareForJson: 'Hrx', // ts-runtypes 'pj'
-    restoreFromJson: 'hxf', // ts-runtypes 'rj'
-    stringifyJson: 'wS2', // ts-runtypes 'sj'
-    hasUnknownKeys: 'Dtr', // ts-runtypes 'huk' (strictTypes)
-    unknownKeyErrors: 'dRv', // ts-runtypes 'uke' (strictTypes)
-    toBinary: 'fjF', // ts-runtypes 'tb'
-    fromBinary: 'ocw', // ts-runtypes 'fb'
+    isType: 'uSW', // ts-runtypes 'val'
+    typeErrors: 'c2G', // ts-runtypes 'verr'
+    prepareForJson: 'IM8', // ts-runtypes 'pj'
+    restoreFromJson: 'C8G', // ts-runtypes 'rj'
+    stringifyJson: 'xPn', // ts-runtypes 'sj'
+    hasUnknownKeys: 'IOY', // ts-runtypes 'huk' (strictTypes)
+    unknownKeyErrors: 'Wia', // ts-runtypes 'uke' (strictTypes)
+    toBinary: 'gY2', // ts-runtypes 'tb'
+    fromBinary: 'pVn', // ts-runtypes 'fb'
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

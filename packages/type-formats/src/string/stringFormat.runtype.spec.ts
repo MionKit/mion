@@ -120,8 +120,9 @@ it('validate string pattern', async () => {
 
 it('get pattern errors', async () => {
     type AlphaPattern = FormatString<{pattern: typeof alphaPattern}>;
-    // new emitter semantics: pattern errors always report the static default 'Invalid pattern' (the registered message is excluded from cache identity and never emitted as the error val)
-    const format: TypeFormatError = {name: 'stringFormat', val: 'Invalid pattern', formatPath: ['pattern']};
+    // @ts-runtypes 0.9.2: a pattern's registered `message` now surfaces as the error val
+    // (it is folded into the cache identity), so alphaPattern reports 'only letters allowed'.
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only letters allowed', formatPath: ['pattern']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const typeErrors = createGetValidationErrors<AlphaPattern>();
     expect(typeErrors('aaaa')).toEqual([]);
@@ -611,9 +612,9 @@ it('get multiple params errors', async () => {
     const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const alphaError: RunTypeError = {
-        // new emitter semantics: pattern errors always report the static default 'Invalid pattern'
+        // @ts-runtypes 0.9.2: the pattern's registered message surfaces as the error val
         ...expectedError,
-        format: {...format, formatPath: ['pattern'], val: 'Invalid pattern'},
+        format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
     };
     const minLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['minLength'], val: 5}};
     const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
@@ -635,9 +636,9 @@ it('should return multiple errors for string format violations', async () => {
     const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const alphaError: RunTypeError = {
-        // new emitter semantics: pattern errors always report the static default 'Invalid pattern'
+        // @ts-runtypes 0.9.2: the pattern's registered message surfaces as the error val
         ...expectedError,
-        format: {...format, formatPath: ['pattern'], val: 'Invalid pattern'},
+        format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
     };
     const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
 

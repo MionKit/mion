@@ -1,22 +1,21 @@
-import {createPrepareForJsonFn, createRestoreFromJsonFn} from '@mionjs/run-types';
+import {createJsonEncoder, createJsonDecoder} from '@mionjs/run-types';
 
 type Result = string | number | {error: string};
 
-const prepareForJson = await createPrepareForJsonFn<Result>();
-const restoreFromJson = await createRestoreFromJsonFn<Result>();
+// createJsonEncoder / createJsonDecoder are the public JSON serialization API.
+// The encoder walks the type of `Result` and produces a JSON string; the decoder
+// parses it back to the correct union member.
+const encode = createJsonEncoder<Result>();
+const decode = createJsonDecoder<Result>();
 
-// String value (index 0)
-const json1 = prepareForJson('hello');
-// Returns: [0, 'hello']
+// String member
+const json1 = encode('hello');
+const back1 = decode(json1!); // 'hello'
 
-// Number value (index 1)
-const json2 = prepareForJson(42);
-// Returns: [1, 42]
+// Number member
+const json2 = encode(42);
+const back2 = decode(json2!); // 42
 
-// Object value (index 2)
-const json3 = prepareForJson({error: 'not found'});
-// Returns: [2, {error: 'not found'}]
-
-// Deserialization restores the correct type
-const restored = restoreFromJson(json2);
-// restored === 42
+// Object member
+const json3 = encode({error: 'not found'});
+const back3 = decode(json3!); // {error: 'not found'}

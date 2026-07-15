@@ -216,13 +216,13 @@ it('get Social media errors', async () => {
     expect(typeErrors('http://instagram.com')).toEqual([]);
     expect(typeErrors('https://linkedin.com')).toEqual([]);
     expect(typeErrors('http://tiktok.com')).toEqual([]);
-    // the recreated pattern-based format reports name 'stringFormat' with the default
-    // 'Invalid pattern' val (registerFormatPattern message is not surfaced in errors);
-    // the old per-part 'domain allowedValues' error no longer exists
+    // the recreated pattern-based format reports name 'stringFormat'; since @ts-runtypes
+    // 0.9.2 the pattern's registered message surfaces as the error val, so it reports
+    // 'invalid social media URL format'; the old per-part 'domain allowedValues' error is gone
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'stringFormat', formatPath: ['pattern'], val: 'Invalid pattern'},
+        format: {name: 'stringFormat', formatPath: ['pattern'], val: 'invalid social media URL format'},
     };
     // invalid cases
     expect(typeErrors('ftp://facebook.com')).toEqual([formatError]);

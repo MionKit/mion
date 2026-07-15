@@ -1,5 +1,77 @@
 # Progress log
 
+## 2026-07-15 — upgrade to @ts-runtypes 0.9.2 (session 3) — ✅ ALL GREEN
+
+ts-runtypes shipped **0.9.2** with the upstream follow-ups this migration filed. mion now
+consumes it. **Whole suite green again on 0.9.2** (core, run-types, router, type-formats,
+drizze, devtools, all platforms, client). What changed:
+
+### Dependency + config
+
+- Bumped `@ts-runtypes/{core,bin,devtools}` `0.9.1 → 0.9.2` (core in core/run-types/type-formats,
+  bin+devtools in devtools). Every version bump re-hashes ALL family fn-hashes (the binary
+  version is folded into every typeId + fn-hash), so `JIT_FUNCTION_IDS` was refreshed to the
+  0.9.2 prefixes: `val→uSW, verr→c2G, pj→IM8, rj→C8G, sj→xPn, huk→IOY, uke→Wia, tb→gY2, fb→pVn`
+  (type-independent, discovered from an injected tuple's key, pinned by the adapter spec —
+  which fails loudly on the next bump). The value-level transforms themselves are still
+  resolved through the public `getRTFunction<'pj'>/<'rj'>/<'sj'>` in `mionAdapter.ts`; the
+  prefixes only address the full cache ENTRY (code/isNoop/deps) for the client-metadata lane.
+- `mionVitePlugin` gained two passthroughs to the 0.9.2 plugin: `failOnError` and
+  `allowUncheckedPatterns`.
+  - **`failOnError` now defaults to FALSE in mion.** ts-runtypes' strict `failOnError: true`
+    is a 0.9.2-new default mion never had (0.9.1 only warned). mion's run-types ADAPTER
+    deliberately wraps the ts-runtypes pure-fn registry APIs (`registerPureFnFactory`,
+    `getPureFn`, `getCompiledPureFn`) with **runtime-computed keys**, so the scanner emits
+    benign CTA003/PFN001 for those call sites — and since every consumer scans that adapter
+    source, a strict default would halt every build. Diagnostics still surface as warnings +
+    through the lint lane. A package can opt back in with `failOnError: true`.
+  - **`allowUncheckedPatterns: true` on type-formats.** The example name/city formats use
+    unicode `\u…` escapes RE2 can't compile; 0.9.2's FMT004 fails such patterns closed when
+    they carry mockSamples. The flag delegates the sample check to the JS lint lane
+    (`registerFormatPattern` still validates against the real JS RegExp at module load).
+
+### Upstream fixes now consumed (implemented)
+
+- **Generic class serializers** — ONE `registerClassSerializer(RpcError, …)` now covers every
+  instantiation via the class-name lane. `mionClassSerializers.spec` updated: a non-registered
+  `RpcError<'other', …>` now rebuilds a real instance (was the old "upstream limitation" tripwire).
+- **Tuple labels are id-relevant** — `[s: string]` and `[name: string]` get DISTINCT typeIds
+  now (they used to dedupe). `mionAdapter.spec` updated; paramNames still come from handler source.
+- **Pattern `message` surfaces as the error val** — format tests updated: a pattern with a
+  registered `message` reports it (`'only letters allowed'`, `'invalid social media URL format'`)
+  instead of the generic `'Invalid pattern'` (built-in patterns with no message keep the default).
+- **mockSample validation (FMT003/FMT004)** — active; handled via `allowUncheckedPatterns` above.
+- **Enumerability guard + `@nonEnumerable`** — 0.9.2 guards OPTIONAL global-inherited props
+  (Error `stack?`) and `@nonEnumerable`-tagged optional props by runtime enumerability;
+  REQUIRED members (Error `name`/`message`) are ALWAYS serialized. See the error-wire note below.
+- **JCP001** (compact-strategy unserializable-leaf) fixed upstream; no mion-visible change.
+
+### Examples
+
+- The four prepareForJson/restoreFromJson examples (`serialization-union`, `json-prepare`,
+  `json-restore`, `complete-example`) rewritten to the public API (`createJsonEncoder` /
+  `createJsonDecoder` / `createValidate` / `createGetValidationErrors` / `createMockData`, all
+  synchronous — the removed `createPrepareForJsonFn`/`createRestoreFromJsonFn`/`create*Fn`
+  deepkit-era factories are gone). The remaining ~9 deepkit-era example sources stay part of
+  the documented examples+website refresh follow-up.
+
+### ⚠️ Open finding — RpcError/TypedError leak `name`/`message` on the wire
+
+`createJsonEncoder<RpcError<string>>()(err)` emits `{"publicMessage":…,"name":"RpcError",
+"message":"<internal>", …}` — the internal `message` and `name` ride the wire, where native
+`JSON.stringify(err)` (which mion's classes target by declaring them **non-enumerable**) drops
+them. Cause: `name`/`message` are REQUIRED lib-`Error` members, and 0.9.2 always serializes
+those by name regardless of runtime enumerability (only OPTIONAL global-inherited props get the
+enumerability guard). **This is PRE-EXISTING (0.9.1 kept name/message in the projection too),
+not new to the bump**, and it conflicts with mion's explicit "exclude message from the wire"
+intent (it uses `publicMessage`). ts-runtypes 0.9.2 deliberately puts the error envelope on the
+wire, so this is a design call for the maintainer:
+- **Accept** name/message on the wire (drop mion's non-enumerable trick), or
+- **Exclude** the internal `message` via a class-serializer `serialize` handler
+  (`registerClassSerializer(RpcError, {serialize, deserialize})`) that emits only the public
+  envelope (`publicMessage`/`type`/`id`/`errorData`/`statusCode`).
+Filed for a decision; not changed here (tests pass either way — `toEqual` ignores non-enumerable).
+
 ## 2026-07-12 — full-suite campaign (session 2) — ✅ ALL GREEN
 
 Goal: every mion test green on ts-runtypes (maintainer directive). **Final state: the whole

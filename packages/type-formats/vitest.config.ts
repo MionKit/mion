@@ -9,6 +9,11 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
+                // Example formats (name/city) use unicode `\u…` escapes RE2 can't compile,
+                // so build-time mockSample verification (FMT004) is delegated to the JS lint
+                // lane. registerFormatPattern still validates samples against the real JS
+                // RegExp at module load, so nothing goes unchecked at runtime.
+                allowUncheckedPatterns: true,
                 compilerOptions: {
                     sourceMap: true,
                 },
