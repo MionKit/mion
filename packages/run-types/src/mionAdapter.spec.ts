@@ -90,15 +90,16 @@ describe('mionAdapter: reflection from injected markers', () => {
         ]);
     });
 
-    it('keeps distinct param names for structurally identical tuples (dedup-safe)', () => {
-        // ts-runtypes dedupes `[s: string]` and `[name: string]` into ONE runtype node
-        // (tuple labels are not part of the structural id), so names must NOT come from
-        // the runtype graph. These two share a typeId but keep their own paramNames.
+    it('reads param names from the handler source, independent of tuple labels', () => {
+        // Since @ts-runtypes 0.9.2 tuple labels ARE folded into the structural id, so
+        // `[s: string]` and `[name: string]` get DISTINCT typeIds (they no longer dedupe).
+        // mion still derives paramNames from the handler SOURCE (the definitive names,
+        // robust to destructuring), not the runtype graph.
         const routeA = fakeRoute((ctx: unknown, s: string): void => undefined);
         const routeB = fakeRoute((ctx: unknown, name: string): void => undefined);
         const reflectionA = getReflectionFromMarkers(routeA.rtFns, routeA.handler, 'routeA');
         const reflectionB = getReflectionFromMarkers(routeB.rtFns, routeB.handler, 'routeB');
-        expect(reflectionA.paramsJitHash).toBe(reflectionB.paramsJitHash);
+        expect(reflectionA.paramsJitHash).not.toBe(reflectionB.paramsJitHash);
         expect(reflectionA.paramNames).toEqual(['s']);
         expect(reflectionB.paramNames).toEqual(['name']);
     });

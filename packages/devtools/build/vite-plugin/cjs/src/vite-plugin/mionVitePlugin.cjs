@@ -24,7 +24,16 @@ function mionVitePlugin(options = {}) {
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,
     inlineMode: rt.inlineMode,
-    transformMode: rt.transformMode
+    transformMode: rt.transformMode,
+    // mion defaults ts-runtypes' failOnError to FALSE (its strict default is 0.9.2-new;
+    // mion never had it). mion's run-types adapter deliberately wraps ts-runtypes pure-fn
+    // registry APIs (registerPureFnFactory / getPureFn / getCompiledPureFn) with
+    // runtime-computed keys, so the scanner emits benign CTA003/PFN001 for those call
+    // sites — and since every consumer scans that adapter source, a strict default would
+    // halt every build. Diagnostics still surface as warnings and through the lint lane.
+    // A package can opt back into strict with `failOnError: true`.
+    failOnError: rt.failOnError ?? false,
+    allowUncheckedPatterns: rt.allowUncheckedPatterns
   });
   if (!options.server) return plugins;
   const server = options.server;
