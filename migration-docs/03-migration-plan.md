@@ -1,5 +1,11 @@
 # Migration plan — run-types → @ts-runtypes/core
 
+> **Status: EXECUTED (migration complete, on @ts-runtypes 0.9.2).** Every phase below landed,
+> and the "out of spike scope / deferred" items (headersFn, binary `tb`/`fb`, routesFlow
+> pure-fn mappings, client, type-formats, core `jit`/`pureFns`/`aot` cleanup) are all DONE.
+> This doc is kept as the historical plan-of-record. See [04-progress-log.md](04-progress-log.md)
+> and [done/](done/).
+
 ## The one architectural shift
 
 Old model: `@mionjs/devtools` ran the deepkit type-compiler over every file so `@mionjs/run-types` could **reflect handler functions at runtime** (`reflectFunction(handler)`) and JIT-compile validators/serializers, with an AOT cache layer on top to skip that at prod boot.
