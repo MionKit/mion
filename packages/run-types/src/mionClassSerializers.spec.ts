@@ -37,6 +37,26 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
         expect(back instanceof RpcError).toBe(true);
     });
 
+    it('keeps the internal `message` and `name` OFF the wire (public envelope only)', () => {
+        // TypedError/RpcError declare message/name as optional + @nonEnumerable and set them
+        // non-enumerable at runtime, so @ts-runtypes' enumerability guard drops them from the
+        // serialized envelope (mion exposes `publicMessage`, not the internal `message`).
+        const encode = createJsonEncoder<RpcError<string>>();
+        const wire = encode(
+            new RpcError({publicMessage: 'safe', message: 'internal-secret', type: 'e', errorData: {x: 1}, id: 'id9'})
+        )!;
+        const parsed = JSON.parse(wire);
+        expect(parsed.message).toBeUndefined();
+        expect(parsed.name).toBeUndefined();
+        expect(wire).not.toContain('internal-secret');
+        // the public envelope IS present and matches native JSON.stringify's own-enumerable shape
+        expect(parsed.publicMessage).toBe('safe');
+        expect(parsed.type).toBe('e');
+        expect(parsed['mion@isΣrrθr']).toBe(true);
+        expect(parsed.errorData).toEqual({x: 1});
+        expect(parsed.id).toBe('id9');
+    });
+
     it('other generic instantiations ALSO reconstruct via the class-name lane', () => {
         // Since @ts-runtypes 0.9.2 the class-serializer registry has a class-NAME fallback
         // lane, so ONE `registerClassSerializer(RpcError, …)` covers EVERY instantiation the
