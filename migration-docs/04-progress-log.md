@@ -55,22 +55,34 @@ drizze, devtools, all platforms, client). What changed:
   deepkit-era factories are gone). The remaining ~9 deepkit-era example sources stay part of
   the documented examples+website refresh follow-up.
 
-### ⚠️ Open finding — RpcError/TypedError leak `name`/`message` on the wire
+### RpcError/TypedError wire shape — RESOLVED (internal `message`/`name` kept off the wire)
 
-`createJsonEncoder<RpcError<string>>()(err)` emits `{"publicMessage":…,"name":"RpcError",
-"message":"<internal>", …}` — the internal `message` and `name` ride the wire, where native
-`JSON.stringify(err)` (which mion's classes target by declaring them **non-enumerable**) drops
-them. Cause: `name`/`message` are REQUIRED lib-`Error` members, and 0.9.2 always serializes
-those by name regardless of runtime enumerability (only OPTIONAL global-inherited props get the
-enumerability guard). **This is PRE-EXISTING (0.9.1 kept name/message in the projection too),
-not new to the bump**, and it conflicts with mion's explicit "exclude message from the wire"
-intent (it uses `publicMessage`). ts-runtypes 0.9.2 deliberately puts the error envelope on the
-wire, so this is a design call for the maintainer:
-- **Accept** name/message on the wire (drop mion's non-enumerable trick), or
-- **Exclude** the internal `message` via a class-serializer `serialize` handler
-  (`registerClassSerializer(RpcError, {serialize, deserialize})`) that emits only the public
-  envelope (`publicMessage`/`type`/`id`/`errorData`/`statusCode`).
-Filed for a decision; not changed here (tests pass either way — `toEqual` ignores non-enumerable).
+Before this fix, `createJsonEncoder<RpcError<string>>()(err)` emitted `{"publicMessage":…,
+"name":"RpcError","message":"<internal>", …}` — the internal `message` and `name` rode the
+wire, where native `JSON.stringify(err)` (which mion's classes target by declaring them
+**non-enumerable**) drops them. Cause: `name`/`message` are REQUIRED lib-`Error` members, and
+@ts-runtypes always serializes REQUIRED members by name regardless of runtime enumerability;
+only OPTIONAL global-inherited props get the enumerability guard (this is deliberate so
+`DataOnly<T>` stays consistent with what is serialized). This was PRE-EXISTING (0.9.1 kept
+name/message in the projection too), not introduced by the bump.
+
+**Fix (maintainer direction):** override `message`/`name` in `TypedError` as **OPTIONAL +
+`@nonEnumerable`** so the resolver emits a runtime enumerability guard for them; the
+constructor already defines them non-enumerable, so they are skipped when serializing.
+`DataOnly<T>` stays consistent (they are optional in the projected shape). Because TS forbids
+widening `Error`'s REQUIRED `message`/`name` to optional (TS2416), the base is re-typed once
+via `Omit`: `const ErrorBase = Error as unknown as {new (message?: string): Omit<Error,
+'message' | 'name'>}` and `TypedError extends ErrorBase` (runtime is still `Error`, so
+`instanceof Error` holds; `stack`/`cause` stay inherited-optional and were already guarded).
+`RpcError` inherits the optional declarations. Result: the wire is now the public envelope
+only — `{publicMessage, mion@isΣrrθr, type, id?, errorData?, statusCode?}` — matching native
+`JSON.stringify`, and round-trip + `instanceof` still hold. Pinned by a new test in
+`mionClassSerializers.spec.ts` ("keeps the internal `message` and `name` OFF the wire").
+
+**General rule for error subclasses:** to keep a prop off the wire it must be (1) non-enumerable
+at runtime, (2) OPTIONAL in the type, and (3) tagged `@nonEnumerable` (unless it is an
+already-optional global-inherited prop like `stack?`, which is guarded automatically). A
+REQUIRED `@nonEnumerable` prop has no effect and warns (NE001).
 
 ## 2026-07-12 — full-suite campaign (session 2) — ✅ ALL GREEN
 
