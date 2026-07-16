@@ -6,6 +6,7 @@
  * ######## */
 
 import type {CoreRouterOptions} from './types/general.types.ts';
+import {getFnHash} from '@ts-runtypes/core';
 
 export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
     /** automatically generate and uuid */
@@ -78,26 +79,26 @@ export const HandlerType = {
 } as const;
 
 /**
- * Per-function cache-key prefixes. Since the ts-runtypes migration these are the
- * ts-runtypes per-family fn hashes (3-char, stable per family + default options + binary
- * version), so `<prefix>_<typeId>` matches the ts-runtypes runtime fn cache keys exactly
- * (see @mionjs/run-types mionAdapter). The prefixes are TYPE-INDEPENDENT (folded from the
- * family + default options + binary version only), so one value per family covers every type.
- * Pinned to @ts-runtypes 0.9.2 EXACTLY (every version bump re-hashes all families) and
- * verified by the run-types adapter spec — a ts-runtypes version bump that re-hashes
- * families fails that spec loudly, signalling these constants must be refreshed (dump them
- * from an injected tuple's key: `entryTupleKey(tuple).slice(0, tuple[3].indexOf('_'))`).
+ * Per-function cache-key prefixes, DERIVED from @ts-runtypes' `getFnHash` (no hardcoding).
+ * Each entry is the `<fnHash>` half of the ts-runtypes runtime cache key `<fnHash>_<typeId>`
+ * (see @mionjs/run-types mionAdapter), keyed by mion's family name and mapped to the
+ * ts-runtypes fn key. Since @ts-runtypes 0.9.3 the fnHash salt no longer folds the binary
+ * version, so these prefixes are STABLE across releases and `getFnHash` reads them from
+ * ts-runtypes' Go-generated table (the single source of truth) — a version bump needs NO
+ * refresh here (the `<typeId>` half still carries the version for cache invalidation). The
+ * prefixes are TYPE-INDEPENDENT (family + default options only), so one value per family
+ * covers every type.
  */
 export const JIT_FUNCTION_IDS = {
-    isType: 'uSW', // ts-runtypes 'val'
-    typeErrors: 'c2G', // ts-runtypes 'verr'
-    prepareForJson: 'IM8', // ts-runtypes 'pj'
-    restoreFromJson: 'C8G', // ts-runtypes 'rj'
-    stringifyJson: 'xPn', // ts-runtypes 'sj'
-    hasUnknownKeys: 'IOY', // ts-runtypes 'huk' (strictTypes)
-    unknownKeyErrors: 'Wia', // ts-runtypes 'uke' (strictTypes)
-    toBinary: 'gY2', // ts-runtypes 'tb'
-    fromBinary: 'pVn', // ts-runtypes 'fb'
+    isType: getFnHash('val'),
+    typeErrors: getFnHash('verr'),
+    prepareForJson: getFnHash('pj'),
+    restoreFromJson: getFnHash('rj'),
+    stringifyJson: getFnHash('sj'),
+    hasUnknownKeys: getFnHash('huk'), // strictTypes
+    unknownKeyErrors: getFnHash('uke'), // strictTypes
+    toBinary: getFnHash('tb'),
+    fromBinary: getFnHash('fb'),
 } as const;
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */

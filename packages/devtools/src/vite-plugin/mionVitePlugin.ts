@@ -82,9 +82,10 @@ export interface MionPluginOptions {
 let legacyOptionsNoticeShown = false;
 
 /** Resolves the ts-runtypes resolver binary: explicit option → env var → published platform package.
- *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId and
- *  per-family fn hash, so a locally built binary at a different version silently produces
- *  caches that diverge from CI/user installs (JIT_FUNCTION_IDS prefixes stop matching). */
+ *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
+ *  built binary at a different version silently produces caches that diverge from CI/user installs
+ *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
+ *  themselves are version-stable since @ts-runtypes 0.9.3). */
 export function resolveRtBinary(explicit?: string): string | undefined {
     if (explicit) return explicit;
     if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;

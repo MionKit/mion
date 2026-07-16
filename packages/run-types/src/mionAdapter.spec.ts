@@ -105,8 +105,9 @@ describe('mionAdapter: reflection from injected markers', () => {
     });
 
     it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {
-        // Pins the JIT_FUNCTION_IDS prefixes to the ts-runtypes per-family fn hashes:
-        // if a ts-runtypes bump re-hashes families, this fails loudly (update core constants).
+        // JIT_FUNCTION_IDS is derived from @ts-runtypes getFnHash (same source the emitter uses),
+        // so this verifies the derived `<fnHash>_<typeId>` keys resolve to real emitted entries.
+        // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
         const hashes = getJitFnHashes(reflection.paramsJitHash);
         for (const key of ['isType', 'typeErrors', 'restoreFromJson', 'stringifyJson'] as const) {
