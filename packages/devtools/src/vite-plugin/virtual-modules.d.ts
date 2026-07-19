@@ -31,6 +31,11 @@ declare module 'virtual:mion-aot/caches' {
     export const routerCache: Record<string, any>;
 }
 
+/** serverMapFrom transport: side-effect import (server entry) that registers the
+ *  build-harvested mapper manifests into the ts-runtypes pure-fn registry.
+ *  Served by mionVitePlugin when `serverMappers.consume` is configured. */
+declare module 'virtual:mion/server-mappers' {}
+
 /** Virtual module for server pure functions extracted from client source at build time. */
 declare module 'virtual:mion-server-pure-fns' {
     interface ServerPureFnEntry {

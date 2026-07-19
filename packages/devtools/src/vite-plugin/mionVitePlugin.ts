@@ -6,9 +6,13 @@
  * ######## */
 
 import path from 'node:path';
+import {mkdirSync, writeFileSync} from 'node:fs';
 import {spawn, type ChildProcess} from 'node:child_process';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
+
+/** One report record from the ts-runtypes pure-fn build report (structural subset). */
+type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];
 
 // ############# mion vite plugin — ts-runtypes migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
@@ -27,7 +31,10 @@ export interface MionRunTypesOptions {
     /** Explicit path to the ts-runtypes resolver binary. Default resolution:
      *  TS_RUNTYPES_BIN env var → the published platform binary via @ts-runtypes/bin getExePath(). */
     binary?: string;
-    /** RunTypes output root (generated modules land under `<outDir>/types/`, gitignored). */
+    /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
+     *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in @ts-runtypes 0.10.0. */
+    genDir?: string;
+    /** @deprecated use `genDir` — kept as an alias for existing configs. */
     outDir?: string;
     /** What generated fn entries ship: 'code' (default) | 'functions' | 'both'. */
     emitMode?: TsRuntypesPluginOptions['emitMode'];
@@ -35,10 +42,9 @@ export interface MionRunTypesOptions {
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
-    /** Halt the build on Error-severity ts-runtypes diagnostics (default true).
-     *  Set false for packages that deliberately wrap ts-runtypes marker APIs with
-     *  runtime arguments (e.g. @mionjs/run-types' pure-fn adapter), where CTA/PFN
-     *  diagnostics are expected and non-fatal. */
+    /** Halt the build on Error-severity ts-runtypes diagnostics (default true — the
+     *  mion run-types adapter is scanner-clean since the pure-fn helpers moved onto the
+     *  untracked runtime-key APIs, so strict mode is safe monorepo-wide). */
     failOnError?: TsRuntypesPluginOptions['failOnError'];
     /** Allow TypeFormat patterns that carry mockSamples but use JS-only regex features
      *  (unicode `\u…` escapes, lookarounds, backreferences) RE2 cannot compile — the
@@ -67,11 +73,28 @@ export interface MionServerOptions {
     env?: Record<string, string>;
 }
 
+/** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
+ *  ts-runtypes pure-fn build report) into a manifest; server builds CONSUME it through
+ *  the `virtual:mion/server-mappers` module. Wire carries only the `rt::<hash>` key —
+ *  the server registers exactly the mappers its own build baked in. */
+export interface MionServerMappersOptions {
+    /** CLIENT builds: write harvested serverMapFrom mappers to this manifest path.
+     *  `true` resolves '.mion/server-mappers.json' against the process cwd — pass an
+     *  absolute path in monorepo/vitest-workspace setups. */
+    emit?: boolean | string;
+    /** SERVER builds: manifest path(s) served through `virtual:mion/server-mappers`
+     *  (import it once, side-effect, from the server entry). Missing files are
+     *  tolerated and re-read lazily on the first unresolved mapping. */
+    consume?: string | string[];
+}
+
 /** Options for the unified mion vite plugin (legacy sections accepted and ignored). */
 export interface MionPluginOptions {
     /** ts-runtypes type transformation options. */
     runTypes?: MionRunTypesOptions;
-    /** LEGACY pure function extraction — handled by ts-runtypes PureFunction markers now. Ignored. */
+    /** serverMapFrom mapper transport between the client and server builds. */
+    serverMappers?: MionServerMappersOptions;
+    /** LEGACY pure function extraction — handled by the serverMappers transport now. Ignored. */
     serverPureFunctions?: unknown;
     /** LEGACY AOT cache generation — obsolete, ts-runtypes output IS the AOT artifact. Ignored. */
     aotCaches?: unknown;
@@ -114,37 +137,121 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
                 'are ignored since the ts-runtypes migration. See docs/ at the repo root.'
         );
     }
+    // serverMapFrom harvest (CLIENT builds): consume the ts-runtypes pure-fn build report,
+    // keep only sites attributed to @mionjs/client's serverMapFrom wrapper, and write the
+    // manifest after every report phase ('build' replaces, 'update' merges the HMR delta).
+    const manifestPath = resolveManifestPath(options.serverMappers?.emit);
+    const harvestedMappers = new Map<string, ServerMapperManifestEntry>();
+    const harvestReport = (sites: RtPureFnSite[], phase: 'build' | 'update'): void => {
+        if (phase === 'build') harvestedMappers.clear();
+        for (const site of sites) {
+            if (site.calleeName !== 'serverMapFrom' || site.calleeModule !== '@mionjs/client') continue;
+            harvestedMappers.set(site.key, {
+                key: site.key,
+                paramNames: site.paramNames,
+                code: site.code,
+                pureFnDependencies: site.pureFnDependencies,
+            });
+        }
+        writeMapperManifest(manifestPath as string, harvestedMappers);
+    };
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
     const plugins = tsRuntypes({
         binary: resolveRtBinary(rt.binary),
         tsconfig: rt.tsConfig,
-        outDir: rt.outDir,
+        genDir: rt.genDir ?? rt.outDir,
         emitMode: rt.emitMode,
         moduleMode: rt.moduleMode,
         inlineMode: rt.inlineMode,
         transformMode: rt.transformMode,
-        // mion defaults ts-runtypes' failOnError to FALSE (its strict default is 0.9.2-new;
-        // mion never had it). mion's run-types adapter deliberately wraps ts-runtypes pure-fn
-        // registry APIs (registerPureFnFactory / getPureFn / getCompiledPureFn) with
-        // runtime-computed keys, so the scanner emits benign CTA003/PFN001 for those call
-        // sites — and since every consumer scans that adapter source, a strict default would
-        // halt every build. Diagnostics still surface as warnings and through the lint lane.
-        // A package can opt back into strict with `failOnError: true`.
-        failOnError: rt.failOnError ?? false,
+        // Strict by default: Error-severity ts-runtypes diagnostics halt the build. The
+        // mion run-types adapter no longer trips the scanner (its runtime-key wrappers ride
+        // the untracked *ByKey APIs / the raw cache), so consumers get the documented
+        // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
+        failOnError: rt.failOnError ?? true,
         allowUncheckedPatterns: rt.allowUncheckedPatterns,
+        // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
+        // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
+        ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),
     });
-    if (!options.server) return plugins;
-    const server = options.server;
-    // Server startup is deferred to buildStart so only the project actually RUNNING
-    // spawns it (in vitest workspace mode every project config gets evaluated).
-    const orchestrator = {
-        name: 'mion-server-orchestrator',
-        buildStart() {
-            startManagedServer(server);
+    // Always serve virtual:mion/server-mappers — a server entry importing it must keep
+    // resolving in pipelines WITHOUT `consume` configured (e.g. specs importing the
+    // test-server module for its route types); those get an inert empty module.
+    const extraPlugins: unknown[] = [serverMappersConsumePlugin(options.serverMappers?.consume)];
+    if (options.server) {
+        const server = options.server;
+        // Server startup is deferred to buildStart so only the project actually RUNNING
+        // spawns it (in vitest workspace mode every project config gets evaluated).
+        extraPlugins.unshift({
+            name: 'mion-server-orchestrator',
+            buildStart() {
+                startManagedServer(server);
+            },
+        });
+    }
+    return extraPlugins.length > 0 ? [...extraPlugins, plugins] : plugins;
+}
+
+// ############# serverMapFrom manifest transport #############
+
+/** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/run-types ServerMapperEntry). */
+interface ServerMapperManifestEntry {
+    key: string;
+    paramNames?: string[];
+    code?: string;
+    pureFnDependencies?: string[];
+}
+
+/** Resolves the emit option to an absolute manifest path (undefined = harvest disabled). */
+function resolveManifestPath(emit: MionServerMappersOptions['emit']): string | undefined {
+    if (!emit) return undefined;
+    return path.resolve(emit === true ? '.mion/server-mappers.json' : emit);
+}
+
+/** Writes the harvested mappers deterministically (sorted by key; empty array = harvested, none found). */
+function writeMapperManifest(manifestPath: string, mappers: Map<string, ServerMapperManifestEntry>): void {
+    const entries = [...mappers.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+    mkdirSync(path.dirname(manifestPath), {recursive: true});
+    writeFileSync(manifestPath, JSON.stringify(entries, null, 2) + '\n');
+}
+
+const SERVER_MAPPERS_ID = 'virtual:mion/server-mappers';
+const RESOLVED_SERVER_MAPPERS_ID = '\0' + SERVER_MAPPERS_ID;
+
+/** Serves virtual:mion/server-mappers to SERVER builds: registers the manifests' mappers and
+ *  installs the lazy re-reader (covers the dev race where the server boots before the client
+ *  build finished harvesting — the first unresolved mapping re-reads the manifest). Without
+ *  `consume` paths it serves an inert empty module so the import never breaks a pipeline. */
+function serverMappersConsumePlugin(consume: string | string[] | undefined) {
+    const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
+    return {
+        name: 'mion-server-mappers',
+        resolveId(id: string) {
+            if (id === SERVER_MAPPERS_ID) return RESOLVED_SERVER_MAPPERS_ID;
+        },
+        load(id: string) {
+            if (id !== RESOLVED_SERVER_MAPPERS_ID) return;
+            if (manifests.length === 0) return 'export {};';
+            return [
+                `import {installServerMapperReader} from '@mionjs/run-types';`,
+                `import {existsSync, readFileSync} from 'node:fs';`,
+                `const MANIFESTS = ${JSON.stringify(manifests)};`,
+                `installServerMapperReader(() => {`,
+                `    const entries = [];`,
+                `    for (const manifestPath of MANIFESTS) {`,
+                `        if (!existsSync(manifestPath)) continue;`,
+                `        try {`,
+                `            entries.push(...JSON.parse(readFileSync(manifestPath, 'utf8')));`,
+                `        } catch {`,
+                `            // partial write: the lazy on-miss re-read retries`,
+                `        }`,
+                `    }`,
+                `    return entries;`,
+                `});`,
+            ].join('\n');
         },
     };
-    return [orchestrator, plugins];
 }
 
 // ############# managed server process #############

@@ -8,5 +8,11 @@
   "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}, {"path": "../test-server"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "examples/eslint-rule-test.routes.ts"
+  ]
 }

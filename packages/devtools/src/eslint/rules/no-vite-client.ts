@@ -22,7 +22,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
             missingPureFnName:
                 'pureServerFn() requires a name as the second argument (string literal) for non-Vite environments.',
             missingMapFromName:
-                'serverMapFrom() requires a name as the third argument (string literal) for non-Vite environments.',
+                'serverMapFrom() requires the name of a server-registered pure fn (string literal) as the second argument in non-Vite environments — inline mappers need the mion vite plugin.',
             nameNotStringLiteral: '{{callee}}() name argument must be a string literal, not a variable or expression.',
             registerPureFnFactoryNotAllowed:
                 'registerPureFnFactory() is not supported in non-Vite environments. It requires Vite build-time transforms.',
@@ -79,14 +79,21 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                         });
                     }
                 } else if (importedName === 'serverMapFrom') {
-                    if (node.arguments.length < 3) {
+                    // non-Vite contract: the 2nd arg is the NAME of a server-registered pure fn
+                    // (inline mappers travel via the vite build-time transport, unavailable here)
+                    const mapperOrName = node.arguments[1];
+                    if (
+                        !mapperOrName ||
+                        mapperOrName.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+                        mapperOrName.type === AST_NODE_TYPES.FunctionExpression
+                    ) {
                         context.report({node, messageId: 'missingMapFromName'});
                     } else if (
-                        node.arguments[2].type !== AST_NODE_TYPES.Literal ||
-                        typeof (node.arguments[2] as TSESTree.Literal).value !== 'string'
+                        mapperOrName.type !== AST_NODE_TYPES.Literal ||
+                        typeof (mapperOrName as TSESTree.Literal).value !== 'string'
                     ) {
                         context.report({
-                            node: node.arguments[2],
+                            node: mapperOrName,
                             messageId: 'nameNotStringLiteral',
                             data: {callee: 'serverMapFrom'},
                         });

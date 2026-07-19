@@ -1,4 +1,5 @@
 import path from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 let legacyOptionsNoticeShown = false;
@@ -15,33 +16,91 @@ function mionVitePlugin(options = {}) {
       "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) are ignored since the ts-runtypes migration. See docs/ at the repo root."
     );
   }
+  const manifestPath = resolveManifestPath(options.serverMappers?.emit);
+  const harvestedMappers = /* @__PURE__ */ new Map();
+  const harvestReport = (sites, phase) => {
+    if (phase === "build") harvestedMappers.clear();
+    for (const site of sites) {
+      if (site.calleeName !== "serverMapFrom" || site.calleeModule !== "@mionjs/client") continue;
+      harvestedMappers.set(site.key, {
+        key: site.key,
+        paramNames: site.paramNames,
+        code: site.code,
+        pureFnDependencies: site.pureFnDependencies
+      });
+    }
+    writeMapperManifest(manifestPath, harvestedMappers);
+  };
   const plugins = tsRuntypes({
     binary: resolveRtBinary(rt.binary),
     tsconfig: rt.tsConfig,
-    outDir: rt.outDir,
+    genDir: rt.genDir ?? rt.outDir,
     emitMode: rt.emitMode,
     moduleMode: rt.moduleMode,
     inlineMode: rt.inlineMode,
     transformMode: rt.transformMode,
-    // mion defaults ts-runtypes' failOnError to FALSE (its strict default is 0.9.2-new;
-    // mion never had it). mion's run-types adapter deliberately wraps ts-runtypes pure-fn
-    // registry APIs (registerPureFnFactory / getPureFn / getCompiledPureFn) with
-    // runtime-computed keys, so the scanner emits benign CTA003/PFN001 for those call
-    // sites — and since every consumer scans that adapter source, a strict default would
-    // halt every build. Diagnostics still surface as warnings and through the lint lane.
-    // A package can opt back into strict with `failOnError: true`.
-    failOnError: rt.failOnError ?? false,
-    allowUncheckedPatterns: rt.allowUncheckedPatterns
+    // Strict by default: Error-severity ts-runtypes diagnostics halt the build. The
+    // mion run-types adapter no longer trips the scanner (its runtime-key wrappers ride
+    // the untracked *ByKey APIs / the raw cache), so consumers get the documented
+    // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
+    failOnError: rt.failOnError ?? true,
+    allowUncheckedPatterns: rt.allowUncheckedPatterns,
+    // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
+    // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
+    ...manifestPath ? { pureFnReport: "callback", onPureFnReport: harvestReport } : {}
   });
-  if (!options.server) return plugins;
-  const server = options.server;
-  const orchestrator = {
-    name: "mion-server-orchestrator",
-    buildStart() {
-      startManagedServer(server);
+  const extraPlugins = [serverMappersConsumePlugin(options.serverMappers?.consume)];
+  if (options.server) {
+    const server = options.server;
+    extraPlugins.unshift({
+      name: "mion-server-orchestrator",
+      buildStart() {
+        startManagedServer(server);
+      }
+    });
+  }
+  return extraPlugins.length > 0 ? [...extraPlugins, plugins] : plugins;
+}
+function resolveManifestPath(emit) {
+  if (!emit) return void 0;
+  return path.resolve(emit === true ? ".mion/server-mappers.json" : emit);
+}
+function writeMapperManifest(manifestPath, mappers) {
+  const entries = [...mappers.values()].sort((a, b) => a.key < b.key ? -1 : 1);
+  mkdirSync(path.dirname(manifestPath), { recursive: true });
+  writeFileSync(manifestPath, JSON.stringify(entries, null, 2) + "\n");
+}
+const SERVER_MAPPERS_ID = "virtual:mion/server-mappers";
+const RESOLVED_SERVER_MAPPERS_ID = "\0" + SERVER_MAPPERS_ID;
+function serverMappersConsumePlugin(consume) {
+  const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
+  return {
+    name: "mion-server-mappers",
+    resolveId(id) {
+      if (id === SERVER_MAPPERS_ID) return RESOLVED_SERVER_MAPPERS_ID;
+    },
+    load(id) {
+      if (id !== RESOLVED_SERVER_MAPPERS_ID) return;
+      if (manifests.length === 0) return "export {};";
+      return [
+        `import {installServerMapperReader} from '@mionjs/run-types';`,
+        `import {existsSync, readFileSync} from 'node:fs';`,
+        `const MANIFESTS = ${JSON.stringify(manifests)};`,
+        `installServerMapperReader(() => {`,
+        `    const entries = [];`,
+        `    for (const manifestPath of MANIFESTS) {`,
+        `        if (!existsSync(manifestPath)) continue;`,
+        `        try {`,
+        `            entries.push(...JSON.parse(readFileSync(manifestPath, 'utf8')));`,
+        `        } catch {`,
+        `            // partial write: the lazy on-miss re-read retries`,
+        `        }`,
+        `    }`,
+        `    return entries;`,
+        `});`
+      ].join("\n");
     }
   };
-  return [orchestrator, plugins];
 }
 let serverReadyResolve;
 let serverReadyReject;

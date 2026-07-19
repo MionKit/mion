@@ -87,3 +87,6 @@ coverage
 
 # ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin)
 __runtypes/
+
+# serverMapFrom harvested mapper manifests (build artifact, regenerated every build)
+.mion/

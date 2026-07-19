@@ -113,8 +113,8 @@ importers:
   packages/core:
     dependencies:
       '@ts-runtypes/core':
-        specifier: 0.9.3
-        version: 0.9.3
+        specifier: 0.10.0
+        version: 0.10.0
 
   packages/devtools:
     dependencies:
@@ -122,11 +122,11 @@ importers:
         specifier: 5.3.0
         version: 5.3.0(rollup@4.60.1)
       '@ts-runtypes/bin':
-        specifier: 0.9.3
-        version: 0.9.3
+        specifier: 0.10.0
+        version: 0.10.0
       '@ts-runtypes/devtools':
-        specifier: 0.9.3
-        version: 0.9.3(@ts-runtypes/bin@0.9.3)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
+        specifier: 0.10.0
+        version: 0.10.0(@ts-runtypes/bin@0.10.0)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
       '@typescript-eslint/utils':
         specifier: 8.58.1
         version: 8.58.1(eslint@9.39.4)(typescript@6.0.2)
@@ -311,8 +311,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@ts-runtypes/core':
-        specifier: 0.9.3
-        version: 0.9.3
+        specifier: 0.10.0
+        version: 0.10.0
 
   packages/test-server:
     dependencies:
@@ -347,8 +347,8 @@ importers:
         specifier: workspace:*
         version: link:../run-types
       '@ts-runtypes/core':
-        specifier: 0.9.3
-        version: 0.9.3
+        specifier: 0.10.0
+        version: 0.10.0
 
 packages:
 
@@ -1312,53 +1312,53 @@ packages:
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
     engines: {node: '>= 10'}
 
-  '@ts-runtypes/bin@0.9.3':
-    resolution: {integrity: sha512-MWEx7AYeXPIPHozSjP7FZDCwgu3Yc3aCLJyQlKk3cTLopCg522KVCCb93crFDnnPEkjcsPjgaTNVMEEYbCrYeg==}
+  '@ts-runtypes/bin@0.10.0':
+    resolution: {integrity: sha512-lXc+8l7mQplCIOgYqHx75QvN1nyL4pisU0P4bs7uOjKXJxrd5oh69N3xyKYZ5J11U9SYgWSUz/QLInNU3z2pvg==}
     hasBin: true
 
-  '@ts-runtypes/binary-darwin-arm64@0.9.3':
-    resolution: {integrity: sha512-/S6kO3LKQMlUdhrreddDEwXw4aZa40QH7TdEEyJ9//8M6L6ShooALeSjFEiBmuE8N4hZwLBJ4jADqc0VNTT1FQ==}
+  '@ts-runtypes/binary-darwin-arm64@0.10.0':
+    resolution: {integrity: sha512-korDMEPZFK77sV2A4MEHr3vjGXEFj4Qo6935/wxfHgYh/VZVnxy0YqE79mDI1tFLx5khtJFkejk7b7NqzWfRXA==}
     cpu: [arm64]
     os: [darwin]
 
-  '@ts-runtypes/binary-darwin-x64@0.9.3':
-    resolution: {integrity: sha512-7Hu5i8gIXaRFf0yO7/4dfH5HgtUJL2QlmGC8emP9QuW4d9dYBGTXVit/VmybouipNdgVEdkTSw5I91Hg1Er/0Q==}
+  '@ts-runtypes/binary-darwin-x64@0.10.0':
+    resolution: {integrity: sha512-38BOMt07cHDRnQAzUmJCLZJ818YCiVcnEBywIUyYhiFBW0UplTKWRR+1zYpahxbqa/B2x9KbQIBFwYbMAwB0bQ==}
     cpu: [x64]
     os: [darwin]
 
-  '@ts-runtypes/binary-linux-arm64@0.9.3':
-    resolution: {integrity: sha512-K0xv9X8yYKqF+rvoHSWoeVw8/6nJss/Rr/fDlSjvpcq9CR4uRTXp61rGtaWWBShuakwKHVPCn6c9II06GQGe4A==}
+  '@ts-runtypes/binary-linux-arm64@0.10.0':
+    resolution: {integrity: sha512-8CkZwDcAkzm/YuhI2sSH6XONqdKv3NjcBpgS06Q1q/Wv9TKtAWuwoVMm/6gfmnLajRBeomEhjL5seJFc01h7uQ==}
     cpu: [arm64]
     os: [linux]
 
-  '@ts-runtypes/binary-linux-arm@0.9.3':
-    resolution: {integrity: sha512-t/zSVZQba1eDTNrzVEZgqPV6Rstp6ONrkh1B/pcRVXsoHCXh7EZ7ThYPWZGpCqOui78JzT2lJ0WtsomJsKLW2w==}
+  '@ts-runtypes/binary-linux-arm@0.10.0':
+    resolution: {integrity: sha512-SHesFteqmvGwXOzsxWVji6zQ6IW2jkhKap+bH4gvvWYpEsegb7u5RRyBIcKIGXhircQm7Va3evKb9a7lOkBocQ==}
     cpu: [arm]
     os: [linux]
 
-  '@ts-runtypes/binary-linux-x64@0.9.3':
-    resolution: {integrity: sha512-+IQJ4gI+wtV1RQ9EVXwl1P2xxSCSWnNTdkd/vh89ucs6/1kk9VGcT3Fhh3nDBqwFzoTB3iG4zutwniCCmZyu8w==}
+  '@ts-runtypes/binary-linux-x64@0.10.0':
+    resolution: {integrity: sha512-ZIcGlZO3A0GTMDs2/I2pHD98SjaUm9zt/yfOd6jie9wbwJFVtC9YTJ5gAci4ftwNvoRLGieGc3wdv42ttKd5Og==}
     cpu: [x64]
     os: [linux]
 
-  '@ts-runtypes/binary-win32-arm64@0.9.3':
-    resolution: {integrity: sha512-w92T/0R5G7QyfeabBacoeMNHd0fuF9xWTDYvlRqU/wbbTxxJjmFVUzsxMM+xzCJXhCFckKteTP9xzviebjjP5Q==}
+  '@ts-runtypes/binary-win32-arm64@0.10.0':
+    resolution: {integrity: sha512-JxgjgK8bHUWagB/loUmHSfcipKJrSHCyJzwC2aPObxO66yqtX2NS9sVxT7WY9QsGAof1H5UDnDSeamwqnXKigQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@ts-runtypes/binary-win32-x64@0.9.3':
-    resolution: {integrity: sha512-V3VT5NBayVAp62qDLPQRD4chjY6dxi0mdPa7Qj4pdcUId98bO+fnK+HobXIlnFajtIggvyhgMAD03jY6xVFBdw==}
+  '@ts-runtypes/binary-win32-x64@0.10.0':
+    resolution: {integrity: sha512-Ag67rJYNNL0qfq9Cn3JnQDOqaK58/oUFddwkWx5hAinAWcfSvUIqlFe67kX7ihoNNEVTf42ecWfWspEOwj3q6w==}
     cpu: [x64]
     os: [win32]
 
-  '@ts-runtypes/core@0.9.3':
-    resolution: {integrity: sha512-e+rMbZZJMK/fZcSTGgNHkvUP/w9J4UR2kn4BgY2VOYo9w3fro+L7cyVloQxkH6WsiHwDaP1m//QaiYluzu/9GQ==}
+  '@ts-runtypes/core@0.10.0':
+    resolution: {integrity: sha512-1o73LQIkynPGAliDuw1KG/02Z6mgj9187BVRSRcGMjOxKOfRqg2EirvNFm8bJE6YaACuD3Y0s7sjXmxV8Qy1yg==}
     hasBin: true
 
-  '@ts-runtypes/devtools@0.9.3':
-    resolution: {integrity: sha512-AZsehudfuYIlPTa6fZ7l9ObwMMcD1h1JSjP/mNM3COaKeY7t4h9vlq5KZiuN+bVpZUG+hl7l/NewKxmxp1lG8g==}
+  '@ts-runtypes/devtools@0.10.0':
+    resolution: {integrity: sha512-jpzU47BkaLrq5d9gbtdfuQ/y3Emt92Vl/NTFTCmvWn4t9pEwwEml6IB7+chVktr4ZmHrVJTK9ImCwDkhDZ9nHw==}
     peerDependencies:
-      '@ts-runtypes/bin': 0.9.3
+      '@ts-runtypes/bin': 0.10.0
       vite: '>=5.0.0'
     peerDependenciesMeta:
       vite:
@@ -5545,42 +5545,42 @@ snapshots:
 
   '@tootallnate/once@2.0.0': {}
 
-  '@ts-runtypes/bin@0.9.3':
+  '@ts-runtypes/bin@0.10.0':
     optionalDependencies:
-      '@ts-runtypes/binary-darwin-arm64': 0.9.3
-      '@ts-runtypes/binary-darwin-x64': 0.9.3
-      '@ts-runtypes/binary-linux-arm': 0.9.3
-      '@ts-runtypes/binary-linux-arm64': 0.9.3
-      '@ts-runtypes/binary-linux-x64': 0.9.3
-      '@ts-runtypes/binary-win32-arm64': 0.9.3
-      '@ts-runtypes/binary-win32-x64': 0.9.3
+      '@ts-runtypes/binary-darwin-arm64': 0.10.0
+      '@ts-runtypes/binary-darwin-x64': 0.10.0
+      '@ts-runtypes/binary-linux-arm': 0.10.0
+      '@ts-runtypes/binary-linux-arm64': 0.10.0
+      '@ts-runtypes/binary-linux-x64': 0.10.0
+      '@ts-runtypes/binary-win32-arm64': 0.10.0
+      '@ts-runtypes/binary-win32-x64': 0.10.0
 
-  '@ts-runtypes/binary-darwin-arm64@0.9.3':
+  '@ts-runtypes/binary-darwin-arm64@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-darwin-x64@0.9.3':
+  '@ts-runtypes/binary-darwin-x64@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-linux-arm64@0.9.3':
+  '@ts-runtypes/binary-linux-arm64@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-linux-arm@0.9.3':
+  '@ts-runtypes/binary-linux-arm@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-linux-x64@0.9.3':
+  '@ts-runtypes/binary-linux-x64@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-win32-arm64@0.9.3':
+  '@ts-runtypes/binary-win32-arm64@0.10.0':
     optional: true
 
-  '@ts-runtypes/binary-win32-x64@0.9.3':
+  '@ts-runtypes/binary-win32-x64@0.10.0':
     optional: true
 
-  '@ts-runtypes/core@0.9.3': {}
+  '@ts-runtypes/core@0.10.0': {}
 
-  '@ts-runtypes/devtools@0.9.3(@ts-runtypes/bin@0.9.3)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))':
+  '@ts-runtypes/devtools@0.10.0(@ts-runtypes/bin@0.10.0)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))':
     dependencies:
-      '@ts-runtypes/bin': 0.9.3
+      '@ts-runtypes/bin': 0.10.0
       unplugin: 3.3.0(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
     optionalDependencies:
       vite: 7.3.2(@types/node@24.12.2)(yaml@2.9.0)

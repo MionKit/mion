@@ -1,6 +1,12 @@
 # mion defaults `failOnError: false` because the run-types adapter trips the pure-fn scanner
 
-**Status:** todo
+**Status:** done — fixed 2026-07-19 with the serverMapFrom build-time transport work: the
+adapter's runtime-key call sites moved onto the UNTRACKED runtime-key APIs
+(`getPureFnByKey`/`hasPureFnByKey`, 0.10.0) and the raw cache (`getRTFnCaches().pureFnsCache`);
+`registerMionPureFn` registers through low-level `addPureFn` instead of the scanned
+`registerPureFnFactory`. Zero CTA003/PFN001 remain, and **`failOnError` now defaults to TRUE**
+in `mionVitePlugin` (full suite green with it). See
+[servermapfrom-build-time-transport.md](servermapfrom-build-time-transport.md).
 **Created:** 2026-07-15
 
 ## Problem

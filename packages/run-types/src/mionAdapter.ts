@@ -148,7 +148,10 @@ installJitLookupBackend({
         return entry ? wrapRtEntry(entry, entry.familyTag ?? 'rtFn') : undefined;
     },
     getCompiledPureFn(namespace: string, name: string) {
-        return getRTUtils().getCompiledPureFn(`${namespace}::${name}` as never) as never;
+        // raw-cache lookup (NOT rtUtils.getCompiledPureFn): the key is computed at runtime,
+        // and the CompTimeArgs-tracked form would emit CTA003 in every consumer build
+        const cache = getRTFnCaches().pureFnsCache as Record<string, unknown>;
+        return cache[`${namespace}::${name}`] as never;
     },
 });
 
@@ -179,7 +182,7 @@ export function addSerializedJitCaches(deps: Record<string, JitCompiledFnData>, 
     for (const [namespace, fns] of Object.entries(pureFnDeps)) {
         for (const [fnName, pureFnData] of Object.entries(fns)) {
             const key = `${namespace}::${fnName}`;
-            if (utl.hasPureFn(key as never)) continue;
+            if (utl.hasPureFnByKey(key)) continue;
             utl.addPureFn(key, {
                 ...pureFnData,
                 createPureFn: (rtu: unknown) => new Function('utl', `'use strict'; ${pureFnData.code}`)(rtu),

@@ -11,11 +11,9 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
-            // required so any serverPureFunction defined in the client package
-            // will be bundled into this server (check getPureFnResult route)
-            serverPureFunctions: {
-                clientSrcPath: resolve(__dirname, '../client/src'),
-            },
+            // consume the client build's harvested serverMapFrom mappers (registered via
+            // the virtual:mion/server-mappers side-effect import in test-server.ts)
+            serverMappers: {consume: resolve(__dirname, '../client/.mion/server-mappers.json')},
         }) as any,
     ],
     resolve: {conditions: ['source']},
