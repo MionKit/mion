@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "@mionjs/core": "workspace:*",
-    "@ts-runtypes/core": "0.9.3"
+    "@ts-runtypes/core": "0.10.0"
   },
   "peerDependencies": {
     "typescript": ">=6.0.0"

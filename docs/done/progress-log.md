@@ -3,6 +3,22 @@
 **Status:** done (completed-migration record)
 **Created:** 2026-07-11
 
+## 2026-07-19 — serverMapFrom build-time transport + 0.10.0 (session 5) — ✅ ALL GREEN (1126)
+
+Restored the client-orchestration story on local @ts-runtypes 0.10.0: `serverMapFrom`
+takes the mapper INLINE in client flow code again; the mion vite plugin harvests it from
+the ts-runtypes pure-fn build report into `.mion/server-mappers.json` and the server
+bundle registers it through `virtual:mion/server-mappers` — the wire carries only the
+content key (`rt::<hash>`), the server executes only mappers its own build baked in. The
+name lane (`serverMapFrom(source, 'name')` + `registerMionPureFn`) stays for non-Vite
+clients, with the full `mionjs::<name>` key on the wire now. The run-types pure-fn
+helpers moved onto the untracked `*ByKey` APIs / raw cache (no more CTA003/PFN001), so
+**`failOnError` defaults to TRUE monorepo-wide**. One upstream fix shipped alongside
+(ts-run-types): the anonymous pure-fn extractor's marker positions are now discovered,
+not hardcoded to slots 0/1, so leading-param wrappers (the serverMapFrom shape) extract;
+overloaded wrappers resolve per call site. Full record:
+[servermapfrom-build-time-transport.md](servermapfrom-build-time-transport.md).
+
 ## 2026-07-15 — upgrade to @ts-runtypes 0.9.2 (session 3) — ✅ ALL GREEN
 
 ts-runtypes shipped **0.9.2** with the upstream follow-ups this migration filed. mion now

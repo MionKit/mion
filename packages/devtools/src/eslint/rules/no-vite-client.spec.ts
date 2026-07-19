@@ -19,11 +19,11 @@ ruleTester.run('no-vite-client', rule, {
                 pureServerFn((x: number) => x + 1, 'addOne');
             `,
         },
-        // serverMapFrom with name
+        // serverMapFrom name lane: the 2nd arg references a server-registered pure fn
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
-                serverMapFrom(sub, (x: any) => x.id, 'extractId');
+                serverMapFrom(sub, 'extractId');
             `,
         },
         // pureServerFn with PureFnDef object + name
@@ -64,7 +64,7 @@ ruleTester.run('no-vite-client', rule, {
             `,
             errors: [{messageId: 'missingPureFnName'}],
         },
-        // serverMapFrom without name
+        // serverMapFrom with an INLINE mapper — needs the vite build-time transport
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
@@ -86,7 +86,7 @@ ruleTester.run('no-vite-client', rule, {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
                 const name = 'extractId';
-                serverMapFrom(sub, (x: any) => x.id, name);
+                serverMapFrom(sub, name);
             `,
             errors: [{messageId: 'nameNotStringLiteral'}],
         },
