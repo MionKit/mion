@@ -15,7 +15,7 @@ import {
     fromBase64Url,
     getOrCreateGlobal,
 } from '@mionjs/core';
-import {getMionPureFn, hasMionPureFn} from '@mionjs/run-types';
+import {getServerMapper, hasServerMapper} from '@mionjs/run-types';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';
@@ -240,8 +240,11 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
             });
         }
 
-        // Validate the pure function exists in the ts-runtypes registry ('mionjs' namespace)
-        if (!hasMionPureFn(mapping.bodyHash)) {
+        // Validate the mapper exists in the ts-runtypes registry — bodyHash is the FULL
+        // registry key: 'rt::<hash>' (build-harvested inline mapper, see server-mappers
+        // manifest) or 'mionjs::<name>' (server-registered via registerMionPureFn). An
+        // unknown key from a client is REJECTED here — never evaluated.
+        if (!hasServerMapper(mapping.bodyHash)) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'routesFlow-mapping-missing-pure-fn',
@@ -296,8 +299,8 @@ function createMappingHandler(mapping: RoutesFlowMapping) {
         // Get the output from the source route
         const sourceOutput = ctx.response.body[mapping.fromId];
 
-        // Resolve and execute the pure function from the ts-runtypes registry ('mionjs' namespace)
-        const pureFn = getMionPureFn(mapping.bodyHash);
+        // Resolve and execute the mapper from the ts-runtypes registry (full key on the wire)
+        const pureFn = getServerMapper(mapping.bodyHash);
         if (!pureFn) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,

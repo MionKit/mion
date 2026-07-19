@@ -13,9 +13,9 @@ import {HeadersSubset} from '@mionjs/core';
 import {MION_PURE_FN_NAMESPACE} from '@mionjs/run-types';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
-// Alias to avoid vite plugin transformer injecting bodyHash into unit test calls
+// NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
+// plugin never rewrites them; INLINE-mapper calls are extracted + hash-injected.
 import {serverMapFrom as rawMapFrom} from './routesFlow.ts';
-// vite plugin DOES inject bodyHash for e2e tests
 import {serverMapFrom} from './routesFlow.ts';
 
 // Helper to create auth headers for the test server's headersFn
@@ -282,27 +282,36 @@ describe('routesFlow', () => {
 describe('serverMapFrom()', () => {
     const fakeSubRequest = {pointer: ['test'], id: 'test', isResolved: false, params: []} as any;
 
-    it('should return a MapFromServerFnRef with correct properties', () => {
-        // ts-runtypes migration: mappers are referenced by the NAME of a server-registered
-        // mion pure fn (registerMionPureFn); the wire mapping still travels in bodyHash.
+    it('should return a MapFromServerFnRef with correct properties (name lane)', () => {
+        // name lane: references a server-registered mion pure fn; the wire bodyHash is
+        // the FULL registry key 'mionjs::<name>'.
         const ref = rawMapFrom(fakeSubRequest, 'toPreferenceId');
         expect(ref.namespace).toBe(MION_PURE_FN_NAMESPACE);
         expect(ref.fnName).toBe('toPreferenceId');
-        expect(ref.bodyHash).toBe('toPreferenceId');
+        expect(ref.bodyHash).toBe('mionjs::toPreferenceId');
         expect(ref.isFactory).toBe(false);
         expect(ref.fromRequestId).toBe('test');
         expect(ref.toRequestId).toBe(''); // toRequestId is set once the ref is passed to the target subRequest
     });
 
-    it('should use the fn name as bodyHash (wire mapping id)', () => {
+    it('should use the full mionjs registry key as bodyHash (name lane wire id)', () => {
         const ref = rawMapFrom(fakeSubRequest, 'someMapper');
         expect(ref.fnName).toBe('someMapper');
-        expect(ref.bodyHash).toBe('someMapper');
+        expect(ref.bodyHash).toBe('mionjs::someMapper');
+    });
+
+    it('should build a content-hashed ref for an INLINE mapper (build-time extraction)', () => {
+        // the mion vite plugin extracts the mapper + injects the trailing 'rt::<hash>' key
+        const ref = rawMapFrom(fakeSubRequest, (customer: {preferenceId: number}) => customer.preferenceId);
+        expect(ref.namespace).toBe('rt');
+        expect(ref.bodyHash).toMatch(/^rt::/);
+        expect(ref.bodyHash).toBe(`rt::${ref.fnName}`);
+        expect(ref.fromRequestId).toBe('test');
     });
 
     it('should throw when the fn name is not provided', () => {
         expect(() => rawMapFrom(fakeSubRequest, '')).toThrow(
-            'serverMapFrom() requires the name of a server-registered mion pure fn'
+            'serverMapFrom() requires a mapper function or the name of a server-registered mion pure fn'
         );
     });
 
@@ -318,7 +327,7 @@ describe('serverMapFrom e2e in routesFlow', () => {
     type MyApi = TestServerApi;
     const baseURL = TEST_SERVER_BASE_URL;
 
-    it('should map output of one route to input of another', async () => {
+    it('should map output of one route to input of another (name lane, server-registered mapper)', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -333,5 +342,44 @@ describe('serverMapFrom e2e in routesFlow', () => {
         expect(customerData).toEqual({id: 42, name: 'Test Customer', preferenceId: 142});
         // 142 is even → 'dark', userId = prefId - 100 = 42 (original customer id)
         expect(prefs).toEqual({id: 142, userId: 42, theme: 'dark', lang: 'en'});
+    });
+
+    it('should map with an INLINE mapper declared in client code (build-time transport)', async () => {
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+        // the mapper body is authored HERE (client flow code), extracted at build time,
+        // and executed by the server via the harvested server-mappers manifest.
+        // NOTE: the mapper param is inferred as `resolvedValue | undefined` (the value
+        // resolves server-side), hence the `!` — same convention as the docs examples.
+        const customer = routes.getCustomerById(7);
+        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+            customer,
+            routes.getPreferencesById(serverMapFrom(customer, (customerValue) => customerValue!.preferenceId).asArg()),
+        ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+
+        expect(customerError).toBeUndefined();
+        expect(prefsError).toBeUndefined();
+        expect(customerData).toEqual({id: 7, name: 'Test Customer', preferenceId: 107});
+        // 107 is odd → 'light', userId = prefId - 100 = 7 (original customer id)
+        expect(prefs).toEqual({id: 107, userId: 7, theme: 'light', lang: 'en'});
+    });
+
+    it('should reject an unknown mapper key (server never evaluates unregistered mappers)', async () => {
+        const {routes, middleFns} = initClient<MyApi>({baseURL});
+        const authHeaders = createAuthHeaders('XWYZ-TOKEN');
+
+        const customer = routes.getCustomerById(42);
+        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+            customer,
+            routes.getPreferencesById(serverMapFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
+        ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
+
+        // the whole flow is rejected while building the chain (routesFlow-mapping-missing-pure-fn
+        // server-side; surfaced through the generic error envelope) — nothing executes
+        const surfacedError = prefsError ?? customerError;
+        expect(surfacedError).toBeTruthy();
+        expect(prefs).toBeUndefined();
+        expect(customerData).toBeUndefined();
     });
 });

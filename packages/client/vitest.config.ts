@@ -14,6 +14,8 @@ export default defineConfig({
                     sourceMap: true,
                 },
             },
+            // harvest inline serverMapFrom mappers for the managed test server to consume
+            serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
             server: {
                 startScript: resolve(__dirname, '../test-server/src/test-server.ts'),
                 viteConfig: resolve(__dirname, '../test-server/vite.config.ts'),
