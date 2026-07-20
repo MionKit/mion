@@ -31,12 +31,18 @@ wire lane except plain JSON routes lost cross-version compatibility (R15). None 
 visible from the green test suite because the suite was migrated alongside the code — the
 deltas are recorded in the spec diffs themselves.
 
-**AOT scoping note (maintainer direction):** AOT was never a feature — it was a workaround
-for deepkit being a runtime type system. ts-runtypes is compile-time only (everything is
-comp-time generated), so ALL AOT APIs are **intentionally gone** and their removal is NOT
-counted as an API break anywhere in this doc. The AOT defect class is the opposite one:
-**references left behind** — a full repo sweep of remaining AOT/`MION_COMPILE` leftovers
-lives in R35.
+**Intentional-removal scoping note (maintainer direction):** two API families are
+intentionally gone and are NOT counted as breaks anywhere in this doc:
+
+- **AOT** — never a feature, a workaround for deepkit being a runtime type system.
+  ts-runtypes is compile-time only (everything is comp-time generated).
+- **The old pure-fn surface** (`pureServerFn`, `registerPureFnFactory`, `quickHash`, …) —
+  the machinery moved into ts-runtypes; `serverMapFrom` (inline `rt::` harvest + named
+  `mionjs::` lane via `registerMionPureFn`) covers the client→server use case, and
+  standalone `pureServerFn` is dropped (decision 2026-07-20).
+
+For both families the defect class is the opposite one: **references left behind** — the
+full repo sweep of remaining AOT/`MION_COMPILE`/deepkit/pure-fn leftovers lives in R35.
 
 ---
 
@@ -92,18 +98,20 @@ lives in R35.
 - [examples-and-website-refresh.md](examples-and-website-refresh.md) lists 9 files; the
   real count is higher. Additional files needing a **port to the new API**:
   `binary-serialization.ts`, `serialization-any.ts` (removed `create*Fn` factories),
-  `run-types/pure-functions.ts` (`registerPureFnClosure` — gone from core),
-  `introduction/pure-functions-examples.ts` + `eslint-pure-functions.routes.ts`
-  (`pureServerFn`, `registerPureFnFactory` — gone from core),
   `codegen/vite-vitest-global-setup.ts` (documents the `await serverReady` pattern that
   now hangs, see R27),
   `type-formats/builtin/domain-custom.ts` (`FormatDomainStrict<{…}>` — generics removed,
   R13) and `type-formats/builtin/custom-strings.ts` (`pattern: {val: RegExp,
 errorMessage}` — param shape removed, R14).
-- Files to **DELETE outright** (AOT-era examples — AOT is intentionally gone, do not port):
+- Files to **DELETE outright** (AOT-era and old-pure-fn-era examples — both surfaces are
+  intentionally gone, do not port):
   the whole `codegen/aot-*.ts` family (`aot-server-complete.ts`, `aot-cache-order.ts`,
   `aot-loading-caches.ts`, `aot-routes-example.ts`, `aot-types-not-compiled.ts`),
-  `codegen/vite-client-ipc.config.ts` (IPC/AOT-generation mode), plus
+  `codegen/vite-client-ipc.config.ts` (IPC/AOT-generation mode),
+  `introduction/pure-functions-examples.ts` + `introduction/eslint-pure-functions.routes.ts`
+  (`pureServerFn`/`registerPureFnFactory` demos — rewrite the topic around
+  `registerMionPureFn` + `serverMapFrom` instead),
+  `run-types/pure-functions.ts` (`registerPureFnClosure` — gone), plus
   `cloudflare/cloudflare-config.ts:5` and `cloudflare/cloudflare-handler.ts:5` which still
   pass the removed `{aot: true}` router option (rewrite these two to the current
   Cloudflare story instead — see R32). `codegen/client-no-vite.ts` imports
@@ -146,48 +154,23 @@ errorMessage}` — param shape removed, R14).
   `@nonEnumerable`-on-required support (serialize-if-enumerable + `DataOnly` marking them
   optional) would allow restoring required typing without putting them back on the wire.
 
-### R6 [info — mostly intentional] `@mionjs/core` pure-fn surface: moved to ts-runtypes; one open question — `pureServerFn`
+### R6 [resolved — intentional] `@mionjs/core` pure-fn surface moved to ts-runtypes; standalone `pureServerFn` dropped
 
-- **Maintainer direction (2026-07-20): the pure-fn machinery moving to ts-runtypes is
-  intentional** — the engine removals (`registerPureFnFactory`, `quickHash`,
-  `createUniqueHash`, `createHashLiteral`, `resetHashes`, hash-length consts,
-  `initPureFunction`, `registerPureFnClosure`, `getJitFnCaches`, `PURE_SERVER_FN_NAMESPACE`)
-  are NOT counted as breaks, same treatment as AOT. (AOT-cache surface likewise: R35.)
-  What remains user-relevant:
+- **Maintainer decisions (2026-07-20):** the pure-fn machinery moving into ts-runtypes is
+  intentional (same treatment as AOT — removals not counted as breaks), and **standalone
+  `pureServerFn` is dropped**: its only shipped application on master was routesFlow
+  mapping resolution (master `router/routesFlow.ts:245,300`), and that use case is fully
+  replaced by `serverMapFrom`'s two lanes (inline `rt::<hash>` build harvest + named
+  `mionjs::<name>` via `registerMionPureFn`). The client→server security model is
+  unchanged (only keys ride the wire; the server executes only what its own build/
+  registration provided).
+- Remaining migration-note items (the only user-relevant residue):
   - `addSerializedJitCaches`/`resetJitFnCaches` **moved** core → `@mionjs/run-types` with
-    a changed signature (`mionAdapter.ts:165,199`) — worth one migration-note line.
+    a changed signature (`mionAdapter.ts:165,199`).
   - `JIT_FUNCTION_IDS` shrank 16 → 9 keys and every value changed (now derived via
     `getFnHash`) — matters only to consumers matching persisted hash strings.
-  - The website's pure-functions page still documents the whole removed surface
-    (`website/content/5.devtools/1.pure-functions.md`) — R35/website refresh.
-- **The open question, answered — `pureServerFn`'s role on master and its replacement:**
-  - Role: the general **client→server** primitive. `pureServerFn(fn)` in client code got
-    its body AST-extracted at build time (`devtools/extractPureFn.ts`), content-hashed
-    (`bodyHash` injected), and returned a lightweight `PureServerFnRef` at runtime; the
-    SERVER build scanned client source (`serverPureFunctions: {clientSrcPath}`) and baked
-    the bodies into `serverPureFnsCache['pureServerFn'][bodyHash]` via virtual modules.
-    The client only ever sent the hash — the server never executed wire-received code
-    (same security model as today).
-  - Actual usage: the **only runtime consumer inside mion was routesFlow mapping
-    resolution** (master `router/routesFlow.ts:245,300`); `serverMapFrom` was the one
-    shipped application of the machinery. Standalone `pureServerFn` was a documented
-    public feature (website pure-functions page, examples) but nothing else in mion
-    executed those refs.
-  - Replacement map on HEAD: the serverMapFrom use case is **fully replaced** (inline
-    `rt::<hash>` lane via the pure-fn build report + server-mappers manifest; named
-    `mionjs::<name>` lane via `registerMionPureFn`). The **standalone** client→server
-    primitive has NO direct successor: the plugin harvest filters on
-    `calleeName === 'serverMapFrom'` (`mionVitePlugin.ts:148`), so a bare
-    client-declared pure fn is never shipped to the server anymore. Nearest equivalents:
-    `registerMionPureFn` on the server + name on the client, or ts-runtypes' own
-    registrars/markers directly (re-exported through `@mionjs/run-types`; build
-    extraction requires direct `@ts-runtypes/core` imports with literal ids — upstream
-    re-export gap already filed).
-  - **Decision needed:** was standalone `pureServerFn` a feature to keep? If yes → a thin
-    mion harvest lane over the same pure-fn build report (different callee filter) would
-    restore it; if no → record the removal + rewrite the website page around the two
-    surviving lanes (`registerMionPureFn`, `serverMapFrom`), and drop the vestigial
-    eslint checks (R35).
+- All remaining references to the old surface (live types, vestigial eslint rules,
+  examples, website pages) are leftovers to purge — swept in **R35**.
 
 ### R7 [breaking] `@mionjs/router`: dead option + def-shape changes
 
@@ -233,7 +216,10 @@ errorMessage}` — param shape removed, R14).
 - Related type bug: `MapFromServerFnRef.pureFn` is required via
   `PureServerFnRef extends Required<PureFnDef>` (`core/src/types/pureFunctions.types.ts:60-102`)
   but HEAD never sets it (force-cast at `routesFlow.ts:106-113`) — `ref.pureFn(...)`
-  typechecks and crashes. Drop the member from the type (or mark optional).
+  typechecks and crashes. Root cause: the live `MapFromServerFnRef` type still extends
+  the dead `pureServerFn`-era base types (`PureFnDef`/`PureServerFnRef`) — reshape it to
+  what the runtime actually builds instead of patching the member (see R35 pure-fn
+  leftovers).
 
 ### R10 [breaking] `@mionjs/run-types`: headline runtime API removed with no shim
 
@@ -526,12 +512,12 @@ letters and dots'`, …). Custom messages survive only via `registerFormatPatter
   build-time-known) and use source parsing only for display names; or pin a test that the
   count survives the supported build matrix.
 
-### R35 [stale] Old-engine leftover sweep — AOT / `MION_COMPILE` / deepkit references still in the tree
+### R35 [stale] Old-engine leftover sweep — AOT / `MION_COMPILE` / deepkit / old pure-fn surface still in the tree
 
-AOT is intentionally gone (it was a workaround for deepkit being runtime; ts-runtypes is
-compile-time only). The defect is therefore every reference LEFT BEHIND. Full sweep
-(`grep -ri aot` + `MION_COMPILE` + deepkit, excluding `docs/done/` which is legitimately
-historical):
+AOT and the old pure-fn surface are intentionally gone (see the scoping note at the top).
+The defect is therefore every reference LEFT BEHIND. Full sweep (`grep -ri aot`,
+`MION_COMPILE`, deepkit, `pureServerFn|registerPureFnFactory|serverPureFnsCache|quickHash|purityRules`,
+excluding `docs/done/` which is legitimately historical):
 
 **Live code still wired to the AOT/`MION_COMPILE` contract:**
 
@@ -600,11 +586,36 @@ historical):
 `platform-node/src/mionHttp.spec.ts:192` (historical note — fine to keep),
 `run-types` `lib/reflection.ts:20-21` ("ARE the AOT artifacts" — explanatory, fine to keep).
 
-**Non-AOT stale items (same cleanup sweep):**
+**Old pure-fn surface leftovers (`pureServerFn`/`registerPureFnFactory` era — dropped per
+the 2026-07-20 decision, R6):**
 
-- eslint rules still validating removed APIs: `no-vite-client`'s `pureServerFn` branch and
-  the `pure-functions` rule target `registerPureFnFactory`/`pureServerFn` which no longer
-  exist anywhere.
+- `core/src/types/pureFunctions.types.ts` — `PureFnDef` (required `pureFn` member +
+  `pureServerFn((jitUtils)…)` doc comment, lines 60-77) and `PureServerFnRef` ("Reference
+  object returned by pureServerFn() at runtime", line 89) survive only as the base of the
+  LIVE `MapFromServerFnRef` (line 102) — which is how the R9 type bug happened. Reshape
+  `MapFromServerFnRef` to the actual runtime ref shape and delete the dead bases.
+- `devtools/src/pureFns/purityRules.ts` — whole module; its only consumer is the
+  vestigial eslint lane below.
+- eslint: the `pure-functions` rule (lints `pureServerFn`/`registerPureFnFactory` calls
+  that can no longer exist) + `no-vite-client`'s `pureServerFn`/
+  `registerPureFnFactoryNotAllowed` branches (`no-vite-client.ts:11-28,51-78` — keep only
+  the `serverMapFrom` branch) + both rules' spec files.
+- `devtools/src/vite-plugin/virtual-modules.d.ts` — `virtual:mion-server-pure-fns`
+  declaration (also in the AOT list above).
+- Examples: `introduction/pure-functions-examples.ts`,
+  `introduction/eslint-pure-functions.routes.ts`, `run-types/pure-functions.ts`
+  (delete/rewrite — see R4), plus the `pureServerFn` mention in
+  `codegen/vite-server-no-vite-client.config.ts:6`.
+- Website: `5.devtools/1.pure-functions.md` (rewrite around `registerMionPureFn` +
+  `serverMapFrom`), `2.eslint-rules.md` (pure-functions rule section),
+  `3.vite-config.md` (`serverPureFunctions` option).
+- NOT a leftover (name collision, don't purge): `registerPureFnFactory` in
+  `run-types/src/mionPureFns.spec.ts:9` is the NEW `@ts-runtypes/core` API that happens
+  to share the old mion core fn's name (the collision that crashed the plugin in
+  migration session 1, issue #5).
+
+**Other stale items (same cleanup sweep):**
+
 - Stale comments: `router/lib/handlers.ts:30` says marker keys are `val…uke` but the
   markers request `tb`/`fb` too; `run-types/src/mionClassSerializers.ts:17-21` still
   claims non-registered generic instantiations "decode structurally" while the 0.9.2
@@ -659,9 +670,8 @@ types); `HeadersSubset` semantics incl. `headersReturn` unions; `hasReturnData`
 
 1. **Before merge/publish:** R1, R3, R9 (runtime guard), R2 (decision at minimum),
    R31 (allow-list — small change).
-2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit leftover sweep — full list above;
-   the live-but-dead code paths in core/router/adapters first), R6 (decision: standalone
-   `pureServerFn` lane — keep via a mion harvest filter, or drop + rewrite docs),
+2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit/pure-fn leftover sweep — full
+   list above; the live-but-dead code paths in core/router/adapters first),
    R7 (`runTypeOptions` removal), R8 (option warnings + barrel exports), R17 (client-side
    strict check), R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest
    entries).
