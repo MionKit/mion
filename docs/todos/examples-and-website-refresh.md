@@ -1,6 +1,8 @@
 # Examples + website refresh (deepkit/AOT-era API sources)
 
-**Status:** todo
+**Status:** todo; verified still open 2026-07-20 — 10 files under `packages/examples/src/`
+still import removed factories and the whole `codegen/aot-*` family is still present (only
+the four prepareForJson/restoreFromJson examples noted below are fixed).
 **Created:** 2026-07-15
 
 ## Problem
@@ -36,7 +38,7 @@ Plus deepkit/AOT-era leftovers noted in the migration audit (`src/codegen/aot-*`
 `introduction/pure-functions-examples`, old vite configs), and the website content under
 `website/` that still shows deepkit/`mion-build-aot` APIs.
 
-### Extended inventory from the migration review (R4/R35 of [migration-review-findings.md](migration-review-findings.md), 2026-07-20)
+### Extended inventory from the migration review (R4/R35 of [migration-review-findings.md](../done/migration-review-findings.md), 2026-07-20)
 
 **PORT to the new API** (in addition to the list above): `binary-serialization.ts`,
 `serialization-any.ts` (removed `create*Fn` factories); `codegen/vite-vitest-global-setup.ts`

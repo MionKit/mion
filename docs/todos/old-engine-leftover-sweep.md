@@ -1,7 +1,9 @@
 # Old-engine leftover sweep — AOT / MION_COMPILE / deepkit / pure-fn / type-format residues
 
-**Status:** todo — R35 of [migration-review-findings.md](migration-review-findings.md)
-(full itemized inventory lives there; this spec tracks execution).
+**Status:** todo — R35 of [migration-review-findings.md](../done/migration-review-findings.md)
+(full itemized inventory lives there; this spec tracks execution); verified still fully
+open 2026-07-20 (spot-checked: `purityRules.ts` present, 5 stale `virtual:mion-aot*`
+declarations, devtools `"AOT"` keyword, `isMionCompileMode` live in 4 packages).
 **Created:** 2026-07-20
 
 ## Problem
