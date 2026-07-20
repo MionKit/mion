@@ -30,6 +30,13 @@ no aliasing shim (R10–R14), several silent type-safety/runtime degradations sh
 compatibility (R15). None of this is visible from the green test suite because the suite
 was migrated alongside the code — the deltas are recorded in the spec diffs themselves.
 
+**AOT scoping note (maintainer direction):** AOT was never a feature — it was a workaround
+for deepkit being a runtime type system. ts-runtypes is compile-time only (everything is
+comp-time generated), so ALL AOT APIs are **intentionally gone** and their removal is NOT
+counted as an API break anywhere in this doc. The AOT defect class is the opposite one:
+**references left behind** — a full repo sweep of remaining AOT/`MION_COMPILE` leftovers
+lives in R35.
+
 ---
 
 ## A. Release blockers
@@ -82,21 +89,28 @@ was migrated alongside the code — the deltas are recorded in the spec diffs th
 ### R4 [blocker-adjacent] `packages/examples` is broken well beyond the tracked todo
 
 - [examples-and-website-refresh.md](examples-and-website-refresh.md) lists 9 files; the
-  real count is higher. Additional broken imports found: `binary-serialization.ts`,
-  `serialization-any.ts` (removed `create*Fn` factories),
+  real count is higher. Additional files needing a **port to the new API**:
+  `binary-serialization.ts`, `serialization-any.ts` (removed `create*Fn` factories),
   `run-types/pure-functions.ts` (`registerPureFnClosure` — gone from core),
   `introduction/pure-functions-examples.ts` + `eslint-pure-functions.routes.ts`
   (`pureServerFn`, `registerPureFnFactory` — gone from core),
-  `codegen/aot-server-complete.ts`, `aot-cache-order.ts`, `aot-loading-caches.ts`
-  (`addAOTCaches` — gone), `codegen/vite-vitest-global-setup.ts` (documents the
-  `await serverReady` pattern that now hangs, see R27),
+  `codegen/vite-vitest-global-setup.ts` (documents the `await serverReady` pattern that
+  now hangs, see R27),
   `type-formats/builtin/domain-custom.ts` (`FormatDomainStrict<{…}>` — generics removed,
   R13) and `type-formats/builtin/custom-strings.ts` (`pattern: {val: RegExp,
 errorMessage}` — param shape removed, R14).
+- Files to **DELETE outright** (AOT-era examples — AOT is intentionally gone, do not port):
+  the whole `codegen/aot-*.ts` family (`aot-server-complete.ts`, `aot-cache-order.ts`,
+  `aot-loading-caches.ts`, `aot-routes-example.ts`, `aot-types-not-compiled.ts`),
+  `codegen/vite-client-ipc.config.ts` (IPC/AOT-generation mode), plus
+  `cloudflare/cloudflare-config.ts:5` and `cloudflare/cloudflare-handler.ts:5` which still
+  pass the removed `{aot: true}` router option (rewrite these two to the current
+  Cloudflare story instead — see R32). `codegen/client-no-vite.ts` imports
+  `./aot-routes-example.ts` and needs re-pointing.
 - CLAUDE.md states the examples package "should compile"; nothing in CI enforces it
   (no vitest project, no typecheck script), which is why this drifted.
-- Fix: extend the existing todo's file list with the above, and add an examples typecheck
-  lane to CI so it can't regress silently again.
+- Fix: extend the existing todo's file list with the above (port list + delete list), and
+  add an examples typecheck lane to CI so it can't regress silently again.
 
 ---
 
@@ -122,16 +136,16 @@ errorMessage}` — param shape removed, R14).
   as an intended v-next change; (c) module augmentation shim. The current in-between —
   silent break — is the only wrong option.
 
-### R6 [breaking] `@mionjs/core`: pure-fn + AOT surface removed
+### R6 [breaking] `@mionjs/core`: pure-fn surface removed/moved
 
 - Removed from the barrel (master `core/index.ts:39-41`): `registerPureFnFactory`,
   `pureServerFn`, `PURE_SERVER_FN_NAMESPACE`, `quickHash`, `createUniqueHash`,
   `createHashLiteral`, `resetHashes`, `hashDefaultLength`, `defaultLiteralLength`,
-  `pureFnHashLength`, `initPureFunction`, `registerPureFnClosure`, `addAOTCaches`,
-  `getJitFnCaches`; `addSerializedJitCaches`/`resetJitFnCaches` **moved** to
-  `@mionjs/run-types` with a changed signature (`mionAdapter.ts:165,199`).
-- Removed subpath exports: `@mionjs/core/aot-caches`, `@mionjs/core/server-pure-fns`
-  (resolve-time `ERR_PACKAGE_PATH_NOT_EXPORTED` now).
+  `pureFnHashLength`, `initPureFunction`, `registerPureFnClosure`, `getJitFnCaches`;
+  `addSerializedJitCaches`/`resetJitFnCaches` **moved** to `@mionjs/run-types` with a
+  changed signature (`mionAdapter.ts:165,199`). (The AOT-cache surface — `addAOTCaches`,
+  the `./aot-caches` and `./server-pure-fns` subpaths — is intentionally gone with the
+  AOT workaround itself and is NOT counted here; leftover references in R35.)
 - `JIT_FUNCTION_IDS` shrank 16 → 9 keys (`toJSCode`, `format`, `stripUnknownKeys`,
   `unknownKeysToUndefined`, `aux`, `mock`, `pureFunction` gone; `hasUnknownKeys`/
   `unknownKeyErrors` new) and every value changed (now derived via `getFnHash`).
@@ -141,34 +155,27 @@ errorMessage}` — param shape removed, R14).
 - Fix: intentional removals should be listed in a migration/CHANGELOG note per symbol with
   its replacement; anything meant to survive needs a shim.
 
-### R7 [breaking] `@mionjs/router`: persisted-methods/AOT surface removed; two options are dead
+### R7 [breaking] `@mionjs/router`: dead option + def-shape changes
 
-- Removed: `./aot` subpath (+ `emitAOTCaches`, `getSerializedCaches`, `AOTCacheMessage`,
-  `PlatformReadyMessage`, `SerializedCaches`), the whole methodsCache export family
-  (`persistedMethods`, `addToPersistedMethods`, `getPersistedMethod`,
-  `getPersistedMethodMetadata`, `getPersistedMethods`, `setPersistedMethods`,
-  `resetPersistedMethods`, `loadCompiledMethods`) with only a partial successor
-  (`routesCache.getCache()` in core, evidenced in `platform-node/src/mionHttp.spec.ts`),
-  and `RouterOptions.aot` (now an excess-property error).
+- (AOT-era surface — the `./aot` subpath/aotEmitter, the methodsCache/persisted-methods
+  family, `RouterOptions.aot` — is intentionally gone and NOT counted here; the record of
+  registered method ids is now `routesCache.getCache()` in core, as
+  `platform-node/src/mionHttp.spec.ts` shows. Leftover references in R35.)
 - **`RouterOptions.runTypeOptions` survives in the type but is a silent no-op** — verified:
   zero readers in router src (master spread it into every JIT compile,
   `reflection.ts:239-240`). Users passing compiler options get no error and no effect.
   Remove the option or wire it to the marker/dispatch equivalents.
 - Route defs now carry `rtFns` (breaks deep-equality/serialization of def objects —
   every `handlers.spec.ts` expectation had to add it); factories gained 4–6 trailing
-  optional marker params (2-arg calls still compile). `AOTCacheError` survives as a
-  deprecated stub that is never thrown.
-- Router now **statically** imports `@mionjs/run-types` (`lib/reflection.ts:10`); master
-  loaded it lazily so AOT mode never touched it. Bundle-size/dep-graph consequence for
-  anyone who relied on that.
+  optional marker params (2-arg calls still compile).
 
 ### R8 [breaking] `@mionjs/devtools`: option/exports drift in the wrapper
 
-- Removed barrel exports: `VIRTUAL_AOT_JIT_FNS`, `VIRTUAL_AOT_PURE_FNS`,
-  `VIRTUAL_AOT_ROUTER_CACHE`, `VIRTUAL_PURE_FUNCTIONS`, `AOTCacheOptions`,
-  `MionServerConfig`, `PureFunctionsPluginOptions`, `DeepkitTypeOptions`. New
-  `MionServerOptions`/`MionServerMappersOptions` are NOT exported from the barrel (only
-  reachable via `MionPluginOptions['server']`) — export them.
+- New `MionServerOptions`/`MionServerMappersOptions` are NOT exported from the barrel
+  (only reachable via `MionPluginOptions['server']`) — export them. (The deepkit/AOT-era
+  barrel exports — `VIRTUAL_AOT_*`, `AOTCacheOptions`, `MionServerConfig`,
+  `PureFunctionsPluginOptions`, `DeepkitTypeOptions` — are intentionally gone, not
+  counted.)
 - Master's `runTypes.reflection` field is now an excess-property **error** (the legacy
   alias kept is `reflectionMode`); `include`/`exclude`/`reflectionMode` are ignored
   **silently** (no warn, unlike `serverPureFunctions`/`aotCaches` which warn once);
@@ -378,11 +385,14 @@ letters and dots'`, …). Custom messages survive only via `registerFormatPatter
   resolve" and switched to raw port polling. The published pattern (`await serverReady`
   in globalSetup) — still shown in `examples/src/codegen/vite-vitest-global-setup.ts` —
   now hangs. It can also reject now (spawn failure/timeout), which is new.
-- The child no longer receives `MION_COMPILE` (master's contract; core still ships
-  `isMionCompileMode()`, now a dead switch — `core/src/utils.ts:53-64`); master-era
-  servers gating `listen()` on it never open the port → `serverReady` rejects at
-  `waitTimeout`. New contract is `MION_TEST_SERVER_AUTO_START=true` + accepting HTTP on
-  the polled port. Document it; delete or repurpose `isMionCompileMode`.
+- The child no longer receives `MION_COMPILE` — that env var WAS the AOT-generation
+  contract, so with AOT gone the whole contract should be **deleted**, not documented.
+  It is currently half-alive (see R35 sweep): core still ships `isMionCompileMode()` +
+  `isMionAOTEmitMode()` (`core/src/utils.ts:53-64`), platform adapters still skip
+  `listen()` on it, and `router.ts` still sends an IPC message nothing listens to.
+  Master-era servers gating `listen()` on it never open the port → `serverReady` rejects
+  at `waitTimeout`. New contract is `MION_TEST_SERVER_AUTO_START=true` + accepting HTTP
+  on the polled port — document that one.
 
 ### R28 [behavioral] SSR `noExternal` auto-injection and Vue SFC support dropped
 
@@ -439,9 +449,11 @@ letters and dots'`, …). Custom messages survive only via `registerFormatPatter
   inline mappings fail at runtime with `routesFlow-mapping-missing-pure-fn`.
 - Consequences: (a) lambda/docker/deployed bundles need the manifest present at the SAME
   absolute path as on the build machine; (b) `node:fs` in the module rules out
-  edge/workerd runtimes entirely — master's AOT lane **bundled** the fn code via virtual
-  modules, and the documented Cloudflare `aotCaches + buildOnly` deployment flow
-  (`website/content/6.platforms/5.cloudflare.md`) has no HEAD equivalent; (c) split
+  edge/workerd runtimes entirely — and it is at odds with the compile-time-only
+  principle: every other artifact is baked into the bundle at build time, the mapper
+  manifest is the one runtime file-read left. The edge (Cloudflare/Vercel) deployment
+  story needs its ts-runtypes-era answer — the website still documents the deleted
+  AOT-based flow (`website/content/6.platforms/5.cloudflare.md`, see R35); (c) split
   client/server build pipelines must share a file.
 - Recommend: inline the harvested entries INTO the generated virtual module at build time
   (the manifest as build artifact, not runtime artifact), keeping the fs re-reader as a
@@ -480,21 +492,82 @@ letters and dots'`, …). Custom messages survive only via `registerFormatPatter
   build-time-known) and use source parsing only for display names; or pin a test that the
   count survives the supported build matrix.
 
-### R35 [stale] Dead artifacts to delete (single cleanup sweep)
+### R35 [stale] Old-engine leftover sweep — AOT / `MION_COMPILE` / deepkit references still in the tree
 
-- `client/src/aotSSR.e2e.test.ts` + `test:e2e:ssr` script (R3).
-- `devtools/src/vite-plugin/virtual-modules.d.ts` still declares all deleted
+AOT is intentionally gone (it was a workaround for deepkit being runtime; ts-runtypes is
+compile-time only). The defect is therefore every reference LEFT BEHIND. Full sweep
+(`grep -ri aot` + `MION_COMPILE` + deepkit, excluding `docs/done/` which is legitimately
+historical):
+
+**Live code still wired to the AOT/`MION_COMPILE` contract:**
+
+- `core/src/utils.ts:53-64` — `isMionCompileMode()` + `isMionAOTEmitMode()` still exported
+  and still READ: platform adapters skip `listen()` on `MION_COMPILE`
+  (`platform-node/src/mionHttp.ts:43`, `platform-bun/src/bunHttp.ts:46`) and
+  `router.ts:241` forces `getPublicRoutesData` in compile mode. Nothing on HEAD sets
+  `MION_COMPILE` outside tests. Delete the fns, the adapter branches, and the pinning
+  specs (`mionHttp.spec.ts:173-195` "skip server initialization",
+  `bunHttp.test.ts:156-174`), unless skip-listen is re-justified on its own merits under
+  a non-AOT name.
+- `router/src/router.ts:106-113` — `setPlatformConfig` still sends the
+  `{type: 'mion-platform-ready'}` IPC message gated on `isMionAOTEmitMode()`; **no
+  listener exists anywhere on HEAD** (the new managed server polls the port). Dead
+  protocol — delete both ends.
+- `router/src/lib/reflection.ts:40-46` — `AOTCacheError` deprecated stub, exported but
+  never thrown. Delete (all AOT APIs should be gone, not stubbed).
+- `router/src/defaultRoutes.ts:9-35` — docblock and comments still describe AOT cache
+  generation / `MION_COMPILE=buildOnly` / `emitAOTCaches()`; the file is live (managed
+  test-server start script) — rewrite the comments.
+- `test-server/src/test-server-cloudflare.ts:43-73` + `test-server-edge.ts:43-73` —
+  "AOT Compilation" auto-init blocks reading `MION_COMPILE`, and `aot: true` passed to a
+  RouterOptions that no longer has the field (dead config; only compiles because nothing
+  typechecks these files).
+- `test-server/vite.cloudflare.config.ts:18-36` + `vite.edge.config.ts:18-36` — legacy
+  `aotCaches:` plugin option (accepted-and-ignored, triggers the one-time warn) and
+  "AOT child process" alias comments.
+- `client/src/aotSSR.e2e.test.ts` + `test:e2e:ssr` script + the
+  `client/vitest.config.ts:33` exclude line (R3).
+- `devtools/src/vite-plugin/virtual-modules.d.ts:9-53` — still declares all deleted
   `virtual:mion-aot/*` + `virtual:mion-server-pure-fns` modules (typechecks then fails at
   build); shipped via the unchanged `./virtual-modules` export. Replace with a
-  `virtual:mion/server-mappers` declaration.
-- Root `package.json`: `@deepkit/core` + `@deepkit/type-compiler` devDeps, `deepkit-install`
-  script. `platform-bun/package.json`: deepkit devDeps (pending R2 decision).
+  `virtual:mion/server-mappers` declaration. (The committed `devtools/build/` output
+  mirrors whatever source says — regenerate after cleanup.)
+- `devtools/src/vite-plugin/mionVitePlugin.ts` — the legacy `aotCaches`/
+  `serverPureFunctions` accepted-and-ignored options: fine as a transition courtesy, but
+  set a sunset (one minor version?) so the option surface stops advertising AOT.
+
+**Packaging / config leftovers:**
+
+- Root `package.json`: `@deepkit/core` + `@deepkit/type-compiler` devDeps and the
+  `deepkit-install` script. `platform-bun/package.json`: deepkit devDeps (pending R2
+  decision — they exist solely for the un-migrated bun loader).
+- `devtools/package.json`: `"AOT"` keyword, and the `clean:aot-caches` script (hunts
+  `mion-aot-cache.json` files that nothing generates anymore) chained into both `build`
+  and `clean`.
 - run-types `package.json`: `browser: {"./persist/jitFnCacheCompiler": false}` maps a
   deleted file; `"deepkit"` keyword.
 - Root + core `tsconfig.json`: `"reflection": true`, `emitDecoratorMetadata`,
   `experimentalDecorators` — deepkit-era flags (verify nothing reads `reflection` before
   deleting; ts-runtypes does not).
-- `core/src/utils.ts` `isMionCompileMode()` — dead switch (R27).
+
+**Examples / website (fold into R4 / [examples-and-website-refresh.md](examples-and-website-refresh.md)):**
+
+- `examples/src/codegen/aot-*.ts` (5 files), `vite-client-ipc.config.ts`,
+  `client-no-vite.ts` (imports `aot-routes-example.ts`),
+  `cloudflare/cloudflare-config.ts` + `cloudflare-handler.ts` (`{aot: true}`).
+- `website/content/5.devtools/0.aot-compilation.md` (whole page),
+  `6.platforms/5.cloudflare.md` (aotCaches workflow), quick-start `aotCaches: true`
+  snippets — the entire AOT docs surface.
+
+**Comment-only mentions (grep hygiene, low priority):** `router/src/router.ts:144`
+("test AOT cache loading behavior" — the note itself is now wrong),
+`router/src/migration.spec.ts:10`, `platform-cloudflare/src/cloudflareHandler.workers.spec.ts:14`,
+`platform-vercel/src/vercelHandler.edge.spec.ts:14` ("+ AOT caches" in bundle docstrings),
+`platform-node/src/mionHttp.spec.ts:192` (historical note — fine to keep),
+`run-types` `lib/reflection.ts:20-21` ("ARE the AOT artifacts" — explanatory, fine to keep).
+
+**Non-AOT stale items (same cleanup sweep):**
+
 - eslint rules still validating removed APIs: `no-vite-client`'s `pureServerFn` branch and
   the `pure-functions` rule target `registerPureFnFactory`/`pureServerFn` which no longer
   exist anywhere.
@@ -552,9 +625,10 @@ types); `HeadersSubset` semantics incl. `headersReturn` unions; `hasReturnData`
 
 1. **Before merge/publish:** R1, R3, R9 (runtime guard), R2 (decision at minimum), R5
    (decision: accept+document vs upstream fix), R31 (allow-list — small change).
-2. **Fast follow:** R35 (cleanup sweep), R7 (`runTypeOptions` removal), R8 (option
-   warnings + barrel exports), R17 (client-side strict check), R18 (dead registries),
-   R30 (fail-closed markers), R32 (inline manifest entries).
+2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit leftover sweep — full list above;
+   the live-but-dead code paths in core/router/adapters first), R7 (`runTypeOptions`
+   removal), R8 (option warnings + barrel exports), R17 (client-side strict check),
+   R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest entries).
 3. **Documentation wave** (extends [examples-and-website-refresh.md](examples-and-website-refresh.md)):
    R4, R6, R10–R14 removal notes + replacements, R15 lockstep-upgrade note, R16 vocabulary,
    R21 format-error changes, R24, R26–R29, R36.
