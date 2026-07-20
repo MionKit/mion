@@ -26,9 +26,10 @@ accept/reject outcomes, and the route factory call shapes all match master (see
 "Verified 1:1" at the bottom). The claim does **not** hold at the edges: two packages are
 release-broken (R1, R2), the run-types/type-formats public surfaces lost ~150 exports with
 no aliasing shim (R10–R14), several silent type-safety/runtime degradations shipped
-(R5, R20, R23, R28), and every wire lane except plain JSON routes lost cross-version
-compatibility (R15). None of this is visible from the green test suite because the suite
-was migrated alongside the code — the deltas are recorded in the spec diffs themselves.
+(R20, R23, R28 — plus R5, since accepted by design as the wire-correct typing), and every
+wire lane except plain JSON routes lost cross-version compatibility (R15). None of this is
+visible from the green test suite because the suite was migrated alongside the code — the
+deltas are recorded in the spec diffs themselves.
 
 **AOT scoping note (maintainer direction):** AOT was never a feature — it was a workaround
 for deepkit being a runtime type system. ts-runtypes is compile-time only (everything is
@@ -116,44 +117,77 @@ errorMessage}` — param shape removed, R14).
 
 ## B. Public API breaks (compile-time, per package)
 
-### R5 [breaking] `TypedError`/`RpcError` are no longer assignable to `Error`; `.message`/`.name` are optional
+### R5 [breaking — accepted by design] `TypedError`/`RpcError`: `.message`/`.name` now optional; no longer assignable to `Error` in strict TS
 
-- Verified with `tsc --strict` probes: `const e: Error = new RpcError({...})` → TS2322 (both
-  classes); `rpc.message.length` → TS18048 (possibly undefined).
-- Cause: the (correct) wire fix from
-  [error-envelope-non-enumerable-props.md](../done/error-envelope-non-enumerable-props.md) —
-  `packages/core/src/errors.ts:49` re-types the base via
-  `Error as unknown as {new (...): Omit<Error, 'message' | 'name'>}` and re-declares both
-  as optional `@nonEnumerable`, because ts-runtypes only honors the enumerability guard on
-  OPTIONAL props. Runtime is unchanged (`instanceof Error` holds, constructors identical).
-- Impact: every consumer passing mion errors to `Error`-typed APIs (error handlers, loggers,
-  `originalError` params) or reading `.message` under `strictNullChecks` gets compile
-  errors. This is the single most user-visible break for typed codebases and is not
-  mentioned in the PR description.
-- Fix options (needs a decision): (a) upstream ts-runtypes support for
-  `@nonEnumerable`-with-required (serialize-if-enumerable + `DataOnly` marking them
-  optional), restoring `message: string`; (b) keep as-is and document the break loudly
-  as an intended v-next change; (c) module augmentation shim. The current in-between —
-  silent break — is the only wrong option.
+- **Maintainer decision (2026-07-20): the optional typing is the intended model.** The
+  fields stay on the error object but are never transmitted — `publicMessage` is and
+  always was the public lane. This finding is downgraded from decision-needed to a
+  documentation task; the facts below stay recorded because the type-level consequences
+  are real and user-visible.
+- The wire contract did NOT change — verified on both sides:
+  - master: `message`/`name` were **type-required** (inherited from `Error`; deliberately
+    NOT re-declared so deepkit reflection would not see them) but **never transmitted** —
+    the constructor defines them non-enumerable and the old
+    `run-types/src/nodes/collection/classRpcError.spec.ts:38-62` pinned the wire to
+    exactly `{'mion@isΣrrθr', type, publicMessage, id, errorData}`.
+  - HEAD: identical wire, re-pinned by `mionClassSerializers.spec` (after in-migration fix
+    `4246025`). The optional+`@nonEnumerable` declaration
+    (`packages/core/src/errors.ts:49,68-72`) is the ts-runtypes-era encoding of the SAME
+    intent: the checker reflects inherited lib-`Error` members, and ts-runtypes only
+    honors the enumerability guard on OPTIONAL props — master's hide-by-not-declaring
+    trick is not expressible anymore.
+- Type-level consequences (verified with `tsc --strict` probes; runtime unaffected —
+  the constructor always assigns both, `instanceof Error` holds):
+  `const e: Error = new RpcError({...})` → TS2322 (both classes); `rpc.message.length` →
+  TS18048 (possibly undefined).
+- Remaining actions: (a) document the new typing in the migration notes/website (users
+  hitting TS2322/TS18048 need the story: fields exist at runtime, use `instanceof` or
+  narrow); (b) optional future improvement, non-blocking: upstream
+  `@nonEnumerable`-on-required support (serialize-if-enumerable + `DataOnly` marking them
+  optional) would allow restoring required typing without putting them back on the wire.
 
-### R6 [breaking] `@mionjs/core`: pure-fn surface removed/moved
+### R6 [info — mostly intentional] `@mionjs/core` pure-fn surface: moved to ts-runtypes; one open question — `pureServerFn`
 
-- Removed from the barrel (master `core/index.ts:39-41`): `registerPureFnFactory`,
-  `pureServerFn`, `PURE_SERVER_FN_NAMESPACE`, `quickHash`, `createUniqueHash`,
-  `createHashLiteral`, `resetHashes`, `hashDefaultLength`, `defaultLiteralLength`,
-  `pureFnHashLength`, `initPureFunction`, `registerPureFnClosure`, `getJitFnCaches`;
-  `addSerializedJitCaches`/`resetJitFnCaches` **moved** to `@mionjs/run-types` with a
-  changed signature (`mionAdapter.ts:165,199`). (The AOT-cache surface — `addAOTCaches`,
-  the `./aot-caches` and `./server-pure-fns` subpaths — is intentionally gone with the
-  AOT workaround itself and is NOT counted here; leftover references in R35.)
-- `JIT_FUNCTION_IDS` shrank 16 → 9 keys (`toJSCode`, `format`, `stripUnknownKeys`,
-  `unknownKeysToUndefined`, `aux`, `mock`, `pureFunction` gone; `hasUnknownKeys`/
-  `unknownKeyErrors` new) and every value changed (now derived via `getFnHash`).
-- Nearest replacements (`registerMionPureFn` lane) live in a different package with
-  different semantics (runtime registration vs build-time extraction). The website's
-  pure-functions page still documents the removed API (`website/content/5.devtools/1.pure-functions.md`).
-- Fix: intentional removals should be listed in a migration/CHANGELOG note per symbol with
-  its replacement; anything meant to survive needs a shim.
+- **Maintainer direction (2026-07-20): the pure-fn machinery moving to ts-runtypes is
+  intentional** — the engine removals (`registerPureFnFactory`, `quickHash`,
+  `createUniqueHash`, `createHashLiteral`, `resetHashes`, hash-length consts,
+  `initPureFunction`, `registerPureFnClosure`, `getJitFnCaches`, `PURE_SERVER_FN_NAMESPACE`)
+  are NOT counted as breaks, same treatment as AOT. (AOT-cache surface likewise: R35.)
+  What remains user-relevant:
+  - `addSerializedJitCaches`/`resetJitFnCaches` **moved** core → `@mionjs/run-types` with
+    a changed signature (`mionAdapter.ts:165,199`) — worth one migration-note line.
+  - `JIT_FUNCTION_IDS` shrank 16 → 9 keys and every value changed (now derived via
+    `getFnHash`) — matters only to consumers matching persisted hash strings.
+  - The website's pure-functions page still documents the whole removed surface
+    (`website/content/5.devtools/1.pure-functions.md`) — R35/website refresh.
+- **The open question, answered — `pureServerFn`'s role on master and its replacement:**
+  - Role: the general **client→server** primitive. `pureServerFn(fn)` in client code got
+    its body AST-extracted at build time (`devtools/extractPureFn.ts`), content-hashed
+    (`bodyHash` injected), and returned a lightweight `PureServerFnRef` at runtime; the
+    SERVER build scanned client source (`serverPureFunctions: {clientSrcPath}`) and baked
+    the bodies into `serverPureFnsCache['pureServerFn'][bodyHash]` via virtual modules.
+    The client only ever sent the hash — the server never executed wire-received code
+    (same security model as today).
+  - Actual usage: the **only runtime consumer inside mion was routesFlow mapping
+    resolution** (master `router/routesFlow.ts:245,300`); `serverMapFrom` was the one
+    shipped application of the machinery. Standalone `pureServerFn` was a documented
+    public feature (website pure-functions page, examples) but nothing else in mion
+    executed those refs.
+  - Replacement map on HEAD: the serverMapFrom use case is **fully replaced** (inline
+    `rt::<hash>` lane via the pure-fn build report + server-mappers manifest; named
+    `mionjs::<name>` lane via `registerMionPureFn`). The **standalone** client→server
+    primitive has NO direct successor: the plugin harvest filters on
+    `calleeName === 'serverMapFrom'` (`mionVitePlugin.ts:148`), so a bare
+    client-declared pure fn is never shipped to the server anymore. Nearest equivalents:
+    `registerMionPureFn` on the server + name on the client, or ts-runtypes' own
+    registrars/markers directly (re-exported through `@mionjs/run-types`; build
+    extraction requires direct `@ts-runtypes/core` imports with literal ids — upstream
+    re-export gap already filed).
+  - **Decision needed:** was standalone `pureServerFn` a feature to keep? If yes → a thin
+    mion harvest lane over the same pure-fn build report (different callee filter) would
+    restore it; if no → record the removal + rewrite the website page around the two
+    surviving lanes (`registerMionPureFn`, `serverMapFrom`), and drop the vestigial
+    eslint checks (R35).
 
 ### R7 [breaking] `@mionjs/router`: dead option + def-shape changes
 
@@ -623,15 +657,19 @@ types); `HeadersSubset` semantics incl. `headersReturn` unions; `hasReturnData`
 
 ## Suggested triage buckets
 
-1. **Before merge/publish:** R1, R3, R9 (runtime guard), R2 (decision at minimum), R5
-   (decision: accept+document vs upstream fix), R31 (allow-list — small change).
+1. **Before merge/publish:** R1, R3, R9 (runtime guard), R2 (decision at minimum),
+   R31 (allow-list — small change).
 2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit leftover sweep — full list above;
-   the live-but-dead code paths in core/router/adapters first), R7 (`runTypeOptions`
-   removal), R8 (option warnings + barrel exports), R17 (client-side strict check),
-   R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest entries).
+   the live-but-dead code paths in core/router/adapters first), R6 (decision: standalone
+   `pureServerFn` lane — keep via a mion harvest filter, or drop + rewrite docs),
+   R7 (`runTypeOptions` removal), R8 (option warnings + barrel exports), R17 (client-side
+   strict check), R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest
+   entries).
 3. **Documentation wave** (extends [examples-and-website-refresh.md](examples-and-website-refresh.md)):
-   R4, R6, R10–R14 removal notes + replacements, R15 lockstep-upgrade note, R16 vocabulary,
-   R21 format-error changes, R24, R26–R29, R36.
-4. **Upstream (ts-run-types) candidates:** R5(a) `@nonEnumerable`-on-required,
-   R20 (format brands), R21 (sub-part paths/messages), R22 (mock regressions — some
-   already filed per progress log).
+   R4, R5 (accepted typing — migration note), R6 moved-API notes, R10–R14 removal notes +
+   replacements, R15 lockstep-upgrade note, R16 vocabulary, R21 format-error changes,
+   R24, R26–R29, R36.
+4. **Upstream (ts-run-types) candidates:** R5(b) `@nonEnumerable`-on-required
+   (optional, would restore required `message` typing), R20 (format brands),
+   R21 (sub-part paths/messages), R22 (mock regressions — some already filed per
+   progress log).
