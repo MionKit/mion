@@ -4,9 +4,12 @@
 **Created:** 2026-07-19
 
 Independent review of PR #123 (`claude/mion-ts-runtypes-migration-qywc6z`, head `79513de`, vs
-`master` @ `9089d9f`) against its stated goal: **a 1:1 migration — same public API and same
-functionality, only the engine swapped** (`@mionjs/run-types` deepkit runtime → published
-`@ts-runtypes/*@0.10.0`).
+`master` @ `9089d9f`) against its goal — as refined by the maintainer during this review:
+**1:1 applies to the mion FRAMEWORK surface** (router, client, devtools plugin shape,
+platforms — everything NOT provided by the new engine). The surfaces now PROVIDED BY
+ts-runtypes — the `@mionjs/run-types` runtime type API, all of `@mionjs/type-formats`,
+and core's engine glue — are intentionally ts-runtypes' surfaces and are NOT parity
+targets (their old mion incarnations must be fully gone, leftovers swept in R35).
 
 Method: full-surface export comparison per package (master barrels/`exports` maps vs HEAD,
 resolved through the published `@ts-runtypes/core@0.10.0` tarball for the star re-exports),
@@ -16,33 +19,50 @@ behavior), a code/architecture pass over all new adapter/transport code, and tar
 own `docs/todos/` spec (or a wontfix note) when triaged. Severity labels:
 **blocker** (breaks a release/publish), **breaking** (compile/import errors for users),
 **behavioral** (observable runtime change), **hardening** (robustness/security),
-**quality** (architecture/cleanup), **stale** (dead leftovers).
+**quality** (architecture/cleanup), **stale** (dead leftovers). Findings resolved during
+review carry **[resolved — intentional]** / **[… — accepted by design]** (kept for the
+record + docs material); engine-behavior notes that belong to ts-run-types carry
+**[upstream]**.
 
 ## Verdict (short)
 
-The **request/response core is genuinely 1:1**: route registration → dispatch → validation →
-serialization round-trips, the JSON error envelope, HeadersSubset semantics, strictTypes
-accept/reject outcomes, and the route factory call shapes all match master (see
-"Verified 1:1" at the bottom). The claim does **not** hold at the edges: two packages are
-release-broken (R1, R2), the run-types/type-formats public surfaces lost ~150 exports with
-no aliasing shim (R10–R14), several silent type-safety/runtime degradations shipped
-(R20, R23, R28 — plus R5, since accepted by design as the wire-correct typing), and every
-wire lane except plain JSON routes lost cross-version compatibility (R15). None of this is
-visible from the green test suite because the suite was migrated alongside the code — the
-deltas are recorded in the spec diffs themselves.
+Against the refined scope, the **framework surface is genuinely close to 1:1**: route
+registration → dispatch → validation → serialization round-trips, the JSON error
+envelope, HeadersSubset semantics, strictTypes accept/reject outcomes, and the route
+factory call shapes all match master (see "Verified 1:1" at the bottom). What breaks the
+claim is concentrated and fixable: two packages are release-broken (R1, R2), a handful of
+framework-surface regressions shipped (R9, R17, R28), mion code that consumes engine
+shapes was left unadapted (R20), every wire lane except plain JSON routes lost
+cross-version compatibility (R15), and a large body of old-engine references survives in
+the tree (R35). None of this is visible from the green test suite because the suite was
+migrated alongside the code — the deltas are recorded in the spec diffs themselves.
+Engine-surface changes (run-types API, type formats) are catalogued below as
+informational/documentation material, not as breaks.
 
-**Intentional-removal scoping note (maintainer direction):** two API families are
-intentionally gone and are NOT counted as breaks anywhere in this doc:
+**Intentional-replacement scoping note (maintainer direction, 2026-07-20):** everything
+the new engine provides is intentionally ts-runtypes' surface — removals/renames/behavior
+of these families are NOT counted as breaks anywhere in this doc:
 
 - **AOT** — never a feature, a workaround for deepkit being a runtime type system.
   ts-runtypes is compile-time only (everything is comp-time generated).
 - **The old pure-fn surface** (`pureServerFn`, `registerPureFnFactory`, `quickHash`, …) —
-  the machinery moved into ts-runtypes; `serverMapFrom` (inline `rt::` harvest + named
-  `mionjs::` lane via `registerMionPureFn`) covers the client→server use case, and
-  standalone `pureServerFn` is dropped (decision 2026-07-20).
+  moved into ts-runtypes; `serverMapFrom` (inline `rt::` harvest + named `mionjs::` lane
+  via `registerMionPureFn`) covers the client→server use case, and standalone
+  `pureServerFn` is dropped.
+- **The `@mionjs/run-types` runtime type API** (old `runType`/`reflectFunction`/
+  `create*Fn` factories, guards, node classes, jit compilers, mocking utils) — the
+  package is a thin proxy now; its API IS `@ts-runtypes/core`'s API.
+- **All of `@mionjs/type-formats`** (format classes/values, `Format*` type shapes and
+  params, validation messages/paths, mocking) — moved to `@ts-runtypes/core/formats`;
+  the package is a type-alias proxy.
+- **Core engine glue** (`JIT_FUNCTION_IDS` families, binary serializer internals,
+  deepkit-era format typing) — provided by / proxied to ts-runtypes.
 
-For both families the defect class is the opposite one: **references left behind** — the
-full repo sweep of remaining AOT/`MION_COMPILE`/deepkit/pure-fn leftovers lives in R35.
+For all of these the defect class is the opposite one: **references left behind** — the
+full repo sweep of AOT/`MION_COMPILE`/deepkit/pure-fn/old-format leftovers lives in R35.
+What REMAINS in scope as findings: the framework surface (router/client/devtools/
+platforms), packaging, wire/deployment compatibility, and mion code that CONSUMES engine
+shapes and was left unadapted.
 
 ---
 
@@ -123,7 +143,7 @@ errorMessage}` — param shape removed, R14).
 
 ---
 
-## B. Public API breaks (compile-time, per package)
+## B. Public API (per package) — framework-surface breaks + resolved engine-surface notes
 
 ### R5 [breaking — accepted by design] `TypedError`/`RpcError`: `.message`/`.name` now optional; no longer assignable to `Error` in strict TS
 
@@ -221,59 +241,35 @@ errorMessage}` — param shape removed, R14).
   what the runtime actually builds instead of patching the member (see R35 pure-fn
   leftovers).
 
-### R10 [breaking] `@mionjs/run-types`: headline runtime API removed with no shim
+### R10–R14 [resolved — intentional] run-types & type-formats surfaces are ts-runtypes' surfaces now
 
-- Gone: `runType`, `reflectFunction`, `createIsTypeFn`, `createTypeErrorsFn`,
-  `createPrepareForJsonFn`, `createRestoreFromJsonFn`, `createStringifyJsonFn`,
-  `createToBinaryFn`, `createFromBinaryFn`, `createToJavascriptFn`, `createMockTypeFn`,
-  `mockType`. Successors exist but under different names AND contracts (sync, marker-driven:
-  `createValidate`, `createGetValidationErrors`, `createJsonEncoder/Decoder`,
-  `createBinaryEncoder/Decoder`, `createMockData`, `getRunType`).
-- Decide: accept as intended breaking change (document per-symbol), or add deprecated
-  aliasing wrappers for the migration window.
+Per the scoping note, none of this is counted as a break — the old surfaces must be gone.
+Kept here in compressed form ONLY as source material for the migration notes/website
+rewrite (upgrading users need the old→new mapping spelled out once):
 
-### R11 [breaking] `@mionjs/run-types`: ~130 secondary exports removed
+- **R10 — runtime factories renamed + de-asynced:** `runType`/`reflectFunction`/
+  `createIsTypeFn`/`createTypeErrorsFn`/`create{PrepareFor,RestoreFrom,Stringify}JsonFn`/
+  `createTo/FromBinaryFn`/`createMockTypeFn`/`mockType` → sync, marker-driven
+  `createValidate`/`createGetValidationErrors`/`createJsonEncoder/Decoder`/
+  `createBinaryEncoder/Decoder`/`createMockData`/`getRunType`.
+- **R11 — ~130 secondary exports gone** (guards, formatter registry, JIT compiler/base
+  classes, mocking utils, ~45 node classes, helper types) — power-user surface, now
+  upstream's problem space.
+- **R12 — surviving names redefined:** `RunType` is a pure data node (no methods);
+  `TypeFormat` uses the `__rtFormat*` phantom encoding; `FormatAnnotation` lost
+  `.formatter`/`.options`. Core still exports pre-migration twins of several of these
+  (`TypeFormatParams`, `StringParams`, …) — that is a core LEFTOVER, swept in R35.
+- **R13 — type-formats is a type-only proxy:** all value exports gone (format classes,
+  regexes, mock helpers, `cpf_*` pure fns); format generics de-parameterized
+  (`FormatDomainStrict<D>` → 0-arity; custom params re-spelled as
+  `TypeFormat<string, 'domain', P>`); `FormatEmailPattern`/`FormatUrlSocialMedia`/
+  `DEFAULT_*_PARAMS` gone; new `FormatCurrency`/`FormatDomainUnicode`/
+  `FormatDomainPunycode` added.
+- **R14 — param shapes changed:** per-bound `{val, errorMessage}` metas gone (scalar
+  bounds only; patterns via `registerFormatPattern({source, flags, message, mockSamples})`).
 
-- All 60 `is*RunType` guards, formatter registry (`registerFormatter`,
-  `getFormatterParams`, …), JIT compiler classes (`BaseFnCompiler`, `JitFnCompiler`, …),
-  base classes (`BaseRunType`, `AtomicRunType`, …), `JitFunctions` + jit constants,
-  mocking utils (`mockString`, `random`, …), ~45 type-only node classes
-  (`InterfaceRunType`, …), helper types (`RunTypeOptions`, `SrcType`, `Mutable`, …).
-- Mostly power-user surface; in-repo consumers were migrated, external ones were not.
-  Needs only documentation (the removal is almost certainly intended), but the PR
-  description does not mention the scale.
-
-### R12 [breaking] Surviving names with silently different definitions
-
-- `RunType`: methods-bearing interface (`mock()`, `createJitFunction()`, …) → pure data
-  node `RunType<T>` (`id`, `kind`, `children`).
-- `TypeFormat`: deepkit `TypeAnnotation`+`Brand` encoding → `__rtFormat*` phantom-prop
-  encoding (values typed under one don't satisfy the other).
-- `FormatAnnotation`: lost `.formatter`/`.options`.
-- Same-name types now exported with **divergent shapes** from `@mionjs/core` vs the
-  run-types re-export (`TypeFormatParams`, `StringParams`, `TypeFormatError`, …) — core's
-  `types/formats/formatsParams.types.ts` still carries the pre-migration shapes. Align or
-  delete core's copies (they no longer constrain anything real).
-
-### R13 [breaking] `@mionjs/type-formats`: value surface deleted; format generics de-parameterized
-
-- Every value export removed (barrels are now type-only + a side-effect registration
-  import): format classes (`EmailRunTypeFormat`, …), `*_RUN_TYPE_FORMATTER` consts,
-  pattern regexes (`EMAIL_PATTERN`, `URL_REGEXP`, …), mock helpers, `cpf_*` pure fns.
-- `FormatEmail<EP>`, `FormatDomain<DP>`, `FormatDomainStrict<D>`, `FormatUrl<P>`,
-  `FormatIP<P>`, … are now 0-arity aliases; `FormatEmailPattern`, `FormatUrlSocialMedia`
-  and all `DEFAULT_*_PARAMS` presets are gone. Custom-parameterized formats must be
-  re-spelled as `TypeFormat<string, 'domain', P>`.
-- Additions: `FormatCurrency`, `FormatDomainUnicode`, `FormatDomainPunycode`.
-
-### R14 [breaking] Format param shapes changed — per-bound custom error messages gone
-
-- Old: every bound accepted `number | {val, errorMessage}`, `pattern: {val: RegExp,
-errorMessage, mockSamples}`. New: scalar bounds only; patterns must go through
-  `registerFormatPattern({source, flags, message, mockSamples})` handles
-  (`errorMessage` → `message`, RegExp → string source). `allowedChars`/`allowedValues`
-  keep the old form.
-- Combined with R23 (message degradation) this is the "custom validation UX" loss lane.
+Residue tracked elsewhere: broken examples → R4; core's stale twin types + the
+`formatTypeNames` eslint list → R35; mion consumers of the changed format error shapes → R20.
 
 ---
 
@@ -291,16 +287,18 @@ errorMessage, mockSamples}`. New: scalar bounds only; patterns must go through
 - If rolling deploys/cached clients matter, this needs a version handshake or at least a
   documented "upgrade client+server in lockstep" requirement. Currently undocumented.
 
-### R16 [behavioral] Validation-error vocabulary changed
+### R16 [intentional — document] Validation-error vocabulary is the engine's now
 
-- `errorData.typeErrors[].expected`: `'object'` → `'objectLiteral'` (`dispatch.spec.ts:400`);
-  the `'class'` token no longer asserted anywhere (headers lane); headers validation lost
-  its single-error guarantee (`headers.spec.ts` now only asserts `length > 0`). `path`
-  segment format is UNCHANGED (verified both sides).
-- strictTypes unknown-prop violations now surface as a **second** error (after `isType`
-  passes) generated by `unknownKeyErrors` — different content generator than master's
-  strict-compiled `typeErrors`; exact entry shape is pinned by no spec on either side.
-- API consumers matching `expected` strings break. Document the new vocabulary (or map it).
+- The tokens inside `errorData.typeErrors[]` come from ts-runtypes, so the vocabulary
+  changed by design: `expected` `'object'` → `'objectLiteral'` (`dispatch.spec.ts:400`),
+  the `'class'` token gone, headers validation no longer single-error
+  (`headers.spec.ts` asserts `length > 0`). `path` segment format is UNCHANGED (verified
+  both sides), and the envelope (`{expected, path, format?}`) is 1:1.
+- Residue: (a) document the new token vocabulary for API consumers who match on
+  `expected` strings (docs wave); (b) the strictTypes unknown-prop violation entry shape
+  (generated by `unknownKeyErrors` as a **second** error after `isType` passes) is pinned
+  by no spec on either side — pin it once in a router spec so the wire contract is
+  recorded.
 
 ### R17 [behavioral] strictTypes enforcement drifted in two ways
 
@@ -313,16 +311,16 @@ errorMessage, mockSamples}`. New: scalar bounds only; patterns must go through
   absent or noop — a build that failed to emit `huk`/`uke` silently stops enforcing
   strictness instead of erroring (part of the R30 fail-open pattern).
 
-### R18 [behavioral] Custom class serialization: old registration lane is silently dead
+### R18 [behavioral] Custom class serialization: dead old-lane registries still exposed with zero warning
 
-- `getJitUtils().setDeserializeFn(...)`/`setSerializableClass(...)` still exist and still
-  store entries — core `errors.ts:240-244` itself still registers into them — but
-  **nothing reads them** (verified: zero readers outside `jitUtils.ts`). Compiled
-  ts-runtypes decoders consult only `registerClassSerializer` (only mion's error classes
-  are bridged, `run-types/src/mionClassSerializers.ts`).
-- Impact: user classes registered the old way silently decode as plain objects
-  (no `instanceof`), with zero warning. Either bridge the registries, or make the old
-  setters throw with "use registerClassSerializer", and delete core's own dead self-registrations.
+- The old lane's replacement is `registerClassSerializer` (ts-runtypes) — intentional per
+  the scoping note. The finding is the LEFTOVER: `getJitUtils().setDeserializeFn(...)`/
+  `setSerializableClass(...)` still exist, still silently store entries — core
+  `errors.ts:240-244` itself still self-registers into them — but **nothing reads them**
+  (verified: zero readers outside `jitUtils.ts`). Classes registered the old way silently
+  decode as plain objects (no `instanceof`), no warning anywhere.
+- Fix: make the dead setters throw with "use registerClassSerializer", delete core's own
+  dead self-registrations (cleanup itemized in R35).
 
 ### R19 [behavioral] `isAsync` metadata flipped for inference cases
 
@@ -331,51 +329,57 @@ errorMessage, mockSamples}`. New: scalar bounds only; patterns must go through
   `mionAdapter.ts:378-380`; `router.spec.ts:359`). Dispatch always awaits so behavior is
   safe, but the flag ships in client-visible methods metadata.
 
-### R20 [behavioral] Nominal format branding silently dropped
+### R20 [behavioral] Mion features that CONSUME engine format shapes were left unadapted
 
-- All previously-branded formats (`FormatEmail`, `FormatUUIDv4/7`, `FormatUrl*`,
-  `FormatDomain*`, `FormatIP*`, date/time strings, all 12 default number formats) now
-  alias ts-runtypes types with `BrandName = never` — `const x: FormatEmail = 'anything'`
-  **compiles**. Master's brands rejected plain strings.
-- Also breaks the documented server↔client brand contract: new `FormatEmail` is no longer
-  assignable to core's `BrandEmail` (which still requires `{brand: 'email'}` on HEAD —
-  another R12-style stale twin). Website documents the old behavior
-  (`website/content/4.run-types/2.type-formats.md:170-186`).
-- This is a silent type-safety regression with zero compile errors flagging it. Needs an
-  upstream decision (brand support in ts-runtypes formats) or explicit deprecation of the
-  brand story.
+The new format typing/error shapes are ts-runtypes' by design — but two live mion (core)
+features sit on top of them and were NOT touched by the migration:
 
-### R21 [behavioral] Format validation degraded in granularity, count and messages
+- **`getFriendlyErrors` (`core/src/friendlyErrors.ts` — untouched, zero diff):** it keys
+  on exactly the fields that changed upstream — `error.format.formatPath[0]` (paths now
+  flattened: `['localPart','maxLength']` → `['maxLength']`; part indexes gone),
+  `error.format.val` (dateTime now carries the splitChar, not the failing sub-format),
+  format `name`s (`'email'` → `'domain'`/`'stringFormat'` in sub-errors) and
+  `error.expected` (`'object'` → `'objectLiteral'`). Its spec
+  (`friendlyErrors.spec.ts`, also untouched) runs against HAND-BUILT error fixtures, so
+  the green suite proves nothing about real ts-runtypes output. **Action: verify
+  getFriendlyErrors against real engine errors and update its mapping/spec fixtures.**
+- **`core/src/types/formats/formatBrands.types.ts` (`BrandEmail`, … — untouched):** the
+  documented server↔client brand contract is broken — ts-runtypes formats carry
+  `BrandName = never` (a `FormatEmail` value is a plain `string` now), so
+  `FormatEmail` is no longer assignable to `BrandEmail` and brand-narrowing code stops
+  matching, silently. Website still documents the old contract
+  (`website/content/4.run-types/2.type-formats.md:170-186`). **Action: decide — drop the
+  Brand story (delete `formatBrands.types.ts` + docs) or push brand support upstream
+  (bucket 4).**
 
-- Sub-part paths flattened: email `['localPart','maxLength']` → `['maxLength']`, domain
-  `['names', i, 'pattern']` → `['pattern']` (failing part index lost), dateTime `val` now
-  carries the splitChar instead of the failing sub-format. Error count short-circuits
-  (email missing `@`: 2 errors → 1; dateTime missing splitChar: 3 → 1).
-- Built-in human-readable messages collapsed to generic `'pattern'` / `'Invalid pattern'`
-  (`'Invalid email format'`, `'invalid URL format'`, `'top level domain can only contain
-letters and dots'`, …). Custom messages survive only via `registerFormatPattern({message})`.
-- Number formats: invalid param combos (min>max, non-integer multipleOf, …) no longer
-  throw at runtime — they are build-time FMT002 diagnostics only; a misconfigured format
-  whose diagnostic is ignored **silently validates** (7 deleted tests in
-  `numberFormat.runtype.spec.ts`).
+### R21 [upstream — informational] Format validation shape/message changes (engine behavior)
 
-### R22 [behavioral] Mock-data regressions (flagged "KNOWN REGRESSION" in-spec)
+Intentional per the scoping note (formats are ts-runtypes' domain); recorded compressed
+because the docs wave and R20's verification need the list: sub-part paths flattened and
+short-circuited (fewer errors per invalid value); built-in messages collapsed to generic
+`'pattern'`/`'Invalid pattern'` (custom messages via `registerFormatPattern({message})`);
+number-format param misconfigurations no longer throw at runtime — build-time FMT002
+diagnostics only, so an ignored diagnostic means the format **silently validates**
+(7 deleted tests in `numberFormat.runtype.spec.ts`). Anything here deemed a quality loss
+belongs upstream (bucket 4), not in mion.
+
+### R22 [upstream] Mock-data regressions (flagged "KNOWN REGRESSION" in-spec)
 
 - Case transforms (lowercase/uppercase/capitalize) not applied by `createMockData`
   (cache-key mismatch; specs post-apply `createFormatTransform` manually,
   `defaultStringFormats.runtype.spec.ts`), domain mocking ignores `allowedValues`
   (falls back to `'example.com'` which fails its own validation,
   `domain.runtype.spec.ts`), and the mock-sample cross-constraint sanity check was
-  deleted (`stringFormat.runtype.spec.ts`). File these upstream (ts-run-types) if not
-  already; track the mion-side expectation here either way.
+  deleted (`stringFormat.runtype.spec.ts`). Engine defects — file in ts-run-types
+  `docs/todos/` if not already there; the in-spec workarounds here are the tracking
+  markers.
 
-### R23 [behavioral] `stripUnknownKeys` / `unknownKeysToUndefined` dropped, replacement undocumented
+### R23 [resolved — intentional] `stripUnknownKeys`/`unknownKeysToUndefined` → `createCloneExactShape`
 
-- Master JIT families `sk`/`ku` (mutating strip ops) are gone; upstream replaced them
-  with `createCloneExactShape<T>()` (non-mutating schema-shaped clone,
-  `@ts-runtypes/core/src/createRTFunctions.ts:143`). The capability survives under a new
-  name/semantics via the star re-export, but nothing in mion docs/specs records the
-  mapping — the only silently-dropped operation pair the spec audit found uncommented.
+- Old mutating strip ops are engine surface, gone by design; upstream's replacement is
+  `createCloneExactShape<T>()` (non-mutating schema-shaped clone, available through the
+  run-types re-export). Only residue: record the old→new mapping in the migration notes —
+  it was the one renamed capability the spec audit found undocumented.
 
 ### R24 [behavioral] Binary middleFn degradation is now warn-and-skip
 
@@ -512,12 +516,13 @@ letters and dots'`, …). Custom messages survive only via `registerFormatPatter
   build-time-known) and use source parsing only for display names; or pin a test that the
   count survives the supported build matrix.
 
-### R35 [stale] Old-engine leftover sweep — AOT / `MION_COMPILE` / deepkit / old pure-fn surface still in the tree
+### R35 [stale] Old-engine leftover sweep — AOT / `MION_COMPILE` / deepkit / pure-fn / type-format surfaces still in the tree
 
-AOT and the old pure-fn surface are intentionally gone (see the scoping note at the top).
-The defect is therefore every reference LEFT BEHIND. Full sweep (`grep -ri aot`,
+Everything the engine now provides is intentionally replaced (see the scoping note at the
+top). The defect is therefore every reference LEFT BEHIND. Full sweep (`grep -ri aot`,
 `MION_COMPILE`, deepkit, `pureServerFn|registerPureFnFactory|serverPureFnsCache|quickHash|purityRules`,
-excluding `docs/done/` which is legitimately historical):
+`RunTypeFormat|RUN_TYPE_FORMATTER|registerFormatter|getFormatterParams`, excluding
+`docs/done/` which is legitimately historical):
 
 **Live code still wired to the AOT/`MION_COMPILE` contract:**
 
@@ -614,8 +619,33 @@ the 2026-07-20 decision, R6):**
   to share the old mion core fn's name (the collision that crashed the plugin in
   migration session 1, issue #5).
 
+**Old type-format surface leftovers (formats are `@ts-runtypes/core/formats` now):**
+
+- `core/src/types/formats/formats.types.ts` + `formatsParams.types.ts` — both still
+  barrel-exported from core (`core/index.ts:24-25`) and both carry the deepkit-era
+  encodings: `FormatParamMeta` `{val, errorMessage, desc}` param metas,
+  `AliasTypeAnnotation`, old `TypeFormatParams`/`StringParams` shapes that no longer
+  satisfy the new engine's constraints (the R12 "divergent twins"). Align with
+  ts-runtypes' types or delete and re-export upstream's.
+- `core/src/types/formats/formatBrands.types.ts` — the `Brand*` contract broken against
+  unbranded engine formats: R20 decision (delete or upstream).
+- `core/src/friendlyErrors.ts` + `friendlyErrors.types.ts` — LIVE feature keying on
+  pre-migration format error shapes: R20 verification.
+- `devtools/src/eslint/rules/formatTypeNames.ts` — the "single source of truth" list for
+  the `enforce-type-imports` rule still contains REMOVED names (`FormatEmailPattern:54`,
+  `FormatUrlSocialMedia:65`), is MISSING the new ones (`FormatCurrency`,
+  `FormatDomainUnicode`, `FormatDomainPunycode` — so the rule will not stop `import type`
+  on them, which silently breaks the side-effect registration lane CLAUDE.md warns
+  about), and its docblock still says "Deepkit's type compiler needs actual imports".
+- Website: `4.run-types/2.type-formats.md` (brand-mapping table references removed
+  `FormatUrlSocialMedia`, old param shapes) and every run-types docs page still on the
+  old API — tracked in
+  [examples-and-website-refresh.md](examples-and-website-refresh.md).
+
 **Other stale items (same cleanup sweep):**
 
+- The dead class-serializer registries + core's self-registrations into them
+  (`errors.ts:240-244`) — see R18.
 - Stale comments: `router/lib/handlers.ts:30` says marker keys are `val…uke` but the
   markers request `tb`/`fb` too; `run-types/src/mionClassSerializers.ts:17-21` still
   claims non-registered generic instantiations "decode structurally" while the 0.9.2
@@ -657,6 +687,7 @@ the 2026-07-20 decision, R6):**
 
 ## Verified 1:1 (for fairness)
 
+The framework-surface parity that was checked and HOLDS:
 Package `exports` subpaths of run-types/type-formats unchanged; `FormatNames`/`FormatName`
 constants string-identical; validation-error struct (`{expected, path, format?}`) and path
 segment format unchanged; email/punycode regex sources byte-identical; router barrel
@@ -670,16 +701,17 @@ types); `HeadersSubset` semantics incl. `headersReturn` unions; `hasReturnData`
 
 1. **Before merge/publish:** R1, R3, R9 (runtime guard), R2 (decision at minimum),
    R31 (allow-list — small change).
-2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit/pure-fn leftover sweep — full
-   list above; the live-but-dead code paths in core/router/adapters first),
+2. **Fast follow:** R35 (the AOT/`MION_COMPILE`/deepkit/pure-fn/type-format leftover
+   sweep — full list above; the live-but-dead code paths in core/router/adapters first),
+   R20 (verify `getFriendlyErrors` against real engine errors; decide the Brand story),
    R7 (`runTypeOptions` removal), R8 (option warnings + barrel exports), R17 (client-side
    strict check), R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest
    entries).
 3. **Documentation wave** (extends [examples-and-website-refresh.md](examples-and-website-refresh.md)):
-   R4, R5 (accepted typing — migration note), R6 moved-API notes, R10–R14 removal notes +
-   replacements, R15 lockstep-upgrade note, R16 vocabulary, R21 format-error changes,
-   R24, R26–R29, R36.
+   R4, R5 (accepted typing — migration note), R6 moved-API notes, R10–R14 old→new
+   mapping notes, R15 lockstep-upgrade note, R16 vocabulary, R21 format-error changes,
+   R23 (`createCloneExactShape` mapping), R24, R26–R29, R36.
 4. **Upstream (ts-run-types) candidates:** R5(b) `@nonEnumerable`-on-required
-   (optional, would restore required `message` typing), R20 (format brands),
-   R21 (sub-part paths/messages), R22 (mock regressions — some already filed per
-   progress log).
+   (optional, would restore required `message` typing), R20 (format brand support, if
+   the Brand story is kept), R21 (sub-part paths/messages, if deemed a quality loss),
+   R22 (mock regressions — some already filed per progress log).
