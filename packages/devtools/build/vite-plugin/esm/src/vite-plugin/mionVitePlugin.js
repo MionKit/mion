@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 let legacyOptionsNoticeShown = false;
@@ -10,10 +10,16 @@ function resolveRtBinary(explicit) {
 }
 function mionVitePlugin(options = {}) {
   const rt = options.runTypes ?? {};
-  if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions)) {
+  const legacyRt = rt;
+  if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions || rt.include || rt.exclude || rt.reflectionMode || legacyRt.reflection)) {
     legacyOptionsNoticeShown = true;
     console.warn(
-      "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) are ignored since the ts-runtypes migration. See docs/ at the repo root."
+      "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions/include/exclude/reflectionMode) are ignored since the ts-runtypes migration. See docs/ at the repo root."
+    );
+  }
+  if (options.server && options.server.runMode && options.server.runMode !== "childProcess") {
+    console.warn(
+      `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes migration — only 'childProcess' exists; the managed server will be spawned as a child process.`
     );
   }
   const manifestPath = resolveManifestPath(options.serverMappers?.emit);
@@ -74,14 +80,25 @@ const SERVER_MAPPERS_ID = "virtual:mion/server-mappers";
 const RESOLVED_SERVER_MAPPERS_ID = "\0" + SERVER_MAPPERS_ID;
 function serverMappersConsumePlugin(consume) {
   const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
+  let isBuildCommand = false;
   return {
     name: "mion-server-mappers",
+    configResolved(config) {
+      isBuildCommand = config?.command === "build";
+    },
     resolveId(id) {
       if (id === SERVER_MAPPERS_ID) return RESOLVED_SERVER_MAPPERS_ID;
     },
     load(id) {
       if (id !== RESOLVED_SERVER_MAPPERS_ID) return;
       if (manifests.length === 0) return "export {};";
+      if (isBuildCommand) {
+        const entries = readMapperManifests(manifests);
+        return [
+          `import {registerServerMappers} from '@mionjs/run-types';`,
+          `registerServerMappers(${JSON.stringify(entries)});`
+        ].join("\n");
+      }
       return [
         `import {installServerMapperReader} from '@mionjs/run-types';`,
         `import {existsSync, readFileSync} from 'node:fs';`,
@@ -101,6 +118,18 @@ function serverMappersConsumePlugin(consume) {
       ].join("\n");
     }
   };
+}
+function readMapperManifests(manifests) {
+  const entries = [];
+  for (const manifestPath of manifests) {
+    if (!existsSync(manifestPath)) {
+      throw new Error(
+        `[mionVitePlugin] serverMappers manifest not found at build time: ${manifestPath}. Run the client build (serverMappers.emit) before the server build, or fix the configured path.`
+      );
+    }
+    entries.push(...JSON.parse(readFileSync(manifestPath, "utf8")));
+  }
+  return entries;
 }
 let serverReadyResolve;
 let serverReadyReject;

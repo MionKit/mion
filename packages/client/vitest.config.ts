@@ -30,7 +30,6 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
-        exclude: ['src/aotSSR.e2e.test.ts'],
         // Wait for the IPC-managed server to be ready before running tests
         globalSetup: './globalSetup.ts',
         // Prevent test-server from auto-starting when imported by test files

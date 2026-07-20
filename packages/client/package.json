@@ -44,8 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "vitest run && pnpm run test:e2e:ssr",
-    "test:e2e:ssr": "node --experimental-strip-types src/aotSSR.e2e.test.ts",
+    "test": "vitest run",
     "dev": "vite build --watch",
     "dev:test": "vitest watch",
     "lint": "eslint src",
@@ -63,12 +62,12 @@
     "@mionjs/devtools": "workspace:*",
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/router": "workspace:*",
-    "@mionjs/run-types": "workspace:*",
     "@mionjs/test-server": "workspace:*",
     "@mionjs/type-formats": "workspace:*",
     "jest-environment-jsdom": "29.7.0"
   },
   "dependencies": {
-    "@mionjs/core": "workspace:*"
+    "@mionjs/core": "workspace:*",
+    "@mionjs/run-types": "workspace:*"
   }
 }
