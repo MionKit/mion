@@ -1,9 +1,12 @@
 # CI flake: "generate: resolver exited" — upstream buildEnd close race (root-caused)
 
-**Status:** todo — root cause identified upstream 2026-07-20; mion action is to adopt the
-fixed `@ts-runtypes/devtools` release when it ships (spec filed upstream:
-ts-run-types `docs/todos/resolver-client-drain-close-and-retry.md`). Until then, triage
-is re-run on signature.
+**Status:** todo — upstream fix IMPLEMENTED 2026-07-20 (ts-run-types commit `ab083bcf` on
+branch `claude/mion-ts-runtypes-migration-qywc6z`: transport drain-on-close, one
+respawn-retry per lost request, per-container buildEnd refcount, 5-test regression
+suite; spec now at ts-run-types `docs/done/resolver-client-drain-close-and-retry.md`).
+Remaining mion action: bump `@ts-runtypes/*` to the release carrying it (0.10.1) once
+merged + published, then move this spec to done. Until then, triage stays re-run on
+signature.
 **Created:** 2026-07-20
 
 ## Signature
