@@ -1,6 +1,6 @@
 # Review hardening follow-ups — client-side strict check, backend coupling, paramNames arity
 
-**Status:** todo — R17/R33/R34 of [migration-review-findings.md](migration-review-findings.md).
+**Status:** todo — R17/R33/R34 of [migration-review-findings.md](../done/migration-review-findings.md); verified still fully open 2026-07-20 (backend lookups still silent-undefined, R17/R34 code untouched).
 **Created:** 2026-07-20
 
 ## R17 — client-side strictTypes pre-validation
