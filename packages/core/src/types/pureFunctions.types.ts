@@ -57,49 +57,18 @@ export interface PersistedPureFunction extends CompiledPureFunction {
     fn: undefined;
 } /** Reference object returned by pureServerFn() at runtime on the client */
 
-export interface PureFnDef<F extends (...args: any[]) => any = (...args: any[]) => any> {
-    /** The namespace this pure function belongs to */
-    readonly namespace?: string;
-    /** The function name (optional, for debugging purposes only) */
-    readonly fnName?: string;
-    /** Indicates if this is a factory function, function should be called with jitUtils as single argument:
-     * ie:
-     * const factory = pureServerFn((jitUtils) => {
-     *   const myJitDep = jitUtils.getPureFunction('myJitDep');
-     *   return (arg1, arg2) => {
-     *     // ... function logic
-     *   };
-     * });
-     */
-    isFactory?: boolean;
-    /** The original function (available in dev, stripped in production) */
-    readonly pureFn: F;
-}
-
-/** Pre-parsed factory function data injected at build time by the mion vite plugin */
-export interface ParsedFactoryFn {
-    /** Hash of the function body */
+/** Reference built by serverMapFrom(): identifies a server-side mapper by its ts-runtypes
+ *  registry key. The mapper function itself never rides the ref — only `bodyHash` travels
+ *  on the wire and the server resolves it against its own registry. */
+export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> {
+    /** Full ts-runtypes registry key on the wire: `rt::<contentHash>` (inline lane) | `mionjs::<name>` (name lane) */
     readonly bodyHash: string;
-    /** The names of the factory function parameters */
-    readonly paramNames: string[];
-    /** The normalized function body code */
-    readonly code: string;
-}
-
-export interface PureServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends Required<PureFnDef<F>> {
-    /** The namespace this pure function belongs to */
+    /** Registry namespace half of bodyHash ('rt' | 'mionjs') */
     readonly namespace: string;
-    /** The function name (optional, for debugging purposes only) */
+    /** Function-name half of bodyHash (content hash, or the registered name) */
     readonly fnName: string;
-    /** Hash of the function body - used as the unique identifier */
-    readonly bodyHash: string;
-    /**
-     * Set of pure function dependencies id is equal to `namespace::fnName`
-     * This is used so when a function is required by a client all the rest of dependencies are also sent to the client
-     */
-    pureFnDependencies?: Array<string>;
-}
-export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args: any[]) => any> extends PureServerFnRef<F> {
+    /** Always false: mappers resolve as plain pure fns (kept for wire-shape stability) */
+    readonly isFactory: boolean;
     fromRequestId: string;
     toRequestId: string;
     /** Index of the parameter in the target route's params array this mapping replaces */
@@ -108,8 +77,6 @@ export interface MapFromServerFnRef<F extends (...args: any[]) => any = (...args
     /** Returns this reference cast as ReturnType<F>, allowing it to be passed as a parameter to subrequests */
     asArg(): ReturnType<F>;
 }
-
-export type MapFromRef = Pick<MapFromServerFnRef<any>, 'fromRequestId' | 'toRequestId' | 'fnName' | 'namespace' | 'paramIndex'>;
 
 // ########################################### ROUTES FLOW ##########################################
 

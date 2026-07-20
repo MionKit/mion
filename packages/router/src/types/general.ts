@@ -8,7 +8,6 @@
 import {CoreRouterOptions, SerializerMode} from '@mionjs/core';
 import {ContextDataFactory} from './context.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from './definitions.ts';
-import type {RunTypeOptions} from '@mionjs/run-types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
@@ -45,8 +44,6 @@ export interface RouterOptions<Req = any, ContextData extends Record<string, any
      * @default 'stringifyJson'
      */
     serializer: SerializerMode;
-    /** run type compiler options for middleFns and routes */
-    runTypeOptions: RunTypeOptions;
     /** When true, isType and typeErrors reject objects with unknown/extra properties. Can be overridden per-route. */
     strictTypes?: boolean;
     /** Used to return public data structure when adding routes */
