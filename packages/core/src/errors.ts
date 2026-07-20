@@ -9,14 +9,12 @@ import type {
     CoreRouterOptions,
     AnyErrorParams,
     TypedErrorParams,
-    DataOnly,
     RpcErrorParams,
     RunTypeError,
     StrNumber,
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
-import {getJitUtils} from './jit/jitUtils.ts';
 
 // ############# Validation Error Types #############
 
@@ -227,21 +225,9 @@ export function isAnyError(error: any): error is TypedError<any> | RpcError<stri
     return error instanceof Error;
 }
 
-let errorDeserializersRegistered = false;
 /**
- * Registers error deserializers for TypedError and RpcError.
- * This is required to automatically restore TypedError and RpcError sent over the network.
+ * @deprecated no-op since the ts-runtypes migration: TypedError/RpcError are registered with
+ * the ts-runtypes class-serializer registry by @mionjs/run-types (mionClassSerializers), which
+ * every mion server/client loads. For custom classes use registerClassSerializer instead.
  */
-export function registerErrorDeserializers() {
-    if (errorDeserializersRegistered) return;
-    if (!TypedError || !RpcError) return; // Not loaded yet
-    errorDeserializersRegistered = true;
-
-    getJitUtils().setDeserializeFn(TypedError, (data: DataOnly<any>) => {
-        return new TypedError(data);
-    });
-
-    getJitUtils().setDeserializeFn(RpcError, (data: DataOnly<any>) => {
-        return new RpcError(data);
-    });
-}
+export function registerErrorDeserializers() {}

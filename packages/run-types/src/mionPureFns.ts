@@ -45,9 +45,16 @@ function pureFnsCache(): Record<string, MionCompiledPureFn | undefined> {
     return getRTFnCaches().pureFnsCache as Record<string, MionCompiledPureFn | undefined>;
 }
 
+/** Keys resolvable as routesFlow mappers — ONLY keys registered through mion's own lanes
+ *  (registerMionPureFn / registerServerMappers). The wire-driven mapper dispatch gates on
+ *  this set so a request can never invoke arbitrary ts-runtypes registry entries
+ *  (built-in rt:: pure fns, format fns, entries from unrelated libraries). */
+const allowedMapperKeys = getOrCreateGlobal('mion.runTypes.allowedMapperKeys', () => new Set<string>());
+
 /** Registers a pure function factory under the mionjs namespace (runtime lane, re-registration overrides). */
 export function registerMionPureFn<Fn extends (...args: any[]) => any>(name: string, factory: (utl: unknown) => Fn) {
     const key = mionPureFnId(name);
+    allowedMapperKeys.add(key);
     const existing = pureFnsCache()[key];
     if (existing) {
         existing.createPureFn = factory;
@@ -102,26 +109,30 @@ const mapperReaderStore = getOrCreateGlobal('mion.runTypes.serverMapperReader', 
 export function registerServerMappers(entries: ServerMapperEntry[]): void {
     const utl = getRTUtils();
     for (const entry of entries) {
-        if (!entry?.key || utl.hasPureFnByKey(entry.key)) continue;
+        if (!entry?.key) continue;
+        if (utl.hasPureFnByKey(entry.key)) {
+            allowedMapperKeys.add(entry.key);
+            continue;
+        }
         if (!entry.code) {
             console.warn(`[mion run-types] server mapper '${entry.key}' has no code payload (emitMode without code?) — skipped.`);
             continue;
         }
         const sep = entry.key.indexOf('::');
-        const paramNames = entry.paramNames ?? [];
-        const code = entry.code;
-        const compiled: MionCompiledPureFn = {
+        const compiled = {
             namespace: sep > 0 ? entry.key.slice(0, sep) : '',
             fnName: sep > 0 ? entry.key.slice(sep + 2) : entry.key,
             bodyHash: sep > 0 ? entry.key.slice(sep + 2) : '',
-            paramNames,
-            code,
+            paramNames: entry.paramNames ?? [],
+            code: entry.code,
             pureFnDependencies: entry.pureFnDependencies ?? [],
-            // same rebuild as ts-runtypes rtUtils buildPureFnFactoryFromCode (code-mode lane):
-            // the factory is `new Function(...paramNames, code)` in strict mode.
-            createPureFn: new Function(...paramNames, `'use strict'; ${code}`) as MionCompiledPureFn['createPureFn'],
+            // createPureFn deliberately ABSENT: ts-runtypes' initPureFunction lazily rebuilds
+            // the factory from code+paramNames on first lookup (its own code-mode lane), so a
+            // malformed entry surfaces at first use instead of crashing server boot, and
+            // unused mappers are never compiled.
         };
         utl.addPureFn(entry.key, compiled as never);
+        allowedMapperKeys.add(entry.key);
     }
 }
 
@@ -131,13 +142,16 @@ export function installServerMapperReader(read: () => ServerMapperEntry[]): void
     registerServerMappers(read());
 }
 
-/** Resolves a routesFlow mapping key (`rt::<hash>` | `mionjs::<name>`), re-reading the manifest on a miss. */
+/** Resolves a routesFlow mapping key (`rt::<hash>` | `mionjs::<name>`), re-reading the manifest on a miss.
+ *  Gated on the mion-lane allow-list: a wire key never resolves registry entries that were not
+ *  registered through registerMionPureFn / registerServerMappers. */
 export function getServerMapper(key: string): ((...args: any[]) => any) | undefined {
-    const utl = getRTUtils();
-    const fn = utl.getPureFnByKey(key);
-    if (fn || !mapperReaderStore.read) return fn;
-    registerServerMappers(mapperReaderStore.read());
-    return utl.getPureFnByKey(key);
+    if (!allowedMapperKeys.has(key)) {
+        if (!mapperReaderStore.read) return undefined;
+        registerServerMappers(mapperReaderStore.read());
+        if (!allowedMapperKeys.has(key)) return undefined;
+    }
+    return getRTUtils().getPureFnByKey(key);
 }
 
 /** True when a routesFlow mapping key resolves (after a lazy manifest re-read on miss). */

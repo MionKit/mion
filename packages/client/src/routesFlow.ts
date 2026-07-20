@@ -96,6 +96,14 @@ export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput = any>
             'serverMapFrom() with an inline mapper requires the mion vite plugin (no pure-fn hash was injected at build time). ' +
                 'For non-vite clients pass the name of a server-registered mion pure fn instead.'
         );
+    // Legacy pre-migration shape serverMapFrom(src, mapper, 'name') still typechecks (the 3rd
+    // param is string-typed) but the plugin never overrides an explicit 3rd arg — reject it
+    // loudly instead of sending a key no server resolves.
+    if (!isNameLane && !(hash as string).includes('::'))
+        throw new Error(
+            `serverMapFrom() got a plain name ('${hash}') in the 3rd argument — that legacy call shape was removed. ` +
+                `Pass the name as the 2nd argument instead: serverMapFrom(source, '${hash}').`
+        );
     // full registry key: 'mionjs::<name>' (name lane) | injected 'rt::<hash>' (inline lane)
     const bodyHash = isNameLane ? mionPureFnId(mapperOrName as string) : (hash as string);
     const sep = bodyHash.indexOf('::');

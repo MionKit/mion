@@ -12,12 +12,6 @@ importers:
         specifier: 6.0.2
         version: 6.0.2
     devDependencies:
-      '@deepkit/core':
-        specifier: 1.0.19
-        version: 1.0.19
-      '@deepkit/type-compiler':
-        specifier: 1.0.19
-        version: 1.0.19(rollup@4.60.1)(typescript@6.0.2)
       '@edge-runtime/vm':
         specifier: 5.0.0
         version: 5.0.0
@@ -87,6 +81,9 @@ importers:
       '@mionjs/core':
         specifier: workspace:*
         version: link:../core
+      '@mionjs/run-types':
+        specifier: workspace:*
+        version: link:../run-types
     devDependencies:
       '@mionjs/devtools':
         specifier: workspace:*
@@ -97,9 +94,6 @@ importers:
       '@mionjs/router':
         specifier: workspace:*
         version: link:../router
-      '@mionjs/run-types':
-        specifier: workspace:*
-        version: link:../run-types
       '@mionjs/test-server':
         specifier: workspace:*
         version: link:../test-server

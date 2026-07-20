@@ -62,8 +62,14 @@ export interface JITUtils {
 }
 
 const jitUtils: JITUtils = {
-    addToJitCache() {},
-    removeFromJitCache() {},
+    addToJitCache() {
+        throw new Error(
+            'The mion jit cache was removed. Fn caches are build-injected; use addSerializedJitCaches (@mionjs/run-types) for the metadata lane.'
+        );
+    },
+    removeFromJitCache() {
+        throw new Error('The mion jit cache was removed. Use resetJitFnCaches (@mionjs/run-types) in tests instead.');
+    },
     getJIT: (jitFnHash: string) => backendRef.current?.getJIT(jitFnHash),
     getJitFn(jitFnHash: string) {
         const compiled = backendRef.current?.getJIT(jitFnHash);
@@ -84,12 +90,13 @@ const jitUtils: JITUtils = {
         backendRef.current?.getCompiledPureFn(namespace, name)?.fn as PureFunction | undefined,
     getCompiledPureFn: (namespace: string, name: string) => backendRef.current?.getCompiledPureFn(namespace, name),
     hasPureFn: (namespace: string, name: string) => !!backendRef.current?.getCompiledPureFn(namespace, name),
-    findCompiledPureFn: () => undefined,
-    setSerializableClass<C extends SerializableClass>(cls: C) {
-        const className = cls.name;
-        const existingClass = serializableClassRegistry.get(className);
-        if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
-        serializableClassRegistry.set(className, cls);
+    findCompiledPureFn() {
+        throw new Error('findCompiledPureFn was removed. Look pure fns up by name with getMionPureFn (@mionjs/run-types).');
+    },
+    setSerializableClass() {
+        throw new Error(
+            'The mion class registries were removed. Register custom classes with registerClassSerializer (@mionjs/run-types) instead.'
+        );
     },
     useSerializeClass(className: string): SerializableClass {
         const cls = serializableClassRegistry.get(className);
@@ -99,12 +106,10 @@ const jitUtils: JITUtils = {
     getSerializeClass(className: string): SerializableClass | undefined {
         return serializableClassRegistry.get(className);
     },
-    setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>) {
-        const className = cls.name;
-        const fn = deserializeFnsRegistry.get(className);
-        if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
-        if (fn) return;
-        deserializeFnsRegistry.set(className, deserializeFn);
+    setDeserializeFn() {
+        throw new Error(
+            'The mion class registries were removed. Register custom classes with registerClassSerializer (@mionjs/run-types) instead.'
+        );
     },
     useDeserializeFn(className: string): DeserializeClassFn<any> {
         const fn = deserializeFnsRegistry.get(className);

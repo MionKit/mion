@@ -6,7 +6,7 @@
  * ######## */
 
 import path from 'node:path';
-import {mkdirSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {spawn, type ChildProcess} from 'node:child_process';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
@@ -83,8 +83,11 @@ export interface MionServerMappersOptions {
      *  absolute path in monorepo/vitest-workspace setups. */
     emit?: boolean | string;
     /** SERVER builds: manifest path(s) served through `virtual:mion/server-mappers`
-     *  (import it once, side-effect, from the server entry). Missing files are
-     *  tolerated and re-read lazily on the first unresolved mapping. */
+     *  (import it once, side-effect, from the server entry). In `vite build` the entries
+     *  are INLINED into the bundle at build time (missing manifests fail the build; no
+     *  node:fs in the artifact — edge/lambda safe). In dev/serve the module reads the
+     *  files at runtime, tolerating missing ones with a lazy re-read on the first
+     *  unresolved mapping (covers the client-build race). */
     consume?: string | string[];
 }
 
@@ -130,11 +133,27 @@ export function resolveRtBinary(explicit?: string): string | undefined {
  */
 export function mionVitePlugin(options: MionPluginOptions = {}) {
     const rt = options.runTypes ?? {};
-    if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions)) {
+    const legacyRt = rt as MionRunTypesOptions & {reflection?: unknown};
+    if (
+        !legacyOptionsNoticeShown &&
+        (options.serverPureFunctions ||
+            options.aotCaches ||
+            rt.compilerOptions ||
+            rt.include ||
+            rt.exclude ||
+            rt.reflectionMode ||
+            legacyRt.reflection)
+    ) {
         legacyOptionsNoticeShown = true;
         console.warn(
-            '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions) ' +
-                'are ignored since the ts-runtypes migration. See docs/ at the repo root.'
+            '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions/' +
+                'include/exclude/reflectionMode) are ignored since the ts-runtypes migration. See docs/ at the repo root.'
+        );
+    }
+    if (options.server && options.server.runMode && options.server.runMode !== 'childProcess') {
+        console.warn(
+            `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes ` +
+                `migration — only 'childProcess' exists; the managed server will be spawned as a child process.`
         );
     }
     // serverMapFrom harvest (CLIENT builds): consume the ts-runtypes pure-fn build report,
@@ -219,20 +238,36 @@ function writeMapperManifest(manifestPath: string, mappers: Map<string, ServerMa
 const SERVER_MAPPERS_ID = 'virtual:mion/server-mappers';
 const RESOLVED_SERVER_MAPPERS_ID = '\0' + SERVER_MAPPERS_ID;
 
-/** Serves virtual:mion/server-mappers to SERVER builds: registers the manifests' mappers and
- *  installs the lazy re-reader (covers the dev race where the server boots before the client
- *  build finished harvesting — the first unresolved mapping re-reads the manifest). Without
- *  `consume` paths it serves an inert empty module so the import never breaks a pipeline. */
+/** Serves virtual:mion/server-mappers to SERVER builds. Two modes:
+ *  - `vite build` (production bundles): the manifests are read AT BUILD TIME and the entries
+ *    are inlined into the generated module as static data — no `node:fs`, no build-machine
+ *    paths in the artifact, deployable to lambda/docker/edge like every other build output.
+ *  - dev/serve (vitest, vite-node managed server): the module reads the manifest files at
+ *    runtime and installs the lazy re-reader, covering the race where the server boots
+ *    before the client build finished harvesting (first unresolved mapping re-reads).
+ *  Without `consume` paths it serves an inert empty module so the import never breaks a
+ *  pipeline that did not configure the transport. */
 function serverMappersConsumePlugin(consume: string | string[] | undefined) {
     const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
+    let isBuildCommand = false;
     return {
         name: 'mion-server-mappers',
+        configResolved(config: {command?: string}) {
+            isBuildCommand = config?.command === 'build';
+        },
         resolveId(id: string) {
             if (id === SERVER_MAPPERS_ID) return RESOLVED_SERVER_MAPPERS_ID;
         },
         load(id: string) {
             if (id !== RESOLVED_SERVER_MAPPERS_ID) return;
             if (manifests.length === 0) return 'export {};';
+            if (isBuildCommand) {
+                const entries = readMapperManifests(manifests);
+                return [
+                    `import {registerServerMappers} from '@mionjs/run-types';`,
+                    `registerServerMappers(${JSON.stringify(entries)});`,
+                ].join('\n');
+            }
             return [
                 `import {installServerMapperReader} from '@mionjs/run-types';`,
                 `import {existsSync, readFileSync} from 'node:fs';`,
@@ -252,6 +287,22 @@ function serverMappersConsumePlugin(consume: string | string[] | undefined) {
             ].join('\n');
         },
     };
+}
+
+/** Reads + merges the mapper manifests at BUILD time (missing files fail loud in build mode —
+ *  a production bundle silently missing its mappers would only fail at request time). */
+function readMapperManifests(manifests: string[]): unknown[] {
+    const entries: unknown[] = [];
+    for (const manifestPath of manifests) {
+        if (!existsSync(manifestPath)) {
+            throw new Error(
+                `[mionVitePlugin] serverMappers manifest not found at build time: ${manifestPath}. ` +
+                    `Run the client build (serverMappers.emit) before the server build, or fix the configured path.`
+            );
+        }
+        entries.push(...(JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown[]));
+    }
+    return entries;
 }
 
 // ############# managed server process #############

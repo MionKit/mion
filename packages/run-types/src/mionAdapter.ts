@@ -228,6 +228,14 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
                 `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
         );
     const [valT, verrT, pjT, rjT, sjT, hukT, ukeT, tbT, fbT] = injected;
+    // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
+    // skew — falling back would silently DISABLE validation/serialization for this method.
+    // Only the trailing huk/uke/tb/fb entries are genuinely optional.
+    if (valT === undefined || verrT === undefined || pjT === undefined || rjT === undefined || sjT === undefined)
+        throw new Error(
+            `mion run-types: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
+                `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
+        );
     const isType = getRTFunction<'val'>(valT, alwaysTrue);
     const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
     const prepareForJson = getRTFunction<'pj'>(pjT, identity as PrepareForJsonFn);
@@ -464,6 +472,12 @@ export function buildHeaderJitFnsFromMarker(
                 `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
         );
     const [valT, verrT] = injected;
+    // fail closed on partial payloads (see buildJitFnsFromMarker)
+    if (valT === undefined || verrT === undefined)
+        throw new Error(
+            `mion run-types: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
+                `Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
+        );
     const isType = getRTFunction<'val'>(valT, alwaysTrue);
     const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId);

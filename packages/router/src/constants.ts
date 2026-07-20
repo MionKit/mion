@@ -22,8 +22,6 @@ export const DEFAULT_ROUTE_OPTIONS = {
     pathTransform: undefined,
     /** Default serializer mode - json as default native serializer, and minimum overhead to transform just required fields */
     serializer: 'json',
-    /** Default run type compiling options for routes and middleFns, can't be configured by the user as would break functionality  */
-    runTypeOptions: {},
     /** set to true to generate router spec for clients.  */
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
     /** Set true to automatically generate and id for every error.  */
