@@ -1,6 +1,6 @@
 # Verify mion features that consume engine format/error shapes (friendlyErrors + Brands)
 
-**Status:** todo — R20 of [migration-review-findings.md](migration-review-findings.md).
+**Status:** todo — R20 of [migration-review-findings.md](../done/migration-review-findings.md); verified still fully open 2026-07-20 (both files untouched on the branch).
 **Created:** 2026-07-20
 
 ## Problem

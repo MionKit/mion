@@ -1,6 +1,6 @@
 # platform-bun: needs a ts-runtypes injection lane (still on the deepkit pipeline)
 
-**Status:** todo — R2 of [migration-review-findings.md](migration-review-findings.md); interim
+**Status:** todo — R2 of [migration-review-findings.md](../done/migration-review-findings.md); interim
 mitigation shipped (README warning, root deepkit deps removed), port pending.
 **Created:** 2026-07-20
 
