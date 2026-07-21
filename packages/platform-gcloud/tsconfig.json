@@ -8,7 +8,6 @@
     "moduleResolution": "nodeNext"
   },
   "references": [{"path": "../core"}, {"path": "../router"}],
-  "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts"]
 }

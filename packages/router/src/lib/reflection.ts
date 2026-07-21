@@ -37,14 +37,6 @@ export class MissingRtFnsError extends Error {
     }
 }
 
-/** @deprecated AOT caches were removed in the ts-runtypes migration; kept for import compatibility. */
-export class AOTCacheError extends Error {
-    constructor(routeId: string) {
-        super(`AOT caches were removed in the ts-runtypes migration (route "${routeId}").`);
-        this.name = 'AOTCacheError';
-    }
-}
-
 /** No-op since the ts-runtypes migration (kept so existing specs/utilities keep working). */
 export function resetRunTypesCache(): void {}
 

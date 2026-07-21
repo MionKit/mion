@@ -1,44 +1,45 @@
 # Old-engine leftover sweep — AOT / MION_COMPILE / deepkit / pure-fn / type-format residues
 
-**Status:** todo — R35 of [migration-review-findings.md](../done/migration-review-findings.md)
-(full itemized inventory lives there; this spec tracks execution); verified still fully
-open 2026-07-20 (spot-checked: `purityRules.ts` present, 5 stale `virtual:mion-aot*`
-declarations, devtools `"AOT"` keyword, `isMionCompileMode` live in 4 packages).
+**Status:** partially done — R35 of [migration-review-findings.md](../done/migration-review-findings.md).
+Self-contained buckets shipped on `claude/ts-runtypes-migration-todos-us21ib-engine-cleanup` (PR3);
+the platform-bun-coupled and eslint-pure-fn-coupled remainder is deferred (see below).
 **Created:** 2026-07-20
 
-## Problem
+## Shipped in PR3
 
-Everything the ts-runtypes engine now provides was intentionally replaced, but a large body
-of references to the OLD engine survives in the tree: live code still wired to the
-AOT/`MION_COMPILE` contract, dead protocol ends, deprecated stubs, packaging leftovers,
-stale eslint rules/lists, and the whole AOT/pure-fn docs surface. Individually harmless,
-collectively they misdocument the system and keep dead branches alive.
+- **Dead AOT code paths:** removed `isMionAOTEmitMode()` (core) + the dead `router.ts` IPC send
+  (`setPlatformConfig` no longer emits `mion-platform-ready` — no listener existed); removed the
+  `AOTCacheError` stub (`router/lib/reflection.ts`); removed the `MION_COMPILE` auto-init blocks +
+  invalid `aot: true` options from `test-server-edge.ts`/`test-server-cloudflare.ts`; rewrote the
+  stale AOT docblock in `defaultRoutes.ts`.
+- **Virtual modules:** pruned the dead `virtual:mion-aot/*` and `virtual:mion-server-pure-fns`
+  declarations from `devtools/.../virtual-modules.d.ts`; kept the live `virtual:mion/server-mappers`.
+- **deepkit/config:** removed root `tsconfig.json` `emitDecoratorMetadata`/`experimentalDecorators`
+  (no decorators in the tree) + `reflection`; removed the per-package `reflection` flag from every
+  package EXCEPT platform-bun (PR2) and examples (PR1); removed the deepkit vite externals
+  (`run-types/vite.config.ts`, `devtools/vite.vite-plugin.config.ts`) and aliases
+  (`test-server/vite.{edge,cloudflare}.config.ts`); removed the broken `deepkit-install` call from
+  `setup.sh`.
+- **Packaging:** removed the devtools `"AOT"` keyword + `clean:aot-caches` script (and its use in
+  build/clean); removed the run-types `"deepkit"` keyword + the dead `browser` map of a deleted file.
+- **Type-format eslint:** fixed the deepkit-era docblock in `formatTypeNames.ts` and ADDED the missing
+  `FormatCurrency`/`FormatDomainUnicode`/`FormatDomainPunycode` (their absence silently let `import type`
+  of those slip past the import-type guard).
 
-## Scope (see R35 in the review findings for the exact file/line inventory)
+Full suite green after the sweep (core/run-types/type-formats/devtools/router/client/platform-* — 1134 tests).
 
-1. **Live-but-dead code paths first:** `isMionCompileMode()`/`isMionAOTEmitMode()` + the
-   platform `listen()` skips + `router.ts` IPC send (no listener exists); `AOTCacheError`
-   stub; `defaultRoutes.ts` AOT docblock; test-server edge/cloudflare `MION_COMPILE` blocks
-   + dead `aot: true` options; `virtual-modules.d.ts` deleted-module declarations
-   (`virtual:mion-aot/*`, `virtual:mion-server-pure-fns`).
-2. **Packaging/config:** devtools `"AOT"` keyword + `clean:aot-caches` script; run-types
-   `browser` map of a deleted file + `"deepkit"` keyword; platform-bun deepkit devDeps
-   (pending [platform-bun-runtypes-lane.md](platform-bun-runtypes-lane.md)); root/core
-   tsconfig `reflection`/decorator flags (verify unused first).
-3. **Old pure-fn surface:** `devtools/src/pureFns/purityRules.ts`; the `pure-functions`
-   eslint rule + the `pureServerFn`/`registerPureFnFactory` branches of `no-vite-client`
-   (keep only the serverMapFrom branch) + their specs.
-4. **Old type-format surface:** core `formats.types.ts`/`formatsParams.types.ts` deepkit-era
-   twins (align with or re-export ts-runtypes'); `formatTypeNames.ts` eslint list (remove
-   deleted names, ADD `FormatCurrency`/`FormatDomainUnicode`/`FormatDomainPunycode` — their
-   absence silently breaks the import-type guard); stale registration comments.
-5. **Comment hygiene** per the R35 list; sunset plan for the accepted-and-ignored
-   `aotCaches`/`serverPureFunctions` plugin options.
+## Remaining (deferred)
 
-Examples + website leftovers ride [examples-and-website-refresh.md](examples-and-website-refresh.md).
-
-## Fix plan
-
-Execute buckets 1→4 in one dedicated PR (mechanical deletions + comment rewrites), full
-suite green after each bucket; bucket 5 rides along. Keep `docs/done/` references intact
-(legitimately historical).
+1. **`isMionCompileMode()` + the platform `listen()` skips (platform-node + platform-bun) +
+   `pnpm-workspace.yaml` `'@deepkit/type-compiler': false`** — all anchored on the `MION_COMPILE`/deepkit
+   contract that platform-bun still rides. Remove these together with
+   [platform-bun-runtypes-lane.md](platform-bun-runtypes-lane.md) (PR2), where the `MION_COMPILE`
+   test in `platform-node/mionHttp.spec.ts` also gets retired. `isMionCompileMode` is kept in core with
+   a LEGACY docblock pointing at that spec until then.
+2. **Old pure-fn eslint surface** — `purityRules.ts` dead entries (`pureServerFn`,
+   `registerPureFnFactory`), the dead branches of the `pure-functions` + `no-vite-client` rules (keep
+   only the `serverMapFrom` branch), and their specs. Deferred because it couples with the examples
+   fixture `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`,
+   both rewritten under [examples-and-website-refresh.md](examples-and-website-refresh.md) (PR1).
+3. **Sunset plan** for the accepted-and-ignored `aotCaches`/`serverPureFunctions` plugin options
+   (`mionVitePlugin.ts`) — keep the warn-and-ignore shim for one release, then remove.

@@ -90,8 +90,6 @@ export default defineConfig({
             ],
             external: [
                 // Mark all external dependencies as external
-                '@deepkit/core',
-                '@deepkit/type',
                 '@mionjs/core',
                 // Also mark any other node_modules as external
                 /^[^./]/,

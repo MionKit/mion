@@ -6,6 +6,7 @@ const TYPE_FORMATS_FORMAT_TYPES = /* @__PURE__ */ new Set([
   "FormatNumber",
   "FormatInteger",
   "FormatFloat",
+  "FormatCurrency",
   "FormatPositive",
   "FormatNegative",
   "FormatPositiveInt",
@@ -38,6 +39,8 @@ const TYPE_FORMATS_FORMAT_TYPES = /* @__PURE__ */ new Set([
   // Domain formats (domain.runtype.ts)
   "FormatDomain",
   "FormatDomainStrict",
+  "FormatDomainUnicode",
+  "FormatDomainPunycode",
   // URL formats (url.runtype.ts)
   "FormatUrl",
   "FormatUrlFile",

@@ -6,7 +6,6 @@
     "types": ["@mionjs/devtools/virtual-modules", "@types/node"]
   },
   "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}, {"path": "../test-server"}],
-  "reflection": true,
   "include": ["."],
   "exclude": [
     "node_modules",

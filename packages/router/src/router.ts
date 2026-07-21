@@ -35,7 +35,6 @@ import {
     SerializerMode,
     isTestEnv,
     isMionCompileMode,
-    isMionAOTEmitMode,
     resetRoutesCache,
     getOrCreateGlobal,
 } from '@mionjs/core';
@@ -98,19 +97,9 @@ export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 export const getAnyExecutable = (id: string) => routesById.get(id) || middleFnsById.get(id) || rawMiddleFnsById.get(id);
 
-/** Sets platform adapter config and notifies the parent process (Vite plugin) that the server is ready.
- *  Called automatically by platform adapters. Sends an IPC message containing both the
- *  serializable router config and the platform adapter config. */
+/** Sets platform adapter config. Called automatically by platform adapters. */
 export function setPlatformConfig(config: Record<string, unknown>): void {
     platformConfig = config;
-    if (isMionAOTEmitMode() && typeof process.send === 'function') {
-        const routerConfig = Object.fromEntries(Object.entries(routerOptions).filter(([, v]) => typeof v !== 'function'));
-        try {
-            process.send({type: 'mion-platform-ready', routerConfig, platformConfig: config});
-        } catch (err) {
-            console.error('[mion] Failed to send platform-ready IPC:', err);
-        }
-    }
 }
 
 /** Returns the platform adapter config set by setPlatformConfig(). */

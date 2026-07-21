@@ -30,7 +30,6 @@
     {"path": "../type-formats"},
     {"path": "../run-types"}
   ],
-  "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts", "vite.cloudflare.config.ts"]
 }
