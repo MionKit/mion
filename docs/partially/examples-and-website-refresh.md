@@ -1,8 +1,8 @@
 # Examples + website refresh (deepkit/AOT-era API sources)
 
-**Status:** todo; verified still open 2026-07-20 — 10 files under `packages/examples/src/`
-still import removed factories and the whole `codegen/aot-*` family is still present (only
-the four prepareForJson/restoreFromJson examples noted below are fixed).
+**Status:** partially done (PR #125). Examples ported off the removed factories and website
+refreshed off the deepkit/AOT surface; residual pre-existing example-compilation debt is tracked
+separately in [examples-precompile-debt.md](examples-precompile-debt.md). See "What shipped" below.
 **Created:** 2026-07-15
 
 ## Problem
@@ -49,7 +49,7 @@ condition — document port polling / the new contract instead, see R27);
 patterns go through `registerFormatPattern({source, flags, message, mockSamples})`).
 
 **DELETE outright** (AOT-era + old-pure-fn-era, do not port): the whole `codegen/aot-*.ts`
-family (5 files), `codegen/vite-client-ipc.config.ts`,
+family (5 files),
 `introduction/pure-functions-examples.ts`, `introduction/eslint-pure-functions.routes.ts`
 (rewrite the topic around `registerMionPureFn` + `serverMapFrom`),
 `run-types/pure-functions.ts` (`registerPureFnClosure` gone); re-point
@@ -79,6 +79,21 @@ the R36 operational notes (test batching/resolver memory, new toolchain surface)
 
 **CI enforcement:** add an examples typecheck lane (vitest project or `tsc --noEmit` script
 wired into lint) so the "should compile" promise stops drifting silently.
+
+## What shipped (PR #125)
+
+- Examples ported off every removed factory to the sync API; obsolete AOT/pure-fn examples deleted;
+  website refreshed off the deepkit/AOT surface (AOT page deleted; pure-functions/vite-config/
+  cloudflare/type-formats pages rewritten; all `code-import` paths re-pointed).
+- **`codegen/vite-client-ipc.config.ts` was NOT deleted — it was renamed to `vite-client.config.ts`.**
+  Its old IPC/AOT-metadata rationale is gone, but the file was already rewritten to the current
+  `server: {runMode: 'childProcess'}` managed server (spawn + TCP port-poll → `serverReady`), which is
+  a live plugin feature for client e2e/dev (NOT metadata — that comes from router types). The "ipc"
+  name and framing were corrected and the website vite-config page now scopes it as optional/e2e.
+- A `check-types` script + `tsconfig.check.json` were added, but a fully-green typecheck GATE is NOT
+  wired: the examples carry substantial pre-existing, non-migration debt (placeholder-import doc
+  snippets, friendly-errors format-param rework, source-package strict-check issues). That debt +
+  the remaining CI-enforcement item are tracked in [examples-precompile-debt.md](examples-precompile-debt.md).
 
 ## Fix plan
 
