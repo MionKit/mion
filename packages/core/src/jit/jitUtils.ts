@@ -14,9 +14,17 @@ import {getOrCreateGlobal} from '../utils.ts';
 // cache; @mionjs/run-types installs a lookup backend here (installJitLookupBackend)
 // that resolves mion jit hashes (`<JIT_FUNCTION_IDS.x>_<typeId>`, which match the
 // ts-runtypes fn-cache keys exactly) and mion pure fns straight from that cache.
-// Core itself stays dependency-free: without a backend installed, jit/pure lookups
-// resolve to nothing. The class registries remain local until callers move to
-// registerClassSerializer (@ts-runtypes/core) — see docs/done/core-audit.md.
+//
+// CONTRACT (R33): installJitLookupBackend runs as an import side effect of
+// `@mionjs/run-types`. Core is dependency-free and never imports run-types itself,
+// so ANY package that resolves routes/pure-fns through core MUST also import
+// `@mionjs/run-types` (directly or transitively) so the backend is installed before
+// the first lookup. To keep that implicit contract from failing silently, the two
+// "expected to resolve" entry points (getJIT / getCompiledPureFn) throw a clear error
+// naming the missing import when no backend is installed; the existence probes
+// (hasJitFn / hasPureFn / getPureFn) stay quiet and just report "not present".
+// The class registries remain local until callers move to registerClassSerializer
+// (@ts-runtypes/core) — see docs/done/core-audit.md.
 
 /** Lookup backend installed by @mionjs/run-types to resolve jit/pure fns from the ts-runtypes cache */
 export interface JitLookupBackend {
@@ -29,6 +37,23 @@ const backendRef = getOrCreateGlobal('mion.jit.lookupBackend', () => ({current: 
 /** Installs the ts-runtypes-backed lookup (called by @mionjs/run-types at import time) */
 export function installJitLookupBackend(backend: JitLookupBackend): void {
     backendRef.current = backend;
+}
+
+/** True once @mionjs/run-types has installed its lookup backend (import side effect) */
+export function isJitLookupBackendInstalled(): boolean {
+    return !!backendRef.current;
+}
+
+/** Thrown when a jit/pure lookup runs before @mionjs/run-types installed its backend */
+export class MissingJitBackendError extends Error {
+    constructor(op: string) {
+        super(
+            `${op} was called before the ts-runtypes lookup backend was installed. ` +
+                `Import "@mionjs/run-types" (it installs the backend as an import side effect) ` +
+                `in the package that registers routes/pure fns before resolving any type function.`
+        );
+        this.name = 'MissingJitBackendError';
+    }
 }
 
 const deserializeFnsRegistry = getOrCreateGlobal(
@@ -70,9 +95,13 @@ const jitUtils: JITUtils = {
     removeFromJitCache() {
         throw new Error('The mion jit cache was removed. Use resetJitFnCaches (@mionjs/run-types) in tests instead.');
     },
-    getJIT: (jitFnHash: string) => backendRef.current?.getJIT(jitFnHash),
+    getJIT(jitFnHash: string) {
+        if (!backendRef.current) throw new MissingJitBackendError('getJIT');
+        return backendRef.current.getJIT(jitFnHash);
+    },
     getJitFn(jitFnHash: string) {
-        const compiled = backendRef.current?.getJIT(jitFnHash);
+        if (!backendRef.current) throw new MissingJitBackendError('getJitFn');
+        const compiled = backendRef.current.getJIT(jitFnHash);
         if (!compiled) throw new Error(`Jit function ${jitFnHash} not found in the ts-runtypes cache.`);
         return compiled.fn;
     },
@@ -88,7 +117,10 @@ const jitUtils: JITUtils = {
     },
     getPureFn: (namespace: string, name: string) =>
         backendRef.current?.getCompiledPureFn(namespace, name)?.fn as PureFunction | undefined,
-    getCompiledPureFn: (namespace: string, name: string) => backendRef.current?.getCompiledPureFn(namespace, name),
+    getCompiledPureFn(namespace: string, name: string) {
+        if (!backendRef.current) throw new MissingJitBackendError('getCompiledPureFn');
+        return backendRef.current.getCompiledPureFn(namespace, name);
+    },
     hasPureFn: (namespace: string, name: string) => !!backendRef.current?.getCompiledPureFn(namespace, name),
     findCompiledPureFn() {
         throw new Error('findCompiledPureFn was removed. Look pure fns up by name with getMionPureFn (@mionjs/run-types).');
