@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types.ts';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
-import {getENV, isMionCompileMode, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers.ts';
@@ -40,12 +40,11 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
     const isTest = getENV('NODE_ENV') === 'test';
-    const isCompiling = isMionCompileMode();
 
     if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest && !isCompiling)
+    if (!isTest)
         console.log(`mion node server running on ${url}`, {
             port: httpOptions.port,
             httpOptions,
@@ -56,11 +55,6 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
             httpOptions.protocol === 'https'
                 ? createHttps(httpOptions.options, httpRequestHandler)
                 : createHttp(httpOptions.options, httpRequestHandler);
-
-        if (isCompiling) {
-            console.log('Compiling routes metadata and skipping mion server initialization...');
-            return resolve(server);
-        }
 
         server.on('error', (e) => {
             reject(e);

@@ -169,31 +169,6 @@ describe('node http router', () => {
             await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
             await registerRoutes({changeUserName, getDate, updateHeaders});
         });
-
-        it('skip server initialization', async () => {
-            process.env.MION_COMPILE = 'buildOnly';
-            const routerOpts = {
-                contextDataFactory: getSharedData,
-                prefix: 'api/',
-            };
-            const httpOpts = {
-                port: 8080,
-                maxBodySize: 1,
-                defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-            };
-            resetNodeHttpOpts();
-            resetRouter();
-            setNodeHttpOpts(httpOpts);
-            await initRouter(routerOpts);
-            await registerRoutes({changeUserName, getDate, updateHeaders});
-            const smallServer = await startNodeServer();
-            expect(smallServer.listening).toBe(false);
-            // registration still populated the methods cache even though the server never listened
-            // (ts-runtypes migration: the AOT persisted-methods registry is gone; routesCache is the record)
-            const registeredIds = Object.keys(routesCache.getCache());
-            const mionRoutes = ['mion@methodsMetadata', '@thrownErrors', 'mion@notFound', 'mion@platformError'];
-            expect(registeredIds).toEqual(expect.arrayContaining([...mionRoutes, 'changeUserName', 'getDate', 'updateHeaders']));
-        });
     });
 
     describe('with serializer=json', () => {

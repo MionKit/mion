@@ -1,8 +1,8 @@
 # Old-engine leftover sweep — AOT / MION_COMPILE / deepkit / pure-fn / type-format residues
 
 **Status:** partially done — R35 of [migration-review-findings.md](../done/migration-review-findings.md).
-Self-contained buckets shipped on `claude/ts-runtypes-migration-todos-us21ib-engine-cleanup` (PR3);
-the platform-bun-coupled and eslint-pure-fn-coupled remainder is deferred (see below).
+Self-contained buckets shipped in PR3; the `MION_COMPILE`/`isMionCompileMode` (platform-bun-coupled)
+bucket shipped in PR #126. Only the eslint-pure-fn cleanup + the plugin-option sunset remain (see below).
 **Created:** 2026-07-20
 
 ## Shipped in PR3
@@ -28,18 +28,24 @@ the platform-bun-coupled and eslint-pure-fn-coupled remainder is deferred (see b
 
 Full suite green after the sweep (core/run-types/type-formats/devtools/router/client/platform-* — 1134 tests).
 
+## Shipped in PR #126 (with the platform-bun port)
+
+- **The whole `MION_COMPILE`/`isMionCompileMode` contract is gone.** Removed `isMionCompileMode()`
+  from core; the `listen()`/`Bun.serve()` skips from `platform-node/mionHttp.ts` +
+  `platform-bun/bunHttp.ts`; the `isMionCompileMode()` OR in `router.ts` `shouldFullGenerateSpec()`
+  (now just `getPublicRoutesData || GENERATE_ROUTER_SPEC`); the `MION_COMPILE` tests in
+  `platform-node/mionHttp.spec.ts` + `platform-bun/bunHttp.test.ts`; and the
+  `'@deepkit/type-compiler': false` entry from `pnpm-workspace.yaml` `allowBuilds` (deepkit is fully
+  gone). NOTE: `isMionCompileMode` also gated `middleware` mode's listen-skip — when that mode is
+  restored ([vite-plugin-ssr-middleware-mode.md](../todos/vite-plugin-ssr-middleware-mode.md)) it
+  needs its own in-process path (call the platform `httpRequestHandler` directly, not `startNodeServer`).
+
 ## Remaining (deferred)
 
-1. **`isMionCompileMode()` + the platform `listen()` skips (platform-node + platform-bun) +
-   `pnpm-workspace.yaml` `'@deepkit/type-compiler': false`** — all anchored on the `MION_COMPILE`/deepkit
-   contract that platform-bun still rides. Remove these together with
-   [platform-bun-runtypes-lane.md](platform-bun-runtypes-lane.md) (PR2), where the `MION_COMPILE`
-   test in `platform-node/mionHttp.spec.ts` also gets retired. `isMionCompileMode` is kept in core with
-   a LEGACY docblock pointing at that spec until then.
-2. **Old pure-fn eslint surface** — `purityRules.ts` dead entries (`pureServerFn`,
+1. **Old pure-fn eslint surface** — `purityRules.ts` dead entries (`pureServerFn`,
    `registerPureFnFactory`), the dead branches of the `pure-functions` + `no-vite-client` rules (keep
-   only the `serverMapFrom` branch), and their specs. Deferred because it couples with the examples
-   fixture `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`,
-   both rewritten under [examples-and-website-refresh.md](examples-and-website-refresh.md) (PR1).
-3. **Sunset plan** for the accepted-and-ignored `aotCaches`/`serverPureFunctions` plugin options
+   only the `serverMapFrom` branch), and their specs. The coupling that deferred it (the examples
+   fixture `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`)
+   shipped in PR #125 (now merged), so this is **unblocked** — do it in a follow-up.
+2. **Sunset plan** for the accepted-and-ignored `aotCaches`/`serverPureFunctions` plugin options
    (`mionVitePlugin.ts`) — keep the warn-and-ignore shim for one release, then remove.
