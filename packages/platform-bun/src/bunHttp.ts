@@ -15,7 +15,7 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, isMionCompileMode, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -43,21 +43,12 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
     const isTest = getENV('NODE_ENV') === 'test';
-    const isCompiling = isMionCompileMode();
 
     if (options) setBunHttpOpts(options);
 
-    if (isCompiling) {
-        console.log('Compiling routes metadata and skipping mion server initialization...', {
-            port: httpOptions.port,
-            httpOptions,
-        });
-        return undefined as any;
-    }
-
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
-    if (!isTest && !isCompiling) console.log(`mion bun server running on ${url}`);
+    if (!isTest) console.log(`mion bun server running on ${url}`);
     const server = Bun.serve({
         maxRequestBodySize: httpOptions.maxBodySize,
         port: httpOptions.port,
