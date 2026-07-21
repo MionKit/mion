@@ -5,13 +5,10 @@ import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 export default defineConfig({
     plugins: [
         mionVitePlugin({
-            // runTypes metadata
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-            // Scan client source for pureServerFn() and serverMapFrom() calls
-            serverPureFunctions: {
-                clientSrcPath: resolve(__dirname, '../client/src'),
-            },
-        }),
+            // Register the inline serverMapFrom mappers the CLIENT build harvested into this manifest.
+            serverMappers: {consume: resolve(__dirname, '../client/.mion/server-mappers.json')},
+        }) as any,
     ],
     build: {
         lib: {

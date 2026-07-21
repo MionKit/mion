@@ -1,11 +1,12 @@
-import {GenericPureFunction, registerPureFnClosure} from '@mionjs/core';
+import {registerMionPureFn} from '@mionjs/run-types';
 
-/** @reflection never */
-export function isOdd() {
-    return function _isOdd(value: string): boolean {
-        return value.length > 0;
-    } as GenericPureFunction<any>;
-}
-
-// Register the pure function with a namespace for use in JIT compilation
-registerPureFnClosure('myNamespace', isOdd);
+// Server pure functions live in the ts-runtypes registry under a namespace and are referenced
+// by name from the client build (serverMapFrom). registerMionPureFn takes a factory that returns
+// the actual function, so its dependencies can be captured at registration time.
+registerMionPureFn(
+    'myNamespace',
+    () =>
+        function isNotEmpty(value: string): boolean {
+            return value.length > 0;
+        }
+);

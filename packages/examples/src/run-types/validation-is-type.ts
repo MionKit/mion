@@ -1,12 +1,13 @@
-import {createIsTypeFn} from '@mionjs/run-types';
+import {createValidate} from '@mionjs/run-types';
 
 interface User {
     name: string;
     age: number;
 }
 
-const isUser = await createIsTypeFn<User>();
+// createValidate is synchronous — the mion vite plugin injects the compiled validator at build time.
+const validate = createValidate<User>();
 
-isUser({name: 'John', age: 30}); // true
-isUser({name: 'John'}); // false (missing age)
-isUser({name: 'John', age: '30'}); // false (age is string)
+validate({name: 'John', age: 30}); // true
+validate({name: 'John'}); // false (missing age)
+validate({name: 'John', age: '30'}); // false (age is string)
