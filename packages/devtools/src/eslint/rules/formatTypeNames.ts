@@ -7,7 +7,8 @@
 
 /**
  * Single source of truth for all TypeFormat type names that must NOT use `import type`.
- * Deepkit's type compiler needs actual imports to preserve type metadata for runtime reflection.
+ * The ts-runtypes build plugin needs the actual runtime import present at the call site to
+ * preserve the type reflection metadata it injects; `import type` is elided and breaks it.
  * When new format types are added to @mionjs/type-formats or @mionjs/run-types, update this file.
  */
 
@@ -20,6 +21,7 @@ export const TYPE_FORMATS_FORMAT_TYPES = new Set([
     'FormatNumber',
     'FormatInteger',
     'FormatFloat',
+    'FormatCurrency',
     'FormatPositive',
     'FormatNegative',
     'FormatPositiveInt',
@@ -57,6 +59,8 @@ export const TYPE_FORMATS_FORMAT_TYPES = new Set([
     // Domain formats (domain.runtype.ts)
     'FormatDomain',
     'FormatDomainStrict',
+    'FormatDomainUnicode',
+    'FormatDomainPunycode',
 
     // URL formats (url.runtype.ts)
     'FormatUrl',
