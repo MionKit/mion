@@ -2,13 +2,14 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {mionVitePlugin} from '@mionjs/devtools/vite-plugin';
 
-// IPC mode: spawns the server, generates AOT caches, and keeps the server running.
-// Useful during development when the client needs a live server for API calls.
+// childProcess mode: the plugin spawns the mion server in a separate process and waits until it
+// is ready, so the client dev server has a live API to call. (childProcess is the supported mode.)
 export default defineConfig({
     plugins: [
         mionVitePlugin({
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
-            // runs the server in a child process separate from vite dev server
+            // The CLIENT build harvests inline serverMapFrom mappers into this manifest.
+            serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
             server: {
                 startScript: resolve(__dirname, '../server/src/init.ts'),
                 viteConfig: resolve(__dirname, '../server/vite.config.ts'),
@@ -16,6 +17,6 @@ export default defineConfig({
                 waitTimeout: 30000,
                 env: {PORT: '3000'},
             },
-        }),
+        }) as any,
     ],
 });

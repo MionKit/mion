@@ -1,4 +1,4 @@
-import {createMockTypeFn} from '@mionjs/run-types';
+import {createMockData} from '@mionjs/run-types';
 
 // start-basic
 interface User {
@@ -9,7 +9,7 @@ interface User {
     createdAt: Date;
 }
 
-const mockUser = await createMockTypeFn<User>();
+const mockUser = createMockData<User>();
 
 const user = mockUser();
 // {
@@ -30,7 +30,7 @@ interface ValidatedUser {
     followersCount: FormatPositiveInt;
 }
 
-const mockValidatedUser = await createMockTypeFn<ValidatedUser>();
+const mockValidatedUser = createMockData<ValidatedUser>();
 const validatedUser = mockValidatedUser();
 // { email: 'user@example.com', followersCount: 150 }
 // end-formats

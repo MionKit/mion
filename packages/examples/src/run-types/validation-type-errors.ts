@@ -1,14 +1,13 @@
-import {createTypeErrorsFn} from '@mionjs/run-types';
+import {createGetValidationErrors} from '@mionjs/run-types';
 
 interface User {
     name: string;
     age: number;
 }
 
-const getUserErrors = await createTypeErrorsFn<User>();
+// createGetValidationErrors is synchronous — returns the compiled error collector.
+const getUserErrors = createGetValidationErrors<User>();
 
 const errors = getUserErrors({name: 123, age: 'invalid'});
-// Returns: [
-//   { path: ['name'], expected: 'string', actual: 'number' },
-//   { path: ['age'], expected: 'number', actual: 'string' }
-// ]
+// Returns one RunTypeError per failed member:
+//   [ { path: ['name'], expected: 'string' }, { path: ['age'], expected: 'number' } ]

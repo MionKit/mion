@@ -1,19 +1,12 @@
-import {FormatDomainStrict} from '@mionjs/type-formats/StringFormats';
+import {TypeFormat} from '@mionjs/run-types';
 
-type SocialMediaDomain = FormatDomainStrict<{
+// FormatDomainStrict is no longer generic; custom domain constraints are expressed with a
+// direct TypeFormat<string, 'domain', Params> annotation (strict defaults spelled out).
+type SocialMediaParams = {
     maxLength: 200;
     minParts: 2;
     maxParts: 3;
-    names: {
-        allowedValues: {
-            val: ['facebook', 'twitter', 'instagram', 'linkedin'];
-            errorMessage: 'Only social media domains allowed';
-        };
-    };
-    tld: {
-        allowedValues: {
-            val: ['com'];
-            errorMessage: 'Only .com TLD allowed';
-        };
-    };
-}>;
+    names: {maxLength: 20; minLength: 2};
+    tld: {maxLength: 3; minLength: 2};
+};
+type SocialMediaDomain = TypeFormat<string, 'domain', SocialMediaParams>;

@@ -1,12 +1,12 @@
-import {createToBinaryFn, createFromBinaryFn} from '@mionjs/run-types';
+import {createBinaryEncoder, createBinaryDecoder} from '@mionjs/run-types';
 
 type FlexibleData = {
     id: number;
     payload: any; // Can contain any JSON-compatible value
 };
 
-const toBinary = await createToBinaryFn<FlexibleData>();
-const fromBinary = await createFromBinaryFn<FlexibleData>();
+const toBinary = createBinaryEncoder<FlexibleData>();
+const fromBinary = createBinaryDecoder<FlexibleData>();
 
 const data: FlexibleData = {
     id: 1,

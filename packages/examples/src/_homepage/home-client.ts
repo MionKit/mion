@@ -13,12 +13,12 @@ const [user, error] = await routes.getUser(1234).call();
 
 if (user) {
     user.createdAt;
-//         ^?
+    //         ^?
 
-// @annotate: Native Classes Like Set are automatically serialized/deserialized
+    // @annotate: Native Classes Like Set are automatically serialized/deserialized
 
     user.tags;
-//        ^?
+    //        ^?
 }
 
 // Type error: id must be a number

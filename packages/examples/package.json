@@ -32,6 +32,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "lint": "eslint src",
+    "check-types": "tsc --noEmit -p tsconfig.check.json",
     "format": "prettier --write src/**/*.ts",
     "build": "echo noop: examples packages does not need to be built",
     "clean": "rimraf .dist",

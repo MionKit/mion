@@ -1,19 +1,21 @@
-import {createIsTypeFn, createTypeErrorsFn} from '@mionjs/run-types';
+import {createValidate, createHasUnknownKeys, createUnknownKeyErrors} from '@mionjs/run-types';
 
 interface User {
     name: string;
     age: number;
 }
 
-// With strictTypes, extra properties are rejected
-const isUser = await createIsTypeFn<User>({strictTypes: true});
+// Base structural validation ignores extra properties (they are simply not part of User).
+const validate = createValidate<User>();
+validate({name: 'John', age: 30}); // true
+validate({name: 'John', age: 30, extra: 'value'}); // true (extra keys ignored)
 
-isUser({name: 'John', age: 30}); // true
-isUser({name: 'John', age: 30, extra: 'value'}); // false (unknown property 'extra')
+// Strict checking: reject objects that carry unknown/extra properties.
+// mion routes turn this on end-to-end with the router/route `strictTypes: true` option.
+const hasUnknownKeys = createHasUnknownKeys<User>();
+hasUnknownKeys({name: 'John', age: 30}); // false
+hasUnknownKeys({name: 'John', age: 30, extra: 'value'}); // true
 
-// typeErrors also reports unknown properties
-const getUserErrors = await createTypeErrorsFn<User>({strictTypes: true});
-
-getUserErrors({name: 'John', age: 30}); // []
-getUserErrors({name: 'John', age: 30, extra: 'value'});
-// Returns: [{ path: ['extra'], expected: 'never' }]
+const unknownKeyErrors = createUnknownKeyErrors<User>();
+unknownKeyErrors({name: 'John', age: 30, extra: 'value'});
+// Returns one RunTypeError per unknown property, e.g. [{ path: ['extra'], expected: 'never' }]
