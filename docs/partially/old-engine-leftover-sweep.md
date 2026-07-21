@@ -42,10 +42,15 @@ Full suite green after the sweep (core/run-types/type-formats/devtools/router/cl
 
 ## Remaining (deferred)
 
-1. **Old pure-fn eslint surface** — `purityRules.ts` dead entries (`pureServerFn`,
-   `registerPureFnFactory`), the dead branches of the `pure-functions` + `no-vite-client` rules (keep
-   only the `serverMapFrom` branch), and their specs. The coupling that deferred it (the examples
-   fixture `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`)
-   shipped in PR #125 (now merged), so this is **unblocked** — do it in a follow-up.
+1. **Old eslint surface migration** (UNBLOCKED — the coupling that deferred it, the examples fixture
+   `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`, shipped in
+   PR #125; do it in a follow-up):
+   - Pure-fn: `purityRules.ts` dead entries (`pureServerFn`, `registerPureFnFactory`), the dead
+     branches of the `pure-functions` + `no-vite-client` rules (keep only the `serverMapFrom` branch),
+     and their specs.
+   - `no-typeof-runtype` **still keys on the removed `runType` name** (`no-typeof-runtype.spec.ts`
+     fixtures use `runType<User>()`), so the rule is now a **no-op against the real API** — it no
+     longer guards `createValidate<typeof x>()`/the other `create*` factories the docs (PR #125) now
+     teach. Migrate the rule + specs to the current factory surface.
 2. **Sunset plan** for the accepted-and-ignored `aotCaches`/`serverPureFunctions` plugin options
    (`mionVitePlugin.ts`) — keep the warn-and-ignore shim for one release, then remove.
