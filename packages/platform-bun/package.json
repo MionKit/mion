@@ -61,11 +61,10 @@
   },
   "dependencies": {
     "@mionjs/core": "workspace:*",
-    "@mionjs/router": "workspace:*"
+    "@mionjs/router": "workspace:*",
+    "@ts-runtypes/devtools": "0.10.0"
   },
   "devDependencies": {
-    "@deepkit/core": "1.0.19",
-    "@deepkit/type-compiler": "1.0.19",
     "bun-types": "1.3.12"
   },
   "peerDependencies": {
