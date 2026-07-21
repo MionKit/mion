@@ -1,4 +1,4 @@
-import {createToBinaryFn, createFromBinaryFn} from '@mionjs/run-types';
+import {createBinaryEncoder, createBinaryDecoder} from '@mionjs/run-types';
 
 interface User {
     name: string;
@@ -6,14 +6,13 @@ interface User {
 }
 
 // start-to-binary
-const toBinary = await createToBinaryFn<User>();
+const toBinary = createBinaryEncoder<User>();
 const buffer = toBinary({name: 'John', age: 30});
-// Returns Uint8Array with optimized binary encoding
+// Returns a Uint8Array with optimized binary encoding
 // end-to-binary
 
 // start-from-binary
-const fromBinary = await createFromBinaryFn<User>();
-const bufferInput = new Uint8Array(); // from previous example
-const user = fromBinary(bufferInput);
+const fromBinary = createBinaryDecoder<User>();
+const user = fromBinary(buffer);
 // user is now { name: 'John', age: 30 }
 // end-from-binary

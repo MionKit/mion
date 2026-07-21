@@ -1,12 +1,10 @@
-import {Routes, route} from '@mionjs/router';
+import {Routes, route, initMionRouter, PublicApi} from '@mionjs/router';
 
 export interface User {
     id: string;
     name: string;
     email: string;
 }
-
-export type MyApi = typeof routes;
 
 export const routes = {
     users: {
@@ -18,3 +16,6 @@ export const routes = {
         }),
     },
 } satisfies Routes;
+
+export const myApi = await initMionRouter(routes);
+export type MyApi = PublicApi<typeof routes>;
