@@ -10,6 +10,12 @@ import {getFriendlyErrors, defaultErrorPrinter} from './friendlyErrors.ts';
 import type {RunTypeError} from './types/general.types.ts';
 import type {FriendlyErrors} from './types/formats/friendlyErrors.types.ts';
 
+// These are UNIT tests of the getFriendlyErrors mapping/printing logic with synthetic RunTypeError
+// fixtures (tokens kept in sync with real ts-runtypes output, e.g. `objectLiteral`). The mapping is
+// engine-drift-tolerant (it keys on path shape + format.formatPath, not on the exact expected token),
+// but the REAL-engine canaries that fail loudly if the error shape drifts live where the plugin is
+// active: packages/client/src/lib/friendlyErrors.spec.ts (real errors via .typeErrors() → getFriendlyErrors)
+// and the packages/type-formats/**/*.runtype.spec.ts suite (exact {expected, format:{name,formatPath,val}}).
 describe('friendlyErrors', () => {
     describe('defaultErrorPrinter', () => {
         it('should generate message for basic type error', () => {
@@ -44,9 +50,9 @@ describe('friendlyErrors', () => {
         it('should handle empty path', () => {
             const error: RunTypeError = {
                 path: [],
-                expected: 'object',
+                expected: 'objectLiteral',
             };
-            expect(defaultErrorPrinter(error)).toBe('value: expected object');
+            expect(defaultErrorPrinter(error)).toBe('value: expected objectLiteral');
         });
     });
 
@@ -258,10 +264,10 @@ describe('friendlyErrors', () => {
         });
 
         it('should handle root level errors', () => {
-            const errors: RunTypeError[] = [{path: [], expected: 'object'}];
+            const errors: RunTypeError[] = [{path: [], expected: 'objectLiteral'}];
             const result = getFriendlyErrors(errors);
             expect(result).toEqual({
-                $root: 'value: expected object',
+                $root: 'value: expected objectLiteral',
             });
         });
 
@@ -573,7 +579,7 @@ describe('friendlyErrors', () => {
             type DataMap = Map<KeyObj, number>;
             // For complex keys, we still use a single $key handler since keys are typically validated as a whole
             const errors: RunTypeError[] = [
-                {path: [{key: {id: '', type: 'user'}, index: 0, failed: 'mapKey'}], expected: 'object'},
+                {path: [{key: {id: '', type: 'user'}, index: 0, failed: 'mapKey'}], expected: 'objectLiteral'},
             ];
             const errorsMap: FriendlyErrors<DataMap> = {
                 $key: (params) => `Invalid key at position ${params.index}`,

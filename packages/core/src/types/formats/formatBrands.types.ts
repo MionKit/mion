@@ -1,5 +1,14 @@
 import {TypeFormatPrimitives} from './formats.types.ts';
 
+// ⚠️ R20 — these Brands are STANDALONE nominal helpers, NOT a server↔client contract that
+// ts-runtypes Format types satisfy automatically. Under @ts-runtypes/core a `FormatEmail` value is
+// a plain `string` (its BrandName is `never`), so `FormatEmail` is NOT assignable to `BrandEmail`
+// and brand-narrowing off a validated Format value does not "just work". They are kept because they
+// ARE used as a nominal name registry: @mionjs/drizzle derives its BrandColumnMap key set from these
+// names (AllBrandNames) and mion error-param types reference them. Brand explicitly (cast/helper)
+// when you want nominal narrowing. Wiring Formats to carry a real BrandName is an upstream ts-runtypes
+// follow-up — see docs/todos/formats-brandname-upstream.md.
+
 /**
  * Base branded type - combines BaseType with a nominal brand marker.
  * This is a convenience type for creating branded primitives.
