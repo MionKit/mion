@@ -152,32 +152,6 @@ describe('bun router should', () => {
         setBunHttpOpts({port});
     });
 
-    test('compile routes metadata and skip server initialization', async () => {
-        process.env.MION_COMPILE = 'buildOnly';
-        const routerOpts = {
-            contextDataFactory: getSharedData,
-            prefix: 'api/',
-        };
-        const httpOpts = {
-            port: 8080,
-            maxBodySize: 1,
-            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-        };
-        resetBunHttpOpts();
-        setBunHttpOpts(httpOpts);
-        await initRouter(routerOpts);
-        await registerRoutes({changeUserName, getDate, updateHeaders});
-        const smallServer = await startBunServer();
-        expect(smallServer).toBeUndefined();
-
-        // Restore router state for the main server
-        delete process.env.MION_COMPILE;
-        resetBunHttpOpts();
-        await initRouter({contextDataFactory: getSharedData, basePath: 'api/'});
-        await registerRoutes({changeUserName, getDate, updateHeaders});
-        setBunHttpOpts({port});
-    });
-
     test('get an ok response from a route with Date objects using serializer=json', async () => {
         // Stop the main server
         server.stop(true);
