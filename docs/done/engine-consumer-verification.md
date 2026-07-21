@@ -1,34 +1,40 @@
 # Verify mion features that consume engine format/error shapes (friendlyErrors + Brands)
 
-**Status:** todo — R20 of [migration-review-findings.md](../done/migration-review-findings.md); verified still fully open 2026-07-20 (both files untouched on the branch).
+**Status:** done — R20 of [migration-review-findings.md](migration-review-findings.md). Shipped on
+`claude/ts-runtypes-migration-todos-us21ib-engine-cleanup` (PR3, the "rest" PR).
 **Created:** 2026-07-20
 
-## Problem
+## Problem (original)
 
-Two live mion (core) features sit on top of engine shapes that changed in the migration and
-were NOT touched by it — the green suite proves nothing about them because their specs run
-against hand-built fixtures:
+Two live mion (core) features sat on top of engine shapes that changed in the migration and were NOT
+touched by it — the green suite proved nothing about them because their specs ran against hand-built
+fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens that drifted; (2)
+`core/src/types/formats/formatBrands.types.ts` documented a server↔client brand contract that broke
+(ts-runtypes Formats carry `BrandName = never`).
 
-1. **`core/src/friendlyErrors.ts`** keys on exactly the fields that changed upstream:
-   `error.format.formatPath[0]` (paths now flattened, part indexes gone), `error.format.val`
-   (dateTime carries the splitChar now), format `name`s (`'email'` → `'domain'`/
-   `'stringFormat'` in sub-errors) and `error.expected` (`'object'` → `'objectLiteral'`).
-   `friendlyErrors.spec.ts` uses hand-built error fixtures, so it stayed green while the
-   real engine output drifted under it.
-2. **`core/src/types/formats/formatBrands.types.ts`** documents a server↔client brand
-   contract that is broken: ts-runtypes formats carry `BrandName = never` (a `FormatEmail`
-   value is a plain `string`), so `FormatEmail` is no longer assignable to `BrandEmail` and
-   brand-narrowing code silently stops matching. The website still documents the old
-   contract (`4.run-types/2.type-formats.md`).
+## What shipped
 
-## Fix plan
+**friendlyErrors — verified against the REAL engine, no longer fixture-only:**
 
-1. Generate REAL ts-runtypes validation errors for the friendly-errors format matrix
-   (email, dateTime, number formats, nested objects) via `createGetValidationErrors`,
-   replace the hand-built fixtures, and update `getFriendlyErrors`' mapping for the new
-   paths/names/tokens. The fixtures should be produced in-spec (markers), not pasted, so
-   the next engine change fails the suite instead of rotting silently.
-2. Decide the Brand story: (a) drop it — delete `formatBrands.types.ts` + the website
-   section; or (b) keep it — file brand-support upstream (ts-run-types bucket-4 candidate:
-   formats carrying a real `BrandName`) and gate the mion types on that release. Either
-   way the website section changes with [examples-and-website-refresh.md](examples-and-website-refresh.md).
+- The getFriendlyErrors mapping is engine-drift-tolerant by construction (it keys on path shape +
+  `format.formatPath`, not on the exact `expected` token), so no mapping-code change was needed.
+- The stale synthetic fixtures in `core/src/friendlyErrors.spec.ts` were corrected to real tokens
+  (`expected: 'object'` → `'objectLiteral'`) and a header comment now points at the real-engine
+  canaries so the "won't silently rot" intent is explicit.
+- Strengthened the real-engine canary in `client/src/lib/friendlyErrors.spec.ts`: a new test pins the
+  EXACT raw ts-runtypes error shape (`expected` base type + `format {name, formatPath, val}`) for the
+  name/age/email matrix produced by `.typeErrors()`, then maps it through getFriendlyErrors. Any
+  engine shape drift now fails this spec (the type-formats `*.runtype.spec.ts` suite pins the scalar
+  format shapes independently).
+- Found + filed a pre-existing quirk: friendly field messages nest under the positional param index
+  (`friendly[0].name`), see [friendly-errors-positional-nesting.md](../todos/friendly-errors-positional-nesting.md).
+
+**Brands — decision (b, gated): KEEP as nominal helpers, drop the false auto-derivation claim:**
+
+- `@mionjs/drizzle` derives its `BrandColumnMap` key set (`AllBrandNames`) from these brand names, and
+  error-param types reference them — so the types stay.
+- `formatBrands.types.ts` now carries an advisory docblock: Formats do NOT carry these brands
+  automatically (`BrandName = never` upstream); brand explicitly when narrowing.
+- The website contract text change rides [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md);
+  the upstream "Formats carry a real BrandName" follow-up is split out to
+  [formats-brandname-upstream.md](../todos/formats-brandname-upstream.md).

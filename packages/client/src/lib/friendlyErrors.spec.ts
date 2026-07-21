@@ -115,6 +115,42 @@ describe('friendlyErrors with client validation', () => {
             expect(emailError?.format?.name).toBe('email');
         });
 
+        // Canary (R20): pins the EXACT raw ts-runtypes error shape that getFriendlyErrors consumes
+        // (expected base type + format {name, formatPath, val}). Hand-built fixtures in core's unit
+        // spec can't catch engine drift; this runs the real engine, so a shape change fails here.
+        it('pins the raw engine error shape for the format matrix and maps it via getFriendlyErrors', async () => {
+            const {routes} = initClient<MyApi>({baseURL});
+            const invalidUser = {name: 'A', age: 10, email: 'invalid-email' as FormatEmail};
+            const errors = await routes.createUserWithFormats(invalidUser).typeErrors();
+
+            const nameErr = errors.find((e) => e.path.includes('name'));
+            expect(nameErr?.expected).toBe('string');
+            expect(nameErr?.format?.name).toBe('stringFormat');
+            expect(nameErr?.format?.formatPath).toEqual(['minLength']);
+            expect(nameErr?.format?.val).toBe(2);
+
+            const ageErr = errors.find((e) => e.path.includes('age'));
+            expect(ageErr?.expected).toBe('number');
+            expect(ageErr?.format?.name).toBe('numberFormat');
+            expect(ageErr?.format?.formatPath).toEqual(['min']);
+
+            const emailErr = errors.find((e) => e.path.includes('email'));
+            expect(emailErr?.format?.name).toBe('email');
+
+            // getFriendlyErrors keys each field's params off format.formatPath[0]. Client param
+            // errors are relative to the positional params tuple, so paths are [0, 'name'] and the
+            // friendly result nests the field messages under index 0 (handler lookup skips the index).
+            const friendly = getFriendlyErrors<UserWithFormats>(errors, {
+                name: (p) => `min ${p.minLength?.val}`,
+                age: (p) => `min ${p.min?.val}`,
+                email: () => 'bad email',
+            });
+            const fields = (friendly as Record<string, any>)[0];
+            expect(fields.name).toBe('min 2');
+            expect(fields.email).toBe('bad email');
+            expect(typeof fields.age).toBe('string');
+        });
+
         it('should return empty array for valid format data', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
