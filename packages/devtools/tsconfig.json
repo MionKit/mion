@@ -6,7 +6,6 @@
     "rootDir": "."
   },
   "references": [],
-  "reflection": false,
   "include": ["."],
   "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
 }

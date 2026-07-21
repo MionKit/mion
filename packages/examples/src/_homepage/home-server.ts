@@ -9,9 +9,9 @@ interface User {
     createdAt: Date;
     tags: Set<string>;
 }
-interface Order { 
-    id: string; 
-    userId: number; 
+interface Order {
+    id: string;
+    userId: number;
     amount: number;
 }
 // @annotate: Object based router with rpc methods that receive Fully Validated params
@@ -19,8 +19,8 @@ interface Order {
 const routes = {
     getUser: query((ctx, id: number): User | null => {
         if (id !== 1234) return null;
-        const tags =  new Set(['tag1', 'tag2'])
-        const user: User = {id: 1234, name: 'John',age: 30, createdAt: new Date(), tags};
+        const tags = new Set(['tag1', 'tag2']);
+        const user: User = {id: 1234, name: 'John', age: 30, createdAt: new Date(), tags};
         return user;
     }),
     getOrder: query((ctx, id: string): Order | null => {

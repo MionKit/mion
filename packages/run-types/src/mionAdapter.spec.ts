@@ -10,6 +10,9 @@ import {
     buildJitFnsFromMarker,
     getReflectionFromMarkers,
     getParamNamesFromHandler,
+    getParamCountFromRunType,
+    reconcileParamNames,
+    resolveInjectedRunType,
     getRTUtils,
     InjectRunTypeId,
     InjectTypeFnArgs,
@@ -88,6 +91,27 @@ describe('mionAdapter: reflection from injected markers', () => {
             'param0',
             'rest',
         ]);
+    });
+
+    // R34 — param arity is authoritative from the params tuple runtype, not source parsing.
+    it('takes the param COUNT from the runtype and keeps validation alive when source parsing degrades', () => {
+        // savePet has 2 params (pet, notes?). The runtype arity is 2 regardless of the handler source.
+        expect(getParamCountFromRunType(resolveInjectedRunType(savePet.rtFns.paramsId))).toBe(2);
+        // Simulate a minified/transpiled bundle whose handler.toString() no longer exposes the params:
+        const degraded = (() => undefined) as unknown as (ctx: any, pet: Pet, notes?: string) => Pet;
+        expect(getParamNamesFromHandler(degraded)).toEqual([]); // source parse yields nothing…
+        const reflection = getReflectionFromMarkers(savePet.rtFns, degraded, 'savePetDegraded');
+        expect(reflection.paramNames).toEqual(['param0', 'param1']); // …but arity survives via the runtype
+        // and the client-side pre-validation gate (paramNames.length === 0) therefore stays active
+        expect(reflection.paramNames.length).toBe(2);
+    });
+
+    it('reconcileParamNames fills/truncates parsed names to the runtype arity', () => {
+        expect(reconcileParamNames(['a', 'b'], 2)).toEqual(['a', 'b']);
+        expect(reconcileParamNames([], 2)).toEqual(['param0', 'param1']);
+        expect(reconcileParamNames(['a'], 3)).toEqual(['a', 'param1', 'param2']);
+        expect(reconcileParamNames(['a', 'b', 'c'], 2)).toEqual(['a', 'b']);
+        expect(reconcileParamNames([], 0)).toEqual([]);
     });
 
     it('reads param names from the handler source, independent of tuple labels', () => {

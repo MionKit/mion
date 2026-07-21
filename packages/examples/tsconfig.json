@@ -19,7 +19,6 @@
     {"path": "../platform-gcloud"},
     {"path": "../drizze"}
   ],
-  "reflection": true,
   "include": ["src", "vite.config.ts"],
   "exclude": ["node_modules", ".dist"]
 }

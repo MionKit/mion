@@ -71,7 +71,7 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: ['@deepkit/type-compiler', '@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],
+            external: ['@rollup/pluginutils', 'typescript', 'vite', 'fs', 'path', /^node:/],
         },
     },
 });

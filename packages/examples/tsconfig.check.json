@@ -1,0 +1,25 @@
+{
+  "//": "Source-resolution typecheck for the examples package: drops project references + composite",
+  "//2": "so @mionjs/* resolve to SOURCE via the root customConditions:[source] export condition (paths",
+  "//3": "cleared for single module identity), so `tsc --noEmit` checks examples without a package build.",
+  "//4": "NOTE: this is a DEV aid, not yet a green CI gate — it currently also surfaces pre-existing",
+  "//5": "examples debt (placeholder-import doc snippets, friendly-errors format-param rework) and a few",
+  "//6": "source-package strict issues. The path to a CI-gating lane is in docs/todos/examples-precompile-debt.md.",
+  "//7": "twoslash-test holds deliberate-error demos and comparison-typia needs uninstalled external deps.",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "skipLibCheck": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM"],
+    "paths": {}
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", ".dist", "src/twoslash-test", "src/run-types/comparison-typia.ts"]
+}
