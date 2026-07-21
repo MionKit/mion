@@ -287,12 +287,13 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
 }
 
 // ############# param names #############
-// ⚠️ paramNames come from the HANDLER SOURCE, not from the runtype graph: ts-runtypes
-// dedupes types structurally and tuple labels are NOT part of the structural id, so the
-// canonical node for `[s: string]` may carry the labels of whichever call site got
-// interned first (e.g. `[name: string]`). Parsing the function source gives the exact
-// declared names. Known limitation: minified server bundles degrade these names
-// (metadata/docs only — mion params travel positionally on the wire).
+// ⚠️ paramNames DISPLAY strings come from the HANDLER SOURCE, not the runtype graph: ts-runtypes
+// dedupes types structurally and tuple labels are NOT part of the structural id, so the canonical
+// node for `[s: string]` may carry the labels of whichever call site got interned first (e.g.
+// `[name: string]`). Parsing the function source gives the exact declared names. The param COUNT,
+// however, is taken from the params tuple runtype (getParamCountFromRunType) and reconciled in —
+// see R34: minified server bundles degrade the parsed names and an empty parse used to silently
+// disable client-side pre-validation + param serialization (both early-return on length === 0).
 
 /** Extracts declared parameter names from a handler's source, skipping the leading context param. */
 export function getParamNamesFromHandler(handler: AnyFn, skipParams = 1): string[] {
@@ -302,6 +303,30 @@ export function getParamNamesFromHandler(handler: AnyFn, skipParams = 1): string
         const name = paramName(param);
         return name ?? `param${index}`;
     });
+}
+
+/**
+ * R34 — the AUTHORITATIVE param arity comes from the params tuple runtype (HandlerParams<H> /
+ * HeaderHandlerParams<H> are always tuples), which is build-time-known and transpile-stable.
+ * Source parsing (handler.toString()) only supplies display names and degrades under minified
+ * server bundles: an empty parse used to silently disable client-side pre-validation and param
+ * serialization (both early-return on paramNames.length === 0). Counting tuple members closes that.
+ */
+export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
+    const root = paramsRunType as RtNodeLike;
+    return root.kind === RunTypeKind.tuple ? (root.children?.length ?? 0) : 0;
+}
+
+/**
+ * Reconciles source-parsed param names against the runtype arity so paramNames.length always
+ * equals the real param count. Parsed names fill display slots; missing slots (degraded source)
+ * fall back to positional `param{i}` markers instead of vanishing.
+ */
+export function reconcileParamNames(sourceNames: string[], arity: number): string[] {
+    if (sourceNames.length === arity) return sourceNames;
+    const names: string[] = [];
+    for (let i = 0; i < arity; i++) names.push(sourceNames[i] ?? `param${i}`);
+    return names;
 }
 
 /** Returns the raw text between the param parens (or the bare identifier of a paren-less arrow). */
@@ -404,8 +429,9 @@ export function getReflectionFromMarkers(
     const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
     const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
+    const paramsArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
     const reflection: RtMethodReflection = {
-        paramNames: getParamNamesFromHandler(handler),
+        paramNames: reconcileParamNames(getParamNamesFromHandler(handler), paramsArity),
         paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
         returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
         paramsJitHash: paramsTypeId,
@@ -516,7 +542,9 @@ export function getHeadersReflectionFromMarkers(
             `mion run-types: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`
         );
     const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
-    reflection.paramNames = getParamNamesFromHandler(handler, 2); // skip ctx + headers params
+    // skip ctx + headers params for display names; arity still comes from the params runtype (R34)
+    const bodyArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
+    reflection.paramNames = reconcileParamNames(getParamNamesFromHandler(handler, 2), bodyArity);
     reflection.headersParam = {
         headerNames,
         jitHash: headersTypeId,
