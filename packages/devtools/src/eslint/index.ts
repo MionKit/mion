@@ -6,7 +6,6 @@
  * ######## */
 
 import type {ESLint, Linter} from 'eslint';
-import noTypeofRunType from './rules/no-typeof-runtype.ts';
 import strongTypedRoutes from './rules/strong-typed-routes.ts';
 import noUnreachableUnionTypes from './rules/no-unreachable-union-types.ts';
 import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
@@ -19,7 +18,6 @@ import enforceTypeImports from './rules/enforce-type-imports.ts';
 // configs is set outside the initial object due to circular reference: recommended config references the plugin itself.
 const plugin: ESLint.Plugin = {
     rules: {
-        'no-typeof-runtype': noTypeofRunType,
         'strong-typed-routes': strongTypedRoutes,
         'no-unreachable-union-types': noUnreachableUnionTypes,
         'no-mixed-union-properties': noMixedUnionProperties,
@@ -39,7 +37,6 @@ plugin.configs!.recommended = {
         '@mionjs': plugin,
     },
     rules: {
-        '@mionjs/no-typeof-runtype': 'error',
         '@mionjs/strong-typed-routes': 'error',
         '@mionjs/no-unreachable-union-types': 'error',
         '@mionjs/no-type-imports': 'error',
