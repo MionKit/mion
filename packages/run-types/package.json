@@ -14,15 +14,11 @@
     "serverless",
     "framework",
     "node",
-    "runtime types",
-    "deepkit"
+    "runtime types"
   ],
   "author": "ma jerez",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "browser": {
-    "./persist/jitFnCacheCompiler": false
-  },
   "exports": {
     ".": {
       "source": "./index.ts",

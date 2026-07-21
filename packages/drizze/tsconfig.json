@@ -6,7 +6,6 @@
     "rootDir": "."
   },
   "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}],
-  "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist"]
 }

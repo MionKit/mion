@@ -33,11 +33,9 @@ export default defineConfig({
             '@mionjs/router': resolve(__dirname, '../router'),
             '@mionjs/platform-vercel': resolve(__dirname, '../platform-vercel'),
             '@mionjs/type-formats': resolve(__dirname, '../type-formats'),
-            // Aliases needed for AOT child process (dev: packages aren't built).
-            // During bundle build, the plugin stubs these before aliases are reached.
+            // Alias needed for the managed child process (dev: packages aren't built).
+            // During bundle build, the plugin stubs this before aliases are reached.
             '@mionjs/run-types': resolve(__dirname, '../run-types'),
-            '@deepkit/type': resolve(__dirname, '../../node_modules/@deepkit/type'),
-            '@deepkit/core': resolve(__dirname, '../../node_modules/@deepkit/core'),
         },
     },
     build: {

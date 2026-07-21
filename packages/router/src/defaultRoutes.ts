@@ -6,14 +6,12 @@
  * ######## */
 
 /**
- * Default routes script for AOT cache generation.
+ * Default fallback start script.
  *
  * This script initializes the mion router with only the built-in internal routes
  * (error routes, metadata routes, etc.). It is used by the Vite plugin as a fallback
- * when no user-provided startScript is configured.
- *
- * When run with MION_COMPILE=buildOnly, the router's emitAOTCaches() will automatically
- * collect and send the serialized caches for these internal routes via IPC.
+ * when no user-provided startScript is configured, so the plugin can scan/inject the
+ * internal route call sites at build time.
  *
  * Internal routes included:
  * - @thrownErrors: Error serialization route

@@ -9,8 +9,6 @@
     "removeComments": true,
     "noLib": false,
     "strict": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "target": "ES2023",
     "lib": ["ES2023"],
     "types": ["node"],
@@ -40,6 +38,5 @@
     {"path": "./packages/test-server"}
   ],
   "files": [],
-  "exclude": ["node_modules", ".dist"],
-  "reflection": true
+  "exclude": ["node_modules", ".dist"]
 }
