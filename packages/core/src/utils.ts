@@ -48,15 +48,6 @@ export function fromBase64Url(encoded: string): string {
 }
 
 let isTest: boolean | undefined = undefined;
-/** Whether the process is in mion compile mode (buildOnly or middleware).
- * In these modes platform adapters skip server.listen() — the server does NOT start.
- * LEGACY: a leftover of the old MION_COMPILE/AOT build lane; nothing sets MION_COMPILE
- * under the ts-runtypes engine. Kept until platform-bun is ported off it (its last live
- * consumer) — see docs/todos/platform-bun-runtypes-lane.md. */
-export function isMionCompileMode(): boolean {
-    const val = getENV('MION_COMPILE');
-    return val === 'buildOnly' || val === 'middleware';
-}
 
 export function isTestEnv() {
     if (isTest !== undefined) return isTest;

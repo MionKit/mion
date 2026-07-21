@@ -8,7 +8,6 @@ packages:
 # pnpm 11 blocks every dependency install/postinstall script by default.
 # Only the packages listed here may run them.
 allowBuilds:
-  '@deepkit/type-compiler': false
   esbuild: true
   nx: false
   workerd: false
