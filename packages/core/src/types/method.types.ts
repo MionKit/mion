@@ -50,7 +50,12 @@ export interface RemoteMethodOpts {
     serializer?: SerializerMode;
     /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
     isMutation?: boolean | undefined;
-    /** Per-route strictTypes override. When true, isType and typeErrors reject objects with unknown/extra properties. */
+    /**
+     * Per-route strictTypes override (resolved to the effective value: route option ?? router option),
+     * so it also rides the methods metadata to the client. When true, objects carrying unknown/extra
+     * properties are rejected via the compiled hasUnknownKeys/unknownKeyErrors fns — enforced on the
+     * server at dispatch and, since R17, client-side in the local pre-validation lane.
+     */
     strictTypes?: boolean;
 }
 

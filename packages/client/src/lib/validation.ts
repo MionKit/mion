@@ -6,6 +6,7 @@
  * ######## */
 
 import {RpcError, routesCache} from '@mionjs/core';
+import type {RunTypeError} from '@mionjs/core';
 import {RequestErrors, SubRequest} from '../types.ts';
 import type {MionClientRequest} from '../request.ts';
 
@@ -55,12 +56,21 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
     const paramsJit = method.paramsJitFns;
     if (paramsJit.typeErrors.isNoop) return;
     try {
-        const validationsResponse = paramsJit.isType.fn(params) || paramsJit.typeErrors.fn(params);
-        if ((validationsResponse as [])?.length) {
+        let errors: RunTypeError[] | undefined = paramsJit.isType.fn(params)
+            ? undefined
+            : (paramsJit.typeErrors.fn(params) as RunTypeError[]);
+        // R17: mirror the server's strictTypes gate client-side so extra-key payloads fail fast.
+        // On master strictness was baked into the server-compiled isType; ts-runtypes enforces it
+        // via the separate hasUnknownKeys/unknownKeyErrors fns, so the client must run them itself
+        // when the (effective, server-resolved) strictTypes flag rides the methods metadata.
+        if (!errors?.length && method.options?.strictTypes && paramsJit.hasUnknownKeys && paramsJit.unknownKeyErrors) {
+            if (paramsJit.hasUnknownKeys.fn(params)) errors = paramsJit.unknownKeyErrors.fn(params) as RunTypeError[];
+        }
+        if (errors?.length) {
             return new RpcError({
                 type: 'validation-error',
                 publicMessage: `Invalid params for Route or MiddleFn '${method.id}', validation failed.`,
-                errorData: validationsResponse,
+                errorData: errors,
             });
         }
     } catch (e: any | Error) {
