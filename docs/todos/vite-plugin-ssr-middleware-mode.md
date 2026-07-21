@@ -1,8 +1,10 @@
 # Vite plugin: restore `middleware` (in-process) server mode + SSR support
 
-**Status:** todo — surfaced 2026-07-21 reviewing the vite-config docs; sibling of R28 in
+**Status:** todo — **CONFIRMED wanted by maintainer 2026-07-21.** Restore the in-process `middleware`
+mode as the idiomatic Vite/Nuxt fullstack default, **without** the old AOT/compile step (build-time
+injection replaces it). Own PR — NOT the docs PR #125. Sibling of R28 in
 [migration-review-findings.md](../done/migration-review-findings.md) (SSR `noExternal` + Vue SFC
-transform dropped, "re-add decision left to the docs wave"). Not previously tracked as a todo.
+transform dropped, "re-add decision left to the docs wave").
 **Created:** 2026-07-21
 
 ## Problem
@@ -44,19 +46,24 @@ Related dropped SSR pieces (R28, same wave): the plugin no longer auto-adds
 registries) and no longer transforms `.vue?vue&type=script` blocks (typed mion code in `.vue` SFCs
 silently untransformed). A restored SSR/middleware story should re-add these together.
 
-## Fix plan
+## Fix plan (decision made — implement)
 
-1. **Decide** whether in-process/fullstack (Nuxt/SSR) is a supported workflow to restore. If yes:
-2. Re-add a `configureServer(server)` hook gated on `server.runMode === 'middleware'` that
+1. **`runMode` becomes `'middleware' | 'childProcess'`, `middleware` the default.** Drop `buildOnly`
+   entirely (it was the AOT/compile mode — gone). No `MION_COMPILE`/AOT anything comes back; the
+   restore is purely the in-process dev-server mechanism.
+2. Re-add a `configureServer(server)` hook gated on `runMode === 'middleware'` that
    `ssrLoadModule`s the `startScript`, grabs `httpRequestHandler` from the platform adapter, and
-   proxies `basePath` requests — minus all AOT machinery (build-time injection replaces it).
+   proxies `basePath` requests — **minus all AOT machinery** (build-time injection replaces the old
+   `loadSSRRouterAndGenerateAOTCaches` + virtual-module-invalidation dance, so this is much smaller
+   than the pre-migration version).
 3. Re-add `config()` returning `ssr: {noExternal: [/@mionjs\//]}` (R28) so SSR/vite-node users don't
-   dedupe-fail, and the `.vue` SFC script transform (R28) so Nuxt/Vue typed code compiles.
-4. Stop warning-and-ignoring `middleware`; either support it or remove it from the `runMode` type
-   (currently it type-checks but silently degrades to `childProcess`).
+   dedupe-fail, and the `.vue?vue&type=script` SFC transform (R28) so Nuxt/Vue typed code compiles.
+4. Cross-check the platform adapters: `httpRequestHandler` must open no port / need no compile env
+   in middleware mode (the old `isMionCompileMode()` `listen()` skips are being removed in the
+   leftover sweep — see [../partially/old-engine-leftover-sweep.md](../partially/old-engine-leftover-sweep.md)).
 5. Docs: the website `5.devtools/3.vite-config.md` "Client + Server" section currently presents
-   `childProcess` as the fullstack answer; once middleware lands, document in-process as the primary
-   Nuxt/SSR path and `childProcess` as the separate-process/e2e alternative.
+   `childProcess` as the fullstack answer; once `middleware` lands, document **in-process middleware
+   as the primary Nuxt/SSR/fullstack path** and `childProcess` as the separate-process/e2e alternative.
 
 ## Interim (shipped)
 
