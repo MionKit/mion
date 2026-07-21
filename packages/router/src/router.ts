@@ -34,7 +34,6 @@ import {
     SerializerCode,
     SerializerMode,
     isTestEnv,
-    isMionCompileMode,
     resetRoutesCache,
     getOrCreateGlobal,
 } from '@mionjs/core';
@@ -227,7 +226,7 @@ export function getAllExecutablesIds(): string[] {
 
 // used by codegen
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true' || isMionCompileMode();
+    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true';
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
