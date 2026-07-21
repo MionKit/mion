@@ -1,5 +1,4 @@
 "use strict";
-require("./rules/no-typeof-runtype.cjs");
 require("./rules/strong-typed-routes.cjs");
 require("./rules/no-unreachable-union-types.cjs");
 require("./rules/no-mixed-union-properties.cjs");

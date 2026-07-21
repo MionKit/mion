@@ -12,56 +12,57 @@ const ruleTester = new RuleTester();
 
 ruleTester.run('pure-functions', rule, {
     valid: [
-        // Pure function with only local variables and params
+        // serverMapFrom mapper with only local variables and params
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => x + 1);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: number) => x + 1);
             `,
         },
-        // Pure function using allowed globals (Math, JSON)
+        // serverMapFrom mapper using allowed globals (Math)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => Math.floor(x));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: number) => Math.floor(x));
             `,
         },
+        // serverMapFrom mapper using allowed globals (JSON)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: any) => JSON.stringify(x));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: any) => JSON.stringify(x));
             `,
         },
-        // Pure function with local const/let/var declarations
+        // serverMapFrom mapper with local const/let/var declarations
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function compute(x: number) {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function compute(x: number) {
                     const y = x * 2;
                     let z = y + 1;
                     return z;
                 });
             `,
         },
-        // Pure function with nested arrow callbacks
+        // serverMapFrom mapper with nested arrow callbacks
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((items: number[]) => items.map(x => x + 1));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (items: number[]) => items.map(x => x + 1));
             `,
         },
-        // Pure function with destructuring
+        // serverMapFrom mapper with destructuring
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(({a, b}: {a: number, b: number}) => a + b);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', ({a, b}: {a: number, b: number}) => a + b);
             `,
         },
-        // Pure function with for loop
+        // serverMapFrom mapper with for loop
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function sum(items: number[]) {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function sum(items: number[]) {
                     let total = 0;
                     for (let i = 0; i < items.length; i++) {
                         total += items[i];
@@ -70,11 +71,11 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
         },
-        // Pure function with for-of loop
+        // serverMapFrom mapper with for-of loop
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function sum(items: number[]) {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function sum(items: number[]) {
                     let total = 0;
                     for (const item of items) {
                         total += item;
@@ -83,11 +84,11 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
         },
-        // Pure function with try-catch
+        // serverMapFrom mapper with try-catch
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function safeParse(s: string) {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function safeParse(s: string) {
                     try {
                         return JSON.parse(s);
                     } catch (e) {
@@ -96,60 +97,54 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
         },
-        // Pure function with object literal (not shorthand for outer var)
+        // serverMapFrom mapper returning an object literal (not shorthand for outer var)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => ({ value: x, doubled: x * 2 }));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: number) => ({ value: x, doubled: x * 2 }));
             `,
         },
-        // Object form with pureFn property
+        // serverMapFrom mapper as a pure named function
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn({
-                    pureFn: function greeting() { return 'hello'; },
-                    fnName: 'greeting',
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function greeting() { return 'hello'; });
+            `,
+        },
+        // registerMionPureFn factory returning an inner fn, local scope only (isFactory: true)
+        {
+            code: `
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('validate', function factory() {
+                    const regexp = new RegExp('^[a-z]+$');
+                    return function inner(s: string) { return regexp.test(s); };
                 });
             `,
         },
-        // Factory function with local scope only (isFactory: true)
+        // registerMionPureFn factory with local scope only
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn({
-                    pureFn: function factory() {
-                        const regexp = new RegExp('^[a-z]+$');
-                        return function inner(s: string) { return regexp.test(s); };
-                    },
-                    isFactory: true,
-                });
-            `,
-        },
-        // registerPureFnFactory with local scope only
-        {
-            code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'fn', function() {
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('fn', function() {
                     const multiplier = 2;
                     return function inner(x: number) { return x * multiplier; };
                 });
             `,
         },
-        // Not imported from @mionjs/core — should be ignored
+        // registerMionPureFn not imported from a mion package — should be ignored
         {
             code: `
-                import { pureServerFn } from 'other-package';
+                import { registerMionPureFn } from 'other-package';
                 const SECRET = 'key';
-                pureServerFn(() => SECRET);
+                registerMionPureFn('fn', () => SECRET);
             `,
         },
-        // Function named pureServerFn but not imported — should be ignored
+        // Function named serverMapFrom but not imported — should be ignored
         {
             code: `
-                function pureServerFn(fn: any) { return fn; }
+                function serverMapFrom(source: any, fn: any) { return fn; }
                 const SECRET = 'key';
-                pureServerFn(() => SECRET);
+                serverMapFrom('sourceRoute', () => SECRET);
             `,
         },
         // File without relevant imports — should be ignored
@@ -159,11 +154,11 @@ ruleTester.run('pure-functions', rule, {
                 const fn = () => x + 1;
             `,
         },
-        // Pure function using various allowed globals
+        // serverMapFrom mapper using various allowed globals
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function validate(s: string) {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function validate(s: string) {
                     const encoded = encodeURIComponent(s);
                     const num = parseInt(s, 10);
                     const valid = isNaN(num) ? false : isFinite(num);
@@ -176,52 +171,29 @@ ruleTester.run('pure-functions', rule, {
                 });
             `,
         },
-        // Aliased import
+        // Aliased serverMapFrom import
         {
             code: `
-                import { pureServerFn as psf } from '@mionjs/core';
-                psf((x: number) => x + 1);
+                import { serverMapFrom as smf } from '@mionjs/client';
+                smf('sourceRoute', (x: number) => x + 1);
             `,
         },
-        // Variable reference: function defined as variable, passed by name
+        // Variable reference: mapper defined as variable, passed by name
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 const myFn = (x: number) => x + 1;
-                pureServerFn(myFn);
+                serverMapFrom('sourceRoute', myFn);
             `,
         },
-        // Variable reference: object literal defined as variable
+        // Variable reference: factory function passed to registerMionPureFn
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                const myDef = {
-                    pureFn: function greeting() { return 'hello'; },
-                    fnName: 'greeting',
-                };
-                pureServerFn(myDef);
-            `,
-        },
-        // Variable reference: factory function passed to registerPureFnFactory
-        {
-            code: `
-                import { registerPureFnFactory } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 const myFactory = function() {
                     return function inner(x: number) { return x + 1; };
                 };
-                registerPureFnFactory('ns', 'fn', myFactory);
-            `,
-        },
-        // Variable reference: pureFn property is also a variable reference
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
-                const myFn = function double(x: number) { return x * 2; };
-                const myDef = {
-                    pureFn: myFn,
-                    fnName: 'double',
-                };
-                pureServerFn(myDef);
+                registerMionPureFn('fn', myFactory);
             `,
         },
         // serverMapFrom() with pure arrow mapper
@@ -278,168 +250,142 @@ ruleTester.run('pure-functions', rule, {
         },
     ],
     invalid: [
-        // pureServerFn with 'this' keyword
+        // serverMapFrom mapper with 'this' keyword
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function() { return this.x; });
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function() { return this.x; });
             `,
             errors: [{messageId: 'purityThis', data: {fnType: 'pure functions'}}],
         },
-        // pureServerFn with await
+        // serverMapFrom mapper with await
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(async (x: number) => await x);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', async (x: number) => await x);
             `,
             errors: [{messageId: 'purityAwait', data: {fnType: 'pure functions'}}],
         },
-        // pureServerFn with dynamic import
+        // serverMapFrom mapper with dynamic import
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: string) => import(x));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: string) => import(x));
             `,
             errors: [{messageId: 'purityDynamicImport', data: {fnType: 'pure functions'}}],
         },
-        // pureServerFn with eval
+        // serverMapFrom mapper with eval
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: string) => eval(x));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (x: string) => eval(x));
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
         },
-        // pureServerFn with fetch
+        // serverMapFrom mapper with fetch
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((url: string) => fetch(url));
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', (url: string) => fetch(url));
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'pure functions'}}],
         },
-        // pureServerFn with setTimeout
+        // serverMapFrom mapper with setTimeout
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(() => { setTimeout(() => {}, 100); });
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', () => { setTimeout(() => {}, 100); });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'setTimeout', fnType: 'pure functions'}}],
         },
-        // pureServerFn with closure variable
+        // serverMapFrom mapper with closure variable
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 const SECRET = 'key';
-                pureServerFn((x: string) => x + SECRET);
+                serverMapFrom('sourceRoute', (x: string) => x + SECRET);
             `,
             errors: [{messageId: 'purityClosureVariable', data: {name: 'SECRET', fnType: 'pure functions'}}],
         },
-        // pureServerFn with process
+        // serverMapFrom mapper with process
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(() => process.env.KEY);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', () => process.env.KEY);
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'process', fnType: 'pure functions'}}],
         },
-        // pureServerFn with window
+        // serverMapFrom mapper with window
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(() => window.location.href);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', () => window.location.href);
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'window', fnType: 'pure functions'}}],
         },
-        // Object form with purity violation
+        // registerMionPureFn factory with eval (forbidden even for factories)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn({ pureFn: (x: string) => eval(x) });
-            `,
-            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
-        },
-        // Object form with isFactory: false and closure — should report
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
-                const outer = 42;
-                pureServerFn({
-                    pureFn: () => outer,
-                    isFactory: false,
-                });
-            `,
-            errors: [{messageId: 'purityClosureVariable', data: {name: 'outer', fnType: 'pure functions'}}],
-        },
-        // registerPureFnFactory with eval (forbidden even for factories)
-        {
-            code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'fn', function() {
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('fn', function() {
                     return function inner(x: string) { return eval(x); };
                 });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'factory functions'}}],
         },
-        // registerPureFnFactory with Function constructor (forbidden for factories)
+        // registerMionPureFn factory with Function constructor (forbidden for factories)
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'fn', function() {
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('fn', function() {
                     return new Function('return 1');
                 });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'Function', fnType: 'factory functions'}}],
         },
-        // registerPureFnFactory with fetch (forbidden for factories)
+        // registerMionPureFn factory with fetch (forbidden for factories)
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'fn', function() {
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('fn', function() {
                     return function inner() { return fetch('/api'); };
                 });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'factory functions'}}],
         },
-        // registerPureFnFactory with this (forbidden for factories)
+        // registerMionPureFn factory with this (forbidden for factories)
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'fn', function() {
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('fn', function() {
                     return this.value;
                 });
             `,
             errors: [{messageId: 'purityThis', data: {fnType: 'factory functions'}}],
         },
-        // Factory function with closure variable (isFactory: true)
+        // registerMionPureFn factory with closure variable used in the factory body
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 const outer = 42;
-                pureServerFn({
-                    pureFn: function factory() { return outer; },
-                    isFactory: true,
-                });
+                registerMionPureFn('factory', function factory() { return outer; });
             `,
             errors: [{messageId: 'purityClosureVariable', data: {name: 'outer', fnType: 'factory functions'}}],
         },
-        // Factory function with setTimeout (forbidden for factories)
+        // registerMionPureFn factory referencing setTimeout (forbidden for factories)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn({
-                    pureFn: function factory() { return setTimeout; },
-                    isFactory: true,
-                });
+                import { registerMionPureFn } from '@mionjs/run-types';
+                registerMionPureFn('factory', function factory() { return setTimeout; });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'setTimeout', fnType: 'factory functions'}}],
         },
-        // registerPureFnFactory with closure variable
+        // registerMionPureFn factory with closure variable used in the inner fn
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 const MAX = 100;
-                registerPureFnFactory('ns', 'fn', function() {
+                registerMionPureFn('fn', function() {
                     return function inner(x: number) { return x + MAX; };
                 });
             `,
@@ -448,8 +394,8 @@ ruleTester.run('pure-functions', rule, {
         // Multiple violations reported
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn(function() {
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom('sourceRoute', function() {
                     eval('code');
                     return fetch('/api');
                 });
@@ -462,117 +408,85 @@ ruleTester.run('pure-functions', rule, {
         // Aliased import still catches violations
         {
             code: `
-                import { pureServerFn as psf } from '@mionjs/core';
-                psf(() => eval('x'));
+                import { serverMapFrom as smf } from '@mionjs/client';
+                smf('sourceRoute', () => eval('x'));
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
         },
-        // Variable reference: function with violation
+        // Variable reference: mapper with violation
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 const SECRET = 'key';
                 const myFn = (x: string) => x + SECRET;
-                pureServerFn(myFn);
+                serverMapFrom('sourceRoute', myFn);
             `,
             errors: [{messageId: 'purityClosureVariable', data: {name: 'SECRET', fnType: 'pure functions'}}],
         },
-        // Variable reference: object literal with violation
+        // Variable reference: factory fn with violation via registerMionPureFn
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                const myDef = {
-                    pureFn: () => eval('x'),
-                };
-                pureServerFn(myDef);
-            `,
-            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'pure functions'}}],
-        },
-        // Variable reference: factory fn with violation via registerPureFnFactory
-        {
-            code: `
-                import { registerPureFnFactory } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 const myFactory = function() { return eval('x'); };
-                registerPureFnFactory('ns', 'fn', myFactory);
+                registerMionPureFn('fn', myFactory);
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'eval', fnType: 'factory functions'}}],
         },
-        // Variable reference: pureFn property is variable with violation
+        // serverMapFrom with imported named mapper
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                const myFn = () => fetch('/api');
-                const myDef = {
-                    pureFn: myFn,
-                };
-                pureServerFn(myDef);
-            `,
-            errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'fetch', fnType: 'pure functions'}}],
-        },
-        // pureServerFn with imported named function
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 import { myFn } from './myModule';
-                pureServerFn(myFn);
+                serverMapFrom('sourceRoute', myFn);
             `,
-            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+            errors: [{messageId: 'importedArgument', data: {callee: 'serverMapFrom', name: 'myFn'}}],
         },
-        // pureServerFn with imported function in object form
+        // registerMionPureFn with imported factory
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                import { myFn } from './myModule';
-                pureServerFn({ pureFn: myFn });
-            `,
-            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
-        },
-        // registerPureFnFactory with imported function
-        {
-            code: `
-                import { registerPureFnFactory } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 import { myFactory } from './myModule';
-                registerPureFnFactory('ns', 'fn', myFactory);
+                registerMionPureFn('fn', myFactory);
             `,
-            errors: [{messageId: 'importedArgument', data: {callee: 'registerPureFnFactory', name: 'myFactory'}}],
+            errors: [{messageId: 'importedArgument', data: {callee: 'registerMionPureFn', name: 'myFactory'}}],
         },
-        // pureServerFn with default import
+        // serverMapFrom with default-imported mapper
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 import myFn from './myModule';
-                pureServerFn(myFn);
+                serverMapFrom('sourceRoute', myFn);
             `,
-            errors: [{messageId: 'importedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+            errors: [{messageId: 'importedArgument', data: {callee: 'serverMapFrom', name: 'myFn'}}],
         },
-        // pureServerFn with function parameter (dynamic value)
+        // serverMapFrom with function parameter (dynamic value)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 function wrap(fn: any) {
-                    pureServerFn(fn);
+                    serverMapFrom('sourceRoute', fn);
                 }
             `,
-            errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'fn'}}],
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'serverMapFrom', name: 'fn'}}],
         },
-        // registerPureFnFactory with function parameter
+        // registerMionPureFn with function parameter
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
+                import { registerMionPureFn } from '@mionjs/run-types';
                 function wrap(factory: any) {
-                    registerPureFnFactory('ns', 'fn', factory);
+                    registerMionPureFn('fn', factory);
                 }
             `,
-            errors: [{messageId: 'unresolvedArgument', data: {callee: 'registerPureFnFactory', name: 'factory'}}],
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'registerMionPureFn', name: 'factory'}}],
         },
-        // pureServerFn with variable initialized from function call (not resolvable to function)
+        // serverMapFrom with variable initialized from a function call (not resolvable to a function)
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
+                import { serverMapFrom } from '@mionjs/client';
                 const myFn = createFn();
-                pureServerFn(myFn);
+                serverMapFrom('sourceRoute', myFn);
             `,
-            errors: [{messageId: 'unresolvedArgument', data: {callee: 'pureServerFn', name: 'myFn'}}],
+            errors: [{messageId: 'unresolvedArgument', data: {callee: 'serverMapFrom', name: 'myFn'}}],
         },
         // serverMapFrom() with closure variable in mapper
         {
@@ -632,7 +546,7 @@ ruleTester.run('pure-functions', rule, {
             `,
             errors: [{messageId: 'unresolvedArgument', data: {callee: 'serverMapFrom', name: 'mapper'}}],
         },
-        // serverMapFrom() with variable reference mapper that has violation
+        // serverMapFrom() with variable reference mapper that has a violation
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';

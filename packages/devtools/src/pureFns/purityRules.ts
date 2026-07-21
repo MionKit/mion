@@ -70,7 +70,7 @@ export const FORBIDDEN_IDENTIFIERS = new Set([
 ]);
 
 /** The target function names that purity validation applies to */
-export const PURE_FN_CALL_NAMES = ['pureServerFn', 'registerPureFnFactory', 'serverMapFrom'] as const;
+export const PURE_FN_CALL_NAMES = ['serverMapFrom', 'registerMionPureFn'] as const;
 
 /** The packages that export the target pure function APIs */
-export const PURE_FN_SOURCE_PACKAGES = ['@mionjs/core', '@mionjs/client'] as const;
+export const PURE_FN_SOURCE_PACKAGES = ['@mionjs/client', '@mionjs/run-types'] as const;
