@@ -18,13 +18,13 @@ type MessageIds =
     | 'importedArgument'
     | 'unresolvedArgument';
 
-/** Cache of pure function imports from @mionjs/core and @mionjs/client */
+/** Cache of pure function imports from @mionjs/client and @mionjs/run-types */
 interface PureFnImports {
-    /** Maps local name -> imported name for pureServerFn/registerPureFnFactory/serverMapFrom */
+    /** Maps local name -> imported name for serverMapFrom/registerMionPureFn */
     pureFnNames: Map<string, string>;
 }
 
-/** Builds a cache of pure function imports from @mionjs/core and @mionjs/client */
+/** Builds a cache of pure function imports from @mionjs/client and @mionjs/run-types */
 function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
     const pureFnNames = new Map<string, string>();
 
@@ -36,11 +36,7 @@ function buildPureFnImportCache(program: TSESTree.Program): PureFnImports {
         for (const specifier of statement.specifiers) {
             if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier) {
                 const importedName = specifier.imported.name;
-                if (
-                    importedName === 'pureServerFn' ||
-                    importedName === 'registerPureFnFactory' ||
-                    importedName === 'serverMapFrom'
-                ) {
+                if (importedName === 'serverMapFrom' || importedName === 'registerMionPureFn') {
                     pureFnNames.set(specifier.local.name, importedName);
                 }
             }
@@ -292,47 +288,9 @@ function isImportedIdentifier(name: string, program: TSESTree.Program): boolean 
 }
 
 /** Finds the unresolved identifier in a pure function argument */
-function findUnresolvedIdentifier(arg: TSESTree.Node, program: TSESTree.Program): {name: string; node: TSESTree.Node} | null {
-    // Direct identifier: pureServerFn(myFn) or registerPureFnFactory('ns', 'id', myFn)
-    if (arg.type === AST_NODE_TYPES.Identifier) {
-        const resolved = resolveVariableInitializer(arg.name, program);
-        if (!resolved) return {name: arg.name, node: arg};
-
-        // Resolved to something but extraction still returned null — check object form
-        if (resolved.type === AST_NODE_TYPES.ObjectExpression) {
-            return findUnresolvedPureFnInObject(resolved, program);
-        }
-
-        // Resolved to something unexpected (call expression, etc.)
-        return {name: arg.name, node: arg};
-    }
-
-    // Inline object: pureServerFn({ pureFn: importedFn })
-    if (arg.type === AST_NODE_TYPES.ObjectExpression) {
-        return findUnresolvedPureFnInObject(arg, program);
-    }
-
-    return null;
-}
-
-/** Finds unresolved pureFn identifier inside an object expression */
-function findUnresolvedPureFnInObject(
-    obj: TSESTree.ObjectExpression,
-    program: TSESTree.Program
-): {name: string; node: TSESTree.Node} | null {
-    for (const prop of obj.properties) {
-        if (prop.type !== AST_NODE_TYPES.Property) continue;
-        if (prop.key.type !== AST_NODE_TYPES.Identifier || prop.key.name !== 'pureFn') continue;
-        if (prop.value.type === AST_NODE_TYPES.Identifier) {
-            const resolved = resolveToExpression(prop.value, program);
-            if (
-                !resolved ||
-                (resolved.type !== AST_NODE_TYPES.FunctionExpression && resolved.type !== AST_NODE_TYPES.ArrowFunctionExpression)
-            ) {
-                return {name: (prop.value as TSESTree.Identifier).name, node: prop.value};
-            }
-        }
-    }
+function findUnresolvedIdentifier(arg: TSESTree.Node): {name: string; node: TSESTree.Node} | null {
+    // Direct identifier: serverMapFrom(source, myFn) or registerMionPureFn('name', myFn)
+    if (arg.type === AST_NODE_TYPES.Identifier) return {name: arg.name, node: arg};
     return null;
 }
 
@@ -343,11 +301,11 @@ function reportUnresolvedArgument(
     program: TSESTree.Program,
     context: TSESLint.RuleContext<MessageIds, []>
 ): void {
-    const argIndex = callee === 'registerPureFnFactory' ? 2 : callee === 'serverMapFrom' ? 1 : 0;
+    const argIndex = 1;
     const arg = node.arguments[argIndex];
     if (!arg) return;
 
-    const identifierToCheck = findUnresolvedIdentifier(arg, program);
+    const identifierToCheck = findUnresolvedIdentifier(arg);
     if (!identifierToCheck) return;
 
     const name = identifierToCheck.name;
@@ -360,72 +318,13 @@ function reportUnresolvedArgument(
     }
 }
 
-/** Extracts function + isFactory from an object expression (PureFnDef) */
-function extractFromObjectExpression(
-    obj: TSESTree.ObjectExpression,
-    program: TSESTree.Program
-): {fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression; isFactory: boolean} | null {
-    let fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression | null = null;
-    let isFactory = false;
-
-    for (const prop of obj.properties) {
-        if (prop.type !== AST_NODE_TYPES.Property) continue;
-        if (prop.key.type !== AST_NODE_TYPES.Identifier) continue;
-
-        if (prop.key.name === 'pureFn') {
-            // pureFn value could be inline or a variable reference
-            const resolved = resolveToExpression(prop.value, program);
-            if (
-                resolved &&
-                (resolved.type === AST_NODE_TYPES.FunctionExpression || resolved.type === AST_NODE_TYPES.ArrowFunctionExpression)
-            ) {
-                fnNode = resolved;
-            }
-        }
-
-        if (prop.key.name === 'isFactory') {
-            if (prop.value.type === AST_NODE_TYPES.Literal && prop.value.value === true) {
-                isFactory = true;
-            }
-        }
-    }
-
-    if (fnNode) return {fnNode, isFactory};
-    return null;
-}
-
-/** Extracts the function node and isFactory flag from a pureServerFn() call */
-function extractPureServerFnTarget(
-    node: TSESTree.CallExpression,
-    program: TSESTree.Program
-): {fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression; isFactory: boolean} | null {
-    const arg = node.arguments[0];
-    if (!arg) return null;
-
-    // Resolve variable reference if needed
-    const resolved = resolveToExpression(arg, program);
-    if (!resolved) return null;
-
-    // Direct function: pureServerFn(function() {}) or pureServerFn(() => {})
-    if (resolved.type === AST_NODE_TYPES.FunctionExpression || resolved.type === AST_NODE_TYPES.ArrowFunctionExpression) {
-        return {fnNode: resolved, isFactory: false};
-    }
-
-    // Object form: pureServerFn({ pureFn: fn, isFactory: bool })
-    if (resolved.type === AST_NODE_TYPES.ObjectExpression) {
-        return extractFromObjectExpression(resolved, program);
-    }
-
-    return null;
-}
-
-/** Extracts the factory function from a registerPureFnFactory() call */
-function extractFactoryFnTarget(
+/** Extracts the factory function from a registerMionPureFn() call */
+function extractRegisterMionPureFnTarget(
     node: TSESTree.CallExpression,
     program: TSESTree.Program
 ): {fnNode: TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression; isFactory: true} | null {
-    // registerPureFnFactory(namespace, functionID, factoryFn)
-    const fnArg = node.arguments[2];
+    // registerMionPureFn(name, factory) - factory is the 2nd argument
+    const fnArg = node.arguments[1];
     if (!fnArg) return null;
 
     // Resolve variable reference if needed
@@ -463,7 +362,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
         type: 'problem',
         docs: {
             description:
-                'Validate that functions passed to pureServerFn(), registerPureFnFactory(), and serverMapFrom() are pure and do not use forbidden identifiers, closures, or side effects.',
+                'Validate that functions passed to serverMapFrom() and registerMionPureFn() are pure and do not use forbidden identifiers, closures, or side effects.',
         },
         messages: {
             purityThis: "'this' is not allowed in {{fnType}}",
@@ -503,10 +402,8 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                     isFactory: boolean;
                 } | null = null;
 
-                if (importedName === 'pureServerFn') {
-                    target = extractPureServerFnTarget(node, programNode);
-                } else if (importedName === 'registerPureFnFactory') {
-                    target = extractFactoryFnTarget(node, programNode);
+                if (importedName === 'registerMionPureFn') {
+                    target = extractRegisterMionPureFnTarget(node, programNode);
                 } else if (importedName === 'serverMapFrom') {
                     target = extractMapFromMapperTarget(node, programNode);
                 }

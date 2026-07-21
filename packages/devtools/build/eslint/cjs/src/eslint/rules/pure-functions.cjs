@@ -10,7 +10,7 @@ function buildPureFnImportCache(program) {
     for (const specifier of statement.specifiers) {
       if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier) {
         const importedName = specifier.imported.name;
-        if (importedName === "pureServerFn" || importedName === "registerPureFnFactory" || importedName === "serverMapFrom") {
+        if (importedName === "serverMapFrom" || importedName === "registerMionPureFn") {
           pureFnNames.set(specifier.local.name, importedName);
         }
       }
@@ -196,38 +196,15 @@ function isImportedIdentifier(name, program) {
   }
   return false;
 }
-function findUnresolvedIdentifier(arg, program) {
-  if (arg.type === utils.AST_NODE_TYPES.Identifier) {
-    const resolved = resolveVariableInitializer(arg.name, program);
-    if (!resolved) return { name: arg.name, node: arg };
-    if (resolved.type === utils.AST_NODE_TYPES.ObjectExpression) {
-      return findUnresolvedPureFnInObject(resolved, program);
-    }
-    return { name: arg.name, node: arg };
-  }
-  if (arg.type === utils.AST_NODE_TYPES.ObjectExpression) {
-    return findUnresolvedPureFnInObject(arg, program);
-  }
-  return null;
-}
-function findUnresolvedPureFnInObject(obj, program) {
-  for (const prop of obj.properties) {
-    if (prop.type !== utils.AST_NODE_TYPES.Property) continue;
-    if (prop.key.type !== utils.AST_NODE_TYPES.Identifier || prop.key.name !== "pureFn") continue;
-    if (prop.value.type === utils.AST_NODE_TYPES.Identifier) {
-      const resolved = resolveToExpression(prop.value, program);
-      if (!resolved || resolved.type !== utils.AST_NODE_TYPES.FunctionExpression && resolved.type !== utils.AST_NODE_TYPES.ArrowFunctionExpression) {
-        return { name: prop.value.name, node: prop.value };
-      }
-    }
-  }
+function findUnresolvedIdentifier(arg) {
+  if (arg.type === utils.AST_NODE_TYPES.Identifier) return { name: arg.name, node: arg };
   return null;
 }
 function reportUnresolvedArgument(node, callee, program, context) {
-  const argIndex = callee === "registerPureFnFactory" ? 2 : callee === "serverMapFrom" ? 1 : 0;
+  const argIndex = 1;
   const arg = node.arguments[argIndex];
   if (!arg) return;
-  const identifierToCheck = findUnresolvedIdentifier(arg, program);
+  const identifierToCheck = findUnresolvedIdentifier(arg);
   if (!identifierToCheck) return;
   const name = identifierToCheck.name;
   const reportNode = identifierToCheck.node;
@@ -237,42 +214,8 @@ function reportUnresolvedArgument(node, callee, program, context) {
     context.report({ node: reportNode, messageId: "unresolvedArgument", data: { callee, name } });
   }
 }
-function extractFromObjectExpression(obj, program) {
-  let fnNode = null;
-  let isFactory = false;
-  for (const prop of obj.properties) {
-    if (prop.type !== utils.AST_NODE_TYPES.Property) continue;
-    if (prop.key.type !== utils.AST_NODE_TYPES.Identifier) continue;
-    if (prop.key.name === "pureFn") {
-      const resolved = resolveToExpression(prop.value, program);
-      if (resolved && (resolved.type === utils.AST_NODE_TYPES.FunctionExpression || resolved.type === utils.AST_NODE_TYPES.ArrowFunctionExpression)) {
-        fnNode = resolved;
-      }
-    }
-    if (prop.key.name === "isFactory") {
-      if (prop.value.type === utils.AST_NODE_TYPES.Literal && prop.value.value === true) {
-        isFactory = true;
-      }
-    }
-  }
-  if (fnNode) return { fnNode, isFactory };
-  return null;
-}
-function extractPureServerFnTarget(node, program) {
-  const arg = node.arguments[0];
-  if (!arg) return null;
-  const resolved = resolveToExpression(arg, program);
-  if (!resolved) return null;
-  if (resolved.type === utils.AST_NODE_TYPES.FunctionExpression || resolved.type === utils.AST_NODE_TYPES.ArrowFunctionExpression) {
-    return { fnNode: resolved, isFactory: false };
-  }
-  if (resolved.type === utils.AST_NODE_TYPES.ObjectExpression) {
-    return extractFromObjectExpression(resolved, program);
-  }
-  return null;
-}
-function extractFactoryFnTarget(node, program) {
-  const fnArg = node.arguments[2];
+function extractRegisterMionPureFnTarget(node, program) {
+  const fnArg = node.arguments[1];
   if (!fnArg) return null;
   const resolved = resolveToExpression(fnArg, program);
   if (!resolved) return null;
@@ -295,7 +238,7 @@ const rule = {
   meta: {
     type: "problem",
     docs: {
-      description: "Validate that functions passed to pureServerFn(), registerPureFnFactory(), and serverMapFrom() are pure and do not use forbidden identifiers, closures, or side effects."
+      description: "Validate that functions passed to serverMapFrom() and registerMionPureFn() are pure and do not use forbidden identifiers, closures, or side effects."
     },
     messages: {
       purityThis: "'this' is not allowed in {{fnType}}",
@@ -324,10 +267,8 @@ const rule = {
         const importedName = importCache.pureFnNames.get(node.callee.name);
         if (!importedName) return;
         let target = null;
-        if (importedName === "pureServerFn") {
-          target = extractPureServerFnTarget(node, programNode);
-        } else if (importedName === "registerPureFnFactory") {
-          target = extractFactoryFnTarget(node, programNode);
+        if (importedName === "registerMionPureFn") {
+          target = extractRegisterMionPureFnTarget(node, programNode);
         } else if (importedName === "serverMapFrom") {
           target = extractMapFromMapperTarget(node, programNode);
         }

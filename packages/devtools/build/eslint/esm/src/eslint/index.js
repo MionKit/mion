@@ -1,4 +1,3 @@
-import "./rules/no-typeof-runtype.js";
 import "./rules/strong-typed-routes.js";
 import "./rules/no-unreachable-union-types.js";
 import "./rules/no-mixed-union-properties.js";

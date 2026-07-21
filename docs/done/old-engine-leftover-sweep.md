@@ -1,8 +1,9 @@
 # Old-engine leftover sweep — AOT / MION_COMPILE / deepkit / pure-fn / type-format residues
 
-**Status:** partially done — R35 of [migration-review-findings.md](../done/migration-review-findings.md).
-Self-contained buckets shipped in PR3; the `MION_COMPILE`/`isMionCompileMode` (platform-bun-coupled)
-bucket shipped in PR #126. Only the eslint-pure-fn cleanup + the plugin-option sunset remain (see below).
+**Status:** done — R35 of [migration-review-findings.md](migration-review-findings.md). Shipped across
+PR3 (self-contained buckets), PR #126 (`MION_COMPILE`/`isMionCompileMode`), and the eslint-cleanup PR
+(dead eslint surface). The one intentional deferral — the plugin-option deprecation sunset — is tracked
+separately in [plugin-legacy-option-sunset.md](../todos/plugin-legacy-option-sunset.md).
 **Created:** 2026-07-20
 
 ## Shipped in PR3
@@ -40,17 +41,18 @@ Full suite green after the sweep (core/run-types/type-formats/devtools/router/cl
   restored ([vite-plugin-ssr-middleware-mode.md](../todos/vite-plugin-ssr-middleware-mode.md)) it
   needs its own in-process path (call the platform `httpRequestHandler` directly, not `startNodeServer`).
 
-## Remaining (deferred)
+## Shipped in the eslint-cleanup PR (unblocked once PR #125 merged)
 
-1. **Old eslint surface migration** (UNBLOCKED — the coupling that deferred it, the examples fixture
-   `introduction/eslint-pure-functions.routes.ts` + website `5.devtools/2.eslint-rules.md`, shipped in
-   PR #125; do it in a follow-up):
-   - Pure-fn: `purityRules.ts` dead entries (`pureServerFn`, `registerPureFnFactory`), the dead
-     branches of the `pure-functions` + `no-vite-client` rules (keep only the `serverMapFrom` branch),
-     and their specs.
-   - `no-typeof-runtype` **still keys on the removed `runType` name** (`no-typeof-runtype.spec.ts`
-     fixtures use `runType<User>()`), so the rule is now a **no-op against the real API** — it no
-     longer guards `createValidate<typeof x>()`/the other `create*` factories the docs (PR #125) now
-     teach. Migrate the rule + specs to the current factory surface.
-2. **Sunset plan** for the accepted-and-ignored `aotCaches`/`serverPureFunctions` plugin options
-   (`mionVitePlugin.ts`) — keep the warn-and-ignore shim for one release, then remove.
+- **Deleted the `no-typeof-runtype` rule entirely** (rule + spec + registration + recommended-config
+  entry) plus the docs that presented `typeof` as an anti-pattern (`5.devtools/2.eslint-rules.md`,
+  `4.run-types/4.caveats.md`). The `typeof` restriction was a deepkit reflection limitation; ts-runtypes
+  resolves `typeof x` at build time, so the rule guarded a non-issue.
+- **Migrated the pure-fn eslint surface off the removed `pureServerFn`/`registerPureFnFactory`.**
+  `purityRules.ts`, the `pure-functions` rule and the `no-vite-client` rule now key on the live APIs:
+  `pure-functions` validates purity of `serverMapFrom` mappers AND `registerMionPureFn` factories;
+  `no-vite-client` keeps only the `serverMapFrom` by-name contract. Specs rewritten; devtools suite
+  green (224 tests), `build/` rebuilt.
+
+The one deliberately deferred item — the accepted-and-ignored `aotCaches`/`serverPureFunctions`
+plugin-option sunset (a deprecation window, not dead code) — moved to its own spec:
+[plugin-legacy-option-sunset.md](../todos/plugin-legacy-option-sunset.md).

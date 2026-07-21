@@ -1,5 +1,4 @@
 "use strict";
-const src_eslint_rules_noTypeofRuntype = require("./src/eslint/rules/no-typeof-runtype.cjs");
 const src_eslint_rules_strongTypedRoutes = require("./src/eslint/rules/strong-typed-routes.cjs");
 const src_eslint_rules_noUnreachableUnionTypes = require("./src/eslint/rules/no-unreachable-union-types.cjs");
 const src_eslint_rules_noMixedUnionProperties = require("./src/eslint/rules/no-mixed-union-properties.cjs");
@@ -10,7 +9,6 @@ const src_eslint_rules_typeFormatsImports = require("./src/eslint/rules/type-for
 const src_eslint_rules_enforceTypeImports = require("./src/eslint/rules/enforce-type-imports.cjs");
 const plugin = {
   rules: {
-    "no-typeof-runtype": src_eslint_rules_noTypeofRuntype,
     "strong-typed-routes": src_eslint_rules_strongTypedRoutes,
     "no-unreachable-union-types": src_eslint_rules_noUnreachableUnionTypes,
     "no-mixed-union-properties": src_eslint_rules_noMixedUnionProperties,
@@ -27,7 +25,6 @@ plugin.configs.recommended = {
     "@mionjs": plugin
   },
   rules: {
-    "@mionjs/no-typeof-runtype": "error",
     "@mionjs/strong-typed-routes": "error",
     "@mionjs/no-unreachable-union-types": "error",
     "@mionjs/no-type-imports": "error",

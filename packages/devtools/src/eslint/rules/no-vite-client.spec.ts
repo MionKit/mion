@@ -12,59 +12,30 @@ const ruleTester = new RuleTester();
 
 ruleTester.run('no-vite-client', rule, {
     valid: [
-        // pureServerFn with name
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => x + 1, 'addOne');
-            `,
-        },
-        // serverMapFrom name lane: the 2nd arg references a server-registered pure fn
+        // serverMapFrom name lane: the 2nd arg references a server-registered pure fn by name
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
                 serverMapFrom(sub, 'extractId');
             `,
         },
-        // pureServerFn with PureFnDef object + name
+        // Aliased serverMapFrom import with a string-literal name
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn({ pureFn: (x: number) => x + 1 }, 'addOne');
+                import { serverMapFrom as smf } from '@mionjs/client';
+                smf(sub, 'extractId');
             `,
         },
-        // Not imported from mion packages - should be ignored
+        // serverMapFrom not imported from a mion package - should be ignored
         {
             code: `
-                import { pureServerFn } from 'other-package';
-                pureServerFn((x: number) => x + 1);
-            `,
-        },
-        // registerPureFnFactory from non-mion package - should be ignored
-        {
-            code: `
-                import { registerPureFnFactory } from 'other-package';
-                registerPureFnFactory('ns', 'id', (jitUtils: any) => (v: any) => v);
-            `,
-        },
-        // Aliased import with name provided
-        {
-            code: `
-                import { pureServerFn as psf } from '@mionjs/core';
-                psf((x: number) => x + 1, 'addOne');
+                import { serverMapFrom } from 'other-package';
+                serverMapFrom(sub, (x: any) => x.id);
             `,
         },
     ],
     invalid: [
-        // pureServerFn without name
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => x + 1);
-            `,
-            errors: [{messageId: 'missingPureFnName'}],
-        },
-        // serverMapFrom with an INLINE mapper — needs the vite build-time transport
+        // serverMapFrom with an INLINE arrow mapper — needs the vite build-time transport
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
@@ -72,16 +43,23 @@ ruleTester.run('no-vite-client', rule, {
             `,
             errors: [{messageId: 'missingMapFromName'}],
         },
-        // pureServerFn with non-string-literal name
+        // serverMapFrom with an INLINE function-expression mapper
         {
             code: `
-                import { pureServerFn } from '@mionjs/core';
-                const name = 'addOne';
-                pureServerFn((x: number) => x + 1, name);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom(sub, function(x: any) { return x.id; });
             `,
-            errors: [{messageId: 'nameNotStringLiteral'}],
+            errors: [{messageId: 'missingMapFromName'}],
         },
-        // serverMapFrom with non-string-literal name
+        // serverMapFrom with a missing second argument
+        {
+            code: `
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom(sub);
+            `,
+            errors: [{messageId: 'missingMapFromName'}],
+        },
+        // serverMapFrom with a non-string-literal name (variable)
         {
             code: `
                 import { serverMapFrom } from '@mionjs/client';
@@ -90,37 +68,21 @@ ruleTester.run('no-vite-client', rule, {
             `,
             errors: [{messageId: 'nameNotStringLiteral'}],
         },
-        // Aliased import without name
+        // serverMapFrom with a numeric literal (not a string)
         {
             code: `
-                import { pureServerFn as psf } from '@mionjs/core';
-                psf((x: number) => x + 1);
-            `,
-            errors: [{messageId: 'missingPureFnName'}],
-        },
-        // pureServerFn with numeric literal (not string)
-        {
-            code: `
-                import { pureServerFn } from '@mionjs/core';
-                pureServerFn((x: number) => x + 1, 42);
+                import { serverMapFrom } from '@mionjs/client';
+                serverMapFrom(sub, 42);
             `,
             errors: [{messageId: 'nameNotStringLiteral'}],
         },
-        // registerPureFnFactory from @mionjs/core is not allowed
+        // Aliased serverMapFrom import with an inline mapper
         {
             code: `
-                import { registerPureFnFactory } from '@mionjs/core';
-                registerPureFnFactory('ns', 'id', (jitUtils: any) => (v: any) => v);
+                import { serverMapFrom as smf } from '@mionjs/client';
+                smf(sub, (x: any) => x.id);
             `,
-            errors: [{messageId: 'registerPureFnFactoryNotAllowed'}],
-        },
-        // registerPureFnFactory aliased is also not allowed
-        {
-            code: `
-                import { registerPureFnFactory as rpf } from '@mionjs/core';
-                rpf('ns', 'id', (jitUtils: any) => (v: any) => v);
-            `,
-            errors: [{messageId: 'registerPureFnFactoryNotAllowed'}],
+            errors: [{messageId: 'missingMapFromName'}],
         },
     ],
 });
