@@ -1,8 +1,37 @@
 # Adopt @ts-runtypes/devtools/eslint and reconcile overlapping mion lint rules
 
-**Status:** todo — deferred from the proxy-removal wave (Phase 5). Not safe to wire inline
-without triage (would surface new resolver diagnostics over all mion source).
+**Status:** partially done — the plugin is WIRED IN and green; residual doc/fixture/tuning items
+below are deferred to the examples/website refresh.
 **Created:** 2026-07-22
+
+## What shipped (PR #128)
+
+- `@ts-runtypes/devtools/eslint`'s `configs.recommended` (24 `runtypes/*` resolver-backed rules) is
+  added to `eslint.config.js`. Verified: full `pnpm run lint` = **0 errors** across all 13 projects
+  (only advisory warnings, mostly `runtypes/class-serializer` [CLS001] + pre-existing unused-vars).
+  The rules spawn the Go resolver at lint time (same binary the vite plugin already uses), so lint
+  now gives the marker/validate/json/binary/format diagnostics at lint time, not just at build.
+- Removed the stale `packages/run-types/microbenchs/**` ignore.
+- **Triage result: no mion rules dropped.** After comparison the adoption is ADDITIVE, not a swap:
+  mion's `pure-functions` rule covers the mion RUNTIME pure-fn lane (`registerMionPureFn`), which the
+  upstream marker-based `runtypes/pure-functions` rule does not scan; `strong-typed-routes`,
+  `no-vite-client`, `no-unreachable-union-types`, `no-mixed-union-properties`, `no-type-imports`,
+  `enforce-type-imports` are all mion-specific with no upstream equivalent. (The one genuinely
+  obsolete rule, `type-formats-imports`, was already removed in Phase 5.)
+
+## Deferred (rides examples/website refresh)
+
+- **Severity tuning** — recommended keeps several rules at `error` (invalid-marker,
+  validate/json/binary-non-serializable, format, non-enumerable, …). They are green on today's code;
+  revisit whether any should be `warn` for the first release, and quiet the duplicate `CLS001`
+  emission (each fires twice — cosmetic, likely an upstream double-report).
+- **`no-type-imports` / `enforce-type-imports` re-evaluation** — decide if these deepkit-era rules
+  are still needed under `@ts-runtypes` build-time resolution (an `import type` of a marker/format
+  type may be fine now). Left ON pending that call.
+- **Example fixtures** for the removed `type-formats-imports` rule
+  (`packages/examples/src/introduction/eslint-type-formats-imports-{valid,invalid}.routes.ts`,
+  `packages/router/examples/eslint-rule-test.routes.ts`) — delete/repoint in the refresh.
+- **Website `5.devtools/2.eslint-rules.md`** — document the combined rule set (mion + `runtypes/*`).
 
 ## Context
 
