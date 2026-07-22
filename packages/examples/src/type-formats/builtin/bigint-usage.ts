@@ -1,23 +1,15 @@
-import {
-    FormatBigInt,
-    FormatBigPositive,
-    FormatBigNegative,
-    FormatBigPositiveInt,
-    FormatBigNegativeInt,
-    FormatBigInt64,
-    FormatBigUInt64,
-} from '@mionjs/type-formats/BigintFormats';
+import {BigInt, BigPositive, BigNegative, BigPositiveInt, BigNegativeInt, BigInt64, BigUInt64} from '@ts-runtypes/core/formats';
 
 // Predefined bigint formats
-type AccountBalance = FormatBigPositive; // bigint >= 0n
-type DebtAmount = FormatBigNegative; // bigint <= 0n
-type ItemCount = FormatBigPositiveInt; // positive integer bigint
-type Adjustment = FormatBigNegativeInt; // negative integer bigint
-type DbBigInt = FormatBigInt64; // signed 64-bit, 8-byte binary
-type DbUBigInt = FormatBigUInt64; // unsigned 64-bit, 8-byte binary
+type AccountBalance = BigPositive; // bigint >= 0n
+type DebtAmount = BigNegative; // bigint <= 0n
+type ItemCount = BigPositiveInt; // positive integer bigint
+type Adjustment = BigNegativeInt; // negative integer bigint
+type DbBigInt = BigInt64; // signed 64-bit, 8-byte binary
+type DbUBigInt = BigUInt64; // unsigned 64-bit, 8-byte binary
 
 // Custom bigint format with all parameters
-type Score = FormatBigInt<{
+type Score = BigInt<{
     min: 0n;
     max: 1000000n;
     multipleOf: 10n;

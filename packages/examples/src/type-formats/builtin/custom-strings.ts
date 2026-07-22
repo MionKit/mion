@@ -1,8 +1,8 @@
-import {FormatString} from '@mionjs/type-formats/StringFormats';
-import {registerFormatPattern} from '@mionjs/run-types';
+import {String} from '@ts-runtypes/core/formats';
+import {registerFormatPattern} from '@ts-runtypes/core';
 
 // Username: 3-20 chars, lowercase, trimmed
-type Username = FormatString<{
+type Username = String<{
     minLength: 3;
     maxLength: 20;
     lowercase: true;
@@ -15,14 +15,14 @@ const slugPattern = registerFormatPattern({
     message: 'Slug can only contain lowercase letters, numbers, and hyphens',
     mockSamples: ['my-post', 'hello-world', 'article-123'],
 });
-type Slug = FormatString<{
+type Slug = String<{
     minLength: 1;
     maxLength: 100;
     pattern: typeof slugPattern;
 }>;
 
 // Name with capitalization transform
-type SafeName = FormatString<{
+type SafeName = String<{
     minLength: 1;
     maxLength: 50;
     capitalize: true;

@@ -1,1 +1,1 @@
-import {FormatEmail, FormatEmailStrict, FormatEmailPunycode} from '@mionjs/type-formats/StringFormats';
+import {Email, EmailStrict, EmailPunycode} from '@ts-runtypes/core/formats';

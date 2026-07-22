@@ -15,7 +15,7 @@ import {
     fromBase64Url,
     getOrCreateGlobal,
 } from '@mionjs/core';
-import {getServerMapper, hasServerMapper} from '@mionjs/run-types';
+import {getServerMapper, hasServerMapper} from '@mionjs/core';
 import {getRouteExecutionChain, getRouterOptions, startMiddleFns, endMiddleFns} from './router.ts';
 import {RouterOptions} from './types/general.ts';
 import {MethodsExecutionChain, RemoteMethod} from './types/remoteMethods.ts';

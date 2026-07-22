@@ -1,12 +1,12 @@
 import {toDrizzlePGTable} from '@mionjs/drizzle';
 import {uuid, text, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 // @annotate: Define Models using type-formats for validation and serialization functionality
 
 interface User {
-    id: FormatUUIDv7;
-    email: FormatEmail;
+    id: UUIDv7;
+    email: Email;
     name: string;
     bio?: string;
     age: number;

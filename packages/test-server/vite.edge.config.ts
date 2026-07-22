@@ -32,10 +32,6 @@ export default defineConfig({
             '@mionjs/core': resolve(__dirname, '../core'),
             '@mionjs/router': resolve(__dirname, '../router'),
             '@mionjs/platform-vercel': resolve(__dirname, '../platform-vercel'),
-            '@mionjs/type-formats': resolve(__dirname, '../type-formats'),
-            // Alias needed for the managed child process (dev: packages aren't built).
-            // During bundle build, the plugin stubs this before aliases are reached.
-            '@mionjs/run-types': resolve(__dirname, '../run-types'),
         },
     },
     build: {

@@ -6,6 +6,7 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
+import {getRTUtils, InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
 import {
     buildJitFnsFromMarker,
     getReflectionFromMarkers,
@@ -13,12 +14,10 @@ import {
     getParamCountFromRunType,
     reconcileParamNames,
     resolveInjectedRunType,
-    getRTUtils,
-    InjectRunTypeId,
-    InjectTypeFnArgs,
     RtMarkerPayload,
-} from '../index.ts';
-import {getJitFnHashes, getJitUtils} from '@mionjs/core';
+} from './mionAdapter.ts';
+import {getJitFnHashes} from '../routerUtils.ts';
+import {getJitUtils} from '../jit/jitUtils.ts';
 
 // A mion-route-like wrapper so the plugin injects real payloads for the tests.
 type AnyHandler = (ctx: any, ...params: any[]) => any;

@@ -1,1 +1,1 @@
-import {FormatUrl, FormatUrlHttp, FormatUrlFile} from '@mionjs/type-formats/StringFormats';
+import {Url, UrlHttp, UrlFile} from '@ts-runtypes/core/formats';

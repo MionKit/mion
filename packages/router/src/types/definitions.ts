@@ -6,7 +6,7 @@
  * ######## */
 
 import {Handler, HeaderHandler, RawMiddleFnHandler} from './handlers.ts';
-import type {RtMarkerPayload} from '@mionjs/run-types';
+import type {RtMarkerPayload} from '@mionjs/core';
 import {
     HeadersMiddleFnOptions,
     HeadersMethod,
