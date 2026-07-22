@@ -1,6 +1,10 @@
 # getFriendlyErrors nests field messages under the positional param index
 
-**Status:** todo — found while adding the R20 friendly-errors canary.
+**Status:** done (moot) — `getFriendlyErrors` was removed in the proxy-removal wave, so mion no
+longer nests messages under the param index at all. Rendering moved to `@ts-runtypes`'
+`createFriendlyText`, where an app author matches the map to the validated shape (author
+`FriendlyText<[Params]>` with `rt$slots`, or unwrap the single-object param). No mion-side fix
+needed; see `friendlyerrors-to-friendlytext-feasibility.md`.
 **Created:** 2026-07-21
 
 ## Problem
