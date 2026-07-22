@@ -26,17 +26,16 @@ Updating dependencies:
 - Uses **pnpm workspaces** for monorepo management (see `pnpm-workspace.yaml`)
 - Internal cross-package deps use the `workspace:*` protocol — pnpm rewrites it to the concrete `version` from each sibling's `package.json` on `pnpm pack`/`pnpm publish`
 - Each package is independent and can be worked on separately
+- The runtime **type system and formats now live in `@ts-runtypes/core` (+ `@ts-runtypes/core/formats`)**, consumed directly. The old `@mionjs/run-types` and `@mionjs/type-formats` proxy packages were removed; their mion-specific glue folded into `@mionjs/core`.
 - Packages located under `/packages/` directory:
-  - `run-types`: Core type system and JIT compilation
-  - `formats`: String/data format validation and serialization
+  - `core`: Shared framework foundation — `RpcError`/`TypedError`, `HeadersSubset`, router metadata + method types, binary body framing, the mion↔ts-runtypes reflection adapter + pure-fn registry (`src/runtypes/`, folded in from the removed run-types), and format-name/brand constants
   - `router`: HTTP routing and request handling
-  - `core`: Shared utilities and types
-  - `http`: HTTP server implementation
   - `client`: Client-side utilities
-  - `codegen`: AOT (Ahead-of-Time) code generation
-  - `platform-aws`, `platform-gcloud`, `platform-bun`, `platform-node`, `platform-vercel`: Platform-specific adapters
-  - `cli`: Command-line interface (not yet implemented)
-  - `devtools`: Vite plugin, ESLint plugin, and dev tooling for mion
+  - `devtools`: Vite plugin (wraps `@ts-runtypes/devtools`), ESLint plugin, and dev tooling for mion
+  - `drizze` (`@mionjs/drizzle`): drizzle-orm extension over the run-type graph
+  - `platform-aws`, `platform-bun`, `platform-cloudflare`, `platform-gcloud`, `platform-node`, `platform-vercel`: Platform-specific adapters (HTTP handling lives in these)
+  - `test-server`: private end-to-end test-fixture server
+  - `examples`: compile-checked usage examples
 - Run commands in specific package: `pnpm --filter @mionjs/<packageName> run <command>`
 - Or navigate to package directory and run commands locally
 - all devDependencies should be installed root level not in the packages
@@ -49,7 +48,7 @@ Updating dependencies:
 - Run a single test file from root: `pnpm exec vitest run <file-path-or-pattern>`
 - Run all tests in a specific project: `pnpm exec vitest run --project <name>` (e.g. `--project router`)
 - Run all tests across all packages: `pnpm run test`
-- Available project names: `core`, `run-types`, `type-formats`, `router`, `client`, `platform-aws`, `platform-gcloud`, `platform-node`, `platform-vercel`, `devtools`, `drizze`
+- Available project names: `core`, `router`, `client`, `platform-aws`, `platform-gcloud`, `platform-node`, `platform-vercel`, `platform-cloudflare`, `devtools`, `drizze`
 - `test-publish` package is excluded from the workspace (it tests built artifacts, run separately)
 - Never run `pnpm run build` during development (only for publishing)
 
