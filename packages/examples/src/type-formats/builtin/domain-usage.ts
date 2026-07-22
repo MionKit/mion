@@ -1,7 +1,7 @@
-import {FormatDomain, FormatDomainStrict} from '@mionjs/type-formats/StringFormats';
+import {Domain, DomainStrict} from '@ts-runtypes/core/formats';
 
-type QuickDomain = FormatDomain;
-type DetailedDomain = FormatDomainStrict;
+type QuickDomain = Domain;
+type DetailedDomain = DomainStrict;
 
 // Both validate the same cases
 ('example.com'); // ✓

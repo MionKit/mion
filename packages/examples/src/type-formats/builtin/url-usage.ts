@@ -1,22 +1,22 @@
-import {FormatUrl, FormatUrlHttp, FormatUrlFile} from '@mionjs/type-formats/StringFormats';
+import {Url, UrlHttp, UrlFile} from '@ts-runtypes/core/formats';
 
-type GeneralUrl = FormatUrl;
-type WebUrl = FormatUrlHttp;
-type FileUrl = FormatUrlFile;
+type GeneralUrl = Url;
+type WebUrl = UrlHttp;
+type FileUrl = UrlFile;
 
-// FormatUrl - accepts multiple protocols
+// Url - accepts multiple protocols
 ('http://example.com'); // ✓
 ('https://example.com'); // ✓
 ('ftp://example.com'); // ✓
 ('ws://example.com'); // ✓
 
-// FormatUrlHttp - HTTP/HTTPS only
+// UrlHttp - HTTP/HTTPS only
 ('http://example.com'); // ✓
 ('https://example.com'); // ✓
 ('ftp://example.com'); // ✗
 ('ws://example.com'); // ✗
 
-// FormatUrlFile - file protocol only
+// UrlFile - file protocol only
 ('file://hello.png'); // ✓
 ('file:///c:/lorem/ipsum.jpg'); // ✓
 ('http://example.com'); // ✗

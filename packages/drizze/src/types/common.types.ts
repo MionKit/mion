@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, RunTypeKindValue} from '@mionjs/run-types';
+import type {RunType, RunTypeKindValue} from '@ts-runtypes/core';
 import type {
     BrandEmail,
     BrandUUID,

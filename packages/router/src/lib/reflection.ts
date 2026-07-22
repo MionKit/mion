@@ -7,7 +7,7 @@
 
 import type {MethodWithJitFns} from '@mionjs/core';
 import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal} from '@mionjs/core';
-import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/run-types';
+import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';

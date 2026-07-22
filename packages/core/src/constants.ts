@@ -81,7 +81,7 @@ export const HandlerType = {
 /**
  * Per-function cache-key prefixes, DERIVED from @ts-runtypes' `getFnHash` (no hardcoding).
  * Each entry is the `<fnHash>` half of the ts-runtypes runtime cache key `<fnHash>_<typeId>`
- * (see @mionjs/run-types mionAdapter), keyed by mion's family name and mapped to the
+ * (see src/runtypes/mionAdapter), keyed by mion's family name and mapped to the
  * ts-runtypes fn key. Since @ts-runtypes 0.9.3 the fnHash salt no longer folds the binary
  * version, so these prefixes are STABLE across releases and `getFnHash` reads them from
  * ts-runtypes' Go-generated table (the single source of truth) — a version bump needs NO
@@ -103,3 +103,24 @@ export const JIT_FUNCTION_IDS = {
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
+
+/** Format name constants — the ts-runtypes format ids (TypeFormat 2nd type argument).
+ *  Relocated from the removed @mionjs/type-formats package; consumed by @mionjs/drizzle. */
+export const FormatNames = {
+    // String formats
+    stringFormat: 'stringFormat',
+    uuid: 'uuid',
+    email: 'email',
+    url: 'url',
+    domain: 'domain',
+    ip: 'ip',
+    date: 'date',
+    time: 'time',
+    dateTime: 'dateTime',
+    // Number formats
+    numberFormat: 'numberFormat',
+    // BigInt formats
+    bigintFormat: 'bigintFormat',
+} as const;
+
+export type FormatName = (typeof FormatNames)[keyof typeof FormatNames];

@@ -10,7 +10,7 @@ import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {HeadersSubset} from '@mionjs/core';
-import {MION_PURE_FN_NAMESPACE} from '@mionjs/run-types';
+import {MION_PURE_FN_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite

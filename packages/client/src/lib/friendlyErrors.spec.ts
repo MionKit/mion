@@ -10,7 +10,7 @@ import {initClient} from '../client.ts';
 import {getFriendlyErrors} from '@mionjs/core';
 import type {FriendlyErrors} from '@mionjs/core';
 import type {RouteParamsType} from '../types.ts';
-import {FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {Email} from '@ts-runtypes/core/formats';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {getStorage} from './storage.ts';
@@ -36,7 +36,7 @@ describe('friendlyErrors with client validation', () => {
             const invalidUser = {
                 name: 'A', // too short
                 age: 10, // too young
-                email: 'test@test.com' as FormatEmail,
+                email: 'test@test.com' as Email,
             };
 
             // Get validation errors using typeErrors (client-side validation)
@@ -92,7 +92,7 @@ describe('friendlyErrors with client validation', () => {
             expect(validationErrors.length).toBeGreaterThan(0);
         });
 
-        it('should get validation errors for email format (built-in FormatEmail)', async () => {
+        it('should get validation errors for email format (built-in Email)', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
             // Send invalid user with invalid email format
@@ -111,7 +111,7 @@ describe('friendlyErrors with client validation', () => {
             // Should contain an error for the email field with format info
             const emailError = validationErrors.find((e) => e.path.includes('email'));
             expect(emailError).toBeDefined();
-            // format.name should be 'email' for FormatEmail built-in format
+            // format.name should be 'email' for Email built-in format
             expect(emailError?.format?.name).toBe('email');
         });
 
@@ -120,7 +120,7 @@ describe('friendlyErrors with client validation', () => {
         // spec can't catch engine drift; this runs the real engine, so a shape change fails here.
         it('pins the raw engine error shape for the format matrix and maps it via getFriendlyErrors', async () => {
             const {routes} = initClient<MyApi>({baseURL});
-            const invalidUser = {name: 'A', age: 10, email: 'invalid-email' as FormatEmail};
+            const invalidUser = {name: 'A', age: 10, email: 'invalid-email' as Email};
             const errors = await routes.createUserWithFormats(invalidUser).typeErrors();
 
             const nameErr = errors.find((e) => e.path.includes('name'));

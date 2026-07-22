@@ -6,8 +6,8 @@
  * ######## */
 
 import {getRTFnCaches, getRTUtils} from '@ts-runtypes/core';
-import {getOrCreateGlobal} from '@mionjs/core';
 import type {PureFnId} from '@ts-runtypes/core';
+import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# mion pure functions — ts-runtypes registry, 'mionjs' namespace #############
 // mion pure functions live in the ts-runtypes runtime registry. Two lanes:

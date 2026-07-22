@@ -37,7 +37,7 @@ export default defineConfig({
                 preserveModules: true,
                 preserveModulesRoot: '.',
             },
-            external: ['@mionjs/core', '@mionjs/router', '@mionjs/platform-node', '@mionjs/type-formats', /^[^./]/],
+            external: ['@mionjs/core', '@mionjs/router', '@mionjs/platform-node', /^[^./]/],
         },
     },
 });

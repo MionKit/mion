@@ -1,4 +1,4 @@
-import {createValidate, createJsonEncoder, createBinaryEncoder, createMockData} from '@mionjs/run-types';
+import {createValidate, createJsonEncoder, createBinaryEncoder, createMockData} from '@ts-runtypes/core';
 interface User {
     id: string;
     name: string;

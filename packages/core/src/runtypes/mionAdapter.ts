@@ -15,7 +15,7 @@ import type {
     StringifyJsonFn,
     ValidateFn,
 } from '@ts-runtypes/core';
-import {getJitFnHashes, installJitLookupBackend} from '@mionjs/core';
+import {getJitFnHashes} from '../routerUtils.ts';
 import type {
     AnyFn,
     JitCompiledFn,
@@ -23,7 +23,8 @@ import type {
     JitCompiledFunctions,
     JitFunctionsHashes,
     PureFnsDataCache,
-} from '@mionjs/core';
+} from '../types/general.types.ts';
+import {getRtEntry, toJitCompiledFn, wrapRtEntry} from './rtResolver.ts';
 
 // ############# mion <-> ts-runtypes adapter #############
 // mion's route()/middleFn() factories declare trailing ts-runtypes injection markers;
@@ -76,84 +77,6 @@ const alwaysFalse = () => false;
 const noErrors: GetValidationErrorsFn = () => [];
 const noUnknownKeyErrors = () => [];
 const nativeStringify: StringifyJsonFn = (value: unknown) => JSON.stringify(value);
-
-/** ts-runtypes fn-cache entry shape consumed by the adapter (subset of CompiledTypeFn). */
-interface RtCacheEntry {
-    typeName: string;
-    familyTag?: string;
-    rtFnHash: string;
-    args: Record<string, string>;
-    defaultParamValues: Record<string, string>;
-    isNoop?: boolean;
-    code?: string;
-    rtDependencies?: string[];
-    pureFnDependencies?: string[];
-    createRTFn?: (utl: unknown) => AnyFn;
-    fn?: AnyFn;
-}
-
-/** Normalizes entry arg maps to mion's JitFnArgs contract (string values only). */
-function normalizeArgs(args: unknown): JitCompiledFn['args'] {
-    const out: Record<string, string> = {};
-    if (args && typeof args === 'object') {
-        for (const [key, value] of Object.entries(args)) if (typeof value === 'string') out[key] = value;
-    }
-    if (!('vλl' in out)) out.vλl = 'v';
-    return out as JitCompiledFn['args'];
-}
-
-/** Wraps a resolved ts-runtypes cache entry into the JitCompiledFn shape mion consumes. */
-function wrapRtEntry<Fn extends AnyFn>(entry: RtCacheEntry, fnID: string): JitCompiledFn<Fn> {
-    return {
-        typeName: entry.typeName,
-        fnID,
-        jitFnHash: entry.rtFnHash,
-        args: normalizeArgs(entry.args),
-        defaultParamValues: normalizeArgs(entry.defaultParamValues),
-        isNoop: !!entry.isNoop,
-        code: entry.code ?? '',
-        jitDependencies: entry.rtDependencies,
-        pureFnDependencies: entry.pureFnDependencies,
-        createJitFn: (entry.createRTFn ?? (() => entry.fn)) as JitCompiledFn<Fn>['createJitFn'],
-        fn: entry.fn as Fn,
-    };
-}
-
-/** Fabricates a JitCompiledFn wrapper for fns with no cache entry (fallback lane). */
-function toJitCompiledFn<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, jitFnHash: string): JitCompiledFn<Fn> {
-    return {
-        typeName,
-        fnID,
-        jitFnHash,
-        args: {vλl: 'v'},
-        defaultParamValues: {vλl: 'v'},
-        isNoop: false,
-        code: '',
-        createJitFn: () => fn,
-        fn,
-    };
-}
-
-/** Looks up the full ts-runtypes cache entry for a mion jit hash (`<fnHashPrefix>_<typeId>`). */
-function getRtEntry(rtFnHash: string): RtCacheEntry | undefined {
-    return getRTUtils().getRT(rtFnHash) as RtCacheEntry | undefined;
-}
-
-// ############# jit lookup backend #############
-// Lets mion core (routerUtils metadata serialization, client metadata restore) resolve
-// jit hashes and pure fns from the ts-runtypes runtime cache without depending on it.
-installJitLookupBackend({
-    getJIT(jitFnHash: string): JitCompiledFn | undefined {
-        const entry = getRtEntry(jitFnHash);
-        return entry ? wrapRtEntry(entry, entry.familyTag ?? 'rtFn') : undefined;
-    },
-    getCompiledPureFn(namespace: string, name: string) {
-        // raw-cache lookup (NOT rtUtils.getCompiledPureFn): the key is computed at runtime,
-        // and the CompTimeArgs-tracked form would emit CTA003 in every consumer build
-        const cache = getRTFnCaches().pureFnsCache as Record<string, unknown>;
-        return cache[`${namespace}::${name}`] as never;
-    },
-});
 
 // ############# serialized cache restore (client metadata lane) #############
 

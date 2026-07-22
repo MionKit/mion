@@ -12,10 +12,7 @@
       "@mionjs/router": ["../router/index.ts"],
       "@mionjs/platform-node": ["../platform-node/index.ts"],
       "@mionjs/platform-cloudflare": ["../platform-cloudflare/index.ts"],
-      "@mionjs/platform-vercel": ["../platform-vercel/index.ts"],
-      "@mionjs/type-formats": ["../type-formats/index.ts"],
-      "@mionjs/type-formats/*": ["../type-formats/*"],
-      "@mionjs/run-types": ["../run-types/index.ts"]
+      "@mionjs/platform-vercel": ["../platform-vercel/index.ts"]
     }
   },
   "ts-node": {
@@ -26,9 +23,8 @@
     {"path": "../router"},
     {"path": "../platform-node"},
     {"path": "../platform-cloudflare"},
-    {"path": "../platform-vercel"},
-    {"path": "../type-formats"},
-    {"path": "../run-types"}
+    {"path": "../platform-vercel"}
+    
   ],
   "include": ["."],
   "exclude": ["node_modules", ".dist", "build", "vite.config.ts", "vite.edge.config.ts", "vite.cloudflare.config.ts"]

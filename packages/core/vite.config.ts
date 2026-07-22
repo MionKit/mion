@@ -40,7 +40,7 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                include: ['**/types/**/*.ts', '**/errors.ts', '**/headers.ts', '**/constants.ts'],
+                include: ['**/types/**/*.ts', '**/errors.ts', '**/headers.ts', '**/constants.ts', '**/runtypes/**/*.ts'],
             },
         }),
         dts({

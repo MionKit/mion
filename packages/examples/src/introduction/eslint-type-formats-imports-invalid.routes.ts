@@ -4,8 +4,8 @@
 
 // start:type-formats-imports-invalid
 // ❌ WRONG: Type-only imports strip metadata, causing silent validation failures
-import type {FormatEmail, FormatStringDate} from '@mionjs/type-formats/StringFormats';
-import type {FormatFloat} from '@mionjs/type-formats/NumberFormats';
-import {type FormatBigInt64} from '@mionjs/type-formats/BigintFormats';
-import type {TypeFormat} from '@mionjs/run-types';
+import type {Email, StringDate} from '@ts-runtypes/core/formats';
+import type {Float} from '@ts-runtypes/core/formats';
+import {type BigInt64} from '@ts-runtypes/core/formats';
+import type {TypeFormat} from '@ts-runtypes/core';
 // end:type-formats-imports-invalid

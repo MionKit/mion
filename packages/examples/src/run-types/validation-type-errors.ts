@@ -1,4 +1,4 @@
-import {createGetValidationErrors} from '@mionjs/run-types';
+import {createGetValidationErrors} from '@ts-runtypes/core';
 
 interface User {
     name: string;

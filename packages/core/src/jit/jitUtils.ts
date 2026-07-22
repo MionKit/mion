@@ -7,54 +7,17 @@
 import type {JitCompiledFn, DeserializeClassFn, AnyClass, SerializableClass} from '../types/general.types.ts';
 import {CompiledPureFunction, PureFunction} from '../types/pureFunctions.types.ts';
 import {getOrCreateGlobal} from '../utils.ts';
+import {resolveCompiledPureFn, resolveJIT} from '../runtypes/rtResolver.ts';
 
 // ############# ts-runtypes-BACKED LOOKUPS #############
-// The old JIT/pure-fn caches existed only to support the old @mionjs/run-types
-// runtime type system. Precompiled functions now live in the ts-runtypes runtime
-// cache; @mionjs/run-types installs a lookup backend here (installJitLookupBackend)
-// that resolves mion jit hashes (`<JIT_FUNCTION_IDS.x>_<typeId>`, which match the
-// ts-runtypes fn-cache keys exactly) and mion pure fns straight from that cache.
-//
-// CONTRACT (R33): installJitLookupBackend runs as an import side effect of
-// `@mionjs/run-types`. Core is dependency-free and never imports run-types itself,
-// so ANY package that resolves routes/pure-fns through core MUST also import
-// `@mionjs/run-types` (directly or transitively) so the backend is installed before
-// the first lookup. To keep that implicit contract from failing silently, the two
-// "expected to resolve" entry points (getJIT / getCompiledPureFn) throw a clear error
-// naming the missing import when no backend is installed; the existence probes
-// (hasJitFn / hasPureFn / getPureFn) stay quiet and just report "not present".
-// The class registries remain local until callers move to registerClassSerializer
-// (@ts-runtypes/core) — see docs/done/core-audit.md.
-
-/** Lookup backend installed by @mionjs/run-types to resolve jit/pure fns from the ts-runtypes cache */
-export interface JitLookupBackend {
-    getJIT(jitFnHash: string): JitCompiledFn | undefined;
-    getCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined;
-}
-
-const backendRef = getOrCreateGlobal('mion.jit.lookupBackend', () => ({current: undefined as JitLookupBackend | undefined}));
-
-/** Installs the ts-runtypes-backed lookup (called by @mionjs/run-types at import time) */
-export function installJitLookupBackend(backend: JitLookupBackend): void {
-    backendRef.current = backend;
-}
-
-/** True once @mionjs/run-types has installed its lookup backend (import side effect) */
-export function isJitLookupBackendInstalled(): boolean {
-    return !!backendRef.current;
-}
-
-/** Thrown when a jit/pure lookup runs before @mionjs/run-types installed its backend */
-export class MissingJitBackendError extends Error {
-    constructor(op: string) {
-        super(
-            `${op} was called before the ts-runtypes lookup backend was installed. ` +
-                `Import "@mionjs/run-types" (it installs the backend as an import side effect) ` +
-                `in the package that registers routes/pure fns before resolving any type function.`
-        );
-        this.name = 'MissingJitBackendError';
-    }
-}
+// The old JIT/pure-fn caches existed only to support the old @mionjs/run-types runtime type
+// system. Precompiled functions now live in the ts-runtypes runtime cache; the mion adapter
+// (src/runtypes/) folded into @mionjs/core, so these lookups resolve mion jit hashes
+// (`<JIT_FUNCTION_IDS.x>_<typeId>`, which match the ts-runtypes fn-cache keys exactly) and mion
+// pure fns DIRECTLY from that cache (src/runtypes/rtResolver.ts) — no installable backend, no
+// cross-package side-effect contract. A lookup that isn't in the cache is a plain miss
+// (undefined), never a thrown "backend not installed". The class registries remain local until
+// callers move to registerClassSerializer (@ts-runtypes/core) — see docs/done/core-audit.md.
 
 const deserializeFnsRegistry = getOrCreateGlobal(
     'mion.jit.deserializeFnsRegistry',
@@ -89,45 +52,40 @@ export interface JITUtils {
 const jitUtils: JITUtils = {
     addToJitCache() {
         throw new Error(
-            'The mion jit cache was removed. Fn caches are build-injected; use addSerializedJitCaches (@mionjs/run-types) for the metadata lane.'
+            'The mion jit cache was removed. Fn caches are build-injected; use addSerializedJitCaches (@mionjs/core) for the metadata lane.'
         );
     },
     removeFromJitCache() {
-        throw new Error('The mion jit cache was removed. Use resetJitFnCaches (@mionjs/run-types) in tests instead.');
+        throw new Error('The mion jit cache was removed. Use resetJitFnCaches (@mionjs/core) in tests instead.');
     },
     getJIT(jitFnHash: string) {
-        if (!backendRef.current) throw new MissingJitBackendError('getJIT');
-        return backendRef.current.getJIT(jitFnHash);
+        return resolveJIT(jitFnHash);
     },
     getJitFn(jitFnHash: string) {
-        if (!backendRef.current) throw new MissingJitBackendError('getJitFn');
-        const compiled = backendRef.current.getJIT(jitFnHash);
+        const compiled = resolveJIT(jitFnHash);
         if (!compiled) throw new Error(`Jit function ${jitFnHash} not found in the ts-runtypes cache.`);
         return compiled.fn;
     },
-    hasJitFn: (jitFnHash: string) => !!backendRef.current?.getJIT(jitFnHash),
+    hasJitFn: (jitFnHash: string) => !!resolveJIT(jitFnHash),
     addPureFn() {
-        throw new Error('The mion pure-fn cache was removed. Register through registerMionPureFn (@mionjs/run-types) instead.');
+        throw new Error('The mion pure-fn cache was removed. Register through registerMionPureFn (@mionjs/core) instead.');
     },
     usePureFn(namespace: string, name: string): PureFunction {
-        const compiled = backendRef.current?.getCompiledPureFn(namespace, name);
-        if (!compiled)
-            throw new Error(`Pure fn ${namespace}::${name} not available: use registerMionPureFn (@mionjs/run-types).`);
+        const compiled = resolveCompiledPureFn(namespace, name);
+        if (!compiled) throw new Error(`Pure fn ${namespace}::${name} not available: use registerMionPureFn (@mionjs/core).`);
         return compiled.fn as PureFunction;
     },
-    getPureFn: (namespace: string, name: string) =>
-        backendRef.current?.getCompiledPureFn(namespace, name)?.fn as PureFunction | undefined,
+    getPureFn: (namespace: string, name: string) => resolveCompiledPureFn(namespace, name)?.fn as PureFunction | undefined,
     getCompiledPureFn(namespace: string, name: string) {
-        if (!backendRef.current) throw new MissingJitBackendError('getCompiledPureFn');
-        return backendRef.current.getCompiledPureFn(namespace, name);
+        return resolveCompiledPureFn(namespace, name);
     },
-    hasPureFn: (namespace: string, name: string) => !!backendRef.current?.getCompiledPureFn(namespace, name),
+    hasPureFn: (namespace: string, name: string) => !!resolveCompiledPureFn(namespace, name),
     findCompiledPureFn() {
-        throw new Error('findCompiledPureFn was removed. Look pure fns up by name with getMionPureFn (@mionjs/run-types).');
+        throw new Error('findCompiledPureFn was removed. Look pure fns up by name with getMionPureFn (@mionjs/core).');
     },
     setSerializableClass() {
         throw new Error(
-            'The mion class registries were removed. Register custom classes with registerClassSerializer (@mionjs/run-types) instead.'
+            'The mion class registries were removed. Register custom classes with registerClassSerializer (@ts-runtypes/core) instead.'
         );
     },
     useSerializeClass(className: string): SerializableClass {
@@ -140,7 +98,7 @@ const jitUtils: JITUtils = {
     },
     setDeserializeFn() {
         throw new Error(
-            'The mion class registries were removed. Register custom classes with registerClassSerializer (@mionjs/run-types) instead.'
+            'The mion class registries were removed. Register custom classes with registerClassSerializer (@ts-runtypes/core) instead.'
         );
     },
     useDeserializeFn(className: string): DeserializeClassFn<any> {

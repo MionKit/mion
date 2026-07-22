@@ -6,9 +6,9 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoder, createJsonEncoder} from '../index.ts';
-import {RpcError, TypedError} from '@mionjs/core';
-import '../index.ts'; // side effect: registers the mion error-class serializers
+import {createJsonDecoder, createJsonEncoder} from '@ts-runtypes/core';
+import {RpcError, TypedError} from '../errors.ts';
+import './mionClassSerializers.ts'; // side effect: registers the mion error-class serializers
 
 describe('mion error classes round-trip through ts-runtypes decoders', () => {
     it('RpcError<string> decodes back to a real instance', () => {

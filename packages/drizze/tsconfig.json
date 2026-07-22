@@ -5,7 +5,7 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}],
+  "references": [{"path": "../core"}],
   "include": ["."],
   "exclude": ["node_modules", ".dist"]
 }

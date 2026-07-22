@@ -8,7 +8,7 @@
 import {pgTable, type PgTableWithColumns, type PgColumnBuilderBase} from 'drizzle-orm/pg-core';
 import type {BuildColumns} from 'drizzle-orm/column-builder';
 // Note: Must use regular import (not `import type`) for the injection marker to work
-import {getRunType, InjectRunTypeId, RunTypeKind} from '@mionjs/run-types';
+import {getRunType, InjectRunTypeId, RunTypeKind} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
 import {extractTypeInfo} from './core/typeTraverser.ts';
 import {validateConfig} from './core/validator.ts';
