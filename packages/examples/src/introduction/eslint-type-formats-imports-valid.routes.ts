@@ -4,8 +4,8 @@
 
 // start:type-formats-imports-valid
 // ✅ CORRECT: Regular imports preserve type metadata for runtime reflection
-import {FormatEmail, FormatUrl, FormatStringDate} from '@mionjs/type-formats/StringFormats';
-import {FormatNumber, FormatInteger} from '@mionjs/type-formats/NumberFormats';
-import {FormatBigInt} from '@mionjs/type-formats/BigintFormats';
-import {TypeFormat} from '@mionjs/run-types';
+import {Email, Url, StringDate} from '@ts-runtypes/core/formats';
+import {Number, Integer} from '@ts-runtypes/core/formats';
+import {BigInt} from '@ts-runtypes/core/formats';
+import {TypeFormat} from '@ts-runtypes/core';
 // end:type-formats-imports-valid

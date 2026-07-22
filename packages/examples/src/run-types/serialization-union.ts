@@ -1,4 +1,4 @@
-import {createJsonEncoder, createJsonDecoder} from '@mionjs/run-types';
+import {createJsonEncoder, createJsonDecoder} from '@ts-runtypes/core';
 
 type Result = string | number | {error: string};
 

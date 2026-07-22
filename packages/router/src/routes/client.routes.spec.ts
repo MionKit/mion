@@ -26,7 +26,7 @@ import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@ts-runtypes/core';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {

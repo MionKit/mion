@@ -16,7 +16,7 @@ import {
     mionPureFnId,
     registerMionPureFn,
     registerServerMappers,
-} from '../index.ts';
+} from './mionPureFns.ts';
 
 describe('mion pure fns over the ts-runtypes registry (mionjs namespace)', () => {
     it('registers and resolves a pure fn under mionjs (runtime lane)', () => {

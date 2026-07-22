@@ -26,8 +26,6 @@
   },
   "references": [
     {"path": "./packages/core"},
-    {"path": "./packages/run-types"},
-    {"path": "./packages/type-formats"},
     {"path": "./packages/router"},
     {"path": "./packages/client"},
     {"path": "./packages/platform-node"},

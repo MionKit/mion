@@ -6,32 +6,32 @@
  * ######## */
 
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
-import {FormatInteger, FormatPositiveInt} from '@mionjs/type-formats/NumberFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
 
 // ============================================================================
 // Shared test interfaces
 // ============================================================================
 
 export interface User {
-    id: FormatUUIDv7;
-    email: FormatEmail;
+    id: UUIDv7;
+    email: Email;
     name: string;
-    age: FormatInteger;
-    score: FormatPositiveInt;
+    age: Integer;
+    score: PositiveInt;
     tags: string[];
     profile: {avatar: string; theme: string};
 }
 
 export interface Post {
-    id: FormatUUIDv7;
-    authorId: FormatUUIDv7;
+    id: UUIDv7;
+    authorId: UUIDv7;
     title: string;
-    views: FormatPositiveInt;
+    views: PositiveInt;
 }
 
 export interface UserWithOptional {
-    id: FormatUUIDv7;
+    id: UUIDv7;
     name: string;
     bio?: string;
 }

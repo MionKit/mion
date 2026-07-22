@@ -1,6 +1,6 @@
-import {FormatEmailPunycode} from '@mionjs/type-formats/StringFormats';
+import {EmailPunycode} from '@ts-runtypes/core/formats';
 
-type InternationalEmail = FormatEmailPunycode;
+type InternationalEmail = EmailPunycode;
 
 // Valid
 ('user@xn--80akhbyknj4f.xn--p1ai'); // ✓ (punycode domain)

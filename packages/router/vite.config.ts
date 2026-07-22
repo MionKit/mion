@@ -89,7 +89,7 @@ export default defineConfig({
                     preserveModulesRoot: '.',
                 },
             ],
-            external: ['@mionjs/core', '@mionjs/run-types', /^[^./]/],
+            external: ['@mionjs/core', /^[^./]/],
         },
     },
 });

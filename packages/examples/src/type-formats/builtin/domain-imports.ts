@@ -1,1 +1,1 @@
-import {FormatDomain, FormatDomainStrict} from '@mionjs/type-formats/StringFormats';
+import {Domain, DomainStrict} from '@ts-runtypes/core/formats';

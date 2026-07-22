@@ -1,4 +1,4 @@
-import {FormatUUIDv4, FormatUUIDv7} from '@mionjs/type-formats/StringFormats';
+import {UUIDv4, UUIDv7} from '@ts-runtypes/core/formats';
 
-type UserId = FormatUUIDv4; // Standard UUID v4: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
-type EventId = FormatUUIDv7; // Time-ordered UUID v7: xxxxxxxx-xxxx-7xxx-xxxx-xxxxxxxxxxxx
+type UserId = UUIDv4; // Standard UUID v4: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
+type EventId = UUIDv7; // Time-ordered UUID v7: xxxxxxxx-xxxx-7xxx-xxxx-xxxxxxxxxxxx

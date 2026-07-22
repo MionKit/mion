@@ -10,11 +10,11 @@ import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn, query, mutation, rawMiddleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
-import {FormatString, FormatEmail, FormatUUIDv4} from '@mionjs/type-formats/StringFormats';
-import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
+import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
+import {Number} from '@ts-runtypes/core/formats';
 // Server pure functions live in the ts-runtypes registry under the 'mionjs' namespace.
 // For the e2e scenario they are defined in packages/client/src/vitePlugin.e2e.spec.ts.
-import {getMionPureFn, registerMionPureFn} from '@mionjs/run-types';
+import {getMionPureFn, registerMionPureFn} from '@mionjs/core';
 // serverMapFrom transport: registers the client build's harvested inline mappers
 // (manifest path configured in vite.config.ts serverMappers.consume)
 import 'virtual:mion/server-mappers';
@@ -40,9 +40,9 @@ type UserProfile = {
 
 // Types with format validation for friendlyErrors testing
 export type UserWithFormats = {
-    name: FormatString<{minLength: 2; maxLength: 50}>;
-    age: FormatNumber<{min: 13; max: 120; integer: true}>;
-    email: FormatEmail;
+    name: String<{minLength: 2; maxLength: 50}>;
+    age: Number<{min: 13; max: 120; integer: true}>;
+    email: Email;
 };
 
 // Session info returned by session middleFn
@@ -239,14 +239,14 @@ const routes = {
 
     // Routes with format types for friendlyErrors testing
     createUserWithFormats: route((_ctx, user: UserWithFormats): UserWithFormats => user),
-    validateName: route((_ctx, name: FormatString<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
-    validateAge: route((_ctx, age: FormatNumber<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
+    validateName: route((_ctx, name: String<{minLength: 2; maxLength: 20}>): string => `Name: ${name}`),
+    validateAge: route((_ctx, age: Number<{min: 0; max: 150; integer: true}>): string => `Age: ${age}`),
 
     log: middleFn((ctx): void => undefined, {runOnError: true}),
 
     // Routes for testing pure functions with UUID validation
-    validateUUID: route((_ctx, uuid: FormatUUIDv4): string => `Valid UUID: ${uuid}`),
-    getUserById: route((_ctx, userId: FormatUUIDv4): {id: FormatUUIDv4; name: string} => ({id: userId, name: 'Test User'})),
+    validateUUID: route((_ctx, uuid: UUIDv4): string => `Valid UUID: ${uuid}`),
+    getUserById: route((_ctx, userId: UUIDv4): {id: UUIDv4; name: string} => ({id: userId, name: 'Test User'})),
 
     // Routes for testing serialization/deserialization of complex types
     getSameDate: route((_ctx, date: Date): Date => date),

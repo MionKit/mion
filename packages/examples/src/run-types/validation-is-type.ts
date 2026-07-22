@@ -1,4 +1,4 @@
-import {createValidate} from '@mionjs/run-types';
+import {createValidate} from '@ts-runtypes/core';
 
 interface User {
     name: string;

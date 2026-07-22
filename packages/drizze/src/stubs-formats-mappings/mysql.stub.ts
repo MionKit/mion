@@ -13,8 +13,8 @@
 import {eq} from 'drizzle-orm';
 import {MySqlDatabase} from 'drizzle-orm/mysql-core';
 import {toDrizzleMySqlTable} from '../mysql.ts';
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
-import {FormatInteger, FormatPositiveInt} from '@mionjs/type-formats/NumberFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {Integer, PositiveInt} from '@ts-runtypes/core/formats';
 import {User, Post, UserWithOptional} from './common.ts';
 
 // -- Setup: build tables and declare a db instance (never instantiated) ------
@@ -38,10 +38,10 @@ async function getUsers(): Promise<User[]> {
 
 async function getUserFields() {
     const [row] = await db.select().from(users);
-    const id: FormatUUIDv7 = row.id;
-    const email: FormatEmail = row.email;
-    const age: FormatInteger = row.age;
-    const score: FormatPositiveInt = row.score;
+    const id: UUIDv7 = row.id;
+    const email: Email = row.email;
+    const age: Integer = row.age;
+    const score: PositiveInt = row.score;
     const name: string = row.name;
     const tags: string[] = row.tags;
     const profile: {avatar: string; theme: string} = row.profile;
@@ -50,12 +50,12 @@ async function getUserFields() {
 
 // -- 3. Where clause with branded values -------------------------------------
 
-async function findUserById(userId: FormatUUIDv7): Promise<User | undefined> {
+async function findUserById(userId: UUIDv7): Promise<User | undefined> {
     const rows = await db.select().from(users).where(eq(users.id, userId));
     return rows[0];
 }
 
-async function findUserByEmail(email: FormatEmail): Promise<User | undefined> {
+async function findUserByEmail(email: Email): Promise<User | undefined> {
     const rows = await db.select().from(users).where(eq(users.email, email));
     return rows[0];
 }
@@ -69,10 +69,10 @@ async function getUsersWithPosts() {
     const user: User = first.users;
     const post: Post = first.posts;
 
-    const authorId: FormatUUIDv7 = first.users.id;
-    const postId: FormatUUIDv7 = first.posts.id;
-    const postAuthorId: FormatUUIDv7 = first.posts.authorId;
-    const postViews: FormatPositiveInt = first.posts.views;
+    const authorId: UUIDv7 = first.users.id;
+    const postId: UUIDv7 = first.posts.id;
+    const postAuthorId: UUIDv7 = first.posts.authorId;
+    const postViews: PositiveInt = first.posts.views;
 
     return {user, post, authorId, postId, postAuthorId, postViews};
 }
@@ -82,8 +82,8 @@ async function getUsersWithPosts() {
 async function getPartialUser() {
     const rows = await db.select({id: users.id, email: users.email}).from(users);
     const first = rows[0];
-    const id: FormatUUIDv7 = first.id;
-    const email: FormatEmail = first.email;
+    const id: UUIDv7 = first.id;
+    const email: Email = first.email;
     return {id, email};
 }
 
@@ -97,7 +97,7 @@ async function insertUser(user: User) {
 
 async function getOptionalUser() {
     const [row] = await db.select().from(optionalUsers);
-    const id: FormatUUIDv7 = row.id;
+    const id: UUIDv7 = row.id;
     const name: string = row.name;
     const bio: string | null = row.bio;
     return {id, name, bio};

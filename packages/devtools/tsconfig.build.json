@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../router"}],
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "exclude": [
     "node_modules",
     ".dist",

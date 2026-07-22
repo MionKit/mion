@@ -63,11 +63,10 @@
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/router": "workspace:*",
     "@mionjs/test-server": "workspace:*",
-    "@mionjs/type-formats": "workspace:*",
     "jest-environment-jsdom": "29.7.0"
   },
   "dependencies": {
     "@mionjs/core": "workspace:*",
-    "@mionjs/run-types": "workspace:*"
+    "@ts-runtypes/core": "0.10.0"
   }
 }

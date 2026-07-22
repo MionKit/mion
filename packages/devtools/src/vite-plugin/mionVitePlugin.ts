@@ -264,12 +264,12 @@ function serverMappersConsumePlugin(consume: string | string[] | undefined) {
             if (isBuildCommand) {
                 const entries = readMapperManifests(manifests);
                 return [
-                    `import {registerServerMappers} from '@mionjs/run-types';`,
+                    `import {registerServerMappers} from '@mionjs/core';`,
                     `registerServerMappers(${JSON.stringify(entries)});`,
                 ].join('\n');
             }
             return [
-                `import {installServerMapperReader} from '@mionjs/run-types';`,
+                `import {installServerMapperReader} from '@mionjs/core';`,
                 `import {existsSync, readFileSync} from 'node:fs';`,
                 `const MANIFESTS = ${JSON.stringify(manifests)};`,
                 `installServerMapperReader(() => {`,

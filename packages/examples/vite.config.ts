@@ -34,8 +34,6 @@ export default defineConfig({
                 '@mionjs/platform-bun',
                 '@mionjs/platform-gcloud',
                 '@mionjs/client',
-                '@mionjs/type-formats',
-                '@mionjs/run-types',
                 /^node:/,
             ],
         },

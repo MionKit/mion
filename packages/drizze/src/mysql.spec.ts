@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzleMySqlTable} from './mysql.ts';
 import {varchar, text, int} from 'drizzle-orm/mysql-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 
 // Test interfaces
 interface SimpleUser {
@@ -21,8 +21,8 @@ interface SimpleUser {
 }
 
 interface UserWithFormats {
-    id: FormatUUIDv7;
-    email: FormatEmail;
+    id: UUIDv7;
+    email: Email;
     name: string;
     bio?: string;
 }
@@ -87,7 +87,7 @@ describe('toDrizzleMySqlTable', () => {
     });
 
     describe('formatted types', () => {
-        it('should generate varchar columns for FormatUUIDv7 format', () => {
+        it('should generate varchar columns for UUIDv7 format', () => {
             const table = toDrizzleMySqlTable<UserWithFormats>('users');
 
             // UUID format should map to varchar(36) in MySQL
@@ -95,7 +95,7 @@ describe('toDrizzleMySqlTable', () => {
             expect(table.id.columnType).toBe('MySqlVarChar');
         });
 
-        it('should generate varchar columns for FormatEmail format', () => {
+        it('should generate varchar columns for Email format', () => {
             const table = toDrizzleMySqlTable<UserWithFormats>('users');
 
             // Email format should map to varchar

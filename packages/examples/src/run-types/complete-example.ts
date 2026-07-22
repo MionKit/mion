@@ -1,4 +1,4 @@
-import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder, createMockData} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder, createMockData} from '@ts-runtypes/core';
 
 interface BlogPost {
     id: string;

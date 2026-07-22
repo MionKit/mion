@@ -6,8 +6,6 @@ export default defineConfig({
     test: {
         projects: [
             'packages/core/vitest.config.ts',
-            'packages/run-types/vitest.config.ts',
-            'packages/type-formats/vitest.config.ts',
             'packages/router/vitest.config.ts',
             'packages/client/vitest.config.ts',
             'packages/platform-aws/vitest.config.ts',

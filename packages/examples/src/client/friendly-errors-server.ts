@@ -1,19 +1,19 @@
-import {FormatString, FormatEmail, FormatStringDateTime} from '@mionjs/type-formats/StringFormats';
-import {FormatNumber} from '@mionjs/type-formats/NumberFormats';
-import {FormatBigInt} from '@mionjs/type-formats/BigintFormats';
+import {String, Email, StringDateTime} from '@ts-runtypes/core/formats';
+import {Number} from '@ts-runtypes/core/formats';
+import {BigInt} from '@ts-runtypes/core/formats';
 import {initMionRouter, route} from '@mionjs/router';
 import {RpcError} from '@mionjs/core';
 
 type UserWithFormats = {
-    name: FormatString<{maxLength: 100; minLength: 2}>;
-    age: FormatNumber<{min: 0; max: 150}>;
-    balance: FormatBigInt<{min: 0n}>;
+    name: String<{maxLength: 100; minLength: 2}>;
+    age: Number<{min: 0; max: 150}>;
+    balance: BigInt<{min: 0n}>;
     isActive: boolean;
     tags: string[];
-    createdAt: FormatStringDateTime;
+    createdAt: StringDateTime;
     nested: {
-        email: FormatEmail;
-        score: FormatNumber<{min: 0}>;
+        email: Email;
+        score: Number<{min: 0}>;
     };
 };
 

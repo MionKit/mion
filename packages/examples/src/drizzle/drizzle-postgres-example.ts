@@ -1,16 +1,16 @@
 import {toDrizzlePGTable} from '@mionjs/drizzle';
 import {uuid, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
-import {FormatInteger} from '@mionjs/type-formats/NumberFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
+import {Integer} from '@ts-runtypes/core/formats';
 
 /** User entity with format types for intelligent column mapping */
 interface User {
-    id: FormatUUIDv7;
-    email: FormatEmail;
+    id: UUIDv7;
+    email: Email;
     name: string;
     bio?: string; // Optional = nullable column
-    age: FormatInteger;
+    age: Integer;
     tags: string[]; // Array = jsonb column
     settings: {theme: string; notifications: boolean}; // Nested object = jsonb
     createdAt: Date;

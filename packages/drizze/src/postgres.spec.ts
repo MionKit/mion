@@ -9,7 +9,7 @@ import {describe, it, expect} from 'vitest';
 import {toDrizzlePGTable} from './postgres.ts';
 import {uuid, text, pgTable, timestamp} from 'drizzle-orm/pg-core';
 // Note: Must use regular import (not `import type`) for reflection to work
-import {FormatUUIDv7, FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {UUIDv7, Email} from '@ts-runtypes/core/formats';
 
 // Test interfaces
 interface SimpleUser {
@@ -21,8 +21,8 @@ interface SimpleUser {
 }
 
 interface UserWithFormats {
-    id: FormatUUIDv7;
-    email: FormatEmail;
+    id: UUIDv7;
+    email: Email;
     name: string;
     bio?: string;
 }
@@ -88,7 +88,7 @@ describe('toDrizzlePGTable', () => {
     });
 
     describe('formatted types', () => {
-        it('should generate uuid columns for FormatUUIDv7 format', () => {
+        it('should generate uuid columns for UUIDv7 format', () => {
             const table = toDrizzlePGTable<UserWithFormats>('users');
 
             // UUID format should map to uuid column
@@ -96,7 +96,7 @@ describe('toDrizzlePGTable', () => {
             expect(table.id.columnType).toBe('PgUUID');
         });
 
-        it('should generate varchar columns for FormatEmail format', () => {
+        it('should generate varchar columns for Email format', () => {
             const table = toDrizzlePGTable<UserWithFormats>('users');
 
             // Email format should map to varchar

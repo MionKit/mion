@@ -6,15 +6,15 @@
  * ######## */
 
 import {text, integer, real, blob} from 'drizzle-orm/sqlite-core';
-import {RunTypeKind} from '@mionjs/run-types';
-import type {RunTypeKindValue} from '@mionjs/run-types';
+import {RunTypeKind} from '@ts-runtypes/core';
+import type {RunTypeKindValue} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
 import {BaseColumnMapper} from './base.mapper.ts';
 import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
 import {isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionjs/type-formats/constants';
+import {FormatName, FormatNames} from '@mionjs/core';
 
 // ============================================================================
 // Default Mapping Objects

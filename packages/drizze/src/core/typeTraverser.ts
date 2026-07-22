@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RunTypeKind} from '@mionjs/run-types';
-import type {RunType, RunTypeKindValue} from '@mionjs/run-types';
+import {RunTypeKind} from '@ts-runtypes/core';
+import type {RunType, RunTypeKindValue} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
 import type {PropertyInfo, TypeInfo} from '../types/common.types.ts';
 

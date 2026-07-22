@@ -7,7 +7,7 @@
 
 import {registerClassSerializer} from '@ts-runtypes/core';
 import type {DataOnly} from '@ts-runtypes/core';
-import {RpcError, TypedError} from '@mionjs/core';
+import {RpcError, TypedError} from '../errors.ts';
 
 // ############# mion error classes -> ts-runtypes class serializers #############
 // Registers mion's error classes so JSON/binary decoders rebuild real instances

@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {resetJitFunctionsCache, routesCache} from '@mionjs/core';
-import {resetJitFnCaches} from '@mionjs/run-types';
+import {resetJitFnCaches, resetJitFunctionsCache, routesCache} from '@mionjs/core';
 
 /** Resets all client caches. Only for testing — simulates app restart. */
 export function resetClientCaches() {
