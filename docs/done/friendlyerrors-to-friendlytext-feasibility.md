@@ -1,7 +1,23 @@
 # Feasibility: replace mion getFriendlyErrors with @ts-runtypes createFriendlyText
 
-**Status:** todo — Phase 8 gate of the proxy-removal wave (friendly-errors swap).
+**Status:** done — friendly-errors swap shipped in the proxy-removal wave.
 **Created:** 2026-07-22
+
+## What shipped
+
+mion's runtime friendly-errors layer was **removed**, not reimplemented: `getFriendlyErrors` /
+`defaultErrorPrinter` (`packages/core/src/friendlyErrors.ts`) and the `FriendlyErrors<T>` types
+(`friendlyErrors.types.ts`) are deleted and dropped from `core/index.ts`. Human-readable rendering
+is now `@ts-runtypes/core`'s `createFriendlyText` (from a committed `FriendlyText<T>` map) —
+app-developer territory in a framework, so mion no longer wraps it. The client's
+`friendlyErrors.spec.ts` was reframed as `validationErrors.spec.ts`, pinning what mion IS
+responsible for (the raw `.typeErrors()` error shape a renderer consumes). The API-demo examples
+(`examples/src/client/friendly-errors-*.ts`) were deleted; new `createFriendlyText` examples ride
+the website/examples refresh. The verdict + caveats below stood; because mion delegates rather than
+authors maps, the caveats now belong to app-developer docs.
+
+The `RunTypeError` → `RTValidationError` de-mirror stays open (used pervasively by the client) —
+tracked in `dewrapper-core-ts-runtypes-proxies.md`.
 
 ## Verdict: REPLACEABLE-WITH-CAVEATS
 
