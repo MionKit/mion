@@ -7,29 +7,27 @@
 
 import {describe, it, expect, beforeEach} from 'vitest';
 import {initClient} from '../client.ts';
-import {getFriendlyErrors} from '@mionjs/core';
-import type {FriendlyErrors} from '@mionjs/core';
-import type {RouteParamsType} from '../types.ts';
 import {Email} from '@ts-runtypes/core/formats';
 import {TEST_SERVER_BASE_URL} from '../../globalSetup.ts';
 import {TestServerApi} from '@mionjs/test-server';
 import {getStorage} from './storage.ts';
 
-describe('friendlyErrors with client validation', () => {
+// Client-side validation errors. mion no longer ships a friendly-errors layer — human-readable
+// rendering is @ts-runtypes' `createFriendlyText` (from a committed `FriendlyText<T>` map). These
+// tests pin what mion IS responsible for: `.typeErrors()` returning the raw validation-error shape
+// that any renderer (createFriendlyText or an app's own) consumes.
+
+describe('client-side validation errors', () => {
     type MyApi = TestServerApi;
 
     const baseURL = TEST_SERVER_BASE_URL;
-
-    // Derive UserWithFormats type from the route without importing it from server
-    // This demonstrates how a client can get the type from the API definition
-    type UserWithFormats = RouteParamsType<MyApi['createUserWithFormats']>;
 
     beforeEach(() => {
         getStorage().clear();
     });
 
     describe('route validation errors with formats', () => {
-        it('should get validation errors and convert to friendly errors for format validation', async () => {
+        it('produces validation errors for format-constrained fields', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
             // Send invalid user - name too short (min 2), age too young (min 13)
@@ -39,31 +37,10 @@ describe('friendlyErrors with client validation', () => {
                 email: 'test@test.com' as Email,
             };
 
-            // Get validation errors using typeErrors (client-side validation)
             const validationErrors = await routes.createUserWithFormats(invalidUser).typeErrors();
 
             expect(Array.isArray(validationErrors)).toBe(true);
-
-            // Convert to friendly errors
-            const errorsMap: FriendlyErrors<UserWithFormats> = {
-                name: (params) => {
-                    if (params?.minLength) return `Name must be at least ${params.minLength.val} characters`;
-                    if (params?.maxLength) return `Name must be at most ${params.maxLength.val} characters`;
-                    return 'Invalid name';
-                },
-                age: (params) => {
-                    if (params?.min) return `You must be at least ${params.min.val} years old`;
-                    if (params?.max) return `Age cannot exceed ${params.max.val}`;
-                    return 'Invalid age';
-                },
-            };
-
-            const friendlyResult = getFriendlyErrors<UserWithFormats>(validationErrors, errorsMap);
-
-            // Should have validation errors for invalid data
             expect(validationErrors.length).toBeGreaterThan(0);
-            // Friendly result should have messages
-            expect(Object.keys(friendlyResult).length).toBeGreaterThan(0);
         });
 
         it('should get validation errors for simple string format', async () => {
@@ -115,10 +92,11 @@ describe('friendlyErrors with client validation', () => {
             expect(emailError?.format?.name).toBe('email');
         });
 
-        // Canary (R20): pins the EXACT raw ts-runtypes error shape that getFriendlyErrors consumes
-        // (expected base type + format {name, formatPath, val}). Hand-built fixtures in core's unit
-        // spec can't catch engine drift; this runs the real engine, so a shape change fails here.
-        it('pins the raw engine error shape for the format matrix and maps it via getFriendlyErrors', async () => {
+        // Canary (R20): pins the EXACT raw ts-runtypes error shape (expected base type + format
+        // {name, formatPath, val}) that a friendly-text renderer consumes. Runs the real engine, so
+        // an upstream error-shape change fails here. Client param errors are relative to the
+        // positional params tuple (paths like [0, 'name']).
+        it('pins the raw engine error shape for the format matrix', async () => {
             const {routes} = initClient<MyApi>({baseURL});
             const invalidUser = {name: 'A', age: 10, email: 'invalid-email' as Email};
             const errors = await routes.createUserWithFormats(invalidUser).typeErrors();
@@ -137,18 +115,8 @@ describe('friendlyErrors with client validation', () => {
             const emailErr = errors.find((e) => e.path.includes('email'));
             expect(emailErr?.format?.name).toBe('email');
 
-            // getFriendlyErrors keys each field's params off format.formatPath[0]. Client param
-            // errors are relative to the positional params tuple, so paths are [0, 'name'] and the
-            // friendly result nests the field messages under index 0 (handler lookup skips the index).
-            const friendly = getFriendlyErrors<UserWithFormats>(errors, {
-                name: (p) => `min ${p.minLength?.val}`,
-                age: (p) => `min ${p.min?.val}`,
-                email: () => 'bad email',
-            });
-            const fields = (friendly as Record<string, any>)[0];
-            expect(fields.name).toBe('min 2');
-            expect(fields.email).toBe('bad email');
-            expect(typeof fields.age).toBe('string');
+            // paths are positional-params-relative: [0, 'name'] etc.
+            expect(nameErr?.path).toContain(0);
         });
 
         it('should return empty array for valid format data', async () => {
@@ -178,30 +146,6 @@ describe('friendlyErrors with client validation', () => {
             // MiddleFn error should be present for the auth middleFn
             expect(middleFnErrors?.auth).toBeDefined();
             expect(middleFnErrors?.auth?.type).toBe('validation-error');
-        });
-    });
-
-    describe('default error printer with format errors', () => {
-        it('should use defaultErrorPrinter when no errorsMap provided', async () => {
-            const {routes} = initClient<MyApi>({baseURL});
-
-            // Send invalid user
-            const invalidUser = {
-                name: 'A',
-                age: 5,
-                email: 'test@test.com',
-            };
-
-            const validationErrors = await routes.createUserWithFormats(invalidUser).typeErrors();
-
-            // Use getFriendlyErrors without errorsMap - should use default printer
-            const friendlyResult = getFriendlyErrors(validationErrors);
-
-            // Should have validation errors for invalid data
-            expect(validationErrors.length).toBeGreaterThan(0);
-            // Should produce result object with error messages
-            expect(typeof friendlyResult).toBe('object');
-            expect(Object.keys(friendlyResult).length).toBeGreaterThan(0);
         });
     });
 });
