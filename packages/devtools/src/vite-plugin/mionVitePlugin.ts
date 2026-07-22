@@ -214,7 +214,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
 
 // ############# serverMapFrom manifest transport #############
 
-/** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/run-types ServerMapperEntry). */
+/** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/core ServerMapperEntry). */
 interface ServerMapperManifestEntry {
     key: string;
     paramNames?: string[];

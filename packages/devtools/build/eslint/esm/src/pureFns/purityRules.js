@@ -58,7 +58,7 @@ const FORBIDDEN_IDENTIFIERS = /* @__PURE__ */ new Set([
   "sessionStorage",
   "indexedDB"
 ]);
-const PURE_FN_SOURCE_PACKAGES = ["@mionjs/client", "@mionjs/run-types"];
+const PURE_FN_SOURCE_PACKAGES = ["@mionjs/client", "@mionjs/core"];
 export {
   ALLOWED_GLOBALS,
   FORBIDDEN_IDENTIFIERS,

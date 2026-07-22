@@ -81,7 +81,6 @@ describe('mionAdapter: reflection from injected markers', () => {
         expect(getParamNamesFromHandler(savePet.handler)).toEqual(['pet', 'notes']);
         expect(getParamNamesFromHandler((ctx: unknown) => 1)).toEqual([]);
         expect(getParamNamesFromHandler(() => 1)).toEqual([]);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         expect(getParamNamesFromHandler(async function named(ctx: unknown, a: number, b = 'x,y(z'): Promise<void> {})).toEqual([
             'a',
             'b',

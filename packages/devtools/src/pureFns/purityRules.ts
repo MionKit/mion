@@ -73,4 +73,4 @@ export const FORBIDDEN_IDENTIFIERS = new Set([
 export const PURE_FN_CALL_NAMES = ['serverMapFrom', 'registerMionPureFn'] as const;
 
 /** The packages that export the target pure function APIs */
-export const PURE_FN_SOURCE_PACKAGES = ['@mionjs/client', '@mionjs/run-types'] as const;
+export const PURE_FN_SOURCE_PACKAGES = ['@mionjs/client', '@mionjs/core'] as const;

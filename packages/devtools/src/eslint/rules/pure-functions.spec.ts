@@ -114,7 +114,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory returning an inner fn, local scope only (isFactory: true)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('validate', function factory() {
                     const regexp = new RegExp('^[a-z]+$');
                     return function inner(s: string) { return regexp.test(s); };
@@ -124,7 +124,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with local scope only
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('fn', function() {
                     const multiplier = 2;
                     return function inner(x: number) { return x * multiplier; };
@@ -189,7 +189,7 @@ ruleTester.run('pure-functions', rule, {
         // Variable reference: factory function passed to registerMionPureFn
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 const myFactory = function() {
                     return function inner(x: number) { return x + 1; };
                 };
@@ -326,7 +326,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with eval (forbidden even for factories)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('fn', function() {
                     return function inner(x: string) { return eval(x); };
                 });
@@ -336,7 +336,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with Function constructor (forbidden for factories)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('fn', function() {
                     return new Function('return 1');
                 });
@@ -346,7 +346,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with fetch (forbidden for factories)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('fn', function() {
                     return function inner() { return fetch('/api'); };
                 });
@@ -356,7 +356,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with this (forbidden for factories)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('fn', function() {
                     return this.value;
                 });
@@ -366,7 +366,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with closure variable used in the factory body
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 const outer = 42;
                 registerMionPureFn('factory', function factory() { return outer; });
             `,
@@ -375,7 +375,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory referencing setTimeout (forbidden for factories)
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 registerMionPureFn('factory', function factory() { return setTimeout; });
             `,
             errors: [{messageId: 'purityForbiddenIdentifier', data: {name: 'setTimeout', fnType: 'factory functions'}}],
@@ -383,7 +383,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn factory with closure variable used in the inner fn
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 const MAX = 100;
                 registerMionPureFn('fn', function() {
                     return function inner(x: number) { return x + MAX; };
@@ -426,7 +426,7 @@ ruleTester.run('pure-functions', rule, {
         // Variable reference: factory fn with violation via registerMionPureFn
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 const myFactory = function() { return eval('x'); };
                 registerMionPureFn('fn', myFactory);
             `,
@@ -444,7 +444,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn with imported factory
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 import { myFactory } from './myModule';
                 registerMionPureFn('fn', myFactory);
             `,
@@ -472,7 +472,7 @@ ruleTester.run('pure-functions', rule, {
         // registerMionPureFn with function parameter
         {
             code: `
-                import { registerMionPureFn } from '@mionjs/run-types';
+                import { registerMionPureFn } from '@mionjs/core';
                 function wrap(factory: any) {
                     registerMionPureFn('fn', factory);
                 }

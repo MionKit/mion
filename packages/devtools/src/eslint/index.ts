@@ -12,7 +12,6 @@ import noMixedUnionProperties from './rules/no-mixed-union-properties.ts';
 import noTypeImports from './rules/no-type-imports.ts';
 import pureFunctions from './rules/pure-functions.ts';
 import noViteClient from './rules/no-vite-client.ts';
-import typeFormatsImports from './rules/type-formats-imports.ts';
 import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // configs is set outside the initial object due to circular reference: recommended config references the plugin itself.
@@ -24,7 +23,6 @@ const plugin: ESLint.Plugin = {
         'no-type-imports': noTypeImports,
         'pure-functions': pureFunctions,
         'no-vite-client': noViteClient,
-        'type-formats-imports': typeFormatsImports,
         'enforce-type-imports': enforceTypeImports,
     } as unknown as ESLint.Plugin['rules'],
     configs: {},
@@ -41,7 +39,6 @@ plugin.configs!.recommended = {
         '@mionjs/no-unreachable-union-types': 'error',
         '@mionjs/no-type-imports': 'error',
         '@mionjs/pure-functions': 'error',
-        '@mionjs/type-formats-imports': 'error',
         // disabled as seems is not too useful and overlaps with some ts rules
         // '@mionjs/no-mixed-union-properties': 'warn',
     },
