@@ -1,6 +1,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import mionESLintPlugin from '@mionjs/devtools/eslint';
+import tsRuntypesESLint from '@ts-runtypes/devtools/eslint';
 
 export default tseslint.config(
   {
@@ -19,7 +20,6 @@ export default tseslint.config(
       '**/xyz-Template/**',
       'packages/devtools/bin/**',
       'packages/examples/**',
-      'packages/run-types/microbenchs/**',
       'packages/test-publish/**',
       'scripts/**',
       '**/vite.config.ts',
@@ -35,6 +35,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   mionESLintPlugin.configs.recommended,
+  tsRuntypesESLint.configs.recommended,
   {
     languageOptions: {
       parserOptions: {

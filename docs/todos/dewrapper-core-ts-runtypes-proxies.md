@@ -1,7 +1,12 @@
 # De-wrapper @mionjs/core's remaining @ts-runtypes proxies
 
-**Status:** todo — deferred from the proxy-removal wave (commit ffeeeb3). Not simple in
-isolation; the type-mirror half is entangled with the pending friendly-errors swap.
+**Status:** todo — DEFERRED to a dedicated session. **Needs full investigation before any code.**
+The `@ts-runtypes` binary / DataView / serialization surface has changed substantially since these
+wrappers were written, so the mapping is no longer a mechanical swap: the exact current
+`@ts-runtypes/core` DataView + binary-codec API, its option/signature shape, and how `RunTypeError`
+relates to the current `RTValidationError` all have to be re-derived from the live source and
+understood deeply first. Do NOT attempt this as a quick edit — scope it properly in its own session
+with fresh reading of the `@ts-runtypes` binary/serialization + validation-error code.
 **Created:** 2026-07-22
 
 ## Goal
