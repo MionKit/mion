@@ -17,7 +17,7 @@ import {
     RtMarkerPayload,
 } from './mionAdapter.ts';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {getJitUtils} from '../jit/jitUtils.ts';
+import {resolveJIT} from './rtResolver.ts';
 
 // A mion-route-like wrapper so the plugin injects real payloads for the tests.
 type AnyHandler = (ctx: any, ...params: any[]) => any;
@@ -133,14 +133,14 @@ describe('mionAdapter: reflection from injected markers', () => {
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
         const hashes = getJitFnHashes(reflection.paramsJitHash);
         for (const key of ['isType', 'typeErrors', 'restoreFromJson', 'stringifyJson'] as const) {
-            const compiled = getJitUtils().getJIT(hashes[key]);
+            const compiled = resolveJIT(hashes[key]);
             expect(compiled, `entry for ${key} (${hashes[key]})`).toBeDefined();
             expect(compiled!.jitFnHash).toBe(hashes[key]);
             if (!compiled!.isNoop) expect(compiled!.code.length).toBeGreaterThan(0);
         }
         expect(reflection.paramsJitFns.isType.jitFnHash).toBe(hashes.isType);
         // rebuild validate from its emitted code (the client metadata lane)
-        const compiledIsType = getJitUtils().getJIT(hashes.isType)!;
+        const compiledIsType = resolveJIT(hashes.isType)!;
         const rebuilt = new Function('utl', compiledIsType.code)(getRTUtils());
         expect(rebuilt([{name: 'rex', born: new Date(0)}, 'note'])).toBe(true);
         expect(rebuilt([{name: 7, born: new Date(0)}])).toBe(false);

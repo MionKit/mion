@@ -8,7 +8,6 @@
 
 import {MIME_TYPES} from '../constants.ts';
 import {TypeFormatError} from './formats/formats.types.ts';
-import type {JITUtils} from '../jit/jitUtils.ts';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -169,7 +168,7 @@ export interface JitCompiledFnData {
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: JITUtils) => Fn;
+    readonly createJitFn: (utl: unknown) => Fn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: Fn;
 }
@@ -250,13 +249,13 @@ export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
 
 export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: JITUtils) => AnyFn;
+    readonly createJitFn: (utl: unknown) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
 export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     /** The closure function that contains the pure function, this one contains the context code */
-    readonly createPureFn: (utl: JITUtils) => AnyFn;
+    readonly createPureFn: (utl: unknown) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }

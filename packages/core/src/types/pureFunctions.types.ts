@@ -1,6 +1,5 @@
 import {TypeFormatValue} from './formats/formats.types.ts';
 import {RunTypeError} from './general.types.ts';
-import type {JITUtils} from '../jit/jitUtils.ts';
 
 type StrNumber = string | number;
 
@@ -32,7 +31,7 @@ export type PureFunction = (...args: any[]) => any; /**
  */
 
 export type PureFunctionFactory = (
-    jitUtils: JITUtils
+    jitUtils: unknown
 ) => PureFunction; /** Data for a pure function that can be serialized and deserialized. */
 
 export interface PureFunctionData {

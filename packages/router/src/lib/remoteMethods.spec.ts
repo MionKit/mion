@@ -11,9 +11,9 @@ import {registerRoutes, initRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
-import {getJitFnHashes, HandlerType, type JITUtils} from '@mionjs/core';
+import {getJitFnHashes, HandlerType} from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from './handlers.ts';
-import {getJitUtils} from '@mionjs/core';
+import {resolveJIT} from '@mionjs/core';
 import {getRTUtils} from '@ts-runtypes/core';
 
 describe('Public Methods should', () => {
@@ -93,14 +93,14 @@ describe('Public Methods should', () => {
         const api = await registerRoutes(testR);
 
         const hashes = getJitFnHashes(api.addMilliseconds.paramsJitHash);
-        const compiledIsType = getJitUtils().getJIT(hashes.isType)!;
-        const compiledRestoreFromJson = getJitUtils().getJIT(hashes.restoreFromJson)!;
-        const compiledPrepareForJson = getJitUtils().getJIT(hashes.prepareForJson)!;
+        const compiledIsType = resolveJIT(hashes.isType)!;
+        const compiledRestoreFromJson = resolveJIT(hashes.restoreFromJson)!;
+        const compiledPrepareForJson = resolveJIT(hashes.prepareForJson)!;
 
         // Rebuild each fn from its serialized code (the client metadata lane). Since the
         // ts-runtypes migration the closures take the ts-runtypes utils, and noop entries
         // (identity transforms) ship no code — their .fn is the native substitute.
-        const materialize = (compiled: NonNullable<ReturnType<JITUtils['getJIT']>>) =>
+        const materialize = (compiled: NonNullable<ReturnType<typeof resolveJIT>>) =>
             compiled.isNoop ? compiled.fn : new Function('utl', compiled.code)(getRTUtils());
 
         const isType = materialize(compiledIsType);
