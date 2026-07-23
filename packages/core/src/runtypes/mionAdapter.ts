@@ -60,7 +60,7 @@ export interface RtHeadersReflection {
 
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
-    paramNames: string[];
+    paramsCount: number;
     paramsJitFns: JitCompiledFunctions;
     returnJitFns: JitCompiledFunctions;
     paramsJitHash: string;
@@ -99,7 +99,6 @@ export function addSerializedJitCaches(deps: Record<string, JitCompiledFnData>, 
             code: data.code,
             rtDependencies: data.jitDependencies,
             pureFnDependencies: data.pureFnDependencies,
-            ...(data.paramNames ? {paramNames: [...data.paramNames]} : {}),
         } as never);
     }
     for (const [namespace, fns] of Object.entries(pureFnDeps)) {
@@ -209,118 +208,17 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
     return getRunType<unknown>(undefined, idHandle as InjectRunTypeId<unknown>);
 }
 
-// ############# param names #############
-// ⚠️ paramNames DISPLAY strings come from the HANDLER SOURCE, not the runtype graph: ts-runtypes
-// dedupes types structurally and tuple labels are NOT part of the structural id, so the canonical
-// node for `[s: string]` may carry the labels of whichever call site got interned first (e.g.
-// `[name: string]`). Parsing the function source gives the exact declared names. The param COUNT,
-// however, is taken from the params tuple runtype (getParamCountFromRunType) and reconciled in —
-// see R34: minified server bundles degrade the parsed names and an empty parse used to silently
-// disable client-side pre-validation + param serialization (both early-return on length === 0).
-
-/** Extracts declared parameter names from a handler's source, skipping the leading context param. */
-export function getParamNamesFromHandler(handler: AnyFn, skipParams = 1): string[] {
-    const src = handler.toString();
-    const params = splitParamList(extractParamList(src));
-    return params.slice(skipParams).map((param, index) => {
-        const name = paramName(param);
-        return name ?? `param${index}`;
-    });
-}
+// ############# param arity (from the params tuple runtype) #############
 
 /**
- * R34 — the AUTHORITATIVE param arity comes from the params tuple runtype (HandlerParams<H> /
- * HeaderHandlerParams<H> are always tuples), which is build-time-known and transpile-stable.
- * Source parsing (handler.toString()) only supplies display names and degrades under minified
- * server bundles: an empty parse used to silently disable client-side pre-validation and param
- * serialization (both early-return on paramNames.length === 0). Counting tuple members closes that.
+ * R34 — the param arity comes from the params tuple runtype (HandlerParams<H> / HeaderHandlerParams<H>
+ * are always tuples), which is build-time-known and transpile-stable. It is the ONLY param info mion
+ * keeps: the client gates pre-validation + param serialization on arity > 0. Display param names were
+ * dropped (they were unused, and the old handler.toString() parsing degraded under minified bundles).
  */
 export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
     const root = paramsRunType as RtNodeLike;
     return root.kind === RunTypeKind.tuple ? (root.children?.length ?? 0) : 0;
-}
-
-/**
- * Reconciles source-parsed param names against the runtype arity so paramNames.length always
- * equals the real param count. Parsed names fill display slots; missing slots (degraded source)
- * fall back to positional `param{i}` markers instead of vanishing.
- */
-export function reconcileParamNames(sourceNames: string[], arity: number): string[] {
-    if (sourceNames.length === arity) return sourceNames;
-    const names: string[] = [];
-    for (let i = 0; i < arity; i++) names.push(sourceNames[i] ?? `param${i}`);
-    return names;
-}
-
-/** Returns the raw text between the param parens (or the bare identifier of a paren-less arrow). */
-function extractParamList(src: string): string {
-    const noComments = src.replace(/\/\*[^]*?\*\//g, ' ');
-    const start = noComments.search(/\(/);
-    const arrow = noComments.indexOf('=>');
-    // paren-less single-param arrow: `ctx => ...` / `async ctx => ...`
-    if (arrow !== -1 && (start === -1 || start > arrow)) {
-        const head = noComments
-            .slice(0, arrow)
-            .replace(/^async\b/, '')
-            .trim();
-        return head;
-    }
-    if (start === -1) return '';
-    let depth = 0;
-    for (let i = start; i < noComments.length; i++) {
-        const ch = noComments[i];
-        if (ch === '(') depth++;
-        else if (ch === ')') {
-            depth--;
-            if (depth === 0) return noComments.slice(start + 1, i);
-        } else if (ch === "'" || ch === '"' || ch === '`') {
-            i = skipString(noComments, i);
-        }
-    }
-    return '';
-}
-
-/** Advances past a string literal starting at `start`, honoring escapes. */
-function skipString(src: string, start: number): number {
-    const quote = src[start];
-    for (let i = start + 1; i < src.length; i++) {
-        if (src[i] === '\\') i++;
-        else if (src[i] === quote) return i;
-    }
-    return src.length;
-}
-
-/** Splits a param-list string on top-level commas (default values / destructuring stay intact). */
-function splitParamList(list: string): string[] {
-    if (!list.trim()) return [];
-    const params: string[] = [];
-    let depth = 0;
-    let current = '';
-    for (let i = 0; i < list.length; i++) {
-        const ch = list[i];
-        if (ch === '(' || ch === '[' || ch === '{') depth++;
-        else if (ch === ')' || ch === ']' || ch === '}') depth--;
-        else if (ch === "'" || ch === '"' || ch === '`') {
-            const end = skipString(list, i);
-            current += list.slice(i, end + 1);
-            i = end;
-            continue;
-        } else if (ch === ',' && depth === 0) {
-            params.push(current);
-            current = '';
-            continue;
-        }
-        current += ch;
-    }
-    if (current.trim()) params.push(current);
-    return params;
-}
-
-/** Resolves the declared name of one param text; undefined for destructuring patterns. */
-function paramName(param: string): string | undefined {
-    const head = param.trim().replace(/^\.\.\./, '');
-    const match = /^([A-Za-z_$][\w$]*)\s*(?:=[^]*)?$/.exec(head);
-    return match ? match[1] : undefined;
 }
 
 const NO_DATA_KINDS: unknown[] = [RunTypeKind.void, RunTypeKind.never, RunTypeKind.undefined];
@@ -354,7 +252,7 @@ export function getReflectionFromMarkers(
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
     const paramsArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
     const reflection: RtMethodReflection = {
-        paramNames: reconcileParamNames(getParamNamesFromHandler(handler), paramsArity),
+        paramsCount: paramsArity,
         paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
         returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
         paramsJitHash: paramsTypeId,
@@ -465,9 +363,9 @@ export function getHeadersReflectionFromMarkers(
             `mion run-types: headers middleFn '${methodId}' must declare its 2nd param as HeadersSubset<Required, Optional>.`
         );
     const reflection = getReflectionFromMarkers(rtFns, handler, methodId);
-    // skip ctx + headers params for display names; arity still comes from the params runtype (R34)
+    // arity comes from the params runtype (R34); display param names are no longer tracked
     const bodyArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
-    reflection.paramNames = reconcileParamNames(getParamNamesFromHandler(handler, 2), bodyArity);
+    reflection.paramsCount = bodyArity;
     reflection.headersParam = {
         headerNames,
         jitHash: headersTypeId,

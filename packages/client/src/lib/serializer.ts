@@ -128,7 +128,7 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
 }
 
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
-    if (!method.paramNames || method.paramNames.length === 0) return '';
+    if (!method.paramsCount) return '';
     const paramsJit = method.paramsJitFns;
     if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
     return paramsJit.stringifyJson.fn(params);

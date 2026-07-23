@@ -85,7 +85,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         paramsJitHash: executable.paramsJitHash,
         returnJitHash: executable.returnJitHash,
         pointer: executable.pointer,
-        ...(executable.paramNames ? {paramNames: executable.paramNames} : {}),
+        paramsCount: executable.paramsCount ?? 0,
         options: executable.options,
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
@@ -183,6 +183,5 @@ function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
         code: comp.code,
         jitDependencies: comp.jitDependencies ? [...comp.jitDependencies] : undefined,
         pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : undefined,
-        ...(comp.paramNames ? {paramNames: [...comp.paramNames]} : {}),
     };
 }

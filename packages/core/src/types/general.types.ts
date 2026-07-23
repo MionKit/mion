@@ -142,8 +142,6 @@ export interface JitCompiledFnData {
     readonly jitDependencies?: Array<string>;
     /** Pure function dependencies in format "namespace::fnHash" */
     readonly pureFnDependencies?: Array<string>;
-    /** function param names if the compiled type is function params */
-    paramNames?: string[];
 }
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
@@ -243,10 +241,7 @@ export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
 export type SrcCodePureFunctionsCache = Record<string, Record<string, SrcCodeCompiledPureFunction>>;
 
 /** Client version of SrcCodeJitCompiledFn - strips unused properties to reduce bundle size */
-export type ClientSrcCodeJitCompiledFn = Omit<
-    SrcCodeJitCompiledFn,
-    'code' | 'args' | 'defaultParamValues' | 'fnID' | 'paramNames'
->;
+export type ClientSrcCodeJitCompiledFn = Omit<SrcCodeJitCompiledFn, 'code' | 'args' | 'defaultParamValues' | 'fnID'>;
 /** Client version of SrcCodeCompiledPureFunction - strips unused properties to reduce bundle size */
 export type ClientSrcCodeCompiledPureFunction = Omit<SrcCodeCompiledPureFunction, 'code' | 'paramNames'>;
 export type ClientSrcCodeJITCompiledFnsCache = Record<string, ClientSrcCodeJitCompiledFn>;
