@@ -10,9 +10,7 @@ import {getRTUtils, InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
 import {
     buildJitFnsFromMarker,
     getReflectionFromMarkers,
-    getParamNamesFromHandler,
     getParamCountFromRunType,
-    reconcileParamNames,
     resolveInjectedRunType,
     RtMarkerPayload,
 } from './mionAdapter.ts';
@@ -43,9 +41,9 @@ describe('mionAdapter: reflection from injected markers', () => {
     const savePet = fakeRoute((ctx: unknown, pet: Pet, notes?: string): Pet => pet);
     const fireAndForget = fakeRoute(async (ctx: unknown): Promise<void> => undefined);
 
-    it('builds full method reflection (names, jit fns, hashes, flags)', () => {
+    it('builds full method reflection (arity, jit fns, hashes, flags)', () => {
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-        expect(reflection.paramNames).toEqual(['pet', 'notes']);
+        expect(reflection.paramsCount).toBe(2);
         expect(reflection.hasReturnData).toBe(true);
         expect(reflection.isAsync).toBe(false);
         expect(reflection.paramsJitHash.length).toBeGreaterThan(0);
@@ -77,53 +75,17 @@ describe('mionAdapter: reflection from injected markers', () => {
         expect(reflection.hasReturnData).toBe(false);
     });
 
-    it('derives param names from the handler source (skipping ctx)', () => {
-        expect(getParamNamesFromHandler(savePet.handler)).toEqual(['pet', 'notes']);
-        expect(getParamNamesFromHandler((ctx: unknown) => 1)).toEqual([]);
-        expect(getParamNamesFromHandler(() => 1)).toEqual([]);
-        expect(getParamNamesFromHandler(async function named(ctx: unknown, a: number, b = 'x,y(z'): Promise<void> {})).toEqual([
-            'a',
-            'b',
-        ]);
-        expect(getParamNamesFromHandler((ctx: unknown, {a}: {a: number}, ...rest: string[]) => rest.length + a)).toEqual([
-            'param0',
-            'rest',
-        ]);
-    });
-
-    // R34 — param arity is authoritative from the params tuple runtype, not source parsing.
-    it('takes the param COUNT from the runtype and keeps validation alive when source parsing degrades', () => {
-        // savePet has 2 params (pet, notes?). The runtype arity is 2 regardless of the handler source.
+    // R34 — param arity is authoritative from the params tuple runtype. Display names are no
+    // longer tracked (the handler-source parsing was removed); only the count matters downstream.
+    it('takes the param COUNT (arity) from the params tuple runtype', () => {
+        // savePet has 2 params (pet, notes?); the runtype arity is 2 regardless of handler source.
         expect(getParamCountFromRunType(resolveInjectedRunType(savePet.rtFns.paramsId))).toBe(2);
-        // Simulate a minified/transpiled bundle whose handler.toString() no longer exposes the params:
+        const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
+        expect(reflection.paramsCount).toBe(2);
+        // arity survives even when the handler source is minified away (no source parse involved)
         const degraded = (() => undefined) as unknown as (ctx: any, pet: Pet, notes?: string) => Pet;
-        expect(getParamNamesFromHandler(degraded)).toEqual([]); // source parse yields nothing…
-        const reflection = getReflectionFromMarkers(savePet.rtFns, degraded, 'savePetDegraded');
-        expect(reflection.paramNames).toEqual(['param0', 'param1']); // …but arity survives via the runtype
-        // and the client-side pre-validation gate (paramNames.length === 0) therefore stays active
-        expect(reflection.paramNames.length).toBe(2);
-    });
-
-    it('reconcileParamNames fills/truncates parsed names to the runtype arity', () => {
-        expect(reconcileParamNames(['a', 'b'], 2)).toEqual(['a', 'b']);
-        expect(reconcileParamNames([], 2)).toEqual(['param0', 'param1']);
-        expect(reconcileParamNames(['a'], 3)).toEqual(['a', 'param1', 'param2']);
-        expect(reconcileParamNames(['a', 'b', 'c'], 2)).toEqual(['a', 'b']);
-        expect(reconcileParamNames([], 0)).toEqual([]);
-    });
-
-    it('reads param names from the handler source, independent of tuple labels', () => {
-        // Since @ts-runtypes 0.9.2 tuple labels ARE folded into the structural id, so
-        // `[s: string]` and `[name: string]` get DISTINCT typeIds (they no longer dedupe).
-        // mion still derives paramNames from the handler SOURCE (the definitive names,
-        // robust to destructuring), not the runtype graph.
-        const routeA = fakeRoute((ctx: unknown, s: string): void => undefined);
-        const routeB = fakeRoute((ctx: unknown, name: string): void => undefined);
-        const reflectionA = getReflectionFromMarkers(routeA.rtFns, routeA.handler, 'routeA');
-        const reflectionB = getReflectionFromMarkers(routeB.rtFns, routeB.handler, 'routeB');
-        expect(reflectionA.paramsJitHash).not.toBe(reflectionB.paramsJitHash);
-        expect(reflectionA.paramNames).toEqual(['s']);
-        expect(reflectionB.paramNames).toEqual(['name']);
+        const degradedReflection = getReflectionFromMarkers(savePet.rtFns, degraded, 'savePetDegraded');
+        expect(degradedReflection.paramsCount).toBe(2);
     });
 
     it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {

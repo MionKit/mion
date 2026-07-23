@@ -70,7 +70,7 @@ describe('Public Methods should', () => {
                 id: 'auth',
                 paramsJitHash: expect.any(String),
                 returnJitHash: expect.any(String),
-                paramNames: ['s'],
+                paramsCount: 1,
             } as Partial<MiddleFnMethod>)
         );
 
@@ -80,7 +80,7 @@ describe('Public Methods should', () => {
                 id: 'routes/route1',
                 paramsJitHash: expect.any(String),
                 returnJitHash: expect.any(String),
-                paramNames: [],
+                paramsCount: 0,
             } as Partial<RouteMethod>)
         );
     });
@@ -210,7 +210,7 @@ describe('Public Methods should', () => {
             expect.objectContaining({
                 type: HandlerType.route,
                 id: 'sayHello',
-                paramNames: ['name'],
+                paramsCount: 1,
             } as Partial<RouteMethod>)
         );
     });

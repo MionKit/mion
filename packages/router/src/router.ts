@@ -209,7 +209,7 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
 export function isPrivateExecutable(executable: RemoteMethod): boolean {
     if (executable.type === HandlerType.rawMiddleFn) return true;
     if (executable.type === HandlerType.route) return false;
-    const hasPublicParams = !!executable.paramNames?.length;
+    const hasPublicParams = !!executable.paramsCount;
     const hasHeaderParams = !!(executable as HeadersMethod).headersParam?.headerNames?.length;
     return !hasPublicParams && !hasHeaderParams && !executable.hasReturnData;
 }
