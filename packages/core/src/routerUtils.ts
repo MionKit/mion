@@ -8,7 +8,7 @@
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {CoreRouterOptions, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
-import {getJitUtils} from './jit/jitUtils.ts';
+import {resolveJIT} from './runtypes/rtResolver.ts';
 import {getOrCreateGlobal} from './utils.ts';
 
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);
@@ -180,22 +180,21 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     const cached = jitFunctionsCache.get(jitHash);
     if (cached) return cached;
 
-    const jUtils = getJitUtils();
     const jitFns = {
-        isType: jUtils.getJIT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
-        typeErrors: jUtils.getJIT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
-        prepareForJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
-        restoreFromJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
-        stringifyJson: jUtils.getJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
+        isType: resolveJIT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
+        typeErrors: resolveJIT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
+        prepareForJson: resolveJIT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
+        restoreFromJson: resolveJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
+        stringifyJson: resolveJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
     } as JitCompiledFunctions;
     // strictTypes fns are optional: only present when the type has object members
-    const hasUnknownKeysJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
-    const unknownKeyErrorsJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+    const hasUnknownKeysJit = resolveJIT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
+    const unknownKeyErrorsJit = resolveJIT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
     if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit;
     if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit;
     // Only include binary functions if they exist in the store
-    const toBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
-    const fromBinaryJit = jUtils.getJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
+    const toBinaryJit = resolveJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
+    const fromBinaryJit = resolveJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
     if (toBinaryJit) jitFns.toBinary = toBinaryJit;
     if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit;
 
@@ -218,10 +217,9 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
     if (cached) return cached;
 
     const hashes = getJitFnHashes(jitHash);
-    const jUtils = getJitUtils();
     const jitFns = {
-        isType: jUtils.getJIT(hashes.isType),
-        typeErrors: jUtils.getJIT(hashes.typeErrors),
+        isType: resolveJIT(hashes.isType),
+        typeErrors: resolveJIT(hashes.typeErrors),
     } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 
     // Cache for future calls

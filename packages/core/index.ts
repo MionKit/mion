@@ -37,7 +37,7 @@ export * from './src/binary/bodySerializer.ts';
 export * from './src/binary/bodyDeserializer.ts';
 export * from './src/constants.ts';
 export * from './src/errors.ts';
-export * from './src/jit/jitUtils.ts';
+export {resolveJIT, resolveCompiledPureFn} from './src/runtypes/rtResolver.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
