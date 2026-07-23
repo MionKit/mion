@@ -6,7 +6,7 @@ export default defineConfig({
     resolve: {conditions: ['source']},
     ssr: {resolve: {conditions: ['source']}},
     plugins: [
-        // Needed by src/runtypes/* specs + the mionClassSerializers registration call site:
+        // Needed by src/runtypes/* specs + the errors.ts class-serializer registration call site:
         // the @ts-runtypes/devtools plugin injects the marker payloads at build time.
         // failOnError defaults to false in mionVitePlugin (see its comment): the adapter's
         // pure-fn helpers wrap ts-runtypes marker APIs with runtime keys, producing expected
