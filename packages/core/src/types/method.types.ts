@@ -23,8 +23,8 @@ export interface MethodMetadata {
     isAsync: boolean;
     /** true if method returns data (not void or undefined) */
     hasReturnData: boolean;
-    /** Information about method parameters including their names and sources (headers, cookies, body) */
-    paramNames?: string[];
+    /** Number of public method parameters (arity), derived from the params tuple runtype */
+    paramsCount?: number;
     /** JIT hash of the method parameters */
     paramsJitHash: string;
     /**  JIT  hash of the method return value */
