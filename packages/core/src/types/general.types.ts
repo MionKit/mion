@@ -7,7 +7,7 @@
  * ############### */
 
 import {MIME_TYPES} from '../constants.ts';
-import {TypeFormatError} from './formats/formats.types.ts';
+import type {RTValidationError} from '@ts-runtypes/core';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -102,31 +102,11 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
     | RpcErrorWithPublic<ErrType, ErrData>
     | RpcErrorWithPrivate<ErrType, ErrData>;
 
-/** Path segment for Map key errors */
-export type MapKeyPathSegment = {key: unknown; index: number; failed: 'mapKey'};
-
-/** Path segment for Map value errors */
-export type MapValuePathSegment = {key: unknown; index: number; failed: 'mapVal'};
-
-/** Path segment for Set item errors */
-export type SetItemPathSegment = {key: unknown; index: number};
-
-/** Any path segment in a RunTypeError path */
-export type PathSegment = StrNumber | MapKeyPathSegment | MapValuePathSegment | SetItemPathSegment;
-
-export interface RunTypeError {
-    /**
-     * Path to the property that failed validation if the validated item was an object class, etc..
-     * Index if item that failed validation was in an array.
-     * For Maps: contains {key, index, failed: 'mapKey'|'mapVal'} objects.
-     * For Sets: contains {key, index} objects.
-     * Empty array if validated item was a single property */
-    path: PathSegment[];
-    /** the type of the expected data */
-    expected: string;
-    format?: TypeFormatError;
-    // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
-}
+/** A validation error from `createGetValidationErrors`, mion's public error-data shape (rides
+ *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @ts-runtypes/core's
+ *  `RTValidationError` (the type the validators actually produce): `{path, expected, format?}`.
+ *  mion never constructs these, only forwards them, so the alias is exact and lossless. */
+export type RunTypeError = RTValidationError;
 
 // ########################################### JIT FUNCTIONS ###########################################
 
