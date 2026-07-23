@@ -15,6 +15,8 @@ import type {
 } from './types/general.types.ts';
 import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 import {randomUUID_V7} from './utils.ts';
+import {registerClassSerializer} from '@ts-runtypes/core';
+import type {DataOnly} from '@ts-runtypes/core';
 
 // ############# Validation Error Types #############
 
@@ -227,7 +229,22 @@ export function isAnyError(error: any): error is TypedError<any> | RpcError<stri
 
 /**
  * @deprecated no-op since the ts-runtypes migration: TypedError/RpcError are registered with
- * the ts-runtypes class-serializer registry by @mionjs/core (src/runtypes/mionClassSerializers), which
+ * the ts-runtypes class-serializer registry at the bottom of this module (see below), which
  * every mion server/client loads. For custom classes use registerClassSerializer instead.
  */
 export function registerErrorDeserializers() {}
+
+// ############# mion error classes -> ts-runtypes class serializers #############
+// Registered here, alongside the class definitions, so JSON/binary decoders rebuild real
+// instances (`instanceof RpcError` holds after a round trip). Loading @mionjs/core (which
+// re-exports this module) fires the registration before any decode runs.
+//
+// ⚠️ ts-runtypes keys the registry by the class-NAME lane (since 0.9.2), so ONE registration
+// per class covers EVERY generic instantiation the program uses, not just the <string> projection.
+registerClassSerializer<TypedError<string>>(TypedError, {
+    deserialize: (data: DataOnly<TypedError<string>>) => new TypedError(data),
+});
+
+registerClassSerializer<RpcError<string>>(RpcError, {
+    deserialize: (data: DataOnly<RpcError<string>>) => new RpcError(data),
+});

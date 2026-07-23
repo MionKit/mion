@@ -11,9 +11,9 @@ import {getOrCreateGlobal} from './src/utils.ts';
 // imports of format aliases get erased by the transpiler, so registration must ride a module
 // that is always value-imported — @mionjs/core is (every mion package depends on it).
 import '@ts-runtypes/core/formats';
-// side effect: register mion error classes (TypedError/RpcError) with the ts-runtypes
-// class-serializer registry so JSON/binary decoders rebuild real instances.
-import './src/runtypes/mionClassSerializers.ts';
+// mion error classes (TypedError/RpcError) register themselves with the ts-runtypes
+// class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON/binary
+// decoders rebuild real instances.
 
 const __mionLoadCounter = getOrCreateGlobal('mion.core.loadCounter', () => ({count: 0}));
 __mionLoadCounter.count += 1;
