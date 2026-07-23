@@ -7,7 +7,7 @@
  * ############### */
 
 import {MIME_TYPES} from '../constants.ts';
-import type {RTValidationError} from '@ts-runtypes/core';
+import type {RTValidationError, DataOnly as RtDataOnly} from '@ts-runtypes/core';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -274,27 +274,10 @@ export type Prettify<T> = {
 export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
-// prettier-ignore
-type Native = Date | RegExp | URL | URLSearchParams | Blob | File | FileList | FormData | ArrayBuffer | SharedArrayBuffer | DataView | Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array;
-
-/** Typescript mapping type that stripes methods and only keep properties.
- * it takes into account, dates, objects, classes, arrays, maps and sets.
- */
-export type DataOnly<T> = T extends object
-    ? T extends Native
-        ? T
-        : T extends Function
-          ? never
-          : T extends new (...args: any[]) => any
-            ? never
-            : T extends Array<infer U>
-              ? Array<DataOnly<U>>
-              : T extends Map<infer K, infer V>
-                ? Map<DataOnly<K>, DataOnly<V>>
-                : T extends Set<infer U>
-                  ? Set<DataOnly<U>>
-                  : {[K in keyof T as T[K] extends Function ? never : K]: DataOnly<T[K]>}
-    : T;
+/** Data-only projection of T (strips methods, keeps serializable properties). Aliases
+ *  @ts-runtypes/core's DataOnly — the exact type mion's decoders return — so mion's public
+ *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
+export type DataOnly<T> = RtDataOnly<T>;
 
 // TEST TYPES FOR PlainObject
 
