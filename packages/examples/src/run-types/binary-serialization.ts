@@ -1,4 +1,4 @@
-import {createBinaryEncoder, createBinaryDecoder} from '@mionjs/run-types';
+import {createBinaryEncoder, createBinaryDecoder} from '@ts-runtypes/core';
 
 interface User {
     name: string;

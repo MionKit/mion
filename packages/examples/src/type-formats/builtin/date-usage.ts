@@ -1,12 +1,12 @@
-import {FormatStringDate} from '@mionjs/type-formats/StringFormats';
+import {StringDate} from '@ts-runtypes/core/formats';
 
 // Default ISO format
-type ISODate = FormatStringDate; // 'YYYY-MM-DD'
+type ISODate = StringDate; // 'YYYY-MM-DD'
 
 // Custom formats
-type EuropeanDate = FormatStringDate<{format: 'DD-MM-YYYY'}>;
-type USDate = FormatStringDate<{format: 'MM-DD-YYYY'}>;
-type MonthYear = FormatStringDate<{format: 'YYYY-MM'}>;
+type EuropeanDate = StringDate<{format: 'DD-MM-YYYY'}>;
+type USDate = StringDate<{format: 'MM-DD-YYYY'}>;
+type MonthYear = StringDate<{format: 'YYYY-MM'}>;
 
 // Validates leap years correctly
 ('2000-02-29'); // ✓ (leap year)

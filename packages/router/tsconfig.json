@@ -5,7 +5,7 @@
     "rootDir": ".",
     "types": ["@mionjs/devtools/virtual-modules", "@types/node"]
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../type-formats"}, {"path": "../test-server"}],
+  "references": [{"path": "../core"}, {"path": "../test-server"}],
   "include": ["."],
   "exclude": [
     "node_modules",

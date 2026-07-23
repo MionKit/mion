@@ -1,12 +1,12 @@
-import {FormatStringTime} from '@mionjs/type-formats/StringFormats';
+import {StringTime} from '@ts-runtypes/core/formats';
 
 // Default ISO format with timezone
-type ISOTime = FormatStringTime; // 'HH:mm:ss[.mmm]TZ'
+type ISOTime = StringTime; // 'HH:mm:ss[.mmm]TZ'
 
 // Custom formats
-type SimpleTime = FormatStringTime<{format: 'HH:mm:ss'}>;
-type ShortTime = FormatStringTime<{format: 'HH:mm'}>;
-type Duration = FormatStringTime<{format: 'mm:ss'}>;
+type SimpleTime = StringTime<{format: 'HH:mm:ss'}>;
+type ShortTime = StringTime<{format: 'HH:mm'}>;
+type Duration = StringTime<{format: 'mm:ss'}>;
 
 // ISO time examples
 ('14:30:00Z'); // ✓ UTC

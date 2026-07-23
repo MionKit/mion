@@ -1,4 +1,4 @@
-import {TypeFormat} from '@mionjs/run-types';
+import {TypeFormat} from '@ts-runtypes/core';
 
 // FormatDomainStrict is no longer generic; custom domain constraints are expressed with a
 // direct TypeFormat<string, 'domain', Params> annotation (strict defaults spelled out).

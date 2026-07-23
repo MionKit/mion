@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RunTypeKind} from '@mionjs/run-types';
-import type {RunTypeKindValue} from '@mionjs/run-types';
+import {RunTypeKind} from '@ts-runtypes/core';
+import type {RunTypeKindValue} from '@ts-runtypes/core';
 import type {PropertyInfo} from '../types/common.types.ts';
 
 /** Converts a camelCase property name to snake_case for database column names */

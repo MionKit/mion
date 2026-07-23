@@ -7,8 +7,7 @@
  * ############### */
 
 import {MIME_TYPES} from '../constants.ts';
-import {TypeFormatError} from './formats/formats.types.ts';
-import type {JITUtils} from '../jit/jitUtils.ts';
+import type {RTValidationError, DataOnly as RtDataOnly} from '@ts-runtypes/core';
 import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
@@ -103,31 +102,11 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
     | RpcErrorWithPublic<ErrType, ErrData>
     | RpcErrorWithPrivate<ErrType, ErrData>;
 
-/** Path segment for Map key errors */
-export type MapKeyPathSegment = {key: unknown; index: number; failed: 'mapKey'};
-
-/** Path segment for Map value errors */
-export type MapValuePathSegment = {key: unknown; index: number; failed: 'mapVal'};
-
-/** Path segment for Set item errors */
-export type SetItemPathSegment = {key: unknown; index: number};
-
-/** Any path segment in a RunTypeError path */
-export type PathSegment = StrNumber | MapKeyPathSegment | MapValuePathSegment | SetItemPathSegment;
-
-export interface RunTypeError {
-    /**
-     * Path to the property that failed validation if the validated item was an object class, etc..
-     * Index if item that failed validation was in an array.
-     * For Maps: contains {key, index, failed: 'mapKey'|'mapVal'} objects.
-     * For Sets: contains {key, index} objects.
-     * Empty array if validated item was a single property */
-    path: PathSegment[];
-    /** the type of the expected data */
-    expected: string;
-    format?: TypeFormatError;
-    // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
-}
+/** A validation error from `createGetValidationErrors`, mion's public error-data shape (rides
+ *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @ts-runtypes/core's
+ *  `RTValidationError` (the type the validators actually produce): `{path, expected, format?}`.
+ *  mion never constructs these, only forwards them, so the alias is exact and lossless. */
+export type RunTypeError = RTValidationError;
 
 // ########################################### JIT FUNCTIONS ###########################################
 
@@ -163,13 +142,11 @@ export interface JitCompiledFnData {
     readonly jitDependencies?: Array<string>;
     /** Pure function dependencies in format "namespace::fnHash" */
     readonly pureFnDependencies?: Array<string>;
-    /** function param names if the compiled type is function params */
-    paramNames?: string[];
 }
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: JITUtils) => Fn;
+    readonly createJitFn: (utl: unknown) => Fn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: Fn;
 }
@@ -250,13 +227,13 @@ export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
 
 export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: JITUtils) => AnyFn;
+    readonly createJitFn: (utl: unknown) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
 export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     /** The closure function that contains the pure function, this one contains the context code */
-    readonly createPureFn: (utl: JITUtils) => AnyFn;
+    readonly createPureFn: (utl: unknown) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
@@ -264,10 +241,7 @@ export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
 export type SrcCodePureFunctionsCache = Record<string, Record<string, SrcCodeCompiledPureFunction>>;
 
 /** Client version of SrcCodeJitCompiledFn - strips unused properties to reduce bundle size */
-export type ClientSrcCodeJitCompiledFn = Omit<
-    SrcCodeJitCompiledFn,
-    'code' | 'args' | 'defaultParamValues' | 'fnID' | 'paramNames'
->;
+export type ClientSrcCodeJitCompiledFn = Omit<SrcCodeJitCompiledFn, 'code' | 'args' | 'defaultParamValues' | 'fnID'>;
 /** Client version of SrcCodeCompiledPureFunction - strips unused properties to reduce bundle size */
 export type ClientSrcCodeCompiledPureFunction = Omit<SrcCodeCompiledPureFunction, 'code' | 'paramNames'>;
 export type ClientSrcCodeJITCompiledFnsCache = Record<string, ClientSrcCodeJitCompiledFn>;
@@ -300,27 +274,10 @@ export type Prettify<T> = {
 export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
-// prettier-ignore
-type Native = Date | RegExp | URL | URLSearchParams | Blob | File | FileList | FormData | ArrayBuffer | SharedArrayBuffer | DataView | Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array;
-
-/** Typescript mapping type that stripes methods and only keep properties.
- * it takes into account, dates, objects, classes, arrays, maps and sets.
- */
-export type DataOnly<T> = T extends object
-    ? T extends Native
-        ? T
-        : T extends Function
-          ? never
-          : T extends new (...args: any[]) => any
-            ? never
-            : T extends Array<infer U>
-              ? Array<DataOnly<U>>
-              : T extends Map<infer K, infer V>
-                ? Map<DataOnly<K>, DataOnly<V>>
-                : T extends Set<infer U>
-                  ? Set<DataOnly<U>>
-                  : {[K in keyof T as T[K] extends Function ? never : K]: DataOnly<T[K]>}
-    : T;
+/** Data-only projection of T (strips methods, keeps serializable properties). Aliases
+ *  @ts-runtypes/core's DataOnly — the exact type mion's decoders return — so mion's public
+ *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
+export type DataOnly<T> = RtDataOnly<T>;
 
 // TEST TYPES FOR PlainObject
 

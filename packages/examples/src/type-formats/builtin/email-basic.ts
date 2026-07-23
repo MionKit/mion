@@ -1,6 +1,6 @@
-import {FormatEmail} from '@mionjs/type-formats/StringFormats';
+import {Email} from '@ts-runtypes/core/formats';
 
-type UserEmail = FormatEmail;
+type UserEmail = Email;
 
 // Valid
 ('user@example.com'); // ✓

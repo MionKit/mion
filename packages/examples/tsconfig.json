@@ -12,8 +12,6 @@
     {"path": "../router"},
     {"path": "../platform-node"},
     {"path": "../client"},
-    {"path": "../run-types"},
-    {"path": "../type-formats"},
     {"path": "../platform-bun"},
     {"path": "../platform-aws"},
     {"path": "../platform-gcloud"},

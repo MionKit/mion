@@ -57,7 +57,7 @@ export function isPublicExecutable(entry: RemoteMethod): entry is RemoteMethod {
     return (
         entry.hasReturnData ||
         entry.type === HandlerType.route ||
-        !!entry.paramNames?.length ||
+        !!entry.paramsCount ||
         !!(entry as HeadersMethod).headersParam?.headerNames?.length
     );
 }

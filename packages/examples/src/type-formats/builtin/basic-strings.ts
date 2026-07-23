@@ -1,13 +1,7 @@
-import {
-    FormatAlphaNumeric,
-    FormatAlpha,
-    FormatNumeric,
-    FormatLowercase,
-    FormatUppercase,
-} from '@mionjs/type-formats/StringFormats';
+import {AlphaNumeric, Alpha, Numeric, Lowercase, Uppercase} from '@ts-runtypes/core/formats';
 
-type Username = FormatAlphaNumeric; // Letters and numbers only
-type Name = FormatAlpha; // Letters only (supports Unicode)
-type Code = FormatNumeric; // Digits only
-type Slug = FormatLowercase; // Forced lowercase
-type Initials = FormatUppercase; // Forced uppercase
+type Username = AlphaNumeric; // Letters and numbers only
+type Name = Alpha; // Letters only (supports Unicode)
+type Code = Numeric; // Digits only
+type Slug = Lowercase; // Forced lowercase
+type Initials = Uppercase; // Forced uppercase

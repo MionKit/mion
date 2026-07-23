@@ -68,7 +68,7 @@ describe('ts-runtypes migration: basic route', () => {
         await registerRoutes({sayHello});
         const executable = getRouteExecutable('sayHello');
         expect(executable).toBeTruthy();
-        expect(executable?.paramNames).toEqual(['user', 'times']);
+        expect(executable?.paramsCount).toEqual(2);
         expect(executable?.hasReturnData).toBe(true);
         expect(executable?.isAsync).toBe(false);
         expect(typeof executable?.paramsJitFns.isType.fn).toBe('function');

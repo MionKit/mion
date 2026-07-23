@@ -26,7 +26,7 @@ import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@mionjs/run-types';
+import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@ts-runtypes/core';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {
@@ -176,7 +176,7 @@ describe('Client Routes should', () => {
             nestLevel: 1,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             middleFnIds: ['auth', 'last'],
             pointer: ['users', 'getUser'],
             options: defaultRouteOpts,
@@ -189,7 +189,7 @@ describe('Client Routes should', () => {
             nestLevel: 1,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             middleFnIds: ['auth', 'last'],
             pointer: ['users', 'setUser'],
             options: defaultRouteOpts,
@@ -202,7 +202,7 @@ describe('Client Routes should', () => {
             nestLevel: 2,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             middleFnIds: ['auth', 'last'],
             pointer: ['users', 'pets', 'getUserPet'],
             options: defaultRouteOpts,
@@ -215,7 +215,7 @@ describe('Client Routes should', () => {
             nestLevel: 1,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             middleFnIds: ['auth', 'last'],
             pointer: ['pets', 'getPet'],
             options: defaultRouteOpts,
@@ -228,7 +228,7 @@ describe('Client Routes should', () => {
             nestLevel: 1,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             middleFnIds: ['auth', 'last'],
             pointer: ['pets', 'setPet'],
             options: defaultRouteOpts,
@@ -241,7 +241,7 @@ describe('Client Routes should', () => {
             nestLevel: 0,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: ['token'],
+            paramsCount: 1,
             pointer: ['auth'],
             options: defaultMiddleFnOpts,
         },
@@ -253,7 +253,7 @@ describe('Client Routes should', () => {
             nestLevel: 0,
             paramsJitHash: expect.any(String),
             returnJitHash: expect.any(String),
-            paramNames: [],
+            paramsCount: 0,
             pointer: ['last'],
             options: defaultMiddleFnOpts,
         },

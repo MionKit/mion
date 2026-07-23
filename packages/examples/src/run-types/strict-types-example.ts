@@ -1,4 +1,4 @@
-import {createValidate, createHasUnknownKeys, createUnknownKeyErrors} from '@mionjs/run-types';
+import {createValidate, createHasUnknownKeys, createUnknownKeyErrors} from '@ts-runtypes/core';
 
 interface User {
     name: string;

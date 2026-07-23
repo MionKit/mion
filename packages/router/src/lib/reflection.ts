@@ -7,7 +7,7 @@
 
 import type {MethodWithJitFns} from '@mionjs/core';
 import {EMPTY_HASH, getNoopJitFns, getOrCreateGlobal} from '@mionjs/core';
-import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/run-types';
+import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandler} from '@mionjs/core';
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
@@ -54,13 +54,13 @@ const rawMiddleFnReflectionCache = getOrCreateGlobal(
 );
 
 /** Creates a MethodReflect for raw middleFns: no type info, NoopJitFns. */
-function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramNames: string[] = []): MethodReflect {
-    const cacheKey = `${isAsync}_${hasReturnData}_${paramNames.join(',')}`;
+function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = false, paramsCount: number = 0): MethodReflect {
+    const cacheKey = `${isAsync}_${hasReturnData}_${paramsCount}`;
     const cached = rawMiddleFnReflectionCache.get(cacheKey);
     if (cached) return cached;
 
     const reflection: MethodReflect = {
-        paramNames,
+        paramsCount,
         paramsJitFns: getNoopJitFns(),
         returnJitFns: getNoopJitFns(),
         paramsJitHash: EMPTY_HASH,

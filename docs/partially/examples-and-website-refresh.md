@@ -111,3 +111,23 @@ wired into lint) so the "should compile" promise stops drifting silently.
 
 - No example under `packages/examples/src/` imports a removed factory; the examples typecheck.
 - Website docs no longer reference deepkit / `mion-build-aot` / AOT cache generation.
+
+## 2026-07-22 addendum — proxy-package removal wave (commits ffeeeb3 / bd5ebaa)
+
+`@mionjs/run-types` and `@mionjs/type-formats` were deleted (see
+[../done/proxy-packages-removal.md](../done/proxy-packages-removal.md)). Examples were retargeted
+mechanically (imports → `@ts-runtypes/core` / `@mionjs/core`, `FormatEmail`→`Email` etc.) but not
+hand-verified — fold into this refresh:
+
+- Website `4.run-types/{2.type-formats.md,3.built-in-formats.md,0.overview.md,1.features.md}`: switch
+  code samples/imports to the `@ts-runtypes/core/formats` names (`Email`/`Integer`/`UUIDv4`…), drop
+  the `@mionjs/type-formats` package references and any `import type` format guidance that no longer
+  applies.
+- Website `5.devtools/2.eslint-rules.md`: drop the removed `type-formats-imports` rule section.
+- `1.introduction/3.manual-install.md`, `20.server/*` (non-friendly-errors), `21.drizzle-orm/*`: drop
+  `@mionjs/run-types` / `@mionjs/type-formats` install + import references.
+- Delete/repoint the example fixtures that only existed for the removed `type-formats-imports` rule
+  (`packages/examples/src/introduction/eslint-type-formats-imports-{valid,invalid}.routes.ts`,
+  `packages/router/examples/eslint-rule-test.routes.ts`).
+- The friendly-errors docs (`3.client/2.validation-errors.md`, `20.server/7.validation.md`) ride the
+  separate friendly-errors swap ([../todos/friendlyerrors-to-friendlytext-feasibility.md](../todos/friendlyerrors-to-friendlytext-feasibility.md)).

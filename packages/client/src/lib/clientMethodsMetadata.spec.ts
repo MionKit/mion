@@ -143,7 +143,7 @@ describe('fetchRemoteMethodsMetadata', () => {
         // Verify stored data can be parsed back correctly
         const parsed = JSON.parse(stored!);
         expect(parsed.id).toBe('sayHello');
-        expect(parsed.paramNames).toBeDefined();
+        expect(parsed.paramsCount).toBeDefined();
     });
 
     it('should throw for non-existent routes', async () => {

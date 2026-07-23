@@ -17,7 +17,7 @@ import {
     RawMiddleFnHandler,
 } from '../types/handlers.ts';
 import {HeadersMiddleFnDef, MiddleFnDef, RawMiddleFnDef, RouteDef} from '../types/definitions.ts';
-import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
+import {InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
 
 // ############# Route & MiddleFns initialization #############
 // These helpers initialize route & middleFn definition objects AND are the ts-runtypes
@@ -27,7 +27,7 @@ import {InjectRunTypeId, InjectTypeFnArgs} from '@mionjs/run-types';
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
 // marker is not recognized by the ts-runtypes scanner. Fn keys must match MION_FN_KEYS
-// in @mionjs/run-types (val, verr, pj, rj, sj, huk, uke).
+// in @mionjs/core (val, verr, pj, rj, sj, huk, uke).
 
 export function route<H extends Handler>(
     handler: H,

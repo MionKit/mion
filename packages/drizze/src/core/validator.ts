@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RunTypeKind} from '@mionjs/run-types';
-import type {RunTypeKindValue} from '@mionjs/run-types';
+import {RunTypeKind} from '@ts-runtypes/core';
+import type {RunTypeKindValue} from '@ts-runtypes/core';
 import type {PropertyInfo, TypeInfo, ValidationResult} from '../types/common.types.ts';
 
 /** Validates that provided table config matches the TypeScript type */

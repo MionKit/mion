@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RunTypeKind} from '@mionjs/run-types';
-import type {RunTypeKindValue} from '@mionjs/run-types';
+import {RunTypeKind} from '@ts-runtypes/core';
+import type {RunTypeKindValue} from '@ts-runtypes/core';
 import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {shouldBeJson} from '../core/utils.ts';
-import {FormatName} from '@mionjs/type-formats/constants';
+import {FormatName} from '@mionjs/core';
 
 /** Base class for database-specific column mappers */
 export abstract class BaseColumnMapper {

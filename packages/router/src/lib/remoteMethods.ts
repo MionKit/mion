@@ -18,7 +18,15 @@ import type {
 } from '@mionjs/core';
 import {isRoute, isHeadersMiddleFnDef, isMiddleFnDef} from '../types/guards.ts';
 import {getMiddleFnExecutable, getRouteExecutable, isPrivateDefinition} from '../router.ts';
-import {getRouterItemId, MAX_STACK_DEPTH, getJitFnHashes, getJitUtils, EMPTY_HASH, getOrCreateGlobal} from '@mionjs/core';
+import {
+    getRouterItemId,
+    MAX_STACK_DEPTH,
+    getJitFnHashes,
+    resolveJIT,
+    resolveCompiledPureFn,
+    EMPTY_HASH,
+    getOrCreateGlobal,
+} from '@mionjs/core';
 
 // ############# PRIVATE STATE #############
 const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
@@ -77,7 +85,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         paramsJitHash: executable.paramsJitHash,
         returnJitHash: executable.returnJitHash,
         pointer: executable.pointer,
-        ...(executable.paramNames ? {paramNames: executable.paramNames} : {}),
+        paramsCount: executable.paramsCount ?? 0,
         options: executable.options,
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;
@@ -103,7 +111,7 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
     if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
     // Check if already serialized (prevent infinite recursion on circular dependencies)
     if (purFnDeps[namespace][fnHash]) return;
-    const pureDep = getJitUtils().getCompiledPureFn(namespace, fnHash);
+    const pureDep = resolveCompiledPureFn(namespace, fnHash);
     if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
     const serializedPureDep: PureFunctionData = {
         ...pureDep,
@@ -122,7 +130,7 @@ export function serializeJitFn(
 ) {
     if (depth >= MAX_STACK_DEPTH)
         throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
-    const jitFn = getJitUtils().getJIT(jitFnHash);
+    const jitFn = resolveJIT(jitFnHash);
     if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
     if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);
@@ -143,14 +151,14 @@ export function serializeMethodDeps(
     if (paramsJitHash !== EMPTY_HASH) {
         const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
         for (const k in paramsJitHashes) {
-            if (getJitUtils().getJIT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+            if (resolveJIT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
         }
     }
     if (returnJitHash !== EMPTY_HASH) {
         const returnJitHashes = getJitFnHashes(returnJitHash, true);
         let foundAny = false;
         for (const k in returnJitHashes) {
-            if (getJitUtils().getJIT(returnJitHashes[k])) {
+            if (resolveJIT(returnJitHashes[k])) {
                 serializeJitFn(returnJitHashes[k], deps, purFnDeps);
                 foundAny = true;
             }
@@ -175,6 +183,5 @@ function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
         code: comp.code,
         jitDependencies: comp.jitDependencies ? [...comp.jitDependencies] : undefined,
         pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : undefined,
-        ...(comp.paramNames ? {paramNames: [...comp.paramNames]} : {}),
     };
 }
