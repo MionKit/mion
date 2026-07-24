@@ -29,6 +29,13 @@ type Computer struct {
 	typeChecker *checker.Checker
 	cache       map[*checker.Type]string
 	stack       []*checker.Type
+	// depthExceeded latches when Compute hits maxWalkDepth on this computer's
+	// stack — a type graph that instantiates a fresh *checker.Type per level
+	// (defeating the pointer cycle guard) or is genuinely unbounded. The walk
+	// returns a deterministic sentinel instead of recursing to a fatal stack
+	// overflow; the cache layer reads this flag to raise a diagnostic. Reset per
+	// top-level walk via ResetDepthExceeded.
+	depthExceeded bool
 	// bareCycles makes cycleRef emit a name-free `$<kind>_<index>` token (no
 	// structural anchor). Used only by the sub-walk that COMPUTES the structural
 	// anchor, to terminate without infinite recursion.
@@ -57,6 +64,26 @@ func NewWithOverrides(typeChecker *checker.Checker, overrides map[string]map[str
 	return &Computer{typeChecker: typeChecker, cache: make(map[*checker.Type]string), overrides: overrides}
 }
 
+// maxWalkDepth caps Computer.Compute's recursion. Set generously in the
+// "hundreds" — far above any legitimate structural nesting (real types rarely
+// exceed a few dozen levels), yet ~100x below the frame count that overflows a
+// 1 GB goroutine stack. Only graphs that TODAY stack-overflow ever reach it, so
+// no computable structural id changes.
+const maxWalkDepth = 512
+
+// depthSentinel is the deterministic string Compute returns at maxWalkDepth. It
+// never ships as a real id: the cache layer detects the depthExceeded flag and
+// raises a diagnostic instead of committing a node. The value only needs to be
+// stable so sink-less walks stay reproducible.
+const depthSentinel = "$depth"
+
+// DepthExceeded reports whether any Compute call on this computer hit
+// maxWalkDepth since the last ResetDepthExceeded.
+func (computer *Computer) DepthExceeded() bool { return computer.depthExceeded }
+
+// ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
+func (computer *Computer) ResetDepthExceeded() { computer.depthExceeded = false }
+
 // Compute returns the structural id of tsType. Safe to call repeatedly with
 // the same Computer — results are cached.
 func (computer *Computer) Compute(tsType *checker.Type) string {
@@ -69,6 +96,19 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	// Cycle: emit back-ref before pushing onto the stack.
 	if index := computer.stackIndex(tsType); index >= 0 {
 		return computer.cycleRef(tsType, index)
+	}
+	// Depth backstop: a graph that instantiates a FRESH *checker.Type on every
+	// member query (lib.esnext's IteratorObject family; a self-instantiating
+	// generic; a genuinely unbounded alias) never repeats a pointer, so neither
+	// the cache nor stackIndex ever fires and the recursion would overflow the Go
+	// stack (fatal, uncatchable). len(stack) is the live recursion depth, so cap
+	// it here — after the cheap cache/cycle returns, before the push. The flag is
+	// authoritative; the sentinel only keeps sink-less walks deterministic, and is
+	// deliberately NOT cached so the same pointer reached at a shallower depth
+	// elsewhere can still compute a real id.
+	if len(computer.stack) >= maxWalkDepth {
+		computer.depthExceeded = true
+		return depthSentinel
 	}
 	computer.stack = append(computer.stack, tsType)
 	base := computer.dispatch(tsType)
@@ -133,6 +173,11 @@ func (computer *Computer) structuralSignature(tsType *checker.Type) string {
 	}
 	sub := &Computer{typeChecker: computer.typeChecker, cache: make(map[*checker.Type]string), bareCycles: true, overrides: computer.overrides}
 	sig := sub.Compute(tsType)
+	// A depth-cap hit in the sub-walk must not yield a silently-truncated outer
+	// id: propagate the latch so the cache layer still raises the diagnostic.
+	if sub.depthExceeded {
+		computer.depthExceeded = true
+	}
 	computer.sigCache[tsType] = sig
 	return sig
 }

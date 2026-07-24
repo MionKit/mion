@@ -64,3 +64,46 @@ periodic.)
 - Test: a fixture that previously overflowed (an esnext-lib type fed directly
   to `Compute`, bypassing the bridge guard) must produce the deterministic
   error, not a crash. Marker rule does not apply (no marker API surface).
+
+## Plan — depth cap + MKR008 diagnostic (approved 2026-07-24)
+
+Flag + stable-sentinel design (no panic). `Compute` is the sole recursive core and
+every walk shares `computer.stack`, so ONE guard keyed on `len(computer.stack)`
+covers the main walk, the `structuralSignature` sub-walk, and
+`collapsedIntersectionID`.
+
+- **`typeid.go`** — `const maxWalkDepth = 512`; `Computer.depthExceeded bool` +
+  `DepthExceeded()` / `ResetDepthExceeded()`. In `Compute`, after the cache-hit and
+  cycle-ref returns and before the push: `if len(computer.stack) >= maxWalkDepth`,
+  set the flag and return a stable `depthSentinel` (deterministic; the flag, not the
+  string, is authoritative; not cached). In `structuralSignature`, propagate
+  `sub.depthExceeded` to the outer computer.
+- **`serialize.go`** — `Cache.depthExceeded bool` + accessors. In `assignID`, bracket
+  the `idComputer.Compute` call (serialize.go:508): reset the computer flag before,
+  and after, if exceeded, set `cache.depthExceeded` and return
+  `internEmpty(KindUnknown, "depthExceeded")` WITHOUT projecting — no truncated node.
+- **`scan.go` / `scan_parallel.go`** — add `site diagnostics.Site` to `pendingCall`
+  (built in `analyzeCall` via `textpos.NodeSite`, like MKR003); widen `commitPending`
+  to also return diagnostics, resetting the cache flag before `AssignIDUnder` and
+  emitting `diagnostics.New(CodeStructuralIdDepthExceeded, pending.site)` when set;
+  both commit loops append into the scan diagnostics (→ `combinedDiagnostics`).
+- **`internal/diagnostics/`** — `CodeStructuralIdDepthExceeded = "MKR008"`,
+  `FamilyMarker` / `SeverityError` (reuses the MKR eslint routing, precedent CTA002);
+  required `Headline` in `messages.go`; optional `prose.go` (empty `Example`).
+  Regenerate the FE `diagnosticCatalog.generated.ts` + rebuild `ts-runtypes-devtools`.
+- **Test** — `internal/compiler/resolver/depth_backstop_test.go`, driven through
+  the resolver scan (a hermetic self-instantiating interface, no lib-config
+  dependency, instead of the fix-direction's "esnext-lib type fed directly to
+  Compute"): `getRunTypeId<Iter<string>>()` over
+  `interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U> }` emits exactly one MKR008
+  (Error) and does NOT crash; a PAIRED value-first case
+  (`declare const it: Iter<string>; getRunTypeId(it)`) trips the same cap
+  identically (Marker test-coverage rule); plus an id-stability case (legit
+  deep + genuinely-cyclic types emit ZERO MKR008 and keep normal ids).
+
+Cap value 512 = "hundreds" per the fix direction: far above legitimate nesting,
+~100× below the frame count that overflows.
+
+**Shipped as described** — MKR008 (FamilyMarker / SeverityError), cap 512, flag +
+sentinel (no panic), emitted at `commitPending`. Go suite + full JS suite +
+lint/typecheck/format all green; FE diagnostic catalog regenerated.

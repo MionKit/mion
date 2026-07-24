@@ -362,6 +362,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "TypeScript could not resolve the import, so the type it should have\nprovided checked as `any` at this marker call. A validator over `any` is\nthe always-true identity, a mock over `any` is `undefined`, and encoders\npass values through untouched — with no runtime signal that anything is\nwrong. This usually means the build tool and the type scanner resolve\nmodules differently (e.g. an extensionless relative import under\n`moduleResolution: NodeNext`, a missing dependency, or a `paths` alias the\nscan tsconfig doesn't declare).\n\nFix — make the import resolve for the type scanner:\n-  import {User} from './user.runtype';\n+  import {User} from './user.runtype.ts';\n\nOr align the tsconfig the plugin scans with the one your bundler uses.\nIf the `any` is genuinely intentional, write the marker over an alias\ndeclared in resolving code (e.g. `type Loose = any`) in a file with no\nfailing imports.",
   },
+  MKR008: {
+    headline:
+      'This type is too deeply nested to reflect — computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.',
+    severity: 'error',
+    detail:
+      "The build computes a structural id by walking the type. A type whose\nmembers instantiate a brand-new type on every level never repeats, so the\ncycle guard can't stop the walk; it is capped instead of overflowing the\nstack. This usually means a self-instantiating shape (a method that returns\na fresh instantiation of its own container) or a genuinely unbounded type\nalias that grows its own type argument each level.\n\nFix — reflect a concrete, bounded projection of the type (e.g. the element\nor data type you actually send) rather than the self-instantiating shape,\nor restructure the recursion so the same type recurs by reference.",
+  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required — the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',

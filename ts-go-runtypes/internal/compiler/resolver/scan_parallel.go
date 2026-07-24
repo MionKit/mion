@@ -157,7 +157,10 @@ func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site,
 				diagnostics = append(diagnostics, call.diagnostics...)
 			}
 			for _, pending := range call.pendings {
-				site := sess.commitPending(pending)
+				site, depthDiags := sess.commitPending(pending)
+				if len(depthDiags) > 0 {
+					diagnostics = append(diagnostics, depthDiags...)
+				}
 				sites = append(sites, site)
 				sess.sites = append(sess.sites, site)
 			}

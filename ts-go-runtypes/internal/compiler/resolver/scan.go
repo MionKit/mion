@@ -234,7 +234,10 @@ func (sess *Session) dispatchScanFilesSerial(files []string) ([]protocol.Site, [
 				diagnostics = append(diagnostics, diags...)
 			}
 			for _, pending := range pendings {
-				site := sess.commitPending(pending)
+				site, depthDiags := sess.commitPending(pending)
+				if len(depthDiags) > 0 {
+					diagnostics = append(diagnostics, depthDiags...)
+				}
 				sites = append(sites, site)
 				sess.sites = append(sess.sites, site)
 			}
@@ -306,8 +309,12 @@ func (state scanState) detectMarker(paramType *checker.Type) (marker.Kind, *chec
 // the scan path) and mints the Site. The split exists so the analysis
 // can run on pool checkers concurrently while projection stays serial.
 type pendingCall struct {
-	file       string
-	pos        int
+	file string
+	pos  int
+	// site is the pre-built call-span diagnostics.Site, used only to anchor the
+	// depth-cap diagnostic (MKR008) when commitPending's projection reports the
+	// structural-id walk hit typeid.maxWalkDepth.
+	site       diagnostics.Site
 	paramIndex int
 	argsCount  int
 	fnId       string
@@ -335,8 +342,16 @@ type pendingCall struct {
 // concurrent use. Projection runs under the checker that materialized the
 // type (a fast no-swap path when that is the session checker, i.e. always
 // on the serial scan path).
-func (sess *Session) commitPending(pending pendingCall) protocol.Site {
+func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagnostics.Diagnostic) {
+	sess.cache.ResetDepthExceeded()
 	id := sess.cache.AssignIDUnder(pending.owner, pending.typeArgument)
+	var diags []diagnostics.Diagnostic
+	if sess.cache.DepthExceeded() {
+		// The structural-id walk for this site's type hit typeid.maxWalkDepth — a
+		// self-instantiating or genuinely unbounded type. Raise MKR008 anchored at
+		// the call span; the id is the benign placeholder assignID returned.
+		diags = append(diags, diagnostics.New(diagnostics.CodeStructuralIdDepthExceeded, pending.site))
+	}
 	return protocol.Site{
 		File:          pending.file,
 		Pos:           pending.pos,
@@ -347,7 +362,7 @@ func (sess *Session) commitPending(pending pendingCall) protocol.Site {
 		FnIds:         pending.fnIds,
 		Demand:        pending.demand,
 		TrailingComma: pending.trailingComma,
-	}
+	}, diags
 }
 
 // analyzeCall inspects one call expression — the checker-bound analysis
@@ -529,6 +544,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 // options-carrying calls depend on. Byte-identical to the pre-multislot scanner.
 func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, callExpression *ast.CallExpression, slot injectMarker, lastIndex, argsCount int, trailingComma bool) (pendingCall, []diagnostics.Diagnostic, bool) {
 	var diags []diagnostics.Diagnostic
+	sourceFile := ast.GetSourceFileOfNode(call)
 	injectionTypeArgument := slot.typeArg
 	injectionFnKeys := slot.fnKeys
 	// Guard against a `Temporal.*` type that silently resolved to `any`
@@ -550,7 +566,6 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		// handle returned above; this is the genuinely-unsupported case, e.g.
 		// `createValidateFn<T>()` in a generic body.) Emit MKR003 so the user gets a
 		// build-time breadcrumb instead of only the runtime "no id injected" throw.
-		sourceFile := ast.GetSourceFileOfNode(call)
 		if sourceFile == nil {
 			return pendingCall{}, diags, false
 		}
@@ -702,6 +717,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	}
 	return pendingCall{
 		file: file,
+		site: textpos.NodeSite(file, sourceFile, call),
 		// call.End() is exclusive (one past the closing `)`). Pos at End()-1 is
 		// the closing-paren offset where the TS-side patcher inserts.
 		pos:           call.End() - 1,
@@ -777,6 +793,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		}
 		pendings = append(pendings, pendingCall{
 			file:          file,
+			site:          textpos.NodeSite(file, sourceFile, call),
 			pos:           pos,
 			paramIndex:    m.paramIndex,
 			argsCount:     argsCount,

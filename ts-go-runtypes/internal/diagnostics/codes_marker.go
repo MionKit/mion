@@ -9,6 +9,12 @@ const (
 	CodeValidateOptionsNoArrayNoop    = "MKR005"
 	CodeMarkerDuplicateFnKey          = "MKR006"
 	CodeMarkerAnyFromUnresolvedImport = "MKR007"
+	// CodeStructuralIdDepthExceeded fires when the structural-id walk hits its
+	// recursion depth cap: a type that instantiates fresh types per level (which
+	// defeats pointer-based cycle detection) or is genuinely unbounded. Deterministic
+	// failure in place of a fatal Go stack overflow. Anchors at the reflection call
+	// site, same as the other MKR codes.
+	CodeStructuralIdDepthExceeded = "MKR008"
 )
 
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
@@ -51,6 +57,7 @@ func init() {
 		{Code: CodeValidateOptionsNoArrayNoop, Family: FamilyMarker, Severity: SeverityWarning, Title: "`ValidateOptions.noIsArrayCheck` has no effect on this type — the option is a no-op"},
 		{Code: CodeMarkerDuplicateFnKey, Family: FamilyMarker, Severity: SeverityError, Title: "`InjectTypeFnArgs` names the same function family more than once"},
 		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type resolved to `any` — an import in this file failed to resolve"},
+		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "Type is too deeply nested — structural-id computation hit its depth cap"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
 		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16) — refactor to flatten"},
 		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},

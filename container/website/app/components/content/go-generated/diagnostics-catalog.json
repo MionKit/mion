@@ -159,6 +159,16 @@
       "example": null
     },
     {
+      "code": "MKR008",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "This type is too deeply nested to reflect — computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.",
+      "detail": "The build computes a structural id by walking the type. A type whose\nmembers instantiate a brand-new type on every level never repeats, so the\ncycle guard can't stop the walk; it is capped instead of overflowing the\nstack. This usually means a self-instantiating shape (a method that returns\na fresh instantiation of its own container) or a genuinely unbounded type\nalias that grows its own type argument each level.\n\nFix — reflect a concrete, bounded projection of the type (e.g. the element\nor data type you actually send) rather than the self-instantiating shape,\nor restructure the recursion so the same type recurs by reference.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "PFN001",
       "subsystem": "markers",
       "severity": "error",
