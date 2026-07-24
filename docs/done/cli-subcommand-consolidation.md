@@ -1,22 +1,24 @@
 ---
 type: chore
 spec: guidelines
-status: partially
+status: done
 created: 2026-07-24
 ---
 
 # CLI architecture: consolidate on tsgo-style subcommands
 
-**Status:** PARTIALLY SHIPPED (2026-07-24). **Part A landed** — the uniform
-`args[0]` subcommand surface (`serve` / `compile` / `describe` / `gen` /
-`check`), the single `resolveConfigPath` policy with parse-once threading, the
-retired `--one-shot` / `--daemon`, `serve --sources project|stdin|ops`,
-`--json` everywhere, `check` absorbing `gen --check`, the migrated JS spawn
-layer, and docs (Done-when #1, #2, #4, #5, #6). **Part B remains** — making
+**Status:** SHIPPED 2026-07-24 (Part A, PR #279). The uniform `args[0]`
+subcommand surface (`serve` / `compile` / `describe` / `gen` / `check`), the
+single `resolveConfigPath` policy with parse-once threading, the retired
+`--one-shot` / `--daemon`, `serve --sources project|stdin|ops`, `--json`
+everywhere, `check` absorbing `gen --check`, the migrated JS spawn layer, and
+docs — Done-when #1, #2, #4, #5, #6.
+
+**The dual-mode enrich follow-up (Done-when #3) is tracked as its own todo:
+[docs/todos/dual-mode-enrich.md](../todos/dual-mode-enrich.md)** — making
 `describe` / `gen` / `check` daemon protocol ops with the CLI verbs as thin
 adapters over one shared implementation, collapsing the two `check`
-orchestrations, and the per-verb CLI≡daemon parity tests (Done-when #3). See the
-Plan section at the bottom for the full Part B spec.
+orchestrations, and the per-verb CLI≡daemon parity tests.
 
 **Sequencing: implement AFTER [tsconfig-alignment.md](../done/tsconfig-alignment.md)
 (SHIPPED 2026-07-24 — unblocked). It must inherit that todo's single
@@ -196,17 +198,8 @@ surface — it will most likely be `compile --no-emit` under its own todo).
   `CLAUDE.md`, enrich skills; fix stale names in
   `docs/done/transform-cli-compile-command.md`.
 
-### Part B (follow-up PR) — Done-when #3
+### Part B split out to its own todo
 
-Extract `internal/enrichment/enrichgen` (move `enrichConfig` + resolution + the
-pure gen orchestration `PlanScaffold`/`PlanUpdate` returning `[]{Path,Content}`;
-writing stays at the caller). Extract one shared `CheckFile(...)` collapsing CLI
-`runCheck` + resolver `checkEnrichFiles`, unifying drift-gating on
-`HasMarkerComment()` (resolver behavior wins). Add `OpEnrich{Describe,Gen,Check}`
-constants + Request/Response fields (registered in the hand-rolled
-`Response.MarshalJSON`) + `dispatchEnrich*` handlers reusing Session state; CLI
-verbs become thin adapters. Add JS client methods + `protocol.ts` typing. Drop
-the `"source"` condition to match the daemon (validate via the enrich suites,
-fixing through the harness tsconfig's `customConditions`, never a CLI-only
-divergence). Thread `hashLength` into the enrich `resolver.Options`. Add
-per-verb CLI≡daemon parity tests. Then move the spec to `docs/done/`.
+The finalized Part B plan (dual-mode enrich protocol ops — Done-when #3) now
+lives in [docs/todos/dual-mode-enrich.md](../todos/dual-mode-enrich.md); this doc
+records only what shipped.
