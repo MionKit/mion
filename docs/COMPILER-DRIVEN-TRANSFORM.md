@@ -1,6 +1,6 @@
 # Compiler-Driven Transform — Migration Spec
 
-_Status: Core migration IMPLEMENTED (2026-06-19). Go owns the full per-file transform and the Vite plugin is a thin wrapper; both the Go and JS suites are green. Real-file cache emission has SINCE SHIPPED (files-mode: modules are written under `<genDir>/types/` and the internal render scheme is `rtmod:/` — see ARCHITECTURE → Rewrite mechanics); the plugin-free CLI shipped as `--compile`._
+_Status: Core migration IMPLEMENTED (2026-06-19). Go owns the full per-file transform and the Vite plugin is a thin wrapper; both the Go and JS suites are green. Real-file cache emission has SINCE SHIPPED (files-mode: modules are written under `<genDir>/types/` and the internal render scheme is `rtmod:/` — see ARCHITECTURE → Rewrite mechanics); the plugin-free CLI shipped as `compile`._
 
 ## Implementation status
 

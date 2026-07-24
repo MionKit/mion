@@ -7,7 +7,7 @@
 
 `ts-runtypes --compile` — a tsc-style batch compile ([internal/compiler/batchcompile.Run](../../internal/compiler/batchcompile/compile.go)):
 
-1. **Pass 1** builds the tsconfig Program, scans for markers, and via `OpTransform` (empty OutDir → keeps `virtual:rt/…` specifiers) gets each marker file's rewritten source + **map A** (rewritten → original); `OpGenerate` writes the cache modules to the compile cache dir — resolved tsc-style: the `--run-types-gen-dir` flag, then the tsconfig `runTypesGenDir` plugin key, then the `<cwd>/__runtypes` default (`resolveRunTypesGenDir` in `buildconfig.go`).
+1. **Pass 1** builds the tsconfig Program, scans for markers, and via `OpTransform` (empty OutDir → keeps `virtual:rt/…` specifiers) gets each marker file's rewritten source + **map A** (rewritten → original); `OpGenerate` writes the cache modules to the compile cache dir — resolved tsc-style: the `--gen-dir` flag, then the tsconfig `genDir` plugin key, then the `<cwd>/__runtypes` default (`resolveGenDir` in `buildconfig.go`).
 2. **Pass 2** rebuilds the Program with the rewritten sources **overlaid** at the same paths (so the real tsconfig options — target/module/outDir/sourceMap — apply) and runs tsgo `Emit`, capturing every output via the `WriteFile` sink.
 3. Each emitted `.js` has its `virtual:rt/…` imports relativized to the cache dir **against its output location**; each emitted `.js.map` (**map B**: js → rewritten) is composed with map A into **map C** (js → original) so breakpoints land on the user's source. Composition is `ComposeMaps` ([compose.go](../../internal/compiler/sourcerewrite/compose.go)) — Emit has no custom-transformer hook, so it is done here; it adds a v3 VLQ decoder mirroring the `EditBuffer`'s encoder.
 
@@ -17,7 +17,7 @@ Tests: `ComposeMaps` unit tests (round-trip + compose + injected-drop), a real t
 
 - **External source maps only.** `sourceMap: true` (external `.js.map`) is composed; `inlineSourceMap` (a data-URI map inside the `.js`) is NOT yet composed — extract + compose + re-inline is a follow-up. No source map (`sourceMap` unset) just emits `.js`.
 - **ESM output.** Relativization matches `from '…'` specifiers; CommonJS emit (`require('virtual:rt/…')`) is not handled. Use `module: esnext`/`nodenext`.
-- **Cache dir reachability.** The emitted `.js` import the cache modules by relative path, so the cache dir must be reachable from the output tree (default `<cwd>/__runtypes` works when the tsconfig `outDir` is under `<cwd>`); exotic `rootDir`/`outDir` layouts may need an explicit `--run-types-gen-dir`.
+- **Cache dir reachability.** The emitted `.js` import the cache modules by relative path, so the cache dir must be reachable from the output tree (default `<cwd>/__runtypes` works when the tsconfig `outDir` is under `<cwd>`); exotic `rootDir`/`outDir` layouts may need an explicit `--gen-dir`.
 - `.d.ts` declaration emit passes through unmodified (call-site rewrites don't touch declarations).
 
 ## Two surfaces, two jobs

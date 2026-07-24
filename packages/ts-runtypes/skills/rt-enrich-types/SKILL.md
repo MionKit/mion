@@ -60,7 +60,7 @@ A pre-split combined mirror is migrated automatically on the next `gen` run over
 source: every const, marker, comment and `@rtOrphan` carcass is carried verbatim into its
 family's file, the source breadcrumb import is recomputed, and the old combined file is
 deleted (an existing family file is never overwritten — a warning is printed instead).
-`gen --check` flags a pre-split combined mirror as GE001 location drift. `--out` keeps the
+`check` flags a pre-split combined mirror as GE001 location drift. `--out` keeps the
 old combined single-file behavior as an explicit escape hatch.
 
 Each family file holds a strict `import type` back to the source (the rename

@@ -38,7 +38,7 @@ All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/
 | `cloning/cloneFuzz.integration.test.ts` | The cloning end-to-end sweep over REAL compiled `createCloneExactShapeFn` factories, plus the CES001 throw-corpus and the cyclic-value pin (needs the plugin + binary).                                                                  |
 | `typeGen.ts` _(Phase 2)_       | The THIRD giant switch — a seeded generator of random types across the WIDEST space (classes, functions, symbols, index sigs, native builtins, intersections, circular interfaces, any/unknown/never/void) + named decls + a renderer to `.ts`. |
 | `shapeValue.ts` _(Phase 2)_    | Type→value: a conforming value for the serialisable subset, a strict `valueOracleSafe` gate, and a sound one-position corruption (mirrors invalidValue.ts's contract).                                                                          |
-| `typeFuzzHarness.ts` _(Ph 2)_  | Drives generated source through the resolver (`--inline-server`) → entry modules → REAL runtime factories; records diagnostics + per-factory wire outcome.                                                                                      |
+| `typeFuzzHarness.ts` _(Ph 2)_  | Drives generated source through the resolver (`serve --sources ops`) → entry modules → REAL runtime factories; records diagnostics + per-factory wire outcome.                                                                                      |
 | `typeFuzzRunner.ts` _(Ph 2)_   | The Phase-2 driver: `runTypeFuzz` / `runTypeFuzzForDuration` — owns the resolver (restarts it on a hang), Tier-A (resolver/emit) on every type + Tier-B (value/robustness) per type.                                                            |
 | `typeFuzz.integration.test.ts` | Phase-2 end-to-end sweep over generated TYPES (needs the binary).                                                                                                                                                                               |
 
@@ -236,7 +236,7 @@ dependency on `createMockDataFn`.
 The harness ([`typeFuzzHarness.ts`](../packages/ts-runtypes/test/fuzz/type/typeFuzzHarness.ts))
 reuses the vite-plugin test helpers
 ([`helpers/inline.ts`](../packages/ts-runtypes-devtools/test/helpers/inline.ts)):
-render the fixture → `--inline-server` `ResolverClient.setSources` (atop the
+render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop the
 `RUNTYPES_DTS` ambient overlay — a tiny inferred Program, no node_modules) →
 `scanFiles` → `evalEntryModules` executes the emitted virtual modules into their
 tuples → each fn tuple is passed as the injected id to the REAL factory

@@ -494,10 +494,10 @@ CLI (below) rather than scraping editor output.
 
 | Command                                         | Purpose                                                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `ts-runtypes check [glob]`                      | Run FT/MD validation standalone; non-zero exit on Error. CI / pre-commit.                 |
-| `ts-runtypes check --file <p> --json`           | Validate **one file**, structured JSON out. The agent's tight feedback tool.              |
+| `ts-runtypes check [<dir>]`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
+| `ts-runtypes check <file> --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
 | `ts-runtypes describe <file>#<Type> --json` | Emit the type's shape (names, kinds, optionality, formats, literals — all already in the `RunType` struct) as LLM prompt context. |
-| `ts-runtypes gen <file> [--mock] [--friendly] [--check] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--check` reports breadcrumb drift; `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). See `gen` semantics below. |
+| `ts-runtypes gen <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `check`. See `gen` semantics below. |
 | `ts-runtypes gen --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
 | `ts-runtypes check --translate <locale>` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
@@ -539,10 +539,13 @@ wrong label for generation.
   `gen` is one-shot (not a tight loop), paying the `Program` build per invocation is
   fine — it builds, walks, writes, exits.
 - **`describe` / `check` are the same kind-switch walk** (output: prompt text / JSON
-  / diagnostics rather than files). For a tight agent loop that wants them fast and
-  repeated, the binary's existing **`--daemon`** keeps one warm `Program` alive — no
-  new binary, warmth is an existing knob. `check`'s analysis is the *same* validation
-  the always-on scan runs during a real Vite build; the CLI just runs it standalone.
+  / diagnostics rather than files). Today each is a one-shot CLI run (build, walk,
+  emit, exit). For a tight agent loop that wants them fast and repeated, keeping one
+  warm `Program` alive across calls is the natural optimization — planned as exposing
+  these verbs over the same `serve` protocol the bundler plugin already drives (so the
+  warm resolver serves them without a fresh build per call). `check`'s analysis is the
+  *same* validation the always-on scan runs during a real Vite build; the CLI just runs
+  it standalone.
 - **Public surface stays in the npm package** via a thin `ts-runtypes` bin that
   shells to the Go binary — per CLAUDE.md ("the JS packages are the only public
   surface") — but the *logic* (the emitter, the walk, file I/O) is Go.
@@ -734,13 +737,13 @@ emitter and the DSL types now agree structurally for every kind.
   location no longer matches its source (cosmetic drift), or **errors** when the
   breadcrumb resolves to nothing (the source type was deleted → orphaned mirror) or
   the source no longer declares the type. A non-IDE rename (`git mv`, find/replace)
-  leaves a dangling breadcrumb that `--check` flags for a manual `gen`.
+  leaves a dangling breadcrumb that `check` flags for a manual `gen`.
 
 ### `gen --update` — reconcile (value-preserving merge)
 
 `gen <file> <Type> --update` reconciles an EXISTING committed mirror against the
 freshly regenerated desired set, instead of skipping it (create-only) or
-clobbering it. It is **mutually exclusive** with `--check` and `--files` (fatal
+clobbering it. It is **mutually exclusive** with `--files` (fatal
 if combined) and honors `--out` / `--gen-dir` / `--mock` / `--friendly`. An
 empty / missing mirror falls back to the create-only fresh-file path.
 
@@ -830,7 +833,7 @@ instead of leaving it dangling.
 7. **Import sync**: missing cross-file value imports are added; the breadcrumb
    `{ … }` clause is recomputed from the surviving + desired type names declared
    in this file and replaced **in place** — `from '<src>'` is **never rewritten**
-   (that is a `--check` concern, and the breadcrumb is the user's IDE-managed
+   (that is a `check` concern, and the breadcrumb is the user's IDE-managed
    link).
 
 All edits go through a purpose-built **splicer**: `{start, end, text}` ops sorted
