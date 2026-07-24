@@ -348,22 +348,34 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
 }
 
+// printUsage renders a subcommand's help: its synopsis, then EVERY flag it
+// accepts (its own + the shared knobs registered on the same FlagSet) with a
+// one-line description — so each `ts-runtypes <cmd> -h` is self-documenting and
+// can never drift from the registered flags. Like flag.PrintDefaults but with
+// the `--name` convention the synopsis and docs use (Go accepts both -x / --x).
+func printUsage(fs *flag.FlagSet, synopsis string) {
+	fmt.Fprint(os.Stderr, synopsis)
+	fmt.Fprintln(os.Stderr, "\nFlags:")
+	fs.VisitAll(func(f *flag.Flag) {
+		typeName, usage := flag.UnquoteUsage(f)
+		label := "  --" + f.Name
+		if typeName != "" {
+			label += " " + typeName
+		}
+		fmt.Fprintf(os.Stderr, "%s\n    \t%s\n", label, usage)
+	})
+}
+
 const serveUsage = `ts-runtypes serve — serve the resolver protocol on stdio
 
 Usage:
     ts-runtypes serve [--sources project|stdin|ops] [OPTIONS]
 
-    --sources MODE      where the startup Program comes from:
-                          project (default) build it from the tsconfig file list
-                          stdin             read a {"sources":{relpath:content}}
-                                            handshake line, build one inferred Program
-                          ops               start with no Program; the client drives
-                                            setSources / scanFiles / dump
-    --out-json PATH     after stdin is drained, write the cache as JSON to PATH
-    --out-modules DIR   after stdin is drained, write every per-entry virtual
-                        module to DIR/<basename>.js (debugging aid)
-
-plus the shared options (ts-runtypes -h).
+Holds a Program + checker in memory and speaks newline-delimited JSON on stdio
+(the resolver protocol the bundler plugin drives). --sources selects where the
+startup Program comes from: project (build from the tsconfig file list, the
+default), stdin (a {"sources":{…}} handshake line, one inferred Program), or ops
+(no startup Program; the client drives setSources / scanFiles / dump).
 `
 
 // runServe serves the resolver protocol on stdio. The startup Program source is
@@ -375,7 +387,7 @@ func runServe(args []string) {
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
-	fs.Usage = func() { fmt.Fprint(os.Stderr, serveUsage) }
+	fs.Usage = func() { printUsage(fs, serveUsage) }
 	_ = fs.Parse(args)
 
 	switch *sources {
@@ -504,13 +516,6 @@ Usage:
 Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
 the tsconfig outDir; requires a tsconfig; no stdio protocol.
-
-    --gen-dir DIR       where compile writes the generated cache modules
-                        (default <cwd>/__runtypes; the emitted .js import them by
-                        relative path). Also readable as the "genDir" key in the
-                        tsconfig ts-runtypes plugin entry (the flag overrides it).
-
-plus the shared options (ts-runtypes -h).
 `
 
 // runCompile is the tsc-like batch build: it drives the two-pass transform +
@@ -519,8 +524,8 @@ func runCompile(args []string) {
 	fs := flag.NewFlagSet("compile", flag.ExitOnError)
 	s := registerSharedFlags(fs)
 	genDir := fs.String("gen-dir", "",
-		"where compile writes the generated cache modules (default <cwd>/__runtypes)")
-	fs.Usage = func() { fmt.Fprint(os.Stderr, compileUsage) }
+		"where compile writes the generated cache modules (default <cwd>/__runtypes; also the tsconfig \"genDir\" plugin key, flag overrides it)")
+	fs.Usage = func() { printUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
 
 	defer startProfiling(s)()

@@ -78,7 +78,14 @@ func runDescribe(args []string) {
 	asJSON := fs.Bool("json", false, "emit the description as JSON instead of text")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes describe <file.ts> <TypeName> [--json] [--tsconfig <path>]")
+		printUsage(fs, `ts-runtypes describe — print a type's shape as agent/LLM prompt context
+
+Usage:
+    ts-runtypes describe <file.ts> <TypeName> [OPTIONS]
+
+Renders the type as an indented tree (fields, kinds, optionality, format
+constraints). This is the INPUT type shape, not the FriendlyText enrichment.
+`)
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
@@ -128,14 +135,17 @@ func runGen(args []string) {
 	translate := fs.String("translate", "", "i18n: scaffold/reconcile per-locale FriendlyText translation files (a locale tag, or 'all' for every tsconfig i18n.locales entry)")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes gen <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>] [--tsconfig <path>]")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen <file.ts> <TypeName> --update   (reconcile an existing mirror)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --prune [<mirror-file-or-dir>]   (strip @rtOrphan carcasses)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --files a.ts,b.ts --type Target   (batch, JSON to stdout)")
-		fmt.Fprintln(os.Stderr, "   (drift checking moved to: ts-runtypes check [<file-or-dir>])")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> [<src.ts>]           (scaffold a locale's translation files)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> --update [<src.ts>]  (reconcile translations against the friendly source mirror)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> --prune  [<src.ts>]  (strip translation orphan carcasses)")
+		printUsage(fs, `ts-runtypes gen — scaffold / reconcile the enrichment mirror files
+
+Usage:
+    ts-runtypes gen <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
+       or: ts-runtypes gen <file.ts> <TypeName> --update                       (reconcile an existing mirror)
+       or: ts-runtypes gen --prune [<mirror-file-or-dir>]                       (strip @rtOrphan carcasses)
+       or: ts-runtypes gen --files a.ts,b.ts --type Target                      (batch, JSON to stdout)
+       or: ts-runtypes gen --translate <locale> [--update|--prune] [<src.ts>]   (i18n translation mirrors)
+
+Drift checking moved to: ts-runtypes check [<file-or-dir>]
+`)
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {

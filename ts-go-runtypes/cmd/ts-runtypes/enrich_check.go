@@ -50,9 +50,13 @@ func runCheck(args []string) {
 	translate := fs.String("translate", "", "i18n completeness gate: report @todo blanks / orphans / out-of-date translations for a locale (or 'all')")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes check <file.ts> [--json] [--tsconfig <path>]   (single-file enrichment health)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes check [<dir>] [--json]                          (mirror-tree breadcrumb + location drift)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes check --translate <locale|all>                  (translation completeness; strict via tsconfig i18n.strict)")
+		printUsage(fs, `ts-runtypes check — enrichment-health report over the mirror files
+
+Usage:
+    ts-runtypes check <file.ts> [--json]              (single file: tag hygiene, content validity, drift)
+       or: ts-runtypes check [<dir>] [--json]         (mirror-tree breadcrumb + location drift)
+       or: ts-runtypes check --translate <locale|all> (i18n translation completeness; strict via tsconfig i18n.strict)
+`)
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
