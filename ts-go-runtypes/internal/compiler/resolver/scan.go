@@ -598,7 +598,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 			return pendingCall{}, diags, false
 		}
 		diags = append(diags, diagnostics.NewWithRelated(
-			diagnostics.CodeMarkerContainedTypeParameter,
+			diagnostics.CodeMarkerUnresolvedTypeParameter,
 			textpos.NodeSite(file, sourceFile, call),
 			[]string{finding.ParamName},
 			finding.Related...,
@@ -614,7 +614,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	if callExpression != nil && sourceFile != nil {
 		if missing, found := findMissingTypeArgs(state.scanChecker, callExpression.TypeArguments); found {
 			diags = append(diags, diagnostics.NewWithRelated(
-				diagnostics.CodeMarkerMissingTypeArgs,
+				diagnostics.CodeMarkerUnresolvedGenericType,
 				textpos.NodeSite(file, sourceFile, call),
 				[]string{missing.TypeName, missing.ParamName},
 				missing.Related...,
@@ -819,7 +819,7 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 		if finding, found := marker.FindFreeTypeParameter(state.scanChecker, m.typeArg); found {
 			if sourceFile != nil {
 				diags = append(diags, diagnostics.NewWithRelated(
-					diagnostics.CodeMarkerContainedTypeParameter,
+					diagnostics.CodeMarkerUnresolvedTypeParameter,
 					textpos.NodeSite(file, sourceFile, call),
 					[]string{finding.ParamName},
 					finding.Related...,

@@ -21,15 +21,15 @@ const (
 	// per-level type parameters are bound per call site and can never resolve at
 	// build time, so no finite structural id exists. Args: [0] the type's name.
 	CodeMarkerSelfInstantiatingGeneric = "MKR009"
-	// CodeMarkerContainedTypeParameter is the CONTAINED sibling of MKR003: the
-	// marker's type argument is not itself a bare type parameter, but carries a
-	// still-free one in a data position (`A<T>`, `T[]`, `{a: T}` inside a generic
-	// body). Without the check the free param silently collapses to `unknown` and
-	// every instantiation context shares one aliased id. Args: [0] the parameter
-	// name; Related: the parameter's declaration + generics-chain hops.
-	// Signature interiors (generic methods' own params) are exempt.
-	CodeMarkerContainedTypeParameter = "MKR010"
-	// CodeMarkerMissingTypeArgs is the SYNTACTIC guard of the unresolved-generics
+	// CodeMarkerUnresolvedTypeParameter is the nested sibling of MKR003: the
+	// marker's type argument is not itself a bare type parameter (that is MKR003),
+	// but CONTAINS a still-free one in a data position (`A<T>`, `T[]`, `{a: T}`
+	// inside a generic body). Without the check the free param silently collapses
+	// to `unknown` and every instantiation context shares one aliased id. Args:
+	// [0] the parameter name; Related: the parameter's declaration + generics-chain
+	// hops. Signature interiors (generic methods' own params) are exempt.
+	CodeMarkerUnresolvedTypeParameter = "MKR010"
+	// CodeMarkerUnresolvedGenericType is the SYNTACTIC guard of the unresolved-generics
 	// model: a written generic reference with fewer type arguments than the
 	// declaration's default-less parameters (`getRunTypeId<A2>()` over
 	// `interface A2<S>`). tsc rejects it (TS2314) but the no-typecheck dev lane
@@ -37,7 +37,7 @@ const (
 	// argument list instead. A parameter WITH a default never trips it (the
 	// checker resolves defaults at use sites). Args: [0] type name, [1] parameter
 	// name; Related: the default-less parameter's declaration + alias hops.
-	CodeMarkerMissingTypeArgs = "MKR011"
+	CodeMarkerUnresolvedGenericType = "MKR011"
 )
 
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
@@ -82,8 +82,8 @@ func init() {
 		{Code: CodeMarkerAnyFromUnresolvedImport, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type resolved to `any` — an import in this file failed to resolve"},
 		{Code: CodeStructuralIdDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "Type is too deeply nested — structural-id computation hit its depth cap"},
 		{Code: CodeMarkerSelfInstantiatingGeneric, Family: FamilyMarker, Severity: SeverityError, Title: "Type re-instantiates itself with fresh type arguments — a self-instantiating generic cannot resolve to a structural id"},
-		{Code: CodeMarkerContainedTypeParameter, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type argument contains an unresolved type parameter — generics must be fully resolved at the call site"},
-		{Code: CodeMarkerMissingTypeArgs, Family: FamilyMarker, Severity: SeverityError, Title: "Generic type used without its required type arguments — a default-less parameter cannot be resolved"},
+		{Code: CodeMarkerUnresolvedTypeParameter, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type argument contains an unresolved type parameter — generics must be fully resolved at the call site"},
+		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Severity: SeverityError, Title: "Generic type used without its required type arguments — a default-less parameter cannot be resolved"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
 		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16) — refactor to flatten"},
 		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},

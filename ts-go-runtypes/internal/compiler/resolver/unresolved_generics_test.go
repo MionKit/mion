@@ -61,7 +61,7 @@ export function wrap<T>() {
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
 		t.Fatalf("expected MKR010 for A<T> in a generic body, got %+v", resp.Diagnostics)
 	}
@@ -92,7 +92,7 @@ export function wrap<T>(value: A<T>) {
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
 		t.Fatalf("expected MKR010 for the value-first form, got %+v", resp.Diagnostics)
 	}
@@ -121,7 +121,7 @@ export function wrapInline<T>() {
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter); got != 2 {
+	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 2 {
 		t.Fatalf("expected MKR010 for both T[] and {a: T}, got %d: %+v", got, resp.Diagnostics)
 	}
 	if len(resp.Sites) != 0 {
@@ -147,7 +147,7 @@ export function wrap<T>() {
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter)
 	if diag == nil {
 		t.Fatalf("expected MKR010, got %+v", resp.Diagnostics)
 	}
@@ -174,7 +174,7 @@ export function wrap<T = string>() {
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter); got != 1 {
+	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 1 {
 		t.Fatalf("a default on the BODY's type param must not resolve it — expected MKR010, got %+v", resp.Diagnostics)
 	}
 }
@@ -196,7 +196,7 @@ export const b = getRunTypeId(repo);
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerContainedTypeParameter); got != 0 {
+	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedTypeParameter); got != 0 {
 		t.Fatalf("generic METHOD params are exempt — got %d MKR010: %+v", got, resp.Diagnostics)
 	}
 	if len(resp.Sites) != 2 || resp.Sites[0].ID == "" || resp.Sites[0].ID != resp.Sites[1].ID {
@@ -295,7 +295,7 @@ export const w = getRunTypeId<A2>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerMissingTypeArgs)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
 		t.Fatalf("expected MKR011 for bare un-defaulted generic, got %+v", resp.Diagnostics)
 	}
@@ -328,7 +328,7 @@ export const good = getRunTypeId<B<A<'hello'>>>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerMissingTypeArgs)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
 		t.Fatalf("expected MKR011 for bare B (constraint != default), got %+v", resp.Diagnostics)
 	}
@@ -357,7 +357,7 @@ export const w = getRunTypeId<Box<A2>>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerMissingTypeArgs)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
 		t.Fatalf("expected MKR011 for nested bare A2, got %+v", resp.Diagnostics)
 	}
@@ -381,7 +381,7 @@ export const w = getRunTypeId<X>();
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerMissingTypeArgs)
+	diag := firstOf(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType)
 	if diag == nil {
 		t.Fatalf("expected MKR011 through the alias chain, got %+v", resp.Diagnostics)
 	}
@@ -409,7 +409,7 @@ export const w = getRunTypeId(value);
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
 	}
-	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerMissingTypeArgs); got != 0 {
+	if got := countCode(resp.Diagnostics, diagnostics.CodeMarkerUnresolvedGenericType); got != 0 {
 		t.Fatalf("value-first missing-args is a documented residual (TS errors at the declaration); got %d MKR011", got)
 	}
 	if len(resp.Sites) != 1 {
