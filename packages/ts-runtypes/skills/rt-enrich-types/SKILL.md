@@ -1,6 +1,6 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`describe` / `gen` / `gen --update` / `gen --prune` / `check`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
+description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`gen` / `gen --update` / `gen --prune` / `check`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
 ---
 
 # RunTypes enrichment — the compiler scaffolds, you fill the blanks
@@ -17,22 +17,20 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
 
 ## The loop
 
-1. **`describe`** — ask the compiler what a type looks like (fields, kinds, format rules).
-   This is your context for writing good values.
-2. **`gen`** — the compiler scaffolds the mirror file: one entry per field, correctly
+1. **`gen`** — the compiler scaffolds the mirror file: one entry per field, correctly
    typed, each blank marked `@todo`.
-3. **Fill the `@todo`s** — write the labels, messages, and sample values; delete each
+2. **Fill the `@todo`s** — write the labels, messages, and sample values; delete each
    `@todo` line as you finish it.
-4. **`check`** — the compiler validates every authored value against the live type.
+3. **`check`** — the compiler validates every authored value against the live type.
    Fix anything it flags, repeat until clean.
-5. **`gen --update`** — when the type later changes, re-sync the file _value-preservingly_
+4. **`gen --update`** — when the type later changes, re-sync the file _value-preservingly_
    (property merge + field rename + orphaning); fill any new `@todo`s it adds.
-6. **`gen --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
+5. **`gen --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
    carcasses left by deleted types/fields.
-7. **`gen --translate <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
+6. **`gen --translate <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
    or prune the per-locale translation files of the friendly maps (see **Translations**
    below).
-8. **`check --translate <locale|all>`** — the translation completeness gate for CI
+7. **`check --translate <locale|all>`** — the translation completeness gate for CI
    (TR001–TR004; see **Translations** below).
 
 Every verb takes **`--tsconfig <path>`**. Without it the CLI finds the config exactly as
@@ -188,7 +186,7 @@ structure + format-correctness, you supply _believable_ values. The full authori
 
 ## Authoring checklist
 
-- Run `describe <file> <Type>` first; write values that fit the field's kind + format.
+- The `gen` scaffold lays out every field; write values that fit each field's kind + format.
 - Fill **every `@todo`** the scaffold left, then **delete that `@todo` line**.
 - Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks — the compiler
   owns them; `--prune` clears orphans.

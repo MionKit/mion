@@ -5,7 +5,7 @@
 >   structural node shapes — solution A), the pure-data `createFriendlyText<T>(map)`
 >   renderer, and the `createMockDataFn<T>({ data })` integration — all exported from
 >   `@ts-runtypes/core`;
-> - the Go CLI trio `describe` / `check` / `gen` (`ts-go-runtypes/internal/enrichment`, a separate
+> - the Go CLI pair `check` / `gen` (`ts-go-runtypes/internal/enrichment`, a separate
 >   package), incl. **named-type-driven emission** (one `const` per named type) and
 >   the `check` diagnostics **FT002 / FT003 / FT005 / MD001**;
 > - **`gen --update` reconcile + `gen --prune`** — a value-preserving merge of an
@@ -496,26 +496,25 @@ CLI (below) rather than scraping editor output.
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `ts-runtypes check [<dir>]`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
 | `ts-runtypes check <file> --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
-| `ts-runtypes describe <file>#<Type> --json` | Emit the type's shape (names, kinds, optionality, formats, literals — all already in the `RunType` struct) as LLM prompt context. |
 | `ts-runtypes gen <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `check`. See `gen` semantics below. |
 | `ts-runtypes gen --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
 | `ts-runtypes check --translate <locale>` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
-All three are **implemented** as out-of-band CLI modes of the Go binary. Validation
+Both are **implemented** as out-of-band CLI modes of the Go binary. Validation
 runs via the `check` verb (CI / agents); surfacing the same FT/MD diagnostics
 *always-on during a Vite build* is the deferred integration (see Validation below).
 
 ### The agent loop — the compiler as a tool for the LLM
 
 ```
-describe ./models/user.ts#User  ──►  agent writes/patches the mirror file  ──►  check --file <mirror> --json
-        ▲                                                                              │
-        └──────────────────────────────  loop until clean  ◄──────────────────────────┘
-                                            │
-                                 human reviews the diff, commits
+gen ./models/user.ts#User  ──►  agent writes/patches the mirror file  ──►  check --file <mirror> --json
+   ▲                                                                       │
+   └─────────────────────────  loop until clean  ◄─────────────────────────┘
+                                       │
+                        human reviews the diff, commits
 ```
 
-`describe` is the prompt context; `check --file --json` is the ground-truth
+`check --file --json` is the ground-truth
 correctness check. The Go binary already runs as a long-lived process under the
 plugin, so `check --file` is a cheap incremental op. The same two ops are exactly
 what you'd expose as **MCP tools** so any agent (Claude Code, Cursor, your own)
@@ -523,7 +522,7 @@ can drive generation, vendor-neutral.
 
 ### Process model — where each command runs (decided)
 
-**No new binary, all Go-side, CLI-arg-driven.** `describe` / `check` / `gen` are
+**No new binary, all Go-side, CLI-arg-driven.** `check` / `gen` are
 new **command-line modes** of the existing binary (`main.go` is flag-only today —
 add subcommand/positional dispatch). They are **out-of-band, one-shot commands a
 developer or agent runs deliberately — NOT part of the Vite build.** The Vite
@@ -538,12 +537,12 @@ wrong label for generation.
   re-implementing the kind-switch — duplicating the emitter for nothing. Because
   `gen` is one-shot (not a tight loop), paying the `Program` build per invocation is
   fine — it builds, walks, writes, exits.
-- **`describe` / `check` are the same kind-switch walk** (output: prompt text / JSON
-  / diagnostics rather than files). Today each is a one-shot CLI run (build, walk,
-  emit, exit). For a tight agent loop that wants them fast and repeated, keeping one
+- **`check` is the same kind-switch walk** (output: JSON
+  / diagnostics rather than files). Today it is a one-shot CLI run (build, walk,
+  emit, exit). For a tight agent loop that wants it fast and repeated, keeping one
   warm `Program` alive across calls is the natural optimization — planned as exposing
-  these verbs over the same `serve` protocol the bundler plugin already drives (so the
-  warm resolver serves them without a fresh build per call). `check`'s analysis is the
+  the verb over the same `serve` protocol the bundler plugin already drives (so the
+  warm resolver serves it without a fresh build per call). `check`'s analysis is the
   *same* validation the always-on scan runs during a real Vite build; the CLI just runs
   it standalone.
 - **Public surface stays in the npm package** via a thin `ts-runtypes` bin that
@@ -1040,8 +1039,7 @@ production graph. No special registration-gating mechanism required.
   the resolved type — not deferred. The binary already reads this internally
   (`symbol.Declarations → GetSourceFileOfNode()`; `declarationPos` in
   [`serialize.go`](../ts-go-runtypes/internal/cachegen/runtype/serialize.go)) but does not serialize
-  it — it's the "location" slot the protocol reserves but never populates. It's also
-  what `describe` wants for prompt context, so it pays for itself.
+  it — it's the "location" slot the protocol reserves but never populates.
 - **`$[val]` enrichment.** `format.val` is overloaded — the param for
   numeric/length constraints, a pre-baked *message* for `pattern`/`allowedChars`,
   *absent* for date bounds. For `$[val]` to resolve uniformly to the declared
