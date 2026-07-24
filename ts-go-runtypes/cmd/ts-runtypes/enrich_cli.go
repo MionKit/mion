@@ -15,47 +15,22 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
-// enrichCommands are the out-of-band argv subcommands handled before the
-// normal flag parse. They are NOT the vite-build path: the plugin spawns the
-// binary with a flag (e.g. --one-shot) as os.Args[1], which never matches one
-// of these, so existing behaviour is untouched.
-var enrichCommands = map[string]func([]string){
-	"describe": runDescribe,
-	"gen":      runGen,
-	"check":    runCheck,
-}
-
-// dispatchEnrichCommand runs the matching subcommand handler (which exits
-// the process) and reports whether os.Args[1] was one. main() calls this at
-// the very top, before flag.Parse().
-func dispatchEnrichCommand() bool {
-	if len(os.Args) <= 1 {
-		return false
-	}
-	handler, ok := enrichCommands[os.Args[1]]
-	if !ok {
-		return false
-	}
-	handler(os.Args[2:])
-	return true
-}
+// The describe / gen / check handlers below are registered in main.go's
+// top-level `commands` table (one args[0] dispatch convention for every mode).
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
 // caller owns the resolver and MUST call res.Close() when done (it keeps the
 // checker live for as long as the walk needs it). Shared by resolveOne and the
 // check command, which walks the file's AST against the still-open checker.
 //
-// tsconfigPath is the run's resolved tsconfig ("" = none): its full options are
-// adopted wholesale, with the "source" condition folded in so `ts-runtypes`
-// resolves to its in-tree src. Strict like tsc — a named/discovered config that
-// is missing or broken errors instead of silently degrading type resolution.
-func buildProgram(absPath, tsconfigPath string) (*program.Program, *resolver.Session, error) {
+// parsed is the run's ONE resolved config (nil = none), parsed once by
+// resolveEnrichProject with the "source" condition folded in so `ts-runtypes`
+// resolves to its in-tree src. Its full options are adopted wholesale. When nil
+// (no config anywhere) the "source" condition still applies via the inferred
+// fallback below.
+func buildProgram(absPath string, parsed *program.InferredConfig) (*program.Program, *resolver.Session, error) {
 	cwd := filepath.Dir(absPath)
-	inferredConfig, err := program.ParseInferredConfig(cwd, tsconfigPath, "source")
-	if err != nil {
-		return nil, nil, err
-	}
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: inferredConfig}, []string{absPath})
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: parsed}, []string{absPath})
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}
@@ -70,17 +45,13 @@ func buildProgram(absPath, tsconfigPath string) (*program.Program, *resolver.Ses
 // files — the batch `gen --files` path. Cwd is the first file's directory.
 // Caller owns res and MUST Close() it. One Program means the heavy parse/bind
 // is paid once for the whole batch; each file's `Target` resolves against it.
-// tsconfigPath: same contract as buildProgram.
-func buildProgramMulti(absPaths []string, tsconfigPath string) (*program.Program, *resolver.Session, error) {
+// parsed: same contract as buildProgram.
+func buildProgramMulti(absPaths []string, parsed *program.InferredConfig) (*program.Program, *resolver.Session, error) {
 	if len(absPaths) == 0 {
 		return nil, nil, fmt.Errorf("no files given")
 	}
 	cwd := filepath.Dir(absPaths[0])
-	inferredConfig, err := program.ParseInferredConfig(cwd, tsconfigPath, "source")
-	if err != nil {
-		return nil, nil, err
-	}
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: inferredConfig}, absPaths)
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: parsed}, absPaths)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}
@@ -93,8 +64,8 @@ func buildProgramMulti(absPaths []string, tsconfigPath string) (*program.Program
 
 // resolveOne builds a Program over absPath, a resolver, and resolves typeName
 // to its canonical RunType. Shared by describe + gen.
-func resolveOne(absPath, typeName, tsconfigPath string) (*enrichment.Resolved, error) {
-	prog, res, err := buildProgram(absPath, tsconfigPath)
+func resolveOne(absPath, typeName string, parsed *program.InferredConfig) (*enrichment.Resolved, error) {
+	prog, res, err := buildProgram(absPath, parsed)
 	if err != nil {
 		return nil, err
 	}
@@ -104,10 +75,10 @@ func resolveOne(absPath, typeName, tsconfigPath string) (*enrichment.Resolved, e
 
 func runDescribe(args []string) {
 	fs := flag.NewFlagSet("describe", flag.ExitOnError)
-	format := fs.String("format", "text", "output format: text | json")
+	asJSON := fs.Bool("json", false, "emit the description as JSON instead of text")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes describe <file.ts> <TypeName> [--format text|json] [--tsconfig <path>]")
+		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes describe <file.ts> <TypeName> [--json] [--tsconfig <path>]")
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
@@ -120,7 +91,8 @@ func runDescribe(args []string) {
 	absPath := tspath.NormalizePath(mustAbs(positional[0]))
 	typeName := positional[1]
 
-	resolved, err := resolveOne(absPath, typeName, resolveEnrichTsconfig(*tsconfigFlag))
+	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	resolved, err := resolveOne(absPath, typeName, parsed)
 	if err != nil {
 		fatal("describe: %v", err)
 	}
@@ -130,18 +102,15 @@ func runDescribe(args []string) {
 		Resolve:  resolved.Resolve,
 	})
 
-	switch *format {
-	case "json":
+	if *asJSON {
 		payload := map[string]string{"typeName": typeName, "description": description}
 		encoded, err := json.MarshalIndent(payload, "", "  ")
 		if err != nil {
 			fatal("describe: encode json: %v", err)
 		}
 		fmt.Println(string(encoded))
-	case "text", "":
+	} else {
 		fmt.Println(description)
-	default:
-		fatal("describe: unknown --format %q (want text|json)", *format)
 	}
 	os.Exit(0)
 }
@@ -152,8 +121,6 @@ func runGen(args []string) {
 	friendly := fs.Bool("friendly", false, "emit a FriendlyText<T> skeleton")
 	out := fs.String("out", "", "explicit single mirror file path (overrides the computed mirror path; forces a single file)")
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > default __runtypes); mirrors live under <genDir>/enriched")
-	check := fs.Bool("check", false, "drift check: validate mirror-file breadcrumbs instead of generating")
-	jsonFlag := fs.Bool("json", false, "with --check: emit findings as a JSON array")
 	files := fs.String("files", "", "batch mode: comma-separated files; resolve --type in each, print JSON skeletons to stdout (no writes)")
 	typeFlag := fs.String("type", "", "batch mode: the type name to resolve in every --files entry")
 	update := fs.Bool("update", false, "reconcile an existing committed mirror file against the freshly regenerated desired set (property merge, never clobbers values)")
@@ -164,8 +131,8 @@ func runGen(args []string) {
 		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes gen <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>] [--tsconfig <path>]")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen <file.ts> <TypeName> --update   (reconcile an existing mirror)")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --prune [<mirror-file-or-dir>]   (strip @rtOrphan carcasses)")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --check [<mirror-file-or-dir>]   (breadcrumb drift)")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --files a.ts,b.ts --type Target   (batch, JSON to stdout)")
+		fmt.Fprintln(os.Stderr, "   (drift checking moved to: ts-runtypes check [<file-or-dir>])")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> [<src.ts>]           (scaffold a locale's translation files)")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> --update [<src.ts>]  (reconcile translations against the friendly source mirror)")
 		fmt.Fprintln(os.Stderr, "   or: ts-runtypes gen --translate <locale> --prune  [<src.ts>]  (strip translation orphan carcasses)")
@@ -178,7 +145,7 @@ func runGen(args []string) {
 	// --translate is its own lane: the desired side is the friendly source
 	// mirror, never the type graph — so it excludes the type-driven modes.
 	if *translate != "" {
-		if *check || *files != "" || *mock || *friendly || *out != "" {
+		if *files != "" || *mock || *friendly || *out != "" {
 			fatal("gen: --translate can only combine with --update / --prune / --gen-dir")
 		}
 		runGenTranslate(*translate, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
@@ -186,12 +153,9 @@ func runGen(args []string) {
 	}
 
 	// Mutual-exclusion guards. --update is the reconcile op; it cannot combine
-	// with --check (drift report) or --files (batch stdout, no writes). --prune
-	// is the standalone destructive sweep and likewise excludes the others.
+	// with --files (batch stdout, no writes). --prune is the standalone
+	// destructive sweep and likewise excludes the others.
 	if *update {
-		if *check {
-			fatal("gen: --update cannot be combined with --check")
-		}
 		if *files != "" {
 			fatal("gen: --update cannot be combined with --files")
 		}
@@ -200,9 +164,6 @@ func runGen(args []string) {
 		}
 	}
 	if *prune {
-		if *check {
-			fatal("gen: --prune cannot be combined with --check")
-		}
 		if *files != "" {
 			fatal("gen: --prune cannot be combined with --files")
 		}
@@ -215,10 +176,6 @@ func runGen(args []string) {
 			fatal("gen --files: --type is required")
 		}
 		runGenBatch(strings.Split(*files, ","), *typeFlag, *tsconfigFlag)
-		return
-	}
-	if *check {
-		runGenCheck(positional, *genDirFlag, *jsonFlag, *tsconfigFlag)
 		return
 	}
 	if len(positional) < 2 {
@@ -234,7 +191,8 @@ func runGen(args []string) {
 		wantFriendly, wantMock = true, true
 	}
 
-	config := resolveEnrichConfig(absPath, *genDirFlag, *tsconfigFlag)
+	tsconfigPath, parsed := resolveEnrichProject(*tsconfigFlag)
+	config := resolveEnrichConfig(absPath, *genDirFlag, tsconfigPath, parsed)
 
 	// Self-document the genDir tree even when gen runs before any build: the
 	// root + enriched READMEs (shared with the generate lane) and a README in
@@ -249,7 +207,7 @@ func runGen(args []string) {
 	// closure walk can tell a named-type reference from an anonymous inline shape,
 	// then emit ONE friendly+mock const per named type in the closure, in
 	// dependency (topological) order, with cross-const references between them.
-	prog, res, err := buildProgram(absPath, config.TsconfigPath)
+	prog, res, err := buildProgram(absPath, config.parsed)
 	if err != nil {
 		fatal("gen: %v", err)
 	}
@@ -448,7 +406,8 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 	if len(absPaths) == 0 {
 		fatal("gen --files: no files given")
 	}
-	prog, res, err := buildProgramMulti(absPaths, resolveEnrichTsconfig(tsconfigFlag))
+	_, parsed := resolveEnrichProject(tsconfigFlag)
+	prog, res, err := buildProgramMulti(absPaths, parsed)
 	if err != nil {
 		fatal("gen --files: %v", err)
 	}
@@ -479,10 +438,9 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 }
 
 // valueFlags are the enrichment flags that consume the following token as
-// their value when written space-separated (e.g. `--format json`). Boolean
-// flags (--mock, --friendly) are absent here.
+// their value when written space-separated (e.g. `--gen-dir dir`). Boolean
+// flags (--mock, --friendly, --json) are absent here.
 var valueFlags = map[string]bool{
-	"--format": true, "-format": true,
 	"--out": true, "-out": true,
 	"--files": true, "-files": true,
 	"--type": true, "-type": true,

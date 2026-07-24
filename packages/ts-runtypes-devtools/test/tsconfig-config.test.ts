@@ -8,9 +8,9 @@
 // moduleMode ONLY through tsconfig (no moduleMode forwarded) means the bundle
 // routing can ONLY come from the build path having read the tsconfig.
 //
-// Each case is a real default-mode resolver (--one-shot --tsconfig against an
-// on-disk fixture), NOT the inline / server modes the other suites use — those
-// carry no tsconfig, so they never exercise this path.
+// Each case is a real default-mode resolver (serve --sources project --tsconfig
+// against an on-disk fixture), NOT the overlay serve modes the other suites use
+// — those carry no tsconfig, so they never exercise this path.
 
 import {describe, expect, it} from 'vitest';
 import path from 'node:path';

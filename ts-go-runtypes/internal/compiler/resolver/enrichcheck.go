@@ -54,8 +54,8 @@ func (sess *Session) checkEnrichFiles(files []string) []diagnostics.Diagnostic {
 		// Drift only applies to GENERATED mirrors (marker emit form present as
 		// a real comment): a hand-written file that merely annotates consts
 		// with FriendlyText / MockData has ordinary relative imports, not a
-		// breadcrumb. `check` and `gen --check` — where the user explicitly
-		// targets enrichment files — stay ungated.
+		// breadcrumb. The CLI `check` verb — where the user explicitly targets
+		// enrichment files — stays ungated.
 		if scan.HasMarkerComment() {
 			absolutePath := tspath.ResolvePath(sess.Program.TS.GetCurrentDirectory(), file)
 			for _, drift := range mirror.CheckBreadcrumbDrift(absolutePath, text, sess.Program.FS) {

@@ -1,4 +1,4 @@
-// End-to-end for the tsc-style compile CLI (`ts-runtypes --compile`): a real
+// End-to-end for the tsc-style compile CLI (`ts-runtypes compile`): a real
 // temp project is compiled by spawning the binary, and we assert (1) the emitted
 // .js has the rewrite applied with the binding import relativized to the cache
 // dir, (2) the composed source map points at the ORIGINAL .ts line (not the
@@ -41,7 +41,7 @@ interface User {
 export const isUser = createValidateFn<User>();
 `;
 
-describe('ts-runtypes --compile (tsc-like CLI)', () => {
+describe('ts-runtypes compile (tsc-like CLI)', () => {
   register('emits .js with a composed map back to the original source and a working cache', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-compile-'));
     try {
@@ -52,7 +52,7 @@ describe('ts-runtypes --compile (tsc-like CLI)', () => {
 
       const run = spawnSync(
         BIN,
-        ['--compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')],
+        ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')],
         {encoding: 'utf8'}
       );
       expect(run.status, run.stderr).toBe(0);

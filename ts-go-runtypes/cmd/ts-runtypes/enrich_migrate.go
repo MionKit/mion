@@ -15,7 +15,7 @@ import (
 // behind the friendly/ + mock/ path segments. It runs before every gen pass
 // over a source file and is a silent no-op when there is nothing to migrate.
 //
-// Guards (all conservative — when in doubt, migrate nothing and let gen --check
+// Guards (all conservative — when in doubt, migrate nothing and let `check`
 // flag the drift):
 //   - the legacy file must exist and carry a source breadcrumb that resolves
 //     back to THIS source file (an unrelated file that happens to sit at the

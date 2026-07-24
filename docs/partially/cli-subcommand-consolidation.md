@@ -1,11 +1,22 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: partially
 created: 2026-07-24
 ---
 
 # CLI architecture: consolidate on tsgo-style subcommands
+
+**Status:** PARTIALLY SHIPPED (2026-07-24). **Part A landed** — the uniform
+`args[0]` subcommand surface (`serve` / `compile` / `describe` / `gen` /
+`check`), the single `resolveConfigPath` policy with parse-once threading, the
+retired `--one-shot` / `--daemon`, `serve --sources project|stdin|ops`,
+`--json` everywhere, `check` absorbing `gen --check`, the migrated JS spawn
+layer, and docs (Done-when #1, #2, #4, #5, #6). **Part B remains** — making
+`describe` / `gen` / `check` daemon protocol ops with the CLI verbs as thin
+adapters over one shared implementation, collapsing the two `check`
+orchestrations, and the per-verb CLI≡daemon parity tests (Done-when #3). See the
+Plan section at the bottom for the full Part B spec.
 
 **Sequencing: implement AFTER [tsconfig-alignment.md](../done/tsconfig-alignment.md)
 (SHIPPED 2026-07-24 — unblocked). It must inherit that todo's single
@@ -129,3 +140,73 @@ The implementer plans the details. Verified constraints and pointers:
   two concepts (the three server-ish modes named or retired deliberately).
 - The JS spawn layer is migrated; README and website CLI docs updated.
 - Existing suites stay green.
+
+## Plan — split into Part A + Part B (approved 2026-07-24)
+
+Investigation (three Explore agents + a Plan agent) confirmed the change splits
+cleanly, and that Part B is much smaller than feared: enrichment is already a
+resolver-imported leaf, the write seam is already pure (`mirror.Scaffold` /
+`mirror.Reconcile` do no I/O), and `check` already runs on Session state via
+`checkEnrichFiles`. Owner decisions: **Part A first** (this PR), **proposed
+naming scheme** confirmed.
+
+### Target surface (naming — confirmed)
+
+`main()` becomes a tsgo-style `args[0]` command table (no implicit default; JS
+versions in lockstep so it always passes an explicit verb):
+
+- `serve` — the one stdio protocol server; the three server-ish modes (default
+  disk Program / `--inline-sources-stdin` / `--inline-server`) fold into
+  `serve --sources project|stdin|ops` (default `project`).
+- `compile` — today `--compile` (full tsc replacement: emits `.js` + cache).
+  The ROADMAP pre-process/`build` mode is NOT reserved — when built it is most
+  likely `compile --no-emit`, decided under its own todo.
+- `describe` / `gen` / `check` — enrich verbs stay; `--json` everywhere (drop
+  `describe --format`); `check` absorbs `gen --check` (file target = single-file
+  health, dir target = mirror-tree drift incl. GE001); `gen` is generation-only.
+- `--daemon` RETIRES (no JS caller): delete `runDaemon` / `runOneShot` /
+  `--socket` / JS `ResolverSocketClient`. `--one-shot` (inert) deleted.
+
+Shared knobs mean the same thing under every verb (`--tsconfig`, `--cwd`,
+`--gen-dir`, `--emit-mode`, `--inline-mode`, `--module-mode`, `--hash-length`,
+`--size-*`, `--number-mode`, `--single-threaded`/`--no-single-threaded`,
+`--no-parallel-*`, `--allow-unchecked-patterns`, `--pure-fn-report-*`).
+
+### Part A — SHIPPED 2026-07-24 — Done-when #1, #2, #4, #5, #6
+
+Landed as built (a couple of refinements vs the pre-build plan): `resolveConfigPath`
+resolves the path only and defers existence to `ParseInferredConfig` (so the
+`serve` daemon reports a bad `--tsconfig` per-op and stays alive to heal, instead
+of crashing at startup); the enrich `"source"` condition was KEPT (behavior-
+preserving, deferred to Part B); the ROADMAP `build` verb was NOT reserved (dead
+surface — it will most likely be `compile --no-emit` under its own todo).
+
+- `main.go` → command table + shared helpers (`resolveCwd`,
+  `buildResolverOptions` with the old `hasTsconfig` gate as an explicit
+  `readBuildPlugin` param, `newStdioSession` keyed on `--sources`).
+- `config.go` → one policy `resolveConfigPath` from one entry; delete
+  `resolveEnrichTsconfig`; `resolveEnrichConfig` takes a pre-parsed
+  `*program.InferredConfig`.
+- `enrich_cli.go` → `buildProgram`/`buildProgramMulti` consume the threaded
+  config, parsed ONCE (kill gen's double-parse). The `"source"` condition is
+  KEPT in Part A (behavior-preserving); its removal is a Part B parity concern.
+- JS `buildResolverArgs` → `serve` + `--sources`; delete `ResolverSocketClient`.
+- Tests: Go dispatch-routing + updated config/enrich tests; the 4 flag-pinning
+  Vitest files. Docs: website CLI pages, `docs/COMPILER-DRIVEN-TRANSFORM.md`,
+  `CLAUDE.md`, enrich skills; fix stale names in
+  `docs/done/transform-cli-compile-command.md`.
+
+### Part B (follow-up PR) — Done-when #3
+
+Extract `internal/enrichment/enrichgen` (move `enrichConfig` + resolution + the
+pure gen orchestration `PlanScaffold`/`PlanUpdate` returning `[]{Path,Content}`;
+writing stays at the caller). Extract one shared `CheckFile(...)` collapsing CLI
+`runCheck` + resolver `checkEnrichFiles`, unifying drift-gating on
+`HasMarkerComment()` (resolver behavior wins). Add `OpEnrich{Describe,Gen,Check}`
+constants + Request/Response fields (registered in the hand-rolled
+`Response.MarshalJSON`) + `dispatchEnrich*` handlers reusing Session state; CLI
+verbs become thin adapters. Add JS client methods + `protocol.ts` typing. Drop
+the `"source"` condition to match the daemon (validate via the enrich suites,
+fixing through the harness tsconfig's `customConditions`, never a CLI-only
+divergence). Thread `hashLength` into the enrich `resolver.Options`. Add
+per-verb CLI≡daemon parity tests. Then move the spec to `docs/done/`.

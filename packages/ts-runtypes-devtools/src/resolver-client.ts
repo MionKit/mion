@@ -1,5 +1,4 @@
 import {spawn, type ChildProcess} from 'node:child_process';
-import {createConnection, type Socket} from 'node:net';
 import {createInterface, type Interface} from 'node:readline';
 import type {Readable, Writable} from 'node:stream';
 import type {
@@ -15,13 +14,13 @@ import type {
 } from './protocol.ts';
 
 export interface ResolverClientOptions {
-  // When set, the resolver is spawned with --inline-sources-stdin and the
+  // When set, the resolver is spawned with `serve --sources stdin` and the
   // map is written as the first stdin line (JSON `{"sources": …}`) before
   // any request. Keys are paths relative to `cwd`; values are TS source.
   // No on-disk tsconfig is needed in this mode — the Go side builds an
   // inferred Program whose root files are exactly the overlay keys.
   inlineSources?: Record<string, string>;
-  // When true, spawns with --inline-server: no startup Program, no
+  // When true, spawns with `serve --sources ops`: no startup Program, no
   // handshake. The client is expected to install state via setSources
   // before calling scanFiles. The same connection persists across many
   // setSources / reset cycles, so a single child process can serve every
@@ -487,15 +486,18 @@ abstract class ResolverClientBase implements ResolverConnection {
 // session's spawn-shim path (which hands the argv to a pre-spawned launcher
 // — see eslint/spawn-shim.ts).
 export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: ResolverClientOptions = {}): string[] {
-  const args = ['--one-shot', '--cwd', cwd];
+  // The resolver protocol is the `serve` subcommand (args[0]); --sources selects
+  // where its startup Program comes from (project | stdin | ops). serverMode wins
+  // over inlineSources when both are set, matching the Go dispatch order.
+  const args = ['serve', '--cwd', cwd];
   // Forward ONLY an explicitly configured tsconfig. When unset ('' here), the
   // Go side resolves the config exactly as tsc does — searching upward from
   // cwd — so the JS side carries no config logic of its own.
   if (tsconfigPath) {
     args.push('--tsconfig', tsconfigPath);
   }
-  if (opts.inlineSources) args.push('--inline-sources-stdin');
-  if (opts.serverMode) args.push('--inline-server');
+  if (opts.serverMode) args.push('--sources', 'ops');
+  else if (opts.inlineSources) args.push('--sources', 'stdin');
   // cacheDir is NOT a CLI arg — it rides the child's RT_CACHE_DIR env var
   // (set by ResolverClient's spawn) so parallel spawns stay isolated.
   if (opts.emitMode) args.push('--emit-mode', opts.emitMode);
@@ -523,13 +525,13 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
 // JSON-per-line stdio protocol. The child process is kept alive until
 // `close()` so the Program + checker pool are amortised across queries.
 //
-// Three modes:
-//   - default: --one-shot against an on-disk tsconfig.
-//   - opts.inlineSources: --one-shot --inline-sources-stdin, source map
-//     written as the handshake line before any request.
-//   - opts.serverMode: --one-shot --inline-server, no startup Program;
-//     the caller drives setSources / reset / scanFiles / dump over stdin
-//     for the lifetime of the process.
+// Three modes (all the `serve` subcommand, differing only in --sources):
+//   - default: `serve` (--sources project) against an on-disk tsconfig.
+//   - opts.inlineSources: `serve --sources stdin`, source map written as the
+//     handshake line before any request.
+//   - opts.serverMode: `serve --sources ops`, no startup Program; the caller
+//     drives setSources / reset / scanFiles / dump over stdin for the lifetime
+//     of the process.
 export class ResolverClient extends ResolverClientBase {
   private child!: ChildProcess;
   protected transport!: MessageTransport;
@@ -667,32 +669,5 @@ export class ResolverStreamClient extends ResolverClientBase {
   // process went away (the caller observes the exit, not this class).
   markClosed(reason: string): void {
     this.transport.markClosed(reason);
-  }
-}
-
-// ResolverSocketClient connects to a daemon-mode `ts-runtypes` process
-// over a Unix socket. Kept for future use cases (shared daemon across
-// workers); the current vitest setup uses ResolverClient with serverMode.
-export class ResolverSocketClient extends ResolverClientBase {
-  private socket: Socket;
-  protected transport: MessageTransport;
-
-  private constructor(socket: Socket) {
-    super();
-    this.socket = socket;
-    this.transport = new MessageTransport(socket, socket, () => {
-      socket.end();
-      socket.destroy();
-    });
-    socket.on('close', () => this.transport.markClosed('socket closed'));
-    socket.on('error', (e) => this.transport.markClosed(`socket error: ${e.message}`));
-  }
-
-  static async connect(socketPath: string): Promise<ResolverSocketClient> {
-    return new Promise((resolve, reject) => {
-      const sock = createConnection(socketPath);
-      sock.once('connect', () => resolve(new ResolverSocketClient(sock)));
-      sock.once('error', reject);
-    });
   }
 }

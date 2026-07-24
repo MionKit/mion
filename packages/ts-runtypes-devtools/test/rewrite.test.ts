@@ -358,7 +358,7 @@ const myAPI = getRunTypeId(routes);
       const request = JSON.stringify({op: 'scanFiles', files: ['router.ts']}) + '\n';
       const out = spawnSync(
         BIN,
-        ['--cwd', path.resolve(__dirname, '../../..'), '--inline-sources-stdin', '--out-modules', tmpDir],
+        ['serve', '--cwd', path.resolve(__dirname, '../../..'), '--sources', 'stdin', '--out-modules', tmpDir],
         {
           input: handshake + request,
         }

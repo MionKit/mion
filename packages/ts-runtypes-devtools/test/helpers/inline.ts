@@ -156,7 +156,7 @@ function getClient(): ResolverClient {
   const stash = workerStash();
   if (stash.client) return stash.client;
   if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
-  // --inline-server: no startup Program, no handshake. cwd = repo root so
+  // serve --sources ops: no startup Program, no handshake. cwd = repo root so
   // setSources keys like "user.ts" resolve to <repo>/user.ts.
   // emitMode:'both' mirrors the sibling `ts-runtypes` vitest config —
   // every cache module rendered during the test run carries BOTH the body

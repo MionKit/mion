@@ -110,7 +110,7 @@ func atomicWriteFile(path string, content []byte, perm os.FileMode) error {
 }
 
 // runGenPrune implements `gen --prune [<mirror-file-or-dir>]`: it walks the
-// mirror file(s) (reusing the gen --check file collection) and strips every
+// mirror file(s) (reusing the shared collectMirrorFiles walk) and strips every
 // comment block/line tagged @rtOrphan / @rtOrphanChild, along with the
 // commented-out code lines they tag. It reports what was removed. This is the
 // only path that truly deletes content.
@@ -142,7 +142,8 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 		if err != nil {
 			fatal("gen --prune: getwd: %v", err)
 		}
-		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigFlag)
+		tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 		target = config.EnrichDir
 	}
 	files, err := collectMirrorFiles(target)

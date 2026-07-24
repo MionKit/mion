@@ -435,7 +435,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // resolver-inferred <srcDir>/__runtypes. Adopt that resolved path so
       // every later transform/HMR call reuses it. The VCS-hygiene files
       // (per-folder READMEs, the types/.gitignore) are written by the Go side
-      // inside generate, so the CLI --compile lane gets them too.
+      // inside generate, so the CLI compile lane gets them too.
       const gen = await resolver!.generate(genDirAbs || undefined);
       if (gen.outDir) genDirAbs = gen.outDir;
       // Adopt the tsconfig-echoed failOnError as the halt default (the explicit

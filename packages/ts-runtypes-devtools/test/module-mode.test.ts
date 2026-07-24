@@ -1,7 +1,7 @@
 // moduleMode wiring: allSingle (per-family bundle modules + named-export
 // imports at call sites) and allModules (per-node runtype modules — the
 // pre-bundle layout). Default-mode shapes are locked by rewrite.test.ts.
-// Each mode spawns its own --inline-server resolver (the shared per-worker
+// Each mode spawns its own `serve --sources ops` resolver (the shared per-worker
 // client runs the binary default).
 
 import {describe, expect, it} from 'vitest';

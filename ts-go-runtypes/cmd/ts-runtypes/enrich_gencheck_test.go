@@ -8,6 +8,13 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
+// checkMirrorFileTest resolves the tsconfig from the (t.Chdir'd) cwd and runs
+// the drift check, the test twin of what runGenCheck does per mirror file.
+func checkMirrorFileTest(mirrorFile string) []driftFinding {
+	tsconfigPath, parsed := resolveEnrichProject("")
+	return checkMirrorFile(mirrorFile, "", tsconfigPath, parsed)
+}
+
 // TestParseBreadcrumb verifies the source breadcrumb is extracted (skipping the
 // ts-runtypes DSL import) and the type names + specifier are returned. The
 // parser moved to the shared mirror package (the resolver's checkEnrich pass
@@ -178,7 +185,7 @@ func TestCheckMirrorFile_Clean(t *testing.T) {
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
 		"import type { FriendlyType } from '@ts-runtypes/core';\n\nexport const friendlyUser = {};\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
 		t.Errorf("clean mirror should have no findings; got %+v", findings)
 	}
@@ -201,7 +208,7 @@ func TestCheckMirrorFile_NodeModulesSourceClean(t *testing.T) {
 	writeTestFile(t, mirror, "import type { String } from '../../../../node_modules/@x/pkg/src/stringFormats';\n"+
 		"import type { FriendlyType } from '@ts-runtypes/core';\n\nexport const friendlyString = {};\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
 		t.Errorf("node_modules-sourced mirror at the project location should have no findings; got %+v", findings)
 	}
@@ -219,7 +226,7 @@ func TestCheckMirrorFile_I18nLocaleMirrorClean(t *testing.T) {
 	writeTestFile(t, mirror, "import type { User } from '../../../../../models/user';\n"+
 		"import type { Translation } from '@ts-runtypes/core';\n\nexport const es_friendlyUser = {};\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 0 {
 		t.Errorf("locale mirror at the canonical location should have no findings; got %+v", findings)
 	}
@@ -238,7 +245,7 @@ func TestCheckMirrorFile_I18nRelocatedDrifts(t *testing.T) {
 	writeTestFile(t, mirror, "import type { User } from '../../../../models/user';\n"+
 		"import type { Translation } from '@ts-runtypes/core';\n\nexport const es_friendlyUser = {};\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE001" {
 		t.Fatalf("relocated locale mirror should yield exactly one GE001; got %+v", findings)
 	}
@@ -256,7 +263,7 @@ func TestCheckMirrorFile_LegacyCombinedDrifts(t *testing.T) {
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n"+
 		"import type { FriendlyType, MockData } from '@ts-runtypes/core';\n\nexport const friendlyUser = {};\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE001" {
 		t.Fatalf("legacy combined mirror should yield exactly one GE001; got %+v", findings)
 	}
@@ -269,7 +276,7 @@ func TestCheckMirrorFile_GE002(t *testing.T) {
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	if len(findings) != 1 || findings[0].Code != "GE002" {
 		t.Fatalf("want one GE002 finding; got %+v", findings)
 	}
@@ -285,7 +292,7 @@ func TestCheckMirrorFile_GE003(t *testing.T) {
 	mirror := filepath.Join(dir, "src", "__runtypes", "enriched", "models", "user.ts")
 	writeTestFile(t, mirror, "import type { User } from '../../../models/user';\n")
 
-	findings := checkMirrorFile(mirror, "", "")
+	findings := checkMirrorFileTest(mirror)
 	codes := map[string]bool{}
 	for _, finding := range findings {
 		codes[finding.Code] = true

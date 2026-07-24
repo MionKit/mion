@@ -260,7 +260,7 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     headline: 'Cannot read enrichment mirror file: {0}',
     severity: 'error',
     detail:
-      'The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes gen --check`.',
+      'The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes check`.',
   },
   GE001: {
     headline:

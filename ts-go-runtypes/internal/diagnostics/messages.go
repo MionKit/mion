@@ -632,11 +632,11 @@ var messagesByCode = map[string]message{
 		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix — if the field is really gone: `ts-runtypes gen --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
 	},
 
-	// ─────────── Mirror ↔ source linkage (GExxx, gen --check) ───────────
+	// ─────────── Mirror ↔ source linkage (GExxx, check) ───────────
 
 	CodeGenMirrorUnreadable: {
 		Headline: "Cannot read enrichment mirror file: {0}",
-		Detail:   "The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes gen --check`.",
+		Detail:   "The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes check`.",
 	},
 	CodeGenMirrorDrift: {
 		Headline: "Mirror location drift — the source maps to `{0}` but this file lives at `{1}`; re-run `ts-runtypes gen` to relocate.",

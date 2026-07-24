@@ -4,7 +4,7 @@
 // once and the oracle can check they agree.
 //
 //   render `.ts` source (named decls + `type T = …` + one call site per codec)
-//     → ResolverClient (--inline-server) setSources + scanFiles
+//     → ResolverClient (serve --sources ops) setSources + scanFiles
 //     → entryModules → evalEntryModules (execute into positional tuples)
 //     → classify fn sites BY TUPLE TAG (jeCL/jeMU/jeDI/jeCO, jdST/jdPR/jdCO,
 //       tb/fb, val) rather than by family — the strategy lives in the tag

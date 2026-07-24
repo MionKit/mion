@@ -3,7 +3,7 @@
 // everything the oracles need:
 //
 //   render `.ts` source (named decls + `type T = …` + one call site per family)
-//     → ResolverClient (--inline-server) setSources + scanFiles
+//     → ResolverClient (serve --sources ops) setSources + scanFiles
 //     → entryModules (the per-entry virtual modules the plugin would serve)
 //     → evalEntryModules (execute them into their positional tuples)
 //     → pass each fn tuple as the injected id to the REAL createX factory

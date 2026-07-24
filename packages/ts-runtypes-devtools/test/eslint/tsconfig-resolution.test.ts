@@ -22,7 +22,9 @@ import {hasBinary, makeFixtureProject, runRule, type FixtureProject} from './fix
 describe('buildResolverArgs — server mode forwards --tsconfig', () => {
   it('emits --tsconfig in server mode (was suppressed before the fix)', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {serverMode: true, singleThreaded: true});
-    expect(args).toContain('--inline-server');
+    expect(args[0]).toBe('serve');
+    expect(args).toContain('--sources');
+    expect(args[args.indexOf('--sources') + 1]).toBe('ops');
     const idx = args.indexOf('--tsconfig');
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe('tsconfig.json');

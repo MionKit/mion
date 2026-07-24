@@ -70,6 +70,12 @@ type enrichConfig struct {
 	// type queries can never come from different configs.
 	TsconfigPath string
 
+	// parsed is the ONE tsgo InferredConfig this run resolved
+	// (resolveEnrichProject), carried so buildProgram reuses it instead of
+	// re-parsing — the enrich lane used to parse the same tsconfig twice. Nil
+	// when no tsconfig resolved anywhere.
+	parsed *program.InferredConfig
+
 	// i18n knobs (the tsconfig plugin `i18n` object; docs/done/friendly-type-i18n.md).
 	// Defaults are dormant: SourceLocale 'en', I18nDir <EnrichDir>/i18n, no
 	// locales, lenient check.
@@ -201,34 +207,55 @@ type tsconfigShape struct {
 	} `json:"compilerOptions"`
 }
 
-// resolveEnrichTsconfig resolves the ONE tsconfig path an enrich command run
-// reads, for BOTH its genDir/i18n settings and its type resolution — exactly
-// tsc's resolution: the explicit --tsconfig flag when given (resolved against
-// the process cwd, and it must exist — strict like tsc's --project), else
-// program.DiscoverTsconfig's upward walk from the process cwd, else "" (no
-// config anywhere — the inferred-defaults fallback).
-func resolveEnrichTsconfig(tsconfigFlag string) string {
+// resolveConfigPath is THE config-resolution policy for every CLI lane — the
+// single "explicit flag, else discover" function, exactly tsc's: an explicit
+// --tsconfig (anchored under absCwd) wins; else program.DiscoverTsconfig's
+// upward walk from absCwd; else "" (no config anywhere — the inferred-defaults
+// posture). Called from exactly one entry per lane: main's resolver
+// subcommands, and resolveEnrichProject for the enrich verbs.
+//
+// It resolves the PATH only; existence is enforced downstream by
+// program.ParseInferredConfig / program.New (a missing NAMED path becomes a loud
+// "tsconfig not found at <path>" there). Resolving rather than fataling here lets
+// the serve daemon report a bad --tsconfig per-op (on setSources) and stay alive
+// to heal, instead of crashing at startup.
+func resolveConfigPath(absCwd, tsconfigFlag string) string {
 	if trimmed := strings.TrimSpace(tsconfigFlag); trimmed != "" {
-		named := mustAbs(trimmed)
-		if info, err := os.Stat(named); err != nil || info.IsDir() {
-			fatal("tsconfig not found at %s", named)
+		if filepath.IsAbs(trimmed) {
+			return trimmed
 		}
-		return named
+		return filepath.Join(absCwd, trimmed)
 	}
+	return program.DiscoverTsconfig(absCwd)
+}
+
+// resolveEnrichProject resolves the ONE tsconfig for an enrich command run and
+// parses it EXACTLY ONCE (with the "source" condition, so `ts-runtypes` resolves
+// to its in-tree src for the repo's own dogfood tests), returning both the path
+// and the frozen config to thread into resolveEnrichConfig (genDir/rootDir) AND
+// buildProgram (type resolution) — which used to parse the config twice. "" path
+// + nil config means no tsconfig anywhere (the inferred-defaults fallback).
+func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fatal("tsconfig discovery: getwd: %v", err)
 	}
-	return program.DiscoverTsconfig(cwd)
+	tsconfigPath := resolveConfigPath(cwd, tsconfigFlag)
+	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath, "source")
+	if err != nil {
+		fatal("%v", err)
+	}
+	return tsconfigPath, parsed
 }
 
 // resolveEnrichConfig computes the enrichment config for a gen target file.
 // genDirFlag is the --gen-dir CLI value (empty when unset) and takes precedence
 // over the tsconfig `genDir` entry, which takes precedence over the default.
 //
-// The tsconfig is resolveEnrichTsconfig's pick — exactly tsc's resolution: the
-// explicit --tsconfig flag, else the upward walk from the process cwd. When one
-// resolves, ProjectRoot is the tsconfig dir, RootDir is compilerOptions.rootDir
+// tsconfigPath is resolveConfigPath's pick (threaded in with its already-parsed
+// config) — exactly tsc's resolution: the explicit --tsconfig flag, else the
+// upward walk from the process cwd. When one resolves, ProjectRoot is the
+// tsconfig dir, RootDir is compilerOptions.rootDir
 // as tsgo parsed it (extends-aware; defaulting to the tsconfig dir when unset),
 // genDir comes from the plugins entry (defaulting to <RootDir>/__runtypes), and
 // the resolved path is recorded on enrichConfig.TsconfigPath so type resolution
@@ -237,41 +264,38 @@ func resolveEnrichTsconfig(tsconfigFlag string) string {
 //
 // Strict like tsc: a config that was named or discovered but does not parse is
 // fatal — only the no-config-anywhere case falls back to defaults.
-func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigFlag string) enrichConfig {
+func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig) enrichConfig {
 	targetDir := filepath.Dir(absTargetFile)
 
 	config := enrichConfig{
 		ProjectRoot:  targetDir,
 		RootDir:      targetDir,
 		SourceLocale: defaultSourceLocale,
+		parsed:       parsed,
 	}
 
 	genDir := ""
-	if tsconfigPath := resolveEnrichTsconfig(tsconfigFlag); tsconfigPath != "" {
+	if tsconfigPath != "" {
 		tsconfigDir := filepath.Dir(tsconfigPath)
 		config.TsconfigPath = tsconfigPath
 		config.ProjectRoot = tsconfigDir
 		config.RootDir = tsconfigDir
 
-		// TypeScript-owned values come from tsgo's own strict parse (follows
-		// `extends`), never from a side read of the file — behave exactly as
-		// TypeScript. A resolved config that fails to parse is fatal.
-		parsedConfig, err := program.ParseInferredConfig(tsconfigDir, tsconfigPath)
-		if err != nil {
-			fatal("%v", err)
-		}
-		if rootDir := strings.TrimSpace(parsedConfig.RootDir()); rootDir != "" {
+		// TypeScript-owned values come from the ONE tsgo parse the caller
+		// already did (resolveEnrichProject), threaded in — never a second
+		// parse. tsgo followed `extends`, so this is exactly TypeScript's view.
+		if rootDir := strings.TrimSpace(parsed.RootDir()); rootDir != "" {
 			config.RootDir = resolveUnder(tsconfigDir, rootDir)
 		}
 		// The ts-runtypes plugin entry is OUR params riding tsconfig's
 		// language-service plugin slot — tsc itself ignores it and tsgo does
 		// not parse it — so it is the one thing read via the JSONC side-read,
 		// of the SAME resolved file.
-		parsed, ok := parseTsconfig(tsconfigPath)
+		pluginTsconfig, ok := parseTsconfig(tsconfigPath)
 		if !ok {
 			fatal("tsconfig %s: cannot parse", tsconfigPath)
 		}
-		if plugin, ok := findTsRuntypesPlugin(parsed); ok {
+		if plugin, ok := findTsRuntypesPlugin(pluginTsconfig); ok {
 			genDir = strings.TrimSpace(plugin.GenDir)
 			config.ModuleMode = plugin.ModuleMode
 			config.EmitMode = plugin.EmitMode

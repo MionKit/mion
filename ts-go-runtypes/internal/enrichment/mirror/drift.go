@@ -13,8 +13,8 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
 )
 
-// drift.go is the shared core of the breadcrumb-drift checks (`gen --check`
-// and the resolver's checkEnrich pass): does the mirror file's source
+// drift.go is the shared core of the breadcrumb-drift checks (the CLI `check`
+// verb and the resolver's checkEnrich pass): does the mirror file's source
 // breadcrumb still resolve (GE002), and does the source still declare every
 // imported type (GE003)? GE001 (mirror LOCATION drift) needs the project's
 // genDir config, so it stays with the CLI in cmd/ts-runtypes.

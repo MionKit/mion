@@ -361,7 +361,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	}, nil
 }
 
-// NewServer builds a Session with no Program. Callers (the --inline-server
+// NewServer builds a Session with no Program. Callers (the `serve --sources ops`
 // CLI path) install one later via the setSources op. The cache is created
 // up front with a nil checker; Rebind is called on first SetProgram.
 func NewServer(opts Options) *Session {

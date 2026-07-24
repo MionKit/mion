@@ -496,7 +496,7 @@ CLI (below) rather than scraping editor output.
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `ts-runtypes check [glob]`                      | Run FT/MD validation standalone; non-zero exit on Error. CI / pre-commit.                 |
 | `ts-runtypes check --file <p> --json`           | Validate **one file**, structured JSON out. The agent's tight feedback tool.              |
-| `ts-runtypes describe <file>#<Type> --format prompt\|json` | Emit the type's shape (names, kinds, optionality, formats, literals — all already in the `RunType` struct) as LLM prompt context. |
+| `ts-runtypes describe <file>#<Type> --json` | Emit the type's shape (names, kinds, optionality, formats, literals — all already in the `RunType` struct) as LLM prompt context. |
 | `ts-runtypes gen <file> [--mock] [--friendly] [--check] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--check` reports breadcrumb drift; `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). See `gen` semantics below. |
 | `ts-runtypes gen --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
 | `ts-runtypes check --translate <locale>` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
@@ -656,7 +656,7 @@ the legacy file is deleted (`SplitCombined` in
 [`ts-go-runtypes/internal/enrichment/mirror/split.go`](../ts-go-runtypes/internal/enrichment/mirror/split.go)). The
 guards are conservative: the legacy file's breadcrumb must resolve back to the
 same source, and an existing family file is never overwritten (a stderr warning
-asks for a hand-merge instead). Until migrated, `gen --check` flags a combined
+asks for a hand-merge instead). Until migrated, `check` flags a combined
 mirror as **GE001** location drift. `--out <path>` keeps the old combined
 single-file layout as an explicit escape hatch.
 
@@ -726,11 +726,11 @@ emitter and the DSL types now agree structurally for every kind.
   the consumer's `import`. This keeps the "`gen` only ever writes inside `genDir`"
   property intact (itself part of the persistence invariant: the committed imports
   are the *user's* to own, not `gen`'s to rewrite).
-- **`gen --check` — drift detection via the breadcrumb.** Each mirror file's
+- **`check` — drift detection via the breadcrumb.** Each mirror file's
   `import type { … } from '<src>'` is an IDE-maintained breadcrumb: on an IDE-driven
   source rename/move it is auto-updated to the new path, so the consumer's value
   import (pointing at the *mirror* file, which did not move) keeps working — nothing
-  breaks. `gen --check` resolves each breadcrumb and **warns** when a mirror file's
+  breaks. `check` resolves each breadcrumb and **warns** when a mirror file's
   location no longer matches its source (cosmetic drift), or **errors** when the
   breadcrumb resolves to nothing (the source type was deleted → orphaned mirror) or
   the source no longer declares the type. A non-IDE rename (`git mv`, find/replace)

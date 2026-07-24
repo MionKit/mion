@@ -25,18 +25,22 @@ type fileFinding struct {
 	EndCol  int `json:"endCol,omitempty"`
 }
 
-// runCheck implements `ts-runtypes check <file.ts> [--json]` — the single-file
-// enrichment health report, and the CLI twin of the resolver's checkEnrich
-// pass (what the ts-runtypes-devtools lint plugin surfaces in the editor):
+// runCheck implements the `check` verb — the single checking convention. A
+// single .ts FILE target runs the single-file enrichment health report (the CLI
+// twin of the resolver's checkEnrich pass the ts-runtypes-devtools lint plugin
+// surfaces in the editor):
 //
 //   - tag hygiene: unfilled `@todo` scaffolds and stale `@rtOrphan` /
 //     `@rtOrphanChild` carcasses, reported under the mirror's family
 //     (FT020–FT022 / MD020–MD022);
 //   - FriendlyText / MockData content validity against the resolved T
 //     (FT002/FT003/FT005/MD001);
-//   - breadcrumb drift: source deleted / type no longer declared
-//     (GE002/GE003; GE001 location drift lives in `gen --check`, which knows
-//     the project's enrich dir).
+//   - breadcrumb drift: source deleted / type no longer declared (GE002/GE003).
+//
+// A DIRECTORY target (or no target — walk the enrich dir) runs the mirror-tree
+// breadcrumb + location drift walk (GE001/GE002/GE003), and `--translate` runs
+// the i18n completeness gate. These were the former `gen --check` and
+// `check --translate` spellings, folded onto this one verb.
 //
 // Exits 1 when any Finding is Error severity.
 func runCheck(args []string) {
@@ -46,8 +50,9 @@ func runCheck(args []string) {
 	translate := fs.String("translate", "", "i18n completeness gate: report @todo blanks / orphans / out-of-date translations for a locale (or 'all')")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes check <file.ts> [--json] [--tsconfig <path>]")
-		fmt.Fprintln(os.Stderr, "   or: ts-runtypes check --translate <locale|all>   (translation completeness; strict via tsconfig i18n.strict)")
+		fmt.Fprintln(os.Stderr, "Usage: ts-runtypes check <file.ts> [--json] [--tsconfig <path>]   (single-file enrichment health)")
+		fmt.Fprintln(os.Stderr, "   or: ts-runtypes check [<dir>] [--json]                          (mirror-tree breadcrumb + location drift)")
+		fmt.Fprintln(os.Stderr, "   or: ts-runtypes check --translate <locale|all>                  (translation completeness; strict via tsconfig i18n.strict)")
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
@@ -57,13 +62,17 @@ func runCheck(args []string) {
 		runCheckTranslate(*translate, *genDirFlag, *tsconfigFlag)
 		return
 	}
-	if len(positional) < 1 {
-		fs.Usage()
-		os.Exit(2)
+	// No target, or a directory target → the mirror-tree breadcrumb + location
+	// drift walk (absorbed from the former `gen --check`). A single .ts file
+	// target runs the deep single-file health report below.
+	if len(positional) == 0 || isDirArg(positional[0]) {
+		runGenCheck(positional, *genDirFlag, *asJSON, *tsconfigFlag)
+		return
 	}
 	absPath := tspath.NormalizePath(mustAbs(positional[0]))
 
-	prog, res, err := buildProgram(absPath, resolveEnrichTsconfig(*tsconfigFlag))
+	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	prog, res, err := buildProgram(absPath, parsed)
 	if err != nil {
 		fatal("check: %v", err)
 	}
@@ -118,6 +127,14 @@ func runCheck(args []string) {
 
 	sortFileFindings(findings)
 	os.Exit(reportFindings(findings, *asJSON))
+}
+
+// isDirArg reports whether the CLI path argument points at an existing
+// directory — the check verb routes a directory (or an absent) target to the
+// mirror-tree drift walk, a file target to the single-file health report.
+func isDirArg(path string) bool {
+	info, err := os.Stat(mustAbs(path))
+	return err == nil && info.IsDir()
 }
 
 // tagFileFinding converts one hygiene TagFinding to the report shape.

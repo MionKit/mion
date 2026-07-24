@@ -44,7 +44,7 @@ func TestResolveEnrichConfig_NoTsconfig(t *testing.T) {
 	target := filepath.Join(dir, "models", "user.ts")
 	mustMkdirAll(t, filepath.Dir(target))
 
-	config := resolveEnrichConfig(target, "", "")
+	config := resolveEnrichConfigTest(target, "")
 	if config.ProjectRoot != filepath.Join(dir, "models") {
 		t.Errorf("ProjectRoot = %q, want %q", config.ProjectRoot, filepath.Join(dir, "models"))
 	}
@@ -82,7 +82,7 @@ func TestResolveEnrichConfig_TsconfigPlugin(t *testing.T) {
 	target := filepath.Join(dir, "src", "models", "user.ts")
 	mustMkdirAll(t, filepath.Dir(target))
 
-	config := resolveEnrichConfig(target, "", "")
+	config := resolveEnrichConfigTest(target, "")
 	if config.ProjectRoot != dir {
 		t.Errorf("ProjectRoot = %q, want %q", config.ProjectRoot, dir)
 	}
@@ -107,7 +107,7 @@ func TestResolveEnrichConfig_FlagWins(t *testing.T) {
 }`)
 	target := filepath.Join(dir, "user.ts")
 
-	config := resolveEnrichConfig(target, "flag/dir", "")
+	config := resolveEnrichConfigTest(target, "flag/dir")
 	if config.EnrichDir != filepath.Join(dir, "flag/dir", enrichedSubdir) {
 		t.Errorf("EnrichDir = %q, want %q (flag should win)", config.EnrichDir, filepath.Join(dir, "flag/dir", enrichedSubdir))
 	}
@@ -125,7 +125,9 @@ func TestResolveEnrichConfig_GarbageTsconfig(t *testing.T) {
 		if err := os.Chdir(childDir); err != nil {
 			return
 		}
-		resolveEnrichConfig(filepath.Join(childDir, "user.ts"), "", "")
+		// The discover + tsgo parse now lives in resolveEnrichProject — the
+		// garbage discovered tsconfig makes ParseInferredConfig fatal there.
+		resolveEnrichProject("")
 		return // unreachable if fatal fired
 	}
 
@@ -229,7 +231,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 }`)
 	target := filepath.Join(dir, "src", "user.ts")
 
-	config := resolveEnrichConfig(target, "", "")
+	config := resolveEnrichConfigTest(target, "")
 	if config.SourceLocale != "pl" {
 		t.Errorf("SourceLocale = %q, want pl", config.SourceLocale)
 	}
@@ -246,7 +248,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	// No i18n object → dormant defaults.
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
 		`{ "compilerOptions": { "plugins": [{ "name": "ts-runtypes" }] } }`)
-	dormant := resolveEnrichConfig(target, "", "")
+	dormant := resolveEnrichConfigTest(target, "")
 	if dormant.SourceLocale != "en" || len(dormant.I18nLocales) != 0 || dormant.I18nStrict {
 		t.Errorf("dormant i18n defaults wrong: %+v", dormant)
 	}
@@ -258,7 +260,7 @@ func TestResolveEnrichConfig_I18n(t *testing.T) {
 	// translations stay at <genDir>/enriched/i18n.
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
 		`{ "compilerOptions": { "plugins": [{ "name": "ts-runtypes", "i18n": { "dir": "translations" } }] } }`)
-	custom := resolveEnrichConfig(target, "", "")
+	custom := resolveEnrichConfigTest(target, "")
 	if want := filepath.Join(dir, defaultGenDirName, enrichedSubdir, "i18n"); custom.I18nDir != want {
 		t.Errorf("legacy i18n.dir must be ignored; I18nDir = %q, want %q", custom.I18nDir, want)
 	}
@@ -312,6 +314,15 @@ func TestImportSpecifier(t *testing.T) {
 			}
 		})
 	}
+}
+
+// resolveEnrichConfigTest resolves + parses the tsconfig from the (t.Chdir'd)
+// cwd and builds the enrich config, mirroring what an enrich verb does — the
+// test twin of resolveEnrichProject followed by resolveEnrichConfig, so the
+// config is parsed exactly once.
+func resolveEnrichConfigTest(target, genDirFlag string) enrichConfig {
+	tsconfigPath, parsed := resolveEnrichProject("")
+	return resolveEnrichConfig(target, genDirFlag, tsconfigPath, parsed)
 }
 
 func writeTestFile(t *testing.T, path, content string) {

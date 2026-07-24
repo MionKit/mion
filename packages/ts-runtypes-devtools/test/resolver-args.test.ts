@@ -54,3 +54,32 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--number-mode');
   });
 });
+
+describe('buildResolverArgs — serve subcommand + --sources', () => {
+  it('uses the `serve` subcommand as args[0] and forwards --cwd (no legacy --one-shot)', () => {
+    const args = buildResolverArgs('/proj', '', {});
+    expect(args[0]).toBe('serve');
+    expect(args).toContain('--cwd');
+    expect(args).not.toContain('--one-shot');
+  });
+
+  it('maps serverMode to `--sources ops`', () => {
+    const args = buildResolverArgs('/proj', '', {serverMode: true});
+    const idx = args.indexOf('--sources');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('ops');
+    expect(args).not.toContain('--inline-server');
+  });
+
+  it('maps inlineSources to `--sources stdin`', () => {
+    const args = buildResolverArgs('/proj', '', {inlineSources: {'a.ts': 'export {}'}});
+    const idx = args.indexOf('--sources');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('stdin');
+    expect(args).not.toContain('--inline-sources-stdin');
+  });
+
+  it('omits --sources for the default project mode', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--sources');
+  });
+});

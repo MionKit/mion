@@ -335,8 +335,8 @@ func ResolveBreadcrumb(mirrorFile, spec string) string {
 
 // SourceDeclaresType reports whether sourceText still makes typeName available —
 // as a direct declaration OR a re-export. It is shared by the orphan judgement
-// (A5: a false negative DESTRUCTIVELY orphans a live type) and gen --check
-// (GE003), so it errs toward KEEP on uncertainty. A textual scan — sufficient
+// (A5: a false negative DESTRUCTIVELY orphans a live type) and the `check`
+// drift lane (GE003), so it errs toward KEEP on uncertainty. A textual scan — sufficient
 // for "does this name still exist as a declaration or export here?".
 //
 // Recognized:

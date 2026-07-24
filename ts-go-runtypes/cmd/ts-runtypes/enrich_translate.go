@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
@@ -21,7 +22,8 @@ import (
 // arms, sibling refs) — the friendly mirror is read for DISCOVERY only (which
 // types to emit), never for generation content.
 func runGenTranslate(translateValue string, positional []string, update, prune bool, genDirFlag, tsconfigFlag string) {
-	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigFlag)
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	config, sourceMirrors := translateTargets(positional, genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	// The i18n root is a conventional dir under genDir — self-document it the
 	// moment the translate lane touches it.
@@ -73,17 +75,17 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 // translateTargets resolves the enrich config + the friendly source mirror set
 // for a translate invocation: `<src>` (a source .ts) maps to its friendly
 // mirror; no positional walks every mirror under the friendly family root.
-func translateTargets(positional []string, genDirFlag, tsconfigFlag string) (enrichConfig, []string) {
+func translateTargets(positional []string, genDirFlag, tsconfigPath string, parsed *program.InferredConfig) (enrichConfig, []string) {
 	if len(positional) > 0 {
 		src := tspath.NormalizePath(mustAbs(positional[0]))
-		config := resolveEnrichConfig(src, genDirFlag, tsconfigFlag)
+		config := resolveEnrichConfig(src, genDirFlag, tsconfigPath, parsed)
 		return config, []string{config.mirrorPath(familyFriendly, src)}
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		fatal("gen --translate: getwd: %v", err)
 	}
-	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigFlag)
+	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
 		fatal("gen --translate: %v", err)
@@ -167,7 +169,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	if !ok {
 		return nil, false
 	}
-	prog, res, err := buildProgram(discovery.declFile, config.TsconfigPath)
+	prog, res, err := buildProgram(discovery.declFile, config.parsed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: %v\n", sourceMirror, err)
 		return nil, false
@@ -310,7 +312,8 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 	if err != nil {
 		fatal("check --translate: getwd: %v", err)
 	}
-	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigFlag)
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
