@@ -20,8 +20,8 @@ import (
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
 // caller owns the resolver and MUST call res.Close() when done (it keeps the
-// checker live for as long as the walk needs it). Shared by resolveOne and the
-// check command, which walks the file's AST against the still-open checker.
+// checker live for as long as the walk needs it). Used by the gen / check /
+// translate lanes, which walk the file's AST against the still-open checker.
 //
 // parsed is the run's ONE resolved config (nil = none), parsed once by
 // resolveEnrichProject with the "source" condition folded in so `ts-runtypes`
@@ -60,66 +60,6 @@ func buildProgramMulti(absPaths []string, parsed *program.InferredConfig) (*prog
 		return nil, nil, fmt.Errorf("build resolver: %w", err)
 	}
 	return prog, res, nil
-}
-
-// resolveOne builds a Program over absPath, a resolver, and resolves typeName
-// to its canonical RunType. Shared by describe + gen.
-func resolveOne(absPath, typeName string, parsed *program.InferredConfig) (*enrichment.Resolved, error) {
-	prog, res, err := buildProgram(absPath, parsed)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Close()
-	return enrichment.ResolveType(prog, res.Checker(), res.Cache(), absPath, typeName)
-}
-
-func runDescribe(args []string) {
-	fs := flag.NewFlagSet("describe", flag.ExitOnError)
-	asJSON := fs.Bool("json", false, "emit the description as JSON instead of text")
-	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
-	fs.Usage = func() {
-		printUsage(fs, `ts-runtypes describe — print a type's shape as agent/LLM prompt context
-
-Usage:
-    ts-runtypes describe <file.ts> <TypeName> [OPTIONS]
-
-Renders the type as an indented tree (fields, kinds, optionality, format
-constraints). This is the INPUT type shape, not the FriendlyText enrichment.
-`)
-	}
-	positional, flags := splitArgs(args)
-	if err := fs.Parse(flags); err != nil {
-		fatal("describe: %v", err)
-	}
-	if len(positional) < 2 {
-		fs.Usage()
-		os.Exit(2)
-	}
-	absPath := tspath.NormalizePath(mustAbs(positional[0]))
-	typeName := positional[1]
-
-	_, parsed := resolveEnrichProject(*tsconfigFlag)
-	resolved, err := resolveOne(absPath, typeName, parsed)
-	if err != nil {
-		fatal("describe: %v", err)
-	}
-
-	description := enrichment.Describe(resolved.Node, enrichment.DescribeOptions{
-		TypeName: typeName,
-		Resolve:  resolved.Resolve,
-	})
-
-	if *asJSON {
-		payload := map[string]string{"typeName": typeName, "description": description}
-		encoded, err := json.MarshalIndent(payload, "", "  ")
-		if err != nil {
-			fatal("describe: encode json: %v", err)
-		}
-		fmt.Println(string(encoded))
-	} else {
-		fmt.Println(description)
-	}
-	os.Exit(0)
 }
 
 func runGen(args []string) {

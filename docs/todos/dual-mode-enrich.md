@@ -5,18 +5,19 @@ status: ready
 created: 2026-07-24
 ---
 
-# Dual-mode enrich: make describe / gen / check daemon protocol ops
+# Dual-mode enrich: make gen / check daemon protocol ops
 
 **Prerequisite: the CLI subcommand consolidation SHIPPED** (Part A, PR #279 —
 [docs/done/cli-subcommand-consolidation.md](../done/cli-subcommand-consolidation.md)).
-This is that todo's deferred Done-when #3.
+This is that todo's deferred Done-when #3. (The `describe` verb was removed as
+low-utility, so this covers the two remaining enrich verbs: `gen` and `check`.)
 
 ## Intent
 
-After the consolidation, the enrich verbs (`describe` / `gen` / `check`) exist
+After the consolidation, the enrich verbs (`gen` / `check`) exist
 ONLY as one-shot CLI runs, each building its own throwaway Program — while the
 resolver daemon can run a check-shaped pass (the `checkEnrich` scan flag) but
-cannot describe or generate. The owner's uniform-surface goal wants mode
+cannot generate. The owner's uniform-surface goal wants mode
 orthogonal to capability: **every enrich capability reachable BOTH as a CLI verb
 AND as a daemon protocol op, over ONE shared implementation** (one function per
 capability, two transports). Investigation confirmed it's well-supported:
@@ -74,40 +75,39 @@ the parity gate.
    Do NOT add `customConditions` to the discoverable root/package `tsconfig.json`
    (leaks `"source"` into `pnpm build`'s dist emit). The other 4 harnesses use
    plain interfaces / inline format brands — safe.
-4. **Protocol ops** (`internal/protocol/protocol.go`): add `OpEnrichDescribe` /
-   `OpEnrichGen` / `OpEnrichCheck` constants; Request fields `TypeName`,
-   `EnrichFriendly` / `EnrichMock` / `EnrichUpdate`, `GenDir`; Response
-   `Description string` + `EnrichFiles []EnrichFile{Path,Content,Added,Kind}` —
+4. **Protocol ops** (`internal/protocol/protocol.go`): add `OpEnrichGen` /
+   `OpEnrichCheck` constants; Request fields `TypeName`, `EnrichFriendly` /
+   `EnrichMock` / `EnrichUpdate`, `GenDir`; Response
+   `EnrichFiles []EnrichFile{Path,Content,Added,Kind}` —
    **REGISTERED in the hand-rolled `Response.MarshalJSON`** (precedent: SiteFiles,
    FailOnError). `check` reuses the existing `Diagnostics` channel.
 5. **`dispatchEnrich*` handlers** (`internal/compiler/resolver/dispatch.go`): a
    `case` per op guarding `sess.Program == nil`, calling the SAME shared functions
    with `sess.Program`, `sess.checker`, `sess.cache`, `sess.Program.FS`. No new
    import cycle (resolver already imports `enrichment` via `enrichcheck.go`).
-6. **JS** (`packages/ts-runtypes-devtools/src/resolver-client.ts`): `describe` /
-   `enrichGen` / `enrichCheck` methods on `ResolverClientBase` (model on
-   `generate()`), added to the `ResolverConnection` interface; `protocol.ts`:
-   extend the `Request.op` union + Request/Response fields + an `EnrichFile`
-   interface. The lint lane is unchanged (keeps `scanFiles({checkEnrich})`).
+6. **JS** (`packages/ts-runtypes-devtools/src/resolver-client.ts`): `enrichGen` /
+   `enrichCheck` methods on `ResolverClientBase` (model on `generate()`), added to
+   the `ResolverConnection` interface; `protocol.ts`: extend the `Request.op`
+   union + Request/Response fields + an `EnrichFile` interface. The lint lane is
+   unchanged (keeps `scanFiles({checkEnrich})`).
 7. **Per-verb CLI≡daemon parity tests** (`cmd/ts-runtypes/enrich_parity_test.go`
-   + one Vitest wire e2e through `ResolverClient` issuing the three ops): per
-   verb, drive an in-process `resolver.Session` dispatch AND the CLI shared-fn
-   path over one fixture and assert equal output — same description (describe),
-   byte-identical `{Path,Content}` incl. `--update` (gen), same codes+sites
-   (check). Fixture tsconfig carries `customConditions:["source"]`; pin the SAME
-   `hashLength` on both sides.
+   + one Vitest wire e2e through `ResolverClient` issuing the two ops): per verb,
+   drive an in-process `resolver.Session` dispatch AND the CLI shared-fn path over
+   one fixture and assert equal output — byte-identical `{Path,Content}` incl.
+   `--update` (gen), same codes+sites (check). Fixture tsconfig carries
+   `customConditions:["source"]`; pin the SAME `hashLength` on both sides.
 
 ## Settled sub-decisions
 
 - The gen daemon op RETURNS content, never writes (plugin-driven-enrichment-sync's
   no-HMR constraint); the CLI keeps `atomicWriteFile`.
 - `migrateLegacyMirror` is a CLI-only pre-step, skipped by the daemon op.
-- `describe` / `check` daemon ops have no production consumer yet (parity-test +
-  future) — the accepted cost of the uniform surface.
+- The `check` daemon op has no production consumer yet (parity-test + future) —
+  the accepted cost of the uniform surface.
 
 ## Done when
 
-- Every enrich capability (`describe` / `gen` / `check` and their lanes) is
+- Every enrich capability (`gen` / `check` and their lanes) is
   reachable in daemon mode AND as a CLI subcommand, both driving the same
   implementation — pinned by a CLI ≡ daemon parity test per verb, where parity
   means same findings/output for the same file state (check's CLI-vs-resolver

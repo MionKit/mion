@@ -5,7 +5,6 @@
 //	           JSON on stdio (the resolver protocol the bundler plugin drives)
 //	compile    tsc-like batch compile: transform + emit .js with composed
 //	           source maps + generated cache modules to disk
-//	describe   print a human description of a type
 //	gen        scaffold / reconcile the enrichment mirror files
 //	check      enrichment-health report over the mirror files
 //
@@ -48,7 +47,6 @@ Usage:
 Commands:
     serve       serve the resolver protocol on stdio (the bundler-plugin path)
     compile     tsc-like batch compile: emit .js + generated cache modules to disk
-    describe    print a human description of a type
     gen         scaffold / reconcile the enrichment mirror files
     check       enrichment-health report over the mirror files
 
@@ -85,11 +83,10 @@ never collide.
 // mode, like the vendored tsgo (cmd/tsgo/main.go switches on args[0]). Each
 // handler owns its own flag.FlagSet.
 var commands = map[string]func(args []string){
-	"serve":    runServe,
-	"compile":  runCompile,
-	"describe": runDescribe,
-	"gen":      runGen,
-	"check":    runCheck,
+	"serve":   runServe,
+	"compile": runCompile,
+	"gen":     runGen,
+	"check":   runCheck,
 }
 
 func main() {

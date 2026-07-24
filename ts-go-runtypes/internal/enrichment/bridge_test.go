@@ -47,22 +47,6 @@ func resolveFixture(t *testing.T, relPath, typeName string, sources map[string]s
 	return resolved
 }
 
-func TestResolveType_Describe(t *testing.T) {
-	resolved := resolveFixture(t, "user.ts", "User", map[string]string{
-		"user.ts": "export interface User { name: string; age: number }\n",
-	})
-	got := enrichment.Describe(resolved.Node, enrichment.DescribeOptions{
-		TypeName: "User",
-		Resolve:  resolved.Resolve,
-	})
-	if !strings.Contains(got, "name: string") {
-		t.Errorf("Describe missing 'name: string'; got:\n%s", got)
-	}
-	if !strings.Contains(got, "age: number") {
-		t.Errorf("Describe missing 'age: number'; got:\n%s", got)
-	}
-}
-
 func TestResolveType_UnknownTypeErrors(t *testing.T) {
 	cwd := tspath.NormalizePath(t.TempDir())
 	abs := tspath.ResolvePath(cwd, "user.ts")

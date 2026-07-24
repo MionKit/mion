@@ -8,17 +8,19 @@ created: 2026-07-24
 # CLI architecture: consolidate on tsgo-style subcommands
 
 **Status:** SHIPPED 2026-07-24 (Part A, PR #279). The uniform `args[0]`
-subcommand surface (`serve` / `compile` / `describe` / `gen` / `check`), the
-single `resolveConfigPath` policy with parse-once threading, the retired
-`--one-shot` / `--daemon`, `serve --sources project|stdin|ops`, `--json`
-everywhere, `check` absorbing `gen --check`, the migrated JS spawn layer, and
-docs — Done-when #1, #2, #4, #5, #6.
+subcommand surface (`serve` / `compile` / `gen` / `check`), the single
+`resolveConfigPath` policy with parse-once threading, the retired `--one-shot` /
+`--daemon`, `serve --sources project|stdin|ops`, `--json` everywhere, `check`
+absorbing `gen --check`, the migrated JS spawn layer, and docs — Done-when #1,
+#2, #4, #5, #6. (The `describe` verb, briefly part of the surface, was removed in
+the same PR as low-utility — its type-shape output was near-identical to the type
+and the `gen` scaffold already lays out the fields.)
 
 **The dual-mode enrich follow-up (Done-when #3) is tracked as its own todo:
-[docs/todos/dual-mode-enrich.md](../todos/dual-mode-enrich.md)** — making
-`describe` / `gen` / `check` daemon protocol ops with the CLI verbs as thin
-adapters over one shared implementation, collapsing the two `check`
-orchestrations, and the per-verb CLI≡daemon parity tests.
+[docs/todos/dual-mode-enrich.md](../todos/dual-mode-enrich.md)** — making the
+`gen` / `check` verbs daemon protocol ops with the CLI verbs as thin adapters
+over one shared implementation, collapsing the two `check` orchestrations, and
+the per-verb CLI≡daemon parity tests.
 
 **Sequencing: implement AFTER [tsconfig-alignment.md](../done/tsconfig-alignment.md)
 (SHIPPED 2026-07-24 — unblocked). It must inherit that todo's single
@@ -163,9 +165,10 @@ versions in lockstep so it always passes an explicit verb):
 - `compile` — today `--compile` (full tsc replacement: emits `.js` + cache).
   The ROADMAP pre-process/`build` mode is NOT reserved — when built it is most
   likely `compile --no-emit`, decided under its own todo.
-- `describe` / `gen` / `check` — enrich verbs stay; `--json` everywhere (drop
-  `describe --format`); `check` absorbs `gen --check` (file target = single-file
-  health, dir target = mirror-tree drift incl. GE001); `gen` is generation-only.
+- `gen` / `check` — the enrich verbs; `--json` everywhere; `check` absorbs
+  `gen --check` (file target = single-file health, dir target = mirror-tree drift
+  incl. GE001); `gen` is generation-only. (`describe` was briefly in this surface
+  but removed as low-utility — see the Status note at the top.)
 - `--daemon` RETIRES (no JS caller): delete `runDaemon` / `runOneShot` /
   `--socket` / JS `ResolverSocketClient`. `--one-shot` (inert) deleted.
 

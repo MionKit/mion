@@ -122,22 +122,6 @@ func TestMockSkeleton(t *testing.T) {
 	}
 }
 
-func TestDescribe(t *testing.T) {
-	got := Describe(userFixture(), DescribeOptions{TypeName: "User"})
-	want := `User: object
-  name: string (stringFormat: maxLength=60, minLength=2)
-  age: number (numberFormat: max=120, min=0)
-  isActive: boolean
-  tags: string[]
-  profile: object
-    email: string (email)
-    score: number (numberFormat: max=100, min=0)
-`
-	if got != want {
-		t.Errorf("Describe mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
-	}
-}
-
 // tupleMember wraps a slot type in a KindTupleMember node (the shape the tuple
 // walker reads via member.Child).
 func tupleMember(child *protocol.RunType) *protocol.RunType {

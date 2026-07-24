@@ -10,8 +10,6 @@
 //
 //   - emit.go     — walks a RunType to EMIT a `.rt.ts` FriendlyText/MockData
 //     skeleton (the `gen` command's codegen).
-//   - describe.go — walks a RunType to a human/JSON description (the `describe`
-//     command's prompt context).
 //   - validate.go — (paired walk, added later) checks an authored literal against
 //     the RunType and yields Findings (the `check` command).
 //

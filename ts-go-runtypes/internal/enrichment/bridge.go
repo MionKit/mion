@@ -20,7 +20,7 @@ type Resolved struct {
 	// Node is the canonical full RunType for the named type (not a ref).
 	Node *protocol.RunType
 	// Resolve looks up a KindRef's canonical node by id — pass this as the
-	// walkers' DescribeOptions.Resolve / the skeleton emitters' resolve arg.
+	// skeleton / closure emitters' resolve arg.
 	Resolve func(id string) *protocol.RunType
 	// DeclFiles maps a named type's RunType.ID to the absolute path of its
 	// declaration source file (followed through re-exports/aliases to the
@@ -35,7 +35,7 @@ type Resolved struct {
 // path, it finds the type alias / interface / class declaration named
 // typeName, asks the checker for its declared type, and projects it through
 // the cache to a canonical *protocol.RunType. The returned Resolve closure
-// (cache.NodeByID) lets the emit/describe walkers follow ref sentinels in the
+// (cache.NodeByID) lets the emit walkers follow ref sentinels in the
 // child slots.
 //
 // Callers pass the resolver's OWN checker + cache (res.Checker() /
@@ -84,7 +84,7 @@ func ResolveType(prog *program.Program, typeChecker *checker.Checker, cache *run
 // the emitter follows those refs.
 //
 // Use this for EmitClosure (multi-const, references between named types); the
-// single-const describe/gen path stays on ResolveType (which inlines).
+// single-const gen path stays on ResolveType (which inlines).
 func ResolveTypeRaw(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, absPath, typeName string) (*Resolved, error) {
 	if prog == nil {
 		return nil, fmt.Errorf("enrich.ResolveTypeRaw: program is nil")
