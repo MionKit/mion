@@ -234,12 +234,14 @@ func (sess *Session) dispatchScanFilesSerial(files []string) ([]protocol.Site, [
 				diagnostics = append(diagnostics, diags...)
 			}
 			for _, pending := range pendings {
-				site, depthDiags := sess.commitPending(pending)
+				site, depthDiags, emitSite := sess.commitPending(pending)
 				if len(depthDiags) > 0 {
 					diagnostics = append(diagnostics, depthDiags...)
 				}
-				sites = append(sites, site)
-				sess.sites = append(sess.sites, site)
+				if emitSite {
+					sites = append(sites, site)
+					sess.sites = append(sess.sites, site)
+				}
 			}
 			return true
 		})
@@ -342,15 +344,25 @@ type pendingCall struct {
 // concurrent use. Projection runs under the checker that materialized the
 // type (a fast no-swap path when that is the session checker, i.e. always
 // on the serial scan path).
-func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagnostics.Diagnostic) {
+func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagnostics.Diagnostic, bool) {
 	sess.cache.ResetDepthExceeded()
 	id := sess.cache.AssignIDUnder(pending.owner, pending.typeArgument)
-	var diags []diagnostics.Diagnostic
 	if sess.cache.DepthExceeded() {
-		// The structural-id walk for this site's type hit typeid.maxWalkDepth — a
-		// self-instantiating or genuinely unbounded type. Raise MKR008 anchored at
-		// the call span; the id is the benign placeholder assignID returned.
-		diags = append(diags, diagnostics.New(diagnostics.CodeStructuralIdDepthExceeded, pending.site))
+		// The structural-id walk for this site's type hit typeid.maxWalkDepth — an
+		// unresolvable type (like a bare free param / missing args, this can only be
+		// classified once the deep walk runs, so it lands here rather than at
+		// analyzeCall). Raise the cause-classified diagnostic and emit NO site: a
+		// dominant named type on the overflowing stack means a SELF-INSTANTIATING
+		// GENERIC (MKR009, naming it); otherwise plain too-deep nesting (MKR008).
+		// Suppressing the site keeps every unresolvable-type case consistent — no
+		// placeholder id ever ships (parity with MKR003/MKR010/MKR011).
+		var diag diagnostics.Diagnostic
+		if culprit := sess.cache.DepthCulprit(); culprit != "" {
+			diag = diagnostics.New(diagnostics.CodeMarkerSelfInstantiatingGeneric, pending.site, culprit)
+		} else {
+			diag = diagnostics.New(diagnostics.CodeStructuralIdDepthExceeded, pending.site)
+		}
+		return protocol.Site{}, []diagnostics.Diagnostic{diag}, false
 	}
 	return protocol.Site{
 		File:          pending.file,
@@ -362,7 +374,7 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		FnIds:         pending.fnIds,
 		Demand:        pending.demand,
 		TrailingComma: pending.trailingComma,
-	}, diags
+	}, nil, true
 }
 
 // analyzeCall inspects one call expression — the checker-bound analysis
@@ -575,6 +587,41 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		))
 		return pendingCall{}, diags, false
 	}
+	// CONTAINED free type parameter (`A<T>`, `T[]`, `{a: T}` in a generic body):
+	// same unsoundness as the bare-T MKR003 case one level down — the free param
+	// would silently collapse to `unknown` and every instantiation context would
+	// share one aliased id. Rejected as MKR010, naming the parameter, with
+	// Related sites pointing at the parameter's declaration and the generics
+	// chain the walk descended through; no site.
+	if finding, found := marker.FindFreeTypeParameter(state.scanChecker, typeArgument); found {
+		if sourceFile == nil {
+			return pendingCall{}, diags, false
+		}
+		diags = append(diags, diagnostics.NewWithRelated(
+			diagnostics.CodeMarkerContainedTypeParameter,
+			textpos.NodeSite(file, sourceFile, call),
+			[]string{finding.ParamName},
+			finding.Related...,
+		))
+		return pendingCall{}, diags, false
+	}
+	// Written generic reference MISSING required type arguments (`getRunTypeId<A2>()`
+	// over `interface A2<S>` with no default): tsc rejects it (TS2314) but the
+	// no-typecheck dev lane doesn't, and the checker hands us the error type
+	// (plain `any`) — type-side indistinguishable from a legal `getRunTypeId<any>()`.
+	// A SYNTACTIC walk over the written type-argument nodes catches it; Related
+	// points at the first default-less parameter in the chain.
+	if callExpression != nil && sourceFile != nil {
+		if missing, found := findMissingTypeArgs(state.scanChecker, callExpression.TypeArguments); found {
+			diags = append(diags, diagnostics.NewWithRelated(
+				diagnostics.CodeMarkerMissingTypeArgs,
+				textpos.NodeSite(file, sourceFile, call),
+				[]string{missing.TypeName, missing.ParamName},
+				missing.Related...,
+			))
+			return pendingCall{}, diags, false
+		}
+	}
 	// REFLECT-FORM CHECKS: only fire when T was inferred from a value
 	// argument (no explicit type-argument list) AND at least one value
 	// arg is present.
@@ -761,6 +808,21 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 				diags = append(diags, diagnostics.New(
 					diagnostics.CodeMarkerFreeTypeParameter,
 					textpos.NodeSite(file, sourceFile, call),
+				))
+			}
+			continue
+		}
+		// Contained free type parameter — the MKR010 sibling of the bare check
+		// above (same treatment as the trailing-injection path). No syntactic
+		// missing-args check here: multi-slot wrapper calls infer their type
+		// arguments from values, so there are no written type-argument nodes.
+		if finding, found := marker.FindFreeTypeParameter(state.scanChecker, m.typeArg); found {
+			if sourceFile != nil {
+				diags = append(diags, diagnostics.NewWithRelated(
+					diagnostics.CodeMarkerContainedTypeParameter,
+					textpos.NodeSite(file, sourceFile, call),
+					[]string{finding.ParamName},
+					finding.Related...,
 				))
 			}
 			continue

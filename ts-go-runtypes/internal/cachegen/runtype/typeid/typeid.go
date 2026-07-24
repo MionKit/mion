@@ -36,6 +36,11 @@ type Computer struct {
 	// overflow; the cache layer reads this flag to raise a diagnostic. Reset per
 	// top-level walk via ResetDepthExceeded.
 	depthExceeded bool
+	// depthCulprit is the cause classified when depthExceeded latches: the name
+	// of the type whose instantiations dominate the overflowing walk path (a
+	// SELF-INSTANTIATING GENERIC — surfaced as MKR009 naming the type), or ""
+	// when no single named type dominates (plain too-deep nesting — MKR008).
+	depthCulprit string
 	// bareCycles makes cycleRef emit a name-free `$<kind>_<index>` token (no
 	// structural anchor). Used only by the sub-walk that COMPUTES the structural
 	// anchor, to terminate without infinite recursion.
@@ -81,8 +86,16 @@ const depthSentinel = "$depth"
 // maxWalkDepth since the last ResetDepthExceeded.
 func (computer *Computer) DepthExceeded() bool { return computer.depthExceeded }
 
+// DepthCulprit returns the cause classified when the depth cap latched: the
+// name of the self-instantiating generic dominating the walk path, or "" when
+// the overflow has no single named cause.
+func (computer *Computer) DepthCulprit() string { return computer.depthCulprit }
+
 // ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
-func (computer *Computer) ResetDepthExceeded() { computer.depthExceeded = false }
+func (computer *Computer) ResetDepthExceeded() {
+	computer.depthExceeded = false
+	computer.depthCulprit = ""
+}
 
 // Compute returns the structural id of tsType. Safe to call repeatedly with
 // the same Computer — results are cached.
@@ -107,7 +120,10 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	// deliberately NOT cached so the same pointer reached at a shallower depth
 	// elsewhere can still compute a real id.
 	if len(computer.stack) >= maxWalkDepth {
-		computer.depthExceeded = true
+		if !computer.depthExceeded {
+			computer.depthExceeded = true
+			computer.depthCulprit = computer.classifySpiral()
+		}
 		return depthSentinel
 	}
 	computer.stack = append(computer.stack, tsType)
@@ -129,6 +145,64 @@ func (computer *Computer) stackIndex(tsType *checker.Type) int {
 		}
 	}
 	return -1
+}
+
+// classifySpiral names the depth cap's CAUSE: when instantiations of one named
+// type dominate the overflowing stack, the graph is a SELF-INSTANTIATING
+// GENERIC — every level is a fresh *checker.Type of the same declaration (e.g.
+// a generic method returning a fresh instantiation of its own container), so
+// the pointer cycle guard can never close — and the diagnostic should name the
+// type rather than report "too deeply nested". Instantiations share their
+// declaration's symbol, so frames bucket by symbol pointer (alias symbol
+// preferred: an alias instantiation's own symbol is the anonymous literal).
+// Runs once, at latch time, on a stack already past the cap — legitimate types
+// never reach it, so the heuristic cannot misclassify a working type.
+func (computer *Computer) classifySpiral() string {
+	counts := map[*ast.Symbol]int{}
+	names := map[*ast.Symbol]string{}
+	for _, frame := range computer.stack {
+		symbol, name := spiralIdentity(frame)
+		if symbol == nil {
+			continue
+		}
+		counts[symbol]++
+		names[symbol] = name
+	}
+	var best *ast.Symbol
+	bestCount := 0
+	for symbol, count := range counts {
+		if count > bestCount {
+			best, bestCount = symbol, count
+		}
+	}
+	// A handful of same-symbol frames is normal composition; a dominating symbol
+	// on a CAPPED stack is the spiral. 8 sits far above any terminating
+	// same-symbol nesting that could share one active path below the cap.
+	if bestCount >= 8 {
+		return names[best]
+	}
+	return ""
+}
+
+// spiralIdentity buckets a stack frame for spiral classification: the alias
+// symbol when the type came from a named alias instantiation, else the type's
+// own (declaration) symbol. Internal/anonymous names identify nothing.
+func spiralIdentity(tsType *checker.Type) (*ast.Symbol, string) {
+	if alias := checker.Type_alias(tsType); alias != nil {
+		if symbol := alias.Symbol(); symbol != nil && userVisibleName(symbol.Name) {
+			return symbol, symbol.Name
+		}
+	}
+	if symbol := tsType.Symbol(); symbol != nil && userVisibleName(symbol.Name) {
+		return symbol, symbol.Name
+	}
+	return nil, ""
+}
+
+// userVisibleName rejects tsgo-internal symbol names (late-bound 0xFE prefix,
+// "__type"/"__object" anonymous literals) that would make a useless culprit.
+func userVisibleName(name string) bool {
+	return name != "" && name[0] != 0xFE && !strings.HasPrefix(name, "__")
 }
 
 func (computer *Computer) cycleRef(tsType *checker.Type, index int) string {
@@ -174,9 +248,13 @@ func (computer *Computer) structuralSignature(tsType *checker.Type) string {
 	sub := &Computer{typeChecker: computer.typeChecker, cache: make(map[*checker.Type]string), bareCycles: true, overrides: computer.overrides}
 	sig := sub.Compute(tsType)
 	// A depth-cap hit in the sub-walk must not yield a silently-truncated outer
-	// id: propagate the latch so the cache layer still raises the diagnostic.
+	// id: propagate the latch (and its classified cause) so the cache layer
+	// still raises the diagnostic.
 	if sub.depthExceeded {
 		computer.depthExceeded = true
+		if computer.depthCulprit == "" {
+			computer.depthCulprit = sub.depthCulprit
+		}
 	}
 	computer.sigCache[tsType] = sig
 	return sig

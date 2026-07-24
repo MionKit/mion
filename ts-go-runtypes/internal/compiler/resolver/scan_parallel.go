@@ -157,12 +157,14 @@ func (sess *Session) dispatchScanFilesParallel(files []string) ([]protocol.Site,
 				diagnostics = append(diagnostics, call.diagnostics...)
 			}
 			for _, pending := range call.pendings {
-				site, depthDiags := sess.commitPending(pending)
+				site, depthDiags, emitSite := sess.commitPending(pending)
 				if len(depthDiags) > 0 {
 					diagnostics = append(diagnostics, depthDiags...)
 				}
-				sites = append(sites, site)
-				sess.sites = append(sess.sites, site)
+				if emitSite {
+					sites = append(sites, site)
+					sess.sites = append(sess.sites, site)
+				}
 			}
 		}
 		sess.markFileScanned(file, sites[fileStart:])

@@ -107,3 +107,54 @@ Cap value 512 = "hundreds" per the fix direction: far above legitimate nesting,
 **Shipped as described** — MKR008 (FamilyMarker / SeverityError), cap 512, flag +
 sentinel (no panic), emitted at `commitPending`. Go suite + full JS suite +
 lint/typecheck/format all green; FE diagnostic catalog regenerated.
+
+## Addendum — the unresolved-generics rejection model (MKR009 / MKR010 / MKR011)
+
+Review of the depth backstop surfaced the real root cause of the
+`IteratorObject` / `Iter<T>` repro: **the type isn't just deep, it's an
+unresolvable GENERIC**. The backstop is the right last-line guard, but the
+diagnostics should tell the user WHY the type can't resolve and point at the
+place in the generics chain. Model (marker scan is the single enforcement
+point; `createValidateFn` etc. all route through the same marker):
+
+- **Defaults resolve at USE sites — leave them alone.** The checker applies
+  type-parameter defaults before the scan sees the type, so bare `A` over
+  `interface A<S extends string = string>` arrives as `A<string>` and must scan
+  clean (pinned: bare ≡ explicit id; chained/partial defaults resolve too). A
+  default does NOT resolve the param inside the generic's own body.
+- **MKR009 — self-instantiating generic** (cause-classified depth cap):
+  `classifySpiral` in [typeid.go](../../ts-go-runtypes/internal/cachegen/runtype/typeid/typeid.go)
+  buckets the over-cap stack by declaration symbol; a dominant one (≥ 8 frames)
+  is a type whose method returns a fresh instantiation of itself
+  (`Iter<T>.map(): Iter<U>`), named in the diagnostic. No single culprit → the
+  plain too-deep **MKR008** fallback. Both propagate through the
+  `structuralSignature` sub-walk and latch on the `Cache`; `commitPending` emits
+  and, now, suppresses the site (no placeholder id ships — parity with the
+  rejections below).
+- **MKR010 — contained free type parameter:** `marker.FindFreeTypeParameter`
+  ([marker.go](../../ts-go-runtypes/internal/compiler/marker/marker.go)) walks
+  DATA positions (union/intersection members, instantiation type args, props,
+  index sigs) for a still-free param (`A<T>`, `T[]`, `{a: T}` in a generic
+  body). Signature interiors are EXEMPT (generic methods' own params `map<U>`
+  are per-call and methods aren't data — so `find<T>(q: string): T[]` resolves,
+  and `Iter<string>` reaches MKR009 rather than MKR010). Rejected before a
+  `pendingCall`; `Related` carries the param declaration + generics-chain hops.
+- **MKR011 — missing required type arguments:** the SYNTACTIC guard
+  ([missingtypeargs.go](../../ts-go-runtypes/internal/compiler/resolver/missingtypeargs.go)).
+  A generic written with fewer args than its default-less parameters
+  (`getRunTypeId<A2>()` over `interface A2<S>`) is TS2314, but the no-typecheck
+  dev lane yields plain `any` — so the walk reads the WRITTEN type-argument
+  nodes, descends nested args + type-alias bodies, and reports the first
+  offender (`Related` at the default-less param). A constraint (`X extends
+  A<'hello'>`) does NOT permit omission — only a default does.
+
+Provenance uses the existing `diagnostics.NewWithRelated` / `Related` mechanism
+(OVR001 precedent). Out of scope: constraint SUBSTITUTION (never resolve
+`T extends X` to `X` — unsound), and the value-first missing-args residual (no
+written nodes to inspect; TS flags it at the value's declaration) — pinned as a
+documented residual.
+
+**Shipped** — MKR009/010/011 (all FamilyMarker / SeverityError). Go matrix
+(defaults resolve, constraints/body-defaults don't, methods exempt, chain
+provenance) + FE plugin-lane specs (both marker call shapes) green; catalog
+regenerated.

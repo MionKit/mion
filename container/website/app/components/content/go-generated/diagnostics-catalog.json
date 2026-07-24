@@ -163,7 +163,37 @@
       "subsystem": "markers",
       "severity": "error",
       "headline": "This type is too deeply nested to reflect — computing its structural id hit the recursion depth cap, so the build stops here instead of crashing.",
-      "detail": "The build computes a structural id by walking the type. A type whose\nmembers instantiate a brand-new type on every level never repeats, so the\ncycle guard can't stop the walk; it is capped instead of overflowing the\nstack. This usually means a self-instantiating shape (a method that returns\na fresh instantiation of its own container) or a genuinely unbounded type\nalias that grows its own type argument each level.\n\nFix — reflect a concrete, bounded projection of the type (e.g. the element\nor data type you actually send) rather than the self-instantiating shape,\nor restructure the recursion so the same type recurs by reference.",
+      "detail": "The build computes a structural id by walking the type, and the walk is\ncapped at a depth far beyond any realistic shape. Hitting the cap with no\nsingle recurring type on the path means literally written (or generated)\nnesting hundreds of levels deep.\n\nFix — reflect a concrete, bounded projection of the type (e.g. the element\nor data type you actually send), or restructure the recursion so the same\nnamed type recurs by reference (a plain recursive interface is fine).",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MKR009",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Type `{0}` re-instantiates itself with fresh type arguments at every level (a self-instantiating generic), so its structural id never resolves. Reflect a monomorphic shape instead.",
+      "detail": "A generic method's own type parameters (the `U` in `map<U>(fn: (x: T) => U):\nIter<U>`) are bound at each CALL of the method, so they can never be resolved\nwhile reflecting the containing type — and when such a method returns a fresh\ninstantiation of its own container, the type graph grows a new level forever.\nRenaming the type parameters does not resolve them; the fix is a monomorphic\n(fully resolved) recursive shape, which closes by reference:\n\n-  interface Iter<T> { map<U>(fn: (x: T) => U): Iter<U> }\n+  interface NumberIter { map(fn: (x: string) => number): NumberIter }\n\nOrdinary generics are unaffected: instantiated types (Map<string, User>, a\nconcrete Iter<string>'s data members) and generic methods that do not\nre-instantiate their container reflect fine. Validators also drop methods\nentirely (methods aren't data), so reflecting just the data shape usually\nsidesteps the problem.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MKR010",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Type argument contains the unresolved type parameter `{0}` — a generic must be fully resolved at the marker call, so no id can be computed. See Related for where `{0}` is declared.",
+      "detail": "The build can only compute an id for a fully concrete type. `{0}` is a type\nparameter of the surrounding generic — it takes a different type at each call\nsite, so a single build-time id would alias every instantiation onto one\n(wrong) shape. A parameter DEFAULT does not help here: defaults resolve where\na caller omits the argument, never inside the generic's own body.\n\nFix — resolve the generic before reflecting it:\n  interface Box<T> { value: T }\n  type BoxString = Box<string>;\n  const isBoxString = createValidateFn<BoxString>();   // resolved — ok\n\nFix — or accept a pre-computed id from the caller and inline the marker at\neach concrete call site (same patterns as MKR003):\n  function makeChecker<T>(id: InjectRunTypeId<T>) {\n    return createValidateFn<T>(id);\n  }\n  const isBox = makeChecker<Box<string>>(getRunTypeId<Box<string>>());\n\nGeneric METHODS on a concrete type (`find<T>(query: string): T[]`) are\nunaffected — their own type parameters are bound per call of the method and\nmethods aren't data.",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
+      "code": "MKR011",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Generic type `{0}` is used without its required type argument(s) — parameter `{1}` has no default, so the type cannot resolve to an id. See Related for where `{1}` is declared.",
+      "detail": "TypeScript itself rejects this usage (TS2314), but dev-server builds don't\nrun the type checker, so the scan reads the written type arguments and stops\nthe build here instead of silently reflecting `any` (a validator over `any`\naccepts everything).\n\nFix — pass the missing type argument:\n-  const isA = createValidateFn<A>();\n+  const isA = createValidateFn<A<string>>();\n\nFix — or give the parameter a default, which the compiler resolves at every\nbare use site:\n-  interface A<S extends string> { a: S }\n+  interface A<S extends string = string> { a: S }\n   const isA = createValidateFn<A>();   // now resolves to A<string>",
       "summary": null,
       "fix": null,
       "example": null

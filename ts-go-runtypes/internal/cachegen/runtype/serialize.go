@@ -112,8 +112,11 @@ type Cache struct {
 	// cap (typeid.maxWalkDepth) during a walk — a self-instantiating or genuinely
 	// unbounded type that would otherwise overflow the Go stack. assignID sets it
 	// and returns a benign placeholder instead of committing a truncated node; the
-	// resolver's per-site commit resets it and raises MKR008 when set.
+	// resolver's per-site commit resets it and raises MKR009/MKR008 when set.
 	depthExceeded bool
+	// depthCulprit carries the walker's classified cause alongside the latch:
+	// the self-instantiating generic's name (→ MKR009), or "" (→ MKR008).
+	depthCulprit string
 
 	// overrides is the `overrideX<T>(pureFn)` table built by the resolver's
 	// early override-collection pass, keyed by a node's BASE structural key →
@@ -310,11 +313,18 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *protocol.R
 
 // DepthExceeded reports whether the most recent walk hit the structural-id
 // recursion depth cap (typeid.maxWalkDepth) — the resolver's per-site commit
-// reads this to raise MKR008. Reset via ResetDepthExceeded.
+// reads this to raise MKR009/MKR008. Reset via ResetDepthExceeded.
 func (cache *Cache) DepthExceeded() bool { return cache.depthExceeded }
 
+// DepthCulprit returns the walker's classified cause for the latched cap: the
+// self-instantiating generic's name, or "" for plain too-deep nesting.
+func (cache *Cache) DepthCulprit() string { return cache.depthCulprit }
+
 // ResetDepthExceeded clears the depth-cap latch before a fresh top-level walk.
-func (cache *Cache) ResetDepthExceeded() { cache.depthExceeded = false }
+func (cache *Cache) ResetDepthExceeded() {
+	cache.depthExceeded = false
+	cache.depthCulprit = ""
+}
 
 // AssignID projects tsType into the cache (if new) and returns its hash id.
 // Public alias for the internal assignID used by callers — like the marker
@@ -524,10 +534,12 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	structural := cache.idComputer.Compute(tsType)
 	if cache.idComputer.DepthExceeded() {
 		// The walk hit typeid.maxWalkDepth — a self-instantiating or genuinely
-		// unbounded type. Latch it for the resolver (→ MKR008) and DON'T project a
-		// truncated node: return the shared benign placeholder. Over-deep types all
-		// collapse to it; the build fails on the Error diagnostic anyway.
+		// unbounded type. Latch it (+ the classified cause) for the resolver
+		// (→ MKR009/MKR008) and DON'T project a truncated node: return the shared
+		// benign placeholder. Over-deep types all collapse to it; the build fails
+		// on the Error diagnostic anyway.
 		cache.depthExceeded = true
+		cache.depthCulprit = cache.idComputer.DepthCulprit()
 		id := cache.internEmpty(protocol.KindUnknown, "depthExceeded")
 		cache.byPtr[tsType] = id
 		return id

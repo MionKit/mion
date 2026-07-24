@@ -22,12 +22,15 @@ package marker
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
+	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
 // Kind enumerates the marker brands the scanner knows about.
@@ -357,6 +360,177 @@ func IsFreeTypeParameter(tsType *checker.Type) bool {
 		return false
 	}
 	return checker.Type_flags(tsType)&checker.TypeFlagsTypeParameter != 0
+}
+
+// freeParamScanDepth bounds FindFreeTypeParameter's walk. Deep enough for any
+// realistic data shape; the bound (not the visited set) is what terminates on a
+// self-instantiating generic, whose fresh per-level types never repeat — those
+// are reported separately by the structural-id depth backstop (MKR009).
+const freeParamScanDepth = 64
+
+// freeParamMaxHops caps the named-type breadcrumbs carried on the diagnostic so
+// a deep chain stays readable (the param declaration is always included).
+const freeParamMaxHops = 3
+
+// FreeTypeParamFinding describes one still-unresolved type parameter found in a
+// marker type argument's data-reachable graph: the parameter's name plus the
+// Related sites the diagnostic carries — the parameter's DECLARATION first
+// ("`T` is declared here"), then up to freeParamMaxHops named-type hops the
+// walk passed through (outermost first), so a failure buried levels down a
+// generics chain points at the exact links.
+type FreeTypeParamFinding struct {
+	ParamName string
+	Related   []diagnostics.Related
+}
+
+// FindFreeTypeParameter walks the DATA-reachable positions of tsType — union /
+// intersection members, instantiation type arguments (arrays, tuples, Map / Set /
+// Promise, generic references), properties, and index signatures — and reports
+// the first still-unresolved type parameter it finds (`A<T>`, `T[]`, `{a: T}`
+// inside a generic body). Such a type must be rejected at the marker call
+// (MKR010): the free parameter takes a different type at every call site of the
+// surrounding generic, so a single build-time id would alias them all. NOTE the
+// checker applies type-parameter DEFAULTS at use sites before we see the type
+// (a bare `A` over `interface A<S = string>` arrives as `A<string>`), so a
+// defaulted generic used bare never reaches this walk — but a default does NOT
+// resolve the parameter inside the generic's own body, so `A<T>` under
+// `function f<T = string>` is still found (and must be).
+//
+// Signature INTERIORS are deliberately exempt: a function-typed property or
+// method is dropped from the data projection (methods aren't data), and a
+// generic method's own type parameters (`map<U>`) are bound per CALL of the
+// method — never resolvable at reflection time by design, and rejecting them
+// would break ordinary types like `find<T>(query: string): T[]`.
+func FindFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type) (FreeTypeParamFinding, bool) {
+	return findFreeTypeParameter(typeChecker, tsType, map[*checker.Type]bool{}, nil, 0)
+}
+
+func findFreeTypeParameter(typeChecker *checker.Checker, tsType *checker.Type, visited map[*checker.Type]bool, hops []diagnostics.Related, depth int) (FreeTypeParamFinding, bool) {
+	if tsType == nil || depth > freeParamScanDepth || visited[tsType] {
+		return FreeTypeParamFinding{}, false
+	}
+	visited[tsType] = true
+
+	if IsFreeTypeParameter(tsType) {
+		finding := FreeTypeParamFinding{}
+		if symbol := tsType.Symbol(); symbol != nil {
+			finding.ParamName = symbol.Name
+			if site, ok := symbolDeclarationSite(symbol); ok {
+				finding.Related = append(finding.Related, diagnostics.Related{
+					Site:    site,
+					Message: "type parameter `" + symbol.Name + "` is declared here — it has no binding at this call",
+				})
+			}
+		}
+		finding.Related = append(finding.Related, hops...)
+		return finding, true
+	}
+
+	// Record a breadcrumb when descending THROUGH a named type, so a param found
+	// deeper down the generics chain points at each link. Hop slices are
+	// capacity-capped on append so sibling branches never alias.
+	if len(hops) < freeParamMaxHops {
+		if hopName, hopSite, ok := namedTypeHop(tsType); ok {
+			hops = append(hops[:len(hops):len(hops)], diagnostics.Related{
+				Site:    hopSite,
+				Message: "reached via `" + hopName + "`, declared here",
+			})
+		}
+	}
+
+	flags := checker.Type_flags(tsType)
+	if flags&checker.TypeFlagsUnion != 0 {
+		for _, member := range tsType.Distributed() {
+			if finding, found := findFreeTypeParameter(typeChecker, member, visited, hops, depth+1); found {
+				return finding, found
+			}
+		}
+		return FreeTypeParamFinding{}, false
+	}
+	// Intersections fall through: GetPropertiesOfType below sees the combined
+	// members, and a constituent reference's type arguments surface there too.
+	if flags&(checker.TypeFlagsObject|checker.TypeFlagsIntersection) == 0 {
+		return FreeTypeParamFinding{}, false
+	}
+
+	// Instantiation type arguments (arrays, tuples, Map/Set/Promise, generic
+	// references). GetTypeArguments panics on non-reference objects — gate on
+	// the reference flag, same as serialize.go / bridge.go.
+	if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
+		for _, typeArgument := range typeChecker.GetTypeArguments(tsType) {
+			if finding, found := findFreeTypeParameter(typeChecker, typeArgument, visited, hops, depth+1); found {
+				return finding, found
+			}
+		}
+	}
+	for _, propertySymbol := range typeChecker.GetPropertiesOfType(tsType) {
+		propertyType := typeChecker.GetTypeOfSymbol(propertySymbol)
+		if propertyType == nil {
+			continue
+		}
+		// Function-typed property / method — signature interior, exempt (see doc).
+		if len(typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)) > 0 &&
+			len(typeChecker.GetPropertiesOfType(propertyType)) == 0 {
+			continue
+		}
+		if finding, found := findFreeTypeParameter(typeChecker, propertyType, visited, hops, depth+1); found {
+			return finding, found
+		}
+	}
+	for _, indexInfo := range typeChecker.GetIndexInfosOfType(tsType) {
+		if finding, found := findFreeTypeParameter(typeChecker, indexInfo.KeyType(), visited, hops, depth+1); found {
+			return finding, found
+		}
+		if finding, found := findFreeTypeParameter(typeChecker, indexInfo.ValueType(), visited, hops, depth+1); found {
+			return finding, found
+		}
+	}
+	return FreeTypeParamFinding{}, false
+}
+
+// namedTypeHop returns the user-visible name + declaration site of a type worth
+// recording as a generics-chain breadcrumb (alias name preferred — an alias
+// instantiation's own symbol is the anonymous literal). Mirrors the
+// user-visible-name filtering in cachegen/runtype/typeid (replicated: importing
+// it from here would cross product areas for two tiny helpers).
+func namedTypeHop(tsType *checker.Type) (string, diagnostics.Site, bool) {
+	if alias := checker.Type_alias(tsType); alias != nil {
+		if symbol := alias.Symbol(); symbol != nil && userVisibleTypeName(symbol.Name) {
+			if site, ok := symbolDeclarationSite(symbol); ok {
+				return symbol.Name, site, true
+			}
+		}
+	}
+	if symbol := tsType.Symbol(); symbol != nil && userVisibleTypeName(symbol.Name) {
+		if site, ok := symbolDeclarationSite(symbol); ok {
+			return symbol.Name, site, true
+		}
+	}
+	return "", diagnostics.Site{}, false
+}
+
+// symbolDeclarationSite returns the line/col Site of a symbol's first
+// resolvable declaration, using the declaration file's own name (the
+// declaration may live in a different file than the marker call).
+func symbolDeclarationSite(symbol *ast.Symbol) (diagnostics.Site, bool) {
+	for _, declaration := range symbol.Declarations {
+		if declaration == nil {
+			continue
+		}
+		sourceFile := ast.GetSourceFileOfNode(declaration)
+		if sourceFile == nil {
+			continue
+		}
+		return textpos.NodeSite(sourceFile.FileName(), sourceFile, declaration), true
+	}
+	return diagnostics.Site{}, false
+}
+
+// userVisibleTypeName rejects tsgo-internal symbol names (late-bound 0xFE
+// prefix, "__type"/"__object" anonymous literals) that would make a useless
+// breadcrumb.
+func userVisibleTypeName(name string) bool {
+	return name != "" && name[0] != 0xFE && !strings.HasPrefix(name, "__")
 }
 
 // DeclaredInModule reports whether symbol was declared inside the given
