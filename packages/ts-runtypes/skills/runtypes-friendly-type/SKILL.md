@@ -41,7 +41,7 @@ map involved.
   plural-aware `createFriendlyText<T>(map)` renderer plus `createFriendlyTextI18n`,
   and `resolveLocale`
   ([`createFriendlyText.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/enrich/createFriendlyText.ts)) —
-  all exported from `ts-runtypes`. The `gen` / `check` CLI (including `--translate`)
+  all exported from `ts-runtypes`. The `enrich` / `enrich --no-emit` CLI (including `--translate`)
   scaffolds and validates the committed maps — see the `rt-enrich-types` skill.
 - **Designed (not yet wired):** the `ShapeCheckedArgs<T>` compile-time axis and
   `rtUtils` registry accessors.
@@ -50,7 +50,7 @@ map involved.
 
 One recursive node, uniform at every depth. `rt$`-prefixed keys are **meta**; every
 other key is a **child field** (the `rt$` prefix is RESERVED — a source-type property
-named `rt$…` is refused by `gen` and flagged FT011; a plain `$foo` property is just a
+named `rt$…` is refused by `enrich` and flagged FT011; a plain `$foo` property is just a
 field). Leaf nodes simply have no children — there is no `fields:` wrapper.
 
 - `rt$label: string` — the field's human name; always a plain string. REQUIRED.
@@ -64,12 +64,12 @@ field). Leaf nodes simply have no children — there is no `fields:` wrapper.
 
 **The map is TOTAL.** Every field appears and every node carries both meta keys; a
 blank `''` means "no custom text" (the renderer falls back gracefully), so blanks are
-always safe. Never delete a key to opt out — the next `gen --update` scaffolds it
+always safe. Never delete a key to opt out — the next `enrich --update` scaffolds it
 back; one type maps to exactly one shape.
 
 The map's structure is checked against `T` by the `FriendlyText<T>` mapped type:
 a missing field, an object node where `T` is scalar (or vice-versa), an unknown
-`rt$errors` key — all TYPE errors, caught in the IDE before `check` even runs.
+`rt$errors` key — all TYPE errors, caught in the IDE before `enrich --no-emit` even runs.
 
 ## `rt$errors` keys = the failed-constraint name
 
@@ -96,7 +96,7 @@ annotation.
 
 **`rt$default` — the exclusive catch-all mode.** `rt$errors: {rt$default: '…'}` yields
 ONE message for the whole field, whatever failed. It never mixes with per-constraint keys
-(TS union + FT009 Error). Each node picks its own mode; `gen` always scaffolds NEW
+(TS union + FT009 Error). Each node picks its own mode; `enrich` always scaffolds NEW
 nodes per-constraint (switch a node to `rt$default` by hand), and once a node
 exists its authored mode is followed by every sync.
 
@@ -117,7 +117,7 @@ Templates are plain strings with `$[…]` tokens the renderer substitutes:
 | _(type-driven)_ | `$[val]` renders by the bound's TYPE on the i18n path: an `isCurrency`-marked bound (`TF.Currency`) via the renderer's `currency` option, date-family bounds via `Intl.DateTimeFormat` — no per-template syntax |
 
 Unknown `$[…]` tokens are left verbatim (including any leftover colon-form
-`$[val:kind:name]` token — that named-format syntax was removed; `check` flags it via
+`$[val:kind:name]` token — that named-format syntax was removed; `enrich --no-emit` flags it via
 FT005); a literal colon in prose (`ratio 3:1`) is never touched. `$[value]` (the actual
 received value) is out of scope for v1 — `RunTypeError` carries no value.
 
@@ -141,7 +141,7 @@ name: {
 },
 ```
 
-- `gen` scaffolds the plural object for you (`minLength: {one: '', other: ''}`), its arms
+- `enrich` scaffolds the plural object for you (`minLength: {one: '', other: ''}`), its arms
   taken from the SOURCE locale's CLDR cardinal category set (tsconfig
   `i18n.sourceLocale`, default `en`; built-in table: en, es, zh, hi, ar, pt, ru, ja, de,
   fr, pl — any other locale scaffolds all six categories `zero one two few many other`).
@@ -205,7 +205,7 @@ fails to compile and you fix the export.
 
 ## Build-time validation — the FT0xx checks
 
-The `check` verb cross-references the authored literal against the live `RunType` and
+The `enrich --no-emit` mode cross-references the authored literal against the live `RunType` and
 reports:
 
 | Code  | Severity | Meaning                                                                                                                                                                                                      |
@@ -220,7 +220,7 @@ reports:
 | FT008 | Warning  | a plural object on a non-count-bearing constraint (dead arms)                                                                                                                                                |
 | FT009 | Error    | `rt$default` beside any other `rt$errors` key — the modes are mutually exclusive                                                                                                                             |
 | FT010 | Info     | `T`'s structural id changed since authored — review for drift                                                                                                                                                |
-| FT011 | Error    | a property of `T` is named `rt$…` — the reserved meta prefix (`gen` refuses the type up front; rename the property)                                                                                          |
+| FT011 | Error    | a property of `T` is named `rt$…` — the reserved meta prefix (`enrich` refuses the type up front; rename the property)                                                                                       |
 
 These catch drift: rename a field and `FT002` flags the now-stale entry.
 
@@ -265,9 +265,9 @@ falls back to the source at render time.
   (`pt_BR_friendlyUser`) — annotated `FriendlyText<Name>`, carrying the SAME
   `@rtType <Name>#<id> @rtIds {…}` markers as the source. The path + const prefix
   carry the locale; there is no i18n marker.
-- Scaffold with `ts-runtypes gen --translate <locale|all>`; reconcile with `--update`
+- Scaffold with `ts-runtypes enrich --translate <locale|all>`; reconcile with `--update`
   (src-driven, value-preserving, descends `rt$errors`); strip orphan carcasses with
-  `--prune`; gate completeness in CI with `check --translate <locale|all>` (findings
+  `--prune`; gate completeness in CI with `enrich --translate <locale|all> --no-emit` (findings
   TR001–TR004; TR003 = a src-driven reconcile would change the file). CLI + tsconfig
   `i18n` reference: the `rt-enrich-types` skill.
 - The scaffold is the type's tree with every string leaf and plural arm as an `@todo`

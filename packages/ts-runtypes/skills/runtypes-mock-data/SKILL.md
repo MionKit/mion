@@ -37,7 +37,7 @@ the generator already mocks every shape mechanically (including `Date`, `Map`, `
   `{ data }` option on `createMockDataFn<T>()`
   ([`createMockData.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/mocking/createMockData.ts)) —
   pass `createMockDataFn<T>({ data })` and generated values are drawn from the authored
-  pools / ranges (both exported from `ts-runtypes`); and the `gen` / `check` CLI that
+  pools / ranges (both exported from `ts-runtypes`); and the `enrich` / `enrich --no-emit` CLI that
   scaffolds the mock mirror file and cross-checks it against the live type (MD001) —
   see the `rt-enrich-types` skill for the CLI loop.
 - **Designed (not yet wired):** the MD003 pool-value validation (the build-time check
@@ -78,7 +78,7 @@ runtime. An
 LLM that hallucinates a malformed email into the `email` pool, or a `score` of `150`
 into a `FormatNumber<{max: 100}>` field, is caught at parse time (MD003, Error). No
 other mock library can do this — it falls straight out of the existing validator.
-MD003 is designed but not wired into `check` yet; shipped today is MD001 (key not a
+MD003 is designed but not wired into `enrich --no-emit` yet; shipped today is MD001 (key not a
 field of `T`, Error). Also designed: MD002 (structural mismatch — left to the
 `MockData<T>` mapped type), MD004 (`min > max` / inverted `rt$length`), MD005 (pool below
 a configured floor, off by default).
@@ -174,7 +174,7 @@ const fixture = makeUser();
 //        profile: { email: 'alice@example.com', score: 72 } }
 ```
 
-Every value above satisfies `User` — and once MD003 is wired into `check`, a stray
+Every value above satisfies `User` — and once MD003 is wired into `enrich --no-emit`, a stray
 `age: 200` or `email: 'nope'` in the map fails the build, never the test.
 
 ## Authoring checklist

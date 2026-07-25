@@ -5,19 +5,19 @@
 >   structural node shapes — solution A), the pure-data `createFriendlyText<T>(map)`
 >   renderer, and the `createMockDataFn<T>({ data })` integration — all exported from
 >   `@ts-runtypes/core`;
-> - the Go CLI pair `check` / `gen` (`ts-go-runtypes/internal/enrichment`, a separate
+> - the Go CLI verb `enrich` / `enrich --no-emit` (`ts-go-runtypes/internal/enrichment`, a separate
 >   package), incl. **named-type-driven emission** (one `const` per named type) and
->   the `check` diagnostics **FT002 / FT003 / FT005 / MD001**;
-> - **`gen --update` reconcile + `gen --prune`** — a value-preserving merge of an
+>   the `enrich --no-emit` diagnostics **FT002 / FT003 / FT005 / MD001**;
+> - **`enrich --update` reconcile + `enrich --prune`** — a value-preserving merge of an
 >   existing mirror against the regenerated set (property merge, field rename,
 >   `@rtType`/`@rtIds` markers, `@rtOrphan`/`@rtOrphanChild` carcasses), with a
 >   byte-identical idempotent re-run, and a destructive prune sweep (see
->   [`gen` semantics → `--update`](#gen---update--reconcile-value-preserving-merge));
+>   [`enrich` semantics → `--update`](#enrich---update--reconcile-value-preserving-merge));
 > - the **per-family mirror split** (`<genDir>/enriched/friendly/` + `<genDir>/enriched/mock/`
 >   subtrees, with a one-shot auto-migration of pre-split combined mirrors) and the
 >   **FriendlyText i18n layer** — per-locale translation mirrors, generator-owned
 >   plural templates (checked by **FT006 / FT007 / FT008**), `createFriendlyTextI18n`,
->   `gen`/`check --translate` (see [Translations (i18n)](#translations-i18n) and
+>   `enrich --translate` / `enrich --translate --no-emit` (see [Translations (i18n)](#translations-i18n) and
 >   [docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md)).
 >
 > **Storage + consumption model (this doc):** enrichment is committed to a **mirror
@@ -30,7 +30,7 @@
 >
 > **Deferred refinements (design-stage below):** **MD003** (pool values validate —
 > needs the runtime validator), the always-on *Vite-build* surfacing of the
-> `FT0xx`/`MD0xx` diagnostics (today they run via the `check` CLI, not the build),
+> `FT0xx`/`MD0xx` diagnostics (today they run via the `enrich --no-emit` CLI mode, not the build),
 > `FT004`/`MD002` (the precise types already make TS catch these), `FT010`/`MD010`
 > drift + `MD004`, and the `$[val]` enrichment. Sections describing those note it.
 
@@ -56,11 +56,13 @@ All of it lives only as regenerated files under the gitignored
 So these are **satellite artifacts keyed by a type**: authored once, committed,
 and validated against the type forever after. They are *not* a code-emit family
 like `validate`/`json`/`binary` — there is no runtime codegen and nothing on the
-hot Vite path. The compiler's only jobs are (1) **`gen`** — emit a committed
-skeleton from the live type, and (2) **`check`** — validate the authored literal
+hot Vite path. The compiler's only jobs are (1) **`enrich`** — emit a committed
+skeleton from the live type, and (2) **`enrich --no-emit`** — validate the authored literal
 against the live type. Consumers reach the result through an ordinary committed
 `import`, not through any id-routing or injection. This makes the feature a
-*generation + validation + authoring* concern, entirely CLI-driven.
+*generation + validation + authoring* concern, primarily CLI-driven — the CLI verbs
+are the authoring path, and an opt-in bundler-plugin option can drive the same
+scaffold + sync (no translation content) in dev/watch.
 
 ### Persistence invariant — committed artifacts get committed links
 
@@ -102,7 +104,7 @@ One recursive node. Every node is `{ rt$label, rt$errors, ...childFields }`:
 `rt$`-prefixed keys are meta, every other key is a child field. Leaf nodes simply
 have no children, so nesting is uniform with no `fields:` wrapper. The `rt$`
 prefix is RESERVED: a source-type property named `rt$…` cannot be enriched —
-`gen` refuses it and `check` reports FT011 (friendly) / MD011 (mock). A plain
+`enrich` refuses it and `enrich --no-emit` reports FT011 (friendly) / MD011 (mock). A plain
 `$`-prefixed property is an ordinary field.
 
 ```ts
@@ -238,7 +240,7 @@ Templates are plain strings with `$[…]` tokens, validated by the compiler:
 - `$[path]`  — dotted path to the field.
 - `$[index]` — array element index, for `rt$items` failures.
 
-Two template extensions shipped with the i18n layer — both validated by `check`,
+Two template extensions shipped with the i18n layer — both validated by `enrich --no-emit`,
 both legal in single-locale maps too:
 
 - **Plural templates.** A **count-bearing** constraint (`minLength` / `maxLength` /
@@ -246,7 +248,7 @@ both legal in single-locale maps too:
   [`ts-go-runtypes/internal/enrichment/classify.go`](../ts-go-runtypes/internal/enrichment/classify.go), read by emitter
   and checker alike so they can never disagree) may carry a plural OBJECT instead
   of a plain string: `minLength: {one: '…', other: '…'}`. Arm keys are CLDR
-  cardinal categories; only `other` is mandatory (FT006); `gen` scaffolds the arm
+  cardinal categories; only `other` is mandatory (FT006); `enrich` scaffolds the arm
   set of the source locale (tsconfig `i18n.sourceLocale`, default `en` — built-in
   CLDR table in [`ts-go-runtypes/internal/enrichment/cldr/`](../ts-go-runtypes/internal/enrichment/cldr/) covering
   en/es/zh/hi/ar/pt/ru/ja/de/fr/pl, all six categories for any other locale). The
@@ -289,7 +291,7 @@ record types. `rt$default` is plain data, so it stays translatable and
 reconcilable; there is NO function-form `rt$errors` (an inline arrow was the v1
 escape hatch — removed: opaque to translation, reconcile and the checker).
 
-Which mode `gen` scaffolds for a NEW node is the tsconfig plugin entry's
+Which mode `enrich` scaffolds for a NEW node is the tsconfig plugin entry's
 top-level `friendlyErrors` knob (`"perConstraint"` default | `"default"`). Once
 a node exists its authored mode is author-owned: every later sync follows it,
 and a `rt$default`-only node is never descended by the `rt$errors` reconcile.
@@ -423,7 +425,7 @@ export type MockData<T> = MockNode<T>;
 
 ---
 
-## Validation — the `check` command (build surfacing deferred)
+## Validation — the `enrich --no-emit` mode (build surfacing deferred)
 
 > **Most drift is already caught by TypeScript itself.** Because `FriendlyText<T>`
 > / `MockData<T>` are *precise* mapped types, the user's own type-checker rejects
@@ -436,7 +438,7 @@ export type MockData<T> = MockNode<T>;
 > validation (MD003), and the semantic-drift hash (FT010/MD010). The feature is
 > already useful with just the types + the editor; the pass sharpens the diagnostics.
 
-**Implemented today as the `check` CLI command** (not yet the Vite build). It finds
+**Implemented today as the `enrich --no-emit` CLI mode** (not yet the Vite build). It finds
 `FriendlyText<T>` / `MockData<T>` const declarations, resolves `T`'s `RunType`, and
 runs a **kind-switch paired walk** of the authored object-literal against the
 `RunType` — the emitter convention, in
@@ -449,21 +451,21 @@ annotation as one more marker arm during the normal scan and emit on the existin
 `Diagnostic[]` channel so findings surface in Vite/HMR like today's `VL0xx` warnings
 — a **new shape-aware comptime axis** (`ShapeCheckedArgs<T>`) where `CompTimeArgs`
 today only checks *literalness* but this also cross-references the literal's keys
-against `T`'s children and formats. The walk logic is identical to `check`; only the
+against `T`'s children and formats. The walk logic is identical to `enrich --no-emit`; only the
 trigger differs (CLI vs build scan).
 
 ### `FriendlyText` diagnostics
 
 | Code      | Severity | Status | Meaning                                                                       |
 | --------- | -------- | ------ | ---------------------------------------------------------------------------- |
-| **FT002** | Error    | ✅ `check` | key is not a field of `T` — stale (field renamed/removed)              |
-| **FT003** | Warning  | ✅ `check` | `rt$errors` key isn't a constraint this field's format declares (Go has `FormatAnnotation.Params`, so the exact set is known) |
-| **FT005** | Warning  | ✅ `check` | unknown `$[…]` placeholder for this constraint/context — covers each plural ARM's placeholders; any leftover colon-form `$[val:kind:name]` token (the REMOVED named-format syntax) is flagged with a pointer to plain `$[val]` |
-| **FT006** | Error    | ✅ `check` | plural template missing the mandatory `other` arm (the render backstop) |
-| **FT007** | Warning  | ✅ `check` | plural arm key is not a CLDR cardinal category (`zero`/`one`/`two`/`few`/`many`/`other`) |
-| **FT008** | Warning  | ✅ `check` | plural object on a non-count-bearing constraint — dead arms, only `other` ever renders; use a plain string |
-| **FT009** | Error    | ✅ `check` | `rt$default` beside any other `rt$errors` key — the catch-all and per-constraint modes are mutually exclusive |
-| **FT011** | Error    | ✅ `check` | a property of `T` is named `rt$…` — collides with the reserved enrichment meta prefix (`gen` refuses such a type up front) |
+| **FT002** | Error    | ✅ `enrich --no-emit` | key is not a field of `T` — stale (field renamed/removed)              |
+| **FT003** | Warning  | ✅ `enrich --no-emit` | `rt$errors` key isn't a constraint this field's format declares (Go has `FormatAnnotation.Params`, so the exact set is known) |
+| **FT005** | Warning  | ✅ `enrich --no-emit` | unknown `$[…]` placeholder for this constraint/context — covers each plural ARM's placeholders; any leftover colon-form `$[val:kind:name]` token (the REMOVED named-format syntax) is flagged with a pointer to plain `$[val]` |
+| **FT006** | Error    | ✅ `enrich --no-emit` | plural template missing the mandatory `other` arm (the render backstop) |
+| **FT007** | Warning  | ✅ `enrich --no-emit` | plural arm key is not a CLDR cardinal category (`zero`/`one`/`two`/`few`/`many`/`other`) |
+| **FT008** | Warning  | ✅ `enrich --no-emit` | plural object on a non-count-bearing constraint — dead arms, only `other` ever renders; use a plain string |
+| **FT009** | Error    | ✅ `enrich --no-emit` | `rt$default` beside any other `rt$errors` key — the catch-all and per-constraint modes are mutually exclusive |
+| **FT011** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — collides with the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
 | **FT001** | Info     | deferred | field of `T` has no label (renders the raw name)                       |
 | **FT004** | Error    | deferred (TS catches) | structural mismatch (object node where `T` is scalar)     |
 | **FT010** | Info     | deferred | `T`'s structural id changed since authored — review for semantic drift |
@@ -472,8 +474,8 @@ trigger differs (CLI vs build scan).
 
 | Code      | Severity | Status | Meaning                                                            |
 | --------- | -------- | ------ | ----------------------------------------------------------------- |
-| **MD001** | Error    | ✅ `check` | key is not a field of `T`                                      |
-| **MD011** | Error    | ✅ `check` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`gen` refuses such a type up front) |
+| **MD001** | Error    | ✅ `enrich --no-emit` | key is not a field of `T`                                      |
+| **MD011** | Error    | ✅ `enrich --no-emit` | a property of `T` is named `rt$…` — the reserved enrichment meta prefix (`enrich` refuses such a type up front) |
 | **MD002** | Error    | deferred (TS catches) | structural mismatch                               |
 | **MD003** | Error    | deferred (needs validator) | a pool/range value **fails validation** against the field's type/format |
 | **MD004** | Warning  | deferred | `min > max`, or `rt$length` inverted                              |
@@ -494,55 +496,59 @@ CLI (below) rather than scraping editor output.
 
 | Command                                         | Purpose                                                                                   |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `ts-runtypes check [<dir>]`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
-| `ts-runtypes check <file> --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
-| `ts-runtypes gen <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `check`. See `gen` semantics below. |
-| `ts-runtypes gen --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
-| `ts-runtypes check --translate <locale>` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
+| `ts-runtypes enrich [<dir>] --no-emit`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
+| `ts-runtypes enrich <file> --no-emit --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
+| `ts-runtypes enrich <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `enrich --no-emit`. See `enrich` semantics below. |
+| `ts-runtypes enrich --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
+| `ts-runtypes enrich --translate <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
-Both are **implemented** as out-of-band CLI modes of the Go binary. Validation
-runs via the `check` verb (CI / agents); surfacing the same FT/MD diagnostics
-*always-on during a Vite build* is the deferred integration (see Validation below).
+Both run as out-of-band CLI modes of the Go binary (an opt-in bundler-plugin option
+can additionally drive the mechanical scaffold + sync — not translation, not the LLM
+step — in dev/watch). Validation runs via `enrich --no-emit` (CI / agents); surfacing
+the same FT/MD diagnostics *always-on during a Vite build* is the deferred integration
+(see Validation below).
 
 ### The agent loop — the compiler as a tool for the LLM
 
 ```
-gen ./models/user.ts#User  ──►  agent writes/patches the mirror file  ──►  check --file <mirror> --json
-   ▲                                                                       │
-   └─────────────────────────  loop until clean  ◄─────────────────────────┘
+enrich ./models/user.ts#User  ──►  agent writes/patches the mirror file  ──►  enrich --file <mirror> --no-emit --json
+   ▲                                                                          │
+   └─────────────────────────  loop until clean  ◄────────────────────────────┘
                                        │
                         human reviews the diff, commits
 ```
 
-`check --file --json` is the ground-truth
+`enrich --file --no-emit --json` is the ground-truth
 correctness check. The Go binary already runs as a long-lived process under the
-plugin, so `check --file` is a cheap incremental op. The same two ops are exactly
+plugin, so `enrich --file --no-emit` is a cheap incremental op. The same two ops are exactly
 what you'd expose as **MCP tools** so any agent (Claude Code, Cursor, your own)
 can drive generation, vendor-neutral.
 
 ### Process model — where each command runs (decided)
 
-**No new binary, all Go-side, CLI-arg-driven.** `check` / `gen` are
+**No new binary, all Go-side, CLI-arg-driven.** `enrich` / `enrich --no-emit` are
 new **command-line modes** of the existing binary (`main.go` is flag-only today —
-add subcommand/positional dispatch). They are **out-of-band, one-shot commands a
-developer or agent runs deliberately — NOT part of the Vite build.** The Vite
-resolver process is untouched and writes no enrichment files; "build time" is the
-wrong label for generation.
+add subcommand/positional dispatch). They are primarily **out-of-band, one-shot
+commands a developer or agent runs deliberately** — though an **opt-in
+bundler-plugin option** can drive the same mechanical scaffold + sync (no
+translation content) in dev/watch. By default the Vite resolver process is
+untouched and writes no enrichment files; "build time" is the wrong label for the
+LLM-backed generation.
 
-- **The `gen` codegen emitter lives in Go.** It walks the `RunType` graph — a giant
+- **The `enrich` codegen emitter lives in Go.** It walks the `RunType` graph — a giant
   `switch` over `RunType.kind`, the same emitter pattern as
   [`serialize.go`](../ts-go-runtypes/internal/cachegen/runtype/serialize.go) and the typefns
   families — and **emits new mirror files under `genDir` or appends to existing
   ones**. Keeping it Go-side reuses that walk; doing it in JS would mean shipping the graph to Node and
   re-implementing the kind-switch — duplicating the emitter for nothing. Because
-  `gen` is one-shot (not a tight loop), paying the `Program` build per invocation is
+  `enrich` is one-shot (not a tight loop), paying the `Program` build per invocation is
   fine — it builds, walks, writes, exits.
-- **`check` is the same kind-switch walk** (output: JSON
+- **`enrich --no-emit` is the same kind-switch walk** (output: JSON
   / diagnostics rather than files). Today it is a one-shot CLI run (build, walk,
   emit, exit). For a tight agent loop that wants it fast and repeated, keeping one
   warm `Program` alive across calls is the natural optimization — planned as exposing
   the verb over the same `serve` protocol the bundler plugin already drives (so the
-  warm resolver serves it without a fresh build per call). `check`'s analysis is the
+  warm resolver serves it without a fresh build per call). `enrich --no-emit`'s analysis is the
   *same* validation the always-on scan runs during a real Vite build; the CLI just runs
   it standalone.
 - **Public surface stays in the npm package** via a thin `ts-runtypes` bin that
@@ -576,8 +582,8 @@ tree entirely.
 <rootDir>/services/userApi.ts     createMockDataFn<User>()        ← consumer
 <rootDir>/test/fixtures.ts        createMockDataFn<User>()        ← consumer
                                   ──────────────────────────────────
-gen ⇒  <genDir>/enriched/friendly/models/user.ts   export const friendlyUser: FriendlyText<User> = { … }
-       <genDir>/enriched/mock/models/user.ts       export const mockUser:     MockData<User>     = { … }
+enrich ⇒  <genDir>/enriched/friendly/models/user.ts   export const friendlyUser: FriendlyText<User> = { … }
+          <genDir>/enriched/mock/models/user.ts       export const mockUser:     MockData<User>     = { … }
                                   (ONE mirror file per family, at the definition's mirror path)
 ```
 
@@ -645,11 +651,11 @@ at the source file (strictly `import type`, so no value-level cycle source→mir
 source can form); it is best-effort — if a consumed type isn't exported, the
 generated file simply fails to compile and the user fixes the export. That same
 `import type` line doubles as the **breadcrumb** for drift detection (see
-[`gen` semantics](#gen-semantics)).
+[`enrich` semantics](#enrich-semantics)).
 
 **Migrating a pre-split combined mirror.** A legacy mirror (one file at the
 no-family path holding both `friendly*` and `mock*` consts) is migrated
-automatically — once — by the next `gen` run over its source: every const, marker,
+automatically — once — by the next `enrich` run over its source: every const, marker,
 hand-written comment and `@rtOrphan` carcass is carried VERBATIM into its family's
 file, the source breadcrumb is recomputed for the one-directory-deeper location
 (cross-mirror value-import specifiers are untouched — both endpoints move down one
@@ -658,7 +664,7 @@ the legacy file is deleted (`SplitCombined` in
 [`ts-go-runtypes/internal/enrichment/mirror/split.go`](../ts-go-runtypes/internal/enrichment/mirror/split.go)). The
 guards are conservative: the legacy file's breadcrumb must resolve back to the
 same source, and an existing family file is never overwritten (a stderr warning
-asks for a hand-merge instead). Until migrated, `check` flags a combined
+asks for a hand-merge instead). Until migrated, `enrich --no-emit` flags a combined
 mirror as **GE001** location drift. `--out <path>` keeps the old combined
 single-file layout as an explicit escape hatch.
 
@@ -713,34 +719,34 @@ emitter and the DSL types now agree structurally for every kind.
 | `FriendlyText<T>`| **any** type referenced by **any** RunTypes marker (broad — friendly also serves future UI, so we scaffold eagerly) |
 | `MockData<T>`    | only types consumed by a **`createMockDataFn`** call (demand-driven by the mock consumer) |
 
-### `gen` semantics
+### `enrich` semantics
 
 - **Best-effort.** Emits the mirror file + `import type`; broken exports are the
   user's to fix.
-- **Create-only by default.** Without `--update`, `gen` detects existing entries
+- **Create-only by default.** Without `--update`, `enrich` detects existing entries
   (regex on the export name); if present, it **skips** them and appends only
   missing entries. It never rewrites existing content — those files are
   hand-editable and AI-authored. **`--update` opts into reconcile** (below): a
   surgical, value-preserving merge of an existing mirror against the regenerated
   desired set.
-- **Stable names — `gen` never edits hand-authored source.** Once a mirror file
-  exists, `gen` does not rename or relocate it on a source rename, and never touches
-  the consumer's `import`. This keeps the "`gen` only ever writes inside `genDir`"
+- **Stable names — `enrich` never edits hand-authored source.** Once a mirror file
+  exists, `enrich` does not rename or relocate it on a source rename, and never touches
+  the consumer's `import`. This keeps the "`enrich` only ever writes inside `genDir`"
   property intact (itself part of the persistence invariant: the committed imports
-  are the *user's* to own, not `gen`'s to rewrite).
-- **`check` — drift detection via the breadcrumb.** Each mirror file's
+  are the *user's* to own, not `enrich`'s to rewrite).
+- **`enrich --no-emit` — drift detection via the breadcrumb.** Each mirror file's
   `import type { … } from '<src>'` is an IDE-maintained breadcrumb: on an IDE-driven
   source rename/move it is auto-updated to the new path, so the consumer's value
   import (pointing at the *mirror* file, which did not move) keeps working — nothing
-  breaks. `check` resolves each breadcrumb and **warns** when a mirror file's
+  breaks. `enrich --no-emit` resolves each breadcrumb and **warns** when a mirror file's
   location no longer matches its source (cosmetic drift), or **errors** when the
   breadcrumb resolves to nothing (the source type was deleted → orphaned mirror) or
   the source no longer declares the type. A non-IDE rename (`git mv`, find/replace)
-  leaves a dangling breadcrumb that `check` flags for a manual `gen`.
+  leaves a dangling breadcrumb that `enrich --no-emit` flags for a manual `enrich`.
 
-### `gen --update` — reconcile (value-preserving merge)
+### `enrich --update` — reconcile (value-preserving merge)
 
-`gen <file> <Type> --update` reconciles an EXISTING committed mirror against the
+`enrich <file> <Type> --update` reconciles an EXISTING committed mirror against the
 freshly regenerated desired set, instead of skipping it (create-only) or
 clobbering it. It is **mutually exclusive** with `--files` (fatal
 if combined) and honors `--out` / `--gen-dir` / `--mock` / `--friendly`. An
@@ -832,7 +838,7 @@ instead of leaving it dangling.
 7. **Import sync**: missing cross-file value imports are added; the breadcrumb
    `{ … }` clause is recomputed from the surviving + desired type names declared
    in this file and replaced **in place** — `from '<src>'` is **never rewritten**
-   (that is a `check` concern, and the breadcrumb is the user's IDE-managed
+   (that is an `enrich --no-emit` concern, and the breadcrumb is the user's IDE-managed
    link).
 
 All edits go through a purpose-built **splicer**: `{start, end, text}` ops sorted
@@ -846,9 +852,9 @@ a **byte-identical no-op**. (The merge compares field-key sets via the parsed
 AST; it never touches a leaf's bytes, so whitespace inside string/template
 literals can never fool it.)
 
-### `gen --prune` — the only destructive op
+### `enrich --prune` — the only destructive op
 
-`gen --prune [<mirror-file-or-dir>]` strips every `@rtOrphan` / `@rtOrphanChild`
+`enrich --prune [<mirror-file-or-dir>]` strips every `@rtOrphan` / `@rtOrphanChild`
 comment (whole-const carcasses and inline dropped-field carcasses alike) and the
 commented-out code they carry, reporting what was removed per file. It is the
 **only** path that truly deletes content — the reconcile only ever *comments
@@ -866,11 +872,11 @@ absent — zero change for a project that never translates), and the source
 anything unfilled falls back to it at render time.
 
 ```
-ts-runtypes gen   --translate <locale> [<src.ts>]            # scaffold (create-only)
-ts-runtypes gen   --translate <locale> --update [<src.ts>]   # reconcile from the SOURCE TYPE
-ts-runtypes gen   --translate <locale> --prune  [<src.ts>]   # strip @rtOrphan carcasses (the only delete)
-ts-runtypes gen   --translate all [--update]                 # fan out over tsconfig i18n.locales
-ts-runtypes check --translate <locale|all>                   # completeness gate (CI)
+ts-runtypes enrich --translate <locale> [<src.ts>]           # scaffold (create-only)
+ts-runtypes enrich --translate <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+ts-runtypes enrich --translate <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+ts-runtypes enrich --translate all [--update]                # fan out over tsconfig i18n.locales
+ts-runtypes enrich --translate <locale|all> --no-emit        # completeness gate (CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — derived
@@ -907,7 +913,7 @@ generation of another, so the generated dirs can be treated as write-only.
 - **Plural arms are LOCALE-OWNED.** Never orphaned, never rename-paired, never
   down-scoped; a translator-pruned arm stays pruned — only the mandatory
   `other` backstop is ever re-inserted.
-- **`check --translate` findings:** **TR001** missing translation file, **TR002**
+- **`enrich --translate --no-emit` findings:** **TR001** missing translation file, **TR002**
   unfilled `@todo` blanks, **TR003** out of date vs the source TYPE (a
   src-driven reconcile would change the file), **TR004** orphan carcasses
   awaiting review / `--prune`. All Warnings (exit 0) unless tsconfig
@@ -919,7 +925,7 @@ generation of another, so the generated dirs can be treated as write-only.
   "i18n": {
     "sourceLocale": "en",              // language the source FriendlyText maps are written in
     "locales": ["es", "pl", "pt-BR"],  // target locales (the source locale is NOT listed)
-    "strict": false                    // check --translate gate severity (CI)
+    "strict": false                    // enrich --translate --no-emit gate severity (CI)
   }
   ```
 
@@ -953,7 +959,7 @@ for its own types — so we must never blindly generate over it. That makes
 external-type enrichment a lookup-precedence problem. **Enrichment for `T`, first
 match wins:**
 
-1. **`T` defined in your source** → its mirror file under `genDir`. *(generated by `gen`)*
+1. **`T` defined in your source** → its mirror file under `genDir`. *(generated by `enrich`)*
 2. **`T` from a dependency that ships enrichment** → use the library's named enrichment exports. *(read-only — we consume, never generate)*
 3. **`T` from a dependency, user opted in** via a `@rtEnrich` JSDoc tag → user-authored override in a configured dir (`rt-overrides/`). *(opt-in only)*
 4. **No match** → emit nothing; factories fall back (mock = mechanical `createMockDataFn`; friendly = raw field names).
@@ -997,7 +1003,7 @@ const friendly = createFriendlyText<User>(friendlyUser);
 
 `createFriendlyText<T>(map)` and `createMockDataFn<T>({ data })` are already **explicit**
 in their shipped signatures (the map/data are real arguments), so this model is the
-*smaller* change — the engine is untouched; the only new machinery is `gen`
+*smaller* change — the engine is untouched; the only new machinery is `enrich`
 producing the committed mirror files. `createFriendlyText` stays a pure-data function
 (no marker, no type id); `createMockDataFn<T>` keeps its runtype injection (that is the
 *ephemeral* cache, correctly invisible), with `data` as the *committed* import.
@@ -1010,7 +1016,7 @@ resolved mirror file — was considered and rejected. It violates the
 it would hide a committed dependency behind the same invisible channel that carries
 ephemeral cache links, so a reader could not distinguish the two. The explicit import
 also wins on the lifecycle: it is the *value* import (to the mirror file, which
-`gen`'s stable-names policy never moves) so it survives source renames untouched,
+`enrich`'s stable-names policy never moves) so it survives source renames untouched,
 goes to definition, and works under plain `tsc` with no plugin. Injection stays
 exclusively for the ephemeral cache.
 
@@ -1047,7 +1053,7 @@ production graph. No special registration-gating mechanism required.
   A small, localized change to the format-error emit in
   [`ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go`](../ts-go-runtypes/internal/cachegen/typefunctions/formats/emit.go).
 - **No new emit family.** Unlike `validate`/`json`/`binary`, this feature adds **no**
-  runtime codegen and nothing on the hot Vite path. The `gen` skeleton emitter is a
+  runtime codegen and nothing on the hot Vite path. The `enrich` skeleton emitter is a
   one-shot CLI walk; there is no per-build emitter, no id-routing, and no registry.
   Keep it out of the `operations` / `typefns.Families` registries.
 
@@ -1069,7 +1075,7 @@ overall architecture) and documented here:
   plural error templates are generator-owned (CLDR arms per locale,
   count-bearing constraints only); `createFriendlyTextI18n(source,
   { locale, translations })` renders with per-leaf fallback to the source map;
-  `gen --translate` / `check --translate` drive scaffold, reconcile, and the CI
+  `enrich --translate` / `enrich --translate --no-emit` drive scaffold, reconcile, and the CI
   completeness gate.
 - **`$[value]`** (the actual received value) in templates — needs the input threaded
   into the renderer or added to `RTValidationError`. Revisit with the `$[val]` enrichment.

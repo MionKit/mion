@@ -1,6 +1,6 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`gen` / `gen --update` / `gen --prune` / `check`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
+description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
 ---
 
 # RunTypes enrichment — the compiler scaffolds, you fill the blanks
@@ -17,20 +17,20 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
 
 ## The loop
 
-1. **`gen`** — the compiler scaffolds the mirror file: one entry per field, correctly
+1. **`enrich`** — the compiler scaffolds the mirror file: one entry per field, correctly
    typed, each blank marked `@todo`.
 2. **Fill the `@todo`s** — write the labels, messages, and sample values; delete each
    `@todo` line as you finish it.
-3. **`check`** — the compiler validates every authored value against the live type.
+3. **`enrich --no-emit`** — the compiler validates every authored value against the live type.
    Fix anything it flags, repeat until clean.
-4. **`gen --update`** — when the type later changes, re-sync the file _value-preservingly_
+4. **`enrich --update`** — when the type later changes, re-sync the file _value-preservingly_
    (property merge + field rename + orphaning); fill any new `@todo`s it adds.
-5. **`gen --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
+5. **`enrich --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
    carcasses left by deleted types/fields.
-6. **`gen --translate <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
+6. **`enrich --translate <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
    or prune the per-locale translation files of the friendly maps (see **Translations**
    below).
-7. **`check --translate <locale|all>`** — the translation completeness gate for CI
+7. **`enrich --translate <locale|all> --no-emit`** — the translation completeness gate for CI
    (TR001–TR004; see **Translations** below).
 
 Every verb takes **`--tsconfig <path>`**. Without it the CLI finds the config exactly as
@@ -54,11 +54,11 @@ consts (`FriendlyText<Name>`) in `<genDir>/enriched/friendly/models/user.ts` and
 file, anchored at the type's **definition** (not its call sites); the two families never
 share a file, and each family file imports only its own wrapper type.
 
-A pre-split combined mirror is migrated automatically on the next `gen` run over that
+A pre-split combined mirror is migrated automatically on the next `enrich` run over that
 source: every const, marker, comment and `@rtOrphan` carcass is carried verbatim into its
 family's file, the source breadcrumb import is recomputed, and the old combined file is
 deleted (an existing family file is never overwritten — a warning is printed instead).
-`check` flags a pre-split combined mirror as GE001 location drift. `--out` keeps the
+`enrich --no-emit` flags a pre-split combined mirror as GE001 location drift. `--out` keeps the
 old combined single-file behavior as an explicit escape hatch.
 
 Each family file holds a strict `import type` back to the source (the rename
@@ -127,11 +127,11 @@ the friendly mirror itself; the mirror is a discovery input only (which sources
 translate), never a content input.
 
 ```
-ts-runtypes gen   --translate <locale> [<src.ts>]            # scaffold (create-only)
-ts-runtypes gen   --translate <locale> --update [<src.ts>]   # reconcile from the SOURCE TYPE
-ts-runtypes gen   --translate <locale> --prune  [<src.ts>]   # strip @rtOrphan carcasses (the only delete)
-ts-runtypes gen   --translate all [--update]                 # fan out over tsconfig i18n.locales
-ts-runtypes check --translate <locale|all>                   # completeness gate (CI)
+ts-runtypes enrich --translate <locale> [<src.ts>]           # scaffold (create-only)
+ts-runtypes enrich --translate <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+ts-runtypes enrich --translate <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+ts-runtypes enrich --translate all [--update]                # fan out over tsconfig i18n.locales
+ts-runtypes enrich --translate <locale|all> --no-emit        # completeness gate (CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — path math over
@@ -141,7 +141,7 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
   plural arm as an `@todo` blank (`''`); it NEVER copies source text as if translated.
   The authoring rules (translate only blank leaves, arms are locale-owned, prune
   freely) are in the **`runtypes-friendly-type`** skill's Translations section.
-- **`--update`** — the same value-preserving reconcile as `gen --update` (one driver for
+- **`--update`** — the same value-preserving reconcile as `enrich --update` (one driver for
   every friendly-family file), including the one-level `rt$errors` descent: a newly
   declared constraint key arrives as a blank of the right kind (string, or a plural with
   THAT FILE's locale arms); a dropped RECOGNIZED constraint key becomes an
@@ -150,7 +150,7 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
   orphaned, renamed, or down-scoped. Type renames carry across locales via the shared
   `@rtType` id (const, annotation, marker AND intra-file references are renamed in
   place).
-- **`check --translate` findings** — TR001 missing translation file; TR002 unfilled
+- **`enrich --translate --no-emit` findings** — TR001 missing translation file; TR002 unfilled
   `@todo` blanks; TR003 out of date vs the SOURCE TYPE (a src-driven reconcile would
   change the file); TR004 orphan carcasses awaiting review/prune. All Warnings (exit 0)
   unless tsconfig `i18n.strict: true` flips them to Errors (exit 1); the runtime is
@@ -167,7 +167,7 @@ zero change when absent):
     "sourceLocale": "en", // language the source FriendlyText maps are written in
     "dir": "src/__runtypes/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
     "locales": ["es", "pl", "pt-BR"], // target locales (the source locale is NOT listed)
-    "strict": false, // check --translate gate severity (CI)
+    "strict": false, // enrich --translate --no-emit gate severity (CI)
   },
 }
 ```
@@ -186,13 +186,13 @@ structure + format-correctness, you supply _believable_ values. The full authori
 
 ## Authoring checklist
 
-- The `gen` scaffold lays out every field; write values that fit each field's kind + format.
+- The `enrich` scaffold lays out every field; write values that fit each field's kind + format.
 - Fill **every `@todo`** the scaffold left, then **delete that `@todo` line**.
 - Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks — the compiler
   owns them; `--prune` clears orphans.
-- After editing, run `check` (and `check --translate` for translations) and resolve
+- After editing, run `enrich --no-emit` (and `enrich --translate --no-emit` for translations) and resolve
   every Error before committing.
-- When the type changes, prefer `gen --update` (keeps your values) over regenerating.
+- When the type changes, prefer `enrich --update` (keeps your values) over regenerating.
 - The family-specific rules — friendly constraint keys, plural arms, translation fill
   discipline, mock pools/ranges — are in the **`runtypes-friendly-type`** and
   **`runtypes-mock-data`** skills' checklists.
