@@ -24,12 +24,13 @@ import (
 
 // runSingleFileCheck is the `enrich <file> --no-emit` lane: build a Program over
 // the mirror file and run the shared enrichgen.CheckFile, reporting its
-// diagnostics. Exits 1 when any Error-severity diagnostic is present.
-func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON bool) {
+// diagnostics. Exits 1 on any WRONG/stale finding; under requireComplete an
+// unfilled @todo also fails.
+func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON, requireComplete bool) {
 	absPath := tspath.NormalizePath(mustAbs(fileArg))
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(absPath, "", tsconfigPath, parsed)
-	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength), asJSON))
+	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength), asJSON, requireComplete))
 }
 
 // checkMirrorFilesDiagnostics builds ONE inferred Program over the given mirror
@@ -70,10 +71,15 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig,
 
 // reportEnrichDiagnostics prints the diagnostics (text via diagnostics.FormatDebug
 // — the same rendering compile uses — or JSON) plus the stderr summary, and
-// returns the process exit code (1 when any Error-severity diagnostic is present).
+// returns the process exit code. The gate is TWO-TIER: a WRONG/stale finding
+// (malformed content, orphan carcass, breadcrumb drift) always fails; an
+// INCOMPLETE finding (unfilled @todo scaffold — diagnostics.IsCompleteness) fails
+// ONLY when requireComplete is set (`enrich --require-complete`). So the default
+// health check tolerates the expected @todo blanks a fresh scaffold leaves, while
+// the completeness gate rejects them.
 // An empty JSON report marshals to `null` (a nil slice), matching the health
 // harness's `JSON.parse(stdout || 'null')`.
-func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON bool) int {
+func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON, requireComplete bool) int {
 	sort.SliceStable(diags, func(left, right int) bool {
 		leftSite, rightSite := diags[left].Site, diags[right].Site
 		if leftSite.FilePath != rightSite.FilePath {
@@ -90,9 +96,15 @@ func reportEnrichDiagnostics(diags []diagnostics.Diagnostic, asJSON bool) int {
 
 	hasError := false
 	for _, diag := range diags {
-		if diag.Severity == diagnostics.SeverityError {
-			hasError = true
+		if diag.Severity != diagnostics.SeverityError {
+			continue
 		}
+		// Completeness findings (unfilled @todo) only fail under --require-complete;
+		// the default health check reports them but exits 0.
+		if !requireComplete && diagnostics.IsCompleteness(diag.Code) {
+			continue
+		}
+		hasError = true
 	}
 
 	if asJSON {

@@ -83,6 +83,7 @@ func runEnrich(args []string) {
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	asJSON := fs.Bool("json", false, "emit check diagnostics as a JSON array (the check-only / --no-emit lanes)")
 	noEmit := fs.Bool("no-emit", false, "report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)")
+	requireComplete := fs.Bool("require-complete", false, "completeness gate: also FAIL on INCOMPLETE enrichment (unfilled @todo scaffolds, missing/out-of-date translations), not just wrong/stale content; implies --no-emit (never writes)")
 	fs.Usage = func() {
 		printUsage(fs, `ts-runtypes enrich — scaffold / reconcile / check the enrichment mirror files
 
@@ -94,8 +95,11 @@ Usage:
        or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
        or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
        or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
+       or: ts-runtypes enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
 
 --no-emit turns any write lane into a diagnostics-only pass — nothing is written.
+--no-emit reports wrong/stale content (fails) AND unfilled @todo scaffolds (does NOT fail).
+--require-complete adds the @todo / missing-translation blanks to the failing set (implies --no-emit).
 `)
 	}
 	positional, flags := splitArgs(args)
@@ -103,15 +107,20 @@ Usage:
 		fatal("enrich: %v", err)
 	}
 
+	// --require-complete is a check modifier: it never writes (implies --no-emit)
+	// and additionally fails on the completeness tier. checkOnly is the effective
+	// "diagnostics-only, no writes" signal every lane reads.
+	checkOnly := *noEmit || *requireComplete
+
 	// --i18n is its own lane: the desired side is the friendly source mirror, never
-	// the type graph — so it excludes the type-driven modes. --no-emit runs the i18n
-	// completeness gate instead of writing.
+	// the type graph — so it excludes the type-driven modes. A check flag runs the
+	// i18n completeness gate instead of writing.
 	if *i18n != "" {
 		if *files != "" || *mock || *friendly || *out != "" {
-			fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit")
+			fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit / --require-complete")
 		}
-		if *noEmit {
-			runCheckTranslate(*i18n, *genDirFlag, *tsconfigFlag)
+		if checkOnly {
+			runCheckTranslate(*i18n, *genDirFlag, *tsconfigFlag, *requireComplete)
 		} else {
 			runGenTranslate(*i18n, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
 		}
@@ -127,7 +136,7 @@ Usage:
 		if *update {
 			fatal("enrich: --prune cannot be combined with --update")
 		}
-		runEnrichPrune(positional, *genDirFlag, *tsconfigFlag, *noEmit)
+		runEnrichPrune(positional, *genDirFlag, *tsconfigFlag, checkOnly)
 		return
 	}
 
@@ -140,17 +149,17 @@ Usage:
 		return
 	}
 
-	// A <file> <Type> pair is a scaffold target: it writes (or, under --no-emit,
+	// A <file> <Type> pair is a scaffold target: it writes (or, under a check flag,
 	// reports the target's mirror diagnostics without writing).
 	if len(positional) >= 2 {
-		runEnrichScaffold(positional[0], positional[1], *mock, *friendly, *out, *update, *genDirFlag, *tsconfigFlag, *asJSON, *noEmit)
+		runEnrichScaffold(positional[0], positional[1], *mock, *friendly, *out, *update, *genDirFlag, *tsconfigFlag, *asJSON, checkOnly, *requireComplete)
 		return
 	}
 
-	// A bare file / dir / no positional is a check-only target — it REQUIRES
-	// --no-emit (tsc --noEmit-style), which also disambiguates a <file> given
+	// A bare file / dir / no positional is a check-only target — it REQUIRES a check
+	// flag (--no-emit or --require-complete), which also disambiguates a <file> given
 	// without a <Type> to scaffold.
-	if !*noEmit {
+	if !checkOnly {
 		if len(positional) == 1 {
 			fatal("enrich: %s: provide a Type to scaffold (enrich <file> <Type>), or --no-emit to check the file", positional[0])
 		}
@@ -158,18 +167,19 @@ Usage:
 		os.Exit(2)
 	}
 	if len(positional) == 1 && !isDirArg(positional[0]) {
-		runSingleFileCheck(positional[0], *tsconfigFlag, *asJSON)
+		runSingleFileCheck(positional[0], *tsconfigFlag, *asJSON, *requireComplete)
 		return
 	}
-	runGenCheck(positional, *genDirFlag, *asJSON, *tsconfigFlag)
+	runGenCheck(positional, *genDirFlag, *asJSON, *requireComplete, *tsconfigFlag)
 }
 
 // runEnrichScaffold is the `enrich <file> <Type>` write lane: resolve the type,
 // plan the mirror specs via the shared enrichgen.Plan, write (or reconcile) each
 // mirror, then run the shared health pass over the resulting mirrors and emit its
-// diagnostics — the freshly-scaffolded @todo worklist, in the same pass. Under
-// --no-emit it writes nothing and reports the target mirrors' diagnostics only.
-func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string, update bool, genDirFlag, tsconfigFlag string, asJSON, noEmit bool) {
+// diagnostics — the freshly-scaffolded @todo worklist, in the same pass. Under a
+// check flag (checkOnly) it writes nothing and reports the target mirrors'
+// diagnostics only; requireComplete additionally fails on the completeness tier.
+func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string, update bool, genDirFlag, tsconfigFlag string, asJSON, checkOnly, requireComplete bool) {
 	absPath := tspath.NormalizePath(mustAbs(srcArg))
 
 	// Default (no flag): emit BOTH friendly + mock.
@@ -183,7 +193,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 
 	// Self-document the genDir tree when actually writing: the root + enriched
 	// READMEs (shared with the generate lane) and a README in each family dir.
-	if !noEmit {
+	if !checkOnly {
 		genRoot := config.GenDir()
 		_ = resolver.EnsureOutputHygiene(genRoot, filepath.Join(genRoot, "types"))
 		for _, family := range enrichgen.WantedFamilies(mock, friendly) {
@@ -213,9 +223,9 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 		mirrorPaths = append(mirrorPaths, spec.MirrorPath)
 	}
 
-	// --no-emit: report the target mirrors' health, write nothing.
-	if noEmit {
-		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength), asJSON))
+	// Check flag: report the target mirrors' health, write nothing.
+	if checkOnly {
+		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength), asJSON, requireComplete))
 	}
 
 	// Write lane: migrate any pre-split combined mirror (CLI-only disk pre-step),

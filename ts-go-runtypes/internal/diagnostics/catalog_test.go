@@ -119,6 +119,33 @@ func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
 	}
 }
 
+// TestIsCompleteness pins the completeness tier: only the unfilled-@todo scaffold
+// codes are completeness (they fail solely under the CLI completeness gate); every
+// wrong/stale code — malformed content, orphan carcasses — is not, so it fails
+// every check lane. Flipping FT020/MD020's Completeness bit, or arming it on a
+// wrong/stale code, breaks the exit-code contract and this test.
+func TestIsCompleteness(t *testing.T) {
+	for _, code := range []string{CodeFriendlyTodo, CodeMockTodo} {
+		if !IsCompleteness(code) {
+			t.Errorf("%s must be a completeness code", code)
+		}
+		if Definitions[code].Severity != SeverityError {
+			t.Errorf("%s must stay Error severity (editor still flags it)", code)
+		}
+	}
+	for _, code := range []string{
+		CodeFriendlyUnknownField, CodeFriendlyOrphanConst, CodeFriendlyOrphanField,
+		CodeMockUnknownField, CodeMockOrphanConst, CodeMarkerFunctionCallArg,
+	} {
+		if IsCompleteness(code) {
+			t.Errorf("%s is wrong/stale, not completeness — it must fail every check lane", code)
+		}
+	}
+	if IsCompleteness("ZZZZ999") {
+		t.Error("an unregistered code is not a completeness code")
+	}
+}
+
 func TestSeverityLabel(t *testing.T) {
 	if SeverityLabel(SeverityError) != "error" {
 		t.Errorf("error label")

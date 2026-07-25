@@ -34,7 +34,7 @@ func init() {
 		{Code: CodeFriendlyPluralNoCount, Family: FamilyEnrich, Severity: SeverityWarning, Title: "FriendlyText plural template on a constraint that carries no count"},
 		{Code: CodeFriendlyDefaultNotAlone, Family: FamilyEnrich, Severity: SeverityError, Title: "FriendlyText rt$default is mutually exclusive with per-constraint messages"},
 		{Code: CodeFriendlyReservedProp, Family: FamilyEnrich, Severity: SeverityError, Title: "Type property collides with the reserved rt$ enrichment prefix (FriendlyText)"},
-		{Code: CodeFriendlyTodo, Family: FamilyEnrich, Severity: SeverityError, Title: "Unfilled @todo scaffold placeholder in a FriendlyText mirror file"},
+		{Code: CodeFriendlyTodo, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled @todo scaffold placeholder in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanConst, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphan const carcass in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanField, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphanChild field carcass in a FriendlyText mirror file"},
 	} {

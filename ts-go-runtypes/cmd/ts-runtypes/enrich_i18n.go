@@ -254,13 +254,14 @@ type translationFinding struct {
 // remaining, it does not parse.
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
-// runCheckTranslate implements `enrich --i18n --no-emit <locale|all>`: the
+// runCheckTranslate implements `enrich --i18n <locale|all> --no-emit`: the
 // non-writing completeness gate. Findings: TR001 missing translation file,
 // TR002 unfilled @todo blanks, TR003 out of date vs the src type (a src-derived
 // reconcile would change it), TR004 orphan carcasses awaiting --prune.
-// Severity is Warning unless tsconfig i18n.strict is true (then everything is
-// an Error and the exit code drives CI).
-func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
+// Severity is Warning unless the project sets tsconfig i18n.strict OR the caller
+// passes --require-complete (then everything is an Error and the exit code drives
+// CI). Rendering at runtime stays lenient either way.
+func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fatal("enrich --i18n --no-emit: getwd: %v", err)
@@ -273,8 +274,10 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 		fatal("enrich --i18n --no-emit: %v", err)
 	}
 
+	// Reported-only (Warning) unless the project opts in via tsconfig i18n.strict,
+	// or the caller passes --require-complete — then findings are Errors and fail CI.
 	severity := enrichment.Warning
-	if config.I18nStrict {
+	if config.I18nStrict || requireComplete {
 		severity = enrichment.Error
 	}
 
@@ -317,7 +320,9 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 // checkTranslationFile produces the completeness findings for one translation
 // target. spec is the already-built src-derived desired side for THIS file —
 // nil when the friendly mirror couldn't be processed, which skips TR003 while
-// the file-local findings (TR001/TR002/TR004) still run.
+// the file-local findings (TR001/TR002/TR004) still run. severity is the shared
+// finding severity for this run (Warning, or Error under i18n.strict /
+// --require-complete).
 func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, severity enrichment.Severity) []translationFinding {
 	var findings []translationFinding
 

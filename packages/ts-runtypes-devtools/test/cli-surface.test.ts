@@ -148,16 +148,23 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
     }
   });
 
-  it('enrich --no-emit writes NOTHING (tree byte-identical) yet still runs', () => {
+  it('enrich --no-emit writes NOTHING and TOLERATES fresh @todo; --require-complete gates it', () => {
     const dir = makeFixture();
     try {
       run(['enrich', 'models.ts', 'User', '--gen-dir', 'gen'], dir);
       const before = snapshot(join(dir, 'gen'));
-      const {status} = run(['enrich', 'models.ts', 'User', '--no-emit', '--gen-dir', 'gen'], dir);
-      const after = snapshot(join(dir, 'gen'));
-      expect(after).toEqual(before);
-      // --no-emit over a freshly-scaffolded mirror reports the @todo gate (exit 1).
-      expect(status).toBe(1);
+
+      // Default health check: reports the @todo worklist but EXITS 0 — a freshly
+      // scaffolded mirror's blanks are the expected state, not an error. Writes nothing.
+      const noEmit = run(['enrich', 'models.ts', 'User', '--no-emit', '--gen-dir', 'gen'], dir);
+      expect(snapshot(join(dir, 'gen'))).toEqual(before);
+      expect(noEmit.status).toBe(0);
+
+      // Completeness gate: the SAME unfilled @todo now fails (exit 1), still writing nothing.
+      const requireComplete = run(['enrich', 'models.ts', 'User', '--require-complete', '--gen-dir', 'gen'], dir);
+      expect(snapshot(join(dir, 'gen'))).toEqual(before);
+      expect(requireComplete.status).toBe(1);
+      expect(requireComplete.stdout + requireComplete.stderr).toMatch(/FT020|MD020/);
     } finally {
       rmSync(dir, {recursive: true, force: true});
     }

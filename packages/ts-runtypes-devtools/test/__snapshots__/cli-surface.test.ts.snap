@@ -72,8 +72,11 @@ Usage:
        or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
        or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
        or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
+       or: ts-runtypes enrich <file.ts> --require-complete                      (health + completeness gate, no writes)
 
 --no-emit turns any write lane into a diagnostics-only pass — nothing is written.
+--no-emit reports wrong/stale content (fails) AND unfilled @todo scaffolds (does NOT fail).
+--require-complete adds the @todo / missing-translation blanks to the failing set (implies --no-emit).
 
 Flags:
   --files string
@@ -94,6 +97,8 @@ Flags:
     	explicit single mirror file path (overrides the computed mirror path; forces a single file)
   --prune
     	destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild (with --no-emit: list them, delete nothing)
+  --require-complete
+    	completeness gate: also FAIL on INCOMPLETE enrichment (unfilled @todo scaffolds, missing/out-of-date translations), not just wrong/stale content; implies --no-emit (never writes)
   --tsconfig string
     	project tsconfig path (default: found like tsc, searching upward from the working directory)
   --type string

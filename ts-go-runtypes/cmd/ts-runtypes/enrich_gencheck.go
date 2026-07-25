@@ -46,8 +46,10 @@ type driftFinding struct {
 //
 // The argument is a single mirror .ts file or a directory to walk. With no
 // argument, it walks the enrich dir resolved from the current directory's
-// tsconfig. Exits 1 when any Error finding is present.
-func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFlag string) {
+// tsconfig. Exits 1 when any WRONG/stale Error finding is present; a completeness
+// finding fails only under requireComplete (today every drift code is Tier 1, so
+// the filter is a forward-compatible no-op here).
+func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete bool, tsconfigFlag string) {
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	var targets []string
 	if len(positional) > 0 {
@@ -104,9 +106,13 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 
 	hasError := false
 	for _, finding := range findings {
-		if finding.Severity == enrichment.Error {
-			hasError = true
+		if finding.Severity != enrichment.Error {
+			continue
 		}
+		if !requireComplete && diagnostics.IsCompleteness(finding.Code) {
+			continue
+		}
+		hasError = true
 	}
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")

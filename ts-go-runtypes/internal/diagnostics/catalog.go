@@ -134,17 +134,25 @@ type Diagnostic struct {
 // through the real scan pipeline and asserts this code fires, so a shipped
 // example can never drift from the diagnostic it claims to demonstrate.
 type Definition struct {
-	Code       string
-	Family     Family
-	Severity   Severity
-	Title      string
-	Template   string
-	DocsAnchor string
-	Headline   string
-	Detail     string
-	Summary    string
-	Fix        string
-	Example    string
+	Code     string
+	Family   Family
+	Severity Severity
+	// Completeness marks a code as INCOMPLETE (not-yet-authored) enrichment rather
+	// than WRONG content — the unfilled @todo scaffolds (FT020/MD020). It is a
+	// gating-policy bit, ORTHOGONAL to Severity: these stay Severity-Error so the
+	// editor still flags them, but the default `enrich <file> --no-emit` health
+	// check ignores them (a freshly scaffolded mirror is expected to carry @todo
+	// blanks). Only the completeness gate — `enrich --require-complete` — fails on
+	// them.
+	Completeness bool
+	Title        string
+	Template     string
+	DocsAnchor   string
+	Headline     string
+	Detail       string
+	Summary      string
+	Fix          string
+	Example      string
 }
 
 // Definitions holds every registered diagnostic code keyed by Code. The
@@ -157,6 +165,16 @@ func register(definition Definition) {
 		panic("diag: duplicate registration of code " + definition.Code)
 	}
 	Definitions[definition.Code] = definition
+}
+
+// IsCompleteness reports whether a code marks INCOMPLETE (not-yet-authored)
+// enrichment — an unfilled @todo scaffold (FT020/MD020) — rather than wrong or
+// stale content. The default enrichment health check excludes these from its
+// exit-code gate; only the completeness gate (`enrich --require-complete`) fails
+// on them. An unregistered code is not a completeness code (a zero-value
+// Definition has Completeness false).
+func IsCompleteness(code string) bool {
+	return Definitions[code].Completeness
 }
 
 // New builds a Diagnostic by looking up the code's Family/Severity from
