@@ -359,26 +359,10 @@ export interface Request {
   // sourcesContent (the heaviest single wire item). The bundler composes the
   // chained map and fills original content itself, so it rarely needs our copy.
   omitSourcesContent?: boolean;
-  // enrich only — the named type to scaffold from each `files` entry.
-  typeName?: string;
-  // enrich only — which family mirrors to scaffold (both when neither is set).
-  enrichFriendly?: boolean;
-  enrichMock?: boolean;
-  // enrich only — reconcile an existing mirror (property merge) instead of the
-  // create-only scaffold; mirrors the CLI `enrich <file> <Type> --update`.
-  enrichUpdate?: boolean;
-  // enrich only — return diagnostics only, no enrichFiles content (tsc --noEmit).
-  enrichNoEmit?: boolean;
-  // enrich only — the resolved RunTypes output root the mirrors hang off
-  // (<genDir>/enriched/...); typically the plugin's gen.outDir.
-  genDir?: string;
-  // enrich only — target i18n locales for per-locale translation-mirror sync
-  // (<genDir>/enriched/i18n/<locale>/...); their presence enables it. SCAFFOLD +
-  // SYNC only, never translated content.
-  enrichLocales?: string[];
-  // enrich only — the source-authoring locale (default "en") driving the friendly
-  // scaffold's plural arms.
-  enrichSourceLocale?: string;
+  // enrich carries NO fields of its own beyond `files` (empty = whole program):
+  // the wire carries the event, the session carries the config — families, i18n
+  // locales, and the output root ride the spawn flags (--gen-dir / --enrich-*),
+  // defaulting from the tsconfig plugin entry.
 }
 
 // Metrics mirrors the Go-side protocol.Metrics — populated on a response

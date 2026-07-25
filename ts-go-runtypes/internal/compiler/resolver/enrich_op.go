@@ -11,17 +11,21 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// dispatchEnrich answers OpEnrich: the daemon face of the CLI `enrich` verb, so a
+// dispatchEnrich answers OpEnrich: the daemon face of the enrichment sync, so a
 // bundler plugin can scaffold / reconcile the FriendlyText / MockData mirrors over
 // the warm connection instead of spawning. It NEVER writes — it returns the
 // computed mirror CONTENT (EnrichFiles) for the caller to write under its own
-// HMR-suppression window. It shares enrichgen.Plan + mirror.Scaffold / Reconcile
-// with the CLI verb, so the two produce byte-identical mirrors (the parity test).
+// HMR-suppression window. It shares enrichgen.PlanMany + mirror.Scaffold /
+// Reconcile with the CLI verb, so the two produce byte-identical mirrors (the
+// parity test).
 //
-// EnrichNoEmit=true returns Diagnostics only (the shared tag-hygiene pass over the
-// source's existing mirrors); false returns EnrichFiles + the freshly-scaffolded
-// @todo worklist diagnostics. request.GenDir is the resolved output root the
-// mirrors hang off; the Enrich* flags mirror the CLI --friendly / --mock / --update.
+// The wire carries only the EVENT (request.Files — empty = whole program); every
+// piece of CONFIG is session state loaded at spawn (Options.EnrichFriendly/Mock,
+// EnrichI18n + EnrichLocales/SourceLocale, and the output root via
+// resolveOutDir("") — flag > tsconfig genDir > inferred — so enrich and generate
+// always agree). The op is always a SYNC: reconcile an existing mirror
+// (value-preserving), scaffold a missing one, and return the hygiene worklist
+// alongside the content.
 func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response {
 	if sess.Program == nil {
 		return protocol.Response{Error: "enrich: no program loaded"}
@@ -32,23 +36,29 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 		return protocol.Response{Error: fmt.Sprintf("enrich: tsconfig: %v", err)}
 	}
 
-	wantFriendly, wantMock := request.EnrichFriendly, request.EnrichMock
+	wantFriendly, wantMock := sess.opts.EnrichFriendly, sess.opts.EnrichMock
 	if !wantFriendly && !wantMock {
 		wantFriendly, wantMock = true, true
 	}
 
-	// Plugin i18n sync knobs (the enrich.i18n object): the target locales whose
-	// per-locale translation mirrors to keep in sync (SCAFFOLD + SYNC only, never
-	// translated content), and the source-authoring locale that drives the friendly
+	// i18n sync config (spawn-time): the target locales whose per-locale
+	// translation mirrors to keep in sync (SCAFFOLD + SYNC only, never translated
+	// content), and the source-authoring locale that drives the friendly
 	// scaffold's plural arms. Threaded through ResolveConfig so cfg.I18nLocales /
-	// cfg.SourceLocale carry them. Absent for CLI-parity (TypeName-driven) calls.
+	// cfg.SourceLocale carry them; gated on Options.EnrichI18n so a session
+	// without the i18n opt-in stays inert even when the tsconfig lists locales.
 	pluginSettings := enrichgen.PluginSettings{}
-	if len(request.EnrichLocales) > 0 || request.EnrichSourceLocale != "" {
+	if sess.opts.EnrichI18n {
 		pluginSettings.I18n = &enrichgen.I18nSettings{
-			SourceLocale: request.EnrichSourceLocale,
-			Locales:      request.EnrichLocales,
+			SourceLocale: sess.opts.EnrichSourceLocale,
+			Locales:      sess.opts.EnrichLocales,
 		}
 	}
+
+	// The session-resolved output root, handed to ResolveConfig in its
+	// flag-precedence slot — the same value OpGenerate resolves, so the mirror
+	// tree and the generated-modules tree never disagree.
+	genDir := sess.resolveOutDir("")
 
 	// Reconcile reads sibling sources for cross-file value imports through the
 	// Program FS, so the daemon never touches disk (parity with the CLI, which
@@ -60,74 +70,43 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 		return "", fmt.Errorf("enrich: cannot read %s", path)
 	}
 
-	// demandedTypeNames is the set of named types the session's markers actually
-	// requested — every cache node carrying a TypeName. Only the TypeName == ""
-	// plugin-sync path consults it, so it is computed lazily once.
-	var demanded map[string]bool
-	demandedTypeNames := func() map[string]bool {
-		if demanded == nil {
-			demanded = map[string]bool{}
-			for _, node := range sess.cache.Dump() {
-				if node != nil && node.TypeName != "" {
-					demanded[node.TypeName] = true
-				}
-			}
+	// demanded is the set of named types the session's markers actually
+	// requested — every cache node carrying a TypeName. The daemon owns the
+	// (demanded type name → source file) mapping the plugin cannot do itself.
+	demanded := map[string]bool{}
+	for _, node := range sess.cache.Dump() {
+		if node != nil && node.TypeName != "" {
+			demanded[node.TypeName] = true
 		}
-		return demanded
 	}
 
-	// targetFiles: the caller's Files, or — for the whole-program plugin-sync pass
-	// (empty Files, no TypeName) — every non-declaration source file, so a mirror is
+	// targetFiles: the caller's Files, or — for the whole-program sync pass
+	// (empty Files) — every non-declaration source file, so a mirror is
 	// scaffolded even for a demanded type declared in a file with no marker call.
 	targetFiles := request.Files
-	if len(targetFiles) == 0 && request.TypeName == "" {
+	if len(targetFiles) == 0 {
 		targetFiles = sess.enrichProgramSourceFiles()
 	}
 
 	var response protocol.Response
 	for _, file := range targetFiles {
 		absPath := tspath.ResolvePath(cwd, file)
-		cfg := enrichgen.ResolveConfig(absPath, request.GenDir, sess.opts.TsconfigPath, parsed, pluginSettings)
+		cfg := enrichgen.ResolveConfig(absPath, genDir, sess.opts.TsconfigPath, parsed, pluginSettings)
 
-		// Resolve which type name(s) drive this file's mirrors. An explicit
-		// TypeName is the CLI-parity single-type path (enrichgen.Plan, which errors
-		// on an unresolvable name); an empty TypeName is the demand-scoped plugin
-		// path — the EXPORTED types this file declares that are ALSO demanded (the
-		// server-side typeName → source-file mapping the plugin cannot do itself),
-		// merged into one per-family spec set via PlanMany.
-		var specs []mirror.Spec
-		var typeNames []string
-		if request.TypeName != "" {
-			built, _, planErr := enrichgen.Plan(sess.Program, sess.checker, sess.cache, absPath, request.TypeName, "", wantFriendly, wantMock, cfg)
-			if planErr != nil {
-				// A demanded type that no longer resolves: skip it. The scan would not
-				// have demanded a type it cannot resolve; a transient half-typed edit
-				// heals on the next pass.
-				continue
-			}
-			specs, typeNames = built, []string{request.TypeName}
-		} else {
-			typeNames = sess.demandedExportedTypes(absPath, demandedTypeNames())
-			if len(typeNames) == 0 {
-				continue
-			}
-			specs, _ = enrichgen.PlanMany(sess.Program, sess.checker, sess.cache, absPath, typeNames, "", wantFriendly, wantMock, cfg)
+		// The EXPORTED types this file declares that are ALSO demanded, merged
+		// into one per-family spec set via PlanMany (which skips an unresolvable /
+		// colliding type — a transient half-typed edit must not abort the sync).
+		typeNames := sess.demandedExportedTypes(absPath, demanded)
+		if len(typeNames) == 0 {
+			continue
 		}
+		specs, _ := enrichgen.PlanMany(sess.Program, sess.checker, sess.cache, absPath, typeNames, "", wantFriendly, wantMock, cfg)
 
 		for _, spec := range specs {
 			existing, _ := sess.Program.FS.ReadFile(spec.MirrorPath)
 			mockFamily := spec.WantMock && !spec.WantFriendly
 
-			if request.EnrichNoEmit {
-				// Diagnostics-only: the shared tag-hygiene pass over the EXISTING
-				// mirror (parity with the CLI `enrich <file> --no-emit`). A prod-build
-				// drift gate additionally diffs the desired content it requests
-				// without --no-emit.
-				response.Diagnostics = append(response.Diagnostics, enrichgen.HygieneDiagnostics(existing, spec.MirrorPath, mockFamily)...)
-				continue
-			}
-
-			content, added := materializeMirror(spec, existing, request.EnrichUpdate, readSource)
+			content, added := materializeMirror(spec, existing, readSource)
 			kind := enrichgen.FamilyFriendly
 			if mockFamily {
 				kind = enrichgen.FamilyMock
@@ -138,26 +117,24 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 				Added:   added,
 				Kind:    kind,
 			})
-			// The freshly-scaffolded @todo worklist rides along (informational).
+			// The freshly-scaffolded hygiene worklist rides along (informational for
+			// dev; the plugin's production gate fails on its Error-severity entries).
 			response.Diagnostics = append(response.Diagnostics, enrichgen.HygieneDiagnostics(content, spec.MirrorPath, mockFamily)...)
 		}
 
-		// Per-locale translation-mirror sync (i18n). Emitting only — never in
-		// --no-emit, where the plugin's prod-build drift gate instead diffs the
-		// desired content it requests WITHOUT --no-emit. cfg.I18nLocales is empty
-		// for CLI-parity calls, so this is inert unless enrich.i18n.locales is set.
-		if !request.EnrichNoEmit {
-			for _, locale := range cfg.I18nLocales {
-				for _, spec := range enrichgen.PlanTranslations(sess.Program, sess.checker, sess.cache, absPath, typeNames, locale, cfg) {
-					existing, _ := sess.Program.FS.ReadFile(spec.MirrorPath)
-					content, added := materializeMirror(spec, existing, request.EnrichUpdate, readSource)
-					response.EnrichFiles = append(response.EnrichFiles, protocol.EnrichFile{
-						Path:    spec.MirrorPath,
-						Content: content,
-						Added:   added,
-						Kind:    enrichgen.FamilyFriendly,
-					})
-				}
+		// Per-locale translation-mirror sync (i18n). cfg.I18nLocales is empty
+		// unless the session opted in (Options.EnrichI18n), so this is inert
+		// otherwise.
+		for _, locale := range cfg.I18nLocales {
+			for _, spec := range enrichgen.PlanTranslations(sess.Program, sess.checker, sess.cache, absPath, typeNames, locale, cfg) {
+				existing, _ := sess.Program.FS.ReadFile(spec.MirrorPath)
+				content, added := materializeMirror(spec, existing, readSource)
+				response.EnrichFiles = append(response.EnrichFiles, protocol.EnrichFile{
+					Path:    spec.MirrorPath,
+					Content: content,
+					Added:   added,
+					Kind:    enrichgen.FamilyFriendly,
+				})
 			}
 		}
 	}
@@ -203,15 +180,14 @@ func (sess *Session) enrichProgramSourceFiles() []string {
 	return files
 }
 
-// materializeMirror computes one mirror's desired content: create-only Scaffold
-// for a missing / empty mirror, property-merge Reconcile when update is set and
-// the mirror already exists (the CLI's writeMirrorFile / updateMirrorFile split).
-// Disk-free — existing content + sibling sources are injected. A create-only
-// no-op (every requested export already present) returns the existing content
-// unchanged so the caller writes / diffs a stable value.
-func materializeMirror(spec mirror.Spec, existing string, update bool, readSource func(string) (string, error)) (content string, added bool) {
-	added = existing == ""
-	if update && existing != "" {
+// materializeMirror computes one mirror's desired content — the SYNC semantic:
+// property-merge Reconcile for an existing mirror (value-preserving), create-only
+// Scaffold for a missing / empty one (the CLI's updateMirrorFile fallback shape).
+// Disk-free — existing content + sibling sources are injected. On a reconcile
+// failure the existing content is returned unchanged so the caller writes /
+// diffs a stable value.
+func materializeMirror(spec mirror.Spec, existing string, readSource func(string) (string, error)) (content string, added bool) {
+	if existing != "" {
 		out, _, err := mirror.Reconcile(spec, []byte(existing), readSource)
 		if err != nil {
 			return existing, false
@@ -220,11 +196,9 @@ func materializeMirror(spec mirror.Spec, existing string, update bool, readSourc
 	}
 	out, _, err := mirror.Scaffold(spec, existing)
 	if err != nil || out == "" {
-		// Scaffold failure, or a create-only no-op (every requested export already
-		// present): return the existing content unchanged, nothing newly added.
 		return existing, false
 	}
-	return out, added
+	return out, true
 }
 
 // ensureInferredConfig lazily parses (and caches) the project tsconfig this

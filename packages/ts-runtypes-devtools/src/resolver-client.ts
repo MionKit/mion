@@ -100,6 +100,21 @@ export interface ResolverClientOptions {
   // tri-state resolves into (same name as the CLI flag, for greppability).
   pureFnReportWire?: boolean;
   pureFnReportFile?: boolean;
+  // Forwarded as --gen-dir: the explicit RunTypes output-root override (the
+  // plugin's own genDir option, absolute). Session config — OpEnrich resolves
+  // its mirror root from it (flag > tsconfig genDir > inferred); undefined lets
+  // the Go side resolve from tsconfig / inference.
+  genDir?: string;
+  // Enrichment session config, forwarded as --enrich-friendly / --enrich-mock /
+  // --enrich-i18n / --enrich-locales / --enrich-source-locale. The wire's enrich
+  // op carries only `files`; these spawn flags select the families OpEnrich
+  // maintains and configure the per-locale translation-mirror sync (locales /
+  // sourceLocale default from the tsconfig i18n block when omitted).
+  enrichFriendly?: boolean;
+  enrichMock?: boolean;
+  enrichI18n?: boolean;
+  enrichLocales?: string[];
+  enrichSourceLocale?: string;
 }
 
 // WireStats is the cumulative byte + request tally of a connection's stdio
@@ -320,23 +335,11 @@ export interface GenerateResult {
   failOnError?: boolean;
 }
 
-// EnrichOptions selects which family mirrors the enrich op scaffolds and whether
-// it reconciles an existing mirror. `noEmit` returns diagnostics only (no files).
-// `locales` (with optional `sourceLocale`) opts into per-locale translation-mirror
-// sync — scaffold + reconcile only, never translated content.
-export interface EnrichOptions {
-  friendly?: boolean;
-  mock?: boolean;
-  update?: boolean;
-  noEmit?: boolean;
-  genDir?: string;
-  locales?: string[];
-  sourceLocale?: string;
-}
-
 // EnrichResult is the shape returned by enrich(): the computed mirror files (the
 // caller writes them under its own HMR-suppression window; the daemon never does)
-// plus any diagnostics (the freshly-scaffolded @todo worklist / health findings).
+// plus any diagnostics (the freshly-scaffolded hygiene worklist). Which families
+// and locales are synced, and where the mirror tree roots, is SESSION config —
+// the ResolverClientOptions enrich* / genDir spawn flags — never per-call input.
 export interface EnrichResult {
   files: EnrichFile[];
   diagnostics?: Diagnostic[];
@@ -349,7 +352,7 @@ export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
   transform(files: string[], outDir?: string, opts?: TransformOptions): Promise<TransformFilesResult>;
   generate(outDir?: string): Promise<GenerateResult>;
-  enrich(files: string[], typeName: string, opts?: EnrichOptions): Promise<EnrichResult>;
+  enrich(files: string[]): Promise<EnrichResult>;
   dump(): Promise<Response>;
   setSources(sources: Record<string, string>): Promise<void>;
   reset(): Promise<void>;
@@ -470,16 +473,11 @@ abstract class ResolverClientBase implements ResolverConnection {
   // NEVER writes: it returns the computed mirror content (files) for the caller to
   // write under its own HMR-suppression window (the plugin-driven sync path). With
   // `noEmit`, only diagnostics come back (no files).
-  async enrich(files: string[], typeName: string, opts?: EnrichOptions): Promise<EnrichResult> {
-    const req: Request = {op: 'enrich', files, typeName};
-    if (opts?.friendly) req.enrichFriendly = true;
-    if (opts?.mock) req.enrichMock = true;
-    if (opts?.update) req.enrichUpdate = true;
-    if (opts?.noEmit) req.enrichNoEmit = true;
-    if (opts?.genDir) req.genDir = opts.genDir;
-    if (opts?.locales && opts.locales.length > 0) req.enrichLocales = opts.locales;
-    if (opts?.sourceLocale) req.enrichSourceLocale = opts.sourceLocale;
-    const resp = await this.send(req);
+  // enrich syncs the enrichment mirrors for `files` (empty = whole program) and
+  // returns the computed content — the wire carries only the event; the
+  // families / locales / output root are the session's spawn-time config.
+  async enrich(files: string[]): Promise<EnrichResult> {
+    const resp = await this.send({op: 'enrich', files});
     if (resp.error) throw new Error(`enrich: ${resp.error}`);
     return {files: resp.enrichFiles ?? [], diagnostics: resp.diagnostics};
   }
@@ -561,6 +559,14 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.allowUncheckedPatterns) args.push('--allow-unchecked-patterns');
   if (opts.pureFnReportWire) args.push('--pure-fn-report-wire');
   if (opts.pureFnReportFile) args.push('--pure-fn-report-file');
+  // Session config the wire deliberately does not carry: the output-root
+  // override and the OpEnrich family / i18n selection.
+  if (opts.genDir) args.push('--gen-dir', opts.genDir);
+  if (opts.enrichFriendly) args.push('--enrich-friendly');
+  if (opts.enrichMock) args.push('--enrich-mock');
+  if (opts.enrichI18n) args.push('--enrich-i18n');
+  if (opts.enrichLocales && opts.enrichLocales.length > 0) args.push('--enrich-locales', opts.enrichLocales.join(','));
+  if (opts.enrichSourceLocale) args.push('--enrich-source-locale', opts.enrichSourceLocale);
   return args;
 }
 

@@ -323,6 +323,8 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,
 		TsconfigFailOnError:     plugin.FailOnError,
+		EnrichSourceLocale:      pluginI18nSourceLocale(plugin),
+		EnrichLocales:           pluginI18nLocales(plugin),
 		SingleThreaded:          merged.singleThreaded,
 		DisableParallelScan:     merged.disableParallelScan,
 		DisableParallelRender:   merged.disableParallelRender,
@@ -341,6 +343,23 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		ValidateDefaults:        resolver.ValidateDefaults{NumberMode: merged.numberMode},
 	}
 	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
+}
+
+// pluginI18nSourceLocale / pluginI18nLocales project the tsconfig plugin's i18n
+// block onto the resolver Options defaults (project serve mode); the serve
+// --enrich-locales / --enrich-source-locale flags override them.
+func pluginI18nSourceLocale(plugin tsRuntypesPlugin) string {
+	if plugin.I18n == nil {
+		return ""
+	}
+	return plugin.I18n.SourceLocale
+}
+
+func pluginI18nLocales(plugin tsRuntypesPlugin) []string {
+	if plugin.I18n == nil {
+		return nil
+	}
+	return plugin.I18n.Locales
 }
 
 // printUsage renders a subcommand's help: its synopsis, then EVERY flag it
@@ -382,6 +401,18 @@ func runServe(args []string) {
 	sources := fs.String("sources", "project", "startup Program source: project | stdin | ops")
 	outJSON := fs.String("out-json", "", "after stdin EOF, write the cache as JSON to PATH")
 	outModules := fs.String("out-modules", "", "after stdin EOF, write per-entry virtual modules to DIR")
+	// Session config the wire deliberately does NOT carry (the wire carries
+	// events — which files, which op; the session carries config). --gen-dir is
+	// the explicit output-root override (the host plugin's genDir option); the
+	// --enrich-* flags configure OpEnrich: the families to maintain, and the
+	// per-locale translation-mirror sync whose locales/sourceLocale default from
+	// the tsconfig plugin i18n block (project mode) unless overridden here.
+	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/__runtypes)")
+	enrichFriendly := fs.Bool("enrich-friendly", false, "OpEnrich maintains the FriendlyText mirrors (neither family flag = both)")
+	enrichMock := fs.Bool("enrich-mock", false, "OpEnrich maintains the MockData mirrors (neither family flag = both)")
+	enrichI18n := fs.Bool("enrich-i18n", false, "OpEnrich also syncs the per-locale translation mirrors (scaffold + sync only, never translated content)")
+	enrichLocales := fs.String("enrich-locales", "", "comma-separated target locales for --enrich-i18n (default: the tsconfig i18n.locales)")
+	enrichSourceLocale := fs.String("enrich-source-locale", "", "authoring locale of the source FriendlyText mirrors (default: the tsconfig i18n.sourceLocale)")
 	fs.Usage = func() { printUsage(fs, serveUsage) }
 	_ = fs.Parse(args)
 
@@ -396,6 +427,32 @@ func runServe(args []string) {
 	// Only the on-disk project mode merges the tsconfig plugin block; the
 	// overlay modes (stdin/ops) have no on-disk build options to honor.
 	cfg := resolveSharedConfig(fs, s, "", *sources == "project")
+
+	// Apply the serve-local session config onto the resolved Options: the
+	// explicit flags win over the tsconfig-seeded defaults resolveSharedConfig
+	// already folded in (i18n locales/sourceLocale).
+	if *genDirFlag != "" {
+		genDir := *genDirFlag
+		if !filepath.IsAbs(genDir) {
+			genDir = filepath.Join(cfg.absCwd, genDir)
+		}
+		cfg.opts.GenDir = genDir
+	}
+	cfg.opts.EnrichFriendly = *enrichFriendly
+	cfg.opts.EnrichMock = *enrichMock
+	cfg.opts.EnrichI18n = *enrichI18n
+	if *enrichLocales != "" {
+		var locales []string
+		for _, locale := range strings.Split(*enrichLocales, ",") {
+			if trimmed := strings.TrimSpace(locale); trimmed != "" {
+				locales = append(locales, trimmed)
+			}
+		}
+		cfg.opts.EnrichLocales = locales
+	}
+	if *enrichSourceLocale != "" {
+		cfg.opts.EnrichSourceLocale = *enrichSourceLocale
+	}
 
 	// Stdin decoder built up front because --sources stdin consumes one
 	// handshake line BEFORE constructing the Program, then keeps the same

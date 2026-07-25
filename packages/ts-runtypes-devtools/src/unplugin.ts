@@ -380,6 +380,16 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // the hardcoded genDir/types path).
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
+      // Enrichment session config (spawn-time — the enrich op's wire carries
+      // only files). An explicit genDir rides --gen-dir so OpEnrich roots the
+      // mirror tree identically; families + i18n select what the daemon syncs,
+      // with locales/sourceLocale defaulting from the tsconfig i18n block.
+      ...(genDirAbs ? {genDir: genDirAbs} : {}),
+      ...(enrichFriendly ? {enrichFriendly: true} : {}),
+      ...(enrichMock ? {enrichMock: true} : {}),
+      ...(enrichI18nEnabled ? {enrichI18n: true} : {}),
+      ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
+      ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
     });
   }
 
@@ -477,48 +487,52 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
   }
 
-  // enrichCallOptions is the shared EnrichOptions bag for every sync/drift call:
-  // the enabled families, update (property-merge reconcile, value-preserving),
-  // the adopted genDir, and — when the i18n object is present — the target locales
-  // + source locale for per-locale translation-mirror sync.
-  function enrichCallOptions() {
-    return {
-      friendly: enrichFriendly,
-      mock: enrichMock,
-      update: true,
-      genDir: genDirAbs || undefined,
-      ...(enrichI18nEnabled ? {locales: enrichLocales, sourceLocale: enrichSourceLocale} : {}),
-    };
-  }
-
   // writeMirrorFiles writes each computed enrichment mirror to disk
   // write-only-on-change (skip when the bytes already match), so a converged
   // mirror never churns the watcher. Best-effort per file: one write failure must
-  // not tear down the dev loop.
-  async function writeMirrorFiles(files: {path: string; content: string}[]): Promise<void> {
+  // not tear down the dev loop. Returns what it actually wrote — freshly
+  // scaffolded (added) vs reconciled — for the first-sync summary.
+  async function writeMirrorFiles(
+    files: {path: string; content: string; added?: boolean}[]
+  ): Promise<{created: number; updated: number}> {
+    let created = 0;
+    let updated = 0;
     for (const file of files) {
       try {
         const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
         if (existing === file.content) continue;
         await fs.promises.mkdir(path.dirname(file.path), {recursive: true});
         await fs.promises.writeFile(file.path, file.content);
+        if (file.added) created += 1;
+        else updated += 1;
       } catch {
         // best-effort; keep going with the remaining mirrors
       }
     }
+    return {created, updated};
   }
 
   // syncEnrich scaffolds + reconciles the demanded enrichment mirrors for `files`
-  // (the whole program when [] is passed) and writes them to disk. The daemon does
-  // the (type name → source file) mapping: for each file it enriches every
-  // EXPORTED type that file declares which is ALSO demanded by a marker call.
-  // Dev/watch only — a production build takes the read-only drift gate instead.
-  // Never throws: enrichment sync must not break the dev loop.
+  // (the whole program when [] is passed) and writes them to disk. The wire
+  // carries only the files — which families / locales to sync and where the tree
+  // roots are the resolver session's spawn-time config. The daemon does the
+  // (type name → source file) mapping: for each file it enriches every EXPORTED
+  // type that file declares which is ALSO demanded by a marker call. Dev/watch
+  // only — a production build takes the read-only drift gate instead. Never
+  // throws: enrichment sync must not break the dev loop.
   async function syncEnrich(files: string[]): Promise<void> {
     if (!resolver || !anyEnrichFamily) return;
     try {
-      const result = await resolver.enrich(files, '', enrichCallOptions());
-      await writeMirrorFiles(result.files);
+      const result = await resolver.enrich(files);
+      const written = await writeMirrorFiles(result.files);
+      // First-sync visibility: the whole-program pass says what it created, so a
+      // fresh opt-in is never a silent burst of new files. Per-file HMR syncs
+      // stay quiet (the diff in the editor is the feedback there).
+      if (files.length === 0 && written.created + written.updated > 0) {
+        console.log(
+          `[@ts-runtypes/devtools] enrich sync: scaffolded ${written.created} new mirror file(s), reconciled ${written.updated} — review & commit; fill the blanks before a production build (its completeness gate fails on unfilled scaffolds).`
+        );
+      }
     } catch {
       // A resolver hiccup mid-edit heals on the next pass — swallow it.
     }
@@ -543,7 +557,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     let stale: string[];
     let incomplete: Diagnostic[];
     try {
-      const result = await resolver.enrich([], '', enrichCallOptions());
+      const result = await resolver.enrich([]);
       stale = [];
       for (const file of result.files) {
         const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);

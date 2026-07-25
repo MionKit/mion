@@ -127,6 +127,18 @@ Flags:
     	working directory (default: $PWD)
   --emit-mode string
     	what each cache entry ships in its code/factory slots: code (default) | functions | both
+  --enrich-friendly
+    	OpEnrich maintains the FriendlyText mirrors (neither family flag = both)
+  --enrich-i18n
+    	OpEnrich also syncs the per-locale translation mirrors (scaffold + sync only, never translated content)
+  --enrich-locales string
+    	comma-separated target locales for --enrich-i18n (default: the tsconfig i18n.locales)
+  --enrich-mock
+    	OpEnrich maintains the MockData mirrors (neither family flag = both)
+  --enrich-source-locale string
+    	authoring locale of the source FriendlyText mirrors (default: the tsconfig i18n.sourceLocale)
+  --gen-dir string
+    	RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/__runtypes)
   --hash-length int
     	short-id length for type hashes (0 = default 7)
   --inline-mode string

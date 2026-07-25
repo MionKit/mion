@@ -288,12 +288,18 @@ func (sess *Session) absPath(p string) string {
 const outputDirName = "__runtypes"
 
 // resolveOutDir turns the request's (possibly empty) OutDir into the absolute
-// output root. An explicit value is absolutized as-is; an empty value infers
-// <srcDir>/__runtypes from the tsconfig so a consumer that can't parse tsconfig
-// (the dependency-free plugin) gets a sensible default it can adopt.
+// output root. Precedence: an explicit request value, else the spawn-time
+// Options.GenDir override (the serve --gen-dir flag), else the tsconfig genDir,
+// else the inferred <srcDir>/__runtypes — so a consumer that can't parse
+// tsconfig (the dependency-free plugin) gets a sensible default it can adopt,
+// and every op on one session (generate, transform, enrich via
+// resolveOutDir("")) agrees on the same root.
 func (sess *Session) resolveOutDir(requested string) string {
 	if requested != "" {
 		return sess.absPath(requested)
+	}
+	if sess.opts.GenDir != "" {
+		return sess.absPath(sess.opts.GenDir)
 	}
 	if sess.opts.TsconfigGenDir != "" {
 		return sess.absPath(sess.opts.TsconfigGenDir)

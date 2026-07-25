@@ -454,3 +454,23 @@ enforces the same completeness: it surfaces the daemon's hygiene diagnostics ove
 computed mirrors and, under `failOnError`, fails the build on an unfilled `@todo` /
 blank value as well as on drift — the plugin analog of `enrich --require-complete`.
 Dev/watch (`syncEnrich`) still writes the scaffolds and tolerates the blanks.
+
+**Follow-up: the OpEnrich wire slims to `files` — the wire carries events, the
+session carries config.** PR review flagged that the enrich request fields were
+session-constant config echoed on every call. Now: `typeName` (the CLI-parity
+single-type lane; the parity test re-anchored on the shipping demand path with a
+marker-demanding fixture), `enrichUpdate` (the daemon op simply IS sync —
+reconcile-or-scaffold), and `enrichNoEmit` (never set in production) are DELETED;
+the families, the i18n selection, and the output root move to spawn-time serve
+flags (`--enrich-friendly` / `--enrich-mock` / `--enrich-i18n` /
+`--enrich-locales` / `--enrich-source-locale` / `--gen-dir`) landing in
+`resolver.Options`, with the i18n locales/sourceLocale defaulting from the
+tsconfig plugin `i18n` block (project mode) and `resolveOutDir` gaining the
+flag > tsconfig > inferred precedence so OpEnrich and OpGenerate always agree on
+the root without a wire echo. The JS client's `enrich(files)` is event-only;
+`buildResolverArgs` forwards the new flags with the guarded only-when-set idiom.
+The plugin also gained a first-sync summary (`scaffolded N, reconciled M`) so a
+fresh opt-in is never a silent burst of new files. The same audit, extended to
+the REST of the Request surface (`outDir`, `omitSourcesContent`, the dead
+`resolveId` op), is specced in
+[docs/todos/protocol-startup-config-audit.md](../todos/protocol-startup-config-audit.md).

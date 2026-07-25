@@ -58,6 +58,12 @@ type Options struct {
 	// enrich CLI) agrees on the output root; an explicit per-request outDir
 	// (the plugin's own genDir option) still wins.
 	TsconfigGenDir string
+	// GenDir is the EXPLICIT output-root override (the serve --gen-dir flag —
+	// the host plugin's own genDir option, forwarded at spawn). resolveOutDir
+	// prefers it over TsconfigGenDir; a per-request outDir (generate/transform)
+	// still wins. Session config, not wire config: OpEnrich reads only this
+	// (via resolveOutDir), never a request field.
+	GenDir string
 	// TsconfigFailOnError is the tsconfig plugin's failOnError (nil when unset);
 	// OpGenerate echoes it on Response.FailOnError so the dependency-free host
 	// can honor a tsconfig-only setting. The resolver never acts on it.
@@ -160,6 +166,19 @@ type Options struct {
 	// a per-site option, so distinct defaults key distinct cache entries on
 	// their own.
 	ValidateDefaults ValidateDefaults
+	// Enrichment session config for OpEnrich — spawn-time, never wire fields
+	// (the wire carries only the target Files; the session carries the config).
+	// EnrichFriendly / EnrichMock select the families to maintain; both false
+	// means both (the CLI default). EnrichI18n turns per-locale translation-mirror
+	// sync on (scaffold + sync only, never translated content); EnrichLocales /
+	// EnrichSourceLocale configure it — serve seeds them from the tsconfig plugin
+	// i18n block (project mode) with the --enrich-locales / --enrich-source-locale
+	// flags as explicit overrides.
+	EnrichFriendly     bool
+	EnrichMock         bool
+	EnrichI18n         bool
+	EnrichLocales      []string
+	EnrichSourceLocale string
 }
 
 // ValidateDefaults is the project-wide default subset of ValidateOptions a
