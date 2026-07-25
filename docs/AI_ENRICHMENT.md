@@ -17,7 +17,7 @@
 >   subtrees, with a one-shot auto-migration of pre-split combined mirrors) and the
 >   **FriendlyText i18n layer** — per-locale translation mirrors, generator-owned
 >   plural templates (checked by **FT006 / FT007 / FT008**), `createFriendlyTextI18n`,
->   `enrich --translate` / `enrich --translate --no-emit` (see [Translations (i18n)](#translations-i18n) and
+>   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n) and
 >   [docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md)).
 >
 > **Storage + consumption model (this doc):** enrichment is committed to a **mirror
@@ -499,8 +499,8 @@ CLI (below) rather than scraping editor output.
 | `ts-runtypes enrich [<dir>] --no-emit`                     | Walk the mirror tree for breadcrumb + location drift; non-zero exit on Error. CI / pre-commit. |
 | `ts-runtypes enrich <file> --no-emit --json`               | Validate **one file** (tag hygiene, content, drift), structured JSON out. The agent's tight feedback tool. |
 | `ts-runtypes enrich <file> [--mock] [--friendly] [--update] [--prune]` | Generate / refresh the type's mirror file under `genDir`. `--update` reconciles an existing mirror value-preservingly (property merge + rename + orphan); `--prune` strips `@rtOrphan`/`@rtOrphanChild` carcasses (the only destructive op). Breadcrumb drift now lives under `enrich --no-emit`. See `enrich` semantics below. |
-| `ts-runtypes enrich --translate <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
-| `ts-runtypes enrich --translate <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
+| `ts-runtypes enrich --i18n <locale>` (or `all`) `[--update] [--prune] [<src.ts>]` | Scaffold (create-only) / reconcile / prune a locale's `FriendlyText<T>` mirrors — generated from the SOURCE TYPE with the same driver as the friendly mirror (locale-parameterized); `all` fans out over tsconfig `i18n.locales`; without `<src.ts>` targets are discovered as "sources that have a friendly mirror" (path math only — the mirror is never read as an input). See [Translations (i18n)](#translations-i18n). |
+| `ts-runtypes enrich --i18n <locale> --no-emit` (or `all`) | Translation completeness gate for CI (**TR001–TR004**) — Warnings, promoted to Errors by tsconfig `i18n.strict`. |
 
 Both run as out-of-band CLI modes of the Go binary (an opt-in bundler-plugin option
 can additionally drive the mechanical scaffold + sync — not translation, not the LLM
@@ -872,11 +872,11 @@ absent — zero change for a project that never translates), and the source
 anything unfilled falls back to it at render time.
 
 ```
-ts-runtypes enrich --translate <locale> [<src.ts>]           # scaffold (create-only)
-ts-runtypes enrich --translate <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
-ts-runtypes enrich --translate <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
-ts-runtypes enrich --translate all [--update]                # fan out over tsconfig i18n.locales
-ts-runtypes enrich --translate <locale|all> --no-emit        # completeness gate (CI)
+ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
+ts-runtypes enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+ts-runtypes enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+ts-runtypes enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
+ts-runtypes enrich --i18n <locale|all> --no-emit        # completeness gate (CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — derived
@@ -913,7 +913,7 @@ generation of another, so the generated dirs can be treated as write-only.
 - **Plural arms are LOCALE-OWNED.** Never orphaned, never rename-paired, never
   down-scoped; a translator-pruned arm stays pruned — only the mandatory
   `other` backstop is ever re-inserted.
-- **`enrich --translate --no-emit` findings:** **TR001** missing translation file, **TR002**
+- **`enrich --i18n --no-emit` findings:** **TR001** missing translation file, **TR002**
   unfilled `@todo` blanks, **TR003** out of date vs the source TYPE (a
   src-driven reconcile would change the file), **TR004** orphan carcasses
   awaiting review / `--prune`. All Warnings (exit 0) unless tsconfig
@@ -925,7 +925,7 @@ generation of another, so the generated dirs can be treated as write-only.
   "i18n": {
     "sourceLocale": "en",              // language the source FriendlyText maps are written in
     "locales": ["es", "pl", "pt-BR"],  // target locales (the source locale is NOT listed)
-    "strict": false                    // enrich --translate --no-emit gate severity (CI)
+    "strict": false                    // enrich --i18n --no-emit gate severity (CI)
   }
   ```
 
@@ -1075,7 +1075,7 @@ overall architecture) and documented here:
   plural error templates are generator-owned (CLDR arms per locale,
   count-bearing constraints only); `createFriendlyTextI18n(source,
   { locale, translations })` renders with per-leaf fallback to the source map;
-  `enrich --translate` / `enrich --translate --no-emit` drive scaffold, reconcile, and the CI
+  `enrich --i18n` / `enrich --i18n --no-emit` drive scaffold, reconcile, and the CI
   completeness gate.
 - **`$[value]`** (the actual received value) in templates — needs the input threaded
   into the renderer or added to `RTValidationError`. Revisit with the `$[val]` enrichment.

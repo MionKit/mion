@@ -202,7 +202,7 @@ code / stdout / stderr / JSON findings on both success and failure paths.
   preservation, orphan carcasses, prune scope, totality (`R1/R2/R3/R5/R6/R7a/R8/R10`).
 - **i18n sync** (`i18nModel.ts`, `i18nFuzzRunner.ts`,
   `i18nFuzz.integration.test.ts`) — the source type is canonical; translations
-  are derived with `gen --translate`. Invariants include never-copy (mirror text
+  are derived with `enrich --i18n`. Invariants include never-copy (mirror text
   never leaks into a translation), plural-arm ownership, kind stability
   (`T1–T7/T10`).
 - **type-mod** (`typeModify.ts`, `typeModFuzzRunner.ts`,

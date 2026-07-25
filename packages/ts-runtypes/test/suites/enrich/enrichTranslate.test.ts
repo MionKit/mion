@@ -1,5 +1,5 @@
-// Translation lane of the AI-enrichment suite: drives the `gen --translate` /
-// `check --translate` verbs over throwaway temp projects and asserts the i18n
+// Translation lane of the AI-enrichment suite: drives the `enrich --i18n` /
+// `enrich --i18n --no-emit` verbs over throwaway temp projects and asserts the i18n
 // behaviour end-to-end. Translations are SRC-DERIVED: a locale file is
 // generated from the source TYPE by the same driver as the friendly mirror
 // (locale-parameterized plural arms + const prefix + output path) — the
@@ -68,11 +68,11 @@ function runBin(fixture: ReconcileFixture, args: string[]): {status: number | nu
 }
 
 function runTranslate(fixture: ReconcileFixture, locale: string, extraArgs: string[] = []): void {
-  const {status, out} = runBin(fixture, ['enrich', '--translate', locale, 'src/models.ts', ...extraArgs]);
-  if (status !== 0) throw new Error(`gen --translate exited ${status}: ${out}`);
+  const {status, out} = runBin(fixture, ['enrich', '--i18n', locale, 'src/models.ts', ...extraArgs]);
+  if (status !== 0) throw new Error(`enrich --i18n exited ${status}: ${out}`);
 }
 
-describe('enrichment i18n — gen --translate', () => {
+describe('enrichment i18n — enrich --i18n', () => {
   it('scaffolds a same-tree per-locale file straight from the source type', () => {
     const fixture = i18nFixture('tr-scaffold', USER_SRC, ['pl']);
     runGen(fixture, 'User'); // a source translates once it HAS a friendly mirror (discovery)
@@ -98,7 +98,7 @@ describe('enrichment i18n — gen --translate', () => {
     editTranslation(fixture, 'pl', (text) => text.replace("name: {rt$label: ''", "name: {rt$label: 'Imię'"));
     const authored = readTranslation(fixture, 'pl');
     runTranslate(fixture, 'pl');
-    expect(readTranslation(fixture, 'pl'), 'plain gen --translate never touches an existing file').toBe(authored);
+    expect(readTranslation(fixture, 'pl'), 'plain enrich --i18n never touches an existing file').toBe(authored);
   });
 
   it('reconciles value-preservingly from the src type, descending into rt$errors (the load-bearing case)', () => {
@@ -125,7 +125,7 @@ describe('enrichment i18n — gen --translate', () => {
       "maxLength: {one: '', few: '', many: '', other: ''}"
     );
 
-    // Idempotency: a second --translate --update is a byte-identical no-op.
+    // Idempotency: a second --i18n --update is a byte-identical no-op.
     const first = readTranslation(fixture, 'pl');
     runTranslate(fixture, 'pl', ['--update']);
     expect(readTranslation(fixture, 'pl'), 'second update is byte-identical').toBe(first);
@@ -158,19 +158,19 @@ describe('enrichment i18n — gen --translate', () => {
     expect(updated).not.toContain('@rtOrphanChild');
   });
 
-  it('--translate all fans out over every configured locale', () => {
+  it('--i18n all fans out over every configured locale', () => {
     const fixture = i18nFixture('tr-all', 'export interface User { name: string }\n', ['es', 'pt-BR']);
     // The no-arg walk discovers targets as "sources that have a friendly
     // mirror" (path math only), so generate the friendly mirror first.
     runGen(fixture, 'User');
-    const {status, out} = runBin(fixture, ['enrich', '--translate', 'all']);
+    const {status, out} = runBin(fixture, ['enrich', '--i18n', 'all']);
     expect(status, out).toBe(0);
     expect(existsSync(translationPath(fixture, 'es'))).toBe(true);
     expect(existsSync(translationPath(fixture, 'pt-BR'))).toBe(true);
     expect(readTranslation(fixture, 'pt-BR')).toContain('export const pt_BR_friendlyUser: FriendlyText<User>');
   });
 
-  it('--translate --prune strips translation carcasses', () => {
+  it('--i18n --prune strips translation carcasses', () => {
     const fixture = i18nFixture('tr-prune', 'export interface User { name: string; age: number }\n', ['pl']);
     runGen(fixture, 'User');
     runTranslate(fixture, 'pl');
@@ -185,19 +185,19 @@ describe('enrichment i18n — gen --translate', () => {
   });
 });
 
-describe('enrichment i18n — check --translate', () => {
+describe('enrichment i18n — enrich --i18n --no-emit', () => {
   it('reports blanks as warnings (exit 0) when lenient, errors (exit 1) when strict', () => {
     const lenient = i18nFixture('tr-check-lenient', 'export interface User { name: string }\n', ['pl'], false);
     runGen(lenient, 'User');
     runTranslate(lenient, 'pl');
-    const lenientRun = runBin(lenient, ['enrich', '--translate', 'pl', '--no-emit']);
+    const lenientRun = runBin(lenient, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(lenientRun.out).toContain('TR002');
     expect(lenientRun.status, 'lenient gate never fails the build').toBe(0);
 
     const strict = i18nFixture('tr-check-strict', 'export interface User { name: string }\n', ['pl'], true);
     runGen(strict, 'User');
     runTranslate(strict, 'pl');
-    const strictRun = runBin(strict, ['enrich', '--translate', 'pl', '--no-emit']);
+    const strictRun = runBin(strict, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(strictRun.out).toContain('TR002');
     expect(strictRun.status, 'strict gate fails CI on blanks').toBe(1);
   });
@@ -205,14 +205,14 @@ describe('enrichment i18n — check --translate', () => {
   it('flags a missing translation file (TR001) and an out-of-date one (TR003, vs the src type)', () => {
     const fixture = i18nFixture('tr-check-missing', 'export interface User { name: string }\n', ['pl']);
     runGen(fixture, 'User');
-    const missing = runBin(fixture, ['enrich', '--translate', 'pl', '--no-emit']);
+    const missing = runBin(fixture, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(missing.out).toContain('TR001');
 
     runTranslate(fixture, 'pl');
     // The SOURCE TYPE changes; the translation is now stale even though the
     // friendly mirror hasn't been updated either — staleness is src-driven.
     setSource(fixture, 'export interface User { name: string; age: number }\n');
-    const stale = runBin(fixture, ['enrich', '--translate', 'pl', '--no-emit']);
+    const stale = runBin(fixture, ['enrich', '--i18n', 'pl', '--no-emit']);
     expect(stale.out).toContain('TR003');
     expect(stale.out, 'the finding names the src file, not the friendly mirror').toContain('src/models.ts');
   });

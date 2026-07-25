@@ -406,3 +406,18 @@ where the implementation deliberately differs from the plan above:
 (8 cases through the real Vite hooks), the enrich-suite spawn renames, the website
 + design docs + skills rename, the plugin-option docs on the Configuration page, and
 the diagnostic-message + regenerated-catalog rename. Full Go + JS suites green.
+
+**Follow-up refinements (same PR):**
+
+- **`enrich --translate` → `enrich --i18n`.** The verb only manages the translation
+  FILES (never does translation), so the flag is named for the config it reads: the
+  tsconfig `i18n` block, the plugin `enrich.i18n` option, and now `enrich --i18n`
+  all line up. The sub-modes are unchanged (bare = create, `--update` = sync,
+  `--prune` = strip, `--no-emit` = completeness gate) — they just combine with
+  `--i18n`. (`splitArgs`' value-flag table was updated in lockstep.)
+- **No duplicated functionality in `cmd/`.** The locale closure → spec transform is
+  now the single exported `enrichgen.TranslationSpecs`; the CLI's
+  `buildTranslationSpecs` calls it (the earlier duplicate is gone). The CLI keeps
+  only the genuinely CLI-specific parts (friendly-mirror discovery + Program build).
+- **Files renamed** `translate.go` → `i18n.go` (both the `enrichgen` and `cmd` copies,
+  plus the test) for naming consistency with the flag + config.

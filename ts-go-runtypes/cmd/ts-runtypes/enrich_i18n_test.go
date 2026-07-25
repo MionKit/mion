@@ -8,6 +8,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
@@ -116,7 +117,7 @@ func TestTranslationSpecs_TransformAndGrouping(t *testing.T) {
 			Friendly: "{rt$label: '', home: friendlyAddress}", Mock: "{}", TypeID: "u1",
 			ChildIDs: map[string]string{"home": "a1"}},
 	}
-	specs := translationSpecs(config, "pl", closure, source)
+	specs := enrichgen.TranslationSpecs(config, "pl", closure, source)
 	if len(specs) != 2 {
 		t.Fatalf("want one spec per decl-file group; got %d: %+v", len(specs), specs)
 	}

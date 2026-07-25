@@ -15,7 +15,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
-// runGenTranslate implements the `enrich --translate <locale|all> [<src>]` verbs:
+// runGenTranslate implements the `enrich --i18n <locale|all> [<src>]` verbs:
 // scaffold (create-only), --update (the i18n reconcile), and --prune (strip
 // carcasses from the locale's translation files). Translations are SRC-DERIVED:
 // the desired side is emitted from the TYPE by the same EmitClosure walk as the
@@ -39,7 +39,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 				pruned += pruneMirrorFile(config.TranslationPathFor(locale, sourceMirror))
 			}
 		}
-		fmt.Fprintf(os.Stderr, "enrich --translate --prune: %d orphan block(s) removed\n", pruned)
+		fmt.Fprintf(os.Stderr, "enrich --i18n --prune: %d orphan block(s) removed\n", pruned)
 		os.Exit(0)
 	}
 
@@ -68,7 +68,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 		}
 	}
 	if written == 0 {
-		fmt.Printf("enrich --translate: nothing to write — translation file(s) already up to date\n")
+		fmt.Printf("enrich --i18n: nothing to write — translation file(s) already up to date\n")
 	}
 	os.Exit(0)
 }
@@ -84,24 +84,24 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatal("enrich --translate: getwd: %v", err)
+		fatal("enrich --i18n: getwd: %v", err)
 	}
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("enrich --translate: %v", err)
+		fatal("enrich --i18n: %v", err)
 	}
 	return config, sourceMirrors
 }
 
-// resolveTranslateLocales expands the --translate value: a concrete tag is
+// resolveTranslateLocales expands the --i18n value: a concrete tag is
 // used as-is; `all` fans out over the tsconfig i18n.locales entries.
 func resolveTranslateLocales(translateValue string, config enrichConfig) []string {
 	if translateValue != "all" {
 		return []string{translateValue}
 	}
 	if len(config.I18nLocales) == 0 {
-		fatal("enrich --translate all: no locales configured — add i18n.locales to the ts-runtypes tsconfig plugin entry")
+		fatal("enrich --i18n all: no locales configured — add i18n.locales to the ts-runtypes tsconfig plugin entry")
 	}
 	return config.I18nLocales
 }
@@ -123,17 +123,17 @@ type translationDiscovery struct {
 func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) {
 	sourceBytes, err := os.ReadFile(sourceMirror)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: %v\n", sourceMirror, err)
 		return translationDiscovery{}, false
 	}
 	index, err := mirror.ParseMirror(sourceMirror, sourceBytes)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: %v\n", sourceMirror, err)
 		return translationDiscovery{}, false
 	}
 	breadcrumb, ok := index.Breadcrumb()
 	if !ok {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no source breadcrumb\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: no source breadcrumb\n", sourceMirror)
 		return translationDiscovery{}, false
 	}
 	declFile := mirror.ResolveBreadcrumb(sourceMirror, breadcrumb)
@@ -142,7 +142,7 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 	seen := map[string]bool{}
 	for _, friendlyConst := range index.FriendlyConstTypes() {
 		if friendlyConst.TypeName == "" {
-			fmt.Fprintf(os.Stderr, "enrich --translate: %s: skipping %s: no type name on its annotation\n",
+			fmt.Fprintf(os.Stderr, "enrich --i18n: %s: skipping %s: no type name on its annotation\n",
 				sourceMirror, friendlyConst.VarName)
 			continue
 		}
@@ -153,7 +153,7 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 		typeNames = append(typeNames, friendlyConst.TypeName)
 	}
 	if len(typeNames) == 0 {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no friendly consts with a type name\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: no friendly consts with a type name\n", sourceMirror)
 		return translationDiscovery{}, false
 	}
 	return translationDiscovery{declFile: declFile, typeNames: typeNames}, true
@@ -172,7 +172,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	}
 	prog, res, err := buildProgram(discovery.declFile, config.Parsed, config.HashLength)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: %v\n", sourceMirror, err)
 		return nil, false
 	}
 	defer res.Close()
@@ -187,17 +187,17 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	for _, typeName := range discovery.typeNames {
 		resolved, resolveErr := enrichment.ResolveTypeRaw(prog, res.Checker(), res.Cache(), discovery.declFile, typeName)
 		if resolveErr != nil {
-			fmt.Fprintf(os.Stderr, "enrich --translate: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
+			fmt.Fprintf(os.Stderr, "enrich --i18n: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
 			continue
 		}
 		// The rt$ prefix is RESERVED for enrichment meta keys (see gen).
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
-			fatal("enrich --translate: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
+			fatal("enrich --i18n: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
 		}
 		resolvedTypes = append(resolvedTypes, resolvedType{typeName: typeName, resolved: resolved})
 	}
 	if len(resolvedTypes) == 0 {
-		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no resolvable types\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --i18n: skipping %s: no resolvable types\n", sourceMirror)
 		return nil, false
 	}
 
@@ -220,63 +220,15 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 				closure = append(closure, named)
 			}
 		}
-		specsByLocale[locale] = translationSpecs(config, locale, closure, discovery.declFile)
+		specsByLocale[locale] = enrichgen.TranslationSpecs(config, locale, closure, discovery.declFile)
 	}
 	return specsByLocale, true
 }
 
-// translationSpecs transforms one locale's closure into its mirror.Specs: the
-// four locale parameters applied to the ordinary gen pipeline. Vars are
-// locale-prefixed, sibling const references in every body are renamed to their
-// locale twins (`home: friendlyAddress` → `home: pl_friendlyAddress`), each
-// decl-file group targets the locale sibling of that file's friendly mirror,
-// and cross-file value imports resolve to locale siblings via MirrorPathFor.
-// The breadcrumb is the normal src type import (SourceFile = the decl file).
-// Mock halves ride along untouched — WantMock is false, nothing reads them.
-func translationSpecs(config enrichConfig, locale string, closure []enrichment.NamedConst, fallbackDeclFile string) []mirror.Spec {
-	renames := make(map[string]string, len(closure))
-	renameOrder := make([]string, 0, len(closure))
-	for _, named := range closure {
-		if _, ok := renames[named.FriendlyVar]; !ok {
-			renameOrder = append(renameOrder, named.FriendlyVar)
-		}
-		renames[named.FriendlyVar] = mirror.TranslationVarName(locale, named.FriendlyVar)
-	}
-
-	varDeclFile := make(map[string]string, len(closure))
-	transformed := make([]enrichment.NamedConst, 0, len(closure))
-	for _, named := range closure {
-		declFile := named.DeclFile
-		if declFile == "" {
-			declFile = fallbackDeclFile
-		}
-		body := []byte(named.Friendly)
-		for _, oldVar := range renameOrder {
-			body = mirror.RenameIdentifierAll(body, oldVar, renames[oldVar])
-		}
-		named.FriendlyVar = renames[named.FriendlyVar]
-		named.Friendly = string(body)
-		transformed = append(transformed, named)
-		varDeclFile[named.FriendlyVar] = declFile
-	}
-
-	mirrorPathFor := func(declFile string) string {
-		return config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, declFile))
-	}
-	var specs []mirror.Spec
-	for _, group := range enrichgen.GroupByDeclFile(transformed, fallbackDeclFile, false) {
-		specs = append(specs, mirror.Spec{
-			MirrorPath:    mirrorPathFor(group.DeclFile),
-			SourceFile:    group.DeclFile,
-			Consts:        group.Consts,
-			VarDeclFile:   varDeclFile,
-			WantFriendly:  true,
-			WantMock:      false,
-			MirrorPathFor: mirrorPathFor,
-		})
-	}
-	return specs
-}
+// The locale closure → mirror.Spec transform now lives ONCE in
+// enrichgen.TranslationSpecs (shared with the daemon i18n sync); buildTranslationSpecs
+// above calls it. The CLI keeps only the friendly-mirror DISCOVERY + Program build
+// that feed it — the parts that are genuinely CLI-specific.
 
 // specForMirrorPath finds the spec targeting mirrorPath, or nil (the friendly
 // mirror was skipped, or that group's home is another translation file).
@@ -289,7 +241,7 @@ func specForMirrorPath(specs []mirror.Spec, mirrorPath string) *mirror.Spec {
 	return nil
 }
 
-// translationFinding is one `enrich --translate --no-emit` completeness finding.
+// translationFinding is one `enrich --i18n --no-emit` completeness finding.
 type translationFinding struct {
 	File     string
 	Severity enrichment.Severity
@@ -302,7 +254,7 @@ type translationFinding struct {
 // remaining, it does not parse.
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
-// runCheckTranslate implements `enrich --translate --no-emit <locale|all>`: the
+// runCheckTranslate implements `enrich --i18n --no-emit <locale|all>`: the
 // non-writing completeness gate. Findings: TR001 missing translation file,
 // TR002 unfilled @todo blanks, TR003 out of date vs the src type (a src-derived
 // reconcile would change it), TR004 orphan carcasses awaiting --prune.
@@ -311,14 +263,14 @@ var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatal("enrich --translate --no-emit: getwd: %v", err)
+		fatal("enrich --i18n --no-emit: getwd: %v", err)
 	}
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("enrich --translate --no-emit: %v", err)
+		fatal("enrich --i18n --no-emit: %v", err)
 	}
 
 	severity := enrichment.Warning
@@ -355,7 +307,7 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 		}
 		fmt.Printf("%s: [%s %s] %s\n", finding.File, finding.Code, finding.Severity.String(), finding.Message)
 	}
-	fmt.Fprintf(os.Stderr, "enrich --translate --no-emit: %d translation file(s), %d finding(s)\n", checkedFiles, len(findings))
+	fmt.Fprintf(os.Stderr, "enrich --i18n --no-emit: %d translation file(s), %d finding(s)\n", checkedFiles, len(findings))
 	if hasError {
 		os.Exit(1)
 	}
@@ -373,7 +325,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	if err != nil {
 		findings = append(findings, translationFinding{
 			File: translationPath, Severity: severity, Code: "TR001",
-			Message: fmt.Sprintf("missing translation for locale %q — run: ts-runtypes enrich --translate %s", locale, locale),
+			Message: fmt.Sprintf("missing translation for locale %q — run: ts-runtypes enrich --i18n %s", locale, locale),
 		})
 		return findings
 	}
@@ -386,12 +338,12 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	}
 
 	// TR003 — a dry-run src-derived reconcile that would change the file means
-	// the source type moved since the last --translate --update.
+	// the source type moved since the last --i18n --update.
 	if spec != nil {
 		if _, changed, reconcileErr := mirror.Reconcile(*spec, translationBytes, readSourceFile); reconcileErr == nil && changed {
 			findings = append(findings, translationFinding{
 				File: translationPath, Severity: severity, Code: "TR003",
-				Message: fmt.Sprintf("out of date vs %s — run: ts-runtypes enrich --translate %s --update", spec.SourceFile, locale),
+				Message: fmt.Sprintf("out of date vs %s — run: ts-runtypes enrich --i18n %s --update", spec.SourceFile, locale),
 			})
 		}
 	}
@@ -399,7 +351,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	if orphans := strings.Count(string(translationBytes), "@rtOrphan"); orphans > 0 {
 		findings = append(findings, translationFinding{
 			File: translationPath, Severity: severity, Code: "TR004",
-			Message: fmt.Sprintf("%d orphan carcass(es) awaiting review — restore or strip with enrich --translate %s --prune", orphans, locale),
+			Message: fmt.Sprintf("%d orphan carcass(es) awaiting review — restore or strip with enrich --i18n %s --prune", orphans, locale),
 		})
 	}
 	return findings

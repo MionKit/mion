@@ -27,10 +27,10 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
    (property merge + field rename + orphaning); fill any new `@todo`s it adds.
 5. **`enrich --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
    carcasses left by deleted types/fields.
-6. **`enrich --translate <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
+6. **`enrich --i18n <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
    or prune the per-locale translation files of the friendly maps (see **Translations**
    below).
-7. **`enrich --translate <locale|all> --no-emit`** — the translation completeness gate for CI
+7. **`enrich --i18n <locale|all> --no-emit`** — the translation completeness gate for CI
    (TR001–TR004; see **Translations** below).
 
 Every verb takes **`--tsconfig <path>`**. Without it the CLI finds the config exactly as
@@ -127,11 +127,11 @@ the friendly mirror itself; the mirror is a discovery input only (which sources
 translate), never a content input.
 
 ```
-ts-runtypes enrich --translate <locale> [<src.ts>]           # scaffold (create-only)
-ts-runtypes enrich --translate <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
-ts-runtypes enrich --translate <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
-ts-runtypes enrich --translate all [--update]                # fan out over tsconfig i18n.locales
-ts-runtypes enrich --translate <locale|all> --no-emit        # completeness gate (CI)
+ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
+ts-runtypes enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
+ts-runtypes enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
+ts-runtypes enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
+ts-runtypes enrich --i18n <locale|all> --no-emit        # completeness gate (CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — path math over
@@ -150,7 +150,7 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
   orphaned, renamed, or down-scoped. Type renames carry across locales via the shared
   `@rtType` id (const, annotation, marker AND intra-file references are renamed in
   place).
-- **`enrich --translate --no-emit` findings** — TR001 missing translation file; TR002 unfilled
+- **`enrich --i18n --no-emit` findings** — TR001 missing translation file; TR002 unfilled
   `@todo` blanks; TR003 out of date vs the SOURCE TYPE (a src-driven reconcile would
   change the file); TR004 orphan carcasses awaiting review/prune. All Warnings (exit 0)
   unless tsconfig `i18n.strict: true` flips them to Errors (exit 1); the runtime is
@@ -167,7 +167,7 @@ zero change when absent):
     "sourceLocale": "en", // language the source FriendlyText maps are written in
     "dir": "src/__runtypes/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
     "locales": ["es", "pl", "pt-BR"], // target locales (the source locale is NOT listed)
-    "strict": false, // enrich --translate --no-emit gate severity (CI)
+    "strict": false, // enrich --i18n --no-emit gate severity (CI)
   },
 }
 ```
@@ -190,7 +190,7 @@ structure + format-correctness, you supply _believable_ values. The full authori
 - Fill **every `@todo`** the scaffold left, then **delete that `@todo` line**.
 - Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks — the compiler
   owns them; `--prune` clears orphans.
-- After editing, run `enrich --no-emit` (and `enrich --translate --no-emit` for translations) and resolve
+- After editing, run `enrich --no-emit` (and `enrich --i18n --no-emit` for translations) and resolve
   every Error before committing.
 - When the type changes, prefer `enrich --update` (keeps your values) over regenerating.
 - The family-specific rules — friendly constraint keys, plural arms, translation fill

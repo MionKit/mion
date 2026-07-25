@@ -446,7 +446,7 @@ export interface FriendlyI18nOptions<T> {
    *  `Intl.PluralRules` used when a plural leaf renders from the source. */
   sourceLocale?: string;
   /** Reserved: the runtime is ALWAYS lenient (per-leaf fallback to source);
-   *  strictness lives in `ts-runtypes check --translate`. */
+   *  strictness lives in `ts-runtypes enrich --i18n --no-emit`. */
   strict?: boolean;
 }
 

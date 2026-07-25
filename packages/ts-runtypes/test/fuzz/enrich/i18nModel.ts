@@ -1,6 +1,6 @@
 // The model + command set for the FriendlyText i18n-sync fuzzer.
 //
-// SUT: the `gen --translate` / `check --translate` pipeline over a (SOURCE
+// SUT: the `enrich --i18n` / `enrich --i18n --no-emit` pipeline over a (SOURCE
 // TYPE, translation file T) pair — the SRC-DERIVED reconcile
 // (docs/done/friendly-unified-src-reconcile.md): a locale file is generated
 // from the source TYPE by the same driver as the friendly mirror; the friendly
@@ -10,7 +10,7 @@
 // with `SRC_` text — T2 proves that text never leaks into T even though the
 // file sits right there. Random edit sequences, asserting after each:
 //
-//   T1  idempotence     a second `--translate --update` is byte-identical
+//   T1  idempotence     a second `--i18n --update` is byte-identical
 //   T2  never-copy      friendly-mirror text NEVER appears in a translation
 //   T3  preservation    an authored translated leaf survives every update verbatim
 //   T4  orphan-keep     a source-dropped leaf's authored value lives on in a carcass
@@ -383,7 +383,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: () => true,
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const first = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--update']);
+      const first = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts', '--update']);
       if (!controlledOr(first, 'updateT', ctx, out)) return out;
       const afterFirst = readTranslation(ctx.fixture);
 
@@ -399,11 +399,11 @@ export const I18N_COMMANDS: I18nCommand[] = [
       model.tFields = new Map([...model.fields].map(([name, spec]) => [name, {...spec}]));
 
       // T1 — a second update is byte-identical.
-      const second = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--update']);
+      const second = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts', '--update']);
       if (!controlledOr(second, 'updateT(second)', ctx, out)) return out;
       const afterSecond = readTranslation(ctx.fixture);
       if (afterSecond !== afterFirst) {
-        out.push(violation('T1', 'updateT', ctx, 'second --translate --update was not byte-identical'));
+        out.push(violation('T1', 'updateT', ctx, 'second --i18n --update was not byte-identical'));
       }
 
       assertInvariants(model, ctx, 'updateT', out);
@@ -416,7 +416,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: (model, ctx) => existsSync(translationPathOf(ctx.fixture)),
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const result = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--prune']);
+      const result = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts', '--prune']);
       if (!controlledOr(result, 'pruneT', ctx, out)) return out;
       const text = readTranslation(ctx.fixture);
       if (text.includes('@rtOrphan')) {
@@ -433,7 +433,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: () => true,
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const result = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, '--no-emit']);
+      const result = runTranslateCli(ctx.fixture, ['enrich', '--i18n', LOCALE, '--no-emit']);
       if (!controlledOr(result, 'checkT', ctx, out)) return out;
       const hasBlanks = /: ''/.test(readTranslation(ctx.fixture));
       const reported = result.stdout.includes('TR002');
@@ -468,7 +468,7 @@ export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: 
 
   const ctx: I18nCtx = {fixture, seed, step: -1};
   if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(gen)', ctx, violations)) return {model, violations};
-  const result = runTranslateCli(fixture, ['enrich', '--translate', LOCALE, 'src/models.ts']);
+  const result = runTranslateCli(fixture, ['enrich', '--i18n', LOCALE, 'src/models.ts']);
   if (!controlledOr(result, 'bootstrap', ctx, violations)) return {model, violations};
   if (!existsSync(translationPathOf(fixture))) {
     violations.push(violation('T10', 'bootstrap', ctx, 'scaffold produced no translation file'));

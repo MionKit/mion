@@ -69,7 +69,7 @@ Usage:
        or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
        or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
        or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
-       or: ts-runtypes enrich --translate <locale> [--update|--prune] [<src>]   (i18n translation mirrors)
+       or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
        or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
        or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
 
@@ -82,6 +82,8 @@ Flags:
     	emit a FriendlyText<T> skeleton
   --gen-dir string
     	RunTypes output root override (precedence: this flag > tsconfig genDir > default __runtypes); mirrors live under <genDir>/enriched
+  --i18n string
+    	manage the per-locale translation mirror files for a locale tag (or 'all' for every tsconfig i18n.locales entry): bare = create, --update = sync, --prune = strip carcasses, --no-emit = completeness gate
   --json
     	emit check diagnostics as a JSON array (the check-only / --no-emit lanes)
   --mock
@@ -92,8 +94,6 @@ Flags:
     	explicit single mirror file path (overrides the computed mirror path; forces a single file)
   --prune
     	destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild (with --no-emit: list them, delete nothing)
-  --translate string
-    	i18n: scaffold/reconcile per-locale FriendlyText translation files (a locale tag, or 'all' for every tsconfig i18n.locales entry)
   --tsconfig string
     	project tsconfig path (default: found like tsc, searching upward from the working directory)
   --type string

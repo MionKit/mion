@@ -41,7 +41,7 @@ map involved.
   plural-aware `createFriendlyText<T>(map)` renderer plus `createFriendlyTextI18n`,
   and `resolveLocale`
   ([`createFriendlyText.ts`](https://github.com/mionkit/ts-runtypes/blob/main/packages/ts-runtypes/src/enrich/createFriendlyText.ts)) —
-  all exported from `ts-runtypes`. The `enrich` / `enrich --no-emit` CLI (including `--translate`)
+  all exported from `ts-runtypes`. The `enrich` / `enrich --no-emit` CLI (including `--i18n`)
   scaffolds and validates the committed maps — see the `rt-enrich-types` skill.
 - **Designed (not yet wired):** the `ShapeCheckedArgs<T>` compile-time axis and
   `rtUtils` registry accessors.
@@ -265,9 +265,9 @@ falls back to the source at render time.
   (`pt_BR_friendlyUser`) — annotated `FriendlyText<Name>`, carrying the SAME
   `@rtType <Name>#<id> @rtIds {…}` markers as the source. The path + const prefix
   carry the locale; there is no i18n marker.
-- Scaffold with `ts-runtypes enrich --translate <locale|all>`; reconcile with `--update`
+- Scaffold with `ts-runtypes enrich --i18n <locale|all>`; reconcile with `--update`
   (src-driven, value-preserving, descends `rt$errors`); strip orphan carcasses with
-  `--prune`; gate completeness in CI with `enrich --translate <locale|all> --no-emit` (findings
+  `--prune`; gate completeness in CI with `enrich --i18n <locale|all> --no-emit` (findings
   TR001–TR004; TR003 = a src-driven reconcile would change the file). CLI + tsconfig
   `i18n` reference: the `rt-enrich-types` skill.
 - The scaffold is the type's tree with every string leaf and plural arm as an `@todo`

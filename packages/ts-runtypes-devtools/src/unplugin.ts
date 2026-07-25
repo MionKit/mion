@@ -24,7 +24,7 @@ import {
 // EnrichI18nSyncOptions is the plugin's i18n sync config. It intentionally
 // shares the SHAPE of the tsconfig `i18n` plugin entry (sourceLocale / locales /
 // strict), but drives a DIFFERENT lane: the CLI `i18n` entry configures
-// `enrich --translate`, while this one drives the plugin's per-locale
+// `enrich --i18n`, while this one drives the plugin's per-locale
 // translation-mirror auto-sync. `strict` is accepted for shape-parity; the
 // auto-sync never gates on it (it only scaffolds + reconciles).
 export interface EnrichI18nSyncOptions {

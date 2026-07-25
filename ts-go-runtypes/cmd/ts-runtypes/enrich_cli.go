@@ -79,7 +79,7 @@ func runEnrich(args []string) {
 	typeFlag := fs.String("type", "", "batch mode: the type name to resolve in every --files entry")
 	update := fs.Bool("update", false, "reconcile an existing committed mirror file against the freshly regenerated desired set (property merge, never clobbers values)")
 	prune := fs.Bool("prune", false, "destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild (with --no-emit: list them, delete nothing)")
-	translate := fs.String("translate", "", "i18n: scaffold/reconcile per-locale FriendlyText translation files (a locale tag, or 'all' for every tsconfig i18n.locales entry)")
+	i18n := fs.String("i18n", "", "manage the per-locale translation mirror files for a locale tag (or 'all' for every tsconfig i18n.locales entry): bare = create, --update = sync, --prune = strip carcasses, --no-emit = completeness gate")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	asJSON := fs.Bool("json", false, "emit check diagnostics as a JSON array (the check-only / --no-emit lanes)")
 	noEmit := fs.Bool("no-emit", false, "report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)")
@@ -91,7 +91,7 @@ Usage:
        or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
        or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
        or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
-       or: ts-runtypes enrich --translate <locale> [--update|--prune] [<src>]   (i18n translation mirrors)
+       or: ts-runtypes enrich --i18n <locale> [--update|--prune] [<src>]        (per-locale translation mirrors)
        or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
        or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
 
@@ -103,17 +103,17 @@ Usage:
 		fatal("enrich: %v", err)
 	}
 
-	// --translate is its own lane: the desired side is the friendly source mirror,
-	// never the type graph — so it excludes the type-driven modes. --no-emit runs
-	// the i18n completeness gate instead of writing.
-	if *translate != "" {
+	// --i18n is its own lane: the desired side is the friendly source mirror, never
+	// the type graph — so it excludes the type-driven modes. --no-emit runs the i18n
+	// completeness gate instead of writing.
+	if *i18n != "" {
 		if *files != "" || *mock || *friendly || *out != "" {
-			fatal("enrich: --translate can only combine with --update / --prune / --gen-dir / --no-emit")
+			fatal("enrich: --i18n can only combine with --update / --prune / --gen-dir / --no-emit")
 		}
 		if *noEmit {
-			runCheckTranslate(*translate, *genDirFlag, *tsconfigFlag)
+			runCheckTranslate(*i18n, *genDirFlag, *tsconfigFlag)
 		} else {
-			runGenTranslate(*translate, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
+			runGenTranslate(*i18n, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
 		}
 		return
 	}
@@ -352,7 +352,7 @@ var valueFlags = map[string]bool{
 	"--files": true, "-files": true,
 	"--type": true, "-type": true,
 	"--gen-dir": true, "-gen-dir": true,
-	"--translate": true, "-translate": true,
+	"--i18n": true, "-i18n": true,
 	"--tsconfig": true, "-tsconfig": true,
 }
 
