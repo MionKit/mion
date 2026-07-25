@@ -1,0 +1,207 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CLI surface — help golden > compile --help 1`] = `
+"ts-runtypes compile — tsc-like batch compile
+
+Usage:
+    ts-runtypes compile [--gen-dir DIR] [--no-emit] [OPTIONS]
+
+Transforms every marker file, emits .js via tsgo with source maps composed back
+to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
+the tsconfig outDir; requires a tsconfig; no stdio protocol.
+
+--no-emit runs the scan + RunType-family diagnostics only and writes nothing
+(tsc --noEmit-style).
+
+Flags:
+  --allow-unchecked-patterns
+    	silence the fail-closed FMT004 build error for format patterns whose mockSamples RE2 can't verify
+  --cwd string
+    	working directory (default: $PWD)
+  --emit-mode string
+    	what each cache entry ships in its code/factory slots: code (default) | functions | both
+  --gen-dir string
+    	where compile writes the generated cache modules (default <cwd>/__runtypes; also the tsconfig "genDir" plugin key, flag overrides it)
+  --hash-length int
+    	short-id length for type hashes (0 = default 7)
+  --inline-mode string
+    	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
+  --module-mode string
+    	virtual-module grouping: default | allSingle | allModules
+  --no-emit
+    	report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules
+  --no-parallel-render
+    	disable the parallel cache renders (parallel is the default)
+  --no-parallel-scan
+    	disable the parallel marker scan (parallel is the default)
+  --no-single-threaded
+    	force multi-threaded (the default), overriding a tsconfig singleThreaded:true
+  --number-mode string
+    	project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN
+  --pprof-cpu string
+    	write a CPU profile to PATH (whole run)
+  --pprof-heap string
+    	write a heap profile to PATH at exit
+  --pure-fn-report-file
+    	also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json
+  --pure-fn-report-wire
+    	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
+  --single-threaded
+    	single-threaded mode (also disables the parallel scan + renders)
+  --size-bias dynamic
+    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
+  --size-items int
+    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
+  --size-max-bytes int
+    	per-type cap on the binary cold-start estimate (default 65536)
+  --size-string-bytes int
+    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --tsconfig string
+    	tsconfig.json path (default: discover upward from --cwd, tsc-style)
+"
+`;
+
+exports[`CLI surface — help golden > enrich --help 1`] = `
+"ts-runtypes enrich — scaffold / reconcile / check the enrichment mirror files
+
+Usage:
+    ts-runtypes enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
+       or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
+       or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
+       or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
+       or: ts-runtypes enrich --translate <locale> [--update|--prune] [<src>]   (i18n translation mirrors)
+       or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
+       or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
+
+--no-emit turns any write lane into a diagnostics-only pass — nothing is written.
+
+Flags:
+  --files string
+    	batch mode: comma-separated files; resolve --type in each, print JSON skeletons to stdout (no writes)
+  --friendly
+    	emit a FriendlyText<T> skeleton
+  --gen-dir string
+    	RunTypes output root override (precedence: this flag > tsconfig genDir > default __runtypes); mirrors live under <genDir>/enriched
+  --json
+    	emit check diagnostics as a JSON array (the check-only / --no-emit lanes)
+  --mock
+    	emit a MockData<T> skeleton
+  --no-emit
+    	report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)
+  --out string
+    	explicit single mirror file path (overrides the computed mirror path; forces a single file)
+  --prune
+    	destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild (with --no-emit: list them, delete nothing)
+  --translate string
+    	i18n: scaffold/reconcile per-locale FriendlyText translation files (a locale tag, or 'all' for every tsconfig i18n.locales entry)
+  --tsconfig string
+    	project tsconfig path (default: found like tsc, searching upward from the working directory)
+  --type string
+    	batch mode: the type name to resolve in every --files entry
+  --update
+    	reconcile an existing committed mirror file against the freshly regenerated desired set (property merge, never clobbers values)
+"
+`;
+
+exports[`CLI surface — help golden > serve --help 1`] = `
+"ts-runtypes serve — serve the resolver protocol on stdio
+
+Usage:
+    ts-runtypes serve [--sources project|stdin|ops] [OPTIONS]
+
+Holds a Program + checker in memory and speaks newline-delimited JSON on stdio
+(the resolver protocol the bundler plugin drives). --sources selects where the
+startup Program comes from: project (build from the tsconfig file list, the
+default), stdin (a {"sources":{…}} handshake line, one inferred Program), or ops
+(no startup Program; the client drives setSources / scanFiles / dump).
+
+Flags:
+  --allow-unchecked-patterns
+    	silence the fail-closed FMT004 build error for format patterns whose mockSamples RE2 can't verify
+  --cwd string
+    	working directory (default: $PWD)
+  --emit-mode string
+    	what each cache entry ships in its code/factory slots: code (default) | functions | both
+  --hash-length int
+    	short-id length for type hashes (0 = default 7)
+  --inline-mode string
+    	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
+  --module-mode string
+    	virtual-module grouping: default | allSingle | allModules
+  --no-parallel-render
+    	disable the parallel cache renders (parallel is the default)
+  --no-parallel-scan
+    	disable the parallel marker scan (parallel is the default)
+  --no-single-threaded
+    	force multi-threaded (the default), overriding a tsconfig singleThreaded:true
+  --number-mode string
+    	project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN
+  --out-json string
+    	after stdin EOF, write the cache as JSON to PATH
+  --out-modules string
+    	after stdin EOF, write per-entry virtual modules to DIR
+  --pprof-cpu string
+    	write a CPU profile to PATH (whole run)
+  --pprof-heap string
+    	write a heap profile to PATH at exit
+  --pure-fn-report-file
+    	also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json
+  --pure-fn-report-wire
+    	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
+  --single-threaded
+    	single-threaded mode (also disables the parallel scan + renders)
+  --size-bias dynamic
+    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
+  --size-items int
+    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
+  --size-max-bytes int
+    	per-type cap on the binary cold-start estimate (default 65536)
+  --size-string-bytes int
+    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
+  --sources string
+    	startup Program source: project | stdin | ops
+  --tsconfig string
+    	tsconfig.json path (default: discover upward from --cwd, tsc-style)
+"
+`;
+
+exports[`CLI surface — help golden > top-level usage (no args) 1`] = `
+"ts-runtypes — compile-time type resolver for runtypes
+
+Usage:
+    ts-runtypes <command> [OPTIONS]
+
+Commands:
+    serve       serve the resolver protocol on stdio (the bundler-plugin path)
+    compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
+    enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
+
+Run  ts-runtypes <command> -h  for a command's own options.
+
+Shared options (same meaning under every command):
+    --tsconfig PATH     tsconfig.json to load (default: discover upward from --cwd)
+    --cwd PATH          working directory (default: $PWD)
+    --hash-length N     short-id length for type hashes (default 7)
+    --emit-mode MODE    fn-entry code/factory slots: code (default) | functions | both
+    --inline-mode MODE  child-inlining: default | allInternal
+    --module-mode MODE  virtual-module grouping: default | allSingle | allModules
+    --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
+    --single-threaded / --no-single-threaded
+    --no-parallel-scan / --no-parallel-render
+    --size-bias / --size-items / --size-string-bytes / --size-max-bytes
+    --allow-unchecked-patterns
+    --pure-fn-report-wire / --pure-fn-report-file
+    --pprof-cpu PATH / --pprof-heap PATH
+    -h, --help          show help
+    --version           print version (binary + pinned tsgo revision) and exit
+
+The on-disk RT artifact cache (per-(typeID, fnTag) files under
+<cwd>/node_modules/.cache/ts-runtypes/<optsFingerprint>/...) follows TypeScript's
+own incremental switch: it is enabled when the loaded tsconfig sets
+"incremental" or "composite", and disabled otherwise. The internal RT_CACHE_DIR
+environment variable overrides this for tests and direct-binary use: set it to a
+path to force the cache on at that location, or to an empty string to force it
+off. Binary version is folded into every typeID hash so cross-version files
+never collide.
+"
+`;
