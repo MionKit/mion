@@ -4,7 +4,7 @@
 **Created:** 2026-07-08
 **Scope:** `.github/` (`release-gate.yml` e2e job + `verdaccio-publish` action), `scripts/release/e2e.mjs` (new), `scripts/rt.mjs`, `container/website/Containerfile` + `scripts/container/image.mjs`, `container/pre-publish-e2e/`, `SETUP.md` (dev-loop). No package/runtime code.
 
-> **Pre-publish e2e — 3 units.** **① this: the harness** → ② [feature matrix](./prepublish-e2e-2-feature-matrix.md) (runs *inside* this harness). ③ [staged publish + deploy](../partially/staged-npm-publish-and-deploy.md) is a **separate, independent** track. Do ① then ② sequentially; ③ anytime. **Start here** — this is the foundation ② builds on, it's self-contained (no npmjs.com setup, no publish risk), and it delivers the local pre-publish smoke + the supply-chain fix on its own.
+> **Pre-publish e2e — 3 units.** **① this: the harness** → ② [feature matrix](./prepublish-e2e-2-feature-matrix.md) (runs *inside* this harness). ③ [staged publish + deploy](./staged-npm-publish-and-deploy.md) is a **separate, independent** track. Do ① then ② sequentially; ③ anytime. **Start here** — this is the foundation ② builds on, it's self-contained (no npmjs.com setup, no publish risk), and it delivers the local pre-publish smoke + the supply-chain fix on its own.
 
 ## Context
 

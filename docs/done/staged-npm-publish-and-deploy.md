@@ -1,8 +1,38 @@
 # Staged npm publish + website-deploy split
 
-**Status:** partially done — all in-repo work shipped 2026-07-08; the one-time
-npmjs.com trusted-publisher registration + `NPM_TOKEN` secret deletion are external
-and remain (see [What remains](#what-remains-external-one-time)).
+**Status: DONE for the in-repo pipeline (triaged 2026-07-25).** The staged-publish +
+deploy-split machinery shipped and is present in-tree: `publish.yml` stages every package
+via `npm stage publish`, `scripts/release/publish-tarballs.mjs` has the stage path,
+`scripts/release/stage-approve.mjs` + `rtx release stage-approve` drive the leaves-first 2FA
+approval, `website-deploy.yml` is split out (`workflow_dispatch`, `environment: production`),
+`post-publish.yml` verifies the live registry, `scripts/release/verify-live.mjs` guards the
+deploy, and SETUP.md has the publishing runbook. The remaining work is EXTERNAL and has moved
+to a new todo: **[docs/todos/staged-publish-first-release-and-oidc.md](../todos/staged-publish-first-release-and-oidc.md)**.
+
+> ### ⚠️ Triage note (2026-07-25): the shipped auth model DIVERGED from this spec
+>
+> This spec's "What shipped" / "What remains" below describe a **pure-OIDC, no-`NPM_TOKEN`**
+> staging model. **That is NOT what shipped.** The pipeline that actually landed **stages with
+> `NPM_TOKEN`**, not OIDC:
+>
+> - `publish.yml:154-164` writes `//registry.npmjs.org/:_authToken=${NPM_TOKEN}` and **hard-fails
+>   if `NPM_TOKEN` is empty** — staging authenticates with the token (staging needs any token and
+>   no 2FA; the 2FA gate is the *approval*, which is unchanged).
+> - `id-token: write` is kept **only for optional provenance** (`RT_NPM_PROVENANCE`, off by
+>   default because the repo is private), not for auth.
+> - `scripts/lib/env.mjs:49` documents `NPM_TOKEN` as used by BOTH the local publish AND the CI
+>   stage-publish — i.e. the token is a required, current input, not something being removed.
+>
+> So the OIDC-trusted-publisher migration and the `NPM_TOKEN`-deletion step were **planned but
+> not completed**; a pragmatic token-staging model shipped instead. Everything below about
+> "drops `NPM_TOKEN`" / "no `NPM_TOKEN` in CI" is stale plan text, kept for history.
+>
+> **Doc-vs-code contradiction to fix (carried into the new todo):** several docs still assert the
+> unshipped OIDC-no-token model and contradict the code — `SETUP.md:366` ("no `NPM_TOKEN` in
+> CI"), `SETUP.md:388` ("delete the `NPM_TOKEN` repo secret" — which would BREAK `publish.yml`),
+> and `scripts/release/manual-publish.mjs:168` ("release stages via OIDC in CI"). These must be
+> reconciled (finish the OIDC migration, or correct the docs to the token model).
+
 **Created:** 2026-07-08
 **Scope:** `.github/workflows/publish.yml` + `website-deploy.yml` (new), `scripts/release/publish-tarballs.mjs` + a new `stage-approve` helper, `SETUP.md` (publishing runbook), and one-time npmjs.com trusted-publisher config (external). No package/runtime code.
 

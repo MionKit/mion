@@ -11,7 +11,7 @@ package/runtime code.
 This multi-app build IS the "consumer suite" that harness's
 `pnpm rtx release e2e` drives.
 
-> **Pre-publish e2e — 3 units.** ① [harness](./prepublish-e2e-1-harness.md) → **② this: the feature matrix** — build it *on* unit ①'s harness, so **implement after ①**. ③ [staged publish + deploy](../partially/staged-npm-publish-and-deploy.md) is a **separate** track (publish pipeline, not the fixture).
+> **Pre-publish e2e — 3 units.** ① [harness](./prepublish-e2e-1-harness.md) → **② this: the feature matrix** — build it *on* unit ①'s harness, so **implement after ①**. ③ [staged publish + deploy](./staged-npm-publish-and-deploy.md) is a **separate** track (publish pipeline, not the fixture).
 
 ## Context
 

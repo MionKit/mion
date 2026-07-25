@@ -1,10 +1,20 @@
 # Website suite-data export halts on the test suite's deliberate negative fixtures
 
-> **Status (partially):** `failOnError: false` applied to both exporters in PR #226
-> and verified locally (the halt clears; `loaded VALIDATION_SUITE`). End-to-end
-> CI-green for the full `website build` (stages 3-6) is still pending the
-> `website-deploy.yml` re-run — this pipeline has never been green in CI, so further
-> downstream failures may surface and would be tracked separately.
+> **Status: DONE (triaged 2026-07-25).** The in-scope fix — `failOnError: false` on
+> the two suite-data exporters — is applied and verified in-tree (see below); the
+> negative-fixture halt is resolved. Re-verified 2026-07-25:
+> `scripts/website/suite-data/export-validation.mjs:211` and
+> `scripts/website/suite-data/export-serialization.mjs:212` both pass
+> `failOnError: false`, and `scripts/website/suite-data/website-data.mjs` is a pure
+> gendocs→JSON transform that never spawns the plugin, so it cannot hit the same halt
+> (the "Also verify" item, satisfied).
+>
+> **Out of this spec's scope (not a code todo):** end-to-end CI-green for the full
+> `pnpm rtx website build` (stages 3-6) via `website-deploy.yml` — this pipeline has
+> never been green in CI, and the doc always scoped any *downstream* failures as
+> "tracked separately". No such downstream failure is currently known, so there is
+> nothing concrete to file; it is a run-it-and-see verification, left for whoever next
+> exercises `website-deploy.yml`.
 
 ## Symptom
 

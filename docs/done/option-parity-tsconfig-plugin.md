@@ -1,17 +1,31 @@
 ---
 type: feature
 spec: full-plan
-status: partially
+status: done
 created: 2026-07-18
+completed: 2026-07-25
 ---
 
 # Option parity: every project option settable in BOTH tsconfig and the bundler plugin
 
-**Status:** PARTIALLY SHIPPED (2026-07-24). The option-parity core landed (`failOnError`
-echo, `singleThreaded` + `hashLength` plugin wiring, the drift-killing parity guard, tests,
-docs). `i18n` plugin-side parity was deliberately deferred and folded into a new, larger
-follow-up (drive enrichment from the bundler plugin). See "Shipped vs deferred" below.
+**Status:** DONE (option-parity core, 2026-07-24; triaged to done 2026-07-25). The
+option-parity core landed and is verified in-tree (`failOnError` echo, `singleThreaded` +
+`hashLength` plugin wiring, the drift-killing parity guard, tests, docs). The ONE deliberately
+deferred piece, `i18n` plugin-side parity, is NOT lost: it was folded into a larger follow-up
+feature (drive enrichment from the bundler plugin), now tracked as its own ready spec at
+[docs/todos/plugin-driven-enrichment-sync.md](../todos/plugin-driven-enrichment-sync.md). With
+that follow-up carrying the remaining scope, nothing in THIS spec is outstanding, so it moves to
+done. See "Shipped vs deferred" below.
 **Created:** 2026-07-18
+
+> **Triage note (2026-07-25):** every "Shipped this pass" claim below was re-verified against
+> the code (config.go `FailOnError`, protocol echo, `unplugin.ts` gate, `--hash-length` /
+> `--no-single-threaded` wiring, `cmd/gen-plugin-keys` + `tsconfig-plugin-keys.generated.ts` +
+> `PLUGIN_OPTION_KEYS` + `plugin-option-parity.test.ts` with `GO_ONLY = {name, i18n}`, the four
+> tests, and the config-page / ARCHITECTURE / go-generated README doc edits) — all confirmed.
+> The lower "Implementation plan" item 6 and "Done criteria" still mention a "deprecated
+> `runTypesGenDir` alias that warns"; that is stale leftover prose — per Decision 1 (top of the
+> "Shipped vs deferred" section) `runTypesGenDir` was REMOVED outright, not aliased.
 
 ## Shipped vs deferred (2026-07-24)
 

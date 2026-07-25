@@ -83,7 +83,7 @@ per-lane split below was the original plan and did not ship.)*
   plumbing is removed.~~ **Corrected at implementation (owner decision):**
   `TsconfigFailOnError` is the option-parity `failOnError` echo (Error-severity
   BUILD diagnostics halting the host build,
-  [option-parity-tsconfig-plugin.md](../partially/option-parity-tsconfig-plugin.md)),
+  [option-parity-tsconfig-plugin.md](./option-parity-tsconfig-plugin.md)),
   unrelated to parse strictness — it stays. No parse-strictness toggle ever
   existed; strictness is simply unconditional now, no option involved.
 

@@ -4,7 +4,7 @@
 **Created:** 2026-07-10
 **Scope:** `scripts/release/e2e.mjs` (new `npm` backend), `scripts/container/image.mjs` (`startToolchainContainer`), `scripts/lib/env.mjs` (`RT_E2E_REGISTRY`), `scripts/rt.mjs` (help), `.github/workflows/post-publish.yml` (new), `.github/workflows/publish.yml` (pointer), `SETUP.md`. No package/runtime code.
 
-> **Pre-publish e2e — the series.** ① [harness](./prepublish-e2e-1-harness.md) → ② [feature matrix](./prepublish-e2e-2-feature-matrix.md) (runs inside the harness) → ③ **this: the same suite, run once more AFTER publish against the real registry.** Independent of ③'s sibling, [staged publish + deploy](../partially/staged-npm-publish-and-deploy.md).
+> **Pre-publish e2e — the series.** ① [harness](./prepublish-e2e-1-harness.md) → ② [feature matrix](./prepublish-e2e-2-feature-matrix.md) (runs inside the harness) → ③ **this: the same suite, run once more AFTER publish against the real registry.** Independent of ③'s sibling, [staged publish + deploy](./staged-npm-publish-and-deploy.md).
 
 ## Context
 

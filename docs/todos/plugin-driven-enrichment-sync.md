@@ -108,6 +108,6 @@ Left for the implementer to plan with fresh context (the reason this is `guideli
 
 ## Relationship
 
-This is the deferred half of `docs/partially/option-parity-tsconfig-plugin.md` (the option-parity
+This is the deferred half of `docs/done/option-parity-tsconfig-plugin.md` (the option-parity
 work shipped without `i18n` plugin parity; `i18n` is folded into this feature instead, because it
 is meaningful on the plugin only once the plugin drives enrichment).

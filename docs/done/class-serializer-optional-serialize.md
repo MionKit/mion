@@ -1,11 +1,36 @@
 # Class serializer redesign — optional `serialize`, class-derived identity, class-in-union reconstruction
 
-**Status:** PARTIALLY DONE — the API redesign + class-in-union reconstruction
-shipped (union discriminant = the **numeric member index**, superseding the
-original `rt$classID` string-tag design). The registry is keyed by the injected
-**type id** (namespace dropped). Only open-world polymorphism (Phase 2) stays
-deferred.
+**Status:** DONE (Phase 1 shipped PR #189; triaged to done 2026-07-25) — the API
+redesign + class-in-union reconstruction shipped (union discriminant = the **numeric
+member index**, superseding the original `rt$classID` string-tag design). The registry
+is keyed by the injected **type id** (namespace dropped). Only open-world polymorphism
+(Phase 2) stays deferred, and it is tracked in
+[docs/ROADMAP.md](../ROADMAP.md) (see the class-serializer entry) — nothing in Phase 1
+is outstanding, so this spec moves to done.
 **Created:** 2026-07-06
+
+> **Triage note (2026-07-25):** every Phase-1 claim below was re-verified against the
+> code and is substantively in the tree (`classSerializerRegistry.ts` new signature +
+> `deserializeClass` + epoch cache, `class_serializer.go` emit, `typeid.go` `#<ClassName>`
+> fold, `union_flat_layout.go` atomic-member routing + `instanceof` guard, CLS001 update +
+> runtime CLS002, docs + example). Two things the prose predates:
+> 1. **Keying is now TWO-LANE, not type-id-only.** A later enhancement (shipped under
+>    [docs/done/generic-class-serializers-single-instantiation.md](../done/generic-class-serializers-single-instantiation.md))
+>    added a class-name fallback lane, so emit passes the two-arg
+>    `utl.getClassSerializer('<rt.ID>', '<rt.TypeName>')` and the runtime keeps both an
+>    exact-id map and a by-name map. The "keyed by the injected type id" / single-arg
+>    emit wording below is understated but not wrong (the id is still the primary key).
+> 2. **Tests are split across files.** `classSerializer.test.ts` holds the monomorphic /
+>    auto-instantiate / CLS002 / isolation cases; the union coverage (JSON class unions,
+>    class+object, binary union, codecs-agree) lives in `classSerializerUnion.test.ts`,
+>    and the name-lane cases in `classSerializerGenerics.test.ts`. Coverage is complete.
+>
+> **Minor doc-drift found (not blocking, surfaced for cleanup):** the cross-reference to
+> `class-serializer-custom-wire-shape.md` is stale in four places — it points at
+> `docs/todos/` but the file now lives in `docs/done/` (`docs/ROADMAP.md`,
+> `docs/ARCHITECTURE.md`, `packages/ts-runtypes/test/features/classSerializer.test.ts`,
+> and the `classSerializerRegistry.ts` header comment). Fixing those paths was left out
+> of this triage (two are in code, outside the "move the docs" scope).
 **Area:** JSON + binary codecs (`pj` / `pjs` / `sj` / `rj` / `tb` / `fb` families), flat-union machinery, type-id, marker injection, runtime registry
 **Supersedes:** the T7 class-serializer contract (both `serialize` + `deserialize` required, keyed by bare class name)
 
