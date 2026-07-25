@@ -991,6 +991,8 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			return protocol.Response{}
 		}
 		return protocol.Response{RunTypes: []*protocol.RunType{runType}}
+	case protocol.OpEnrich:
+		return sess.dispatchEnrich(request)
 	case protocol.OpTsCompile:
 		ms, err := sess.dispatchTsCompile()
 		if err != nil {

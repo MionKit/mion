@@ -313,7 +313,7 @@ export interface FormatAnnotation {
 }
 
 export interface Request {
-  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'resolveId' | 'tsCompile' | 'transform' | 'generate';
+  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'resolveId' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
   // scanFiles only — the files to scan in this request. The response's
   // sites cover every listed file (each tagged with .file); when the
   // include* flags are set, runTypes / runTypeCacheSource are projected
@@ -359,6 +359,19 @@ export interface Request {
   // sourcesContent (the heaviest single wire item). The bundler composes the
   // chained map and fills original content itself, so it rarely needs our copy.
   omitSourcesContent?: boolean;
+  // enrich only — the named type to scaffold from each `files` entry.
+  typeName?: string;
+  // enrich only — which family mirrors to scaffold (both when neither is set).
+  enrichFriendly?: boolean;
+  enrichMock?: boolean;
+  // enrich only — reconcile an existing mirror (property merge) instead of the
+  // create-only scaffold; mirrors the CLI `enrich <file> <Type> --update`.
+  enrichUpdate?: boolean;
+  // enrich only — return diagnostics only, no enrichFiles content (tsc --noEmit).
+  enrichNoEmit?: boolean;
+  // enrich only — the resolved RunTypes output root the mirrors hang off
+  // (<genDir>/enriched/...); typically the plugin's gen.outDir.
+  genDir?: string;
 }
 
 // Metrics mirrors the Go-side protocol.Metrics — populated on a response
@@ -460,6 +473,10 @@ export interface Response {
   // so wrapper call sites (markers forwarded by another package, node_modules
   // included) rewrite with zero configuration.
   siteFiles?: string[];
+  // enrich only — the computed enrichment mirror files (path + desired content +
+  // added + kind). The daemon never writes; the caller writes them under its own
+  // HMR-suppression window. Absent on an enrichNoEmit request (diagnostics only).
+  enrichFiles?: EnrichFile[];
   // The output root `generate` actually wrote to. When the request left
   // outDir empty the resolver infers <srcDir>/__runtypes from the tsconfig and
   // echoes the absolute path here so the plugin can adopt it.
@@ -543,6 +560,17 @@ export interface UncheckedPattern {
   flags?: string;
   samples: string[];
   site: DiagnosticSite;
+}
+
+// EnrichFile mirrors the Go-side protocol.EnrichFile — one computed enrichment
+// mirror file from the `enrich` op: its absolute path, the desired content (the
+// daemon never writes; the caller writes it), whether it is newly added (no prior
+// on-disk file), and its family kind ('friendly' | 'mock').
+export interface EnrichFile {
+  path: string;
+  content: string;
+  added?: boolean;
+  kind?: string;
 }
 
 // Diagnostic mirrors the Go-side diag.Diagnostic. The Family

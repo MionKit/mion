@@ -3,6 +3,7 @@ import {createInterface, type Interface} from 'node:readline';
 import type {Readable, Writable} from 'node:stream';
 import type {
   Diagnostic,
+  EnrichFile,
   Metrics,
   PureFnSite,
   Replacement,
@@ -319,6 +320,24 @@ export interface GenerateResult {
   failOnError?: boolean;
 }
 
+// EnrichOptions selects which family mirrors the enrich op scaffolds and whether
+// it reconciles an existing mirror. `noEmit` returns diagnostics only (no files).
+export interface EnrichOptions {
+  friendly?: boolean;
+  mock?: boolean;
+  update?: boolean;
+  noEmit?: boolean;
+  genDir?: string;
+}
+
+// EnrichResult is the shape returned by enrich(): the computed mirror files (the
+// caller writes them under its own HMR-suppression window; the daemon never does)
+// plus any diagnostics (the freshly-scaffolded @todo worklist / health findings).
+export interface EnrichResult {
+  files: EnrichFile[];
+  diagnostics?: Diagnostic[];
+}
+
 // Common operation surface. Spawn-based and socket-based clients both
 // implement this interface so consumers can be typed against the connection
 // without caring which transport is in use.
@@ -326,6 +345,7 @@ export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
   transform(files: string[], outDir?: string, opts?: TransformOptions): Promise<TransformFilesResult>;
   generate(outDir?: string): Promise<GenerateResult>;
+  enrich(files: string[], typeName: string, opts?: EnrichOptions): Promise<EnrichResult>;
   dump(): Promise<Response>;
   setSources(sources: Record<string, string>): Promise<void>;
   reset(): Promise<void>;
@@ -439,6 +459,23 @@ abstract class ResolverClientBase implements ResolverConnection {
       pureFnSites: resp.pureFnSites,
       failOnError: resp.failOnError,
     };
+  }
+
+  // enrich scaffolds / reconciles the FriendlyText / MockData mirrors for a named
+  // type over the warm connection — the daemon face of the CLI `enrich` verb. It
+  // NEVER writes: it returns the computed mirror content (files) for the caller to
+  // write under its own HMR-suppression window (the plugin-driven sync path). With
+  // `noEmit`, only diagnostics come back (no files).
+  async enrich(files: string[], typeName: string, opts?: EnrichOptions): Promise<EnrichResult> {
+    const req: Request = {op: 'enrich', files, typeName};
+    if (opts?.friendly) req.enrichFriendly = true;
+    if (opts?.mock) req.enrichMock = true;
+    if (opts?.update) req.enrichUpdate = true;
+    if (opts?.noEmit) req.enrichNoEmit = true;
+    if (opts?.genDir) req.genDir = opts.genDir;
+    const resp = await this.send(req);
+    if (resp.error) throw new Error(`enrich: ${resp.error}`);
+    return {files: resp.enrichFiles ?? [], diagnostics: resp.diagnostics};
   }
 
   async dump(): Promise<Response> {
