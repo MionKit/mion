@@ -13,7 +13,7 @@ option-parity core landed and is verified in-tree (`failOnError` echo, `singleTh
 `hashLength` plugin wiring, the drift-killing parity guard, tests, docs). The ONE deliberately
 deferred piece, `i18n` plugin-side parity, is NOT lost: it was folded into a larger follow-up
 feature (drive enrichment from the bundler plugin), now tracked as its own ready spec at
-[docs/todos/plugin-driven-enrichment-sync.md](../todos/plugin-driven-enrichment-sync.md). With
+[docs/todos/enrich-surface-and-plugin-sync.md](../todos/enrich-surface-and-plugin-sync.md) (Part B). With
 that follow-up carrying the remaining scope, nothing in THIS spec is outstanding, so it moves to
 done. See "Shipped vs deferred" below.
 **Created:** 2026-07-18

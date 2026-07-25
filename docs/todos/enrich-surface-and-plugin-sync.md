@@ -5,16 +5,38 @@ status: ready
 created: 2026-07-25
 ---
 
-# Uniform `--no-emit` surface: rename `gen`→`enrich`, delete `check`
+# Uniform `--no-emit` enrich/compile surface **+** plugin-driven enrichment sync
 
-_Supersedes and folds in `docs/todos/dual-mode-enrich.md` (the parked Part B of
-the CLI subcommand consolidation, PR #279 —
-[docs/done/cli-subcommand-consolidation.md](../done/cli-subcommand-consolidation.md))._
-_The old todo was removed when this spec was filed._
+_This spec merges two previously-separate todos and ships them together in
+**one PR**:_
+
+- _Part A — CLI surface refactor: rename `gen`→`enrich`, delete `check`, add a
+  uniform `--no-emit` on both emitting verbs, and (Stage 2) expose enrichment as
+  a daemon protocol op. Absorbs `docs/todos/dual-mode-enrich.md` (removed when
+  the original Part A spec was filed) and is the deferred continuation of PR
+  #279 — [docs/done/cli-subcommand-consolidation.md](../done/cli-subcommand-consolidation.md)._
+- _Part B — plugin-driven enrichment sync: opt-in bundler-plugin options that
+  drive the same scaffold+reconcile pass from dev/watch, so a developer no
+  longer has to run the CLI by hand. Deferred half of
+  `docs/done/option-parity-tsconfig-plugin.md` (the tsconfig-plugin option
+  parity shipped without `i18n` plugin parity; `i18n` is folded into Part B
+  because it is meaningful on the plugin only once the plugin drives
+  enrichment)._
+
+**Why bundle them:** Part B is the first real consumer of Part A's daemon op
+(Stage 2c) — landing them together lets Part B call the daemon op directly
+instead of spawning the CLI, avoids two rounds of docs churn (command names +
+plugin options move together), and keeps the "enrichment is CLI-only / never
+in a build" invariant statement consistent across the website / architecture
+docs in one edit.
+
+---
+
+# Part A — Uniform `--no-emit` surface (rename `gen`→`enrich`, delete `check`)
 
 ## Context (why)
 
-Part A gave the binary a tsgo-style `args[0]` surface (`serve` / `compile` /
+PR #279 gave the binary a tsgo-style `args[0]` surface (`serve` / `compile` /
 `gen` / `check`). Two rough edges remain:
 
 1. **`gen` is too generic.** The verb does exactly one thing — scaffold and
@@ -40,10 +62,11 @@ both emitting verbs.** The `check` verb dissolves. This is the owner's
 uniform-surface goal (mode orthogonal to capability) reduced to one idiom every
 TS user already knows.
 
-Folded in: the parked Part B goal — every enrich capability reachable BOTH as a
-CLI verb AND a daemon protocol op over ONE shared implementation. With `check`
-gone, that collapses to "make `enrich` a daemon op with a `noEmit` switch"
-(enrichment *check* on the daemon already exists as `scanFiles{checkEnrich}`).
+Folded in: the parked Part B goal of the earlier consolidation — every enrich
+capability reachable BOTH as a CLI verb AND a daemon protocol op over ONE
+shared implementation. With `check` gone, that collapses to "make `enrich` a
+daemon op with a `noEmit` switch" (enrichment *check* on the daemon already
+exists as `scanFiles{checkEnrich}`).
 
 ## Target surface
 
@@ -81,8 +104,8 @@ scaffold, or --no-emit to check").
 
 Stage 1 is the whole user-visible change and the shared-impl refactor
 (existing enrich suites gate it, no protocol change). Stage 2 adds the daemon
-transport + parity (folded-in Part B). Stage 1 stands alone as a PR; Stage 2
-can follow.
+transport + parity (folded-in earlier Part B). **Both stages ship in this
+PR** because Part B (plugin sync) consumes Stage 2's daemon op.
 
 ### Stage 1 — CLI surface + refactor-first
 
@@ -139,17 +162,18 @@ Remove the three `"source"` injections: `config.go:244`
 `Conditions:["source"]`). Thread the project `hashLength` into the enrich
 `resolver.Options{}` (today hardcodes only `Cwd` at `enrich_cli.go:37,58`) so
 gen's hash-sensitive `@rtType` ids match a build. **Source-drop fix (verified,
-Part B):** point the two spawns in `packages/ts-runtypes/test/util/enrichGen.ts`
-(`:83` gen-files, `:161` check) at `--tsconfig
-<abs>/packages/ts-runtypes/tsconfig.test.json` (already carries
-`customConditions:["source"]`, mirroring `vitest.config.ts`). Audit the other JS
-spawn harnesses (`enrichReconcile.ts`, `fuzz/enrich/enrichCli.ts`, `i18nModel.ts`,
-`enrichRace.test.ts`, `enrich-hmr-e2e.test.ts`) for `@ts-runtypes/core/formats`
-imports and add the same flag where needed (Part B judged only the two
-enrichGen spawns load-bearing — re-verify). Do NOT add `customConditions` to the
-discoverable root/package `tsconfig.json` (leaks `"source"` into `pnpm build`).
+prior Part B):** point the two spawns in
+`packages/ts-runtypes/test/util/enrichGen.ts` (`:83` gen-files, `:161` check)
+at `--tsconfig <abs>/packages/ts-runtypes/tsconfig.test.json` (already carries
+`customConditions:["source"]`, mirroring `vitest.config.ts`). Audit the other
+JS spawn harnesses (`enrichReconcile.ts`, `fuzz/enrich/enrichCli.ts`,
+`i18nModel.ts`, `enrichRace.test.ts`, `enrich-hmr-e2e.test.ts`) for
+`@ts-runtypes/core/formats` imports and add the same flag where needed (prior
+Part B judged only the two enrichGen spawns load-bearing — re-verify). Do NOT
+add `customConditions` to the discoverable root/package `tsconfig.json`
+(leaks `"source"` into `pnpm build`).
 
-### Stage 2 — daemon op + parity (folds in Part B; deferrable)
+### Stage 2 — daemon op + parity (folds in earlier Part B)
 
 **2a. Protocol** (`internal/protocol/protocol.go`): add one `OpEnrich` constant
 (`:339-394`); Request fields `TypeName`, `EnrichFriendly` / `EnrichMock` /
@@ -179,7 +203,7 @@ the CLI shared-fn path over one fixture (tsconfig carrying
 incl. `--update`) and same codes+sites (`--no-emit`). Pin the SAME `hashLength`
 both sides.
 
-## Tests
+## Tests (Part A)
 
 - **CLI surface contract test (new — THE regression guard).** One spawn-based
   golden test over the built `bin/ts-runtypes` (Vitest, e.g.
@@ -222,12 +246,169 @@ both sides.
 - **`buildResolverArgs`** (`resolver-client.ts:484`) already emits only
   `serve` — untouched.
 
-## Docs
+## Settled sub-decisions (Part A)
+
+- **`--no-emit` is required to enter check-only modes** (bare file / dir / no
+  target); write modes accept it as a dry-run. This disambiguates a missing
+  `<Type>` and mirrors `tsc --noEmit`.
+- **Write-mode `enrich` emits the freshly-scaffolded `@todo` diagnostics** — a
+  fresh scaffold immediately reports every blank (FT020/MD020) as the worklist;
+  intentional, symmetric with `compile`.
+- **The enrich daemon op RETURNS content, never writes** (Part B's no-HMR
+  constraint from the earlier plugin-sync spec); the CLI keeps
+  `atomicWriteFile`. `migrateLegacyMirror` is a CLI-only pre-step, skipped by
+  the daemon op.
+
+## Out of scope (Part A)
+
+- Surfacing tsgo's native type-error diagnostics under `compile --no-emit` (v1
+  reports the RunType-family diagnostics `compile` already computes).
+- Any change to the lint lane (`scanFiles{checkEnrich}`) or the marker API.
+- **Not the `rtx` CLI** (`scripts/rt.mjs`): its own `check`/`generate`
+  subcommands are unrelated to the binary's `args[0]`.
+
+---
+
+# Part B — Plugin-driven enrichment sync
+
+## Intent
+
+Today all enrichment (FriendlyText, MockData, i18n translation mirrors) is
+**CLI-driven**: the developer runs `ts-runtypes gen ... --update` (post-Part-A:
+`ts-runtypes enrich ... --update`) to scaffold and keep the committed mirror
+files under `<genDir>/enriched/{friendly,mock,i18n/<locale>}` in sync as their
+types change. The bundler plugin drives none of it — enrichment is dispatched
+as a separate `ts-runtypes` subcommand (its own Program, `os.Exit`), and the
+build/generate lane never touches the `enriched/` contents (they're consumed at
+runtime through ordinary committed imports).
+
+We want the **bundler plugin to optionally drive that same scaffold + keep-in-
+sync pass**, so a developer doesn't have to remember to run the CLI: as source
+types change during a dev/build, the plugin regenerates and reconciles the
+enrichment mirrors, exactly like `enrich --update` does. This is *scaffold +
+sync only* — NOT translation. Filling in translated strings stays a developer/
+skill-triggered step; the plugin only keeps the file structure current. The
+CLI verbs remain the authoring path, unchanged.
+
+Why it's cheap and safe: `enrich --update` is deterministic, value-preserving
+(never clobbers authored values), idempotent and convergence-proven (see
+`enrich-hmr-e2e.test.ts`), so driving it from the plugin does not violate the
+"never call an LLM in a build" invariant. The plugin's scan already knows the
+demanded named types + their source files, so it knows exactly what to enrich
+with little new config.
+
+## Direction
+
+**All new config is UNPLUGIN-ONLY (`PluginOptions` in
+`packages/ts-runtypes-devtools/src/unplugin.ts`), NOT tsconfig.** This feature
+is a host/dev-loop behavior, so it does not go through the tsconfig plugin
+entry or the option-parity guard's shared set. The CLI stays the authoritative
+authoring path.
+
+Decided config semantics (implementer finalizes the exact shape; a grouping
+under one `enrich` object is suggested):
+
+- **FriendlyText → a boolean flag** — enable auto gen+sync of the
+  `enriched/friendly/` mirrors.
+- **MockData → a boolean flag** — enable auto gen+sync of the `enriched/mock/`
+  mirrors.
+- **i18n → a config object** (`sourceLocale?`, `locales?`, `strict?` — same
+  shape as the tsconfig `i18nPluginConfig` at
+  `ts-go-runtypes/cmd/ts-runtypes/config.go`); **its presence is the enable
+  flag** for scaffolding/syncing the per-locale `enriched/i18n/<locale>/`
+  mirrors.
+- **An HMR-suppression flag** — when set, the unplugin ignores HMR / triggers
+  no reload for changes under `<genDir>/enriched/**` (these are write-only
+  outputs). Make it a **toggle** so it can be turned off to experiment/debug
+  "in case HMR is causing issues in those dirs." Note this flag is somewhat
+  orthogonal to the auto-gen flags: it's about how the dev watcher treats the
+  write-only enrich folder, and is useful even when the enriched files are
+  edited by hand or by the CLI while the dev server runs.
+- **Default OFF for everything** — existing builds/dev servers must be
+  unchanged unless opted in.
+
+## Transport — use Part A Stage 2's daemon op
+
+Because we're shipping Part B in the same PR as Part A, **the plugin drives
+enrichment through the new `OpEnrich` daemon op (Part A Stage 2), NOT a
+child-process spawn.** Rationale:
+
+- The plugin already holds a warm `ResolverClient` connection — a protocol op
+  is one round-trip vs a per-file `spawnSync`.
+- Part A 2c ships the JS `enrich()` client method the plugin can call directly.
+- The daemon op RETURNS content (Part A settled sub-decision) — the plugin
+  writes files under the HMR-suppression window, keeping the "gen returns
+  content, never writes from the daemon" invariant intact.
+- No new Go/protocol change is needed beyond Part A Stage 2.
+
+(If Part A Stage 2 is descoped for any reason, fall back to spawning
+`bin/ts-runtypes enrich <file> <Type> --friendly --mock --update --gen-dir
+<genDir>` — the same path `enrich-hmr-e2e.test.ts` already drives via
+`spawnSync`. This is the original plugin-sync spec's proposal.)
+
+Verified pointers (from a 2026-07-24 investigation — the implementer should
+still re-confirm):
+
+- CLI surface to call (spawn fallback): `ts-runtypes enrich` flags are
+  `--mock`, `--friendly`, `--update`, `--prune`, `--gen-dir`, `--translate`
+  (`ts-go-runtypes/cmd/ts-runtypes/enrich_cli.go`, renamed under Part A 1c).
+  `--update` is the value-preserving reconcile; `--prune` is destructive
+  (keep manual, never auto-run); a plain `enrich` scaffolds; `--no-emit` is
+  read-only.
+- Enrichment ↔ build boundary to respect: enrichment is a separate argv
+  dispatch (`cmd/ts-runtypes/main.go`, before flag parsing), its own inferred
+  Program; the generate lane never reads `enriched/` contents
+  (`internal/compiler/resolver/generate.go`). Keep the driver deterministic
+  (scaffold + reconcile only).
+- Discovery: the plugin's scan response already carries the demanded named
+  types + source files (`Response.RunTypes[].typeName`, `SiteFiles`) and the
+  resolved `genDir` (`gen.outDir`), so it can target the right `(file, Type)`
+  pairs.
+- HMR hook: the unplugin implements `vite.handleHotUpdate` (and could add
+  `watchChange`) in `unplugin.ts`. The suppression should short-circuit any
+  change resolving under `<genDir>/enriched/**` (`gen.outDir` + `/enriched`).
+
+## Left for the implementer to plan with fresh context
+
+(Part B is `spec: guidelines`-level inside this otherwise-`full-plan` doc —
+the following need concrete decisions before/while coding:)
+
+- **When it runs** — dev/watch sync vs also on a production build.
+  Recommendation: sync in dev/watch, and on a full build either do nothing or a
+  read-only `enrich --no-emit` (mutating committed source mid-build breaks
+  build reproducibility). Confirm with the owner.
+- Debounce / batching of `enrich --update` calls across rapid edits; whether
+  one pass covers all enabled families per changed file.
+- The exact `PluginOptions` shape (grouped `enrich` object vs top-level flags)
+  and how the HMR-suppress flag relates to the auto-gen flags.
+- Parity-guard bookkeeping: add the new unplugin-only keys to `JS_ONLY` in
+  `packages/ts-runtypes-devtools/test/plugin-option-parity.test.ts` (they
+  intentionally have no tsconfig counterpart). Reconsider whether the plugin's
+  `i18n` object should share the tsconfig `i18n` — they may share a shape but
+  drive different lanes (plugin enrichment vs the CLI).
+
+## Tests (Part B)
+
+- A plugin-driven analog of `enrich-hmr-e2e.test.ts`: drive through the plugin
+  hook, assert the mirrors sync AND that touching the enrich folder does not
+  trigger HMR.
+- Each family toggles independently (FriendlyText flag, MockData flag, i18n
+  object presence); everything defaults OFF; a plugin with none of these set
+  behaves exactly as today.
+
+---
+
+# Combined docs
 
 - **Website** (house voice, `<code-import>` where TS): command tables +
   invocations in `3.ai-integration/1.workflow-and-commands.md:88-95`,
   `2.friendly-type.md:80`, `4.i18n.md:35-47`, `2.guide/9.linting.md:32,91-95`,
   `1.introduction/4.configuration.md`, `index.md:310,382`.
+- **Enrichment CLI-only invariant text** in `docs/AI_ENRICHMENT.md` and
+  `container/website/content/3.ai-integration/1.workflow-and-commands.md`
+  now reflects **both** (a) the renamed verbs / `--no-emit` surface and
+  (b) the new opt-in plugin-driven sync. New plugin options are documented on
+  the config page as bundler-plugin-only.
 - **Skills:** `packages/ts-runtypes/skills/rt-enrich-types/SKILL.md`
   (workflow steps + command block L20-33/L130-134),
   `runtypes-friendly-type/SKILL.md:268-270`, `.claude/skills/enrich/SKILL.md:3,14`.
@@ -239,54 +420,51 @@ both sides.
   `catalog.go:61`, `mirror/scanTags.go:82`, `hygiene.go:13`. Regenerate the
   mirror via `pnpm run gen:diag-catalog` (rewrites
   `devtools/src/go-generated/diagnosticCatalog.generated.ts`).
-- On landing, move THIS spec to `docs/done/`. (`dual-mode-enrich.md`, which
-  this absorbs, was removed when the spec was filed.)
-- **Not the `rtx` CLI** (`scripts/rt.mjs`): its own `check`/`generate`
-  subcommands are unrelated to the binary's `args[0]`.
+- On landing, move THIS spec to `docs/done/`.
 
-## Out of scope
+# Fuzzing
 
-- Surfacing tsgo's native type-error diagnostics under `compile --no-emit` (v1
-  reports the RunType-family diagnostics `compile` already computes).
-- The `plugin-driven-enrichment-sync.md` consumer (a likely future user of the
-  Stage-2 daemon gen op, not a driver here).
-- Any change to the lint lane (`scanFiles{checkEnrich}`) or the marker API.
+Not a new-oracle candidate — Part A is a CLI-surface + transport refactor
+with no new data transform, and Part B is a dev-loop driver over an already-
+convergence-proven reconcile. The existing enrich fuzzers (`test/fuzz/enrich/*`)
+are the gate; they must stay green through the verb rename (their spawn args
+move to `enrich` / `enrich --no-emit`).
 
-## Fuzzing
+# Done when
 
-Not a new-oracle candidate — this is a CLI-surface + transport refactor with no
-new data transform. The existing enrich fuzzers (`test/fuzz/enrich/*`) are the
-gate; they must stay green through the verb rename (their spawn args move to
-`enrich` / `enrich --no-emit`).
-
-## Done when
-
+**Part A**
 - `gen` is renamed to `enrich`; `check` is deleted; `compile --no-emit` and
   `enrich --no-emit` both run the analysis and emit diagnostics while writing
   nothing (the `tsc --noEmit` idiom).
 - `enrich` (write mode) emits enrichment diagnostics in the same pass it
   scaffolds (the agent's fill-in worklist).
-- Existing Go + JS enrich suites stay green through the rename; new coverage for
-  both `--no-emit` modes.
+- Existing Go + JS enrich suites stay green through the rename; new coverage
+  for both `--no-emit` modes.
 - A CLI surface contract test pins every command + parameter (help golden +
-  routing/exit codes + parameter-effect matrix), so a future flag drop, rename,
-  or behavior change fails a test.
-- (Stage 2) every enrich capability is reachable as a daemon op AND a CLI verb
-  over one shared impl, pinned by a CLI≡daemon parity test.
-- Docs + diagnostic messages updated; `dual-mode-enrich.md` removed and this
-  spec moved to `docs/done/`.
+  routing/exit codes + parameter-effect matrix), so a future flag drop,
+  rename, or behavior change fails a test.
+- Every enrich capability is reachable as a daemon op AND a CLI verb over one
+  shared impl, pinned by a CLI≡daemon parity test.
 
-## Settled sub-decisions
+**Part B**
+- With the options enabled on the bundler plugin, editing a source type during
+  dev/watch scaffolds and keeps in sync the corresponding
+  `enriched/{friendly,mock,i18n/<locale>}` mirror files, matching what
+  `ts-runtypes enrich --update` produces (value-preserving; NO translation
+  content).
+- Each family toggles independently: FriendlyText flag, MockData flag, i18n
+  object presence. Everything defaults OFF; a plugin with none of these set
+  behaves exactly as today.
+- When the HMR-suppression flag is set, writing/regenerating (or hand-editing)
+  files under `<genDir>/enriched/**` triggers NO HMR/reload; toggling it off
+  restores normal behavior.
+- The CLI verbs (`enrich`/`enrich --no-emit`/`--translate`) are unchanged
+  from Part A and remain the authoring path.
+- Tests: a plugin-driven analog of `enrich-hmr-e2e.test.ts` (drive through the
+  plugin hook; assert the mirrors sync AND that touching the enrich folder
+  does not trigger HMR).
 
-- **`--no-emit` is required to enter check-only modes** (bare file / dir / no
-  target); write modes accept it as a dry-run. This disambiguates a missing
-  `<Type>` and mirrors `tsc --noEmit`.
-- **Write-mode `enrich` emits the freshly-scaffolded `@todo` diagnostics** — a
-  fresh scaffold immediately reports every blank (FT020/MD020) as the worklist;
-  intentional, symmetric with `compile`.
-- **The gen daemon op RETURNS content, never writes** (Part B's no-HMR
-  constraint); the CLI keeps `atomicWriteFile`. `migrateLegacyMirror` is a
-  CLI-only pre-step, skipped by the daemon op.
-- **Stage 2's daemon op has no production consumer yet** (parity-test + future
-  `plugin-driven-enrichment-sync`) — the accepted cost of the uniform surface;
-  hence Stage 2 is deferrable to a follow-up PR.
+**Combined**
+- Docs + diagnostic messages updated in one pass (Part A verb rename **and**
+  Part B opt-in flags are described consistently).
+- This spec moved to `docs/done/`.

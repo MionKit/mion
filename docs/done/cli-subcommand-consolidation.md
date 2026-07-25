@@ -72,8 +72,9 @@ while the daemon protocol can run a check-shaped pass (the lint lane's
 must make the enrich operations protocol ops the daemon serves, with the CLI
 subcommands as thin argv adapters over the SAME implementations — one function
 per capability, two transports. (Consumer status, corrected 2026-07-24: the
-parked [plugin-driven-enrichment-sync.md](plugin-driven-enrichment-sync.md)
-feature plans to spawn the CLI as a child process — "zero Go/protocol change",
+parked plugin-driven enrichment sync feature (now Part B of
+[../todos/enrich-surface-and-plugin-sync.md](../todos/enrich-surface-and-plugin-sync.md))
+plans to spawn the CLI as a child process — "zero Go/protocol change",
 its own words — so it is a LIKELY FUTURE consumer of the daemon-side gen, not
 the driver; the uniform surface itself is the driver. Its hard constraint —
 mirror writes must not trigger HMR — should still inform the gen op's
@@ -111,8 +112,9 @@ The implementer plans the details. Verified constraints and pointers:
   already partially rides `checkEnrich`) so the daemon serves them and the CLI
   subcommands wrap them. Mirror WRITES from the daemon need a decision (op
   returns content vs op writes like the CLI) — plan it with
-  [plugin-driven-enrichment-sync.md](plugin-driven-enrichment-sync.md)'s
-  needs in view (its hard constraint: mirror writes must not trigger HMR).
+  the plugin-driven enrichment sync's needs in view (now Part B of
+  [../todos/enrich-surface-and-plugin-sync.md](../todos/enrich-surface-and-plugin-sync.md);
+  its hard constraint: mirror writes must not trigger HMR).
 - `check` is both the dual-mode template and the cautionary tale: it is the
   one capability already on both transports, but as two orchestrations that
   share the low-level helpers (`mirror`, `astcheck`) and DIVERGE — the CLI's
