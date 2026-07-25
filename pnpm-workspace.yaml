@@ -118,6 +118,10 @@ sideEffectsCache: false
 # (workspace:* is exempt — it's the workspace protocol, not external.)
 allowNonRegistryProtocols: false
 
+# ── Log verbosity ────────────────────────────────────────
+# Migrated from .npmrc (pnpm 11 ignores loglevel there — auth/registry only).
+loglevel: warn
+
 # ── Strict peer / hoisting ───────────────────────────────
 strictPeerDependencies: true
 autoInstallPeers: false

@@ -17,7 +17,7 @@
   "author": "ma-jerez",
   "engines": {
     "node": ">= 26.0.0",
-    "pnpm": ">= 10.0.0"
+    "pnpm": ">= 11.0.0"
   },
   "config": {
     "commitizen": {
@@ -25,6 +25,7 @@
     }
   },
   "scripts": {
+    "preinstall": "node -e \"if (!(process.env.npm_config_user_agent||'').startsWith('pnpm')) { console.error('\\n\\u274c  Use pnpm, not npm/yarn -- see CLAUDE.md #Setup.\\n'); process.exit(1); }\"",
     "rtx": "node scripts/rt.mjs",
     "pretest": "pnpm run check:builds",
     "test": "vitest run",
