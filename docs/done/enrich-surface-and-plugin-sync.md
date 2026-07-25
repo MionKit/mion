@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-07-25
 ---
 
@@ -338,3 +338,71 @@ change resolving under `<genDir>/enriched/**`.
 **Combined**
 - Docs + diagnostic messages updated in one pass.
 - This spec moved to `docs/done/`.
+
+---
+
+# What shipped (reconciliation)
+
+Both sections landed together; every **Done when** bullet above is met. Notes on
+where the implementation deliberately differs from the plan above:
+
+**§1 — CLI + daemon**
+
+- **Shared package placement.** `CheckFile` and the config/plan primitives live in
+  a NEW leaf package `internal/enrichment/enrichgen` (not `internal/enrichment`
+  itself): `enrichment` is imported by `astcheck`, so `enrichment` cannot import
+  `astcheck` back — the leaf package imports both without a cycle. `enrichgen`
+  holds `Config` + `ResolveConfig` + the mirror-path methods, the pure `Plan` (+
+  `BuildSpecs`/`GroupByDeclFile`/`WantedFamilies`), and `CheckFile` +
+  `HygieneDiagnostics`. The CLI keeps the JSONC plugin side-read + the disk shims
+  (`writeMirrorFile`/`updateMirrorFile`/`migrateLegacyMirror`).
+- **Write-lane worklist is the text-only hygiene scan, not full `CheckFile`.** A
+  fresh scaffold's `@todo`s are pure tag hygiene, so the write lane emits them via
+  `enrichgen.HygieneDiagnostics` (no second Program, no dependency on resolving the
+  mirror imports). Full `CheckFile` (hygiene + content validity + breadcrumb drift,
+  over a Program) backs the `--no-emit` check lanes. Both share the same tag-code
+  mapping, so the worklist codes match the check.
+- **Exit codes.** A successful scaffold exits 0 (its `@todo` placeholders are the
+  expected state; the worklist prints to stderr as an informational fill-in list).
+  The gate that FAILS on unfilled `@todo`s (FT020/MD020 are Error severity) is the
+  diagnostics-only `enrich <file> --no-emit`, which exits 1 on any Error. This is
+  the sound reading of "symmetric with compile" (compile also only *reports* in
+  `--no-emit`; the failing exit is the check, not the write).
+- **`--no-emit` grammar.** A 2-positional `<file> <Type> --no-emit` is a dry-run
+  that checks the type's existing mirrors; a 1-positional `<file> --no-emit` is the
+  single-file health check; a bare/dir target `--no-emit` is the mirror-tree drift
+  walk. A check-only target REQUIRES `--no-emit` (it also disambiguates a `<file>`
+  given without a `<Type>`).
+- **`hashLength` + resolution.** The forced `"source"` module-resolution condition
+  is dropped (enrich now resolves exactly like a build; a project opts into its
+  in-tree src via tsconfig `customConditions:["source"]`), and the project
+  `hashLength` threads into the enrich resolver so its `@rtType` ids match a build.
+  The parity test pins a NON-default `hashLength=5` on both the CLI and daemon
+  sides, so it fails loudly if the threading regresses.
+
+**§2 — plugin sync**
+
+- **The `typeName → source-file` gap is solved server-side.** A `RunType` carries
+  no decl-file, so `OpEnrich` with an empty `TypeName` intersects the session's
+  demanded named types (`sess.cache.Dump()`) with each file's exported types
+  (new `enrichment.ExportedTypeNames`) and plans them together via new
+  `enrichgen.PlanMany` (multi-type merge, dedup by var, skips unresolvable). Empty
+  `Files` runs a whole-program pass. Strictly demand-scoped; the plugin never needs
+  a decl-file field. The single-type `Plan` path is byte-for-byte preserved (the
+  CLI-parity contract).
+- **Config decisions (confirmed with the owner):** production build runs a
+  READ-ONLY drift gate (never writes mid-build; honors `failOnError`); HMR for
+  `<genDir>/enriched/**` is AUTO-SUPPRESSED whenever any enrich family is enabled
+  (`suppressHmr` is the explicit override); everything defaults OFF. `enrich.i18n`
+  drives per-locale scaffold+sync via new `enrichgen.PlanTranslations` +
+  additive `EnrichLocales`/`EnrichSourceLocale` Request fields (scaffold+sync only,
+  never translated content).
+- **Minor duplication:** `translationSpecs` is duplicated into `enrichgen` rather
+  than refactoring the CLI's copy, to honor the "don't touch CLI verb code" guard;
+  both sides are test-covered.
+
+**Tests + docs shipped:** the CLI≡daemon parity test, the CLI-surface contract test
+(help golden + routing/exit + parameter matrix), the plugin-driven sync test
+(8 cases through the real Vite hooks), the enrich-suite spawn renames, the website
++ design docs + skills rename, the plugin-option docs on the Configuration page, and
+the diagnostic-message + regenerated-catalog rename. Full Go + JS suites green.
