@@ -10,7 +10,7 @@ created: 2026-07-25
 _Supersedes and folds in `docs/todos/dual-mode-enrich.md` (the parked Part B of
 the CLI subcommand consolidation, PR #279 —
 [docs/done/cli-subcommand-consolidation.md](../done/cli-subcommand-consolidation.md))._
-_The old todo is removed when this one lands._
+_The old todo was removed when this spec was filed._
 
 ## Context (why)
 
@@ -239,8 +239,8 @@ both sides.
   `catalog.go:61`, `mirror/scanTags.go:82`, `hygiene.go:13`. Regenerate the
   mirror via `pnpm run gen:diag-catalog` (rewrites
   `devtools/src/go-generated/diagnosticCatalog.generated.ts`).
-- `git mv docs/todos/dual-mode-enrich.md` out (this spec absorbs it); on
-  landing, move THIS spec to `docs/done/`.
+- On landing, move THIS spec to `docs/done/`. (`dual-mode-enrich.md`, which
+  this absorbs, was removed when the spec was filed.)
 - **Not the `rtx` CLI** (`scripts/rt.mjs`): its own `check`/`generate`
   subcommands are unrelated to the binary's `args[0]`.
 
