@@ -468,15 +468,10 @@ tiles:
     sub: Random inputs and randomly-generated types, checked against invariants — every finding replayable from a seed.
     hue: 280
     wide: true
-    to: /suites/fuzzing
 ---
 :::::
 
 Every transform, cache shape and generated function is covered — on top of an extensive structured suite spanning validation, JSON, binary, mocks and reflection.
-
-:::::div{class="rt-card-footer"}
-[Correctness, pinned down →](/suites/validation)
-:::::
 ::::
 :::
 ::
