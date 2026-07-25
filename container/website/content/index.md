@@ -307,7 +307,7 @@ export interface User {
 import type { FriendlyText } from '@ts-runtypes/core';
 import type { User } from './user';
 
-// scaffolded by `gen`: every field in place, each blank marked @todo
+// scaffolded by `enrich`: every field in place, each blank marked @todo
 export const userFriendly: FriendlyText<User> = {
   rt$label: '', // @todo
   rt$errors: { type: '' }, // @todo
@@ -379,7 +379,7 @@ export interface User {
 import type { MockData } from '@ts-runtypes/core';
 import type { User } from './user';
 
-// scaffolded by `gen`: one entry per field, each blank marked @todo
+// scaffolded by `enrich`: one entry per field, each blank marked @todo
 export const userMock: MockData<User> = {
   name: { pool: [] },       // @todo believable names
   age: { min: 0, max: 0 },  // @todo realistic range
