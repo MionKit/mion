@@ -170,7 +170,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	if !ok {
 		return nil, false
 	}
-	prog, res, err := buildProgram(discovery.declFile, config.Parsed)
+	prog, res, err := buildProgram(discovery.declFile, config.Parsed, config.HashLength)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
 		return nil, false

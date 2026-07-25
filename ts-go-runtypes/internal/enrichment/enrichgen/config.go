@@ -73,6 +73,12 @@ type Config struct {
 	I18nLocales  []string
 	I18nStrict   bool
 
+	// HashLength is the project's short-id length for type hashes (tsconfig plugin
+	// `hashLength`, 0 = the binary default 7). It rides into the enrich lane's
+	// resolver.Options so enrich's hash-sensitive @rtType ids match a build's — the
+	// same value the serve / compile lanes fold into every typeID.
+	HashLength int
+
 	// The remaining plugin options are stored for completeness but not acted on
 	// by the scaffold planner yet.
 	ModuleMode string
@@ -86,6 +92,7 @@ type Config struct {
 // tsconfig parser of its own (and never touches disk).
 type PluginSettings struct {
 	GenDir     string
+	HashLength int
 	ModuleMode string
 	EmitMode   string
 	InlineMode string
@@ -138,6 +145,7 @@ func ResolveConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *progr
 		// The ts-runtypes plugin entry is OUR params; the caller already read it
 		// off the SAME resolved file and handed us the values.
 		genDir = strings.TrimSpace(plugin.GenDir)
+		config.HashLength = plugin.HashLength
 		config.ModuleMode = plugin.ModuleMode
 		config.EmitMode = plugin.EmitMode
 		config.InlineMode = plugin.InlineMode

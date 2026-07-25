@@ -27,8 +27,9 @@ import (
 // diagnostics. Exits 1 when any Error-severity diagnostic is present.
 func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON bool) {
 	absPath := tspath.NormalizePath(mustAbs(fileArg))
-	_, parsed := resolveEnrichProject(tsconfigFlag)
-	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed), asJSON))
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	config := resolveEnrichConfig(absPath, "", tsconfigPath, parsed)
+	os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics([]string{absPath}, parsed, config.HashLength), asJSON))
 }
 
 // checkMirrorFilesDiagnostics builds ONE inferred Program over the given mirror
@@ -38,7 +39,7 @@ func runSingleFileCheck(fileArg, tsconfigFlag string, asJSON bool) {
 // absolute path, so it passes it for both the site echo and the breadcrumb
 // resolution. No existing files → nil (so an empty --json report marshals to the
 // `null` the harness expects).
-func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig) []diagnostics.Diagnostic {
+func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig, hashLength int) []diagnostics.Diagnostic {
 	existing := make([]string, 0, len(paths))
 	seen := map[string]bool{}
 	for _, path := range paths {
@@ -53,7 +54,7 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig)
 	if len(existing) == 0 {
 		return nil
 	}
-	prog, res, err := buildProgramMulti(existing, parsed)
+	prog, res, err := buildProgramMulti(existing, parsed, hashLength)
 	if err != nil {
 		fatal("enrich --no-emit: %v", err)
 	}

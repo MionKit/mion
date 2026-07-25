@@ -179,18 +179,20 @@ func resolveConfigPath(absCwd, tsconfigFlag string) string {
 }
 
 // resolveEnrichProject resolves the ONE tsconfig for an enrich command run and
-// parses it EXACTLY ONCE (with the "source" condition, so `ts-runtypes` resolves
-// to its in-tree src for the repo's own dogfood tests), returning both the path
-// and the frozen config to thread into resolveEnrichConfig (genDir/rootDir) AND
-// buildProgram (type resolution) — which used to parse the config twice. "" path
-// + nil config means no tsconfig anywhere (the inferred-defaults fallback).
+// parses it EXACTLY ONCE, returning both the path and the frozen config to thread
+// into resolveEnrichConfig (genDir/rootDir/hashLength) AND buildProgram (type
+// resolution) — which used to parse the config twice. The config's own module
+// resolution conditions are adopted wholesale, so enrich resolves exactly like a
+// build; a project that dogfoods its in-tree src opts in via
+// customConditions:["source"] in the tsconfig (enrich never forces it). "" path +
+// nil config means no tsconfig anywhere (the inferred-defaults fallback).
 func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fatal("tsconfig discovery: getwd: %v", err)
 	}
 	tsconfigPath := resolveConfigPath(cwd, tsconfigFlag)
-	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath, "source")
+	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath)
 	if err != nil {
 		fatal("%v", err)
 	}
@@ -226,6 +228,9 @@ func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
 		ModuleMode: plugin.ModuleMode,
 		EmitMode:   plugin.EmitMode,
 		InlineMode: plugin.InlineMode,
+	}
+	if plugin.HashLength != nil {
+		settings.HashLength = *plugin.HashLength
 	}
 	if plugin.I18n != nil {
 		settings.I18n = &enrichgen.I18nSettings{

@@ -21,21 +21,21 @@ import (
 
 // buildProgram constructs an inferred Program + resolver over absPath. The
 // caller owns the resolver and MUST call res.Close() when done (it keeps the
-// checker live for as long as the walk needs it). Used by the gen / check /
-// translate lanes, which walk the file's AST against the still-open checker.
+// checker live for as long as the walk needs it). Used by the enrich lanes, which
+// walk the file's AST against the still-open checker.
 //
-// parsed is the run's ONE resolved config (nil = none), parsed once by
-// resolveEnrichProject with the "source" condition folded in so `ts-runtypes`
-// resolves to its in-tree src. Its full options are adopted wholesale. When nil
-// (no config anywhere) the "source" condition still applies via the inferred
-// fallback below.
-func buildProgram(absPath string, parsed *program.InferredConfig) (*program.Program, *resolver.Session, error) {
+// parsed is the run's ONE resolved config (nil = none). Its full options — module
+// resolution conditions INCLUDED — are adopted wholesale, so enrich resolves
+// exactly like a build (a project opts into its in-tree src by putting
+// customConditions:["source"] in its tsconfig; enrich never forces it). hashLength
+// rides into the resolver so enrich's hash-sensitive @rtType ids match a build's.
+func buildProgram(absPath string, parsed *program.InferredConfig, hashLength int) (*program.Program, *resolver.Session, error) {
 	cwd := filepath.Dir(absPath)
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: parsed}, []string{absPath})
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, []string{absPath})
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}
-	res, err := resolver.New(prog, resolver.Options{Cwd: cwd})
+	res, err := resolver.New(prog, resolver.Options{Cwd: cwd, HashLength: hashLength})
 	if err != nil {
 		return nil, nil, fmt.Errorf("build resolver: %w", err)
 	}
@@ -43,20 +43,20 @@ func buildProgram(absPath string, parsed *program.InferredConfig) (*program.Prog
 }
 
 // buildProgramMulti constructs ONE inferred Program + resolver over several
-// files — the batch `gen --files` path. Cwd is the first file's directory.
-// Caller owns res and MUST Close() it. One Program means the heavy parse/bind
-// is paid once for the whole batch; each file's `Target` resolves against it.
-// parsed: same contract as buildProgram.
-func buildProgramMulti(absPaths []string, parsed *program.InferredConfig) (*program.Program, *resolver.Session, error) {
+// files — the batch `enrich --files` path and the multi-mirror check path. Cwd is
+// the first file's directory. Caller owns res and MUST Close() it. One Program
+// means the heavy parse/bind is paid once for the whole batch; each file's target
+// resolves against it. parsed / hashLength: same contract as buildProgram.
+func buildProgramMulti(absPaths []string, parsed *program.InferredConfig, hashLength int) (*program.Program, *resolver.Session, error) {
 	if len(absPaths) == 0 {
 		return nil, nil, fmt.Errorf("no files given")
 	}
 	cwd := filepath.Dir(absPaths[0])
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Conditions: []string{"source"}, Config: parsed}, absPaths)
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, absPaths)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}
-	res, err := resolver.New(prog, resolver.Options{Cwd: cwd})
+	res, err := resolver.New(prog, resolver.Options{Cwd: cwd, HashLength: hashLength})
 	if err != nil {
 		return nil, nil, fmt.Errorf("build resolver: %w", err)
 	}
@@ -193,7 +193,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 
 	// Named-type-driven emission runs through the SHARED planner (enrichgen.Plan)
 	// so the CLI and the OpEnrich daemon op compute byte-identical mirror specs.
-	prog, res, err := buildProgram(absPath, config.Parsed)
+	prog, res, err := buildProgram(absPath, config.Parsed, config.HashLength)
 	if err != nil {
 		fatal("enrich: %v", err)
 	}
@@ -215,7 +215,7 @@ func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string,
 
 	// --no-emit: report the target mirrors' health, write nothing.
 	if noEmit {
-		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed), asJSON))
+		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed, config.HashLength), asJSON))
 	}
 
 	// Write lane: migrate any pre-split combined mirror (CLI-only disk pre-step),
@@ -309,8 +309,12 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 	if len(absPaths) == 0 {
 		fatal("enrich --files: no files given")
 	}
-	_, parsed := resolveEnrichProject(tsconfigFlag)
-	prog, res, err := buildProgramMulti(absPaths, parsed)
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	// The batch skeletons are structural previews (no committed @rtType ids), but
+	// thread the project hashLength anyway so a future hash-bearing skeleton stays
+	// build-consistent; resolveEnrichConfig anchors on the first file.
+	config := resolveEnrichConfig(absPaths[0], "", tsconfigPath, parsed)
+	prog, res, err := buildProgramMulti(absPaths, parsed, config.HashLength)
 	if err != nil {
 		fatal("enrich --files: %v", err)
 	}
