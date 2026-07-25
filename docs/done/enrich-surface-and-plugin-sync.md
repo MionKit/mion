@@ -421,3 +421,36 @@ the diagnostic-message + regenerated-catalog rename. Full Go + JS suites green.
   only the genuinely CLI-specific parts (friendly-mirror discovery + Program build).
 - **Files renamed** `translate.go` → `i18n.go` (both the `enrichgen` and `cmd` copies,
   plus the test) for naming consistency with the flag + config.
+
+**Follow-up: the completeness gate (`--require-complete`) + value-based detection.**
+
+The original `--no-emit` conflated two questions ("is this correct?" and "is this
+finished?") and hard-failed on an unfilled `@todo` — so a freshly-scaffolded mirror
+failed its own health check. Split into two tiers, keyed off a `Completeness` bit on
+the diagnostics catalog entry (FT020/MD020 `@todo`, FT023/MD023 blank value):
+
+- `enrich <target> --no-emit` — health check. Fails on WRONG/stale content (bad
+  field, orphan carcass, breadcrumb drift); REPORTS the completeness tier but exits 0.
+- `enrich <target> --require-complete` — implies `--no-emit`, and additionally fails
+  on the completeness tier. The gate CI / a production build runs.
+
+The tier bit stays Go-internal (`diagnostics.IsCompleteness`, consumed by the CLI's
+`reportEnrichDiagnostics` / `runGenCheck` and the i18n gate via `strict || requireComplete`);
+FT020/MD020/FT023/MD023 keep **Error** severity so the editor still flags them.
+
+**Value-based completeness (FT023/MD023).** An unfilled `@todo` is only a marker; the
+real incompleteness is a blank VALUE (`rt$label: ''`, `pool: []`) — deleting the
+`@todo` line without filling the values is not "done". `mirror.BlankValues` scans for
+empty-string / empty-array sentinels at property-value positions, parse-guided (the
+literal-token oracle for empty strings so a `''` array element / string interior never
+counts; import-masked text for empty arrays so a filled `['x']` never reads as empty),
+family-attributed per const (`FamilyAt`, at-or-before, since a value sits below its
+annotation). Wired into the shared `CheckFile` (single-file + scaffold-target lanes)
+AND the directory walk (`checkMirrorFile` runs the same text scan), so a tree-level
+`--require-complete` is sound.
+
+**Plugin production gate.** `enrichDriftGate` (the read-only `vite build` lane) now
+enforces the same completeness: it surfaces the daemon's hygiene diagnostics over the
+computed mirrors and, under `failOnError`, fails the build on an unfilled `@todo` /
+blank value as well as on drift — the plugin analog of `enrich --require-complete`.
+Dev/watch (`syncEnrich`) still writes the scaffolds and tolerates the blanks.

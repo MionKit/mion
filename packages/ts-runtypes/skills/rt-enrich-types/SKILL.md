@@ -1,6 +1,6 @@
 ---
 name: rt-enrich-types
-description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
+description: Drive the RunTypes enrichment workflow — author and maintain the committed, type-keyed FriendlyText<T> (human labels + error messages) and MockData<T> (realistic sample data) for a type. Use when scaffolding or filling a type's enrichment file, when running the `ts-runtypes` CLI (`enrich` / `enrich --update` / `enrich --prune` / `enrich --no-emit` / `enrich --require-complete`), when filling `@todo` blanks the compiler left, or when working with the enrichment JSDoc tags (`@rtType`, `@rtIds`, `@rtOrphan`, `@rtOrphanChild`, `@todo`). Covers the mirror directory, the compiler-scaffolds/agent-fills loop, the CLI verbs, and the tsconfig i18n block; the per-family authoring DSLs are the runtypes-friendly-type and runtypes-mock-data skills.
 ---
 
 # RunTypes enrichment — the compiler scaffolds, you fill the blanks
@@ -21,8 +21,15 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
    typed, each blank marked `@todo`.
 2. **Fill the `@todo`s** — write the labels, messages, and sample values; delete each
    `@todo` line as you finish it.
-3. **`enrich --no-emit`** — the compiler validates every authored value against the live type.
-   Fix anything it flags, repeat until clean.
+3. **`enrich --no-emit`** — the health check: the compiler validates every authored value
+   against the live type. It fails on WRONG or stale content (a dead field, a leftover
+   carcass) but only REPORTS the unfilled blanks (`@todo` lines, empty `''` labels/messages,
+   empty `[]` pools), since a fresh scaffold is expected to carry them. Fix anything it fails
+   on, repeat until clean.
+   3b. **`enrich --require-complete`** — the "am I done?" gate. Everything `--no-emit` checks,
+   plus it FAILS on any unfilled blank. A blank value ships blank to the app, so it is
+   treated exactly like an unresolved `@todo`. Run it before you call the enrichment finished
+   (it is what CI and a production bundler build enforce).
 4. **`enrich --update`** — when the type later changes, re-sync the file _value-preservingly_
    (property merge + field rename + orphaning); fill any new `@todo`s it adds.
 5. **`enrich --prune`** — the only destructive op: removes the `@rtOrphan`/`@rtOrphanChild`
@@ -30,8 +37,9 @@ marked `@todo`; your job is to fill those gaps with believable, valid content.
 6. **`enrich --i18n <locale|all> [<src.ts>] [--update|--prune]`** — scaffold, reconcile,
    or prune the per-locale translation files of the friendly maps (see **Translations**
    below).
-7. **`enrich --i18n <locale|all> --no-emit`** — the translation completeness gate for CI
-   (TR001–TR004; see **Translations** below).
+7. **`enrich --i18n <locale|all> --no-emit`** — report translation status (TR001–TR004,
+   warnings by default); **`--require-complete`** (or tsconfig `i18n.strict`) makes it FAIL
+   for CI. See **Translations** below.
 
 Every verb takes **`--tsconfig <path>`**. Without it the CLI finds the config exactly as
 tsc does — searching upward from the working directory. The ONE resolved config feeds
@@ -131,7 +139,8 @@ ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
 ts-runtypes enrich --i18n <locale> --update [<src.ts>]  # reconcile from the SOURCE TYPE
 ts-runtypes enrich --i18n <locale> --prune  [<src.ts>]  # strip @rtOrphan carcasses (the only delete)
 ts-runtypes enrich --i18n all [--update]                # fan out over tsconfig i18n.locales
-ts-runtypes enrich --i18n <locale|all> --no-emit        # completeness gate (CI)
+ts-runtypes enrich --i18n <locale|all> --no-emit        # report status (warnings, exit 0)
+ts-runtypes enrich --i18n <locale|all> --require-complete  # completeness gate (fails CI)
 ```
 
 Without `<src.ts>`, targets are "sources that have a friendly mirror" — path math over
@@ -153,8 +162,8 @@ Without `<src.ts>`, targets are "sources that have a friendly mirror" — path m
 - **`enrich --i18n --no-emit` findings** — TR001 missing translation file; TR002 unfilled
   `@todo` blanks; TR003 out of date vs the SOURCE TYPE (a src-driven reconcile would
   change the file); TR004 orphan carcasses awaiting review/prune. All Warnings (exit 0)
-  unless tsconfig `i18n.strict: true` flips them to Errors (exit 1); the runtime is
-  always lenient regardless.
+  unless tsconfig `i18n.strict: true` OR the `--require-complete` flag flips them to Errors
+  (exit 1); the runtime is always lenient regardless.
 
 The `i18n` block lives on the `ts-runtypes` tsconfig plugin entry (dormant by default —
 zero change when absent):
@@ -167,7 +176,7 @@ zero change when absent):
     "sourceLocale": "en", // language the source FriendlyText maps are written in
     "dir": "src/__runtypes/enriched/i18n", // translation subtree root (default <genDir>/enriched/i18n)
     "locales": ["es", "pl", "pt-BR"], // target locales (the source locale is NOT listed)
-    "strict": false, // enrich --i18n --no-emit gate severity (CI)
+    "strict": false, // when true, the i18n check fails on incompleteness by default (same as --require-complete)
   },
 }
 ```
@@ -187,11 +196,14 @@ structure + format-correctness, you supply _believable_ values. The full authori
 ## Authoring checklist
 
 - The `enrich` scaffold lays out every field; write values that fit each field's kind + format.
-- Fill **every `@todo`** the scaffold left, then **delete that `@todo` line**.
+- Fill **every `@todo`** the scaffold left AND every blank value (`''` label/message, `[]`
+  pool), then **delete that `@todo` line**. A leftover blank is treated exactly like an
+  unresolved `@todo` by the completeness gate.
 - Never touch `@rt*` tags or `@rtOrphan`/`@rtOrphanChild` comment blocks — the compiler
   owns them; `--prune` clears orphans.
-- After editing, run `enrich --no-emit` (and `enrich --i18n --no-emit` for translations) and resolve
-  every Error before committing.
+- After editing, run `enrich --no-emit` and resolve every Error. Before you call the
+  enrichment finished, run `enrich --require-complete` (and `enrich --i18n <locale|all>
+--require-complete` for translations) — it fails until every `@todo` and blank is filled.
 - When the type changes, prefer `enrich --update` (keeps your values) over regenerating.
 - The family-specific rules — friendly constraint keys, plural arms, translation fill
   discipline, mock pools/ranges — are in the **`runtypes-friendly-type`** and

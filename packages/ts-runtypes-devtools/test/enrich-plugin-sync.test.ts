@@ -351,22 +351,60 @@ describeIfBinary('@ts-runtypes/devtools / plugin-driven enrichment sync', () => 
     }
   }, 60_000);
 
-  it('a production build with in-sync mirrors passes the drift gate', async () => {
+  it('a production build FAILS on in-sync but INCOMPLETE mirrors (unfilled scaffolds)', async () => {
     const project = track(
       setupProject([
         {key: 'name', type: 'string'},
         {key: 'age', type: 'number'},
       ])
     );
-    // First, a dev pass writes the mirrors so they are in sync on disk.
+    // A dev pass writes the mirrors so they are in sync on disk — but they carry
+    // the freshly-scaffolded blanks (@todo line + empty labels/pools).
     const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
     try {
       await driveBuildStart(dev, project);
-      expect(fs.existsSync(project.friendlyMirror)).toBe(true);
+      expect(fs.readFileSync(project.friendlyMirror, 'utf8')).toContain("rt$label: ''");
     } finally {
       await teardown(dev);
     }
-    // Now a production build finds them in sync → the gate passes (no throw).
+    // In sync, yet a production build must still FAIL: an unfilled scaffold would
+    // ship blank labels/mocks. This is the plugin analog of `enrich
+    // --require-complete` (dev/watch tolerates the same blanks).
+    const incomplete = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await expect(driveBuild(incomplete, project, 'build')).rejects.toThrow(/not production-ready|incomplete/);
+    } finally {
+      await teardown(incomplete);
+    }
+  }, 60_000);
+
+  it('a production build PASSES once the scaffolds are authored (in sync AND complete)', async () => {
+    const project = track(
+      setupProject([
+        {key: 'name', type: 'string'},
+        {key: 'age', type: 'number'},
+      ])
+    );
+    const dev = makePlugin(project, {enrich: {friendly: true, mock: true}});
+    try {
+      await driveBuildStart(dev, project);
+    } finally {
+      await teardown(dev);
+    }
+    // Author both mirrors the way an agent does: fill every blank value and delete
+    // the `@todo` line. A value-preserving reconcile then leaves them in sync, so
+    // the gate sees neither drift nor incompleteness.
+    for (const mirror of [project.friendlyMirror, project.mockMirror]) {
+      const authored = fs
+        .readFileSync(mirror, 'utf8')
+        .split('\n')
+        .filter((line) => !line.includes('@todo'))
+        .join('\n')
+        .replaceAll("''", "'authored'")
+        .replaceAll(': []', ": ['sample']");
+      fs.writeFileSync(mirror, authored);
+    }
+    // Now in sync AND complete → the production gate passes (no throw).
     const build = makePlugin(project, {enrich: {friendly: true, mock: true}});
     try {
       await expect(driveBuild(build, project, 'build')).resolves.toBeUndefined();

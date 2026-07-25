@@ -38,8 +38,9 @@ export interface EnrichI18nSyncOptions {
 // under <genDir>/enriched/** in sync from dev/watch, running the SAME
 // value-preserving scaffold + reconcile the `ts-runtypes enrich --update` CLI
 // does — NEVER translated content, NEVER an LLM. A production `vite build` never
-// writes: it runs a read-only drift gate (stale/missing mirrors warn, and fail
-// the build when failOnError).
+// writes: it runs a read-only completeness gate (the plugin analog of `enrich
+// --require-complete`) that warns, and under failOnError fails the build, when a
+// mirror is stale/missing OR still carries an unfilled @todo / blank value.
 export interface EnrichSyncOptions {
   // Auto gen + sync the FriendlyText mirrors under <genDir>/enriched/friendly/.
   friendly?: boolean;
@@ -524,12 +525,23 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   }
 
   // enrichDriftGate is the production-build lane: it computes the desired mirrors
-  // (whole program) and DIFFS them against the committed on-disk copies WITHOUT
-  // writing — mutating committed source mid-build would break reproducibility. Any
-  // stale or missing mirror warns; failOnError then fails the build.
+  // (whole program) and enforces that the committed enrichment is both IN SYNC and
+  // COMPLETE, WITHOUT writing (mutating committed source mid-build would break
+  // reproducibility). This is the plugin analog of the CLI `enrich
+  // --require-complete`, so a release can never ship blank labels/mocks:
+  //
+  //   - DRIFT: an on-disk mirror missing or differing from the freshly computed
+  //     one (a source type moved and the mirror wasn't reconciled).
+  //   - INCOMPLETE: unfilled @todo scaffolds or blank values (empty label /
+  //     message / pool) over the computed mirrors — the daemon's hygiene findings.
+  //
+  // Both warn; under failOnError both fail the build. Dev/watch takes syncEnrich
+  // instead, which writes the scaffolds and tolerates the blanks (the developer is
+  // mid-authoring). Never mutates committed source.
   async function enrichDriftGate(ctx: any): Promise<void> {
     if (!resolver || !anyEnrichFamily) return;
     let stale: string[];
+    let incomplete: Diagnostic[];
     try {
       const result = await resolver.enrich([], '', enrichCallOptions());
       stale = [];
@@ -537,19 +549,27 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
         if (existing !== file.content) stale.push(file.path);
       }
+      // Unfilled @todo scaffolds + blank values over the computed mirrors. These
+      // are Error-severity here (unlike dev): a production build must not ship an
+      // app with blank labels/translations.
+      incomplete = (result.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
     } catch {
       return;
     }
-    if (stale.length === 0) return;
+    if (stale.length === 0 && incomplete.length === 0) return;
     for (const stalePath of stale) {
       ctx.warn?.(
         `@ts-runtypes/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`ts-runtypes enrich --update\` and commit it.`
       );
     }
+    for (const diagnostic of incomplete) ctx.warn?.(formatTscDiagnostic(diagnostic));
     if (failOnError) {
-      const noun = stale.length === 1 ? 'mirror is' : 'mirrors are';
+      const parts: string[] = [];
+      if (stale.length > 0) parts.push(`${stale.length} out of date or missing`);
+      if (incomplete.length > 0) parts.push(`${incomplete.length} incomplete (unfilled @todo / blank value)`);
       ctx.error?.(
-        `@ts-runtypes/devtools: ${stale.length} enrichment ${noun} out of date or missing — run \`ts-runtypes enrich --update\` and commit. (mirrors are never written during a production build)`
+        `@ts-runtypes/devtools: enrichment is not production-ready — ${parts.join(', ')}. ` +
+          `Run \`ts-runtypes enrich --update\`, fill the blanks, and commit. (mirrors are never written during a production build)`
       );
     }
   }
