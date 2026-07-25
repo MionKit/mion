@@ -96,4 +96,10 @@ written authorization. See [LICENSE](./LICENSE).
 Full guides, API reference, suites, and benchmarks live at
 **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
 
+Working on RunTypes itself:
+
+- [SETUP.md](SETUP.md) — prerequisites, bootstrap, build, test, lint, and publishing.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the repo is laid out and what each part does.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — scope and known gaps.
+
 [![RunTypes](container/website/public/banners/runtypes-banner.png)](https://runtypes.pages.dev/)

@@ -1,6 +1,6 @@
 # RunTypes Architectural Guidelines
 
-> **Do not load linked / relevant files into context unless the current task strictly needs them** — [README.md](README.md) and [SETUP.md](SETUP.md) only for setup / build / publish work; skill dirs only when invoking them; deep-dive docs only when touching what they describe.
+> **Do not load linked / relevant files into context unless the current task strictly needs them** — [SETUP.md](SETUP.md) only for setup / build / publish work; skill dirs only when invoking them; deep-dive docs only when touching what they describe.
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document. **To set up or repair a local dev environment (submodules + patches, `bin/ts-runtypes`, workspace deps, package dists), run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** ([scripts/setup-claude-web.sh](scripts/setup-claude-web.sh) is the Linux web-container variant only — never for local/macOS; it hard-exits off Linux and redirects you to the skill.)
 
@@ -42,7 +42,7 @@ pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [sc
   - **Transform** — rewrites `createX<T>()` call sites and injects the import block.
   - **Codegen** — emits per-entry cache modules under `<genDir>/types/`.
   - **Enrich** — scaffolds and keeps in sync the FriendlyText + MockData mirror files.
-  - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files. See [docs/ARCHITECTURE.md → The lint surface](docs/ARCHITECTURE.md#the-lint-surface--one-pass-oxlintESLint-transport).
+  - **Lint** — OXlint plugin (primary) + ESLint v9 adapter on the `./eslint` subpath; surfaces compiler diagnostics and forbids `@todo` / `@rtOrphan` in enrich files. See [docs/ARCHITECTURE.md → ts-runtypes-devtools](docs/ARCHITECTURE.md#ts-runtypes-devtools).
 - [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `ts-runtypes-binary-<os>-<arch>` optional deps. NEVER add a postinstall downloader — `ignoreScripts: true` blocks it. The binary embeds `constants.Version` (folded into typeID hashes) + `constants.TsgoVersion` (pure metadata: `--version` + the launcher's `tsgo` field, NEVER in the hash).
 - [examples](packages/examples/) — compilable TS example files consumed by the docs website's `<code-import>` blocks; typechecked by the root `typecheck` script so doc drift fails CI.
 
@@ -105,7 +105,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Marker-API work must cover BOTH `getRunTypeId` call shapes (the **Marker test coverage rule** under [Testing](#testing)). Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
-- **Docs are updated — especially the website.** Reflect the change in [container/website/content/](container/website/content/) (follow the **Website docs style** section below), and update [README.md](README.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) or [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what they describe (CLI flags, execution model, scope, lossy mappings).
+- **Docs are updated — especially the website.** Reflect the change in [container/website/content/](container/website/content/) (follow the **Website docs style** section below), and update [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) or [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what they describe (CLI flags, execution model, scope, lossy mappings).
 - **If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) (or [docs/partially/](docs/partially/)) and update it to match what shipped.**
 
 ## Git workflow
@@ -149,7 +149,6 @@ User-facing docs under [container/website/content/](container/website/content/) 
 
 ## Relevant files
 
-- [README.md](README.md) — project overview, how-it-works, usage, CLI flags.
 - [SETUP.md](SETUP.md) — single setup doc: prereqs, bootstrap, build, test, lint, dev loop, containerized apps, publishing, troubleshooting.
 - [.claude/skills/ts-runtypes-setup/](.claude/skills/ts-runtypes-setup/) — automated host bootstrap + smoke verification skill.
 - [.claude/skills/release-to-prod/](.claude/skills/release-to-prod/) — agent-driven release flow: bump + changelog PR into `main`, then the `main → prod` merge-commit promotion, CI watching, and the 2FA / deploy handoff.
