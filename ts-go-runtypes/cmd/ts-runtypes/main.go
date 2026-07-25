@@ -4,9 +4,9 @@
 //	serve      hold a Program + checker in memory and speak newline-delimited
 //	           JSON on stdio (the resolver protocol the bundler plugin drives)
 //	compile    tsc-like batch compile: transform + emit .js with composed
-//	           source maps + generated cache modules to disk
-//	gen        scaffold / reconcile the enrichment mirror files
-//	check      enrichment-health report over the mirror files
+//	           source maps + generated cache modules to disk (--no-emit: diagnostics only)
+//	enrich     scaffold / reconcile / check the enrichment mirror files
+//	           (--no-emit: enrichment-health diagnostics only, write nothing)
 //
 // Shared knobs (--tsconfig, --cwd, --emit-mode, …) mean the same thing under
 // every subcommand.
@@ -46,9 +46,8 @@ Usage:
 
 Commands:
     serve       serve the resolver protocol on stdio (the bundler-plugin path)
-    compile     tsc-like batch compile: emit .js + generated cache modules to disk
-    gen         scaffold / reconcile the enrichment mirror files
-    check       enrichment-health report over the mirror files
+    compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
+    enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
 
 Run  ts-runtypes <command> -h  for a command's own options.
 
@@ -85,8 +84,7 @@ never collide.
 var commands = map[string]func(args []string){
 	"serve":   runServe,
 	"compile": runCompile,
-	"gen":     runGen,
-	"check":   runCheck,
+	"enrich":  runEnrich,
 }
 
 func main() {
@@ -508,11 +506,14 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 const compileUsage = `ts-runtypes compile — tsc-like batch compile
 
 Usage:
-    ts-runtypes compile [--gen-dir DIR] [OPTIONS]
+    ts-runtypes compile [--gen-dir DIR] [--no-emit] [OPTIONS]
 
 Transforms every marker file, emits .js via tsgo with source maps composed back
 to the ORIGINAL source, and writes the generated cache modules to disk. Emits to
 the tsconfig outDir; requires a tsconfig; no stdio protocol.
+
+--no-emit runs the scan + RunType-family diagnostics only and writes nothing
+(tsc --noEmit-style).
 `
 
 // runCompile is the tsc-like batch build: it drives the two-pass transform +
@@ -522,6 +523,8 @@ func runCompile(args []string) {
 	s := registerSharedFlags(fs)
 	genDir := fs.String("gen-dir", "",
 		"where compile writes the generated cache modules (default <cwd>/__runtypes; also the tsconfig \"genDir\" plugin key, flag overrides it)")
+	noEmit := fs.Bool("no-emit", false,
+		"report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules")
 	fs.Usage = func() { printUsage(fs, compileUsage) }
 	_ = fs.Parse(args)
 
@@ -539,6 +542,7 @@ func runCompile(args []string) {
 		// <cwd>/__runtypes default.
 		GenDir:       cfg.genDir,
 		ResolverOpts: cfg.opts,
+		NoEmit:       *noEmit,
 	})
 	if compileErr != nil {
 		fatal("compile: %v", compileErr)
@@ -550,8 +554,12 @@ func runCompile(args []string) {
 			errorCount++
 		}
 	}
-	fmt.Fprintf(os.Stderr, "ts-runtypes: compiled %d file(s), %d cache module(s)\n",
-		len(compileResult.EmittedFiles), len(compileResult.Caches))
+	if *noEmit {
+		fmt.Fprintf(os.Stderr, "ts-runtypes: checked %d file(s), wrote nothing (--no-emit)\n", len(compileResult.Diagnostics))
+	} else {
+		fmt.Fprintf(os.Stderr, "ts-runtypes: compiled %d file(s), %d cache module(s)\n",
+			len(compileResult.EmittedFiles), len(compileResult.Caches))
+	}
 	if errorCount > 0 {
 		os.Exit(1)
 	}

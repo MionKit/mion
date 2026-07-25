@@ -63,8 +63,14 @@ func buildProgramMulti(absPaths []string, parsed *program.InferredConfig) (*prog
 	return prog, res, nil
 }
 
-func runGen(args []string) {
-	fs := flag.NewFlagSet("gen", flag.ExitOnError)
+// runEnrich is the enrichment verb — the ONE mirror-maintenance command, folding
+// the former gen + check verbs together. It owns the grammar: a scaffold target
+// (<file> <Type>, or a --prune / --translate write flag) WRITES; --no-emit turns
+// any write lane into a diagnostics-only pass (tsc --noEmit-style); and a
+// check-only target (a bare file, a dir, or no positional) REQUIRES --no-emit,
+// which also disambiguates a <file> given without a <Type> to scaffold.
+func runEnrich(args []string) {
+	fs := flag.NewFlagSet("enrich", flag.ExitOnError)
 	mock := fs.Bool("mock", false, "emit a MockData<T> skeleton")
 	friendly := fs.Bool("friendly", false, "emit a FriendlyText<T> skeleton")
 	out := fs.String("out", "", "explicit single mirror file path (overrides the computed mirror path; forces a single file)")
@@ -72,118 +78,157 @@ func runGen(args []string) {
 	files := fs.String("files", "", "batch mode: comma-separated files; resolve --type in each, print JSON skeletons to stdout (no writes)")
 	typeFlag := fs.String("type", "", "batch mode: the type name to resolve in every --files entry")
 	update := fs.Bool("update", false, "reconcile an existing committed mirror file against the freshly regenerated desired set (property merge, never clobbers values)")
-	prune := fs.Bool("prune", false, "destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild")
+	prune := fs.Bool("prune", false, "destructive: remove every comment block/line tagged @rtOrphan / @rtOrphanChild (with --no-emit: list them, delete nothing)")
 	translate := fs.String("translate", "", "i18n: scaffold/reconcile per-locale FriendlyText translation files (a locale tag, or 'all' for every tsconfig i18n.locales entry)")
 	tsconfigFlag := fs.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
+	asJSON := fs.Bool("json", false, "emit check diagnostics as a JSON array (the check-only / --no-emit lanes)")
+	noEmit := fs.Bool("no-emit", false, "report diagnostics without writing (tsc --noEmit-style); REQUIRED to enter a check-only target (a bare file, a dir, or no positional)")
 	fs.Usage = func() {
-		printUsage(fs, `ts-runtypes gen — scaffold / reconcile the enrichment mirror files
+		printUsage(fs, `ts-runtypes enrich — scaffold / reconcile / check the enrichment mirror files
 
 Usage:
-    ts-runtypes gen <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
-       or: ts-runtypes gen <file.ts> <TypeName> --update                       (reconcile an existing mirror)
-       or: ts-runtypes gen --prune [<mirror-file-or-dir>]                       (strip @rtOrphan carcasses)
-       or: ts-runtypes gen --files a.ts,b.ts --type Target                      (batch, JSON to stdout)
-       or: ts-runtypes gen --translate <locale> [--update|--prune] [<src.ts>]   (i18n translation mirrors)
+    ts-runtypes enrich <file.ts> <TypeName> [--mock] [--friendly] [--gen-dir <dir>] [--out <path>]
+       or: ts-runtypes enrich <file.ts> <TypeName> --update                    (reconcile an existing mirror)
+       or: ts-runtypes enrich --prune [<mirror-file-or-dir>]                    (strip @rtOrphan carcasses)
+       or: ts-runtypes enrich --files a.ts,b.ts --type Target                   (batch, JSON to stdout)
+       or: ts-runtypes enrich --translate <locale> [--update|--prune] [<src>]   (i18n translation mirrors)
+       or: ts-runtypes enrich <file.ts> --no-emit                               (single-file health, no writes)
+       or: ts-runtypes enrich [<dir>] --no-emit                                 (mirror-tree drift, no writes)
 
-Drift checking moved to: ts-runtypes check [<file-or-dir>]
+--no-emit turns any write lane into a diagnostics-only pass — nothing is written.
 `)
 	}
 	positional, flags := splitArgs(args)
 	if err := fs.Parse(flags); err != nil {
-		fatal("gen: %v", err)
+		fatal("enrich: %v", err)
 	}
 
-	// --translate is its own lane: the desired side is the friendly source
-	// mirror, never the type graph — so it excludes the type-driven modes.
+	// --translate is its own lane: the desired side is the friendly source mirror,
+	// never the type graph — so it excludes the type-driven modes. --no-emit runs
+	// the i18n completeness gate instead of writing.
 	if *translate != "" {
 		if *files != "" || *mock || *friendly || *out != "" {
-			fatal("gen: --translate can only combine with --update / --prune / --gen-dir")
+			fatal("enrich: --translate can only combine with --update / --prune / --gen-dir / --no-emit")
 		}
-		runGenTranslate(*translate, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
+		if *noEmit {
+			runCheckTranslate(*translate, *genDirFlag, *tsconfigFlag)
+		} else {
+			runGenTranslate(*translate, positional, *update, *prune, *genDirFlag, *tsconfigFlag)
+		}
 		return
 	}
 
-	// Mutual-exclusion guards. --update is the reconcile op; it cannot combine
-	// with --files (batch stdout, no writes). --prune is the standalone
-	// destructive sweep and likewise excludes the others.
-	if *update {
-		if *files != "" {
-			fatal("gen: --update cannot be combined with --files")
-		}
-		if *prune {
-			fatal("gen: --update cannot be combined with --prune")
-		}
-	}
+	// --prune is the standalone carcass sweep (destructive), or a list-only report
+	// under --no-emit. It excludes the type-driven modes.
 	if *prune {
 		if *files != "" {
-			fatal("gen: --prune cannot be combined with --files")
+			fatal("enrich: --prune cannot be combined with --files")
 		}
-		runGenPrune(positional, *genDirFlag, *tsconfigFlag)
+		if *update {
+			fatal("enrich: --prune cannot be combined with --update")
+		}
+		runEnrichPrune(positional, *genDirFlag, *tsconfigFlag, *noEmit)
 		return
 	}
 
+	// --files batch: JSON skeletons to stdout, never writes.
 	if *files != "" {
 		if *typeFlag == "" {
-			fatal("gen --files: --type is required")
+			fatal("enrich --files: --type is required")
 		}
 		runGenBatch(strings.Split(*files, ","), *typeFlag, *tsconfigFlag)
 		return
 	}
-	if len(positional) < 2 {
+
+	// A <file> <Type> pair is a scaffold target: it writes (or, under --no-emit,
+	// reports the target's mirror diagnostics without writing).
+	if len(positional) >= 2 {
+		runEnrichScaffold(positional[0], positional[1], *mock, *friendly, *out, *update, *genDirFlag, *tsconfigFlag, *asJSON, *noEmit)
+		return
+	}
+
+	// A bare file / dir / no positional is a check-only target — it REQUIRES
+	// --no-emit (tsc --noEmit-style), which also disambiguates a <file> given
+	// without a <Type> to scaffold.
+	if !*noEmit {
+		if len(positional) == 1 {
+			fatal("enrich: %s: provide a Type to scaffold (enrich <file> <Type>), or --no-emit to check the file", positional[0])
+		}
 		fs.Usage()
 		os.Exit(2)
 	}
-	absPath := tspath.NormalizePath(mustAbs(positional[0]))
-	typeName := positional[1]
+	if len(positional) == 1 && !isDirArg(positional[0]) {
+		runSingleFileCheck(positional[0], *tsconfigFlag, *asJSON)
+		return
+	}
+	runGenCheck(positional, *genDirFlag, *asJSON, *tsconfigFlag)
+}
+
+// runEnrichScaffold is the `enrich <file> <Type>` write lane: resolve the type,
+// plan the mirror specs via the shared enrichgen.Plan, write (or reconcile) each
+// mirror, then run the shared health pass over the resulting mirrors and emit its
+// diagnostics — the freshly-scaffolded @todo worklist, in the same pass. Under
+// --no-emit it writes nothing and reports the target mirrors' diagnostics only.
+func runEnrichScaffold(srcArg, typeName string, mock, friendly bool, out string, update bool, genDirFlag, tsconfigFlag string, asJSON, noEmit bool) {
+	absPath := tspath.NormalizePath(mustAbs(srcArg))
 
 	// Default (no flag): emit BOTH friendly + mock.
-	wantFriendly, wantMock := *friendly, *mock
+	wantFriendly, wantMock := friendly, mock
 	if !wantFriendly && !wantMock {
 		wantFriendly, wantMock = true, true
 	}
 
-	tsconfigPath, parsed := resolveEnrichProject(*tsconfigFlag)
-	config := resolveEnrichConfig(absPath, *genDirFlag, tsconfigPath, parsed)
+	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
+	config := resolveEnrichConfig(absPath, genDirFlag, tsconfigPath, parsed)
 
-	// Self-document the genDir tree even when gen runs before any build: the
-	// root + enriched READMEs (shared with the generate lane) and a README in
-	// each family dir this run writes into.
-	genRoot := config.GenDir()
-	_ = resolver.EnsureOutputHygiene(genRoot, filepath.Join(genRoot, "types"))
-	for _, family := range enrichgen.WantedFamilies(*mock, *friendly) {
-		ensureFamilyReadme(config, family)
+	// Self-document the genDir tree when actually writing: the root + enriched
+	// READMEs (shared with the generate lane) and a README in each family dir.
+	if !noEmit {
+		genRoot := config.GenDir()
+		_ = resolver.EnsureOutputHygiene(genRoot, filepath.Join(genRoot, "types"))
+		for _, family := range enrichgen.WantedFamilies(mock, friendly) {
+			ensureFamilyReadme(config, family)
+		}
 	}
 
 	// Named-type-driven emission runs through the SHARED planner (enrichgen.Plan)
-	// so the CLI and the OpEnrich daemon op compute byte-identical mirror specs:
-	// resolve the RAW (non-inlined) graph, emit ONE friendly+mock const per named
-	// type in dependency order, and bucket by declaration file → one mirror file
-	// per (declFile, family). The migration of any pre-split combined mirror is a
-	// CLI-only disk pre-step lifted out of spec-building (the daemon never writes).
+	// so the CLI and the OpEnrich daemon op compute byte-identical mirror specs.
 	prog, res, err := buildProgram(absPath, config.Parsed)
 	if err != nil {
-		fatal("gen: %v", err)
+		fatal("enrich: %v", err)
 	}
-	defer res.Close()
-
 	outPath := ""
-	if *out != "" {
-		outPath = tspath.NormalizePath(mustAbs(*out))
+	if out != "" {
+		outPath = tspath.NormalizePath(mustAbs(out))
 	}
-	specs, declFiles, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absPath, typeName, outPath, wantFriendly, wantMock, config)
-	if err != nil {
-		fatal("gen: %v", err)
+	specs, declFiles, planErr := enrichgen.Plan(prog, res.Checker(), res.Cache(), absPath, typeName, outPath, wantFriendly, wantMock, config)
+	// Release the source Program before the post-write health pass builds its own.
+	res.Close()
+	if planErr != nil {
+		fatal("enrich: %v", planErr)
 	}
+
+	mirrorPaths := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		mirrorPaths = append(mirrorPaths, spec.MirrorPath)
+	}
+
+	// --no-emit: report the target mirrors' health, write nothing.
+	if noEmit {
+		os.Exit(reportEnrichDiagnostics(checkMirrorFilesDiagnostics(mirrorPaths, config.Parsed), asJSON))
+	}
+
+	// Write lane: migrate any pre-split combined mirror (CLI-only disk pre-step),
+	// then write / reconcile each family mirror.
 	if outPath == "" {
 		for _, declFile := range declFiles {
 			migrateLegacyMirror(config, declFile)
 		}
 	}
-
-	var written int
+	written := 0
 	for _, spec := range specs {
 		var wrote bool
-		if *update {
+		if update {
 			wrote = updateMirrorFile(spec)
 		} else {
 			wrote = writeMirrorFile(spec)
@@ -193,8 +238,15 @@ Drift checking moved to: ts-runtypes check [<file-or-dir>]
 		}
 	}
 	if written == 0 {
-		fmt.Printf("gen: nothing to write — mirror file(s) already have the requested export(s)\n")
+		fmt.Printf("enrich: nothing to write — mirror file(s) already have the requested export(s)\n")
 	}
+
+	// "In one pass": surface the freshly-scaffolded @todo worklist (FT020/MD020) on
+	// stderr via the text-only hygiene scan (no second Program, so no dependency on
+	// resolving the mirror imports). The scaffold SUCCEEDED — its @todo placeholders
+	// are the expected state, so the write lane exits 0; the gate that FAILS on
+	// unfilled @todos is `enrich <file> --no-emit`.
+	printEnrichWorklist(scaffoldWorklist(specs))
 	os.Exit(0)
 }
 
@@ -216,28 +268,28 @@ func writeMirrorFile(spec mirror.Spec) bool {
 	if bytes, err := os.ReadFile(spec.MirrorPath); err == nil {
 		existing = string(bytes)
 	} else if !os.IsNotExist(err) {
-		fatal("gen: read %s: %v", spec.MirrorPath, err)
+		fatal("enrich: read %s: %v", spec.MirrorPath, err)
 	}
 
 	content, added, err := mirror.Scaffold(spec, existing)
 	if err != nil {
-		fatal("gen: %v", err)
+		fatal("enrich: %v", err)
 	}
 	if content == "" {
 		return false // create-only no-op: every requested export already present
 	}
 
 	if err := os.MkdirAll(filepath.Dir(spec.MirrorPath), 0o755); err != nil {
-		fatal("gen: mkdir %s: %v", filepath.Dir(spec.MirrorPath), err)
+		fatal("enrich: mkdir %s: %v", filepath.Dir(spec.MirrorPath), err)
 	}
 	if err := os.WriteFile(spec.MirrorPath, []byte(content), 0o644); err != nil {
-		fatal("gen: write %s: %v", spec.MirrorPath, err)
+		fatal("enrich: write %s: %v", spec.MirrorPath, err)
 	}
 	verb := "wrote"
 	if existing != "" {
 		verb = "appended to"
 	}
-	fmt.Printf("gen: %s %s (%s)\n", verb, spec.MirrorPath, strings.Join(added, ", "))
+	fmt.Printf("enrich: %s %s (%s)\n", verb, spec.MirrorPath, strings.Join(added, ", "))
 	return true
 }
 
@@ -255,12 +307,12 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 		absPaths = append(absPaths, tspath.NormalizePath(mustAbs(trimmed)))
 	}
 	if len(absPaths) == 0 {
-		fatal("gen --files: no files given")
+		fatal("enrich --files: no files given")
 	}
 	_, parsed := resolveEnrichProject(tsconfigFlag)
 	prog, res, err := buildProgramMulti(absPaths, parsed)
 	if err != nil {
-		fatal("gen --files: %v", err)
+		fatal("enrich --files: %v", err)
 	}
 	defer res.Close()
 
@@ -272,7 +324,7 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 	for _, absPath := range absPaths {
 		resolved, err := enrichment.ResolveType(prog, res.Checker(), res.Cache(), absPath, typeName)
 		if err != nil {
-			fatal("gen --files: %s: %v", absPath, err)
+			fatal("enrich --files: %s: %v", absPath, err)
 		}
 		key := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
 		out[key] = skeletons{
@@ -282,7 +334,7 @@ func runGenBatch(files []string, typeName, tsconfigFlag string) {
 	}
 	encoded, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
-		fatal("gen --files: encode json: %v", err)
+		fatal("enrich --files: encode json: %v", err)
 	}
 	fmt.Println(string(encoded))
 	os.Exit(0)

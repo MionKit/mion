@@ -15,7 +15,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
-// runGenTranslate implements the `gen --translate <locale|all> [<src>]` verbs:
+// runGenTranslate implements the `enrich --translate <locale|all> [<src>]` verbs:
 // scaffold (create-only), --update (the i18n reconcile), and --prune (strip
 // carcasses from the locale's translation files). Translations are SRC-DERIVED:
 // the desired side is emitted from the TYPE by the same EmitClosure walk as the
@@ -39,7 +39,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 				pruned += pruneMirrorFile(config.TranslationPathFor(locale, sourceMirror))
 			}
 		}
-		fmt.Fprintf(os.Stderr, "gen --translate --prune: %d orphan block(s) removed\n", pruned)
+		fmt.Fprintf(os.Stderr, "enrich --translate --prune: %d orphan block(s) removed\n", pruned)
 		os.Exit(0)
 	}
 
@@ -68,7 +68,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 		}
 	}
 	if written == 0 {
-		fmt.Printf("gen --translate: nothing to write — translation file(s) already up to date\n")
+		fmt.Printf("enrich --translate: nothing to write — translation file(s) already up to date\n")
 	}
 	os.Exit(0)
 }
@@ -84,12 +84,12 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatal("gen --translate: getwd: %v", err)
+		fatal("enrich --translate: getwd: %v", err)
 	}
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("gen --translate: %v", err)
+		fatal("enrich --translate: %v", err)
 	}
 	return config, sourceMirrors
 }
@@ -101,7 +101,7 @@ func resolveTranslateLocales(translateValue string, config enrichConfig) []strin
 		return []string{translateValue}
 	}
 	if len(config.I18nLocales) == 0 {
-		fatal("gen --translate all: no locales configured — add i18n.locales to the ts-runtypes tsconfig plugin entry")
+		fatal("enrich --translate all: no locales configured — add i18n.locales to the ts-runtypes tsconfig plugin entry")
 	}
 	return config.I18nLocales
 }
@@ -123,17 +123,17 @@ type translationDiscovery struct {
 func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) {
 	sourceBytes, err := os.ReadFile(sourceMirror)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
 		return translationDiscovery{}, false
 	}
 	index, err := mirror.ParseMirror(sourceMirror, sourceBytes)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
 		return translationDiscovery{}, false
 	}
 	breadcrumb, ok := index.Breadcrumb()
 	if !ok {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: no source breadcrumb\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no source breadcrumb\n", sourceMirror)
 		return translationDiscovery{}, false
 	}
 	declFile := mirror.ResolveBreadcrumb(sourceMirror, breadcrumb)
@@ -142,7 +142,7 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 	seen := map[string]bool{}
 	for _, friendlyConst := range index.FriendlyConstTypes() {
 		if friendlyConst.TypeName == "" {
-			fmt.Fprintf(os.Stderr, "gen --translate: %s: skipping %s: no type name on its annotation\n",
+			fmt.Fprintf(os.Stderr, "enrich --translate: %s: skipping %s: no type name on its annotation\n",
 				sourceMirror, friendlyConst.VarName)
 			continue
 		}
@@ -153,7 +153,7 @@ func discoverTranslationTypes(sourceMirror string) (translationDiscovery, bool) 
 		typeNames = append(typeNames, friendlyConst.TypeName)
 	}
 	if len(typeNames) == 0 {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: no friendly consts with a type name\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no friendly consts with a type name\n", sourceMirror)
 		return translationDiscovery{}, false
 	}
 	return translationDiscovery{declFile: declFile, typeNames: typeNames}, true
@@ -172,7 +172,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	}
 	prog, res, err := buildProgram(discovery.declFile, config.Parsed)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: %v\n", sourceMirror, err)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: %v\n", sourceMirror, err)
 		return nil, false
 	}
 	defer res.Close()
@@ -187,17 +187,17 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	for _, typeName := range discovery.typeNames {
 		resolved, resolveErr := enrichment.ResolveTypeRaw(prog, res.Checker(), res.Cache(), discovery.declFile, typeName)
 		if resolveErr != nil {
-			fmt.Fprintf(os.Stderr, "gen --translate: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
+			fmt.Fprintf(os.Stderr, "enrich --translate: %s: skipping type %s: %v\n", sourceMirror, typeName, resolveErr)
 			continue
 		}
 		// The rt$ prefix is RESERVED for enrichment meta keys (see gen).
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
-			fatal("gen --translate: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
+			fatal("enrich --translate: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
 		}
 		resolvedTypes = append(resolvedTypes, resolvedType{typeName: typeName, resolved: resolved})
 	}
 	if len(resolvedTypes) == 0 {
-		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: no resolvable types\n", sourceMirror)
+		fmt.Fprintf(os.Stderr, "enrich --translate: skipping %s: no resolvable types\n", sourceMirror)
 		return nil, false
 	}
 
@@ -289,7 +289,7 @@ func specForMirrorPath(specs []mirror.Spec, mirrorPath string) *mirror.Spec {
 	return nil
 }
 
-// translationFinding is one `check --translate` completeness finding.
+// translationFinding is one `enrich --translate --no-emit` completeness finding.
 type translationFinding struct {
 	File     string
 	Severity enrichment.Severity
@@ -302,7 +302,7 @@ type translationFinding struct {
 // remaining, it does not parse.
 var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 
-// runCheckTranslate implements `check --translate <locale|all>`: the
+// runCheckTranslate implements `enrich --translate --no-emit <locale|all>`: the
 // non-writing completeness gate. Findings: TR001 missing translation file,
 // TR002 unfilled @todo blanks, TR003 out of date vs the src type (a src-derived
 // reconcile would change it), TR004 orphan carcasses awaiting --prune.
@@ -311,14 +311,14 @@ var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatal("check --translate: getwd: %v", err)
+		fatal("enrich --translate --no-emit: getwd: %v", err)
 	}
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
-		fatal("check --translate: %v", err)
+		fatal("enrich --translate --no-emit: %v", err)
 	}
 
 	severity := enrichment.Warning
@@ -355,7 +355,7 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 		}
 		fmt.Printf("%s: [%s %s] %s\n", finding.File, finding.Code, finding.Severity.String(), finding.Message)
 	}
-	fmt.Fprintf(os.Stderr, "check --translate: %d translation file(s), %d finding(s)\n", checkedFiles, len(findings))
+	fmt.Fprintf(os.Stderr, "enrich --translate --no-emit: %d translation file(s), %d finding(s)\n", checkedFiles, len(findings))
 	if hasError {
 		os.Exit(1)
 	}
@@ -373,7 +373,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	if err != nil {
 		findings = append(findings, translationFinding{
 			File: translationPath, Severity: severity, Code: "TR001",
-			Message: fmt.Sprintf("missing translation for locale %q — run: ts-runtypes gen --translate %s", locale, locale),
+			Message: fmt.Sprintf("missing translation for locale %q — run: ts-runtypes enrich --translate %s", locale, locale),
 		})
 		return findings
 	}
@@ -391,7 +391,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 		if _, changed, reconcileErr := mirror.Reconcile(*spec, translationBytes, readSourceFile); reconcileErr == nil && changed {
 			findings = append(findings, translationFinding{
 				File: translationPath, Severity: severity, Code: "TR003",
-				Message: fmt.Sprintf("out of date vs %s — run: ts-runtypes gen --translate %s --update", spec.SourceFile, locale),
+				Message: fmt.Sprintf("out of date vs %s — run: ts-runtypes enrich --translate %s --update", spec.SourceFile, locale),
 			})
 		}
 	}
@@ -399,7 +399,7 @@ func checkTranslationFile(locale, translationPath string, spec *mirror.Spec, sev
 	if orphans := strings.Count(string(translationBytes), "@rtOrphan"); orphans > 0 {
 		findings = append(findings, translationFinding{
 			File: translationPath, Severity: severity, Code: "TR004",
-			Message: fmt.Sprintf("%d orphan carcass(es) awaiting review — restore or strip with gen --translate %s --prune", orphans, locale),
+			Message: fmt.Sprintf("%d orphan carcass(es) awaiting review — restore or strip with enrich --translate %s --prune", orphans, locale),
 		})
 	}
 	return findings

@@ -139,7 +139,7 @@ type validatePluginConfig struct {
 //
 // sourceLocale names the language the source FriendlyText maps are authored in
 // (it selects the plural arms the scaffold emits). locales is the target set —
-// the source locale is NOT listed. strict turns `check --translate` findings
+// the source locale is NOT listed. strict turns `enrich --translate --no-emit` findings
 // into errors; the runtime is always lenient. The translation subtree location
 // is convention (<genDir>/enriched/i18n/<locale>/…), never configurable.
 type i18nPluginConfig struct {
@@ -244,11 +244,11 @@ func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
 func ensureFamilyReadme(config enrichConfig, family string) {
 	texts := map[string][2]string{
 		familyFriendly: {filepath.Join(config.EnrichDir, familyFriendly),
-			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `ts-runtypes gen`; the values are\nyours to edit. Commit these files.\n"},
+			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `ts-runtypes enrich`; the values are\nyours to edit. Commit these files.\n"},
 		familyMock: {filepath.Join(config.EnrichDir, familyMock),
-			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `ts-runtypes gen`; the values are yours\nto edit. Commit these files.\n"},
+			"# MockData mirrors\n\nRealistic sample pools and ranges for your types, one mirror file per source\nfile. Scaffolded and kept in sync by `ts-runtypes enrich`; the values are yours\nto edit. Commit these files.\n"},
 		defaultI18nDirName: {config.I18nDir,
-			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `ts-runtypes gen --translate`. Commit these files.\n"},
+			"# Translations\n\nPer-locale translations of the FriendlyText mirrors, one folder per locale.\nManaged with `ts-runtypes enrich --translate`. Commit these files.\n"},
 	}
 	entry, ok := texts[family]
 	if !ok {

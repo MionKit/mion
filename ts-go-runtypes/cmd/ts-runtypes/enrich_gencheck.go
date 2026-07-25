@@ -75,7 +75,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 	} else {
 		cwd, err := os.Getwd()
 		if err != nil {
-			fatal("check: getwd: %v", err)
+			fatal("enrich --no-emit: getwd: %v", err)
 		}
 		// Resolve the enrich dir from cwd's tsconfig — the default scan root.
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
@@ -86,7 +86,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 	for _, target := range targets {
 		files, err := collectMirrorFiles(target)
 		if err != nil {
-			fatal("check: %v", err)
+			fatal("enrich --no-emit: %v", err)
 		}
 		mirrorFiles = append(mirrorFiles, files...)
 	}
@@ -111,7 +111,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 	if asJSON {
 		encoded, encodeErr := json.MarshalIndent(findings, "", "  ")
 		if encodeErr != nil {
-			fatal("check: encode json: %v", encodeErr)
+			fatal("enrich --no-emit: encode json: %v", encodeErr)
 		}
 		fmt.Println(string(encoded))
 	} else {
@@ -119,7 +119,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 			fmt.Printf("%s: [%s %s] %s\n", finding.File, finding.Code, finding.Severity.String(), finding.Message)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "check: %d mirror file(s), %d finding(s)\n", len(mirrorFiles), len(findings))
+	fmt.Fprintf(os.Stderr, "enrich --no-emit: %d mirror file(s), %d finding(s)\n", len(mirrorFiles), len(findings))
 	if hasError {
 		os.Exit(1)
 	}

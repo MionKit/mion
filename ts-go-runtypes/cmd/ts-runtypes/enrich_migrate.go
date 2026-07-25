@@ -44,7 +44,7 @@ func migrateLegacyMirror(config enrichConfig, declFile string) {
 	for _, familyPath := range []string{friendlyPath, mockPath} {
 		if _, statErr := os.Stat(familyPath); statErr == nil {
 			fmt.Fprintf(os.Stderr,
-				"gen: legacy combined mirror %s NOT migrated: %s already exists — merge them by hand (or delete one), then re-run\n",
+				"enrich: legacy combined mirror %s NOT migrated: %s already exists — merge them by hand (or delete one), then re-run\n",
 				legacyPath, familyPath)
 			return
 		}
@@ -52,7 +52,7 @@ func migrateLegacyMirror(config enrichConfig, declFile string) {
 
 	friendlyOut, mockOut, err := mirror.SplitCombined(legacyPath, legacyBytes, friendlyPath, mockPath, declFile)
 	if err != nil {
-		fatal("gen: migrate legacy mirror %s: %v", legacyPath, err)
+		fatal("enrich: migrate legacy mirror %s: %v", legacyPath, err)
 	}
 	if friendlyOut == nil && mockOut == nil {
 		return // nothing worth carrying — leave the legacy file for the user
@@ -64,18 +64,18 @@ func migrateLegacyMirror(config enrichConfig, declFile string) {
 		writeMigratedFamily(mockPath, mockOut)
 	}
 	if err := os.Remove(legacyPath); err != nil {
-		fatal("gen: migrate legacy mirror: remove %s: %v", legacyPath, err)
+		fatal("enrich: migrate legacy mirror: remove %s: %v", legacyPath, err)
 	}
-	fmt.Printf("gen: migrated combined mirror %s into %s + %s\n", legacyPath, friendlyPath, mockPath)
+	fmt.Printf("enrich: migrated combined mirror %s into %s + %s\n", legacyPath, friendlyPath, mockPath)
 }
 
 // writeMigratedFamily writes one family's migrated content, creating parent
 // dirs as needed.
 func writeMigratedFamily(familyPath string, content []byte) {
 	if err := os.MkdirAll(filepath.Dir(familyPath), 0o755); err != nil {
-		fatal("gen: migrate legacy mirror: mkdir %s: %v", filepath.Dir(familyPath), err)
+		fatal("enrich: migrate legacy mirror: mkdir %s: %v", filepath.Dir(familyPath), err)
 	}
 	if err := atomicWriteFile(familyPath, content, 0o644); err != nil {
-		fatal("gen: migrate legacy mirror: write %s: %v", familyPath, err)
+		fatal("enrich: migrate legacy mirror: write %s: %v", familyPath, err)
 	}
 }

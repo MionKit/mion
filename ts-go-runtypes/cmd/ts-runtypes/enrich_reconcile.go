@@ -36,7 +36,7 @@ func updateMirrorFile(spec mirror.Spec) bool {
 	existingBytes, err := os.ReadFile(spec.MirrorPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			fatal("gen --update: read %s: %v", spec.MirrorPath, err)
+			fatal("enrich --update: read %s: %v", spec.MirrorPath, err)
 		}
 		// Missing file → seed it via the ordinary create-only path.
 		return writeMirrorFile(spec)
@@ -55,7 +55,7 @@ func updateMirrorFile(spec mirror.Spec) bool {
 
 	out, changed, err := mirror.Reconcile(spec, existingBytes, readSourceFile)
 	if err != nil {
-		fatal("gen --update: %v", err)
+		fatal("enrich --update: %v", err)
 	}
 	if !changed {
 		return false // idempotent no-op
@@ -68,12 +68,12 @@ func updateMirrorFile(spec mirror.Spec) bool {
 // parent dirs as needed, and reports the change.
 func writeReconciled(mirrorPath string, content []byte) {
 	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
-		fatal("gen --update: mkdir %s: %v", filepath.Dir(mirrorPath), err)
+		fatal("enrich --update: mkdir %s: %v", filepath.Dir(mirrorPath), err)
 	}
 	if err := atomicWriteFile(mirrorPath, content, 0o644); err != nil {
-		fatal("gen --update: write %s: %v", mirrorPath, err)
+		fatal("enrich --update: write %s: %v", mirrorPath, err)
 	}
-	fmt.Printf("gen --update: reconciled %s\n", mirrorPath)
+	fmt.Printf("enrich --update: reconciled %s\n", mirrorPath)
 }
 
 // atomicWriteFile writes content to path via a same-directory temp file then
@@ -109,21 +109,49 @@ func atomicWriteFile(path string, content []byte, perm os.FileMode) error {
 	return nil
 }
 
-// runGenPrune implements `gen --prune [<mirror-file-or-dir>]`: it walks the
+// runEnrichPrune implements `enrich --prune [<mirror-file-or-dir>]`: it walks the
 // mirror file(s) (reusing the shared collectMirrorFiles walk) and strips every
 // comment block/line tagged @rtOrphan / @rtOrphanChild, along with the
 // commented-out code lines they tag. It reports what was removed. This is the
-// only path that truly deletes content.
-func runGenPrune(positional []string, genDirFlag, tsconfigFlag string) {
+// only path that truly deletes content. Under --no-emit it LISTS the carcasses
+// awaiting a prune and deletes nothing (the dry-run gate).
+func runEnrichPrune(positional []string, genDirFlag, tsconfigFlag string, noEmit bool) {
 	mirrorFiles := collectPruneTargets(positional, genDirFlag, tsconfigFlag)
+
+	if noEmit {
+		total := 0
+		for _, mirrorFile := range mirrorFiles {
+			count := countOrphanBlocks(mirrorFile)
+			total += count
+			if count > 0 {
+				fmt.Printf("enrich --prune --no-emit: %s — %d orphan block(s)\n", mirrorFile, count)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "enrich --prune --no-emit: %d mirror file(s), %d orphan block(s)\n", len(mirrorFiles), total)
+		os.Exit(0)
+	}
 
 	var totalRemoved int
 	for _, mirrorFile := range mirrorFiles {
-		removed := pruneMirrorFile(mirrorFile)
-		totalRemoved += removed
+		totalRemoved += pruneMirrorFile(mirrorFile)
 	}
-	fmt.Fprintf(os.Stderr, "gen --prune: %d mirror file(s), %d orphan block(s) removed\n", len(mirrorFiles), totalRemoved)
+	fmt.Fprintf(os.Stderr, "enrich --prune: %d mirror file(s), %d orphan block(s) removed\n", len(mirrorFiles), totalRemoved)
 	os.Exit(0)
+}
+
+// countOrphanBlocks reports how many @rtOrphan / @rtOrphanChild carcasses a mirror
+// file carries WITHOUT rewriting it — the read-only twin of pruneMirrorFile behind
+// `enrich --prune --no-emit`. A missing / unreadable / unparseable file counts 0.
+func countOrphanBlocks(mirrorFile string) int {
+	contents, err := os.ReadFile(mirrorFile)
+	if err != nil {
+		return 0
+	}
+	_, removed, _, err := mirror.PruneOrphanBlocks(string(contents))
+	if err != nil {
+		return 0
+	}
+	return removed
 }
 
 // collectPruneTargets resolves the --prune argument: an explicit mirror .ts file
@@ -140,7 +168,7 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 	} else {
 		cwd, err := os.Getwd()
 		if err != nil {
-			fatal("gen --prune: getwd: %v", err)
+			fatal("enrich --prune: getwd: %v", err)
 		}
 		tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
@@ -148,7 +176,7 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 	}
 	files, err := collectMirrorFiles(target)
 	if err != nil {
-		fatal("gen --prune: %v", err)
+		fatal("enrich --prune: %v", err)
 	}
 	return files
 }
@@ -167,24 +195,24 @@ func pruneMirrorFile(mirrorFile string) int {
 		if os.IsNotExist(err) {
 			return 0
 		}
-		fatal("gen --prune: read %s: %v", mirrorFile, err)
+		fatal("enrich --prune: read %s: %v", mirrorFile, err)
 	}
 	pruned, removed, skipped, err := mirror.PruneOrphanBlocks(string(bytes))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gen --prune: skipping %s: %v\n", mirrorFile, err)
+		fmt.Fprintf(os.Stderr, "enrich --prune: skipping %s: %v\n", mirrorFile, err)
 		return 0
 	}
 	for _, carcass := range skipped {
 		fmt.Fprintf(os.Stderr,
-			"gen --prune: skipping a malformed orphan carcass that appears to span a live statement boundary — fix it by hand:\n%.120s…\n",
+			"enrich --prune: skipping a malformed orphan carcass that appears to span a live statement boundary — fix it by hand:\n%.120s…\n",
 			carcass)
 	}
 	if removed == 0 {
 		return 0
 	}
 	if err := atomicWriteFile(mirrorFile, []byte(pruned), 0o644); err != nil {
-		fatal("gen --prune: write %s: %v", mirrorFile, err)
+		fatal("enrich --prune: write %s: %v", mirrorFile, err)
 	}
-	fmt.Printf("gen --prune: %s — removed %d orphan block(s)\n", mirrorFile, removed)
+	fmt.Printf("enrich --prune: %s — removed %d orphan block(s)\n", mirrorFile, removed)
 	return removed
 }

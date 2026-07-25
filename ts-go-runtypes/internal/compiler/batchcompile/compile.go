@@ -46,6 +46,11 @@ type Options struct {
 	TsconfigPath string
 	GenDir       string
 	ResolverOpts resolver.Options
+	// NoEmit runs a diagnostics-only pass (compile --no-emit): the Pass-1 OpDump
+	// scan computes the RunType-family diagnostics in memory, then Run returns them
+	// WITHOUT OpTransform / OpGenerate / Pass 2 — nothing is written. Mirrors tsc
+	// --noEmit.
+	NoEmit bool
 }
 
 // Result reports what a compile run produced.
@@ -90,6 +95,14 @@ func Run(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("compile: dump: %s", dump.Error)
 	}
 	result.Diagnostics = append(result.Diagnostics, dump.Diagnostics...)
+
+	// compile --no-emit: the OpDump above already ran the full scan +
+	// collectEntryModules + RunType-family diagnostics in memory. Return them and
+	// skip OpTransform / OpGenerate / Pass 2 — nothing is written to disk.
+	if opts.NoEmit {
+		return result, nil
+	}
+
 	markerFiles := uniqueFiles(dump.Sites, dump.Replacements)
 
 	rewrittenByAbs := make(map[string]string, len(markerFiles))
