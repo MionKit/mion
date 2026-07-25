@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // manual-publish.mjs — interactive, resumable FIRST-publish bootstrap for the
-// @ts-runtypes/* packages. Creates all ten packages LIVE on npm so OIDC trusted
-// publishing (the normal CI path) can take over for every release afterward.
+// @ts-runtypes/* packages. Creates all ten packages LIVE on npm so the normal CI
+// path (staged publish with NPM_TOKEN) can take over for every release afterward.
 //
-// Why this exists (not the OIDC CI path, not publish.mjs):
-//   - OIDC can't create a package that has no published version yet, and npm can't
-//     STAGE a name that doesn't exist — so the very first version of each package
-//     must be a plain, live `npm publish`. This is that one-time step.
+// Why this exists (not the CI stage path, not publish.mjs):
+//   - npm can't STAGE a name that has no published version yet — so the very first
+//     version of each package must be a plain, live `npm publish`. This is that
+//     one-time step.
 //   - Auth is `npm login` (session-based: one 2FA challenge for the whole run).
 //     Classic tokens were revoked (Dec 2025) and 2FA-bypass tokens deprecated, so a
 //     login session is the reliable interactive path — no token needed.
@@ -71,7 +71,7 @@ async function main(argv) {
   console.log(green('══════════════════════════════════════════'));
   console.log(green(`  ts-runtypes manual publish — v${version}`));
   console.log(green('══════════════════════════════════════════'));
-  console.log('One-time bootstrap: creates every @ts-runtypes/* package LIVE so OIDC can take over.');
+  console.log('One-time bootstrap: creates every @ts-runtypes/* package LIVE so the CI staged publish can take over.');
   console.log('Live (no provenance — private repo), resumable (already-live versions are skipped).');
 
   // [1/4] Working tree — building binaries off a dirty tree would ship uncommitted
@@ -163,9 +163,9 @@ async function main(argv) {
   success(`published ${toPublish.length}, skipped ${plan.length - toPublish.length} — all ${plan.length} @ v${version}`);
   console.log(green('══════════════════════════════════════════'));
   console.log('');
-  console.log('Next (one-time): on npmjs.com register the trusted publisher for EACH package');
-  console.log('(repo MionKit/ts-run-types, workflow publish.yml, stage-only). Then every future');
-  console.log('release stages via OIDC in CI — `pnpm rtx release stage-approve` promotes with 2FA.');
+  console.log('Next (one-time): make sure the repo NPM_TOKEN secret is set so CI can authenticate');
+  console.log('(add any new sibling package to that token scope). Every future release stages with');
+  console.log('NPM_TOKEN in CI — `pnpm rtx release stage-approve` promotes each staged version with 2FA.');
 }
 
 loadEnv();

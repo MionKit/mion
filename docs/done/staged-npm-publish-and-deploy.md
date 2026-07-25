@@ -6,9 +6,9 @@ via `npm stage publish`, `scripts/release/publish-tarballs.mjs` has the stage pa
 `scripts/release/stage-approve.mjs` + `rtx release stage-approve` drive the leaves-first 2FA
 approval, `website-deploy.yml` is split out (`workflow_dispatch`, `environment: production`),
 `post-publish.yml` verifies the live registry, `scripts/release/verify-live.mjs` guards the
-deploy, and SETUP.md has the publishing runbook. The remaining work is a docs reconciliation
-(SETUP.md + `manual-publish.mjs` still describe an unshipped OIDC-no-token model), tracked at
-**[docs/todos/reconcile-publish-docs-to-token-model.md](../todos/reconcile-publish-docs-to-token-model.md)**.
+deploy, and SETUP.md has the publishing runbook. The docs reconciliation (SETUP.md +
+`manual-publish.mjs` had described an unshipped OIDC-no-token model) completed in
+**[docs/done/reconcile-publish-docs-to-token-model.md](./reconcile-publish-docs-to-token-model.md)**.
 The sibling "first-release bring-up" and "finish OIDC migration" items originally split out with
 this doc were retired 2026-07-25: CI publishes have run green (`@ts-runtypes/core@0.10.0` is
 live, `publish.yml` last green 2026-07-19) and the owner decided to keep token staging instead

@@ -124,7 +124,7 @@ Then hand the green PR to the developer to merge — with the merge-commit remin
 ## Phase 3 — publish, approve, deploy
 
 The merge push fires publish.yml: `merge-shape` guard → full gate rerun →
-stage-publish (OIDC, unattended) → `vX.Y.Z` tag on prod → GitHub Release. Watch it:
+stage-publish (`NPM_TOKEN`, unattended) → `vX.Y.Z` tag on prod → GitHub Release. Watch it:
 `gh run list --workflow=publish.yml --limit 1`, then `gh run watch <id>`. Once the
 `vX.Y.Z` tag exists the frozen branch has done its job — delete it:
 `git push origin --delete release/vX.Y.Z`.

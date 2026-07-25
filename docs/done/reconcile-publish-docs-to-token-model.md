@@ -1,8 +1,9 @@
 ---
 type: docs
 spec: full-plan
-status: ready
+status: done
 created: 2026-07-25
+completed: 2026-07-25
 ---
 
 # Reconcile publish-model docs: describe the shipped token staging, drop the unshipped OIDC narrative
@@ -90,6 +91,25 @@ the provenance paragraph as-is — provenance staying gated on `RT_NPM_PROVENANC
 - Migrating to OIDC trusted publishing (dropped by owner directive 2026-07-25). If the repo
   ever goes public and OIDC becomes desirable, file a fresh spec then.
 - Enabling provenance (already correctly gated on `RT_NPM_PROVENANCE`; unchanged here).
+
+## Shipped (2026-07-25)
+
+Landed as planned. Beyond the two files enumerated above, three more reader-facing places
+carried the same false "CI uses OIDC / no token" claim and were reconciled to satisfy the
+Done-when bar ("every reader-facing doc/script"):
+
+- `.claude/skills/release-to-prod/SKILL.md` — the Phase 3 pipeline line `stage-publish (OIDC,
+  unattended)` → `stage-publish (\`NPM_TOKEN\`, unattended)`.
+- `.env.sample` — the `NPM_TOKEN` comment no longer says CI "needs no token"; it now states the
+  token is used by the local publish and by CI as a GitHub secret.
+- `scripts/env/check.mjs` — the `pnpm rtx env` help text and the `publish-npm` status lines no
+  longer print "CI uses OIDC (no token)"; they describe the CI stage secret.
+
+In SETUP.md the heading anchor (`#releasing-through-ci--staged-publishing-npm_token--2fa-approval`)
+was updated in lockstep with the heading rename (the one same-file inbound link). `publish.yml`
+and `stage-approve.mjs` were left untouched (Out of scope; their only OIDC mentions are
+npm-version-requirement code comments). The archived specs `docs/done/publish-local-core-filter-bug.md`
+and `docs/done/release-pipeline-first-run-fixes.md` keep their OIDC mentions as historical record.
 
 ## Done when
 

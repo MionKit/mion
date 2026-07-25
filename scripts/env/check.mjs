@@ -6,7 +6,7 @@
 // Usage (via `pnpm rtx env …`, or `node scripts/env/check.mjs …`):
 //   rt env                 status of every known var
 //   rt env push-image      verify the vars `pnpm rtx container push` needs
-//   rt env publish-npm     (info) NPM_TOKEN is for LOCAL publish; CI uses OIDC
+//   rt env publish-npm     (info) NPM_TOKEN is for LOCAL publish + the CI secret
 //   rt env deploy-website  (info) where the Cloudflare secrets live
 //   rt env --create-env    create .env from .env.sample if missing
 
@@ -19,7 +19,7 @@ function usage() {
   console.log(`Usage: pnpm rtx env [TASK | --create-env]
   (no args)        status of every known RunTypes env var
   push-image       verify the vars \`pnpm rtx container push\` needs (GHCR token)
-  publish-npm      info: NPM_TOKEN is for the local publish; CI uses OIDC (no token)
+  publish-npm      info: NPM_TOKEN is for the local publish + the CI stage secret
   deploy-website   info: the Cloudflare secrets live in GitHub, not .env
   --create-env     create .env from .env.sample if it does not exist`);
 }
@@ -63,10 +63,10 @@ function verifyTask(task) {
       break;
     case 'publish-npm':
       if (isSet('NPM_TOKEN')) {
-        console.log(`${green('ok')} publish-npm: NPM_TOKEN is set for the local interactive publish. CI stage-publishes via Trusted Publishing/OIDC — no token.`);
+        console.log(`${green('ok')} publish-npm: NPM_TOKEN is set for the local interactive publish. CI stage-publishes with the same token as a GitHub secret.`);
         return;
       }
-      console.log('publish-npm: no NPM_TOKEN in .env. Set NPM_TOKEN for the local interactive publish (scripts/release/publish.mjs); CI uses Trusted Publishing/OIDC — no token.');
+      console.log('publish-npm: no NPM_TOKEN in .env. Set NPM_TOKEN for the local interactive publish (scripts/release/publish.mjs); CI stage-publishes with the same token as a GitHub secret.');
       return;
     case 'deploy-website': {
       const miss = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'].filter((name) => !isSet(name));
