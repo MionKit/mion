@@ -100,7 +100,7 @@ export function readMirrors(fixture: ReconcileFixture): string {
 // runGen runs `gen <source> <Type> [extraArgs…]` from the fixture's project
 // root. Throws on a non-zero exit.
 export function runGen(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): void {
-  const args = ['gen', 'src/models.ts', typeName, ...extraArgs];
+  const args = ['enrich', 'src/models.ts', typeName, ...extraArgs];
   const result = spawnSync(BIN, args, {cwd: fixture.dir, encoding: 'utf8'});
   if (result.error) throw new Error(`gen failed to launch: ${result.error.message}`);
   if (result.status !== 0) throw new Error(`gen ${args.join(' ')} exited ${result.status}: ${result.stderr}\n${result.stdout}`);
@@ -109,7 +109,7 @@ export function runGen(fixture: ReconcileFixture, typeName: string, extraArgs: s
 // runPrune runs `gen --prune <enrichDir>` from the fixture's project root —
 // the whole mirror root, so carcasses in BOTH family files are swept.
 export function runPrune(fixture: ReconcileFixture): void {
-  const result = spawnSync(BIN, ['gen', '--prune', fixture.enrichDir], {cwd: fixture.dir, encoding: 'utf8'});
+  const result = spawnSync(BIN, ['enrich', '--prune', fixture.enrichDir], {cwd: fixture.dir, encoding: 'utf8'});
   if (result.error) throw new Error(`prune failed to launch: ${result.error.message}`);
   if (result.status !== 0) throw new Error(`gen --prune exited ${result.status}: ${result.stderr}\n${result.stdout}`);
 }

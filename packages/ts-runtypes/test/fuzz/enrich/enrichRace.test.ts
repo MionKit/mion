@@ -60,7 +60,7 @@ function authorSentinels(fixture: ReconcileFixture): string[] {
 // hung process is killed and surfaced as code=null so the controlled-check fails it.
 function spawnUpdate(dir: string): Promise<{code: number | null; stderr: string}> {
   return new Promise((resolveDone) => {
-    const child = spawn(BIN, ['gen', 'src/models.ts', ROOT, '--update'], {cwd: dir});
+    const child = spawn(BIN, ['enrich', 'src/models.ts', ROOT, '--update'], {cwd: dir});
     let stderr = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');

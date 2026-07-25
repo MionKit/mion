@@ -55,19 +55,19 @@ function runCli(cwd: string, args: string[]): CliResult {
 /** `gen src/models.ts <Type>` — create-only scaffold of the mirror file.
  *  `extraArgs` appends extra CLI flags to the `gen` invocation. **/
 export function scaffold(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
-  return runCli(fixture.dir, ['gen', 'src/models.ts', typeName, ...extraArgs]);
+  return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, ...extraArgs]);
 }
 
 /** `gen src/models.ts <Type> --update` — value-preserving reconcile.
  *  `extraArgs` appends extra CLI flags to the `gen` invocation. **/
 export function update(fixture: ReconcileFixture, typeName: string, extraArgs: string[] = []): CliResult {
-  return runCli(fixture.dir, ['gen', 'src/models.ts', typeName, '--update', ...extraArgs]);
+  return runCli(fixture.dir, ['enrich', 'src/models.ts', typeName, '--update', ...extraArgs]);
 }
 
 /** `gen --prune <enrichDir>` — strip @rtOrphan/@rtOrphanChild carcasses from
  *  the whole mirror root (sweeps BOTH family files). **/
 export function prune(fixture: ReconcileFixture): CliResult {
-  return runCli(fixture.dir, ['gen', '--prune', fixture.enrichDir]);
+  return runCli(fixture.dir, ['enrich', '--prune', fixture.enrichDir]);
 }
 
 /** `check <family mirror> --json` — returns the parsed findings plus the raw result.
@@ -77,7 +77,7 @@ export function check(
   fixture: ReconcileFixture,
   family: MirrorFamily
 ): {result: CliResult; findings: CheckFinding[]; controlled: boolean} {
-  const result = runCli(fixture.dir, ['check', mirrorPathOf(fixture, family), '--json']);
+  const result = runCli(fixture.dir, ['enrich', mirrorPathOf(fixture, family), '--no-emit', '--json']);
   const controlled = !result.timedOut && result.launchError == null && (result.status === 0 || result.status === 1);
   let findings: CheckFinding[] = [];
   if (controlled) {

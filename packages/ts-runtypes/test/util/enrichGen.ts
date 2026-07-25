@@ -80,7 +80,7 @@ function runGenBatch(fileBase: string, spans: Record<string, CaseSpans>): Record
     keyByBasename[basename] = caseKey;
   }
 
-  const result = spawnSync(BIN, ['gen', '--files', files.join(','), '--type', 'Target'], {
+  const result = spawnSync(BIN, ['enrich', '--files', files.join(','), '--type', 'Target'], {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
   });
@@ -158,7 +158,7 @@ export function checkCategory(fileBase: string, constName: string): Record<strin
       'export {friendlyTarget, mockTarget};\n';
     writeFileSync(filePath, source);
 
-    const result = spawnSync(BIN, ['check', filePath, '--json'], {encoding: 'utf8', maxBuffer: 32 * 1024 * 1024});
+    const result = spawnSync(BIN, ['enrich', filePath, '--no-emit', '--json'], {encoding: 'utf8', maxBuffer: 32 * 1024 * 1024});
     if (result.error) throw new Error(`check failed to launch: ${result.error.message}`);
     // check exits 1 only when an Error-severity finding is present; for these
     // valid maps it should exit 0 with `null` / `[]`. A non-(0|1) exit is a real

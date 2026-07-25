@@ -281,7 +281,7 @@ describe('the rt$ reserved meta prefix', () => {
 
   it('gen refuses a type with an rt$-prefixed property, naming it', () => {
     const fixture = makeFixture('rc-reserved-prop', "export interface Bad { 'rt$label': string; name: string }\n");
-    const result = spawnSync(BIN_PATH, ['gen', 'src/models.ts', 'Bad'], {cwd: fixture.dir, encoding: 'utf8'});
+    const result = spawnSync(BIN_PATH, ['enrich', 'src/models.ts', 'Bad'], {cwd: fixture.dir, encoding: 'utf8'});
     expect(result.status, 'gen must fail on a reserved-prefix property').not.toBe(0);
     expect(`${result.stderr}${result.stdout}`).toContain('reserved enrichment meta prefix');
     expect(existsSync(fixture.friendlyPath), 'no mirror file is written').toBe(false);

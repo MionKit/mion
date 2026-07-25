@@ -68,7 +68,7 @@ function runBin(fixture: ReconcileFixture, args: string[]): {status: number | nu
 }
 
 function runTranslate(fixture: ReconcileFixture, locale: string, extraArgs: string[] = []): void {
-  const {status, out} = runBin(fixture, ['gen', '--translate', locale, 'src/models.ts', ...extraArgs]);
+  const {status, out} = runBin(fixture, ['enrich', '--translate', locale, 'src/models.ts', ...extraArgs]);
   if (status !== 0) throw new Error(`gen --translate exited ${status}: ${out}`);
 }
 
@@ -163,7 +163,7 @@ describe('enrichment i18n — gen --translate', () => {
     // The no-arg walk discovers targets as "sources that have a friendly
     // mirror" (path math only), so generate the friendly mirror first.
     runGen(fixture, 'User');
-    const {status, out} = runBin(fixture, ['gen', '--translate', 'all']);
+    const {status, out} = runBin(fixture, ['enrich', '--translate', 'all']);
     expect(status, out).toBe(0);
     expect(existsSync(translationPath(fixture, 'es'))).toBe(true);
     expect(existsSync(translationPath(fixture, 'pt-BR'))).toBe(true);
@@ -190,14 +190,14 @@ describe('enrichment i18n — check --translate', () => {
     const lenient = i18nFixture('tr-check-lenient', 'export interface User { name: string }\n', ['pl'], false);
     runGen(lenient, 'User');
     runTranslate(lenient, 'pl');
-    const lenientRun = runBin(lenient, ['check', '--translate', 'pl']);
+    const lenientRun = runBin(lenient, ['enrich', '--translate', 'pl', '--no-emit']);
     expect(lenientRun.out).toContain('TR002');
     expect(lenientRun.status, 'lenient gate never fails the build').toBe(0);
 
     const strict = i18nFixture('tr-check-strict', 'export interface User { name: string }\n', ['pl'], true);
     runGen(strict, 'User');
     runTranslate(strict, 'pl');
-    const strictRun = runBin(strict, ['check', '--translate', 'pl']);
+    const strictRun = runBin(strict, ['enrich', '--translate', 'pl', '--no-emit']);
     expect(strictRun.out).toContain('TR002');
     expect(strictRun.status, 'strict gate fails CI on blanks').toBe(1);
   });
@@ -205,14 +205,14 @@ describe('enrichment i18n — check --translate', () => {
   it('flags a missing translation file (TR001) and an out-of-date one (TR003, vs the src type)', () => {
     const fixture = i18nFixture('tr-check-missing', 'export interface User { name: string }\n', ['pl']);
     runGen(fixture, 'User');
-    const missing = runBin(fixture, ['check', '--translate', 'pl']);
+    const missing = runBin(fixture, ['enrich', '--translate', 'pl', '--no-emit']);
     expect(missing.out).toContain('TR001');
 
     runTranslate(fixture, 'pl');
     // The SOURCE TYPE changes; the translation is now stale even though the
     // friendly mirror hasn't been updated either — staleness is src-driven.
     setSource(fixture, 'export interface User { name: string; age: number }\n');
-    const stale = runBin(fixture, ['check', '--translate', 'pl']);
+    const stale = runBin(fixture, ['enrich', '--translate', 'pl', '--no-emit']);
     expect(stale.out).toContain('TR003');
     expect(stale.out, 'the finding names the src file, not the friendly mirror').toContain('src/models.ts');
   });

@@ -141,8 +141,8 @@ export function materializeSource(fixture: ReconcileFixture, model: I18nModel): 
 // contract of the src-derived design.
 export function syncFriendlyMirror(fixture: ReconcileFixture, model: I18nModel): CliResult {
   const args = existsSync(fixture.friendlyPath)
-    ? ['gen', 'src/models.ts', 'User', '--friendly', '--update']
-    : ['gen', 'src/models.ts', 'User', '--friendly'];
+    ? ['enrich', 'src/models.ts', 'User', '--friendly', '--update']
+    : ['enrich', 'src/models.ts', 'User', '--friendly'];
   const result = runTranslateCli(fixture, args);
   if (isControlled(result) && existsSync(fixture.friendlyPath)) {
     const text = readFileSync(fixture.friendlyPath, 'utf8');
@@ -383,7 +383,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: () => true,
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const first = runTranslateCli(ctx.fixture, ['gen', '--translate', LOCALE, 'src/models.ts', '--update']);
+      const first = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--update']);
       if (!controlledOr(first, 'updateT', ctx, out)) return out;
       const afterFirst = readTranslation(ctx.fixture);
 
@@ -399,7 +399,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
       model.tFields = new Map([...model.fields].map(([name, spec]) => [name, {...spec}]));
 
       // T1 — a second update is byte-identical.
-      const second = runTranslateCli(ctx.fixture, ['gen', '--translate', LOCALE, 'src/models.ts', '--update']);
+      const second = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--update']);
       if (!controlledOr(second, 'updateT(second)', ctx, out)) return out;
       const afterSecond = readTranslation(ctx.fixture);
       if (afterSecond !== afterFirst) {
@@ -416,7 +416,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: (model, ctx) => existsSync(translationPathOf(ctx.fixture)),
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const result = runTranslateCli(ctx.fixture, ['gen', '--translate', LOCALE, 'src/models.ts', '--prune']);
+      const result = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, 'src/models.ts', '--prune']);
       if (!controlledOr(result, 'pruneT', ctx, out)) return out;
       const text = readTranslation(ctx.fixture);
       if (text.includes('@rtOrphan')) {
@@ -433,7 +433,7 @@ export const I18N_COMMANDS: I18nCommand[] = [
     canApply: () => true,
     apply(model, ctx) {
       const out: I18nViolation[] = [];
-      const result = runTranslateCli(ctx.fixture, ['check', '--translate', LOCALE]);
+      const result = runTranslateCli(ctx.fixture, ['enrich', '--translate', LOCALE, '--no-emit']);
       if (!controlledOr(result, 'checkT', ctx, out)) return out;
       const hasBlanks = /: ''/.test(readTranslation(ctx.fixture));
       const reported = result.stdout.includes('TR002');
@@ -468,7 +468,7 @@ export function bootstrapI18n(fixture: ReconcileFixture, seed: number): {model: 
 
   const ctx: I18nCtx = {fixture, seed, step: -1};
   if (!controlledOr(syncFriendlyMirror(fixture, model), 'bootstrap(gen)', ctx, violations)) return {model, violations};
-  const result = runTranslateCli(fixture, ['gen', '--translate', LOCALE, 'src/models.ts']);
+  const result = runTranslateCli(fixture, ['enrich', '--translate', LOCALE, 'src/models.ts']);
   if (!controlledOr(result, 'bootstrap', ctx, violations)) return {model, violations};
   if (!existsSync(translationPathOf(fixture))) {
     violations.push(violation('T10', 'bootstrap', ctx, 'scaffold produced no translation file'));
