@@ -11,6 +11,7 @@ const (
 	CodeMockTodo         = "MD020"
 	CodeMockOrphanConst  = "MD021"
 	CodeMockOrphanField  = "MD022"
+	CodeMockBlankValue   = "MD023"
 )
 
 func init() {
@@ -20,6 +21,7 @@ func init() {
 		{Code: CodeMockTodo, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled @todo scaffold placeholder in a MockData mirror file"},
 		{Code: CodeMockOrphanConst, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphan const carcass in a MockData mirror file"},
 		{Code: CodeMockOrphanField, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphanChild field carcass in a MockData mirror file"},
+		{Code: CodeMockBlankValue, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled blank value in a MockData mirror file"},
 	} {
 		register(definition)
 	}

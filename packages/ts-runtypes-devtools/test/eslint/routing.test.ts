@@ -66,6 +66,8 @@ describe('enrichment routing (per-concern rules, named for what they catch)', ()
   const cases: Array<[string, Severity, RuleName]> = [
     ['FT020', Severity.Error, 'no-enrichment-todo'],
     ['MD020', Severity.Error, 'no-enrichment-todo'],
+    ['FT023', Severity.Error, 'no-enrichment-todo'],
+    ['MD023', Severity.Error, 'no-enrichment-todo'],
     ['FT021', Severity.Error, 'no-orphan-carcass'],
     ['FT022', Severity.Error, 'no-orphan-carcass'],
     ['MD021', Severity.Error, 'no-orphan-carcass'],

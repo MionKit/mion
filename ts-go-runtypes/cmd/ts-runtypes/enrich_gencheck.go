@@ -12,6 +12,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
@@ -197,8 +198,25 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 	}
 	lineIndex := mirror.NewLineIndex(text)
 
-	// GE002 / GE003 — the shared source-existence + type-declaration checks.
 	var findings []driftFinding
+
+	// Completeness + hygiene: unfilled @todo scaffolds, blank scaffold values, and
+	// stale @rtOrphan carcasses — the SAME text scan CheckFile runs, so the tree
+	// walk gates on completeness under --require-complete exactly like the
+	// single-file check (blanks/@todo are tolerated by --no-emit, fail
+	// --require-complete). Family is read off the committed mirror's path segment.
+	for _, hygiene := range enrichgen.HygieneDiagnostics(text, mirrorFile, isMockMirrorPath(mirrorFile)) {
+		findings = append(findings, driftFinding{
+			File:     mirrorFile,
+			Severity: severityFromDiag(hygiene.Severity),
+			Code:     hygiene.Code,
+			Message:  diagnostics.Definitions[hygiene.Code].Headline,
+			Line:     hygiene.Site.StartLine,
+			Col:      hygiene.Site.StartCol,
+		})
+	}
+
+	// GE002 / GE003 — the shared source-existence + type-declaration checks.
 	for _, drift := range mirror.CheckBreadcrumbDrift(mirrorFile, text, nil) {
 		line, col := lineIndex.At(drift.Start)
 		findings = append(findings, driftFinding{
@@ -314,4 +332,25 @@ func mirrorFamilyOf(enrichDir, mirrorFile string) (string, bool) {
 		return first, true
 	}
 	return "", false
+}
+
+// isMockMirrorPath reports whether a committed mirror file lives under the mock
+// family dir (`…/enriched/mock/…`) — the cheap family signal the tree-walk
+// hygiene scan uses to pick the FT02x vs MD02x codes. A friendly or i18n mirror
+// (neither carries the mock segment) reports false → the FriendlyText codes.
+func isMockMirrorPath(mirrorFile string) bool {
+	return strings.Contains(filepath.ToSlash(mirrorFile), "/"+familyMock+"/")
+}
+
+// severityFromDiag maps a diagnostics.Severity onto the enrichment.Severity the
+// drift report carries.
+func severityFromDiag(severity diagnostics.Severity) enrichment.Severity {
+	switch severity {
+	case diagnostics.SeverityError:
+		return enrichment.Error
+	case diagnostics.SeverityWarning:
+		return enrichment.Warning
+	default:
+		return enrichment.Info
+	}
 }

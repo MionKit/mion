@@ -125,11 +125,10 @@ export async function generateCategory(fileBase: string, constName: string): Pro
 
 // One `check` finding (the JSON shape the CLI emits per finding).
 export interface CheckFinding {
-  file: string;
-  Code: string;
-  Severity: number;
-  Path: string;
-  Message: string;
+  code: string;
+  family?: number;
+  severity: number;
+  site?: {filePath: string; startLine: number; startCol: number; endLine?: number; endCol?: number};
 }
 
 // One check row per case: the synthesized `.rt.ts` path + its findings.

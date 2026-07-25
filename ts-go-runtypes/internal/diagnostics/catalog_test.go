@@ -125,7 +125,7 @@ func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
 // every check lane. Flipping FT020/MD020's Completeness bit, or arming it on a
 // wrong/stale code, breaks the exit-code contract and this test.
 func TestIsCompleteness(t *testing.T) {
-	for _, code := range []string{CodeFriendlyTodo, CodeMockTodo} {
+	for _, code := range []string{CodeFriendlyTodo, CodeMockTodo, CodeFriendlyBlankValue, CodeMockBlankValue} {
 		if !IsCompleteness(code) {
 			t.Errorf("%s must be a completeness code", code)
 		}

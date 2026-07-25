@@ -22,6 +22,7 @@ const (
 	CodeFriendlyTodo              = "FT020"
 	CodeFriendlyOrphanConst       = "FT021"
 	CodeFriendlyOrphanField       = "FT022"
+	CodeFriendlyBlankValue        = "FT023"
 )
 
 func init() {
@@ -37,6 +38,7 @@ func init() {
 		{Code: CodeFriendlyTodo, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled @todo scaffold placeholder in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanConst, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphan const carcass in a FriendlyText mirror file"},
 		{Code: CodeFriendlyOrphanField, Family: FamilyEnrich, Severity: SeverityError, Title: "Stale @rtOrphanChild field carcass in a FriendlyText mirror file"},
+		{Code: CodeFriendlyBlankValue, Family: FamilyEnrich, Severity: SeverityError, Completeness: true, Title: "Unfilled blank value in a FriendlyText mirror file"},
 	} {
 		register(definition)
 	}

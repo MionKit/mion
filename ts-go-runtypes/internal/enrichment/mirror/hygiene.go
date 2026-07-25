@@ -29,6 +29,11 @@ const (
 	TagOrphan
 	// TagOrphanChild is a single-field `/* @rtOrphanChild … */` carcass.
 	TagOrphanChild
+	// TagBlankValue is an unfilled scaffold VALUE — an empty string (`''`/`""`)
+	// or empty array (`[]`) sitting at a property-value position. It is as
+	// incomplete as a `@todo` marker (a blank label ships blank to the UI), and is
+	// detected structurally rather than as a comment tag; see BlankValues.
+	TagBlankValue
 )
 
 // TagFinding is one dirty-tag occurrence. Start/End are byte offsets of the
@@ -205,6 +210,66 @@ func ScanDirtyTags(text string) []TagFinding {
 	return NewScan(text).DirtyTags()
 }
 
+// blankArrayPattern matches an empty-array value `: []` — a blank mock pool /
+// items slot — at a property-value position. Run over structureMaskedText so a
+// `[]` inside a string or comment can never match.
+var blankArrayPattern = regexp.MustCompile(`:\s*(\[\s*\])`)
+
+// BlankValues returns every UNFILLED scaffold value in the text: an empty string
+// literal (`”` / `""`) or an empty array (`[]`) sitting right after a `key:`.
+// These are exactly as incomplete as a `@todo` marker — a blank `rt$label` ships
+// blank to the UI, a `pool: []` mocks nothing — so the completeness gate treats
+// them the same. Kind is TagBlankValue; Start/End bound the sentinel token.
+//
+// Detection is parse-guided, never a raw text grep: empty strings come from the
+// literal-token oracle (so a `”` inside a bigger string or a comment never
+// counts) and are kept only when the nearest non-space byte before them is a `:`
+// (so a `”` element inside a `pool: [”, 'x']` is NOT a blank slot); empty arrays
+// are matched on the structure-masked text (comment + string bodies blanked), so
+// a `[]` inside data or prose never counts.
+func (scan *Scan) BlankValues() []TagFinding {
+	var findings []TagFinding
+	for _, literal := range scan.literals {
+		start, end := literal[0], literal[1]
+		if body := scan.text[start:end]; body != "''" && body != `""` {
+			continue
+		}
+		if !precededByColon(scan.text, start) {
+			continue // an empty string as an array element / argument, not a filled slot
+		}
+		findings = append(findings, TagFinding{Kind: TagBlankValue, Start: start, End: end, BlockStart: start, BlockEnd: end})
+	}
+	// Empty arrays on the IMPORT-masked text: comments blanked, but string LITERALS
+	// kept intact. Masking literal bodies (structureMaskedText) would turn a filled
+	// `['x']` into `[   ]` and read as empty; keeping them means `['x']` never
+	// matches `[\s*]`, while a `[]` inside a string is still shielded by its quotes
+	// (the `:` is followed by `'`, not `[`).
+	masked := scan.importMaskedText()
+	for _, match := range blankArrayPattern.FindAllStringSubmatchIndex(masked, -1) {
+		start, end := match[2], match[3] // group 1: the `[]`
+		findings = append(findings, TagFinding{Kind: TagBlankValue, Start: start, End: end, BlockStart: start, BlockEnd: end})
+	}
+	sort.Slice(findings, func(left, right int) bool { return findings[left].Start < findings[right].Start })
+	return findings
+}
+
+// precededByColon reports whether the nearest non-whitespace byte before offset
+// is a `:` — i.e. the token at offset is a property VALUE, not an array element or
+// call argument.
+func precededByColon(text string, offset int) bool {
+	i := offset - 1
+	for i >= 0 && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r') {
+		i--
+	}
+	return i >= 0 && text[i] == ':'
+}
+
+// ScanBlankValues is the one-shot twin of Scan.BlankValues (parses text per call —
+// build a Scan to share the parse across probes).
+func ScanBlankValues(text string) []TagFinding {
+	return NewScan(text).BlankValues()
+}
+
 // dslWrapperAlternation is the regex alternation of every recognized DSL
 // wrapper type name — the current `FriendlyText` + legacy `FriendlyType` +
 // `MockData` — shared by the annotation-structure probes so all of them accept
@@ -282,6 +347,22 @@ func (classifier *FamilyClassifier) FamilyFor(finding TagFinding) MirrorFamily {
 		return classifier.families[n-1]
 	}
 	return classifier.fallback
+}
+
+// FamilyAt attributes a position INSIDE a const — a blank VALUE — to the family
+// of the nearest annotation AT OR BEFORE it (the const the value belongs to),
+// falling back to the file's DSL import. FamilyFor uses at-or-AFTER instead
+// because a dirty TAG like `@todo` sits ABOVE its const, whereas a value sits
+// below the annotation.
+func (classifier *FamilyClassifier) FamilyAt(offset int) MirrorFamily {
+	family := classifier.fallback
+	for i, annotationOffset := range classifier.offsets {
+		if annotationOffset > offset {
+			break
+		}
+		family = classifier.families[i]
+	}
+	return family
 }
 
 // familyForName maps a DSL type name to its family.

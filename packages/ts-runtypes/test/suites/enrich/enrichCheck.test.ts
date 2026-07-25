@@ -12,6 +12,11 @@ import type {EnrichCase} from './cases/types.ts';
 
 afterAll(() => cleanupTempDir('check'));
 
+// Completeness codes — an unfilled @todo (FT020/MD020) or a blank scaffold value
+// (FT023/MD023). This suite's spans use blank placeholders, so these are expected;
+// they are gated by `--require-complete`, orthogonal to the content checks here.
+const COMPLETENESS_CODES = new Set(['FT020', 'MD020', 'FT023', 'MD023']);
+
 for (const {constName, fileBase} of ENRICH_CATEGORIES) {
   const cases = ENRICH_CASES[constName as keyof typeof ENRICH_CASES] as Record<string, EnrichCase>;
 
@@ -27,10 +32,16 @@ for (const {constName, fileBase} of ENRICH_CATEGORIES) {
     });
 
     for (const [caseKey, theCase] of Object.entries(cases)) {
-      it(`${theCase.title} — check reports zero findings`, () => {
+      it(`${theCase.title} — check reports zero content findings`, () => {
         const check = checks[caseKey];
         expect(check, `no check result for case '${caseKey}'`).toBeDefined();
-        expect(check.findings, JSON.stringify(check.findings)).toEqual([]);
+        // These authored spans use `''` / `[]` placeholders for the value slots —
+        // the suite checks CONTENT validity across the type ranges, not
+        // completeness — so drop the completeness findings (unfilled @todo / blank
+        // value) the `--require-complete` gate raises. Only a content/drift
+        // false-positive should ever surface here.
+        const content = check.findings.filter((finding) => !COMPLETENESS_CODES.has(finding.code));
+        expect(content, JSON.stringify(content)).toEqual([]);
       });
     }
   });

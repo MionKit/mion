@@ -41,6 +41,50 @@ func TestScanDirtyTags_ScaffoldRoundTrip(t *testing.T) {
 	}
 }
 
+// TestBlankValues pins the value-completeness scan: an empty string (`”`) or
+// empty array (`[]`) at a property VALUE position is a blank scaffold slot (as
+// incomplete as a @todo), while a filled value, a `”` that is an array ELEMENT,
+// and a `”`/`[]` inside a comment or a bigger string are all left alone.
+func TestBlankValues(t *testing.T) {
+	text := "export const friendlyUser: FriendlyText<User> = {\n" +
+		"  rt$label: '',\n" + // blank string value → hit
+		"  title: 'Filled',\n" + // filled → no hit
+		"  tags: {pool: []},\n" + // blank array value → hit
+		"  names: {pool: ['', 'Ada']},\n" + // '' is an array element, NOT a value → no hit
+		"  note: 'contains : \\'\\' inside',\n" + // '' inside a bigger string → no hit
+		"  // rt$label: '' in a comment does not count\n" + // comment → no hit
+		"};\n"
+
+	findings := ScanBlankValues(text)
+	if len(findings) != 2 {
+		t.Fatalf("want exactly 2 blank values (rt$label:'' and pool:[]); got %d: %+v", len(findings), spans(text, findings))
+	}
+	for _, finding := range findings {
+		if finding.Kind != TagBlankValue {
+			t.Errorf("kind = %v, want TagBlankValue", finding.Kind)
+		}
+	}
+	got := spans(text, findings)
+	if got[0] != "''" || got[1] != "[]" {
+		t.Errorf("blank spans = %q, want [\"''\" \"[]\"]", got)
+	}
+
+	// A fully-authored mirror (no blank sentinels) is clean.
+	filled := "export const friendlyUser: FriendlyText<User> = {\n  rt$label: 'Name',\n  tags: {pool: ['a', 'b']},\n};\n"
+	if got := ScanBlankValues(filled); len(got) != 0 {
+		t.Errorf("a filled mirror must have no blank values; got %+v", spans(filled, got))
+	}
+}
+
+// spans renders each finding's covered text for readable assertion failures.
+func spans(text string, findings []TagFinding) []string {
+	out := make([]string, len(findings))
+	for i, finding := range findings {
+		out[i] = text[finding.Start:finding.End]
+	}
+	return out
+}
+
 // TestScanDirtyTags_OrphanCarcasses pins the carcass loop: both orphan forms
 // are detected (tight spans on the tag token), a @todo PRESERVED INSIDE a
 // carcass is not double-reported, and PruneOrphanBlocks — the fix the rule

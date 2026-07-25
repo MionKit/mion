@@ -608,6 +608,10 @@ var messagesByCode = map[string]message{
 		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes enrich --prune` to remove it (or restore the field).",
 		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   /* @rtOrphanChild nick: {rt$label: 'Nickname'}, */\n    name: {rt$label: 'Name'},\n  };\n\nFix — if the field is really gone: `ts-runtypes enrich --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
 	},
+	CodeFriendlyBlankValue: {
+		Headline: "Unfilled blank value — a scaffolded label or message is still empty; fill in the real text.",
+		Detail:   "An empty string (`''`) at a `rt$label` / `rt$errors` slot is a generated\nblank that never got authored — it ships blank to the UI wherever the\nfriendly text is shown, so it is exactly as incomplete as a `@todo`\nmarker. This is why removing the `@todo` line without filling the values\nis not \"done\".\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix — author the real label / message. Only the completeness gate\n(`ts-runtypes enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
+	},
 
 	// ─────────── MockData mirror files (MDxxx) ───────────
 
@@ -630,6 +634,10 @@ var messagesByCode = map[string]message{
 	CodeMockOrphanField: {
 		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes enrich --prune` to remove it (or restore the field).",
 		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix — if the field is really gone: `ts-runtypes enrich --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
+	},
+	CodeMockBlankValue: {
+		Headline: "Unfilled blank value — a scaffolded sample pool or range is still empty; fill in real data.",
+		Detail:   "An empty pool (`pool: []`) is a generated blank that never got authored —\nit mocks nothing, so it is exactly as incomplete as a `@todo` marker.\nThis is why removing the `@todo` line without filling the values is not\n\"done\".\n\nExample:\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix — author realistic sample data. Only the completeness gate\n(`ts-runtypes enrich --require-complete`) fails on it; a plain\n`--no-emit` health check reports it without failing.",
 	},
 
 	// ─────────── Mirror ↔ source linkage (GExxx, check) ───────────

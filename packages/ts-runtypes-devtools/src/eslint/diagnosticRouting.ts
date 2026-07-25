@@ -293,6 +293,10 @@ function enrichFamily(code: string): FamilyRules {
   switch (code) {
     case 'FT020':
     case 'MD020':
+    case 'FT023':
+    case 'MD023':
+      // Unfilled scaffolds: a @todo marker (FT020/MD020) or a blank value
+      // (FT023/MD023) — both mean "not finished yet", so both ride the todo rule.
       return {primary: 'no-enrichment-todo'};
     case 'FT021':
     case 'FT022':

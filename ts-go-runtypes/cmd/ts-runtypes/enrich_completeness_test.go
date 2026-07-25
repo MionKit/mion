@@ -17,14 +17,18 @@ func mkEnrichDiag(code string) diagnostics.Diagnostic {
 // is expected to carry blanks — but the completeness gate (`--require-complete`,
 // requireComplete=true) fails on it. Wrong/stale content fails BOTH lanes.
 func TestReportEnrichDiagnostics_CompletenessGate(t *testing.T) {
-	// FT020 / MD020 (@todo): completeness — fails only under --require-complete.
-	for _, code := range []string{diagnostics.CodeFriendlyTodo, diagnostics.CodeMockTodo} {
-		todo := []diagnostics.Diagnostic{mkEnrichDiag(code)}
-		if got := reportEnrichDiagnostics(todo, false, false); got != 0 {
-			t.Errorf("default check must tolerate %s (@todo); exit=%d, want 0", code, got)
+	// Completeness codes — an unfilled @todo (FT020/MD020) or a blank value
+	// (FT023/MD023): reported by the default check but failing only --require-complete.
+	for _, code := range []string{
+		diagnostics.CodeFriendlyTodo, diagnostics.CodeMockTodo,
+		diagnostics.CodeFriendlyBlankValue, diagnostics.CodeMockBlankValue,
+	} {
+		incomplete := []diagnostics.Diagnostic{mkEnrichDiag(code)}
+		if got := reportEnrichDiagnostics(incomplete, false, false); got != 0 {
+			t.Errorf("default check must tolerate completeness code %s; exit=%d, want 0", code, got)
 		}
-		if got := reportEnrichDiagnostics(todo, false, true); got != 1 {
-			t.Errorf("--require-complete must fail on %s (@todo); exit=%d, want 1", code, got)
+		if got := reportEnrichDiagnostics(incomplete, false, true); got != 1 {
+			t.Errorf("--require-complete must fail on completeness code %s; exit=%d, want 1", code, got)
 		}
 	}
 

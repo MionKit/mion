@@ -46,6 +46,13 @@ func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.
 	for _, tag := range scan.DirtyTags() {
 		out = append(out, diagnostics.New(tagCode(tag.Kind, classifier.FamilyFor(tag)), tagSite(filePath, lineIndex, tag)))
 	}
+	// Blank scaffold VALUES (empty label / message / pool) are as incomplete as a
+	// @todo marker — a fresh scaffold with the @todo line deleted but the values
+	// still blank is NOT done. A value sits below its const's annotation, so it is
+	// attributed with FamilyAt (at-or-before) rather than FamilyFor.
+	for _, blank := range scan.BlankValues() {
+		out = append(out, diagnostics.New(tagCode(blank.Kind, classifier.FamilyAt(blank.Start)), tagSite(filePath, lineIndex, blank)))
+	}
 
 	for _, finding := range astcheck.CheckSourceFile(sourceFile, chk, cache, moduleFS, filePath) {
 		out = append(out, enrichDiagnostic(finding.Code, finding.Severity, finding.Args, finding.Site))
@@ -63,21 +70,26 @@ func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.
 }
 
 // HygieneDiagnostics is the text-only tag-hygiene subset of CheckFile: it scans
-// mirrorText for unfilled @todo scaffolds and stale @rtOrphan carcasses and maps
-// each to its family-specific diag code (FT02x / MD02x), WITHOUT a Program — no
-// module resolution, no checker. The enrich WRITE lane uses it for the
-// freshly-scaffolded @todo worklist, where each written mirror's family is already
-// known from its spec, so no per-tag classifier is needed. (The full CheckFile,
-// which also runs content validity + breadcrumb drift, backs the check lanes.)
+// mirrorText for unfilled @todo scaffolds, blank scaffold values, and stale
+// @rtOrphan carcasses and maps each to its family-specific diag code (FT02x /
+// MD02x), WITHOUT a Program — no module resolution, no checker. The enrich WRITE
+// lane uses it for the freshly-scaffolded worklist, where each written mirror's
+// family is already known from its spec, so no per-tag classifier is needed. (The
+// full CheckFile, which also runs content validity + breadcrumb drift, backs the
+// check lanes.)
 func HygieneDiagnostics(mirrorText, filePath string, mockFamily bool) []diagnostics.Diagnostic {
 	family := mirror.FamilyFriendly
 	if mockFamily {
 		family = mirror.FamilyMock
 	}
 	lineIndex := mirror.NewLineIndex(mirrorText)
+	scan := mirror.NewScan(mirrorText)
 	var out []diagnostics.Diagnostic
-	for _, tag := range mirror.ScanDirtyTags(mirrorText) {
+	for _, tag := range scan.DirtyTags() {
 		out = append(out, diagnostics.New(tagCode(tag.Kind, family), tagSite(filePath, lineIndex, tag)))
+	}
+	for _, blank := range scan.BlankValues() {
+		out = append(out, diagnostics.New(tagCode(blank.Kind, family), tagSite(filePath, lineIndex, blank)))
 	}
 	return out
 }
@@ -123,6 +135,8 @@ func tagCode(kind mirror.TagKind, family mirror.MirrorFamily) string {
 			return diagnostics.CodeMockOrphanConst
 		case mirror.TagOrphanChild:
 			return diagnostics.CodeMockOrphanField
+		case mirror.TagBlankValue:
+			return diagnostics.CodeMockBlankValue
 		default:
 			return diagnostics.CodeMockTodo
 		}
@@ -132,6 +146,8 @@ func tagCode(kind mirror.TagKind, family mirror.MirrorFamily) string {
 		return diagnostics.CodeFriendlyOrphanConst
 	case mirror.TagOrphanChild:
 		return diagnostics.CodeFriendlyOrphanField
+	case mirror.TagBlankValue:
+		return diagnostics.CodeFriendlyBlankValue
 	default:
 		return diagnostics.CodeFriendlyTodo
 	}
