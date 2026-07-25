@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {createUnplugin} from 'unplugin';
 import {getExePath} from '@ts-runtypes/bin';
@@ -20,6 +21,41 @@ import {
 // so they win over tsconfig, tsc-style); reach for them only when one build
 // must differ. `binary` / `cwd` / `tsconfig` / `genDir` are genuinely
 // host-specific and have no tsconfig equivalent.
+// EnrichI18nSyncOptions is the plugin's i18n sync config. It intentionally
+// shares the SHAPE of the tsconfig `i18n` plugin entry (sourceLocale / locales /
+// strict), but drives a DIFFERENT lane: the CLI `i18n` entry configures
+// `enrich --translate`, while this one drives the plugin's per-locale
+// translation-mirror auto-sync. `strict` is accepted for shape-parity; the
+// auto-sync never gates on it (it only scaffolds + reconciles).
+export interface EnrichI18nSyncOptions {
+  sourceLocale?: string;
+  locales?: string[];
+  strict?: boolean;
+}
+
+// EnrichSyncOptions is the opt-in enrichment auto-sync surface (default OFF).
+// When any family is enabled the plugin keeps the committed enrichment mirrors
+// under <genDir>/enriched/** in sync from dev/watch, running the SAME
+// value-preserving scaffold + reconcile the `ts-runtypes enrich --update` CLI
+// does — NEVER translated content, NEVER an LLM. A production `vite build` never
+// writes: it runs a read-only drift gate (stale/missing mirrors warn, and fail
+// the build when failOnError).
+export interface EnrichSyncOptions {
+  // Auto gen + sync the FriendlyText mirrors under <genDir>/enriched/friendly/.
+  friendly?: boolean;
+  // Auto gen + sync the MockData mirrors under <genDir>/enriched/mock/.
+  mock?: boolean;
+  // Presence enables per-locale translation-mirror sync under
+  // <genDir>/enriched/i18n/<locale>/ — SCAFFOLD + SYNC only.
+  i18n?: EnrichI18nSyncOptions;
+  // HMR for <genDir>/enriched/** is AUTO-SUPPRESSED whenever any enrich family is
+  // enabled (the mirrors are write-only outputs). Set false to restore reloads
+  // for debugging; set true to suppress even when auto-gen is off (e.g. you edit
+  // the mirrors by hand or via the CLI while the dev server runs). Effective
+  // suppression = suppressHmr ?? (any enrich family enabled).
+  suppressHmr?: boolean;
+}
+
 export interface PluginOptions {
   // Absolute path to the compiled ts-runtypes binary. Optional: when omitted,
   // the plugin resolves the prebuilt binary for the host platform via the
@@ -186,6 +222,13 @@ export interface PluginOptions {
   // (phase 'update'). Fires whenever the report is on ('file' or 'callback');
   // setting it with `pureFnReport` unset implies 'callback' (data, no file).
   onPureFnReport?: (sites: PureFnSite[], phase: 'build' | 'update') => void;
+  // Enrichment auto-sync (opt-in, default OFF — omit for exactly today's
+  // behavior). Bundler-plugin-only (a host/dev-loop behavior, so it has no
+  // tsconfig counterpart). See EnrichSyncOptions: friendly/mock enable per-family
+  // gen+sync, an i18n object enables per-locale translation-mirror sync (scaffold
+  // + reconcile only, never translated content), and suppressHmr overrides the
+  // auto-suppression of HMR for <genDir>/enriched/**.
+  enrich?: EnrichSyncOptions;
 }
 
 // MARKER_MODULE backs the transform's textual FALLBACK pre-filter. The primary
@@ -238,6 +281,22 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       `[@ts-runtypes/devtools] unknown transformMode ${JSON.stringify(options.transformMode)} — expected 'go' | 'edits'`
     );
   }
+  // Enrichment auto-sync config (default OFF). friendly/mock enable per-family
+  // gen+sync; the i18n object's PRESENCE enables per-locale translation-mirror
+  // sync (scaffold + reconcile only, never translated content).
+  const enrichOptions = options.enrich;
+  const enrichFriendly = enrichOptions?.friendly === true;
+  const enrichMock = enrichOptions?.mock === true;
+  const enrichI18n = enrichOptions?.i18n;
+  const enrichI18nEnabled = enrichI18n !== undefined;
+  const enrichLocales = enrichI18n?.locales ?? [];
+  const enrichSourceLocale = enrichI18n?.sourceLocale;
+  const anyEnrichFamily = enrichFriendly || enrichMock || enrichI18nEnabled;
+  // HMR for <genDir>/enriched/** auto-suppresses whenever any enrich family is on
+  // (the mirrors are write-only outputs); suppressHmr overrides in EITHER
+  // direction — false restores reloads for debugging, true suppresses even with
+  // auto-gen off (hand / CLI edits while the dev server runs).
+  const suppressEnrichHmr = enrichOptions?.suppressHmr ?? anyEnrichFamily;
   let resolver: ResolverClient | null = null;
   // Live buildStart/buildEnd pairs across this instance's plugin containers
   // (vite spawns one per environment). The shared resolver closes only when
@@ -255,6 +314,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // other bundler (no equivalent hook), where ensureResolver falls back to
   // options.cwd ?? process.cwd().
   let viteRoot = '';
+  // Vite's command ('serve' | 'build'), captured in configResolved. Empty under
+  // every other bundler. Gates enrichment auto-sync: 'serve' WRITES the mirrors
+  // (dev/watch), anything else runs the read-only drift gate (a production build
+  // must never mutate committed source).
+  let viteCommand = '';
 
   // ensureResolver spawns the resolver subprocess + wires the disk cache on
   // first use. Idempotent: under Vite the configResolved hook calls it early
@@ -412,6 +476,95 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
   }
 
+  // enrichCallOptions is the shared EnrichOptions bag for every sync/drift call:
+  // the enabled families, update (property-merge reconcile, value-preserving),
+  // the adopted genDir, and — when the i18n object is present — the target locales
+  // + source locale for per-locale translation-mirror sync.
+  function enrichCallOptions() {
+    return {
+      friendly: enrichFriendly,
+      mock: enrichMock,
+      update: true,
+      genDir: genDirAbs || undefined,
+      ...(enrichI18nEnabled ? {locales: enrichLocales, sourceLocale: enrichSourceLocale} : {}),
+    };
+  }
+
+  // writeMirrorFiles writes each computed enrichment mirror to disk
+  // write-only-on-change (skip when the bytes already match), so a converged
+  // mirror never churns the watcher. Best-effort per file: one write failure must
+  // not tear down the dev loop.
+  async function writeMirrorFiles(files: {path: string; content: string}[]): Promise<void> {
+    for (const file of files) {
+      try {
+        const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
+        if (existing === file.content) continue;
+        await fs.promises.mkdir(path.dirname(file.path), {recursive: true});
+        await fs.promises.writeFile(file.path, file.content);
+      } catch {
+        // best-effort; keep going with the remaining mirrors
+      }
+    }
+  }
+
+  // syncEnrich scaffolds + reconciles the demanded enrichment mirrors for `files`
+  // (the whole program when [] is passed) and writes them to disk. The daemon does
+  // the (type name → source file) mapping: for each file it enriches every
+  // EXPORTED type that file declares which is ALSO demanded by a marker call.
+  // Dev/watch only — a production build takes the read-only drift gate instead.
+  // Never throws: enrichment sync must not break the dev loop.
+  async function syncEnrich(files: string[]): Promise<void> {
+    if (!resolver || !anyEnrichFamily) return;
+    try {
+      const result = await resolver.enrich(files, '', enrichCallOptions());
+      await writeMirrorFiles(result.files);
+    } catch {
+      // A resolver hiccup mid-edit heals on the next pass — swallow it.
+    }
+  }
+
+  // enrichDriftGate is the production-build lane: it computes the desired mirrors
+  // (whole program) and DIFFS them against the committed on-disk copies WITHOUT
+  // writing — mutating committed source mid-build would break reproducibility. Any
+  // stale or missing mirror warns; failOnError then fails the build.
+  async function enrichDriftGate(ctx: any): Promise<void> {
+    if (!resolver || !anyEnrichFamily) return;
+    let stale: string[];
+    try {
+      const result = await resolver.enrich([], '', enrichCallOptions());
+      stale = [];
+      for (const file of result.files) {
+        const existing = await fs.promises.readFile(file.path, 'utf8').catch(() => null);
+        if (existing !== file.content) stale.push(file.path);
+      }
+    } catch {
+      return;
+    }
+    if (stale.length === 0) return;
+    for (const stalePath of stale) {
+      ctx.warn?.(
+        `@ts-runtypes/devtools: enrichment mirror out of date or missing: ${stalePath} — run \`ts-runtypes enrich --update\` and commit it.`
+      );
+    }
+    if (failOnError) {
+      const noun = stale.length === 1 ? 'mirror is' : 'mirrors are';
+      ctx.error?.(
+        `@ts-runtypes/devtools: ${stale.length} enrichment ${noun} out of date or missing — run \`ts-runtypes enrich --update\` and commit. (mirrors are never written during a production build)`
+      );
+    }
+  }
+
+  // isUnderEnrichedDir reports whether an absolute file path lives under
+  // <genDirAbs>/enriched/ — the committed enrichment mirror tree the plugin writes
+  // (and the CLI / a developer may hand-edit). Its changes are write-only outputs,
+  // so handleHotUpdate suppresses HMR for them when suppression is effective.
+  function isUnderEnrichedDir(file: string): boolean {
+    if (!genDirAbs) return false;
+    const enrichedRoot = path.join(genDirAbs, 'enriched');
+    const rel = path.relative(enrichedRoot, path.resolve(file));
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  }
+
   return {
     name: '@ts-runtypes/devtools',
     // Must run BEFORE vite/esbuild's built-in TypeScript transform. The
@@ -459,6 +612,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // failOnError contract, so dev/test lanes fail as loudly as `vite build`.
       surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family === Family.PureFn, {halt: true});
       surfaceDiagnostics(this, gen.diagnostics ?? [], (d) => d.family !== Family.PureFn, {halt: failOnError});
+      // Enrichment auto-sync (opt-in). Dev/watch (vite serve) WRITES the demanded
+      // mirrors up front — a whole-program pass so they exist before the first
+      // edit; every other lane (a production build, a non-Vite bundler) runs the
+      // read-only drift gate instead, which never mutates committed source. Both
+      // no-op when no enrich family is enabled.
+      if (anyEnrichFamily) {
+        if (viteCommand === 'serve') await syncEnrich([]);
+        else await enrichDriftGate(this);
+      }
     },
 
     // buildEnd fires once per plugin CONTAINER, and one plugin instance (one
@@ -526,8 +688,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // resolver eagerly. The marker package's vitest relies on the resolver
       // existing as soon as the workspace project initialises (before any
       // test transform), which is exactly when configResolved fires.
-      configResolved(cfg: {root: string}) {
+      configResolved(cfg: {root: string; command?: string}) {
         viteRoot = cfg.root;
+        if (cfg.command) viteCommand = cfg.command;
         ensureResolver();
       },
 
@@ -540,7 +703,13 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       async handleHotUpdate(this: any, ctx: any) {
         if (!resolver) return;
         const file: string = ctx.file;
-        if (!file || !/\.[mc]?[jt]sx?$/.test(file)) return;
+        if (!file) return;
+        // HMR suppression for write-only enrichment outputs: a change under
+        // <genDir>/enriched/** is the plugin's own mirror write (or a hand / CLI
+        // edit). Return [] so Vite reloads nothing when suppression is effective —
+        // this is what keeps the auto-sync writes from triggering reload loops.
+        if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
+        if (!/\.[mc]?[jt]sx?$/.test(file)) return;
 
         const rel = path.relative(cwdAbs || process.cwd(), file);
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
@@ -586,6 +755,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         } catch {
           // A regenerate failure shouldn't tear down the dev server mid-edit.
         }
+
+        // Sync this changed file's demanded enrichment mirrors (opt-in). Runs
+        // AFTER generate so the resolver's Program already reflects the edit; the
+        // resulting mirror writes are HMR-suppressed above, so this never loops.
+        if (anyEnrichFamily) await syncEnrich([rel]);
 
         // Re-emit diagnostics so the editor's problem panel updates as the user
         // types. `halt: false` because HMR shouldn't tear down the dev server on

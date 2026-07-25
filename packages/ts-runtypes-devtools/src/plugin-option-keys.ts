@@ -27,6 +27,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   allowUncheckedPatterns: true,
   pureFnReport: true,
   onPureFnReport: true,
+  enrich: true,
 } satisfies Record<keyof PluginOptions, true>;
 
 // The runtime list of PluginOptions keys, kept exhaustive by the satisfies guard

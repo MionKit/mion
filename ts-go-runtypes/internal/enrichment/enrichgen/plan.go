@@ -47,11 +47,67 @@ func Plan(
 		SourceLocale: cfg.SourceLocale,
 	})
 
+	specs, declFiles = specsFromClosure(cfg, closure, absPath, out, wantFriendly, wantMock)
+	return specs, declFiles, nil
+}
+
+// PlanMany is the demand-scoped multi-type planner behind the OpEnrich daemon op
+// when NO explicit type name is given: the plugin cannot map a demanded type NAME
+// to the file that declares it (a RunType has no decl-file field), so the daemon
+// hands PlanMany every EXPORTED-and-demanded type name a source file declares and
+// PlanMany merges their enrichment closures into ONE per-family spec set for that
+// file — exactly what a single combined `enrich --update` over those types would
+// produce.
+//
+// Unlike Plan (single type, errors on an unresolvable name — the CLI/parity
+// contract), PlanMany SKIPS a type that no longer resolves or collides with the
+// reserved rt$ prefix: a transient half-typed edit must not abort a whole file's
+// sync, and the scan would not have demanded a type it cannot resolve. Consts are
+// deduplicated by FriendlyVar so two demanded roots sharing a named sub-type emit
+// that sub-type once (the same dedupe the translate lane does).
+func PlanMany(
+	prog *program.Program,
+	chk *checker.Checker,
+	cache *runtype.Cache,
+	absPath string,
+	typeNames []string,
+	out string,
+	wantFriendly, wantMock bool,
+	cfg Config,
+) (specs []mirror.Spec, declFiles []string) {
+	var closure []enrichment.NamedConst
+	seenVar := map[string]bool{}
+	for _, typeName := range typeNames {
+		resolved, err := enrichment.ResolveTypeRaw(prog, chk, cache, absPath, typeName)
+		if err != nil {
+			continue
+		}
+		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
+			continue
+		}
+		for _, named := range enrichment.EmitClosure(resolved.Node, enrichment.ClosureOptions{
+			TypeName:     typeName,
+			Resolve:      resolved.Resolve,
+			DeclFiles:    resolved.DeclFiles,
+			SourceLocale: cfg.SourceLocale,
+		}) {
+			if seenVar[named.FriendlyVar] {
+				continue // two roots reached the same named type — one const app-wide
+			}
+			seenVar[named.FriendlyVar] = true
+			closure = append(closure, named)
+		}
+	}
+	return specsFromClosure(cfg, closure, absPath, out, wantFriendly, wantMock)
+}
+
+// specsFromClosure is the shared tail of Plan / PlanMany: group a topologically
+// ordered closure by decl file, build the per-var → decl-file map (so a referrer
+// in mirror file A can emit a cross-file value import for a var homed in mirror
+// file B), and expand each group into its per-family mirror.Specs.
+func specsFromClosure(cfg Config, closure []enrichment.NamedConst, absPath, out string, wantFriendly, wantMock bool) (specs []mirror.Spec, declFiles []string) {
 	groups := GroupByDeclFile(closure, absPath, out != "")
 
-	// varDeclFile maps each emitted const var → the source file its type is
-	// declared in, so a referrer in mirror file A can emit a cross-file value
-	// import for a var whose home is mirror file B.
 	varDeclFile := map[string]string{}
 	for _, named := range closure {
 		declFile := named.DeclFile
@@ -66,7 +122,7 @@ func Plan(
 		declFiles = append(declFiles, group.DeclFile)
 		specs = append(specs, BuildSpecs(cfg, group, varDeclFile, out, wantFriendly, wantMock)...)
 	}
-	return specs, declFiles, nil
+	return specs, declFiles
 }
 
 // BuildSpecs builds the mirror.Spec set for one source-file group: one spec PER

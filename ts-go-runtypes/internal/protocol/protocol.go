@@ -459,12 +459,24 @@ type Request struct {
 	// TypeName is the named type to scaffold from each Files entry; the Enrich*
 	// flags mirror the CLI --friendly / --mock / --update / --no-emit; GenDir is the
 	// resolved RunTypes output root the mirrors hang off (the plugin's gen.outDir).
+	//
+	// An EMPTY TypeName is the plugin-sync path: rather than a caller-named type,
+	// the daemon enriches every EXPORTED type each Files entry declares that is
+	// ALSO demanded (its name appears among the session's demanded RunTypes) — the
+	// server-side (typeName → source file) mapping the plugin cannot do itself.
 	TypeName       string `json:"typeName,omitempty"`
 	EnrichFriendly bool   `json:"enrichFriendly,omitempty"`
 	EnrichMock     bool   `json:"enrichMock,omitempty"`
 	EnrichUpdate   bool   `json:"enrichUpdate,omitempty"`
 	EnrichNoEmit   bool   `json:"enrichNoEmit,omitempty"`
 	GenDir         string `json:"genDir,omitempty"`
+	// EnrichLocales are the target i18n locales the plugin's `enrich.i18n.locales`
+	// configures — their presence turns on per-locale translation-mirror sync
+	// (<genDir>/enriched/i18n/<locale>/...), SCAFFOLD + SYNC only (never translated
+	// content). EnrichSourceLocale is the language the source FriendlyText mirrors
+	// are authored in (selects the friendly scaffold's plural arms; default "en").
+	EnrichLocales      []string `json:"enrichLocales,omitempty"`
+	EnrichSourceLocale string   `json:"enrichSourceLocale,omitempty"`
 }
 
 // Metrics is the per-op performance block, populated only when

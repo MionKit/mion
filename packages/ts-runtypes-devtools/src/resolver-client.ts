@@ -322,12 +322,16 @@ export interface GenerateResult {
 
 // EnrichOptions selects which family mirrors the enrich op scaffolds and whether
 // it reconciles an existing mirror. `noEmit` returns diagnostics only (no files).
+// `locales` (with optional `sourceLocale`) opts into per-locale translation-mirror
+// sync — scaffold + reconcile only, never translated content.
 export interface EnrichOptions {
   friendly?: boolean;
   mock?: boolean;
   update?: boolean;
   noEmit?: boolean;
   genDir?: string;
+  locales?: string[];
+  sourceLocale?: string;
 }
 
 // EnrichResult is the shape returned by enrich(): the computed mirror files (the
@@ -473,6 +477,8 @@ abstract class ResolverClientBase implements ResolverConnection {
     if (opts?.update) req.enrichUpdate = true;
     if (opts?.noEmit) req.enrichNoEmit = true;
     if (opts?.genDir) req.genDir = opts.genDir;
+    if (opts?.locales && opts.locales.length > 0) req.enrichLocales = opts.locales;
+    if (opts?.sourceLocale) req.enrichSourceLocale = opts.sourceLocale;
     const resp = await this.send(req);
     if (resp.error) throw new Error(`enrich: ${resp.error}`);
     return {files: resp.enrichFiles ?? [], diagnostics: resp.diagnostics};

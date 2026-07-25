@@ -372,6 +372,13 @@ export interface Request {
   // enrich only — the resolved RunTypes output root the mirrors hang off
   // (<genDir>/enriched/...); typically the plugin's gen.outDir.
   genDir?: string;
+  // enrich only — target i18n locales for per-locale translation-mirror sync
+  // (<genDir>/enriched/i18n/<locale>/...); their presence enables it. SCAFFOLD +
+  // SYNC only, never translated content.
+  enrichLocales?: string[];
+  // enrich only — the source-authoring locale (default "en") driving the friendly
+  // scaffold's plural arms.
+  enrichSourceLocale?: string;
 }
 
 // Metrics mirrors the Go-side protocol.Metrics — populated on a response
