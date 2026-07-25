@@ -566,7 +566,7 @@ var messagesByCode = map[string]message{
 
 	CodeFriendlyUnknownField: {
 		Headline: "Unknown field `{0}` — the type does not declare it, so this FriendlyText entry is dead.",
-		Detail:   "The FriendlyText map names a field the source type does not have\n(removed, renamed, or a typo). Its labels and messages can never be\nused.\n\nExample — `nick` no longer exists on the type:\n  interface User { name: string }\n  export const friendlyUser: FriendlyText<User> = {\n    name: {rt$label: 'Name'},\n-   nick: {rt$label: 'Nickname'},\n  };\n\nFix — remove the entry, or re-run the reconcile so the mirror follows\nthe type (a renamed field carries its authored values along):\n  ts-runtypes gen <source.ts> <Type> --update",
+		Detail:   "The FriendlyText map names a field the source type does not have\n(removed, renamed, or a typo). Its labels and messages can never be\nused.\n\nExample — `nick` no longer exists on the type:\n  interface User { name: string }\n  export const friendlyUser: FriendlyText<User> = {\n    name: {rt$label: 'Name'},\n-   nick: {rt$label: 'Nickname'},\n  };\n\nFix — remove the entry, or re-run the reconcile so the mirror follows\nthe type (a renamed field carries its authored values along):\n  ts-runtypes enrich <source.ts> <Type> --update",
 	},
 	CodeFriendlyUnknownConstraint: {
 		Headline: "Error key `{0}` is not a declared constraint of this field — the message can never fire.",
@@ -601,19 +601,19 @@ var messagesByCode = map[string]message{
 		Detail:   "The generator stamps a `@todo` line on every freshly-scaffolded const in\na FriendlyText mirror file. It means \"this skeleton still carries\ngenerated blanks\". A clean, committed mirror has none.\n\nExample — a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton — fill in real data, then delete this line\n  export const friendlyUser: FriendlyText<User> = {\n-   name: {rt$label: ''},\n+   name: {rt$label: 'Name'},\n  };\n\nFix — author the real labels and error messages for the const, then\ndelete the whole `@todo` line (the compiler never removes it for you).",
 	},
 	CodeFriendlyOrphanConst: {
-		Headline: "Stale `@rtOrphan` carcass — run `ts-runtypes gen --prune` to remove it (or restore the type).",
-		Detail:   "The reconcile commented this FriendlyText const out because its source\ntype was deleted or renamed. The carcass preserves your authored labels\nand messages so a reappearing type can restore them — but a clean,\ncommitted mirror has none.\n\nFix — if the type is really gone, prune the carcass:\n  ts-runtypes gen --prune\n\nFix — if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  ts-runtypes gen <source.ts> <NewName> --update",
+		Headline: "Stale `@rtOrphan` carcass — run `ts-runtypes enrich --prune` to remove it (or restore the type).",
+		Detail:   "The reconcile commented this FriendlyText const out because its source\ntype was deleted or renamed. The carcass preserves your authored labels\nand messages so a reappearing type can restore them — but a clean,\ncommitted mirror has none.\n\nFix — if the type is really gone, prune the carcass:\n  ts-runtypes enrich --prune\n\nFix — if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  ts-runtypes enrich <source.ts> <NewName> --update",
 	},
 	CodeFriendlyOrphanField: {
-		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes gen --prune` to remove it (or restore the field).",
-		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   /* @rtOrphanChild nick: {rt$label: 'Nickname'}, */\n    name: {rt$label: 'Name'},\n  };\n\nFix — if the field is really gone: `ts-runtypes gen --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
+		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes enrich --prune` to remove it (or restore the field).",
+		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const friendlyUser: FriendlyText<User> = {\n-   /* @rtOrphanChild nick: {rt$label: 'Nickname'}, */\n    name: {rt$label: 'Name'},\n  };\n\nFix — if the field is really gone: `ts-runtypes enrich --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
 	},
 
 	// ─────────── MockData mirror files (MDxxx) ───────────
 
 	CodeMockUnknownField: {
 		Headline: "Unknown field `{0}` — the type does not declare it, so this MockData entry is dead.",
-		Detail:   "The MockData map names a field the source type does not have (removed,\nrenamed, or a typo). Its pool/range can never feed a generated mock.\n\nExample — `nick` no longer exists on the type:\n  interface User { name: string }\n  export const mockUser: MockData<User> = {\n    name: {pool: ['Ada', 'Linus']},\n-   nick: {pool: ['ada99']},\n  };\n\nFix — remove the entry, or re-run the reconcile so the mirror follows\nthe type:\n  ts-runtypes gen <source.ts> <Type> --update",
+		Detail:   "The MockData map names a field the source type does not have (removed,\nrenamed, or a typo). Its pool/range can never feed a generated mock.\n\nExample — `nick` no longer exists on the type:\n  interface User { name: string }\n  export const mockUser: MockData<User> = {\n    name: {pool: ['Ada', 'Linus']},\n-   nick: {pool: ['ada99']},\n  };\n\nFix — remove the entry, or re-run the reconcile so the mirror follows\nthe type:\n  ts-runtypes enrich <source.ts> <Type> --update",
 	},
 	CodeMockReservedProp: {
 		Headline: "Property `{0}` collides with the reserved `rt$` enrichment prefix — the type cannot be enriched.",
@@ -624,31 +624,31 @@ var messagesByCode = map[string]message{
 		Detail:   "The generator stamps a `@todo` line on every freshly-scaffolded const in\na MockData mirror file. It means \"this skeleton still carries generated\nblanks\". A clean, committed mirror has none.\n\nExample — a fresh scaffold:\n  /** @rtType User#a1b2c3 @rtIds {name: d4e5f6} */\n- // @todo: generated skeleton — fill in real data, then delete this line\n  export const mockUser: MockData<User> = {\n-   name: {pool: []},\n+   name: {pool: ['Ada Lovelace', 'Linus Torvalds']},\n  };\n\nFix — author realistic sample pools/ranges for the const, then delete\nthe whole `@todo` line (the compiler never removes it for you).",
 	},
 	CodeMockOrphanConst: {
-		Headline: "Stale `@rtOrphan` carcass — run `ts-runtypes gen --prune` to remove it (or restore the type).",
-		Detail:   "The reconcile commented this MockData const out because its source type\nwas deleted or renamed. The carcass preserves your authored pools and\nranges so a reappearing type can restore them — but a clean, committed\nmirror has none.\n\nFix — if the type is really gone, prune the carcass:\n  ts-runtypes gen --prune\n\nFix — if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  ts-runtypes gen <source.ts> <NewName> --update",
+		Headline: "Stale `@rtOrphan` carcass — run `ts-runtypes enrich --prune` to remove it (or restore the type).",
+		Detail:   "The reconcile commented this MockData const out because its source type\nwas deleted or renamed. The carcass preserves your authored pools and\nranges so a reappearing type can restore them — but a clean, committed\nmirror has none.\n\nFix — if the type is really gone, prune the carcass:\n  ts-runtypes enrich --prune\n\nFix — if the type was renamed, re-run the reconcile; a matching carcass\nis restored with your values intact:\n  ts-runtypes enrich <source.ts> <NewName> --update",
 	},
 	CodeMockOrphanField: {
-		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes gen --prune` to remove it (or restore the field).",
-		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix — if the field is really gone: `ts-runtypes gen --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
+		Headline: "Stale `@rtOrphanChild` field carcass — run `ts-runtypes enrich --prune` to remove it (or restore the field).",
+		Detail:   "The reconcile commented this field out because the source type no longer\ndeclares it. The carcass preserves your authored value inline — but a\nclean, committed mirror has none.\n\nExample:\n  export const mockUser: MockData<User> = {\n-   /* @rtOrphanChild nick: {pool: ['ada99']}, */\n    name: {pool: ['Ada', 'Linus']},\n  };\n\nFix — if the field is really gone: `ts-runtypes enrich --prune`.\nFix — if the field was renamed, re-run `--update`; the authored value\nmoves to the renamed field when the ids match.",
 	},
 
 	// ─────────── Mirror ↔ source linkage (GExxx, check) ───────────
 
 	CodeGenMirrorUnreadable: {
 		Headline: "Cannot read enrichment mirror file: {0}",
-		Detail:   "The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes check`.",
+		Detail:   "The drift check could not read this mirror file (permissions, a broken\nsymlink, or a race with a concurrent write).\n\nFix — make the file readable and re-run `ts-runtypes enrich --no-emit`.",
 	},
 	CodeGenMirrorDrift: {
-		Headline: "Mirror location drift — the source maps to `{0}` but this file lives at `{1}`; re-run `ts-runtypes gen` to relocate.",
-		Detail:   "Each source file mirrors to ONE computed path per family under the\nenrich root (friendly/… and mock/…, plus per-locale translation twins).\nThis file is not at its computed location — usually after a source move,\na genDir change, or a pre-split combined mirror that still needs\nmigrating.\n\nFix — re-run the generator; it writes the per-family files at the right\npaths and migrates a legacy combined mirror:\n  ts-runtypes gen <source.ts> <Type> --update",
+		Headline: "Mirror location drift — the source maps to `{0}` but this file lives at `{1}`; re-run `ts-runtypes enrich` to relocate.",
+		Detail:   "Each source file mirrors to ONE computed path per family under the\nenrich root (friendly/… and mock/…, plus per-locale translation twins).\nThis file is not at its computed location — usually after a source move,\na genDir change, or a pre-split combined mirror that still needs\nmigrating.\n\nFix — re-run the generator; it writes the per-family files at the right\npaths and migrates a legacy combined mirror:\n  ts-runtypes enrich <source.ts> <Type> --update",
 	},
 	CodeGenSourceMissing: {
-		Headline: "Breadcrumb source `{0}` no longer exists ({1}) — the mirror is orphaned; delete it or re-run `ts-runtypes gen`.",
+		Headline: "Breadcrumb source `{0}` no longer exists ({1}) — the mirror is orphaned; delete it or re-run `ts-runtypes enrich`.",
 		Detail:   "The mirror's `import type { … } from '<source>'` breadcrumb resolves to\na file that is gone. Its consts describe types that no longer exist\nanywhere.\n\nFix — if the source was deleted, delete the mirror file (both family\nfiles and any translation twins).\nFix — if the source moved, re-run the generator from the new location\nand prune the old mirror.",
 	},
 	CodeGenTypeMissing: {
-		Headline: "Source {0} no longer declares type `{1}` — re-run `ts-runtypes gen`.",
-		Detail:   "The mirror imports a type name its source file no longer declares (the\ntype was renamed or removed). The reconcile turns its consts into\n`@rtOrphan` carcasses so your authored values survive.\n\nFix — re-run the reconcile against the current source, then prune any\ncarcasses that should not come back:\n  ts-runtypes gen <source.ts> <Type> --update\n  ts-runtypes gen --prune",
+		Headline: "Source {0} no longer declares type `{1}` — re-run `ts-runtypes enrich`.",
+		Detail:   "The mirror imports a type name its source file no longer declares (the\ntype was renamed or removed). The reconcile turns its consts into\n`@rtOrphan` carcasses so your authored values survive.\n\nFix — re-run the reconcile against the current source, then prune any\ncarcasses that should not come back:\n  ts-runtypes enrich <source.ts> <Type> --update\n  ts-runtypes enrich --prune",
 	},
 }
 

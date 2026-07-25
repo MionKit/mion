@@ -4,7 +4,7 @@ package diagnostics
 // under the per-family mirror split. Content validity from the paired checker
 // in internal/enrichment/validate.go; the MD02x hygiene codes from the dirty-tag
 // scan, attributed to this family by the file's const annotations / DSL
-// import. Opt-in surfaces only (Request.CheckEnrich, `ts-runtypes check`).
+// import. Opt-in surfaces only (Request.CheckEnrich, `ts-runtypes enrich --no-emit`).
 const (
 	CodeMockUnknownField = "MD001"
 	CodeMockReservedProp = "MD011"
