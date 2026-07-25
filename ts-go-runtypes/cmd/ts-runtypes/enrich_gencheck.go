@@ -62,12 +62,12 @@ func runGenCheck(positional []string, genDirFlag string, asJSON bool, tsconfigFl
 		// the enrich dir (a mirror file, or the dir) is scanned directly.
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && !isUnder(config.EnrichDir, candidate) {
 			targets = []string{
-				config.mirrorPath(familyFriendly, candidate),
-				config.mirrorPath(familyMock, candidate),
-				config.legacyMirrorPath(candidate),
+				config.MirrorPath(familyFriendly, candidate),
+				config.MirrorPath(familyMock, candidate),
+				config.LegacyMirrorPath(candidate),
 			}
 			for _, locale := range config.I18nLocales {
-				targets = append(targets, config.translationPathFor(locale, config.mirrorPath(familyFriendly, candidate)))
+				targets = append(targets, config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, candidate)))
 			}
 		} else {
 			targets = []string{candidate}
@@ -226,7 +226,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 	// i18n locale mirror: its canonical home derives from the friendly mirror
 	// it translates (<I18nDir>/<locale>/<friendly-relative path>).
 	if locale, isLocaleMirror := localeMirrorOf(config, mirrorFile); isLocaleMirror {
-		expectedMirror := config.translationPathFor(locale, config.mirrorPath(familyFriendly, resolvedSource))
+		expectedMirror := config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, resolvedSource))
 		if tspath.NormalizePath(expectedMirror) != tspath.NormalizePath(mirrorFile) {
 			line, col := lineIndex.At(breadcrumb.Start)
 			findings = append(findings, driftFinding{
@@ -245,8 +245,8 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 	family, ok := mirrorFamilyOf(config.EnrichDir, mirrorFile)
 	if !ok {
 		line, col := lineIndex.At(breadcrumb.Start)
-		expectedFriendly := config.mirrorPath(familyFriendly, resolvedSource)
-		expectedMock := config.mirrorPath(familyMock, resolvedSource)
+		expectedFriendly := config.MirrorPath(familyFriendly, resolvedSource)
+		expectedMock := config.MirrorPath(familyMock, resolvedSource)
 		findings = append(findings, driftFinding{
 			File:     mirrorFile,
 			Severity: enrichment.Warning,
@@ -259,7 +259,7 @@ func checkMirrorFile(mirrorFile, genDirFlag, tsconfigPath string, parsed *progra
 		})
 		return findings
 	}
-	expectedMirror := config.mirrorPath(family, resolvedSource)
+	expectedMirror := config.MirrorPath(family, resolvedSource)
 	if tspath.NormalizePath(expectedMirror) != tspath.NormalizePath(mirrorFile) {
 		line, col := lineIndex.At(breadcrumb.Start)
 		findings = append(findings, driftFinding{

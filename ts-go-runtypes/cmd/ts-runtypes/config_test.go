@@ -170,13 +170,13 @@ func TestMirrorPath(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := config.mirrorPath(test.family, test.src); got != test.want {
+			if got := config.MirrorPath(test.family, test.src); got != test.want {
 				t.Errorf("mirrorPath(%q, %q) = %q, want %q", test.family, test.src, got, test.want)
 			}
 		})
 	}
 
-	if got, want := config.legacyMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
+	if got, want := config.LegacyMirrorPath("/proj/src/models/user.ts"), "/proj/runtypes/generated/models/user.ts"; got != want {
 		t.Errorf("legacyMirrorPath = %q, want %q", got, want)
 	}
 }
@@ -203,7 +203,7 @@ func TestTranslationPathFor(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := config.translationPathFor(test.locale, test.mirror); got != test.want {
+			if got := config.TranslationPathFor(test.locale, test.mirror); got != test.want {
 				t.Errorf("translationPathFor(%q, %q) = %q, want %q", test.locale, test.mirror, got, test.want)
 			}
 		})

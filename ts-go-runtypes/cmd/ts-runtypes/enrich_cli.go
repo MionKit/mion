@@ -12,6 +12,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
@@ -147,71 +148,48 @@ Drift checking moved to: ts-runtypes check [<file-or-dir>]
 	// Self-document the genDir tree even when gen runs before any build: the
 	// root + enriched READMEs (shared with the generate lane) and a README in
 	// each family dir this run writes into.
-	genRoot := filepath.Dir(config.EnrichDir)
+	genRoot := config.GenDir()
 	_ = resolver.EnsureOutputHygiene(genRoot, filepath.Join(genRoot, "types"))
-	for _, family := range wantedFamilies(*mock, *friendly) {
-		config.ensureFamilyReadme(family)
+	for _, family := range enrichgen.WantedFamilies(*mock, *friendly) {
+		ensureFamilyReadme(config, family)
 	}
 
-	// Named-type-driven emission: resolve the RAW (non-inlined) graph so the
-	// closure walk can tell a named-type reference from an anonymous inline shape,
-	// then emit ONE friendly+mock const per named type in the closure, in
-	// dependency (topological) order, with cross-const references between them.
-	prog, res, err := buildProgram(absPath, config.parsed)
+	// Named-type-driven emission runs through the SHARED planner (enrichgen.Plan)
+	// so the CLI and the OpEnrich daemon op compute byte-identical mirror specs:
+	// resolve the RAW (non-inlined) graph, emit ONE friendly+mock const per named
+	// type in dependency order, and bucket by declaration file → one mirror file
+	// per (declFile, family). The migration of any pre-split combined mirror is a
+	// CLI-only disk pre-step lifted out of spec-building (the daemon never writes).
+	prog, res, err := buildProgram(absPath, config.Parsed)
 	if err != nil {
 		fatal("gen: %v", err)
 	}
 	defer res.Close()
-	resolved, err := enrichment.ResolveTypeRaw(prog, res.Checker(), res.Cache(), absPath, typeName)
+
+	outPath := ""
+	if *out != "" {
+		outPath = tspath.NormalizePath(mustAbs(*out))
+	}
+	specs, declFiles, err := enrichgen.Plan(prog, res.Checker(), res.Cache(), absPath, typeName, outPath, wantFriendly, wantMock, config)
 	if err != nil {
 		fatal("gen: %v", err)
 	}
-	// The rt$ prefix is RESERVED for enrichment meta keys — a colliding
-	// property makes the scaffold unrepresentable, so refuse up front.
-	if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
-		fatal("gen: %s: property %s collides with the reserved enrichment meta prefix 'rt$' — rename the property or exclude the type from enrichment", typeName, strings.Join(collisions, ", "))
-	}
-
-	closure := enrichment.EmitClosure(resolved.Node, enrichment.ClosureOptions{
-		TypeName:     typeName,
-		Resolve:      resolved.Resolve,
-		DeclFiles:    resolved.DeclFiles,
-		SourceLocale: config.SourceLocale,
-	})
-
-	// Group the closure by declaration source file → one mirror file per group.
-	// A const with no resolved DeclFile falls back to the gen target (absPath).
-	// When --out is given, force every const into that one file (legacy single-file
-	// override): all consts share one synthetic group keyed by absPath.
-	groups := groupByDeclFile(closure, absPath, *out != "")
-
-	// varDeclFile maps each emitted const var → the source file its type is
-	// declared in, so a referrer in mirror file A can emit a cross-file value
-	// import for a var whose home is mirror file B.
-	varDeclFile := map[string]string{}
-	for _, named := range closure {
-		declFile := named.DeclFile
-		if declFile == "" {
-			declFile = absPath
+	if outPath == "" {
+		for _, declFile := range declFiles {
+			migrateLegacyMirror(config, declFile)
 		}
-		varDeclFile[named.FriendlyVar] = declFile
-		varDeclFile[named.MockVar] = declFile
 	}
 
-	var written, skipped int
-	for _, group := range groups {
-		for _, spec := range groupSpecs(config, group, varDeclFile, *out, wantFriendly, wantMock) {
-			var wrote bool
-			if *update {
-				wrote = updateMirrorFile(spec)
-			} else {
-				wrote = writeMirrorFile(spec)
-			}
-			if wrote {
-				written++
-			} else {
-				skipped++
-			}
+	var written int
+	for _, spec := range specs {
+		var wrote bool
+		if *update {
+			wrote = updateMirrorFile(spec)
+		} else {
+			wrote = writeMirrorFile(spec)
+		}
+		if wrote {
+			written++
 		}
 	}
 	if written == 0 {
@@ -220,89 +198,12 @@ Drift checking moved to: ts-runtypes check [<file-or-dir>]
 	os.Exit(0)
 }
 
-// groupSpecs builds the mirror.Spec set for one source-file group: one spec PER
-// WANTED FAMILY (friendly / mock), each targeting its own family-segment mirror
-// file with a family-matched MirrorPathFor (so cross-file value imports resolve
-// to sibling files of the SAME family). The --out override collapses everything
-// into one combined single-file spec (the legacy shape, kept for the explicit
-// escape hatch). Before the per-family specs are built, a pre-split combined
-// mirror at the legacy (no-family) path is migrated in place.
-func groupSpecs(config enrichConfig, group declFileGroup, varDeclFile map[string]string, out string, wantFriendly, wantMock bool) []mirror.Spec {
-	if out != "" {
-		return []mirror.Spec{{
-			MirrorPath:    tspath.NormalizePath(mustAbs(out)),
-			SourceFile:    group.declFile,
-			Consts:        group.consts,
-			VarDeclFile:   varDeclFile,
-			Out:           out,
-			WantFriendly:  wantFriendly,
-			WantMock:      wantMock,
-			MirrorPathFor: config.legacyMirrorPath,
-		}}
-	}
-
-	migrateLegacyMirror(config, group.declFile)
-
-	var specs []mirror.Spec
-	for _, family := range wantedFamilies(wantFriendly, wantMock) {
-		family := family
-		specs = append(specs, mirror.Spec{
-			MirrorPath:    config.mirrorPath(family, group.declFile),
-			SourceFile:    group.declFile,
-			Consts:        group.consts,
-			VarDeclFile:   varDeclFile,
-			WantFriendly:  family == familyFriendly,
-			WantMock:      family == familyMock,
-			MirrorPathFor: func(declFile string) string { return config.mirrorPath(family, declFile) },
-		})
-	}
-	return specs
-}
-
-// wantedFamilies lists the family segments a gen invocation targets, friendly
-// first (matching the historical const order in the combined file).
-func wantedFamilies(wantFriendly, wantMock bool) []string {
-	var families []string
-	if wantFriendly {
-		families = append(families, familyFriendly)
-	}
-	if wantMock {
-		families = append(families, familyMock)
-	}
-	return families
-}
-
-// declFileGroup is one mirror file's worth of consts: every NamedConst whose
-// type is declared in declFile, in topological (declared-before-use) order.
-type declFileGroup struct {
-	declFile string
-	consts   []enrichment.NamedConst
-}
-
-// groupByDeclFile buckets a topologically-ordered closure by each const's
-// declaration file (falling back to fallbackFile when DeclFile is empty),
-// preserving the closure's order within each bucket. forceSingle collapses every
-// const into one group keyed by fallbackFile (the --out single-file override).
-// Group order follows first appearance, so dependency order is preserved when a
-// referenced type's file is emitted before its referrer's.
-func groupByDeclFile(closure []enrichment.NamedConst, fallbackFile string, forceSingle bool) []declFileGroup {
-	indexByFile := map[string]int{}
-	var groups []declFileGroup
-	for _, named := range closure {
-		declFile := fallbackFile
-		if !forceSingle && named.DeclFile != "" {
-			declFile = named.DeclFile
-		}
-		index, ok := indexByFile[declFile]
-		if !ok {
-			index = len(groups)
-			indexByFile[declFile] = index
-			groups = append(groups, declFileGroup{declFile: declFile})
-		}
-		groups[index].consts = append(groups[index].consts, named)
-	}
-	return groups
-}
+// The spec planner (groupSpecs), the family list (wantedFamilies), and the
+// closure grouping (declFileGroup / groupByDeclFile) moved into
+// internal/enrichment/enrichgen (BuildSpecs / WantedFamilies / DeclFileGroup /
+// GroupByDeclFile) so the OpEnrich daemon op shares them. writeMirrorFile /
+// updateMirrorFile stay here as the CLI's disk shims around mirror.Scaffold /
+// mirror.Reconcile; migrateLegacyMirror stays as the CLI-only migration pre-step.
 
 // writeMirrorFile emits (or appends to) one mirror file for a single source
 // file's consts. It returns true when it wrote anything, false when every

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
@@ -17,22 +18,22 @@ func TestGroupByDeclFile(t *testing.T) {
 		{TypeName: "Anon", DeclFile: "", FriendlyVar: "friendlyAnon", MockVar: "mockAnon"},
 	}
 
-	groups := groupByDeclFile(closure, "/src/user.ts", false)
+	groups := enrichgen.GroupByDeclFile(closure, "/src/user.ts", false)
 	if len(groups) != 2 {
 		t.Fatalf("want 2 groups (address.ts, user.ts); got %d: %+v", len(groups), groups)
 	}
 	// Address group (first appearance) precedes the user group.
-	if groups[0].declFile != "/src/address.ts" || len(groups[0].consts) != 1 {
+	if groups[0].DeclFile != "/src/address.ts" || len(groups[0].Consts) != 1 {
 		t.Errorf("group 0 = %+v, want address.ts with 1 const", groups[0])
 	}
 	// The empty-DeclFile const falls back to /src/user.ts, joining User's group.
-	if groups[1].declFile != "/src/user.ts" || len(groups[1].consts) != 2 {
+	if groups[1].DeclFile != "/src/user.ts" || len(groups[1].Consts) != 2 {
 		t.Errorf("group 1 = %+v, want user.ts with 2 consts", groups[1])
 	}
 
 	// forceSingle collapses everything into one group keyed by the fallback.
-	single := groupByDeclFile(closure, "/out.ts", true)
-	if len(single) != 1 || single[0].declFile != "/out.ts" || len(single[0].consts) != 3 {
+	single := enrichgen.GroupByDeclFile(closure, "/out.ts", true)
+	if len(single) != 1 || single[0].DeclFile != "/out.ts" || len(single[0].Consts) != 3 {
 		t.Errorf("forceSingle should yield one group of 3 at /out.ts; got %+v", single)
 	}
 }

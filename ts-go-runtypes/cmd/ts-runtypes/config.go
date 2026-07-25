@@ -18,78 +18,27 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 )
 
-// defaultGenDirName is the conventional RunTypes output root when neither a
-// --gen-dir flag nor a tsconfig `genDir` supplies one: `__runtypes` under the
-// project's source root. EVERYTHING under genDir is convention, never
-// configuration: `types/` (regenerated, gitignored), `enriched/friendly/`,
-// `enriched/mock/`, `enriched/i18n/<locale>/` (committed).
-const defaultGenDirName = "__runtypes"
-
-// enrichedSubdir is the committed half of genDir — the enrichment mirrors live
-// at <genDir>/enriched/<family>/... by convention.
-const enrichedSubdir = "enriched"
-
-// Family path segments under the enrich root. Each enrichment family owns its
-// own mirror subtree (<EnrichDir>/<family>/<rel>), so one source file maps to
-// one mirror file PER FAMILY: friendly/models/user.ts holds friendlyUser,
-// mock/models/user.ts holds mockUser. The segment lives in the PATH (never a
-// filename infix) so forceTSExt stays family-blind.
+// The enrichment layout constants, the enrichConfig type, its path helpers, and
+// the pure scaffold planner now live in the shared internal/enrichment/enrichgen
+// leaf package, so the OpEnrich daemon op and the CLI `enrich` verb compute
+// byte-identical mirrors over one implementation. These aliases keep the CLI call
+// sites terse; the JSONC plugin side-read below stays here (it is disk I/O the
+// leaf package deliberately does not do — the CLI feeds it in via PluginSettings).
 const (
-	familyFriendly = "friendly"
-	familyMock     = "mock"
+	defaultGenDirName   = enrichgen.DefaultGenDirName
+	enrichedSubdir      = enrichgen.EnrichedSubdir
+	familyFriendly      = enrichgen.FamilyFriendly
+	familyMock          = enrichgen.FamilyMock
+	defaultI18nDirName  = enrichgen.DefaultI18nDirName
+	defaultSourceLocale = enrichgen.DefaultSourceLocale
 )
 
-// defaultI18nDirName is the translation subtree's dir name under the enrich
-// root (a PARALLEL sibling of the friendly/ + mock/ family subtrees); each
-// locale owns a path segment under it: <EnrichDir>/i18n/<locale>/<rel>.
-const defaultI18nDirName = "i18n"
-
-// defaultSourceLocale is the language source FriendlyText maps are assumed to
-// be authored in when tsconfig `i18n.sourceLocale` is absent.
-const defaultSourceLocale = "en"
-
-// enrichConfig is the resolved enrichment configuration for a gen target. It is
-// the merge of (in precedence order) the --gen-dir CLI flag and the tsconfig
-// `compilerOptions.plugins[name=ts-runtypes]` `genDir` entry, then the built-in
-// default; EnrichDir is derived as <genDir>/enriched (convention, not config).
-//
-// Paths are absolute and normalized to OS separators. EnrichDir is the absolute
-// mirror root; RootDir is the absolute source root the mirror tree shadows;
-// ProjectRoot is the directory the mirror root is resolved under (the tsconfig
-// dir, or the target file's dir when no tsconfig is found).
-type enrichConfig struct {
-	ProjectRoot string
-	RootDir     string
-	EnrichDir   string
-	// TsconfigPath is the ONE resolved tsconfig this command run reads —
-	// explicit --tsconfig flag, else program.DiscoverTsconfig's tsc-style
-	// upward walk from the process cwd, else "" (no config anywhere). The same
-	// path feeds buildProgram's type resolution, so genDir/i18n settings and
-	// type queries can never come from different configs.
-	TsconfigPath string
-
-	// parsed is the ONE tsgo InferredConfig this run resolved
-	// (resolveEnrichProject), carried so buildProgram reuses it instead of
-	// re-parsing — the enrich lane used to parse the same tsconfig twice. Nil
-	// when no tsconfig resolved anywhere.
-	parsed *program.InferredConfig
-
-	// i18n knobs (the tsconfig plugin `i18n` object; docs/done/friendly-type-i18n.md).
-	// Defaults are dormant: SourceLocale 'en', I18nDir <EnrichDir>/i18n, no
-	// locales, lenient check.
-	SourceLocale string
-	I18nDir      string
-	I18nLocales  []string
-	I18nStrict   bool
-
-	// The remaining plugin options are read and stored for completeness (and
-	// future use) but are not acted on by gen yet.
-	ModuleMode string
-	EmitMode   string
-	InlineMode string
-}
+// enrichConfig is the resolved enrichment configuration for an enrich target,
+// aliased to the shared type so the CLI and the daemon resolve it identically.
+type enrichConfig = enrichgen.Config
 
 // tsRuntypesPlugin is the shape of the `ts-runtypes` entry under
 // compilerOptions.plugins[]. It is the single canonical config surface for the
@@ -248,92 +197,51 @@ func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig)
 	return tsconfigPath, parsed
 }
 
-// resolveEnrichConfig computes the enrichment config for a gen target file.
-// genDirFlag is the --gen-dir CLI value (empty when unset) and takes precedence
-// over the tsconfig `genDir` entry, which takes precedence over the default.
-//
-// tsconfigPath is resolveConfigPath's pick (threaded in with its already-parsed
-// config) — exactly tsc's resolution: the explicit --tsconfig flag, else the
-// upward walk from the process cwd. When one resolves, ProjectRoot is the
-// tsconfig dir, RootDir is compilerOptions.rootDir
-// as tsgo parsed it (extends-aware; defaulting to the tsconfig dir when unset),
-// genDir comes from the plugins entry (defaulting to <RootDir>/__runtypes), and
-// the resolved path is recorded on enrichConfig.TsconfigPath so type resolution
-// reads the SAME config. With no config anywhere, ProjectRoot and RootDir both
-// default to the target file's directory.
-//
-// Strict like tsc: a config that was named or discovered but does not parse is
-// fatal — only the no-config-anywhere case falls back to defaults.
+// resolveEnrichConfig computes the enrichment config for an enrich target file.
+// It performs the one bit of disk I/O the pure enrichgen.ResolveConfig cannot —
+// the JSONC side-read of the tsconfig's ts-runtypes plugin entry (our params
+// riding tsconfig's language-service plugin slot; tsc ignores it and tsgo does
+// not parse it) — then delegates the (pure) path math to the shared leaf package,
+// so the daemon op resolves the same layout. Strict like tsc: a resolved config
+// that does not parse is fatal; only no-config-anywhere falls back to defaults.
 func resolveEnrichConfig(absTargetFile, genDirFlag, tsconfigPath string, parsed *program.InferredConfig) enrichConfig {
-	targetDir := filepath.Dir(absTargetFile)
-
-	config := enrichConfig{
-		ProjectRoot:  targetDir,
-		RootDir:      targetDir,
-		SourceLocale: defaultSourceLocale,
-		parsed:       parsed,
-	}
-
-	genDir := ""
+	var pluginSettings enrichgen.PluginSettings
 	if tsconfigPath != "" {
-		tsconfigDir := filepath.Dir(tsconfigPath)
-		config.TsconfigPath = tsconfigPath
-		config.ProjectRoot = tsconfigDir
-		config.RootDir = tsconfigDir
-
-		// TypeScript-owned values come from the ONE tsgo parse the caller
-		// already did (resolveEnrichProject), threaded in — never a second
-		// parse. tsgo followed `extends`, so this is exactly TypeScript's view.
-		if rootDir := strings.TrimSpace(parsed.RootDir()); rootDir != "" {
-			config.RootDir = resolveUnder(tsconfigDir, rootDir)
-		}
-		// The ts-runtypes plugin entry is OUR params riding tsconfig's
-		// language-service plugin slot — tsc itself ignores it and tsgo does
-		// not parse it — so it is the one thing read via the JSONC side-read,
-		// of the SAME resolved file.
 		pluginTsconfig, ok := parseTsconfig(tsconfigPath)
 		if !ok {
 			fatal("tsconfig %s: cannot parse", tsconfigPath)
 		}
 		if plugin, ok := findTsRuntypesPlugin(pluginTsconfig); ok {
-			genDir = strings.TrimSpace(plugin.GenDir)
-			config.ModuleMode = plugin.ModuleMode
-			config.EmitMode = plugin.EmitMode
-			config.InlineMode = plugin.InlineMode
-			if plugin.I18n != nil {
-				if sourceLocale := strings.TrimSpace(plugin.I18n.SourceLocale); sourceLocale != "" {
-					config.SourceLocale = sourceLocale
-				}
-				config.I18nLocales = plugin.I18n.Locales
-				config.I18nStrict = plugin.I18n.Strict
-			}
+			pluginSettings = pluginSettingsFrom(plugin)
 		}
 	}
+	return enrichgen.ResolveConfig(absTargetFile, genDirFlag, tsconfigPath, parsed, pluginSettings)
+}
 
-	// genDir resolution: the --gen-dir flag wins, then tsconfig `genDir`, then
-	// the convention default `__runtypes` under the source root. Everything
-	// BELOW genDir is convention, never configuration: mirrors live at
-	// <genDir>/enriched/<family>/... and translations at
-	// <genDir>/enriched/i18n/<locale>/... (see mirrorPath / translationPathFor).
-	if flagValue := strings.TrimSpace(genDirFlag); flagValue != "" {
-		genDir = flagValue
+// pluginSettingsFrom projects the CLI's JSONC-read ts-runtypes plugin entry onto
+// the shared enrichgen.PluginSettings the resolver consumes.
+func pluginSettingsFrom(plugin tsRuntypesPlugin) enrichgen.PluginSettings {
+	settings := enrichgen.PluginSettings{
+		GenDir:     plugin.GenDir,
+		ModuleMode: plugin.ModuleMode,
+		EmitMode:   plugin.EmitMode,
+		InlineMode: plugin.InlineMode,
 	}
-	if genDir != "" {
-		genDir = resolveUnder(config.ProjectRoot, genDir)
-	} else {
-		genDir = filepath.Join(config.RootDir, defaultGenDirName)
+	if plugin.I18n != nil {
+		settings.I18n = &enrichgen.I18nSettings{
+			SourceLocale: plugin.I18n.SourceLocale,
+			Locales:      plugin.I18n.Locales,
+			Strict:       plugin.I18n.Strict,
+		}
 	}
-	config.EnrichDir = filepath.Join(genDir, enrichedSubdir)
-	config.I18nDir = filepath.Join(config.EnrichDir, defaultI18nDirName)
-
-	return config
+	return settings
 }
 
 // ensureFamilyReadme self-documents an enrichment family dir (or the i18n
 // translation root) the moment it is created: every conventional dir under
 // genDir carries a README explaining what it is. Write-if-absent so an edit is
 // never clobbered; best-effort (a failure surfaces on the mirror write itself).
-func (config enrichConfig) ensureFamilyReadme(family string) {
+func ensureFamilyReadme(config enrichConfig, family string) {
 	texts := map[string][2]string{
 		familyFriendly: {filepath.Join(config.EnrichDir, familyFriendly),
 			"# FriendlyText mirrors\n\nHuman-facing labels and error messages for your types, one mirror file per\nsource file. Scaffolded and kept in sync by `ts-runtypes gen`; the values are\nyours to edit. Commit these files.\n"},
@@ -357,65 +265,10 @@ func (config enrichConfig) ensureFamilyReadme(family string) {
 	_ = os.WriteFile(readme, []byte(text), 0o644)
 }
 
-// mirrorPath computes one family's mirror file for a source file under this
-// config: <EnrichDir>/<family>/<absSourceFile relative to RootDir>, with the
-// extension forced to ".ts" (a .d.ts source maps to a plain .ts mirror, which
-// holds runtime consts). When absSourceFile is not under RootDir (filepath.Rel
-// escapes with ".."), it falls back to the source's base name directly under
-// the family dir so the mirror never lands outside the tree.
-func (config enrichConfig) mirrorPath(family, absSourceFile string) string {
-	return filepath.Clean(filepath.Join(config.EnrichDir, family, config.mirrorRel(absSourceFile)))
-}
-
-// legacyMirrorPath is the pre-split COMBINED mirror location (no family
-// segment) a source file used to map to. Read-only: gen consults it solely to
-// migrate an old combined mirror into the per-family files (see
-// migrateLegacyMirror); nothing is ever written there again.
-func (config enrichConfig) legacyMirrorPath(absSourceFile string) string {
-	return filepath.Clean(filepath.Join(config.EnrichDir, config.mirrorRel(absSourceFile)))
-}
-
-// mirrorRel is the source file's mirror-relative sub-path: relative to RootDir
-// (base name when outside it), extension forced to ".ts".
-func (config enrichConfig) mirrorRel(absSourceFile string) string {
-	rel, err := filepath.Rel(config.RootDir, absSourceFile)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		rel = filepath.Base(absSourceFile)
-	}
-	return forceTSExt(rel)
-}
-
-// translationPathFor computes one locale's translation file for a friendly
-// source mirror: <I18nDir>/<locale>/<mirror's path relative to the friendly
-// family root>. The locale is a PATH SEGMENT (never a filename infix), so
-// forceTSExt never sees it and a region tag like pt-BR needs no re-parse.
-func (config enrichConfig) translationPathFor(locale, friendlyMirrorPath string) string {
-	friendlyRoot := filepath.Join(config.EnrichDir, familyFriendly)
-	rel, err := filepath.Rel(friendlyRoot, friendlyMirrorPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		rel = filepath.Base(friendlyMirrorPath)
-	}
-	return filepath.Clean(filepath.Join(config.I18nDir, locale, rel))
-}
-
-// forceTSExt replaces a source file's extension with ".ts", collapsing a ".d.ts"
-// to ".ts" too (the mirror is always a runtime .ts file).
-func forceTSExt(path string) string {
-	trimmed := strings.TrimSuffix(path, ".d.ts")
-	if trimmed == path {
-		trimmed = strings.TrimSuffix(path, filepath.Ext(path))
-	}
-	return trimmed + ".ts"
-}
-
-// resolveUnder joins path under base when path is relative, else returns path
-// cleaned. The result is OS-separator normalized.
-func resolveUnder(base, path string) string {
-	if filepath.IsAbs(path) {
-		return filepath.Clean(path)
-	}
-	return filepath.Clean(filepath.Join(base, path))
-}
+// The mirror-path helpers (MirrorPath / LegacyMirrorPath / MirrorRel /
+// TranslationPathFor) and the forceTSExt / resolveUnder utilities now live as
+// methods on enrichgen.Config in internal/enrichment/enrichgen, shared with the
+// OpEnrich daemon op. Call them as config.MirrorPath(...) etc.
 
 // parseTsconfig reads and tolerantly parses a JSONC tsconfig.json (comments +
 // trailing commas stripped). Returns ok=false on read or parse failure so the

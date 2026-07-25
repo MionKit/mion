@@ -122,7 +122,7 @@ func TestTranslationSpecs_TransformAndGrouping(t *testing.T) {
 	}
 
 	geoSpec, userSpec := specs[0], specs[1]
-	wantGeoPath := config.translationPathFor("pl", config.mirrorPath(familyFriendly, geoSource))
+	wantGeoPath := config.TranslationPathFor("pl", config.MirrorPath(familyFriendly, geoSource))
 	if geoSpec.MirrorPath != wantGeoPath || geoSpec.SourceFile != geoSource {
 		t.Errorf("geo spec = %q / %q, want %q / %q", geoSpec.MirrorPath, geoSpec.SourceFile, wantGeoPath, geoSource)
 	}

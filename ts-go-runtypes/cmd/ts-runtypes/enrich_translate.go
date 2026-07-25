@@ -11,6 +11,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
+	"github.com/mionkit/ts-runtypes/internal/enrichment/enrichgen"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
 )
 
@@ -27,7 +28,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 	locales := resolveTranslateLocales(translateValue, config)
 	// The i18n root is a conventional dir under genDir — self-document it the
 	// moment the translate lane touches it.
-	config.ensureFamilyReadme(defaultI18nDirName)
+	ensureFamilyReadme(config, defaultI18nDirName)
 
 	// --prune is a pure carcass sweep over the locale files — it never needs the
 	// Program, so it runs (and exits) before any program building.
@@ -35,7 +36,7 @@ func runGenTranslate(translateValue string, positional []string, update, prune b
 		pruned := 0
 		for _, locale := range locales {
 			for _, sourceMirror := range sourceMirrors {
-				pruned += pruneMirrorFile(config.translationPathFor(locale, sourceMirror))
+				pruned += pruneMirrorFile(config.TranslationPathFor(locale, sourceMirror))
 			}
 		}
 		fmt.Fprintf(os.Stderr, "gen --translate --prune: %d orphan block(s) removed\n", pruned)
@@ -79,7 +80,7 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 	if len(positional) > 0 {
 		src := tspath.NormalizePath(mustAbs(positional[0]))
 		config := resolveEnrichConfig(src, genDirFlag, tsconfigPath, parsed)
-		return config, []string{config.mirrorPath(familyFriendly, src)}
+		return config, []string{config.MirrorPath(familyFriendly, src)}
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -169,7 +170,7 @@ func buildTranslationSpecs(config enrichConfig, sourceMirror string, locales []s
 	if !ok {
 		return nil, false
 	}
-	prog, res, err := buildProgram(discovery.declFile, config.parsed)
+	prog, res, err := buildProgram(discovery.declFile, config.Parsed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gen --translate: skipping %s: %v\n", sourceMirror, err)
 		return nil, false
@@ -260,14 +261,14 @@ func translationSpecs(config enrichConfig, locale string, closure []enrichment.N
 	}
 
 	mirrorPathFor := func(declFile string) string {
-		return config.translationPathFor(locale, config.mirrorPath(familyFriendly, declFile))
+		return config.TranslationPathFor(locale, config.MirrorPath(familyFriendly, declFile))
 	}
 	var specs []mirror.Spec
-	for _, group := range groupByDeclFile(transformed, fallbackDeclFile, false) {
+	for _, group := range enrichgen.GroupByDeclFile(transformed, fallbackDeclFile, false) {
 		specs = append(specs, mirror.Spec{
-			MirrorPath:    mirrorPathFor(group.declFile),
-			SourceFile:    group.declFile,
-			Consts:        group.consts,
+			MirrorPath:    mirrorPathFor(group.DeclFile),
+			SourceFile:    group.DeclFile,
+			Consts:        group.Consts,
 			VarDeclFile:   varDeclFile,
 			WantFriendly:  true,
 			WantMock:      false,
@@ -334,7 +335,7 @@ func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string) {
 		// file-local findings (TR001/TR002/TR004) — just no TR003.
 		specsByLocale, _ := buildTranslationSpecs(config, sourceMirror, locales)
 		for _, locale := range locales {
-			translationPath := config.translationPathFor(locale, sourceMirror)
+			translationPath := config.TranslationPathFor(locale, sourceMirror)
 			checkedFiles++
 			spec := specForMirrorPath(specsByLocale[locale], translationPath)
 			findings = append(findings, checkTranslationFile(locale, translationPath, spec, severity)...)

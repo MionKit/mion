@@ -24,7 +24,7 @@ import (
 //   - neither family file may already exist (a half-migrated state is
 //     surfaced, never clobbered).
 func migrateLegacyMirror(config enrichConfig, declFile string) {
-	legacyPath := config.legacyMirrorPath(declFile)
+	legacyPath := config.LegacyMirrorPath(declFile)
 	legacyBytes, err := os.ReadFile(legacyPath)
 	if err != nil {
 		return // no legacy combined mirror — nothing to migrate
@@ -39,8 +39,8 @@ func migrateLegacyMirror(config enrichConfig, declFile string) {
 		return // some other source's file — not this mirror's legacy home
 	}
 
-	friendlyPath := config.mirrorPath(familyFriendly, declFile)
-	mockPath := config.mirrorPath(familyMock, declFile)
+	friendlyPath := config.MirrorPath(familyFriendly, declFile)
+	mockPath := config.MirrorPath(familyMock, declFile)
 	for _, familyPath := range []string{friendlyPath, mockPath} {
 		if _, statErr := os.Stat(familyPath); statErr == nil {
 			fmt.Fprintf(os.Stderr,

@@ -39,18 +39,18 @@ func migrateFixture(t *testing.T) (enrichConfig, string) {
 // legacy file is deleted; a second run is a no-op.
 func TestMigrateLegacyMirror_SplitsAndDeletes(t *testing.T) {
 	config, source := migrateFixture(t)
-	legacyPath := config.legacyMirrorPath(source)
+	legacyPath := config.LegacyMirrorPath(source)
 
 	migrateLegacyMirror(config, source)
 
 	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
 		t.Errorf("legacy combined mirror should be deleted after migration; stat err = %v", err)
 	}
-	friendlyBytes, err := os.ReadFile(config.mirrorPath(familyFriendly, source))
+	friendlyBytes, err := os.ReadFile(config.MirrorPath(familyFriendly, source))
 	if err != nil {
 		t.Fatalf("friendly mirror not written: %v", err)
 	}
-	mockBytes, err := os.ReadFile(config.mirrorPath(familyMock, source))
+	mockBytes, err := os.ReadFile(config.MirrorPath(familyMock, source))
 	if err != nil {
 		t.Fatalf("mock mirror not written: %v", err)
 	}
@@ -69,8 +69,8 @@ func TestMigrateLegacyMirror_SplitsAndDeletes(t *testing.T) {
 
 	// Second run: nothing to migrate, both files byte-identical.
 	migrateLegacyMirror(config, source)
-	friendlyAgain, _ := os.ReadFile(config.mirrorPath(familyFriendly, source))
-	mockAgain, _ := os.ReadFile(config.mirrorPath(familyMock, source))
+	friendlyAgain, _ := os.ReadFile(config.MirrorPath(familyFriendly, source))
+	mockAgain, _ := os.ReadFile(config.MirrorPath(familyMock, source))
 	if string(friendlyAgain) != friendly || string(mockAgain) != mock {
 		t.Errorf("second migrateLegacyMirror run must be a byte-identical no-op")
 	}
@@ -80,12 +80,12 @@ func TestMigrateLegacyMirror_SplitsAndDeletes(t *testing.T) {
 // the migration (half-migrated state is surfaced, never overwritten).
 func TestMigrateLegacyMirror_NeverClobbers(t *testing.T) {
 	config, source := migrateFixture(t)
-	friendlyPath := config.mirrorPath(familyFriendly, source)
+	friendlyPath := config.MirrorPath(familyFriendly, source)
 	writeTestFile(t, friendlyPath, "// hand-made friendly file\n")
 
 	migrateLegacyMirror(config, source)
 
-	if _, err := os.Stat(config.legacyMirrorPath(source)); err != nil {
+	if _, err := os.Stat(config.LegacyMirrorPath(source)); err != nil {
 		t.Errorf("legacy mirror must survive a blocked migration; stat err = %v", err)
 	}
 	kept, _ := os.ReadFile(friendlyPath)
@@ -99,7 +99,7 @@ func TestMigrateLegacyMirror_NeverClobbers(t *testing.T) {
 // literal friendly/ dir) is left alone.
 func TestMigrateLegacyMirror_ForeignFileUntouched(t *testing.T) {
 	config, source := migrateFixture(t)
-	legacyPath := config.legacyMirrorPath(source)
+	legacyPath := config.LegacyMirrorPath(source)
 	foreign := "import type { Other } from '../../src/other';\n" +
 		"import type { FriendlyType } from '@ts-runtypes/core';\n\n" +
 		"export const friendlyOther: FriendlyType<Other> = {rt$label: '', rt$errors: {type: ''}};\n"
