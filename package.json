@@ -33,7 +33,6 @@
     "check:env": "node scripts/rt.mjs env",
     "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
     "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
-    "check-format-pre-commit": "oxfmt --check",
     "lint": "pnpm run lint:runtypes && pnpm run typecheck",
     "prelint:runtypes": "pnpm run check:builds",
     "lint:runtypes": "oxlint",
@@ -49,13 +48,13 @@
   },
   "lint-staged": {
     "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
-      "pnpm run check-format-pre-commit --"
+      "oxfmt --check"
     ],
     "packages/**/*.{spec,test}.ts": [
-      "pnpm run check-format-pre-commit --"
+      "oxfmt --check"
     ],
     "**/*.ts": [
-      "pnpm exec oxlint --no-error-on-unmatched-pattern"
+      "oxlint --no-error-on-unmatched-pattern"
     ]
   },
   "devDependencies": {
