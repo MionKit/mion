@@ -135,11 +135,15 @@ Deep-dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Load-bearing invariants
 - **Two markers + demand-driven caches** — `InjectRunTypeId<T>` (injects typeId) drives the reflection cache; `InjectTypeFnArgs<T, Fn>` (injects typeId + opaque 3-char fnHash) drives per-family caches that contain ONLY the types their own call sites demand — a `getRunTypeId`-only file emits ZERO function-cache entries.
 - **Validate contract — serializable data only** — validators / decoders operate on the JSON-shaped projection of `T`; non-serialisable members (functions, symbols, getters) silently drop with a build-time **Warning** and decoders return `DataOnly<T>`. Line to remember: **Warning** = expected drop, fine; **Error** = will throw at runtime, build must fail.
 
+## Public surfaces (website + npm READMEs)
+
+Two surfaces reach users: [container/website/content/](container/website/content/) and the published package READMEs. **Neither documents internal or dev-only material** (env knobs like `RT_BIN`, container/release plumbing, resolver internals) — that belongs in [SETUP.md](SETUP.md) or [docs/](docs/). **Published READMEs are a short description of the package plus a link to the docs site; don't grow them** (they are being trimmed to that shape by [docs/todos/review-package-readmes.md](docs/todos/review-package-readmes.md) — once it lands, treat them as settled and leave them alone).
+
 ## Website Documentation (`container/website/content/`)
 
 User-facing docs under [container/website/content/](container/website/content/) (Nuxt + Docus Markdown + MDC) follow a deliberate, reader-first voice. Keep it when editing:
 
-- **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics).
+- **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics). Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
 - **No dashes chaining clauses or sentences.** No em-dash, en-dash, `--`, or a spaced single `-` as punctuation; use a comma, a period, or parentheses. Hyphenated words (`build-time`) and dashes inside code / flags / URLs are fine.
 - **Prefer fenced code blocks over heavy inline `code`.** Keep essential public API / type names, but do not clutter prose with backticks.
 - **Short frontmatter `description`:** one simple sentence, aim under ~100 chars; leave already-short ones alone.
