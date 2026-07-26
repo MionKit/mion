@@ -6,7 +6,7 @@
  * ######## */
 
 import {getRTFnCaches, getRTUtils} from '@ts-runtypes/core';
-import type {PureFnId} from '@ts-runtypes/core';
+import type {PureFnId, CompiledPureFunction} from '@ts-runtypes/core';
 import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# mion pure functions — ts-runtypes registry, 'mionjs' namespace #############
@@ -28,21 +28,9 @@ export function mionPureFnId(name: string): PureFnId {
     return `${MION_PURE_FN_NAMESPACE}::${name}`;
 }
 
-/** Live pure-fn cache entry shape (mirror of ts-runtypes CompiledPureFunction). */
-interface MionCompiledPureFn {
-    namespace: string;
-    fnName: string;
-    bodyHash: string;
-    paramNames: string[];
-    code: string;
-    pureFnDependencies: string[];
-    createPureFn: (utl: unknown) => (...args: any[]) => any;
-    fn?: (...args: any[]) => any;
-}
-
 /** The live ts-runtypes pure-fn cache (the original object, string-keyed). */
-function pureFnsCache(): Record<string, MionCompiledPureFn | undefined> {
-    return getRTFnCaches().pureFnsCache as Record<string, MionCompiledPureFn | undefined>;
+function pureFnsCache(): Record<string, CompiledPureFunction | undefined> {
+    return getRTFnCaches().pureFnsCache as Record<string, CompiledPureFunction | undefined>;
 }
 
 /** Keys resolvable as routesFlow mappers — ONLY keys registered through mion's own lanes
@@ -61,7 +49,7 @@ export function registerMionPureFn<Fn extends (...args: any[]) => any>(name: str
         existing.fn = undefined;
         return existing;
     }
-    const compiled: MionCompiledPureFn = {
+    const compiled: CompiledPureFunction = {
         namespace: MION_PURE_FN_NAMESPACE,
         fnName: name,
         bodyHash: '',
