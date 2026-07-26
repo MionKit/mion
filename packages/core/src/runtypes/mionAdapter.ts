@@ -18,8 +18,8 @@ import type {
 import {getJitFnHashes} from '../routerUtils.ts';
 import type {
     AnyFn,
-    JitCompiledFn,
-    JitCompiledFnData,
+    CompiledTypeFn,
+    CompiledFnData,
     JitCompiledFunctions,
     JitFunctionsHashes,
     PureFnsDataCache,
@@ -85,7 +85,7 @@ const nativeStringify: StringifyJsonFn = (value: unknown) => JSON.stringify(valu
  * the ts-runtypes runtime cache. Fns materialize lazily from their code strings on first
  * lookup; entries already present (e.g. build-injected) are never overwritten.
  */
-export function addSerializedJitCaches(deps: Record<string, JitCompiledFnData>, pureFnDeps: PureFnsDataCache): void {
+export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pureFnDeps: PureFnsDataCache): void {
     const utl = getRTUtils();
     for (const [rtFnHash, data] of Object.entries(deps)) {
         if (utl.hasRTFn(rtFnHash)) continue;
@@ -97,7 +97,7 @@ export function addSerializedJitCaches(deps: Record<string, JitCompiledFnData>, 
             defaultParamValues: data.defaultParamValues,
             isNoop: data.isNoop,
             code: data.code,
-            rtDependencies: data.jitDependencies,
+            rtDependencies: data.rtDependencies,
             pureFnDependencies: data.pureFnDependencies,
         } as never);
     }
@@ -132,7 +132,7 @@ function isInjectedFnsArray(injected: unknown): injected is unknown[] {
 }
 
 /** Wraps one resolved fn, preferring the full ts-runtypes cache entry (real code/isNoop/deps) when present. */
-function wrapResolvedFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): JitCompiledFn<Fn> {
+function wrapResolvedFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): CompiledTypeFn<Fn> {
     const entry = getRtEntry(rtFnHash);
     if (entry) return wrapRtEntry<Fn>(entry, fnID);
     return toJitCompiledFn(fn, fnID, label, rtFnHash);

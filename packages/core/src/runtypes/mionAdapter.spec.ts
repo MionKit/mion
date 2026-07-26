@@ -97,10 +97,10 @@ describe('mionAdapter: reflection from injected markers', () => {
         for (const key of ['isType', 'typeErrors', 'restoreFromJson', 'stringifyJson'] as const) {
             const compiled = resolveJIT(hashes[key]);
             expect(compiled, `entry for ${key} (${hashes[key]})`).toBeDefined();
-            expect(compiled!.jitFnHash).toBe(hashes[key]);
+            expect(compiled!.rtFnHash).toBe(hashes[key]);
             if (!compiled!.isNoop) expect(compiled!.code.length).toBeGreaterThan(0);
         }
-        expect(reflection.paramsJitFns.isType.jitFnHash).toBe(hashes.isType);
+        expect(reflection.paramsJitFns.isType.rtFnHash).toBe(hashes.isType);
         // rebuild validate from its emitted code (the client metadata lane)
         const compiledIsType = resolveJIT(hashes.isType)!;
         const rebuilt = new Function('utl', compiledIsType.code)(getRTUtils());

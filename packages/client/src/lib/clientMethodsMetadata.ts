@@ -9,7 +9,7 @@ import {isRpcError, addRoutesToCache} from '@mionjs/core';
 import {MION_ROUTES} from '@mionjs/core';
 import {ClientOptions, SubRequest} from '../types.ts';
 import type {
-    JitCompiledFnData,
+    CompiledFnData,
     MethodsCache,
     MethodWithOptions,
     PureFunctionData,
@@ -49,8 +49,8 @@ function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
     return `${METHOD_DATA_PREFIX}${methodId}:${options.baseURL}`;
 }
 
-function getJitCompiledFnKey(jitFnHash: string, options: ClientOptions) {
-    return `${JIT_FN_PREFIX}${jitFnHash}:${options.baseURL}`;
+function getJitCompiledFnKey(rtFnHash: string, options: ClientOptions) {
+    return `${JIT_FN_PREFIX}${rtFnHash}:${options.baseURL}`;
 }
 
 function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientOptions) {
@@ -58,8 +58,8 @@ function getJitPureFnKey(namespace: string, pureFnHash: string, options: ClientO
 }
 
 /** Stores JIT compiled functions and pure functions globally in localStorage */
-export function storeDependencies(deps: Record<string, JitCompiledFnData>, pureFnDeps: PureFnsDataCache, options: ClientOptions) {
-    Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
+export function storeDependencies(deps: Record<string, CompiledFnData>, pureFnDeps: PureFnsDataCache, options: ClientOptions) {
+    Object.entries(deps).forEach(([hash, jitFnData]: [string, CompiledFnData]) => {
         const key = getJitCompiledFnKey(hash, options);
         try {
             getStorage().setItem(key, JSON.stringify(jitFnData));
@@ -95,7 +95,7 @@ export function storeMethodsMetadata(methods: MethodsCache, options: ClientOptio
 
 /** Restores all JIT compiled functions and pure functions from localStorage and deserializes them */
 export function restoreAllDependencies(options: ClientOptions) {
-    const deps: Record<string, JitCompiledFnData> = {};
+    const deps: Record<string, CompiledFnData> = {};
     const pureFnDeps: PureFnsDataCache = {};
     const baseURLSuffix = `:${options.baseURL}`;
 
@@ -106,7 +106,7 @@ export function restoreAllDependencies(options: ClientOptions) {
                 const data = getStorage().getItem(key);
                 if (data) {
                     const parsedData = JSON.parse(data);
-                    deps[parsedData.jitFnHash] = parsedData;
+                    deps[parsedData.rtFnHash] = parsedData;
                 }
             } catch (error) {
                 console.warn(`Failed to restore JIT function from key ${key}:`, error);
