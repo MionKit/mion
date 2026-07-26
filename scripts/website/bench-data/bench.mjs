@@ -234,7 +234,7 @@ function cmdFullbench(cfg) {
   // results, so a non-zero exit here is a REPORT, not a run failure.
   if (runInContainer(cfg, ['node', 'aggregate.mjs']) !== 0) note('aggregate: cross-library correctness divergences reported above (non-zero exit) - continuing the publish pipeline');
   note('typecost');
-  runInContainer(cfg, ['node', 'typecost/typecost.mjs']);
+  if (runInContainer(cfg, ['node', 'typecost/typecost.mjs']) !== 0) die('bench: typecost FAILED - see output above (the Compile Time page reads its results).');
   note('capture run environment (os / cpu / library versions)');
   runInContainer(cfg, ['node', 'capture-env.mjs']);
   publishDocdata(cfg);
@@ -256,7 +256,11 @@ function cmdSerialization(cfg) {
   const extraMounts = [];
   if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
-  run(
+  // MUST be checked: gen-serialization.mjs WIPES its output dir before writing, so a
+  // failed run leaves the serialization datasets deleted or half-written. Swallowing
+  // this code let cmdWebsiteBench carry on and ship a green site whose two
+  // serialization pages rendered "Benchmark data not generated yet".
+  const code = run(
     cfg.engine,
     [
       'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
@@ -281,6 +285,7 @@ function cmdSerialization(cfg) {
     ],
     {stdio: ['ignore', 'inherit', 'inherit']},
   );
+  if (code !== 0) die('bench: serialization bench FAILED - see output above. container/website/public/bench-data/serialization{,-formats}/ is now missing or half-written; re-run before building the site.');
 }
 
 function cmdWebsiteBench(cfg) {
@@ -296,7 +301,7 @@ function cmdWebsiteBench(cfg) {
 function cmdBuild(cfg, name) {
   ensurePrereqs(cfg);
   if (name) {
-    runInContainer(cfg, ['sh', '-c', `cd competitors/${name} && pnpm run build && test -d dist`]);
+    if (runInContainer(cfg, ['sh', '-c', `cd competitors/${name} && pnpm run build && test -d dist`]) !== 0) die(`bench: build '${name}' FAILED - see output above`);
     return;
   }
   let failures = 0;
@@ -315,7 +320,7 @@ function cmdBuild(cfg, name) {
 function cmdTypecost(cfg) {
   ensurePrereqs(cfg);
   note('measuring per-competitor TS type-instantiation cost in the container');
-  runInContainer(cfg, ['node', 'typecost/typecost.mjs']);
+  if (runInContainer(cfg, ['node', 'typecost/typecost.mjs']) !== 0) die('bench: typecost FAILED - see output above.');
 }
 
 function cmdCompiletime(cfg) {

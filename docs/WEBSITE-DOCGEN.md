@@ -135,9 +135,12 @@ Pages uses ([serve.mjs](../scripts/website/serve.mjs)) and replays what a browse
 
 It runs as the last stage of `pnpm rtx website build` (target `generate`) and again as an
 explicit gate in [website-deploy.yml](../.github/workflows/website-deploy.yml) before the
-Cloudflare upload. It exists because the tables degrade gracefully: a benchmark stage that
-dies mid-run leaves its dataset missing and every downstream step still succeeds, so the
-deploy goes green with an empty page (this is how the serialization pages shipped blank).
+Cloudflare upload. It exists because the tables degrade gracefully: a dataset that never
+arrived still renders a page, just an empty one — which is how the serialization pages
+shipped blank. The generating stages now fail loudly when a run dies (see
+[docs/done/serialization-bench-swallows-container-exit.md](done/serialization-bench-swallows-container-exit.md)),
+so this check is the backstop for whatever the next silent gap turns out to be, not the
+primary alarm.
 
 ## Regenerating
 
