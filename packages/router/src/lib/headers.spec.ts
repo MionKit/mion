@@ -12,7 +12,7 @@ import {route, headersFn, middleFn} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {MionHeaders} from '../types/context.ts';
 import {HeadersSubset, RpcError, StatusCodes} from '@mionjs/core';
-import {createValidate, createGetValidationErrors} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -29,7 +29,7 @@ describe('Request and Response Headers', () => {
 
     describe('can compile jit functions for headers', () => {
         it('should compile isType function for headers - only required', () => {
-            const isType = createValidate<HeadersSubset<'Authorization'>>();
+            const isType = createValidateFn<HeadersSubset<'Authorization'>>();
             expect(isType(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual(true);
             expect(isType(new HeadersSubset({} as any))).toEqual(false);
             expect(isType(3)).toEqual(false);
@@ -38,14 +38,14 @@ describe('Request and Response Headers', () => {
         });
 
         it('should compile isType function for headers - only optional', () => {
-            const isType = createValidate<HeadersSubset<never, 'X-User-Id'>>();
+            const isType = createValidateFn<HeadersSubset<never, 'X-User-Id'>>();
             expect(isType(new HeadersSubset({}))).toEqual(true);
             expect(isType(new HeadersSubset({'X-User-Id': 'user-123'}))).toEqual(true);
             expect(isType(3)).toEqual(false);
         });
 
         it('should compile isType function for headers - both required and optional', () => {
-            const isType = createValidate<HeadersSubset<'Authorization', 'X-User-Id'>>();
+            const isType = createValidateFn<HeadersSubset<'Authorization', 'X-User-Id'>>();
             expect(isType(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual(true);
             expect(isType(new HeadersSubset({Authorization: 'Bearer 1234', 'X-User-Id': 'user-1234'}))).toEqual(true);
             expect(isType(new HeadersSubset({'X-User-Id': 'user-1234'} as any))).toEqual(false);
@@ -54,7 +54,7 @@ describe('Request and Response Headers', () => {
         });
 
         it('should compile typeErrors function for headers', () => {
-            const typeErrors = createGetValidationErrors<HeadersSubset<'Authorization', 'X-User-Id'>>();
+            const typeErrors = createGetValidationErrorsFn<HeadersSubset<'Authorization', 'X-User-Id'>>();
             expect(typeErrors(new HeadersSubset({Authorization: 'Bearer 1234'}))).toEqual([]);
             expect(typeErrors(new HeadersSubset({Authorization: 'Bearer 1234', 'X-User-Id': 'user-1234'}))).toEqual([]);
             const missingRequired = typeErrors(new HeadersSubset({'X-User-Id': 'user-1234'} as any));

@@ -1,12 +1,12 @@
-import {createValidate} from '@ts-runtypes/core';
+import {createValidateFn} from '@ts-runtypes/core';
 
 interface User {
     name: string;
     age: number;
 }
 
-// createValidate is synchronous — the mion vite plugin injects the compiled validator at build time.
-const validate = createValidate<User>();
+// createValidateFn is synchronous — the mion vite plugin injects the compiled validator at build time.
+const validate = createValidateFn<User>();
 
 validate({name: 'John', age: 30}); // true
 validate({name: 'John'}); // false (missing age)

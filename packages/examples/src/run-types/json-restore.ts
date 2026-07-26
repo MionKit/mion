@@ -1,4 +1,4 @@
-import {createJsonDecoder} from '@ts-runtypes/core';
+import {createJsonDecoderFn} from '@ts-runtypes/core';
 
 interface Event {
     name: string;
@@ -6,9 +6,9 @@ interface Event {
     metadata: Map<string, any>;
 }
 
-// createJsonDecoder returns a JSON-string -> value decoder. It parses and revives
+// createJsonDecoderFn returns a JSON-string -> value decoder. It parses and revives
 // every member back to its declared type (ISO string -> Date, entries -> Map).
-const decodeEvent = createJsonDecoder<Event>();
+const decodeEvent = createJsonDecoderFn<Event>();
 
 const jsonString = '{"name":"Click","timestamp":"2025-01-15T00:00:00.000Z","metadata":[["source","web"]]}';
 const event = decodeEvent(jsonString);

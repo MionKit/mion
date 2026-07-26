@@ -11,7 +11,7 @@ interface IBbsArticle {
 }
 
 // ❌ Must create validator with explicit generic type
-const validate = typia.createValidate<IBbsArticle>();
+const validate = typia.createValidateFn<IBbsArticle>();
 
 const app = new Hono();
 
