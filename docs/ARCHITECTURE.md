@@ -76,7 +76,7 @@ the compiler would, which means what we resolve as `T` is what TypeScript resolv
 
 ### How it runs
 
-The program has four subcommands:
+The program has three subcommands:
 
 - **`serve`** is the normal mode. It starts once, keeps the parsed project and the type
   checker in memory, and speaks one JSON message per line over standard input and output.
@@ -84,8 +84,12 @@ The program has four subcommands:
 - **`compile`** is a one shot batch build for projects with no bundler plugin. It is the
   only mode that writes JavaScript, and it does so by handing the rewritten source back
   to TypeScript's own emitter and then stitching the source maps together.
-- **`gen`** and **`check`** serve the enrichment workflow described below. Both are one
-  shot and off the normal build path.
+- **`enrich`** serves the enrichment workflow described below: it scaffolds the hand
+  edited files, re-syncs them when a type changes, and checks them. One shot and off the
+  normal build path.
+
+`compile` and `enrich` both take `--no-emit`, which turns either into a report that writes
+nothing, the way `tsc --noEmit` does.
 
 Settings come from your `tsconfig.json` (a `ts-runtypes` entry under `plugins`), with
 command line flags taking precedence, mirroring how `tsc` resolves its own options. The
@@ -157,9 +161,17 @@ hand edited**, which makes them a different kind of artifact from everything els
 The compiler owns each file's location, its structure, and its imports. You own the
 values inside. Regenerating merges rather than overwrites: your text is preserved, new
 fields are added, and a field whose type disappeared is parked in place rather than
-deleted. Freshly scaffolded spots are tagged `@todo`, and parked leftovers are tagged
-`@rtOrphan`; the lint rules refuse to let either reach a commit. The `cldr` helper picks
-the right plural forms per language at generation time only.
+deleted. Freshly scaffolded spots are tagged `@todo` and left blank, and parked leftovers
+are tagged `@rtOrphan`; the lint rules refuse to let a leftover reach a commit. An
+unfilled spot is reported but tolerated while you are still writing, and becomes an error
+under `enrich --require-complete`, which is also what a production build enforces (a blank
+label would otherwise ship blank to the app). The `cldr` helper picks the right plural
+forms per language at generation time only.
+
+The same merge engine answers the running dev server, so a project can opt into keeping
+these files in sync automatically instead of running the command by hand. It computes the
+files and hands them back; only the caller ever writes, and a production build never
+writes at all.
 
 ### The rest of `internal/`
 
