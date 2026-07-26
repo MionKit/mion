@@ -17,9 +17,10 @@
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
-import {readFileSync, existsSync, readdirSync, statSync} from 'node:fs';
+import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
+import {tmpdir} from 'node:os';
 // @ts-expect-error — a plain .mjs script, no types
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
 // @ts-expect-error — a plain .mjs script, no types
@@ -192,5 +193,48 @@ describe('rtx release — help and typos never reach the publish umbrella', () =
 
   it('keeps `rtx --help` and `rtx release --help` in sync (one source)', () => {
     expect(rtx(['--help']).stdout).toContain(rtx(['release', '--help']).stdout.trim());
+  });
+});
+
+// RT_WEBSITE_CA_CERT is documented as "trust these certs in the image", but baking
+// only helps an image we BUILD — the normal path pulls a prebuilt one from GHCR,
+// which never saw this host's proxy CA. Its containers still reach the network at
+// RUN time (verdaccio's uplink to npmjs), so the same certs must be mounted, as a
+// FILE: NODE_EXTRA_CA_CERTS cannot take a directory.
+describe('container CA plumbing — the run-time twin of the baked certs', () => {
+  const caArgs = async (caSrc: string, dir: string): Promise<string[]> => {
+    // @ts-expect-error — a plain .mjs script, no types
+    const {caRunArgs} = await import('../../../scripts/container/image.mjs');
+    return caRunArgs({caSrc, dir, mountOpts: ''}) as string[];
+  };
+
+  it('mounts a CA FILE and points Node at it', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rt-ca-'));
+    const cert = join(dir, 'proxy.crt');
+    writeFileSync(cert, '-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n');
+    const args = await caArgs(cert, dir);
+    expect(args).toContain('-v');
+    expect(args.some((arg) => arg.startsWith(`${cert}:`) && arg.endsWith(':ro'))).toBe(true);
+    const mount = args.find((arg) => arg.startsWith(`${cert}:`))!.split(':')[1];
+    expect(args).toContain(`NODE_EXTRA_CA_CERTS=${mount}`);
+  });
+
+  it('concatenates a CA DIR into one bundle, since Node cannot take a dir', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rt-ca-'));
+    const certsDir = join(dir, 'certs');
+    mkdirSync(certsDir, {recursive: true});
+    writeFileSync(join(certsDir, 'a.crt'), 'AAA\n');
+    writeFileSync(join(certsDir, 'b.crt'), 'BBB\n');
+    const args = await caArgs(certsDir, dir);
+    const bundle = args[args.indexOf('-v') + 1].split(':')[0];
+    expect(bundle.endsWith('.crt')).toBe(true);
+    const written = readFileSync(bundle, 'utf8');
+    expect(written).toContain('AAA');
+    expect(written).toContain('BBB');
+  });
+
+  it('adds nothing when there is no CA to add', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rt-ca-'));
+    expect(await caArgs(join(dir, 'missing.crt'), dir)).toEqual([]);
   });
 });

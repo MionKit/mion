@@ -78,7 +78,7 @@ export const REGISTRY = [
   {name: 'RT_WEBSITE_BUILD_NETWORK', scope: 'dev', task: '-', desc: 'podman build network (e.g. "host" behind a proxy)'},
   {name: 'RT_WEBSITE_BASE_IMAGE', scope: 'dev', task: '-', desc: 'Node base image (default node:26-bookworm); mirror for air-gapped builds'},
   {name: 'RT_WEBSITE_PNPM_VERSION', scope: 'dev', task: '-', desc: 'Override the pnpm version baked into the image'},
-  {name: 'RT_WEBSITE_CA_CERT', scope: 'dev', task: '-', desc: 'File/dir of extra CA certs to trust in the image (corporate/MITM proxy)'},
+  {name: 'RT_WEBSITE_CA_CERT', scope: 'dev', task: '-', desc: 'File/dir of extra CA certs to trust in the image (corporate/MITM proxy). Used at BUILD time (baked) and at RUN time (mounted + NODE_EXTRA_CA_CERTS) so a PULLED image can still reach TLS endpoints, e.g. the e2e verdaccio uplink to npmjs'},
   {name: 'RT_WEBSITE_REMOTE_IMAGE', scope: 'dev', task: '-', desc: 'GHCR ref to pull (default ghcr.io/$GHCR_OWNER/tsrt-website:latest)'},
   {name: 'RT_WEBSITE_SMOKE_TIMEOUT', scope: 'dev', task: '-', desc: 'Seconds to wait for the smoke/verify server (default 90/120)'},
 

@@ -24,7 +24,7 @@
 // network / CA knobs are SHARED across both images; only the tsrt-website tag + ref
 // are env-overridable (the maintainer/CI-only tsrt-e2e uses fixed GHCR coordinates).
 
-import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {ghcrConfig, ghcrLogin, ghcrPullRetag, ghcrPushMultiarch, ghcrTryPullRetag, imageExists, requireEngine} from '../lib/engine.mjs';
@@ -86,21 +86,53 @@ function config(env = process.env, target = 'website') {
   };
 }
 
+// Behind a corporate / MITM egress proxy the container must trust the proxy CA.
+// Resolve the source once: the explicit RT_WEBSITE_CA_CERT, else the host's
+// standard custom-CA dir IF it holds certs (a no-op on a normal host / macOS).
+const HOST_CA_DIR = '/usr/local/share/ca-certificates';
+
+function resolveCaSrc(caSrc, {quiet = false} = {}) {
+  if (caSrc) return caSrc;
+  if (existsSync(HOST_CA_DIR) && globSync('*.crt', {cwd: HOST_CA_DIR}).length > 0) {
+    if (!quiet) note(`auto-detected host CA certs in ${HOST_CA_DIR} (corporate/MITM proxy); trusting them in the image`);
+    return HOST_CA_DIR;
+  }
+  return '';
+}
+
+// Where the runtime CA bundle is mounted inside a container (see caRunArgs).
+const CA_RUNTIME_MOUNT = '/etc/ssl/certs/rt-extra-ca.crt';
+
+// The RUNTIME twin of prepareCacerts. Baking the CA only helps an image we BUILD;
+// the normal path pulls a prebuilt image from GHCR, which never saw this host's
+// proxy. Anything the container does over TLS at RUN time then fails - notably
+// verdaccio's uplink to registry.npmjs.org, which 404s every proxied package with
+// SELF_SIGNED_CERT_IN_CHAIN and strands the whole e2e lane. Mount the certs as ONE
+// bundle file (NODE_EXTRA_CA_CERTS takes a file, never a dir) and point Node at it.
+// Returns podman args, empty when there is no CA to add.
+export function caRunArgs(cfg) {
+  const caSrc = resolveCaSrc(cfg.caSrc, {quiet: true});
+  if (!caSrc || !existsSync(caSrc)) return [];
+  let bundle = caSrc;
+  if (statSync(caSrc).isDirectory()) {
+    const certs = globSync('*.crt', {cwd: caSrc});
+    if (certs.length === 0) return [];
+    // Concatenate the dir into one file next to the build context's staged certs
+    // (.cacerts/ is git-ignored), since a dir cannot be handed to Node directly.
+    bundle = join(cfg.dir, '.cacerts', 'runtime-bundle.crt');
+    mkdirSync(join(cfg.dir, '.cacerts'), {recursive: true});
+    writeFileSync(bundle, certs.map((crt) => readFileSync(join(caSrc, crt), 'utf8')).join('\n'));
+  }
+  return ['-v', `${bundle}:${CA_RUNTIME_MOUNT}:ro${cfg.mountOpts}`, '-e', `NODE_EXTRA_CA_CERTS=${CA_RUNTIME_MOUNT}`];
+}
+
 // Populate <build-context>/.cacerts/ from RT_WEBSITE_CA_CERT (file or dir). Always
 // leaves the dir present (possibly empty) so the Containerfile COPY never fails.
 function prepareCacerts(cfg) {
   const cacertsDir = join(cfg.dir, '.cacerts');
   rmSync(cacertsDir, {recursive: true, force: true});
   mkdirSync(cacertsDir, {recursive: true});
-  // Behind a corporate / MITM egress proxy the image must trust the proxy CA. When
-  // no explicit RT_WEBSITE_CA_CERT was given, fall back to the host's standard
-  // custom-CA dir IF it holds certs (a no-op on a normal host / macOS).
-  let caSrc = cfg.caSrc;
-  const hostCaDir = '/usr/local/share/ca-certificates';
-  if (!caSrc && existsSync(hostCaDir) && globSync('*.crt', {cwd: hostCaDir}).length > 0) {
-    caSrc = hostCaDir;
-    note(`auto-detected host CA certs in ${hostCaDir} (corporate/MITM proxy); trusting them in the image`);
-  }
+  const caSrc = resolveCaSrc(cfg.caSrc);
   if (caSrc) {
     if (existsSync(caSrc) && statSync(caSrc).isDirectory()) {
       for (const crt of globSync('*.crt', {cwd: caSrc})) copyFileSync(join(caSrc, crt), join(cacertsDir, crt));
@@ -302,6 +334,9 @@ export function startRegistry(opts = {}) {
       '-e', 'RT_E2E_VERDACCIO_CONFIG=/e2e-src/registry/verdaccio.yaml',
       '-p', `127.0.0.1:${port}:4873`,
       ...net,
+      // verdaccio proxies everything that is not @ts-runtypes/* to npmjs, so its
+      // uplink needs the host's CA behind a MITM proxy.
+      ...caRunArgs(cfg),
       '--health-cmd', 'test -f /tmp/registry-ready',
       '--health-interval', '2s',
       '--health-retries', '90',
@@ -332,7 +367,9 @@ export function startToolchainContainer(opts = {}) {
   note(`starting e2e toolchain container (${container}) for the real-registry matrix`);
   runOrThrow(
     cfg.engine,
-    ['run', '-d', '--init', '--name', container, '-v', `${opts.e2eSrcDir}:/e2e-src:ro${cfg.mountOpts}`, ...net, cfg.image, 'sleep', 'infinity'],
+    // This one installs from the REAL registry (post-publish matrix), so it needs
+    // the host's CA behind a MITM proxy just as much as the verdaccio lane.
+    ['run', '-d', '--init', '--name', container, '-v', `${opts.e2eSrcDir}:/e2e-src:ro${cfg.mountOpts}`, ...net, ...caRunArgs(cfg), cfg.image, 'sleep', 'infinity'],
     {stdio: ['inherit', 'ignore', 'inherit']}
   );
   return {engine: cfg.engine, container, image: cfg.image};
