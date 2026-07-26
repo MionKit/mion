@@ -1,15 +1,15 @@
 import { resolve, sep } from 'node:path'
 
-// The website documents the mion monorepo. At build/dev time the code-import and
-// twoslash mechanisms read first-party source + built .d.ts from <repoRoot>/packages.
+// The website documents the RunTypes monorepo. At build/dev time the code-import
+// and twoslash mechanisms read first-party source + built .d.ts from
+// <repoRoot>/packages.
 //
-// RT_REPO_ROOT points at the directory that CONTAINS `packages/` (and, for
-// twoslash's external type defs, `node_modules/drizzle-orm`). It is set by
+// RT_REPO_ROOT points at the directory that CONTAINS `packages/`. It is set by
 // scripts/website/site.mjs to the read-only-mounted repo context inside the container;
 // when unset (host runs / tests) the caller's fallback keeps today's behaviour.
 // This indirection makes the website merge-agnostic: the packages can live in a
-// sibling checkout, be merged into this repo, or this repo merged into mion —
-// only the env value changes, never the code.
+// sibling checkout or be merged into this repo — only the env value changes,
+// never the code.
 export function getRepoRoot(fallback: string): string {
   return process.env.RT_REPO_ROOT ? resolve(process.env.RT_REPO_ROOT) : resolve(fallback)
 }

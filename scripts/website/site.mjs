@@ -22,7 +22,7 @@ import {capture, die, note, reportCliError, run, sleep, warn, which} from '../li
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 // Source directories bind-mounted into /app (host is the source of truth).
-const MOUNT_DIRS = ['app', 'content', 'public', 'server', 'scripts', 'not-rendered', 'tests'];
+const MOUNT_DIRS = ['app', 'content', 'public', 'server', 'scripts', 'tests'];
 // Config files bind-mounted into /app (first-party, NOT baked into the image).
 const MOUNT_FILES = ['nuxt.config.ts', 'tsconfig.json', 'eslint.config.mjs'];
 
@@ -71,11 +71,11 @@ function mountArgs(cfg) {
   for (const file of MOUNT_FILES) {
     if (existsSync(join(WEBSITE_DIR, file))) args.push('-v', `${join(WEBSITE_DIR, file)}:/app/${file}:ro${cfg.mountOpts}`);
   }
-  // Repo context, READ-ONLY: only packages/ (+ the drizzle-orm d.ts allowlist) is
-  // exposed, never the repo root, so code-import/twoslash can read first-party code
-  // + types but nothing else. RT_REPO_ROOT=/repo-context (see envArgs).
+  // Repo context, READ-ONLY: only packages/ is exposed, never the repo root, so
+  // code-import/twoslash can read first-party code + types but nothing else.
+  // RT_REPO_ROOT=/repo-context (see envArgs). Third-party .d.ts are deliberately
+  // NOT mounted — twoslash mounts only the first-party packages the examples import.
   if (existsSync(join(cfg.repoContext, 'packages'))) args.push('-v', `${join(cfg.repoContext, 'packages')}:/repo-context/packages:ro${cfg.mountOpts}`);
-  if (existsSync(join(cfg.repoContext, 'node_modules/drizzle-orm'))) args.push('-v', `${join(cfg.repoContext, 'node_modules/drizzle-orm')}:/repo-context/node_modules/drizzle-orm:ro${cfg.mountOpts}`);
   // Generated benchmark/test results the docs read (RT_DOCDATA=/app/.docdata).
   mkdirSync(cfg.docdataDir, {recursive: true});
   args.push('-v', `${cfg.docdataDir}:/app/.docdata:ro${cfg.mountOpts}`);

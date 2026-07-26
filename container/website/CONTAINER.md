@@ -85,7 +85,7 @@ The `<code-import>` and `::twoslash-code` mechanisms read first-party source +
 built `.d.ts` from `packages/`. `site.mjs` mounts the checkout that contains them
 **read-only** and points the resolvers at it via `RT_REPO_ROOT` — this repo by
 default, so the indirection stays merge-agnostic (a sibling checkout still works
-via `RT_WEBSITE_REPO_CONTEXT`). Only `packages/` (+ a drizzle-orm `.d.ts` allowlist) is exposed, and every
+via `RT_WEBSITE_REPO_CONTEXT`). Only `packages/` is exposed, and every
 `path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
 `pnpm rtx website check` to confirm the context is built and `pnpm rtx website check --docs`
 to check both mechanisms render.

@@ -1,5 +1,6 @@
-// Repo-level packaging + env contracts. Both guard hand-maintained mirrors that
-// nothing else in CI checks, and both drifted in the past:
+// Repo-level packaging + env + docs-pipeline contracts. Each guards a
+// hand-maintained mirror that nothing else in CI checks, and each drifted in the
+// past:
 //
 //   - Published-package READMEs: `files` entries that match nothing are silently
 //     ignored by npm, so a package can list "README.md" and publish a blank npm
@@ -7,9 +8,15 @@
 //   - .env registry mirror: scripts/README.md documents `pnpm run check:env` as
 //     enforcing the REGISTRY -> .env.sample mirror. These tests pin the check's
 //     drift detection so the documented contract stays real.
+//   - Twoslash VFS package names: the docs site mounts each package's built .d.ts
+//     at /node_modules/<npm name>/ so example imports resolve. The mount list kept
+//     the PRE-SCOPE name (`ts-runtypes`) after the packages moved onto
+//     @ts-runtypes/*, so every example import failed to resolve and the hover
+//     endpoint threw. The failure is invisible from this repo's CI (the website is
+//     containerized), which is exactly why it needs a contract test.
 
 import {describe, it, expect} from 'vitest';
-import {readFileSync, existsSync} from 'node:fs';
+import {readFileSync, existsSync, readdirSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 // @ts-expect-error — a plain .mjs script, no types
@@ -80,5 +87,50 @@ describe('.env.sample mirrors the env REGISTRY', () => {
 
   it('flags a key in .env.sample that no registry row declares', () => {
     expect(sampleMirrorDrift(`${sample}\n# RT_GHOST_VAR=1\n`).unknown).toEqual(['RT_GHOST_VAR']);
+  });
+});
+
+describe('twoslash VFS mounts the packages the examples import', () => {
+  const TWOSLASH_API = join(REPO_ROOT, 'container/website/server/api/twoslash.post.ts');
+  const EXAMPLES_SRC = join(REPO_ROOT, 'packages/examples/src');
+
+  // Every `name:` in twoslash.post.ts's packageConfigs — the npm names it mounts
+  // under /node_modules/<name>/ in the virtual file system.
+  function mountedPackageNames(): Set<string> {
+    const source = readFileSync(TWOSLASH_API, 'utf8');
+    const configs = /const packageConfigs = \[(.*?)\]/s.exec(source);
+    if (!configs) throw new Error('packageConfigs literal not found in twoslash.post.ts');
+    return new Set([...configs[1].matchAll(/name:\s*'([^']+)'/g)].map((match) => match[1]));
+  }
+
+  // The first-party package roots the docs examples actually import, e.g.
+  // `@ts-runtypes/core/formats` counts as the root `@ts-runtypes/core`.
+  function importedPackageRoots(): Set<string> {
+    const roots = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (entry.endsWith('.ts')) {
+          const source = readFileSync(full, 'utf8');
+          for (const match of source.matchAll(/from\s+'(@ts-runtypes\/[^']+)'/g)) {
+            const [scope, name] = match[1].split('/');
+            roots.add(`${scope}/${name}`);
+          }
+        }
+      }
+    };
+    walk(EXAMPLES_SRC);
+    return roots;
+  }
+
+  it('mounts every @ts-runtypes package the examples import', () => {
+    const mounted = mountedPackageNames();
+    const missing = [...importedPackageRoots()].filter((root) => !mounted.has(root)).sort();
+    expect(missing).toEqual([]);
+  });
+
+  it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
+    for (const name of mountedPackageNames()) expect(name.startsWith('@ts-runtypes/')).toBe(true);
   });
 });

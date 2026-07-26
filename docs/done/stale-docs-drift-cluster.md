@@ -287,5 +287,5 @@ Beyond the findings as written:
 (`@mionjs/client`, `@mionjs/router`, `@mionjs/server`, and an example path that
 does not exist here), unreferenced by anything. Same class as findings 1 and 2 but
 outside this todo's scope, so it was filed as
-[website-typescript-lsp-docs-is-mion-era.md](../todos/website-typescript-lsp-docs-is-mion-era.md)
+[website-typescript-lsp-docs-is-mion-era.md](website-typescript-lsp-docs-is-mion-era.md)
 rather than fixed inline.

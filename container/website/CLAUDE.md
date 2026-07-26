@@ -103,6 +103,15 @@ script, so doc drift fails CI instead of rotting.
 - Loads `.d.ts` files from the RunTypes packages into a virtual file system for type resolution.
 - Results are cached to avoid re-rendering on hot reload.
 - Uses MDC block syntax (not HTML tag syntax).
+- **No published page uses it today** — the docs render TypeScript through
+  `<code-import>` fences. The endpoint is live and verified by
+  `pnpm rtx website check --docs`, so the component is ready if a page wants hovers.
+- The virtual file system mounts each package's built `dist/*.d.ts` at
+  `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
+  must use the **published** names (`@ts-runtypes/core`, `@ts-runtypes/devtools`),
+  not the `packages/` directory names. A mismatch is silent here but breaks every
+  example import; `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`
+  guards it.
 
 ### Usage
 

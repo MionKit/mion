@@ -4,7 +4,7 @@ import { transformerTwoslash, rendererRich, defaultHoverInfoProcessor } from '@s
 // which re-exports its own `createTwoslasher`. Functionally identical for non-Vue code.
 import { createTwoslasher } from 'twoslash-vue'
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
-import { join, relative, resolve, dirname } from 'path'
+import { join, relative, resolve, dirname, sep } from 'path'
 import { createRequire } from 'module'
 import { getRepoRoot, resolveInPackages } from '../utils/repo-root'
 
@@ -102,7 +102,7 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 let fsMapCache: Map<string, string> | null = null
 
 // Cache for the twoslasher instance — fsMap is read only at create-time,
-// so the VFS of mion d.ts files must be baked in here, not passed per-call.
+// so the VFS of package d.ts files must be baked in here, not passed per-call.
 let twoslasherInstance: ReturnType<typeof createTwoslasher> | null = null
 
 // Cache for rendered twoslash results (avoids re-rendering on hot reload)
@@ -141,9 +141,9 @@ function findFiles(dir: string, pattern: RegExp, files: string[] = []): string[]
 }
 
 /**
- * Load all .d.ts files from mion packages into a virtual file system Map
+ * Load all .d.ts files from the RunTypes packages into a virtual file system Map
  */
-function loadMionPackageTypes(): Map<string, string> {
+function loadPackageTypes(): Map<string, string> {
   if (fsMapCache) return fsMapCache
 
   const fsMap = new Map<string, string>()
@@ -167,23 +167,31 @@ function loadMionPackageTypes(): Map<string, string> {
   const repoRoot = getRepoRoot(resolve(process.cwd(), '..'))
   const packagesDir = join(repoRoot, 'packages')
 
-  // Packages to load. `dir` is the directory under packages/, `name` is the
-  // npm package name (used to build the virtual node_modules path).
-  // They differ for `drizze` (dir) → `drizzle` (npm).
+  // Packages to load. `dir` is the directory under packages/, `name` is the npm
+  // package name — the specifier examples actually import, which is what the
+  // virtual node_modules path must use. The two differ on BOTH rows (the
+  // directory kept its pre-scope name when the packages moved onto the
+  // @ts-runtypes scope), and getting `name` wrong is silent: the VFS mounts a
+  // module nothing imports, every example fails to resolve, and twoslash throws.
+  // Subpath imports (@ts-runtypes/core/formats, /schema) resolve via the
+  // per-directory index.d.ts under classic node resolution, and
+  // @ts-runtypes/devtools/vite via the sibling vite.d.ts.
   const packageConfigs = [
-    // The marker package — built .d.ts under dist/. Subpath exports (/schema,
-    // /formats) resolve via the per-directory index.d.ts under classic node
-    // resolution, which is all examples import.
-    { dir: 'ts-runtypes', name: 'ts-runtypes', distPath: 'dist' },
+    { dir: 'ts-runtypes', name: '@ts-runtypes/core', distPath: 'dist' },
+    { dir: 'ts-runtypes-devtools', name: '@ts-runtypes/devtools', distPath: 'dist' },
   ]
 
   for (const pkg of packageConfigs) {
     const pkgDistDir = join(packagesDir, pkg.dir, pkg.distPath)
-    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/)
+    // dist/cjs/ is the CommonJS twin of the same declarations — mounting it would
+    // double the VFS for no added resolution, so keep only the ESM tree.
+    const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/).filter(
+      (file) => !relative(pkgDistDir, file).startsWith('cjs' + sep),
+    )
     if (dtsFiles.length === 0) continue
 
     // Synthetic package.json so TS's Node resolver finds `index.d.ts` (and subpath
-    // exports like `ts-runtypes/formats`) for bare imports in examples.
+    // exports like `@ts-runtypes/core/formats`) for bare imports in examples.
     fsMap.set(
       `/node_modules/${pkg.name}/package.json`,
       JSON.stringify({ name: pkg.name, types: 'index.d.ts', main: 'index.d.ts' }),
@@ -198,8 +206,9 @@ function loadMionPackageTypes(): Map<string, string> {
       try {
         let content = readFileSync(dtsFile, 'utf-8')
         // Strip .ts extensions from imports so TypeScript resolves to .d.ts files.
-        // Mion's .d.ts files use .ts extensions (e.g. `from './types.ts'`)
-        // but the VFS only has .d.ts files. Extensionless imports let TS find them.
+        // Our .d.ts files carry .ts extensions (e.g. `from './types.ts'`, the
+        // source spelling tsc preserves) but the VFS only has .d.ts files.
+        // Extensionless imports let TS find them.
         content = content.replace(/(from\s+['"])([^'"]+)\.ts(['"])/g, '$1$2$3')
         fsMap.set(virtualPath, content)
       } catch (e) {
@@ -208,31 +217,10 @@ function loadMionPackageTypes(): Map<string, string> {
     }
   }
 
-  // External deps referenced from examples — load their .d.ts files into the VFS too.
-  // Sourced from the monorepo root's node_modules (where the @mionjs/examples package
-  // installed them). Without these, twoslash fails on imports like `drizzle-orm/pg-core`.
-  const externalDeps: string[] = []
-  for (const dep of externalDeps) {
-    const depDir = join(repoRoot, 'node_modules', dep)
-    const depDts = findFiles(depDir, /\.d\.ts$/)
-    for (const dtsFile of depDts) {
-      const relativePath = relative(depDir, dtsFile)
-      const virtualPath = `/node_modules/${dep}/${relativePath}`
-      try {
-        fsMap.set(virtualPath, readFileSync(dtsFile, 'utf-8'))
-      } catch (e) {
-        console.warn(`Failed to read ${dtsFile}:`, e)
-      }
-    }
-    // Real package.json (drizzle-orm uses subpath exports which Node10 resolution
-    // doesn't honor, but the per-directory index.d.ts fallback works for our usage).
-    try {
-      const pkgJsonPath = join(depDir, 'package.json')
-      if (existsSync(pkgJsonPath)) {
-        fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(pkgJsonPath, 'utf-8'))
-      }
-    } catch {}
-  }
+  // NB: third-party modules are NOT mounted. Examples that import one (today only
+  // the manual-install config example, which imports `vite`) will not type-resolve
+  // here. If that becomes common, mount the dep's .d.ts tree from the repo root's
+  // node_modules the same way the packages above are mounted.
 
   // Also load source files from examples package for relative imports
   const examplesDir = join(packagesDir, 'examples', 'src')
@@ -242,7 +230,7 @@ function loadMionPackageTypes(): Map<string, string> {
     // Get relative path from examples/src directory
     const relativePath = relative(examplesDir, srcFile)
     // Create virtual path that matches how files are imported
-    // Files like about-server.ts can be found via ./about-server.ts
+    // Files like user.ts can be found via ./user.ts
     const virtualPath = `/${relativePath}`
 
     try {
@@ -324,7 +312,7 @@ export default defineEventHandler(async (event) => {
   try {
     if (isDev) console.log(`[twoslash] ${path || 'inline'} (${code.length} chars)`)
     const highlighter = await getHighlighter()
-    const fsMap = loadMionPackageTypes()
+    const fsMap = loadPackageTypes()
     if (!twoslasherInstance) {
       twoslasherInstance = createTwoslasher({
         fsMap,
@@ -343,7 +331,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // If we have a file path (e.g., packages/examples/src/introduction/about-client.ts)
+    // If we have a file path (e.g., packages/examples/src/enrich/friendly-user.ts)
     // Set up the extra files so relative imports work
     // The file path after examples/src becomes the virtual path
     let extraFiles: Record<string, string> | undefined
@@ -356,12 +344,12 @@ export default defineEventHandler(async (event) => {
         const fileDir = relativePath.substring(0, relativePath.lastIndexOf('/'))
 
         // Add all other files from the same directory as extra files
-        // so that relative imports like ./about-server.ts work
+        // so that relative imports like ./user.ts work
         extraFiles = {}
         const prefix = `/${fileDir}/`
         for (const [path, content] of fsMap.entries()) {
           if (path.startsWith(prefix) && !path.endsWith(relativePath)) {
-            // Convert /introduction/about-server.ts to ./about-server.ts style import
+            // Convert /enrich/user.ts to ./user.ts style import
             const fileName = path.substring(prefix.length)
             extraFiles[`./${fileName}`] = content
           }
@@ -382,7 +370,7 @@ export default defineEventHandler(async (event) => {
       },
       transformers: [
         transformerTwoslash({
-          // Use our own twoslasher so the fsMap of mion d.ts files is in the VFS.
+          // Use our own twoslasher so the fsMap of package d.ts files is in the VFS.
           // @shikijs/twoslash's default creates an FS-backed twoslasher (real node_modules).
           twoslasher: twoslasherInstance,
           explicitTrigger: false,
