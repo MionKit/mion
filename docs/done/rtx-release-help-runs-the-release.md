@@ -1,13 +1,14 @@
 ---
 type: fix
 spec: full-plan
-status: todo
+status: done
 created: 2026-07-26
+completed: 2026-07-26
 ---
 
 # `pnpm rtx release --help` RUNS the release instead of printing help
 
-**Status:** todo
+**Status:** done (see [Implemented](#implemented))
 **Created:** 2026-07-26 (hit by accident in an agent session while working on PR #290)
 
 Every other `rtx` area rejects an unknown subcommand. `release` — the one area that publishes —
@@ -19,7 +20,7 @@ silently treats it as "no subcommand" and starts the release umbrella.
 
 ```js
 const [sub, ...rest] = args;
-const map = {preflight: …, publish: …, e2e: …, /* … */};
+const map = {preflight: …, npm: …, e2e: …, /* … */};
 if (map[sub]) return proxy(map[sub][0], [...map[sub][1], ...rest]);
 // Umbrella (no sub): preflight -> npm publish -> website build.
 ```
@@ -75,3 +76,38 @@ sub asserting a non-zero exit.
 
 Changing what the umbrella itself does (adding a confirmation prompt, a `--yes` gate). Worth
 discussing separately; this spec only stops `--help` and typos from reaching it.
+
+## Implemented
+
+Shipped as planned, plus one hole the spec missed.
+
+- **`runRelease` now answers help and refuses the unrecognized.** `help` / `-h` / `--help` print
+  the release usage and return; an unknown non-flag sub exits 2 with a usage pointer.
+- **The hole the spec missed: unknown FLAGS fell through too.** Guarding only the subcommand still
+  let `rtx release --oops` reach the umbrella, because `sub` starting with `-` was treated as "no
+  subcommand". There is now an explicit `UMBRELLA_FLAGS` allowlist
+  (`--preflight-only`, `--no-website`, `--dry-run`); anything else exits 2.
+- **One source for the help text.** The release rows moved into a `RELEASE_HELP` const that the
+  full `HELP` interpolates, so `rtx --help` and `rtx release --help` cannot drift. A test asserts
+  the former contains the latter.
+- **Area-level help, uniformly.** `dispatch()` intercepts a help flag in the FIRST argument
+  position for every area (`rtx website --help` used to exit 2 with a usage line). Deeper help
+  (`rtx release e2e --help`) still reaches the leaf, which owns its own usage text.
+- Bare `rtx release` still runs the umbrella, and `--dry-run` still prints the plan — the
+  sibling-area audit (step 3) found `release` was the only area whose fallthrough was dangerous:
+  `runCore` and `runWebsite` already `die()` with a usage line, and `runBench` dies on a stray
+  non-flag argument.
+
+**Tests:** five cases in
+[packages/ts-runtypes-devtools/test/repo-contracts.test.ts](../../packages/ts-runtypes-devtools/test/repo-contracts.test.ts)
+— help prints usage and does NOT start the umbrella (asserting the absence of its `Fresh start` /
+`preflight.mjs` output), the typo and unknown-flag exits, the surviving `--dry-run` plan, and the
+help-text sync.
+
+**Correction to the Evidence above:** the publish entry's map key is `npm`, not `publish`
+(`rtx release npm` → `scripts/release/publish.mjs`). Fixed inline.
+
+**Not done (deliberately):** the Out of scope item stands — the umbrella itself is unchanged, no
+confirmation prompt or `--yes` gate. A separate idea worth its own spec came out of the review:
+have `e2e.mjs` write a receipt (version + per-tarball checksums) that the publishing verbs require,
+so "e2e passed" becomes a checkable precondition rather than an honor system.
