@@ -14,7 +14,8 @@ import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesMySQL, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionjs/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {FormatName} from '@ts-runtypes/core';
 
 // ============================================================================
 // Default Mapping Objects
@@ -33,29 +34,29 @@ const mysqlPrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
 
 /** Default format-to-column mapping for MySQL, keyed by FormatName */
 const mysqlFormatDefaults: Record<string, FormatColumnFactory> = {
-    [FormatNames.uuid]: (p) => ({builder: varchar(p, {length: 36}), drizzleType: DrizzleTypesMySQL.varchar}),
-    [FormatNames.email]: (p, params) => {
+    [typeFormats.uuid.name]: (p) => ({builder: varchar(p, {length: 36}), drizzleType: DrizzleTypesMySQL.varchar}),
+    [typeFormats.email.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 254;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
     },
-    [FormatNames.url]: (p, params) => {
+    [typeFormats.url.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 2048;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
     },
-    [FormatNames.domain]: (p, params) => {
+    [typeFormats.domain.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 253;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesMySQL.varchar};
     },
-    [FormatNames.ip]: (p) => ({builder: varchar(p, {length: 45}), drizzleType: DrizzleTypesMySQL.varchar}),
-    [FormatNames.dateTime]: (p) => ({builder: datetime(p), drizzleType: DrizzleTypesMySQL.datetime}),
-    [FormatNames.date]: (p) => ({builder: date(p), drizzleType: DrizzleTypesMySQL.date}),
-    [FormatNames.time]: (p) => ({builder: time(p), drizzleType: DrizzleTypesMySQL.time}),
-    [FormatNames.bigintFormat]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesMySQL.bigint}),
-    [FormatNames.numberFormat]: (p, params) => {
+    [typeFormats.ip.name]: (p) => ({builder: varchar(p, {length: 45}), drizzleType: DrizzleTypesMySQL.varchar}),
+    [typeFormats.dateTime.name]: (p) => ({builder: datetime(p), drizzleType: DrizzleTypesMySQL.datetime}),
+    [typeFormats.date.name]: (p) => ({builder: date(p), drizzleType: DrizzleTypesMySQL.date}),
+    [typeFormats.time.name]: (p) => ({builder: time(p), drizzleType: DrizzleTypesMySQL.time}),
+    [typeFormats.bigintFormat.name]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesMySQL.bigint}),
+    [typeFormats.numberFormat.name]: (p, params) => {
         if (isIntegerFormat(params)) return {builder: int(p), drizzleType: DrizzleTypesMySQL.int};
         return {builder: double(p), drizzleType: DrizzleTypesMySQL.double};
     },
-    [FormatNames.stringFormat]: (p, params, config) => {
+    [typeFormats.stringFormat.name]: (p, params, config) => {
         const buf = config?.lengthBuffer ?? DEFAULT_LENGTH_BUFFER;
         const maxLength = getMaxLengthFromParams(params);
         if (maxLength) return {builder: varchar(p, {length: Math.ceil(maxLength * buf)}), drizzleType: DrizzleTypesMySQL.varchar};

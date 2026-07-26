@@ -103,24 +103,7 @@ export const JIT_FUNCTION_IDS = {
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
-
-/** Format name constants — the ts-runtypes format ids (TypeFormat 2nd type argument).
- *  Relocated from the removed @mionjs/type-formats package; consumed by @mionjs/drizzle. */
-export const FormatNames = {
-    // String formats
-    stringFormat: 'stringFormat',
-    uuid: 'uuid',
-    email: 'email',
-    url: 'url',
-    domain: 'domain',
-    ip: 'ip',
-    date: 'date',
-    time: 'time',
-    dateTime: 'dateTime',
-    // Number formats
-    numberFormat: 'numberFormat',
-    // BigInt formats
-    bigintFormat: 'bigintFormat',
-} as const;
-
-export type FormatName = (typeof FormatNames)[keyof typeof FormatNames];
+/** Canonical format names + their metadata come from @ts-runtypes/core (`typeFormats`),
+ *  the single source of truth stamped on reflected props. mion's former `FormatNames` mirror
+ *  was deleted; consumers import `typeFormats` / `FormatName` from @ts-runtypes/core directly. */
+export type {FormatName} from '@ts-runtypes/core';
