@@ -69,13 +69,25 @@ Both fixes were verified by running the lane, not by inspection:
 - The host-native smoke passes: the published packages install from the port-published verdaccio
   and the `@ts-runtypes/bin` → `@ts-runtypes/binary-linux-x64` optional-dep chain resolves on the
   host, exercising the `RT_BIN`-era `getExePath()`.
+- The whole lane then passes unattended: `pre-publish e2e: PASS`, exit 0.
 
-## Environment note (not a defect)
+## 3. Behind a MITM proxy the CA was baked but never mounted
 
-In an agent container the run needs one out-of-band step that does NOT belong in the repo: the
-egress proxy re-terminates TLS, so verdaccio's uplink to `registry.npmjs.org` fails with
-`SELF_SIGNED_CERT_IN_CHAIN` and every proxied package (unplugin, vite, …) 404s. Mounting the proxy
-CA into the registry container and setting `NODE_EXTRA_CA_CERTS` clears it. On CI the container has
-clean egress and needs nothing. If this ever becomes routine, the tidy version is a runtime CA
-mount on `startRegistry` driven by the existing `RT_WEBSITE_CA_CERT` knob (today it is build-time
-only) — worth its own spec rather than an ad-hoc flag.
+Found while verifying the two fixes above, and fixed in the same PR rather than left as a caveat.
+
+`RT_WEBSITE_CA_CERT` trusted the host's extra CAs at image BUILD time only. Baking helps an image
+we build; the normal path PULLS a prebuilt one from GHCR, which never saw this host's proxy. Its
+containers still reach the network at RUN time, so behind a TLS-re-terminating proxy verdaccio's
+uplink to `registry.npmjs.org` fails with `SELF_SIGNED_CERT_IN_CHAIN` and every proxied package
+(unplugin, vite, …) 404s — the lane cannot install what it is about to test.
+
+**Fixed:** `caRunArgs()` in [scripts/container/image.mjs](../../scripts/container/image.mjs) mounts
+the same certs read-only and sets `NODE_EXTRA_CA_CERTS`, for the verdaccio registry AND the
+post-publish toolchain container. A CA **directory** is concatenated into a single bundle first,
+because `NODE_EXTRA_CA_CERTS` takes a file and never a dir. It resolves its source through the same
+`resolveCaSrc()` the build path uses (explicit var, else the host CA-dir autodetect) and returns
+nothing when there is no CA, so it is a no-op on a normal host and on CI.
+
+**End-to-end proof:** with only the documented knob set, the stock command passes in this
+environment — `RT_WEBSITE_CA_CERT=/root/.ccr/ca-bundle.crt node scripts/rt.mjs release e2e` →
+`==> pre-publish e2e: PASS` (registry, 16/16 matrix, host smoke), no hand-built podman args.
