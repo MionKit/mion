@@ -318,6 +318,14 @@ for the current machine. In a published install it resolves an optional dependen
 `bin/ts-runtypes` instead. There is deliberately **no postinstall download step**, since
 install scripts are blocked by policy, so the binary arrives as an ordinary package.
 
+One escape hatch overrides both lookups: the `RT_BIN` environment variable, read at the top
+of `getExePath()`. Because every lane funnels through the launcher, it is the single knob
+that redirects the bundler plugins *and* the lint plugin (which, unlike the bundler
+plugins, has no `binary` option) at one build — the supported way to validate an
+unpublished release inside a real consumer, bisect a resolver regression, or run a
+vendored binary. A value that does not name an executable file throws rather than falling
+through, since silently running a different binary would key caches on another version.
+
 The binary carries two version strings, and the difference matters. Its own version is
 folded into every type id hash, which is what keeps caches from different releases apart
 automatically. The bundled TypeScript revision is metadata only and is never part of a

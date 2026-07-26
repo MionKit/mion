@@ -251,6 +251,18 @@ bin/ts-runtypes --daemon --tsconfig tsconfig.json --socket /tmp/ts-runtypes.sock
 --no-parallel-render          sequential cache-family renders
 ```
 
+### Pointing a consumer project at a specific binary (`RT_BIN`)
+
+Outside this repo, `@ts-runtypes/bin`'s `getExePath()` resolves the per-platform `@ts-runtypes/binary-<os>-<arch>` package. **`RT_BIN=<path>` overrides that lookup for every lane** — the bundler plugins (behind their explicit `binary` option, which still wins) *and* the lint plugin, which resolves its binary through the launcher and takes no `binary` option:
+
+```bash
+RT_BIN=/abs/path/to/ts-runtypes pnpm run lint     # in the consumer project
+```
+
+Use it to validate an **unpublished** build in a real consumer (packing `@ts-runtypes/{core,devtools,bin}` as `file:` tarballs leaves no platform package to resolve, so the lint lane would otherwise fail), to bisect a resolver regression without editing `node_modules`, or to run a binary delivered out-of-band. A value that is missing, not a file, or not executable throws — a typo never falls through to a different binary.
+
+> ⚠️ The resolver's version folds into every typeId, so an override of a different version produces cache entries that diverge from a normal install. Clear `node_modules/.cache/ts-runtypes` when switching back.
+
 ---
 
 ## pnpm policies (workspace security posture)
@@ -438,6 +450,7 @@ It waits for the version to be resolvable (a fresh publish can lag across the re
 | `pnpm install` rejects a dependency with "minimum release age" | `pnpm-workspace.yaml` blocks packages <30 days old                          | Wait or add a targeted entry under `minimumReleaseAgeExclude`.                                                                 |
 | `pnpm install` fails on a peer dep                             | `strictPeerDependencies: true`                                              | Add the peer to the package's `peerDependencies` or `devDependencies`.                                                         |
 | JS plugin tests error spawning the resolver                    | `bin/ts-runtypes` not built                                             | `pnpm run check:builds` or `go -C ts-go-runtypes build -o ../bin/ts-runtypes ./cmd/ts-runtypes`.                       |
+| A consumer project's lint lane fails `Unable to resolve @ts-runtypes/binary-<os>-<arch>` | No platform package installed (an unpublished build consumed as `file:` tarballs, a `--no-optional` install, or an air-gapped mirror) | Point the launcher at a binary: `RT_BIN=/abs/path/to/ts-runtypes` (see [Dev loop](#pointing-a-consumer-project-at-a-specific-binary-rt_bin)). |
 | `pnpm run typecheck` errors "cannot find project" / missing reference | New package missing from root `tsconfig.json` `references`            | Add the package path to the root `tsconfig.json`.                                                                              |
 | oxlint fails to load with `Plugin 'runtypes' not found`        | Stale/missing `@ts-runtypes/devtools` dist (the `jsPlugins` entry)              | Rebuild it: `pnpm --filter @ts-runtypes/devtools run build` (or `pnpm run check:builds`).                                          |
 | Husky hook not firing                                          | `prepare` script did not run                                                | `pnpm install` again, or `pnpm exec husky` to force activation.                                                                |

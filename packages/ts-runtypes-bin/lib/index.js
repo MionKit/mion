@@ -7,8 +7,43 @@ import {fileURLToPath} from 'node:url';
 // directory (and of the locally built dev binary at <repo>/bin/).
 const EXE_BASENAME = 'ts-runtypes';
 
+// Env var that points the launcher at a specific resolver build, overriding
+// both lookups below. It is the ONLY escape hatch the lint lane has (the
+// bundler plugins additionally take an explicit `binary` option, which wins
+// over this), so a consumer can validate an unpublished build, bisect a
+// resolver regression, or run a vendored binary in an air-gapped install.
+const OVERRIDE_ENV = 'RT_BIN';
+
 function exeName() {
   return process.platform === 'win32' ? `${EXE_BASENAME}.exe` : EXE_BASENAME;
+}
+
+// Reads the RT_BIN override, returning null when it is unset or empty (an
+// empty value is a no-op rather than an error, so `RT_BIN=` in a .env file
+// behaves like not setting it at all). A value that does not name an
+// executable file throws instead of falling through to the normal lookups —
+// a typo must fail loudly, never silently run a DIFFERENT binary than asked.
+function overrideExe() {
+  const raw = process.env[OVERRIDE_ENV];
+  if (!raw || raw.trim() === '') return null;
+  const exe = path.resolve(raw.trim());
+  let stats;
+  try {
+    stats = fs.statSync(exe);
+  } catch {
+    throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} does not exist (resolved to ${exe}).`);
+  }
+  if (!stats.isFile()) {
+    throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} is not a file (resolved to ${exe}).`);
+  }
+  if (process.platform !== 'win32') {
+    try {
+      fs.accessSync(exe, fs.constants.X_OK);
+    } catch {
+      throw new Error(`[ts-runtypes-bin] ${OVERRIDE_ENV}=${raw} is not executable (resolved to ${exe}); chmod +x it.`);
+    }
+  }
+  return exe;
 }
 
 // Resolves the absolute path of a package's package.json without importing it.
@@ -24,11 +59,17 @@ function resolvePackageJson(specifier) {
 }
 
 // Returns the absolute path to the ts-runtypes resolver binary for the host
-// platform. In an installed tree it locates the matching optional dependency
-// `@ts-runtypes/binary-<platform>-<arch>`; inside this repo's source tree it
-// falls back to the locally built `bin/ts-runtypes`. Throws a clear error when
-// neither is available (unsupported platform, or the optional dep was skipped).
+// platform. `RT_BIN` wins when set; otherwise, in an installed tree it locates
+// the matching optional dependency `@ts-runtypes/binary-<platform>-<arch>`, and
+// inside this repo's source tree it falls back to the locally built
+// `bin/ts-runtypes`. Throws a clear error when neither is available
+// (unsupported platform, or the optional dep was skipped).
 export function getExePath() {
+  const overridden = overrideExe();
+  if (overridden) {
+    return process.platform === 'win32' && overridden.length >= 248 ? `\\\\?\\${overridden}` : overridden;
+  }
+
   const here = path.dirname(fileURLToPath(import.meta.url));
   const normalized = here.replace(/\\/g, '/');
   const platformKey = `${process.platform}-${process.arch}`;

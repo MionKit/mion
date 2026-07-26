@@ -39,7 +39,9 @@ pnpm add -D @ts-runtypes/devtools
 
 The plugin runs a small prebuilt Go binary. It resolves the right binary for
 your platform automatically through `@ts-runtypes/bin`; pass `binary` only to
-point at a custom or in-repo build.
+point at a custom or in-repo build. The `RT_BIN` environment variable does the
+same for **both** the bundler plugins and the lint plugin (which takes no
+`binary` option), which is how you point the whole toolchain at one build.
 
 ## Usage
 
@@ -96,6 +98,12 @@ tsconfig equivalent.
 | `singleThreaded`                  | `false`                       | Force single-checker, fully-serial scan/render.                                             |
 
 The on-disk artifact cache (`node_modules/.cache/ts-runtypes`) has no option here: it follows TypeScript's `incremental` / `composite` tsconfig setting (on when your project is incremental, off otherwise).
+
+### `RT_BIN`
+
+`RT_BIN=<path>` overrides the binary lookup for every lane — the bundler plugins **and** the lint plugin, which resolves its binary through `@ts-runtypes/bin` and takes no `binary` option. An explicit `binary` option still wins over it, and a path that is not an executable file throws instead of silently falling back. Handy for validating an unpublished build, or bisecting a resolver regression, in a real consumer project.
+
+Because the resolver's version is folded into every type id, an override of a different version produces cache entries that diverge from a normal install.
 
 ## Linting
 
