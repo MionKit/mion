@@ -132,6 +132,13 @@ jobs:
         with:
           name: tarballs
           path: tarballs
+      # publish-tarballs.mjs refuses to publish bytes no e2e signed off, so the
+      # gate's receipt has to land next to them (same run: this workflow's `gate`
+      # job CALLS release-gate.yml, so it is the same tarball artifact).
+      - uses: actions/download-artifact@v8
+        with:
+          name: e2e-receipt
+          path: tarballs
       - name: Preflight - refuse to re-stage an existing version
         shell: bash
         run: |

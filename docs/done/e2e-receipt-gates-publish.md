@@ -1,13 +1,14 @@
 ---
 type: feature
 spec: full-plan
-status: todo
+status: done
 created: 2026-07-26
+completed: 2026-07-26
 ---
 
 # "e2e passed" should be a checkable precondition of publishing, not a convention
 
-**Status:** todo
+**Status:** done (see [Implemented](#implemented))
 **Created:** 2026-07-26 (came out of the `rtx release` review in [docs/done/rtx-release-help-runs-the-release.md](../done/rtx-release-help-runs-the-release.md))
 
 Nothing stops publishing tarballs the e2e never saw. The gate and the publish are separate verbs,
@@ -74,3 +75,49 @@ Pure-function core, so most of this unit-tests cleanly:
 
 Signing the receipt (provenance/attestation). This is a self-check against footguns, not a
 tamper-proof supply-chain claim; if that is ever wanted, npm provenance is the mechanism, not this.
+
+## Implemented
+
+[scripts/release/receipt.mjs](../../scripts/release/receipt.mjs) is the shared module: `writeReceipt`
+/ `readReceipt` / `verifyReceipt`, plus `digestTarballs`, `receiptOptOut` and `describeReceipt`. A
+PASS writes `tarballs/.e2e-receipt.json` — version, backend, which halves ran, platform, timestamp,
+and a **sha256 per tarball**. A dotfile on purpose: the publishing verbs scan `*.tgz`, so the
+receipt can never be mistaken for a package.
+
+**Two divergences from the plan above, both forced by what the code actually does:**
+
+1. **`publish.mjs` is NOT gated** — the plan said to gate it, but it does not publish `tarballs/` at
+   all. It bumps the version interactively (committing and tagging), then publishes freshly built
+   `dist-binaries/` and `pnpm publish`. A receipt could never match by construction, since the bump
+   happens mid-flow. The gate belongs to `publish-tarballs.mjs`, which publishes exactly the
+   artifact the e2e validated.
+2. **`manual-publish.mjs` warns rather than refuses.** It DOES publish from `tarballs/`, but it
+   rebuilds them by default, which invalidates any receipt. It is also the first-publish bootstrap
+   and the emergency path, so a hard gate there would only ever be answered with `--no-receipt`. It
+   prints the receipt when one is valid and a warning naming the reason when it is not.
+
+**Where it refuses:** `publish-tarballs.mjs` (`rtx release tarballs`) exits 1 unless a receipt
+covers exactly these bytes at this version, with a reason that distinguishes "no e2e has run" from
+"you repacked after the gate" and points at `pnpm rtx release e2e`. Skipped for `--registry <url>`:
+that publish is *part of* running the e2e, so requiring its own receipt would be circular.
+
+**Escape hatch:** `--no-receipt` or `RT_ALLOW_UNVERIFIED_PUBLISH=1`, which prints a conspicuous
+warning rather than passing silently.
+
+**CI:** the gate's e2e job uploads `tarballs/.e2e-receipt.json` as its own `e2e-receipt` artifact
+(container lane only — the one that runs the full matrix), because the tarballs artifact itself was
+uploaded earlier by the build job. `publish.yml`'s `publish-npm` downloads it into `tarballs/`
+alongside them. Same run throughout, so the bytes are identical end to end.
+
+**Tests** — [packages/ts-runtypes-devtools/test/release-receipt.test.ts](../../packages/ts-runtypes-devtools/test/release-receipt.test.ts),
+13 cases weighted toward the rejections, since a verifier that only ever says yes would gate
+nothing: no receipt, wrong version, a repack, a tarball added, a tarball removed, malformed JSON, an
+empty dir, plus the escape hatch and two source-level checks that `publish-tarballs.mjs` actually
+consults the gate and exits non-zero rather than warning past it. (It lives in the devtools package
+because `scripts/` has no vitest project — the same reason `repo-contracts.test.ts` guards the rtx
+CLI.)
+
+**Docs:** SETUP.md's pre-publish e2e section, including both deliberately ungated paths.
+
+**Not done:** signing the receipt — out of scope as filed. It is a self-check against footguns, not
+a tamper-proof supply-chain claim; npm provenance is the mechanism for that.

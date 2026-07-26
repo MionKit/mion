@@ -26,6 +26,7 @@ import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, green, note, prompt, red, reportCliError, run, runOrThrow, success, warn, yellow} from '../lib/proc.mjs';
+import {describeReceipt, verifyReceipt} from './receipt.mjs';
 
 const TARBALLS = join(REPO_ROOT, 'tarballs');
 
@@ -106,6 +107,18 @@ async function main(argv) {
     die(red('manual-publish: tarballs/ has no .tgz files.'));
   }
   const pkgs = files.map(readManifest).sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name));
+
+  // The e2e receipt is advisory here, not a gate. This is the first-publish
+  // bootstrap and it REBUILDS tarballs/ by default, which invalidates any receipt
+  // by construction — so say what is (or is not) verified and let the operator
+  // decide, rather than hard-failing the one path that exists for emergencies.
+  // The refusal lives in publish-tarballs.mjs, the CI path that publishes exactly
+  // the artifact the gate validated.
+  if (!dryRun) {
+    const verdict = verifyReceipt(TARBALLS, version);
+    if (verdict.ok) note(describeReceipt(verdict.receipt));
+    else warn(`no valid e2e receipt for these tarballs (${verdict.reason}). Run \`pnpm rtx release e2e\` first if you want that proof.`);
+  }
 
   // [3/4] Auth — a login SESSION (one 2FA for the whole run). Reuse an existing login.
   let account = capture('npm', ['whoami']).stdout.trim();

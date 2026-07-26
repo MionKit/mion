@@ -147,6 +147,18 @@ jobs:
       # drift. tarballs/ is the downloaded artifact, so e2e.mjs skips the build.
       - name: Pre-publish e2e (${{ matrix.backend }})
         run: pnpm rtx release e2e --backend ${{ matrix.backend }}
+      # The receipt proves the e2e ran over exactly the tarballs the publish job
+      # will push (scripts/release/receipt.mjs). The tarballs artifact was uploaded
+      # by the BUILD job, so the receipt travels on its own; only the container
+      # lane's counts, since that is the one that runs the full matrix.
+      - name: Upload the e2e receipt (container backend only)
+        if: matrix.backend == 'container'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-receipt
+          path: tarballs/.e2e-receipt.json
+          include-hidden-files: true
+          if-no-files-found: error
 
   # Cross-arch binary sanity: exec the cross-compiled binary (`--version`) under QEMU
   # on the Linux side-arches. NOT a full e2e (those are the `e2e` jobs; their

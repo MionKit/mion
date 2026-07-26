@@ -26,6 +26,7 @@ import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {describeReceipt, receiptOptOut, verifyReceipt} from './receipt.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TARBALLS = path.join(REPO_ROOT, 'tarballs');
@@ -34,6 +35,23 @@ const args = process.argv.slice(2);
 const registryIdx = args.indexOf('--registry');
 const registry = registryIdx !== -1 ? args[registryIdx + 1] : undefined;
 const provenance = args.includes('--provenance') || process.env.RT_NPM_PROVENANCE === '1';
+
+// Publishing to the PUBLIC registry requires proof that the pre-publish e2e ran
+// over exactly these bytes (scripts/release/receipt.mjs). Skipped for --registry,
+// which is a throwaway verdaccio — that publish is part of running the e2e, so
+// requiring its own receipt would be circular.
+if (!registry && !receiptOptOut(args)) {
+  const version = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'version.json'), 'utf8')).version;
+  const verdict = verifyReceipt(TARBALLS, version);
+  if (!verdict.ok) {
+    console.error(`publish-tarballs: refusing to publish — ${verdict.reason}.`);
+    console.error("Run `pnpm rtx release e2e` over these tarballs, or pass --no-receipt (RT_ALLOW_UNVERIFIED_PUBLISH=1) to publish unverified.");
+    process.exit(1);
+  }
+  console.log(describeReceipt(verdict.receipt));
+} else if (!registry) {
+  console.warn('publish-tarballs: WARNING publishing WITHOUT an e2e receipt (--no-receipt); nothing has verified these tarballs.');
+}
 
 // Lower rank publishes earlier. Operates on the tarball filename: npm packs a
 // scoped package @ts-runtypes/<x> as ts-runtypes-<x>-<version>.tgz, so the
