@@ -54,11 +54,13 @@ const engineErrorClaims = new Map<string, RuleName>();
 
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`: the per-file
 // timeout (`timeoutMs`) and the project `tsconfig` the resolver reads for its
-// resolution options (like the bundler plugins). The resolver binary and working
-// directory are deliberately NOT configurable: the plugin resolves the host binary
-// itself (@ts-runtypes/bin) and runs in process.cwd(), like any other linter, so a
-// `binary`, `cwd`, or `socket` under `settings.runtypes` is ignored. Exported for
-// the transparency regression test.
+// resolution options (like the bundler plugins). Those two ARE the contract —
+// LINT_SETTING_KEYS (session-protocol.ts) names them, kept exhaustive against
+// LintSessionOptions. The resolver binary and working directory are deliberately
+// NOT configurable: the plugin resolves the host binary itself (@ts-runtypes/bin,
+// whose RT_BIN env var is the supported override) and runs in process.cwd(), like
+// any other linter, so a `binary`, `cwd`, or `socket` under `settings.runtypes` is
+// ignored. Exported for the transparency regression test.
 export function sessionOptions(settings: Record<string, unknown> | undefined): LintSessionOptions {
   const raw = settings?.['runtypes'];
   if (!raw || typeof raw !== 'object') return {};

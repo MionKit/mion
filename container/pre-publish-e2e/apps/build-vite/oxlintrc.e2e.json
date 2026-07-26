@@ -8,7 +8,7 @@
   },
   "settings": {
     "runtypes": {
-      "cwd": "apps/build-vite"
+      "tsconfig": "apps/build-vite/tsconfig.json"
     }
   }
 }

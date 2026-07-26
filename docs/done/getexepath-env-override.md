@@ -113,4 +113,5 @@ reverses a deliberate, documented decision in
 (the binary and cwd are intentionally not configurable) and the env var alone unblocks the
 motivating case. While implementing this, though, the e2e fixture turned out to already SET that
 ignored setting — filed separately as
-[docs/todos/lint-settings-binary-ignored.md](lint-settings-binary-ignored.md).
+[docs/done/lint-settings-binary-ignored.md](lint-settings-binary-ignored.md) (shipped in the same
+branch: the fixture now sets the honored `tsconfig` and takes its host binary from `RT_BIN`).

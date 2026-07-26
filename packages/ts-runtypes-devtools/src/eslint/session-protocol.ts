@@ -28,6 +28,16 @@ export interface LintSessionOptions {
   tsconfig?: string;
 }
 
+// The keys a host may set under `settings.runtypes`. Anything else there is
+// dropped by sessionOptions() (eslint/index.ts) — silently, since a linter has
+// nowhere to report a config complaint — so this list is what a lint config can
+// actually expect to take effect. The `satisfies` guard keeps it exhaustive
+// against LintSessionOptions the same way PLUGIN_OPTION_KEYS does for the
+// bundler options (see src/plugin-option-keys.ts).
+const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true} satisfies Record<keyof LintSessionOptions, true>;
+
+export const LINT_SETTING_KEYS = Object.keys(LINT_SETTING_KEY_TABLE) as (keyof LintSessionOptions)[];
+
 export interface LintWorkerData {
   port: MessagePort;
   signal: Int32Array;

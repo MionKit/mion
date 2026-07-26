@@ -138,7 +138,7 @@ export const REGISTRY = [
   {name: 'RT_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
 
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —
-  {name: 'RT_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @ts-runtypes/bin launcher)'},
+  {name: 'RT_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @ts-runtypes/bin launcher). The lint lanes take no binary option, so their spawners forward it as RT_BIN'},
 
   // — alignment-audit knobs (scripts/website/bench-data/bench.mjs audit + the harness) —
   {name: 'RT_AUDIT_OUT_DIR', scope: 'dev', task: '-', desc: 'Audit output dir (default the results dir)'},
