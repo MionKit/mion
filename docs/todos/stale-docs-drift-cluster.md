@@ -124,9 +124,11 @@ Two smaller defects in the same area:
 - `.env.sample`'s header still points at shell-era paths (`build.sh`,
   `scripts/website/site.sh`) that no longer exist.
 
-### 6. `docs/WEBSITE-DOCGEN.md` points at a renamed directory
+### 6. `docs/WEBSITE-DOCGEN.md` points at a renamed directory — RESOLVED
 
-It references `content/6.test-suites/`. The directory is `content/6.suites/`.
+It referenced `content/6.test-suites/`. Moot as of the suites-section removal: that whole
+content section is gone and `docs/WEBSITE-DOCGEN.md` was rewritten as a benchmarks-only doc.
+Nothing left to do here.
 
 ### 7. `container/website/CONTAINER.md` lists one command twice
 

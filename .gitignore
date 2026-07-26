@@ -40,7 +40,6 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # Consumer e2e fixture install artifacts (the fixture source IS tracked).
 /container/pre-publish-e2e/package-lock.json
 /logs/
-/gendocs/
 
 # Benchmark output (raw harness logs; aggregated summaries live in docs/)
 /bench/results/

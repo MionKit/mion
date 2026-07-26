@@ -57,9 +57,8 @@ DTO → `format-serialization/Realworld.ts`) rather than spinning up a new group
 every group name is a surface that multiple consumers must know about —
 
 - the round-trip runner (`*.test.ts`) and [`../id-integrity/serializers.test.ts`](../id-integrity/serializers.test.ts),
-- the website suite-table export ([`scripts/website/suite-data/export-serialization.mjs`](../../../../../scripts/website/suite-data/export-serialization.mjs)),
 - the benchmark data generator ([`scripts/website/bench-data/gen-serialization.mjs`](../../../../../scripts/website/bench-data/gen-serialization.mjs))
-  and the `SuiteTable` / `BenchTable` components that render them.
+  and the `BenchTable` component that renders it.
 
 An existing group already flows through ALL of them, so a case added to it is covered
 everywhere for free. A new group is a new key those consumers must pick up (and the

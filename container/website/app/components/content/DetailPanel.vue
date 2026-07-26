@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Full-width detail panel docked at the bottom of the viewport, shared by the
-// suite + benchmark tables (driven by useDetailPanel). Presentational only: the
+// Full-width detail panel docked at the bottom of the viewport, used by the
+// benchmark tables (driven by useDetailPanel). Presentational only: the
 // parent owns the active/pinned state and passes the columns to render. Sections
 // lay out as side-by-side columns whose code blocks scroll independently; on
 // narrow screens the columns stack and the panel covers the page minus a margin.
@@ -12,7 +12,7 @@ interface PanelColumn {
   html?: string;
   /** Plain-text code (used when `html` is empty / highlighter unavailable). */
   plain?: string;
-  /** Bullet notes instead of a code block (the suite's Notes column). */
+  /** Bullet notes instead of a code block (e.g. the correctness disagreements). */
   notes?: string[];
   /** Render this column narrower (e.g. the Notes column). */
   narrow?: boolean;

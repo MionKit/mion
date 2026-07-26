@@ -91,7 +91,8 @@ The package-manager files (`package.json`, lockfile, `pnpm-workspace.yaml`, `.np
 | ----------- | ------------------------ | ---------------------------------------------------------------------------------- |
 | Website     | `pnpm rtx website dev`   | Hot-reload dev server on `:3000` (bind-mounted source).                            |
 | Website     | `pnpm rtx website check` | Build image (if stale) + boot dev server detached + curl `:3000` + tear down.      |
-| Website     | `pnpm rtx website build` | Production build to `container/website/.output`.                                             |
+| Website     | `pnpm rtx website build` | Production build to `container/website/.output` (ends with the render check below).          |
+| Website     | `pnpm rtx website check --static` | Serve the built `.output/public` and assert every benchmark page renders its benchmark. |
 | Benchmarks  | `pnpm rtx bench prep`    | Build the resolver binary (host + Linux cross) + JS packages on the host.          |
 | Benchmarks  | `pnpm rtx bench`         | Build + run EVERY competitor in its own isolated container, then aggregate.         |
 | Benchmarks  | `pnpm rtx bench --one <n>` | Build + run a SINGLE competitor + aggregate (fastest verification loop).            |
@@ -125,6 +126,7 @@ The docs site documents the runtime packages: its `<code-import>` and `::twoslas
 - `RT_WEBSITE_REPO_CONTEXT` — host path to the checkout containing `packages/`. **Default:** sibling `../mion` if present, else this repo. Override to point anywhere.
 - Only `packages/` (+ the drizzle-orm `.d.ts` allowlist) is mounted — never the repo root. The resolvers additionally **confine every `path=` read to `packages/`** (`resolveInPackages` in [`server/utils/repo-root.ts`](container/website/server/utils/repo-root.ts)); a path escaping it is rejected.
 - `pnpm rtx website check --docs` boots the dev server and checks code-import + twoslash + the security boundary end-to-end (curl/grep, no browser).
+- `pnpm rtx website check --static` works on the OTHER end — the finished artifact. It serves `container/website/.output/public` through the same clean-URL resolution Cloudflare Pages uses and replays what a browser does on every `content/<N>.benchmarks/` page: the page must be prerendered with its `::bench-table`, the `/bench-data/<bench>/index.json` the table fetches must exist, and its numbers must actually paint cells (a dataset that would render every cell `n-a` fails). The bench tables render client-side and fall back to a "data not generated yet" notice, so without this a benchmark stage that dies mid-run ships a GREEN build with empty pages. `pnpm rtx website build` runs it as its last stage, and [website-deploy.yml](.github/workflows/website-deploy.yml) runs it again as an explicit gate before the Cloudflare upload.
 
 ### Docs read benchmark/test results from `.docdata/`
 
@@ -464,6 +466,7 @@ pnpm rtx dev fuzz <suite> [--soak]  # unit|value|types|enrich|i18n|typemod|race|
 pnpm rtx dev smoke               # resolver + devtools end-to-end smoke
 pnpm rtx website dev [--agent]   # hot-reload docs server (:3000, or :3100 --agent)
 pnpm rtx website build [--no-bench] [--quick]   # build the docs site
+pnpm rtx website check --static  # serve the built site + assert the benchmark pages render
 pnpm rtx bench [--one <name>|--full|--website] [--quick]   # benchmarks
 pnpm rtx verify                  # lint + typecheck + format check
 pnpm rtx fmt [--check]           # format (oxfmt + prettier + gofmt)

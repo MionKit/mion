@@ -50,11 +50,10 @@ logs
 # never committed.
 /public/playground-app/
 
-# Generated docs data — suite/benchmark result JSON the tables fetch at runtime.
-# Produced locally by `pnpm run gen:suite-docs` / `pnpm run gen:bench-docs`
-# (Go binary + benchmark harness); a run output, not something we version.
-# A fresh clone shows the "data not generated yet" fallback until you regenerate.
-/public/suite-data/
+# Generated docs data — benchmark result JSON the tables fetch at runtime.
+# Produced locally by `pnpm rtx bench --website` (Go binary + benchmark harness);
+# a run output, not something we version. A fresh clone shows the "data not
+# generated yet" fallback until you regenerate.
 /public/bench-data/
 
 # Host-vendored ts-runtypes runtime source for the playground (build-playground.sh);

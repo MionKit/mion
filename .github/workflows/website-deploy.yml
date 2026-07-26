@@ -88,6 +88,15 @@ jobs:
         uses: ./.github/actions/cache-playground-wasm
       - name: Build binary + benchmarks + static site
         run: pnpm rtx website build
+      # Deploy gate: serve the prerendered artifact and assert every benchmark page
+      # can actually render its benchmark. The bench tables fetch their data client
+      # side and degrade to a "not generated yet" notice when it is missing, so a
+      # benchmark stage that dies mid-run otherwise ships a GREEN build with empty
+      # pages (this is how the serialization pages went out blank). `website build`
+      # already ends with this check; repeating it here keeps the gate explicit and
+      # named in the run, and costs seconds.
+      - name: Check the built site renders every benchmark
+        run: pnpm rtx website check --static
       - name: Upload static artifact
         uses: actions/upload-artifact@v7
         with:

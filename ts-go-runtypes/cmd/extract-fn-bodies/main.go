@@ -4,11 +4,11 @@
 // with every leaf being either an arrow-function-body string or omitted
 // entirely (non-function properties are skipped).
 //
-// The Node-side docs pipeline (scripts/website/suite-data/export-validation.mjs) spawns
-// this binary, parses stdout, and merges the bodies with the runtime
-// VALIDATION_SUITE structure. Keeping the Go side narrow — bodies only —
-// lets the Node side own the docs output shape and extend later
-// (performance measurement, running validators, evaluated samples).
+// The Node-side docs pipeline (scripts/website/bench-data/gen-serialization.mjs)
+// spawns this binary, parses stdout, and merges the bodies with the runtime
+// suite structure. Keeping the Go side narrow — bodies only — lets the Node side
+// own the docs output shape and extend later (performance measurement, running
+// validators, evaluated samples).
 //
 // Run:
 //

@@ -683,7 +683,7 @@ h2[data-slot='title'] {
 
 /* ── Per-section page width + TOC ───────────────────────────────────────────
    `<body>` is tagged by app/plugins/section-class.ts: `rt-wide-page` on
-   Introduction + Guide, `rt-flush-page` on Suites + Benchmarks. The doc layout
+   Introduction + Guide, `rt-flush-page` on Benchmarks. The doc layout
    nests a 10-col grid — content (`col-span-8`) beside a right-hand TOC rail
    (`col-span-2`, a <div>; the left nav is an <aside>, so it's untouched). On
    both sections we collapse that inner grid to a block so content reclaims the
@@ -706,15 +706,15 @@ body.rt-flush-page [class~='lg:grid-cols-10'] > div[class~='lg:col-span-2'] {
 
 /* Wide pages (Introduction + Guide): collapse the content/TOC grid to a block so
    content reclaims the freed rail and runs the full width of the column. Flush pages
-   (Suites + Benchmarks) keep the grid, so content stays at its normal width — no TOC,
+   (Benchmarks) keep the grid, so content stays at its normal width — no TOC,
    but not widened. No container bump either way, so the header, sidebar and content
    left edges stay aligned across every page. */
 body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) {
   display: block;
 }
 
-/* ── Suite & benchmark surfaces — theme-aware ────────────────────────────────
-   The suite/benchmark tables + hover panels were a fixed dark "terminal". These
+/* ── Benchmark surfaces — theme-aware ────────────────────────────────────────
+   The benchmark tables + hover panels were a fixed dark "terminal". These
    vars let the surrounding chrome flip with the color mode (text already rides
    the theme-aware `--ui-*` tokens; code blocks carry Shiki's own dual-theme
    colors). Dark values match the original look so dark mode is unchanged. */

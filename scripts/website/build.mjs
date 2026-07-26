@@ -4,17 +4,19 @@
 //
 //   1. shared website+benchmark podman image   (image.mjs ensureImage)
 //   2. Go resolver binary + marker/plugin dist  (bench prep)
-//   3. suite-data -> public/suite-data/         (suite-data exporters, host)
-//   4. all benchmark data -> bench-data/        (bench website-bench)
-//   5. playground assets -> public/playground-app/ (build-playground.mjs, host)
-//   6. static Nuxt build -> .output/public      (site.mjs generate)
+//   3. all benchmark data -> bench-data/        (bench website-bench)
+//   4. playground assets -> public/playground-app/ (build-playground.mjs, host)
+//   5. static Nuxt build -> .output/public      (site.mjs generate)
+//   6. check the built site renders every benchmark (check-static.mjs, generate only)
 //
-// The Nuxt pages FETCH public/suite-data/ + public/bench-data/ at runtime and the
-// /playground page loads public/playground-app/ — all git-ignored, so stages 3-5
-// regenerate them before the site build (stage 6) bakes them in.
+// The Nuxt pages FETCH public/bench-data/ at runtime and the /playground page loads
+// public/playground-app/ — both git-ignored, so stages 3-4 regenerate them before the
+// site build (stage 5) bakes them in, and stage 6 serves the result and verifies every
+// benchmark page's data actually made it in (a silently-empty dataset ships a page that
+// renders "data not generated yet" — see scripts/website/check-static.mjs).
 //
 // Usage (via `pnpm rtx website build …`): [generate|build] [--quick] [--no-bench].
-// --quick maps onto RT_BENCH_QUICK; --no-bench reuses existing suite+bench data.
+// --quick maps onto RT_BENCH_QUICK; --no-bench reuses existing bench data.
 
 import {existsSync, globSync, mkdirSync, rmSync, statSync} from 'node:fs';
 import {join} from 'node:path';
@@ -22,6 +24,7 @@ import {ensureImage} from '../container/image.mjs';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {die, note, reportCliError, run, warn, which} from '../lib/proc.mjs';
 import {main as benchMain} from './bench-data/bench.mjs';
+import {main as checkStaticMain} from './check-static.mjs';
 import {main as siteMain} from './site.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
@@ -35,17 +38,13 @@ function node(rel, args = []) {
 }
 
 // --no-bench reuses already-generated data instead of re-running the (multi-minute)
-// suite + benchmark stages. Both dirs are git-ignored and produced ONLY by those
-// stages, so assert UP FRONT and fail LOUD rather than shipping a wrong build.
+// benchmark stage. The dir is git-ignored and produced ONLY by that stage, so assert
+// UP FRONT and fail LOUD rather than shipping a wrong build.
 function requireBenchArtifacts() {
-  let missing = false;
-  for (const dir of [join(WEBSITE_DIR, 'public/suite-data'), join(WEBSITE_DIR, 'public/bench-data')]) {
-    if (!existsSync(dir) || globSync('**/*.json', {cwd: dir}).length === 0) {
-      console.error(`website build: --no-bench needs '${dir}' to already exist with data, but it is missing or empty.`);
-      missing = true;
-    }
-  }
-  if (missing) die("website build: run a full 'pnpm rtx website build' once to generate suite-data + bench-data, then re-run with --no-bench.");
+  const dir = join(WEBSITE_DIR, 'public/bench-data');
+  if (existsSync(dir) && globSync('**/*.json', {cwd: dir}).length > 0) return;
+  console.error(`website build: --no-bench needs '${dir}' to already exist with data, but it is missing or empty.`);
+  die("website build: run a full 'pnpm rtx website build' once to generate bench-data, then re-run with --no-bench.");
 }
 
 // Human-readable byte size (KB/MB), for the zip line.
@@ -77,33 +76,34 @@ export async function main(args) {
   // Fail fast: verify the reused data exists before spending time on the prereqs.
   if (skipBench) requireBenchArtifacts();
 
-  step('1/5  shared website+benchmark podman image');
+  step('1/6  shared website+benchmark podman image');
   ensureImage();
 
-  step('2/5  Go resolver binary (+ marker/plugin dist)');
+  step('2/6  Go resolver binary (+ marker/plugin dist)');
   benchMain(['prep']);
 
   if (skipBench) {
-    step('3+4/5  SKIPPED (--no-bench): reusing existing suite-data + bench-data');
+    step('3/6  SKIPPED (--no-bench): reusing existing bench-data');
   } else {
-    step('3/5  suite-data -> container/website/public/suite-data/');
-    node('scripts/website/suite-data/export-validation.mjs');
-    node('scripts/website/suite-data/export-serialization.mjs');
-    node('scripts/website/suite-data/export-validation.mjs', ['--suite', 'format-validation']);
-    node('scripts/website/suite-data/export-serialization.mjs', ['--suite', 'format-serialization']);
-    node('scripts/website/suite-data/website-data.mjs');
-
-    step('4/5  benchmarks -> container/website/public/bench-data/');
+    step('3/6  benchmarks -> container/website/public/bench-data/');
     benchMain(['website-bench']);
   }
 
-  // The playground bundle is independent of suite/bench data (runs even under
+  // The playground bundle is independent of the bench data (runs even under
   // --no-bench) but needs the stage-2 Go binary for its WASM.
-  step('5/6  playground assets -> container/website/public/playground-app/');
+  step('4/6  playground assets -> container/website/public/playground-app/');
   node('container/website/scripts/build-playground.mjs');
 
-  step(`6/6  Nuxt ${target} -> container/website/.output`);
+  step(`5/6  Nuxt ${target} -> container/website/.output`);
   await siteMain([target]);
+
+  // Gate the artifact: serve the static output and assert every benchmark page's
+  // data is there and non-empty. Only `generate` produces .output/public — an SSR
+  // `build` has no static tree to serve, so it skips.
+  if (target === 'generate') {
+    step('6/6  check the built site renders every benchmark');
+    await checkStaticMain([]);
+  }
 
   // Package the static artifact into a single zip beside it (manual Cloudflare
   // dashboard "direct upload" / backup). Only for generate — the self-contained
@@ -122,7 +122,7 @@ export async function main(args) {
 
   console.log('');
   const quick = process.env.RT_BENCH_QUICK ? ', quick benchmarks' : '';
-  const nobench = skipBench ? ', no-bench: reused suite+bench data' : '';
+  const nobench = skipBench ? ', no-bench: reused bench data' : '';
   console.log(`==> website build DONE (target: ${target}${quick}${nobench})`);
   if (target === 'generate') {
     console.log('    static site:   container/website/.output/public');

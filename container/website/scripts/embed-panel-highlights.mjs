@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build-time pre-highlighter for the suite / benchmark hover-panel code snippets.
+// Build-time pre-highlighter for the benchmark hover-panel code snippets.
 //
 // The panels normally fetch Shiki HTML from the /api/highlight server route, but a
 // STATIC deploy (nuxt generate -> Cloudflare Pages) has no server, so that route
@@ -87,7 +87,6 @@ function caseFiles(root) {
 }
 
 let benchCount = 0;
-let suiteCount = 0;
 
 // Benchmark cases: { competitors: [{ name, sources?: {validate, validationErrors}, source? }], samplesCode? }
 for (const file of caseFiles(path.join(PUBLIC_DIR, 'bench-data'))) {
@@ -108,19 +107,4 @@ for (const file of caseFiles(path.join(PUBLIC_DIR, 'bench-data'))) {
   benchCount++;
 }
 
-// Suite cases: { pureType, schema?, generated, ... }
-for (const file of caseFiles(path.join(PUBLIC_DIR, 'suite-data'))) {
-  const data = JSON.parse(readFileSync(file, 'utf8'));
-  if (typeof data.pureType !== 'string' && typeof data.generated !== 'string') continue;
-  data.html = {
-    pureType: await toHtml(data.pureType, 'ts'),
-    schema: data.schema ? await toHtml(data.schema, 'ts') : '',
-    generated: await toHtml(data.generated, 'js'),
-  };
-  writeFileSync(file, JSON.stringify(data));
-  suiteCount++;
-}
-
-process.stdout.write(
-  `embed-panel-highlights: baked Shiki HTML into ${benchCount} bench + ${suiteCount} suite case files under ${PUBLIC_DIR}\n`,
-);
+process.stdout.write(`embed-panel-highlights: baked Shiki HTML into ${benchCount} bench case files under ${PUBLIC_DIR}\n`);

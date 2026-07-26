@@ -1,5 +1,5 @@
 // Server-side Shiki highlighter for the small code snippets shown in the
-// suite / benchmark hover panels. Mirrors the setup in server/api/twoslash.post.ts
+// benchmark hover panels. Mirrors the setup in server/api/twoslash.post.ts
 // (github-dark + github-light dual theme, ts/js grammars) but without the twoslash
 // type pass — these panels just need syntax colors. A singleton highlighter + cache
 // cache keep repeat requests cheap. Rendering happens on the server, so the

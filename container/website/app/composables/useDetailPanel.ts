@@ -1,6 +1,6 @@
 import {ref, onMounted, onBeforeUnmount} from 'vue';
 
-// Shared interaction model for the bottom detail panels in SuiteTable / BenchTable.
+// Shared interaction model for the bottom detail panels in BenchTable.
 // Hover a row → a transient PREVIEW that auto-hides on mouse-out (after a short
 // grace period). Click / tap / Enter a row → PIN the panel open (so it works on
 // touch). A pinned panel IGNORES hover, so the cursor can travel down to it and

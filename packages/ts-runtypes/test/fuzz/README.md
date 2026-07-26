@@ -8,11 +8,8 @@ through the real Go resolver → plugin → runtime pipeline, all checked agains
 laws (oracles) that must hold for _every_ input rather than a hand-picked
 expected answer.
 
-The user-facing narrative (what each oracle promises, the bugs it has caught)
-lives in the docs site at
-[`container/website/content/6.suites/5.fuzzing.md`](../../../../container/website/content/6.suites/5.fuzzing.md).
-This README is the developer map: what's in each directory, how a run is wired,
-and how to reproduce a finding.
+This README is the developer map: what each oracle promises, what's in each
+directory, how a run is wired, and how to reproduce a finding.
 
 ## Why oracles, not examples
 
@@ -283,8 +280,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 
 ## Oracle catalog
 
-Grouped by mode; the prose descriptions of the shared O/TR series are in the
-[website fuzzing doc](../../../../container/website/content/6.suites/5.fuzzing.md).
+Grouped by mode.
 
 | Mode                      | IDs                                                                                                                                                                                                                                                                  |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

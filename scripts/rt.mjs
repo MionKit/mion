@@ -177,6 +177,12 @@ async function runWebsite(args) {
     return proxy('node', ['scripts/website/serve.mjs', ...pass]);
   }
   if (sub === 'check') {
+    // --static checks the BUILT artifact (.output/public): serve it and assert every
+    // benchmark page renders its benchmark. The other two boot the dev container.
+    if (hasFlag(rest, '--static')) {
+      const {main} = await import('./website/check-static.mjs');
+      return main(takeFlag(rest, '--static').rest);
+    }
     const {main} = await import('./website/site.mjs');
     return main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']);
   }
@@ -184,7 +190,7 @@ async function runWebsite(args) {
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
-  die('usage: rtx website <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs]|container-build|shell>');
+  die('usage: rtx website <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|container-build|shell>');
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
@@ -274,6 +280,7 @@ website
                     [--quick] [--ssr] [--skip-playground]
   rtx website preview [--no-build] serve the static site locally; regenerates it first unless --no-build
   rtx website check [--docs]       serves-a-page smoke (code-import + twoslash with --docs)
+  rtx website check --static       serve the BUILT site + assert every benchmark page renders
   rtx website container-build      container-only prod build (not the full pipeline)
   rtx website shell                debug shell inside the website container
 
