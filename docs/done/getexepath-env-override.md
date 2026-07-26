@@ -97,6 +97,11 @@ What landed:
   bad value exits non-zero naming `RT_BIN`). Lives in the devtools project because it is the
   launcher's consumer and `@ts-runtypes/bin` has no vitest project of its own. (The marker
   coverage rule does not apply — no marker API is involved.)
+- [packages/ts-runtypes-devtools/test/eslint/oxlint-e2e.test.ts](../../packages/ts-runtypes-devtools/test/eslint/oxlint-e2e.test.ts)
+  — the LINT-LANE half, added after this shipped: the real `oxlint` CLI honours `RT_BIN` (baseline
+  findings with the real binary, the launcher's own `does not exist` error failing the run with a
+  bogus one), in the same config whose `settings.runtypes.binary` is ignored. That contrast is the
+  whole point of this feature, and only a real-linter run reaches it.
 - Registry + sample: `RT_BIN` (scope `dev`) in [scripts/lib/env.mjs](../../scripts/lib/env.mjs) and
   [.env.sample](../../.env.sample).
 - Docs: [SETUP.md](../../SETUP.md) (dev-loop section + a troubleshooting row for the exact

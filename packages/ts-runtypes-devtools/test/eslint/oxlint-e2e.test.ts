@@ -11,7 +11,7 @@ import path from 'node:path';
 import {promisify} from 'node:util';
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import {TODO_LINE} from '../../src/go-generated/runtypes-constants.generated.ts';
-import {hasBinary, makeFixtureProject, type FixtureProject} from './fixture.ts';
+import {BIN, hasBinary, makeFixtureProject, type FixtureProject} from './fixture.ts';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -97,6 +97,38 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // The engine itself must not have failed.
     expect(stdout).not.toContain('resolver failed');
     expect(stdout).not.toContain('resolver unavailable');
+  });
+
+  // RT_BIN is the lint lane's ONLY binary override (the config above proves the
+  // `settings.runtypes.binary` key is ignored), so it is what a consumer reaches
+  // for to validate an unpublished build or bisect a resolver regression through
+  // the linter. The unit suite covers getExePath itself; this proves the env var
+  // survives the whole real path — oxlint host, plugin, worker, spawn shim.
+  it('honours RT_BIN for the resolver binary, unlike the ignored settings key', {timeout: 120_000}, async () => {
+    const runOxlint = async (rtBin: string): Promise<{stdout: string; exitCode: number}> => {
+      try {
+        const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {
+          cwd: project.dir,
+          env: {...process.env, RT_BIN: rtBin},
+        });
+        return {stdout: result.stdout, exitCode: 0};
+      } catch (error) {
+        const failed = error as {stdout?: string; code?: number};
+        return {stdout: failed.stdout ?? '', exitCode: failed.code ?? 1};
+      }
+    };
+
+    // Pointed at the real binary the run behaves exactly like the baseline above.
+    const honoured = await runOxlint(BIN);
+    expect(honoured.stdout).toContain('[VL011]');
+    expect(honoured.stdout).not.toContain('resolver failed');
+
+    // Pointed at a path that isn't there, the launcher's own error reaches the
+    // linter's output instead of the run silently falling back to another binary.
+    const bogus = await runOxlint('/nonexistent/rt-bin-override');
+    expect(bogus.exitCode).toBe(1);
+    expect(bogus.stdout).toContain('RT_BIN=/nonexistent/rt-bin-override');
+    expect(bogus.stdout).toContain('does not exist');
   });
 
   it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {

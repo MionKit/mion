@@ -69,9 +69,22 @@ Planning found the defect was **wider than the `binary` key**:
 - Neither set `tsconfig`, which IS honored. Both linters are spawned with `cwd: <e2e root>`
   (`lint-all.mjs`, `test/lint-transport.test.mjs`), so the resolver searched upward from there for a
   config: it found the **monorepo's own** `tsconfig.json` on a host run, and nothing in-container.
-  The apps' tsconfigs were never read, so the lane was not linting the way it claimed.
-- `test/lint-transport.test.mjs`'s `WIRED = /runtypes|VL0\d\d/i` could not tell, because a
-  `broken-tsconfig` / CFG001 engine line matches it just as well as a real `VL0xx` finding.
+  The apps' own tsconfigs were never read.
+- `test/lint-transport.test.mjs`'s `WIRED = /runtypes|VL0\d\d/i` cannot tell a real finding from an
+  engine failure, because a `broken-tsconfig` / CFG001 line matches it just as well as a `VL0xx`.
+
+**Measured, not assumed (correction to an earlier draft of this section).** The dropped `cwd`
+changed no diagnostic outcome. Reproducing the fixture's exact topology on the host with the REAL
+oxlint CLI (linter spawned from a parent dir, app tsconfig reachable only through the setting), the
+old shape and the new shape both emit the identical `VL011` — and so does the old shape with a
+DECOY tsconfig planted above the linter's cwd, which is the host situation. The resolver roots an
+inferred Program at the linted file, so a missing or unrelated project config does not break these
+self-contained caveat files. So the fix is correctness-of-intent, not a repair of broken output: it
+makes the lane read each app's real config, which matters the moment an app depends on options the
+resolver takes from the project (`lib`, `paths`, `customConditions`) — exactly what the
+`settings.runtypes.tsconfig` e2e case in `test/eslint/oxlint-e2e.test.ts` already pins. The
+tightened CFG001 assertion below is a guard against that class of misconfiguration, not a fix for
+an observed failure; no run in the topology experiment tripped it.
 
 What landed:
 
@@ -100,7 +113,33 @@ What landed:
 - **Env contract** — the `RT_E2E_BINARY` rows in [scripts/lib/env.mjs](../../scripts/lib/env.mjs)
   and [.env.sample](../../.env.sample) note that the lint lanes receive it as `RT_BIN`.
 
+## Verification (2026-07-26)
+
+The containerized e2e lane (`pnpm rtx release e2e`) could NOT run in this session, and not for want
+of tooling: podman 4.9.3, Go 1.26 and the workspace are all in place, but **no image is reachable**.
+A local build needs a Docker Hub base image and the registry's blob CDN
+(`production.cloudfront.docker.com`) is refused by the egress policy with a 403, while
+`ghcr.io/mionkit/tsrt-e2e` is private and this session has no `GHCR_PAT` (there is no `.env`).
+Neither is routed around.
+
+What ran instead, on the host, with the REAL linter rather than a mock:
+
+- **The fixture's lint topology, reproduced end to end** (scratchpad script, not committed): real
+  `oxlint` spawned from a parent dir linting a nested app, old shape vs new shape, plus a decoy
+  tsconfig round. Results are in the correction note above; the new shape resolves its
+  e2e-root-relative `tsconfig` correctly and never trips CFG001.
+- **RT_BIN through the whole lint lane** — the finding that earned a permanent test. Added to
+  `test/eslint/oxlint-e2e.test.ts`: with `RT_BIN` pointed at the real binary the run produces the
+  baseline `VL011`; pointed at a missing path the launcher's own
+  `RT_BIN=/nonexistent/… does not exist` reaches oxlint's output and fails the run. The same config
+  carries a bogus `settings.runtypes.binary`, so one test now contrasts the ignored setting with the
+  honored env var. This is the lint-lane half of `RT_BIN` that the unit tests could not reach.
+- Full JS suite, `pnpm run lint`, `pnpm run check-format`.
+
+Still unexercised here: the published-tarball install chain (verdaccio), the multi-bundler matrix,
+and the ESLint transport (eslint is not a host dependency; it shares the plugin and session code
+with the oxlint lane, which did run). Those need the release gate's container.
+
 **Not done:** making `settings.runtypes.binary` real (option 1), and warning consumers about
 unknown `settings.runtypes` keys — the latter changes behavior for every host and deserves its own
-spec if wanted. The e2e lanes themselves were not executed here: they need the GHCR toolchain image
-plus verdaccio, which this session cannot pull.
+spec if wanted.
