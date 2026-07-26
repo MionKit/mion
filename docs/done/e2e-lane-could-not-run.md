@@ -40,6 +40,17 @@ release time.
 **Fixed:** the three calls now use `enrich <file> <Type>`, `enrich --i18n es <file>` and
 `enrich --no-emit`, plus the stale `gen --check` mention in the header comment.
 
+**Guarded, so the next rename cannot repeat it:** a host-side smoke in
+[packages/ts-runtypes-devtools/test/cli-surface.test.ts](../../packages/ts-runtypes-devtools/test/cli-surface.test.ts)
+reads the argv the fixture ACTUALLY passes (every `cli([...])` literal in
+`container/pre-publish-e2e/*.mjs`) and checks each verb against the binary's command set and each
+long flag against that verb's own `--help`. It needs no project, no container and no network — one
+`--help` per verb, ~1s — and it lives beside the help golden that already owns the CLI surface, so
+a surface change and its consumer are reviewed together. Verified by reintroducing the exact
+historical bug: `gen` and `--translate` both fail with the file, the token and the accepted set
+named. A third case asserts the parse matched something at all, so the guard cannot quietly pass by
+finding no invocations.
+
 ## 2. `waitHealthy()` required systemd, so the lane died at the registry gate
 
 [scripts/release/e2e.mjs](../../scripts/release/e2e.mjs) polled

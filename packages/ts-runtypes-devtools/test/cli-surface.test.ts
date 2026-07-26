@@ -286,3 +286,78 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
     }
   }, 60_000);
 });
+
+// The pre-publish e2e fixture drives this CLI (container/pre-publish-e2e/build-all.mjs
+// scaffolds the shared app's enrichment mirrors before any app builds), but nothing
+// on the host runs that script: no vitest project covers container/, so the fixture
+// is only exercised inside the release-gate container. When `gen` was merged into
+// `enrich`, the rename reached the packages, the docs and the skills — and left the
+// fixture calling a verb that no longer existed. The binary answers an unknown verb
+// with usage and exit 2, so the matrix died before the builds, the assertions and the
+// lint transport: the gate was red on main and nothing said so until release time.
+//
+// This is the cheap host-side guard for that class: read the argv the fixture ACTUALLY
+// passes and check every verb and long flag against the live binary's own help. It
+// needs no project, no container and no network — one --help per verb.
+describe.skipIf(!hasBinary)('CLI surface — the e2e fixture only uses verbs this binary has', () => {
+  const E2E_DIR = resolve(REPO_ROOT, 'container/pre-publish-e2e');
+
+  // Every `cli([...])` call in the fixture scripts, as its list of string literals.
+  // Non-literal arguments (variables like `model`) are skipped — a verb and its
+  // flags are always spelled out, which is exactly what can go stale.
+  function fixtureInvocations(): {file: string; argv: string[]}[] {
+    const found: {file: string; argv: string[]}[] = [];
+    for (const entry of readdirSync(E2E_DIR)) {
+      if (!entry.endsWith('.mjs')) continue;
+      const source = readFileSync(join(E2E_DIR, entry), 'utf8');
+      for (const match of source.matchAll(/\bcli\(\[([^\]]*)\]\)/g)) {
+        const argv = [...match[1].matchAll(/'([^']*)'/g)].map((literal) => literal[1]);
+        if (argv.length > 0) found.push({file: entry, argv});
+      }
+    }
+    return found;
+  }
+
+  const commandSet = (): Set<string> => {
+    const commands = new Set<string>();
+    // The "Commands:" block lists `    <verb>   <description>` rows.
+    const body = run(['--help']).stdout.split('Commands:')[1] ?? '';
+    for (const line of body.split('\n')) {
+      const match = /^\s{2,}([a-z][a-z-]*)\s{2,}\S/.exec(line);
+      if (match) commands.add(match[1]);
+    }
+    return commands;
+  };
+
+  const flagSet = (verb: string): Set<string> => {
+    const help = run([verb, '--help']);
+    // Digits count: --i18n would truncate to --i under a letters-only class.
+    return new Set([...`${help.stdout}${help.stderr}`.matchAll(/(--[a-z][a-z0-9-]*)/g)].map((match) => match[1]));
+  };
+
+  it('finds the fixture invocations at all (the parse must not silently match nothing)', () => {
+    const invocations = fixtureInvocations();
+    expect(invocations.length).toBeGreaterThan(0);
+    expect(invocations.every(({argv}) => argv[0] && !argv[0].startsWith('-'))).toBe(true);
+  });
+
+  it('every verb the fixture calls exists', () => {
+    const commands = commandSet();
+    expect(commands.size).toBeGreaterThan(0);
+    for (const {file, argv} of fixtureInvocations()) {
+      expect(commands, `${file} calls '${argv[0]}', which this binary does not accept`).toContain(argv[0]);
+    }
+  });
+
+  it('every long flag the fixture passes exists on that verb', () => {
+    const flagsByVerb = new Map<string, Set<string>>();
+    for (const {file, argv} of fixtureInvocations()) {
+      const [verb, ...rest] = argv;
+      if (!flagsByVerb.has(verb)) flagsByVerb.set(verb, flagSet(verb));
+      const accepted = flagsByVerb.get(verb)!;
+      for (const flag of rest.filter((arg) => arg.startsWith('--'))) {
+        expect(accepted, `${file} passes '${flag}' to '${verb}', which does not accept it`).toContain(flag);
+      }
+    }
+  });
+});
