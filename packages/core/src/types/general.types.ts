@@ -286,35 +286,9 @@ export type DataOnly<T> = RtDataOnly<T>;
 // DO NOT CHANGE THE INTERFACE NAMES AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
 // ##########################################################################################
 
-export type StrictArrayBuffer = ArrayBuffer & {buffer?: undefined};
-/** Input type for binary deserialization - accepts ArrayBuffer or any typed array view (including Node.js Buffer) */
-export type BinaryInput = ArrayBuffer | ArrayBufferView;
-export interface DataViewSerializer {
-    index: number; // byte offset
-    view: DataView;
-    reset: () => void;
-    getBuffer: () => StrictArrayBuffer;
-    getBufferView: () => Uint8Array;
-    markAsEnded: () => void;
-    getLength(): number;
-    // serialization functions
-    serString(str: string): void;
-    serFloat64(n: number): void;
-    serEnum(n: number | string): void;
-    setBitMask(bitMaskIndex: number, bitIndex: number): void;
-}
-
-export interface DataViewDeserializer {
-    index: number; // byte offset
-    view: DataView;
-    reset: () => void;
-    setBuffer: (buffer: StrictArrayBuffer, byteOffset?: number, byteLength?: number) => void;
-    markAsEnded: () => void;
-    getLength(): number;
-    // deserialization functions
-    desString(): string;
-    desFloat64(): number;
-    desEnum(): number | string;
-}
+// ⚠️ These interface NAMES are hardcoded in the JIT-generated code — re-exported under the
+// SAME names from @ts-runtypes/core (the codec that actually implements them). mion's former
+// subset mirrors were deleted; every member it declared exists upstream verbatim.
+export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@ts-runtypes/core';
 
 export type MimeTypes = (typeof MIME_TYPES)[keyof typeof MIME_TYPES];
