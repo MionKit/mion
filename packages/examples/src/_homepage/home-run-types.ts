@@ -1,4 +1,4 @@
-import {createValidate, createJsonEncoder, createBinaryEncoder, createMockData} from '@ts-runtypes/core';
+import {createValidateFn, createJsonEncoderFn, createBinaryEncoderFn, createMockDataFn} from '@ts-runtypes/core';
 interface User {
     id: string;
     name: string;
@@ -7,10 +7,10 @@ interface User {
 }
 // @annotate: Create precompiled functions directly from TypeScript types
 
-const isUser = createValidate<User>();
-const encodeUser = createJsonEncoder<User>();
-const toBinaryUser = createBinaryEncoder<User>();
-const mockUser = createMockData<User>();
+const isUser = createValidateFn<User>();
+const encodeUser = createJsonEncoderFn<User>();
+const toBinaryUser = createBinaryEncoderFn<User>();
+const mockUser = createMockDataFn<User>();
 
 // @annotate: Generate mock data - respects type structure
 

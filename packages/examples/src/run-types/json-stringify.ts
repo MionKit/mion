@@ -1,4 +1,4 @@
-import {createJsonEncoder} from '@ts-runtypes/core';
+import {createJsonEncoderFn} from '@ts-runtypes/core';
 
 interface Event {
     name: string;
@@ -12,9 +12,9 @@ const event = {
     metadata: new Map([['source', 'web']]),
 };
 
-// createJsonEncoder returns a value -> JSON-string encoder. It walks the type and makes every
+// createJsonEncoderFn returns a value -> JSON-string encoder. It walks the type and makes every
 // member JSON-safe (Date -> ISO string, Map -> entries) before stringifying, so plain
 // JSON.stringify (which drops Maps and can't revive Dates) is not needed.
-const encodeEvent = createJsonEncoder<Event>();
+const encodeEvent = createJsonEncoderFn<Event>();
 const jsonString = encodeEvent(event);
 // '{"name":"Click","timestamp":"2025-01-15T00:00:00.000Z","metadata":[["source","web"]]}'

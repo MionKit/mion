@@ -1,4 +1,4 @@
-import {createBinaryEncoder, createBinaryDecoder} from '@ts-runtypes/core';
+import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
 
 interface User {
     name: string;
@@ -6,13 +6,13 @@ interface User {
 }
 
 // start-to-binary
-const toBinary = createBinaryEncoder<User>();
+const toBinary = createBinaryEncoderFn<User>();
 const buffer = toBinary({name: 'John', age: 30});
 // Returns a Uint8Array with optimized binary encoding
 // end-to-binary
 
 // start-from-binary
-const fromBinary = createBinaryDecoder<User>();
+const fromBinary = createBinaryDecoderFn<User>();
 const user = fromBinary(buffer);
 // user is now { name: 'John', age: 30 }
 // end-from-binary

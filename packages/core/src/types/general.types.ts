@@ -102,7 +102,7 @@ export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
     | RpcErrorWithPublic<ErrType, ErrData>
     | RpcErrorWithPrivate<ErrType, ErrData>;
 
-/** A validation error from `createGetValidationErrors`, mion's public error-data shape (rides
+/** A validation error from `createGetValidationErrorsFn`, mion's public error-data shape (rides
  *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @ts-runtypes/core's
  *  `RTValidationError` (the type the validators actually produce): `{path, expected, format?}`.
  *  mion never constructs these, only forwards them, so the alias is exact and lossless. */

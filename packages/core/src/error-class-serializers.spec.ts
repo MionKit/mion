@@ -6,13 +6,13 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {createJsonDecoder, createJsonEncoder} from '@ts-runtypes/core';
+import {createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import {RpcError, TypedError} from './errors.ts'; // side effect: registers the mion error-class serializers
 
 describe('mion error classes round-trip through ts-runtypes decoders', () => {
     it('RpcError<string> decodes back to a real instance', () => {
-        const encode = createJsonEncoder<RpcError<string>>();
-        const decode = createJsonDecoder<RpcError<string>>();
+        const encode = createJsonEncoderFn<RpcError<string>>();
+        const decode = createJsonDecoderFn<RpcError<string>>();
         const expected = new RpcError({publicMessage: 'boom', message: 'boom', type: 'test-error'});
         const wire = encode(new RpcError({publicMessage: 'boom', message: 'boom', type: 'test-error'}));
         const back = decode(wire!);
@@ -21,8 +21,8 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
     });
 
     it('TypedError<string> decodes back to a real instance', () => {
-        const encode = createJsonEncoder<TypedError<string>>();
-        const decode = createJsonDecoder<TypedError<string>>();
+        const encode = createJsonEncoderFn<TypedError<string>>();
+        const decode = createJsonDecoderFn<TypedError<string>>();
         const back = decode(encode(new TypedError({message: 'x', type: 'typed'}))!);
         expect(back instanceof TypedError).toBe(true);
         expect((back as TypedError<string>).type).toBe('typed');
@@ -30,8 +30,8 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
 
     it('RpcError<string> reconstructs inside a union', () => {
         type Payload = {ok: true} | RpcError<string>;
-        const encode = createJsonEncoder<Payload>();
-        const decode = createJsonDecoder<Payload>();
+        const encode = createJsonEncoderFn<Payload>();
+        const decode = createJsonDecoderFn<Payload>();
         const back = decode(encode(new RpcError({publicMessage: 'u', message: 'u', type: 'union-error'}))!);
         expect(back instanceof RpcError).toBe(true);
     });
@@ -40,7 +40,7 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
         // TypedError/RpcError declare message/name as optional + @nonEnumerable and set them
         // non-enumerable at runtime, so @ts-runtypes' enumerability guard drops them from the
         // serialized envelope (mion exposes `publicMessage`, not the internal `message`).
-        const encode = createJsonEncoder<RpcError<string>>();
+        const encode = createJsonEncoderFn<RpcError<string>>();
         const wire = encode(
             new RpcError({publicMessage: 'safe', message: 'internal-secret', type: 'e', errorData: {x: 1}, id: 'id9'})
         )!;
@@ -61,8 +61,8 @@ describe('mion error classes round-trip through ts-runtypes decoders', () => {
         // lane, so ONE `registerClassSerializer(RpcError, …)` covers EVERY instantiation the
         // program uses, not just the registered RpcError<string> projection. A previously
         // unregistered instantiation now rebuilds a real instance (was the old upstream gap).
-        const encode = createJsonEncoder<RpcError<'other', {n: number}>>();
-        const decode = createJsonDecoder<RpcError<'other', {n: number}>>();
+        const encode = createJsonEncoderFn<RpcError<'other', {n: number}>>();
+        const decode = createJsonDecoderFn<RpcError<'other', {n: number}>>();
         const back = decode(encode(new RpcError({publicMessage: 'x', message: 'x', type: 'other', errorData: {n: 1}}))!);
         expect(back instanceof RpcError).toBe(true);
         expect((back as RpcError<'other', {n: number}>).type).toBe('other');

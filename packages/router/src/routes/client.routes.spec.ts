@@ -26,7 +26,7 @@ import {Routes} from '../types/general.ts';
 import {mionClientRoutes} from './client.routes.ts';
 import {headersFromRecord} from '../lib/headers.ts';
 import {dispatchRoute} from '../dispatch.ts';
-import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
 import {getSerializableMethod} from '../lib/remoteMethods.ts';
 
 type RawRequest = {
@@ -43,7 +43,7 @@ describe('PublicMethods run type functionality', () => {
     afterEach(() => resetRouter());
 
     it('can validate return type ClientReturn', () => {
-        const validate = createValidate<ClientReturn>();
+        const validate = createValidateFn<ClientReturn>();
         expect(
             validate(
                 new RpcError({
@@ -67,9 +67,9 @@ describe('PublicMethods run type functionality', () => {
             purFnDeps: {},
         };
 
-        const typeErrorsMethodsData = createGetValidationErrors<SerializableMethodsData>();
-        const typeErrorsPublicMethods = createGetValidationErrors<MethodsCache>();
-        const typeErrors = createGetValidationErrors<ClientReturn>();
+        const typeErrorsMethodsData = createGetValidationErrorsFn<SerializableMethodsData>();
+        const typeErrorsPublicMethods = createGetValidationErrorsFn<MethodsCache>();
+        const typeErrors = createGetValidationErrorsFn<ClientReturn>();
 
         expect(typeErrorsPublicMethods({hello: publicMethod})).toEqual([]);
         expect(typeErrorsMethodsData(response)).toEqual([]);
@@ -95,8 +95,8 @@ describe('PublicMethods run type functionality', () => {
             deps: {},
             purFnDeps: {},
         };
-        const encodeJson = createJsonEncoder<ClientReturn>();
-        const decodeJson = createJsonDecoder<ClientReturn>();
+        const encodeJson = createJsonEncoderFn<ClientReturn>();
+        const decodeJson = createJsonDecoderFn<ClientReturn>();
         const error = new RpcError({
             publicMessage: 'error',
             message: 'error',
@@ -262,10 +262,10 @@ describe('Client Routes should', () => {
     const methodsId = MION_ROUTES.methodsMetadataById;
     const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
     const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
-    const isJitCompiledFn = createValidate<JitCompiledFnData>();
+    const isJitCompiledFn = createValidateFn<JitCompiledFnData>();
     // deps ride the (already parsed) JSON response; encode+decode replays the wire trip
-    const encodeJitCompiledFn = createJsonEncoder<JitCompiledFnData>();
-    const decodeJitCompiledFn = createJsonDecoder<JitCompiledFnData>();
+    const encodeJitCompiledFn = createJsonEncoderFn<JitCompiledFnData>();
+    const decodeJitCompiledFn = createJsonDecoderFn<JitCompiledFnData>();
     const restoreJitCompiledFn = (dep: unknown) =>
         decodeJitCompiledFn(encodeJitCompiledFn(structuredClone(dep) as JitCompiledFnData)!);
 
