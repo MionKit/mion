@@ -76,6 +76,13 @@ async function waitHealthy(engine, container, timeoutS = 240) {
     const status = capture(engine, ['inspect', '--format', '{{.State.Health.Status}}', container]).stdout.trim();
     if (status === 'healthy') return;
     if (status === 'unhealthy') break;
+    // The reported status only advances when podman's healthcheck TIMER fires,
+    // and that timer is a transient systemd unit — so where systemd isn't init
+    // (agent/dev containers, some rootless setups) the status sits at 'starting'
+    // forever while the registry is long since ready. Run the SAME healthcheck
+    // synchronously to settle it: exit 0 means the container's own health
+    // command passed, which is exactly what 'healthy' would have meant.
+    if (capture(engine, ['healthcheck', 'run', container]).status === 0) return;
     await sleep(1500);
   }
   noteErr('registry did not become healthy - last 60 log lines:');

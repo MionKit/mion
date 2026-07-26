@@ -16,6 +16,7 @@
 //     containerized), which is exactly why it needs a contract test.
 
 import {describe, it, expect} from 'vitest';
+import {spawnSync} from 'node:child_process';
 import {readFileSync, existsSync, readdirSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
@@ -132,5 +133,51 @@ describe('twoslash VFS mounts the packages the examples import', () => {
 
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
     for (const name of mountedPackageNames()) expect(name.startsWith('@ts-runtypes/')).toBe(true);
+  });
+});
+
+// The rtx release area is the only one whose no-subcommand default performs an
+// IRREVERSIBLE action (preflight -> npm publish -> site build). It used to have
+// no help case and no unknown-sub guard, so `pnpm rtx release --help` — the
+// thing you type when you are least sure what a command does — started a
+// release: it wiped node_modules, reinstalled, and ran the suites before
+// anything could stop it. These pin the guards. Nothing in CI calls the bare
+// umbrella (workflows always pass a subcommand), so the guards cost it nothing.
+describe('rtx release — help and typos never reach the publish umbrella', () => {
+  const rtx = (args: string[]): {status: number | null; stdout: string; stderr: string} => {
+    const result = spawnSync(process.execPath, [join(REPO_ROOT, 'scripts/rt.mjs'), ...args], {encoding: 'utf8'});
+    return {status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
+  };
+
+  it('`release --help` prints the release usage and runs nothing', () => {
+    const {status, stdout} = rtx(['release', '--help']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('rtx release e2e');
+    // The umbrella's first step announces itself; its absence is the proof.
+    expect(stdout).not.toContain('Fresh start');
+    expect(stdout).not.toContain('preflight.mjs');
+  });
+
+  it('rejects a mistyped subcommand instead of running the umbrella', () => {
+    const {status, stderr} = rtx(['release', 'pacK']);
+    expect(status).toBe(2);
+    expect(stderr).toContain("unknown release command 'pacK'");
+  });
+
+  it('rejects an unknown flag, which also used to fall through', () => {
+    const {status, stderr} = rtx(['release', '--oops']);
+    expect(status).toBe(2);
+    expect(stderr).toContain("unknown release flag '--oops'");
+  });
+
+  it('still plans the umbrella for the bare invocation (--dry-run)', () => {
+    const {status, stdout} = rtx(['release', '--dry-run']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('preflight.mjs');
+    expect(stdout).toContain('publish.mjs');
+  });
+
+  it('keeps `rtx --help` and `rtx release --help` in sync (one source)', () => {
+    expect(rtx(['--help']).stdout).toContain(rtx(['release', '--help']).stdout.trim());
   });
 });

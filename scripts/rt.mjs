@@ -217,6 +217,15 @@ async function runBench(args) {
 }
 
 // ── release: npm publish + orchestrate the site build/deploy ────────────────
+
+// Flags the no-sub umbrella accepts. Anything else — an unknown flag, a
+// mistyped subcommand — must NOT reach it: the umbrella ends in an
+// irreversible npm publish, so it is the one default in this CLI that must
+// never run by accident.
+const UMBRELLA_FLAGS = new Set(['--preflight-only', '--no-website', '--dry-run']);
+
+const isHelpFlag = (arg) => arg === 'help' || arg === '-h' || arg === '--help';
+
 function runRelease(args) {
   const [sub, ...rest] = args;
   const map = {
@@ -235,6 +244,15 @@ function runRelease(args) {
     e2e: ['node', ['scripts/release/e2e.mjs']],
   };
   if (map[sub]) return proxy(map[sub][0], [...map[sub][1], ...rest]);
+  // Help, and the typo guard the umbrella needs. Every other area already
+  // refuses an unknown subcommand; release used to fall through to the
+  // publish chain instead, so `rtx release --help` STARTED a release.
+  if (isHelpFlag(sub)) return void process.stdout.write(RELEASE_HELP);
+  if (sub !== undefined && !sub.startsWith('-')) {
+    die(`unknown release command '${sub}'. Run \`pnpm rtx release --help\`.`, 2);
+  }
+  const stray = args.find((arg) => !UMBRELLA_FLAGS.has(arg));
+  if (stray) die(`unknown release flag '${stray}'. Run \`pnpm rtx release --help\`.`, 2);
   // Umbrella (no sub): preflight -> npm publish -> website build. Deploy is CI-only.
   const preflightOnly = hasFlag(args, '--preflight-only');
   const noWebsite = hasFlag(args, '--no-website');
@@ -264,6 +282,18 @@ async function runContainer(args) {
 }
 
 // ── dispatch ────────────────────────────────────────────────────────────────
+// The release rows live here so `rtx release --help` and the full `rtx --help`
+// print the SAME text (HELP interpolates this block).
+const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a maintainer approves with 2FA)
+  rtx release [--preflight-only] [--no-website] [--dry-run]   no-sub umbrella: preflight -> npm publish -> site build
+  rtx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
+  rtx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
+  rtx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)
+  rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
+  rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + host smoke)
+  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE @ts-runtypes/* from npm + run the same suite)
+`;
+
 const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx <area> <command>)
 
 core     the engine (Go resolver + TS marker/plugin)
@@ -288,15 +318,7 @@ bench
   rtx bench [--one <name>|--full|--website|--build-only] [--quick]
   rtx bench <audit|typecost|compiletime|serialization|smoke>
 
-release   npm publish + site build (CI stages to npm; a maintainer approves with 2FA)
-  rtx release [--preflight-only] [--no-website] [--dry-run]
-  rtx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
-  rtx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
-  rtx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)
-  rtx release manual-publish [--skip-build|--dry-run|--yes]   first-publish bootstrap: build + npm login + publish all 10 LIVE (resumable)
-  rtx release e2e [--backend container|host-npx] [--pack]   pre-publish e2e (containerized verdaccio + feature matrix + host smoke)
-  rtx release e2e --backend npm [--registry URL] [--version V] [--no-matrix]   post-publish e2e (install the LIVE @ts-runtypes/* from npm + run the same suite)
-
+${RELEASE_HELP}
 container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e]
            (build-image/push/pull/clean act on BOTH images when no target is given)
 env        rtx env [push-image|publish-npm|deploy-website|--create-env]
@@ -308,6 +330,13 @@ clean      clean build outputs; --deep also wipes node_modules
 
 async function dispatch(argv) {
   const [verb, ...rest] = argv;
+  // `rtx <area> --help` prints help instead of reaching the area's dispatcher,
+  // uniformly across areas. Deeper help (`rtx release e2e --help`) still goes
+  // to the leaf, which owns its own usage text.
+  if (verb && isHelpFlag(rest[0])) {
+    process.stdout.write(verb === 'release' ? RELEASE_HELP : HELP);
+    return;
+  }
   switch (verb) {
     case 'core': return runCore(rest);
     case 'website': return runWebsite(rest);
