@@ -8,8 +8,9 @@
 // ts-runtypes migration: the in-house seqproto-based implementation was replaced by
 // the @ts-runtypes/core DataView serializer — the compiled toBinary/fromBinary functions
 // are emitted against ITS wire protocol (varint lengths, string cache, Temporal support),
-// so the serializer objects must come from the same package. This module keeps mion's
-// historical creation signatures as thin proxies.
+// so the serializer objects must come from the same package. What survives here is NOT a type
+// mirror (the types are re-exported from @ts-runtypes/core): it is mion's own option-name and
+// creation-signature surface (bufferSize/workflowRouteIds), kept deliberately as public API.
 
 import {
     createDataViewSerializer as rtCreateDataViewSerializer,
@@ -17,6 +18,7 @@ import {
     setSerializationOptions as rtSetSerializationOptions,
 } from '@ts-runtypes/core';
 import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
+// NOTE: those types ARE @ts-runtypes/core's (re-exported), so no casting is needed below.
 
 /** Legacy mion serialization options, mapped onto the ts-runtypes equivalents. */
 export interface SerializationOptions {
@@ -47,10 +49,10 @@ export function setSerializationOptions(options: Partial<SerializationOptions>) 
  */
 export function createDataViewSerializer(routeId: string, workflowRouteIds?: string[]): DataViewSerializer {
     const options = workflowRouteIds?.length ? {relatedKeys: workflowRouteIds} : undefined;
-    return rtCreateDataViewSerializer(routeId, options) as unknown as DataViewSerializer;
+    return rtCreateDataViewSerializer(routeId, options);
 }
 
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
 export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
-    return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer) as unknown as DataViewDeserializer;
+    return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer);
 }
