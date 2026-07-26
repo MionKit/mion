@@ -4,7 +4,9 @@
 //
 //   - Published-package READMEs: `files` entries that match nothing are silently
 //     ignored by npm, so a package can list "README.md" and publish a blank npm
-//     page. @ts-runtypes/core did exactly that.
+//     page. @ts-runtypes/core did exactly that. They also have to stay thin: the
+//     option tables and usage walkthroughs they had grown restated the docs site,
+//     which is exactly how a public surface goes stale.
 //   - .env registry mirror: scripts/README.md documents `pnpm run check:env` as
 //     enforcing the REGISTRY -> .env.sample mirror. These tests pin the check's
 //     drift detection so the documented contract stays real.
@@ -41,6 +43,10 @@ const REPO_ROOT = resolve(HERE, '../../..');
 // scripts/release/build-binaries.mjs, so they have no source directory here.
 const PUBLISHED_PACKAGE_DIRS = ['ts-runtypes', 'ts-runtypes-devtools', 'ts-runtypes-bin'];
 
+// Headroom over the longest README today, so a wording tweak is free but a whole
+// section coming back is not.
+const THIN_README_MAX_LINES = 45;
+
 describe('published packages ship a README', () => {
   for (const dir of PUBLISHED_PACKAGE_DIRS) {
     const packageDir = join(REPO_ROOT, 'packages', dir);
@@ -59,6 +65,21 @@ describe('published packages ship a README', () => {
       const targets = [...readme.matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]);
       const relative = targets.filter((target) => !/^(https?:\/\/|#)/.test(target));
       expect(relative).toEqual([]);
+    });
+
+    // A published README is a shop window, not a manual: what the package is, how
+    // it relates to its siblings, and where the real docs live. Anything that
+    // restates the docs site (option tables, usage walkthroughs) drifts out of
+    // sync, and anything internal (env vars, dev-only knobs) does not belong on a
+    // public npm page at all. See the README rule in CLAUDE.md.
+    it(`${manifest.name} README stays a description plus links`, () => {
+      const readme = readFileSync(join(packageDir, 'README.md'), 'utf8');
+      const lines = readme.split('\n');
+      expect(lines.length).toBeLessThanOrEqual(THIN_README_MAX_LINES);
+      // A separator row is what makes a markdown table a table.
+      expect(lines.filter((line) => /^\s*\|\s*:?-{3,}/.test(line))).toEqual([]);
+      expect(readme).not.toMatch(/\bRT_[A-Z0-9_]+\b|process\.env/);
+      expect(readme).toContain('https://runtypes.pages.dev');
     });
   }
 });

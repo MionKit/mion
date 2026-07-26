@@ -64,6 +64,29 @@ function exeName(platform) {
   return platform.os === 'win32' ? 'ts-runtypes.exe' : 'ts-runtypes';
 }
 
+function platformReadme(name, platform) {
+  return `# ${name}
+
+Prebuilt **RunTypes** compiler binary for ${platform.os}-${platform.cpu}.
+
+You never install this package directly. It rides as a per-platform optional
+dependency of [\`@ts-runtypes/bin\`](https://www.npmjs.com/package/@ts-runtypes/bin),
+which resolves the one matching your machine, and that launcher is itself pulled in
+by [\`@ts-runtypes/devtools\`](https://www.npmjs.com/package/@ts-runtypes/devtools).
+
+## Documentation
+
+Full guides live at **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+[Source and issues](https://github.com/MionKit/ts-run-types).
+
+## License
+
+Proprietary — all rights reserved. No use, copying, or distribution without prior
+written authorization. See
+[LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
+`;
+}
+
 function buildPlatform(platform, version, tsgo, launcherPkg) {
   const name = platformPackageName(platform);
   const pkgDir = path.join(STAGING_DIR, name);
@@ -107,6 +130,10 @@ function buildPlatform(platform, version, tsgo, launcherPkg) {
   // Ship the proprietary LICENSE with every published binary package. npm always
   // includes a LICENSE file in the tarball, even though `files` lists only lib/.
   fs.copyFileSync(LICENSE_SRC, path.join(pkgDir, 'LICENSE'));
+  // Same story for the README: npm always packs it, and without one the package's
+  // npm page renders blank. These are payload packages nobody installs by hand, so
+  // it says what the payload is and points at the launcher and the docs.
+  fs.writeFileSync(path.join(pkgDir, 'README.md'), platformReadme(name, platform));
   return name;
 }
 

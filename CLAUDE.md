@@ -46,6 +46,8 @@ pnpm workspace, lockstep versioning ([version.json](version.json), bumped by [sc
 - [ts-runtypes-bin](packages/ts-runtypes-bin/) — platform launcher; `getExePath()` resolves the prebuilt resolver binary from per-platform `@ts-runtypes/binary-<os>-<arch>` optional deps. NEVER add a postinstall downloader — `ignoreScripts: true` blocks it. The binary embeds `constants.Version` (folded into typeID hashes) + `constants.TsgoVersion` (pure metadata: `--version` + the launcher's `tsgo` field, NEVER in the hash).
 - [examples](packages/examples/) — compilable TS example files consumed by the docs website's `<code-import>` blocks; typechecked by the root `typecheck` script so doc drift fails CI.
 
+**Published READMEs stay thin — a short description, the sibling relationship, and a link to [runtypes.pages.dev](https://runtypes.pages.dev/), plus the status/license lines.** No option tables, no usage walkthroughs, no env vars or dev-only knobs: the website is the one home for those, and a README that restates it drifts. Applies to the three package READMEs and the generated per-platform `@ts-runtypes/binary-*` one in [scripts/release/build-binaries.mjs](scripts/release/build-binaries.mjs); pinned by `repo-contracts.test.ts`. The root [README.md](README.md) is the GitHub landing page, not an npm page, and is exempt.
+
 ### Containers (`container/`)
 
 Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor validators like zod/typebox/ajv/typia, verdaccio + multi-bundler toolchains) run **only inside podman images** — never installed on the host, never mixed into the workspace lockfile.

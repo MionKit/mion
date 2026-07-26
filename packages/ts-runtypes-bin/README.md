@@ -1,38 +1,29 @@
 # @ts-runtypes/bin
 
-Platform launcher for the RunTypes resolver binary.
+Platform launcher for the **RunTypes** compiler binary.
 
-This package ships **zero runtime dependencies**. The actual native binary is
-delivered as a per-platform **optional dependency** named
-`@ts-runtypes/binary-<os>-<arch>` (e.g. `@ts-runtypes/binary-linux-x64`). Each of
-those declares `os` + `cpu`, so your package manager installs only the one
-matching your machine and silently skips the rest.
-
-You normally never install this directly — `@ts-runtypes/devtools` depends on it
-and calls `getExePath()` to locate the binary.
-
-## API
-
-```js
-import {getExePath} from '@ts-runtypes/bin';
-
-const exe = getExePath(); // absolute path to the resolver binary for this host
-```
-
-`getExePath()` throws a descriptive error if no compatible
-`@ts-runtypes/binary-*` package is installed (unsupported platform, or the
-optional dependency was skipped).
-
-## CLI
-
-```sh
-npx ts-runtypes-bin --version
-```
-
-Execs the resolved binary with the given arguments (forwarding stdio and exit
-code).
+You normally never install this directly:
+[`@ts-runtypes/devtools`](https://www.npmjs.com/package/@ts-runtypes/devtools)
+depends on it and uses it to locate the binary for the host it is running on. The
+binary itself rides as a per-platform optional dependency named
+`@ts-runtypes/binary-<os>-<arch>`, so your package manager downloads only the one
+your machine needs. This package ships **zero runtime dependencies**.
 
 ## Documentation
 
-Full guides live at **[runtypes.pages.dev](https://runtypes.pages.dev/)**.
-[Source and issues](https://github.com/MionKit/ts-run-types).
+Install, guides, and the factory reference live at
+**[runtypes.pages.dev](https://runtypes.pages.dev/)**.
+
+- [Quick start](https://runtypes.pages.dev/introduction/quick-start)
+- [Built on typescript-go](https://runtypes.pages.dev/introduction/built-on-typescript-go)
+- [Source and issues](https://github.com/MionKit/ts-run-types)
+
+## Status
+
+Experimental.
+
+## License
+
+Proprietary — all rights reserved. No use, copying, or distribution without prior
+written authorization. See
+[LICENSE](https://github.com/MionKit/ts-run-types/blob/main/LICENSE).
