@@ -244,25 +244,28 @@ function runRelease(args) {
     e2e: ['node', ['scripts/release/e2e.mjs']],
   };
   if (map[sub]) return proxy(map[sub][0], [...map[sub][1], ...rest]);
-  // Help, and the typo guard the umbrella needs. Every other area already
-  // refuses an unknown subcommand; release used to fall through to the
-  // publish chain instead, so `rtx release --help` STARTED a release.
-  if (isHelpFlag(sub)) return void process.stdout.write(RELEASE_HELP);
-  if (sub !== undefined && !sub.startsWith('-')) {
-    die(`unknown release command '${sub}'. Run \`pnpm rtx release --help\`.`, 2);
-  }
-  const stray = args.find((arg) => !UMBRELLA_FLAGS.has(arg));
-  if (stray) die(`unknown release flag '${stray}'. Run \`pnpm rtx release --help\`.`, 2);
-  // Umbrella (no sub): preflight -> npm publish -> website build. Deploy is CI-only.
-  const preflightOnly = hasFlag(args, '--preflight-only');
-  const noWebsite = hasFlag(args, '--no-website');
+  if (sub === 'all') return runReleaseChain(rest);
+  // Bare `rtx release` prints help — it does NOT release. The chain ends in an
+  // interactive npm publish that bumps, commits and tags, so it answers to its
+  // own name (`rtx release all`) and never to a bare word or a typo.
+  if (sub === undefined || isHelpFlag(sub)) return void process.stdout.write(RELEASE_HELP);
+  if (!sub.startsWith('-')) die(`unknown release command '${sub}'. Run \`pnpm rtx release --help\`.`, 2);
+  die(`\`rtx release\` no longer runs the release chain — use \`pnpm rtx release all ${args.join(' ')}\`.`, 2);
+}
+
+// The chain: preflight -> npm publish -> website build. Deploy is CI-only.
+function runReleaseChain(flags) {
+  const stray = flags.find((arg) => !UMBRELLA_FLAGS.has(arg));
+  if (stray) die(`unknown flag '${stray}' for \`rtx release all\`. Run \`pnpm rtx release --help\`.`, 2);
+  const preflightOnly = hasFlag(flags, '--preflight-only');
+  const noWebsite = hasFlag(flags, '--no-website');
   const plan = [['node', ['scripts/release/preflight.mjs']]];
   if (!preflightOnly) {
     plan.push(['node', ['scripts/release/publish.mjs']]);
     if (!noWebsite) plan.push(['node', ['scripts/website/build.mjs', 'generate']]);
   }
-  if (hasFlag(args, '--dry-run')) {
-    console.log('rtx release would run, in order:');
+  if (hasFlag(flags, '--dry-run')) {
+    console.log('rtx release all would run, in order:');
     for (const [cmd, a] of plan) console.log(`  ${cmd} ${a.join(' ')}`);
     console.log('(website deploy to Cloudflare Pages stays CI-only — see publish.yml)');
     return;
@@ -285,7 +288,8 @@ async function runContainer(args) {
 // The release rows live here so `rtx release --help` and the full `rtx --help`
 // print the SAME text (HELP interpolates this block).
 const RELEASE_HELP = `release   npm publish + site build (CI stages to npm; a maintainer approves with 2FA)
-  rtx release [--preflight-only] [--no-website] [--dry-run]   no-sub umbrella: preflight -> npm publish -> site build
+  rtx release                             prints this help — the chain answers to 'all', never to a bare word
+  rtx release all [--preflight-only] [--no-website] [--dry-run]   the chain: preflight -> npm publish -> site build
   rtx release <preflight|npm|website|bump <v>|dists|binaries|pack|tarballs|unpublish>
   rtx release stage-approve [--dry-run|--no-deploy|--deploy-only]   approve staged packages (one 2FA OTP prompt, leaves-first), then auto-dispatch the website deploy once npm serves the version
   rtx release verify-live                 deploy guard: fail unless the tree's version is LIVE on npm (all packages, lockstep)

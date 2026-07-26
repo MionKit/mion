@@ -93,21 +93,28 @@ Shipped as planned, plus one hole the spec missed.
 - **Area-level help, uniformly.** `dispatch()` intercepts a help flag in the FIRST argument
   position for every area (`rtx website --help` used to exit 2 with a usage line). Deeper help
   (`rtx release e2e --help`) still reaches the leaf, which owns its own usage text.
-- Bare `rtx release` still runs the umbrella, and `--dry-run` still prints the plan — the
-  sibling-area audit (step 3) found `release` was the only area whose fallthrough was dangerous:
-  `runCore` and `runWebsite` already `die()` with a usage line, and `runBench` dies on a stray
-  non-flag argument.
+- **Bare `rtx release` no longer releases** (owner decision during review, going beyond the spec's
+  "must still run the umbrella"): it prints the help. The chain answers to its own name,
+  `rtx release all`, keeping its `--preflight-only` / `--no-website` / `--dry-run` flags. The old
+  bare-with-flags form exits 2 with a pointer at the new spelling rather than silently doing
+  nothing. Nothing in CI calls the bare form — workflows always pass a subcommand
+  (`binaries`, `pack`, `e2e`, `tarballs`, `stage-approve`) — so the inversion costs CI nothing; the
+  only reference was one example in CLAUDE.md, updated to `pnpm rtx release all`.
+- The sibling-area audit (step 3) found `release` was the only area whose fallthrough was
+  dangerous: `runCore` and `runWebsite` already `die()` with a usage line, and `runBench` dies on a
+  stray non-flag argument.
 
-**Tests:** five cases in
+**Tests:** seven cases in
 [packages/ts-runtypes-devtools/test/repo-contracts.test.ts](../../packages/ts-runtypes-devtools/test/repo-contracts.test.ts)
-— help prints usage and does NOT start the umbrella (asserting the absence of its `Fresh start` /
-`preflight.mjs` output), the typo and unknown-flag exits, the surviving `--dry-run` plan, and the
-help-text sync.
+— help and the bare word both print usage without starting the chain (asserting the absence of its
+`Fresh start` / `preflight.mjs` output), the typo exit, the unknown-flag exit on `release all`, the
+migration pointer for the old bare-with-flags form, the surviving `release all --dry-run` plan, and
+the help-text sync.
 
 **Correction to the Evidence above:** the publish entry's map key is `npm`, not `publish`
 (`rtx release npm` → `scripts/release/publish.mjs`). Fixed inline.
 
-**Not done (deliberately):** the Out of scope item stands — the umbrella itself is unchanged, no
-confirmation prompt or `--yes` gate. A separate idea worth its own spec came out of the review:
+**Not done (deliberately):** no confirmation prompt or `--yes` gate on `rtx release all` itself —
+requiring the explicit verb was judged enough. A separate idea worth its own spec came out of the review:
 have `e2e.mjs` write a receipt (version + per-tarball checksums) that the publishing verbs require,
 so "e2e passed" becomes a checkable precondition rather than an honor system.

@@ -164,17 +164,30 @@ describe('rtx release — help and typos never reach the publish umbrella', () =
     expect(stderr).toContain("unknown release command 'pacK'");
   });
 
-  it('rejects an unknown flag, which also used to fall through', () => {
-    const {status, stderr} = rtx(['release', '--oops']);
-    expect(status).toBe(2);
-    expect(stderr).toContain("unknown release flag '--oops'");
+  it('bare `release` prints help and does NOT start the chain', () => {
+    const {status, stdout} = rtx(['release']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('rtx release all');
+    expect(stdout).not.toContain('Fresh start');
   });
 
-  it('still plans the umbrella for the bare invocation (--dry-run)', () => {
-    const {status, stdout} = rtx(['release', '--dry-run']);
+  it('the chain answers to `all`, with its flags intact', () => {
+    const {status, stdout} = rtx(['release', 'all', '--dry-run']);
     expect(status).toBe(0);
     expect(stdout).toContain('preflight.mjs');
     expect(stdout).toContain('publish.mjs');
+  });
+
+  it('points the old bare-with-flags form at `release all`', () => {
+    const {status, stderr} = rtx(['release', '--dry-run']);
+    expect(status).toBe(2);
+    expect(stderr).toContain('rtx release all --dry-run');
+  });
+
+  it('rejects an unknown flag on the chain itself', () => {
+    const {status, stderr} = rtx(['release', 'all', '--oops']);
+    expect(status).toBe(2);
+    expect(stderr).toContain("unknown flag '--oops'");
   });
 
   it('keeps `rtx --help` and `rtx release --help` in sync (one source)', () => {
