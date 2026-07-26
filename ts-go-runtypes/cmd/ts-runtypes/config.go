@@ -187,10 +187,7 @@ func resolveConfigPath(absCwd, tsconfigFlag string) string {
 // customConditions:["source"] in the tsconfig (enrich never forces it). "" path +
 // nil config means no tsconfig anywhere (the inferred-defaults fallback).
 func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		fatal("tsconfig discovery: getwd: %v", err)
-	}
+	cwd := enrichCwd("tsconfig discovery")
 	tsconfigPath := resolveConfigPath(cwd, tsconfigFlag)
 	parsed, err := program.ParseInferredConfig(cwd, tsconfigPath)
 	if err != nil {

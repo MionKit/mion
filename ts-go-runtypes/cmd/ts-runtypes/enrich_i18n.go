@@ -82,10 +82,7 @@ func translateTargets(positional []string, genDirFlag, tsconfigPath string, pars
 		config := resolveEnrichConfig(src, genDirFlag, tsconfigPath, parsed)
 		return config, []string{config.MirrorPath(familyFriendly, src)}
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		fatal("enrich --i18n: getwd: %v", err)
-	}
+	cwd := enrichCwd("enrich --i18n")
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	sourceMirrors, err := collectMirrorFiles(filepath.Join(config.EnrichDir, familyFriendly))
 	if err != nil {
@@ -262,10 +259,7 @@ var todoBlankPattern = regexp.MustCompile(`:\s*''`)
 // passes --require-complete (then everything is an Error and the exit code drives
 // CI). Rendering at runtime stays lenient either way.
 func runCheckTranslate(translateValue string, genDirFlag, tsconfigFlag string, requireComplete bool) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		fatal("enrich --i18n --no-emit: getwd: %v", err)
-	}
+	cwd := enrichCwd("enrich --i18n --no-emit")
 	tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 	config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 	locales := resolveTranslateLocales(translateValue, config)

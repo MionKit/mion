@@ -76,10 +76,7 @@ func runGenCheck(positional []string, genDirFlag string, asJSON, requireComplete
 			targets = []string{candidate}
 		}
 	} else {
-		cwd, err := os.Getwd()
-		if err != nil {
-			fatal("enrich --no-emit: getwd: %v", err)
-		}
+		cwd := enrichCwd("enrich --no-emit")
 		// Resolve the enrich dir from cwd's tsconfig — the default scan root.
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 		targets = []string{config.EnrichDir}

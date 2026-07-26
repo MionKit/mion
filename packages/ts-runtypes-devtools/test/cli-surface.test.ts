@@ -1,5 +1,5 @@
 // CLI surface contract test — the regression guard for the binary's args[0]
-// command set. Three groups over the built bin/ts-runtypes:
+// command set. Four groups over the built bin/ts-runtypes:
 //
 //   - Help golden: snapshot the top-level usage + each command's full --help.
 //     printUsage renders every flag via fs.VisitAll, so the golden captures the
@@ -10,12 +10,24 @@
 //   - Parameter-effect matrix: --no-emit writes NOTHING yet reports; --json emits
 //     JSON; --friendly / --mock select the family file(s); --gen-dir redirects;
 //     --prune --no-emit lists but never deletes.
+//   - Symlinked project paths: a source reached through a symlink still mirrors to
+//     its rootDir-relative sub-path instead of collapsing to its base name.
 
 import {describe, it, expect, beforeAll} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
-import {mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync, statSync} from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  symlinkSync,
+} from 'node:fs';
 import {tmpdir} from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -199,4 +211,78 @@ describe.skipIf(!hasBinary)('CLI surface — parameter-effect matrix', () => {
       rmSync(dir, {recursive: true, force: true});
     }
   });
+});
+
+// Creating a symlink needs a privilege Windows withholds by default, so probe once
+// and let the group skip cleanly rather than fail there.
+const symlinksAvailable = ((): boolean => {
+  const probe = mkdtempSync(join(tmpdir(), 'rt-symlink-probe-'));
+  try {
+    mkdirSync(join(probe, 'target'));
+    symlinkSync(join(probe, 'target'), join(probe, 'link'), 'dir');
+    return true;
+  } catch {
+    return false;
+  } finally {
+    rmSync(probe, {recursive: true, force: true});
+  }
+})();
+
+// makeSymlinkedFixture builds a project with NESTED sources under two directories
+// that share a base name, and hands back both spellings of its root: the real
+// directory and a symlink pointing at it.
+function makeSymlinkedFixture(): {base: string; real: string; linked: string} {
+  const base = mkdtempSync(join(tmpdir(), 'rt-symlink-'));
+  const real = join(base, 'project');
+  mkdirSync(join(real, 'src'), {recursive: true});
+  mkdirSync(join(real, 'lib'), {recursive: true});
+  writeFileSync(join(real, 'tsconfig.json'), '{"compilerOptions":{"plugins":[{"name":"ts-runtypes","genDir":"gen"}]}}');
+  writeFileSync(join(real, 'src', 'models.ts'), 'export interface User { id: number; name: string }\n');
+  writeFileSync(join(real, 'lib', 'models.ts'), 'export interface Account { ref: string }\n');
+  const linked = join(base, 'link');
+  symlinkSync(real, linked, 'dir');
+  return {base, real, linked};
+}
+
+// The cwd a process reports is not one fixed spelling: os.Getwd prefers $PWD when
+// it is valid, so an interactive shell reports the symlinked path while a spawn
+// that passes a cwd option (leaving $PWD stale — what these tests do, and what a
+// dev-loop save handler does) reports the kernel-resolved one. Both must agree
+// with the absolute file argument, or the mirror's rootDir-relative sub-path
+// escapes with ".." and silently collapses to the source's base name.
+describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked project paths', () => {
+  it('an absolute source spelled through a symlink keeps its rootDir-relative sub-path', () => {
+    const {base, real, linked} = makeSymlinkedFixture();
+    try {
+      const {status, stderr} = run(
+        ['enrich', join(linked, 'src', 'models.ts'), 'User', '--gen-dir', join(linked, 'gen')],
+        join(linked, 'src')
+      );
+      expect(status, stderr).toBe(0);
+      expect(existsSync(join(real, 'gen/enriched/friendly/src/models.ts')), 'nested sub-path must survive').toBe(true);
+      expect(existsSync(join(real, 'gen/enriched/friendly/models.ts')), 'must not collapse to the base name').toBe(false);
+    } finally {
+      rmSync(base, {recursive: true, force: true});
+    }
+  }, 60_000);
+
+  it('two sources sharing a base name mirror to their own files, never one shared file', () => {
+    const {base, real, linked} = makeSymlinkedFixture();
+    try {
+      for (const sub of ['src', 'lib']) {
+        const typeName = sub === 'src' ? 'User' : 'Account';
+        const {status, stderr} = run(
+          ['enrich', join(linked, sub, 'models.ts'), typeName, '--gen-dir', join(linked, 'gen')],
+          join(linked, sub)
+        );
+        expect(status, stderr).toBe(0);
+      }
+      // Collapsing to the base name would have let the second run overwrite the first.
+      const friendly = join(real, 'gen/enriched/friendly');
+      expect(readFileSync(join(friendly, 'src/models.ts'), 'utf8')).toContain('friendlyUser');
+      expect(readFileSync(join(friendly, 'lib/models.ts'), 'utf8')).toContain('friendlyAccount');
+    } finally {
+      rmSync(base, {recursive: true, force: true});
+    }
+  }, 60_000);
 });

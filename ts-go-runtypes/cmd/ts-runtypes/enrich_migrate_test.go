@@ -12,7 +12,7 @@ import (
 // friendly value and an authored mock pool so the test can assert both carry.
 func migrateFixture(t *testing.T) (enrichConfig, string) {
 	t.Helper()
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"),
 		`{ "compilerOptions": { "rootDir": "src" } }`)

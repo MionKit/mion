@@ -39,7 +39,7 @@ func TestStripJSONC(t *testing.T) {
 // projectRoot and rootDir both fall back to the file's dir and the enrich root to the
 // default (resolved under the file's dir).
 func TestResolveEnrichConfig_NoTsconfig(t *testing.T) {
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	target := filepath.Join(dir, "models", "user.ts")
 	mustMkdirAll(t, filepath.Dir(target))
@@ -61,7 +61,7 @@ func TestResolveEnrichConfig_NoTsconfig(t *testing.T) {
 // supplies genDir; rootDir comes from compilerOptions.rootDir; projectRoot is
 // the tsconfig dir.
 func TestResolveEnrichConfig_TsconfigPlugin(t *testing.T) {
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
   // ts-runtypes config
@@ -100,7 +100,7 @@ func TestResolveEnrichConfig_TsconfigPlugin(t *testing.T) {
 // TestResolveEnrichConfig_FlagWins: --gen-dir overrides both tsconfig and
 // default.
 func TestResolveEnrichConfig_FlagWins(t *testing.T) {
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
   "compilerOptions": { "plugins": [ { "name": "ts-runtypes", "genDir": "rt/gen" } ] }
@@ -181,6 +181,93 @@ func TestMirrorPath(t *testing.T) {
 	}
 }
 
+// mustSymlinkDir links linkPath -> target, skipping the test where the platform
+// refuses (Windows without the create-symlink privilege).
+func mustSymlinkDir(t *testing.T, target, linkPath string) {
+	t.Helper()
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Skipf("symlinks unavailable on this platform: %v", err)
+	}
+}
+
+// TestCanonicalize pins the symlink-space normalization mustAbs applies. A path
+// the user spelled through a symlink must land in the SAME space os.Getwd()
+// reports, because that is the space tsconfig discovery (and therefore RootDir)
+// lives in. Symlinks resolve on the longest EXISTING prefix so a not-yet-created
+// leaf — an `--out` target — keeps its spelling appended.
+func TestCanonicalize(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	mustMkdirAll(t, filepath.Join(real, "src"))
+	writeTestFile(t, filepath.Join(real, "src", "models.ts"), "export interface User { id: number }\n")
+	link := filepath.Join(base, "link")
+	mustSymlinkDir(t, real, link)
+
+	// t.TempDir() can itself sit behind a symlink (macOS hands out /var/folders/...
+	// for a $TMPDIR that really is /private/var/folders/...), so the expectations
+	// are anchored on the RESOLVED real dir rather than a literal path.
+	resolved, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", real, err)
+	}
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"existing file through a symlink", filepath.Join(link, "src", "models.ts"), filepath.Join(resolved, "src", "models.ts")},
+		{"missing leaf keeps its spelling", filepath.Join(link, "src", "new.ts"), filepath.Join(resolved, "src", "new.ts")},
+		{"several missing segments", filepath.Join(link, "src", "a", "b", "c.ts"), filepath.Join(resolved, "src", "a", "b", "c.ts")},
+		{"already-real path is a no-op", filepath.Join(resolved, "src", "models.ts"), filepath.Join(resolved, "src", "models.ts")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := canonicalize(test.in); got != test.want {
+				t.Errorf("canonicalize(%q) = %q, want %q", test.in, got, test.want)
+			}
+		})
+	}
+}
+
+// TestMirrorPathThroughSymlink is the regression pin for the mirror collapsing to
+// the source's base name when the source is reached through a symlink. The cwd
+// the process reports is always fully resolved by the kernel, so RootDir lands in
+// the real space while an absolute CLI argument keeps the caller's spelling; when
+// the two disagree the rootDir-relative sub-path escapes with ".." and MirrorRel
+// discards the whole directory structure. Two sources sharing a base name would
+// then map onto ONE mirror and overwrite each other, so the sub-path surviving is
+// what keeps them apart.
+func TestMirrorPathThroughSymlink(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "proj")
+	mustMkdirAll(t, filepath.Join(real, "src"))
+	mustMkdirAll(t, filepath.Join(real, "lib"))
+	writeTestFile(t, filepath.Join(real, "tsconfig.json"), `{"compilerOptions":{}}`)
+	link := filepath.Join(base, "link")
+	mustSymlinkDir(t, real, link)
+
+	// Run from inside the symlinked tree, exactly as a user in that directory would.
+	t.Chdir(filepath.Join(link, "src"))
+
+	srcModels := mustAbs(filepath.Join(link, "src", "models.ts"))
+	libModels := mustAbs(filepath.Join(link, "lib", "models.ts"))
+	config := resolveEnrichConfigTest(srcModels, "gen")
+
+	srcMirror := filepath.ToSlash(config.MirrorPath(familyFriendly, srcModels))
+	libMirror := filepath.ToSlash(config.MirrorPath(familyFriendly, libModels))
+
+	if !strings.HasSuffix(srcMirror, "/enriched/friendly/src/models.ts") {
+		t.Errorf("mirrorPath lost the rootDir-relative sub-path: got %q, want a /enriched/friendly/src/models.ts suffix", srcMirror)
+	}
+	if !strings.HasSuffix(libMirror, "/enriched/friendly/lib/models.ts") {
+		t.Errorf("mirrorPath lost the rootDir-relative sub-path: got %q, want a /enriched/friendly/lib/models.ts suffix", libMirror)
+	}
+	if srcMirror == libMirror {
+		t.Errorf("two sources sharing a base name collapsed onto one mirror: %q", srcMirror)
+	}
+}
+
 // TestTranslationPathFor: the locale is a path segment under the i18n dir,
 // mirroring the friendly family subtree — region tags (pt-BR) ride verbatim.
 func TestTranslationPathFor(t *testing.T) {
@@ -213,7 +300,7 @@ func TestTranslationPathFor(t *testing.T) {
 // TestResolveEnrichConfig_I18n: the tsconfig plugin i18n object populates the
 // config; defaults stay dormant without it.
 func TestResolveEnrichConfig_I18n(t *testing.T) {
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	writeTestFile(t, filepath.Join(dir, "tsconfig.json"), `{
   "compilerOptions": {
@@ -323,6 +410,19 @@ func TestImportSpecifier(t *testing.T) {
 func resolveEnrichConfigTest(target, genDirFlag string) enrichConfig {
 	tsconfigPath, parsed := resolveEnrichProject("")
 	return resolveEnrichConfig(target, genDirFlag, tsconfigPath, parsed)
+}
+
+// canonicalTempDir is t.TempDir() in the ONE canonical symlink space the enrich
+// verbs resolve into (see enrichCwd). A raw t.TempDir() is not comparable against
+// a resolved config on macOS, where $TMPDIR is handed out as /var/folders/... for
+// a directory that really lives at /private/var/folders/....
+func canonicalTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temp dir: %v", err)
+	}
+	return dir
 }
 
 func writeTestFile(t *testing.T, path, content string) {

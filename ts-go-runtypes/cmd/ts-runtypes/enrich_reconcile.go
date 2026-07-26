@@ -166,10 +166,7 @@ func collectPruneTargets(positional []string, genDirFlag, tsconfigFlag string) [
 	if len(positional) > 0 {
 		target = tspath.NormalizePath(mustAbs(positional[0]))
 	} else {
-		cwd, err := os.Getwd()
-		if err != nil {
-			fatal("enrich --prune: getwd: %v", err)
-		}
+		cwd := enrichCwd("enrich --prune")
 		tsconfigPath, parsed := resolveEnrichProject(tsconfigFlag)
 		config := resolveEnrichConfig(tspath.NormalizePath(filepath.Join(cwd, "_")), genDirFlag, tsconfigPath, parsed)
 		target = config.EnrichDir

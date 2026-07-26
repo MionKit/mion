@@ -25,7 +25,7 @@ import (
 // src path, and the mirror path.
 func translateFixture(t *testing.T, strict bool) (enrichConfig, string, string) {
 	t.Helper()
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	strictJSON := "false"
 	if strict {
@@ -177,7 +177,7 @@ func stubTranslationSpec(source, translationPath, friendlyBody string) mirror.Sp
 // missing file, TR002 blanks, TR004 carcasses — all spec-free (a nil spec
 // skips only TR003), plus the strict severity flip.
 func TestCheckTranslationFile_Findings(t *testing.T) {
-	dir := t.TempDir()
+	dir := canonicalTempDir(t)
 	t.Chdir(dir)
 	translationPath := filepath.Join(dir, "models.ts")
 

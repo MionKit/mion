@@ -397,5 +397,44 @@ func mustAbs(path string) string {
 	if err != nil {
 		fatal("resolve path %q: %v", path, err)
 	}
-	return abs
+	return canonicalize(abs)
+}
+
+// enrichCwd is the working directory every enrich verb resolves against, in the
+// ONE canonical symlink space. os.Getwd is not stable enough to compare against
+// on its own: it prefers $PWD when that is valid, so the cwd it reports is
+// symlink-spelled under an interactive shell but fully kernel-resolved when the
+// process was started with a chdir that left $PWD stale (any spawn that passes a
+// cwd option). Canonicalizing both ends — here and in mustAbs — is what makes
+// RootDir and an absolute file argument comparable no matter how we were invoked.
+func enrichCwd(what string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fatal("%s: getwd: %v", what, err)
+	}
+	return canonicalize(cwd)
+}
+
+// canonicalize rewrites an absolute path into the ONE canonical symlink space
+// (see enrichCwd). Without it a path the user spelled through a symlink — macOS
+// hands out /var/folders/... for a $TMPDIR that really is /private/var/folders/...
+// — can share no prefix with RootDir, so the mirror's RootDir-relative sub-path
+// escapes with ".." and MirrorRel silently collapses it to the source's base
+// name, mapping two same-named sources onto one mirror. Symlinks are resolved on
+// the longest EXISTING prefix so a not-yet-created leaf (an `--out` target) keeps
+// its spelling appended.
+func canonicalize(abs string) string {
+	tail := ""
+	for current := abs; ; {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			return filepath.Join(resolved, tail)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return abs
+		}
+		tail = filepath.Join(filepath.Base(current), tail)
+		current = parent
+	}
 }
