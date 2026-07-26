@@ -10,8 +10,8 @@ import {type RemoteMethod} from '../types/remoteMethods.ts';
 import type {PublicApi} from '../types/publicMethods.ts';
 import type {
     AnyObject,
-    JitCompiledFn,
-    JitCompiledFnData,
+    CompiledTypeFn,
+    CompiledFnData,
     PureFunctionData,
     MethodWithOptions,
     PureFnsDataCache,
@@ -122,26 +122,21 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
     pureDep.pureFnDependencies?.forEach((depFnHash) => serializePureDeps(`${namespace}::${depFnHash}`, purFnDeps, depth + 1));
 }
 
-export function serializeJitFn(
-    jitFnHash: string,
-    deps: Record<string, JitCompiledFnData>,
-    purFnDeps: PureFnsDataCache,
-    depth = 0
-) {
+export function serializeJitFn(rtFnHash: string, deps: Record<string, CompiledFnData>, purFnDeps: PureFnsDataCache, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
-        throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
-    const jitFn = resolveJIT(jitFnHash);
-    if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
-    if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
+        throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${rtFnHash}`);
+    const jitFn = resolveJIT(rtFnHash);
+    if (!jitFn) throw new Error(`Jit function ${rtFnHash} not found`);
+    if (deps[rtFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);
-    deps[jitFnHash] = serializedJitFn;
-    jitFn.jitDependencies?.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
+    deps[rtFnHash] = serializedJitFn;
+    jitFn.rtDependencies?.forEach((h) => serializeJitFn(h, deps, purFnDeps, depth + 1));
     jitFn.pureFnDependencies?.forEach((h) => serializePureDeps(h, purFnDeps));
 }
 
 export function serializeMethodDeps(
     method: MethodWithOptions,
-    deps: Record<string, JitCompiledFnData>,
+    deps: Record<string, CompiledFnData>,
     purFnDeps: PureFnsDataCache
 ) {
     const {paramsJitHash, returnJitHash} = method;
@@ -172,16 +167,16 @@ export function serializeMethodDeps(
     }
 }
 
-function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
+function getSerializableJitCompiler(comp: CompiledTypeFn): CompiledFnData {
     return {
         typeName: comp.typeName,
         fnID: comp.fnID,
-        jitFnHash: comp.jitFnHash,
+        rtFnHash: comp.rtFnHash,
         args: structuredClone(comp.args),
         isNoop: comp.isNoop,
         defaultParamValues: structuredClone(comp.defaultParamValues),
         code: comp.code,
-        jitDependencies: comp.jitDependencies ? [...comp.jitDependencies] : undefined,
+        rtDependencies: comp.rtDependencies ? [...comp.rtDependencies] : undefined,
         pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : undefined,
     };
 }

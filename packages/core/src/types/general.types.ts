@@ -121,65 +121,37 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export interface JitCompiledFnData {
-    readonly typeName: string;
-    /** The id of the function (operation) to be compiled (isType, typeErrors, prepareForJson, restoreFromJson, etc) */
-    readonly fnID: string;
-    /** Unique id of the function */
-    readonly jitFnHash: string;
-    /** The names of the arguments of the function */
-    readonly args: JitFnArgs;
-    /** Default values for the arguments */
-    readonly defaultParamValues: JitFnArgs;
-    /**
-     * This flag is set to true when the result of a jit compilation is a no operation (empty function).
-     * if this flag is set to true, the function should not be called as it will not do anything.
-     */
-    readonly isNoop?: boolean;
-    /** Code for the jit function. after the operation has been compiled */
-    readonly code: string;
-    /** The list of all jit functions that are used by this function and it's children. */
-    readonly jitDependencies?: Array<string>;
-    /** Pure function dependencies in format "namespace::fnHash" */
-    readonly pureFnDependencies?: Array<string>;
-}
+/** mion's JIT function vocabulary IS @ts-runtypes' compiled-fn model — `CompiledFnData` is the
+ *  closure-free wire form (what router ships to client) and `CompiledTypeFn` adds the restored
+ *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
+ *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
+ *  mirrors were deleted. */
+export type {CompiledFnData, CompiledTypeFn} from '@ts-runtypes/core';
 
-export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
-    /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: unknown) => Fn;
-    /** The Jit Generated function once the compilation is finished */
-    readonly fn: Fn;
-}
-
-/** Jit Functions serialized to src code file, it contains the create jit function
- * but not the actual fn as this one can not be serialized to code.
- */
-export interface PersistedJitFn extends Omit<JitCompiledFn, 'fn'> {
-    /** The Jit Generated function once the compilation is finished */
-    readonly fn: undefined;
-}
+/** Jit Functions serialized to src code file: the data form without the live fn. */
+export type PersistedJitFn = Omit<CompiledTypeFn, 'fn'> & {readonly fn: undefined};
 
 export interface JitCompiledFunctions {
-    isType: JitCompiledFn<IsTypeFn>;
-    typeErrors: JitCompiledFn<TypeErrorsFn>;
-    prepareForJson: JitCompiledFn<PrepareForJsonFn>;
-    restoreFromJson: JitCompiledFn<RestoreFromJsonFn>;
-    stringifyJson: JitCompiledFn<JsonStringifyFn>;
+    isType: CompiledTypeFn<IsTypeFn>;
+    typeErrors: CompiledTypeFn<TypeErrorsFn>;
+    prepareForJson: CompiledTypeFn<PrepareForJsonFn>;
+    restoreFromJson: CompiledTypeFn<RestoreFromJsonFn>;
+    stringifyJson: CompiledTypeFn<JsonStringifyFn>;
     /** strictTypes support: true when the value carries properties not present in the type */
-    hasUnknownKeys?: JitCompiledFn<HasUnknownKeysFn>;
+    hasUnknownKeys?: CompiledTypeFn<HasUnknownKeysFn>;
     /** strictTypes support: RunTypeError entries for every unknown property found */
-    unknownKeyErrors?: JitCompiledFn<TypeErrorsFn>;
-    toBinary?: JitCompiledFn<ToBinaryFn>;
-    fromBinary?: JitCompiledFn<FromBinaryFn>;
+    unknownKeyErrors?: CompiledTypeFn<TypeErrorsFn>;
+    toBinary?: CompiledTypeFn<ToBinaryFn>;
+    fromBinary?: CompiledTypeFn<FromBinaryFn>;
 }
 export interface SerializableJITFunctions {
-    isType: JitCompiledFnData;
-    typeErrors: JitCompiledFnData;
-    prepareForJson: JitCompiledFnData;
-    restoreFromJson: JitCompiledFnData;
-    stringifyJson: JitCompiledFnData;
-    toBinary?: JitCompiledFnData;
-    fromBinary?: JitCompiledFnData;
+    isType: CompiledFnData;
+    typeErrors: CompiledFnData;
+    prepareForJson: CompiledFnData;
+    restoreFromJson: CompiledFnData;
+    stringifyJson: CompiledFnData;
+    toBinary?: CompiledFnData;
+    fromBinary?: CompiledFnData;
 }
 export interface JitFunctionsHashes {
     isType: string;
@@ -206,28 +178,28 @@ export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer
 
 // ############################# JIT CACHES ###################################
 
-// jit and pure functions at runtime, contains both createJitFn and fn
-export type JitFunctionsCache = Record<string, JitCompiledFn>;
+// jit and pure functions at runtime, contains both createRTFn and fn
+export type JitFunctionsCache = Record<string, CompiledTypeFn>;
 /** Namespaced cache structure for pure functions: { namespace: { fnHash: CompiledPureFunction } } */
 export type PureFunctionsCache = Record<string, Record<string, CompiledPureFunction>>;
 
-// jit and pure functions persisted to src code, contains createJitFn but not fn
+// jit and pure functions persisted to src code, contains createRTFn but not fn
 // this allow usage in environments that can not use eval or new Function()
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
 /** Namespaced cache structure for persisted pure functions */
 export type PersistedPureFunctionsCache = Record<string, Record<string, PersistedPureFunction>>;
 
-// jit and pure functions data, does not contain createJitFn or fn
+// jit and pure functions data, does not contain createRTFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
-export type FnsDataCache = Record<string, JitCompiledFnData>;
+export type FnsDataCache = Record<string, CompiledFnData>;
 /** Namespaced cache structure for pure function data */
 export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
 
 // ########################################### JIT SRC CODE ####################################
 
-export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
+export interface SrcCodeJitCompiledFn extends CompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
-    readonly createJitFn: (utl: unknown) => AnyFn;
+    readonly createRTFn: (utl: unknown) => AnyFn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }

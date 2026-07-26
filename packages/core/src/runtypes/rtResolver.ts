@@ -6,80 +6,62 @@
  * ######## */
 
 import {getRTFnCaches, getRTUtils} from '@ts-runtypes/core';
-import type {AnyFn, JitCompiledFn} from '../types/general.types.ts';
+import type {AnyFn, CompiledTypeFn} from '../types/general.types.ts';
 import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 // ############# ts-runtypes cache resolver (leaf module) #############
-// Low-level lookups from the @ts-runtypes/core runtime cache into mion's JitCompiledFn
-// shape. Kept dependency-free of routerUtils/jitUtils so jitUtils can resolve jit/pure
-// fns directly (no cross-module cycle, no install-a-backend indirection). This is what
+// Low-level lookups from the @ts-runtypes/core runtime cache using @ts-runtypes' own CompiledTypeFn
+// shape (mion's RtCacheEntry mirror was deleted). Kept dependency-free of routerUtils so
+// there is no cross-module cycle and no install-a-backend indirection — this is what
 // replaced the old `installJitLookupBackend` seam once run-types folded into core.
 
-/** ts-runtypes fn-cache entry shape consumed by the adapter (subset of CompiledTypeFn). */
-export interface RtCacheEntry {
-    typeName: string;
-    familyTag?: string;
-    rtFnHash: string;
-    args: Record<string, string>;
-    defaultParamValues: Record<string, string>;
-    isNoop?: boolean;
-    code?: string;
-    rtDependencies?: string[];
-    pureFnDependencies?: string[];
-    createRTFn?: (utl: unknown) => AnyFn;
-    fn?: AnyFn;
-}
-
 /** Normalizes entry arg maps to mion's JitFnArgs contract (string values only). */
-export function normalizeArgs(args: unknown): JitCompiledFn['args'] {
+export function normalizeArgs(args: unknown): CompiledTypeFn['args'] {
     const out: Record<string, string> = {};
     if (args && typeof args === 'object') {
         for (const [key, value] of Object.entries(args)) if (typeof value === 'string') out[key] = value;
     }
     if (!('vλl' in out)) out.vλl = 'v';
-    return out as JitCompiledFn['args'];
+    return out as CompiledTypeFn['args'];
 }
 
-/** Wraps a resolved ts-runtypes cache entry into the JitCompiledFn shape mion consumes. */
-export function wrapRtEntry<Fn extends AnyFn>(entry: RtCacheEntry, fnID: string): JitCompiledFn<Fn> {
+/** Wraps a resolved ts-runtypes cache entry into the CompiledTypeFn shape mion consumes. */
+export function wrapRtEntry<Fn extends AnyFn>(entry: CompiledTypeFn, fnID: string): CompiledTypeFn<Fn> {
     return {
-        typeName: entry.typeName,
+        ...entry,
         fnID,
-        jitFnHash: entry.rtFnHash,
         args: normalizeArgs(entry.args),
         defaultParamValues: normalizeArgs(entry.defaultParamValues),
         isNoop: !!entry.isNoop,
         code: entry.code ?? '',
-        jitDependencies: entry.rtDependencies,
-        pureFnDependencies: entry.pureFnDependencies,
-        createJitFn: (entry.createRTFn ?? (() => entry.fn)) as JitCompiledFn<Fn>['createJitFn'],
+        createRTFn: (entry.createRTFn ?? (() => entry.fn)) as CompiledTypeFn<Fn>['createRTFn'],
         fn: entry.fn as Fn,
     };
 }
 
-/** Fabricates a JitCompiledFn wrapper for fns with no cache entry (fallback lane). */
-export function toJitCompiledFn<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, jitFnHash: string): JitCompiledFn<Fn> {
+/** Fabricates a CompiledTypeFn wrapper for fns with no cache entry (fallback lane). */
+export function toJitCompiledFn<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, rtFnHash: string): CompiledTypeFn<Fn> {
     return {
         typeName,
         fnID,
-        jitFnHash,
+        rtFnHash,
         args: {vλl: 'v'},
         defaultParamValues: {vλl: 'v'},
         isNoop: false,
         code: '',
-        createJitFn: () => fn,
+        createRTFn: () => fn,
         fn,
     };
 }
 
 /** Looks up the full ts-runtypes cache entry for a mion jit hash (`<fnHashPrefix>_<typeId>`). */
-export function getRtEntry(rtFnHash: string): RtCacheEntry | undefined {
-    return getRTUtils().getRT(rtFnHash) as RtCacheEntry | undefined;
+export function getRtEntry(rtFnHash: string): CompiledTypeFn | undefined {
+    return getRTUtils().getRT(rtFnHash);
 }
 
-/** Resolves a mion jit hash to a JitCompiledFn straight from the ts-runtypes cache. */
-export function resolveJIT(jitFnHash: string): JitCompiledFn | undefined {
-    const entry = getRtEntry(jitFnHash);
+/** Resolves a mion jit hash to a CompiledTypeFn straight from the ts-runtypes cache. */
+export function resolveJIT(rtFnHash: string): CompiledTypeFn | undefined {
+    const entry = getRtEntry(rtFnHash);
     return entry ? wrapRtEntry(entry, entry.familyTag ?? 'rtFn') : undefined;
 }
 

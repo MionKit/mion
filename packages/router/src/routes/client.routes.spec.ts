@@ -14,7 +14,7 @@ import {
     MethodsCache,
     MION_ROUTES,
     RpcError,
-    JitCompiledFnData,
+    CompiledFnData,
     HandlerType,
     RouteOnlyOptions,
     RemoteMethodOpts,
@@ -262,12 +262,12 @@ describe('Client Routes should', () => {
     const methodsId = MION_ROUTES.methodsMetadataById;
     const emptyRouterOpts: CoreRouterOptions = {basePath: '', suffix: '', autoGenerateErrorId: false};
     const methodsPath = getRoutePath([methodsId], emptyRouterOpts);
-    const isJitCompiledFn = createValidateFn<JitCompiledFnData>();
+    const isJitCompiledFn = createValidateFn<CompiledFnData>();
     // deps ride the (already parsed) JSON response; encode+decode replays the wire trip
-    const encodeJitCompiledFn = createJsonEncoderFn<JitCompiledFnData>();
-    const decodeJitCompiledFn = createJsonDecoderFn<JitCompiledFnData>();
+    const encodeJitCompiledFn = createJsonEncoderFn<CompiledFnData>();
+    const decodeJitCompiledFn = createJsonDecoderFn<CompiledFnData>();
     const restoreJitCompiledFn = (dep: unknown) =>
-        decodeJitCompiledFn(encodeJitCompiledFn(structuredClone(dep) as JitCompiledFnData)!);
+        decodeJitCompiledFn(encodeJitCompiledFn(structuredClone(dep) as CompiledFnData)!);
 
     afterEach(() => resetRouter());
 
