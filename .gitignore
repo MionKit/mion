@@ -50,6 +50,9 @@ typings/
 
 # Output of 'npm pack'
 *.tgz
+# EXCEPT the temporary vendored @ts-runtypes tarballs (pre-publish 0.11.0 validation).
+# Delete this exception together with vendor/ once @ts-runtypes 0.11.0 is on npm.
+!vendor/ts-runtypes/*.tgz
 
 # Yarn Integrity file
 .yarn-integrity

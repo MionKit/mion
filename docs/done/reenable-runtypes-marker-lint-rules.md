@@ -1,6 +1,6 @@
 # Re-enable @ts-runtypes marker lint rules after the resolver customConditions fix
 
-**Status:** todo — blocked on an upstream `@ts-runtypes` release
+**Status:** done — upstream fix landed in @ts-runtypes 0.11.0; rules re-enabled
 **Created:** 2026-07-22
 
 ## Evidence
@@ -58,3 +58,15 @@ work on the AST and do not depend on cross-package type resolution.
    `packages/*/.dist`, then `pnpm run lint` → **0 errors** (router specs validating
    `@mionjs/core` resolve to real types, not `any`).
 4. `git mv` this spec into `docs/done/` and note the commit/PR.
+
+## Resolution (PR #128)
+
+The upstream fix shipped on ts-runtypes main: `program.ParseInferredConfig` now parses the
+project tsconfig and threads its resolution options into `program.NewInferred` via the new
+`Config` field (with `mergeConditions` unioning the tsconfig's `customConditions`), so the
+inline-server/ESLint lane resolves exactly like the build lane.
+
+Verified against the locally built **0.11.0**: both `'off'` overrides were removed from
+`eslint.config.js` and a COLD `pnpm run lint` (after `nx reset` + clearing the
+`node_modules/.cache/ts-runtypes` caches) is **green across 13 projects with zero MKR007** —
+the 59 false positives are gone.

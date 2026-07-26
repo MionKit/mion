@@ -1,12 +1,12 @@
-import {createBinaryEncoder, createBinaryDecoder} from '@ts-runtypes/core';
+import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
 
 type FlexibleData = {
     id: number;
     payload: any; // Can contain any JSON-compatible value
 };
 
-const toBinary = createBinaryEncoder<FlexibleData>();
-const fromBinary = createBinaryDecoder<FlexibleData>();
+const toBinary = createBinaryEncoderFn<FlexibleData>();
+const fromBinary = createBinaryDecoderFn<FlexibleData>();
 
 const data: FlexibleData = {
     id: 1,

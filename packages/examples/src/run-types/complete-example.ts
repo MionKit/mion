@@ -1,4 +1,4 @@
-import {createValidate, createGetValidationErrors, createJsonEncoder, createJsonDecoder, createMockData} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn, createMockDataFn} from '@ts-runtypes/core';
 
 interface BlogPost {
     id: string;
@@ -14,11 +14,11 @@ interface BlogPost {
 }
 
 // The public run-types factory functions (all synchronous, no await needed).
-const isPost = createValidate<BlogPost>();
-const getPostErrors = createGetValidationErrors<BlogPost>();
-const encodePost = createJsonEncoder<BlogPost>();
-const decodePost = createJsonDecoder<BlogPost>();
-const mockPost = createMockData<BlogPost>();
+const isPost = createValidateFn<BlogPost>();
+const getPostErrors = createGetValidationErrorsFn<BlogPost>();
+const encodePost = createJsonEncoderFn<BlogPost>();
+const decodePost = createJsonDecoderFn<BlogPost>();
+const mockPost = createMockDataFn<BlogPost>();
 
 // Generate mock data
 const post = mockPost();

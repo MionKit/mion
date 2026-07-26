@@ -1,4 +1,4 @@
-import {createValidate, createHasUnknownKeys, createUnknownKeyErrors} from '@ts-runtypes/core';
+import {createValidateFn, createHasUnknownKeysFn, createUnknownKeyErrorsFn} from '@ts-runtypes/core';
 
 interface User {
     name: string;
@@ -6,16 +6,16 @@ interface User {
 }
 
 // Base structural validation ignores extra properties (they are simply not part of User).
-const validate = createValidate<User>();
+const validate = createValidateFn<User>();
 validate({name: 'John', age: 30}); // true
 validate({name: 'John', age: 30, extra: 'value'}); // true (extra keys ignored)
 
 // Strict checking: reject objects that carry unknown/extra properties.
 // mion routes turn this on end-to-end with the router/route `strictTypes: true` option.
-const hasUnknownKeys = createHasUnknownKeys<User>();
+const hasUnknownKeys = createHasUnknownKeysFn<User>();
 hasUnknownKeys({name: 'John', age: 30}); // false
 hasUnknownKeys({name: 'John', age: 30, extra: 'value'}); // true
 
-const unknownKeyErrors = createUnknownKeyErrors<User>();
+const unknownKeyErrors = createUnknownKeyErrorsFn<User>();
 unknownKeyErrors({name: 'John', age: 30, extra: 'value'});
 // Returns one RunTypeError per unknown property, e.g. [{ path: ['extra'], expected: 'never' }]

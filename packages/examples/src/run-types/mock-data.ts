@@ -1,4 +1,4 @@
-import {createMockData} from '@ts-runtypes/core';
+import {createMockDataFn} from '@ts-runtypes/core';
 
 // start-basic
 interface User {
@@ -9,7 +9,7 @@ interface User {
     createdAt: Date;
 }
 
-const mockUser = createMockData<User>();
+const mockUser = createMockDataFn<User>();
 
 const user = mockUser();
 // {
@@ -30,7 +30,7 @@ interface ValidatedUser {
     followersCount: PositiveInt;
 }
 
-const mockValidatedUser = createMockData<ValidatedUser>();
+const mockValidatedUser = createMockDataFn<ValidatedUser>();
 const validatedUser = mockValidatedUser();
 // { email: 'user@example.com', followersCount: 150 }
 // end-formats
