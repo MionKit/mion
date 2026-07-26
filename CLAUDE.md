@@ -86,6 +86,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves — container paths / plumbing). Mark new vars accordingly.
 - **`.env.sample` mirrors the user-settable rows only** (`secret` + `dev`); add new ones there too. NEVER list an `internal` var in `.env.sample` — setting it breaks the run.
 - **One credential, one load path:** secrets live directly in `.env` (loaded by [scripts/lib/env.mjs](scripts/lib/env.mjs)'s `loadEnv()`); no file-path alternates or proxy/duplicate names.
+- **`.env` is LOCAL-only:** CI and cloud agents (Claude Code on the web) export the vars directly, so check `printenv` — a missing `.env` never means a missing credential.
 - A var that crosses the host→container or host→CI boundary must be renamed on BOTH ends in the same change (the setter and every reader), or the protocol silently breaks.
 
 ## Development workflow
