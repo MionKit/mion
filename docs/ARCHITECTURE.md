@@ -78,15 +78,16 @@ the compiler would, which means what we resolve as `T` is what TypeScript resolv
 
 The program has three subcommands:
 
-- **`serve`** is the normal mode. It starts once, keeps the parsed project and the type
-  checker in memory, and speaks one JSON message per line over standard input and output.
-  The build tool spawns it, asks about each file, then shuts it down.
+- **`serve`** is the daemon mode, and the one the bundler plugin drives. It starts once,
+  keeps the parsed project and the type checker in memory, and speaks one JSON message
+  per line over standard input and output. The build tool spawns it, asks about each
+  file, then shuts it down.
 - **`compile`** is a one shot batch build for projects with no bundler plugin. It is the
   only mode that writes JavaScript, and it does so by handing the rewritten source back
   to TypeScript's own emitter and then stitching the source maps together.
 - **`enrich`** serves the enrichment workflow described below: it scaffolds the hand
-  edited files, re-syncs them when a type changes, and checks them. One shot and off the
-  normal build path.
+  edited files, re-syncs them when a type changes, and checks them. One shot, and the
+  only command that writes files you are meant to edit and commit.
 
 `compile` and `enrich` both take `--no-emit`, which turns either into a report that writes
 nothing, the way `tsc --noEmit` does.
