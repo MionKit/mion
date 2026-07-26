@@ -14,7 +14,8 @@ import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesPostgres, DEFAULT_VARCHAR_LENGTH, DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {getMaxLengthFromParams, getLengthFromParams, isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionjs/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {FormatName} from '@ts-runtypes/core';
 
 // ============================================================================
 // Default Mapping Objects
@@ -33,29 +34,29 @@ const pgPrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
 
 /** Default format-to-column mapping for PostgreSQL, keyed by FormatName */
 const pgFormatDefaults: Record<string, FormatColumnFactory> = {
-    [FormatNames.uuid]: (p) => ({builder: uuid(p), drizzleType: DrizzleTypesPostgres.uuid}),
-    [FormatNames.email]: (p, params) => {
+    [typeFormats.uuid.name]: (p) => ({builder: uuid(p), drizzleType: DrizzleTypesPostgres.uuid}),
+    [typeFormats.email.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 254;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
     },
-    [FormatNames.url]: (p, params) => {
+    [typeFormats.url.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 2048;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
     },
-    [FormatNames.domain]: (p, params) => {
+    [typeFormats.domain.name]: (p, params) => {
         const maxLength = getMaxLengthFromParams(params) || 253;
         return {builder: varchar(p, {length: maxLength}), drizzleType: DrizzleTypesPostgres.varchar};
     },
-    [FormatNames.ip]: (p) => ({builder: inet(p), drizzleType: DrizzleTypesPostgres.inet}),
-    [FormatNames.dateTime]: (p) => ({builder: timestamp(p), drizzleType: DrizzleTypesPostgres.timestamp}),
-    [FormatNames.date]: (p) => ({builder: date(p), drizzleType: DrizzleTypesPostgres.date}),
-    [FormatNames.time]: (p) => ({builder: time(p), drizzleType: DrizzleTypesPostgres.time}),
-    [FormatNames.bigintFormat]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesPostgres.bigint}),
-    [FormatNames.numberFormat]: (p, params) => {
+    [typeFormats.ip.name]: (p) => ({builder: inet(p), drizzleType: DrizzleTypesPostgres.inet}),
+    [typeFormats.dateTime.name]: (p) => ({builder: timestamp(p), drizzleType: DrizzleTypesPostgres.timestamp}),
+    [typeFormats.date.name]: (p) => ({builder: date(p), drizzleType: DrizzleTypesPostgres.date}),
+    [typeFormats.time.name]: (p) => ({builder: time(p), drizzleType: DrizzleTypesPostgres.time}),
+    [typeFormats.bigintFormat.name]: (p) => ({builder: bigint(p, {mode: 'bigint'}), drizzleType: DrizzleTypesPostgres.bigint}),
+    [typeFormats.numberFormat.name]: (p, params) => {
         if (isIntegerFormat(params)) return {builder: integer(p), drizzleType: DrizzleTypesPostgres.integer};
         return {builder: doublePrecision(p), drizzleType: DrizzleTypesPostgres.doublePrecision};
     },
-    [FormatNames.stringFormat]: (p, params, config) => {
+    [typeFormats.stringFormat.name]: (p, params, config) => {
         const buf = config?.lengthBuffer ?? DEFAULT_LENGTH_BUFFER;
         const maxLength = getMaxLengthFromParams(params);
         const exactLength = getLengthFromParams(params);

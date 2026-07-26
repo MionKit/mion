@@ -14,7 +14,8 @@ import {getRunTypeKindName} from '../core/typeTraverser.ts';
 import type {ColumnMapping, DrizzleMapperConfig, PrimitiveColumnFactory, FormatColumnFactory} from '../types/common.types.ts';
 import {DrizzleTypesSQLite} from '../types/common.types.ts';
 import {isIntegerFormat} from '../core/utils.ts';
-import {FormatName, FormatNames} from '@mionjs/core';
+import {typeFormats} from '@ts-runtypes/core';
+import type {FormatName} from '@ts-runtypes/core';
 
 // ============================================================================
 // Default Mapping Objects
@@ -30,17 +31,17 @@ const sqlitePrimitiveDefaults: Record<number, PrimitiveColumnFactory> = {
 
 /** Default format-to-column mapping for SQLite, keyed by FormatName */
 const sqliteFormatDefaults: Record<string, FormatColumnFactory> = {
-    [FormatNames.uuid]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.email]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.url]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.domain]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.ip]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.dateTime]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.date]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.time]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.stringFormat]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
-    [FormatNames.bigintFormat]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
-    [FormatNames.numberFormat]: (p, params) => {
+    [typeFormats.uuid.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.email.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.url.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.domain.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.ip.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.dateTime.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.date.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.time.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.stringFormat.name]: (p) => ({builder: text(p), drizzleType: DrizzleTypesSQLite.text}),
+    [typeFormats.bigintFormat.name]: (p) => ({builder: blob(p, {mode: 'bigint'}), drizzleType: DrizzleTypesSQLite.blob}),
+    [typeFormats.numberFormat.name]: (p, params) => {
         if (isIntegerFormat(params)) return {builder: integer(p), drizzleType: DrizzleTypesSQLite.integer};
         return {builder: real(p), drizzleType: DrizzleTypesSQLite.real};
     },
