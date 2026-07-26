@@ -10,7 +10,7 @@ import {registerRoutes, resetRouter, initRouter, getRouteExecutable} from '../ro
 import {dispatchRoute} from '../dispatch.ts';
 import {MionHeaders} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
-import {MION_ROUTES, JitCompiledFnData, PureFunctionData, RunTypeError} from '@mionjs/core';
+import {MION_ROUTES, CompiledFnData, PureFunctionData, RunTypeError} from '@mionjs/core';
 import {route} from './handlers.ts';
 import {headersFromRecord} from './headers.ts';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods.ts';
@@ -207,7 +207,7 @@ describe('Dispatch routes with format types', () => {
             const method = getSerializableMethod(executable);
             expect(method).toBeDefined();
 
-            const deps: Record<string, JitCompiledFnData> = {};
+            const deps: Record<string, CompiledFnData> = {};
             const purFnDeps: Record<string, PureFunctionData> = {};
 
             // This should NOT throw "Maximum call stack size exceeded"

@@ -7,7 +7,7 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
-import type {CoreRouterOptions, JitCompiledFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import type {CoreRouterOptions, CompiledTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
 import {resolveJIT} from './runtypes/rtResolver.ts';
 import {getOrCreateGlobal} from './utils.ts';
 
@@ -276,16 +276,16 @@ const noopJitFns: JitCompiledFunctions = {
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
-function fakeJitFn(fnID: string): JitCompiledFn<any> {
+function fakeJitFn(fnID: string): CompiledTypeFn<any> {
     return {
         typeName: 'mionNoopJit',
         fnID,
-        jitFnHash: EMPTY_HASH,
+        rtFnHash: EMPTY_HASH,
         args: {vλl: 'v'},
         defaultParamValues: {vλl: 'v'},
         isNoop: true,
         code: '',
-        createJitFn: () => {
+        createRTFn: () => {
             throw new Error('isNoop JIT functions should not be called, this is a function when jit is never used');
         },
         fn: () => {

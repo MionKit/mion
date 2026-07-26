@@ -1,4 +1,10 @@
-import {createValidateFn, createGetValidationErrorsFn, createJsonEncoderFn, createJsonDecoderFn, createMockDataFn} from '@ts-runtypes/core';
+import {
+    createValidateFn,
+    createGetValidationErrorsFn,
+    createJsonEncoderFn,
+    createJsonDecoderFn,
+    createMockDataFn,
+} from '@ts-runtypes/core';
 
 interface BlogPost {
     id: string;
