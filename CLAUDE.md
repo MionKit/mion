@@ -135,10 +135,6 @@ Deep-dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Load-bearing invariants
 - **Two markers + demand-driven caches** — `InjectRunTypeId<T>` (injects typeId) drives the reflection cache; `InjectTypeFnArgs<T, Fn>` (injects typeId + opaque 3-char fnHash) drives per-family caches that contain ONLY the types their own call sites demand — a `getRunTypeId`-only file emits ZERO function-cache entries.
 - **Validate contract — serializable data only** — validators / decoders operate on the JSON-shaped projection of `T`; non-serialisable members (functions, symbols, getters) silently drop with a build-time **Warning** and decoders return `DataOnly<T>`. Line to remember: **Warning** = expected drop, fine; **Error** = will throw at runtime, build must fail.
 
-## Public surfaces (website + npm READMEs)
-
-Two surfaces reach users: [container/website/content/](container/website/content/) and the published package READMEs. **Neither documents internal or dev-only material** (env knobs like `RT_BIN`, container/release plumbing, resolver internals) — that belongs in [SETUP.md](SETUP.md) or [docs/](docs/). **Published READMEs are a short description of the package plus a link to the docs site; don't grow them** (they are being trimmed to that shape by [docs/todos/review-package-readmes.md](docs/todos/review-package-readmes.md) — once it lands, treat them as settled and leave them alone).
-
 ## Website Documentation (`container/website/content/`)
 
 User-facing docs under [container/website/content/](container/website/content/) (Nuxt + Docus Markdown + MDC) follow a deliberate, reader-first voice. Keep it when editing:

@@ -56,8 +56,7 @@ ships: [scripts/release/build-binaries.mjs](../../scripts/release/build-binaries
 - Each of the three READMEs is a short description plus links, with no option tables, no
   environment variables, and no internal/dev-only content.
 - Nothing removed is lost: every fact worth keeping exists on the website.
-- The CLAUDE.md rule (**Public surfaces**) is updated from "don't grow them" to "these are settled,
-  don't touch them" once this lands.
+- Whatever shape is settled on is worth one line in CLAUDE.md so the next pass leaves them alone.
 
 ## Out of scope
 
