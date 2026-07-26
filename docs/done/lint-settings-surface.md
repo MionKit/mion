@@ -1,13 +1,14 @@
 ---
 type: feature
 spec: guidelines
-status: todo
+status: done
 created: 2026-07-26
+completed: 2026-07-26
 ---
 
 # Lint settings: make `settings.runtypes.binary` real, and stop ignoring unknown keys silently
 
-**Status:** todo
+**Status:** done (see [Implemented](#implemented))
 **Created:** 2026-07-26 (deferred twice from [docs/done/getexepath-env-override.md](../done/getexepath-env-override.md) and [docs/done/lint-settings-binary-ignored.md](../done/lint-settings-binary-ignored.md))
 
 Two halves of the same surface, filed together because the second changes what the first must warn
@@ -74,3 +75,46 @@ The hard part is not detecting it (compare against `LINT_SETTING_KEYS`) but **re
   SETUP.md and in the plugin comments.
 - An unsupported key under `settings.runtypes` produces one visible complaint per run.
 - `LINT_SETTING_KEYS` still generates from `LintSessionOptions`, so the accepted set cannot drift.
+
+## Implemented
+
+Both halves, with the recommended answers to the open questions.
+
+**`settings.runtypes.binary` is real.** It threads `sessionOptions()` → `LintSessionOptions` →
+`LintWorkerRequest` → `ensureConnection()`, read once when the long-lived connection opens, exactly
+like `tsconfig` (documented on both the interface and the wire type).
+
+- **Precedence: `settings.runtypes.binary` > `RT_BIN` > dev binary > platform package.** It falls
+  out of the implementation rather than being special-cased: the worker uses the configured path if
+  there is one, otherwise calls `getExePath()`, which is itself what reads `RT_BIN`. That matches
+  the bundler lane (`options.binary ?? getExePath()`), so an explicit config beats an env var
+  everywhere. The e2e test sets both at once to pin it.
+- **A configured path that is not there fails loudly**, naming the setting
+  (`settings.runtypes.binary=… does not exist`), via `resolveConfiguredBinary()` in the worker —
+  the same never-fall-back rule the launcher applies to `RT_BIN`, checked up front so a typo reads
+  as a config mistake rather than an opaque spawn failure.
+- **`cwd` stays dropped**, as the spec expected: the session's model is "run where the linter runs".
+  `socket` too.
+
+**Unknown keys warn once per process.** `warnUnknownSettings()` in `eslint/index.ts` compares the
+bag against `LINT_SETTING_KEYS` and `console.warn`s the first time it sees each unsupported key,
+naming the key and the supported set. Reasoning for stderr over a lint report: a config mistake is
+not a finding about anyone's code, and there is no honest file to anchor it to. Once per *key* per
+*process*, so a thousand-file lint prints one line.
+
+**Tests** — `plugin.test.ts` covers the mapping (the transparency case now expects `binary` kept,
+`cwd`/`socket` dropped), the warn-once behaviour, and silence on supported keys.
+`oxlint-e2e.test.ts` gains a real-linter case: the configured binary produces the baseline findings,
+a bogus `RT_BIN` alongside a good setting does NOT break the run (precedence), and a bogus setting
+fails naming itself. Its fixture config previously carried a bogus `binary` to prove it was
+IGNORED — that premise is inverted, so it now carries a bogus `cwd` instead, which is still the
+right transparency case. `e2e-lint-settings.test.ts` tracks the three-key contract.
+
+**Docs:** SETUP.md documents the setting, the full precedence order and the warn-on-unknown-key
+behaviour, next to `RT_BIN`. Nothing on the website or in the package READMEs: this is a
+development knob, per the review decision recorded in
+[getexepath-env-override.md](getexepath-env-override.md).
+
+**Not done:** the spec floated switching the e2e fixture back to `settings.runtypes.binary` now
+that it works. Left alone deliberately — the fixture's `RT_BIN` path is exercised by the release
+lane as-is, and churning it again would retire that coverage for no gain.

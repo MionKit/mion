@@ -8,7 +8,7 @@
 // sibling ResolverClient.
 
 import fs from 'node:fs';
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import plugin, {meta, rules, sessionOptions} from '../../src/eslint/index.ts';
 import {ALL_RULE_NAMES, RULE_SPECS} from '../../src/eslint/diagnosticRouting.ts';
 import {resetSharedSession} from '../../src/eslint/session.ts';
@@ -116,11 +116,41 @@ export const isCode = createValidateFn<TypeFormat<string, 'stringFormat', {patte
 // under settings.runtypes are NOT read — the resolver binary and working
 // directory are resolved automatically, like any other linter. Pure function,
 // so this runs without the resolver binary.
-describe('sessionOptions — timeoutMs and tsconfig are configurable', () => {
-  it('reads timeoutMs and tsconfig, drops binary, cwd, and socket', () => {
+describe('sessionOptions — timeoutMs, tsconfig and binary are configurable', () => {
+  it('reads timeoutMs, tsconfig and binary, drops cwd and socket', () => {
     expect(
       sessionOptions({runtypes: {binary: '/x', cwd: '/y', socket: '/z', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'}})
-    ).toEqual({timeoutMs: 5000, tsconfig: './tsconfig.lint.json'});
+    ).toEqual({binary: '/x', timeoutMs: 5000, tsconfig: './tsconfig.lint.json'});
+  });
+
+  // A dropped key used to be invisible, which is how the e2e fixture spent
+  // months believing it had redirected the binary. One warning per key per run:
+  // enough to notice, not enough to drown a lint of a thousand files.
+  it('warns once per unsupported key, naming it and the supported set', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // A key no other test uses: the warning is once per PROCESS, so a shared
+      // key would make this depend on which test ran first.
+      sessionOptions({runtypes: {bogusKnob: '/y', timeoutMs: 1}});
+      sessionOptions({runtypes: {bogusKnob: '/y'}});
+      sessionOptions({runtypes: {bogusKnob: '/y'}});
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages.filter((message) => message.includes('settings.runtypes.bogusKnob'))).toHaveLength(1);
+      expect(messages[0]).toContain('tsconfig');
+      expect(messages[0]).toContain('binary');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('says nothing about supported keys', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      sessionOptions({runtypes: {timeoutMs: 1, tsconfig: 'tsconfig.json', binary: '/x'}});
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('reads tsconfig on its own', () => {

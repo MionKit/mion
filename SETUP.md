@@ -261,6 +261,8 @@ RT_BIN=/abs/path/to/ts-runtypes pnpm run lint     # in the consumer project
 
 Use it to validate an **unpublished** build in a real consumer (packing `@ts-runtypes/{core,devtools,bin}` as `file:` tarballs leaves no platform package to resolve, so the lint lane would otherwise fail), to bisect a resolver regression without editing `node_modules`, or to run a binary delivered out-of-band. A value that is missing, not a file, or not executable throws — a typo never falls through to a different binary.
 
+A lint config can pin the same thing without an env var: **`settings.runtypes.binary`** (alongside `timeoutMs` and `tsconfig`) in `.oxlintrc.json` / `eslint.config.js`. It **wins over `RT_BIN`**, mirroring the bundler lane where an explicit `binary` option beats the launcher, so the full order is `settings.runtypes.binary` → plugin `binary` option → `RT_BIN` → in-repo dev binary → platform package. A configured path that is not there fails the lint run naming the setting. Any OTHER key under `settings.runtypes` (`cwd`, a typo) is ignored, with one warning per run on stderr.
+
 > ⚠️ The resolver's version folds into every typeId, so an override of a different version produces cache entries that diverge from a normal install. Clear `node_modules/.cache/ts-runtypes` when switching back.
 
 ---

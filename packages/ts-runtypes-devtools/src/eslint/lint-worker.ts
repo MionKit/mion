@@ -21,6 +21,7 @@
 // would surface.
 
 import {spawn, type ChildProcess} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
@@ -60,21 +61,34 @@ parentPort?.postMessage({shimReady: true});
 
 let connection: ResolverConnection | null = null;
 
+// resolveConfiguredBinary checks a `settings.runtypes.binary` path up front so a
+// typo reports as a config mistake naming the setting, not as an opaque spawn
+// failure. Same rule the launcher applies to RT_BIN: never fall back to a
+// different binary, whose version would key caches differently.
+function resolveConfiguredBinary(binary: string): string {
+  const resolved = path.resolve(binary);
+  if (!existsSync(resolved)) {
+    throw new Error(`settings.runtypes.binary=${binary} does not exist (resolved to ${resolved})`);
+  }
+  return resolved;
+}
+
 // ensureConnection lazily opens the resolver on the first request, preferring
-// the pre-spawned shim, then a direct spawn. The tsconfig is read here, once:
-// the connection is long-lived for the whole run, so the first request's value
-// fixes the resolution options for every later file.
-async function ensureConnection(tsconfig: string): Promise<ResolverConnection> {
+// the pre-spawned shim, then a direct spawn. The tsconfig and the binary are read
+// here, once: the connection is long-lived for the whole run, so the first
+// request's values fix the resolution options for every later file.
+async function ensureConnection(tsconfig: string, binary: string): Promise<ResolverConnection> {
   if (connection) return connection;
-  // Resolve the host-platform binary from the ts-runtypes-bin launcher (the same
-  // resolution the bundler plugins use; throws with a clear message if none is
-  // installed), rooted at process.cwd() — the directory the linter itself runs in,
-  // like any other linter. Only an explicitly configured tsconfig is forwarded;
-  // otherwise the Go side discovers it exactly as tsc does (upward from cwd) and
-  // adopts its FULL options, so lint type-checks like the build.
+  // A configured `settings.runtypes.binary` wins; otherwise resolve the
+  // host-platform binary from the ts-runtypes-bin launcher (which honours RT_BIN
+  // and throws with a clear message when no platform package is installed),
+  // rooted at process.cwd() — the directory the linter itself runs in, like any
+  // other linter. Only an explicitly configured tsconfig is forwarded; otherwise
+  // the Go side discovers it exactly as tsc does (upward from cwd) and adopts its
+  // FULL options, so lint type-checks like the build.
   // Single-threaded: the session lints one file at a time, and a light child keeps
   // editor/CI hosts well under process/memory limits.
-  const binaryPath = getExePath();
+  const binaryPath = binary ? resolveConfiguredBinary(binary) : getExePath();
   const args = buildResolverArgs(process.cwd(), tsconfig, {serverMode: true, singleThreaded: true});
   if (shim?.stdin && shim.stdout && shim.exitCode === null) {
     const launcher = shim;
@@ -130,7 +144,7 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
   for (let attempt = 0; ; attempt++) {
     let stage: 'connect' | 'scan' = 'connect';
     try {
-      const resolver = await ensureConnection(request.tsconfig ?? '');
+      const resolver = await ensureConnection(request.tsconfig ?? '', request.binary ?? '');
       stage = 'scan';
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});

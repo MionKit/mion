@@ -74,6 +74,6 @@ describe('pre-publish e2e lint configs — only settings the plugin actually rea
   });
 
   it('LINT_SETTING_KEYS is the sessionOptions contract', () => {
-    expect([...LINT_SETTING_KEYS].sort()).toEqual(['timeoutMs', 'tsconfig']);
+    expect([...LINT_SETTING_KEYS].sort()).toEqual(['binary', 'timeoutMs', 'tsconfig']);
   });
 });

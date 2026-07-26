@@ -73,8 +73,10 @@ export class LintSession {
 
   // lintFileSync runs the single resolver pass for one file's buffer text and
   // returns its diagnostics (all families — the caller routes them to rules).
-  // options carries the per-file timeout budget and the project tsconfig; the
-  // resolver binary and working directory are resolved transparently in the worker.
+  // options carries the per-file timeout budget, the project tsconfig and an
+  // optional resolver binary; the working directory is process.cwd(), never
+  // configurable. The tsconfig and binary only take effect on the FIRST file of a
+  // run, which is when the worker opens its long-lived connection.
   lintFileSync(file: string, text: string, options: LintSessionOptions = {}): LintOutcome {
     const key = `${file} ${createHash('sha1').update(text).digest('base64')}`;
     const cached = this.cache.get(key);
@@ -106,7 +108,13 @@ export class LintSession {
     // op when it is missing or broken). When unset, the Go side resolves the
     // config exactly as tsc does — searching upward from cwd — mirroring the
     // bundler plugins; the lint session carries no config logic of its own.
-    port.postMessage({seq, file, text, tsconfig: options.tsconfig ?? ''} satisfies LintWorkerRequest);
+    port.postMessage({
+      seq,
+      file,
+      text,
+      tsconfig: options.tsconfig ?? '',
+      binary: options.binary ?? '',
+    } satisfies LintWorkerRequest);
 
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const deadline = Date.now() + timeoutMs;

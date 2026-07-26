@@ -46,12 +46,11 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         {
           categories: {correctness: 'off'},
           jsPlugins: [PLUGIN_DIST],
-          // Transparency: a bogus `binary` under settings.runtypes MUST be
-          // ignored — the plugin always resolves the host binary via
-          // @ts-runtypes/bin and runs in oxlint's own cwd. If it were honoured
-          // the spawn would fail and the run would surface an engine error
-          // instead of the findings asserted below.
-          settings: {runtypes: {binary: '/nonexistent/ts-runtypes-bogus'}},
+          // `cwd` is the transparency case: it is NOT a lint setting (the plugin
+          // runs in oxlint's own cwd), so it must be ignored — loudly on stderr,
+          // but without changing the findings asserted below. `binary` IS honoured
+          // now and gets its own cases further down.
+          settings: {runtypes: {cwd: '/nonexistent/not-a-project'}},
           rules: {
             'runtypes/validate-non-serializable': 'error',
             'runtypes/validate-skipped-member': 'warn',
@@ -99,12 +98,10 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(stdout).not.toContain('resolver unavailable');
   });
 
-  // RT_BIN is the lint lane's ONLY binary override (the config above proves the
-  // `settings.runtypes.binary` key is ignored), so it is what a consumer reaches
-  // for to validate an unpublished build or bisect a resolver regression through
-  // the linter. The unit suite covers getExePath itself; this proves the env var
-  // survives the whole real path — oxlint host, plugin, worker, spawn shim.
-  it('honours RT_BIN for the resolver binary, unlike the ignored settings key', {timeout: 120_000}, async () => {
+  // RT_BIN redirects the resolver for the whole toolchain, the lint lane included.
+  // The unit suite covers getExePath itself; this proves the env var survives the
+  // whole real path — oxlint host, plugin, worker, spawn shim.
+  it('honours RT_BIN for the resolver binary', {timeout: 120_000}, async () => {
     const runOxlint = async (rtBin: string): Promise<{stdout: string; exitCode: number}> => {
       try {
         const result = await execFileAsync(OXLINT, ['-c', '.oxlintrc.json', '.'], {
@@ -129,6 +126,51 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     expect(bogus.exitCode).toBe(1);
     expect(bogus.stdout).toContain('RT_BIN=/nonexistent/rt-bin-override');
     expect(bogus.stdout).toContain('does not exist');
+  });
+
+  // settings.runtypes.binary is the config-file twin of RT_BIN, and it WINS over
+  // the env var — matching the bundler lane, where an explicit `binary` option
+  // beats the launcher. Proving the precedence needs both set at once, which only
+  // a real run can show: the unit test sees the option, not who spawned what.
+  it('honours settings.runtypes.binary, and it beats RT_BIN', {timeout: 120_000}, async () => {
+    const runWithSettings = async (binary: string, rtBin?: string): Promise<{stdout: string; exitCode: number}> => {
+      const config = '.oxlintrc.binary.json';
+      project.write(
+        config,
+        JSON.stringify({
+          categories: {correctness: 'off'},
+          jsPlugins: [PLUGIN_DIST],
+          settings: {runtypes: {binary}},
+          rules: {'runtypes/validate-skipped-member': 'warn', 'runtypes/broken-tsconfig': 'error'},
+          ignorePatterns: ['node_modules/**'],
+        })
+      );
+      const env = rtBin ? {...process.env, RT_BIN: rtBin} : process.env;
+      try {
+        const result = await execFileAsync(OXLINT, ['-c', config, '.'], {cwd: project.dir, env});
+        return {stdout: result.stdout, exitCode: 0};
+      } catch (error) {
+        const failed = error as {stdout?: string; code?: number};
+        return {stdout: failed.stdout ?? '', exitCode: failed.code ?? 1};
+      }
+    };
+
+    // The real binary from the config alone: findings, no engine failure.
+    const configured = await runWithSettings(BIN);
+    expect(configured.stdout).toContain('[VL011]');
+    expect(configured.stdout).not.toContain('resolver failed');
+
+    // Config wins over the env var: a bogus RT_BIN alongside a good setting must
+    // NOT break the run (if RT_BIN won, the launcher would throw).
+    const configBeatsEnv = await runWithSettings(BIN, '/nonexistent/rt-bin-loser');
+    expect(configBeatsEnv.stdout).toContain('[VL011]');
+    expect(configBeatsEnv.stdout).not.toContain('rt-bin-loser');
+
+    // And a bad configured path fails loudly, naming the setting rather than
+    // silently falling back to the installed binary.
+    const bogus = await runWithSettings('/nonexistent/settings-binary');
+    expect(bogus.exitCode).toBe(1);
+    expect(bogus.stdout).toContain('settings.runtypes.binary=/nonexistent/settings-binary');
   });
 
   it('the shipped oxlint-recommended.json works as a one-line extends from node_modules', {timeout: 120_000}, async () => {

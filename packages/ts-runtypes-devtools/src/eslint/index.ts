@@ -16,13 +16,15 @@
 // full set is the RULE_SPECS table.
 //
 // The plugin needs no RunTypes-specific configuration: it resolves the host
-// resolver binary itself (@ts-runtypes/bin) and runs in process.cwd(), like
-// any other linter. The one optional knob is `settings.runtypes.timeoutMs`
-// (the per-file wait budget); rules take no per-rule options.
+// resolver binary itself (@ts-runtypes/bin, which honours RT_BIN) and runs in
+// process.cwd(), like any other linter. The optional knobs are
+// `settings.runtypes.{timeoutMs, tsconfig, binary}`; anything else there is
+// ignored with a one-per-run warning. Rules take no per-rule options.
 
 import {createRequire} from 'node:module';
 import {routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
+import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
 
 // Start the session's worker NOW, at plugin load, and hold the load until
@@ -52,22 +54,41 @@ interface RuleModule {
 // file claims its engine-error reporting for the process lifetime.
 const engineErrorClaims = new Map<string, RuleName>();
 
+// warnedKeys remembers what has already been complained about, so an unsupported
+// setting is reported ONCE for the run rather than once per linted file. A config
+// mistake is not a finding about anyone's code, so it goes to stderr instead of
+// becoming a lint report on an arbitrary file.
+const warnedKeys = new Set<string>();
+
+function warnUnknownSettings(bag: Record<string, unknown>): void {
+  for (const key of Object.keys(bag)) {
+    if ((LINT_SETTING_KEYS as string[]).includes(key) || warnedKeys.has(key)) continue;
+    warnedKeys.add(key);
+    console.warn(
+      `[runtypes] ignoring unknown lint setting 'settings.runtypes.${key}' (supported: ${LINT_SETTING_KEYS.join(', ')})`
+    );
+  }
+}
+
 // sessionOptions pulls the plugin's knobs from `settings.runtypes`: the per-file
-// timeout (`timeoutMs`) and the project `tsconfig` the resolver reads for its
-// resolution options (like the bundler plugins). Those two ARE the contract —
-// LINT_SETTING_KEYS (session-protocol.ts) names them, kept exhaustive against
-// LintSessionOptions. The resolver binary and working directory are deliberately
-// NOT configurable: the plugin resolves the host binary itself (@ts-runtypes/bin,
-// whose RT_BIN env var is the supported override) and runs in process.cwd(), like
-// any other linter, so a `binary`, `cwd`, or `socket` under `settings.runtypes` is
-// ignored. Exported for the transparency regression test.
+// timeout (`timeoutMs`), the project `tsconfig` the resolver reads for its
+// resolution options, and the `binary` to run (like the bundler plugins). Those
+// three ARE the contract — LINT_SETTING_KEYS (session-protocol.ts) names them,
+// kept exhaustive against LintSessionOptions. The working directory is
+// deliberately NOT configurable: the plugin runs in process.cwd(), like any other
+// linter, so a `cwd` or `socket` here is ignored — loudly, once per run, because a
+// silently dropped key reads as working configuration (it once left the e2e
+// fixture believing it had redirected the binary). Exported for the transparency
+// regression test.
 export function sessionOptions(settings: Record<string, unknown> | undefined): LintSessionOptions {
   const raw = settings?.['runtypes'];
   if (!raw || typeof raw !== 'object') return {};
   const bag = raw as Record<string, unknown>;
+  warnUnknownSettings(bag);
   const options: LintSessionOptions = {};
   if (typeof bag['timeoutMs'] === 'number') options.timeoutMs = bag['timeoutMs'];
   if (typeof bag['tsconfig'] === 'string') options.tsconfig = bag['tsconfig'];
+  if (typeof bag['binary'] === 'string') options.binary = bag['binary'];
   return options;
 }
 
