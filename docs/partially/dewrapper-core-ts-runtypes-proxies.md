@@ -1,48 +1,48 @@
 # De-wrapper @mionjs/core's remaining @ts-runtypes proxies
 
-**Status:** partially — the pure type mirrors are done; the DataView **runtime adapter** is
-DEFERRED (it is not a pure re-export and touches public API + JIT-hardcoded names).
+**Status:** partially — every TYPE mirror is gone; ONE deliberate public-API surface remains
+(`setSerializationOptions` / the DataView creation signatures), pending an explicit decision.
 **Created:** 2026-07-22
-**Updated:** 2026-07-23 (PR #128 Track A)
+**Updated:** 2026-07-26 (PR #128, after the @ts-runtypes 0.11.0 upgrade)
 
-## Done (PR #128)
+## Done
 
-- **`RunTypeError` → `RTValidationError`** (commit `2cc504e`). mion's `RunTypeError` +
-  `PathSegment`/`MapKey`/`MapValue`/`SetItem` segments + its `TypeFormatError` were inaccurate
-  mirrors (the validators emit `RTValidationError`; mion only forwards them). Aliased to
-  `@ts-runtypes/core`'s `RTValidationError`; `TypeFormatError` re-exported from `@ts-runtypes/core`.
-- **`DataOnly` → `@ts-runtypes/core`** (commit `9e808c8`). mion's hand-rolled projection was used
-  internally only by `DeserializeClassFn`/`AnyClass`/`SerializableClass` (all orphaned when the
-  jitUtils class registries were deleted). Aliased to `@ts-runtypes/core`'s `DataOnly`.
+Landed against **@ts-runtypes 0.11.0**, which exported the pieces mion was mirroring:
 
-## Deferred — `src/binary/dataView.ts` + the DataView types (NOT a pure re-export)
+- **`RunTypeError` → `RTValidationError`** (`2cc504e`) + `TypeFormatError` re-exported.
+- **`DataOnly` → `@ts-runtypes/core`** (`9e808c8`); the hand-rolled projection + its `Native`
+  helper deleted.
+- **`FormatNames` → `typeFormats`** (`c9c8566`). Upstream now ships generated format-name
+  constants; the mion const was a strict-subset mirror. The three drizzle mappers key off
+  `typeFormats.<name>.name` imported straight from `@ts-runtypes/core`.
+- **`MionCompiledPureFn` → `CompiledPureFunction`** (`418bdb1`).
+- **`JitCompiledFnData` / `JitCompiledFn` → `CompiledFnData` / `CompiledTypeFn`** (`6fc614b`),
+  with the field renames at every consumer (`jitFnHash`→`rtFnHash`, `jitDependencies`→
+  `rtDependencies`, `createJitFn`→`createRTFn`) and the **`RtCacheEntry` mirror in
+  `rtResolver.ts` deleted** (`getRtEntry` now returns upstream's type straight from `getRT()`).
+- **DataView types** (`StrictArrayBuffer`, `BinaryInput`, `DataViewSerializer`,
+  `DataViewDeserializer`) → re-exported from `@ts-runtypes/core` under the SAME names (they are
+  hardcoded in JIT-generated code). Re-checked against 0.11.0: every member mion declared exists
+  upstream verbatim, so these were strict subsets — the earlier "the shapes differ" finding was
+  true of 0.10.0 only. The now-redundant `as unknown as` casts in `binary/dataView.ts` are gone.
 
-Investigation during Track A found this is **not** a mechanical mirror swap:
+## What remains — a deliberate API decision, not a mirror
 
-1. **The DataView types are an ADAPTED shape, not a mirror.** mion's `DataViewSerializer`
-   (`src/types/general.types.ts`) is `{index, view, reset, …}`; `@ts-runtypes/core`'s is
-   `{buffer, cacheKey, index, view, hasEnded, …}`. They differ, so `export type … from
-   '@ts-runtypes/core'` would change the shape the framing code relies on.
-2. **The names are hardcoded in JIT-generated code.** `general.types.ts` warns:
-   *"DO NOT CHANGE THE INTERFACE NAMES AS THEY ARE HARDCODED IN THE JIT GENERATED CODE"*
-   (`DataViewSerializer`/`DataViewDeserializer`). Any rename/move must preserve the exact names.
-3. **`dataView.ts` is a runtime option/signature adapter.** It maps mion option names →
-   ts-runtypes names (`bufferSize`→`defaultBufferSize`, `averageResponseSizeMultiplier`→
-   `sizeMultiplier`, …) and `createDataViewSerializer(routeId, workflowRouteIds?)` →
-   `rtCreateDataViewSerializer(routeId, {relatedKeys})`. Removing it relocates that adaptation into
-   `bodySerializer.ts`/`bodyDeserializer.ts`.
-4. **Public surface decision.** `setSerializationOptions`/`SerializationOptions` are exported with
-   **no in-repo consumer** — decide deliberately whether to drop them or keep one mapping helper.
+`src/binary/dataView.ts` still holds mion's **own** option-name + creation-signature surface:
 
-### Fix plan (when tackled)
-- Reconcile mion's `DataViewSerializer`/`DataViewDeserializer` shape with `@ts-runtypes/core`'s (or
-  keep a mion-owned adapter type if the `reset()`-style framing is genuinely mion-specific).
-- Have `bodySerializer.ts`/`bodyDeserializer.ts` import the codec from `@ts-runtypes/core` and pass
-  the ts-runtypes option/signature shape at the call site; delete `src/binary/dataView.ts` and its
-  `export *` from `core/index.ts`.
-- Repoint `router/src/routes/serializer.binary.spec.ts` to import `createDataViewDeserializer` from
-  `@ts-runtypes/core`.
-- Settle `setSerializationOptions`/`SerializationOptions` (drop vs keep a single mapping helper).
+- `SerializationOptions` maps mion names onto ts-runtypes ones (`bufferSize`→`defaultBufferSize`,
+  `averageResponseSizeMultiplier`→`sizeMultiplier`, …) via `setSerializationOptions`.
+  **Neither is consumed anywhere in-repo** — it is public API only.
+- `createDataViewSerializer(routeId, workflowRouteIds?)` adapts to
+  `rtCreateDataViewSerializer(routeId, {relatedKeys})`.
+- `createDataViewDeserializer` is now a pure pass-through.
 
-Best done together with the Track B `CompiledFnData`/`CompiledTypeFn` adoption (blocked on the
-upstream export — ts-runtypes `docs/todos/export-compiled-fn-structs-and-reconstruction-api.md`).
+### Fix plan (needs a call)
+1. Decide whether `setSerializationOptions` / `SerializationOptions` stay public. If not, delete
+   them and let consumers use `@ts-runtypes/core`'s `setSerializationOptions` with its own names.
+2. If they go: move the `{relatedKeys: workflowRouteIds}` adaptation into
+   `bodySerializer.ts`/`bodyDeserializer.ts` at the call site, drop `createDataViewDeserializer`
+   (pass-through), delete `src/binary/dataView.ts` and its `export *` from `core/index.ts`, and
+   repoint `router/src/routes/serializer.binary.spec.ts` at `@ts-runtypes/core`.
+3. If they stay: keep the module but document it as mion's intentional binary-serialization API
+   (already noted in its header comment), and close this spec.
