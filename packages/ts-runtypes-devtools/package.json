@@ -1,6 +1,6 @@
 {
   "name": "@ts-runtypes/devtools",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "RunTypes devtools: cross-bundler plugin (Vite/Rollup/Rolldown/webpack/Rspack/esbuild) that rewrites RunTypes marker calls using the ts-runtypes resolver, plus an OXlint/ESLint lint plugin.",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",

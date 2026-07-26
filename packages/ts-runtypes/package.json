@@ -1,6 +1,6 @@
 {
   "name": "@ts-runtypes/core",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Sentinel marker + canonical reflection helper for ts-runtypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
