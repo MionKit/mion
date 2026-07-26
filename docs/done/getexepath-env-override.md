@@ -104,13 +104,16 @@ What landed:
   whole point of this feature, and only a real-linter run reaches it.
 - Registry + sample: `RT_BIN` (scope `dev`) in [scripts/lib/env.mjs](../../scripts/lib/env.mjs) and
   [.env.sample](../../.env.sample).
-- Docs: [SETUP.md](../../SETUP.md) (dev-loop section + a troubleshooting row for the exact
-  `Unable to resolve @ts-runtypes/binary-<os>-<arch>` failure this todo came from),
-  [docs/ARCHITECTURE.md](../ARCHITECTURE.md) launcher section, both package READMEs, and the website
-  ([1.introduction/4.configuration.md](../../container/website/content/1.introduction/4.configuration.md)
-  "Choosing the compiler binary" + a pointer from
-  [2.guide/9.linting.md](../../container/website/content/2.guide/9.linting.md)). Every one carries
+- Docs: [SETUP.md](../../SETUP.md) is the home — a dev-loop section plus a troubleshooting row for
+  the exact `Unable to resolve @ts-runtypes/binary-<os>-<arch>` failure this todo came from — with a
+  short design-level mention in the [docs/ARCHITECTURE.md](../ARCHITECTURE.md) launcher section
+  (the resolution order changed) that points back to SETUP.md, and the package READMEs. Both carry
   the version-divergence warning.
+  **NOT documented on the website** (owner call during review): `RT_BIN` is a development knob, and
+  [container/website/content/](../../container/website/content/) is the public product surface. A
+  first pass had added a "Choosing the compiler binary" section to
+  `1.introduction/4.configuration.md` plus a pointer from `2.guide/9.linting.md`; both were reverted
+  to their `main` content byte for byte.
 
 **Deferred:** `settings.runtypes.binary` for the lint lane (the "consider also" bullet). It
 reverses a deliberate, documented decision in
