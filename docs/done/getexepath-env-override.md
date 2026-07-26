@@ -107,13 +107,15 @@ What landed:
 - Docs: [SETUP.md](../../SETUP.md) is the home — a dev-loop section plus a troubleshooting row for
   the exact `Unable to resolve @ts-runtypes/binary-<os>-<arch>` failure this todo came from — with a
   short design-level mention in the [docs/ARCHITECTURE.md](../ARCHITECTURE.md) launcher section
-  (the resolution order changed) that points back to SETUP.md, and the package READMEs. Both carry
-  the version-divergence warning.
-  **NOT documented on the website** (owner call during review): `RT_BIN` is a development knob, and
-  [container/website/content/](../../container/website/content/) is the public product surface. A
-  first pass had added a "Choosing the compiler binary" section to
-  `1.introduction/4.configuration.md` plus a pointer from `2.guide/9.linting.md`; both were reverted
-  to their `main` content byte for byte.
+  (the resolution order changed) that points back to SETUP.md. Both carry the version-divergence
+  warning.
+  **Deliberately NOT in any public surface** (owner call during review): `RT_BIN` is a development
+  knob, so it appears in neither [container/website/content/](../../container/website/content/) nor
+  the published package READMEs, which stay a short description of each package and a link to the
+  docs site. A first pass had added a website section ("Choosing the compiler binary" in
+  `1.introduction/4.configuration.md`, plus a pointer from `2.guide/9.linting.md`) and README
+  sections in `@ts-runtypes/bin` and `@ts-runtypes/devtools`; all four files are reverted to their
+  `main` content byte for byte. Keep it that way — the docs for this knob live in SETUP.md.
 
 **Deferred:** `settings.runtypes.binary` for the lint lane (the "consider also" bullet). It
 reverses a deliberate, documented decision in
