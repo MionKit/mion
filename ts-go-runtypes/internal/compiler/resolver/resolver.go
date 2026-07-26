@@ -1,17 +1,29 @@
 // Package resolver is the session orchestrator. It owns a tsgo Program +
-// checker pool and dispatches incoming protocol ops across the three
-// cache generators under internal/cachegen/:
+// checker pool and dispatches incoming protocol ops across the cache
+// generators under internal/cachegen/:
 //
 //   - runtype: resolves call-site type queries, deduplicates serialized
 //     RunType records, and emits the runTypes cache module.
-//   - typefunctions: precompiles `validate` validators for cached
-//     RunTypes the emitter supports.
-//   - purefunctions: extracts `registerPureFnFactory(...)` bodies and
-//     emits the pureFns cache module.
+//   - typefunctions: precompiles the per-family functions (validate,
+//     JSON/binary codecs, mock data, …) for cached RunTypes the emitter
+//     supports.
+//   - purefunctions + builtinpurefns: extract `registerPureFnFactory(...)`
+//     bodies (and serve the built-in ones) into the pureFns cache module.
+//   - operations, diskcache, hashid: shared op plumbing, the incremental
+//     on-disk artifact cache, and the short structural-hash ids.
 //
-// Per-op handlers live in dispatch.go; scanning helpers in scan.go;
-// per-file scope projection in scope.go; cache-module rendering and
-// wire-shape conversions in render.go.
+// The package's own files, by role:
+//
+//   - dispatch.go — per-op handlers, the entry point for every protocol op.
+//   - scan.go / scan_parallel.go — marker scanning, serial and pooled.
+//   - scope.go — per-file scope projection (which entries a file demands).
+//   - generate.go / render.go — cache-module generation, rendering, and
+//     wire-shape conversions.
+//   - overrides.go — tsconfig/flag option resolution.
+//   - relimports.go — relative-import paths from a site file to its modules.
+//   - enrichcheck.go / enrich_op.go — the enrichment plan/check leaf and its op.
+//   - missingtypeargs.go, temporal_guard.go, nonenumerable_lint.go,
+//     unresolved_import_guard.go — the build-diagnostic guards.
 package resolver
 
 import (

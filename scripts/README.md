@@ -78,7 +78,7 @@ The **env-var registry** in [lib/env.mjs](lib/env.mjs) (`REGISTRY`) is the singl
 1. Add the implementation as a module under the area directory (e.g. [core/new-thing.mjs](core/)). Export a `main(argv)` function. Fail via `die()` from [lib/proc.mjs](lib/proc.mjs), never `process.exit`.
 2. Wire it into `runCore` / `runWebsite` / … in [rt.mjs](rt.mjs). Prefer dynamic `import()` for in-process leaves (so `loadEnv` runs first); use `proxy(...)` if it's a child-process wrapper.
 3. Update the `HELP` template at the bottom of [rt.mjs](rt.mjs) so `pnpm rtx` (no args) documents it.
-4. If it reads a new env var, add it to `REGISTRY` in [lib/env.mjs](lib/env.mjs) with the correct scope (`secret` | `dev` | `internal`) — `pnpm run check:env` will enforce the mirror to `.env.sample`.
+4. If it reads a new env var, add it to `REGISTRY` in [lib/env.mjs](lib/env.mjs) with the correct scope (`secret` | `dev` | `internal`), and mirror the `secret` / `dev` rows into [.env.sample](../.env.sample) — `pnpm run check:env` enforces that mirror (it exits 1 on a missing row, an `internal` var listed there, or an unregistered key), and CI runs it in the `js-lint` job.
 
 ## Related
 

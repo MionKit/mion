@@ -1,11 +1,17 @@
 ---
 type: docs
 spec: full-plan
-status: ready
+status: done
 created: 2026-07-25
+completed: 2026-07-26
 ---
 
 # Stale-doc drift cluster found during the ARCHITECTURE.md rewrite
+
+> **Shipped 2026-07-26.** All findings are resolved; see
+> [What actually shipped](#what-actually-shipped) at the bottom for the
+> decisions taken on the four items that offered a choice, and for the work that
+> went beyond the findings as written.
 
 ## Origin
 
@@ -207,3 +213,79 @@ independent, so they can also be split):
   way the Go-to-TS mirror contract is.
 - `pnpm run check-format` for the Go comment edits. Note the markdown files touched here are
   outside `pnpm run format`'s scope on purpose, so do not run Prettier over them.
+
+## What actually shipped
+
+Landed 2026-07-26 as one doc-focused PR plus two small code additions (the env
+mirror check and the README tarball gate). Every finding is closed. Where the todo
+left a choice, the decision taken:
+
+| Item | Decision |
+| --- | --- |
+| 0 — missing core README | Added `packages/ts-runtypes/README.md`, absolute URLs only, **plus** a gate (below) so the class of defect cannot recur. |
+| 1 — `container/website/CLAUDE.md` | **Rewritten**, not deleted: much of it (code-import, twoslash, component list) was real website knowledge worth keeping, just written against mion. |
+| 2 — `container/website/README.md` | **Replaced with a pointer** to `CONTAINER.md` + `CLAUDE.md` and the `pnpm rtx website …` commands, rather than deleted. |
+| 5 — `check:env` enforcement | **Implemented the check**, as the todo preferred, so the `scripts/README.md` sentence is now true. |
+| 10 — archive lane | **Kept both lanes**: added `docs/partially/.gitkeep` so both links resolve in a fresh clone. No instruction file needed changing, and the lane is in active use (`docs/done/` had grown to three specs by the time this landed, not the one the finding recorded). |
+
+Beyond the findings as written:
+
+- **`container/website/AGENTS.md` was also mion boilerplate** — same defect as
+  finding 1, in the sibling file the finding did not name. Replaced with a pointer
+  to `CLAUDE.md` and the root `CLAUDE.md`'s Website Documentation section.
+- **Item 3 was wider than recorded.** Both existing package READMEs used
+  **pre-scope package names throughout** (`ts-runtypes-devtools`, `ts-runtypes-bin`,
+  `ts-runtypes-binary-*`), and `packages/ts-runtypes-bin/README.md` pointed at a
+  repository URL that does not exist (`github.com/mionkit/ts-runtypes`). Both are
+  now correct. The devtools options table was missing **twelve** keys, not ten
+  (`enrich` and `hashLength` were the two the finding did not list), and the entry
+  point table gained `/oxlint` as well as `/rolldown`. The `../../README.md` link
+  was replaced with absolute URLs, per the README-leaf policy.
+- **Item 4's unscoped name appeared in six more places** than the root `CLAUDE.md`
+  sentence: `SETUP.md` (twice), `packages/ts-runtypes-bin/README.md`,
+  `packages/ts-runtypes-bin/package.json`'s `comment:optionalDependencies`,
+  `packages/examples/src/introduction/manual-install-vite-config.ts`,
+  `packages/ts-runtypes-devtools/src/unplugin.ts`, and
+  `scripts/release/bump-version.mjs`. All fixed. The two genuine tarball-filename
+  uses (`scripts/release/publish-tarballs.mjs`'s `rank()`, and the new clause in
+  `CLAUDE.md`) deliberately keep the unscoped spelling.
+- **Item 7's file had more drift than the duplicate line.** `CONTAINER.md` also
+  described the repo context as defaulting to a sibling `../mion` checkout, which
+  `defaultRepoContext()` in `scripts/website/site.mjs` has not done since
+  `packages/examples/` moved in-repo. The whole command block was resynced with
+  `rtx`'s own help text (it was missing `preview`, `dev --agent`, and
+  `check --static`).
+- **Item 8's `sourcerewrite` doc cited two paths that no longer exist**
+  (`docs/COMPILER-DRIVEN-TRANSFORM.md`, `packages/ts-runtypes-devtools/src/rewrite.ts`)
+  on top of the stale package name. Rewritten against the real JS twin
+  (`apply-edits.ts` + `edit-buffer.ts`) and the two-wire-mode invariant.
+- **`.env.sample`'s section headers** pointed at three shell-era scripts, not the
+  one the finding named: `build.sh`, `scripts/website/site.sh`,
+  `scripts/website/bench-data/bench.sh`, plus a `pnpm run fuzz:*` script family
+  that no longer exists. All now name the real `pnpm rtx …` commands.
+
+### New enforcement (so these two cannot silently rot again)
+
+- **Env registry mirror.** `scripts/env/check.mjs` gained `sampleKeys()` +
+  `sampleMirrorDrift()` and now exits 1 on three kinds of drift: a `secret`/`dev`
+  row missing from `.env.sample`, an `internal` var listed there (setting one
+  breaks the run), or a key there that no `REGISTRY` row declares. Wired into
+  `ci.yml`'s `js-lint` job next to the codegen drift gate, as the todo's
+  verification section asked.
+- **Published READMEs.** `scripts/release/pack.mjs` now asserts that every packed
+  tarball whose `files` array lists `README.md` actually contains
+  `package/README.md`, so a `files` entry matching nothing fails the release
+  instead of publishing a blank npm page. The per-platform binary packages are
+  exempt by design (they ship `lib/` + `LICENSE`).
+- **Tests:** `packages/ts-runtypes-devtools/test/repo-contracts.test.ts` (11 tests)
+  pins both contracts — each published package has a README, listed in `files`,
+  with no repo-relative links; and the mirror check detects each drift kind.
+
+### Found but deliberately not fixed here
+
+`container/website/typescript-lsp-docs.md` is a 269-line mion-era scratch doc
+(`@mionjs/client`, `@mionjs/router`, `@mionjs/server`, and an example path that
+does not exist here), unreferenced by anything. Same class as findings 1 and 2 but
+outside this todo's scope, so it was filed as
+[website-typescript-lsp-docs-is-mion-era.md](../todos/website-typescript-lsp-docs-is-mion-era.md)
+rather than fixed inline.

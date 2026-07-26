@@ -127,6 +127,11 @@ jobs:
       # rtx owns the generator list, so a new mirror is picked up here for free.
       - name: Codegen drift (Go→TS mirrors must be in sync)
         run: pnpm rtx core codegen all --check
+      # Same shape as the codegen drift gate, for the other hand-maintained
+      # mirror: every secret/dev row in the env REGISTRY must appear in
+      # .env.sample (and no internal var may). Cheap and dependency-free.
+      - name: Env registry drift (.env.sample must mirror REGISTRY)
+        run: pnpm run check:env
       - name: Lint + typecheck
         run: pnpm run lint
       - name: JS suite (everything except test/fuzz — 151 files)

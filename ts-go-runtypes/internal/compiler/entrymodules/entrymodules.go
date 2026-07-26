@@ -1,4 +1,4 @@
-// Package entrymod assembles the per-entry virtual ES modules emitted by the
+// Package entrymodules assembles the per-entry virtual ES modules emitted by the
 // resolver: one module per cache entry (type-fn factory, JSON composite, pure
 // fn), named `rtmod:/<basename>.js`, exporting a single positional tuple
 // under its binding name (ExportName — `__rt_<basename>`, identifier-escaped).

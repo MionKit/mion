@@ -42,12 +42,14 @@ All commands run from the **repo root**. Running the site is
 
 ```bash
 # --- run the site (site.mjs) ---
-pnpm rtx website dev           # dev server with hot reload  -> http://localhost:3000
-pnpm rtx website build         # production build            -> container/website/.output
-pnpm rtx website build      # static prerender            -> container/website/.output/public
-pnpm rtx website check          # verify the mion repo context (packages/) is built
+pnpm rtx website dev            # dev server with hot reload -> http://localhost:3000
+pnpm rtx website dev --agent    # agent server, self-stops when idle -> http://localhost:3100
+pnpm rtx website build          # production build + static prerender -> container/website/.output
+pnpm rtx website preview        # serve the prerendered site locally (regenerates first)
+pnpm rtx website check          # verify the RunTypes repo context (packages/) is built
 pnpm rtx website check --docs   # check code-import + twoslash render (curl/grep)
-pnpm rtx website shell         # debug shell inside the container
+pnpm rtx website check --static # serve the BUILT site + assert every benchmark page renders
+pnpm rtx website shell          # debug shell inside the container
 # --- image lifecycle (image.mjs) ---
 pnpm rtx container build-image   # build the image locally (maintainer)
 pnpm rtx container lock          # regenerate _deps/pnpm-lock.yaml in-container (after a dep bump)
@@ -74,16 +76,16 @@ image (offline, or to test a dep bump before pushing).
 | `RT_WEBSITE_MOUNT_OPTS` | empty            | Extra bind-mount opts, e.g. `:z` on SELinux hosts.   |
 | `RT_WEBSITE_USE_LOCAL`  | off              | Skip the GHCR pull; build/use a local image.         |
 | `RT_WEBSITE_REMOTE_IMAGE` | `ghcr.io/mionkit/tsrt-website:latest` | Published image ref to pull.        |
-| `RT_WEBSITE_REPO_CONTEXT` | sibling `../mion`, else this repo | Checkout containing `packages/`, mounted read-only for code-import/twoslash. |
+| `RT_WEBSITE_REPO_CONTEXT` | this repo (else a sibling `../mion`) | Checkout containing `packages/`, mounted read-only for code-import/twoslash. |
 | `RT_WEBSITE_DOCDATA`    | `<repo>/.docdata` | Generated benchmark/test result JSON, mounted read-only at `/app/.docdata`. |
 
-### Documenting mion's code (repo context)
+### Documenting first-party code (repo context)
 
 The `<code-import>` and `::twoslash-code` mechanisms read first-party source +
-built `.d.ts` from `packages/`. Those packages live in the **mion** checkout, which
-`site.mjs` mounts **read-only** and points the resolvers at via `RT_REPO_ROOT`
-— so the website works whether mion is a sibling checkout (today) or merged in
-later. Only `packages/` (+ a drizzle-orm `.d.ts` allowlist) is exposed, and every
+built `.d.ts` from `packages/`. `site.mjs` mounts the checkout that contains them
+**read-only** and points the resolvers at it via `RT_REPO_ROOT` — this repo by
+default, so the indirection stays merge-agnostic (a sibling checkout still works
+via `RT_WEBSITE_REPO_CONTEXT`). Only `packages/` (+ a drizzle-orm `.d.ts` allowlist) is exposed, and every
 `path=` read is confined to `packages/` (`server/utils/repo-root.ts`). Run
 `pnpm rtx website check` to confirm the context is built and `pnpm rtx website check --docs`
 to check both mechanisms render.

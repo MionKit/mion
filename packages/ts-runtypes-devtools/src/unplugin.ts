@@ -60,7 +60,7 @@ export interface EnrichSyncOptions {
 export interface PluginOptions {
   // Absolute path to the compiled ts-runtypes binary. Optional: when omitted,
   // the plugin resolves the prebuilt binary for the host platform via the
-  // `ts-runtypes-bin` launcher (its `ts-runtypes-binary-<os>-<arch>` optional
+  // `@ts-runtypes/bin` launcher (its `@ts-runtypes/binary-<os>-<arch>` optional
   // dependency). Set this only to point at a custom or local build — e.g.
   // in-repo development passes `bin/ts-runtypes`.
   binary?: string;

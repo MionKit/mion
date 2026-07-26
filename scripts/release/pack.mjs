@@ -25,6 +25,28 @@ function pack(cmd, dir) {
   execFileSync(cmd, ['pack', '--pack-destination', TARBALLS], {cwd: dir, stdio: 'inherit'});
 }
 
+// npm packs a scoped package @scope/name as scope-name-<version>.tgz.
+function tarballName(name, version) {
+  return `${name.replace('@', '').replace('/', '-')}-${version}.tgz`;
+}
+
+// A `files` entry that matches nothing is SILENTLY ignored by npm, so a package can
+// declare "README.md" and still publish a blank npm page — @ts-runtypes/core did
+// exactly that. Assert the packed artifact really carries one, so the defect fails
+// here instead of surfacing on the registry. Only the hand-authored packages are
+// checked; the per-platform binary packages ship lib/ + LICENSE by design.
+function assertReadmes(packageDirs) {
+  for (const dir of packageDirs) {
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    if (!pkg.files?.includes('README.md')) continue;
+    const tarball = tarballName(pkg.name, pkg.version);
+    const entries = execFileSync('tar', ['-tzf', path.join(TARBALLS, tarball)], {encoding: 'utf8'}).split('\n');
+    if (!entries.includes('package/README.md')) {
+      throw new Error(`pack: ${pkg.name} declares README.md in "files" but ${tarball} contains none — its npm page would be blank.`);
+    }
+  }
+}
+
 function main() {
   if (!fs.existsSync(DIST_BINARIES)) {
     throw new Error('dist-binaries/ missing — run `pnpm rtx release binaries` first.');
@@ -42,6 +64,8 @@ function main() {
   for (const name of publishOrder) {
     execFileSync('npm', ['pack', path.join(DIST_BINARIES, name), '--pack-destination', TARBALLS], {cwd: REPO_ROOT, stdio: 'inherit'});
   }
+
+  assertReadmes([...FE_PACKAGE_DIRS.map((dir) => path.join(REPO_ROOT, 'packages', dir)), path.join(DIST_BINARIES, '@ts-runtypes/bin')]);
 
   const tarballs = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz')).sort();
   console.log(`\nPacked ${tarballs.length} tarballs into ${path.relative(REPO_ROOT, TARBALLS)}/:`);
