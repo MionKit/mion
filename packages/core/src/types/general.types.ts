@@ -8,7 +8,7 @@
 
 import {MIME_TYPES} from '../constants.ts';
 import type {RTValidationError, DataOnly as RtDataOnly} from '@ts-runtypes/core';
-import {CompiledPureFunction, PersistedPureFunction, PureFunctionData} from './pureFunctions.types.ts';
+import {PureFunctionData, SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
 
@@ -110,40 +110,39 @@ export type RunTypeError = RTValidationError;
 
 // ########################################### JIT FUNCTIONS ###########################################
 
-/**
- * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
- * ie: {vλl: 'val', arg1: 'arg1', error: 'newRunTypeErr'} for the function (vλl, arg1, eArr) => any
- */
-export type JitFnArgs = {
-    /** The name of the value of to be */
-    vλl: string;
-    /** Other argument names */
-    [key: string]: string;
-};
-
 /** mion's JIT function vocabulary IS @ts-runtypes' compiled-fn model — `CompiledFnData` is the
  *  closure-free wire form (what router ships to client) and `CompiledTypeFn` adds the restored
  *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
  *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
  *  mirrors were deleted. */
-import type {CompiledFnData, CompiledTypeFn} from '@ts-runtypes/core';
-export type {CompiledFnData, CompiledTypeFn};
+import type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn} from '@ts-runtypes/core';
+export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
+
+/** A compiled type fn as mion consumes it. NOT a mirror — a narrowing of @ts-runtypes' own types:
+ *  - `createRTFn`/`fn` are guaranteed by `InitializedTypeFn`, which is what `getRTUtils().getRT()`
+ *    already returns (it runs `materializeRTFn` before handing the entry back).
+ *  - `code` is guaranteed because mion restricts `emitMode` to 'code' | 'both' and the vite plugin
+ *    throws on 'functions' — the one mode where @ts-runtypes deliberately omits it. Without that
+ *    restriction `code` would be optional and every consumer would need a fallback.
+ *  TypeScript cannot see the plugin-level guarantee, so the construction sites assert it; the
+ *  assertion is only sound because of the emitMode restriction above. */
+export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
 /** Jit Functions serialized to src code file: the data form without the live fn. */
 export type PersistedJitFn = Omit<CompiledTypeFn, 'fn'> & {readonly fn: undefined};
 
 export interface JitCompiledFunctions {
-    isType: CompiledTypeFn<IsTypeFn>;
-    typeErrors: CompiledTypeFn<TypeErrorsFn>;
-    prepareForJson: CompiledTypeFn<PrepareForJsonFn>;
-    restoreFromJson: CompiledTypeFn<RestoreFromJsonFn>;
-    stringifyJson: CompiledTypeFn<JsonStringifyFn>;
+    isType: MionTypeFn<IsTypeFn>;
+    typeErrors: MionTypeFn<TypeErrorsFn>;
+    prepareForJson: MionTypeFn<PrepareForJsonFn>;
+    restoreFromJson: MionTypeFn<RestoreFromJsonFn>;
+    stringifyJson: MionTypeFn<JsonStringifyFn>;
     /** strictTypes support: true when the value carries properties not present in the type */
-    hasUnknownKeys?: CompiledTypeFn<HasUnknownKeysFn>;
+    hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
     /** strictTypes support: RunTypeError entries for every unknown property found */
-    unknownKeyErrors?: CompiledTypeFn<TypeErrorsFn>;
-    toBinary?: CompiledTypeFn<ToBinaryFn>;
-    fromBinary?: CompiledTypeFn<FromBinaryFn>;
+    unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
+    toBinary?: MionTypeFn<ToBinaryFn>;
+    fromBinary?: MionTypeFn<FromBinaryFn>;
 }
 export interface SerializableJITFunctions {
     isType: CompiledFnData;
@@ -181,20 +180,18 @@ export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer
 
 // jit and pure functions at runtime, contains both createRTFn and fn
 export type JitFunctionsCache = Record<string, CompiledTypeFn>;
-/** Namespaced cache structure for pure functions: { namespace: { fnHash: CompiledPureFunction } } */
-export type PureFunctionsCache = Record<string, Record<string, CompiledPureFunction>>;
 
 // jit and pure functions persisted to src code, contains createRTFn but not fn
 // this allow usage in environments that can not use eval or new Function()
 export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
-/** Namespaced cache structure for persisted pure functions */
-export type PersistedPureFunctionsCache = Record<string, Record<string, PersistedPureFunction>>;
 
 // jit and pure functions data, does not contain createRTFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
 export type FnsDataCache = Record<string, CompiledFnData>;
-/** Namespaced cache structure for pure function data */
-export type PureFnsDataCache = Record<string, Record<string, PureFunctionData>>;
+/** Namespaced cache structure for pure function data. Entries are `SerializablePureFunction`, not
+ *  bare `PureFunctionData`: an entry that reaches the wire MUST carry `code`, because rebuilding it
+ *  client-side is `new Function(...paramNames, code)` and nothing else. */
+export type PureFnsDataCache = Record<string, Record<string, SerializablePureFunction>>;
 
 // ########################################### JIT SRC CODE ####################################
 

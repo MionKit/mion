@@ -6,17 +6,18 @@
  * ######## */
 
 import {describe, expect, it} from 'vitest';
-import {getRTUtils, InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
+import {getRTUtils, registerPureFnFactory, InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
 import {
+    addSerializedJitCaches,
     buildJitFnsFromMarker,
     getReflectionFromMarkers,
     getParamCountFromRunType,
     getParamsFromRunType,
     resolveInjectedRunType,
+    resolveCompiledPureFn,
     RtMarkerPayload,
 } from './mionAdapter.ts';
 import {getJitFnHashes} from '../routerUtils.ts';
-import {resolveJIT} from './rtResolver.ts';
 
 // A mion-route-like wrapper so the plugin injects real payloads for the tests.
 type AnyHandler = (ctx: any, ...params: any[]) => any;
@@ -109,16 +110,18 @@ describe('mionAdapter: reflection from injected markers', () => {
         // A version bump re-hashes typeIds but getFnHash tracks it — no manual refresh needed.
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
         const hashes = getJitFnHashes(reflection.paramsJitHash);
+        const utl = getRTUtils();
         for (const key of ['isType', 'typeErrors', 'restoreFromJson', 'stringifyJson'] as const) {
-            const compiled = resolveJIT(hashes[key]);
+            const compiled = utl.getRT(hashes[key]);
             expect(compiled, `entry for ${key} (${hashes[key]})`).toBeDefined();
             expect(compiled!.rtFnHash).toBe(hashes[key]);
-            if (!compiled!.isNoop) expect(compiled!.code!.length).toBeGreaterThan(0);
+            // mion restricts emitMode to 'code' | 'both', so a non-noop entry ALWAYS carries a body
+            if (!compiled!.isNoop) expect(compiled!.code, `code for ${key}`).toBeTruthy();
         }
         expect(reflection.paramsJitFns.isType.rtFnHash).toBe(hashes.isType);
         // rebuild validate from its emitted code (the client metadata lane)
-        const compiledIsType = resolveJIT(hashes.isType)!;
-        const rebuilt = new Function('utl', compiledIsType.code!)(getRTUtils());
+        const compiledIsType = utl.getRT(hashes.isType)!;
+        const rebuilt = new Function('utl', compiledIsType.code!)(utl);
         expect(rebuilt([{name: 'rex', born: new Date(0)}, 'note'])).toBe(true);
         expect(rebuilt([{name: 7, born: new Date(0)}])).toBe(false);
     });
@@ -126,5 +129,92 @@ describe('mionAdapter: reflection from injected markers', () => {
     it('throws a clear error when markers were not injected', () => {
         expect(() => getReflectionFromMarkers(undefined, () => 1, 'nope')).toThrow(/no injected type information/);
         expect(() => buildJitFnsFromMarker(undefined, 'x', 'nope')).toThrow(/vite plugin/);
+    });
+});
+
+// mion resolves jit hashes and pure fns DIRECTLY from the @ts-runtypes/core runtime cache — there
+// is no wrapper and no installable backend. A lookup that isn't in the cache is a plain miss
+// (undefined), never a throw. Pinned here from core's own test project.
+describe('direct ts-runtypes cache resolution', () => {
+    it('unknown jit/pure lookups are plain misses (undefined), never throw', () => {
+        expect(getRTUtils().getRT('isType_does_not_exist')).toBeUndefined();
+        expect(resolveCompiledPureFn('ns', 'missing')).toBeUndefined();
+    });
+
+    it('resolves a pure fn registered through @ts-runtypes', () => {
+        registerPureFnFactory('mionjs::adapterSpecFn', () => () => 42);
+        expect(resolveCompiledPureFn('mionjs', 'adapterSpecFn')).toBeTruthy();
+    });
+});
+
+// What the client does with a methods-metadata payload. These pin the RESTORE half of the wire
+// contract — the half that used to drop data on the floor.
+describe('addSerializedJitCaches (client restore lane)', () => {
+    it('rebuilds a pure fn under the AUTHOR\'s parameter names, not a hardcoded "utl"', () => {
+        // A factory written as `(rtu) => ...` records paramNames: ['rtu']. Binding the single
+        // parameter as 'utl' instead would leave the body referencing an undeclared `rtu`.
+        addSerializedJitCaches(
+            {},
+            {
+                specns: {
+                    namedParam: {
+                        namespace: 'specns',
+                        fnName: 'namedParam',
+                        bodyHash: 'specNamedParam',
+                        paramNames: ['rtu'],
+                        code: 'return () => typeof rtu;',
+                        pureFnDependencies: [],
+                    },
+                },
+            }
+        );
+        const restored = getRTUtils().getPureFnByKey('specns::namedParam');
+        expect(restored).toBeDefined();
+        expect(restored!()).toBe('object'); // resolves `rtu` -> it was bound, not undeclared
+    });
+
+    it('restores an alwaysThrow entry so it surfaces its build-time message, not a TypeError', () => {
+        // alwaysThrow entries carry no code — only the diagnostic, delivered through a throwing
+        // createRTFn. Without alwaysThrowMessage on the wire there is neither code nor factory, so
+        // materializeRTFn bails, leaves `fn` unset, and the caller gets "fn is not a function".
+        // With it, upstream's contract surfaces the real message at materialization time.
+        const message = '[RT9999] unsupported leaf (at spec.ts:1:1)';
+        addSerializedJitCaches(
+            {
+                spec_always_throw: {
+                    typeName: 'SpecAlwaysThrow',
+                    fnID: 'val',
+                    familyTag: 'val',
+                    rtFnHash: 'spec_always_throw',
+                    args: {vλl: 'v'},
+                    defaultParamValues: {vλl: 'v'},
+                    alwaysThrowMessage: message,
+                },
+            },
+            {}
+        );
+        expect(() => getRTUtils().getRT('spec_always_throw')).toThrow(message);
+    });
+
+    it('round-trips familyTag, which upstream gates type lookups on', () => {
+        addSerializedJitCaches(
+            {
+                spec_family_tag: {
+                    typeName: 'SpecFamilyTag',
+                    // fnID and familyTag genuinely differ for JSON composites: the composite
+                    // borrows its host's fnID while familyTag names the emitting family
+                    fnID: 'pj',
+                    familyTag: 'jeMU',
+                    rtFnHash: 'spec_family_tag',
+                    args: {vλl: 'v'},
+                    defaultParamValues: {vλl: 'v'},
+                    code: 'return (v) => v;',
+                },
+            },
+            {}
+        );
+        const entry = getRTUtils().getRT('spec_family_tag');
+        expect(entry?.familyTag).toBe('jeMU');
+        expect(entry?.fnID).toBe('pj');
     });
 });

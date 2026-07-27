@@ -12,7 +12,8 @@ import type {
     AnyObject,
     CompiledTypeFn,
     CompiledFnData,
-    PureFunctionData,
+    CompiledFnArgs,
+    SerializablePureFunction,
     MethodWithOptions,
     PureFnsDataCache,
 } from '@mionjs/core';
@@ -22,11 +23,11 @@ import {
     getRouterItemId,
     MAX_STACK_DEPTH,
     getJitFnHashes,
-    resolveJIT,
     resolveCompiledPureFn,
     EMPTY_HASH,
     getOrCreateGlobal,
 } from '@mionjs/core';
+import {getRTUtils} from '@ts-runtypes/core';
 
 // ############# PRIVATE STATE #############
 const publicMethods = getOrCreateGlobal('mion.remoteMethods.publicMethods', () => new Map<string, MethodWithOptions>());
@@ -95,6 +96,13 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
     return newRemoteMethod as MethodWithOptions;
 }
 
+/** @ts-runtypes' package-owned pure-fn namespaces. Their bodies are hollowed in the dist build and
+ *  supplied from the built-in table at runtime, so every entry is already registered wherever
+ *  `@ts-runtypes/core` is loaded — which on the client is guaranteed, since @mionjs/core
+ *  value-imports it. Kept in sync with upstream's own `isBuiltinPureFnNamespace` (pureFn.ts), which
+ *  is module-private, and with the Go `builtinPureFnNamespaces` set. */
+const BUILTIN_PURE_FN_NAMESPACES = new Set(['rt', 'rtFormats']);
+
 /** Serializes pure function dependencies into a namespaced cache structure.
  * @param namespacedDepHash - Pure function dependency in format "namespace::fnHash"
  * @param purFnDeps - Namespaced cache to store serialized pure functions
@@ -108,14 +116,28 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
     if (parts.length !== 2)
         throw new Error(`Invalid pure function dependency format: ${namespacedDepHash}, expected "namespace::fnHash"`);
     const [namespace, fnHash] = parts;
+    // Built-ins never ride the wire: the client already has them, and their bodies are hollowed
+    // server-side so there would be nothing to send. addSerializedJitCaches skipped them on restore
+    // anyway (hasPureFnByKey short-circuit) — skipping here just stops shipping the dead weight.
+    if (BUILTIN_PURE_FN_NAMESPACES.has(namespace)) return;
     // Ensure namespace exists in the cache
     if (!purFnDeps[namespace]) purFnDeps[namespace] = {};
     // Check if already serialized (prevent infinite recursion on circular dependencies)
     if (purFnDeps[namespace][fnHash]) return;
     const pureDep = resolveCompiledPureFn(namespace, fnHash);
     if (!pureDep) throw new Error(`Pure function ${fnHash} not found in namespace ${namespace}`);
-    const serializedPureDep: PureFunctionData = {
+    // The client rebuilds a pure fn as `new Function(...paramNames, code)` — there is no other
+    // lane. An entry with no code is unrecoverable there, so fail here instead of shipping a
+    // payload that breaks on first use. With built-ins already filtered out above, this can only
+    // fire for a user/framework fn registered at runtime with no body: server-only by nature.
+    if (!pureDep.code)
+        throw new Error(
+            `Pure function ${namespace}::${fnHash} has no code payload and cannot be serialized to the client. ` +
+                `Runtime-registered pure fns are server-only; the client can rebuild only build-extracted ones.`
+        );
+    const serializedPureDep: SerializablePureFunction = {
         ...pureDep,
+        code: pureDep.code,
         pureFnDependencies: pureDep.pureFnDependencies ? [...pureDep.pureFnDependencies] : undefined,
     };
     purFnDeps[namespace][fnHash] = serializedPureDep;
@@ -126,7 +148,7 @@ export function serializePureDeps(namespacedDepHash: string, purFnDeps: PureFnsD
 export function serializeJitFn(rtFnHash: string, deps: Record<string, CompiledFnData>, purFnDeps: PureFnsDataCache, depth = 0) {
     if (depth >= MAX_STACK_DEPTH)
         throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${rtFnHash}`);
-    const jitFn = resolveJIT(rtFnHash);
+    const jitFn = getRTUtils().getRT(rtFnHash);
     if (!jitFn) throw new Error(`Jit function ${rtFnHash} not found`);
     if (deps[rtFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies
     const serializedJitFn = getSerializableJitCompiler(jitFn);
@@ -144,17 +166,18 @@ export function serializeMethodDeps(
     // Skip serialization for empty hashes (no params or void return)
     // Always request binary hashes so they are included when available (e.g. middleware in binary routes).
     // serializeJitFn is only called when the JIT function exists in the store, so non-binary methods are unaffected.
+    const utl = getRTUtils();
     if (paramsJitHash !== EMPTY_HASH) {
         const paramsJitHashes = getJitFnHashes(paramsJitHash, true);
         for (const k in paramsJitHashes) {
-            if (resolveJIT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
+            if (utl.getRT(paramsJitHashes[k])) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
         }
     }
     if (returnJitHash !== EMPTY_HASH) {
         const returnJitHashes = getJitFnHashes(returnJitHash, true);
         let foundAny = false;
         for (const k in returnJitHashes) {
-            if (resolveJIT(returnJitHashes[k])) {
+            if (utl.getRT(returnJitHashes[k])) {
                 serializeJitFn(returnJitHashes[k], deps, purFnDeps);
                 foundAny = true;
             }
@@ -168,16 +191,41 @@ export function serializeMethodDeps(
     }
 }
 
+/** Drops non-string entries so the value satisfies `CompiledFnArgs` on the wire.
+ *
+ *  ⚠️ This exists because of an upstream type bug, not because mion wants to lose data.
+ *  `CompiledFnArgs` types every value as `string`, but @ts-runtypes' own `familyMeta` emits
+ *  `{vλl: undefined, pλth: [], εrr: []}` and friends for `defaultParamValues`, laundered through
+ *  `as unknown as CompiledFnArgs`. Shipping those verbatim is not an option: the metadata route is
+ *  serialized by the `sj` JIT stringifier compiled FROM `CompiledFnData`, which has no
+ *  undefined-guard on a required property — it would emit the literal text `"vλl":undefined` and
+ *  the client's JSON.parse would throw on every entry.
+ *
+ *  Nothing reads these values on either side (upstream restores through `code` alone, and they are
+ *  derivable from `familyTag`), so the loss is inert. See docs/todos/upstream-compiledfnargs-type-lie.md. */
+function toWireArgs(args: CompiledFnArgs): CompiledFnArgs {
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(args)) if (typeof value === 'string') out[key] = value;
+    if (!('vλl' in out)) out.vλl = 'v';
+    return out as CompiledFnArgs;
+}
+
 function getSerializableJitCompiler(comp: CompiledTypeFn): CompiledFnData {
     return {
         typeName: comp.typeName,
         fnID: comp.fnID,
+        // the exact emitting family — upstream's findRTForType gates on it, and unlike fnID it is
+        // not composited, so the client cannot recover it from anything else on the wire
+        familyTag: comp.familyTag,
         rtFnHash: comp.rtFnHash,
-        args: structuredClone(comp.args),
+        args: {...comp.args},
         isNoop: comp.isNoop,
-        defaultParamValues: structuredClone(comp.defaultParamValues),
+        defaultParamValues: toWireArgs(comp.defaultParamValues),
         code: comp.code,
         rtDependencies: comp.rtDependencies ? [...comp.rtDependencies] : undefined,
         pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : undefined,
+        // an alwaysThrow entry has no code, only this message; without it the client cannot rebuild
+        // the throwing factory and surfaces a bare TypeError instead of the build-time diagnostic
+        alwaysThrowMessage: comp.alwaysThrowMessage,
     };
 }
