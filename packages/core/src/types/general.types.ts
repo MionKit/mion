@@ -126,7 +126,8 @@ export type JitFnArgs = {
  *  `createRTFn`/`fn`. The client rebuilds a fn with `buildFactoryFromCode(code)` and registers it
  *  back via `getRTUtils().addToRTCache(...)`. mion's former CompiledFnData/CompiledTypeFn
  *  mirrors were deleted. */
-export type {CompiledFnData, CompiledTypeFn} from '@ts-runtypes/core';
+import type {CompiledFnData, CompiledTypeFn} from '@ts-runtypes/core';
+export type {CompiledFnData, CompiledTypeFn};
 
 /** Jit Functions serialized to src code file: the data form without the live fn. */
 export type PersistedJitFn = Omit<CompiledTypeFn, 'fn'> & {readonly fn: undefined};
@@ -289,6 +290,7 @@ export type DataOnly<T> = RtDataOnly<T>;
 // ⚠️ These interface NAMES are hardcoded in the JIT-generated code — re-exported under the
 // SAME names from @ts-runtypes/core (the codec that actually implements them). mion's former
 // subset mirrors were deleted; every member it declared exists upstream verbatim.
-export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@ts-runtypes/core';
+import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@ts-runtypes/core';
+export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer};
 
 export type MimeTypes = (typeof MIME_TYPES)[keyof typeof MIME_TYPES];

@@ -25,6 +25,10 @@ export interface MethodMetadata {
     hasReturnData: boolean;
     /** Number of public method parameters (arity), derived from the params tuple runtype */
     paramsCount?: number;
+    /** Parameter names from the params tuple's member labels (undefined per unlabelled member).
+     *  SERVER-SIDE only: deliberately absent from the client methods-metadata payload built in
+     *  remoteMethods.ts, so adding names here does not grow the wire. */
+    paramNames?: (string | undefined)[];
     /** JIT hash of the method parameters */
     paramsJitHash: string;
     /**  JIT  hash of the method return value */
