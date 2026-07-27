@@ -82,8 +82,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@ts-runtypes/core':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
     devDependencies:
       '@mionjs/devtools':
         specifier: workspace:*
@@ -104,8 +104,8 @@ importers:
   packages/core:
     dependencies:
       '@ts-runtypes/core':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
 
   packages/devtools:
     dependencies:
@@ -113,11 +113,11 @@ importers:
         specifier: 5.3.0
         version: 5.3.0(rollup@4.60.1)
       '@ts-runtypes/bin':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
       '@ts-runtypes/devtools':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz(@ts-runtypes/bin@file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
+        specifier: 0.11.0
+        version: 0.11.0(@ts-runtypes/bin@0.11.0)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
       '@typescript-eslint/utils':
         specifier: 8.58.1
         version: 8.58.1(eslint@9.39.4)(typescript@6.0.2)
@@ -138,8 +138,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@ts-runtypes/core':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
       drizzle-orm:
         specifier: ^0.38.0
         version: 0.38.4(bun-types@1.3.12)
@@ -177,8 +177,8 @@ importers:
         specifier: workspace:*
         version: link:../router
       '@ts-runtypes/core':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
       drizzle-orm:
         specifier: ^0.38.0
         version: 0.38.4(bun-types@1.3.12)
@@ -221,11 +221,11 @@ importers:
         specifier: workspace:*
         version: link:../router
       '@ts-runtypes/bin':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
       '@ts-runtypes/devtools':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz(@ts-runtypes/bin@file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
+        specifier: 0.11.0
+        version: 0.11.0(@ts-runtypes/bin@0.11.0)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
     devDependencies:
       bun-types:
         specifier: 1.3.12
@@ -280,8 +280,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@ts-runtypes/core':
-        specifier: file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
-        version: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz
+        specifier: 0.11.0
+        version: 0.11.0
     devDependencies:
       '@mionjs/test-server':
         specifier: workspace:*
@@ -1251,19 +1251,51 @@ packages:
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
     engines: {node: '>= 10'}
 
-  '@ts-runtypes/bin@file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz':
-    resolution: {integrity: sha512-/Dp8J5IxHb0QhsyH1ZXUAIbOyEmi0yUEg+QS1a6jYKnO4WoCXR4oP/pyzEciwKieqF0WMNqFO0hneulcQY5few==, tarball: file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz}
-    version: 0.11.0
+  '@ts-runtypes/bin@0.11.0':
+    resolution: {integrity: sha512-WYe/uAQiRt3d9EzxFRJo4fNzXRTUMTPKqwwuKign9wbv5zWO6wdBhOfY96TY8tM8ZxNIhn0fxjvhAAWoB8hsXg==}
     hasBin: true
 
-  '@ts-runtypes/core@file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz':
-    resolution: {integrity: sha512-oiovU6FJykllOkyePu4pYjD+3HzD8EtCiYh/1RZJHxcsbKkLsGX6ar4zke3OAQUnfBO0Vz0GGLixy4Lbu/mtug==, tarball: file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz}
-    version: 0.11.0
+  '@ts-runtypes/binary-darwin-arm64@0.11.0':
+    resolution: {integrity: sha512-unE7znsntGYk9ZcVNErxG1mQRbu836DZqIeo/WEEMn8tbbDZgu8NXLFLV/9rsvV62f3P4wd2AAmZuzr+2WcX+Q==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@ts-runtypes/binary-darwin-x64@0.11.0':
+    resolution: {integrity: sha512-EwUljYMSdccbjN+YA7YopEhI1UdTFBjSINBdJKBXoSFiKfdFEvZUQlLEPU6A/7cq67nyOFU0TeuVC3S/uOmW0A==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@ts-runtypes/binary-linux-arm64@0.11.0':
+    resolution: {integrity: sha512-IYamrtOL4q1OmVcOYSDnABjT7G1BHw3R3Fyru7ZQCuy1cCbynICyEh5GPlNYeQkugS+Qy71MbkLu3LMM2G7LCg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@ts-runtypes/binary-linux-arm@0.11.0':
+    resolution: {integrity: sha512-HYvMc5rBa33XMpQqpgyjNNmMvrtdjHzzAOTxRJaB2KU0hKSD6DydJNWP6cr6UWdsF5IlcNRxpHfx+HRBJyELOg==}
+    cpu: [arm]
+    os: [linux]
+
+  '@ts-runtypes/binary-linux-x64@0.11.0':
+    resolution: {integrity: sha512-VttRdrNjcJv+WPvbaurIqPzIZ4TSgAwry3k3ewniA0eHVhcHecfdyML//FeXMgRbI5HGtEujwmbXFJseHy55Zw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@ts-runtypes/binary-win32-arm64@0.11.0':
+    resolution: {integrity: sha512-6MCICrbJu9MrUiOG7YQ+t8zleDHuXFgxWUsiIW7fR5JneStDf+qEGwoLdHJk2sD8giCM7mVyoaaiUpqZa6wsyg==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@ts-runtypes/binary-win32-x64@0.11.0':
+    resolution: {integrity: sha512-NXeMqZiOmfWBGgGZZIN7c+00Y0WCWiAS/RSOKcCtlYNHX+3I9Ool07d8Kirgqr45XnbwVMxyi4CnJdfzyo7JGw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@ts-runtypes/core@0.11.0':
+    resolution: {integrity: sha512-B0FIX7gjXeaXEjijd/ZE6SIUTMP0A6cC80/8E9mHQwfDWmmAXTERrF0Op0c1QOK0wT4c1FH8BlGg0gTyIcUasA==}
     hasBin: true
 
-  '@ts-runtypes/devtools@file:vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz':
-    resolution: {integrity: sha512-HWTRWq4PvRHY8wPTDy7sV2QjJK6Gj2F2wtovNw/dN4fLj8eA5NJVTQ7Fpke59eiysZOZ5RN5LAN9x8YWRcT1ag==, tarball: file:vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz}
-    version: 0.11.0
+  '@ts-runtypes/devtools@0.11.0':
+    resolution: {integrity: sha512-Jq5h4dp2lUUFcCWhVpY3NeTk4zhguPLfgjzsQ4karXzq9+9dMMbMzky7w4JYiUEnhPUGz7bMNh+rFSaWlbGK7A==}
     peerDependencies:
       '@ts-runtypes/bin': 0.11.0
       vite: '>=5.0.0'
@@ -5397,13 +5429,42 @@ snapshots:
 
   '@tootallnate/once@2.0.0': {}
 
-  '@ts-runtypes/bin@file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz': {}
+  '@ts-runtypes/bin@0.11.0':
+    optionalDependencies:
+      '@ts-runtypes/binary-darwin-arm64': 0.11.0
+      '@ts-runtypes/binary-darwin-x64': 0.11.0
+      '@ts-runtypes/binary-linux-arm': 0.11.0
+      '@ts-runtypes/binary-linux-arm64': 0.11.0
+      '@ts-runtypes/binary-linux-x64': 0.11.0
+      '@ts-runtypes/binary-win32-arm64': 0.11.0
+      '@ts-runtypes/binary-win32-x64': 0.11.0
 
-  '@ts-runtypes/core@file:vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz': {}
+  '@ts-runtypes/binary-darwin-arm64@0.11.0':
+    optional: true
 
-  '@ts-runtypes/devtools@file:vendor/ts-runtypes/ts-runtypes-devtools-0.11.0.tgz(@ts-runtypes/bin@file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))':
+  '@ts-runtypes/binary-darwin-x64@0.11.0':
+    optional: true
+
+  '@ts-runtypes/binary-linux-arm64@0.11.0':
+    optional: true
+
+  '@ts-runtypes/binary-linux-arm@0.11.0':
+    optional: true
+
+  '@ts-runtypes/binary-linux-x64@0.11.0':
+    optional: true
+
+  '@ts-runtypes/binary-win32-arm64@0.11.0':
+    optional: true
+
+  '@ts-runtypes/binary-win32-x64@0.11.0':
+    optional: true
+
+  '@ts-runtypes/core@0.11.0': {}
+
+  '@ts-runtypes/devtools@0.11.0(@ts-runtypes/bin@0.11.0)(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))':
     dependencies:
-      '@ts-runtypes/bin': file:vendor/ts-runtypes/ts-runtypes-bin-0.11.0.tgz
+      '@ts-runtypes/bin': 0.11.0
       unplugin: 3.3.0(esbuild@0.27.7)(rollup@4.60.1)(vite@7.3.2(@types/node@24.12.2)(yaml@2.9.0))
     optionalDependencies:
       vite: 7.3.2(@types/node@24.12.2)(yaml@2.9.0)

@@ -67,6 +67,6 @@
     },
     "dependencies": {
         "@mionjs/core": "workspace:*",
-        "@ts-runtypes/core": "file:../../vendor/ts-runtypes/ts-runtypes-core-0.11.0.tgz"
+        "@ts-runtypes/core": "0.11.0"
     }
 }
