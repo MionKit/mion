@@ -244,6 +244,54 @@ function cmdFullbench(cfg) {
 // The in-container serialization run (native Temporal). Stays `sh -c`.
 const SERIALIZATION_SCRIPT = 'node gen-serialization.mjs --suite serialization && node gen-serialization.mjs --suite format-serialization';
 
+// The marker-package tsconfig the serialization run points the resolver at.
+// gen-serialization.mjs hands this exact name to the plugin; pinned by
+// repo-contracts.test.ts so the two can't drift.
+export const SERIALIZATION_TSCONFIG = 'tsconfig.test.json';
+
+// The whole `run …` argv for the serialization stage. Pure and exported so
+// repo-contracts.test.ts can assert the mount set without a container engine.
+export function serializationRunArgs(cfg, out) {
+  const tsgo = '/bench/competitors/ts-runtypes';
+  const markerMount = `${tsgo}/node_modules/@ts-runtypes/core`;
+  const mo = cfg.mountOpts;
+  const extraMounts = [];
+  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
+  return [
+    'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
+    '-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`,
+    '-v', `${LINUX_EXTRACT_BIN}:${tsgo}/bin/extract-fn-bodies:ro${mo}`,
+    '-v', `${MARKER_PKG}:${markerMount}:ro${mo}`,
+    // The marker package's tsconfig.json extends the REPO-ROOT one as
+    // `../../tsconfig.json`. From the mount above that resolves to
+    // <competitor>/node_modules/tsconfig.json, not the repo root — the scoped
+    // name @ts-runtypes/core puts the package a segment deeper than
+    // packages/ts-runtypes is in the repo. Without this the resolver dies with
+    // "tsconfig parse failed: Cannot read file …/node_modules/tsconfig.json"
+    // before scanning a single site, which is how the v0.11.0 website deploy
+    // shipped no serialization data. Mounting the real root config (not a copy)
+    // keeps the suite compiling under exactly the options it does on the host.
+    // repo-contracts.test.ts walks the `extends` chain and fails if a link ever
+    // lands somewhere this argv doesn't mount.
+    '-v', `${join(REPO_ROOT, 'tsconfig.json')}:${tsgo}/node_modules/tsconfig.json:ro${mo}`,
+    '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`,
+    '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
+    '-v', `${out}:/bench/bench-out${mo}`,
+    '-e', `RT_BENCH_REPO_ROOT=${tsgo}`,
+    '-e', `RT_BENCH_VITE_ROOT=${tsgo}`,
+    '-e', `RT_BENCH_PACKAGE_ROOT=${markerMount}`,
+    '-e', `RT_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
+    '-e', `RT_BENCH_BIN=${tsgo}/bin/ts-runtypes`,
+    '-e', 'RT_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
+    '-e', `RT_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
+    '-e', 'RT_BENCH_OUT_DIR=/bench/bench-out',
+    '-e', 'RT_BENCH_SSR_NOEXTERNAL=ts-runtypes,ts-runtypes-devtools',
+    '-e', 'RT_BENCH_CACHE_DIR=false',
+    '-e', `RT_BENCH_QUICK=${process.env.RT_BENCH_QUICK || ''}`,
+    '-w', tsgo, cfg.image, 'sh', '-c', SERIALIZATION_SCRIPT,
+  ];
+}
+
 function cmdSerialization(cfg) {
   ensurePrereqs(cfg);
   if (!isExec(LINUX_EXTRACT_BIN)) die(`bench: missing ${LINUX_EXTRACT_BIN} - run 'pnpm rtx bench prep' first.`);
@@ -251,40 +299,12 @@ function cmdSerialization(cfg) {
   if (!existsSync(join(PLUGIN_PKG, 'dist/index.js'))) die("bench: missing plugin dist - run 'pnpm rtx bench prep' first.");
   const out = process.env.RT_BENCH_SERIALIZATION_OUT || join(REPO_ROOT, 'container/website/public/bench-data');
   mkdirSync(out, {recursive: true});
-  const tsgo = '/bench/competitors/ts-runtypes';
-  const mo = cfg.mountOpts;
-  const extraMounts = [];
-  if (existsSync(join(BIN_PKG, 'lib/index.js'))) extraMounts.push('-v', `${BIN_PKG}:${tsgo}/node_modules/@ts-runtypes/bin:ro${mo}`);
   note(`serialization bench (in-container, native Temporal) -> ${out}`);
   // MUST be checked: gen-serialization.mjs WIPES its output dir before writing, so a
   // failed run leaves the serialization datasets deleted or half-written. Swallowing
   // this code let cmdWebsiteBench carry on and ship a green site whose two
   // serialization pages rendered "Benchmark data not generated yet".
-  const code = run(
-    cfg.engine,
-    [
-      'run', '--rm', '--init', ...netArgs(cfg), ...extraMounts,
-      '-v', `${LINUX_BIN}:${tsgo}/bin/ts-runtypes:ro${mo}`,
-      '-v', `${LINUX_EXTRACT_BIN}:${tsgo}/bin/extract-fn-bodies:ro${mo}`,
-      '-v', `${MARKER_PKG}:${tsgo}/node_modules/@ts-runtypes/core:ro${mo}`,
-      '-v', `${PLUGIN_PKG}:${tsgo}/node_modules/@ts-runtypes/devtools:ro${mo}`,
-      '-v', `${join(SCRIPT_DIR, 'gen-serialization.mjs')}:${tsgo}/gen-serialization.mjs:ro${mo}`,
-      '-v', `${out}:/bench/bench-out${mo}`,
-      '-e', `RT_BENCH_REPO_ROOT=${tsgo}`,
-      '-e', `RT_BENCH_VITE_ROOT=${tsgo}`,
-      '-e', `RT_BENCH_PACKAGE_ROOT=${tsgo}/node_modules/@ts-runtypes/core`,
-      '-e', `RT_BENCH_RT_OUTDIR=${tsgo}/.rt-bench-runtypes`,
-      '-e', `RT_BENCH_BIN=${tsgo}/bin/ts-runtypes`,
-      '-e', 'RT_BENCH_PLUGIN_ENTRY=@ts-runtypes/devtools/vite',
-      '-e', `RT_EXTRACT_BIN=${tsgo}/bin/extract-fn-bodies`,
-      '-e', 'RT_BENCH_OUT_DIR=/bench/bench-out',
-      '-e', 'RT_BENCH_SSR_NOEXTERNAL=ts-runtypes,ts-runtypes-devtools',
-      '-e', 'RT_BENCH_CACHE_DIR=false',
-      '-e', `RT_BENCH_QUICK=${process.env.RT_BENCH_QUICK || ''}`,
-      '-w', tsgo, cfg.image, 'sh', '-c', SERIALIZATION_SCRIPT,
-    ],
-    {stdio: ['ignore', 'inherit', 'inherit']},
-  );
+  const code = run(cfg.engine, serializationRunArgs(cfg, out), {stdio: ['ignore', 'inherit', 'inherit']});
   if (code !== 0) die('bench: serialization bench FAILED - see output above. container/website/public/bench-data/serialization{,-formats}/ is now missing or half-written; re-run before building the site.');
 }
 

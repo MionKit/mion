@@ -21,7 +21,7 @@ import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {resolve, dirname, join} from 'node:path';
+import {resolve, dirname, join, posix} from 'node:path';
 import {tmpdir} from 'node:os';
 // @ts-expect-error — a plain .mjs script, no types
 import {sampleKeys, sampleMirrorDrift} from '../../../scripts/env/check.mjs';
@@ -257,5 +257,117 @@ describe('container CA plumbing — the run-time twin of the baked certs', () =>
   it('adds nothing when there is no CA to add', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rt-ca-'));
     expect(await caArgs(join(dir, 'missing.crt'), dir)).toEqual([]);
+  });
+});
+
+// The serialization benchmark points the resolver at the MARKER package's own
+// tsconfig, but the container mounts that package at
+// <competitor>/node_modules/@ts-runtypes/core — one path segment deeper than
+// packages/ts-runtypes sits in the repo, because the scoped rename split the
+// name in two. Its `extends` chain climbs OUT of the package (to the repo-root
+// tsconfig), so that link lands on a container path holding nothing and the
+// resolver dies with "tsconfig parse failed: Cannot read file
+// …/node_modules/tsconfig.json" before scanning a single site. That is how the
+// v0.11.0 website deploy failed. Same family as the twoslash mount-name drift
+// above, and equally invisible from this repo's CI: the bench is containerized,
+// so only a manual deploy run finds it.
+describe('the serialization bench mounts the marker tsconfig chain', () => {
+  const GEN_SERIALIZATION = join(REPO_ROOT, 'scripts/website/bench-data/gen-serialization.mjs');
+
+  const bench = async (): Promise<{
+    SERIALIZATION_TSCONFIG: string;
+    serializationRunArgs: (cfg: {engine: string; image: string; mountOpts: string; runNetwork: string}, out: string) => string[];
+    // @ts-expect-error — a plain .mjs script, no types
+  }> => import('../../../scripts/website/bench-data/bench.mjs');
+
+  // A tsconfig's `extends`, as a list (TS 5 allows an array). These configs are
+  // JSONC, so strip comments and trailing commas before parsing. This lives here
+  // and not in bench.mjs on purpose: the argv hard-codes the ONE mount the chain
+  // needs today, and this is the independent check that the chain still ends
+  // there. Production code stays a plain list of `-v` pairs.
+  const tsconfigExtends = (file: string): string[] => {
+    const text = readFileSync(file, 'utf8')
+      .replace(/"(?:\\.|[^"\\])*"|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (match) => (match.startsWith('"') ? match : ''))
+      .replace(/,(\s*[}\]])/g, '$1');
+    const extended = JSON.parse(text).extends;
+    if (!extended) return [];
+    return Array.isArray(extended) ? extended : [extended];
+  };
+
+  const runArgs = async (): Promise<string[]> => {
+    const {serializationRunArgs} = await bench();
+    return serializationRunArgs({engine: 'podman', image: 'tsrt-website:dev', mountOpts: '', runNetwork: ''}, '/tmp/bench-out');
+  };
+
+  // The container filesystem the stage's own argv defines: container path -> host path.
+  const containerFs = (args: string[]): Map<string, string> => {
+    const mounts = new Map<string, string>();
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] !== '-v') continue;
+      const [hostPath, containerPath] = args[i + 1].split(':');
+      mounts.set(containerPath, hostPath);
+    }
+    return mounts;
+  };
+
+  // Longest-prefix translation back to the host — what a resolver running in the
+  // container would actually find at `containerPath`.
+  const toHost = (mounts: Map<string, string>, containerPath: string): string | undefined => {
+    let best: string | undefined;
+    for (const mount of mounts.keys()) {
+      if (containerPath !== mount && !containerPath.startsWith(`${mount}/`)) continue;
+      if (best === undefined || mount.length > best.length) best = mount;
+    }
+    return best === undefined ? undefined : join(mounts.get(best)!, containerPath.slice(best.length));
+  };
+
+  it('every link of the chain resolves to a real file inside the container', async () => {
+    const {SERIALIZATION_TSCONFIG} = await bench();
+    const args = await runArgs();
+    const mounts = containerFs(args);
+    // The plugin's cwd, taken from the argv rather than restated here.
+    const packageRoot = args.find((arg) => arg.startsWith('RT_BENCH_PACKAGE_ROOT='))?.slice('RT_BENCH_PACKAGE_ROOT='.length);
+    expect(packageRoot).toBeTruthy();
+
+    const unresolved: string[] = [];
+    const seen = new Set<string>();
+    const walk = (containerPath: string): void => {
+      if (seen.has(containerPath)) return;
+      seen.add(containerPath);
+      const hostPath = toHost(mounts, containerPath);
+      if (hostPath === undefined || !existsSync(hostPath)) {
+        unresolved.push(containerPath);
+        return;
+      }
+      for (const target of tsconfigExtends(hostPath)) {
+        if (!target.startsWith('.')) continue; // bare specifier: the container's own node_modules
+        // Container paths are always posix, whatever OS the test runs on.
+        walk(posix.resolve(posix.dirname(containerPath), target.endsWith('.json') ? target : `${target}.json`));
+      }
+    };
+    walk(`${packageRoot}/${SERIALIZATION_TSCONFIG}`);
+
+    expect(unresolved).toEqual([]);
+    // The chain has to actually leave the package — otherwise this passes for the
+    // wrong reason and stops guarding anything.
+    expect([...seen].some((path) => !path.startsWith(`${packageRoot}/`))).toBe(true);
+  });
+
+  it('pins the tsconfig gen-serialization.mjs actually hands the plugin', async () => {
+    const {SERIALIZATION_TSCONFIG} = await bench();
+    const passed = [...readFileSync(GEN_SERIALIZATION, 'utf8').matchAll(/tsconfig:\s*'([^']+)'/g)].map((match) => match[1]);
+    expect(passed).toEqual([SERIALIZATION_TSCONFIG]);
+  });
+
+  // The marker package's test program deliberately contains Error-severity types
+  // (the alwaysThrow suites), and buildStart scans everything the tsconfig
+  // includes — so the strict default refuses to boot the project and the bench
+  // dies with "N unsupported-type errors — build halted" before measuring a
+  // single case. Its vitest config opts out for exactly this reason; the bench
+  // loads the same program through the same plugin and has to as well.
+  it('opts out of failOnError, like the vitest config over the same program', () => {
+    const call = /runtypesPlugin\(\{([^}]*)\}/.exec(readFileSync(GEN_SERIALIZATION, 'utf8'));
+    expect(call).toBeTruthy();
+    expect(call![1]).toMatch(/failOnError:\s*false/);
   });
 });

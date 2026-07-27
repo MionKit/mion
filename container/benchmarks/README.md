@@ -156,6 +156,24 @@ build of the source-body extractor (`bin/extract-fn-bodies-linux-<arch>`, so no 
 toolchain is needed in-container), and writes `serialization` +
 `serialization-formats` straight into `container/website/public/bench-data`.
 
+Two things this stage needs that the other lanes don't, because it loads the
+**marker package's own test program** rather than a competitor project:
+
+- **The repo-root tsconfig is mounted too.** The marker package is bound at
+  `<competitor>/node_modules/@ts-runtypes/core` — a segment deeper than
+  `packages/ts-runtypes` sits in the repo — while its `tsconfig.json` extends the
+  repo-root one, so `../../tsconfig.json` lands on `node_modules/` and finds
+  nothing. `bench.mjs` mounts the real root config at that path (not a copy, so
+  it can't drift), and the suite compiles under exactly the options it does on
+  the host. If the `extends` chain ever grows a link, that mount stops being
+  enough — the contract test walks the chain and says so.
+- **`failOnError: false`.** `buildStart` scans everything the tsconfig includes,
+  alwaysThrow suites included, and those deliberately hold Error-severity types.
+  Same opt-out, same reason, as `packages/ts-runtypes/vitest.config.ts`.
+
+Both are pinned by `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`;
+each broke a website deploy after landing green in every other lane.
+
 **`bench:website`** is the single command that regenerates **all** benchmark data
 the docs site renders — runtime validation + typecost + `capture-env` +
 serialization (+ formats), every measurement taken inside the Node 26 container,
