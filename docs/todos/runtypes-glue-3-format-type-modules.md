@@ -1,9 +1,11 @@
 # Format type modules in core: delete one, trim one, keep one
 
-**Status:** todo
+**Status:** todo — deferred (see parent)
 **Type:** chore
 **Spec:** full-plan
 **Created:** 2026-07-27
+
+**Parent:** [runtypes-glue-0-umbrella.md](runtypes-glue-0-umbrella.md) — deferred until after PR #128 merges.
 
 Surfaced by PR #128 review comments
 [r3634575355](https://github.com/MionKit/mion/pull/128#discussion_r3634575355) (*"please check if
