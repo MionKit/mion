@@ -45,6 +45,11 @@ function mionVitePlugin(options = {}) {
     }
     writeMapperManifest(manifestPath, harvestedMappers);
   };
+  if (rt.emitMode === "functions") {
+    throw new Error(
+      `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as code strings, and 'functions' omits the code, so every client would fail on first validate. Use 'code' (default) or 'both'.`
+    );
+  }
   const plugins = tsRuntypes({
     binary: resolveRtBinary(rt.binary),
     tsconfig: rt.tsConfig,

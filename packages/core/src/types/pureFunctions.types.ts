@@ -1,4 +1,5 @@
 import type {RTUtils} from '@ts-runtypes/core';
+import type {PureFunctionData, CompiledPureFunction} from '@ts-runtypes/core';
 
 // ########################################### PURE FNs ##########################################
 /**
@@ -12,29 +13,15 @@ export type PureFunction = (...args: any[]) => any;
 
 export type PureFunctionFactory = (rtUtils: RTUtils) => PureFunction;
 
-/** Data for a pure function that can be serialized and deserialized. */
-export interface PureFunctionData {
-    /** The namespace this pure function belongs to */
-    readonly namespace: string;
-    /** The names of the arguments of the function */
-    readonly paramNames: string[];
-    /** The code of the function closure */
-    readonly code: string;
-    /** Unique id of the function */
-    readonly fnName: string;
-    /** Hash of the function body for version validation */
-    readonly bodyHash: string;
-    /** The list of all pure functions that are used by this function and it's children. */
-    readonly pureFnDependencies?: Array<string>;
-}
-export interface CompiledPureFunction extends PureFunctionData {
-    createPureFn: PureFunctionFactory;
-    fn?: PureFunction;
-}
-export interface PersistedPureFunction extends CompiledPureFunction {
-    fn: undefined;
-}
+/** Pure-fn data + its compiled form are @ts-runtypes' own types, re-exported rather than mirrored.
+ *  mion's former copies declared `code` and `createPureFn` as REQUIRED where upstream has both
+ *  optional — a mirror that lied, and the reason several call sites needed `as never` casts. */
+export type {PureFunctionData, CompiledPureFunction};
 
+/** A pure fn as mion SERIALIZES it: `code` is guaranteed because mion restricts `emitMode` to
+ *  'code' | 'both' (see mionVitePlugin). The client rebuilds the factory from `code`+`paramNames`,
+ *  so an entry without code cannot be restored and must never reach the wire. */
+export type SerializablePureFunction = PureFunctionData & Required<Pick<PureFunctionData, 'code'>>;
 /** Reference built by serverMapFrom(): identifies a server-side mapper by its ts-runtypes
  *  registry key. The mapper function itself never rides the ref — only `bodyHash` travels
  *  on the wire and the server resolves it against its own registry. */

@@ -4,7 +4,7 @@ export interface MionRunTypesOptions {
     binary?: string;
     genDir?: string;
     outDir?: string;
-    emitMode?: TsRuntypesPluginOptions['emitMode'];
+    emitMode?: 'code' | 'both';
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
