@@ -16,16 +16,17 @@ import type {
     StringifyJsonFn,
     ValidateFn,
 } from '@ts-runtypes/core';
+import {buildPureFnFactoryFromCode} from '@ts-runtypes/core';
 import {getJitFnHashes} from '../routerUtils.ts';
 import type {
     AnyFn,
-    CompiledTypeFn,
+    MionTypeFn,
     CompiledFnData,
     JitCompiledFunctions,
     JitFunctionsHashes,
     PureFnsDataCache,
 } from '../types/general.types.ts';
-import {getRtEntry, toJitCompiledFn, wrapRtEntry} from './rtResolver.ts';
+import type {CompiledPureFunction} from '../types/pureFunctions.types.ts';
 
 // ############# mion <-> ts-runtypes adapter #############
 // mion's route()/middleFn() factories declare trailing ts-runtypes injection markers;
@@ -106,7 +107,8 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
         if (utl.hasRTFn(rtFnHash)) continue;
         utl.addToRTCache({
             typeName: data.typeName,
-            familyTag: data.fnID,
+            fnID: data.fnID,
+            familyTag: data.familyTag,
             rtFnHash,
             args: data.args,
             defaultParamValues: data.defaultParamValues,
@@ -114,15 +116,23 @@ export function addSerializedJitCaches(deps: Record<string, CompiledFnData>, pur
             code: data.code,
             rtDependencies: data.rtDependencies,
             pureFnDependencies: data.pureFnDependencies,
+            // alwaysThrow entries carry no code — only a throwing factory built from the build-time
+            // diagnostic. Rebuild it, or materializeRTFn bails (no code, no factory) and the call
+            // site gets a bare "fn is not a function" instead of the real message.
+            alwaysThrowMessage: data.alwaysThrowMessage,
+            createRTFn: data.alwaysThrowMessage !== undefined ? utl.alwaysThrowFactory(data.alwaysThrowMessage) : undefined,
         } as never);
     }
     for (const [namespace, fns] of Object.entries(pureFnDeps)) {
         for (const [fnName, pureFnData] of Object.entries(fns)) {
             const key = `${namespace}::${fnName}`;
             if (utl.hasPureFnByKey(key)) continue;
+            // paramNames are the AUTHOR's own factory parameter names, recorded verbatim at build
+            // time. Hardcoding 'utl' here would bind the single parameter under the wrong name and
+            // any factory written as e.g. `(rtu) => ...` would ReferenceError on first call.
             utl.addPureFn(key, {
                 ...pureFnData,
-                createPureFn: (rtu: unknown) => new Function('utl', `'use strict'; ${pureFnData.code}`)(rtu),
+                createPureFn: buildPureFnFactoryFromCode(pureFnData.paramNames, pureFnData.code),
             } as never);
         }
     }
@@ -141,16 +151,45 @@ export function resetJitFnCaches(): void {
     }
 }
 
+/** Reads the compiled pure fn behind `<namespace>::<name>` for wire serialization.
+ *
+ *  Reads the raw cache rather than `rtUtils.getCompiledPureFn` deliberately: that API takes a
+ *  `CompTimeArgs<PureFnId>`, which the scanner requires to be a literal — the key here is built at
+ *  runtime from a template expression, so every consumer build would emit CTA003. Upstream exposes
+ *  untracked `getPureFnByKey`/`hasPureFnByKey` for exactly this wire-driven case but has no
+ *  `getCompiledPureFnByKey` returning the full entry, which is what serialization needs.
+ *  Worth an upstream request; until then this read is the only way. */
+export function resolveCompiledPureFn(namespace: string, name: string): CompiledPureFunction | undefined {
+    const cache = getRTFnCaches().pureFnsCache as Record<string, unknown>;
+    return cache[`${namespace}::${name}`] as CompiledPureFunction | undefined;
+}
+
 /** True when the injected value looks like the multi-key marker payload (array of entry tuples). */
 function isInjectedFnsArray(injected: unknown): injected is unknown[] {
     return Array.isArray(injected);
 }
 
-/** Wraps one resolved fn, preferring the full ts-runtypes cache entry (real code/isNoop/deps) when present. */
-function wrapResolvedFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): CompiledTypeFn<Fn> {
-    const entry = getRtEntry(rtFnHash);
-    if (entry) return wrapRtEntry<Fn>(entry, fnID);
-    return toJitCompiledFn(fn, fnID, label, rtFnHash);
+/** Fabricates an entry for a fn with no ts-runtypes cache entry (marker present, tuple elided).
+ *  No upstream equivalent — upstream never needs to invent an entry, it always has one. */
+function fabricateEntry<Fn extends AnyFn>(fn: Fn, fnID: string, typeName: string, rtFnHash: string): MionTypeFn<Fn> {
+    return {
+        typeName,
+        fnID,
+        rtFnHash,
+        args: {vλl: 'v'},
+        defaultParamValues: {vλl: 'v'},
+        isNoop: false,
+        code: '',
+        createRTFn: () => fn,
+        fn,
+    };
+}
+
+/** Resolves one fn, preferring the real ts-runtypes cache entry (real code/isNoop/deps) when present. */
+function resolveFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, rtFnHash: string): MionTypeFn<Fn> {
+    const entry = getRTUtils().getRT(rtFnHash);
+    if (entry) return entry as MionTypeFn<Fn>;
+    return fabricateEntry(fn, fnID, label, rtFnHash);
 }
 
 /**
@@ -188,23 +227,19 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
     // getRTFunction initialized the injected tuples, so the full entries are now
     // resolvable from the ts-runtypes cache under `<fnHashPrefix>_<typeId>`.
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId, true);
-    const toBinaryEntry = hashes.toBinary ? getRtEntry(hashes.toBinary) : undefined;
-    const fromBinaryEntry = hashes.fromBinary ? getRtEntry(hashes.fromBinary) : undefined;
+    const utl = getRTUtils();
+    const toBinaryEntry = hashes.toBinary ? utl.getRT(hashes.toBinary) : undefined;
+    const fromBinaryEntry = hashes.fromBinary ? utl.getRT(hashes.fromBinary) : undefined;
     return {
-        isType: wrapResolvedFn(isType as AnyFn, 'isType', label, hashes.isType),
-        typeErrors: wrapResolvedFn(
-            typeErrors as AnyFn,
-            'typeErrors',
-            label,
-            hashes.typeErrors
-        ) as JitCompiledFunctions['typeErrors'],
-        prepareForJson: wrapResolvedFn(prepareForJson as AnyFn, 'prepareForJson', label, hashes.prepareForJson),
-        restoreFromJson: wrapResolvedFn(restoreFromJson as AnyFn, 'restoreFromJson', label, hashes.restoreFromJson),
-        stringifyJson: wrapResolvedFn(stringifyJson as AnyFn, 'stringifyJson', label, hashes.stringifyJson),
-        hasUnknownKeys: wrapResolvedFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
-        unknownKeyErrors: wrapResolvedFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
-        ...(toBinaryEntry ? {toBinary: wrapRtEntry(toBinaryEntry, 'toBinary')} : {}),
-        ...(fromBinaryEntry ? {fromBinary: wrapRtEntry(fromBinaryEntry, 'fromBinary')} : {}),
+        isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
+        typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
+        prepareForJson: resolveFn(prepareForJson as AnyFn, 'prepareForJson', label, hashes.prepareForJson),
+        restoreFromJson: resolveFn(restoreFromJson as AnyFn, 'restoreFromJson', label, hashes.restoreFromJson),
+        stringifyJson: resolveFn(stringifyJson as AnyFn, 'stringifyJson', label, hashes.stringifyJson),
+        hasUnknownKeys: resolveFn(hasUnknownKeys as AnyFn, 'hasUnknownKeys', label, hashes.hasUnknownKeys ?? ''),
+        unknownKeyErrors: resolveFn(unknownKeyErrors as AnyFn, 'unknownKeyErrors', label, hashes.unknownKeyErrors ?? ''),
+        ...(toBinaryEntry ? {toBinary: toBinaryEntry} : {}),
+        ...(fromBinaryEntry ? {fromBinary: fromBinaryEntry} : {}),
     } as JitCompiledFunctions;
 }
 
@@ -361,13 +396,8 @@ export function buildHeaderJitFnsFromMarker(
     const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId);
     return {
-        isType: wrapResolvedFn(isType as AnyFn, 'isType', label, hashes.isType),
-        typeErrors: wrapResolvedFn(
-            typeErrors as AnyFn,
-            'typeErrors',
-            label,
-            hashes.typeErrors
-        ) as JitCompiledFunctions['typeErrors'],
+        isType: resolveFn(isType as AnyFn, 'isType', label, hashes.isType),
+        typeErrors: resolveFn(typeErrors as AnyFn, 'typeErrors', label, hashes.typeErrors) as JitCompiledFunctions['typeErrors'],
     };
 }
 

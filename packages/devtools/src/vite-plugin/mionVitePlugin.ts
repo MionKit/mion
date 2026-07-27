@@ -37,8 +37,15 @@ export interface MionRunTypesOptions {
     genDir?: string;
     /** @deprecated use `genDir` — kept as an alias for existing configs. */
     outDir?: string;
-    /** What generated fn entries ship: 'code' (default) | 'functions' | 'both'. */
-    emitMode?: TsRuntypesPluginOptions['emitMode'];
+    /** What generated fn entries ship: 'code' (default) | 'both'.
+     *
+     *  mion deliberately does NOT support @ts-runtypes' third mode, 'functions'. That mode ships a
+     *  live `createRTFn` closure and omits `code` — but mion's whole client story is serializing
+     *  compiled fns to the browser as strings and rebuilding them there, so an entry with no body
+     *  cannot cross the wire. Allowing it would silently ship clients that throw on first validate.
+     *  Guaranteeing `code` here is what lets `MionTypeFn` type it as required (see
+     *  packages/core/src/types/general.types.ts). Passing 'functions' throws at config time. */
+    emitMode?: 'code' | 'both';
     /** Cache-module grouping, see @ts-runtypes/devtools docs. */
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
@@ -193,6 +200,15 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
         }
         writeMapperManifest(manifestPath as string, harvestedMappers);
     };
+    // Fail loudly rather than shipping a client whose validators have no body to rebuild from.
+    // The type says 'code' | 'both', but configs are plain JS/JSON often written by hand.
+    if ((rt.emitMode as string) === 'functions') {
+        throw new Error(
+            `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as ` +
+                `code strings, and 'functions' omits the code, so every client would fail on first validate. ` +
+                `Use 'code' (default) or 'both'.`
+        );
+    }
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
     const plugins = tsRuntypes({

@@ -7,8 +7,8 @@
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
 import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
-import type {CoreRouterOptions, CompiledTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
-import {resolveJIT} from './runtypes/rtResolver.ts';
+import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
+import {getRTUtils} from '@ts-runtypes/core';
 import {getOrCreateGlobal} from './utils.ts';
 
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);
@@ -180,23 +180,26 @@ export function getJitFunctionsFromHash(jitHash: string): JitCompiledFunctions {
     const cached = jitFunctionsCache.get(jitHash);
     if (cached) return cached;
 
+    // getRT() materializes the entry and returns it typed InitializedTypeFn; the MionTypeFn cast
+    // additionally asserts `code`, which holds because mion only allows emitMode 'code' | 'both'.
+    const utl = getRTUtils();
     const jitFns = {
-        isType: resolveJIT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
-        typeErrors: resolveJIT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
-        prepareForJson: resolveJIT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
-        restoreFromJson: resolveJIT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
-        stringifyJson: resolveJIT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
+        isType: utl.getRT(`${JIT_FUNCTION_IDS.isType}_${jitHash}`),
+        typeErrors: utl.getRT(`${JIT_FUNCTION_IDS.typeErrors}_${jitHash}`),
+        prepareForJson: utl.getRT(`${JIT_FUNCTION_IDS.prepareForJson}_${jitHash}`),
+        restoreFromJson: utl.getRT(`${JIT_FUNCTION_IDS.restoreFromJson}_${jitHash}`),
+        stringifyJson: utl.getRT(`${JIT_FUNCTION_IDS.stringifyJson}_${jitHash}`),
     } as JitCompiledFunctions;
     // strictTypes fns are optional: only present when the type has object members
-    const hasUnknownKeysJit = resolveJIT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
-    const unknownKeyErrorsJit = resolveJIT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
-    if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit;
-    if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit;
+    const hasUnknownKeysJit = utl.getRT(`${JIT_FUNCTION_IDS.hasUnknownKeys}_${jitHash}`);
+    const unknownKeyErrorsJit = utl.getRT(`${JIT_FUNCTION_IDS.unknownKeyErrors}_${jitHash}`);
+    if (hasUnknownKeysJit) jitFns.hasUnknownKeys = hasUnknownKeysJit as JitCompiledFunctions['hasUnknownKeys'];
+    if (unknownKeyErrorsJit) jitFns.unknownKeyErrors = unknownKeyErrorsJit as JitCompiledFunctions['unknownKeyErrors'];
     // Only include binary functions if they exist in the store
-    const toBinaryJit = resolveJIT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
-    const fromBinaryJit = resolveJIT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
-    if (toBinaryJit) jitFns.toBinary = toBinaryJit;
-    if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit;
+    const toBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.toBinary}_${jitHash}`);
+    const fromBinaryJit = utl.getRT(`${JIT_FUNCTION_IDS.fromBinary}_${jitHash}`);
+    if (toBinaryJit) jitFns.toBinary = toBinaryJit as JitCompiledFunctions['toBinary'];
+    if (fromBinaryJit) jitFns.fromBinary = fromBinaryJit as JitCompiledFunctions['fromBinary'];
 
     for (const key of ['isType', 'typeErrors', 'prepareForJson', 'restoreFromJson', 'stringifyJson'] as const) {
         if (!jitFns[key]) throw new Error(`Jit function ${key} not found for jitHash ${jitHash}`);
@@ -216,10 +219,11 @@ export function getHeaderJitFunctionsFromHash(jitHash: string): Pick<JitCompiled
     const cached = headerJitFunctionsCache.get(jitHash);
     if (cached) return cached;
 
+    const utl = getRTUtils();
     const hashes = getJitFnHashes(jitHash);
     const jitFns = {
-        isType: resolveJIT(hashes.isType),
-        typeErrors: resolveJIT(hashes.typeErrors),
+        isType: utl.getRT(hashes.isType),
+        typeErrors: utl.getRT(hashes.typeErrors),
     } as Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 
     // Cache for future calls
@@ -276,7 +280,7 @@ const noopJitFns: JitCompiledFunctions = {
 } as any;
 
 /** Creates a fake JIT function with isNoop=true for handlers with no params or void return */
-function fakeJitFn(fnID: string): CompiledTypeFn<any> {
+function fakeJitFn(fnID: string): MionTypeFn<any> {
     return {
         typeName: 'mionNoopJit',
         fnID,
