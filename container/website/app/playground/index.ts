@@ -22,6 +22,7 @@ export type {PackageSourcesOverlay} from './packageSources.ts';
 export type {
   RunResult,
   RunTypeNode,
+  RunTypeTreeNode,
   Diagnostic,
   Operation,
   OperationKind,

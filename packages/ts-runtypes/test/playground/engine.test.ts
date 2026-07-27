@@ -1,4 +1,5 @@
 import {beforeAll, describe, expect, it} from 'vitest';
+import {RunTypeKind} from '@ts-runtypes/core';
 import {
   factoryCall,
   factoryImport,
@@ -9,6 +10,7 @@ import {
   setResolver,
   transformedSource,
   versions,
+  type RunTypeTreeNode,
 } from '../../../../container/website/app/playground/index.ts';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
@@ -144,6 +146,57 @@ describeIf('playground engine (WASM, live execution)', () => {
     if (res.kind !== 'graph') throw new Error('expected graph result');
     expect(res.rootId).toBeTruthy();
     expect(res.runTypes.length).toBeGreaterThan(0);
+    // The root is the LIVE reflected node, not a row of the flat wire dump.
+    expect(res.root?.id).toBe(res.rootId);
+    expect(res.root?.children).toBeInstanceOf(Array);
+  });
+
+  // Regression: the graph op used to hand back the resolver's flat wire dump,
+  // whose child slots are `{id, kind: -1}` ref sentinels, making the runtime look
+  // like a table of ids to look up. It is a knotted object graph, and the
+  // playground now shows it as one — descending from the root, children inlined.
+  it('graph output descends from the root with the CHILD NODES inlined, never refs', async () => {
+    const res = await run('graph', TYPE);
+    if (res.kind !== 'graph' || !res.tree) throw new Error('expected graph result');
+
+    // No ref sentinel survives anywhere in the projection.
+    expect(JSON.stringify(res.tree)).not.toContain('"kind":-1');
+
+    expect(res.tree.id).toBe(res.rootId);
+    const members = res.tree.children as RunTypeTreeNode[];
+    expect(members.map((member) => member.name)).toEqual(['id', 'name', 'tags', 'active']);
+
+    // Each member carries its actual child node, so reading its kind needs no
+    // second lookup by id.
+    const byName = (name: string) => members.find((member) => member.name === name) as RunTypeTreeNode;
+    const nameChild = byName('name').child as RunTypeTreeNode;
+    expect(nameChild.kind).toBe(RunTypeKind.string);
+    // `family` is build-time-only classification (protocol.Family, for the Go
+    // compiler's inline-vs-call decision) — the runtime node never carries it,
+    // so it is absent here where the flat wire dump showed it.
+    expect(nameChild.family).toBeUndefined();
+
+    // Two hops: `tags: string[]` → array → element, all inlined.
+    const element = (byName('tags').child as RunTypeTreeNode).child as RunTypeTreeNode;
+    expect(element.kind).toBe(RunTypeKind.string);
+    // Structural sharing prints in full at each use (same node, inlined twice).
+    expect(element).toEqual(nameChild);
+  });
+
+  it('graph output marks a genuine cycle as the only reference', async () => {
+    const recursive = `type MyType = { id: number; children: MyType[] };`;
+    const res = await run('graph', recursive);
+    if (res.kind !== 'graph' || !res.tree) throw new Error('expected graph result');
+
+    const members = res.tree.children as RunTypeTreeNode[];
+    const children = members.find((member) => member.name === 'children') as RunTypeTreeNode;
+    // `children: MyType[]` → array → element, which is the root again: a real
+    // reference cycle, so it renders as a marker rather than inlining forever.
+    const element = (children.child as RunTypeTreeNode).child as RunTypeTreeNode;
+    expect(element.circular).toBe(true);
+    expect(element.id).toBe(res.rootId);
+    // The back-edge is the ONLY marker — every other slot is inlined.
+    expect(JSON.stringify(res.tree).match(/"circular":true/g)).toHaveLength(1);
   });
 
   it('generatedCache returns the runtype cache module for getRunType', async () => {

@@ -496,7 +496,10 @@ async function renderResult(result: RunResult): Promise<string> {
     case 'binaryRoundtrip':
       return `${label(`Encoded (${result.byteLength} bytes)`)}<pre class="rtpg-code rtpg-hex">${escapeHtml(result.hex)}</pre>${label('Decoded')}${await block(result.decoded)}${diag}`;
     case 'graph':
-      return `<div class="rtpg-badge ok">RunType resolved (${result.runTypes.length} node(s))</div>${label('Resolved RunType')}<pre class="rtpg-code">${await highlight(stringify(result.runTypes), 'json')}</pre>${diag}`;
+      // The live graph, descending from the root: children are the actual child
+      // nodes, so the output reads as the type's structure. Only a cycle shows
+      // up as a reference (`circular: true`) — nothing else to look up by id.
+      return `<div class="rtpg-badge ok">RunType resolved (${result.runTypes.length} node(s))</div>${label('Resolved RunType')}<pre class="rtpg-code">${await highlight(stringify(result.tree), 'json')}</pre>${diag}`;
   }
 }
 
@@ -778,15 +781,13 @@ onBeforeUnmount(() => {
               4<span class="rtpg-tip rtpg-tip-left" role="tooltip">{{ STEP_TIPS.function }}</span>
             </button>
           </span>
+          <select v-model="operationKey" class="rtpg-select" aria-label="Build function">
+            <optgroup v-for="group in operationGroups" :key="group.label" :label="group.label">
+              <option v-for="op in group.ops" :key="op.key" :value="op.key">{{ op.menuLabel }}</option>
+            </optgroup>
+          </select>
         </div>
         <div class="rtpg-controls">
-          <label class="rtpg-field">
-            <select v-model="operationKey" class="rtpg-select">
-              <optgroup v-for="group in operationGroups" :key="group.label" :label="group.label">
-                <option v-for="op in group.ops" :key="op.key" :value="op.key">{{ op.menuLabel }}</option>
-              </optgroup>
-            </select>
-          </label>
           <div class="rtpg-info">
             <span class="rtpg-info-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -915,6 +916,9 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 9px 13px;
+  /* Sized for the tallest head content (the function picker), so all three
+     pane heads stay on the same baseline whether or not they carry a control. */
+  min-height: 46px;
   border-bottom: 1px solid var(--rtpg-border);
   background: var(--rtpg-panel);
 }
@@ -925,12 +929,18 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--rtpg-muted);
+  /* Never wrap: the function-picker head shares its row with the select, and a
+     two-line title there would break the three panes' shared baseline. */
+  white-space: nowrap;
 }
 .rt-playground .rtpg-head-title {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-width: 0;
+  /* Hold full width: the title is short, and it shares the function pane's head
+     with the picker, which shrinks instead (a shrinking title would be overrun
+     by the select rather than clipped, since the h2 does not wrap). */
+  flex: 0 0 auto;
 }
 .rt-playground .rtpg-hint {
   color: var(--rtpg-muted);
@@ -1113,21 +1123,36 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
 }
+/* The build-function picker, which sits in the "Pick a Function" pane head. A
+   muted primary border marks it as the pane's one control without competing
+   with the Run button; hover / focus take it to the full accent. */
 .rt-playground .rtpg-select {
   appearance: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  /* The longest option ("json dec remove unknown keys (default)") would set the
+     width; clip instead so a narrow pane shrinks the control rather than the
+     title. The section prefix leads the label, so it survives the ellipsis. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--rtpg-panel-2);
   color: var(--rtpg-text);
-  border: 1px solid var(--rtpg-border);
+  border: 1px solid var(--rtpg-accent-dim);
   border-radius: 8px;
-  padding: 9px 12px;
+  padding: 4px 10px;
   font-family: var(--rtpg-mono);
-  font-size: 13px;
+  font-size: 12px;
+  /* Pinned so the control stays inside the head's min-height and this pane's
+     head matches the other two exactly. */
+  line-height: 1.2;
   cursor: pointer;
-  width: 100%;
 }
+.rt-playground .rtpg-select:hover,
 .rt-playground .rtpg-select:focus {
   outline: none;
-  border-color: var(--rtpg-accent-dim);
+  border-color: var(--rtpg-accent);
 }
 .rt-playground .rtpg-info {
   display: flex;

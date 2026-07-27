@@ -37,6 +37,20 @@ export interface RunTypeNode {
   [key: string]: unknown;
 }
 
+// A node of the display projection of the live RunType graph. Child slots hold
+// the actual child nodes, inlined; `circular` marks the one case that cannot be
+// inlined (see runTypeTree).
+export interface RunTypeTreeNode {
+  id: string;
+  kind: number;
+  /** Back-edge marker: this slot points at an ANCESTOR node, i.e. a genuine
+   *  reference cycle in the graph. The only reference the projection emits. */
+  circular?: true;
+  /** Emitted when the node budget ran out on a pathologically shared type. */
+  truncated?: true;
+  [key: string]: unknown;
+}
+
 export type RunResult =
   | {op: Operation; kind: 'predicate'; value: boolean; diagnostics: Diagnostic[]}
   | {op: Operation; kind: 'errors'; value: unknown[]; diagnostics: Diagnostic[]}
@@ -48,7 +62,14 @@ export type RunResult =
       op: Operation;
       kind: 'graph';
       rootId: string | null;
+      /** The LIVE reflected node `getRunType<MyType>()` returns — a knotted,
+       *  possibly cyclic object graph. Not JSON-safe; project it with `tree`. */
       root: RunTypeNode | null;
+      /** JSON-safe projection of `root`, descending from it (see runTypeTree). */
+      tree: RunTypeTreeNode | null;
+      /** The resolver's flat wire dump: every reachable node, with child slots
+       *  as `{id, kind: -1}` ref sentinels (JSON can't carry references). The
+       *  build input the runtime re-knots into `root`, kept for node counts. */
       runTypes: RunTypeNode[];
       diagnostics: Diagnostic[];
     };
@@ -346,6 +367,70 @@ export async function mockInvalid(
   return {value: last, diagnostics};
 }
 
+// Cap on nodes emitted by one projection. Inlining turns a DAG back into a
+// tree, so a type that reuses the same sub-shape at every level (`type L2 =
+// {a: L1; b: L1}`, nested) expands exponentially. The budget keeps a pasted
+// snippet from hanging the browser; a normal type never comes close.
+const MAX_TREE_NODES = 5000;
+
+// A live RunType node — an object carrying a string id and a kind. Distinguishes
+// child slots (which must be walked) from plain data fields on a node.
+function isRunTypeLike(value: unknown): value is RunTypeNode {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  return typeof (value as RunTypeNode).id === 'string' && 'kind' in value;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+// runTypeTree projects the live, knotted RunType graph into a JSON-safe tree
+// descending from `node`: every child slot holds the ACTUAL child node, inlined,
+// mirroring what the graph looks like in memory. Structural sharing therefore
+// prints more than once (`name: string` and `tags: string[]`'s element are the
+// same node object) — that is faithful, not a duplicate.
+//
+// The single exception is a back-edge: a node already on the current ancestor
+// path is a real reference cycle (`type Node = {children: Node[]}`) and inlining
+// it would never terminate, so it renders as `{id, kind, circular: true}`.
+function runTypeTree(node: RunTypeNode, path: Set<unknown>, budget: {left: number}): RunTypeTreeNode {
+  if (path.has(node)) return {id: node.id, kind: node.kind, circular: true};
+  if (budget.left <= 0) return {id: node.id, kind: node.kind, truncated: true};
+  budget.left--;
+  path.add(node);
+  const projected: RunTypeTreeNode = {id: node.id, kind: node.kind};
+  for (const [key, value] of Object.entries(node)) {
+    // The cache factory pre-declares every slot, so most are undefined holes.
+    if (value === undefined) continue;
+    projected[key] = projectValue(value, path, budget);
+  }
+  path.delete(node);
+  return projected;
+}
+
+// projectValue renders one field of a node: RunType slots recurse, arrays and
+// plain objects are walked (a slot can nest nodes), and the values JSON cannot
+// carry (bigint / symbol / regexp literals) become their source-ish text.
+function projectValue(value: unknown, path: Set<unknown>, budget: {left: number}): unknown {
+  if (isRunTypeLike(value)) return runTypeTree(value, path, budget);
+  if (Array.isArray(value)) return value.map((item) => projectValue(item, path, budget));
+  if (isPlainObject(value)) {
+    const projected: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (item === undefined) continue;
+      projected[key] = projectValue(item, path, budget);
+    }
+    return projected;
+  }
+  if (typeof value === 'bigint') return `${value}n`;
+  if (typeof value === 'symbol') return value.toString();
+  if (value instanceof RegExp) return value.toString();
+  if (typeof value === 'function') return undefined;
+  return value;
+}
+
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -369,13 +454,27 @@ export async function run(
 
   switch (op.kind) {
     case 'graph': {
-      // Type mode reflects via getRunType<MyType>(); schema mode resolves the
-      // same graph through a value-first reflection call on the schema.
-      const reflectFactory = mode === 'schema' ? 'createMockDataFn' : 'getRunType';
-      const {site, runTypes, diagnostics} = scan(dispatch, reflectFactory, userCode, mode);
-      const rootId = site?.id ?? null;
-      const root = runTypes.find((n) => n.id === rootId) ?? runTypes[0] ?? null;
-      return {op, kind: 'graph', rootId, root, runTypes, diagnostics};
+      // Reflect through the REAL runtime rather than reading the resolver's
+      // scan output: link the emitted entry module and call getRunType, so the
+      // playground shows the live, knotted node a user gets from
+      // `getRunType<MyType>()` in their own app. The scan's `runTypes` is the
+      // flat build-time wire dump feeding that link — its child slots are
+      // `{id, kind: -1}` sentinels only because JSON cannot carry references,
+      // which is exactly what the runtime re-knots on registration.
+      // `getRunType` covers both modes: type-first via `getRunType<MyType>()`,
+      // value-first via the `(schema: RunType<T>)` overload.
+      const {site, entryModules, runTypes, diagnostics} = scan(dispatch, 'getRunType', userCode, mode);
+      if (!site) {
+        throw new Error(
+          `getRunType<…>() produced no call site. Check that the snippet compiles and defines ${ROOT_TYPE}.` +
+            (diagnostics.length ? `\n${formatDiagnostics(diagnostics)}` : '')
+        );
+      }
+      const binding = site.fnId ? `__rt_${site.fnId}_${site.id}` : `__rt_${site.id}`;
+      const tuple = linkRootTuple(entryModules, binding);
+      const root = RT.getRunType(undefined, tuple as never) as RunTypeNode;
+      const tree = runTypeTree(root, new Set(), {left: MAX_TREE_NODES});
+      return {op, kind: 'graph', rootId: root.id, root, tree, runTypes, diagnostics};
     }
     case 'predicate': {
       const {fn, diagnostics} = materialize(dispatch, op.factory, userCode, mode);

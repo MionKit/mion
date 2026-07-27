@@ -72,7 +72,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
-    menuLabel: 'clone (default)',
+    menuLabel: 'json enc clone (default)',
     label: 'createJsonEncoderFn',
     blurb: 'Encode to JSON and removes unknown keys by cloning objects.',
     detail:
@@ -87,7 +87,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
-    menuLabel: 'mutate',
+    menuLabel: 'json enc mutate',
     label: 'createJsonEncoderFn',
     blurb: 'Encode in place, keeping unknown keys.',
     detail:
@@ -102,7 +102,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
-    menuLabel: 'direct',
+    menuLabel: 'json enc direct',
     label: 'createJsonEncoderFn',
     blurb: 'Single-pass encode straight to a string.',
     detail:
@@ -117,7 +117,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonEncoder',
     kind: 'encode',
     group: 'JSON encode',
-    menuLabel: 'compact',
+    menuLabel: 'json enc compact',
     label: 'createJsonEncoderFn',
     blurb: 'Encode as positional arrays (smallest wire).',
     detail:
@@ -132,7 +132,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
-    menuLabel: 'remove unknown keys (default)',
+    menuLabel: 'json dec remove unknown keys (default)',
     label: 'createJsonDecoderFn',
     blurb: 'Decode JSON, dropping undeclared keys.',
     detail:
@@ -148,7 +148,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'jsonDecoder',
     kind: 'jsonRoundtrip',
     group: 'JSON decode',
-    menuLabel: 'keep unknown keys',
+    menuLabel: 'json dec keep unknown keys',
     label: 'createJsonDecoderFn',
     blurb: 'Decode JSON, keeping every key.',
     detail:
@@ -164,7 +164,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'tb',
     kind: 'binaryEncode',
     group: 'Binary',
-    menuLabel: 'encode',
+    menuLabel: 'binary enc',
     label: 'createBinaryEncoderFn',
     blurb: 'Encode to a compact binary buffer.',
     detail:
@@ -178,7 +178,7 @@ export const OPERATIONS: readonly Operation[] = [
     fnKey: 'fb',
     kind: 'binaryRoundtrip',
     group: 'Binary',
-    menuLabel: 'decode',
+    menuLabel: 'binary dec',
     label: 'createBinaryDecoderFn',
     blurb: 'Decode a binary buffer back to data.',
     detail:
@@ -196,7 +196,7 @@ export const OPERATIONS: readonly Operation[] = [
     label: 'getRunType',
     blurb: 'Unpack the resolved RunType.',
     detail:
-      'Resolves the type to its RunType — the structured description RunTypes builds from your type. Unpack it to inspect every node.',
+      'Resolves the type to its RunType — the structured description RunTypes builds from your type — and unpacks the live node graph descending from it, each node holding its actual children. A recursive type shows its back edge as a circular reference; nothing else is a reference.',
     needsInput: false,
     varName: 'runType',
   },
