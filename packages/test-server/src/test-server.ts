@@ -12,15 +12,17 @@ import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
 // Import format types (regular import to ensure JIT functions are created)
 import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
 import {Number} from '@ts-runtypes/core/formats';
-// Server pure functions live in the ts-runtypes registry under the 'mionjs' namespace.
-// For the e2e scenario they are defined in packages/client/src/vitePlugin.e2e.spec.ts.
-import {getMionPureFn, registerMionPureFn} from '@mionjs/core';
+import {registerPureFn} from '@ts-runtypes/core';
+import {allowServerMapper, serverMapperKey} from '@mionjs/core';
 // serverMapFrom transport: registers the client build's harvested inline mappers
 // (manifest path configured in vite.config.ts serverMappers.consume)
 import 'virtual:mion/server-mappers';
 
-// routesFlow mapping fns must be registered server-side by name (serverMapFrom references them — name lane)
-registerMionPureFn('toPreferenceId', () => (customer: {preferenceId: number}) => customer.preferenceId);
+// The serverMapFrom NAME lane. Registration is @ts-runtypes' job — a literal key plus an inline
+// function literal keeps the scanner happy. allowServerMapper is mion's half: it opts the key into
+// wire-reachability, which nothing else does (see core/src/runtypes/serverMappers.ts).
+registerPureFn('mionjs::toPreferenceId', (customer: {preferenceId: number}) => customer.preferenceId);
+allowServerMapper(serverMapperKey('toPreferenceId'));
 
 // ============ JSON test types ============
 type User = {name: string; surname: string};
@@ -278,20 +280,6 @@ const routes = {
         theme: prefId % 2 === 0 ? 'dark' : 'light',
         lang: 'en',
     })),
-
-    // Route that invokes a server pure function from the ts-runtypes registry (mionjs namespace)
-    getGreetingsPureFnResult: route((): string => {
-        const pureFn = getMionPureFn('greeting');
-        if (!pureFn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
-        return pureFn() as string;
-    }),
-
-    // Route that looks up and invokes any server pure function by name, with an optional argument
-    callPureFnByName: route((_ctx, fnName: string, arg?: number): any => {
-        const pureFn = getMionPureFn(fnName);
-        if (!pureFn) throw new RpcError({publicMessage: `Pure function "${fnName}" not found`, type: 'pure-fn-not-found'});
-        return arg !== undefined ? pureFn(arg) : pureFn();
-    }),
 
     // rawMiddleFn to capture HTTP method from the raw IncomingMessage into ctx.shared
     captureHttpMethod: rawMiddleFn((ctx, rawReq: any): void => {

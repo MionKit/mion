@@ -11,6 +11,7 @@ import {dispatchRoute} from './dispatch.ts';
 import {MionHeaders} from './types/context.ts';
 import {Routes} from './types/general.ts';
 import {RpcError, toBase64Url} from '@mionjs/core';
+import {getRTUtils} from '@ts-runtypes/core';
 import {middleFn, route} from './lib/handlers.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {clearRoutesFlowCache, getRoutesFlowCacheSize, getCachedRoutesFlow} from './routesFlow.ts';
@@ -679,6 +680,80 @@ describe('RoutesFlow routes', () => {
             // The scopedMiddleFn should NOT appear in the merged methods (with path prefix)
             const scopedMiddleFnMethod = cachedRoutesFlow!.methods.find((m) => m.id === 'other/scopedMiddleFn');
             expect(scopedMiddleFnMethod).toBeUndefined();
+        });
+    });
+
+    // ############# wire-driven mapper dispatch (security) #############
+    // `mapping.bodyHash` arrives in the URL query, decoded with a bare JSON.parse and no schema
+    // validation, and is handed to getServerMapper. The allow-list in core/src/runtypes/serverMappers.ts
+    // is the only gate. core pins the gate itself; this pins it at the point that actually matters —
+    // a real request, driven through the router.
+    describe('routesFlow mapper dispatch rejects keys no mion lane opted in', () => {
+        const source = route((ctx): {id: number} => ({id: 7}));
+        const target = route((ctx, id: number | null): number => (id ?? -1) * 10);
+        const mapperRoutes = {source, target} satisfies Routes;
+
+        it('rejects a bodyHash that exists in the ts-runtypes registry but was never allow-listed', async () => {
+            await initRouter();
+            await registerRoutes(mapperRoutes);
+
+            // present in the SHARED registry, but registered outside any mion lane — exactly the case
+            // the gate exists for (a built-in, another library's entry, or one restored from a
+            // methods-metadata payload).
+            getRTUtils().addPureFn('rt::routerSneakyMapper', {
+                namespace: 'rt',
+                fnName: 'routerSneakyMapper',
+                bodyHash: '',
+                paramNames: [],
+                code: '',
+                pureFnDependencies: [],
+                createPureFn: () => () => 999,
+            } as never);
+            expect(getRTUtils().hasPureFnByKey('rt::routerSneakyMapper')).toBe(true);
+
+            const request = getDefaultRequest({source: [], target: [null]});
+            const urlQuery = encodeRoutesFlowQuery({
+                routes: ['/source', '/target'],
+                mappings: [{fromId: 'source', toId: 'target', bodyHash: 'rt::routerSneakyMapper', paramIndex: 0}],
+            });
+
+            // rejected while building the execution chain — the mapper is never resolved, never run
+            await expect(
+                dispatchRoute(
+                    WORKFLOW_PATH,
+                    request.body,
+                    request.headers,
+                    headersFromRecord({}),
+                    request,
+                    undefined,
+                    undefined,
+                    urlQuery
+                )
+            ).rejects.toThrow(/Mapping pure function 'rt::routerSneakyMapper' not found/);
+        });
+
+        it('rejects a bodyHash that is not in the registry at all', async () => {
+            await initRouter();
+            await registerRoutes(mapperRoutes);
+
+            const request = getDefaultRequest({source: [], target: [null]});
+            const urlQuery = encodeRoutesFlowQuery({
+                routes: ['/source', '/target'],
+                mappings: [{fromId: 'source', toId: 'target', bodyHash: 'mionjs::doesNotExist', paramIndex: 0}],
+            });
+
+            await expect(
+                dispatchRoute(
+                    WORKFLOW_PATH,
+                    request.body,
+                    request.headers,
+                    headersFromRecord({}),
+                    request,
+                    undefined,
+                    undefined,
+                    urlQuery
+                )
+            ).rejects.toThrow(/Mapping pure function 'mionjs::doesNotExist' not found/);
         });
     });
 });
