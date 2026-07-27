@@ -6,7 +6,7 @@
  * ######## */
 
 import {RunTypeKind} from '@ts-runtypes/core';
-import type {RunType, RunTypeKindValue} from '@ts-runtypes/core';
+import type {RunType, RunTypeKindValue, FormatName} from '@ts-runtypes/core';
 import {TypedError} from '@mionjs/core';
 import type {PropertyInfo, TypeInfo} from '../types/common.types.ts';
 
@@ -52,7 +52,10 @@ function extractPropertyInfo(propNode: RunType, memberType: RunType): PropertyIn
         isNestedObject: isNestedObjectType(kind) && !isDate,
         isArray: kind === RunTypeKind.array,
         isDate,
-        formatName: format?.name,
+        // upstream types FormatAnnotation.name as a plain string; narrow it here, at the single
+        // point untyped reflection data enters drizzle's model. Mappers fall back to text on a
+        // name they do not know, so an unrecognised format degrades rather than throws.
+        formatName: format?.name as FormatName | undefined,
         formatParams: format?.params as Record<string, any> | undefined,
         primitiveKind: isPrimitiveKind(kind) ? kind : undefined,
     };

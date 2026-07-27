@@ -172,8 +172,6 @@ function loadMionPackageTypes(): Map<string, string> {
     { dir: 'core', name: 'core', distPath: '.dist/esm' },
     { dir: 'router', name: 'router', distPath: '.dist/esm' },
     { dir: 'client', name: 'client', distPath: '.dist/esm' },
-    { dir: 'run-types', name: 'run-types', distPath: '.dist/esm' },
-    { dir: 'type-formats', name: 'type-formats', distPath: '.dist/esm' },
     { dir: 'drizze', name: 'drizzle', distPath: '.dist/esm' },
     { dir: 'platform-aws', name: 'platform-aws', distPath: '.dist/esm' },
     { dir: 'platform-bun', name: 'platform-bun', distPath: '.dist/esm' },

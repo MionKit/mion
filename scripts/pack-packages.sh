@@ -21,8 +21,6 @@ done
 # ── Public packages to pack ──
 PACKAGES=(
   "@mionjs/core"
-  "@mionjs/run-types"
-  "@mionjs/type-formats"
   "@mionjs/router"
   "@mionjs/platform-node"
   "@mionjs/client"

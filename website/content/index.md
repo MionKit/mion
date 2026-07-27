@@ -152,7 +152,7 @@ blur: 140px
     ---
     ### RunTypes <sup>©</sup>
     mion use [RunTypes](/run-types/overview) behinds the scene to generate JIT-compiled validation and serialization functions directly from TypeScript types.
-    RunTypes supports advanced [type formats](/run-types/type-formats) and can be used as a standalone library.
+    RunTypes supports advanced [type formats](https://ts-runtypes.dev) and can be used as a standalone library.
     
     <br>
     

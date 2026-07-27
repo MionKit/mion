@@ -5,63 +5,40 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, RunTypeKindValue} from '@ts-runtypes/core';
-import type {
-    BrandEmail,
-    BrandUUID,
-    BrandUrl,
-    BrandDomain,
-    BrandIP,
-    BrandDate,
-    BrandTime,
-    BrandDateTime,
-    BrandInteger,
-    BrandFloat,
-    BrandPositive,
-    BrandNegative,
-    BrandPositiveInt,
-    BrandNegativeInt,
-    BrandInt8,
-    BrandInt16,
-    BrandInt32,
-    BrandUInt8,
-    BrandUInt16,
-    BrandUInt32,
-} from '@mionjs/core';
+import type {RunType, RunTypeKindValue, FormatName} from '@ts-runtypes/core';
 
 /** Supported database types */
 export type DatabaseType = 'postgres' | 'mysql' | 'sqlite';
 
 // ############### Brand Name Utilities ###############
 
-/** Extracts the brand name string from a Brand type */
-type ExtractBrandName<T> = T extends {brand: infer B extends string} ? B : never;
-
-/** Union of all brand name strings from formatBrands.types.ts.
- * Used as the shared key set for database-specific BrandColumnMap types.
- * If a new brand is added to @mionjs/core, add it here to trigger compile-time
- * errors in any database map that hasn't been updated. */
+/** The brand vocabulary drizzle maps onto DB columns. Owned by @mionjs/drizzle: mion supplies
+ * no default brands (its Brand* aliases were deleted along with the rest of its type-format
+ * surface — formats belong to @ts-runtypes) and @ts-runtypes has no equivalent, so this list is
+ * the single source of truth. It is the shared key set for the per-database BrandColumnMap types:
+ * adding a name here trips the compile-time completeness guards in every dialect that has not
+ * been updated. See docs/todos/drizzle-owns-brand-vocabulary.md. */
 export type AllBrandNames =
-    | ExtractBrandName<BrandEmail>
-    | ExtractBrandName<BrandUUID>
-    | ExtractBrandName<BrandUrl>
-    | ExtractBrandName<BrandDomain>
-    | ExtractBrandName<BrandIP>
-    | ExtractBrandName<BrandDate>
-    | ExtractBrandName<BrandTime>
-    | ExtractBrandName<BrandDateTime>
-    | ExtractBrandName<BrandInteger>
-    | ExtractBrandName<BrandFloat>
-    | ExtractBrandName<BrandPositive>
-    | ExtractBrandName<BrandNegative>
-    | ExtractBrandName<BrandPositiveInt>
-    | ExtractBrandName<BrandNegativeInt>
-    | ExtractBrandName<BrandInt8>
-    | ExtractBrandName<BrandInt16>
-    | ExtractBrandName<BrandInt32>
-    | ExtractBrandName<BrandUInt8>
-    | ExtractBrandName<BrandUInt16>
-    | ExtractBrandName<BrandUInt32>;
+    | 'email'
+    | 'uuid'
+    | 'url'
+    | 'domain'
+    | 'ip'
+    | 'date'
+    | 'time'
+    | 'dateTime'
+    | 'integer'
+    | 'float'
+    | 'positive'
+    | 'negative'
+    | 'positiveInt'
+    | 'negativeInt'
+    | 'int8'
+    | 'int16'
+    | 'int32'
+    | 'uint8'
+    | 'uint16'
+    | 'uint32';
 
 // ############### Drizzle Column Type Constants ###############
 // NOTE: These string values must match the drizzle-orm function names exactly.
@@ -149,8 +126,10 @@ export interface PropertyInfo {
     isArray: boolean;
     /** Whether the type is a Date */
     isDate: boolean;
-    /** Format name if the type has a format annotation (e.g., 'uuid', 'email') */
-    formatName?: string;
+    /** Format name if the type has a format annotation (e.g., 'uuid', 'email'). Narrowed from
+     * upstream's untyped `FormatAnnotation.name: string` at the traverser boundary; mappers key
+     * their column maps off it and fall back to text for names they do not recognise. */
+    formatName?: FormatName;
     /** Format parameters if the type has a format annotation */
     formatParams?: Record<string, any>;
     /** The primitive RunTypeKind value if this is a primitive type */

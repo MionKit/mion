@@ -103,7 +103,5 @@ export const JIT_FUNCTION_IDS = {
 
 /** Empty hash used when no params exist or return type is void (no JIT functions generated) */
 export const EMPTY_HASH = '';
-/** Canonical format names + their metadata come from @ts-runtypes/core (`typeFormats`),
- *  the single source of truth stamped on reflected props. mion's former `FormatNames` mirror
- *  was deleted; consumers import `typeFormats` / `FormatName` from @ts-runtypes/core directly. */
-export type {FormatName} from '@ts-runtypes/core';
+// Type formats are entirely a @ts-runtypes concern — mion owns no format vocabulary of its own
+// and re-exports none. Import `typeFormats` / `FormatName` from @ts-runtypes/core directly.
