@@ -3,9 +3,15 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 let legacyOptionsNoticeShown = false;
+let legacyBinEnvNoticeShown = false;
 function resolveRtBinary(explicit) {
   if (explicit) return explicit;
-  if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;
+  if (process.env.TS_RUNTYPES_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
+    legacyBinEnvNoticeShown = true;
+    console.warn(
+      "[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use RT_BIN instead — it is honoured by @ts-runtypes/bin for both the vite transform and the ESLint lane, so they cannot end up on different binaries (whose typeIds would diverge)."
+    );
+  }
   return void 0;
 }
 function mionVitePlugin(options = {}) {
