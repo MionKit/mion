@@ -1,6 +1,6 @@
 # Remove the last `jitUtils` residue (dead field + stale comment)
 
-**Status:** todo
+**Status:** done — shipped in PR #128
 **Type:** chore
 **Spec:** full-plan
 **Created:** 2026-07-27
@@ -48,9 +48,26 @@ regression net. Run `pnpm run test` (718 tests / 46 files) plus `pnpm run lint`.
   extracted into regular module functions"*. Those already live in `packages/core/src/routerUtils.ts`
   as plain module functions, not as `jitUtils` props — that half of the comment is already
   satisfied.
-- Anything in `rtResolver.ts` — tracked in [runtypes-glue-1-rtresolver-unwrap.md](runtypes-glue-1-rtresolver-unwrap.md).
+- Anything in `rtResolver.ts` — tracked in [runtypes-glue-1-rtresolver-unwrap.md](../todos/runtypes-glue-1-rtresolver-unwrap.md).
 
 ## Done when
 
 - `grep -rn jitUtils packages/ --include='*.ts'` returns nothing outside generated build output.
 - Full suite + lint + format green.
+
+## What shipped
+
+The residue was not a dead *field* as filed — it was the **parameter name** in
+`PureFunctionFactory = (jitUtils: unknown) => PureFunction`. Renamed to `rtUtils` and tightened
+`unknown` → `RTUtils` (root-exported by @ts-runtypes/core), matching upstream's own
+`(rtUtils: RTUtils) => PureFunction`. The stale "jitUtils cache" comment now names the
+@ts-runtypes pure-fn cache.
+
+⚠️ **Do NOT try to replace mion's `PureFunction` / `PureFunctionFactory` with the root-exported
+ones.** Upstream has TWO different types under those names: the root export
+(`index.d.ts:1`, from `markers.ts`) is the generic BRAND wrapper `PureFunction<F> = F & {...}`
+used in marker signatures, while the callable `(...args: any[]) => any` version lives in
+`runtypes/types.ts` and is **not** root-exported. Same name, different meaning — swapping them
+would silently change the contract.
+
+`grep -rn jitUtils packages/ --include='*.ts'` now returns nothing outside generated build output.

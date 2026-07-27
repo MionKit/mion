@@ -26,8 +26,9 @@ import {InjectRunTypeId, InjectTypeFnArgs} from '@ts-runtypes/core';
 // precompiled type functions for each call site's handler type.
 //
 // ⚠️ The markers must be spelled out (InjectTypeFnArgs<...>) — a local type alias over a
-// marker is not recognized by the ts-runtypes scanner. Fn keys must match MION_FN_KEYS
-// in @mionjs/core (val, verr, pj, rj, sj, huk, uke).
+// marker is not recognized by the ts-runtypes scanner. The fn keys and their ORDER are
+// defined by MION_FN_KEYS in @mionjs/core, which drives the payload projection; do not
+// restate the list here (it drifted last time) — change it there and mirror it below.
 
 export function route<H extends Handler>(
     handler: H,
