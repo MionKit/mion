@@ -86,6 +86,7 @@ export function getSerializableMethod(executable: RemoteMethod): MethodWithOptio
         returnJitHash: executable.returnJitHash,
         pointer: executable.pointer,
         paramsCount: executable.paramsCount ?? 0,
+        paramNames: executable.paramNames,
         options: executable.options,
     };
     if (executable.headersParam) newRemoteMethod.headersParam = executable.headersParam;

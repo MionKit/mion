@@ -48,7 +48,7 @@ consumer-wide audit, and two touch **public API**:
 PR #128 is already large (proxy-package removal + the @ts-runtypes 0.11.0 upgrade). The three small
 review items — [jitutils residue](../done/jitutils-dead-residue.md),
 [fn-key contract](../done/fn-keys-single-source-of-truth.md), and
-[param names](param-names-from-reflection.md) — ship with it; these three follow after merge.
+[param names](../done/param-names-from-reflection.md) — ship with it; these three follow after merge.
 
 ## Children
 
