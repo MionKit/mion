@@ -1,9 +1,10 @@
 # De-wrapper @mionjs/core's remaining @ts-runtypes proxies
 
-**Status:** partially — every TYPE mirror is gone; ONE deliberate public-API surface remains
-(`setSerializationOptions` / the DataView creation signatures), pending an explicit decision.
+**Status:** done — every TYPE mirror is gone. The one remaining item is NOT a mirror but a
+deliberate public-API decision (`setSerializationOptions` / the DataView creation signatures),
+now owned by [../todos/binary-buffer-sizing-and-pooling-review.md](../todos/binary-buffer-sizing-and-pooling-review.md) (issue 5).
 **Created:** 2026-07-22
-**Updated:** 2026-07-26 (PR #128, after the @ts-runtypes 0.11.0 upgrade)
+**Updated:** 2026-07-27 (split out of the retired `docs/partially/`)
 
 ## Done
 

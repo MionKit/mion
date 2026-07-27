@@ -54,4 +54,4 @@ now import `@ts-runtypes/core` (+ `/formats`) directly.
 - `docs/todos/adopt-ts-runtypes-eslint-plugin.md` — wire `@ts-runtypes/devtools/eslint` + reconcile
   overlapping mion rules.
 - Website content refresh (Format-name + removed-rule doc updates) rides
-  `docs/partially/examples-and-website-refresh.md`.
+  `docs/done/examples-and-website-refresh.md`.

@@ -12,12 +12,12 @@ Bumped `@ts-runtypes/{core,bin,devtools}` `0.9.1 → 0.9.2` and adopted the upst
   re-hashes all families). The value-level prepareForJson/restoreFromJson transforms still
   resolve through the public `getRTFunction<'pj'>/<'rj'>` in `mionAdapter`; prefixes only
   address the full cache ENTRY for the client-metadata lane. (Version-pinning is now tracked
-  as its own follow-up: [jit-function-ids-version-pinning](../todos/jit-function-ids-version-pinning.md).)
+  as its own follow-up: [jit-function-ids-version-pinning](jit-function-ids-version-pinning.md).)
 - **`mionVitePlugin` gained `failOnError` + `allowUncheckedPatterns` passthroughs.**
   `failOnError` defaults to **false** for mion — the run-types adapter wraps ts-runtypes
   pure-fn registry APIs with runtime keys, so the scanner emits benign CTA003/PFN001 that a
   strict default would fatal on every consumer (tracked as
-  [failonerror-adapter-pure-fn-scanning](../todos/failonerror-adapter-pure-fn-scanning.md)). `allowUncheckedPatterns: true` on
+  [failonerror-adapter-pure-fn-scanning](failonerror-adapter-pure-fn-scanning.md)). `allowUncheckedPatterns: true` on
   type-formats (its example name/city formats use unicode `\u…` escapes RE2 can't compile;
   0.9.2 FMT004 fails such patterns closed when they carry mockSamples — delegated to the JS
   lint lane).
@@ -27,7 +27,7 @@ Bumped `@ts-runtypes/{core,bin,devtools}` `0.9.1 → 0.9.2` and adopted the upst
   `message` now surfaces as the format error val.
 - **The four prepareForJson/restoreFromJson examples** rewritten to the public synchronous API
   (`createJsonEncoder`/`createJsonDecoder`/`createValidate`/`createMockData`). The rest of the
-  deepkit-era examples remain in [examples-and-website-refresh](../todos/examples-and-website-refresh.md).
+  deepkit-era examples remain in [examples-and-website-refresh](examples-and-website-refresh.md).
 
 ## Verification
 

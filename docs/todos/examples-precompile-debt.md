@@ -1,6 +1,6 @@
 # Examples pre-compile debt — path to a green `check-types` CI gate
 
-**Status:** todo — split out of [examples-and-website-refresh.md](examples-and-website-refresh.md)
+**Status:** todo — split out of [examples-and-website-refresh.md](../done/examples-and-website-refresh.md)
 while wiring the examples typecheck lane.
 **Created:** 2026-07-21
 

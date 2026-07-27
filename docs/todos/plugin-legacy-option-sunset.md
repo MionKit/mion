@@ -1,7 +1,7 @@
 # Sunset the accepted-and-ignored `aotCaches` / `serverPureFunctions` plugin options
 
 **Status:** todo — deliberate deprecation window (NOT a leftover to remove now). Split out of
-[old-engine-leftover-sweep.md](../partially/old-engine-leftover-sweep.md) so the sweep can close.
+[old-engine-leftover-sweep.md](../done/old-engine-leftover-sweep.md) so the sweep can close.
 **Created:** 2026-07-21
 
 ## Problem

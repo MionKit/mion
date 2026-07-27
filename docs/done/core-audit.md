@@ -8,7 +8,7 @@
 > ts-runtypes cache, and `type-formats` proxies `@ts-runtypes/core/formats` (see the 2026-07-12
 > addenda at the end and [04-progress-log.md](progress-log.md)). Read **NEXT** as "done".
 > The one remaining item is the examples/website refresh, tracked at
-> [todos/examples-and-website-refresh.md](../todos/examples-and-website-refresh.md).
+> [todos/examples-and-website-refresh.md](examples-and-website-refresh.md).
 
 Requested by the maintainer: go through each core (and run-types) feature and check whether
 `@ts-runtypes/core` already provides it. Verdicts: **DELETED** (removed in this branch),
