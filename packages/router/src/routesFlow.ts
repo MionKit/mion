@@ -240,10 +240,12 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
             });
         }
 
-        // Validate the mapper exists in the ts-runtypes registry — bodyHash is the FULL
-        // registry key: 'rt::<hash>' (build-harvested inline mapper, see server-mappers
-        // manifest) or 'mionjs::<name>' (server-registered via registerMionPureFn). An
-        // unknown key from a client is REJECTED here — never evaluated.
+        // ⚠️ bodyHash is ATTACKER-CONTROLLED: it rides the URL query string, decoded by
+        // decodeRoutesFlowQuery with a bare JSON.parse and no schema validation. hasServerMapper
+        // gates it on the allow-list, which is the ONLY thing standing between a request and an
+        // arbitrary entry in the shared ts-runtypes pure-fn registry. It is the FULL registry key:
+        // 'rt::<hash>' (build-harvested inline mapper) or 'mionjs::<name>' (server-registered and
+        // opted in with allowServerMapper). An unknown key is REJECTED here — never evaluated.
         if (!hasServerMapper(mapping.bodyHash)) {
             throw new RpcError({
                 statusCode: StatusCodes.UNEXPECTED_ERROR,

@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionjs/core';
-import {mionPureFnId} from '@mionjs/core';
+import {serverMapperKey} from '@mionjs/core';
 import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
 import type {MiddlewareSubRequest, RouteSubRequest, RoutesFlowBuilder, SubRequest} from './types.ts';
 import type {MionSubRequest} from './subRequest.ts';
@@ -72,7 +72,8 @@ const mapFromSymbol = Symbol('MapFromServerFnRef');
  *   markers), content-hashes it (`bodyHash = 'rt::<hash>'`) and ships the body to the
  *   server bundle through the server-mappers manifest (see mionVitePlugin serverMappers).
  * - BY NAME (non-vite / CDN clients): `serverMapFrom(order, 'toUserId')` references a
- *   mapper registered on the server with registerMionPureFn ('mionjs::<name>').
+ *   mapper the server registered itself under `mionjs::<name>`, with @ts-runtypes'
+ *   `registerPureFn` plus an `allowServerMapper()` call to make the key wire-reachable.
  */
 export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput = any>(
     source: FromSR,
@@ -105,7 +106,7 @@ export function serverMapFrom<FromSR extends SubRequest<any>, MappedInput = any>
                 `Pass the name as the 2nd argument instead: serverMapFrom(source, '${hash}').`
         );
     // full registry key: 'mionjs::<name>' (name lane) | injected 'rt::<hash>' (inline lane)
-    const bodyHash = isNameLane ? mionPureFnId(mapperOrName as string) : (hash as string);
+    const bodyHash = isNameLane ? serverMapperKey(mapperOrName as string) : (hash as string);
     const sep = bodyHash.indexOf('::');
     const ref = {
         mapFromSymbol,

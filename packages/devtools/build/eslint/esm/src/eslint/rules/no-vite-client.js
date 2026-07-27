@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
-import { PURE_FN_SOURCE_PACKAGES } from "../../pureFns/purityRules.js";
+const SERVER_MAP_FROM_MODULE = "@mionjs/client";
 const rule = {
   meta: {
     type: "problem",
@@ -20,8 +20,7 @@ const rule = {
         pureFnNames = /* @__PURE__ */ new Map();
         for (const statement of node.body) {
           if (statement.type !== AST_NODE_TYPES.ImportDeclaration) continue;
-          const source = statement.source.value;
-          if (!PURE_FN_SOURCE_PACKAGES.includes(source)) continue;
+          if (statement.source.value !== SERVER_MAP_FROM_MODULE) continue;
           for (const specifier of statement.specifiers) {
             if (specifier.type === AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === AST_NODE_TYPES.Identifier && specifier.imported.name === "serverMapFrom") {
               pureFnNames.set(specifier.local.name, specifier.imported.name);

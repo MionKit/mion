@@ -10,7 +10,7 @@ import {initClient} from './client.ts';
 import {routesFlow} from './routesFlow.ts';
 import {MiddlewareSubRequest, RouteSubRequest} from './types.ts';
 import {HeadersSubset} from '@mionjs/core';
-import {MION_PURE_FN_NAMESPACE} from '@mionjs/core';
+import {SERVER_MAPPER_NAMESPACE} from '@mionjs/core';
 import {TestServerApi} from '@mionjs/test-server';
 import {TEST_SERVER_BASE_URL} from '../globalSetup.ts';
 // NAME-lane calls (string 2nd arg) resolve to the marker-free overload, so the vite
@@ -286,7 +286,7 @@ describe('serverMapFrom()', () => {
         // name lane: references a server-registered mion pure fn; the wire bodyHash is
         // the FULL registry key 'mionjs::<name>'.
         const ref = rawMapFrom(fakeSubRequest, 'toPreferenceId');
-        expect(ref.namespace).toBe(MION_PURE_FN_NAMESPACE);
+        expect(ref.namespace).toBe(SERVER_MAPPER_NAMESPACE);
         expect(ref.fnName).toBe('toPreferenceId');
         expect(ref.bodyHash).toBe('mionjs::toPreferenceId');
         expect(ref.isFactory).toBe(false);
