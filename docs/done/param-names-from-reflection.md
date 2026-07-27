@@ -1,6 +1,6 @@
 # Restore handler param NAMES, sourced from reflection instead of `fn.toString()`
 
-**Status:** partially shipped in PR #128 — server side done, WIRE decision still open
+**Status:** done — shipped in PR #128, names on the wire
 **Type:** fix
 **Spec:** full-plan
 **Created:** 2026-07-27
@@ -97,18 +97,27 @@ minification hazard.
   proves reflection beats `toString()`; plus optionality (`[undefined, true]`) and the
   non-tuple → `[]` path.
 
-## Still open: the wire
+## The wire — resolved, and it was one line
 
-The reviewer's specific line (`router/src/lib/remoteMethods.spec.ts:73`) asserts on `api.auth`,
-which turned out to be the **public wire payload**, built by an explicit field list at
-`remoteMethods.ts:88` — not the raw reflection object. Confirmed empirically: adding `paramNames`
-to the reflection did **not** make it appear there.
+`api.auth` is the public wire payload built by an explicit field list in `getSerializableMethod`
+(`remoteMethods.ts`). `paramNames` was **already on `MethodMetadata`** (which the wire type
+extends) — the serializer simply never copied it. Adding `paramNames: executable.paramNames`
+was the whole change.
 
-So restoring a name assertion on that line requires shipping names to the client, which grows every
-methods-metadata payload and changes the contract pinned by
-`client/src/lib/clientMethodsMetadata.spec.ts:146`. That call was deliberately deferred; the spec
-line keeps its arity assertion with an inline comment explaining why and pointing here.
+Cost measured rather than guessed: **~21 bytes** for a one-parameter method. Names are short
+strings, one small array per method — not a payload concern, so the deferral turned out
+unnecessary.
 
-**To close this todo:** decide whether `paramNames` joins the wire payload. If yes, add it at
-`remoteMethods.ts:88`, update the client metadata spec, and restore the name assertion at
-`remoteMethods.spec.ts:73`.
+- `remoteMethods.spec.ts:73` asserts `paramNames: ['s']` again — the reviewer's original ask.
+- `client/src/lib/clientMethodsMetadata.spec.ts` asserts names survive the wire round-trip.
+- `client.routes.spec.ts` deep-equal fixtures updated (`[]` for zero-param methods,
+  `['token']` for the one-param middleFn).
+- The `MethodMetadata.paramNames` JSDoc no longer claims "server-side only".
+
+## Follow-up
+
+The broader idea behind the review comment — carrying `paramsRunType` / `returnRunType` so future
+questions do not each need a bespoke field — is
+[carry-runtypes-on-method-reflection.md](../todos/carry-runtypes-on-method-reflection.md). Note it cannot be
+done by extending `CompiledTypeFn` (an upstream type mion cannot modify), and a RunType graph is
+recursive/circular so it is almost certainly not wire material.
