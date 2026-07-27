@@ -1,35 +1,37 @@
 # Formats carrying a real BrandName (upstream ts-runtypes follow-up)
 
-**Status:** todo — split out of R20 ([engine-consumer-verification.md](../done/engine-consumer-verification.md)) while adopting the Brand decision.
+**Status:** superseded — the mion half is resolved by deleting the brands entirely.
 **Created:** 2026-07-21
+**Superseded:** 2026-07-27 by [../done/format-type-modules-removal.md](../done/format-type-modules-removal.md)
+and [drizzle-owns-brand-vocabulary.md](drizzle-owns-brand-vocabulary.md)
 
-## Problem
+## Original problem (still true, still upstream's)
 
-`@mionjs/core`'s `formatBrands.types.ts` documents nominal brands (`BrandEmail`, `BrandUUID`,
-`BrandInteger`, …). The original intent was a server↔client contract where a validated
-`FormatEmail` value is assignable to `BrandEmail`, so consumer code could brand-narrow off a
-Format type. That contract is **broken** under `@ts-runtypes/core`: Format types carry
-`BrandName = never`, so a `FormatEmail` is a plain `string` and is NOT assignable to `BrandEmail`.
+`@mionjs/core`'s `formatBrands.types.ts` documented nominal brands (`BrandEmail`, `BrandUUID`,
+`BrandInteger`, …). The intent was a server↔client contract where a validated `FormatEmail` value is
+assignable to `BrandEmail`, so consumer code could brand-narrow off a Format type. That contract is
+**broken** under `@ts-runtypes/core`: Format types carry `BrandName = never`, so a `FormatEmail` is a
+plain `string` and is NOT assignable to `BrandEmail`.
 
-## Decision taken (this wave)
+## Why this is superseded
 
-KEEP the Brand types — they are still used as a **nominal name registry**, not via
-Format-assignability:
+The decision recorded here — *"KEEP the Brand types, they are still used as a nominal name registry"* —
+has been **reversed**. mion no longer ships type formats or brands at all: formats are a `@ts-runtypes`
+concern, and mion offers no default vocabulary of its own. `packages/core/src/types/formats/` is gone,
+along with the website pages that documented it.
 
-- `@mionjs/drizzle` derives its `BrandColumnMap` key set (`AllBrandNames`) from these brand
-  names (`packages/drizze/src/types/common.types.ts`).
-- mion error-param types reference them.
+The two consumers named above resolved as follows:
 
-The false "Formats are automatically these brands" claim was removed from the `formatBrands.types.ts`
-docblock (advisory note added) and must be removed from the website
-(`website/content/4.run-types/2.type-formats.md`, rides
-[examples-and-website-refresh.md](../done/examples-and-website-refresh.md)).
+- **`@mionjs/drizzle`** — its `AllBrandNames` key set is now a literal union it owns outright. Follow-up
+  tracked in [drizzle-owns-brand-vocabulary.md](drizzle-owns-brand-vocabulary.md).
+- **"mion error-param types reference them"** — no longer true, and it is not clear it ever was: at
+  removal time `Brand` had zero importers anywhere in the repo, and the only consumer of any `Brand*`
+  alias was drizzle.
 
-## Fix plan (deferred, upstream-gated)
+## What remains, and where it belongs
 
-1. File a ts-run-types bucket-4 request: let built-in Formats carry a real `BrandName` (e.g.
-   `FormatEmail` → `string & {brand: 'email'}`) so the server↔client nominal bridge holds without
-   an explicit cast.
-2. When that ships, gate the mion `Brand*` types on the release and re-document the (now real)
-   contract, restoring the website section as a supported feature rather than an advisory.
-3. Until then, the brands remain nominal helpers only; brand explicitly when narrowing is wanted.
+Step 1 of the old fix plan is still worth doing, but it is now **purely a ts-runtypes request** with no
+mion-side follow-up: let built-in Formats carry a real `BrandName` (e.g. `FormatEmail` →
+`string & {brand: 'email'}`) so a nominal bridge holds without an explicit cast. File it in the
+`ts-run-types` repo. Steps 2 and 3 are void — there are no mion `Brand*` types left to gate on a
+release or re-document.

@@ -10,6 +10,10 @@ import {getOrCreateGlobal} from './src/utils.ts';
 // side effect: register every ts-runtypes format (patterns, pure fns, mocking fns). Type-only
 // imports of format aliases get erased by the transpiler, so registration must ride a module
 // that is always value-imported — @mionjs/core is (every mion package depends on it).
+// REQUIRED even though mion owns no format types of its own: the Go-emitted validator cache
+// resolves format checks through `utl.getPureFn('rtFormats::isUUID')` & co at RUNTIME, so any
+// route whose params use a ts-runtypes format needs these registrations loaded. Removing this
+// line is a runtime break, not a type-only one.
 import '@ts-runtypes/core/formats';
 // mion error classes (TypedError/RpcError) register themselves with the ts-runtypes
 // class-serializer registry at the bottom of ./src/errors.ts (exported below), so JSON/binary
@@ -29,9 +33,6 @@ if (__mionLoadCounter.count > 1 && typeof process !== 'undefined' && !process.en
 export * from './src/types/general.types.ts';
 export * from './src/types/method.types.ts';
 export * from './src/types/pureFunctions.types.ts';
-export * from './src/types/formats/formats.types.ts';
-export * from './src/types/formats/formatsParams.types.ts';
-export * from './src/types/formats/formatBrands.types.ts';
 export * from './src/binary/dataView.ts';
 export * from './src/binary/bodySerializer.ts';
 export * from './src/binary/bodyDeserializer.ts';

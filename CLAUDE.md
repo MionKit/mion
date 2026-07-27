@@ -98,16 +98,18 @@ NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!
 
 - The type compiler needs the actual import statement to preserve type metadata.
 - Using `import type` strips the metadata and causes silent failures.
-- This applies to: : Any type imports used for run-types, type-formats, or any other types that need type reflection
+- This applies to: Any type imports used for run-types, type formats, or any other types that need type reflection
 - If tests fail silently with (type metadata not found), CHECK YOUR IMPORTS FIRST
 
 ```ts
 // ❌ WRONG - This breaks reflection!
-import type {TypeFormatParams, Brand} from '@mionjs/core';
+import type {Email, UUID} from '@ts-runtypes/core/formats';
 
 // ✅ CORRECT - Use regular import for types that need reflection
-import {TypeFormatParams, Brand} from '@mionjs/core';
+import {Email, UUID} from '@ts-runtypes/core/formats';
 ```
+
+Note: type formats and brands live entirely in `@ts-runtypes` — mion re-exports none of them.
 
 ## Docs & follow-up tracking (`docs/`)
 
