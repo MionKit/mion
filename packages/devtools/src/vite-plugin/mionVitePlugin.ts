@@ -29,7 +29,8 @@ export interface MionRunTypesOptions {
     /** Path to tsconfig.json (absolute, or relative to the vite root). */
     tsConfig?: string;
     /** Explicit path to the ts-runtypes resolver binary. Default resolution:
-     *  TS_RUNTYPES_BIN env var → the published platform binary via @ts-runtypes/bin getExePath(). */
+     *  RT_BIN env var → the published platform binary, both via @ts-runtypes/bin getExePath().
+     *  RT_BIN also covers the ESLint lane, so prefer it over a per-plugin path when both must match. */
     binary?: string;
     /** RunTypes generated-output root (generated modules under `<genDir>/types/` gitignored,
      *  committed enrichment under `<genDir>/enriched/`). Renamed from `outDir` in @ts-runtypes 0.10.0. */
@@ -107,15 +108,33 @@ export interface MionPluginOptions {
 
 let legacyOptionsNoticeShown = false;
 
-/** Resolves the ts-runtypes resolver binary: explicit option → env var → published platform package.
+let legacyBinEnvNoticeShown = false;
+
+/** Resolves the ts-runtypes resolver binary: explicit option → @ts-runtypes/bin getExePath(),
+ *  which honours the RT_BIN env var and then the published platform package.
+ *
+ *  mion deliberately reads NO env var of its own. RT_BIN (@ts-runtypes 0.11.0+) covers BOTH the
+ *  transform lane and the ESLint lane, whereas mion's old TS_RUNTYPES_BIN reached only this one —
+ *  and since the two lanes run in SEPARATE processes, a mion-side variable can never make them
+ *  agree. One variable, both lanes, no divergence.
+ *
  *  ⚠️ No sibling-checkout fallback: the binary VERSION is folded into every typeId, so a locally
  *  built binary at a different version silently produces caches that diverge from CI/user installs
  *  (the `<typeId>` half of every `<fnHash>_<typeId>` key stops matching; the fnHash prefixes
- *  themselves are version-stable since @ts-runtypes 0.9.3). */
+ *  themselves are version-stable since @ts-runtypes 0.9.3). The same caution applies to RT_BIN. */
 export function resolveRtBinary(explicit?: string): string | undefined {
     if (explicit) return explicit;
-    if (process.env.TS_RUNTYPES_BIN) return process.env.TS_RUNTYPES_BIN;
-    return undefined; // @ts-runtypes/bin getExePath() takes over (published platform binary)
+    // TS_RUNTYPES_BIN is retired. Warn rather than ignore it silently: a user who set it would
+    // otherwise be switched to a different binary (the platform package) without being told.
+    if (process.env.TS_RUNTYPES_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
+        legacyBinEnvNoticeShown = true;
+        console.warn(
+            '[mion] TS_RUNTYPES_BIN is no longer read and is being IGNORED. Use RT_BIN instead — ' +
+                'it is honoured by @ts-runtypes/bin for both the vite transform and the ESLint lane, ' +
+                'so they cannot end up on different binaries (whose typeIds would diverge).'
+        );
+    }
+    return undefined; // @ts-runtypes/bin getExePath() takes over (RT_BIN → published platform binary)
 }
 
 /**

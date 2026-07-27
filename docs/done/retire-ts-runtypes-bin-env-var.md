@@ -1,6 +1,6 @@
 # Retire mion's `TS_RUNTYPES_BIN` now that upstream ships `RT_BIN`
 
-**Status:** todo
+**Status:** done — retired outright (option 1); shipped in PR #128
 **Created:** 2026-07-26 (found while validating @ts-runtypes 0.11.0 in mion, PR #128)
 
 mion's `resolveRtBinary` predates the upstream override and now duplicates it — but only for
@@ -57,3 +57,45 @@ binary installed).
 Alternative if that matters: keep reading it but **forward it to `RT_BIN`** (set
 `process.env.RT_BIN` when only `TS_RUNTYPES_BIN` is present) so both lanes agree, and mark it
 deprecated. Decide which before implementing.
+
+## What shipped
+
+**Option 1 (delete), not the forwarding alternative** — because forwarding cannot work. The vite
+plugin and ESLint run in **separate processes**: setting `process.env.RT_BIN` from inside
+`resolveRtBinary` would only affect the vite process, and an ESLint run never executes
+`mionVitePlugin` at all. So no mion-side variable can make the two lanes agree. Deleting leaves
+exactly ONE variable (`RT_BIN`, honoured by `@ts-runtypes/bin` for both lanes), which makes the
+divergence structurally impossible rather than merely discouraged.
+
+- `resolveRtBinary` no longer reads `TS_RUNTYPES_BIN`; it is `explicit → undefined`, deferring to
+  `getExePath()` (which resolves `RT_BIN` → published platform package).
+- It does **not** read `RT_BIN` either — doing so would bypass `getExePath()` and re-create a
+  mion-side lane. Pinned by a test.
+- **Warns once** when `TS_RUNTYPES_BIN` is set and `RT_BIN` is not, so anyone still using it is
+  told rather than silently moved onto a different binary. Silent when `RT_BIN` is also set,
+  since nothing is being ignored then.
+- JSDoc updated on both `MionRunTypesOptions.binary` and `resolveRtBinary`; the typeId-divergence
+  warning now applies to `RT_BIN`.
+- New spec `packages/devtools/src/vite-plugin/resolveRtBinary.spec.ts` (6 tests) covering
+  precedence, the two no-read guarantees, warn-once, and the quiet path.
+
+### Fix-plan steps 3 and 4 needed no code
+
+- **Step 3:** `TS_RUNTYPES_BIN` appears in no website doc and no example — only in the source, the
+  generated build, and historical `docs/done/` records (left as-is; they are records of what
+  happened, not live docs).
+- **Step 4:** the symmetric lint-lane override already exists **upstream**
+  (`settings.runtypes.binary`, see `@ts-runtypes/devtools/dist/eslint/session-protocol.d.ts`).
+  mion deliberately does not set it in its own `eslint.config.js` — pinning mion's lint to a
+  specific binary is exactly the divergence hazard this spec removes. `RT_BIN` is the answer for
+  users who need both lanes on one binary.
+
+### Risk accepted
+
+`TS_RUNTYPES_BIN` was public surface (it shipped in the build), so this is a breaking change for
+anyone who set it. Judged low-risk: mion is pre-1.0 (`@mionjs/devtools` 0.8.10), the variable was
+never documented in any user-facing doc, and the one-time warning means no one is ignored
+silently.
+
+Verified: full suite **718 tests / 46 files** green, COLD lint green across 13 projects, format
+clean, devtools rebuilt so consumers pick up the change.
