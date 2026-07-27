@@ -6,11 +6,10 @@
  * ######## */
 
 import {RunTypeKind} from '@ts-runtypes/core';
-import type {RunTypeKindValue} from '@ts-runtypes/core';
+import type {RunTypeKindValue, FormatName} from '@ts-runtypes/core';
 import type {ColumnMapping, PropertyInfo, DrizzleMapperConfig} from '../types/common.types.ts';
 import {DEFAULT_LENGTH_BUFFER} from '../types/common.types.ts';
 import {shouldBeJson} from '../core/utils.ts';
-import {FormatName} from '@mionjs/core';
 
 /** Base class for database-specific column mappers */
 export abstract class BaseColumnMapper {

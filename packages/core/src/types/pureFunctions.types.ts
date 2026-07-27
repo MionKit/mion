@@ -1,8 +1,4 @@
 import type {RTUtils} from '@ts-runtypes/core';
-import {TypeFormatValue} from './formats/formats.types.ts';
-import {RunTypeError} from './general.types.ts';
-
-type StrNumber = string | number;
 
 // ########################################### PURE FNs ##########################################
 /**
@@ -12,29 +8,11 @@ type StrNumber = string | number;
  * These function can not be anonym and must have an unique name.
  */
 
-export type PureFunctionDeps = Record<string, PureFunction>;
-export type GenericPureFunction<P extends TypeFormatValue> = (val: any, formatParams: P, deps: PureFunctionDeps) => any;
-export type ErrorsPureFunction<P extends TypeFormatValue> = (
-    val: any,
-    pλth: StrNumber[],
-    εrr: RunTypeError[],
-    expected: string,
-    formatName: string,
-    formatParams: P,
-    formatPath: StrNumber[],
-    deps: PureFunctionDeps,
-    accessPath?: StrNumber[],
-    fmtAccessPath?: StrNumber[]
-) => RunTypeError[];
-export type PureFunction = (...args: any[]) => any; /**
- * Pure function that return an array with a list of invalid format properties.
- * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
- */
+export type PureFunction = (...args: any[]) => any;
 
-export type PureFunctionFactory = (
-    rtUtils: RTUtils
-) => PureFunction; /** Data for a pure function that can be serialized and deserialized. */
+export type PureFunctionFactory = (rtUtils: RTUtils) => PureFunction;
 
+/** Data for a pure function that can be serialized and deserialized. */
 export interface PureFunctionData {
     /** The namespace this pure function belongs to */
     readonly namespace: string;
@@ -55,7 +33,7 @@ export interface CompiledPureFunction extends PureFunctionData {
 }
 export interface PersistedPureFunction extends CompiledPureFunction {
     fn: undefined;
-} /** Reference object returned by pureServerFn() at runtime on the client */
+}
 
 /** Reference built by serverMapFrom(): identifies a server-side mapper by its ts-runtypes
  *  registry key. The mapper function itself never rides the ref — only `bodyHash` travels
