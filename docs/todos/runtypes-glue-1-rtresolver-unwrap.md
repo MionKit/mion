@@ -1,9 +1,11 @@
 # Unwrap `rtResolver` — drop the dead export, decide whether the wrapper survives
 
-**Status:** todo
+**Status:** todo — deferred (see parent)
 **Type:** chore
 **Spec:** full-plan
 **Created:** 2026-07-27
+
+**Parent:** [runtypes-glue-0-umbrella.md](runtypes-glue-0-umbrella.md) — deferred until after PR #128 merges.
 
 Surfaced by PR #128 review comment
 [r3634568676](https://github.com/MionKit/mion/pull/128#discussion_r3634568676): *"wrapper seems to
@@ -85,7 +87,7 @@ equivalent; keep it either way, but rename it away from the retired "jit" vocabu
 
 - The `fnID` vs upstream `familyTag` naming question beyond what step 2 needs.
 - `mionPureFns.ts` — separate lane, see
-  [mion-pure-fns-vs-upstream-registry.md](mion-pure-fns-vs-upstream-registry.md).
+  [runtypes-glue-2-pure-fns-registry.md](runtypes-glue-2-pure-fns-registry.md).
 
 ## Done when
 

@@ -1,9 +1,11 @@
 # `mionPureFns`: keep the wire allow-list, question the namespace wrappers
 
-**Status:** todo
+**Status:** todo — deferred (see parent)
 **Type:** chore
 **Spec:** full-plan
 **Created:** 2026-07-27
+
+**Parent:** [runtypes-glue-0-umbrella.md](runtypes-glue-0-umbrella.md) — deferred until after PR #128 merges.
 
 Surfaced by PR #128 review comment
 [r3634525205](https://github.com/MionKit/mion/pull/128#discussion_r3634525205): *"we should be
@@ -88,7 +90,7 @@ equivalent because it is mion's routesFlow feature, not a ts-runtypes one.
 ## Out of scope
 
 - Changing the `virtual:mion/server-mappers` plugin contract or the manifest shape.
-- `rtResolver.ts` — see [rtresolver-unwrap.md](rtresolver-unwrap.md).
+- `rtResolver.ts` — see [runtypes-glue-1-rtresolver-unwrap.md](runtypes-glue-1-rtresolver-unwrap.md).
 
 ## Done when
 

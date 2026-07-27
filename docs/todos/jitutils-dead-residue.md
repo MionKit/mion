@@ -48,7 +48,7 @@ regression net. Run `pnpm run test` (718 tests / 46 files) plus `pnpm run lint`.
   extracted into regular module functions"*. Those already live in `packages/core/src/routerUtils.ts`
   as plain module functions, not as `jitUtils` props — that half of the comment is already
   satisfied.
-- Anything in `rtResolver.ts` — tracked in [rtresolver-unwrap.md](rtresolver-unwrap.md).
+- Anything in `rtResolver.ts` — tracked in [runtypes-glue-1-rtresolver-unwrap.md](runtypes-glue-1-rtresolver-unwrap.md).
 
 ## Done when
 
