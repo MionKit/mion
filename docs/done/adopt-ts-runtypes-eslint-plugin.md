@@ -27,7 +27,7 @@ re-evaluation, and the website rule-set doc are tracked in
 [../todos/eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md). The stale
 example fixtures for the removed `type-formats-imports` rule are tracked with the rest of the
 website/examples drift in
-[../todos/website-stale-package-references.md](../todos/website-stale-package-references.md).
+[website-stale-package-references.md](website-stale-package-references.md).
 
 ## Context
 
