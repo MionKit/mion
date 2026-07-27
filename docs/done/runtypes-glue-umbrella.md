@@ -51,8 +51,9 @@ unsound with nothing in CI to catch it.
 
 - [upstream-compiledfnargs-type-lie.md](../todos/upstream-compiledfnargs-type-lie.md) — a publicly
   exported `@ts-runtypes` wire type that cannot describe its own values.
-- [routesflow-paramindex-validation.md](../todos/routesflow-paramindex-validation.md) — an
-  unvalidated attacker-supplied array index, same wire object as `bodyHash`.
+- [routesflow-query-validation.md](routesflow-query-validation.md) — an unvalidated
+  attacker-supplied array index, same wire object as `bodyHash`. **Since fixed**: the whole
+  `RoutesFlowQuery` is now validated on decode, plus an arity bound while the chain is built.
 - [drizzle-owns-brand-vocabulary.md](../todos/drizzle-owns-brand-vocabulary.md) — where the brand
   list lives now that mion supplies none.
 - [formats-brandname-upstream.md](../todos/formats-brandname-upstream.md) — rewritten; its

@@ -125,9 +125,9 @@ and unknown-key rejection.
 
 ## Out of scope, filed separately
 
-`routesFlow.ts` writes `ctx.request.body[toId][paramIndex] = value` with a completely unvalidated,
-attacker-supplied `paramIndex` — same wire object, different defect. See
-[routesflow-paramindex-validation.md](../todos/routesflow-paramindex-validation.md).
+`routesFlow.ts` wrote `ctx.request.body[toId][paramIndex] = value` with a completely unvalidated,
+attacker-supplied `paramIndex` — same wire object, different defect. Filed separately and since
+fixed: [routesflow-query-validation.md](routesflow-query-validation.md).
 
 ## Verification
 

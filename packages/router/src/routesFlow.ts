@@ -65,12 +65,58 @@ function addToRoutesFlowCache(query: string, chain: MethodsExecutionChain): void
 
 // ############# QUERY PARSING #############
 
+/** Rejects a decoded query whose shape does not match RoutesFlowQuery.
+ *
+ *  ⚠️ THIS IS THE TRUST BOUNDARY. Everything here arrives in the URL query string, so `RoutesFlowQuery`
+ *  is a claim about the wire, not a fact — `JSON.parse` returns whatever the caller sent and the cast
+ *  checks nothing. Downstream code indexes arrays and looks up registry keys with these values, so the
+ *  shape has to be established once, here, rather than assumed at each use.
+ *
+ *  Hand-written rather than a compiled `createValidateFn<RoutesFlowQuery>()`: the router's src has no
+ *  direct validator calls today (only its specs do), and adding one would make every consumer's build
+ *  responsible for injecting it. The shape is four primitives deep, so the check is cheap either way. */
+function assertValidRoutesFlowQuery(parsed: unknown): RoutesFlowQuery {
+    const invalid = (reason: string, errorData?: Record<string, unknown>): never => {
+        throw new RpcError({
+            statusCode: StatusCodes.UNEXPECTED_ERROR,
+            type: 'routesFlow-invalid-query',
+            publicMessage: `RoutesFlow query is malformed: ${reason}.`,
+            errorData,
+        });
+    };
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) invalid('expected an object');
+    const query = parsed as Record<string, unknown>;
+
+    if (!Array.isArray(query.routes) || query.routes.some((route) => typeof route !== 'string'))
+        invalid('`routes` must be an array of strings');
+
+    if (query.mappings !== undefined) {
+        if (!Array.isArray(query.mappings)) invalid('`mappings` must be an array');
+        for (const mapping of query.mappings as unknown[]) {
+            if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) invalid('every mapping must be an object');
+            const {fromId, toId, bodyHash, paramIndex} = mapping as Record<string, unknown>;
+            if (typeof fromId !== 'string' || typeof toId !== 'string' || typeof bodyHash !== 'string')
+                invalid('mapping `fromId`, `toId` and `bodyHash` must be strings', {mapping});
+            // Integer + non-negative, so paramIndex can only ever be an array INDEX. Without this a
+            // string sails through the `number` type and lands in `params[mapping.paramIndex] = value`
+            // as a plain property write — '__proto__', 'length', a negative index, a float. The upper
+            // bound needs the target route's arity, so it is enforced in insertMappingMethods.
+            if (typeof paramIndex !== 'number' || !Number.isInteger(paramIndex) || paramIndex < 0)
+                invalid('mapping `paramIndex` must be a non-negative integer', {mapping});
+        }
+    }
+
+    return query as unknown as RoutesFlowQuery;
+}
+
 /** Decodes a base64url-encoded JSON routesFlow query string, expects `data=<base64url>` format */
 function decodeRoutesFlowQuery(urlQuery: string): RoutesFlowQuery {
+    let parsed: unknown;
     try {
         const dataParam = urlQuery.startsWith('data=') ? urlQuery.slice(5) : urlQuery;
         const jsonString = fromBase64Url(dataParam);
-        return JSON.parse(jsonString) as RoutesFlowQuery;
+        parsed = JSON.parse(jsonString);
     } catch (e: any) {
         throw new RpcError({
             statusCode: StatusCodes.UNEXPECTED_ERROR,
@@ -79,6 +125,8 @@ function decodeRoutesFlowQuery(urlQuery: string): RoutesFlowQuery {
             errorData: {parseError: e?.message || 'Unknown error'},
         });
     }
+    // deliberately OUTSIDE the try: a shape rejection must not be reported as a parse failure
+    return assertValidRoutesFlowQuery(parsed);
 }
 
 // ############# ROUTES_FLOW #############
@@ -236,6 +284,22 @@ function insertMappingMethods(middleMethods: RemoteMethod[], mappings: RoutesFlo
                 statusCode: StatusCodes.UNEXPECTED_ERROR,
                 type: 'routesFlow-mapping-invalid-target',
                 publicMessage: `Mapping target route '${mapping.toId}' not found in routesFlow execution chain.`,
+                errorData: {mapping},
+            });
+        }
+
+        // paramIndex is already known to be a non-negative integer (assertValidRoutesFlowQuery); the
+        // UPPER bound needs the target's arity, which is only resolvable here. Rejecting now means a
+        // mapping can never write past the params the route actually declares — checked while the
+        // chain is built, so a bad mapping never reaches dispatch.
+        const targetParamsCount = middleMethods[toIndex].paramsCount ?? 0;
+        if (mapping.paramIndex >= targetParamsCount) {
+            throw new RpcError({
+                statusCode: StatusCodes.UNEXPECTED_ERROR,
+                type: 'routesFlow-mapping-invalid-param-index',
+                publicMessage:
+                    `Mapping paramIndex ${mapping.paramIndex} is out of range for target route '${mapping.toId}', ` +
+                    `which takes ${targetParamsCount} parameter(s).`,
                 errorData: {mapping},
             });
         }
