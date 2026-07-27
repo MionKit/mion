@@ -70,6 +70,10 @@ describe('Public Methods should', () => {
                 id: 'auth',
                 paramsJitHash: expect.any(String),
                 returnJitHash: expect.any(String),
+                // `api` here is the PUBLIC (wire) method payload, built by an explicit field list
+                // in remoteMethods.ts — it carries arity only. Parameter NAMES are reflected
+                // server-side and asserted in core's mionAdapter.spec.ts; shipping them on the wire
+                // is a deliberate open decision, see docs/todos/param-names-from-reflection.md.
                 paramsCount: 1,
             } as Partial<MiddleFnMethod>)
         );

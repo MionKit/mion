@@ -7,6 +7,7 @@
 
 import {getRTFnCaches, getRTFunction, getRTUtils, getRunType, getRunTypeId, RunTypeKind} from '@ts-runtypes/core';
 import type {
+    FnHashKey,
     GetValidationErrorsFn,
     InjectRunTypeId,
     PrepareForJsonFn,
@@ -35,10 +36,21 @@ import {getRtEntry, toJitCompiledFn, wrapRtEntry} from './rtResolver.ts';
 /** fn keys requested per marker side, IN ORDER. Keep in sync with the markers declared in router lib/handlers.ts.
  *  ⚠️ The markers in factory signatures MUST be spelled as InjectTypeFnArgs<T, 'val', 'verr', 'pj', 'rj', 'sj'> —
  *  a local type alias over the marker is NOT recognized by the ts-runtypes scanner (verified 2026-07-11). */
-export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'] as const;
+export const MION_FN_KEYS = ['val', 'verr', 'pj', 'rj', 'sj', 'huk', 'uke', 'tb', 'fb'] as const satisfies readonly FnHashKey[];
 
 /** fn keys requested for the HeadersSubset marker side (validation only, no serialization). */
-export const MION_HEADER_FN_KEYS = ['val', 'verr'] as const;
+export const MION_HEADER_FN_KEYS = ['val', 'verr'] as const satisfies readonly FnHashKey[];
+
+/** Projects the positional marker payload onto its fn keys. The resolver hands over an ARRAY, so
+ *  something has to map slot -> key; doing it here makes the key lists above the single source of
+ *  truth instead of a comment. Add a key to the list and the projection follows automatically. */
+function byFnKey<Keys extends readonly FnHashKey[]>(injected: unknown[], keys: Keys): Partial<Record<Keys[number], unknown>> {
+    const out: Record<string, unknown> = {};
+    keys.forEach((key, index) => {
+        if (injected[index] !== undefined) out[key] = injected[index];
+    });
+    return out as Partial<Record<Keys[number], unknown>>;
+}
 
 /** Injected marker payloads stashed on a route/middleFn definition by the factory helpers. */
 export interface RtMarkerPayload {
@@ -61,6 +73,9 @@ export interface RtHeadersReflection {
 /** Reflection data derived exclusively from injected markers (no runtime type reflection). */
 export interface RtMethodReflection {
     paramsCount: number;
+    /** Parameter names from reflection; an entry is undefined for an unlabelled tuple member.
+     *  SERVER-SIDE only — deliberately not part of the client methods-metadata payload. */
+    paramNames: (string | undefined)[];
     paramsJitFns: JitCompiledFunctions;
     returnJitFns: JitCompiledFunctions;
     paramsJitHash: string;
@@ -140,7 +155,7 @@ function wrapResolvedFn<Fn extends AnyFn>(fn: Fn, fnID: string, label: string, r
 
 /**
  * Builds mion JitCompiledFunctions from one injected MionSideFns marker payload.
- * The payload is an array of entry tuples matching MION_FN_KEYS order.
+ * The payload is an array of entry tuples; byFnKey projects it onto MION_FN_KEYS.
  * Throws when the marker was never injected (plugin not active) unless allowMissing.
  */
 export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: string): JitCompiledFunctions {
@@ -149,27 +164,27 @@ export function buildJitFnsFromMarker(injected: unknown, typeId: string, label: 
             `mion run-types: no compiled type functions injected for '${label}'. ` +
                 `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
         );
-    const [valT, verrT, pjT, rjT, sjT, hukT, ukeT, tbT, fbT] = injected;
+    const fns = byFnKey(injected, MION_FN_KEYS);
     // FAIL CLOSED on a partial payload: a present-but-short array means plugin/marker version
     // skew — falling back would silently DISABLE validation/serialization for this method.
     // Only the trailing huk/uke/tb/fb entries are genuinely optional.
-    if (valT === undefined || verrT === undefined || pjT === undefined || rjT === undefined || sjT === undefined)
+    if (fns.val === undefined || fns.verr === undefined || fns.pj === undefined || fns.rj === undefined || fns.sj === undefined)
         throw new Error(
             `mion run-types: incomplete compiled-fn payload for '${label}' (got ${injected.length} entries; ` +
                 `val/verr/pj/rj/sj are required). Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
         );
-    const isType = getRTFunction<'val'>(valT, alwaysTrue);
-    const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
-    const prepareForJson = getRTFunction<'pj'>(pjT, identity as PrepareForJsonFn);
-    const restoreFromJson = getRTFunction<'rj'>(rjT, identity as RestoreFromJsonFn);
-    const stringifyJson = getRTFunction<'sj'>(sjT, nativeStringify);
-    const hasUnknownKeys = getRTFunction<'huk'>(hukT, alwaysFalse);
-    const unknownKeyErrors = getRTFunction<'uke'>(ukeT, noUnknownKeyErrors);
+    const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
+    const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
+    const prepareForJson = getRTFunction<'pj'>(fns.pj, identity as PrepareForJsonFn);
+    const restoreFromJson = getRTFunction<'rj'>(fns.rj, identity as RestoreFromJsonFn);
+    const stringifyJson = getRTFunction<'sj'>(fns.sj, nativeStringify);
+    const hasUnknownKeys = getRTFunction<'huk'>(fns.huk, alwaysFalse);
+    const unknownKeyErrors = getRTFunction<'uke'>(fns.uke, noUnknownKeyErrors);
     // initialize the binary tuples (if requested) so their entries land in the cache;
     // toBinary/fromBinary are only exposed when a REAL entry exists — an identity
     // fallback would silently corrupt binary streams
-    if (tbT !== undefined) getRTFunction<'tb'>(tbT);
-    if (fbT !== undefined) getRTFunction<'fb'>(fbT);
+    if (fns.tb !== undefined) getRTFunction<'tb'>(fns.tb);
+    if (fns.fb !== undefined) getRTFunction<'fb'>(fns.fb);
     // getRTFunction initialized the injected tuples, so the full entries are now
     // resolvable from the ts-runtypes cache under `<fnHashPrefix>_<typeId>`.
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId, true);
@@ -217,8 +232,23 @@ export function resolveInjectedRunType(idHandle: unknown): RunType<unknown> {
  * dropped (they were unused, and the old handler.toString() parsing degraded under minified bundles).
  */
 export function getParamCountFromRunType(paramsRunType: RunType<unknown>): number {
+    return getParamsFromRunType(paramsRunType).length;
+}
+
+/** Handler parameters read straight from the params tuple runtype. Tuple member LABELS survive
+ *  into the run-type graph, so names come from reflection — never from parsing handler.toString(),
+ *  which is unreliable under minified bundles. `name` is undefined for an unlabelled tuple
+ *  member (e.g. `[string, number]` rather than `[pet: Pet, notes?: string]`). */
+export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: string; optional?: boolean}[] {
     const root = paramsRunType as RtNodeLike;
-    return root.kind === RunTypeKind.tuple ? (root.children?.length ?? 0) : 0;
+    if (root.kind !== RunTypeKind.tuple) return [];
+    return (root.children ?? []).map((child) => {
+        const member = child as {name?: unknown; optional?: unknown};
+        return {
+            name: typeof member.name === 'string' ? member.name : undefined,
+            optional: member.optional === true ? true : undefined,
+        };
+    });
 }
 
 const NO_DATA_KINDS: unknown[] = [RunTypeKind.void, RunTypeKind.never, RunTypeKind.undefined];
@@ -250,9 +280,11 @@ export function getReflectionFromMarkers(
     const paramsTypeId = resolveInjectedTypeId(rtFns.paramsId, `${methodId}#params`);
     const returnTypeId = resolveInjectedTypeId(rtFns.returnId, `${methodId}#return`);
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
-    const paramsArity = getParamCountFromRunType(resolveInjectedRunType(rtFns.paramsId));
+    const params = getParamsFromRunType(resolveInjectedRunType(rtFns.paramsId));
+    const paramsArity = params.length;
     const reflection: RtMethodReflection = {
         paramsCount: paramsArity,
+        paramNames: params.map((param) => param.name),
         paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
         returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
         paramsJitHash: paramsTypeId,
@@ -318,15 +350,15 @@ export function buildHeaderJitFnsFromMarker(
             `mion run-types: no compiled header type functions injected for '${label}'. ` +
                 `The @ts-runtypes/devtools vite plugin (via @mionjs/devtools mionVitePlugin) must be active at build time.`
         );
-    const [valT, verrT] = injected;
+    const fns = byFnKey(injected, MION_HEADER_FN_KEYS);
     // fail closed on partial payloads (see buildJitFnsFromMarker)
-    if (valT === undefined || verrT === undefined)
+    if (fns.val === undefined || fns.verr === undefined)
         throw new Error(
             `mion run-types: incomplete compiled-fn payload for '${label}' (val/verr required). ` +
                 `Rebuild with a matching @mionjs/devtools + @ts-runtypes version.`
         );
-    const isType = getRTFunction<'val'>(valT, alwaysTrue);
-    const typeErrors = getRTFunction<'verr'>(verrT, noErrors);
+    const isType = getRTFunction<'val'>(fns.val, alwaysTrue);
+    const typeErrors = getRTFunction<'verr'>(fns.verr, noErrors);
     const hashes: JitFunctionsHashes = getJitFnHashes(typeId);
     return {
         isType: wrapResolvedFn(isType as AnyFn, 'isType', label, hashes.isType),

@@ -1,6 +1,6 @@
 # Fn-key contract: kill the dead constants, make marker ↔ destructure one source of truth
 
-**Status:** todo
+**Status:** done — shipped in PR #128
 **Type:** fix
 **Spec:** full-plan
 **Created:** 2026-07-27
@@ -104,6 +104,29 @@ injected payload arrives from the resolver as a positional array, so *something*
 
 - Neither `MION_FN_KEYS` nor `MION_HEADER_FN_KEYS` is dead: both are read by the projection.
 - Neither positional destructure remains.
-- A bogus fn key fails `pnpm run lint` (typecheck) rather than at runtime.
+- A bogus fn key fails `tsc` rather than at runtime (see the correction below).
 - No comment restates the key list.
 - Full suite + lint + format green.
+
+## What shipped
+
+- Both key lists are now `as const satisfies readonly FnHashKey[]`, bound to upstream's fn-id union.
+- `byFnKey(injected, keys)` projects the positional payload onto its keys; both destructures
+  (`:152`, `:321`) are gone, so the key lists are load-bearing instead of decorative.
+- `handlers.ts` no longer restates the key list — that restatement is what had drifted.
+
+### ⚠️ Correction to this spec's own claim
+
+The "Done when" bar originally said a bogus key would fail `pnpm run lint`. **It does not.**
+Verified by negative control: with `'notAFnId'` in `MION_FN_KEYS`, `pnpm exec eslint src` reports
+**0 errors** — eslint reports rule violations, not TypeScript compile errors. The guard only bites
+under `tsc`:
+
+```
+src/runtypes/mionAdapter.ts(39,37): error TS2322: Type '"notAFnId"' is not assignable to type
+  '"ces" | "cj" | "cjr" | "fb" | "fmt" | "huk" | "jsonDecoder" | ... | "val" | "verr"'
+```
+
+and mion has **no green tsc gate** (see [examples-precompile-debt.md](../todos/examples-precompile-debt.md)).
+So the binding is real but currently only catches a mistake when someone runs `tsc` by hand. That
+is an argument for the CI typecheck lane, tracked separately.

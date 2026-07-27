@@ -1,3 +1,4 @@
+import type {RTUtils} from '@ts-runtypes/core';
 import {TypeFormatValue} from './formats/formats.types.ts';
 import {RunTypeError} from './general.types.ts';
 
@@ -31,7 +32,7 @@ export type PureFunction = (...args: any[]) => any; /**
  */
 
 export type PureFunctionFactory = (
-    jitUtils: unknown
+    rtUtils: RTUtils
 ) => PureFunction; /** Data for a pure function that can be serialized and deserialized. */
 
 export interface PureFunctionData {
@@ -93,7 +94,7 @@ export interface RoutesFlowMapping {
     fromId: string;
     /** Target route ID whose input parameter to update */
     toId: string;
-    /** Pure function body hash identifier in jitUtils cache */
+    /** Pure function body hash identifier in the @ts-runtypes pure-fn cache */
     bodyHash: string;
     /** Index of the parameter in the target route's params array to replace */
     paramIndex: number;

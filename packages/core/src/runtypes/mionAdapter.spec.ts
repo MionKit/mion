@@ -11,6 +11,7 @@ import {
     buildJitFnsFromMarker,
     getReflectionFromMarkers,
     getParamCountFromRunType,
+    getParamsFromRunType,
     resolveInjectedRunType,
     RtMarkerPayload,
 } from './mionAdapter.ts';
@@ -53,9 +54,9 @@ describe('mionAdapter: reflection from injected markers', () => {
 
     it('produces working validate/typeErrors for the params tuple', () => {
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-        expect(reflection.paramsJitFns.isType.fn([{name: 'rex', born: new Date(0)}])).toBe(true);
-        expect(reflection.paramsJitFns.isType.fn([{name: 7, born: new Date(0)}])).toBe(false);
-        const errors = reflection.paramsJitFns.typeErrors.fn([{name: 7, born: new Date(0)}]);
+        expect(reflection.paramsJitFns.isType.fn!([{name: 'rex', born: new Date(0)}])).toBe(true);
+        expect(reflection.paramsJitFns.isType.fn!([{name: 7, born: new Date(0)}])).toBe(false);
+        const errors = reflection.paramsJitFns.typeErrors.fn!([{name: 7, born: new Date(0)}]);
         expect(errors.length).toBeGreaterThan(0);
         expect(errors[0].path).toEqual([0, 'name']);
     });
@@ -63,9 +64,9 @@ describe('mionAdapter: reflection from injected markers', () => {
     it('restores JSON params and stringifies returns', () => {
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
         const wire = JSON.parse('[{"name":"rex","born":"1970-01-01T00:00:00.123Z"}]');
-        const restored = reflection.paramsJitFns.restoreFromJson.fn(wire) as [Pet];
+        const restored = reflection.paramsJitFns.restoreFromJson.fn!(wire) as [Pet];
         expect(restored[0].born).toBeInstanceOf(Date);
-        const str = reflection.returnJitFns.stringifyJson.fn({name: 'rex', born: new Date(123)});
+        const str = reflection.returnJitFns.stringifyJson.fn!({name: 'rex', born: new Date(123)});
         expect(str).toContain('1970-01-01T00:00:00.123Z');
     });
 
@@ -82,10 +83,24 @@ describe('mionAdapter: reflection from injected markers', () => {
         expect(getParamCountFromRunType(resolveInjectedRunType(savePet.rtFns.paramsId))).toBe(2);
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
         expect(reflection.paramsCount).toBe(2);
-        // arity survives even when the handler source is minified away (no source parse involved)
+        // NAMES come from the params tuple's member labels, not from parsing handler.toString()
+        expect(reflection.paramNames).toEqual(['pet', 'notes']);
+        // both survive when the handler source is minified away — the whole point of using
+        // reflection instead of a source parse
         const degraded = (() => undefined) as unknown as (ctx: any, pet: Pet, notes?: string) => Pet;
         const degradedReflection = getReflectionFromMarkers(savePet.rtFns, degraded, 'savePetDegraded');
         expect(degradedReflection.paramsCount).toBe(2);
+        expect(degradedReflection.paramNames).toEqual(['pet', 'notes']);
+    });
+
+    it('reads param names + optionality from the tuple, and copes with unlabelled members', () => {
+        // labelled: `(ctx, pet: Pet, notes?: string)` -> the params tuple carries both labels
+        const labelled = getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.paramsId));
+        expect(labelled.map((param) => param.name)).toEqual(['pet', 'notes']);
+        // optionality rides along, so a consumer can tell required from optional without the handler
+        expect(labelled.map((param) => param.optional)).toEqual([undefined, true]);
+        // a non-tuple runtype yields no params rather than throwing
+        expect(getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.returnId))).toEqual([]);
     });
 
     it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {
@@ -98,12 +113,12 @@ describe('mionAdapter: reflection from injected markers', () => {
             const compiled = resolveJIT(hashes[key]);
             expect(compiled, `entry for ${key} (${hashes[key]})`).toBeDefined();
             expect(compiled!.rtFnHash).toBe(hashes[key]);
-            if (!compiled!.isNoop) expect(compiled!.code.length).toBeGreaterThan(0);
+            if (!compiled!.isNoop) expect(compiled!.code!.length).toBeGreaterThan(0);
         }
         expect(reflection.paramsJitFns.isType.rtFnHash).toBe(hashes.isType);
         // rebuild validate from its emitted code (the client metadata lane)
         const compiledIsType = resolveJIT(hashes.isType)!;
-        const rebuilt = new Function('utl', compiledIsType.code)(getRTUtils());
+        const rebuilt = new Function('utl', compiledIsType.code!)(getRTUtils());
         expect(rebuilt([{name: 'rex', born: new Date(0)}, 'note'])).toBe(true);
         expect(rebuilt([{name: 7, born: new Date(0)}])).toBe(false);
     });
