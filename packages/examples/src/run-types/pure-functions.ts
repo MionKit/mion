@@ -1,12 +1,6 @@
-import {registerMionPureFn} from '@mionjs/core';
+import {registerPureFn} from '@ts-runtypes/core';
 
-// Server pure functions live in the ts-runtypes registry under a namespace and are referenced
-// by name from the client build (serverMapFrom). registerMionPureFn takes a factory that returns
-// the actual function, so its dependencies can be captured at registration time.
-registerMionPureFn(
-    'myNamespace',
-    () =>
-        function isNotEmpty(value: string): boolean {
-            return value.length > 0;
-        }
-);
+// Pure functions belong to @ts-runtypes — mion registers none of its own. `registerPureFn` takes a
+// LITERAL key and an INLINE function literal: the build scanner extracts the body and AOT-compiles
+// it, so it has to see both at the call site.
+registerPureFn('app::isNotEmpty', (value: string): boolean => value.length > 0);

@@ -1,6 +1,6 @@
 "use strict";
 const utils = require("@typescript-eslint/utils");
-const purityRules = require("../../pureFns/purityRules.cjs");
+const SERVER_MAP_FROM_MODULE = "@mionjs/client";
 const rule = {
   meta: {
     type: "problem",
@@ -21,8 +21,7 @@ const rule = {
         pureFnNames = /* @__PURE__ */ new Map();
         for (const statement of node.body) {
           if (statement.type !== utils.AST_NODE_TYPES.ImportDeclaration) continue;
-          const source = statement.source.value;
-          if (!purityRules.PURE_FN_SOURCE_PACKAGES.includes(source)) continue;
+          if (statement.source.value !== SERVER_MAP_FROM_MODULE) continue;
           for (const specifier of statement.specifiers) {
             if (specifier.type === utils.AST_NODE_TYPES.ImportSpecifier && specifier.imported.type === utils.AST_NODE_TYPES.Identifier && specifier.imported.name === "serverMapFrom") {
               pureFnNames.set(specifier.local.name, specifier.imported.name);

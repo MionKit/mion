@@ -55,8 +55,26 @@ whatever severities item 1 lands on.
 
 ## Context
 
-The adoption was additive, not a swap: no mion rule was dropped. mion's `pure-functions` covers
-the runtime `registerMionPureFn` lane that the upstream marker-based rule does not scan, and
-`strong-typed-routes` / `no-vite-client` / `no-unreachable-union-types` /
-`no-mixed-union-properties` have no upstream equivalent. The one genuinely obsolete rule,
-`type-formats-imports`, was already removed.
+The adoption was additive, not a swap. Two rules have since been dropped as genuinely obsolete:
+`type-formats-imports`, and `pure-functions` (see below). What remains — `strong-typed-routes`,
+`no-vite-client`, `no-unreachable-union-types`, `no-mixed-union-properties` — has no upstream
+equivalent.
+
+### Correction: `pure-functions` was a duplicate, and is gone
+
+This file used to record that *"mion's `pure-functions` covers the runtime `registerMionPureFn` lane
+that the upstream marker-based rule does not scan"*. That was true and still did not justify the
+rule:
+
+- Its 8 message ids mapped **1:1** onto upstream diagnostics — PFE9006-9011 (this / await / yield /
+  dynamic import / forbidden global / closure) and PFN001-002 — i.e. it was a hand-written
+  reimplementation of the `@ts-runtypes` purity checker.
+- `runtypes/pure-functions` was **already enabled** through `tsRuntypesESLint.configs.recommended`,
+  so both ran and double-reported on every `serverMapFrom`.
+- The lane it uniquely covered did not need covering: `registerMionPureFn` registered a runtime
+  factory with `bodyHash: ''` and `code: ''` that was never extracted, compiled or shipped. Purity
+  was never a correctness requirement there. (That API is now gone entirely — see
+  [../done/pure-fns-out-of-mion-server-mappers.md](../done/pure-fns-out-of-mion-server-mappers.md).)
+
+Removed along with `purityRules.ts` and its fixtures. Item 1 below should now cover
+`runtypes/pure-functions` when deciding severities.

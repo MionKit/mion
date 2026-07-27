@@ -41,6 +41,7 @@ export * from './src/errors.ts';
 export * from './src/routerUtils.ts';
 export * from './src/utils.ts';
 export * from './src/headers.ts';
-// mion <-> ts-runtypes adapter + pure-fn registry (folded in from the removed @mionjs/run-types)
+// mion <-> ts-runtypes adapter (marker payloads -> the reflection shapes the router consumes)
 export * from './src/runtypes/mionAdapter.ts';
-export * from './src/runtypes/mionPureFns.ts';
+// routesFlow server-mapper transport + its wire-lookup security gate
+export * from './src/runtypes/serverMappers.ts';

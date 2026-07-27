@@ -6,7 +6,9 @@
  * ######## */
 
 import {TSESTree, TSESLint, AST_NODE_TYPES} from '@typescript-eslint/utils';
-import {PURE_FN_SOURCE_PACKAGES} from '../../pureFns/purityRules.ts';
+
+/** The only module that exports serverMapFrom, the sole call this rule tracks. */
+const SERVER_MAP_FROM_MODULE = '@mionjs/client';
 
 type MessageIds = 'missingMapFromName' | 'nameNotStringLiteral';
 
@@ -34,8 +36,7 @@ const rule: TSESLint.RuleModule<MessageIds, []> = {
                 pureFnNames = new Map();
                 for (const statement of node.body) {
                     if (statement.type !== AST_NODE_TYPES.ImportDeclaration) continue;
-                    const source = statement.source.value;
-                    if (!PURE_FN_SOURCE_PACKAGES.includes(source as (typeof PURE_FN_SOURCE_PACKAGES)[number])) continue;
+                    if (statement.source.value !== SERVER_MAP_FROM_MODULE) continue;
 
                     for (const specifier of statement.specifiers) {
                         if (

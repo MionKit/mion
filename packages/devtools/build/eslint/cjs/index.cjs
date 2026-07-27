@@ -3,7 +3,6 @@ const src_eslint_rules_strongTypedRoutes = require("./src/eslint/rules/strong-ty
 const src_eslint_rules_noUnreachableUnionTypes = require("./src/eslint/rules/no-unreachable-union-types.cjs");
 const src_eslint_rules_noMixedUnionProperties = require("./src/eslint/rules/no-mixed-union-properties.cjs");
 const src_eslint_rules_noTypeImports = require("./src/eslint/rules/no-type-imports.cjs");
-const src_eslint_rules_pureFunctions = require("./src/eslint/rules/pure-functions.cjs");
 const src_eslint_rules_noViteClient = require("./src/eslint/rules/no-vite-client.cjs");
 const src_eslint_rules_enforceTypeImports = require("./src/eslint/rules/enforce-type-imports.cjs");
 const plugin = {
@@ -12,7 +11,6 @@ const plugin = {
     "no-unreachable-union-types": src_eslint_rules_noUnreachableUnionTypes,
     "no-mixed-union-properties": src_eslint_rules_noMixedUnionProperties,
     "no-type-imports": src_eslint_rules_noTypeImports,
-    "pure-functions": src_eslint_rules_pureFunctions,
     "no-vite-client": src_eslint_rules_noViteClient,
     "enforce-type-imports": src_eslint_rules_enforceTypeImports
   },
@@ -25,8 +23,7 @@ plugin.configs.recommended = {
   rules: {
     "@mionjs/strong-typed-routes": "error",
     "@mionjs/no-unreachable-union-types": "error",
-    "@mionjs/no-type-imports": "error",
-    "@mionjs/pure-functions": "error"
+    "@mionjs/no-type-imports": "error"
     // disabled as seems is not too useful and overlaps with some ts rules
     // '@mionjs/no-mixed-union-properties': 'warn',
   }
