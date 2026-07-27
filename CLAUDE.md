@@ -111,15 +111,19 @@ import {TypeFormatParams, Brand} from '@mionjs/core';
 
 ## Docs & follow-up tracking (`docs/`)
 
-mion's dev docs live under [`docs/`](docs/), following the SAME layout as the sibling
-`ts-run-types` repo. **Every doc is an ISSUE/RECORD spec that lives in one of the three
-subdirs — nothing loose in `docs/` itself:**
+mion's dev docs live under [`docs/`](docs/). **Every doc is an ISSUE/RECORD spec that lives in
+one of the two subdirs — nothing loose in `docs/` itself:**
 
 - [`docs/todos/`](docs/todos/) — open follow-ups (one spec file per issue).
 - [`docs/done/`](docs/done/) — implemented follow-ups + completed-work records (e.g. the whole
   run-types → `@ts-runtypes/*` migration record — see
   [`docs/done/migration-overview.md`](docs/done/migration-overview.md)).
-- [`docs/partially/`](docs/partially/) — specs whose fix only partially shipped.
+
+**There is NO "partially" state — a spec is either done or open.** Work that only partly shipped
+gets SPLIT: the shipped part becomes a `done/` record, and each unshipped part becomes its own
+`todos/` spec carrying the context needed to act on it (what was decided, what was measured, why
+it was deferred). A half-finished doc hides open work behind a "done-ish" label; two honest docs
+do not. Cross-link the pair so neither loses the other's context.
 
 **Spec format (match exactly):** `# Title` + `**Status:**` + `**Created:**` + evidence + a
 concrete fix plan. Use kebab-case filenames.
@@ -134,9 +138,15 @@ concrete fix plan. Use kebab-case filenames.
   only in chat, and never silently widen your task to fix it without asking.
 - **When a change implements a [`docs/todos/`](docs/todos/) spec, `git mv` it into
   [`docs/done/`](docs/done/)** and update it to match what shipped (set `**Status:** done`, note
-  the commit/PR). If only part shipped, `git mv` it into [`docs/partially/`](docs/partially/) and
-  record what landed vs what is left.
-- **Never leave a spec loose in `docs/` root** — it belongs in `todos/`, `done/`, or `partially/`.
+  the commit/PR).
+- **If only part shipped, SPLIT it — never park it in a half-done state.** `git mv` the spec into
+  [`docs/done/`](docs/done/), trim it to what actually landed, and file each remaining piece as its
+  own [`docs/todos/`](docs/todos/) spec with the context to act on it. Link both ways.
+- **Prefer finishing over splitting.** A split is for work that is genuinely separable or blocked
+  on a decision — not a way to bank partial credit. If the remainder is small, finish it; if it
+  needs a call you cannot make (public API, security posture, perf trade-off), **surface it to the
+  user and agree what is required** rather than filing a todo and moving on.
+- **Never leave a spec loose in `docs/` root** — it belongs in `todos/` or `done/`.
 
 ## Documentation Website
 
