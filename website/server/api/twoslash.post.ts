@@ -189,7 +189,7 @@ function loadMionPackageTypes(): Map<string, string> {
     if (dtsFiles.length === 0) continue
 
     // Synthetic package.json so TS's Node resolver finds `index.d.ts` (and subpath
-    // exports like `@mionjs/type-formats/StringFormats`) for bare imports in examples.
+    // exports like `@ts-runtypes/core/formats`) for bare imports in examples.
     fsMap.set(
       `/node_modules/@mionjs/${pkg.name}/package.json`,
       JSON.stringify({ name: `@mionjs/${pkg.name}`, types: 'index.d.ts', main: 'index.d.ts' }),
@@ -336,7 +336,7 @@ export default defineEventHandler(async (event) => {
         fsMap,
         compilerOptions: {
           // Node module resolution so TS resolves .d.ts files (and subpath
-          // exports like @mionjs/type-formats/StringFormats) for bare imports
+          // exports like @ts-runtypes/core/formats) for bare imports
           // out of the VFS. Bundler resolution doesn't resolve .d.ts re-exports.
           target: 99, // ESNext
           module: 99, // ESNext
