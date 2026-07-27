@@ -25,8 +25,8 @@ are discrete, non-blocking follow-ups tracked under [`../todos/`](../todos/).
 
 ## Open follow-ups (`../todos/`)
 
-- [examples + website refresh](../todos/examples-and-website-refresh.md)
-- [failOnError adapter pure-fn scanning](../todos/failonerror-adapter-pure-fn-scanning.md)
+- [examples + website refresh](examples-and-website-refresh.md)
+- [failOnError adapter pure-fn scanning](failonerror-adapter-pure-fn-scanning.md)
 
 Landed: [JIT_FUNCTION_IDS version pinning](jit-function-ids-version-pinning.md) — resolved by the
 0.9.3 `getFnHash` derivation (moved to `../done/`).

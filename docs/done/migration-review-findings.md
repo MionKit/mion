@@ -45,14 +45,14 @@ RECORD — the open work lives in the linked specs, not here.
 **Filed as follow-up specs:**
 
 - **R35** (+ R33 fail-loud/doc, R34 paramNames arity, R17 client-side strict) →
-  [old-engine-leftover-sweep.md](../todos/old-engine-leftover-sweep.md) and
-  [review-hardening-followups.md](../todos/review-hardening-followups.md).
+  [old-engine-leftover-sweep.md](old-engine-leftover-sweep.md) and
+  [review-hardening-followups.md](review-hardening-followups.md).
 - **R20** (getFriendlyErrors verification + Brand story decision) →
-  [engine-consumer-verification.md](../todos/engine-consumer-verification.md).
+  [engine-consumer-verification.md](engine-consumer-verification.md).
 - **R2** (bun lane port) → [platform-bun-runtypes-lane.md](../todos/platform-bun-runtypes-lane.md).
 
 **Documentation wave** (R4 file lists + R5/R6/R10–R16/R19/R21–R29/R36 notes) → folded into
-[examples-and-website-refresh.md](../todos/examples-and-website-refresh.md).
+[examples-and-website-refresh.md](examples-and-website-refresh.md).
 
 **Statements / accepted by design (no action beyond docs):** R5, R6, R10–R14, R16, R19,
 R21–R26, R28 (re-add decision left to the docs wave), R29, R36; upstream candidates (R22,
@@ -170,7 +170,7 @@ shapes and was left unadapted.
 
 ### R4 [blocker-adjacent] `packages/examples` is broken well beyond the tracked todo
 
-- [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md) lists 9 files; the
+- [examples-and-website-refresh.md](examples-and-website-refresh.md) lists 9 files; the
   real count is higher. Additional files needing a **port to the new API**:
   `binary-serialization.ts`, `serialization-any.ts` (removed `create*Fn` factories),
   `codegen/vite-vitest-global-setup.ts` (documents the `await serverReady` pattern that
@@ -630,7 +630,7 @@ top). The defect is therefore every reference LEFT BEHIND. Full sweep (`grep -ri
   `experimentalDecorators` — deepkit-era flags (verify nothing reads `reflection` before
   deleting; ts-runtypes does not).
 
-**Examples / website (fold into R4 / [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md)):**
+**Examples / website (fold into R4 / [examples-and-website-refresh.md](examples-and-website-refresh.md)):**
 
 - `examples/src/codegen/aot-*.ts` (5 files), `vite-client-ipc.config.ts`,
   `client-no-vite.ts` (imports `aot-routes-example.ts`),
@@ -695,7 +695,7 @@ the 2026-07-20 decision, R6):**
 - Website: `4.run-types/2.type-formats.md` (brand-mapping table references removed
   `FormatUrlSocialMedia`, old param shapes) and every run-types docs page still on the
   old API — tracked in
-  [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md).
+  [examples-and-website-refresh.md](examples-and-website-refresh.md).
 
 **Other stale items (same cleanup sweep):**
 
@@ -762,7 +762,7 @@ types); `HeadersSubset` semantics incl. `headersReturn` unions; `hasReturnData`
    R7 (`runTypeOptions` removal), R8 (option warnings + barrel exports), R17 (client-side
    strict check), R18 (dead registries), R30 (fail-closed markers), R32 (inline manifest
    entries).
-3. **Documentation wave** (extends [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md)):
+3. **Documentation wave** (extends [examples-and-website-refresh.md](examples-and-website-refresh.md)):
    R4, R5 (accepted typing — migration note), R6 moved-API notes, R10–R14 old→new
    mapping notes, R15 lockstep-upgrade note, R16 vocabulary, R21 format-error changes,
    R23 (`createCloneExactShape` mapping), R24, R26–R29, R36.

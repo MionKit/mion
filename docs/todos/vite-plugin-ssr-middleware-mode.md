@@ -60,7 +60,7 @@ silently untransformed). A restored SSR/middleware story should re-add these tog
    dedupe-fail, and the `.vue?vue&type=script` SFC transform (R28) so Nuxt/Vue typed code compiles.
 4. Cross-check the platform adapters: `httpRequestHandler` must open no port / need no compile env
    in middleware mode (the old `isMionCompileMode()` `listen()` skips are being removed in the
-   leftover sweep — see [../partially/old-engine-leftover-sweep.md](../partially/old-engine-leftover-sweep.md)).
+   leftover sweep — see [../done/old-engine-leftover-sweep.md](../done/old-engine-leftover-sweep.md)).
 5. Docs: the website `5.devtools/3.vite-config.md` "Client + Server" section currently presents
    `childProcess` as the fullstack answer; once `middleware` lands, document **in-process middleware
    as the primary Nuxt/SSR/fullstack path** and `childProcess` as the separate-process/e2e alternative.

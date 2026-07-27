@@ -27,7 +27,7 @@ fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens tha
   engine shape drift now fails this spec (the type-formats `*.runtype.spec.ts` suite pins the scalar
   format shapes independently).
 - Found + filed a pre-existing quirk: friendly field messages nest under the positional param index
-  (`friendly[0].name`), see [friendly-errors-positional-nesting.md](../todos/friendly-errors-positional-nesting.md).
+  (`friendly[0].name`), see [friendly-errors-positional-nesting.md](friendly-errors-positional-nesting.md).
 
 **Brands — decision (b, gated): KEEP as nominal helpers, drop the false auto-derivation claim:**
 
@@ -35,6 +35,6 @@ fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens tha
   error-param types reference them — so the types stay.
 - `formatBrands.types.ts` now carries an advisory docblock: Formats do NOT carry these brands
   automatically (`BrandName = never` upstream); brand explicitly when narrowing.
-- The website contract text change rides [examples-and-website-refresh.md](../todos/examples-and-website-refresh.md);
+- The website contract text change rides [examples-and-website-refresh.md](examples-and-website-refresh.md);
   the upstream "Formats carry a real BrandName" follow-up is split out to
   [formats-brandname-upstream.md](../todos/formats-brandname-upstream.md).

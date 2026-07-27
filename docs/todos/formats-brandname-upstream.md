@@ -1,6 +1,6 @@
 # Formats carrying a real BrandName (upstream ts-runtypes follow-up)
 
-**Status:** todo — split out of R20 ([engine-consumer-verification.md](engine-consumer-verification.md)) while adopting the Brand decision.
+**Status:** todo — split out of R20 ([engine-consumer-verification.md](../done/engine-consumer-verification.md)) while adopting the Brand decision.
 **Created:** 2026-07-21
 
 ## Problem
@@ -23,7 +23,7 @@ Format-assignability:
 The false "Formats are automatically these brands" claim was removed from the `formatBrands.types.ts`
 docblock (advisory note added) and must be removed from the website
 (`website/content/4.run-types/2.type-formats.md`, rides
-[examples-and-website-refresh.md](examples-and-website-refresh.md)).
+[examples-and-website-refresh.md](../done/examples-and-website-refresh.md)).
 
 ## Fix plan (deferred, upstream-gated)
 

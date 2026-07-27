@@ -92,8 +92,10 @@ signature. `bodySerializer.ts` / `bodyDeserializer.ts` sit on top, exported from
 
 ## Related
 
-- `docs/partially/dewrapper-core-ts-runtypes-proxies.md` — the open call on whether
-  `setSerializationOptions` / `SerializationOptions` stay mion public API. That decision and this
-  review overlap: if mion keeps the option surface, it should probably expose all six knobs
-  (issue 5); if it drops it, consumers configure ts-runtypes directly and issues 3/5 move
-  upstream.
+- [../done/dewrapper-core-ts-runtypes-proxies.md](../done/dewrapper-core-ts-runtypes-proxies.md)
+  — the de-wrappering is finished except for ONE deliberate public-API call, which **this spec now
+  owns**: whether `setSerializationOptions` / `SerializationOptions` stay mion public API.
+  It overlaps with the review directly: if mion keeps the option surface it should probably expose
+  all six knobs (issue 5); if it drops it, consumers configure `@ts-runtypes/core` directly and
+  issues 3/5 move upstream. Either way `src/binary/dataView.ts` is the file that changes, so decide
+  it as part of this investigation rather than separately.
