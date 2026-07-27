@@ -756,4 +756,80 @@ describe('RoutesFlow routes', () => {
             ).rejects.toThrow(/Mapping pure function 'mionjs::doesNotExist' not found/);
         });
     });
+
+    // ############# query shape / paramIndex (security) #############
+    // The whole RoutesFlowQuery arrives in the URL query string and used to cross the boundary as a
+    // bare cast. `paramIndex` in particular was written straight into an array —
+    // `params[mapping.paramIndex] = value` — so a string sailed through the `number` type and became
+    // a plain property write. Shape is now established once on decode; the arity bound needs the
+    // target route, so it lands while the chain is built. Either way, nothing runs.
+    describe('routesFlow rejects a malformed query before anything executes', () => {
+        const source = route((ctx): {id: number} => ({id: 7}));
+        const target = route((ctx, id: number | null): number => (id ?? -1) * 10);
+        const mapperRoutes = {source, target} satisfies Routes;
+
+        const dispatchQuery = (query: unknown) => {
+            const request = getDefaultRequest({source: [], target: [null]});
+            return dispatchRoute(
+                WORKFLOW_PATH,
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                undefined,
+                undefined,
+                `data=${toBase64Url(JSON.stringify(query))}`
+            );
+        };
+
+        const withParamIndex = (paramIndex: unknown) => ({
+            routes: ['/source', '/target'],
+            mappings: [{fromId: 'source', toId: 'target', bodyHash: 'mionjs::toId', paramIndex}],
+        });
+
+        beforeEach(async () => {
+            await initRouter();
+            await registerRoutes(mapperRoutes);
+        });
+
+        // the values that turn an array index into an arbitrary property write
+        it.each([
+            ['__proto__', 'prototype pollution'],
+            ['length', 'array truncation'],
+            ['0', 'a numeric string is still a string'],
+        ])('rejects a string paramIndex (%s — %s)', async (paramIndex) => {
+            await expect(dispatchQuery(withParamIndex(paramIndex))).rejects.toThrow(/paramIndex.*must be a non-negative integer/);
+        });
+
+        it.each([-1, 1.5, NaN])('rejects a non-index number paramIndex (%s)', async (paramIndex) => {
+            // NaN does not survive JSON, so it arrives as null — still not a valid index
+            await expect(dispatchQuery(withParamIndex(paramIndex))).rejects.toThrow(/paramIndex.*must be a non-negative integer/);
+        });
+
+        it('rejects a paramIndex past the target route arity', async () => {
+            // structurally fine, semantically impossible: target takes 1 param, so 999 would write
+            // 998 empty slots into the params array
+            await expect(dispatchQuery(withParamIndex(999))).rejects.toThrow(
+                /paramIndex 999 is out of range for target route 'target', which takes 1 parameter/
+            );
+        });
+
+        it.each([
+            [{routes: 'not-an-array'}, /`routes` must be an array of strings/],
+            [{routes: [1, 2]}, /`routes` must be an array of strings/],
+            [{routes: ['/source'], mappings: 'nope'}, /`mappings` must be an array/],
+            [{routes: ['/source'], mappings: ['nope']}, /every mapping must be an object/],
+            [
+                {routes: ['/source', '/target'], mappings: [{fromId: 1, toId: 'target', bodyHash: 'x', paramIndex: 0}]},
+                /must be strings/,
+            ],
+        ])('rejects a structurally invalid query (%#)', async (query, expected) => {
+            await expect(dispatchQuery(query)).rejects.toThrow(expected);
+        });
+
+        it('reports a shape problem as a shape problem, not a parse failure', async () => {
+            // the check runs outside decode's try/catch, so its error is not swallowed and relabelled
+            await expect(dispatchQuery(withParamIndex('__proto__'))).rejects.toThrow(/RoutesFlow query is malformed/);
+        });
+    });
 });
