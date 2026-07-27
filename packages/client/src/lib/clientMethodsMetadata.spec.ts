@@ -144,6 +144,8 @@ describe('fetchRemoteMethodsMetadata', () => {
         const parsed = JSON.parse(stored!);
         expect(parsed.id).toBe('sayHello');
         expect(parsed.paramsCount).toBeDefined();
+        // param NAMES survive the wire round-trip, so a client can name the parameter that failed
+        expect(parsed.paramNames).toBeDefined();
     });
 
     it('should throw for non-existent routes', async () => {
