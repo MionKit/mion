@@ -46,12 +46,12 @@ rules only if a genuine failure mode remains. If they go, update CLAUDE.md in th
 ## 4. Website rule-set documentation
 
 `website/content/5.devtools/2.eslint-rules.md` documents only mion's own rules — it has **zero**
-mentions of `runtypes/*`. It also still documents the removed `type-formats-imports` rule.
+mentions of `runtypes/*`.
 
-Document the combined set (mion-specific + the upstream `runtypes/*` family) with whatever
-severity policy item 1 lands on. The removed-rule section and its example fixtures ride
-[website-stale-package-references.md](website-stale-package-references.md), which covers the same
-file — **do them together** to avoid two passes over one page.
+The removed `type-formats-imports` rule has since been stripped from that page (see
+[website-stale-package-references.md](../done/website-stale-package-references.md)), so what is left
+is purely additive: document the upstream `runtypes/*` family alongside mion's own rules, at
+whatever severities item 1 lands on.
 
 ## Context
 

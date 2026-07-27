@@ -377,19 +377,3 @@ function enhancePureServerFn(fn: (x: number) => number) {
 function wrapFactory(factory: () => (x: number) => number) {
     registerPureFnFactory('ns', 'dynamicFactory', factory); // ❌ Error: argument "factory" could not be resolved
 }
-
-// ========================================
-// Rule: @mionjs/type-formats-imports
-// ========================================
-
-// ✅ VALID: Regular imports preserve type metadata for runtime reflection
-import {Email, Url} from '@ts-runtypes/core/formats';
-import {Number, Integer} from '@ts-runtypes/core/formats';
-import {BigInt} from '@ts-runtypes/core/formats';
-import {TypeFormat} from '@ts-runtypes/core';
-
-// ❌ INVALID: Type-only imports strip metadata, causing silent validation failures
-import type {StringTime, StringDate} from '@ts-runtypes/core/formats';
-import type {Float} from '@ts-runtypes/core/formats';
-import {type BigInt64} from '@ts-runtypes/core/formats';
-import type {TypeFormat as TF} from '@ts-runtypes/core';

@@ -37,6 +37,6 @@ deepkit / `mion-build-aot` APIs.
   `@mionjs/type-formats` were deleted, leaving a second round of website drift (deleted-package
   references, old `Format*` names, the removed `type-formats-imports` rule and its fixtures).
   Tracked with verified file counts in
-  [../todos/website-stale-package-references.md](../todos/website-stale-package-references.md).
+  [website-stale-package-references.md](website-stale-package-references.md).
 - **Friendly-errors docs** ride
   [../todos/friendlyerrors-to-friendlytext-feasibility.md](friendlyerrors-to-friendlytext-feasibility.md).

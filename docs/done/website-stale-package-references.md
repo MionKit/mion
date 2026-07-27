@@ -1,6 +1,6 @@
 # Website + examples still reference DELETED packages and removed APIs
 
-**Status:** todo
+**Status:** done — swept in PR #128
 **Created:** 2026-07-27 (split out of the retired `docs/partially/`; the PR #125 refresh itself
 shipped — see [../done/examples-and-website-refresh.md](../done/examples-and-website-refresh.md))
 
@@ -27,7 +27,40 @@ Plus the three example fixtures that existed only for that removed rule, still p
 **Why it matters:** a reader following the install or import instructions today gets a package
 that 404s on npm. This is the most user-visible drift left from the migration.
 
-## Fix plan
+## What shipped
+
+All four reference classes are gone from source; acceptance counts re-run and zero.
+
+- **Format names** — all 39 stale `Format*` identifiers renamed to the `@ts-runtypes/core/formats`
+  names across 13 website files. Mostly a mechanical `Format<X>` -> `<X>`, with three judgement
+  calls: `FormatUUID` -> `UUIDv4` (upstream `UUIDv4` is the type carrying format name `'uuid'`),
+  `FormatUUIDv7` -> `UUIDv7`, and **`FormatUrlSocialMedia` DROPPED** — it has no upstream
+  equivalent at all, so it was removed from the brand table rather than renamed to a name that
+  does not exist.
+- **Package references** — `@mionjs/type-formats` (incl. the `/StringFormats`, `/NumberFormats`
+  category subpaths, which collapse onto the single `./formats` entry point) and
+  `@mionjs/run-types` are gone. Prose that described the engine now names `@ts-runtypes/core`;
+  `registerMionPureFn` is documented as coming from `@mionjs/core`, matching how the examples and
+  test-server actually import it.
+- **Removed lint rule** — the `type-formats-imports` section, its summary-table row and its
+  config-example entry are deleted from `5.devtools/2.eslint-rules.md`, along with the two example
+  fixtures. The retired rule's demo block was also removed from
+  `packages/router/examples/eslint-rule-test.routes.ts` — that file was KEPT, since it covers the
+  router rules generally, not just the removed one.
+- **Friendly-errors pages** swept with the rest (they were wrongly excluded before).
+- One stale JSDoc in `packages/core/src/types/formats/formats.types.ts` also fixed. The note in
+  `packages/core/index.ts` naming the *removed* `@mionjs/run-types` is deliberate history and was
+  left alone, as were generated `build/*.js.map` artifacts.
+
+Verified: 718 tests / 46 files, cold lint green across 13 projects, format clean.
+
+## What did NOT ship
+
+Item 5 (the CI lane that would stop this drift recurring) is unchanged — it still depends on
+[examples-precompile-debt.md](../todos/examples-precompile-debt.md). A cheaper, narrower check is now
+proposed in [broken-code-import-paths.md](../todos/broken-code-import-paths.md).
+
+## Original fix plan
 
 1. **Format names** — switch samples/imports to the `@ts-runtypes/core/formats` names
    (`Email` / `Integer` / `UUIDv4` / …) across
@@ -40,7 +73,7 @@ that 404s on npm. This is the most user-visible drift left from the migration.
 3. **Removed lint rule** — delete the `type-formats-imports` section from
    `website/content/5.devtools/2.eslint-rules.md`, and delete or repoint the three fixtures above.
    ⚠️ That page also needs the `runtypes/*` rule set documented
-   ([eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md) item 4) — **do both in one
+   ([eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md) item 4) — **do both in one
    pass** rather than editing the page twice.
 4. **Friendly-errors pages ARE in scope.** The FriendlyText swap itself shipped
    ([friendlyerrors-to-friendlytext-feasibility.md](../done/friendlyerrors-to-friendlytext-feasibility.md)),
@@ -52,7 +85,7 @@ that 404s on npm. This is the most user-visible drift left from the migration.
 5. **Stop the drift** — wire an examples typecheck lane into CI so "the examples compile" is
    enforced rather than promised. A `check-types` script + `tsconfig.check.json` already exist but
    are NOT a gate; the pre-existing debt blocking that gate is tracked in
-   [examples-precompile-debt.md](examples-precompile-debt.md). Land that first, then turn this on.
+   [examples-precompile-debt.md](../todos/examples-precompile-debt.md). Land that first, then turn this on.
 
 ## Acceptance
 
