@@ -12,12 +12,18 @@ export type DatabaseType = 'postgres' | 'mysql' | 'sqlite';
 
 // ############### Brand Name Utilities ###############
 
-/** The brand vocabulary drizzle maps onto DB columns. Owned by @mionjs/drizzle: mion supplies
- * no default brands (its Brand* aliases were deleted along with the rest of its type-format
- * surface — formats belong to @ts-runtypes) and @ts-runtypes has no equivalent, so this list is
- * the single source of truth. It is the shared key set for the per-database BrandColumnMap types:
- * adding a name here trips the compile-time completeness guards in every dialect that has not
- * been updated. See docs/todos/drizzle-owns-brand-vocabulary.md. */
+/** The brand vocabulary drizzle maps onto DB columns, and the shared key set for the per-database
+ * BrandColumnMap types. Owned by @mionjs/drizzle: mion supplies no default brands (its Brand*
+ * aliases were deleted along with the rest of its type-format surface — formats belong to
+ * @ts-runtypes) and @ts-runtypes has no equivalent.
+ *
+ * ⚠️ This whole lane is DEAD and should be replaced, not maintained — see
+ * docs/todos/drizzle-column-mapping-on-type-formats.md. The `*ColumnType` types that consume these
+ * maps match on a `{brand: string}` property that nothing produces any more, so every format-typed
+ * property falls through to a primitive column and the type lane disagrees with the runtime mapper
+ * (`email: Email` types as text, runtime emits varchar(254)). The `_Missing*` / `_Extra*` aliases
+ * do not catch it either: they compute a type and never assert on it. The fix is to key on
+ * upstream's FormatName + __rtFormatParams instead of on brands. */
 export type AllBrandNames =
     | 'email'
     | 'uuid'
