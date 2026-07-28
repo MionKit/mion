@@ -35,6 +35,7 @@ fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens tha
   error-param types reference them — so the types stay.
 - `formatBrands.types.ts` now carries an advisory docblock: Formats do NOT carry these brands
   automatically (`BrandName = never` upstream); brand explicitly when narrowing.
-- The website contract text change rides [examples-and-website-refresh.md](examples-and-website-refresh.md);
-  the upstream "Formats carry a real BrandName" follow-up is split out to
-  [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md), which supersedes it.
+- The website contract text change rides [examples-and-website-refresh.md](examples-and-website-refresh.md).
+  The "Formats should carry a real BrandName" follow-up recorded here is moot: mion's brands are gone,
+  and drizzle — the only consumer — should key on format names instead, which needs no upstream change.
+  See [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md).

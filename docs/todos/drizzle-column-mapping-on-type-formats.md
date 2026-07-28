@@ -3,8 +3,6 @@
 **Status:** todo
 **Type:** bug (live type/runtime divergence) + refactor
 **Created:** 2026-07-28
-**Supersedes:** `drizzle-owns-brand-vocabulary.md` and `formats-brandname-upstream.md` — both were
-symptoms of the same thing, see below.
 
 ## TL;DR
 
@@ -13,20 +11,15 @@ symptoms of the same thing, see below.
 any more** — so it is dead, and every format-typed property silently falls through to a primitive
 column. `email: Email` types as `text` while the runtime emits `varchar(254)`.
 
-Both superseded todos existed only to prop up that brand lane. Keying the type lane on
-`__rtFormatName` instead deletes the lane, deletes both todos, and makes the two lanes agree for the
-first time.
+Keying the type lane on `__rtFormatName` instead deletes the brand lane entirely and makes the two
+lanes agree for the first time.
 
-## Why the two old todos were one issue
-
-| Old todo | What it asked for | Why it dissolves |
-|---|---|---|
-| `drizzle-owns-brand-vocabulary.md` | `AllBrandNames` is a hand-maintained list anchored to nothing — derive it from a real source of truth | Keying on `FormatName` **is** that source of truth: upstream-generated, not hand-written |
-| `formats-brandname-upstream.md` | Upstream formats carry `BrandName = never`, so a `Format` is not assignable to a `Brand` — ask upstream to give built-ins real brands | Only needed if drizzle matches on brands. It should not. No upstream change required. |
-
-You were right that these are the same issue: drizzle wanted a **nominal type-level marker**, brands
-were the only thing that provided one, and everything else followed from that. Formats already carry
-the marker drizzle actually needs — a *name*, not a nominal identity.
+The brand vocabulary only ever existed because drizzle wanted a **nominal type-level marker**, and
+brands were the only thing that provided one. Everything else followed from that: a hand-maintained
+`AllBrandNames` list anchored to nothing, and a standing wish for upstream to stamp real brand names
+onto built-in formats. Neither is needed. Formats already carry the marker drizzle actually needs —
+a *name*, not a nominal identity — and `FormatName` is upstream-generated, so it anchors the list for
+free. No upstream change required.
 
 ## The bug (verified with `tsc`, not reasoned)
 
