@@ -92,6 +92,10 @@ const transformviewHtml = ref('<div class="rtpg-placeholder">resolving…</div>'
 const codeviewHtml = ref('<div class="rtpg-placeholder">resolving…</div>');
 const genRandomBusy = ref(false);
 const genInvalidBusy = ref(false);
+// Which generator the sample input last came from, so a type edit refreshes it
+// with the same intent: a deliberately invalid value stays invalid against the
+// new type instead of silently turning valid.
+const lastMockKind = ref<'valid' | 'invalid'>('valid');
 
 const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
@@ -135,6 +139,16 @@ let bodyModel: TextModel | null = null;
 let footerModel: TextModel | null = null;
 let codeTimer: ReturnType<typeof setTimeout> | null = null;
 let codeSeq = 0;
+let mockTimer: ReturnType<typeof setTimeout> | null = null;
+let mockSeq = 0;
+// True while a programmatic setValue rewrites the type editor (preset load, mode
+// switch). Those paths bring their own matching input, so only USER edits of the
+// type resync the sample value.
+let writingTypeSource = false;
+// Set when a type edit lands while the current function reads no input
+// (getRunType): nothing to regenerate now, but the value is stale for the next
+// function that does read it.
+let inputStale = false;
 
 const headerEditorEl = ref<HTMLElement>();
 const editorEl = ref<HTMLElement>();
@@ -375,6 +389,19 @@ function typeSource(): string {
   return typeEditor?.getValue() ?? '';
 }
 
+// Programmatic writes to the type editor. Monaco fires onDidChangeModelContent
+// synchronously from setValue, so the flag is enough to tell "the app replaced
+// the snippet" (preset / mode switch, which carry their own input) apart from
+// "the user is editing" (which must resync the input).
+function setTypeSource(value: string): void {
+  writingTypeSource = true;
+  try {
+    typeEditor?.setValue(value);
+  } finally {
+    writingTypeSource = false;
+  }
+}
+
 // ---- presets + mode ---------------------------------------------------------
 
 function currentPreset(): Preset {
@@ -384,8 +411,12 @@ function currentPreset(): Preset {
 function loadPreset(index: number): void {
   presetIndex.value = index;
   const preset = currentPreset();
-  typeEditor?.setValue(mode.value === 'schema' ? preset.schema : preset.ts);
+  setTypeSource(mode.value === 'schema' ? preset.schema : preset.ts);
   inputEditor?.setValue(preset.input);
+  // The preset ships a valid value for its own type, so that is the intent a
+  // later type edit should reproduce.
+  lastMockKind.value = 'valid';
+  inputStale = false;
   updateLineNumberOffsets();
   scheduleCodegen(PICK_DEBOUNCE_MS);
   resetResult();
@@ -397,7 +428,8 @@ function setMode(next: Mode): void {
   // Re-show the current preset in the new form so switching always yields a valid
   // snippet (custom edits in the other form are replaced).
   const preset = currentPreset();
-  typeEditor?.setValue(next === 'schema' ? preset.schema : preset.ts);
+  setTypeSource(next === 'schema' ? preset.schema : preset.ts);
+  // Both forms model the same type, so the input on screen still fits.
   // The call shape differs by mode (`createX<MyType>()` vs `createX(MyType)`).
   updateSurrounding();
   scheduleCodegen(PICK_DEBOUNCE_MS);
@@ -415,6 +447,8 @@ watch(operationKey, () => {
   updateSurrounding();
   resetResult();
   scheduleCodegen(PICK_DEBOUNCE_MS);
+  // Picking up a type edit that landed while the input pane was hidden.
+  if (inputStale) scheduleInputResync(PICK_DEBOUNCE_MS);
 });
 
 // Track the color mode so Monaco's own theme flips with the site.
@@ -437,11 +471,48 @@ async function generateInto(generator: () => Promise<{value: unknown}>, busy: Re
 }
 
 function generateMock(): Promise<void> {
+  lastMockKind.value = 'valid';
+  inputStale = false;
   return generateInto(() => mock(typeSource(), resolverOptions(), mode.value), genRandomBusy);
 }
 
 function generateInvalid(): Promise<void> {
+  lastMockKind.value = 'invalid';
+  inputStale = false;
   return generateInto(() => mockInvalid(typeSource(), resolverOptions(), mode.value), genInvalidBusy);
+}
+
+// scheduleInputResync refreshes the sample value after a type edit settles, so a
+// value left over from the PREVIOUS type can never be run against the new one —
+// the "I changed MyType, hit Run, and validate says false" trap. Deferred when
+// the selected function reads no input; the flag makes the next one that does
+// pick the refresh up.
+function scheduleInputResync(delay: number): void {
+  if (!needsInput.value) {
+    inputStale = true;
+    return;
+  }
+  inputStale = false;
+  if (mockTimer) clearTimeout(mockTimer);
+  mockTimer = setTimeout(() => void resyncInput(), delay);
+}
+
+// Silent by design: mid-edit the snippet often does not resolve yet, and that is
+// not a failure worth showing — the current value simply stays until the type
+// compiles again, and the next keystroke reschedules.
+async function resyncInput(): Promise<void> {
+  if (!ready.value) return;
+  const seq = ++mockSeq;
+  const userCode = typeSource();
+  const generate = lastMockKind.value === 'invalid' ? mockInvalid : mock;
+  try {
+    const {value} = await generate(userCode, resolverOptions(), mode.value);
+    if (seq !== mockSeq) return; // a newer edit owns the input now
+    inputEditor?.setValue(jsValue(value));
+    resetResult();
+  } catch {
+    /* type does not resolve yet — keep what is on screen */
+  }
 }
 
 async function doRun(): Promise<void> {
@@ -627,6 +698,7 @@ onMounted(async () => {
     typeEditor.onDidChangeModelContent(() => {
       updateLineNumberOffsets();
       scheduleCodegen(TYPE_DEBOUNCE_MS);
+      if (!writingTypeSource) scheduleInputResync(TYPE_DEBOUNCE_MS);
     });
     updateLineNumberOffsets();
     updateSurrounding();
@@ -655,6 +727,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (codeTimer) clearTimeout(codeTimer);
+  if (mockTimer) clearTimeout(mockTimer);
   headerEditor?.dispose();
   footerEditor?.dispose();
   typeEditor?.dispose();
