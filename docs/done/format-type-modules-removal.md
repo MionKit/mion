@@ -51,7 +51,7 @@ Format-typed **test fixtures** across router/client/test-server all import from
 types through `ExtractBrandName<T>` to recover the 20 brand *strings*. Replaced with a literal union
 of the same 20 names — zero runtime change, and the per-dialect completeness guards
 (`_Missing*Brands` / `_Extra*Brands` in `sqlite`/`mysql`/`postgres.types.ts`) still work. Follow-up
-recorded in [drizzle-owns-brand-vocabulary.md](../todos/drizzle-owns-brand-vocabulary.md).
+recorded in [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md).
 
 Two related fixes fell out while repointing `FormatName` at upstream:
 

@@ -54,10 +54,11 @@ unsound with nothing in CI to catch it.
 - [routesflow-query-validation.md](routesflow-query-validation.md) — an unvalidated
   attacker-supplied array index, same wire object as `bodyHash`. **Since fixed**: the whole
   `RoutesFlowQuery` is now validated on decode, plus an arity bound while the chain is built.
-- [drizzle-owns-brand-vocabulary.md](../todos/drizzle-owns-brand-vocabulary.md) — where the brand
-  list lives now that mion supplies none.
-- [formats-brandname-upstream.md](../todos/formats-brandname-upstream.md) — rewritten; its
-  "keep the Brand types" decision is reversed.
+- [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md) —
+  where the brand list lives now that mion supplies none. Both this and the old
+  `formats-brandname-upstream` request turned out to be one issue: drizzle should key its column
+  mapping on ts-runtypes **type formats**, not on brands. Its brand branch is already dead code, so
+  the type and runtime lanes disagree today.
 - [eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md) — its rationale for
   keeping mion's purity rule corrected.
 
