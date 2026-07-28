@@ -37,4 +37,4 @@ fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens tha
   automatically (`BrandName = never` upstream); brand explicitly when narrowing.
 - The website contract text change rides [examples-and-website-refresh.md](examples-and-website-refresh.md);
   the upstream "Formats carry a real BrandName" follow-up is split out to
-  [formats-brandname-upstream.md](../todos/formats-brandname-upstream.md).
+  [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md), which supersedes it.
