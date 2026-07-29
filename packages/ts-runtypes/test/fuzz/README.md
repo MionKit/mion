@@ -30,6 +30,7 @@ test/fuzz/
 ├── value/                       # fix the type, fuzz the VALUE           (O1–O7)
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
+├── jsonschema/                  # jsonSchema translation vs type-first    (JS-ID)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
@@ -163,6 +164,34 @@ resolver's own diagnostics, not guessed at generation time.
 - `*.smoke.test.ts` — one fix apiece: `indexSigDroppedProp` (G6),
   `mapSetUnionEnvelope` (G5), `unionStrippedSibling` (G3/G4), `nonDataMock`.
 
+### `jsonschema/` — jsonSchema translation vs type-first
+
+The convergence contract of the `ts-runtypes/json-schema` subpath, fuzzed:
+`jsonSchema({...})` must resolve to the SAME structural id as the hand-written
+type-first equivalent. Each iteration generates a wild type (typeGen),
+**normalizes** it into the JSON-Schema-expressible subset
+(`toSchemaExpressible` — inexpressible kinds are _replaced_, not dropped, so
+nesting survives: Map→Record, Set→Array, Promise→value, bigint→number,
+enum refs→literal unions, method props dropped, recursive interfaces→`$defs`),
+then renders that ONE normalized shape twice into a single fixture — a TS
+`type T = …` with `getRunTypeId<T>()` and a schema literal through a
+marker-contract wrapper typed against the REAL `FromJsonSchema` (the
+`jsonschema-extract` region sliced verbatim, so the fuzzed type can never
+drift from the shipped one). Both marker call shapes per fixture (static +
+value-inferred), same in-memory resolver as the type lane.
+
+- **JS-ID** (the one oracle): the two reflection sites resolve to equal ids.
+- `schemaRender.ts` — the normalizer + schema-literal renderer +
+  `hasSharedRecursiveContainer`, the documented guard for the KNOWN
+  shared-recursive-container divergence this lane found on its first batch
+  (docs/todos/json-schema-shared-recursive-container-id-divergence.md);
+  skipped fixtures are counted and reported, never silent.
+- `schemaRender.unit.test.ts` — pins the normalizer mappings, the 2020-12
+  spellings, and the guard's class boundary.
+- `jsonSchemaFuzz.integration.test.ts` — the batch/soak
+  (`RT_FUZZ_JSONSCHEMA_SOAK_MS`), with the same lazy `tsValidate`
+  false-positive gate as the type lane.
+
 ### `binary/` — binary size estimation & buffer growth
 
 Targets the binary encoder's cold-start size estimate and its dynamic buffer.
@@ -219,14 +248,14 @@ The `rtx` front door builds the binary first, then runs the suite:
 
 ```bash
 pnpm rtx core fuzz <suite> [--soak]
-#   suite ∈  unit | value | types | enrich | i18n | typemod | race | all
+#   suite ∈  unit | value | types | jsonschema | enrich | i18n | typemod | race | all
 #   --soak   swaps the fixed batch for the long soak knobs (see rt.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
   binary).
-- `value` / `types` / `enrich` / `i18n` / `typemod` each run one integration
-  file; `--soak` turns up its iteration/duration env.
+- `value` / `types` / `jsonschema` / `enrich` / `i18n` / `typemod` each run one
+  integration file; `--soak` turns up its iteration/duration env.
 - `race` is the only path that sets `RT_FUZZ_RACE=1`.
 - `all` is a quick trio (`fuzz.integration`, `typeFuzz.integration`,
   `binaryEncoderResize`).
@@ -271,6 +300,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `RT_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
 | `RT_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
 | `RT_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
+| `RT_FUZZ_JSONSCHEMA_SOAK_MS`                                                 | json-schema translation fuzz soak duration (ms)                         |
 | `RT_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
 | `RT_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
 | `RT_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
