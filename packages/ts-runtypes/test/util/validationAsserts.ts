@@ -53,8 +53,8 @@ function resolveThunk<T>(thunk: Thunk<T> | undefined): (() => T) | undefined {
  *  Invalid combos like 'validate/format' or 'mockType/schema' are not in the
  *  union — passing one is a TS error at the test-file call site. **/
 export type VariantKey =
-  | `validate/${'static' | 'reflect' | 'deserialize-static' | 'deserialize-reflect' | 'schema'}`
-  | `getValidationErrors/${'static' | 'reflect' | 'deserialize-static' | 'deserialize-reflect' | 'schema' | 'format'}`
+  | `validate/${'static' | 'reflect' | 'deserialize-static' | 'deserialize-reflect' | 'schema' | 'json-schema'}`
+  | `getValidationErrors/${'static' | 'reflect' | 'deserialize-static' | 'deserialize-reflect' | 'schema' | 'json-schema' | 'format'}`
   | `mockType/${'static' | 'reflect'}`
   | 'standardSchema';
 
@@ -74,6 +74,8 @@ function thunkFor(c: AssertableCase, key: VariantKey): Thunk<unknown> | undefine
       return c.deserializeValidateReflect;
     case 'validate/schema':
       return c.validateSchema;
+    case 'validate/json-schema':
+      return c.validateJsonSchema;
     case 'getValidationErrors/static':
       return c.getValidationErrors;
     case 'getValidationErrors/reflect':
@@ -84,6 +86,8 @@ function thunkFor(c: AssertableCase, key: VariantKey): Thunk<unknown> | undefine
       return c.deserializeGetValidationErrorsReflect;
     case 'getValidationErrors/schema':
       return c.getValidationErrorsSchema;
+    case 'getValidationErrors/json-schema':
+      return c.getValidationErrorsJsonSchema;
     case 'getValidationErrors/format':
       return c.getValidationErrors;
     case 'mockType/static':
@@ -222,6 +226,27 @@ export function assertValidateSchema(c: AssertableCase): void {
   });
 }
 
+/** JSON-Schema form: createValidateFn(jsonSchema({…})). Proves the schema-literal
+ *  authoring path resolves a validator that agrees with the type-first surface
+ *  on the same samples (the id-integrity driver additionally pins that both
+ *  resolve the SAME cached factory). **/
+export function assertValidateJsonSchema(c: AssertableCase): void {
+  const factory = resolveThunk(c.validateJsonSchema);
+  if (!factory) return;
+  if (c.factoryThrows) {
+    expect(() => factory(), `${c.title} [json-schema]: factory must throw`).toThrow();
+    return;
+  }
+  const {valid, invalid} = c.getSamples();
+  const validateJsonSchema = factory();
+  valid.forEach((v, i) => {
+    expect(validateJsonSchema(v), `${c.title} [json-schema]: valid[${i}] should pass`).toBe(true);
+  });
+  invalid.forEach((v, i) => {
+    expect(validateJsonSchema(v), `${c.title} [json-schema]: invalid[${i}] should fail`).toBe(false);
+  });
+}
+
 // =========================================================================
 // getValidationErrors family — 5 variants
 // =========================================================================
@@ -346,6 +371,30 @@ export function assertGetValidationErrorsSchema(c: AssertableCase): void {
   });
   invalid.forEach((v, i) => {
     expect(getErrSchema(v).length, `${c.title} [schema]: invalid[${i}] → at least one error`).toBeGreaterThan(0);
+  });
+}
+
+/** JSON-Schema form: createGetValidationErrorsFn(jsonSchema({…})). Same
+ *  contract-only epistemics as `assertGetValidationErrorsSchema`: where the
+ *  schema-recovered type carries format brands the bare type-first type
+ *  doesn't (a deliberately divergent case), error detail differs — so assert
+ *  the CONTRACT (valid → no errors; invalid → at least one) and let the
+ *  id-integrity driver prove exact equality for every convergent case (same
+ *  cached factory ⇒ identical errors by construction). **/
+export function assertGetValidationErrorsJsonSchema(c: AssertableCase): void {
+  const factory = resolveThunk(c.getValidationErrorsJsonSchema);
+  if (!factory) return;
+  if (c.factoryThrows) {
+    expect(() => factory(), `${c.title} [json-schema]: factory must throw`).toThrow();
+    return;
+  }
+  const {valid, invalid} = c.getSamples();
+  const getErrJsonSchema = factory();
+  valid.forEach((v, i) => {
+    expect(getErrJsonSchema(v), `${c.title} [json-schema]: valid[${i}] → no errors`).toEqual([]);
+  });
+  invalid.forEach((v, i) => {
+    expect(getErrJsonSchema(v).length, `${c.title} [json-schema]: invalid[${i}] → at least one error`).toBeGreaterThan(0);
   });
 }
 

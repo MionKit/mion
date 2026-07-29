@@ -60,6 +60,36 @@ export function assertValidatorIdIntegrity(c: ValidationCase): void {
   }
 }
 
+/** jsonSchema validator id-integrity: the jsonSchema-authored form
+ *  (`createValidateFn(jsonSchema({…}))`) and the type-first form must resolve
+ *  the SAME cached factory — the same `.toBe` mechanism as
+ *  `assertValidatorIdIntegrity`, applied to the THIRD authoring form. Skips
+ *  factoryThrows, jsonSchemaIdDivergent (the jsonSchema-specific divergence
+ *  set — NOT `idDivergent`, which describes the value-first form), and any case
+ *  whose jsonSchema thunk is pending / `'not-supported'`. **/
+export function assertJsonSchemaValidatorIdIntegrity(c: ValidationCase): void {
+  if (c.factoryThrows) return;
+  if (c.jsonSchemaIdDivergent) return;
+
+  const validate = resolveThunk(c.validate);
+  const validateJsonSchema = resolveThunk(c.validateJsonSchema);
+  if (validate && validateJsonSchema) {
+    expect(
+      validateJsonSchema(),
+      `${c.title}: validate — jsonSchema and type-first must resolve the SAME cached factory (same structural id)`
+    ).toBe(validate());
+  }
+
+  const getValidationErrors = resolveThunk(c.getValidationErrors);
+  const getValidationErrorsJsonSchema = resolveThunk(c.getValidationErrorsJsonSchema);
+  if (getValidationErrors && getValidationErrorsJsonSchema) {
+    expect(
+      getValidationErrorsJsonSchema(),
+      `${c.title}: getValidationErrors — jsonSchema and type-first must resolve the SAME cached factory (same structural id)`
+    ).toBe(getValidationErrors());
+  }
+}
+
 /** DataOnly-equivalence: the validator built from `createValidateFn<DataOnly<T>>()`
  *  must produce the SAME verdicts on the case's samples as the bare-`T`
  *  validator — proving the `DataOnly` type mapping drops exactly the members
@@ -149,34 +179,52 @@ export function assertSerializerIdIntegrity(c: SerializationCase): void {
   // value-first builder can't reconstruct the nominal type, so wire output may
   // differ. Skip, same as the validator suite skips idDivergent.
   if (c.idDivergent) return;
+  runSerializerIdIntegrity(c, c.schemaEncoder, c.schemaBinaryEncoder, 'value-first schema');
+}
 
-  const schemaEncoder = resolveThunk(c.schemaEncoder);
-  if (schemaEncoder && !c.factoryThrows) {
-    const schemaEncode = schemaEncoder();
+/** jsonSchema serializer id-integrity: the jsonSchema-authored encoders must
+ *  produce output byte-identical to the type-first encoders — the serializer
+ *  counterpart of `assertJsonSchemaValidatorIdIntegrity`, honoring the
+ *  jsonSchema-specific `jsonSchemaIdDivergent` flag. **/
+export function assertJsonSchemaSerializerIdIntegrity(c: SerializationCase): void {
+  if (c.roundTripBestEffort) return;
+  if (c.jsonSchemaIdDivergent) return;
+  runSerializerIdIntegrity(c, c.jsonSchemaEncoder, c.jsonSchemaBinaryEncoder, 'jsonSchema');
+}
+
+/** Shared byte-identity core for the two authoring-form serializer drivers:
+ *  compares one alternate-form json encoder against `cloneEncoder` (`.toBe` on
+ *  the JSON string) and one alternate-form binary encoder against
+ *  `binaryEncoder` (`.toEqual` on the buffer), on the case's own samples. **/
+function runSerializerIdIntegrity(
+  c: SerializationCase,
+  altJsonEncoder: SerializationCase['schemaEncoder'] | undefined,
+  altBinaryEncoder: SerializationCase['schemaBinaryEncoder'] | undefined,
+  formLabel: string
+): void {
+  const altEncoder = resolveThunk(altJsonEncoder);
+  if (altEncoder && !c.factoryThrows) {
+    const altEncode = altEncoder();
     const typeEncode = c.cloneEncoder();
     const {values} = (c.getTestDataForStringify ?? c.getTestData)();
     values.forEach((reference, i) => {
-      const fromSchema = schemaEncode(deepCloneForRoundTrip(reference));
+      const fromAlt = altEncode(deepCloneForRoundTrip(reference));
       const fromType = typeEncode(deepCloneForRoundTrip(reference));
-      expect(fromSchema, `${c.title}: json — value-first schema encoder output must equal type-first [values[${i}]]`).toBe(
-        fromType
-      );
+      expect(fromAlt, `${c.title}: json — ${formLabel} encoder output must equal type-first [values[${i}]]`).toBe(fromType);
     });
   }
 
-  const schemaBinaryEncoder = resolveThunk(c.schemaBinaryEncoder);
+  const altBinary = resolveThunk(altBinaryEncoder);
   const typeBinaryEncoder = resolveThunk(c.binaryEncoder);
   const binaryFactoryThrows = c.binaryFactoryThrows ?? c.factoryThrows ?? false;
-  if (schemaBinaryEncoder && typeBinaryEncoder && !binaryFactoryThrows) {
-    const schemaEncode = schemaBinaryEncoder();
+  if (altBinary && typeBinaryEncoder && !binaryFactoryThrows) {
+    const altEncode = altBinary();
     const typeEncode = typeBinaryEncoder();
     const {values} = (c.getBinaryTestData ?? c.getTestDataForStringify ?? c.getTestData)();
     values.forEach((reference, i) => {
-      const fromSchema = schemaEncode(deepCloneForRoundTrip(reference));
+      const fromAlt = altEncode(deepCloneForRoundTrip(reference));
       const fromType = typeEncode(deepCloneForRoundTrip(reference));
-      expect(fromSchema, `${c.title}: binary — value-first schema encoder bytes must equal type-first [values[${i}]]`).toEqual(
-        fromType
-      );
+      expect(fromAlt, `${c.title}: binary — ${formLabel} encoder bytes must equal type-first [values[${i}]]`).toEqual(fromType);
     });
   }
 }

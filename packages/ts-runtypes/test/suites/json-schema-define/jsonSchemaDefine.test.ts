@@ -1,0 +1,174 @@
+// json-schema define suite driver — runs every registry case through the shared
+// asserts, then pins the schema-authoring-specific behaviors that have no
+// value-first analogue: keyword-subset enforcement (type-level), ignored
+// annotations, idempotency (same schema at two call sites / cross-file /
+// key-order permutation), three-way convergence (type-first ↔ value-first ↔
+// jsonSchema), and the CLAUDE.md marker-rule paired `getRunTypeId` shapes with
+// a hash-equivalence assertion.
+
+import {describe, expect, it} from 'vitest';
+import {createValidateFn, getRunTypeId, type CompTimeArgs} from '@ts-runtypes/core';
+import * as TF from '@ts-runtypes/core/formats';
+import * as RT from '@ts-runtypes/core/schema';
+import {jsonSchema, type ExactJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
+import {JSON_SCHEMA_DEFINE_SUITE, USER_SCHEMA, VALID_USER, type ExpectedUser} from './index.ts';
+import {
+  assertValidateStatic,
+  assertValidateReflect,
+  assertValidateDeserializeStatic,
+  assertValidateJsonSchema,
+  assertGetValidationErrorsContract,
+  assertMockTypeStatic,
+} from '../../util/validationAsserts.ts';
+
+describe('json-schema define', () => {
+  for (const c of Object.values(JSON_SCHEMA_DEFINE_SUITE)) {
+    it(`validate/static — ${c.title}`, () => assertValidateStatic(c));
+    it(`validate/reflect — ${c.title}`, () => assertValidateReflect(c));
+    it(`validate/deserialize-static — ${c.title}`, () => assertValidateDeserializeStatic(c));
+    it(`validate/json-schema — ${c.title}`, () => assertValidateJsonSchema(c));
+    it(`getValidationErrors — ${c.title}`, () => assertGetValidationErrorsContract(c));
+    it(`mockType — ${c.title}`, () => assertMockTypeStatic(c));
+  }
+});
+
+describe('json-schema define — marker coverage rule (paired getRunTypeId shapes)', () => {
+  it('static <T>, reflection (value) and builder forms resolve ONE hash', () => {
+    // Static form: the recovered type supplied explicitly.
+    const idStatic = getRunTypeId<FromJsonSchema<typeof USER_SCHEMA>>();
+    // Reflection form: T inferred from a value's declared type.
+    const reflectValue = VALID_USER as unknown as FromJsonSchema<typeof USER_SCHEMA>;
+    expect(getRunTypeId(reflectValue)).toBe(idStatic);
+    // Builder form: the schema literal itself.
+    expect(getRunTypeId(jsonSchema(USER_SCHEMA))).toBe(idStatic);
+    // And the hand-written type-first twin — the translation-correctness pin.
+    expect(getRunTypeId<ExpectedUser>()).toBe(idStatic);
+  });
+});
+
+describe('json-schema define — idempotency', () => {
+  it('the same module-const schema at two call sites resolves ONE cached factory', () => {
+    expect(createValidateFn(jsonSchema(USER_SCHEMA))).toBe(createValidateFn(jsonSchema(USER_SCHEMA)));
+  });
+
+  it('the same schema re-authored inline in ANOTHER FILE resolves the same factory', () => {
+    // USER_SCHEMA lives in ./index.ts; this literal is authored here — the
+    // cross-file half of "same schema at two call sites/files → same factory".
+    const fromInline = createValidateFn(
+      jsonSchema({
+        type: 'object',
+        properties: {
+          id: {type: 'string', format: 'uuid'},
+          name: {type: 'string', minLength: 2, maxLength: 50},
+          age: {type: 'integer', minimum: 0, maximum: 130},
+          email: {type: 'string', format: 'email'},
+          tags: {type: 'array', items: {type: 'string'}},
+          address: {
+            type: 'object',
+            properties: {street: {type: 'string'}, city: {type: 'string'}},
+            required: ['street'],
+          },
+        },
+        required: ['id', 'name', 'age', 'tags', 'address'],
+      })
+    );
+    expect(fromInline).toBe(JSON_SCHEMA_DEFINE_SUITE.user_object.validateJsonSchema());
+  });
+
+  it('a key-order permutation of the same schema resolves the same id', () => {
+    const orderedId = getRunTypeId(jsonSchema({type: 'string', minLength: 2, maxLength: 50}));
+    const permutedId = getRunTypeId(jsonSchema({maxLength: 50, minLength: 2, type: 'string'}));
+    expect(permutedId).toBe(orderedId);
+  });
+});
+
+describe('json-schema define — three-way convergence (type-first ↔ value-first ↔ jsonSchema)', () => {
+  it('all three authoring forms of one shape resolve ONE cached factory', () => {
+    interface Point {
+      name: string;
+      x: number;
+      y: number;
+    }
+    const typeFirst = createValidateFn<Point>();
+    const valueFirst = createValidateFn(RT.object({name: TF.string(), x: TF.number(), y: TF.number()}));
+    const schemaFirst = createValidateFn(
+      jsonSchema({
+        type: 'object',
+        properties: {name: {type: 'string'}, x: {type: 'number'}, y: {type: 'number'}},
+        required: ['name', 'x', 'y'],
+      })
+    );
+    expect(valueFirst).toBe(typeFirst);
+    expect(schemaFirst).toBe(typeFirst);
+  });
+});
+
+describe('json-schema define — boolean root schemas (2020-12)', () => {
+  it('jsonSchema(true) recovers unknown and converges with the type-first form', () => {
+    expect(createValidateFn(jsonSchema(true))).toBe(createValidateFn<unknown>());
+  });
+
+  it('jsonSchema(false) recovers never — the reject-all validator, converging with type-first', () => {
+    const isNever = createValidateFn(jsonSchema(false));
+    expect(isNever).toBe(createValidateFn<never>());
+    expect(isNever('anything')).toBe(false);
+    expect(isNever(undefined)).toBe(false);
+  });
+});
+
+describe('json-schema define — ignored annotations', () => {
+  it('$schema/title/description/examples/default do not change the resolved id', () => {
+    const bare = createValidateFn(jsonSchema({type: 'string', minLength: 3}));
+    const annotated = createValidateFn(
+      jsonSchema({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        title: 'A short name',
+        description: 'Non-structural metadata the inference must ignore.',
+        examples: ['abc', 'defg'],
+        default: 'abc',
+        type: 'string',
+        minLength: 3,
+      })
+    );
+    expect(annotated).toBe(bare);
+  });
+});
+
+describe('json-schema define — keyword subset enforcement (type-level)', () => {
+  // Mirrors the builder's exact generic shape (`<const S extends
+  // JsonSchemaInput>` + the deep guard folded inside `CompTimeArgs`) WITHOUT
+  // being a marker site, so rejection cases don't register junk call sites with
+  // the scanner. The `@ts-expect-error` lines are enforced by `pnpm run lint`'s
+  // typecheck of this file (vitest itself transpiles without checking).
+  const acceptsSchema = <const S extends JsonSchemaInput>(schema: CompTimeArgs<ExactJsonSchema<S>>): S => schema as S;
+
+  it('accepts the full valid subset and rejects unknown keywords at every depth', () => {
+    // Positive controls — the guard must be TRANSPARENT for valid schemas.
+    acceptsSchema({type: 'string', minLength: 3, maxLength: 9});
+    acceptsSchema({$schema: 'https://json-schema.org/draft/2020-12/schema', type: 'null'});
+    acceptsSchema({
+      type: 'object',
+      properties: {a: {type: 'array', items: {type: 'integer', minimum: 0}}},
+      required: ['a'],
+      additionalProperties: false,
+    });
+    acceptsSchema({anyOf: [{type: 'string'}, {const: 7}]});
+
+    // @ts-expect-error unknown top-level keyword (minLength typo)
+    acceptsSchema({type: 'string', minLen: 3});
+    // @ts-expect-error unknown keyword nested under properties
+    acceptsSchema({type: 'object', properties: {a: {type: 'string', minLen: 3}}});
+    // @ts-expect-error unknown keyword nested under items
+    acceptsSchema({type: 'array', items: {type: 'number', minimum: 0, maximumm: 9}});
+    // @ts-expect-error unknown keyword inside an anyOf member
+    acceptsSchema({anyOf: [{type: 'string'}, {type: 'number', multipleOff: 2}]});
+    // @ts-expect-error unknown keyword nested under additionalProperties
+    acceptsSchema({type: 'object', additionalProperties: {type: 'string', patern: 'x'}});
+    // @ts-expect-error a draft-07 $schema is not the accepted 2020-12 dialect
+    acceptsSchema({$schema: 'http://json-schema.org/draft-07/schema#', type: 'string'});
+    // @ts-expect-error draft-04 exclusiveMinimum took a boolean; 2020-12 takes a number
+    acceptsSchema({type: 'number', minimum: 0, exclusiveMinimum: true});
+
+    expect(typeof acceptsSchema).toBe('function'); // compile-time-only assertions above
+  });
+});

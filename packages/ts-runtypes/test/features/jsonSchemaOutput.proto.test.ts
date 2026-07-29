@@ -15,7 +15,7 @@ import type * as TF from '@ts-runtypes/core/formats';
 // formats module in the runtime graph like real format-using apps have it.
 import '@ts-runtypes/core/formats';
 import {runTypeToJsonSchema} from './jsonSchemaOutput.proto.ts';
-import {jsonSchema} from './jsonSchemaInput.proto.ts';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 
 interface Address {
   street: string;
