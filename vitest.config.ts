@@ -25,6 +25,10 @@ export default defineConfig({
       // The Go-resolver JS sidecar (private, never published) — pure unit
       // tests, no binary involved.
       'packages/ts-runtypes-go-be-sidecar/vitest.config.ts',
+      // Mock-format-registry regression: its own project so the test file's
+      // runtime import graph stays free of formats value imports (the marker
+      // project above excludes it — import-graph isolation is the repro).
+      'packages/ts-runtypes/test/mock-format-isolation/vitest.config.ts',
     ],
     // Coverage is a root-level (cross-project) concern. Vitest 4 removed
     // `coverage.all`; the report now defaults to covered files only, so the

@@ -5,6 +5,13 @@
 
 import {getRTUtils, isRunTypeSchema} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
+// Side-effect imports: register the per-kind format mock fns. They must ride
+// the mock subtree itself — a consumer whose only ts-runtypes/formats imports
+// sit in type positions has them elided, and an empty registry silently mocks
+// format-branded nodes as kind-default values that fail their own validators.
+import './mockStringFormat.ts';
+import './mockNumberFormat.ts';
+import './mockBigIntFormat.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {CompTimeHints, InjectRunTypeId} from '../index.ts';
 import {mockRunType} from './mockType.ts';

@@ -85,6 +85,9 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # a build artifact — ignore it wholesale so test runs never dirty the tree.
 # (The `__` prefix keeps it clear of the hand-authored src/runtypes/ source.)
 /packages/ts-runtypes/__runtypes/
+# Same artifact tree for the isolated mock-format-registry vitest project
+# (its plugin roots the genDir next to its own minimal tsconfig).
+/packages/ts-runtypes/test/mock-format-isolation/__runtypes/
 # Cross-bundler real-build test fixtures (created + cleaned per run).
 /packages/ts-runtypes/test/tmp-build-*/
 

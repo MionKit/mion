@@ -1,6 +1,13 @@
+---
+type: fix
+spec: full-plan
+status: done
+created: 2026-07-29
+---
+
 # Mock format registry silently empty without a `ts-runtypes/formats` side-effect import
 
-**Status:** todo
+**Status:** done — fixed via option 1 (see "Shipped" at the bottom)
 **Type:** bug — silent mock-soundness loss (mock ⇏ validate) depending on import elision
 **Created:** 2026-07-29
 **Found by:** the JSON Schema investigation prototype
@@ -78,3 +85,22 @@ assert mock⇄validate soundness.
 Any new tests must cover both `getRunTypeId<T>()` and `getRunTypeId(value)` shapes if they
 touch the marker API (the soundness repro above only needs `createMockDataFn` +
 `createValidateFn`, both already exercised in both shapes by existing suites).
+
+## Shipped (2026-07-29)
+
+Option 1, exactly as preferred: `src/mocking/createMockData.ts` now side-effect-imports
+the three registration modules (`mockStringFormat.ts` / `mockNumberFormat.ts` /
+`mockBigIntFormat.ts`), so the registrations ride the mock subtree and any consumer that
+reaches `createMockDataFn` carries them — no formats value import needed. The
+bundler-droppability property is preserved (the imports live inside the mock subtree).
+
+Regression test as specified: `packages/ts-runtypes/test/mock-format-isolation/` is its
+own vitest project (registered in the root config; excluded from the main marker project)
+whose single test file's only formats import is `import type` — the exact elision trigger.
+It was verified red before the fix (both mock⇄validate soundness tests failed) and green
+after. Marker coverage: static + reflection shapes for `createMockDataFn`/`createValidateFn`
+plus a `getRunTypeId<T>()` ↔ `getRunTypeId(value)` hash-equivalence assert.
+
+Options 2 (walker throw/warn) and 3 (docs + lint diagnostic) intentionally not taken:
+option 1 removes the failure mode outright, and the website mock-page note can ride the
+JSON Schema rollout docs phase if still wanted.

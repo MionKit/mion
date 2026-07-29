@@ -70,7 +70,10 @@ export default defineConfig({
     // test/playground/** is the relocated playground engine suite — it runs as
     // its own project (no ts-runtypes-devtools transform, no marker setup files),
     // so keep it out of this one to avoid a double-run.
-    exclude: [...configDefaults.exclude, 'test/playground/**'],
+    // test/mock-format-isolation/** is the mock-format-registry regression: it
+    // must run in a process whose ONLY formats import is type-only, and inside
+    // this project any sibling test file's formats value import would mask it.
+    exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**'],
     // Generating + validating the deepest mock cases (e.g. a 3-D string array,
     // MOCK_ITERATIONS times) takes a few seconds; under the full suite's
     // parallel CPU contention that occasionally crossed vitest's tight 5 s
