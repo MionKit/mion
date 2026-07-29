@@ -12,6 +12,20 @@
 // built arm-by-arm (`FromAnyOf`, same caveat as `UnionOf`). `Flatten` merges the
 // required/optional group intersection back into one object literal so the result
 // converges with the hand-written type-first shape (proven pattern: ObjectType<C>).
+//
+// RECURSION (M6): the whole pipeline threads the ROOT schema as a second type
+// parameter so `$ref` can resolve against it — `$ref: '#'` re-enters the root
+// and `$ref: '#/$defs/<name>'` looks the definition up under the root's $defs.
+// The root re-entry rides a 1-tuple fixpoint parameter `F` read as `F[0]`
+// (the `Recursive<Body>` deferral trick, schema/static.ts): a DIRECT
+// `FromJsonSchemaIn<Root, Root>` branch blows tsc's instantiation-depth wall
+// (TS2589) whenever the alias is forced with a still-deferred S — which the
+// `jsonSchema` overload/implementation compatibility check does through the
+// `RunType` / `InjectRunTypeId` phantom slots. `F[0]` is an indexed access
+// over a lazy tuple, so the constraint walk stops at the tuple boundary while
+// a concrete instantiation still ties the same genuinely CYCLIC type — the
+// shape a hand-written `type T = {next?: T}` produces — which the id computer
+// walks with its back-ref token (maxWalkDepth guarded).
 
 import type {Email, UUIDv4, StringDate, StringTime, StringDateTime, Domain, IPv4, IPv6, Url} from '../formats/index.ts';
 import type {TypeFormat} from '../runtypes/typeFormat.ts';
@@ -43,7 +57,9 @@ export type SchemaTypeName = 'string' | 'number' | 'integer' | 'boolean' | 'null
  *  `const` literal inference; recursive so nested schemas keep their literal
  *  shapes); unknown KEYWORDS are rejected by `ExactJsonSchema` at the call site
  *  instead. A `$schema` other than the 2020-12 URI is a type error — draft
- *  2020-12 is the one accepted dialect. **/
+ *  2020-12 is the one accepted dialect. `$ref` accepts the root (`#`) and
+ *  root-level definitions (`#/$defs/<name>`); cross-document refs are out of
+ *  scope. **/
 export interface JsonSchemaInput {
   readonly type?: SchemaTypeName | readonly SchemaTypeName[];
   readonly properties?: {readonly [key: string]: JsonSchemaInput};
@@ -57,6 +73,8 @@ export interface JsonSchemaInput {
   readonly anyOf?: readonly JsonSchemaInput[];
   readonly oneOf?: readonly JsonSchemaInput[];
   readonly allOf?: readonly JsonSchemaInput[];
+  readonly $defs?: {readonly [name: string]: JsonSchemaInput};
+  readonly $ref?: string;
   readonly format?: 'email' | 'uuid' | 'date' | 'time' | 'date-time' | 'hostname' | 'ipv4' | 'ipv6' | 'uri';
   readonly minLength?: number;
   readonly maxLength?: number;
@@ -99,10 +117,12 @@ export type ExactJsonSchema<S> = S & {readonly [K in Exclude<keyof S, keyof Json
     : unknown) &
   (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M>} : unknown) &
   (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M>} : unknown) &
-  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M>} : unknown);
+  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M>} : unknown) &
+  (S extends {$defs: infer D} ? {readonly $defs: ExactJsonSchemaMap<D>} : unknown);
 
-/** `properties` map recursion for {@link ExactJsonSchema} (homomorphic, so the
- *  literal's readonly/optional modifiers flow through unchanged). **/
+/** `properties` / `$defs` map recursion for {@link ExactJsonSchema}
+ *  (homomorphic, so the literal's readonly/optional modifiers flow through
+ *  unchanged). **/
 type ExactJsonSchemaMap<P> = {[K in keyof P]: ExactJsonSchema<P[K]>};
 
 /** `anyOf` member recursion for {@link ExactJsonSchema} (homomorphic over the
@@ -168,30 +188,34 @@ type IntegerFrom<S> = NumberFormat<Flatten<NumberParamsFrom<S> & {integer: true}
 // object: `required` membership decides `?` — the object-level → property-level
 // optionality inversion (quirk §5.1 of the phase-1 mapping). Two homomorphic
 // groups (required / optional), flattened into one literal.
-type ObjectFromProps<P, Req extends PropertyKey> = Flatten<
+type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = Flatten<
   {
-    -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchema<P[K]>;
+    -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
   } & {
-    -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchema<P[K]>;
+    -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
   }
 >;
-type ObjectFrom<S> = S extends {properties: infer P}
+type ObjectFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
-      S extends {required: infer R extends readonly string[]} ? ObjectFromProps<P, R[number]> : ObjectFromProps<P, never>
+      S extends {required: infer R extends readonly string[]}
+        ? ObjectFromProps<P, R[number], Root, F>
+        : ObjectFromProps<P, never, Root, F>,
+      Root,
+      F
     >
   : S extends {additionalProperties: infer A extends JsonSchemaInput}
-    ? Record<string, FromJsonSchema<A>>
+    ? Record<string, FromJsonSchemaIn<A, Root, F>>
     : object;
 
 // `additionalProperties: <schema>` ALONGSIDE `properties` intersects the
 // declared props with the index-signature record (01-phase1-mapping §3.2 — the
 // mixed form). The boolean forms stay annotation-only at the type level
 // (`false` pairs with the unknown-keys validation family, a later phase).
-type WithAdditional<S, Props> = S extends {additionalProperties: infer A}
+type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additionalProperties: infer A}
   ? A extends boolean
     ? Props
-    : Props & Record<string, FromJsonSchema<A>>
+    : Props & Record<string, FromJsonSchemaIn<A, Root, F>>
   : Props;
 
 // array/tuple: `prefixItems` builds a tuple. Members at positions below
@@ -201,12 +225,12 @@ type WithAdditional<S, Props> = S extends {additionalProperties: infer A}
 // are allowed by 2020-12), `false` → closed, a schema → typed trailing rest. A
 // `minItems` beyond the prefix length behaves as the prefix length (the
 // required phase simply consumes every member).
-type ArrayFrom<S> = S extends {prefixItems: infer P extends readonly JsonSchemaInput[]}
-  ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, []>
+type ArrayFrom<S, Root, F extends [unknown]> = S extends {prefixItems: infer P extends readonly JsonSchemaInput[]}
+  ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, [], Root, F>
   : S extends {items: infer I}
     ? I extends false
       ? []
-      : FromJsonSchema<I>[]
+      : FromJsonSchemaIn<I, Root, F>[]
     : unknown[];
 type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
 type RestOf<S> = S extends {items: infer I} ? I : 'rt$open';
@@ -215,42 +239,51 @@ type BuildTupleRequired<
   MinItems extends number,
   Rest,
   Acc extends unknown[],
+  Root,
+  F extends [unknown],
 > = Acc['length'] extends MinItems
-  ? BuildTupleOptional<P, Rest, Acc>
+  ? BuildTupleOptional<P, Rest, Acc, Root, F>
   : P extends readonly [infer Head, ...infer Tail]
-    ? BuildTupleRequired<Tail, MinItems, Rest, [...Acc, FromJsonSchema<Head>]>
-    : FinishTuple<Acc, Rest>;
-type BuildTupleOptional<P extends readonly unknown[], Rest, Acc extends unknown[]> = P extends readonly [
-  infer Head,
-  ...infer Tail,
-]
-  ? BuildTupleOptional<Tail, Rest, [...Acc, FromJsonSchema<Head>?]>
-  : FinishTuple<Acc, Rest>;
-type FinishTuple<Acc extends unknown[], Rest> = Rest extends false
+    ? BuildTupleRequired<Tail, MinItems, Rest, [...Acc, FromJsonSchemaIn<Head, Root, F>], Root, F>
+    : FinishTuple<Acc, Rest, Root, F>;
+type BuildTupleOptional<
+  P extends readonly unknown[],
+  Rest,
+  Acc extends unknown[],
+  Root,
+  F extends [unknown],
+> = P extends readonly [infer Head, ...infer Tail]
+  ? BuildTupleOptional<Tail, Rest, [...Acc, FromJsonSchemaIn<Head, Root, F>?], Root, F>
+  : FinishTuple<Acc, Rest, Root, F>;
+type FinishTuple<Acc extends unknown[], Rest, Root, F extends [unknown]> = Rest extends false
   ? Acc
   : Rest extends 'rt$open'
     ? [...Acc, ...unknown[]]
-    : [...Acc, ...FromJsonSchema<Rest>[]];
+    : [...Acc, ...FromJsonSchemaIn<Rest, Root, F>[]];
 
 // anyOf/oneOf: recursive arm-by-arm union build (the UnionOf precedent — an
 // indexed `M[number]` would let tsgo subtype-reduce sibling object arms).
 // oneOf is deliberately accepted AS a union: its exactly-one exclusivity
 // weakens to at-least-one (the 04-migration-plan decision; the build
 // diagnostic belongs to the later docs/diagnostics phase).
-type FromAnyOf<M> = M extends readonly [infer Head, ...infer Tail] ? FromJsonSchema<Head> | FromAnyOf<Tail> : never;
+type FromAnyOf<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Tail]
+  ? FromJsonSchemaIn<Head, Root, F> | FromAnyOf<Tail, Root, F>
+  : never;
 
 // allOf: arm-by-arm intersection (unknown is the & identity).
-type FromAllOf<M> = M extends readonly [infer Head, ...infer Tail] ? FromJsonSchema<Head> & FromAllOf<Tail> : unknown;
+type FromAllOf<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Tail]
+  ? FromJsonSchemaIn<Head, Root, F> & FromAllOf<Tail, Root, F>
+  : unknown;
 
 // The `type: [...]` array form is a union of the named types; each arm
 // re-reads the schema's OWN constraint keywords through the per-type helpers,
 // so {type: ['string', 'null'], minLength: 3} recovers String<{minLength: 3}>
 // | null — keywords apply by type relevance, exactly as 2020-12 evaluates
 // them. Built arm-by-arm for the same subtype-reduction reason as FromAnyOf.
-type TypeArmsFrom<L, S> = L extends readonly [infer Head extends SchemaTypeName, ...infer Tail]
-  ? TypeArmFrom<Head, S> | TypeArmsFrom<Tail, S>
+type TypeArmsFrom<L, S, Root, F extends [unknown]> = L extends readonly [infer Head extends SchemaTypeName, ...infer Tail]
+  ? TypeArmFrom<Head, S, Root, F> | TypeArmsFrom<Tail, S, Root, F>
   : never;
-type TypeArmFrom<Name extends SchemaTypeName, S> = Name extends 'string'
+type TypeArmFrom<Name extends SchemaTypeName, S, Root, F extends [unknown]> = Name extends 'string'
   ? StringFrom<S>
   : Name extends 'integer'
     ? IntegerFrom<S>
@@ -261,48 +294,71 @@ type TypeArmFrom<Name extends SchemaTypeName, S> = Name extends 'string'
         : Name extends 'null'
           ? null
           : Name extends 'array'
-            ? ArrayFrom<S>
+            ? ArrayFrom<S, Root, F>
             : Name extends 'object'
-              ? ObjectFrom<S>
+              ? ObjectFrom<S, Root, F>
               : never;
+
+// The Root-threaded engine. `$ref` arms come first: `#` re-enters the root
+// through the fixpoint tuple (`F[0]` — see the RECURSION note at the top of
+// the file) and `#/$defs/<name>` resolves a root-level definition (either may
+// be recursive — the lazy re-instantiation builds a cyclic type). An unknown
+// definition name resolves `never`, surfacing as an impossible type at the
+// call site rather than silently widening.
+type FromJsonSchemaIn<S, Root, F extends [unknown]> = S extends true
+  ? unknown
+  : S extends false
+    ? never
+    : S extends {$ref: '#'}
+      ? F[0]
+      : S extends {$ref: `#/$defs/${infer Name}`}
+        ? Root extends {$defs: infer D}
+          ? Name extends keyof D
+            ? FromJsonSchemaIn<D[Name], Root, F>
+            : never
+          : never
+        : S extends {const: infer C}
+          ? C
+          : S extends {enum: infer E extends readonly unknown[]}
+            ? E[number]
+            : S extends {anyOf: infer M extends readonly JsonSchemaInput[]}
+              ? FromAnyOf<M, Root, F>
+              : S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
+                ? FromAnyOf<M, Root, F>
+                : S extends {allOf: infer M extends readonly JsonSchemaInput[]}
+                  ? FromAllOf<M, Root, F>
+                  : S extends {type: infer L extends readonly SchemaTypeName[]}
+                    ? TypeArmsFrom<L, S, Root, F>
+                    : S extends {type: 'string'}
+                      ? StringFrom<S>
+                      : S extends {type: 'integer'}
+                        ? IntegerFrom<S>
+                        : S extends {type: 'number'}
+                          ? NumberFrom<S>
+                          : S extends {type: 'boolean'}
+                            ? boolean
+                            : S extends {type: 'null'}
+                              ? null
+                              : S extends {type: 'array'}
+                                ? ArrayFrom<S, Root, F>
+                                : S extends {type: 'object'}
+                                  ? ObjectFrom<S, Root, F>
+                                  : unknown; // `{}` — the always-true schema
 
 /** The static type a draft 2020-12 schema literal denotes — RunTypes' analogue of
  *  json-schema-to-ts's `FromSchema` / TypeBox's `Static`. Constraint keywords do
  *  NOT vanish into annotations: they land in RunTypes format brands, so the
  *  generated validators enforce them. Combinator schemas (`anyOf` / `oneOf` /
- *  `allOf`) carry the combinator alone — sibling keywords beside a combinator
- *  are not consulted. **/
-export type FromJsonSchema<S> = S extends true
-  ? unknown
-  : S extends false
-    ? never
-    : S extends {const: infer C}
-      ? C
-      : S extends {enum: infer E extends readonly unknown[]}
-        ? E[number]
-        : S extends {anyOf: infer M extends readonly JsonSchemaInput[]}
-          ? FromAnyOf<M>
-          : S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
-            ? FromAnyOf<M>
-            : S extends {allOf: infer M extends readonly JsonSchemaInput[]}
-              ? FromAllOf<M>
-              : S extends {type: infer L extends readonly SchemaTypeName[]}
-                ? TypeArmsFrom<L, S>
-                : S extends {type: 'string'}
-                  ? StringFrom<S>
-                  : S extends {type: 'integer'}
-                    ? IntegerFrom<S>
-                    : S extends {type: 'number'}
-                      ? NumberFrom<S>
-                      : S extends {type: 'boolean'}
-                        ? boolean
-                        : S extends {type: 'null'}
-                          ? null
-                          : S extends {type: 'array'}
-                            ? ArrayFrom<S>
-                            : S extends {type: 'object'}
-                              ? ObjectFrom<S>
-                              : unknown; // `{}` — the always-true schema
+ *  `allOf`) and `$ref` schemas carry that keyword alone — sibling keywords
+ *  beside them are not consulted. The 1-tuple ties the `$ref: '#'` fixpoint
+ *  (the `Recursive<Body>` deferral pattern — see the RECURSION note above).
+ *  The `0 extends 1 & S` arm short-circuits `any` to `unknown` BEFORE the
+ *  engine: with `any` every conditional arm expands both branches at once,
+ *  and the helpers' fresh `infer` params defeat tsc's instantiation cache
+ *  (TS2589). `any` never comes from a real call site (`CompTimeArgs` forces a
+ *  literal) — only from tsc's own erased/deferred probes, where `unknown` is
+ *  the honest answer. **/
+export type FromJsonSchema<S> = 0 extends 1 & S ? unknown : FromJsonSchemaIn<S, S, [FromJsonSchema<S>]>;
 
 // #endregion jsonschema-extract
 

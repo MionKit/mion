@@ -731,6 +731,10 @@ export const OBJECT = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createValidateFn(ic);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     deserializeValidate: () => {
       type ICircular = {name: string; child?: ICircular};
       return deserializeValidate<ICircular>();
@@ -757,6 +761,10 @@ export const OBJECT = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createGetValidationErrorsFn(ic);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     deserializeGetValidationErrors: () => {
       type ICircular = {name: string; child?: ICircular};
       return deserializeGetValidationErrors<ICircular>();
@@ -824,6 +832,14 @@ export const OBJECT = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createValidateFn(ica);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
     deserializeValidate: () => {
       type ICircularArray = {name: string; children?: ICircularArray[]};
       return deserializeValidate<ICircularArray>();
@@ -850,6 +866,14 @@ export const OBJECT = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createGetValidationErrorsFn(ica);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       type ICircularArray = {name: string; children?: ICircularArray[]};
       return deserializeGetValidationErrors<ICircularArray>();
@@ -910,6 +934,17 @@ export const OBJECT = {
       );
       return createValidateFn(icd);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            name: {type: 'string'},
+            embedded: {type: 'object', properties: {hello: {type: 'string'}, child: {$ref: '#'}}, required: ['hello']},
+          },
+          required: ['name', 'embedded'],
+        })
+      ),
     deserializeValidate: () => {
       type ICircularDeep = {name: string; embedded: {hello: string; child?: ICircularDeep}};
       return deserializeValidate<ICircularDeep>();
@@ -941,6 +976,17 @@ export const OBJECT = {
       );
       return createGetValidationErrorsFn(icd);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            name: {type: 'string'},
+            embedded: {type: 'object', properties: {hello: {type: 'string'}, child: {$ref: '#'}}, required: ['hello']},
+          },
+          required: ['name', 'embedded'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       type ICircularDeep = {name: string; embedded: {hello: string; child?: ICircularDeep}};
       return deserializeGetValidationErrors<ICircularDeep>();

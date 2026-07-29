@@ -267,6 +267,10 @@ export const ARRAYS = {
       const ca = RT.circular(RT.array(RT.self()));
       return createBinaryDecoderFn(ca);
     },
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
     getTestData: () => {
       type CircularArray = CircularArray[];
       const arr: CircularArray = [];

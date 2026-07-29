@@ -9,6 +9,7 @@ export const OTHERS = {
     serializeNotes: [
       'No value-first builder exists for Promise, so all schema variants are not-supported.',
       'Binary shares the same alwaysThrow contract; test data is empty since the factory throws before any round-trip.',
+      'JSON Schema: Promise is an instance type, not JSON data, and has no schema INPUT spelling.',
     ],
     mutateEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Promise<string>>(undefined, {strategy: 'clone'}),
@@ -24,6 +25,10 @@ export const OTHERS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -31,8 +36,10 @@ export const OTHERS = {
     title: 'Root Int8Array',
     description:
       'A root `Int8Array` is non-serializable, so the factory renders as alwaysThrow and every encoder / decoder invocation throws for both JSON and binary.',
-    serializeNotes:
+    serializeNotes: [
       'No value-first builder exists for Int8Array, so all schema variants are not-supported and test data is empty.',
+      'JSON Schema: Int8Array is an instance type with no schema INPUT spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Int8Array>(undefined, {strategy: 'direct'}),
@@ -47,6 +54,10 @@ export const OTHERS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -57,6 +68,7 @@ export const OTHERS = {
     serializeNotes: [
       'The `a` member is directly DataOnly-stripped, so it is dropped from the serialized form across every strategy. The mutate path `delete`s it so `JSON.stringify` cannot leak the typed array as a plain object — its output matches clone / direct / binary.',
       'No value-first builder can express the `Int8Array` member, so the schema variants stay not-supported.',
+      'JSON Schema: the Int8Array member is an instance type with no schema INPUT spelling.',
     ],
     mutateEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: Int8Array}>(undefined, {strategy: 'clone'}),
@@ -72,6 +84,10 @@ export const OTHERS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     // `a` is dropped, so every value round-trips to `{}` (the data-only projection).
     getTestData: () => ({values: [{a: new Int8Array([1, 2, 3])}], deserializedValues: [{}]}),
   },
@@ -79,8 +95,10 @@ export const OTHERS = {
     title: 'Int8Array in array',
     description:
       'An array of non-serializable `Int8Array` elements renders the factory as alwaysThrow because a non-serializable element is a propagating position, so every encoder / decoder invocation throws for both JSON and binary.',
-    serializeNotes:
+    serializeNotes: [
       'No value-first builder can express the enclosing array, so all schema variants are not-supported and test data is empty.',
+      'JSON Schema: Int8Array elements are instance types with no schema INPUT spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Int8Array[]>(undefined, {strategy: 'direct'}),
@@ -95,6 +113,10 @@ export const OTHERS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -102,8 +124,10 @@ export const OTHERS = {
     title: 'Int8Array in tuple',
     description:
       'A tuple with a non-serializable `Int8Array` slot renders the factory as alwaysThrow because a non-serializable tuple slot is a propagating position, so every encoder / decoder invocation throws for both JSON and binary.',
-    serializeNotes:
+    serializeNotes: [
       'No value-first builder can express the enclosing tuple, so all schema variants are not-supported and test data is empty.',
+      'JSON Schema: the Int8Array slot is an instance type with no schema INPUT spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<[Int8Array]>(undefined, {strategy: 'direct'}),
@@ -118,6 +142,10 @@ export const OTHERS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },

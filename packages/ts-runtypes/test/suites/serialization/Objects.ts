@@ -1643,6 +1643,22 @@ export const OBJECTS = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createBinaryDecoderFn(ic);
     },
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     getTestData: () => ({
       values: [{name: 'leaf'}, {name: 'hello', child: {name: 'world'}}, {name: 'a', child: {name: 'b', child: {name: 'c'}}}],
     }),
@@ -1730,6 +1746,38 @@ export const OBJECTS = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createBinaryDecoderFn(ica);
     },
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
     getTestData: () => ({
       values: [
         {name: 'hello', children: []},
@@ -1741,7 +1789,10 @@ export const OBJECTS = {
     title: 'Circular deep',
     description:
       'Self-referential interface whose recursion is buried inside a nested `embedded` object with a bigint field at each level, exercising deep recursion plus bigint round-trip at multiple depths.',
-    serializeNotes: 'Each level carries a bigint that round-trips through both JSON and binary.',
+    serializeNotes: [
+      'Each level carries a bigint that round-trips through both JSON and binary.',
+      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -1865,6 +1916,10 @@ export const OBJECTS = {
       );
       return createBinaryDecoderFn(icd);
     },
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {name: 'hello', big: 1n, embedded: {hello: 'world'}},
@@ -1880,7 +1935,10 @@ export const OBJECTS = {
     title: 'Non-circular root',
     description:
       'Non-recursive root with literal `isRoot: true` and a circular `ciChild` that wraps a deeply-recursive bigint-bearing member, confirming a non-circular root resolves correctly when it embeds a circular type.',
-    serializeNotes: 'The nested ciChild carries a bigint at each level that round-trips through both JSON and binary.',
+    serializeNotes: [
+      'The nested ciChild carries a bigint at each level that round-trips through both JSON and binary.',
+      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -2017,6 +2075,10 @@ export const OBJECTS = {
       const root = RT.object({isRoot: RT.literal(true), ciChild: icd});
       return createBinaryDecoderFn(root);
     },
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}},
@@ -2035,7 +2097,10 @@ export const OBJECTS = {
     title: 'Multiple circular',
     description:
       'Self-referential root that also references two further circular interfaces, a bigint-bearing tree and a Date-bearing one, exercising several distinct circular types coexisting in one graph with Date and bigint fields.',
-    serializeNotes: 'Mixes Date (ISO-string) and bigint round-trips across multiple self-referential interfaces.',
+    serializeNotes: [
+      'Mixes Date (ISO-string) and bigint round-trips across multiple self-referential interfaces.',
+      'JSON Schema: the Date and bigint members have no schema spelling.',
+    ],
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -2297,6 +2362,10 @@ export const OBJECTS = {
       );
       return createBinaryDecoderFn(root);
     },
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ICircularDeep {
         name: string;

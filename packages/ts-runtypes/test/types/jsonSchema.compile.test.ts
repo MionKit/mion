@@ -51,7 +51,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'null'}>, null>>;
       type _07 = Expect<Equal<FromJsonSchema<{}>, unknown>>;
       `,
-      451
+      522
     );
   });
 
@@ -63,7 +63,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _03 = Expect<Equal<FromJsonSchema<{readonly enum: readonly ['admin', 'user', 3]}>, 'admin' | 'user' | 3>>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly enum: readonly [true, null]}>, true | null>>;
       `,
-      218
+      275
     );
   });
 
@@ -85,7 +85,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Url>>;
       `,
-      1064
+      1199
     );
   });
 
@@ -101,7 +101,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: ''}}>
       >>;
       `,
-      479
+      506
     );
   });
 
@@ -126,7 +126,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         NumberFormat<{readonly min: 0; readonly max: 130; integer: true}>
       >>;
       `,
-      993
+      1056
     );
   });
 
@@ -140,7 +140,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         'a' | 'b' | boolean
       >>;
       `,
-      713
+      827
     );
   });
 
@@ -164,7 +164,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      1647
+      1796
     );
   });
 
@@ -178,7 +178,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      515
+      603
     );
   });
 
@@ -222,7 +222,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      1383
+      1556
     );
   });
 
@@ -265,7 +265,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         {a: string}
       >>;
       `,
-      1405
+      1589
     );
   });
 
@@ -297,7 +297,38 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      1171
+      1273
+    );
+  });
+
+  it('$defs + $ref — root recursion, definition lookup, recursive definitions', () => {
+    check(
+      `
+      // root self-recursion: the classic circular array
+      type Circ = FromJsonSchema<{readonly type: 'array'; readonly items: {readonly $ref: '#'}}>;
+      type _01 = Expect<Assignable<[[], [[]]], Circ>>;
+      type _02 = Expect<Assignable<Circ, unknown[]>>;
+      // non-recursive $defs lookup
+      type Addressed = FromJsonSchema<{
+        readonly $defs: {readonly address: {readonly type: 'object'; readonly properties: {readonly street: {readonly type: 'string'}}; readonly required: readonly ['street']}};
+        readonly type: 'object';
+        readonly properties: {readonly home: {readonly $ref: '#/$defs/address'}; readonly work: {readonly $ref: '#/$defs/address'}};
+        readonly required: readonly ['home'];
+      }>;
+      type _03 = Expect<Equal<Addressed, {home: {street: string}; work?: {street: string}}>>;
+      // recursive definition: linked list
+      type Node = FromJsonSchema<{
+        readonly $defs: {readonly node: {readonly type: 'object'; readonly properties: {readonly value: {readonly type: 'number'}; readonly next: {readonly $ref: '#/$defs/node'}}; readonly required: readonly ['value']}};
+        readonly $ref: '#/$defs/node';
+      }>;
+      type _04 = Expect<Assignable<{value: 1; next: {value: 2}}, Node>>;
+      type _05 = Expect<Equal<Node['value'], number>>;
+      type _06 = Expect<Equal<NonNullable<Node['next']>, Node>>;
+      // unknown definition name resolves never (impossible type, not silent widening)
+      type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
+      type _07 = Expect<Equal<Missing, never>>;
+      `,
+      1448
     );
   });
 
@@ -321,7 +352,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       };
       type _04 = ExpectFalse<Assignable<NestedTypo, ExactJsonSchema<NestedTypo>>>;
       `,
-      434
+      471
     );
   });
 });

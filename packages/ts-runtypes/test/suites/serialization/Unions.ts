@@ -539,8 +539,10 @@ export const UNIONS = {
     title: 'Circular union',
     description:
       'Self-referential union UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[] recursing through the optional prop `a` and the array arm, where each node resolves by kind, the value-first form uses RT.circular(…self()…) to follow the recursion to arbitrary depth, and Date members encode Date↔ISO.',
-    serializeNotes:
+    serializeNotes: [
       'Recursive union — encoder and decoder must walk the self-reference (nested objects and arrays) without diverging; member selection happens fresh at every level.',
+      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createJsonEncoderFn<UnionC>(undefined, {strategy: 'mutate'});
@@ -625,6 +627,10 @@ export const UNIONS = {
       );
       return createBinaryDecoderFn(uc);
     },
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
       return {

@@ -116,6 +116,60 @@ describe('json-schema define — boolean root schemas (2020-12)', () => {
   });
 });
 
+describe('json-schema define — $defs and $ref recursion (M6)', () => {
+  it("$ref: '#' re-enters the root: circular array converges with the type-first twin", () => {
+    type CircularArray = CircularArray[];
+    const isCircular = createValidateFn(jsonSchema({type: 'array', items: {$ref: '#'}}));
+    expect(isCircular).toBe(createValidateFn<CircularArray>());
+    expect(isCircular([[[]], []])).toBe(true);
+    expect(isCircular([42])).toBe(false);
+  });
+
+  it('non-recursive $defs lookup: two refs to one definition converge with the expanded twin', () => {
+    const isAddressed = createValidateFn(
+      jsonSchema({
+        $defs: {address: {type: 'object', properties: {street: {type: 'string'}}, required: ['street']}},
+        type: 'object',
+        properties: {home: {$ref: '#/$defs/address'}, work: {$ref: '#/$defs/address'}},
+        required: ['home'],
+      })
+    );
+    expect(isAddressed).toBe(createValidateFn<{home: {street: string}; work?: {street: string}}>());
+    expect(isAddressed({home: {street: 'a'}, work: {street: 'b'}})).toBe(true);
+    expect(isAddressed({home: {street: 7}})).toBe(false);
+  });
+
+  it('recursive $defs: a linked-list definition converges and validates at depth', () => {
+    interface ListNode {
+      value: number;
+      next?: ListNode;
+    }
+    const isNode = createValidateFn(
+      jsonSchema({
+        $defs: {
+          node: {type: 'object', properties: {value: {type: 'number'}, next: {$ref: '#/$defs/node'}}, required: ['value']},
+        },
+        $ref: '#/$defs/node',
+      })
+    );
+    expect(isNode).toBe(createValidateFn<ListNode>());
+    expect(isNode({value: 1, next: {value: 2, next: {value: 3}}})).toBe(true);
+    expect(isNode({value: 1, next: {value: 'x'}})).toBe(false);
+    // Mock soundness holds through the cycle too (bounded by the walker).
+    const mockNode = createMockDataFn(
+      jsonSchema({
+        $defs: {
+          node: {type: 'object', properties: {value: {type: 'number'}, next: {$ref: '#/$defs/node'}}, required: ['value']},
+        },
+        $ref: '#/$defs/node',
+      })
+    );
+    for (let round = 0; round < 8; round++) {
+      expect(isNode(mockNode())).toBe(true);
+    }
+  });
+});
+
 describe('json-schema define — sample-less pattern policy (04-migration-plan §1)', () => {
   it('mocking a schema-pattern type throws the TARGETED register-samples error, never junk', () => {
     const mockSlug = createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'}));

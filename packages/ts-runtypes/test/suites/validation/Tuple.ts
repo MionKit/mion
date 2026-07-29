@@ -411,8 +411,10 @@ export const TUPLE = {
     dataOnlyDivergent: true,
     description:
       'A self-referential tuple whose cycle closes via a trailing optional self-ref slot, where the always-non-inlined tuple makes a self-recursive dependency call through the isSelf branch (tuple.spec.ts circular tuple).',
-    validateNotes:
+    validateNotes: [
       'The cycle closes via a trailing OPTIONAL self-ref slot, so a non-recursive value (the first six slots only) is valid; nested tuples recurse to whatever depth the value supplies.',
+      'JSON Schema: the Date and bigint members have no schema spelling.',
+    ],
     validate: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return createValidateFn<TupleCircular>();
@@ -430,7 +432,9 @@ export const TUPLE = {
     // Covered type-first here; the object→tuple cycle is covered value-first by
     // CIRCULAR.object_with_tuple_prop.
     validateSchema: 'not-supported',
+    validateJsonSchema: 'not-supported',
     getValidationErrorsSchema: 'not-supported',
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return deserializeValidate<TupleCircular>();

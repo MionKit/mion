@@ -579,7 +579,10 @@ export const UNION = {
     title: 'Circular union',
     description:
       'union.spec.ts "Union circular" where a self-referential union via object and array arms is handled by always-non-inlined Union, Object, and Array with no IsCircular detection needed, terminating via the dependency-call layer\'s lazy-init two-phase cache registration.',
-    validateNotes: 'Self-recursive unions traverse the cycle until the input value bottoms out at an atomic arm.',
+    validateNotes: [
+      'Self-recursive unions traverse the cycle until the input value bottoms out at an atomic arm.',
+      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
+    ],
     validateSchema: () => {
       const uc = RT.circular(
         RT.union([
@@ -592,6 +595,7 @@ export const UNION = {
       );
       return createValidateFn(uc);
     },
+    validateJsonSchema: 'not-supported',
     validate: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createValidateFn<UnionC>();
@@ -638,6 +642,7 @@ export const UNION = {
       );
       return createGetValidationErrorsFn(uc);
     },
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return deserializeGetValidationErrors<UnionC>();

@@ -133,8 +133,10 @@ export const TUPLES = {
     title: 'tuple circular',
     description:
       'Self-referential root tuple [Date, number, string, null, string[], bigint, TupleCircular?] whose last optional slot recurses into the same tuple, with the Date slot encoding to an ISO string, the bigint slot to a decimal string, and the nested tuple round-tripping recursively across JSON and binary.',
-    serializeNotes:
+    serializeNotes: [
       'A root-level recursive tuple cannot be authored value-first, so all four schema variants are marked not-supported (the object-to-tuple cycle is covered value-first by interface_circular_tuple); the type-first path round-trips with Date-to-ISO-string and bigint-to-decimal-string per-slot transforms.',
+      'JSON Schema: the Date and bigint members have no schema spelling.',
+    ],
     mutateEncoder: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       return createJsonEncoderFn<TupleCircular>(undefined, {strategy: 'mutate'});
@@ -179,6 +181,10 @@ export const TUPLES = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
       const tDeep: TupleCircular = [
@@ -204,6 +210,7 @@ export const TUPLES = {
   },
   interface_circular_tuple: {
     title: 'interface circular tuple',
+    serializeNotes: 'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
     description:
       'Recursive interface whose optional `parent` is a [string, ICircularTuple] tuple forming an object-to-tuple cycle where every slot is serializable, so the whole graph round-trips symmetrically across JSON and binary with the value-first schema mirroring the type via RT.circular.',
     mutateEncoder: () => {
@@ -277,6 +284,10 @@ export const TUPLES = {
       createBinaryEncoderFn(RT.circular(RT.object({name: TF.string(), parent: RT.optional(RT.tuple([TF.string(), RT.self()]))}))),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.circular(RT.object({name: TF.string(), parent: RT.optional(RT.tuple([TF.string(), RT.self()]))}))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ICircularTuple {
         name: string;

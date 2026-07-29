@@ -925,6 +925,7 @@ export const ARRAY = {
       const ca = RT.circular(RT.array(RT.self()));
       return createValidateFn(ca);
     },
+    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
     getValidationErrors: () => {
       type CircularArray = CircularArray[];
       return createGetValidationErrorsFn<CircularArray>();
@@ -937,6 +938,7 @@ export const ARRAY = {
       const ca = RT.circular(RT.array(RT.self()));
       return createGetValidationErrorsFn(ca);
     },
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
     deserializeGetValidationErrors: () => {
       type CircularArray = CircularArray[];
       return deserializeGetValidationErrors<CircularArray>();
@@ -1013,6 +1015,18 @@ export const ARRAY = {
       );
       return createValidateFn(ot);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
+      ),
     deserializeValidate: () => {
       type ObjectType = {a: string; deep?: {b: string; c: number}; d?: ObjectType[]};
       return deserializeValidate<ObjectType>();
@@ -1045,6 +1059,18 @@ export const ARRAY = {
       );
       return createGetValidationErrorsFn(ot);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       type ObjectType = {a: string; deep?: {b: string; c: number}; d?: ObjectType[]};
       return deserializeGetValidationErrors<ObjectType>();
