@@ -1,5 +1,6 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
 
@@ -21,14 +22,20 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(TF.string())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(TF.string())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(TF.string())),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {type: 'string'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {type: 'string'}})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'array', items: {type: 'string'}})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     getTestData: () => ({values: [['hello', 'world'], []]}),
   },
   array_date: {
     title: 'Date array',
     description:
       '`Date[]` encodes each element to an ISO string on the JSON wire and restores to a Date, while binary packs each as a fixed 8-byte epoch.',
-    serializeNotes:
+    serializeNotes: [
       'Per-element Date transform applies recursively over the array; the empty-array sample confirms no element work happens when there are no items.',
+      'JSON Schema: native Date elements are instance types with no schema INPUT spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Date[]>(undefined, {strategy: 'direct'}),
@@ -42,6 +49,10 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(TF.date())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(TF.date())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(TF.date())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [[new Date('2000-08-06T02:13:00.000Z'), new Date('2001-09-07T03:14:00.000Z')], []],
     }),
@@ -49,8 +60,10 @@ export const ARRAYS = {
   undefined_in_array: {
     title: 'Undefined array elements',
     description: '`undefined[]` array slots cannot hold undefined on the JSON wire, so each is serialized as null.',
-    serializeNotes:
+    serializeNotes: [
       'JSON.stringify writes each undefined element as null (array holes/undefined become null, unlike object props which are dropped); decode restores them per the declared literal type.',
+      'JSON Schema: undefined is not JSON data; const covers only string/number/boolean/null.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<undefined[]>(undefined, {strategy: 'direct'}),
@@ -64,6 +77,10 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.literal(undefined))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.literal(undefined))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.literal(undefined))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [[undefined, undefined]]}),
   },
   null_in_array: {
@@ -84,6 +101,10 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.literal(null))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.literal(null))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.literal(null))),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {type: 'null'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {type: 'null'}})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'array', items: {type: 'null'}})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'array', items: {type: 'null'}})),
     getTestData: () => ({values: [[null, null], []]}),
   },
   nullable_number_array: {
@@ -104,13 +125,21 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.union([TF.number(), RT.literal(null)]))),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'number'}, {type: 'null'}]}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'number'}, {type: 'null'}]}})),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'number'}, {type: 'null'}]}})),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'number'}, {type: 'null'}]}})),
     getTestData: () => ({values: [[1, null, 2], [null], []]}),
   },
   void_in_array: {
     title: 'Void array elements',
     description: '`void[]` array slots serialize as null across every strategy (same wire as undefined elements).',
-    serializeNotes:
+    serializeNotes: [
       'void normalises to undefined, so a void element follows the undefined rule: emitted as the JSON null literal in an array slot (the single-pass direct strategy must emit the constant "null" so the `.join(",")` array build stays valid JSON).',
+      'JSON Schema: void is not JSON data and has no schema spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<void[]>(undefined, {strategy: 'direct'}),
@@ -124,6 +153,10 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.void())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.void())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.void())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [[undefined, undefined]]}),
   },
   multi_dimensional: {
@@ -143,12 +176,19 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.array(TF.string()))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.array(TF.string()))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.array(TF.string()))),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
     getTestData: () => ({values: [[['hello', 'world'], ['a', 'b'], []], []]}),
   },
   non_serializable_in_array: {
     title: 'Non-serializable array elements',
     description:
       '`symbol[]` should throw at RT-compile time per the reference semantics because a non-serializable element propagates to the root.',
+    serializeNotes: 'JSON Schema: symbol elements are not JSON data and have no schema spelling.',
     mutateEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<symbol[]>(undefined, {strategy: 'direct'}),
@@ -164,6 +204,10 @@ export const ARRAYS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.symbol())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.symbol())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.symbol())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },

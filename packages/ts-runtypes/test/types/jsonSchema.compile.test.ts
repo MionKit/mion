@@ -154,7 +154,51 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      425
+      450
+    );
+  });
+
+  it('tuples — prefixItems × minItems × items (closed / optional / rest / open)', () => {
+    check(
+      `
+      type _01 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'array';
+          readonly prefixItems: readonly [{readonly type: 'string'}, {readonly type: 'number'}];
+          readonly items: false;
+          readonly minItems: 2;
+        }>,
+        [string, number]
+      >>;
+      type _02 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'array';
+          readonly prefixItems: readonly [{readonly type: 'string'}, {readonly type: 'number'}];
+          readonly items: false;
+          readonly minItems: 1;
+        }>,
+        [string, number?]
+      >>;
+      type _03 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'array';
+          readonly prefixItems: readonly [{readonly type: 'string'}];
+          readonly items: {readonly type: 'number'};
+          readonly minItems: 1;
+        }>,
+        [string, ...number[]]
+      >>;
+      type _04 = Expect<Equal<
+        FromJsonSchema<{readonly type: 'array'; readonly prefixItems: readonly [{readonly type: 'string'}]; readonly minItems: 1}>,
+        [string, ...unknown[]]
+      >>;
+      type _05 = Expect<Equal<
+        FromJsonSchema<{readonly type: 'array'; readonly prefixItems: readonly [{readonly type: 'string'}]; readonly items: false}>,
+        [string?]
+      >>;
+      type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
+      `,
+      1246
     );
   });
 
@@ -211,7 +255,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      1045
+      1052
     );
   });
 
@@ -235,7 +279,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       };
       type _04 = ExpectFalse<Assignable<NestedTypo, ExactJsonSchema<NestedTypo>>>;
       `,
-      322
+      360
     );
   });
 });

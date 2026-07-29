@@ -264,4 +264,73 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
       ),
     getSamples: () => ({valid: [{x: 1, y: 2}], invalid: [{x: 1}, {x: 1, y: 'nope'}, null]}),
   },
+
+  tuple_closed: {
+    title: 'closed tuple — prefixItems + items: false + minItems (M2)',
+    validate: () => createValidateFn<[string, number]>(),
+    validateReflect: () => {
+      const v = ['x', 1] as [string, number];
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<[string, number]>(),
+    validateJsonSchema: () =>
+      createValidateFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})),
+    getValidationErrors: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
+      ),
+    mockType: () =>
+      createMockDataFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})),
+    getSamples: () => ({
+      valid: [
+        ['x', 1],
+        ['hello', -2],
+      ],
+      invalid: [['x'], [1, 'x'], ['x', 1, true], 'x', null],
+    }),
+  },
+
+  tuple_rest: {
+    title: 'rest tuple — trailing items schema after the prefix (M2)',
+    validate: () => createValidateFn<[string, ...number[]]>(),
+    validateReflect: () => {
+      const v = ['x', 1, 2] as [string, ...number[]];
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<[string, ...number[]]>(),
+    validateJsonSchema: () =>
+      createValidateFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}], items: {type: 'number'}, minItems: 1})),
+    getValidationErrors: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({type: 'array', prefixItems: [{type: 'string'}], items: {type: 'number'}, minItems: 1})
+      ),
+    mockType: () =>
+      createMockDataFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}], items: {type: 'number'}, minItems: 1})),
+    getSamples: () => ({
+      valid: [['x'], ['x', 1], ['x', 1, 2, 3]],
+      invalid: [[], [1], ['x', 'y'], null],
+    }),
+  },
+
+  tuple_optional_member: {
+    title: 'optional trailing member — minItems below the prefix length (M2)',
+    validate: () => createValidateFn<[string, number?]>(),
+    validateReflect: () => {
+      const v = ['x'] as [string, number?];
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<[string, number?]>(),
+    validateJsonSchema: () =>
+      createValidateFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 1})),
+    getValidationErrors: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 1})
+      ),
+    mockType: () =>
+      createMockDataFn(jsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 1})),
+    getSamples: () => ({
+      valid: [['x'], ['x', 2]],
+      invalid: [[], ['x', 'y'], ['x', 1, 2], null],
+    }),
+  },
 };

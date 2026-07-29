@@ -44,7 +44,9 @@ export interface JsonSchemaInput {
   readonly properties?: {readonly [key: string]: JsonSchemaInput};
   readonly required?: readonly string[];
   readonly additionalProperties?: JsonSchemaInput | boolean;
-  readonly items?: JsonSchemaInput;
+  readonly items?: JsonSchemaInput | false;
+  readonly prefixItems?: readonly JsonSchemaInput[];
+  readonly minItems?: number;
   readonly enum?: readonly (string | number | boolean | null)[];
   readonly const?: string | number | boolean | null;
   readonly anyOf?: readonly JsonSchemaInput[];
@@ -81,7 +83,8 @@ export type ExactJsonSchema<S> = S & {readonly [K in Exclude<keyof S, keyof Json
   }
     ? {readonly properties: ExactJsonSchemaMap<P>}
     : unknown) &
-  (S extends {items: infer I} ? {readonly items: ExactJsonSchema<I>} : unknown) &
+  (S extends {items: infer I} ? (I extends boolean ? unknown : {readonly items: ExactJsonSchema<I>}) : unknown) &
+  (S extends {prefixItems: infer P} ? {readonly prefixItems: ExactJsonSchemaList<P>} : unknown) &
   (S extends {additionalProperties: infer A}
     ? A extends boolean
       ? unknown
@@ -171,6 +174,44 @@ type ObjectFrom<S> = S extends {properties: infer P}
     ? Record<string, FromJsonSchema<A>>
     : object;
 
+// array/tuple: `prefixItems` builds a tuple. Members at positions below
+// `minItems` are required, the rest optional (`?`) — absent minItems means 0,
+// i.e. all optional, matching JSON Schema truth (short arrays validate). The
+// tail comes from `items`: absent → OPEN tuple (`...unknown[]` — extra items
+// are allowed by 2020-12), `false` → closed, a schema → typed trailing rest. A
+// `minItems` beyond the prefix length behaves as the prefix length (the
+// required phase simply consumes every member).
+type ArrayFrom<S> = S extends {prefixItems: infer P extends readonly JsonSchemaInput[]}
+  ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, []>
+  : S extends {items: infer I}
+    ? I extends false
+      ? []
+      : FromJsonSchema<I>[]
+    : unknown[];
+type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
+type RestOf<S> = S extends {items: infer I} ? I : 'rt$open';
+type BuildTupleRequired<
+  P extends readonly unknown[],
+  MinItems extends number,
+  Rest,
+  Acc extends unknown[],
+> = Acc['length'] extends MinItems
+  ? BuildTupleOptional<P, Rest, Acc>
+  : P extends readonly [infer Head, ...infer Tail]
+    ? BuildTupleRequired<Tail, MinItems, Rest, [...Acc, FromJsonSchema<Head>]>
+    : FinishTuple<Acc, Rest>;
+type BuildTupleOptional<P extends readonly unknown[], Rest, Acc extends unknown[]> = P extends readonly [
+  infer Head,
+  ...infer Tail,
+]
+  ? BuildTupleOptional<Tail, Rest, [...Acc, FromJsonSchema<Head>?]>
+  : FinishTuple<Acc, Rest>;
+type FinishTuple<Acc extends unknown[], Rest> = Rest extends false
+  ? Acc
+  : Rest extends 'rt$open'
+    ? [...Acc, ...unknown[]]
+    : [...Acc, ...FromJsonSchema<Rest>[]];
+
 // anyOf: recursive arm-by-arm union build (the UnionOf precedent — an indexed
 // `M[number]` would let tsgo subtype-reduce sibling object arms).
 type FromAnyOf<M> = M extends readonly [infer Head, ...infer Tail] ? FromJsonSchema<Head> | FromAnyOf<Tail> : never;
@@ -200,9 +241,7 @@ export type FromJsonSchema<S> = S extends true
                   : S extends {type: 'null'}
                     ? null
                     : S extends {type: 'array'}
-                      ? S extends {items: infer I}
-                        ? FromJsonSchema<I>[]
-                        : unknown[]
+                      ? ArrayFrom<S>
                       : S extends {type: 'object'}
                         ? ObjectFrom<S>
                         : unknown; // `{}` — the always-true schema
