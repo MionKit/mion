@@ -1,6 +1,16 @@
+---
+type: fix
+spec: full-plan
+status: done
+created: 2026-07-29
+---
+
 # enrichCheck beforeAll hook times out under full-suite CPU contention
 
-**Status:** todo
+**Status:** done — fixed via the first option: `hookTimeout: 30000` set alongside the
+existing `testTimeout: 30000` in `packages/ts-runtypes/vitest.config.ts` (config-level, so
+every sibling enrich category hook gets the same headroom). Reproduced once more during
+the JSON Schema implementation session's baseline full-suite run before applying.
 **Type:** fix — flaky test hook (load-dependent CI failure)
 **Created:** 2026-07-29
 **Found by:** the JSON Schema investigation's full-suite regression run (Claude Code web container)

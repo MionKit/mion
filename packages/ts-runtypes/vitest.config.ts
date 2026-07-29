@@ -80,6 +80,10 @@ export default defineConfig({
     // default and timed out. Give every case comfortable headroom (mirrors the
     // playground project's timeout). Real hangs still fail, just later.
     testTimeout: 30000,
+    // Same contention headroom for hooks: enrichCheck's beforeAll does ~10s+
+    // of real work per category and crossed the 10s default under full-suite
+    // parallel load (docs/done/enrichcheck-beforeall-hook-timeout-under-load.md).
+    hookTimeout: 30000,
     setupFiles: ['./test/support/setup.ts'],
     // Removes the generated <PACKAGE_ROOT>/__runtypes output tree after the
     // whole suite (teardown only — see the file's note on globalSetup timing).
