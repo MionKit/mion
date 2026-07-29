@@ -134,6 +134,19 @@ export interface PluginOptions {
   // undefined = the binary default, 7). The canonical home is the tsconfig
   // `hashLength` knob; set it here to override one build.
   hashLength?: number;
+  // How many mockSamples the build auto-generates for a format pattern that
+  // declares none (--pattern-sample-count; undefined = the binary default,
+  // 100; 0 disables generation, making sample-less patterns a build error).
+  // Deterministic per pattern. The canonical home is the tsconfig
+  // `patternSampleCount` knob; set it here to override one build.
+  patternSampleCount?: number;
+  // Per-sample draw multiplier for pattern sample generation
+  // (--pattern-sample-retries; undefined = the binary default, 10): the
+  // whole budget is patternSampleCount × patternSampleRetries draws before
+  // a pattern is declared ungeneratable. Raise it for heavily constrained
+  // patterns whose candidates often miss the declared length bounds. The
+  // canonical home is the tsconfig `patternSampleRetries` knob.
+  patternSampleRetries?: number;
   // How cache entries group into modules:
   //   'default'    — runtype nodes ride ONE data bundle (+ per-root facade
   //                  modules); every fn-family / composite / pure-fn entry
@@ -371,6 +384,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(options.moduleMode ? {moduleMode: options.moduleMode} : {}),
       ...(options.singleThreaded !== undefined ? {singleThreaded: options.singleThreaded} : {}),
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
+      ...(options.patternSampleCount !== undefined ? {patternSampleCount: options.patternSampleCount} : {}),
+      ...(options.patternSampleRetries !== undefined ? {patternSampleRetries: options.patternSampleRetries} : {}),
       ...(options.jsRuntime ? {jsRuntime: options.jsRuntime} : {}),
       // Tri-state → the two low-level resolver flags: report on the wire for
       // both 'file' and 'callback'; the JSON file written only for 'file' (at

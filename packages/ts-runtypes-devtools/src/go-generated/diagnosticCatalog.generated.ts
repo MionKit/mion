@@ -190,6 +190,12 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "Pattern checks (does the regex compile, do the mockSamples match it) run on\na real JS engine — the same `new RegExp` the emitted validator uses at\nruntime — driven by the resolver as a small sidecar under node or bun. No\nruntime could be started, so the pattern is unverifiable and the build\nfails closed rather than ship samples it can't verify.\n\nFix — install node (or bun) so the resolver finds it on PATH, or point it\nat one explicitly with the --js-runtime flag or the RT_JS_RUNTIME\nenvironment variable. Projects with no patterns never need this.",
   },
+  FMT005: {
+    headline: 'Cannot auto-generate mockSamples for pattern /{0}/: {1} — declare mockSamples explicitly.',
+    severity: 'error',
+    detail:
+      "A pattern with no declared mockSamples gets them generated at build time:\nthe JS engine draws candidate strings from the regex (patternSampleCount of\nthem, deterministic per pattern) and keeps the ones the real compiled\npattern and the declared length bounds accept. This one produced nothing —\ngeneration is disabled (patternSampleCount 0), the generator cannot handle\na construct in the pattern (lookarounds are the usual case), or every draw\nin the retry budget (patternSampleCount × patternSampleRetries) failed the\npattern's own constraints.\n\nFix — declare the samples yourself; they are validated against the pattern\nat build time, so they stay trustworthy:\n-  String<{pattern: {source: '(?<=x)y'}}>\n+  String<{pattern: {source: '(?<=x)y'; mockSamples: ['xy']}}>\n\nOr, if generation was disabled on purpose, re-enable it by raising\npatternSampleCount above 0 (and patternSampleRetries if the pattern is\nheavily constrained).",
+  },
   FT002: {
     headline: 'Unknown field `{0}` — the type does not declare it, so this FriendlyText entry is dead.',
     severity: 'error',

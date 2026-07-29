@@ -12,7 +12,7 @@ import {
   versions,
   type RunTypeTreeNode,
 } from '../../../../container/website/app/playground/index.ts';
-import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
+import {assetsBuilt, installSidecarHook, loadNodeResolver} from './nodeResolver.ts';
 
 // End-to-end engine tests: each resolves <factory><MyType>() via the real WASM
 // resolver, links the emitted entry modules in-process, hands the tuple to the
@@ -211,6 +211,23 @@ describeIf('playground engine (WASM, live execution)', () => {
     const m = await mock(TYPE);
     expect(m.value).toBeTypeOf('object');
     const ok = await run('validate', TYPE, m.value);
+    if (ok.kind !== 'predicate') throw new Error('expected predicate result');
+    expect(ok.value).toBe(true);
+  });
+
+  // The WASM engine has no node sidecar; the __tsRunTypesJsEngine host hook
+  // (the sidecar bundle's IIFE build, loaded by the browser playground and by
+  // loadNodeResolver here) IS its JS engine. A pattern with NO declared
+  // mockSamples only mocks if generation ran through that hook — pinning the
+  // browser-parity lane end-to-end under the real WASM module.
+  it('sample-less pattern mockSamples generate in WASM via the sidecar hook', async () => {
+    expect(installSidecarHook()).toBe(true);
+    const patternType = `import type * as TF from '@ts-runtypes/core/formats';
+type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags: ''}}> };`;
+    const m = await mock(patternType);
+    const value = m.value as {code: string};
+    expect(value.code).toMatch(/^[a-z]{3}-[0-9]{2}$/);
+    const ok = await run('validate', patternType, m.value);
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
   });

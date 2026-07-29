@@ -46,16 +46,20 @@ import type {
 
 // PatternParam — the regex a string format validates against. Either a
 // `registerFormatPattern(...)` result (validates its samples at load) or an
-// inline `{source, flags?, mockSamples, message?}` literal (the
+// inline `{source, flags?, mockSamples?, message?}` literal (the
 // `StringPatternArgs` shape) the Go scanner recovers directly from the property.
-// EITHER WAY a pattern carries `mockSamples` — a bare `/regex/` with no samples
-// is deliberately NOT accepted (the mock generator needs samples to produce
-// matching values):
+// `mockSamples` are optional — a pattern without them gets a deterministic
+// sample pool generated from the regex at build time (declare your own to
+// curate the values, or when the build reports it cannot generate for a
+// construct):
 //   const slug = registerFormatPattern({source: '^[a-z-]+$', mockSamples: ['a-b']});
 //   type Slug = String<{pattern: typeof slug}>;
-//   type Digits = String<{pattern: {source: '^[0-9]+$'; mockSamples: ['1', '42']}}>;
-// (Built-ins encode their pattern as an inline `{source, flags, mockSamples}`
-// literal — a published .d.ts can't carry a regex VALUE for `typeof` recovery.)
+//   type Digits = String<{pattern: {source: '^[0-9]+$'}}>;
+// A bare `/regex/` VALUE stays deliberately NOT accepted: `typeof /x/` is
+// plain RegExp, so nothing about it survives as literal types for the
+// scanner (see StringPatternArgs.exec). Built-ins encode their pattern as an
+// inline `{source, flags, mockSamples}` literal — a published .d.ts can't
+// carry a regex VALUE for `typeof` recovery.
 export type PatternParam = FormatPattern | StringPatternArgs;
 
 // Samples — canonical valid values for the mock generator: either an

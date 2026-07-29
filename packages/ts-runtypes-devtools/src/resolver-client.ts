@@ -85,6 +85,13 @@ export interface ResolverClientOptions {
   // names (undefined = the binary default, 7). The build lane forwards the
   // bundler/tsconfig value; the lint lane never sets it.
   hashLength?: number;
+  // Forwarded as --pattern-sample-count: generated mockSamples per
+  // sample-less format pattern (undefined = the binary default, 100;
+  // 0 disables generation).
+  patternSampleCount?: number;
+  // Forwarded as --pattern-sample-retries: the per-sample draw multiplier
+  // for pattern sample generation (undefined = the binary default, 10).
+  patternSampleRetries?: number;
   // Forwarded as --js-runtime: the node/bun path the resolver runs
   // format-pattern checks on. buildResolverArgs defaults it to THIS
   // process's own execPath (the plugin/linter already runs inside a JS
@@ -549,6 +556,8 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.singleThreaded === true) args.push('--single-threaded');
   else if (opts.singleThreaded === false) args.push('--no-single-threaded');
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
+  if (opts.patternSampleCount !== undefined) args.push('--pattern-sample-count', String(opts.patternSampleCount));
+  if (opts.patternSampleRetries !== undefined) args.push('--pattern-sample-retries', String(opts.patternSampleRetries));
   // Always passed: the resolver's format-pattern checks run on a real JS
   // engine, and THIS process is one — its own execPath is the zero-config
   // default for every lane (build + lint). An explicit option pins another.

@@ -64,6 +64,11 @@ func main() {
 		// linked-in-browser run path has one module to materialize.
 		InlineMode: constants.InlineModeAllInternal,
 		ModuleMode: constants.ModuleModeAllSingle,
+		// Pattern mockSample generation runs at the native defaults; it
+		// works when the host installed the sidecar hook (the playground
+		// loads it before this module) and degrades to FMT005 without it.
+		PatternSampleCount:   constants.DefaultPatternSampleCount,
+		PatternSampleRetries: constants.DefaultPatternSampleRetries,
 	})
 
 	dispatch := js.FuncOf(func(this js.Value, args []js.Value) (result any) {

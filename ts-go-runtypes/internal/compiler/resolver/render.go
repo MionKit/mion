@@ -28,6 +28,10 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map
 	if sess == nil {
 		return typefunctions.RenderOpts{}
 	}
+	// Fill generated mockSamples into sample-less pattern annotations
+	// BEFORE the collects fan out — single-threaded here, idempotent, and
+	// memoized in the engine, so repeat dispatches re-ask nothing.
+	sess.enrichPatternSamples()
 	return typefunctions.RenderOpts{
 		Store:           sess.rtStore,
 		Lookup:          sess.cache,
@@ -38,8 +42,10 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map
 		// The JS engine format-pattern checks run on — the validation
 		// authority for mockSamples (FMT001/FMT002), fail-closed with
 		// FMT004 when it cannot run.
-		JSEngine: sess.opts.JSEngine,
-		RefTable: sess.fullRefTable(),
+		JSEngine:             sess.opts.JSEngine,
+		PatternSampleCount:   sess.opts.PatternSampleCount,
+		PatternSampleRetries: sess.opts.PatternSampleRetries,
+		RefTable:             sess.fullRefTable(),
 		SizeEstimate: typefunctions.SizeEstimateConfig{
 			Bias:        sess.opts.SizeBias,
 			Items:       sess.opts.SizeItems,

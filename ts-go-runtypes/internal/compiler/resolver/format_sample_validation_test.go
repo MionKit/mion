@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -294,6 +295,196 @@ export const _ = createValidateFn<{name: string; age: number}>();
 	resp := scanBuild(t, session)
 	if found := findDiag(resp, diagnostics.CodeFMTMissingJsRuntime); found != nil {
 		t.Fatalf("zero-pattern project must not need a JS runtime, got %+v", found)
+	}
+}
+
+// samplelessPatternSource builds the paired-shape fixture for the
+// generation lanes: the SAME sample-less pattern demanded through BOTH
+// marker call shapes (static createValidateFn<T>() and reflection
+// createValidateFn(value) — the marker coverage rule), so one interned
+// format node serves both sites.
+const samplelessPatternSource = `import {createValidateFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+type Code = TypeFormat<string, 'stringFormat', {
+  pattern: {source: '^[a-z]{3}$'; flags: ''};
+}>;
+export const staticForm = createValidateFn<Code>();
+declare const value: Code;
+export const reflectForm = createValidateFn(value);
+`
+
+// generationScan runs the build-lane scan with the wire RunTypes included
+// so the enriched annotation is observable.
+func generationScan(t testing.TB, session *resolver.Session) protocol.Response {
+	t.Helper()
+	resp := session.Dispatch(protocol.Request{
+		Op:                  protocol.OpScanFiles,
+		Files:               []string{"a.ts"},
+		IncludeEntryModules: true,
+		IncludeRunTypes:     true,
+	})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	return resp
+}
+
+// patternSamplesFrom digs the pattern.mockSamples list out of the one
+// stringFormat node in a response's wire RunTypes ("" when absent).
+func patternSamplesFrom(t testing.TB, resp protocol.Response) (nodeID string, samples []string) {
+	t.Helper()
+	for _, node := range resp.RunTypes {
+		if node == nil || node.FormatAnnotation == nil || node.FormatAnnotation.Name != "stringFormat" {
+			continue
+		}
+		if nodeID != "" {
+			t.Fatalf("expected ONE interned stringFormat node for both call shapes, found a second (%s and %s)", nodeID, node.ID)
+		}
+		nodeID = node.ID
+		pattern, _ := node.FormatAnnotation.Params["pattern"].(map[string]any)
+		if pattern == nil {
+			continue
+		}
+		raw, _ := pattern["mockSamples"].([]any)
+		for _, item := range raw {
+			if s, ok := item.(string); ok {
+				samples = append(samples, s)
+			}
+		}
+	}
+	if nodeID == "" {
+		t.Fatalf("no stringFormat node in the response RunTypes")
+	}
+	return nodeID, samples
+}
+
+// withSampleKnobs returns a setupInlineWith hook pinning the generation
+// knobs (single-threaded so the fixture is deterministic to debug).
+func withSampleKnobs(count, retries int) func(*program.Options, *resolver.Options) {
+	return func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.PatternSampleCount = count
+		resolverOpts.PatternSampleRetries = retries
+	}
+}
+
+// TestFormatSamples_GeneratedSamplesFillAnnotation — the headline of the
+// auto-generation feature: a pattern with NO declared mockSamples builds
+// clean, and the wire annotation carries generated samples that all match
+// the pattern; a second independent session generates the IDENTICAL list
+// (content-derived seed), and both marker call shapes share the one
+// enriched node.
+func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
+	sources := map[string]string{"a.ts": samplelessPatternSource}
+	resp := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
+	for _, code := range []string{diagnostics.CodeFMTSampleGenFailed, diagnostics.CodeFMTSampleMismatch, diagnostics.CodeFMTInvalidParams, diagnostics.CodeFMTMissingJsRuntime} {
+		if found := findDiag(resp, code); found != nil {
+			t.Fatalf("sample-less pattern must build clean under generation, got %s: %+v", code, found)
+		}
+	}
+	_, samples := patternSamplesFrom(t, resp)
+	if len(samples) != 5 {
+		t.Fatalf("expected PatternSampleCount=5 generated samples, got %d: %v", len(samples), samples)
+	}
+	// ^[a-z]{3}$ is in the RE2==JS shared-semantics subset, so Go's regexp
+	// is a faithful oracle for this fixture.
+	oracle := regexp.MustCompile(`^[a-z]{3}$`)
+	for _, sample := range samples {
+		if !oracle.MatchString(sample) {
+			t.Fatalf("generated sample %q does not match ^[a-z]{3}$ (all: %v)", sample, samples)
+		}
+	}
+
+	// Determinism: an independent session (fresh engine child, fresh cache)
+	// generates the exact same list, in order.
+	respAgain := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
+	_, samplesAgain := patternSamplesFrom(t, respAgain)
+	if strings.Join(samplesAgain, "\x00") != strings.Join(samples, "\x00") {
+		t.Fatalf("generation must be deterministic across sessions:\n first: %v\nsecond: %v", samples, samplesAgain)
+	}
+}
+
+// TestFormatSamples_DeclaredSamplesUntouched — declared samples always
+// win: generation never appends to or replaces a declared list.
+func TestFormatSamples_DeclaredSamplesUntouched(t *testing.T) {
+	code := `import {createValidateFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
+  pattern: {source: '^[a-z]{3}$'; flags: ''; mockSamples: ['abc', 'xyz']};
+}>>();
+`
+	resp := generationScan(t, setupInlineWith(t, map[string]string{"a.ts": code}, withSampleKnobs(5, 10)))
+	_, samples := patternSamplesFrom(t, resp)
+	if strings.Join(samples, ",") != "abc,xyz" {
+		t.Fatalf("declared samples must pass through untouched, got %v", samples)
+	}
+}
+
+// TestFormatSamples_GenerationDisabledFMT005 — patternSampleCount 0
+// disables generation, so a sample-less pattern is a build error telling
+// the user to declare samples (never a silent mock-time throw).
+func TestFormatSamples_GenerationDisabledFMT005(t *testing.T) {
+	resp := generationScan(t, setupInlineWith(t, map[string]string{"a.ts": samplelessPatternSource}, withSampleKnobs(0, 10)))
+	found := findDiag(resp, diagnostics.CodeFMTSampleGenFailed)
+	if found == nil {
+		t.Fatalf("expected %s with generation disabled, got %+v", diagnostics.CodeFMTSampleGenFailed, resp.Diagnostics)
+	}
+	if found.Severity != diagnostics.SeverityError {
+		t.Errorf("severity: got %d want %d (error)", found.Severity, diagnostics.SeverityError)
+	}
+	if len(found.Args) < 2 || found.Args[0] != "^[a-z]{3}$" || !strings.Contains(found.Args[1], "disabled") {
+		t.Errorf("expected [pattern source, disabled reason] args, got %+v", found.Args)
+	}
+}
+
+// TestFormatSamples_UngeneratableFMT005 — a pattern the generator cannot
+// handle (lookbehind compiles under new RegExp but makes randexp throw)
+// fails with FMT005 carrying the reason, anchored like every format
+// diagnostic. Declaring mockSamples is the documented fix.
+func TestFormatSamples_UngeneratableFMT005(t *testing.T) {
+	code := `import {createValidateFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
+  pattern: {source: '(?<=a)b'; flags: ''};
+}>>();
+`
+	resp := generationScan(t, setupInlineWith(t, map[string]string{"a.ts": code}, withSampleKnobs(5, 10)))
+	found := findDiag(resp, diagnostics.CodeFMTSampleGenFailed)
+	if found == nil {
+		t.Fatalf("expected %s for an ungeneratable construct, got %+v", diagnostics.CodeFMTSampleGenFailed, resp.Diagnostics)
+	}
+	if len(found.Args) < 2 || found.Args[0] != "(?<=a)b" || found.Args[1] == "" {
+		t.Errorf("expected [pattern source, failure reason] args, got %+v", found.Args)
+	}
+	// The pattern itself is valid JS regex — the compile lanes stay quiet.
+	if found := findDiag(resp, diagnostics.CodeFMTInvalidParams); found != nil {
+		t.Errorf("lookbehind compiles under new RegExp; unexpected FMT002 %+v", found)
+	}
+}
+
+// TestFormatSamples_TypeIDStableAcrossKnobs — generation is post-intern:
+// the SAME sample-less pattern interns to the SAME typeID whatever the
+// knobs say (5, 50, or disabled), and stays distinct from the
+// declared-samples variant (declared samples are params and DO fold in).
+func TestFormatSamples_TypeIDStableAcrossKnobs(t *testing.T) {
+	sources := map[string]string{"a.ts": samplelessPatternSource}
+	id5, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10))))
+	id50, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, sources, withSampleKnobs(50, 10))))
+	idOff, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, sources, withSampleKnobs(0, 10))))
+	if id5 != id50 || id5 != idOff {
+		t.Fatalf("typeID must not depend on the generation knobs: count5=%s count50=%s off=%s", id5, id50, idOff)
+	}
+	declared := `import {createValidateFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+type Code = TypeFormat<string, 'stringFormat', {
+  pattern: {source: '^[a-z]{3}$'; flags: ''; mockSamples: ['abc']};
+}>;
+export const _ = createValidateFn<Code>();
+`
+	idDeclared, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, map[string]string{"a.ts": declared}, withSampleKnobs(5, 10))))
+	if idDeclared == id5 {
+		t.Fatalf("declared samples are params and must fork the typeID; both %s", id5)
 	}
 }
 

@@ -1,17 +1,24 @@
 // Sidecar job runner: executes JS-regex jobs the Go resolver cannot run
 // itself (RE2 has no lookarounds or backreferences, and diverges from JS
-// semantics even on the shared syntax). Pure function so the unit tests
-// cover it without spawning a process; the stdio shell in index.ts is the
-// only I/O layer. The `op` strings are open-ended on purpose: the
-// mockSamples autogeneration todo adds a `generate` op without reshaping
-// the protocol.
+// semantics even on the shared syntax). Pure functions so the unit tests
+// cover them without spawning a process; the stdio shell (index.ts) and
+// the WASM host hook (hook.ts) are the only I/O layers, and both go
+// through handleRequestLine so they cannot drift.
+import RandExp from 'randexp';
 
 export interface SidecarJob {
   id: number;
   op: string;
   source: string;
   flags?: string;
+  // validate
   samples?: readonly string[];
+  // generate
+  count?: number;
+  seed?: number;
+  maxAttempts?: number;
+  minLength?: number;
+  maxLength?: number;
 }
 
 export interface SidecarResult {
@@ -19,10 +26,47 @@ export interface SidecarResult {
   // The pattern failed `new RegExp` — a regex syntax error in the user's
   // type definition (Go surfaces it as FMT002).
   compileError?: string;
-  // Samples that do NOT match the compiled pattern (Go surfaces FMT001).
+  // validate: samples that do NOT match the compiled pattern (Go surfaces
+  // FMT001).
   offenders?: string[];
+  // generate: the deterministic sample values (deduped; may be fewer than
+  // requested for small finite languages).
+  values?: string[];
+  // generate: the pattern compiles but no samples could be produced — an
+  // unsupported construct made randexp throw, or the whole retry budget
+  // yielded nothing that survives the self-check (Go surfaces FMT005).
+  generateError?: string;
   // Protocol-level failure (unknown op); Go treats it as an engine error.
   error?: string;
+}
+
+interface SidecarRequest {
+  v: number;
+  jobs?: readonly SidecarJob[];
+}
+
+const LINE_SEPARATOR = String.fromCharCode(0x2028);
+const PARAGRAPH_SEPARATOR = String.fromCharCode(0x2029);
+
+// JSON.stringify leaves U+2028/U+2029 raw (legal inside JSON strings), but
+// they look like line breaks to newline-framed JS readers. A response can
+// echo them inside offender samples, so escape both — mirroring what Go's
+// encoding/json does on the request side — and no reader on either end can
+// ever see a bogus line break.
+function encodeLine(value: unknown): string {
+  return JSON.stringify(value).split(LINE_SEPARATOR).join('\\u2028').split(PARAGRAPH_SEPARATOR).join('\\u2029');
+}
+
+// handleRequestLine is the whole request/response contract in one place:
+// one request-line JSON in, one response-line JSON out. Shared by the
+// stdio shell and the WASM host hook.
+export function handleRequestLine(line: string): string {
+  try {
+    const request = JSON.parse(line) as SidecarRequest;
+    return encodeLine({v: 1, results: runJobs(request.jobs ?? [])});
+  } catch (err) {
+    return encodeLine({v: 1, error: err instanceof Error ? err.message : String(err)});
+  }
 }
 
 export function runJobs(jobs: readonly SidecarJob[]): SidecarResult[] {
@@ -30,15 +74,92 @@ export function runJobs(jobs: readonly SidecarJob[]): SidecarResult[] {
 }
 
 function runJob(job: SidecarJob): SidecarResult {
-  if (job.op !== 'validate') return {id: job.id, error: `unknown op ${JSON.stringify(job.op)}`};
+  if (job.op === 'validate') return runValidate(job);
+  if (job.op === 'generate') return runGenerate(job);
+  return {id: job.id, error: `unknown op ${JSON.stringify(job.op)}`};
+}
+
+// Strip g/y: `.test` advances lastIndex on global/sticky regexes — the
+// same statefulness guard registerFormatPattern applies at module load.
+function statelessFlags(flags: string | undefined): string {
+  return (flags ?? '').replace(/[gy]/g, '');
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function runValidate(job: SidecarJob): SidecarResult {
   let tester: RegExp;
   try {
-    // Strip g/y: `.test` advances lastIndex on global/sticky regexes — the
-    // same statefulness guard registerFormatPattern applies at module load.
-    tester = new RegExp(job.source, (job.flags ?? '').replace(/[gy]/g, ''));
+    tester = new RegExp(job.source, statelessFlags(job.flags));
   } catch (err) {
-    return {id: job.id, compileError: err instanceof Error ? err.message : String(err)};
+    return {id: job.id, compileError: errorMessage(err)};
   }
   const offenders = (job.samples ?? []).filter((sample) => !tester.test(sample));
   return offenders.length > 0 ? {id: job.id, offenders} : {id: job.id};
+}
+
+// mulberry32: the same tiny seeded PRNG the fuzz harness uses. Drives
+// randexp's documented `randInt` override so generation is fully
+// deterministic per (seed) — same seed, same value stream, everywhere.
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// runGenerate draws candidate values from randexp and keeps the ones that
+// survive the SELF-CHECK: the real compiled regex plus the UTF-16 length
+// bounds. The self-check is load-bearing — randexp is lenient with
+// impossible constructs (bad positionals are ignored, unknown backrefs
+// yield empty strings), so a candidate can legitimately fail the pattern
+// it was generated from. Each attempt draws a NEW value from the seeded
+// stream, so retrying recovers unlucky draws; generateError only after
+// the whole budget (count x patternSampleRetries, computed Go-side)
+// yields nothing.
+function runGenerate(job: SidecarJob): SidecarResult {
+  const flags = statelessFlags(job.flags);
+  let tester: RegExp;
+  try {
+    tester = new RegExp(job.source, flags);
+  } catch (err) {
+    return {id: job.id, compileError: errorMessage(err)};
+  }
+  let generator: RandExp;
+  try {
+    generator = new RandExp(job.source, flags);
+  } catch (err) {
+    return {id: job.id, generateError: errorMessage(err)};
+  }
+  const count = Math.max(1, job.count ?? 1);
+  const maxAttempts = Math.max(count, job.maxAttempts ?? count * 10);
+  const minLength = Math.max(0, job.minLength ?? 0);
+  const maxLength = Math.max(0, job.maxLength ?? 0); // 0 = unbounded
+  const random = mulberry32(job.seed ?? 0);
+  generator.randInt = (from, to) => from + Math.floor(random() * (to - from + 1));
+  // Bound infinite quantifiers: honor the declared maxLength when present,
+  // otherwise keep mock values shortish (randexp's own default is 100).
+  generator.max = Math.min(maxLength > 0 ? maxLength : 10, 100);
+  const values = new Set<string>();
+  for (let attempt = 0; attempt < maxAttempts && values.size < count; attempt++) {
+    let candidate: string;
+    try {
+      candidate = generator.gen();
+    } catch (err) {
+      return {id: job.id, generateError: errorMessage(err)};
+    }
+    if (!tester.test(candidate)) continue;
+    if (candidate.length < minLength) continue;
+    if (maxLength > 0 && candidate.length > maxLength) continue;
+    values.add(candidate);
+  }
+  if (values.size === 0) {
+    return {id: job.id, generateError: `no values matching the pattern and its length bounds survived ${maxAttempts} attempts`};
+  }
+  return {id: job.id, values: [...values]};
 }

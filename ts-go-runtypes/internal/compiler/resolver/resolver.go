@@ -159,6 +159,16 @@ type Options struct {
 	// Not a disk-fingerprint input (it changes only which diagnostics
 	// surface, never the emitted artifacts).
 	JSEngine jsengine.Engine
+	// PatternSampleCount / PatternSampleRetries drive mockSample
+	// auto-generation for format patterns that declare none: the enrichment
+	// pass asks JSEngine for PatternSampleCount deterministic samples per
+	// sample-less pattern (0 disables generation — such patterns then fail
+	// with FMT005), retrying each draw up to PatternSampleRetries times
+	// (whole budget = count × retries). Generation is post-intern, so
+	// typeIDs never depend on either knob; the emitted annotation content
+	// does, so BOTH are disk-fingerprint inputs.
+	PatternSampleCount   int
+	PatternSampleRetries int
 	// PureFnReportWire enables the structured pure-fn build report: OpGenerate and
 	// OpScanFiles populate Response.PureFnSites (whole program on generate, the
 	// rescanned files' delta on scan). Off by default, so the normal rewrite
@@ -348,13 +358,15 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		return nil
 	}
 	fp := diskcache.Fingerprint(diskcache.FingerprintInputs{
-		HashLength:      opts.HashLength,
-		EmitMode:        string(opts.EmitMode),
-		InlineMode:      string(opts.InlineMode),
-		SizeBias:        opts.SizeBias,
-		SizeItems:       opts.SizeItems,
-		SizeStringBytes: opts.SizeStringBytes,
-		SizeMaxBytes:    opts.SizeMaxBytes,
+		HashLength:           opts.HashLength,
+		EmitMode:             string(opts.EmitMode),
+		InlineMode:           string(opts.InlineMode),
+		SizeBias:             opts.SizeBias,
+		SizeItems:            opts.SizeItems,
+		SizeStringBytes:      opts.SizeStringBytes,
+		SizeMaxBytes:         opts.SizeMaxBytes,
+		PatternSampleCount:   opts.PatternSampleCount,
+		PatternSampleRetries: opts.PatternSampleRetries,
 	})
 	return diskcache.New(baseDir, fp)
 }

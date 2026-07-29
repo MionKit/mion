@@ -43,6 +43,29 @@ func ReadNumberParam(params map[string]any, key string) (float64, bool) {
 	return 0, false
 }
 
+// PatternSampleLengthHints projects a format's declared length bounds
+// onto the pattern sample generator's (minLength, maxLength) hints: an
+// exact `length` pins both ends; otherwise minLength / maxLength pass
+// through (0 = unbounded). Lengths count UTF-16 code units on both sides.
+// This is the ONE hints derivation, shared by the resolver's enrichment
+// pass and the pattern emitter's FMT005 replay — both feed
+// Engine.GeneratePattern, whose memo keys must match exactly, so the two
+// call sites can never compute bounds two different ways.
+func PatternSampleLengthHints(params map[string]any) (int, int) {
+	if length, ok := ReadNumberParam(params, "length"); ok && length > 0 {
+		return int(length), int(length)
+	}
+	minLength := 0
+	if value, ok := ReadNumberParam(params, "minLength"); ok && value > 0 {
+		minLength = int(value)
+	}
+	maxLength := 0
+	if value, ok := ReadNumberParam(params, "maxLength"); ok && value > 0 {
+		maxLength = int(value)
+	}
+	return minLength, maxLength
+}
+
 // ReadBoolParam reads a boolean param, unwrapping the meta object.
 // Returns (value, present); present is false when the key is absent or
 // its (unwrapped) value isn't a bool.

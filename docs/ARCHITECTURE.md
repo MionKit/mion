@@ -106,11 +106,26 @@ authored as the private `@ts-runtypes/go-be-sidecar` workspace package, bundled 
 committed at `internal/jsengine/sidecar.bundle.mjs`, and embedded into the binary via
 `go:embed` — is spawned once per session under a host `node` (or `bun`; `--js-runtime` /
 `RT_JS_RUNTIME` pin one, the bundler plugin passes its own runtime automatically) and
-answers pattern compile + sample checks over newline-delimited JSON with memoized
-verdicts. The WASM build skips the subprocess entirely and calls the host's own `RegExp`.
-Projects with no patterns never need a JS runtime; with patterns and no runtime, the build
-fails closed (FMT004). Under WASM and native alike, the engine is the validation
-authority — there is no RE2 fallback.
+answers pattern jobs over newline-delimited JSON with memoized verdicts. Two ops ride the
+protocol: `validate` (pattern compile + sample checks) and `generate` — for a pattern that
+declares no `mockSamples`, the sidecar draws `patternSampleCount` candidate values from
+the regex (randexp under a seeded PRNG; the seed derives from the pattern itself, so
+output is identical across machines and rebuilds), keeps the ones the real compiled
+pattern and any declared length bounds accept, and retries up to `patternSampleCount ×
+patternSampleRetries` draws before the resolver fails the build with FMT005 (declare
+mockSamples explicitly). The resolver injects the survivors into the emitted
+formatAnnotation post-intern, so typeIDs never depend on the knobs (both knobs are disk
+cache fingerprint inputs, since the emitted content does depend on them).
+
+The WASM build has no subprocess. When the host installs the synchronous
+`__tsRunTypesJsEngine` hook (the sidecar bundle's IIFE twin, `dist/sidecar-hook.js` —
+the website playground stages and loads it before instantiating the module), BOTH ops
+route through it: request-line JSON in, response-line JSON out, the exact stdio contract,
+so the playground generates the same deterministic samples a native build does. Without
+the hook, validation falls back to the host's own `RegExp` and generation degrades to
+FMT005 — never a crash. Projects with no patterns never need a JS runtime; with patterns
+and no runtime, the build fails closed (FMT004). Under WASM and native alike, the engine
+is the validation authority — there is no RE2 fallback.
 
 Settings come from your `tsconfig.json` (a `ts-runtypes` entry under `plugins`), with
 command line flags taking precedence, mirroring how `tsc` resolves its own options. The

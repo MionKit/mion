@@ -4,6 +4,7 @@ package jsengine
 
 import (
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,6 +113,133 @@ func TestSidecar_MemoizesVerdicts(t *testing.T) {
 	}
 	if engine.nextID != 2 {
 		t.Fatalf("expected exactly 2 sidecar round-trips, got %d", engine.nextID)
+	}
+}
+
+// TestSidecar_GenerateRoundTrip uses the validate op as the oracle:
+// every generated value, fed back as a sample, must produce zero
+// offenders.
+func TestSidecar_GenerateRoundTrip(t *testing.T) {
+	engine := newTestEngine(t)
+	result, err := engine.GeneratePattern("^[a-z]{3}-[0-9]{2}$", "", 8, 10, 0, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	if result.CompileError != "" || result.GenerateError != "" {
+		t.Fatalf("unexpected errors in result: %+v", result)
+	}
+	if len(result.Values) != 8 {
+		t.Fatalf("expected 8 values, got %d: %v", len(result.Values), result.Values)
+	}
+	verdict, err := engine.TestPattern("^[a-z]{3}-[0-9]{2}$", "", result.Values)
+	if err != nil {
+		t.Fatalf("TestPattern oracle: %v", err)
+	}
+	if len(verdict.Offenders) != 0 {
+		t.Fatalf("generated values must all match their own pattern, offenders: %v", verdict.Offenders)
+	}
+}
+
+// TestSidecar_GenerateDeterministic runs two INDEPENDENT engines (two
+// child processes, no shared memo): the seed is content-derived, so the
+// lists must be identical — the property that keeps rebuilt caches
+// byte-stable.
+func TestSidecar_GenerateDeterministic(t *testing.T) {
+	first := newTestEngine(t)
+	second := newTestEngine(t)
+	a, err := first.GeneratePattern("^[a-f0-9]{8}$", "", 6, 10, 0, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern (first engine): %v", err)
+	}
+	b, err := second.GeneratePattern("^[a-f0-9]{8}$", "", 6, 10, 0, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern (second engine): %v", err)
+	}
+	if !slices.Equal(a.Values, b.Values) {
+		t.Fatalf("independent engines diverged:\n first: %v\nsecond: %v", a.Values, b.Values)
+	}
+	if len(a.Values) == 0 {
+		t.Fatal("expected at least one generated value")
+	}
+}
+
+func TestSidecar_GenerateMemoized(t *testing.T) {
+	engine := newTestEngine(t)
+	for range 3 {
+		if _, err := engine.GeneratePattern("^x{2}$", "", 4, 10, 0, 0); err != nil {
+			t.Fatalf("GeneratePattern: %v", err)
+		}
+	}
+	if _, err := engine.GeneratePattern("^x{2}$", "", 5, 10, 0, 0); err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	if len(engine.memo) != 2 {
+		t.Fatalf("expected 2 memo entries (count is key-relevant), got %d", len(engine.memo))
+	}
+	if engine.nextID != 2 {
+		t.Fatalf("expected exactly 2 sidecar round-trips, got %d", engine.nextID)
+	}
+}
+
+// TestSidecar_GenerateUnsupportedConstruct pins the FMT005 lane: the
+// pattern compiles under new RegExp but randexp throws on it.
+func TestSidecar_GenerateUnsupportedConstruct(t *testing.T) {
+	engine := newTestEngine(t)
+	result, err := engine.GeneratePattern("(?<=x)y", "", 5, 10, 0, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	if result.CompileError != "" {
+		t.Fatalf("lookbehind compiles in JS, unexpected CompileError: %q", result.CompileError)
+	}
+	if result.GenerateError == "" {
+		t.Fatal("expected a GenerateError for a construct randexp cannot handle")
+	}
+}
+
+// TestSidecar_GenerateBudgetExhausted: a 1-char language with minLength 5
+// filters every draw, so the whole count×retries budget (3×7=21) yields
+// nothing.
+func TestSidecar_GenerateBudgetExhausted(t *testing.T) {
+	engine := newTestEngine(t)
+	result, err := engine.GeneratePattern("^a$", "", 3, 7, 5, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	if !strings.Contains(result.GenerateError, "21 attempts") {
+		t.Fatalf("expected the exhausted 21-attempt budget in the error, got %q", result.GenerateError)
+	}
+	if len(result.Values) != 0 {
+		t.Fatalf("expected no values, got %v", result.Values)
+	}
+}
+
+func TestSidecar_GenerateCompileError(t *testing.T) {
+	engine := newTestEngine(t)
+	result, err := engine.GeneratePattern("^[a-z+$", "", 3, 10, 0, 0)
+	if err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	if result.CompileError == "" || result.GenerateError != "" {
+		t.Fatalf("invalid syntax must be a CompileError (FMT002 lane), got %+v", result)
+	}
+}
+
+func TestSidecar_GenerateRespectsBounds(t *testing.T) {
+	engine := newTestEngine(t)
+	result, err := engine.GeneratePattern("^x+$", "", 3, 20, 2, 4)
+	if err != nil {
+		t.Fatalf("GeneratePattern: %v", err)
+	}
+	if len(result.Values) == 0 {
+		t.Fatalf("expected values within bounds, got none (%+v)", result)
+	}
+	for _, value := range result.Values {
+		if len(value) < 2 || len(value) > 4 {
+			t.Fatalf("value %q violates the [2,4] length bounds", value)
+		}
 	}
 }
 

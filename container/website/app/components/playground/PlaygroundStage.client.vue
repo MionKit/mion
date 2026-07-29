@@ -261,7 +261,11 @@ function playgroundBase(): string {
 
 function resolverOptions(): ResolverOptions {
   const base = playgroundBase();
-  return {wasmUrl: `${base}playground-app/ts-runtypes.wasm.gz`, wasmExecUrl: `${base}playground-app/wasm_exec.js`};
+  return {
+    wasmUrl: `${base}playground-app/ts-runtypes.wasm.gz`,
+    wasmExecUrl: `${base}playground-app/wasm_exec.js`,
+    sidecarHookUrl: `${base}playground-app/sidecar-hook.js`,
+  };
 }
 
 function ensureMonacoWorkers(): void {

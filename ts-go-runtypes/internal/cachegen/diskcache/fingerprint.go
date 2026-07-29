@@ -36,6 +36,12 @@ type FingerprintInputs struct {
 	SizeItems       int
 	SizeStringBytes int
 	SizeMaxBytes    int
+	// PatternSampleCount / PatternSampleRetries drive pattern mockSample
+	// auto-generation. Generated samples land in emitted formatAnnotations
+	// (never in typeIDs — generation is post-intern), so a knob change must
+	// re-derive every cached entry a sample-less pattern reaches.
+	PatternSampleCount   int
+	PatternSampleRetries int
 }
 
 // Fingerprint hashes inputs into a stable 12-hex-char prefix used as the
@@ -60,9 +66,12 @@ type FingerprintInputs struct {
 // union encoder's simple leaf-atomic member checks (typeof v === 'string', …)
 // directly into the dispatch instead of a cross-family `val_<member>?.fn(v)`
 // call, so every union-encoder body (and its cross-family edge set) changed.
+// "v9"->"v10" added the pattern mockSample auto-generation knobs
+// (PatternSampleCount / PatternSampleRetries) whose values shape the
+// generated samples baked into emitted formatAnnotations.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v9\n")
+	sb.WriteString("v10\n")
 	sb.WriteString(strconv.Itoa(inputs.HashLength))
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.EmitMode)
@@ -76,6 +85,10 @@ func Fingerprint(inputs FingerprintInputs) string {
 	sb.WriteString(strconv.Itoa(inputs.SizeStringBytes))
 	sb.WriteByte('\n')
 	sb.WriteString(strconv.Itoa(inputs.SizeMaxBytes))
+	sb.WriteByte('\n')
+	sb.WriteString(strconv.Itoa(inputs.PatternSampleCount))
+	sb.WriteByte('\n')
+	sb.WriteString(strconv.Itoa(inputs.PatternSampleRetries))
 	sb.WriteByte('\n')
 	sum := sha256.Sum256([]byte(sb.String()))
 	return hex.EncodeToString(sum[:])[:12]

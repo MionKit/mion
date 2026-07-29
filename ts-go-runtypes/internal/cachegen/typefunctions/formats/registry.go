@@ -66,6 +66,14 @@ type EmitContext interface {
 	// nil like an engine error and emit the missing-runtime diagnostic.
 	JSEngine() jsengine.Engine
 
+	// PatternSampleCount / PatternSampleRetries mirror the resolver's
+	// pattern mockSample auto-generation knobs, so the pattern emitter can
+	// tell "generation disabled" (count 0) from "generation failed" when a
+	// sample-less pattern reaches emit time, and replay the memoized
+	// GeneratePattern call for the failure reason.
+	PatternSampleCount() int
+	PatternSampleRetries() int
+
 	// NextLocalVar returns a fresh, collision-free local identifier with
 	// the given prefix — used to hoist a `const re_N = new RegExp(...)`
 	// into the factory prologue (mirrors the template-literal emitter).

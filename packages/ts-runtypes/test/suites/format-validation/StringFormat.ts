@@ -31,6 +31,10 @@ type Slug = TF.String<{pattern: typeof slug}>;
 const hex = registerFormatPattern({source: '^[0-9a-f]+$', flags: 'i', mockSamples: ['DEADbeef', '0042']});
 type Hex = TF.String<{pattern: typeof hex}>;
 
+// Sample-less inline pattern — the pattern_generated case: no mockSamples
+// anywhere, the build generates the pool from the regex.
+type Generated = TF.String<{pattern: {source: '^[a-d]{2}-[0-9]{2}$'; flags: ''}}>;
+
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 4
 const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
 
@@ -2166,6 +2170,55 @@ export const STRING_FORMAT = {
       {name: 'stringFormat', val: 'must be a slug'},
       {name: 'stringFormat', val: 'must be a slug'},
       {name: 'stringFormat', val: 'must be a slug'},
+    ],
+  },
+  pattern_generated: {
+    title: 'Generated pattern samples',
+    description:
+      'stringFormat with a sample-less inline `pattern`: the build auto-generates its mockSamples from the regex (deterministic per pattern), so mocking works with nothing declared.',
+    validateNotes: [
+      'Matching ticket codes pass (`ab-12`, `cd-09`); a wrong letter range (`zz-12`), a short number (`ab-1`), capitals (`AB-12`), and the empty string fail with `val` `Invalid pattern`.',
+      'No mockSamples are declared anywhere: the mock lanes only work because the build generated the pool.',
+    ],
+    validate: () => createValidateFn<Generated>(),
+    standardSchema: () => createStandardSchema<Generated>(),
+    validateReflect: () => {
+      const v: Generated = 'ab-12';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<Generated>(),
+    deserializeValidateReflect: () => {
+      const v: Generated = 'ab-12';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: Generated = 'ab-12';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<Generated>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: Generated = 'ab-12';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: Generated = 'ab-12';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<Generated>>(),
+    // Value-first sample-less pattern: the same generated pool serves this
+    // form (identical {source, flags} params intern to the same node).
+    validateSchema: () => createValidateFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+    getValidationErrors: () => createGetValidationErrorsFn<Generated>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Generated>>(),
+    getValidationErrorsSchema: () =>
+      createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+    mockType: () => createMockDataFn<Generated>(),
+    getSamples: () => ({valid: ['ab-12', 'cd-09'], invalid: ['zz-12', 'ab-1', 'AB-12', '']}),
+    expectedFormatErrors: () => [
+      {name: 'stringFormat', val: 'Invalid pattern'},
+      {name: 'stringFormat', val: 'Invalid pattern'},
+      {name: 'stringFormat', val: 'Invalid pattern'},
+      {name: 'stringFormat', val: 'Invalid pattern'},
     ],
   },
   pattern_hex: {

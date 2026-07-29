@@ -64,6 +64,8 @@ Shared options (same meaning under every command):
     --no-parallel-scan / --no-parallel-render
     --size-bias / --size-items / --size-string-bytes / --size-max-bytes
     --js-runtime PATH   node/bun the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
+    --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
+    --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help
@@ -115,26 +117,28 @@ func main() {
 // registered on each subcommand's own FlagSet by registerSharedFlags so a knob
 // spells and means the same thing wherever it appears.
 type sharedFlags struct {
-	tsconfig         string
-	cwd              string
-	hashLength       int
-	singleThreaded   bool
-	noSingleThreaded bool
-	noParallelScan   bool
-	noParallelRender bool
-	emitMode         string
-	inlineMode       string
-	moduleMode       string
-	jsRuntime        string
-	pureFnReportWire bool
-	pureFnReportFile bool
-	sizeBias         float64
-	sizeItems        int
-	sizeStringBytes  int
-	sizeMaxBytes     int
-	numberMode       string
-	pprofCPU         string
-	pprofHeap        string
+	tsconfig             string
+	cwd                  string
+	hashLength           int
+	singleThreaded       bool
+	noSingleThreaded     bool
+	noParallelScan       bool
+	noParallelRender     bool
+	emitMode             string
+	inlineMode           string
+	moduleMode           string
+	jsRuntime            string
+	pureFnReportWire     bool
+	pureFnReportFile     bool
+	sizeBias             float64
+	sizeItems            int
+	sizeStringBytes      int
+	sizeMaxBytes         int
+	numberMode           string
+	patternSampleCount   int
+	patternSampleRetries int
+	pprofCPU             string
+	pprofHeap            string
 }
 
 func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
@@ -169,6 +173,10 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"per-type cap on the binary cold-start estimate (default 65536)")
 	fs.StringVar(&s.numberMode, "number-mode", "",
 		"project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN")
+	fs.IntVar(&s.patternSampleCount, "pattern-sample-count", constants.DefaultPatternSampleCount,
+		"generated mockSamples per sample-less format pattern (default 100; 0 disables generation)")
+	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
+		"per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)")
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")
 	fs.StringVar(&s.pprofHeap, "pprof-heap", "", "write a heap profile to PATH at exit")
 	return s
@@ -261,23 +269,25 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
-		set:              setFlags,
-		hashLength:       s.hashLength,
-		singleThreaded:   s.singleThreaded,
-		noSingleThreaded: s.noSingleThreaded,
-		noParallelScan:   s.noParallelScan,
-		noParallelRender: s.noParallelRender,
-		genDir:           genDirFlag,
-		emitMode:         s.emitMode,
-		inlineMode:       s.inlineMode,
-		moduleMode:       s.moduleMode,
-		pureFnReportWire: s.pureFnReportWire,
-		pureFnReportFile: s.pureFnReportFile,
-		sizeBias:         s.sizeBias,
-		sizeItems:        s.sizeItems,
-		sizeStringBytes:  s.sizeStringBytes,
-		sizeMaxBytes:     s.sizeMaxBytes,
-		numberMode:       s.numberMode,
+		set:                  setFlags,
+		hashLength:           s.hashLength,
+		singleThreaded:       s.singleThreaded,
+		noSingleThreaded:     s.noSingleThreaded,
+		noParallelScan:       s.noParallelScan,
+		noParallelRender:     s.noParallelRender,
+		genDir:               genDirFlag,
+		emitMode:             s.emitMode,
+		inlineMode:           s.inlineMode,
+		moduleMode:           s.moduleMode,
+		pureFnReportWire:     s.pureFnReportWire,
+		pureFnReportFile:     s.pureFnReportFile,
+		sizeBias:             s.sizeBias,
+		sizeItems:            s.sizeItems,
+		sizeStringBytes:      s.sizeStringBytes,
+		sizeMaxBytes:         s.sizeMaxBytes,
+		numberMode:           s.numberMode,
+		patternSampleCount:   s.patternSampleCount,
+		patternSampleRetries: s.patternSampleRetries,
 	}, plugin, absCwd)
 
 	// Validate the MERGED values: a bad mode can arrive from tsconfig as
@@ -300,6 +310,14 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	case "", constants.NumberModeIsFinite, constants.NumberModeTypeof, constants.NumberModeNotNaN:
 	default:
 		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid number-mode %q (want isFinite | typeof | notNaN)\n", merged.numberMode)
+		os.Exit(2)
+	}
+	if merged.patternSampleCount < 0 {
+		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid pattern-sample-count %d (want >= 0; 0 disables generation)\n", merged.patternSampleCount)
+		os.Exit(2)
+	}
+	if merged.patternSampleRetries < 1 {
+		fmt.Fprintf(os.Stderr, "ts-runtypes: invalid pattern-sample-retries %d (want >= 1)\n", merged.patternSampleRetries)
 		os.Exit(2)
 	}
 
@@ -336,14 +354,16 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		// The JS engine pattern checks run on: --js-runtime, else
 		// RT_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
 		// use, so pattern-free projects never need a runtime.
-		JSEngine:         jsengine.NewSidecar(s.jsRuntime),
-		PureFnReportWire: merged.pureFnReportWire,
-		PureFnReportFile: merged.pureFnReportFile,
-		SizeBias:         merged.sizeBias,
-		SizeItems:        merged.sizeItems,
-		SizeStringBytes:  merged.sizeStringBytes,
-		SizeMaxBytes:     merged.sizeMaxBytes,
-		ValidateDefaults: resolver.ValidateDefaults{NumberMode: merged.numberMode},
+		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
+		PureFnReportWire:     merged.pureFnReportWire,
+		PureFnReportFile:     merged.pureFnReportFile,
+		SizeBias:             merged.sizeBias,
+		SizeItems:            merged.sizeItems,
+		SizeStringBytes:      merged.sizeStringBytes,
+		SizeMaxBytes:         merged.sizeMaxBytes,
+		ValidateDefaults:     resolver.ValidateDefaults{NumberMode: merged.numberMode},
+		PatternSampleCount:   merged.patternSampleCount,
+		PatternSampleRetries: merged.patternSampleRetries,
 	}
 	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
 }

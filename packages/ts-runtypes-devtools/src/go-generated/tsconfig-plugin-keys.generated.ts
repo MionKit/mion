@@ -17,6 +17,8 @@ export const TSCONFIG_PLUGIN_KEYS = [
   'name',
   'parallelRender',
   'parallelScan',
+  'patternSampleCount',
+  'patternSampleRetries',
   'pureFnReport',
   'singleThreaded',
   'size',

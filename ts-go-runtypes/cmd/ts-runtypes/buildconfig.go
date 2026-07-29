@@ -15,23 +15,25 @@ import (
 // tell an explicit `--single-threaded=false` from an absent flag, so tsconfig
 // only fills the gaps the command line left.
 type buildFlags struct {
-	set              map[string]bool
-	hashLength       int
-	singleThreaded   bool
-	noSingleThreaded bool
-	noParallelScan   bool
-	noParallelRender bool
-	genDir           string
-	emitMode         string
-	inlineMode       string
-	moduleMode       string
-	pureFnReportWire bool
-	pureFnReportFile bool
-	sizeBias         float64
-	sizeItems        int
-	sizeStringBytes  int
-	sizeMaxBytes     int
-	numberMode       string
+	set                  map[string]bool
+	hashLength           int
+	singleThreaded       bool
+	noSingleThreaded     bool
+	noParallelScan       bool
+	noParallelRender     bool
+	genDir               string
+	emitMode             string
+	inlineMode           string
+	moduleMode           string
+	pureFnReportWire     bool
+	pureFnReportFile     bool
+	sizeBias             float64
+	sizeItems            int
+	sizeStringBytes      int
+	sizeMaxBytes         int
+	numberMode           string
+	patternSampleCount   int
+	patternSampleRetries int
 }
 
 // buildOptions is the merged build configuration the resolver consumes.
@@ -51,6 +53,8 @@ type buildOptions struct {
 	sizeStringBytes       int
 	sizeMaxBytes          int
 	numberMode            string
+	patternSampleCount    int
+	patternSampleRetries  int
 }
 
 // mergeBuildOptions resolves the effective build configuration from the CLI
@@ -65,18 +69,20 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// as their flag default, so an unset flag already holds the default; a
 	// present tsconfig value overrides only when the flag was not passed.
 	out := buildOptions{
-		hashLength:       flags.hashLength,
-		singleThreaded:   flags.singleThreaded,
-		emitMode:         flags.emitMode,
-		inlineMode:       flags.inlineMode,
-		moduleMode:       flags.moduleMode,
-		pureFnReportWire: flags.pureFnReportWire,
-		pureFnReportFile: flags.pureFnReportFile,
-		sizeBias:         flags.sizeBias,
-		sizeItems:        flags.sizeItems,
-		sizeStringBytes:  flags.sizeStringBytes,
-		sizeMaxBytes:     flags.sizeMaxBytes,
-		numberMode:       flags.numberMode,
+		hashLength:           flags.hashLength,
+		singleThreaded:       flags.singleThreaded,
+		emitMode:             flags.emitMode,
+		inlineMode:           flags.inlineMode,
+		moduleMode:           flags.moduleMode,
+		pureFnReportWire:     flags.pureFnReportWire,
+		pureFnReportFile:     flags.pureFnReportFile,
+		sizeBias:             flags.sizeBias,
+		sizeItems:            flags.sizeItems,
+		sizeStringBytes:      flags.sizeStringBytes,
+		sizeMaxBytes:         flags.sizeMaxBytes,
+		numberMode:           flags.numberMode,
+		patternSampleCount:   flags.patternSampleCount,
+		patternSampleRetries: flags.patternSampleRetries,
 	}
 
 	if !flags.set["emit-mode"] && strings.TrimSpace(plugin.EmitMode) != "" {
@@ -139,6 +145,15 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// when --number-mode was not explicitly passed, tsc-style.
 	if !flags.set["number-mode"] && plugin.Validate != nil && strings.TrimSpace(plugin.Validate.NumberMode) != "" {
 		out.numberMode = strings.TrimSpace(plugin.Validate.NumberMode)
+	}
+
+	// Pattern sample generation knobs: pointer keys so an explicit 0 (disable
+	// generation) is distinguishable from an absent key.
+	if !flags.set["pattern-sample-count"] && plugin.PatternSampleCount != nil {
+		out.patternSampleCount = *plugin.PatternSampleCount
+	}
+	if !flags.set["pattern-sample-retries"] && plugin.PatternSampleRetries != nil {
+		out.patternSampleRetries = *plugin.PatternSampleRetries
 	}
 
 	// parallelScan / parallelRender read true=on (matching the host plugin's

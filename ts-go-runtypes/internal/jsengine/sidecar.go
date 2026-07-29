@@ -55,31 +55,11 @@ type sidecarEngine struct {
 	memo       map[string]memoEntry
 }
 
+// memoEntry caches one job's raw wire result (wire shapes live in
+// wire.go, shared with the WASM transport).
 type memoEntry struct {
-	result TestResult
+	result sidecarResult
 	err    error
-}
-
-// Wire shapes; field names follow the JSON tags per house style.
-type sidecarJob struct {
-	ID      int      `json:"id"`
-	Op      string   `json:"op"`
-	Source  string   `json:"source"`
-	Flags   string   `json:"flags"`
-	Samples []string `json:"samples"`
-}
-
-type sidecarResult struct {
-	ID           int      `json:"id"`
-	CompileError string   `json:"compileError"`
-	Offenders    []string `json:"offenders"`
-	Error        string   `json:"error"`
-}
-
-type sidecarResponse struct {
-	V       int             `json:"v"`
-	Results []sidecarResult `json:"results"`
-	Error   string          `json:"error"`
 }
 
 // NewSidecar returns the native engine. runtimePath is the --js-runtime
@@ -91,56 +71,72 @@ func NewSidecar(runtimePath string) Engine {
 }
 
 func (engine *sidecarEngine) TestPattern(source, flags string, samples []string) (TestResult, error) {
-	key := source + "\x00" + flags + "\x00" + strings.Join(samples, "\x01")
+	key := "validate\x00" + source + "\x00" + flags + "\x00" + strings.Join(samples, "\x01")
+	entry := engine.memoizedRoundTrip(key, sidecarJob{Op: "validate", Source: source, Flags: flags, Samples: samples})
+	return TestResult{CompileError: entry.result.CompileError, Offenders: entry.result.Offenders}, entry.err
+}
+
+func (engine *sidecarEngine) GeneratePattern(source, flags string, count, retries, minLength, maxLength int) (GenerateResult, error) {
+	job := generateJobFor(source, flags, count, retries, minLength, maxLength)
+	key := fmt.Sprintf("generate\x00%s\x00%s\x00%d\x00%d\x00%d\x00%d", job.Source, job.Flags, job.Count, job.MaxAttempts, job.MinLength, job.MaxLength)
+	entry := engine.memoizedRoundTrip(key, job)
+	return GenerateResult{CompileError: entry.result.CompileError, GenerateError: entry.result.GenerateError, Values: entry.result.Values}, entry.err
+}
+
+// memoizedRoundTrip answers a job from the memo, round-tripping through
+// the child only on the first ask for its key.
+func (engine *sidecarEngine) memoizedRoundTrip(key string, job sidecarJob) memoEntry {
 	engine.mu.Lock()
 	defer engine.mu.Unlock()
 	if entry, ok := engine.memo[key]; ok {
-		return entry.result, entry.err
+		return entry
 	}
-	result, err := engine.roundTrip(source, flags, samples)
-	engine.memo[key] = memoEntry{result: result, err: err}
-	return result, err
+	result, err := engine.roundTrip(job)
+	entry := memoEntry{result: result, err: err}
+	engine.memo[key] = entry
+	return entry
 }
 
-// roundTrip sends one single-job request and reads its response line.
-// Caller holds engine.mu.
-func (engine *sidecarEngine) roundTrip(source, flags string, samples []string) (TestResult, error) {
+// roundTrip sends one single-job request (assigning its wire ID) and
+// reads its response line. Caller holds engine.mu.
+func (engine *sidecarEngine) roundTrip(job sidecarJob) (sidecarResult, error) {
 	if engine.dead != nil {
-		return TestResult{}, engine.dead
+		return sidecarResult{}, engine.dead
 	}
 	if !engine.started {
 		if err := engine.start(); err != nil {
 			engine.dead = err
-			return TestResult{}, err
+			return sidecarResult{}, err
 		}
 	}
 	engine.nextID++
-	request, err := json.Marshal(map[string]any{"v": 1, "jobs": []sidecarJob{{ID: engine.nextID, Op: "validate", Source: source, Flags: flags, Samples: samples}}})
+	job.ID = engine.nextID
+	request, err := json.Marshal(map[string]any{"v": 1, "jobs": []sidecarJob{job}})
 	if err != nil {
-		return TestResult{}, engine.fail(fmt.Errorf("sidecar request marshal: %w", err))
+		return sidecarResult{}, engine.fail(fmt.Errorf("sidecar request marshal: %w", err))
 	}
 	if _, err := engine.stdin.Write(append(request, '\n')); err != nil {
-		return TestResult{}, engine.fail(fmt.Errorf("sidecar write: %w", err))
+		return sidecarResult{}, engine.fail(fmt.Errorf("sidecar write: %w", err))
 	}
 	line, err := engine.readLine()
 	if err != nil {
-		return TestResult{}, engine.fail(err)
+		return sidecarResult{}, engine.fail(err)
 	}
 	var response sidecarResponse
 	if err := json.Unmarshal(line, &response); err != nil {
-		return TestResult{}, engine.fail(fmt.Errorf("sidecar response parse: %w", err))
+		return sidecarResult{}, engine.fail(fmt.Errorf("sidecar response parse: %w", err))
 	}
 	if response.Error != "" {
-		return TestResult{}, engine.fail(errors.New("sidecar: " + response.Error))
+		return sidecarResult{}, engine.fail(errors.New("sidecar: " + response.Error))
 	}
-	if len(response.Results) != 1 || response.Results[0].ID != engine.nextID {
-		return TestResult{}, engine.fail(errors.New("sidecar: response does not match the request"))
+	if len(response.Results) != 1 || response.Results[0].ID != job.ID {
+		return sidecarResult{}, engine.fail(errors.New("sidecar: response does not match the request"))
 	}
 	result := response.Results[0]
 	if result.Error != "" {
-		return TestResult{}, engine.fail(errors.New("sidecar: " + result.Error))
+		return sidecarResult{}, engine.fail(errors.New("sidecar: " + result.Error))
 	}
-	return TestResult{CompileError: result.CompileError, Offenders: result.Offenders}, nil
+	return result, nil
 }
 
 // readLine reads one response line under the round-trip timeout. On

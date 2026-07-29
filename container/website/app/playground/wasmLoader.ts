@@ -19,6 +19,7 @@ export interface Resolver {
 export interface ResolverOptions {
   wasmUrl?: string | URL;
   wasmExecUrl?: string | URL;
+  sidecarHookUrl?: string | URL;
 }
 
 interface GoRuntime {
@@ -32,6 +33,7 @@ interface ResolverGlobals {
   Go?: GoConstructor;
   __tsRunTypesDispatch?: (requestJSON: string) => string;
   __tsRunTypesOnReady?: (version: string, tsgo: string) => void;
+  __tsRunTypesJsEngine?: (requestLineJSON: string) => string;
 }
 
 function globals(): ResolverGlobals {
@@ -51,6 +53,7 @@ function globals(): ResolverGlobals {
 // ResolverOptions (the Vue component joins them onto the app baseURL).
 const DEFAULT_WASM_URL = '/playground-app/ts-runtypes.wasm.gz';
 const DEFAULT_WASM_EXEC_URL = '/playground-app/wasm_exec.js';
+const DEFAULT_SIDECAR_HOOK_URL = '/playground-app/sidecar-hook.js';
 
 let loaderPromise: Promise<Resolver> | null = null;
 
@@ -68,21 +71,24 @@ async function fetchWasmBytes(url: string): Promise<BufferSource> {
   return new Response(inflated).arrayBuffer();
 }
 
-function loadScriptOnce(src: string): Promise<void> {
+// loadScriptOnce injects a classic script exactly once, keyed by a data
+// attribute; `installed` short-circuits when the global the script defines
+// is already present (an earlier loader run, or SSR hydration re-entry).
+function loadScriptOnce(src: string, dataKey: string, installed: () => boolean): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (globals().Go) return resolve();
-    const existing = document.querySelector<HTMLScriptElement>('script[data-rt-wasm-exec]');
+    if (installed()) return resolve();
+    const existing = document.querySelector<HTMLScriptElement>(`script[data-${dataKey}]`);
     if (existing) {
       existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('failed to load wasm_exec.js')));
+      existing.addEventListener('error', () => reject(new Error(`failed to load ${src}`)));
       return;
     }
     const script = document.createElement('script');
     script.src = src;
     script.async = true;
-    script.dataset.rtWasmExec = 'true';
+    script.setAttribute(`data-${dataKey}`, 'true');
     script.addEventListener('load', () => resolve());
-    script.addEventListener('error', () => reject(new Error('failed to load wasm_exec.js')));
+    script.addEventListener('error', () => reject(new Error(`failed to load ${src}`)));
     document.head.appendChild(script);
   });
 }
@@ -94,9 +100,21 @@ export function loadResolver(options: ResolverOptions = {}): Promise<Resolver> {
 
   const wasmUrl = String(options.wasmUrl ?? DEFAULT_WASM_URL);
   const wasmExecUrl = String(options.wasmExecUrl ?? DEFAULT_WASM_EXEC_URL);
+  const sidecarHookUrl = String(options.sidecarHookUrl ?? DEFAULT_SIDECAR_HOOK_URL);
 
   loaderPromise = (async (): Promise<Resolver> => {
-    await loadScriptOnce(wasmExecUrl);
+    await loadScriptOnce(wasmExecUrl, 'rt-wasm-exec', () => !!globals().Go);
+    // The sidecar hook makes the playground the resolver's JS engine, so
+    // pattern mockSample generation runs in the browser with native parity.
+    // Best-effort BEFORE instantiation (the WASM checks the global per
+    // call): without it the playground still validates patterns via the
+    // host RegExp, and generation degrades to the declare-mockSamples
+    // diagnostic.
+    try {
+      await loadScriptOnce(sidecarHookUrl, 'rt-sidecar-hook', () => typeof globals().__tsRunTypesJsEngine === 'function');
+    } catch (hookError) {
+      console.warn('ts-runtypes playground: sidecar hook failed to load; pattern sample generation is disabled.', hookError);
+    }
     const Go = globals().Go;
     if (!Go) throw new Error('wasm_exec.js did not define globalThis.Go');
 

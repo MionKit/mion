@@ -16,6 +16,23 @@ type TestResult struct {
 	Offenders []string
 }
 
+// GenerateResult is one pattern's generated-samples answer from the JS
+// engine.
+type GenerateResult struct {
+	// CompileError is the JS SyntaxError message when the pattern does not
+	// compile under `new RegExp` (same lane as TestResult.CompileError).
+	CompileError string
+	// GenerateError means the pattern compiles but produced no samples:
+	// randexp cannot handle a construct, or the whole retry budget yielded
+	// nothing that survives the self-check. The caller surfaces it as the
+	// declare-mockSamples-explicitly diagnostic.
+	GenerateError string
+	// Values are the generated samples: every one matches the pattern and
+	// its length bounds, deduped, deterministic for the same inputs (may
+	// be fewer than requested for small finite languages).
+	Values []string
+}
+
 // Engine answers pattern jobs. Implementations must be safe for
 // concurrent use — render walks call TestPattern in parallel.
 type Engine interface {
@@ -25,4 +42,13 @@ type Engine interface {
 	// found, sidecar died, timeout) — the pattern was NOT checked and the
 	// caller surfaces the missing-runtime diagnostic.
 	TestPattern(source, flags string, samples []string) (TestResult, error)
+	// GeneratePattern asks the JS engine for count samples matching
+	// source+flags. The PRNG seed is derived from (source, flags, count),
+	// so output is fully deterministic; retries is the per-sample draw
+	// multiplier (whole budget = count × retries); minLength/maxLength
+	// are UTF-16 length bounds every value must satisfy (0 = unbounded).
+	// Error semantics mirror TestPattern: non-nil error = the engine
+	// itself could not run, and the pattern-level outcomes live in the
+	// result.
+	GeneratePattern(source, flags string, count, retries, minLength, maxLength int) (GenerateResult, error)
 }

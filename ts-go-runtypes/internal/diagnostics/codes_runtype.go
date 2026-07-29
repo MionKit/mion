@@ -168,6 +168,15 @@ const (
 	// Emitted once per pattern-bearing site; projects with zero patterns
 	// never need a JS runtime. Args: [pattern source, reason].
 	CodeFMTMissingJsRuntime = "FMT004"
+
+	// CodeFMTSampleGenFailed — a pattern declares no mockSamples and the
+	// build could not auto-generate any: generation is disabled
+	// (patternSampleCount 0), randexp cannot handle the construct, or the
+	// whole retry budget yielded nothing that survives the pattern and its
+	// length bounds. Error severity: a pattern without samples cannot mock,
+	// so the type definition must declare them. Args: [pattern source,
+	// reason].
+	CodeFMTSampleGenFailed = "FMT005"
 )
 
 // Unknown-keys family — no root throws today; only child drops.
@@ -268,6 +277,7 @@ func init() {
 	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Title: "invalid type-format params"})
 	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample violates a sibling constraint"})
 	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern checks need a JS runtime and none was found"})
+	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern mockSamples could not be auto-generated"})
 
 	// Class-serializer family — a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,

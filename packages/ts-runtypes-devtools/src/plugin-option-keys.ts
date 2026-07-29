@@ -19,6 +19,8 @@ const PLUGIN_OPTION_KEY_TABLE = {
   parallelRender: true,
   singleThreaded: true,
   hashLength: true,
+  patternSampleCount: true,
+  patternSampleRetries: true,
   moduleMode: true,
   inlineMode: true,
   transformMode: true,

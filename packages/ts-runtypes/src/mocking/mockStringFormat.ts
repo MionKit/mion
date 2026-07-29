@@ -82,8 +82,10 @@ function mockStringParams(params: StringParams, random: MockRandom): string {
   if (charSet) return randomStringFrom(charSet, Math.max(1, pickMockLength(params, random)), random);
   if (params.pattern !== undefined) {
     throw new Error(
-      'StringFormat: a `pattern` requires `mockSamples` compatible with the length bounds to mock — ' +
-        'none provided, or every sample violates length/minLength/maxLength.'
+      'StringFormat: a `pattern` needs `mockSamples` compatible with the length bounds to mock — ' +
+        'none survived (every sample violates length/minLength/maxLength), or none exist. The build ' +
+        'auto-generates them from the regex; building without the plugin/CLI (or with patternSampleCount 0) ' +
+        'requires declaring mockSamples explicitly.'
     );
   }
   return randomString(pickMockLength(params, random), random);

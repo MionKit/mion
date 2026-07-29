@@ -122,20 +122,27 @@ function assertionsValueFirstDefine(): void {
   void _okDate;
 
   // A `pattern` is allowed on a string field as an inline `{source, flags?,
-  // mockSamples}` object or a `registerFormatPattern` result — both carry
-  // mockSamples (a `StringParams.pattern`, same as the type-first surface).
+  // mockSamples?}` object or a `registerFormatPattern` result. mockSamples
+  // are optional: a samples-less pattern gets its pool generated from the
+  // regex at build time (a `StringParams.pattern`, same as the type-first
+  // surface).
   const _okRegex = RT.object({
     slug: TF.string({pattern: {source: '^[a-z-]+$', flags: '', mockSamples: ['a-b']}}),
     digits: TF.string({pattern: {source: '^[0-9]+$', flags: '', mockSamples: ['123']}}),
+    code: TF.string({pattern: {source: '^[a-z]{3}$', flags: ''}}),
   });
   void _okRegex;
 
-  // A pattern MUST carry mockSamples — the value-first surface no longer loosens
-  // `StringParams.pattern` to allow a samples-less regex.
-  // @ts-expect-error — a bare `/regex/` is not a valid pattern (no mockSamples).
-  TF.string({pattern: /^[a-z-]+$/});
-  // @ts-expect-error — an inline `{source, flags}` pattern without mockSamples is rejected.
+  // An inline `{source, flags}` pattern without mockSamples is valid — the
+  // build generates the samples.
   TF.string({pattern: {source: '^[0-9]+$', flags: ''}});
+
+  // A bare `/regex/` VALUE stays rejected: `typeof /x/` is plain RegExp, so
+  // no literal source/flags could ever reach the build-time scanner (the
+  // exec?: never blocker on StringPatternArgs, load-bearing now that a
+  // RegExp — which has source + flags — would otherwise fit structurally).
+  // @ts-expect-error — a bare `/regex/` is not a valid pattern.
+  TF.string({pattern: /^[a-z-]+$/});
 
   // Leaf builders return `RunType<FormatX<P>>` — the generic run-type carrying
   // the source type — NOT the bare brand.

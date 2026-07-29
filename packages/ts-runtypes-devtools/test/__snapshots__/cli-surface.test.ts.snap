@@ -38,6 +38,10 @@ Flags:
     	force multi-threaded (the default), overriding a tsconfig singleThreaded:true
   --number-mode string
     	project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN
+  --pattern-sample-count int
+    	generated mockSamples per sample-less format pattern (default 100; 0 disables generation)
+  --pattern-sample-retries int
+    	per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)
   --pprof-cpu string
     	write a CPU profile to PATH (whole run)
   --pprof-heap string
@@ -157,6 +161,10 @@ Flags:
     	after stdin EOF, write the cache as JSON to PATH
   --out-modules string
     	after stdin EOF, write per-entry virtual modules to DIR
+  --pattern-sample-count int
+    	generated mockSamples per sample-less format pattern (default 100; 0 disables generation)
+  --pattern-sample-retries int
+    	per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)
   --pprof-cpu string
     	write a CPU profile to PATH (whole run)
   --pprof-heap string
@@ -207,6 +215,8 @@ Shared options (same meaning under every command):
     --no-parallel-scan / --no-parallel-render
     --size-bias / --size-items / --size-string-bytes / --size-max-bytes
     --js-runtime PATH   node/bun the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
+    --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
+    --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help

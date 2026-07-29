@@ -15,11 +15,13 @@ func strPtr(v string) *string { return &v }
 // the flag defaults that double as the binary defaults.
 func baseFlags() buildFlags {
 	return buildFlags{
-		set:        map[string]bool{},
-		hashLength: 0,
-		emitMode:   "code",
-		inlineMode: "default",
-		moduleMode: "default",
+		set:                  map[string]bool{},
+		hashLength:           0,
+		emitMode:             "code",
+		inlineMode:           "default",
+		moduleMode:           "default",
+		patternSampleCount:   100,
+		patternSampleRetries: 10,
 	}
 }
 
@@ -30,7 +32,8 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj")
 	want := buildOptions{
 		hashLength: 0, emitMode: "code", inlineMode: "default", moduleMode: "default",
-		genDir: filepath.Join("/proj", "__runtypes"),
+		genDir:             filepath.Join("/proj", "__runtypes"),
+		patternSampleCount: 100, patternSampleRetries: 10,
 	}
 	if got != want {
 		t.Errorf("merge defaults = %+v, want %+v", got, want)
@@ -41,13 +44,15 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 // value flows through.
 func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 	plugin := tsRuntypesPlugin{
-		EmitMode:       "both",
-		InlineMode:     "allInternal",
-		ModuleMode:     "allSingle",
-		HashLength:     intPtr(9),
-		SingleThreaded: boolPtr(true),
-		ParallelScan:   boolPtr(false),
-		ParallelRender: boolPtr(false),
+		EmitMode:             "both",
+		InlineMode:           "allInternal",
+		ModuleMode:           "allSingle",
+		HashLength:           intPtr(9),
+		SingleThreaded:       boolPtr(true),
+		ParallelScan:         boolPtr(false),
+		ParallelRender:       boolPtr(false),
+		PatternSampleCount:   intPtr(25),
+		PatternSampleRetries: intPtr(4),
 	}
 	got := mergeBuildOptions(baseFlags(), plugin, "/proj")
 	want := buildOptions{
@@ -59,6 +64,8 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		emitMode:              "both",
 		inlineMode:            "allInternal",
 		moduleMode:            "allSingle",
+		patternSampleCount:    25,
+		patternSampleRetries:  4,
 	}
 	if got != want {
 		t.Errorf("merge from tsconfig = %+v, want %+v", got, want)
@@ -153,6 +160,32 @@ func TestMergeBuildOptions_FlagOverridesTsconfig(t *testing.T) {
 	}
 	if got.moduleMode != "allSingle" {
 		t.Errorf("moduleMode = %q, want tsconfig value allSingle", got.moduleMode)
+	}
+}
+
+// TestMergeBuildOptions_PatternSampleKnobs: pointer keys, so an explicit
+// tsconfig 0 (disable generation) is honored, and an explicitly-set flag
+// still wins over the tsconfig value.
+func TestMergeBuildOptions_PatternSampleKnobs(t *testing.T) {
+	// Explicit tsconfig 0 disables — distinct from an absent key.
+	got := mergeBuildOptions(baseFlags(), tsRuntypesPlugin{PatternSampleCount: intPtr(0)}, "/proj")
+	if got.patternSampleCount != 0 {
+		t.Errorf("patternSampleCount = %d, want tsconfig's explicit 0", got.patternSampleCount)
+	}
+	if got.patternSampleRetries != 10 {
+		t.Errorf("patternSampleRetries = %d, want the binary default 10", got.patternSampleRetries)
+	}
+
+	// An explicitly-set flag shadows the tsconfig value.
+	flags := baseFlags()
+	flags.set["pattern-sample-count"] = true
+	flags.patternSampleCount = 12
+	flags.set["pattern-sample-retries"] = true
+	flags.patternSampleRetries = 3
+	plugin := tsRuntypesPlugin{PatternSampleCount: intPtr(50), PatternSampleRetries: intPtr(20)}
+	got = mergeBuildOptions(flags, plugin, "/proj")
+	if got.patternSampleCount != 12 || got.patternSampleRetries != 3 {
+		t.Errorf("flags should win: got (%d, %d), want (12, 3)", got.patternSampleCount, got.patternSampleRetries)
 	}
 }
 

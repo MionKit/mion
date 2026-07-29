@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
@@ -122,8 +123,16 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 	programOpts := program.Options{Cwd: cwd, Overlay: overlay}
 	// The real sidecar engine (host node) is the default so pattern-bearing
 	// fixtures validate exactly as a real build would; tests exercising the
-	// missing-runtime path override JSEngine in their mutate hook.
-	resolverOpts := resolver.Options{Cwd: cwd, JSEngine: jsengine.NewSidecar("")}
+	// missing-runtime path override JSEngine in their mutate hook. The
+	// sample-generation knobs default to the binary defaults for the same
+	// reason (a real build always carries them); tests exercising the
+	// disabled lane set PatternSampleCount to 0 explicitly.
+	resolverOpts := resolver.Options{
+		Cwd:                  cwd,
+		JSEngine:             jsengine.NewSidecar(""),
+		PatternSampleCount:   constants.DefaultPatternSampleCount,
+		PatternSampleRetries: constants.DefaultPatternSampleRetries,
+	}
 	if mutate != nil {
 		mutate(&programOpts, &resolverOpts)
 	}

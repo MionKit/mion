@@ -65,6 +65,9 @@ const FUZZ = {
   // Robustness fuzz of the committed go:embed sidecar bundle under real node
   // (garbage patterns/flags/samples + oversized batches; RT_FUZZ_SEED replays).
   sidecar: {patterns: ['patternSidecarFuzz']},
+  // Generation fuzz of the sidecar's `generate` op (supported-subset round-trip
+  // + determinism oracles, adversarial construct contract; RT_FUZZ_SEED replays).
+  patterngen: {patterns: ['patternGenFuzz']},
   all: {patterns: ['fuzz.integration', 'typeFuzz.integration', 'binaryEncoderResize']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that

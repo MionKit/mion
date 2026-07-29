@@ -75,6 +75,11 @@ type tsRuntypesPlugin struct {
 	SingleThreaded *bool `json:"singleThreaded"`
 	ParallelScan   *bool `json:"parallelScan"`
 	ParallelRender *bool `json:"parallelRender"`
+	// Pattern mockSample auto-generation: how many samples to generate per
+	// sample-less pattern (0 disables) and the per-sample draw multiplier.
+	// Pointers so an explicit 0 is distinct from an absent key.
+	PatternSampleCount   *int `json:"patternSampleCount"`
+	PatternSampleRetries *int `json:"patternSampleRetries"`
 	// PureFnReport is the pure-fn build report switch: `true` emits the report
 	// AND writes it to the HARDCODED `<genDir>/types/pure-fns-report.json`;
 	// absent (nil) / false keeps it off. A pointer so an absent key falls

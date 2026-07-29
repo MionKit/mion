@@ -1249,6 +1249,16 @@
       "example": null
     },
     {
+      "code": "FMT005",
+      "subsystem": "formats",
+      "severity": "error",
+      "headline": "Cannot auto-generate mockSamples for pattern /{0}/: {1} — declare mockSamples explicitly.",
+      "detail": "A pattern with no declared mockSamples gets them generated at build time:\nthe JS engine draws candidate strings from the regex (patternSampleCount of\nthem, deterministic per pattern) and keeps the ones the real compiled\npattern and the declared length bounds accept. This one produced nothing —\ngeneration is disabled (patternSampleCount 0), the generator cannot handle\na construct in the pattern (lookarounds are the usual case), or every draw\nin the retry budget (patternSampleCount × patternSampleRetries) failed the\npattern's own constraints.\n\nFix — declare the samples yourself; they are validated against the pattern\nat build time, so they stay trustworthy:\n-  String<{pattern: {source: '(?<=x)y'}}>\n+  String<{pattern: {source: '(?<=x)y'; mockSamples: ['xy']}}>\n\nOr, if generation was disabled on purpose, re-enable it by raising\npatternSampleCount above 0 (and patternSampleRetries if the pattern is\nheavily constrained).",
+      "summary": null,
+      "fix": null,
+      "example": null
+    },
+    {
       "code": "PFE9004",
       "subsystem": "pure-functions",
       "severity": "error",

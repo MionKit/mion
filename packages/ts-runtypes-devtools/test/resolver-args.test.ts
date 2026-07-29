@@ -25,6 +25,26 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--hash-length');
   });
 
+  it('forwards patternSampleCount as `--pattern-sample-count <n>` (0 included — it disables generation)', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {patternSampleCount: 0});
+    const idx = args.indexOf('--pattern-sample-count');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('0');
+  });
+
+  it('forwards patternSampleRetries as `--pattern-sample-retries <n>`', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {patternSampleRetries: 25});
+    const idx = args.indexOf('--pattern-sample-retries');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('25');
+  });
+
+  it('omits both pattern-sample flags when unset (tsconfig / binary defaults apply)', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {});
+    expect(args).not.toContain('--pattern-sample-count');
+    expect(args).not.toContain('--pattern-sample-retries');
+  });
+
   it('always passes --js-runtime, defaulting to this process execPath', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {});
     const idx = args.indexOf('--js-runtime');

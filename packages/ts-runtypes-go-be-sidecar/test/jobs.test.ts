@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {runJobs} from '../src/jobs.ts';
+import {handleRequestLine, runJobs} from '../src/jobs.ts';
 
 describe('runJobs', () => {
   it('reports the samples that do not match the pattern', () => {
@@ -45,7 +45,79 @@ describe('runJobs', () => {
   });
 
   it('rejects unknown ops with a protocol error', () => {
-    const [result] = runJobs([{id: 9, op: 'generate', source: '^a$'}]);
-    expect(result).toEqual({id: 9, error: 'unknown op "generate"'});
+    const [result] = runJobs([{id: 9, op: 'minify', source: '^a$'}]);
+    expect(result).toEqual({id: 9, error: 'unknown op "minify"'});
+  });
+});
+
+describe('runJobs — generate op', () => {
+  it('generates count deterministic values that all match the pattern', () => {
+    const job = {id: 20, op: 'generate', source: '^[a-z]{3}[0-9]$', count: 8, seed: 42, maxAttempts: 80};
+    const [first] = runJobs([job]);
+    const [second] = runJobs([job]);
+    expect(first.values).toBeDefined();
+    expect(first.values).toHaveLength(8);
+    const tester = /^[a-z]{3}[0-9]$/;
+    for (const value of first.values!) expect(value).toMatch(tester);
+    // Determinism: same seed, same list, same order.
+    expect(second.values).toEqual(first.values);
+  });
+
+  it('different seeds produce different lists', () => {
+    const base = {id: 21, op: 'generate', source: '^[a-z]{6}$', count: 6, maxAttempts: 60};
+    const [a] = runJobs([{...base, seed: 1}]);
+    const [b] = runJobs([{...base, seed: 2}]);
+    expect(a.values).not.toEqual(b.values);
+  });
+
+  it('dedupes and accepts fewer values for a small finite language', () => {
+    const [result] = runJobs([{id: 22, op: 'generate', source: '^(a|b)$', count: 100, seed: 7, maxAttempts: 1000}]);
+    expect(result.values?.slice().sort()).toEqual(['a', 'b']);
+  });
+
+  it('respects declared length bounds via the self-check filter', () => {
+    const [result] = runJobs([
+      {id: 23, op: 'generate', source: '^x+$', count: 10, seed: 9, maxAttempts: 100, minLength: 3, maxLength: 5},
+    ]);
+    expect(result.values!.length).toBeGreaterThan(0);
+    for (const value of result.values!) {
+      expect(value.length).toBeGreaterThanOrEqual(3);
+      expect(value.length).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('reports generateError when randexp cannot handle the construct (lookbehind throws)', () => {
+    const [result] = runJobs([{id: 24, op: 'generate', source: '(?<=x)y', count: 5, seed: 1, maxAttempts: 50}]);
+    expect(result.generateError).toBeTruthy();
+    expect(result.values).toBeUndefined();
+  });
+
+  it('reports generateError when the retry budget yields nothing', () => {
+    // Impossible bounds: the pattern only produces 1-char values but
+    // minLength demands 5 — every attempt is filtered, budget exhausts.
+    const [result] = runJobs([{id: 25, op: 'generate', source: '^a$', count: 3, seed: 1, maxAttempts: 30, minLength: 5}]);
+    expect(result.generateError).toMatch(/survived 30 attempts/);
+  });
+
+  it('reports compileError for invalid syntax on the generate op too', () => {
+    const [result] = runJobs([{id: 26, op: 'generate', source: '^[a-z+$', count: 3, seed: 1}]);
+    expect(result.compileError).toBeTruthy();
+    expect(result.generateError).toBeUndefined();
+  });
+});
+
+describe('handleRequestLine', () => {
+  it('answers a request line with a response line (shared by stdio shell and WASM hook)', () => {
+    const response = JSON.parse(
+      handleRequestLine(JSON.stringify({v: 1, jobs: [{id: 1, op: 'validate', source: '^a$', samples: ['a', 'b']}]}))
+    );
+    expect(response.v).toBe(1);
+    expect(response.results[0]).toEqual({id: 1, offenders: ['b']});
+  });
+
+  it('turns a malformed request into a protocol error response', () => {
+    const response = JSON.parse(handleRequestLine('not json'));
+    expect(response.v).toBe(1);
+    expect(response.error).toBeTruthy();
   });
 });

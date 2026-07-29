@@ -526,6 +526,22 @@ func (ctx *EmitContext) JSEngine() jsengine.Engine {
 	return ctx.walker.JSEngine
 }
 
+// PatternSampleCount / PatternSampleRetries mirror the resolver's pattern
+// mockSample auto-generation knobs — see formats.EmitContext.
+func (ctx *EmitContext) PatternSampleCount() int {
+	if ctx.walker == nil {
+		return 0
+	}
+	return ctx.walker.PatternSampleCount
+}
+
+func (ctx *EmitContext) PatternSampleRetries() int {
+	if ctx.walker == nil {
+		return 0
+	}
+	return ctx.walker.PatternSampleRetries
+}
+
 // ArgName looks up the JS identifier the inner function uses for a
 // conceptual arg slot ("vλl", "pλth", "εrr") via the emitter's Args
 // list. Returns "" when the slot isn't declared on this emitter — eg

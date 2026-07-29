@@ -21,6 +21,14 @@ import {setRuntypesPackageSources, type Resolver} from '../../../../container/we
 const CACHE = fileURLToPath(new URL('../../../../.cache/rt-wasm/', import.meta.url));
 export const WASM_PATH = `${CACHE}ts-runtypes.wasm`;
 export const WASM_EXEC_PATH = `${CACHE}wasm_exec.js`;
+// The sidecar hook (the playground's JS engine for pattern sample
+// generation). The vite build output is used directly when the staged
+// cache copy is absent, so a host that built the sidecar but never ran
+// build-playground still exercises the hook lane.
+export const SIDECAR_HOOK_PATHS = [
+  `${CACHE}sidecar-hook.js`,
+  fileURLToPath(new URL('../../../ts-runtypes-go-be-sidecar/dist/sidecar-hook.js', import.meta.url)),
+];
 
 // The ts-runtypes package source tree the overlay is built from.
 const RUNTYPES_SRC = fileURLToPath(new URL('../../src/', import.meta.url));
@@ -40,11 +48,29 @@ interface ResolverGlobals {
   Go?: new () => {run: (instance: WebAssembly.Instance) => Promise<void>; importObject: WebAssembly.Imports};
   __tsRunTypesDispatch?: (requestJSON: string) => string;
   __tsRunTypesOnReady?: (version: string, tsgo: string) => void;
+  __tsRunTypesJsEngine?: (requestLineJSON: string) => string;
+}
+
+// installSidecarHook runs the sidecar hook (an IIFE classic script, same as
+// wasm_exec.js) so the WASM engine routes pattern validation + sample
+// generation through it — the exact contract the browser playground uses.
+// No-op when already installed; false when no built hook exists on disk.
+export function installSidecarHook(): boolean {
+  const globals = globalThis as unknown as ResolverGlobals;
+  if (typeof globals.__tsRunTypesJsEngine === 'function') return true;
+  const built = SIDECAR_HOOK_PATHS.find((path) => existsSync(path));
+  if (!built) return false;
+  vm.runInThisContext(readFileSync(built, 'utf8'));
+  return typeof globals.__tsRunTypesJsEngine === 'function';
 }
 
 export async function loadNodeResolver(): Promise<Resolver> {
   // Feed the resolver the real ts-runtypes sources before the first scan.
   installNodePackageSources();
+  // Install the playground's JS engine hook BEFORE the module runs, exactly
+  // like the browser loader does (best-effort there; here the suites assert
+  // on generation, so a missing hook surfaces in the test itself).
+  installSidecarHook();
 
   const globals = globalThis as unknown as ResolverGlobals;
   if (!globals.Go) vm.runInThisContext(readFileSync(WASM_EXEC_PATH, 'utf8'));

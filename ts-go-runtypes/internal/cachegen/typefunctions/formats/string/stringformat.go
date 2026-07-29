@@ -75,7 +75,7 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	// validation). Backs FormatAlpha / FormatNumeric and any user
 	// FormatString carrying a registerFormatPattern result.
 	if source, flags, ok := recoverPattern(params); ok {
-		validateSamples(ctx, source, flags, recoverSamples(params))
+		validateSamples(ctx, params, source, flags, recoverSamples(params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
 	}
 	if val, flags, ok := readCharParam(params, "allowedChars"); ok {

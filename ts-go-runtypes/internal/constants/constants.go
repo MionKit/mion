@@ -517,6 +517,20 @@ const (
 	DefaultSizeMaxBytes = 64 * 1024
 )
 
+// Pattern mockSample auto-generation defaults. A format pattern with no
+// declared mockSamples gets them generated at build time by the JS engine
+// (deterministic per pattern); both knobs are overridable via a CLI flag /
+// plugin option and fold into the disk fingerprint.
+const (
+	// DefaultPatternSampleCount is how many samples generation aims for per
+	// pattern (0 disables generation entirely).
+	DefaultPatternSampleCount = 100
+	// DefaultPatternSampleRetries is the per-sample draw multiplier: the
+	// whole generation budget is count × retries draws, and only a budget
+	// that yields zero surviving values fails the build.
+	DefaultPatternSampleRetries = 10
+)
+
 // Tuple slot-0 kind discriminators for entry-module tuples. Type-fn entries
 // carry their QUOTED family tag in slot 0 instead of a number, so the runtime
 // discriminates with `typeof t[0] === 'string'`.
