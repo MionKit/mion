@@ -58,9 +58,18 @@ Verify composition of the `/schema` utility builders over jsonSchema results —
 
 Feasibility checkpoint FIRST: type-level `$defs` environment + root-recursion via the existing `Recursive`/`Self` machinery (`substituteself-extract` region and its budget harness are the precedent). Then non-recursive `$defs` lookup, then self-`$ref`. Fill CIRCULAR groups. Anything failing the checkpoint gets `'not-supported'` + a follow-up todo — never a silent gap.
 
-### M7 — fuzz lane (analyze, then build)
+### M7 — translation fuzz (analyze, then build)
 
-Finding from the suite inventory: **no value-first fuzz lane exists to replicate** — every current lane is type-first source (`fuzz/core/typeGen.ts`) or direct-graph (`fuzz/core/runTypeGen.ts`, one consumer). So this is new construction, direction fixed here: reuse `typeGen.ts`'s shape ADT; render each shape TWICE (type-first declaration AND schema literal) for the schema-expressible subset; oracles: (1) structural-id equality between the two renderings, (2) validate/serialization parity through the existing runners, (3) a `tsValidate`-style well-formedness filter for generated schemas. Seeded via `fuzz/core/seededRng.ts`. The implementer designs generator details after reading `fuzz/core/` + `fuzz/type/typeFuzzRunner.ts`.
+Finding from the suite inventory: **no value-first fuzz lane exists to replicate** — every current lane is type-first source (`fuzz/core/typeGen.ts`) or direct-graph (`fuzz/core/runTypeGen.ts`, one consumer). So this is new construction, and its scope is deliberately NARROW: fuzz **the translation layer only** (`FromJsonSchema` — the one new, otherwise-unfuzzed code). Everything downstream of the recovered type is the same machinery the existing type-based lanes already fuzz, and structural-id convergence makes it literally the same cached factory object — so downstream parity oracles add zero coverage by construction.
+
+Design fixed here: reuse `typeGen.ts`'s shape ADT; render each shape TWICE (type-first declaration AND schema literal) for the schema-expressible subset; seeded via `fuzz/core/seededRng.ts`.
+
+- **The one load-bearing oracle: structural-id equality between the two renderings.** A translation bug produces the wrong `T` silently — downstream then works flawlessly on the wrong type, invisible to every type-first lane; id divergence is the total, cheap detector. When ids match, validate/serialize/mock equivalence is proven by construction (same cache entry).
+- **Keep the `tsValidate`-style well-formedness filter** (a generated schema must satisfy the input type and compile) so generator bugs don't masquerade as findings.
+- **Optional small negative lane**: malformed / unknown-keyword schemas must be REJECTED at the type level, never silently infer a weaker type. Finite keyword space — the implementer decides fuzz vs curated suite cases.
+- **Explicitly NOT built** (redundant by id-transitivity): validate/serialization/mock parity oracles over schema inputs, schema-side value fuzzing, roundtrip oracles through the schema door.
+
+The implementer designs generator details after reading `fuzz/core/` + `fuzz/type/typeFuzzRunner.ts`.
 
 ## The suite matrix (decided)
 
