@@ -33,6 +33,11 @@ import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
 type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
 
+/** The seven 2020-12 type names; `type` also accepts an ARRAY of them (a union
+ *  of the named types, each arm re-reading the schema's own constraint
+ *  keywords by relevance). **/
+export type SchemaTypeName = 'string' | 'number' | 'integer' | 'boolean' | 'null' | 'object' | 'array';
+
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
  *  Deliberately permissive on VALUE shapes (it guides authoring without fighting
  *  `const` literal inference; recursive so nested schemas keep their literal
@@ -40,7 +45,7 @@ type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
  *  instead. A `$schema` other than the 2020-12 URI is a type error — draft
  *  2020-12 is the one accepted dialect. **/
 export interface JsonSchemaInput {
-  readonly type?: 'string' | 'number' | 'integer' | 'boolean' | 'null' | 'object' | 'array';
+  readonly type?: SchemaTypeName | readonly SchemaTypeName[];
   readonly properties?: {readonly [key: string]: JsonSchemaInput};
   readonly required?: readonly string[];
   readonly additionalProperties?: JsonSchemaInput | boolean;
@@ -50,6 +55,8 @@ export interface JsonSchemaInput {
   readonly enum?: readonly (string | number | boolean | null)[];
   readonly const?: string | number | boolean | null;
   readonly anyOf?: readonly JsonSchemaInput[];
+  readonly oneOf?: readonly JsonSchemaInput[];
+  readonly allOf?: readonly JsonSchemaInput[];
   readonly format?: 'email' | 'uuid' | 'date' | 'time' | 'date-time' | 'hostname' | 'ipv4' | 'ipv6' | 'uri';
   readonly minLength?: number;
   readonly maxLength?: number;
@@ -90,7 +97,9 @@ export type ExactJsonSchema<S> = S & {readonly [K in Exclude<keyof S, keyof Json
       ? unknown
       : {readonly additionalProperties: ExactJsonSchema<A>}
     : unknown) &
-  (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M>} : unknown);
+  (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M>} : unknown) &
+  (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M>} : unknown) &
+  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M>} : unknown);
 
 /** `properties` map recursion for {@link ExactJsonSchema} (homomorphic, so the
  *  literal's readonly/optional modifiers flow through unchanged). **/
@@ -223,14 +232,46 @@ type FinishTuple<Acc extends unknown[], Rest> = Rest extends false
     ? [...Acc, ...unknown[]]
     : [...Acc, ...FromJsonSchema<Rest>[]];
 
-// anyOf: recursive arm-by-arm union build (the UnionOf precedent — an indexed
-// `M[number]` would let tsgo subtype-reduce sibling object arms).
+// anyOf/oneOf: recursive arm-by-arm union build (the UnionOf precedent — an
+// indexed `M[number]` would let tsgo subtype-reduce sibling object arms).
+// oneOf is deliberately accepted AS a union: its exactly-one exclusivity
+// weakens to at-least-one (the 04-migration-plan decision; the build
+// diagnostic belongs to the later docs/diagnostics phase).
 type FromAnyOf<M> = M extends readonly [infer Head, ...infer Tail] ? FromJsonSchema<Head> | FromAnyOf<Tail> : never;
+
+// allOf: arm-by-arm intersection (unknown is the & identity).
+type FromAllOf<M> = M extends readonly [infer Head, ...infer Tail] ? FromJsonSchema<Head> & FromAllOf<Tail> : unknown;
+
+// The `type: [...]` array form is a union of the named types; each arm
+// re-reads the schema's OWN constraint keywords through the per-type helpers,
+// so {type: ['string', 'null'], minLength: 3} recovers String<{minLength: 3}>
+// | null — keywords apply by type relevance, exactly as 2020-12 evaluates
+// them. Built arm-by-arm for the same subtype-reduction reason as FromAnyOf.
+type TypeArmsFrom<L, S> = L extends readonly [infer Head extends SchemaTypeName, ...infer Tail]
+  ? TypeArmFrom<Head, S> | TypeArmsFrom<Tail, S>
+  : never;
+type TypeArmFrom<Name extends SchemaTypeName, S> = Name extends 'string'
+  ? StringFrom<S>
+  : Name extends 'integer'
+    ? IntegerFrom<S>
+    : Name extends 'number'
+      ? NumberFrom<S>
+      : Name extends 'boolean'
+        ? boolean
+        : Name extends 'null'
+          ? null
+          : Name extends 'array'
+            ? ArrayFrom<S>
+            : Name extends 'object'
+              ? ObjectFrom<S>
+              : never;
 
 /** The static type a draft 2020-12 schema literal denotes — RunTypes' analogue of
  *  json-schema-to-ts's `FromSchema` / TypeBox's `Static`. Constraint keywords do
  *  NOT vanish into annotations: they land in RunTypes format brands, so the
- *  generated validators enforce them. **/
+ *  generated validators enforce them. Combinator schemas (`anyOf` / `oneOf` /
+ *  `allOf`) carry the combinator alone — sibling keywords beside a combinator
+ *  are not consulted. **/
 export type FromJsonSchema<S> = S extends true
   ? unknown
   : S extends false
@@ -241,21 +282,27 @@ export type FromJsonSchema<S> = S extends true
         ? E[number]
         : S extends {anyOf: infer M extends readonly JsonSchemaInput[]}
           ? FromAnyOf<M>
-          : S extends {type: 'string'}
-            ? StringFrom<S>
-            : S extends {type: 'integer'}
-              ? IntegerFrom<S>
-              : S extends {type: 'number'}
-                ? NumberFrom<S>
-                : S extends {type: 'boolean'}
-                  ? boolean
-                  : S extends {type: 'null'}
-                    ? null
-                    : S extends {type: 'array'}
-                      ? ArrayFrom<S>
-                      : S extends {type: 'object'}
-                        ? ObjectFrom<S>
-                        : unknown; // `{}` — the always-true schema
+          : S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
+            ? FromAnyOf<M>
+            : S extends {allOf: infer M extends readonly JsonSchemaInput[]}
+              ? FromAllOf<M>
+              : S extends {type: infer L extends readonly SchemaTypeName[]}
+                ? TypeArmsFrom<L, S>
+                : S extends {type: 'string'}
+                  ? StringFrom<S>
+                  : S extends {type: 'integer'}
+                    ? IntegerFrom<S>
+                    : S extends {type: 'number'}
+                      ? NumberFrom<S>
+                      : S extends {type: 'boolean'}
+                        ? boolean
+                        : S extends {type: 'null'}
+                          ? null
+                          : S extends {type: 'array'}
+                            ? ArrayFrom<S>
+                            : S extends {type: 'object'}
+                              ? ObjectFrom<S>
+                              : unknown; // `{}` — the always-true schema
 
 // #endregion jsonschema-extract
 

@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -8,8 +9,10 @@ export const UNIONS = {
     title: 'Atomic union',
     description:
       'Untagged union of scalar atoms (Date | number | string | null | bigint) whose members resolve by runtime kind with no discriminator, encoding Date to an ISO string and bigint to a decimal string while number, string and null pass through unchanged.',
-    serializeNotes:
+    serializeNotes: [
       'Date and bigint members carry per-kind wire transforms (Date↔ISO string, bigint↔decimal string); the decoder restores each from its scalar form.',
+      'JSON Schema: the Date and bigint arms have no schema spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Date | number | string | null | bigint>(undefined, {strategy: 'direct'}),
@@ -25,14 +28,20 @@ export const UNIONS = {
       createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z'), 123, 'hello', null, 3n]}),
   },
   union_array: {
     title: 'Union of arrays',
     description:
       'Untagged union of homogeneous arrays (string[] | number[] | boolean[] | Date[]) where the matched member is chosen by element kind, only the Date[] arm applies a per-element Date↔ISO string transform, and an empty `[]` value satisfies every arm.',
-    serializeNotes:
+    serializeNotes: [
       'Empty array sample matches all four arms structurally — the round-trip stays an empty array regardless of which member resolves.',
+      'JSON Schema: the Date arm/property has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<string[] | number[] | boolean[] | Date[]>(undefined, {strategy: 'direct'}),
@@ -54,6 +63,10 @@ export const UNIONS = {
       createBinaryDecoderFn(
         RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean()), RT.array(TF.date())])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         ['a', 'b', 'c'],
@@ -68,8 +81,10 @@ export const UNIONS = {
     title: 'Array of scalar union',
     description:
       'Array whose element type is an untagged scalar union (string | bigint | boolean | Date) where each element resolves independently by runtime kind (bigint to decimal strings, Date to ISO strings), and the mixed sample [1n, "b", date] exercises per-element member selection within one array.',
-    serializeNotes:
+    serializeNotes: [
       'Member selection is per-element, not per-array — a single array can hold elements that resolve to different union arms (bigint↔string, Date↔ISO, raw string/boolean).',
+      'JSON Schema: the bigint and Date element arms have no schema spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<(string | bigint | boolean | Date)[]>(undefined, {strategy: 'direct'}),
@@ -83,6 +98,10 @@ export const UNIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
       return {
@@ -99,8 +118,10 @@ export const UNIONS = {
     title: 'Union of object shapes',
     description:
       'Untagged union of object shapes ({a; aa} | {b} | {c: bigint} | {d?}) with no literal discriminator, where members resolve structurally by which required keys are present, the {c: bigint} arm applies bigint↔string, and the all-optional {d?} arm matches an empty object.',
-    serializeNotes:
+    serializeNotes: [
       'Empty-object sample {} resolves to the all-optional {d?: string} arm (its only member with no required key); the {c: bigint} arm encodes bigint to a decimal string.',
+      'JSON Schema: the bigint arm/property has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<{a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
@@ -152,6 +173,10 @@ export const UNIONS = {
           RT.object({d: RT.optional(TF.string())}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [{a: 'world', aa: true}, {b: 7}, {c: 1n}, {d: 'hello'}, {}]}),
   },
   union_with_discriminator_property: {
@@ -159,6 +184,7 @@ export const UNIONS = {
     description:
       'Union keyed on a `type` discriminator with literal arms type:"a"/"b"/"c" plus a non-literal type:boolean arm, where the decoder picks the member by `type` and the type:"c" arm carries a Date↔ISO transform on its `time` prop.',
     serializeNotes: [
+      'JSON Schema: the Date arm/property has no schema INPUT spelling (instance type).',
       'Discriminator is the literal `type` field for three arms; the fourth (type:boolean) is matched on the non-literal kind, so dispatch falls back from literal value to value-type for that member.',
       'Only the type:"c" arm has a wire transform (Date↔ISO string on `time`); the other arms carry plain scalars.',
     ],
@@ -261,6 +287,10 @@ export const UNIONS = {
           RT.object({type: RT.boolean(), otherProp: TF.string()}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {type: 'a', otherProp: true},
@@ -274,8 +304,10 @@ export const UNIONS = {
     title: 'Mixed arrays and objects',
     description:
       'Untagged union mixing array members (string[] | number[] | boolean[]) and object members ({a; aa} | {b} | {c: bigint; aa: "string"}) where dispatch first splits on array-vs-object kind, then resolves the matched shape structurally, and the {c: bigint} object arm carries bigint↔string.',
-    serializeNotes:
+    serializeNotes: [
       'No literal discriminator across the family — array members are told apart from object members by structural kind, then by element type or required keys.',
+      'JSON Schema: the bigint arm/property has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(
         undefined,
@@ -360,6 +392,10 @@ export const UNIONS = {
           RT.object({c: TF.bigInt(), aa: RT.literal('string')}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         ['a', 'b', 'c'],
@@ -375,8 +411,10 @@ export const UNIONS = {
     title: 'Union with index signatures',
     description:
       'Untagged union including record-like members with index signatures ({a; [key]: string} and {[key]: bigint; b: bigint}) modelled value-first as record∩object intersections, where members resolve structurally and the bigint-record arm encodes every index-keyed value (including the {b: 1n, c: 2n} sample) bigint↔string.',
-    serializeNotes:
+    serializeNotes: [
       'Index-signature members serialize all enumerable keys, not just the named ones — the bigint-record arm applies bigint↔string to both the declared `b` and the open index entries (e.g. `c`).',
+      'JSON Schema: the bigint arm/property has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<
         | string[]
@@ -489,6 +527,10 @@ export const UNIONS = {
           RT.intersection(RT.record(TF.bigInt()), RT.object({b: TF.bigInt()})),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [['a', 'b', 'c'], {a: 'hello', aa: true}, {b: 7}, {a: 'rec', extra: 'val'}, {b: 1n, c: 2n}],
     }),
@@ -605,8 +647,10 @@ export const UNIONS = {
     title: 'Union with methods',
     description:
       'Union of object shapes each carrying a method ({name; getName()} | {age; getAge()} | {active; isActive()}), where methods are non-serializable at a property position so each matched member serializes its data prop only and the method is silently dropped, restoring {name}, {age}, {active}.',
-    serializeNotes:
+    serializeNotes: [
       'Method members are dropped, not throwing — they sit at a property position, so the build emits a per-family Warning and the round-trip yields the data-only projection (deserializedValues omit getName/getAge/isActive).',
+      'JSON Schema: method-bearing arms are not data and have no schema spelling.',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<
         {name: string; getName(): string} | {age: number; getAge(): number} | {active: boolean; isActive(): boolean}
@@ -675,6 +719,10 @@ export const UNIONS = {
           RT.object({active: RT.boolean(), isActive: RT.func([], RT.boolean())}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const objWithName = {
         name: 'John',
@@ -705,6 +753,7 @@ export const UNIONS = {
     description:
       'Union containing `any` (number | {name} | any) where the `any` arm absorbs the whole union at the type-checker layer so the compiled type is bare `any` (value-first equivalent RT.any()), and serialization is a best-effort JSON pass over whatever value arrives (number, object, string, boolean, null).',
     serializeNotes: [
+      'JSON Schema: the union collapses to `any`, which has no schema spelling (the always-true schema recovers `unknown`).',
       'TS DIVERGENCE: `T | any` collapses to `any` in the checker, so the named number/{name} arms never participate — the case compiles to the same factory as a bare `any` type.',
       'roundTripBestEffort: the adapter only requires JSON.stringify to yield a defined string, not a deep-equal round-trip, since `any` carries no shape to restore.',
     ],
@@ -723,6 +772,10 @@ export const UNIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     roundTripBestEffort: true,
     getTestData: () => ({values: [42, {name: 'test'}, 'fallback to any', true, null]}),
   },
@@ -730,8 +783,10 @@ export const UNIONS = {
     title: 'Union with non-serializable member',
     description:
       'A function arm projects to never under DataOnly, so it is DROPPED from the union: the serializer and validator handle the remaining Date | number | string members, matching DataOnly<Date | number | string | (() => any)> = Date | number | string.',
-    serializeNotes:
+    serializeNotes: [
       'The function arm is non-serializable, so DataOnly drops it from the union and the emitter serializes/validates the surviving Date | number | string members (Date round-trips to a Date, number and string identically). The schema thunks resolve the same dropped-arm factory via the value-first path.',
+      'JSON Schema: the Date and function arms have no schema spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Date | number | string | (() => any)>(undefined, {strategy: 'direct'}),
@@ -747,6 +802,10 @@ export const UNIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z'), 123, 'hello']}),
   },
 
@@ -783,6 +842,42 @@ export const UNIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
     jsonStringifyThrows: true,
     getTestData: () => ({values: [{b: 123, c: 123n}]}),
     // Safe-path adapter: stringifyJson strips the extra `c: 123n` in
@@ -810,6 +905,42 @@ export const UNIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([RT.object({a: TF.string()}), RT.object({b: TF.number()})])),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
     // Symbol-valued props are silently dropped by JSON.stringify
     // (per ECMAScript spec) — no throw, no round-trip mismatch
     // because the symbol was never reachable post-stringify
@@ -835,8 +966,10 @@ export const UNIONS = {
     title: 'Shared prop same type',
     description:
       'Discriminator `kind` selects the member and shared prop `at: Date` has the identical Date↔ISO transform on both branches, so the round-trip only needs to prove the dispatch does not lose the prop or double-transform it.',
-    serializeNotes:
+    serializeNotes: [
       'Shared `at: Date` carries Date↔ISO on whichever arm the `kind` literal selects; the per-member companion props (`by` string vs `reviewers` string[]) pass through verbatim.',
+      'JSON Schema: the Date arm/property has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<{kind: 'created'; at: Date; by: string} | {kind: 'updated'; at: Date; reviewers: string[]}>(undefined, {
         strategy: 'mutate',
@@ -895,6 +1028,10 @@ export const UNIONS = {
           RT.object({kind: RT.literal('updated'), at: TF.date(), reviewers: RT.array(TF.string())}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {kind: 'created', at: new Date('2000-08-06T02:13:00.000Z'), by: 'alice'},
@@ -907,8 +1044,10 @@ export const UNIONS = {
     title: 'Shared prop Date or string',
     description:
       'Discriminator `kind` resolves the member and shared prop `when: Date | string` must take the matched-member transform (`kind:event` → Date↔ISO, `kind:note` → raw string passthrough), since composing both would corrupt either branch by reapplying `Date.toISOString()` to a plain string or parsing a string as a Date.',
-    serializeNotes:
+    serializeNotes: [
       'Divergent shared-prop transform keyed on the `kind` discriminator: the `when` slot encodes Date↔ISO for the event arm but passes the string through untouched for the note arm — the two transforms must never compose on the same value.',
+      'JSON Schema: the Date arm/property has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<{kind: 'event'; when: Date; label: string} | {kind: 'note'; when: string; label: string}>(undefined, {
         strategy: 'mutate',
@@ -967,6 +1106,10 @@ export const UNIONS = {
           RT.object({kind: RT.literal('note'), when: TF.string(), label: TF.string()}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {kind: 'event', when: new Date('2000-08-06T02:13:00.000Z'), label: 'kickoff'},
@@ -979,8 +1122,10 @@ export const UNIONS = {
     title: 'Shared prop bigint or number',
     description:
       'Discriminator `form` resolves the member and shared prop `id: bigint | number` must follow the matched-member transform (`form:big` → bigint↔string, `form:small` → raw number) while the other shared prop `label: string` is identical on both branches and must survive either dispatch.',
-    serializeNotes:
+    serializeNotes: [
       'The big-arm sample id (9007199254740993n) is past Number.MAX_SAFE_INTEGER, so the bigint↔string transform is what preserves it losslessly — a number transform would round it; the small arm keeps its number verbatim.',
+      'JSON Schema: the bigint arm/property has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () =>
       createJsonEncoderFn<{form: 'big'; id: bigint; label: string} | {form: 'small'; id: number; label: string}>(undefined, {
         strategy: 'mutate',
@@ -1039,6 +1184,10 @@ export const UNIONS = {
           RT.object({form: RT.literal('small'), id: TF.number(), label: TF.string()}),
         ])
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {form: 'big', id: 9007199254740993n, label: 'beyond Number.MAX_SAFE_INTEGER'},
@@ -1051,8 +1200,10 @@ export const UNIONS = {
     title: 'Shared prop structural',
     description:
       "With no tag-like literal field, members are differentiated by a divergent shared prop `a` (string vs boolean sub-union) and unique companion props (`b: number` vs `c: Date`), so the encoder/decoder dispatch must work purely on which member's required props match the input rather than a literal-discriminator fast path.",
-    serializeNotes:
+    serializeNotes: [
       'Structural dispatch with no discriminator: the matched member is chosen by required-key shape, then the second arm applies Date↔ISO on `c` while the first arm carries only plain scalars.',
+      'JSON Schema: the Date arm/property has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{a: string; b: number} | {a: boolean; c: Date}>(undefined, {strategy: 'direct'}),
@@ -1070,6 +1221,10 @@ export const UNIONS = {
       createBinaryEncoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.union([RT.object({a: TF.string(), b: TF.number()}), RT.object({a: RT.boolean(), c: TF.date()})])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {a: 'hello', b: 7},

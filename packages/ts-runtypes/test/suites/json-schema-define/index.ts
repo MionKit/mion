@@ -380,4 +380,76 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
       invalid: [[], ['x', 'y'], ['x', 1, 2], null],
     }),
   },
+
+  one_of_union: {
+    title: 'oneOf — accepted as a union, exclusivity weakened by design (M4)',
+    validate: () => createValidateFn<string | number>(),
+    validateReflect: () => {
+      const v = 'x' as string | number;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<string | number>(),
+    validateJsonSchema: () => createValidateFn(jsonSchema({oneOf: [{type: 'string'}, {type: 'number'}]})),
+    getValidationErrors: () => createGetValidationErrorsFn(jsonSchema({oneOf: [{type: 'string'}, {type: 'number'}]})),
+    mockType: () => createMockDataFn(jsonSchema({oneOf: [{type: 'string'}, {type: 'number'}]})),
+    getSamples: () => ({valid: ['x', 7], invalid: [true, null, {}]}),
+  },
+
+  all_of_intersection: {
+    title: 'allOf — intersection of object schemas (M4)',
+    validate: () => createValidateFn<{a: string} & {b: number}>(),
+    validateReflect: () => {
+      const v = {a: 'x', b: 1} as {a: string} & {b: number};
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<{a: string} & {b: number}>(),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          allOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    getValidationErrors: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          allOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    mockType: () =>
+      createMockDataFn(
+        jsonSchema({
+          allOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
+    getSamples: () => ({
+      valid: [
+        {a: 'x', b: 1},
+        {a: 'x', b: 1, extra: true},
+      ],
+      invalid: [{a: 'x'}, {b: 1}, {a: 1, b: 1}, null],
+    }),
+  },
+
+  type_array_union: {
+    title: 'type array — union of named types with per-arm keywords (M4)',
+    validate: () => createValidateFn<TypeFormat<string, 'stringFormat', {readonly minLength: 3}> | null>(),
+    validateReflect: () => {
+      const v = 'abc' as TypeFormat<string, 'stringFormat', {readonly minLength: 3}> | null;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TypeFormat<string, 'stringFormat', {readonly minLength: 3}> | null>(),
+    validateJsonSchema: () => createValidateFn(jsonSchema({type: ['string', 'null'], minLength: 3})),
+    getValidationErrors: () => createGetValidationErrorsFn(jsonSchema({type: ['string', 'null'], minLength: 3})),
+    mockType: () => createMockDataFn(jsonSchema({type: ['string', 'null'], minLength: 3})),
+    getSamples: () => ({valid: ['abc', 'abcd', null], invalid: ['ab', 7, undefined, true]}),
+  },
 };
