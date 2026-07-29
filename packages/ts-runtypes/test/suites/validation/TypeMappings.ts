@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import type {ValidationCase} from './types.ts';
 import {
   createValidateFn,
@@ -58,6 +59,14 @@ export const TYPE_MAPPINGS = {
       return createValidateFn<DataOnly<Prefixed<Source>>>();
     },
     validateSchema: () => createValidateFn(RT.object({user_id: TF.number(), user_name: TF.string()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {user_id: {type: 'number'}, user_name: {type: 'string'}},
+          required: ['user_id', 'user_name'],
+        })
+      ),
     deserializeValidate: () => {
       interface Source {
         id: number;
@@ -101,6 +110,14 @@ export const TYPE_MAPPINGS = {
       return createGetValidationErrorsFn<DataOnly<Prefixed<Source>>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({user_id: TF.number(), user_name: TF.string()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {user_id: {type: 'number'}, user_name: {type: 'string'}},
+          required: ['user_id', 'user_name'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       interface Source {
         id: number;
@@ -173,8 +190,10 @@ export const TYPE_MAPPINGS = {
     title: 'Conditional key rename',
     description:
       '`{[K in keyof T as K extends "id" ? "_id" : K]: T[K]}` swaps a single specific key (`id` to `_id`, Mongo-style) while the rest pass through unchanged.',
-    validateNotes:
+    validateNotes: [
       'Only `id` is renamed; the resolved shape requires `_id` and ignores the original `id`, so a value with `id` (and no `_id`) fails while the pass-through keys (`name`, `createdAt`) are still required.',
+      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
+    ],
     validate: () => {
       interface Source {
         id: number;
@@ -203,6 +222,7 @@ export const TYPE_MAPPINGS = {
       return createValidateFn<DataOnly<MongoForm<Source>>>();
     },
     validateSchema: () => createValidateFn(RT.object({_id: TF.number(), name: TF.string(), createdAt: TF.date()})),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Source {
         id: number;
@@ -252,6 +272,7 @@ export const TYPE_MAPPINGS = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({_id: TF.number(), name: TF.string(), createdAt: TF.date()})),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Source {
         id: number;
@@ -356,6 +377,10 @@ export const TYPE_MAPPINGS = {
       return createValidateFn<DataOnly<Public<Source>>>();
     },
     validateSchema: () => createValidateFn(RT.object({id: TF.number(), name: TF.string()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({type: 'object', properties: {id: {type: 'number'}, name: {type: 'string'}}, required: ['id', 'name']})
+      ),
     deserializeValidate: () => {
       interface Source {
         id: number;
@@ -404,6 +429,10 @@ export const TYPE_MAPPINGS = {
       return createGetValidationErrorsFn<DataOnly<Public<Source>>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({id: TF.number(), name: TF.string()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({type: 'object', properties: {id: {type: 'number'}, name: {type: 'string'}}, required: ['id', 'name']})
+      ),
     deserializeGetValidationErrors: () => {
       interface Source {
         id: number;

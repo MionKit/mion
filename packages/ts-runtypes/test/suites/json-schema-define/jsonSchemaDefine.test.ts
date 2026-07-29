@@ -123,6 +123,38 @@ describe('json-schema define — sample-less pattern policy (04-migration-plan �
   });
 });
 
+describe('json-schema define — /schema utility builders compose over jsonSchema results (M5)', () => {
+  // The utility builders take any RunType<T>, so a jsonSchema(...) result flows
+  // in exactly like a value-first model and the composed factory converges with
+  // the type-first utility application. returnType / parameters are function
+  // territory — no schema-authored input can reach them (noop by design).
+  interface ComposeBase {
+    a: string;
+    b: number;
+  }
+
+  it('partial / required / pick / omit / readonlyType compose over a schema-authored object', () => {
+    const base = () => jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']});
+    expect(createValidateFn(RT.partial(base()))).toBe(createValidateFn<Partial<ComposeBase>>());
+    expect(createValidateFn(RT.required(RT.partial(base())))).toBe(createValidateFn<ComposeBase>());
+    expect(createValidateFn(RT.pick(base(), ['a']))).toBe(createValidateFn<Pick<ComposeBase, 'a'>>());
+    expect(createValidateFn(RT.omit(base(), ['a']))).toBe(createValidateFn<Omit<ComposeBase, 'a'>>());
+    expect(createValidateFn(RT.readonlyType(base()))).toBe(createValidateFn<Readonly<ComposeBase>>());
+  });
+
+  it('nonNullable / exclude / extract compose over schema-authored unions', () => {
+    expect(createValidateFn(RT.nonNullable(jsonSchema({anyOf: [{type: 'string'}, {type: 'null'}]})))).toBe(
+      createValidateFn<string>()
+    );
+    expect(createValidateFn(RT.exclude(jsonSchema({enum: ['a', 'b', 'c']}), RT.literal('c')))).toBe(
+      createValidateFn<'a' | 'b'>()
+    );
+    expect(createValidateFn(RT.extract(jsonSchema({enum: ['a', 'b', 'c']}), jsonSchema({enum: ['a', 'b']})))).toBe(
+      createValidateFn<'a' | 'b'>()
+    );
+  });
+});
+
 describe('json-schema define — ignored annotations', () => {
   it('$schema/title/description/examples/default do not change the resolved id', () => {
     const bare = createValidateFn(jsonSchema({type: 'string', minLength: 3}));
