@@ -1,4 +1,4 @@
-// M7 translation fuzz lane (docs/todos/json-schema-first-class-implementation.md):
+// M7 translation fuzz lane (docs/done/json-schema-first-class-implementation.md):
 // normalize a generated TypeShape into the JSON-Schema-EXPRESSIBLE subset, then
 // render that ONE normalized shape twice — as a TypeScript type expression
 // (typeGen's own renderType) and as a draft 2020-12 schema literal. The

@@ -7,7 +7,7 @@ created: 2026-07-29
 
 # JSON Schema first-class input — rollout: docs, examples, playground, benchmarks, e2e
 
-**Process-level plan** — code-level design is the implementing agent's job. **Blocked on:** [json-schema-first-class-implementation.md](json-schema-first-class-implementation.md) shipping first — examples typecheck against built dist `.d.ts`, benchmarks and e2e consume the published surface. Companion investigation: [docs/investigations/json-schema/](../investigations/json-schema/).
+**Process-level plan** — code-level design is the implementing agent's job. **Blocked on:** [json-schema-first-class-implementation.md](../done/json-schema-first-class-implementation.md) shipping first — examples typecheck against built dist `.d.ts`, benchmarks and e2e consume the published surface. Companion investigation: [docs/investigations/json-schema/](../investigations/json-schema/).
 
 ## Intent
 

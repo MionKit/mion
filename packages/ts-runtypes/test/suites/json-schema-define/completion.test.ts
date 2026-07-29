@@ -1,5 +1,5 @@
 // The jsonSchema-column COMPLETION META-CHECK — the phase-done gate from
-// docs/todos/json-schema-first-class-implementation.md: every case in the four
+// docs/done/json-schema-first-class-implementation.md: every case in the four
 // registered suites must carry every jsonSchema thunk field as either a real
 // thunk or the explicit `'not-supported'` sentinel. An OMITTED field renders
 // "(not implemented)" in the drivers (the pending protocol used while the

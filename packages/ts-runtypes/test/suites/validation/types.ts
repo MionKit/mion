@@ -99,7 +99,7 @@ export interface ValidationCase {
    *  authoring form (draft 2020-12 schema literal), sibling of `validateSchema`.
    *  Run against the same samples as `validate`. OPTIONAL while the jsonSchema
    *  column drains milestone-by-milestone
-   *  (docs/todos/json-schema-first-class-implementation.md): an omitted field
+   *  (docs/done/json-schema-first-class-implementation.md): an omitted field
    *  renders `(not implemented)` (pending, a later milestone fills it); the
    *  `'not-supported'` sentinel marks a type with no JSON Schema input spelling
    *  (explain the reason in `validateNotes`, in a line prefixed `JSON Schema:`

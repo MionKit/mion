@@ -195,7 +195,7 @@ export interface SerializationCase {
    *  the schema literal is duplicated across all four BY DESIGN (every thunk
    *  stays self-contained + single-purpose — benchmarking, code extraction,
    *  doc-gen). OPTIONAL while the jsonSchema column drains
-   *  milestone-by-milestone (docs/todos/json-schema-first-class-implementation.md):
+   *  milestone-by-milestone (docs/done/json-schema-first-class-implementation.md):
    *  omitted → `(not implemented)` pending; `'not-supported'` → no JSON Schema
    *  input spelling for the case's type (note the reason in `serializeNotes`, in
    *  a line prefixed `JSON Schema:` — the completion meta-check requires it). **/

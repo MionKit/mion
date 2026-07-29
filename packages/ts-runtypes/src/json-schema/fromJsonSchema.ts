@@ -5,7 +5,7 @@
 // Promoted from the investigation prototype
 // (docs/investigations/json-schema/02-phase2-first-class-input.md); the accepted
 // keyword set grows milestone-by-milestone with the suite coverage
-// (docs/todos/json-schema-first-class-implementation.md).
+// (docs/done/json-schema-first-class-implementation.md).
 //
 // Follows the repo's type-level discipline (schema/static.ts): extends-guards +
 // indexed access + homomorphic maps; recursive `infer` only where a union must be

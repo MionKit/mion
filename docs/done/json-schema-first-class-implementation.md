@@ -1,11 +1,13 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-07-29
 ---
 
 # JSON Schema as a first-class input — incremental implementation + full suite coverage
+
+**Status:** done — all milestones M0–M7 shipped in order, one commit per milestone, each landing green (see "Shipped" at the bottom).
 
 **Process-level plan.** This spec fixes the order, the test-coverage matrix, the conventions, and the done-criteria. Code-level design (type-level implementation details, exact flag/file names, emit shapes) is the implementing agent's job. Foundation: [docs/investigations/json-schema/](../investigations/json-schema/) (01–04) + the proven prototypes `packages/ts-runtypes/test/features/jsonSchemaInput.proto{,.test}.ts` (10 green tests incl. structural-id convergence, zero Go-side changes needed).
 
@@ -96,3 +98,17 @@ Docs / website / benchmarks / e2e (next phase, planned once implementation finis
 - The new id-integrity driver is green over every filled case; distinctness extended; idempotency cases green.
 - Budget tests under their ceilings; full `pnpm test` + `pnpm run lint` green; marker-rule paired shapes present.
 - Fuzz lane merged with a seeded soak run documented in the PR.
+
+## Shipped (reconciliation, 2026-07-29)
+
+Everything above landed as specified on `feature/json-schema-runtypes`, one commit per milestone (dependency fix → M0 → … → M7), each commit with the full `pnpm test` gate green. Deviations, resolutions and findings:
+
+- **Registered-case reality vs the matrix's file totals:** the drivers register 166 validation / 99 format-validation / 155 serialization / 30 format-serialization cases (the matrix counted file totals including the unregistered Currency / CircularGuard siblings, which carry the fields per their own drivers' conventions). The completion meta-check (`suites/json-schema-define/completion.test.ts`) iterates the four registries and proves ZERO omitted jsonSchema fields and a `JSON Schema: `-prefixed note behind every `'not-supported'`.
+- **`pattern` keyword: ENABLED** per the 04-migration-plan §1 resolution — sample-less validation works end-to-end (the brand rides `{source, flags}` params); `createMockDataFn` on a pattern-branded root throws the targeted register-samples error natively (pinned by the define suite's `mockSlug` case). The `FromJsonSchema` internals spell the brand as raw `TypeFormat<string, 'stringFormat', P>` because the `TF.String` alias's `pattern` param REQUIRES `mockSamples` (structurally identical, ids converge).
+- **M3 enrich decision: covered by convergence transitivity** — the span-extraction convention (single Go-lifted `type Target =` spans) cannot see a schema const outside the span without disproportionate tooling; recorded as the header note in `suites/enrich/cases/index.ts`.
+- **M6 checkpoint: PASSED in full** — no `'not-supported'` fallback needed. Root self-`$ref` (`#`), non-recursive `$defs` lookup, and recursive `$defs` all converge with their type-first twins (circular array, address book, linked list probes), with deep validation + mock soundness.
+- **TS2589 discovery (M6):** the direct `FromJsonSchemaIn<Root, Root>` self-instantiation passed tsgo/vitest but blew npm-`tsc`'s instantiation depth during the `jsonSchema` overload/implementation compatibility check (the dist declaration build) — through the `RunType`/`InjectRunTypeId` phantom slots. Fixed by threading the root re-entry through a 1-tuple fixpoint parameter (`F[0]`, the `Recursive<Body>` deferral pattern from schema/static.ts) plus a `0 extends 1 & S` any-short-circuit on `FromJsonSchema`. Lesson recorded in the fromJsonSchema.ts header: vitest never runs `tsc`, so budget tests alone don't gate the declaration build.
+- **M7 shipped as designed** (`test/fuzz/jsonschema/`: normalizer + renderer + unit pins + the id-equality integration lane; `rtx core fuzz jsonschema`; `RT_FUZZ_JSONSCHEMA_SOAK_MS` registered). Batch: seed `0x5eeded` × 100 iterations green. Documented soak: `RT_FUZZ_SEED=20260729`, 30s → 657 types, 0 violations, 0 invalid-TS false positives, 12 known-divergence skips.
+- **The lane's first batch found a real convergence gap:** two-or-more structurally identical recursive containers (e.g. `{p1?: N1[]; kids2: N1[]}` via `$defs` or root `#`) diverge from the type-first twin — the checker interns the container once type-first while each schema literal occurrence builds its own, and the Go id computer folds that sharing difference into the id inside cycles. Go-side fix required ⇒ out of scope by the zero-Go-changes invariant; filed as [json-schema-shared-recursive-container-id-divergence.md](../todos/json-schema-shared-recursive-container-id-divergence.md) and guarded in the lane by a counted, documented skip (`hasSharedRecursiveContainer`).
+- **Compile budgets** (one-way ratchet, re-baselined at each milestone's capability addition as sanctioned): final 13-branch baseline 522 / 275 / 1199 / 506 / 1056 / 827 / 1796 / 603 / 1556 / 1589 / 1273 / 1448 / 471 net instantiations.
+- **Adjacent fixes shipped en route** (both reconciled into docs/done/): the mock-format-registry side-effect import (the M0 dependency) and the enrichCheck beforeAll hook-timeout flake (`hookTimeout: 30000`), which reproduced during the M0 baseline run.
