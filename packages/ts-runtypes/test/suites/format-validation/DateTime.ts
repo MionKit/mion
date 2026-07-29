@@ -52,6 +52,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 2020-01-01T00:00:00 (`min`) and 2020-12-31T23:59:59 (`max`) pass as the exact boundary values.',
       'One step outside fails: 2019-12-31T23:59:59 trips `min`, 2021-01-01T00:00:00 trips `max`; a non-Date value (`not-a-date`) is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
@@ -105,11 +106,13 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>>(),
     validateSchema: () => createValidateFn(TF.date({min: '2020-01-01T00:00:00', max: '2020-12-31T23:59:59'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.date({min: '2020-01-01T00:00:00', max: '2020-12-31T23:59:59'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Date<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
     getSamples: () => ({
       valid: [new Date(Date.UTC(2020, 0, 1, 0, 0, 0)), new Date(Date.UTC(2020, 11, 31, 23, 59, 59))],
@@ -124,6 +127,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: an interior date (2020-06-15) passes, but the boundary values themselves fail — 2020-01-01T00:00:00 trips `gt` and 2020-12-31T23:59:59 trips `lt`.',
       'A non-Date value (`not-a-date`) is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
@@ -152,10 +156,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     validateSchema: () => createValidateFn(TF.date({gt: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date({gt: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Date<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     getSamples: () => ({
       valid: [new Date(Date.UTC(2020, 5, 15))],
@@ -170,6 +176,7 @@ export const DATETIME = {
     validateNotes: [
       'Mixed edges: the lower bound 2020-01-01T00:00:00 (`min`, inclusive) passes, but the upper bound 2020-12-31T23:59:59 (`lt`, exclusive) fails.',
       'Below-range 2019-12-31T23:59:59 trips `min`; an interior date (2020-06-15) passes.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{min: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{min: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
@@ -196,11 +203,13 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{min: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     validateSchema: () => createValidateFn(TF.date({min: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{min: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.Date<{min: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.date({min: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [new Date(Date.UTC(2020, 0, 1, 0, 0, 0)), new Date(Date.UTC(2020, 5, 15))],
       invalid: [new Date(Date.UTC(2019, 11, 31, 23, 59, 59)), new Date(Date.UTC(2020, 11, 31, 23, 59, 59))],
@@ -216,6 +225,7 @@ export const DATETIME = {
     validateNotes: [
       'The `max` bound is the relative anchor `now`, resolved at validation time — a past date (2020-01-01) passes, a far-future date (2999-01-01) trips `max`.',
       'Lower bound is unconstrained; a non-Date value (`not-a-date`) is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{max: 'now'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{max: 'now'}>>(),
@@ -243,9 +253,11 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{max: 'now'}>>>(),
     validateSchema: () => createValidateFn(TF.date({max: 'now'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{max: 'now'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Date<{max: 'now'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date({max: 'now'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Date<{min: 'now-P1Y'; max: 'now'}>>(),
     getSamples: () => ({
       valid: [new Date('2020-01-01T00:00:00Z')],
@@ -260,6 +272,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (`now` ± 1000 years); a present-day date (2020-06-15) passes.',
       'Far outside the wide window fails: year 1000 trips `min`, year 3500 trips `max`. The margin is deliberately huge so the boolean result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
@@ -287,9 +300,11 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     validateSchema: () => createValidateFn(TF.date({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Date<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getSamples: () => ({
       valid: [new Date(Date.UTC(2020, 5, 15))],
@@ -306,6 +321,7 @@ export const DATETIME = {
     validateNotes: [
       'Single relative `min` anchored at validation time (1000 years and 12 hours ago); the upper bound is open.',
       'A present-day date (2020-06-15) passes; far-past year 1000 trips `min`. Date accepts both date (Y) and time (T) duration components.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<TF.Date<{min: 'now-P1000YT12H'}>>(),
     standardSchema: () => createStandardSchema<TF.Date<{min: 'now-P1000YT12H'}>>(),
@@ -331,9 +347,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TF.Date<{min: 'now-P1000YT12H'}>>>(),
     validateSchema: () => createValidateFn(TF.date({min: 'now-P1000YT12H'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Date<{min: 'now-P1000YT12H'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Date<{min: 'now-P1000YT12H'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date({min: 'now-P1000YT12H'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [new Date(Date.UTC(2020, 5, 15))],
       invalid: [new Date(Date.UTC(1000, 0, 1))],
@@ -348,6 +366,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both the `min` instant (2020-01-01T00:00:00Z) and the `max` instant (2020-12-31T23:59:59Z) pass as exact boundaries.',
       'One second outside fails: 2019-12-31T23:59:59Z trips `min`, 2021-01-01T00:00:00Z trips `max`; a non-Instant value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -380,12 +399,14 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.Instant<{min: '2020-01-01T00:00:00Z'; max: '2020-12-31T23:59:59Z'}>>>(),
     validateSchema: () => createValidateFn(TFT.instant({min: '2020-01-01T00:00:00Z', max: '2020-12-31T23:59:59Z'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.Instant<{min: '2020-01-01T00:00:00Z'; max: '2020-12-31T23:59:59Z'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.Instant<{min: '2020-01-01T00:00:00Z'; max: '2020-12-31T23:59:59Z'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.instant({min: '2020-01-01T00:00:00Z', max: '2020-12-31T23:59:59Z'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.Instant<{min: '2020-01-01T00:00:00Z'; max: '2020-12-31T23:59:59Z'}>>(),
     getSamples: () => ({
       valid: [T.Instant.from('2020-01-01T00:00:00Z'), T.Instant.from('2020-12-31T23:59:59Z')],
@@ -404,6 +425,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: an interior instant (2020-06-15T12:00:00Z) passes, but the boundary instants themselves fail — 2020-01-01T00:00:00Z trips `gt`, 2020-12-31T23:59:59Z trips `lt`.',
       'A non-Instant value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -436,12 +458,14 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.Instant<{gt: '2020-01-01T00:00:00Z'; lt: '2020-12-31T23:59:59Z'}>>>(),
     validateSchema: () => createValidateFn(TFT.instant({gt: '2020-01-01T00:00:00Z', lt: '2020-12-31T23:59:59Z'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.Instant<{gt: '2020-01-01T00:00:00Z'; lt: '2020-12-31T23:59:59Z'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.Instant<{gt: '2020-01-01T00:00:00Z'; lt: '2020-12-31T23:59:59Z'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.instant({gt: '2020-01-01T00:00:00Z', lt: '2020-12-31T23:59:59Z'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.Instant<{gt: '2020-01-01T00:00:00Z'; lt: '2020-12-31T23:59:59Z'}>>(),
     getSamples: () => ({
       valid: [T.Instant.from('2020-06-15T12:00:00Z')],
@@ -460,6 +484,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (±8,760,000 hours ≈ ±1000 years); a present-day instant (2020-06-15T12:00:00Z) passes.',
       'Far outside the wide window fails: year 1000 trips `min`, year 3500 trips `max`. The margin is huge so the result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -492,10 +517,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.Instant<{min: 'now-PT8760000H'; max: 'now+PT8760000H'}>>>(),
     validateSchema: () => createValidateFn(TFT.instant({min: 'now-PT8760000H', max: 'now+PT8760000H'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.Instant<{min: 'now-PT8760000H'; max: 'now+PT8760000H'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.Instant<{min: 'now-PT8760000H'; max: 'now+PT8760000H'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.instant({min: 'now-PT8760000H', max: 'now+PT8760000H'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.Instant<{min: 'now-PT8760000H'; max: 'now+PT8760000H'}>>(),
     getSamples: () => ({
       valid: [T.Instant.from('2020-06-15T12:00:00Z')],
@@ -514,6 +541,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 2020-01-01 (`min`) and 2020-12-31 (`max`) pass as exact boundaries.',
       'One day outside fails: 2019-12-31 trips `min`, 2021-01-01 trips `max`; a wrong-type value (a `Temporal.Instant`) is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -545,10 +573,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'; max: '2020-12-31'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: '2020-01-01', max: '2020-12-31'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: '2020-01-01'; max: '2020-12-31'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'; max: '2020-12-31'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: '2020-01-01', max: '2020-12-31'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDate<{min: '2020-01-01'; max: '2020-12-31'}>>(),
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-01'), T.PlainDate.from('2020-12-31')],
@@ -567,6 +597,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: the next day inside each edge passes (2020-01-02, 2020-12-30), but the boundary dates themselves fail — 2020-01-01 trips `gt`, 2020-12-31 trips `lt`.',
       'A non-date value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -598,10 +629,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'; lt: '2020-12-31'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({gt: '2020-01-01', lt: '2020-12-31'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{gt: '2020-01-01'; lt: '2020-12-31'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'; lt: '2020-12-31'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({gt: '2020-01-01', lt: '2020-12-31'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDate<{gt: '2020-01-01'; lt: '2020-12-31'}>>(),
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-02'), T.PlainDate.from('2020-12-30')],
@@ -619,6 +652,7 @@ export const DATETIME = {
     validateNotes: [
       'Mixed edges: the lower bound 2020-01-01 (`min`, inclusive) passes, but the upper bound 2020-01-10 (`lt`, exclusive) fails; the day before it (2020-01-09) passes.',
       'Below-range 2019-12-31 trips `min`.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -650,10 +684,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'; lt: '2020-01-10'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: '2020-01-01', lt: '2020-01-10'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: '2020-01-01'; lt: '2020-01-10'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'; lt: '2020-01-10'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: '2020-01-01', lt: '2020-01-10'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDate<{min: '2020-01-01'; lt: '2020-01-10'}>>(),
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-01'), T.PlainDate.from('2020-01-09')],
@@ -670,6 +706,7 @@ export const DATETIME = {
     validateNotes: [
       'Mixed edges: the lower bound 2020-01-01 (`gt`, exclusive) fails while the day after (2020-01-02) passes; the upper bound 2020-01-10 (`max`, inclusive) passes.',
       'Above-range 2020-01-11 trips `max`.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -701,10 +738,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'; max: '2020-01-10'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({gt: '2020-01-01', max: '2020-01-10'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{gt: '2020-01-01'; max: '2020-01-10'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'; max: '2020-01-10'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({gt: '2020-01-01', max: '2020-01-10'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDate<{gt: '2020-01-01'; max: '2020-01-10'}>>(),
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-02'), T.PlainDate.from('2020-01-10')],
@@ -718,8 +757,10 @@ export const DATETIME = {
   plainDate_min_only: {
     title: 'Plain date min only',
     description: '`Temporal.PlainDate` with an inclusive lower `min` only and an open upper end.',
-    validateNotes:
+    validateNotes: [
       'Inclusive `min`: the boundary 2020-01-01 passes, as does any later date (2099-12-31); only 2019-12-31 (below `min`) fails.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -748,9 +789,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: '2020-01-01'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: '2020-01-01'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: '2020-01-01'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: '2020-01-01'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-01'), T.PlainDate.from('2099-12-31')],
       invalid: [T.PlainDate.from('2019-12-31')],
@@ -760,8 +803,10 @@ export const DATETIME = {
   plainDate_max_only: {
     title: 'Plain date max only',
     description: '`Temporal.PlainDate` with an inclusive upper `max` only and an open lower end.',
-    validateNotes:
+    validateNotes: [
       'Inclusive `max`: the boundary 2020-12-31 passes, as does any earlier date (1900-01-01); only 2021-01-01 (above `max`) fails.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -790,9 +835,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{max: '2020-12-31'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({max: '2020-12-31'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{max: '2020-12-31'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{max: '2020-12-31'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({max: '2020-12-31'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-12-31'), T.PlainDate.from('1900-01-01')],
       invalid: [T.PlainDate.from('2021-01-01')],
@@ -802,8 +849,10 @@ export const DATETIME = {
   plainDate_gt_only: {
     title: 'Plain date gt only',
     description: '`Temporal.PlainDate` with an exclusive lower `gt` only and an open upper end.',
-    validateNotes:
+    validateNotes: [
       'Exclusive `gt`: the next day inside (2020-01-02) passes, but the boundary 2020-01-01 fails and so does the earlier 2019-12-31 — both invalid samples trip `gt`.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -832,9 +881,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({gt: '2020-01-01'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{gt: '2020-01-01'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{gt: '2020-01-01'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({gt: '2020-01-01'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-01-02')],
       invalid: [T.PlainDate.from('2020-01-01'), T.PlainDate.from('2019-12-31')],
@@ -847,8 +898,10 @@ export const DATETIME = {
   plainDate_lt_only: {
     title: 'Plain date lt only',
     description: '`Temporal.PlainDate` with an exclusive upper `lt` only and an open lower end.',
-    validateNotes:
+    validateNotes: [
       'Exclusive `lt`: the day before (2020-12-30) passes, but the boundary 2020-12-31 fails and so does the later 2021-06-01 — both invalid samples trip `lt`.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -877,9 +930,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{lt: '2020-12-31'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({lt: '2020-12-31'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{lt: '2020-12-31'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{lt: '2020-12-31'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({lt: '2020-12-31'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-12-30')],
       invalid: [T.PlainDate.from('2020-12-31'), T.PlainDate.from('2021-06-01')],
@@ -895,6 +950,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (`now` ± 1000 years); a present-day date (2020-06-15) passes.',
       'Far outside the wide window fails: year 0500 trips `min`, year 3500 trips `max`. The margin is huge so the result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -926,10 +982,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDate<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-06-15')],
@@ -944,8 +1002,10 @@ export const DATETIME = {
     title: 'Plain date relative Y/M/D',
     description:
       '`Temporal.PlainDate` with a relative inclusive lower bound only (`now-P100Y6M15D`) using year/month/day components and an open upper end.',
-    validateNotes:
+    validateNotes: [
       'Single relative `min` anchored at validation time (100 years, 6 months, 15 days ago); a present-day date (2020-06-15) passes while far-past 1800-01-01 trips `min`.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -974,9 +1034,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: 'now-P100Y6M15D'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: 'now-P100Y6M15D'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: 'now-P100Y6M15D'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: 'now-P100Y6M15D'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: 'now-P100Y6M15D'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-06-15')],
       invalid: [T.PlainDate.from('1800-01-01')],
@@ -987,8 +1049,10 @@ export const DATETIME = {
     title: 'Plain date relative weeks',
     description:
       '`Temporal.PlainDate` with a relative inclusive lower bound only expressed in weeks (`now-P52200W` ≈ 1000 years) and an open upper end.',
-    validateNotes:
+    validateNotes: [
       'Single relative `min` anchored at validation time (52,200 weeks ≈ 1000 years ago); a present-day date (2020-06-15) passes while far-past year 0500 trips `min`. The week (W) component is valid for date kinds.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -1017,9 +1081,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDate<{min: 'now-P52200W'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDate({min: 'now-P52200W'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDate<{min: 'now-P52200W'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDate<{min: 'now-P52200W'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate({min: 'now-P52200W'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDate.from('2020-06-15')],
       invalid: [T.PlainDate.from('0500-01-01')],
@@ -1035,6 +1101,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 09:00:00 (`min`) and 17:00:00 (`max`) pass as exact boundaries.',
       'One second outside fails: 08:59:59 trips `min`, 17:00:01 trips `max`; a non-time value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1066,9 +1133,11 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainTime<{min: '09:00:00'; max: '17:00:00'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainTime({min: '09:00:00', max: '17:00:00'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainTime<{min: '09:00:00'; max: '17:00:00'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainTime<{min: '09:00:00'; max: '17:00:00'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainTime({min: '09:00:00', max: '17:00:00'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainTime<{min: '09:00:00'; max: '17:00:00'}>>(),
     getSamples: () => ({
       valid: [T.PlainTime.from('09:00:00'), T.PlainTime.from('17:00:00')],
@@ -1087,6 +1156,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: one second inside each edge passes (09:00:01, 16:59:59), but the boundary times themselves fail — 09:00:00 trips `gt`, 17:00:00 trips `lt`.',
       'A non-time value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1118,9 +1188,11 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainTime<{gt: '09:00:00'; lt: '17:00:00'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainTime({gt: '09:00:00', lt: '17:00:00'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainTime<{gt: '09:00:00'; lt: '17:00:00'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainTime<{gt: '09:00:00'; lt: '17:00:00'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainTime({gt: '09:00:00', lt: '17:00:00'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainTime<{gt: '09:00:00'; lt: '17:00:00'}>>(),
     getSamples: () => ({
       valid: [T.PlainTime.from('09:00:01'), T.PlainTime.from('16:59:59')],
@@ -1141,6 +1213,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 2020-01-01T00:00:00 (`min`) and 2020-12-31T23:59:59 (`max`) pass as exact boundaries.',
       'One second outside fails: 2019-12-31T23:59:59 trips `min`, 2021-01-01T00:00:00 trips `max`; a non-datetime value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1179,12 +1252,14 @@ export const DATETIME = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TFT.PlainDateTime<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDateTime({min: '2020-01-01T00:00:00', max: '2020-12-31T23:59:59'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.PlainDateTime<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDateTime<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.plainDateTime({min: '2020-01-01T00:00:00', max: '2020-12-31T23:59:59'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDateTime<{min: '2020-01-01T00:00:00'; max: '2020-12-31T23:59:59'}>>(),
     getSamples: () => ({
       valid: [T.PlainDateTime.from('2020-01-01T00:00:00'), T.PlainDateTime.from('2020-12-31T23:59:59')],
@@ -1203,6 +1278,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: an interior datetime (2020-06-15T12:00:00) passes, but the boundary datetimes themselves fail — 2020-01-01T00:00:00 trips `gt`, 2020-12-31T23:59:59 trips `lt`.',
       'A non-datetime value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1241,12 +1317,14 @@ export const DATETIME = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TFT.PlainDateTime<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDateTime({gt: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.PlainDateTime<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDateTime<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.plainDateTime({gt: '2020-01-01T00:00:00', lt: '2020-12-31T23:59:59'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDateTime<{gt: '2020-01-01T00:00:00'; lt: '2020-12-31T23:59:59'}>>(),
     getSamples: () => ({
       valid: [T.PlainDateTime.from('2020-06-15T12:00:00')],
@@ -1264,6 +1342,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (`now` ± 1000 years); a present-day datetime (2020-06-15T12:00:00) passes.',
       'Far outside the wide window fails: year 0500 trips `min`, year 3500 trips `max`. The margin is huge so the result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1296,10 +1375,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDateTime({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDateTime({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getSamples: () => ({
       valid: [T.PlainDateTime.from('2020-06-15T12:00:00')],
@@ -1314,8 +1395,10 @@ export const DATETIME = {
     title: 'Plain date-time relative combo',
     description:
       '`Temporal.PlainDateTime` with a relative inclusive lower bound only (`now-P500YT12H`) mixing year and hour components and an open upper end.',
-    validateNotes:
+    validateNotes: [
       'Single relative `min` anchored at validation time (500 years and 12 hours ago); a present-day datetime (2020-06-15T12:00:00) passes while far-past year 1000 trips `min`. DateTime kinds accept both date (Y) and time (T) duration components.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
+    ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
     // createValidateFn<DataOnly<T>>() diverges.
@@ -1344,9 +1427,11 @@ export const DATETIME = {
     mockTypeReflect: 'not-supported',
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainDateTime<{min: 'now-P500YT12H'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainDateTime({min: 'now-P500YT12H'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainDateTime<{min: 'now-P500YT12H'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TFT.PlainDateTime<{min: 'now-P500YT12H'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDateTime({min: 'now-P500YT12H'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     getSamples: () => ({
       valid: [T.PlainDateTime.from('2020-06-15T12:00:00')],
       invalid: [T.PlainDateTime.from('1000-01-01T00:00:00')],
@@ -1362,6 +1447,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 2020-01 (`min`) and 2020-12 (`max`) pass as exact boundaries.',
       'One month outside fails: 2019-12 trips `min`, 2021-01 trips `max`; a non-year-month value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1393,10 +1479,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainYearMonth<{min: '2020-01'; max: '2020-12'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainYearMonth({min: '2020-01', max: '2020-12'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainYearMonth<{min: '2020-01'; max: '2020-12'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainYearMonth<{min: '2020-01'; max: '2020-12'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainYearMonth({min: '2020-01', max: '2020-12'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainYearMonth<{min: '2020-01'; max: '2020-12'}>>(),
     getSamples: () => ({
       valid: [T.PlainYearMonth.from('2020-01'), T.PlainYearMonth.from('2020-12')],
@@ -1415,6 +1503,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: the next month inside each edge passes (2020-02, 2020-11), but the boundary year-months themselves fail — 2020-01 trips `gt`, 2020-12 trips `lt`.',
       'A non-year-month value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1446,10 +1535,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainYearMonth<{gt: '2020-01'; lt: '2020-12'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainYearMonth({gt: '2020-01', lt: '2020-12'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainYearMonth<{gt: '2020-01'; lt: '2020-12'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainYearMonth<{gt: '2020-01'; lt: '2020-12'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainYearMonth({gt: '2020-01', lt: '2020-12'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainYearMonth<{gt: '2020-01'; lt: '2020-12'}>>(),
     getSamples: () => ({
       valid: [T.PlainYearMonth.from('2020-02'), T.PlainYearMonth.from('2020-11')],
@@ -1468,6 +1559,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (`now` ± 1000 years); a present-day year-month (2020-06) passes.',
       'Far outside the wide window fails: 0500-01 trips `min`, 3500-01 trips `max`. The margin is huge so the result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1500,10 +1592,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.PlainYearMonth<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     validateSchema: () => createValidateFn(TFT.plainYearMonth({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.PlainYearMonth<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.PlainYearMonth<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainYearMonth({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.PlainYearMonth<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getSamples: () => ({
       valid: [T.PlainYearMonth.from('2020-06')],
@@ -1523,6 +1617,7 @@ export const DATETIME = {
     validateNotes: [
       'Inclusive bounds: both 2020-01-01T00:00:00[UTC] (`min`) and 2020-12-31T23:59:59[UTC] (`max`) pass as exact boundaries.',
       'One second outside fails: 2019-12-31T23:59:59[UTC] trips `min`, 2021-01-01T00:00:00[UTC] trips `max`; a non-zoned value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1563,6 +1658,7 @@ export const DATETIME = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TFT.ZonedDateTime<{min: '2020-01-01T00:00:00[UTC]'; max: '2020-12-31T23:59:59[UTC]'}>>>(),
     validateSchema: () => createValidateFn(TFT.zonedDateTime({min: '2020-01-01T00:00:00[UTC]', max: '2020-12-31T23:59:59[UTC]'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.ZonedDateTime<{min: '2020-01-01T00:00:00[UTC]'; max: '2020-12-31T23:59:59[UTC]'}>>(),
     getValidationErrorsDataOnly: () =>
@@ -1571,6 +1667,7 @@ export const DATETIME = {
       >(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.zonedDateTime({min: '2020-01-01T00:00:00[UTC]', max: '2020-12-31T23:59:59[UTC]'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.ZonedDateTime<{min: '2020-01-01T00:00:00[UTC]'; max: '2020-12-31T23:59:59[UTC]'}>>(),
     getSamples: () => ({
       valid: [T.ZonedDateTime.from('2020-01-01T00:00:00[UTC]'), T.ZonedDateTime.from('2020-12-31T23:59:59[UTC]')],
@@ -1589,6 +1686,7 @@ export const DATETIME = {
     validateNotes: [
       'Exclusive bounds: an interior datetime (2020-06-15T12:00:00[UTC]) passes, but the boundary values themselves fail — 2020-01-01T00:00:00[UTC] trips `gt`, 2020-12-31T23:59:59[UTC] trips `lt`.',
       'A non-zoned value is also rejected.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1629,6 +1727,7 @@ export const DATETIME = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TFT.ZonedDateTime<{gt: '2020-01-01T00:00:00[UTC]'; lt: '2020-12-31T23:59:59[UTC]'}>>>(),
     validateSchema: () => createValidateFn(TFT.zonedDateTime({gt: '2020-01-01T00:00:00[UTC]', lt: '2020-12-31T23:59:59[UTC]'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TFT.ZonedDateTime<{gt: '2020-01-01T00:00:00[UTC]'; lt: '2020-12-31T23:59:59[UTC]'}>>(),
     getValidationErrorsDataOnly: () =>
@@ -1637,6 +1736,7 @@ export const DATETIME = {
       >(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TFT.zonedDateTime({gt: '2020-01-01T00:00:00[UTC]', lt: '2020-12-31T23:59:59[UTC]'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.ZonedDateTime<{gt: '2020-01-01T00:00:00[UTC]'; lt: '2020-12-31T23:59:59[UTC]'}>>(),
     getSamples: () => ({
       valid: [T.ZonedDateTime.from('2020-06-15T12:00:00[UTC]')],
@@ -1655,6 +1755,7 @@ export const DATETIME = {
     validateNotes: [
       'Both bounds are relative durations anchored at validation time (`now` ± 1000 years); a present-day datetime (2020-06-15T12:00:00[UTC]) passes.',
       'Far outside the wide window fails: year 0500 trips `min`, year 3500 trips `max`. The margin is huge so the result holds regardless of the wall clock.',
+      'JSON Schema: instance types have no schema INPUT spelling.',
     ],
     // Temporal-based format types (`Temporal.X & {brand}`) are validated by native
     // identity; DataOnly's structural object projection mangles them, so
@@ -1687,10 +1788,12 @@ export const DATETIME = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TFT.ZonedDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     validateSchema: () => createValidateFn(TFT.zonedDateTime({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TFT.ZonedDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TFT.ZonedDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.zonedDateTime({min: 'now-P1000Y', max: 'now+P1000Y'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TFT.ZonedDateTime<{min: 'now-P1000Y'; max: 'now+P1000Y'}>>(),
     getSamples: () => ({
       valid: [T.ZonedDateTime.from('2020-06-15T12:00:00[UTC]')],

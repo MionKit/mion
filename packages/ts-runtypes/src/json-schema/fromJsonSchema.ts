@@ -13,19 +13,8 @@
 // required/optional group intersection back into one object literal so the result
 // converges with the hand-written type-first shape (proven pattern: ObjectType<C>).
 
-import type {
-  Email,
-  UUIDv4,
-  StringDate,
-  StringTime,
-  StringDateTime,
-  Domain,
-  IPv4,
-  IPv6,
-  Url,
-  String as StringFormat,
-  Number as NumberFormat,
-} from '../formats/index.ts';
+import type {Email, UUIDv4, StringDate, StringTime, StringDateTime, Domain, IPv4, IPv6, Url} from '../formats/index.ts';
+import type {TypeFormat} from '../runtypes/typeFormat.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
 // #region jsonschema-extract — sliced verbatim by test/types/jsonSchemaHarness.ts
@@ -33,6 +22,16 @@ import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 // mapping's correctness. Keep self-contained: only `lib` types plus the brand
 // names imported above (the harness preamble declares structural stand-ins for
 // those).
+
+// Local spellings of the two constraint-keyword leaf brands, built on the RAW
+// TypeFormat sentinel shape rather than the TF.String / TF.Number aliases: the
+// aliases constrain params to the value-first StringParams/NumberParams (whose
+// `pattern` REQUIRES mockSamples), while a schema-recovered pattern is
+// sample-less by policy. Structurally identical to the aliases for every
+// param set (TF.String<P> IS TypeFormat<string, 'stringFormat', P>), so ids
+// converge unchanged.
+type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
+type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
 
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
  *  Deliberately permissive on VALUE shapes (it guides authoring without fighting

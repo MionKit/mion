@@ -30,6 +30,7 @@ import {
   createMockDataFn,
   type MockTypeFn,
   type GetValidationErrorsFn,
+  type TypeFormat,
 } from '@ts-runtypes/core';
 import type * as TF from '@ts-runtypes/core/formats';
 import {jsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
@@ -221,16 +222,19 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
 
   pattern_slug: {
     title: "pattern '^[a-z-]+$' — validation in full, mock throws the targeted register-samples error",
-    // The hand-written twin writes the raw brand generic directly — the
-    // value-first BUILDER requires mockSamples on a pattern, but the type-level
-    // brand takes any params object, so the sample-less pattern type is
-    // spellable type-first and the two forms converge (04-migration-plan §1).
-    validate: () => createValidateFn<TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+    // The hand-written twin writes the RAW TypeFormat brand: the TF.String
+    // alias constrains its params to the value-first StringParams (whose
+    // pattern REQUIRES mockSamples), while a schema pattern is sample-less by
+    // policy. TypeFormat<string, 'stringFormat', P> is what TF.String<P>
+    // resolves to, so the sample-less pattern type is spellable type-first and
+    // the two forms converge (04-migration-plan §1).
+    validate: () => createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
     validateReflect: () => {
-      const v = 'my-slug' as TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>;
+      const v = 'my-slug' as TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>;
       return createValidateFn(v);
     },
-    deserializeValidate: () => deserializeValidate<TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+    deserializeValidate: () =>
+      deserializeValidate<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
     validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     getValidationErrors: () => createGetValidationErrorsFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     mockType: () => createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
