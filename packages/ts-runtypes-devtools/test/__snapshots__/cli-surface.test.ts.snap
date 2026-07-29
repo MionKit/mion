@@ -14,8 +14,6 @@ the tsconfig outDir; requires a tsconfig; no stdio protocol.
 (tsc --noEmit-style).
 
 Flags:
-  --allow-unchecked-patterns
-    	silence the fail-closed FMT004 build error for format patterns whose mockSamples RE2 can't verify
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -26,6 +24,8 @@ Flags:
     	short-id length for type hashes (0 = default 7)
   --inline-mode string
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
+  --js-runtime string
+    	JS runtime (node/bun path) the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-emit
@@ -121,8 +121,6 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 (no startup Program; the client drives setSources / scanFiles / dump).
 
 Flags:
-  --allow-unchecked-patterns
-    	silence the fail-closed FMT004 build error for format patterns whose mockSamples RE2 can't verify
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -143,6 +141,8 @@ Flags:
     	short-id length for type hashes (0 = default 7)
   --inline-mode string
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
+  --js-runtime string
+    	JS runtime (node/bun path) the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-parallel-render
@@ -206,7 +206,7 @@ Shared options (same meaning under every command):
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --size-bias / --size-items / --size-string-bytes / --size-max-bytes
-    --allow-unchecked-patterns
+    --js-runtime PATH   node/bun the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
     --pure-fn-report-wire / --pure-fn-report-file
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help

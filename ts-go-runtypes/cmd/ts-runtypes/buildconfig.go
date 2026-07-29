@@ -15,44 +15,42 @@ import (
 // tell an explicit `--single-threaded=false` from an absent flag, so tsconfig
 // only fills the gaps the command line left.
 type buildFlags struct {
-	set                    map[string]bool
-	hashLength             int
-	singleThreaded         bool
-	noSingleThreaded       bool
-	noParallelScan         bool
-	noParallelRender       bool
-	genDir                 string
-	emitMode               string
-	inlineMode             string
-	moduleMode             string
-	allowUncheckedPatterns bool
-	pureFnReportWire       bool
-	pureFnReportFile       bool
-	sizeBias               float64
-	sizeItems              int
-	sizeStringBytes        int
-	sizeMaxBytes           int
-	numberMode             string
+	set              map[string]bool
+	hashLength       int
+	singleThreaded   bool
+	noSingleThreaded bool
+	noParallelScan   bool
+	noParallelRender bool
+	genDir           string
+	emitMode         string
+	inlineMode       string
+	moduleMode       string
+	pureFnReportWire bool
+	pureFnReportFile bool
+	sizeBias         float64
+	sizeItems        int
+	sizeStringBytes  int
+	sizeMaxBytes     int
+	numberMode       string
 }
 
 // buildOptions is the merged build configuration the resolver consumes.
 type buildOptions struct {
-	hashLength             int
-	singleThreaded         bool
-	disableParallelScan    bool
-	disableParallelRender  bool
-	genDir                 string
-	emitMode               string
-	inlineMode             string
-	moduleMode             string
-	allowUncheckedPatterns bool
-	pureFnReportWire       bool
-	pureFnReportFile       bool
-	sizeBias               float64
-	sizeItems              int
-	sizeStringBytes        int
-	sizeMaxBytes           int
-	numberMode             string
+	hashLength            int
+	singleThreaded        bool
+	disableParallelScan   bool
+	disableParallelRender bool
+	genDir                string
+	emitMode              string
+	inlineMode            string
+	moduleMode            string
+	pureFnReportWire      bool
+	pureFnReportFile      bool
+	sizeBias              float64
+	sizeItems             int
+	sizeStringBytes       int
+	sizeMaxBytes          int
+	numberMode            string
 }
 
 // mergeBuildOptions resolves the effective build configuration from the CLI
@@ -67,19 +65,18 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// as their flag default, so an unset flag already holds the default; a
 	// present tsconfig value overrides only when the flag was not passed.
 	out := buildOptions{
-		hashLength:             flags.hashLength,
-		singleThreaded:         flags.singleThreaded,
-		emitMode:               flags.emitMode,
-		inlineMode:             flags.inlineMode,
-		moduleMode:             flags.moduleMode,
-		allowUncheckedPatterns: flags.allowUncheckedPatterns,
-		pureFnReportWire:       flags.pureFnReportWire,
-		pureFnReportFile:       flags.pureFnReportFile,
-		sizeBias:               flags.sizeBias,
-		sizeItems:              flags.sizeItems,
-		sizeStringBytes:        flags.sizeStringBytes,
-		sizeMaxBytes:           flags.sizeMaxBytes,
-		numberMode:             flags.numberMode,
+		hashLength:       flags.hashLength,
+		singleThreaded:   flags.singleThreaded,
+		emitMode:         flags.emitMode,
+		inlineMode:       flags.inlineMode,
+		moduleMode:       flags.moduleMode,
+		pureFnReportWire: flags.pureFnReportWire,
+		pureFnReportFile: flags.pureFnReportFile,
+		sizeBias:         flags.sizeBias,
+		sizeItems:        flags.sizeItems,
+		sizeStringBytes:  flags.sizeStringBytes,
+		sizeMaxBytes:     flags.sizeMaxBytes,
+		numberMode:       flags.numberMode,
 	}
 
 	if !flags.set["emit-mode"] && strings.TrimSpace(plugin.EmitMode) != "" {
@@ -106,9 +103,6 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.singleThreaded = false
 	case plugin.SingleThreaded != nil:
 		out.singleThreaded = *plugin.SingleThreaded
-	}
-	if !flags.set["allow-unchecked-patterns"] && plugin.AllowUncheckedPatterns != nil {
-		out.allowUncheckedPatterns = *plugin.AllowUncheckedPatterns
 	}
 
 	// Pure-fn report: the tsconfig `pureFnReport` boolean fills in only when NO

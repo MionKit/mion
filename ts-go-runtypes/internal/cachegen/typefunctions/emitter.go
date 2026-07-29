@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -515,20 +516,14 @@ func (ctx *EmitContext) EmitDiagnostic(code string, args ...string) {
 	ctx.walker.EmitDiagnostic(code, args...)
 }
 
-// AllowUncheckedPatterns reports the project's allowUncheckedPatterns
-// setting (build lane only) — see formats.EmitContext.
-func (ctx *EmitContext) AllowUncheckedPatterns() bool {
-	return ctx.walker != nil && ctx.walker.AllowUncheckedPatterns
-}
-
-// RecordUncheckedPattern records an RE2-incompatible pattern for the
-// lint lane's sink, returning whether it was recorded (lint lane) — see
-// formats.EmitContext.
-func (ctx *EmitContext) RecordUncheckedPattern(source, flags string, samples []string) bool {
+// JSEngine returns the JS engine format-pattern checks run on — see
+// formats.EmitContext. Nil when no engine is configured (the format
+// emitters then fail pattern checks closed with FMT004).
+func (ctx *EmitContext) JSEngine() jsengine.Engine {
 	if ctx.walker == nil {
-		return false
+		return nil
 	}
-	return ctx.walker.RecordUncheckedPattern(source, flags, samples)
+	return ctx.walker.JSEngine
 }
 
 // ArgName looks up the JS identifier the inner function uses for a

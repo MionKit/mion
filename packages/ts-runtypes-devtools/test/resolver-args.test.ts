@@ -25,6 +25,19 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--hash-length');
   });
 
+  it('always passes --js-runtime, defaulting to this process execPath', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {});
+    const idx = args.indexOf('--js-runtime');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe(process.execPath);
+  });
+
+  it('forwards an explicit jsRuntime over the execPath default', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {jsRuntime: '/opt/bun'});
+    const idx = args.indexOf('--js-runtime');
+    expect(args[idx + 1]).toBe('/opt/bun');
+  });
+
   it('forwards singleThreaded:true as --single-threaded (not the opt-out)', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {singleThreaded: true});
     expect(args).toContain('--single-threaded');

@@ -235,7 +235,6 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 	results := make([]familyResult, len(families))
 	familyDiagnostics := make([][]diagnostics.Diagnostic, len(families))
 	familyPureFnDeps := make([][]typefunctions.PureFnDepUse, len(families))
-	familyUncheckedPatterns := make([][]typefunctions.UncheckedPatternUse, len(families))
 	factShards := make([]*typefunctions.FactsTable, len(families))
 	var waitGroup sync.WaitGroup
 	for familyIndex, spec := range families {
@@ -258,10 +257,6 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 			if rtOpts.PureFnDepSink != nil {
 				shardOpts.PureFnDepSink = &familyPureFnDeps[familyIndex]
 			}
-			// Shard the unchecked-pattern sink the same way (lint lane only).
-			if rtOpts.UncheckedPatternSink != nil {
-				shardOpts.UncheckedPatternSink = &familyUncheckedPatterns[familyIndex]
-			}
 			shardOpts.Facts = factShards[familyIndex]
 			collectStart := time.Now()
 			graphs[familyIndex] = spec.Collect(dump, shardOpts, nil)
@@ -282,9 +277,6 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 		if rtOpts.PureFnDepSink != nil && len(familyPureFnDeps[familyIndex]) > 0 {
 			*rtOpts.PureFnDepSink = append(*rtOpts.PureFnDepSink, familyPureFnDeps[familyIndex]...)
 		}
-		if rtOpts.UncheckedPatternSink != nil && len(familyUncheckedPatterns[familyIndex]) > 0 {
-			*rtOpts.UncheckedPatternSink = append(*rtOpts.UncheckedPatternSink, familyUncheckedPatterns[familyIndex]...)
-		}
 		rtOpts.Facts.Merge(factShards[familyIndex])
 	}
 	return graphs, nil
@@ -295,26 +287,6 @@ func (sess *Session) collectFamilies(dump protocol.Dump, rtOpts typefunctions.Re
 // covering collects too even though they never touch a checker.
 func (sess *Session) parallelRenderEnabled() bool {
 	return !sess.opts.DisableParallelRender && !sess.opts.SingleThreaded
-}
-
-// expandUncheckedPatterns fans each RE2-unchecked pattern out into one
-// protocol.UncheckedPattern per marker call site, so the JS linter reports
-// any mismatch at every definition site referencing the type. A pattern
-// with no provenance sites contributes nothing — a file-less lint
-// diagnostic would be useless (mirrors EmitDiagnostic's no-site skip).
-func expandUncheckedPatterns(uses []typefunctions.UncheckedPatternUse) []protocol.UncheckedPattern {
-	var out []protocol.UncheckedPattern
-	for _, use := range uses {
-		for _, site := range use.Sites {
-			out = append(out, protocol.UncheckedPattern{
-				Source:  use.Source,
-				Flags:   use.Flags,
-				Samples: use.Samples,
-				Site:    site,
-			})
-		}
-	}
-	return out
 }
 
 // familyByPlainHash maps each type-walking family's PLAIN fnHash to its spec —
@@ -814,24 +786,11 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// collection finishes. Only wired when entries actually render, so a
 		// plain rewrite scan collects nothing and the validation short-circuits.
 		var rtPureFnDeps []typefunctions.PureFnDepUse
-		// rtUncheckedPatterns accumulates the RE2-unchecked patterns the
-		// walkers reach on the LINT lane (IncludeRtDiagnostics): its sink
-		// presence flips the walker into record mode (suppressing the
-		// fail-closed FMT004) and its contents ship on response.UncheckedPatterns
-		// for the JS linter to validate. The build lane renders through
-		// OpGenerate instead, where the sink stays nil and FMT004 fails closed.
-		var rtUncheckedPatterns []typefunctions.UncheckedPatternUse
 		var rtOpts typefunctions.RenderOpts
 		if renderEntries {
 			rtOptsStart := time.Now()
 			rtOpts = sess.rtRenderOpts(&rtDiagnostics, sess.buildProvenanceSites())
 			rtOpts.PureFnDepSink = &rtPureFnDeps
-			// Lint lane only: the sink's presence flips the walker into
-			// record-mode (patterns shipped for the JS linter, FMT004 suppressed).
-			// AllowUncheckedPatterns is already set by rtRenderOpts.
-			if request.IncludeRtDiagnostics {
-				rtOpts.UncheckedPatternSink = &rtUncheckedPatterns
-			}
 			if metrics != nil {
 				metrics.PrepMs += elapsedMs(rtOptsStart)
 			}
@@ -867,10 +826,6 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 		// is absent from the program is an Error the lint surface / build must
 		// see. No-op when nothing rendered (deps empty).
 		response.Diagnostics = append(response.Diagnostics, sess.validateProgramPureFnDeps(rtPureFnDeps)...)
-		// Fan out the lint lane's RE2-unchecked patterns — one wire entry per
-		// (pattern, call site) — so the JS linter validates each at its own
-		// definition site. Empty on the build lane (sink stayed nil).
-		response.UncheckedPatterns = expandUncheckedPatterns(rtUncheckedPatterns)
 		return response
 	case protocol.OpDump:
 		// Ensure every source file in the Program has been scanned for

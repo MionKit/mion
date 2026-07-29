@@ -486,10 +486,6 @@ export interface Response {
   // via `this.warn(formatTscDiagnostic(d))` so VS Code's $tsc problem
   // matcher picks them up; the build never fails on these.
   diagnostics?: Diagnostic[];
-  // uncheckedPatterns carries the format patterns whose mockSamples RE2
-  // couldn't verify at build time, for the lint plugin to validate with the
-  // real regex engine. Present only on the lint lane (includeRtDiagnostics).
-  uncheckedPatterns?: UncheckedPattern[];
   // tsCompile only — wall-time (ms) of the embedded tsgo's bind +
   // typecheck + emit pass on the current source overlay. Bench
   // orchestrators record this alongside scanFiles latency to show the
@@ -536,21 +532,6 @@ export interface DiagnosticSite {
 
 export interface DiagnosticRelated extends DiagnosticSite {
   message: string;
-}
-
-// UncheckedPattern is one format `pattern` whose mockSamples the build-time
-// RE2 oracle couldn't verify (JS-only regex features like lookarounds /
-// backreferences), shipped on the lint-lane scan response so the lint
-// plugin can run the real `new RegExp(source, flags).test(sample)` over each
-// sample and report mismatches (as FMT001) at `site`. One entry per
-// (pattern, marker call site). Present only on the lint lane
-// (Request.includeRtDiagnostics); the build lane fails closed with FMT004
-// instead (unless allowUncheckedPatterns is set).
-export interface UncheckedPattern {
-  source: string;
-  flags?: string;
-  samples: string[];
-  site: DiagnosticSite;
 }
 
 // EnrichFile mirrors the Go-side protocol.EnrichFile — one computed enrichment

@@ -11,10 +11,21 @@ import {TSCONFIG_PLUGIN_KEYS} from '../src/go-generated/tsconfig-plugin-keys.gen
 // Options settable ONLY on the bundler plugin: host bootstrap (binary/cwd/tsconfig
 // are needed to FIND and READ the tsconfig, so they cannot come from it), internal
 // wire knobs (transformMode/sourcesContent produce identical artifacts either way,
-// never a project semantic), the JS-only in-process callback onPureFnReport, and
+// never a project semantic), the JS-only in-process callback onPureFnReport,
 // `enrich` — the opt-in enrichment auto-sync is a host/dev-loop behavior (drives
-// disk writes from dev/watch), so it stays off the tsconfig plugin entry.
-const JS_ONLY = new Set(['binary', 'cwd', 'tsconfig', 'transformMode', 'sourcesContent', 'onPureFnReport', 'enrich']);
+// disk writes from dev/watch), so it stays off the tsconfig plugin entry — and
+// `jsRuntime`, a host-machine path like `binary` (the plugin defaults it to its
+// own process.execPath at spawn).
+const JS_ONLY = new Set([
+  'binary',
+  'cwd',
+  'tsconfig',
+  'transformMode',
+  'sourcesContent',
+  'onPureFnReport',
+  'enrich',
+  'jsRuntime',
+]);
 // Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
 // in the tsconfig `plugins` array (not a project option), and `i18n` is
 // enrichment-lane config the bundler build never consumes. (A future feature may

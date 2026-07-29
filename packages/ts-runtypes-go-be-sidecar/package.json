@@ -1,0 +1,15 @@
+{
+  "name": "@ts-runtypes/go-be-sidecar",
+  "version": "0.11.0",
+  "private": true,
+  "description": "JS sidecar the Go resolver drives for regex jobs it cannot run itself. Bundled by vite and embedded into the ts-runtypes binary via go:embed; never published.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage"
+  },
+  "devDependencies": {
+    "vite": "8.0.16"
+  }
+}

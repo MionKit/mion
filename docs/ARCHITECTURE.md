@@ -98,6 +98,20 @@ verbs a generator normally would not, re-syncing an edited file, deleting parked
 and checking that nothing was left blank. Both take `--no-emit`, which turns either into a
 report that writes nothing, the way `tsc --noEmit` does.
 
+One check the Go program does not run itself: regex format patterns. A pattern's samples
+exist to satisfy the JavaScript `RegExp` the emitted validator runs, and Go's RE2 engine
+only approximates JS semantics (no lookarounds or backreferences, and divergent behavior
+even on shared syntax), so the resolver drives a real JS engine instead. A small sidecar —
+authored as the private `@ts-runtypes/go-be-sidecar` workspace package, bundled by vite,
+committed at `internal/jsengine/sidecar.bundle.mjs`, and embedded into the binary via
+`go:embed` — is spawned once per session under a host `node` (or `bun`; `--js-runtime` /
+`RT_JS_RUNTIME` pin one, the bundler plugin passes its own runtime automatically) and
+answers pattern compile + sample checks over newline-delimited JSON with memoized
+verdicts. The WASM build skips the subprocess entirely and calls the host's own `RegExp`.
+Projects with no patterns never need a JS runtime; with patterns and no runtime, the build
+fails closed (FMT004). Under WASM and native alike, the engine is the validation
+authority — there is no RE2 fallback.
+
 Settings come from your `tsconfig.json` (a `ts-runtypes` entry under `plugins`), with
 command line flags taking precedence, mirroring how `tsc` resolves its own options. The
 on disk cache follows the `incremental` setting rather than adding a switch of its own.

@@ -11,6 +11,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -196,24 +197,75 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 }
 
-// uncheckedPatternSource is a pattern using a JS-only lookbehind that
-// RE2 can't compile, carrying a mockSample. Shared by the FMT004 lane
-// tests.
-const uncheckedPatternSource = `import {createValidateFn} from '@ts-runtypes/core';
+// lookbehindSource builds a fixture around a JS-only lookbehind pattern
+// (RE2 could never compile it) carrying the given mockSample. Shared by
+// the JS-engine lanes below.
+func lookbehindSource(sample string) string {
+	return `import {createValidateFn} from '@ts-runtypes/core';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
-  pattern: {source: '(?<=a)b'; flags: ''; mockSamples: ['ab']};
+  pattern: {source: '(?<=a)b'; flags: ''; mockSamples: ['` + sample + `']};
 }>>();
 `
+}
 
-// TestFormatSamples_UncheckedPatternBuildLaneFMT004 — a pattern RE2
-// can't compile that carries mockSamples fails the build closed with
-// FMT004 (default; allowUncheckedPatterns unset).
-func TestFormatSamples_UncheckedPatternBuildLaneFMT004(t *testing.T) {
-	resp := scanBuild(t, setupInline(t, map[string]string{"a.ts": uncheckedPatternSource}))
-	found := findDiag(resp, diagnostics.CodeFMTUncheckedPattern)
+// TestFormatSamples_LookbehindValidates — the headline of the JS-engine
+// move: a pattern using JS-only regex syntax is REALLY validated now. A
+// matching sample passes with no FMT diagnostic at all (previously the
+// build failed closed with FMT004); a mismatching one is a plain FMT001.
+func TestFormatSamples_LookbehindValidates(t *testing.T) {
+	good := scanBuild(t, setupInline(t, map[string]string{"a.ts": lookbehindSource("ab")}))
+	for _, code := range []string{diagnostics.CodeFMTSampleMismatch, diagnostics.CodeFMTInvalidParams, diagnostics.CodeFMTMissingJsRuntime} {
+		if found := findDiag(good, code); found != nil {
+			t.Fatalf("lookbehind with matching sample: expected no %s, got %+v", code, found)
+		}
+	}
+	bad := scanBuild(t, setupInline(t, map[string]string{"a.ts": lookbehindSource("zz")}))
+	found := findDiag(bad, diagnostics.CodeFMTSampleMismatch)
 	if found == nil {
-		t.Fatalf("expected an %s diagnostic, got %+v", diagnostics.CodeFMTUncheckedPattern, resp.Diagnostics)
+		t.Fatalf("lookbehind with mismatching sample: expected %s, got %+v", diagnostics.CodeFMTSampleMismatch, bad.Diagnostics)
+	}
+	if len(found.Args) == 0 || found.Args[0] != "zz" {
+		t.Errorf("expected offending sample 'zz' in args, got %+v", found.Args)
+	}
+}
+
+// TestFormatSamples_InvalidSyntaxFMT002 — a pattern that does not compile
+// under the real JS engine (a regex typo) fails the build with FMT002:
+// the emitted validator's `new RegExp` would throw at factory load.
+// Previously this sailed through as "unchecked" and crashed at runtime.
+func TestFormatSamples_InvalidSyntaxFMT002(t *testing.T) {
+	code := `import {createValidateFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
+  pattern: {source: '^[a-z+$'; flags: ''; mockSamples: ['a']};
+}>>();
+`
+	resp := scanBuild(t, setupInline(t, map[string]string{"a.ts": code}))
+	found := findDiag(resp, diagnostics.CodeFMTInvalidParams)
+	if found == nil {
+		t.Fatalf("expected an %s diagnostic for invalid regex syntax, got %+v", diagnostics.CodeFMTInvalidParams, resp.Diagnostics)
+	}
+	if len(found.Args) == 0 || !strings.Contains(found.Args[0], "does not compile as a JS RegExp") {
+		t.Errorf("expected the compile-failure message in args, got %+v", found.Args)
+	}
+}
+
+// TestFormatSamples_NoRuntimeFMT004 — when the engine cannot run and the
+// project HAS patterns, every pattern-bearing site fails closed with the
+// missing-runtime FMT004 (never a silent skip; the allowUncheckedPatterns
+// escape hatch is gone with the RE2 oracle).
+func TestFormatSamples_NoRuntimeFMT004(t *testing.T) {
+	session := setupInlineWith(t, map[string]string{"a.ts": lookbehindSource("ab")},
+		func(programOpts *program.Options, resolverOpts *resolver.Options) {
+			programOpts.SingleThreaded = true
+			resolverOpts.SingleThreaded = true
+			resolverOpts.JSEngine = jsengine.NewSidecar("/nonexistent/definitely-not-a-js-runtime")
+		})
+	resp := scanBuild(t, session)
+	found := findDiag(resp, diagnostics.CodeFMTMissingJsRuntime)
+	if found == nil {
+		t.Fatalf("expected an %s diagnostic, got %+v", diagnostics.CodeFMTMissingJsRuntime, resp.Diagnostics)
 	}
 	if found.Severity != diagnostics.SeverityError {
 		t.Errorf("severity: got %d want %d (error)", found.Severity, diagnostics.SeverityError)
@@ -221,30 +273,36 @@ func TestFormatSamples_UncheckedPatternBuildLaneFMT004(t *testing.T) {
 	if len(found.Args) == 0 || found.Args[0] != "(?<=a)b" {
 		t.Errorf("expected the pattern source in args, got %+v", found.Args)
 	}
-}
-
-// TestFormatSamples_UncheckedPatternFlagSuppresses — with
-// allowUncheckedPatterns set, the build lane no longer emits FMT004
-// (the project asserts the JS linter owns the check).
-func TestFormatSamples_UncheckedPatternFlagSuppresses(t *testing.T) {
-	session := setupInlineWith(t, map[string]string{"a.ts": uncheckedPatternSource},
-		func(programOpts *program.Options, resolverOpts *resolver.Options) {
-			programOpts.SingleThreaded = true
-			resolverOpts.SingleThreaded = true
-			resolverOpts.AllowUncheckedPatterns = true
-		})
-	resp := scanBuild(t, session)
-	if found := findDiag(resp, diagnostics.CodeFMTUncheckedPattern); found != nil {
-		t.Fatalf("expected FMT004 suppressed by allowUncheckedPatterns, got %+v", found)
+	if found := findDiag(resp, diagnostics.CodeFMTSampleMismatch); found != nil {
+		t.Fatalf("no engine ran, so no sample verdict is possible — got FMT001 %+v", found)
 	}
 }
 
-// TestFormatSamples_UncheckedPatternLintLaneRecords — the lint lane
-// (IncludeRtDiagnostics) never emits FMT004; instead it ships the pattern
-// on Response.UncheckedPatterns for the JS linter to validate with the
-// real regex engine, anchored at the definition site.
-func TestFormatSamples_UncheckedPatternLintLaneRecords(t *testing.T) {
-	session := setupInline(t, map[string]string{"a.ts": uncheckedPatternSource})
+// TestFormatSamples_NoRuntimeZeroPatternsClean — the JS runtime is a
+// LAZY requirement: a project with no patterns builds cleanly even when
+// no engine could ever run.
+func TestFormatSamples_NoRuntimeZeroPatternsClean(t *testing.T) {
+	code := `import {createValidateFn} from '@ts-runtypes/core';
+export const _ = createValidateFn<{name: string; age: number}>();
+`
+	session := setupInlineWith(t, map[string]string{"a.ts": code},
+		func(programOpts *program.Options, resolverOpts *resolver.Options) {
+			programOpts.SingleThreaded = true
+			resolverOpts.SingleThreaded = true
+			resolverOpts.JSEngine = nil
+		})
+	resp := scanBuild(t, session)
+	if found := findDiag(resp, diagnostics.CodeFMTMissingJsRuntime); found != nil {
+		t.Fatalf("zero-pattern project must not need a JS runtime, got %+v", found)
+	}
+}
+
+// TestFormatSamples_LintLaneGetsFMT001 — the lint lane
+// (IncludeRtDiagnostics) receives pattern verdicts as ORDINARY
+// diagnostics now; the dedicated uncheckedPatterns wire channel and the
+// lint worker's own RegExp re-check are gone.
+func TestFormatSamples_LintLaneGetsFMT001(t *testing.T) {
+	session := setupInline(t, map[string]string{"a.ts": lookbehindSource("zz")})
 	resp := session.Dispatch(protocol.Request{
 		Op:                   protocol.OpScanFiles,
 		Files:                []string{"a.ts"},
@@ -253,20 +311,11 @@ func TestFormatSamples_UncheckedPatternLintLaneRecords(t *testing.T) {
 	if resp.Error != "" {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
-	if found := findDiag(resp, diagnostics.CodeFMTUncheckedPattern); found != nil {
-		t.Fatalf("lint lane must not emit FMT004 (the linter validates instead), got %+v", found)
+	found := findDiag(resp, diagnostics.CodeFMTSampleMismatch)
+	if found == nil {
+		t.Fatalf("expected FMT001 on the lint lane as a normal diagnostic, got %+v", resp.Diagnostics)
 	}
-	if len(resp.UncheckedPatterns) == 0 {
-		t.Fatalf("expected the pattern shipped on UncheckedPatterns, got none")
-	}
-	pattern := resp.UncheckedPatterns[0]
-	if pattern.Source != "(?<=a)b" {
-		t.Errorf("source: got %q want %q", pattern.Source, "(?<=a)b")
-	}
-	if len(pattern.Samples) != 1 || pattern.Samples[0] != "ab" {
-		t.Errorf("samples: got %+v want [ab]", pattern.Samples)
-	}
-	if pattern.Site.FilePath == "" || pattern.Site.StartLine == 0 {
-		t.Errorf("expected a definition site on the unchecked pattern, got %+v", pattern.Site)
+	if found.Site.FilePath == "" || found.Site.StartLine == 0 {
+		t.Errorf("expected a definition site on the diagnostic, got %+v", found.Site)
 	}
 }

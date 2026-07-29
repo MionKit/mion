@@ -3,13 +3,19 @@ package batchcompile
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	// Register the concrete format emitters — the in-process test never runs
+	// main.go, whose blank import normally does this.
+	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/compiler/sourcerewrite"
 	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -133,5 +139,86 @@ func TestCompile_EmitsJsWithComposedMap(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(filepath.Join(tmp, "__runtypes", "types")); len(entries) == 0 {
 		t.Errorf("no cache module files written under __runtypes/types")
+	}
+}
+
+// patternDTS extends the ambient marker module with createValidateFn — a
+// FUNCTION-family marker: pattern validation runs inside the format
+// emitters, which only render for function-cache demand (a getRunTypeId-only
+// file emits zero function entries and would never reach it).
+const patternDTS = `declare module '@ts-runtypes/core' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
+  export type InjectTypeFnArgs<T, F1 extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1]};
+  export interface ValidateOptions {noLiterals?: boolean}
+  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): (v: unknown) => boolean;
+}
+`
+
+// patternTS declares a stringFormat whose pattern uses a JS-only lookbehind
+// and carries a mockSample that does NOT match it. Both marker call shapes
+// reference the format (marker coverage rule): static with the type
+// argument, reflect with an annotated value.
+const patternTS = `import {createValidateFn} from '@ts-runtypes/core';
+type TypeFormat<Base, Name extends string, Params> = Base & {
+  readonly __rtFormatName?: Name;
+  readonly __rtFormatParams?: Params;
+};
+type Code = TypeFormat<string, 'stringFormat', {
+  pattern: {source: '(?<=x)y'; flags: ''; mockSamples: ['nope']};
+}>;
+export const isCodeStatic = createValidateFn<Code>();
+const sample: Code = 'y';
+export const isCodeReflect = createValidateFn(sample);
+`
+
+// TestCompile_ValidatesJsOnlyPatternSamples pins the headline of the JS-engine
+// move: the standalone compile verb — which has no lint lane — now really
+// validates samples of patterns RE2 could never compile. Before, this exact
+// fixture was unverifiable on this path (fail-closed FMT004, or a silent skip
+// under the removed allowUncheckedPatterns); now the mismatching sample is a
+// plain FMT001. Runs the real node sidecar; skipped only where none exists.
+func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("no node in PATH")
+	}
+	tmp := t.TempDir()
+	writeFile(t, filepath.Join(tmp, "tsconfig.json"), tsconfigJSON)
+	writeFile(t, filepath.Join(tmp, "src", "runtypes.d.ts"), patternDTS)
+	writeFile(t, filepath.Join(tmp, "src", "pattern.ts"), patternTS)
+
+	result, err := Run(Options{
+		Cwd:          tmp,
+		TsconfigPath: "tsconfig.json",
+		GenDir:       filepath.Join(tmp, "__runtypes"),
+		NoEmit:       true,
+		ResolverOpts: resolver.Options{
+			Cwd:        tmp,
+			EmitMode:   constants.EmitCode,
+			ModuleMode: constants.ModuleModeDefault,
+			InlineMode: constants.InlineModeDefault,
+			JSEngine:   jsengine.NewSidecar(""),
+		},
+	})
+	if err != nil {
+		t.Fatalf("compile --no-emit: %v", err)
+	}
+	var fmt001 *diagnostics.Diagnostic
+	for i := range result.Diagnostics {
+		if result.Diagnostics[i].Code == diagnostics.CodeFMTSampleMismatch {
+			fmt001 = &result.Diagnostics[i]
+			break
+		}
+		if result.Diagnostics[i].Code == diagnostics.CodeFMTMissingJsRuntime {
+			t.Fatalf("engine should have run (node is present), got FMT004: %+v", result.Diagnostics[i])
+		}
+	}
+	if fmt001 == nil {
+		t.Fatalf("expected an %s for the mismatching lookbehind sample, got %+v",
+			diagnostics.CodeFMTSampleMismatch, result.Diagnostics)
+	}
+	if len(fmt001.Args) == 0 || fmt001.Args[0] != "nope" {
+		t.Errorf("expected offending sample 'nope' in args, got %+v", fmt001.Args)
 	}
 }

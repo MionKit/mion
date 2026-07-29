@@ -185,10 +185,10 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
   },
   FMT004: {
     headline:
-      "TypeFormat pattern /{0}/ carries mockSamples but uses JS-only regex features RE2 can't compile ({1}) — samples can't be verified at build time.",
+      'TypeFormat pattern /{0}/ cannot be checked: {1} — pattern validation requires a JS runtime (node or bun); install one or pass --js-runtime.',
     severity: 'error',
     detail:
-      "The build-time sample check compiles the pattern with Go's RE2 engine, which\ndoesn't support JS-only features (lookarounds, backreferences). The build\nfails closed rather than ship samples it can't verify.\n\nFix — set `allowUncheckedPatterns` (plugin option / tsconfig plugin key)\nto assert that the JS linter owns the check, then wire the ts-runtypes lint\nplugin into your editor + CI: it evaluates the real `RegExp.test(sample)` and\nreports any mismatch (as FMT001) at the definition site.\n\nFix — or rewrite the pattern using RE2-compatible syntax so the fast\nbuild-time check can run (no lookarounds / backreferences).",
+      "Pattern checks (does the regex compile, do the mockSamples match it) run on\na real JS engine — the same `new RegExp` the emitted validator uses at\nruntime — driven by the resolver as a small sidecar under node or bun. No\nruntime could be started, so the pattern is unverifiable and the build\nfails closed rather than ship samples it can't verify.\n\nFix — install node (or bun) so the resolver finds it on PATH, or point it\nat one explicitly with the --js-runtime flag or the RT_JS_RUNTIME\nenvironment variable. Projects with no patterns never need this.",
   },
   FT002: {
     headline: 'Unknown field `{0}` — the type does not declare it, so this FriendlyText entry is dead.',

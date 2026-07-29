@@ -36,6 +36,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -62,7 +63,7 @@ Shared options (same meaning under every command):
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --size-bias / --size-items / --size-string-bytes / --size-max-bytes
-    --allow-unchecked-patterns
+    --js-runtime PATH   node/bun the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
     --pure-fn-report-wire / --pure-fn-report-file
     --pprof-cpu PATH / --pprof-heap PATH
     -h, --help          show help
@@ -114,26 +115,26 @@ func main() {
 // registered on each subcommand's own FlagSet by registerSharedFlags so a knob
 // spells and means the same thing wherever it appears.
 type sharedFlags struct {
-	tsconfig               string
-	cwd                    string
-	hashLength             int
-	singleThreaded         bool
-	noSingleThreaded       bool
-	noParallelScan         bool
-	noParallelRender       bool
-	emitMode               string
-	inlineMode             string
-	moduleMode             string
-	allowUncheckedPatterns bool
-	pureFnReportWire       bool
-	pureFnReportFile       bool
-	sizeBias               float64
-	sizeItems              int
-	sizeStringBytes        int
-	sizeMaxBytes           int
-	numberMode             string
-	pprofCPU               string
-	pprofHeap              string
+	tsconfig         string
+	cwd              string
+	hashLength       int
+	singleThreaded   bool
+	noSingleThreaded bool
+	noParallelScan   bool
+	noParallelRender bool
+	emitMode         string
+	inlineMode       string
+	moduleMode       string
+	jsRuntime        string
+	pureFnReportWire bool
+	pureFnReportFile bool
+	sizeBias         float64
+	sizeItems        int
+	sizeStringBytes  int
+	sizeMaxBytes     int
+	numberMode       string
+	pprofCPU         string
+	pprofHeap        string
 }
 
 func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
@@ -152,8 +153,8 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"child-inlining policy: default (unnamed compounds inline, named external) | allInternal")
 	fs.StringVar(&s.moduleMode, "module-mode", constants.ModuleModeDefault,
 		"virtual-module grouping: default | allSingle | allModules")
-	fs.BoolVar(&s.allowUncheckedPatterns, "allow-unchecked-patterns", false,
-		"silence the fail-closed FMT004 build error for format patterns whose mockSamples RE2 can't verify")
+	fs.StringVar(&s.jsRuntime, "js-runtime", "",
+		"JS runtime (node/bun path) the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)")
 	fs.BoolVar(&s.pureFnReportWire, "pure-fn-report-wire", false,
 		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
@@ -260,24 +261,23 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
-		set:                    setFlags,
-		hashLength:             s.hashLength,
-		singleThreaded:         s.singleThreaded,
-		noSingleThreaded:       s.noSingleThreaded,
-		noParallelScan:         s.noParallelScan,
-		noParallelRender:       s.noParallelRender,
-		genDir:                 genDirFlag,
-		emitMode:               s.emitMode,
-		inlineMode:             s.inlineMode,
-		moduleMode:             s.moduleMode,
-		allowUncheckedPatterns: s.allowUncheckedPatterns,
-		pureFnReportWire:       s.pureFnReportWire,
-		pureFnReportFile:       s.pureFnReportFile,
-		sizeBias:               s.sizeBias,
-		sizeItems:              s.sizeItems,
-		sizeStringBytes:        s.sizeStringBytes,
-		sizeMaxBytes:           s.sizeMaxBytes,
-		numberMode:             s.numberMode,
+		set:              setFlags,
+		hashLength:       s.hashLength,
+		singleThreaded:   s.singleThreaded,
+		noSingleThreaded: s.noSingleThreaded,
+		noParallelScan:   s.noParallelScan,
+		noParallelRender: s.noParallelRender,
+		genDir:           genDirFlag,
+		emitMode:         s.emitMode,
+		inlineMode:       s.inlineMode,
+		moduleMode:       s.moduleMode,
+		pureFnReportWire: s.pureFnReportWire,
+		pureFnReportFile: s.pureFnReportFile,
+		sizeBias:         s.sizeBias,
+		sizeItems:        s.sizeItems,
+		sizeStringBytes:  s.sizeStringBytes,
+		sizeMaxBytes:     s.sizeMaxBytes,
+		numberMode:       s.numberMode,
 	}, plugin, absCwd)
 
 	// Validate the MERGED values: a bad mode can arrive from tsconfig as
@@ -333,14 +333,17 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		EmitMode:                constants.EmitMode(merged.emitMode),
 		InlineMode:              constants.InlineMode(merged.inlineMode),
 		ModuleMode:              merged.moduleMode,
-		AllowUncheckedPatterns:  merged.allowUncheckedPatterns,
-		PureFnReportWire:        merged.pureFnReportWire,
-		PureFnReportFile:        merged.pureFnReportFile,
-		SizeBias:                merged.sizeBias,
-		SizeItems:               merged.sizeItems,
-		SizeStringBytes:         merged.sizeStringBytes,
-		SizeMaxBytes:            merged.sizeMaxBytes,
-		ValidateDefaults:        resolver.ValidateDefaults{NumberMode: merged.numberMode},
+		// The JS engine pattern checks run on: --js-runtime, else
+		// RT_JS_RUNTIME, else node/bun from PATH — resolved lazily on first
+		// use, so pattern-free projects never need a runtime.
+		JSEngine:         jsengine.NewSidecar(s.jsRuntime),
+		PureFnReportWire: merged.pureFnReportWire,
+		PureFnReportFile: merged.pureFnReportFile,
+		SizeBias:         merged.sizeBias,
+		SizeItems:        merged.sizeItems,
+		SizeStringBytes:  merged.sizeStringBytes,
+		SizeMaxBytes:     merged.sizeMaxBytes,
+		ValidateDefaults: resolver.ValidateDefaults{NumberMode: merged.numberMode},
 	}
 	return sessionConfig{absCwd: absCwd, tsconfigPath: tsconfigPath, genDir: merged.genDir, opts: opts}
 }

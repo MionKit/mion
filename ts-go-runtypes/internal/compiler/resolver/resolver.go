@@ -40,6 +40,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -151,13 +152,13 @@ type Options struct {
 	SizeItems       int
 	SizeStringBytes int
 	SizeMaxBytes    int
-	// AllowUncheckedPatterns silences the fail-closed FMT004 build error
-	// for format patterns whose mockSamples RE2 can't verify (JS-only regex
-	// features). Setting it asserts that the ts-runtypes JS linter — which
-	// evaluates the real RegExp — owns that check. Build-lane only: the lint
-	// lane always validates regardless. Not a disk-fingerprint input (it
-	// changes only which diagnostics surface, never the emitted artifacts).
-	AllowUncheckedPatterns bool
+	// JSEngine is the JS engine format-pattern checks run on (the sidecar
+	// under node/bun natively, the host itself under WASM) — the validation
+	// authority for pattern mockSamples. Nil or failing means patterns are
+	// unverifiable and fail closed with the FMT004 missing-runtime error.
+	// Not a disk-fingerprint input (it changes only which diagnostics
+	// surface, never the emitted artifacts).
+	JSEngine jsengine.Engine
 	// PureFnReportWire enables the structured pure-fn build report: OpGenerate and
 	// OpScanFiles populate Response.PureFnSites (whole program on generate, the
 	// rescanned files' delta on scan). Off by default, so the normal rewrite

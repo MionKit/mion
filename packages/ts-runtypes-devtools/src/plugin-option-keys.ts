@@ -24,7 +24,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   transformMode: true,
   sourcesContent: true,
   failOnError: true,
-  allowUncheckedPatterns: true,
+  jsRuntime: true,
   pureFnReport: true,
   onPureFnReport: true,
   enrich: true,

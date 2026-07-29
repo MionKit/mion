@@ -12,6 +12,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -25,19 +26,6 @@ import (
 type PureFnDepUse struct {
 	Dep   protocol.PureFnDep
 	Sites []diagnostics.Site
-}
-
-// UncheckedPatternUse is one RE2-incompatible pattern (carrying
-// mockSamples) an entry reached, paired with the marker call sites that
-// demanded the entry. The resolver drains these into
-// RenderOpts.UncheckedPatternSink on the lint lane and fans each out into
-// one protocol.UncheckedPattern per site so the JS linter can run the real
-// RegExp.test and anchor any mismatch (FMT001) at the definition site.
-type UncheckedPatternUse struct {
-	Source  string
-	Flags   string
-	Samples []string
-	Sites   []diagnostics.Site
 }
 
 // RenderOpts threads the per-session disk cache into the per-entry collectors.
@@ -71,21 +59,11 @@ type RenderOpts struct {
 	// Populated serially per family collect; the parallel fan-out shards it per
 	// goroutine (see resolver.collectFamilies) exactly like DiagSink.
 	PureFnDepSink *[]PureFnDepUse
-	// UncheckedPatternSink, when non-nil (the lint lane), accumulates every
-	// RE2-incompatible pattern (carrying mockSamples) the walker reaches
-	// while rendering a LIVE entry, each paired with the entry's call
-	// sites. The resolver fans these into Response.UncheckedPatterns so the
-	// JS linter can run the real RegExp.test. Its presence also flips the
-	// walker into record mode, suppressing the fail-closed FMT004 build
-	// error (the linter owns the check on this lane). Sharded per goroutine
-	// like PureFnDepSink. Nil on the build lane.
-	UncheckedPatternSink *[]UncheckedPatternUse
-	// AllowUncheckedPatterns mirrors the build-lane
-	// allowUncheckedPatterns option: when set, an RE2-incompatible
-	// pattern is silently skipped instead of failing the build with FMT004.
-	// No effect on the lint lane (UncheckedPatternSink present), which always
-	// records + validates.
-	AllowUncheckedPatterns bool
+	// JSEngine is the JS engine format-pattern checks run on — the
+	// validation authority for pattern mockSamples (real `new RegExp`
+	// semantics, every lane). Nil means "no engine": pattern checks fail
+	// closed with the FMT004 missing-runtime diagnostic.
+	JSEngine jsengine.Engine
 	// ProvenanceSites maps each cached RunType ID to the set of marker
 	// call sites that reference it. EmitDiagnostic uses this to fan out
 	// one Diagnostic per call site so the user gets actionable file:line:col
@@ -510,8 +488,7 @@ func renderEntryWithDeps(runType *protocol.RunType, settings constants.CacheModu
 	// Wire diagnostic emission for this walk. EmitDiagnostic fans each
 	// recorded code out across every call site referencing this RT.
 	walker.DiagSink = opts.DiagSink
-	walker.AllowUncheckedPatterns = opts.AllowUncheckedPatterns
-	walker.RecordUncheckedPatterns = opts.UncheckedPatternSink != nil
+	walker.JSEngine = opts.JSEngine
 	if opts.ProvenanceSites != nil {
 		walker.rootProvenance = opts.ProvenanceSites[runType.ID]
 	}
@@ -669,19 +646,6 @@ func renderEntryWithDeps(runType *protocol.RunType, settings constants.CacheModu
 	if opts.PureFnDepSink != nil {
 		for _, dep := range walker.PureFnDependencies {
 			*opts.PureFnDepSink = append(*opts.PureFnDepSink, PureFnDepUse{Dep: dep, Sites: walker.rootProvenance})
-		}
-	}
-	// Drain the lint lane's RE2-unchecked patterns, pairing each with
-	// this root's call sites so the JS linter anchors any mismatch at the
-	// definition site. Mirrors the PureFnDepSink fan-out above.
-	if opts.UncheckedPatternSink != nil {
-		for _, pattern := range walker.UncheckedPatterns {
-			*opts.UncheckedPatternSink = append(*opts.UncheckedPatternSink, UncheckedPatternUse{
-				Source:  pattern.Source,
-				Flags:   pattern.Flags,
-				Samples: pattern.Samples,
-				Sites:   walker.rootProvenance,
-			})
 		}
 	}
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)

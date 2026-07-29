@@ -7,6 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -119,7 +120,10 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 		fileNames = append(fileNames, tspath.ResolvePath(cwd, rel))
 	}
 	programOpts := program.Options{Cwd: cwd, Overlay: overlay}
-	resolverOpts := resolver.Options{Cwd: cwd}
+	// The real sidecar engine (host node) is the default so pattern-bearing
+	// fixtures validate exactly as a real build would; tests exercising the
+	// missing-runtime path override JSEngine in their mutate hook.
+	resolverOpts := resolver.Options{Cwd: cwd, JSEngine: jsengine.NewSidecar("")}
 	if mutate != nil {
 		mutate(&programOpts, &resolverOpts)
 	}

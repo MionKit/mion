@@ -72,6 +72,12 @@ importers:
         specifier: 8.0.16
         version: 8.0.16(@types/node@26.1.0)(jiti@2.6.1)(yaml@2.9.0)
 
+  packages/ts-runtypes-go-be-sidecar:
+    devDependencies:
+      vite:
+        specifier: 8.0.16
+        version: 8.0.16(@types/node@26.1.0)(jiti@2.6.1)(yaml@2.9.0)
+
 packages:
 
   '@babel/code-frame@7.29.0':

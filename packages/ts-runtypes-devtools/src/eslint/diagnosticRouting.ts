@@ -153,7 +153,7 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     default: 'error',
     gate: 'compiler',
     description:
-      'A custom string format with a broken definition: a mock sample that does not match its own pattern, a sample that violates a sibling constraint like maxLength, or invalid format params. Also fires when the linter re-checks samples the build could not verify (allowUncheckedPatterns)',
+      'A custom string format with a broken definition: a mock sample that does not match its own pattern, a sample that violates a sibling constraint like maxLength, invalid format params (including a pattern that does not compile as a JS RegExp), or pattern checks that could not run because no JS runtime was found',
   },
   {
     name: 'invalid-override',

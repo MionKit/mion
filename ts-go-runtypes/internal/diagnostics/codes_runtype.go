@@ -161,16 +161,13 @@ const (
 	// offender for a constraint rides one message.
 	CodeFMTSampleBounds = "FMT003"
 
-	// CodeFMTUncheckedPattern — a pattern carries mockSamples but uses
-	// JS-only regex features (lookarounds, backreferences) that RE2 cannot
-	// compile, so the build-time sample-vs-pattern check can't run. Error
-	// severity, fail-closed by default: the build refuses what it can't
-	// verify. Silenced by the `allowUncheckedPatterns` option, which
-	// delegates the check to the JS linter (it evaluates the real
-	// `RegExp.test` and reports mismatches as FMT001). Args: [pattern
-	// source, RE2 compile error]. Emitted only in the build lane; the lint
-	// lane records the pattern for real validation instead.
-	CodeFMTUncheckedPattern = "FMT004"
+	// CodeFMTMissingJsRuntime — a pattern needs the JS engine (compile
+	// check + sample-vs-pattern check run on the real `new RegExp`) but no
+	// engine could run: no node/bun found, or the sidecar died. Error
+	// severity, fail-closed: the build refuses what it can't verify.
+	// Emitted once per pattern-bearing site; projects with zero patterns
+	// never need a JS runtime. Args: [pattern source, reason].
+	CodeFMTMissingJsRuntime = "FMT004"
 )
 
 // Unknown-keys family — no root throws today; only child drops.
@@ -270,7 +267,7 @@ func init() {
 	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample does not match pattern"})
 	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Title: "invalid type-format params"})
 	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample violates a sibling constraint"})
-	register(Definition{Code: CodeFMTUncheckedPattern, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern samples cannot be verified at build time"})
+	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern checks need a JS runtime and none was found"})
 
 	// Class-serializer family — a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,

@@ -26,7 +26,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parentPort, workerData} from 'node:worker_threads';
 import {getExePath} from '@ts-runtypes/bin';
-import {Family, Severity, type Diagnostic, type UncheckedPattern} from '../protocol.ts';
+import {Family, Severity, type Diagnostic} from '../protocol.ts';
 import {buildResolverArgs, ResolverClient, ResolverStreamClient, type ResolverConnection} from '../resolver-client.ts';
 import {WAKE_INDEX, type LintWorkerData, type LintWorkerRequest, type LintWorkerResponse} from './session-protocol.ts';
 
@@ -107,36 +107,6 @@ async function ensureConnection(tsconfig: string, binary: string): Promise<Resol
 // a per-file op error the resolver answered with.
 const connectionLostPattern = /resolver exited|spawn failed|socket closed|socket error|resolver is closed/;
 
-// validateUncheckedPatterns runs the real JS regex engine over the samples of
-// each pattern RE2 couldn't verify at build time, synthesizing one FMT001
-// diagnostic per pattern that names every sample failing its own regex
-// (aggregated to match the Go-side FMT001, which the pipeline dedups per code
-// per walk). Anchored at the pattern's definition site. A pattern whose regex
-// won't even construct in JS is skipped — it's malformed rather than a
-// sample-mismatch, and would fail at runtime regardless.
-function validateUncheckedPatterns(patterns: UncheckedPattern[] | undefined): Diagnostic[] {
-  if (!patterns || patterns.length === 0) return [];
-  const out: Diagnostic[] = [];
-  for (const pattern of patterns) {
-    let regex: RegExp;
-    try {
-      regex = new RegExp(pattern.source, pattern.flags ?? '');
-    } catch {
-      continue;
-    }
-    const offenders = pattern.samples.filter((sample) => !regex.test(sample));
-    if (offenders.length === 0) continue;
-    out.push({
-      code: 'FMT001',
-      family: Family.RunType,
-      severity: Severity.Error,
-      args: [offenders.join(', '), pattern.source],
-      site: pattern.site,
-    });
-  }
-  return out;
-}
-
 async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> {
   // One retry on a fresh connection: a transient failure shouldn't poison
   // the whole run. (No shim remains for the retry — the direct path is the
@@ -149,13 +119,10 @@ async function lintOne(request: LintWorkerRequest): Promise<LintWorkerResponse> 
       const rel = path.relative(process.cwd(), request.file) || request.file;
       await resolver.setSources({[rel]: request.text});
       const result = await resolver.scanFiles([rel], {checkEnrich: true, includeRtDiagnostics: true});
-      // The resolver ships format patterns RE2 couldn't verify (JS-only regex
-      // features) here rather than failing the build; the lint lane runs the
-      // REAL regex engine over each sample and reports mismatches as FMT001.
-      const diagnostics = [
-        ...((result.diagnostics ?? []) as Diagnostic[]),
-        ...validateUncheckedPatterns(result.uncheckedPatterns),
-      ];
+      // Pattern verdicts (FMT001/FMT002/FMT004) arrive as ordinary
+      // diagnostics — the resolver runs the real JS engine itself now, so
+      // this worker no longer re-checks anything.
+      const diagnostics = (result.diagnostics ?? []) as Diagnostic[];
       return {seq: request.seq, diagnostics};
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

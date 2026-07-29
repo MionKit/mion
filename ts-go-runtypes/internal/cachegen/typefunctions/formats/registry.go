@@ -14,6 +14,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -58,17 +59,12 @@ type EmitContext interface {
 	// pattern. Deduped per-code per-walk by the walker.
 	EmitDiagnostic(code string, args ...string)
 
-	// AllowUncheckedPatterns reports whether the project opted into
-	// silencing the FMT004 build error for patterns RE2 can't verify
-	// (the allowUncheckedPatterns option). Build lane only.
-	AllowUncheckedPatterns() bool
-
-	// RecordUncheckedPattern hands a pattern RE2 can't compile
-	// (source, flags, samples) to the lint lane's sink so the JS linter
-	// can run the real `RegExp.test`. Returns true when recorded (lint
-	// lane); false when there is no sink (build lane), so the caller
-	// falls back to the fail-closed FMT004 path.
-	RecordUncheckedPattern(source, flags string, samples []string) bool
+	// JSEngine returns the JS engine pattern checks run on (the sidecar
+	// under node/bun natively, the host itself under WASM) — the
+	// validation authority, since samples exist to satisfy the JS runtime
+	// validator. May be nil (tests, engine not configured): callers treat
+	// nil like an engine error and emit the missing-runtime diagnostic.
+	JSEngine() jsengine.Engine
 
 	// NextLocalVar returns a fresh, collision-free local identifier with
 	// the given prefix — used to hoist a `const re_N = new RegExp(...)`

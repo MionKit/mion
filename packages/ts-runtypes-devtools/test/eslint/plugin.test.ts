@@ -97,11 +97,12 @@ const PLAIN_TS = `// ${TODO_TAG}: hand-written file, not enrichment
 export const answer = 42;
 `;
 
-// A format pattern that uses a JS-only lookbehind (RE2 can't compile it) and
-// carries a mockSample that does NOT match the real regex. The build lane
-// would fail closed with FMT004; the lint lane instead runs the real
-// RegExp.test and reports the failing sample as FMT001. The local TypeFormat
-// brand is recognised structurally, same as the Go resolver tests.
+// A format pattern that uses a JS-only lookbehind and carries a mockSample
+// that does NOT match the real regex. The resolver runs every pattern check
+// on a real JS engine (its node/bun sidecar), so the mismatch arrives as an
+// ordinary FMT001 diagnostic — the lint worker no longer re-checks anything
+// itself. The local TypeFormat brand is recognised structurally, same as
+// the Go resolver tests.
 const UNCHECKED_PATTERN_TS = `import {createValidateFn} from '@ts-runtypes/core';
 
 type TypeFormat<Base, Name extends string, Params> = Base & {
@@ -298,12 +299,13 @@ describe.runIf(hasBinary())(
         expect(reports[0]!.line).toBe(locate(WIDGET_TS, 'createValidateFn<Widget>()').line);
       });
 
-      it('validates RE2-unchecked pattern samples in JS, reporting a failing sample as FMT001 under runtypes/format at the definition site', () => {
+      it('reports a JS-only-pattern sample mismatch as FMT001 under runtypes/format at the definition site', () => {
         const reports = reportsFor('format', 'unchecked-pattern.ts');
         expect(reports).toHaveLength(1);
         expect(reports[0]!.message).toContain('[FMT001]');
-        // The lint lane ran the real regex — the sample 'nope' fails the JS-only
-        // lookbehind, so it (not an FMT004 "cannot verify") is reported.
+        // The resolver's JS engine ran the real regex — the sample 'nope'
+        // fails the JS-only lookbehind, so a plain sample mismatch (never a
+        // missing-runtime FMT004) is reported.
         expect(reports[0]!.message).toContain('nope');
         expect(reports[0]!.message).not.toContain('[FMT004]');
         expect(reports[0]!.line).toBe(locate(UNCHECKED_PATTERN_TS, 'createValidateFn<TypeFormat').line);

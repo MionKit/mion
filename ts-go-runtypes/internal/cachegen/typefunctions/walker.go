@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -196,20 +197,11 @@ type Walker struct {
 	// JS wire shape is unchanged.
 	RTDependencies     []string
 	PureFnDependencies []protocol.PureFnDep
-	// AllowUncheckedPatterns mirrors RenderOpts.AllowUncheckedPatterns
-	// (the build-lane allowUncheckedPatterns option): when set, a
-	// pattern RE2 can't verify is silently skipped instead of failing the
-	// build with FMT004.
-	AllowUncheckedPatterns bool
-	// RecordUncheckedPatterns is set on the lint lane (RenderOpts.
-	// UncheckedPatternSink present): RecordUncheckedPattern then buffers
-	// RE2-incompatible patterns into UncheckedPatterns for the JS linter
-	// to verify, and the FMT004 build error is suppressed.
-	RecordUncheckedPatterns bool
-	// UncheckedPatterns buffers patterns RE2 couldn't compile that carry
-	// mockSamples, drained by the renderer into RenderOpts.
-	// UncheckedPatternSink paired with this walk's call sites.
-	UncheckedPatterns []protocol.UncheckedPattern
+	// JSEngine mirrors RenderOpts.JSEngine — the JS engine the format
+	// emitters run pattern checks on (exposed to them via
+	// EmitContext.JSEngine). Nil fails pattern checks closed with the
+	// FMT004 missing-runtime diagnostic.
+	JSEngine jsengine.Engine
 	// CrossFamilyDeps records the cross-family RT lookups this function
 	// reaches via registerRTLookup — childIDs whose family-tag prefix
 	// differs from this walker's own InnerPrefix (e.g. a prepareForJson /
@@ -416,20 +408,6 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 	for _, site := range w.rootProvenance {
 		*w.DiagSink = append(*w.DiagSink, diagnostics.New(code, site, args...))
 	}
-}
-
-// RecordUncheckedPattern buffers an RE2-incompatible pattern (carrying
-// mockSamples) for the lint lane, returning whether it was recorded. On
-// the build lane (RecordUncheckedPatterns unset) it returns false so the
-// caller falls back to the fail-closed FMT004 diagnostic. The site is
-// attached at drain time from rootProvenance (renderEntryWithDeps),
-// mirroring the PureFnDependencies fan-out.
-func (w *Walker) RecordUncheckedPattern(source, flags string, samples []string) bool {
-	if !w.RecordUncheckedPatterns {
-		return false
-	}
-	w.UncheckedPatterns = append(w.UncheckedPatterns, protocol.UncheckedPattern{Source: source, Flags: flags, Samples: samples})
-	return true
 }
 
 // NewWalker primes a Walker for the given RunType + Emitter pair.

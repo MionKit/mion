@@ -33,6 +33,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/constants"
+	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -49,6 +50,9 @@ func main() {
 		SingleThreaded:        true,
 		DisableParallelScan:   true,
 		DisableParallelRender: true,
+		// Pattern checks run directly on the host's own RegExp — the WASM
+		// module already lives inside a JS engine, so no sidecar is spawned.
+		JSEngine: jsengine.NewHostEngine(),
 		// EmitFunctions ships each cache entry's factory as a LIVE `function
 		// g_<hash>(utl){…}` (code slot undefined) instead of a body string the
 		// runtime rebuilds via `new Function`. The playground's "Generated Cache"

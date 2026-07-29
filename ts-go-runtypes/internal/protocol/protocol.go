@@ -623,11 +623,6 @@ type Response struct {
 	// `this.warn(diagnostics.FormatTsc(d))` so VS Code's $tsc problem matcher
 	// picks them up. Schema mirrors the LSP Diagnostic shape.
 	Diagnostics []diagnostics.Diagnostic `json:"diagnostics,omitempty"`
-	// UncheckedPatterns carries the format patterns whose mockSamples RE2
-	// couldn't verify at build time, for the JS lint plugin to validate with
-	// the real regex engine. Populated only when the request opts into
-	// RunType diagnostics (the lint lane); empty otherwise.
-	UncheckedPatterns []UncheckedPattern `json:"uncheckedPatterns,omitempty"`
 	// TsCompileMs is populated by OpTsCompile only. Wall time of the
 	// tsgo bind + typecheck + Emit() pass on the resolver's current
 	// source overlay, in milliseconds. Zero for every other op.
@@ -701,21 +696,6 @@ type SiteDemand struct {
 	// jsonEncoder). The emitter renders the inline circular-reference guard for
 	// exactly these entries; it never rides a JSON primitive demand.
 	RejectCircular bool `json:"rejectCircular,omitempty"`
-}
-
-// UncheckedPattern is one format `pattern` whose mockSamples the build-time
-// RE2 oracle can't verify (the pattern uses JS-only features like
-// lookarounds or backreferences), shipped on the lint-lane scan response so
-// the JS lint plugin can run the real `new RegExp(Source, Flags).test(...)`
-// over each sample and report mismatches (as FMT001) at Site. One entry per
-// (pattern, call site). Populated only when the request opts into RunType
-// diagnostics; empty on the build lane, which fails closed with FMT004
-// instead (unless allowUncheckedPatterns is set).
-type UncheckedPattern struct {
-	Source  string           `json:"source"`
-	Flags   string           `json:"flags,omitempty"`
-	Samples []string         `json:"samples"`
-	Site    diagnostics.Site `json:"site"`
 }
 
 // EnrichFile is one computed enrichment mirror file returned by OpEnrich: its
@@ -947,9 +927,6 @@ func (response Response) MarshalJSON() ([]byte, error) {
 	}
 	if len(response.Diagnostics) > 0 {
 		out["diagnostics"] = response.Diagnostics
-	}
-	if len(response.UncheckedPatterns) > 0 {
-		out["uncheckedPatterns"] = response.UncheckedPatterns
 	}
 	if response.TsCompileMs > 0 {
 		out["tsCompileMs"] = response.TsCompileMs

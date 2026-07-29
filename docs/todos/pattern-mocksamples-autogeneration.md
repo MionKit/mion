@@ -7,7 +7,7 @@ created: 2026-07-29
 
 # Auto-generate pattern mockSamples from the regex (build time, randexp-style)
 
-> **Depends on:** `pattern-validation-js-engine-sidecar.md` — reuses its `internal/jsengine` engine and sidecar protocol. Land that first.
+> **Depends on:** the pattern-validation JS-engine sidecar (LANDED — spec now in `docs/done/pattern-validation-js-engine-sidecar.md`): reuses its `internal/jsengine` engine (`TestPattern` + the `@ts-runtypes/go-be-sidecar` package and its `{v, jobs}` wire, which reserves the `generate` op for this todo).
 
 ## Problem
 

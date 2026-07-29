@@ -190,14 +190,11 @@ export interface PluginOptions {
   // proceeding would break the build anyway. HMR updates never hard-fail
   // mid-edit either way; the halt re-applies on the next build/test run.
   failOnError?: boolean;
-  // Silence the fail-closed FMT004 build error for format patterns whose
-  // mockSamples RE2 can't verify at build time (JS-only regex features:
-  // lookarounds, backreferences). Default false — the build refuses what it
-  // can't verify. Setting it asserts that the ts-runtypes lint plugin (which
-  // evaluates the real RegExp) owns the check for those patterns, so wire the
-  // linter into your editor + CI when you enable it. Build-lane only: the lint
-  // plugin validates those samples regardless of this option.
-  allowUncheckedPatterns?: boolean;
+  // JS runtime (node/bun path) the resolver runs format-pattern checks on
+  // (--js-runtime). Host-specific like `binary` — no tsconfig key. Default:
+  // this plugin's own process.execPath, so the serve lane always has a
+  // runtime with zero configuration; set it only to pin a different one.
+  jsRuntime?: string;
   // Pure-fn build report — the structured, layout-independent record of every
   // pure fn this build generated (call-site span, callee attribution, registry
   // key, and the self-contained entry payload). For host tooling that relocates
@@ -374,7 +371,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(options.moduleMode ? {moduleMode: options.moduleMode} : {}),
       ...(options.singleThreaded !== undefined ? {singleThreaded: options.singleThreaded} : {}),
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
-      ...(options.allowUncheckedPatterns ? {allowUncheckedPatterns: true} : {}),
+      ...(options.jsRuntime ? {jsRuntime: options.jsRuntime} : {}),
       // Tri-state → the two low-level resolver flags: report on the wire for
       // both 'file' and 'callback'; the JSON file written only for 'file' (at
       // the hardcoded genDir/types path).

@@ -1,7 +1,6 @@
 package string
 
 import (
-	"regexp"
 	"strings"
 	"unicode/utf16"
 
@@ -109,33 +108,34 @@ func emitPatternTest(ctx formats.EmitContext, source, flags, vλl string) string
 	return reVar + ".test(" + vλl + ")"
 }
 
-// validateSamples compiles the pattern with Go's RE2 engine and checks
-// every mockSample against it, emitting CodeFMTSampleMismatch naming every
-// sample that fails. When the pattern uses JS-only regex features RE2 can't
-// compile (lookarounds, backreferences) it can't run: Part 2 records the
-// pattern for the JS linter to verify (lint lane) or emits
-// CodeFMTUncheckedPattern to fail the build closed (build lane) —
-// RE2 is a best-effort build-time oracle, not the runtime engine.
+// validateSamples runs the pattern through the JS engine — the real
+// `new RegExp` the emitted validator uses at runtime — compiling the
+// source (a syntax error is CodeFMTInvalidParams: the emitted validator
+// would throw at factory load) and checking every mockSample against it
+// (mismatches are CodeFMTSampleMismatch, naming every offender). Runs
+// even with zero samples: the compile check stands on its own. When the
+// engine itself cannot run (no node/bun found, sidecar died) the pattern
+// is unverifiable and CodeFMTMissingJsRuntime fails the build closed.
 func validateSamples(ctx formats.EmitContext, source, flags string, samples []string) {
-	if len(samples) == 0 {
+	engine := ctx.JSEngine()
+	if engine == nil {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTMissingJsRuntime, source, "no JS engine configured")
 		return
 	}
-	compiled, err := regexp.Compile(re2Pattern(source, flags))
+	verdict, err := engine.TestPattern(source, flags, samples)
 	if err != nil {
-		reportUncheckedPattern(ctx, source, flags, samples, err)
+		ctx.EmitDiagnostic(diagnostics.CodeFMTMissingJsRuntime, source, err.Error())
 		return
 	}
-	var offenders []string
-	for _, sample := range samples {
-		if !compiled.MatchString(sample) {
-			offenders = append(offenders, sample)
-		}
+	if verdict.CompileError != "" {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTInvalidParams, "pattern /"+source+"/"+flags+" does not compile as a JS RegExp: "+verdict.CompileError)
+		return
 	}
 	// One diagnostic naming every mismatching sample: the walker dedups
 	// per code per walk, so per-sample diagnostics would collapse to the
 	// first offender anyway.
-	if len(offenders) > 0 {
-		ctx.EmitDiagnostic(diagnostics.CodeFMTSampleMismatch, strings.Join(offenders, ", "), source)
+	if len(verdict.Offenders) > 0 {
+		ctx.EmitDiagnostic(diagnostics.CodeFMTSampleMismatch, strings.Join(verdict.Offenders, ", "), source)
 	}
 }
 
@@ -344,38 +344,4 @@ func inValueSet(sample string, vals []string, ignoreCase bool) bool {
 		}
 	}
 	return false
-}
-
-// reportUncheckedPattern handles a pattern that carries mockSamples
-// but uses JS-only regex features RE2 can't compile. Lint lane (a sink is
-// present): record {source, flags, samples} so the JS linter runs the
-// real RegExp.test and reports mismatches as FMT001 — no build error.
-// Build lane: fail closed with FMT004, unless the project set
-// allowUncheckedPatterns to assert the linter owns the check.
-func reportUncheckedPattern(ctx formats.EmitContext, source, flags string, samples []string, compileErr error) {
-	if ctx.RecordUncheckedPattern(source, flags, samples) {
-		return
-	}
-	if ctx.AllowUncheckedPatterns() {
-		return
-	}
-	ctx.EmitDiagnostic(diagnostics.CodeFMTUncheckedPattern, source, compileErr.Error())
-}
-
-// re2Pattern translates a JS regex source+flags into an RE2 pattern
-// string. JS `i`/`m`/`s` map to RE2 inline flags; `u`/`g`/`y`/`d` are
-// irrelevant to a match test (RE2 is UTF-8 by default and `\p{…}` works
-// without `u`).
-func re2Pattern(source, flags string) string {
-	var inline strings.Builder
-	for _, flag := range flags {
-		switch flag {
-		case 'i', 'm', 's':
-			inline.WriteRune(flag)
-		}
-	}
-	if inline.Len() == 0 {
-		return source
-	}
-	return "(?" + inline.String() + ")" + source
 }

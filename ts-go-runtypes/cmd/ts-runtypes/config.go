@@ -75,11 +75,6 @@ type tsRuntypesPlugin struct {
 	SingleThreaded *bool `json:"singleThreaded"`
 	ParallelScan   *bool `json:"parallelScan"`
 	ParallelRender *bool `json:"parallelRender"`
-	// AllowUncheckedPatterns silences the fail-closed FMT004 build error for
-	// format patterns whose mockSamples RE2 can't verify (JS-only regex
-	// features), asserting the ts-runtypes JS linter owns that check. A pointer
-	// so an absent key falls through to the false default. Build-lane only.
-	AllowUncheckedPatterns *bool `json:"allowUncheckedPatterns"`
 	// PureFnReport is the pure-fn build report switch: `true` emits the report
 	// AND writes it to the HARDCODED `<genDir>/types/pure-fns-report.json`;
 	// absent (nil) / false keeps it off. A pointer so an absent key falls

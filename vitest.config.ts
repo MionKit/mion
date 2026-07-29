@@ -22,6 +22,9 @@ export default defineConfig({
       // runtypes-playground package) — a standalone project co-located under
       // ts-runtypes/test/playground, excluded from the marker project above.
       'packages/ts-runtypes/test/playground/vitest.config.ts',
+      // The Go-resolver JS sidecar (private, never published) — pure unit
+      // tests, no binary involved.
+      'packages/ts-runtypes-go-be-sidecar/vitest.config.ts',
     ],
     // Coverage is a root-level (cross-project) concern. Vitest 4 removed
     // `coverage.all`; the report now defaults to covered files only, so the

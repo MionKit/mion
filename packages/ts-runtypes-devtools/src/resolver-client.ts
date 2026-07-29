@@ -85,12 +85,11 @@ export interface ResolverClientOptions {
   // names (undefined = the binary default, 7). The build lane forwards the
   // bundler/tsconfig value; the lint lane never sets it.
   hashLength?: number;
-  // Forwarded as --allow-unchecked-patterns: silence the fail-closed
-  // FMT004 build error for format patterns whose mockSamples RE2 can't verify
-  // (JS-only regex features). Build-lane only — asserts the ts-runtypes lint
-  // plugin, which runs the real RegExp, owns that check. Undefined leaves the
-  // binary default (off).
-  allowUncheckedPatterns?: boolean;
+  // Forwarded as --js-runtime: the node/bun path the resolver runs
+  // format-pattern checks on. buildResolverArgs defaults it to THIS
+  // process's own execPath (the plugin/linter already runs inside a JS
+  // runtime), so every lane has an engine with zero configuration.
+  jsRuntime?: string;
   // Pure-fn build report. `pureFnReportWire` forwards --pure-fn-report-wire
   // (populate Response.pureFnSites on generate/scan for the in-process callback);
   // `pureFnReportFile` additionally forwards --pure-fn-report-file (write the
@@ -272,9 +271,6 @@ export interface ScanFilesResult {
   runTypes?: RunType[];
   entryModules?: Record<string, string>;
   diagnostics?: import('./protocol.ts').Diagnostic[];
-  // Lint lane only (includeRtDiagnostics): format patterns RE2 couldn't
-  // verify, for the lint plugin to validate with the real regex engine.
-  uncheckedPatterns?: import('./protocol.ts').UncheckedPattern[];
   // Per-cache HMR signals; see Response.addedRunTypes etc in protocol.ts.
   addedRunTypes?: boolean;
   addedValidate?: boolean;
@@ -401,7 +397,6 @@ abstract class ResolverClientBase implements ResolverConnection {
       runTypes: resp.runTypes,
       entryModules: resp.entryModules,
       diagnostics: resp.diagnostics,
-      uncheckedPatterns: resp.uncheckedPatterns,
       addedRunTypes: resp.addedRunTypes,
       addedValidate: resp.addedValidate,
       addedValidationErrors: resp.addedValidationErrors,
@@ -554,9 +549,10 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.singleThreaded === true) args.push('--single-threaded');
   else if (opts.singleThreaded === false) args.push('--no-single-threaded');
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
-  // Build-lane only. The lint worker never forwards it: the lint lane always
-  // validates the samples (with the real RegExp) regardless of the flag.
-  if (opts.allowUncheckedPatterns) args.push('--allow-unchecked-patterns');
+  // Always passed: the resolver's format-pattern checks run on a real JS
+  // engine, and THIS process is one — its own execPath is the zero-config
+  // default for every lane (build + lint). An explicit option pins another.
+  args.push('--js-runtime', opts.jsRuntime ?? process.execPath);
   if (opts.pureFnReportWire) args.push('--pure-fn-report-wire');
   if (opts.pureFnReportFile) args.push('--pure-fn-report-file');
   // Session config the wire deliberately does not carry: the output-root

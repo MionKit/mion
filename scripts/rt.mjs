@@ -62,6 +62,9 @@ const FUZZ = {
   typemod: {patterns: ['typeModFuzz.integration'], soak: {RT_FUZZ_TYPEMOD_REPORT: '1', RT_FUZZ_TYPEMOD_SEQUENCES: '400', RT_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
   // race is the ONLY path that sets RT_FUZZ_RACE=1 — without it enrichRace self-skips.
   race: {patterns: ['enrichRace'], env: {RT_FUZZ_RACE: '1'}, soak: {RT_FUZZ_RACE_ITERATIONS: '25', RT_FUZZ_RACE_FANOUT: '8'}},
+  // Robustness fuzz of the committed go:embed sidecar bundle under real node
+  // (garbage patterns/flags/samples + oversized batches; RT_FUZZ_SEED replays).
+  sidecar: {patterns: ['patternSidecarFuzz']},
   all: {patterns: ['fuzz.integration', 'typeFuzz.integration', 'binaryEncoderResize']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
@@ -93,6 +96,11 @@ const CODEGEN = {
   // read by the bundler-option parity test so a project option added to only one
   // side (PluginOptions vs the tsconfig struct) fails CI.
   pluginkeys: {run: [...GO_RUN, './cmd/gen-plugin-keys'], outputs: ['packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts'], fmt: ['packages/ts-runtypes-devtools/src/go-generated/tsconfig-plugin-keys.generated.ts']},
+  // JS→Go mirror (the one lane pointed the other way): bundles the private
+  // @ts-runtypes/go-be-sidecar package (vite lib build) into the committed
+  // go:embed bundle the resolver spawns under node/bun for JS-regex jobs.
+  // No fmt step — the output is a JS bundle, not generated TS.
+  sidecar: {run: ['node', 'scripts/core/gen-sidecar-js.mjs'], outputs: ['ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs'], fmt: []},
 };
 
 // Run one generator: either it writes its own outputs (proxy, stdio inherited),
@@ -304,7 +312,7 @@ core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
   rtx core fuzz <suite> [--soak]   unit|value|types|enrich|i18n|typemod|race|all
-  rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns] [--check]   regenerate Go→TS mirrors + built-in pure-fn table
+  rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
 
