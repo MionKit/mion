@@ -222,8 +222,26 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         Record<string, number>
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly type: 'object'}>, object>>;
+      type _05 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'object';
+          readonly properties: {readonly a: {readonly type: 'string'}};
+          readonly required: readonly ['a'];
+          readonly additionalProperties: {readonly type: 'number'};
+        }>,
+        {a: string} & Record<string, number>
+      >>;
+      type _06 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'object';
+          readonly properties: {readonly a: {readonly type: 'string'}};
+          readonly required: readonly ['a'];
+          readonly additionalProperties: false;
+        }>,
+        {a: string}
+      >>;
       `,
-      752
+      1277
     );
   });
 
@@ -255,7 +273,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      1052
+      1069
     );
   });
 

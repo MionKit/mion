@@ -265,6 +265,53 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
     getSamples: () => ({valid: [{x: 1, y: 2}], invalid: [{x: 1}, {x: 1, y: 'nope'}, null]}),
   },
 
+  mixed_index_object: {
+    title: 'properties + additionalProperties — the mixed intersection form (M3)',
+    // The checker normalizes an inline-index object, the {props} & Record<…>
+    // intersection, and the schema-recovered mixed form onto ONE structural id
+    // (verified by probe; the id-integrity suite pins it at scale).
+    validate: () => createValidateFn<{a: string; b: number} & Record<string, string | number>>(),
+    validateReflect: () => {
+      const v = {a: 'x', b: 1} as {a: string; b: number} & Record<string, string | number>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<{a: string; b: number} & Record<string, string | number>>(),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    getValidationErrors: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    mockType: () =>
+      createMockDataFn(
+        jsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    getSamples: () => ({
+      valid: [
+        {a: 'x', b: 1},
+        {a: 'x', b: 1, extra: 'ok', more: 2},
+      ],
+      invalid: [{a: 'x'}, {a: 1, b: 1}, {a: 'x', b: 1, bad: true}, null],
+    }),
+  },
+
   tuple_closed: {
     title: 'closed tuple — prefixItems + items: false + minItems (M2)',
     validate: () => createValidateFn<[string, number]>(),

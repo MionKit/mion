@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -182,6 +183,70 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(userSchema()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(userSchema()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(userSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+        })
+      ),
     getTestData: () => ({values: [sampleUser(), sampleUser({age: 30, roles: ['admin', 'editor']})]}),
   },
 
@@ -250,6 +315,138 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(orderSchema()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(orderSchema()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(orderSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        })
+      ),
     getTestData: () => {
       const ok = makeOrder();
       return {values: [ok, {...ok, note: 'gift', status: 'shipped' as const}]};
@@ -299,6 +496,78 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(blogPostSchema()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(blogPostSchema()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(blogPostSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
+        })
+      ),
     getTestData: () => {
       const ok = makeBlogPost();
       return {values: [ok, {...ok, publishedAt: '2024-01-02'}]};
@@ -346,6 +615,90 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(productModel()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(productModel()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(productModel()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+        })
+      ),
     getTestData: () => {
       const ok = makeProduct();
       return {values: [ok, {...ok, dimensions: {width: 1, height: 2, depth: 3}}]};
@@ -406,6 +759,142 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(productPageSchema()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(productPageSchema()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(productPageSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
+        })
+      ),
     getTestData: () => {
       const ok: ProductPage = {data: [makeProduct()], page: 1, pageSize: 20, total: 1, hasMore: false};
       return {values: [ok, {data: [], page: 2, pageSize: 20, total: 0, hasMore: false}]};
@@ -445,6 +934,74 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(registrationFormSchema()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(registrationFormSchema()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(registrationFormSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
+        })
+      ),
     getTestData: () => {
       const ok = makeRegistrationForm();
       return {values: [ok, {...ok, profile: {...ok.profile, age: 30}}]};

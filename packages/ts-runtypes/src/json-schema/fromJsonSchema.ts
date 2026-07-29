@@ -167,12 +167,23 @@ type ObjectFromProps<P, Req extends PropertyKey> = Flatten<
   }
 >;
 type ObjectFrom<S> = S extends {properties: infer P}
-  ? S extends {required: infer R extends readonly string[]}
-    ? ObjectFromProps<P, R[number]>
-    : ObjectFromProps<P, never>
+  ? WithAdditional<
+      S,
+      S extends {required: infer R extends readonly string[]} ? ObjectFromProps<P, R[number]> : ObjectFromProps<P, never>
+    >
   : S extends {additionalProperties: infer A extends JsonSchemaInput}
     ? Record<string, FromJsonSchema<A>>
     : object;
+
+// `additionalProperties: <schema>` ALONGSIDE `properties` intersects the
+// declared props with the index-signature record (01-phase1-mapping §3.2 — the
+// mixed form). The boolean forms stay annotation-only at the type level
+// (`false` pairs with the unknown-keys validation family, a later phase).
+type WithAdditional<S, Props> = S extends {additionalProperties: infer A}
+  ? A extends boolean
+    ? Props
+    : Props & Record<string, FromJsonSchema<A>>
+  : Props;
 
 // array/tuple: `prefixItems` builds a tuple. Members at positions below
 // `minItems` are required, the rest optional (`?`) — absent minItems means 0,

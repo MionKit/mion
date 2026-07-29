@@ -10,6 +10,7 @@
 // shows the actual format handling (uuid / email checks here), matching the runtime
 // validator. `pureType` shows the real branded interface and `schema` the RT builder.
 import * as TF from '@ts-runtypes/core/formats';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import type {FormatValidationCase} from './types.ts';
 import '@ts-runtypes/core/formats';
 import {
@@ -82,6 +83,14 @@ export const REALWORLD = {
       return createValidateFn<DataOnly<User>>();
     },
     validateSchema: () => createValidateFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
     deserializeValidate: () => {
       interface User {
         id: TF.UUIDv4;
@@ -134,6 +143,14 @@ export const REALWORLD = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       interface User {
         id: TF.UUIDv4;
@@ -245,6 +262,19 @@ export const REALWORLD = {
           status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string', format: 'uuid'},
+            email: {type: 'string', format: 'email'},
+            total: {type: 'number'},
+            status: {enum: ['pending', 'paid', 'shipped', 'cancelled']},
+          },
+          required: ['id', 'email', 'total', 'status'],
+        })
+      ),
     deserializeValidate: () => {
       interface Order {
         id: TF.UUIDv4;
@@ -309,6 +339,19 @@ export const REALWORLD = {
           email: TF.email(),
           total: TF.number(),
           status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        jsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string', format: 'uuid'},
+            email: {type: 'string', format: 'email'},
+            total: {type: 'number'},
+            status: {enum: ['pending', 'paid', 'shipped', 'cancelled']},
+          },
+          required: ['id', 'email', 'total', 'status'],
         })
       ),
     deserializeGetValidationErrors: () => {
