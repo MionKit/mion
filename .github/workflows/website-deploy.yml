@@ -10,10 +10,18 @@ name: prod · deploy website
 # repo, not from an installed npm version, so the optional `version` input is for
 # the run log only. See SETUP.md → Publishing.
 #
+# Dispatch it against EITHER `main` or `prod` — both ship the same live site. The
+# deploy pins `--branch=prod` (the Pages production branch), so the git ref decides
+# only WHICH TREE is built, never whether the result is production. Without that pin
+# wrangler infers the branch from git, and a dispatch from anything but `prod` went
+# green while only publishing a PREVIEW at a branch-alias URL — the live site
+# untouched. `main` is the ref to use for a docs-only fix that must not wait for a
+# release; `prod` for the deploy that follows one.
+#
 # A pre-build guard (`rtx release verify-live`) refuses to deploy unless the checked-out
 # tree matches the LIVE npm release (all @ts-runtypes/* packages, in lockstep) — so a
-# dispatch from `main`, or from `prod` before stage-approval, aborts instead of shipping
-# docs for a version nobody can install. Dispatch this workflow against the `prod` ref.
+# dispatch from a `main` carrying an unreleased bump, or from `prod` before
+# stage-approval, aborts instead of shipping docs for a version nobody can install.
 on:
   workflow_dispatch:
     inputs:
@@ -25,8 +33,9 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time on the prod ref; a newer manual run supersedes an in-flight
-# one (never cancels one mid-deploy).
+# One deploy at a time, whichever ref it was dispatched from — every run targets the
+# same live site, so the group must NOT be per-ref. A newer manual run supersedes an
+# in-flight one (never cancels one mid-deploy).
 concurrency:
   group: website-deploy-prod
   cancel-in-progress: false
@@ -51,6 +60,16 @@ jobs:
       # Cloudflare Pages project name, from the repo secret (defaults to runtypes).
       CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
     steps:
+      # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
+      # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
+      # feature branch is a mistake, and it used to be a harmless one (it produced a
+      # preview). Now it would publish that branch's docs to the real site, so refuse
+      # it here rather than rely on verify-live, which only checks the VERSION.
+      - name: Refuse to deploy from a ref that is not main or prod
+        if: github.ref_name != 'main' && github.ref_name != 'prod'
+        run: |
+          echo "::error::website-deploy targets the LIVE site and runs from 'main' or 'prod' only; got '${{ github.ref_name }}'."
+          exit 1
       - name: Log the version being deployed (informational)
         if: inputs.version != ''
         run: echo "Deploying docs after v${{ inputs.version }} went live (site builds from the repo, not npm)."
@@ -103,9 +122,16 @@ jobs:
           name: website-output-deploy
           path: container/website/.output/public
           if-no-files-found: error
+      # `--branch=prod` is what makes this a PRODUCTION deploy from any ref. Cloudflare
+      # Pages decides production-vs-preview from the branch wrangler reports, and with
+      # no flag wrangler reads it from git: a dispatch from `main` would upload every
+      # file, print "Deployment complete!", exit 0 — and serve it at a preview alias
+      # nobody visits, leaving the live site on the previous build. Pinning the Pages
+      # production branch decouples that from the git ref (the step above keeps the ref
+      # list honest). Keep this in sync if the Pages project's production branch moves.
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
+          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
