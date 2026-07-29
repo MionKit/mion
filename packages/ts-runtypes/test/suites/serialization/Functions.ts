@@ -1,6 +1,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import type {SerializationCase} from './types.ts';
 
 export const FUNCTIONS = {
@@ -12,6 +13,7 @@ export const FUNCTIONS = {
     title: 'Function parameters',
     description:
       'Parameters<fn> resolves to the fixed-length tuple [number, boolean, string], and all three scalar slots round-trip identically across JSON and binary.',
+    serializeNotes: 'JSON Schema: function types are not data and have no schema spelling.',
     mutateEncoder: () => {
       function fnNoOptional(a: number, b: boolean, c: string): Date {
         return new Date(a);
@@ -71,6 +73,10 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([TF.number(), RT.boolean(), TF.string()])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([TF.number(), RT.boolean(), TF.string()])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([TF.number(), RT.boolean(), TF.string()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         [3, true, 'hello'],
@@ -82,8 +88,10 @@ export const FUNCTIONS = {
     title: 'Optional parameters',
     description:
       'Parameters<fn> resolves to the tuple [Date, boolean?] where the Date slot encodes to an ISO string and restores to a Date and the trailing optional boolean may be absent.',
-    serializeNotes:
+    serializeNotes: [
       'The Date slot serializes to an ISO string on the JSON wire and is rebuilt to a Date on decode; samples cover the optional boolean both present and absent.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnOptionalParams(a: Date, b?: boolean): bigint {
         void a;
@@ -161,6 +169,10 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([TF.date()], [RT.boolean()])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([TF.date()], [RT.boolean()])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([TF.date()], [RT.boolean()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const d = new Date('2000-08-06T02:13:00.000Z');
       return {values: [[d, true], [d]]};
@@ -170,6 +182,7 @@ export const FUNCTIONS = {
     title: 'Function return',
     description:
       'ReturnType<fn> resolves to a root Date that encodes to an ISO string on the JSON wire and is rebuilt to a Date on decode.',
+    serializeNotes: 'JSON Schema: function types are not data and have no schema spelling.',
     mutateEncoder: () => {
       function fnOptionalParam(a: number, b: boolean, c?: string): Date {
         void a;
@@ -256,14 +269,20 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.date()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.date()),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Date('2000-08-06T02:13:00.000Z')]}),
   },
   function_with_rest_parameters: {
     title: 'Rest parameters',
     description:
       'Parameters<fn> resolves to [number, boolean, ...Date[]] with two fixed slots and a trailing Date rest segment, where each rest Date encodes to an ISO string and restores to a Date and the rest segment may be empty.',
-    serializeNotes:
+    serializeNotes: [
       'Rest Date elements serialize to ISO strings on the JSON wire and rebuild to Dates on decode; samples cover the rest segment populated and empty.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnRestParams(a: number, b: boolean, ...rest: Date[]): Date {
         void rest;
@@ -350,6 +369,10 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([TF.number(), RT.boolean()], TF.date())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([TF.number(), RT.boolean()], TF.date())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([TF.number(), RT.boolean()], TF.date())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         [3, true, new Date('2000-08-06T02:13:00.000Z'), new Date('2000-08-06T02:13:00.000Z')],
@@ -361,7 +384,10 @@ export const FUNCTIONS = {
     title: 'Date parameters',
     description:
       'Parameters<fn> resolves to [Date, boolean?] where the Date slot encodes to an ISO string and restores to a Date and the trailing boolean is optional.',
-    serializeNotes: 'The Date slot serializes to an ISO string on the JSON wire and is rebuilt to a Date on decode.',
+    serializeNotes: [
+      'The Date slot serializes to an ISO string on the JSON wire and is rebuilt to a Date on decode.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnOptionalParams(a: Date, b?: boolean): bigint {
         void a;
@@ -439,6 +465,10 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([TF.date()], [RT.boolean()])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([TF.date()], [RT.boolean()])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([TF.date()], [RT.boolean()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const d = new Date('2000-08-06T02:13:00.000Z');
       return {values: [[d, true], [d]]};
@@ -448,7 +478,10 @@ export const FUNCTIONS = {
     title: 'Bigint return',
     description:
       'ReturnType<fn> resolves to a root bigint that JSON encodes to a decimal string and rebuilds with BigInt(...) on decode.',
-    serializeNotes: 'Plain bigint takes the binary string-fallback path (variable length), so no fixed byte size is asserted.',
+    serializeNotes: [
+      'Plain bigint takes the binary string-fallback path (variable length), so no fixed byte size is asserted.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnOptionalParams(a: Date, b?: boolean): bigint {
         void a;
@@ -526,12 +559,18 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(TF.bigInt()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.bigInt()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.bigInt()),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [1n]}),
   },
   function_with_only_rest_parameters: {
     title: 'Rest only parameters',
     description:
       'Parameters<fn> resolves to [...number[]] with no fixed slots, just a number rest segment that round-trips as a plain number array across JSON and binary, including the empty case.',
+    serializeNotes:
+      'JSON Schema: a rest-only Parameters tuple normalizes to plain number[], which {type: "array", items: {type: "number"}} spells exactly, so the jsonSchema thunks are filled.',
     mutateEncoder: () => {
       function fnOnlyRestParams(...rest: number[]): Date {
         void rest;
@@ -600,14 +639,20 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([], TF.number())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([], TF.number())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([], TF.number())),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {type: 'number'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {type: 'number'}})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'array', items: {type: 'number'}})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'array', items: {type: 'number'}})),
     getTestData: () => ({values: [[3, 2, 1], []]}),
   },
   non_serializable_params: {
     title: 'Function parameter slot',
     description:
       'Parameters<fn> ends in an optional function slot so the tuple is [number, boolean, (() => null)?], and because a function-typed tuple slot is non-serializable at every family the factory renders as alwaysThrow so invoking any encoder or decoder throws.',
-    serializeNotes:
+    serializeNotes: [
       'Function-typed tuple slots were previously dropped silently (JSON) or rejected (binary); both paths now render as alwaysThrow, so factoryThrows fires on first lookup and no round-trip runs.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnWithCallback(a: number, b: boolean, c?: () => null): Date {
         void a;
@@ -698,14 +743,20 @@ export const FUNCTIONS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
   function_promise_return_type: {
     title: 'Promise return',
     description: 'A Promise<T> return type is non-serializable at root, so every family renders the factory as alwaysThrow.',
-    serializeNotes:
+    serializeNotes: [
       'A Promise return type is non-serializable at root, so every family renders the factory as alwaysThrow (factoryThrows); no value-first builder can express it.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnReturnsPromise(a: number, b: boolean, c?: string): Promise<Date> {
         void a;
@@ -792,6 +843,10 @@ export const FUNCTIONS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -799,8 +854,10 @@ export const FUNCTIONS = {
     title: 'Function return slot',
     description:
       'A function that returns another function is non-serializable at root, so every family renders the factory as alwaysThrow.',
-    serializeNotes:
+    serializeNotes: [
       'A function-typed return is non-serializable at root, so every family renders the factory as alwaysThrow (factoryThrows); no value-first builder can express it.',
+      'JSON Schema: function types are not data and have no schema spelling.',
+    ],
     mutateEncoder: () => {
       function fnReturnsFunction(a: number, b: boolean, c?: string): () => Date {
         void a;
@@ -887,6 +944,10 @@ export const FUNCTIONS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -894,6 +955,7 @@ export const FUNCTIONS = {
     title: 'Call signature params',
     description:
       'Parameters of a call-signature interface resolve to the fixed-length tuple [number, boolean], and both scalar slots round-trip identically across JSON and binary.',
+    serializeNotes: 'JSON Schema: function types are not data and have no schema spelling.',
     mutateEncoder: () => createJsonEncoderFn<Parameters<{(a: number, b: boolean): string}>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Parameters<{(a: number, b: boolean): string}>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Parameters<{(a: number, b: boolean): string}>>(undefined, {strategy: 'direct'}),
@@ -908,12 +970,18 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(RT.tuple([TF.number(), RT.boolean()])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.tuple([TF.number(), RT.boolean()])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.tuple([TF.number(), RT.boolean()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [[3, true]]}),
   },
   call_signature_return: {
     title: 'Call signature return',
     description:
       'The return type of a call-signature interface resolves to a root string that round-trips identically across JSON and binary.',
+    serializeNotes:
+      'JSON Schema: ReturnType here resolves to plain string, which {type: "string"} spells exactly, so the jsonSchema thunks are filled.',
     mutateEncoder: () => createJsonEncoderFn<ReturnType<{(a: number, b: boolean): string}>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<ReturnType<{(a: number, b: boolean): string}>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<ReturnType<{(a: number, b: boolean): string}>>(undefined, {strategy: 'direct'}),
@@ -928,6 +996,10 @@ export const FUNCTIONS = {
     schemaDecoder: () => createJsonDecoderFn(TF.string()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.string()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.string()),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string'})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string'})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string'})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string'})),
     getTestData: () => ({values: ['result']}),
   },
 } as const satisfies Record<string, SerializationCase>;

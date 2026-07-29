@@ -21,8 +21,10 @@ export const BIGINT_FORMAT = {
   bigint_max: {
     title: 'BigInt Max',
     description: 'bigintFormat with an inclusive upper bound that rejects bigints above max.',
-    validateNotes:
+    validateNotes: [
       'Boundary value 100n passes (inclusive); 101n fails on `max`. A non-bigint (5) fails the bigint typeof gate before any format check.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{max: 100n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{max: 100n}>>(),
     // One hand-authored Standard Schema expectation per file. Every other case
@@ -66,9 +68,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{max: 100n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({max: 100n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{max: 100n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{max: 100n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({max: 100n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{max: 100n}>>(),
     getSamples: () => ({valid: [100n, 0n, -50n], invalid: [101n, 5]}),
     expectedFormatErrors: () => [{name: 'bigintFormat', val: 100n, formatPathTail: 'max'}, null],
@@ -76,7 +80,10 @@ export const BIGINT_FORMAT = {
   bigint_min: {
     title: 'BigInt Min',
     description: 'bigintFormat with an inclusive lower bound that rejects bigints below min.',
-    validateNotes: 'Boundary value 0n passes (inclusive); -1n fails on `min`.',
+    validateNotes: [
+      'Boundary value 0n passes (inclusive); -1n fails on `min`.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{min: 0n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{min: 0n}>>(),
     validateReflect: () => {
@@ -103,9 +110,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{min: 0n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({min: 0n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{min: 0n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{min: 0n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({min: 0n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{min: 0n}>>(),
     getSamples: () => ({valid: [0n, 1n, 9999n], invalid: [-1n]}),
     expectedFormatErrors: () => [{name: 'bigintFormat', val: 0n, formatPathTail: 'min'}],
@@ -113,8 +122,10 @@ export const BIGINT_FORMAT = {
   bigint_lt: {
     title: 'BigInt LessThan',
     description: 'bigintFormat with an exclusive upper bound where the bound itself is rejected.',
-    validateNotes:
+    validateNotes: [
       'Exclusive `lt`: 9n passes but the boundary 10n fails (and 11n above it). Lower bound is unconstrained, so -5n passes.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{lt: 10n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{lt: 10n}>>(),
     validateReflect: () => {
@@ -141,9 +152,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{lt: 10n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({lt: 10n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{lt: 10n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{lt: 10n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({lt: 10n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{lt: 10n}>>(),
     getSamples: () => ({valid: [9n, -5n], invalid: [10n, 11n]}),
     expectedFormatErrors: () => [
@@ -154,7 +167,10 @@ export const BIGINT_FORMAT = {
   bigint_gt: {
     title: 'BigInt GreaterThan',
     description: 'bigintFormat with an exclusive lower bound where the bound itself is rejected.',
-    validateNotes: 'Exclusive `gt`: 1n passes but the boundary 0n fails (and -1n below it).',
+    validateNotes: [
+      'Exclusive `gt`: 1n passes but the boundary 0n fails (and -1n below it).',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{gt: 0n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{gt: 0n}>>(),
     validateReflect: () => {
@@ -181,9 +197,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{gt: 0n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({gt: 0n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{gt: 0n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{gt: 0n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({gt: 0n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{gt: 0n}>>(),
     getSamples: () => ({valid: [1n, 100n], invalid: [0n, -1n]}),
     expectedFormatErrors: () => [
@@ -194,8 +212,10 @@ export const BIGINT_FORMAT = {
   bigint_multipleOf: {
     title: 'BigInt MultipleOf',
     description: 'bigintFormat divisibility constraint where only multiples of 5n pass.',
-    validateNotes:
+    validateNotes: [
       '0n counts as a multiple and passes; non-multiples (3n, 7n) fail on `multipleOf`. Negative multiples like -15n pass.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{multipleOf: 5n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{multipleOf: 5n}>>(),
     validateReflect: () => {
@@ -222,9 +242,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{multipleOf: 5n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({multipleOf: 5n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{multipleOf: 5n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{multipleOf: 5n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({multipleOf: 5n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{multipleOf: 5n}>>(),
     getSamples: () => ({valid: [0n, 5n, -15n], invalid: [3n, 7n]}),
     expectedFormatErrors: () => [
@@ -235,8 +257,10 @@ export const BIGINT_FORMAT = {
   bigint_combined: {
     title: 'BigInt Combined',
     description: 'bigintFormat combining min, max, and multipleOf where each invalid sample trips a distinct constraint.',
-    validateNotes:
+    validateNotes: [
       'All three bounds enforced together: -10n fails `min`, 1010n fails `max`, 7n fails `multipleOf`. Boundary values 0n and 1000n pass (both inclusive and multiples of 10n).',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>(),
     standardSchema: () => createStandardSchema<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>(),
     validateReflect: () => {
@@ -263,9 +287,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>>(),
     validateSchema: () => createValidateFn(TF.bigInt({min: 0n, max: 1000n, multipleOf: 10n})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt({min: 0n, max: 1000n, multipleOf: 10n})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt<{min: 0n; max: 1000n; multipleOf: 10n}>>(),
     getSamples: () => ({valid: [0n, 10n, 1000n], invalid: [-10n, 1010n, 7n]}),
     expectedFormatErrors: () => [
@@ -277,8 +303,10 @@ export const BIGINT_FORMAT = {
   bigint_int64: {
     title: 'Int64',
     description: 'bigintFormat preset for the signed 64-bit range [-2^63, 2^63-1] that selects 8-byte binary packing.',
-    validateNotes:
+    validateNotes: [
       'Inclusive bounds min -9223372036854775808n / max 9223372036854775807n; one past either end (2^63 / -(2^63)-1) fails on `max` / `min` respectively.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigInt64>(),
     standardSchema: () => createStandardSchema<TF.BigInt64>(),
     validateReflect: () => {
@@ -305,9 +333,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigInt64>>(),
     validateSchema: () => createValidateFn(TF.bigInt64()),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigInt64>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigInt64>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt64()),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigInt64>(),
     getSamples: () => ({
       valid: [-9223372036854775808n, 0n, 9223372036854775807n],
@@ -321,7 +351,10 @@ export const BIGINT_FORMAT = {
   bigint_uint64: {
     title: 'UInt64',
     description: 'bigintFormat preset for the unsigned 64-bit range [0, 2^64-1] that selects 8-byte binary packing.',
-    validateNotes: 'Inclusive bounds min 0n / max 18446744073709551615n; 2^64 fails `max` and -1n fails `min`.',
+    validateNotes: [
+      'Inclusive bounds min 0n / max 18446744073709551615n; 2^64 fails `max` and -1n fails `min`.',
+      'JSON Schema: JSON has no bigint; bigint formats have no schema input spelling.',
+    ],
     validate: () => createValidateFn<TF.BigUInt64>(),
     standardSchema: () => createStandardSchema<TF.BigUInt64>(),
     validateReflect: () => {
@@ -348,9 +381,11 @@ export const BIGINT_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.BigUInt64>>(),
     validateSchema: () => createValidateFn(TF.bigUInt64()),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.BigUInt64>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.BigUInt64>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigUInt64()),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.BigUInt64>(),
     getSamples: () => ({valid: [0n, 18446744073709551615n], invalid: [18446744073709551616n, -1n]}),
     expectedFormatErrors: () => [

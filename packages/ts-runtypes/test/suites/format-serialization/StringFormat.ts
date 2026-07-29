@@ -3,6 +3,7 @@ import type {SerializationCase} from './types.ts';
 import * as RT from '@ts-runtypes/core/schema';
 import '@ts-runtypes/core/formats';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
+import {jsonSchema} from '@ts-runtypes/core/json-schema';
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e';
 const V4_B = '00112233-4455-4677-8899-aabbccddeeff';
@@ -27,6 +28,10 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(TF.string({maxLength: 5})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.string({maxLength: 5})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.string({maxLength: 5})),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string', maxLength: 5})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string', maxLength: 5})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string', maxLength: 5})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string', maxLength: 5})),
     getTestData: () => ({values: ['', 'hello', 'abc']}),
   },
   uuidv4: {
@@ -48,6 +53,10 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(TF.uuidv4()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.uuidv4()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.uuidv4()),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string', format: 'uuid'})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string', format: 'uuid'})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string', format: 'uuid'})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string', format: 'uuid'})),
     getTestData: () => ({values: [V4, V4_B]}),
   },
   date: {
@@ -69,6 +78,10 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(TF.stringDate()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.stringDate()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.stringDate()),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string', format: 'date'})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string', format: 'date'})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string', format: 'date'})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string', format: 'date'})),
     getTestData: () => ({values: ['2024-02-29', '2026-05-28', '0001-01-01']}),
   },
   email: {
@@ -90,14 +103,20 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(TF.email()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.email()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.email()),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string', format: 'email'})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string', format: 'email'})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string', format: 'email'})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string', format: 'email'})),
     getTestData: () => ({values: ['john@example.com', 'jane.doe@mion.io']}),
   },
   alpha: {
     title: 'Alpha',
     description:
       'JSON and binary (de)serialization of TF.Alpha, a string branded with the alphabetic-only pattern, where the letters-only string round-trips unchanged in both formats.',
-    serializeNotes:
+    serializeNotes: [
       'The alpha pattern brand is validation-only; serialization uses the base string kind (plain variable-length string on the wire).',
+      'JSON Schema: TF.Alpha is a registered sampled charset pattern; the `pattern` keyword recovers a sample-less brand with a different structural id, so it has no schema spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<TF.Alpha>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<TF.Alpha>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<TF.Alpha>(undefined, {strategy: 'direct'}),
@@ -111,6 +130,10 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(TF.alpha()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.alpha()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.alpha()),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: ['Hello', 'abcXYZ']}),
   },
   object_with_formats: {
@@ -135,6 +158,38 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string({maxLength: 20})})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({id: TF.uuidv4(), name: TF.string({maxLength: 20})})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string({maxLength: 20})})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string', maxLength: 20}},
+          required: ['id', 'name'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string', maxLength: 20}},
+          required: ['id', 'name'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string', maxLength: 20}},
+          required: ['id', 'name'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        jsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string', maxLength: 20}},
+          required: ['id', 'name'],
+        })
+      ),
     getTestData: () => ({
       values: [
         {id: V4, name: 'alice'},
@@ -162,6 +217,10 @@ export const STRING_FORMAT = {
     schemaDecoder: () => createJsonDecoderFn(RT.array(TF.email())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.array(TF.email())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.array(TF.email())),
+    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'array', items: {type: 'string', format: 'email'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'array', items: {type: 'string', format: 'email'}})),
+    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'array', items: {type: 'string', format: 'email'}})),
+    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'array', items: {type: 'string', format: 'email'}})),
     getTestData: () => ({
       values: [['john@example.com', 'jane.doe@mion.io'], [], ['solo@example.org']],
     }),
