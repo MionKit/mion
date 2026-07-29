@@ -58,6 +58,10 @@ export interface JsonSchemaDefineCase {
   getValidationErrors: () => GetValidationErrorsFn;
   /** Builder-form mock — every draw must pass `validate`. **/
   mockType: () => MockTypeFn<unknown>;
+  /** Mock expectation, mirroring `ValidationCase.mockTypeExpect`: `'throw'` for
+   *  the sample-less `pattern` policy (mock must throw a targeted error rather
+   *  than generate junk); default `'value'` validates every draw. **/
+  mockTypeExpect?: 'value' | 'throw' | 'skip';
   getSamples: () => {valid: unknown[]; invalid: unknown[]};
 }
 
@@ -213,6 +217,25 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
     getValidationErrors: () => createGetValidationErrorsFn(jsonSchema(SCORES_SCHEMA)),
     mockType: () => createMockDataFn(jsonSchema(SCORES_SCHEMA)),
     getSamples: () => ({valid: [{a: 1, b: 2}, {}], invalid: [{a: 'x'}, 7, null]}),
+  },
+
+  pattern_slug: {
+    title: "pattern '^[a-z-]+$' — validation in full, mock throws the targeted register-samples error",
+    // The hand-written twin writes the raw brand generic directly — the
+    // value-first BUILDER requires mockSamples on a pattern, but the type-level
+    // brand takes any params object, so the sample-less pattern type is
+    // spellable type-first and the two forms converge (04-migration-plan §1).
+    validate: () => createValidateFn<TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+    validateReflect: () => {
+      const v = 'my-slug' as TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>;
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.String<{pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
+    getValidationErrors: () => createGetValidationErrorsFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
+    mockType: () => createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
+    mockTypeExpect: 'throw',
+    getSamples: () => ({valid: ['my-slug', 'a-b-c'], invalid: ['NOT A SLUG', 'Xx9', 7, null]}),
   },
 
   inline_point: {

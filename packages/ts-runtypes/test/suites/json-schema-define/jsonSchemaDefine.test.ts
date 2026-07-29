@@ -7,7 +7,7 @@
 // a hash-equivalence assertion.
 
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunTypeId, type CompTimeArgs} from '@ts-runtypes/core';
+import {createValidateFn, createMockDataFn, getRunTypeId, type CompTimeArgs} from '@ts-runtypes/core';
 import * as TF from '@ts-runtypes/core/formats';
 import * as RT from '@ts-runtypes/core/schema';
 import {jsonSchema, type ExactJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
@@ -113,6 +113,13 @@ describe('json-schema define — boolean root schemas (2020-12)', () => {
     expect(isNever).toBe(createValidateFn<never>());
     expect(isNever('anything')).toBe(false);
     expect(isNever(undefined)).toBe(false);
+  });
+});
+
+describe('json-schema define — sample-less pattern policy (04-migration-plan §1)', () => {
+  it('mocking a schema-pattern type throws the TARGETED register-samples error, never junk', () => {
+    const mockSlug = createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'}));
+    expect(() => mockSlug()).toThrow(/`mockSamples`/);
   });
 });
 

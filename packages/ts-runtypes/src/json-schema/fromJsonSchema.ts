@@ -52,6 +52,7 @@ export interface JsonSchemaInput {
   readonly format?: 'email' | 'uuid' | 'date' | 'time' | 'date-time' | 'hostname' | 'ipv4' | 'ipv6' | 'uri';
   readonly minLength?: number;
   readonly maxLength?: number;
+  readonly pattern?: string;
   readonly minimum?: number;
   readonly maximum?: number;
   readonly exclusiveMinimum?: number;
@@ -99,10 +100,18 @@ type ExactJsonSchemaList<M> = {[I in keyof M]: ExactJsonSchema<M[I]>};
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
-// String constraint keywords → StringParams (same names both sides).
-type StringParamsFrom<S> = {
-  [K in keyof S as K extends 'minLength' | 'maxLength' ? K : never]: S[K];
-};
+// String constraint keywords → StringParams. minLength/maxLength keep their
+// names; the `pattern` keyword (a bare 2020-12 regex string, always anchored to
+// the empty flag set) is rebuilt into the object form the stringFormat brand
+// carries. A schema pattern has NO mockSamples — validation works in full;
+// `createMockDataFn` for such a type throws a targeted register-samples error
+// instead of generating junk (the policy resolved in
+// docs/investigations/json-schema/04-migration-plan.md §1).
+type StringParamsFrom<S> = Flatten<
+  {[K in keyof S as K extends 'minLength' | 'maxLength' ? K : never]: S[K]} & (S extends {pattern: infer P extends string}
+    ? {readonly pattern: {readonly source: P; readonly flags: ''}}
+    : unknown)
+>;
 
 /** JSON Schema `format` keyword → the RunTypes brand it recovers — the same
  *  aliases the type-first surface writes, so the two authoring forms converge on

@@ -51,7 +51,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'null'}>, null>>;
       type _07 = Expect<Equal<FromJsonSchema<{}>, unknown>>;
       `,
-      389
+      394
     );
   });
 
@@ -85,7 +85,23 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Url>>;
       `,
-      912
+      956
+    );
+  });
+
+  it('pattern keyword — rebuilt into the {source, flags} brand param (no mockSamples)', () => {
+    check(
+      `
+      type _01 = Expect<Equal<
+        FromJsonSchema<{readonly type: 'string'; readonly pattern: '^[a-z-]+$'}>,
+        StringFormat<{readonly pattern: {readonly source: '^[a-z-]+$'; readonly flags: ''}}>
+      >>;
+      type _02 = Expect<Equal<
+        FromJsonSchema<{readonly type: 'string'; readonly minLength: 5; readonly pattern: '^a+$'}>,
+        StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: ''}}>
+      >>;
+      `,
+      452
     );
   });
 
@@ -124,7 +140,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         'a' | 'b' | boolean
       >>;
       `,
-      646
+      656
     );
   });
 
@@ -138,7 +154,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      420
+      425
     );
   });
 
@@ -163,7 +179,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly type: 'object'}>, object>>;
       `,
-      742
+      752
     );
   });
 
@@ -195,7 +211,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      1009
+      1045
     );
   });
 
