@@ -2361,10 +2361,13 @@ export const STRING_FORMAT = {
     // Value-first sample-less pattern: the same generated pool serves this
     // form (identical {source, flags} params intern to the same node).
     validateSchema: () => createValidateFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     getValidationErrors: () => createGetValidationErrorsFn<Generated>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Generated>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(jsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     mockType: () => createMockDataFn<Generated>(),
     getSamples: () => ({valid: ['ab-12', 'cd-09'], invalid: ['zz-12', 'ab-1', 'AB-12', '']}),
     expectedFormatErrors: () => [

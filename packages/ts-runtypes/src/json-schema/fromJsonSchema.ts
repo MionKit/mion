@@ -38,10 +38,9 @@ import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 // those).
 
 // Local spellings of the two constraint-keyword leaf brands, built on the RAW
-// TypeFormat sentinel shape rather than the TF.String / TF.Number aliases: the
-// aliases constrain params to the value-first StringParams/NumberParams (whose
-// `pattern` REQUIRES mockSamples), while a schema-recovered pattern is
-// sample-less by policy. Structurally identical to the aliases for every
+// TypeFormat sentinel shape rather than the TF.String / TF.Number aliases so
+// the extract region stays self-contained (the compile harness slices it into
+// a standalone program). Structurally identical to the aliases for every
 // param set (TF.String<P> IS TypeFormat<string, 'stringFormat', P>), so ids
 // converge unchanged.
 type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
@@ -134,9 +133,10 @@ type Flatten<T> = {[K in keyof T]: T[K]};
 // String constraint keywords → StringParams. minLength/maxLength keep their
 // names; the `pattern` keyword (a bare 2020-12 regex string, always anchored to
 // the empty flag set) is rebuilt into the object form the stringFormat brand
-// carries. A schema pattern has NO mockSamples — validation works in full;
-// `createMockDataFn` for such a type throws a targeted register-samples error
-// instead of generating junk (the policy resolved in
+// carries. A schema pattern declares NO mockSamples — validation works in
+// full, and the build auto-generates a deterministic sample pool from the
+// regex so `createMockDataFn` works too (the sidecar-generated pools that
+// superseded the original throw-only policy of
 // docs/investigations/json-schema/04-migration-plan.md §1).
 type StringParamsFrom<S> = Flatten<
   {[K in keyof S as K extends 'minLength' | 'maxLength' ? K : never]: S[K]} & (S extends {pattern: infer P extends string}

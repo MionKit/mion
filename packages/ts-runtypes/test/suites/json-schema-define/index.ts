@@ -60,7 +60,7 @@ export interface JsonSchemaDefineCase {
   /** Builder-form mock — every draw must pass `validate`. **/
   mockType: () => MockTypeFn<unknown>;
   /** Mock expectation, mirroring `ValidationCase.mockTypeExpect`: `'throw'` for
-   *  the sample-less `pattern` policy (mock must throw a targeted error rather
+   *  factories that must fail loudly (mock must throw a targeted error rather
    *  than generate junk); default `'value'` validates every draw. **/
   mockTypeExpect?: 'value' | 'throw' | 'skip';
   getSamples: () => {valid: unknown[]; invalid: unknown[]};
@@ -222,12 +222,10 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
 
   pattern_slug: {
     title: "pattern '^[a-z-]+$' — validation in full, mock throws the targeted register-samples error",
-    // The hand-written twin writes the RAW TypeFormat brand: the TF.String
-    // alias constrains its params to the value-first StringParams (whose
-    // pattern REQUIRES mockSamples), while a schema pattern is sample-less by
-    // policy. TypeFormat<string, 'stringFormat', P> is what TF.String<P>
-    // resolves to, so the sample-less pattern type is spellable type-first and
-    // the two forms converge (04-migration-plan §1).
+    // The hand-written twin writes the RAW TypeFormat brand — what TF.String<P>
+    // resolves to — so the sample-less pattern type is spellable type-first and
+    // the two forms converge. No mockSamples anywhere: the build auto-generates
+    // the pool from the regex, so the mock lanes work on both forms.
     validate: () => createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
     validateReflect: () => {
       const v = 'my-slug' as TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>;
@@ -238,7 +236,7 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
     validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     getValidationErrors: () => createGetValidationErrorsFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     mockType: () => createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
-    mockTypeExpect: 'throw',
+    mockTypeExpect: 'value',
     getSamples: () => ({valid: ['my-slug', 'a-b-c'], invalid: ['NOT A SLUG', 'Xx9', 7, null]}),
   },
 

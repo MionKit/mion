@@ -276,10 +276,16 @@ describe('json-schema define — $defs and $ref recursion (M6)', () => {
   });
 });
 
-describe('json-schema define — sample-less pattern policy (04-migration-plan §1)', () => {
-  it('mocking a schema-pattern type throws the TARGETED register-samples error, never junk', () => {
+describe('json-schema define — sample-less pattern mocking (build-generated samples)', () => {
+  it('mocking a schema-pattern type draws from the build-generated sample pool', () => {
+    // The schema pattern carries no mockSamples; the build auto-generates a
+    // deterministic pool from the regex (same contract as the type-first
+    // pattern_generated case), so mocks validate instead of throwing.
+    const isSlug = createValidateFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'}));
     const mockSlug = createMockDataFn(jsonSchema({type: 'string', pattern: '^[a-z-]+$'}));
-    expect(() => mockSlug()).toThrow(/`mockSamples`/);
+    for (let round = 0; round < 8; round++) {
+      expect(isSlug(mockSlug())).toBe(true);
+    }
   });
 });
 
