@@ -109,13 +109,19 @@ committed at `internal/jsengine/sidecar.bundle.mjs`, and embedded into the binar
 answers pattern jobs over newline-delimited JSON with memoized verdicts. Two ops ride the
 protocol: `validate` (pattern compile + sample checks) and `generate` — for a pattern that
 declares no `mockSamples`, the sidecar draws `patternSampleCount` candidate values from
-the regex (randexp under a seeded PRNG; the seed derives from the pattern itself, so
-output is identical across machines and rebuilds), keeps the ones the real compiled
-pattern and any declared length bounds accept, and retries up to `patternSampleCount ×
+the regex (randexp under a seeded PRNG), keeps the ones the real compiled pattern and any
+declared length bounds accept, and retries up to `patternSampleCount ×
 patternSampleRetries` draws before the resolver fails the build with FMT005 (declare
-mockSamples explicitly). The resolver injects the survivors into the emitted
-formatAnnotation post-intern, so typeIDs never depend on the knobs (both knobs are disk
-cache fingerprint inputs, since the emitted content does depend on them).
+mockSamples explicitly). The PRNG seed mixes the pattern content with a RUN KEY that
+decides reproducibility: by default the key is random per build session (pools re-roll
+every fresh build, stay stable across a session's rebuilds), and a literal
+`{mock: {seed}}` written at a `createMockDataFn` call site pins it — the scanner reads
+the seed through the lenient `CompTimeHints` marker on the options parameter (read when
+literal, never validated, so dynamic bags stay legal), and every pattern node that site's
+type graph reaches then generates the same pool on every machine and build. The resolver
+injects the survivors into the emitted formatAnnotation post-intern, so typeIDs never
+depend on any of this (the two count knobs are disk cache fingerprint inputs, since the
+emitted content does depend on them; annotations themselves are never disk-cached).
 
 The WASM build has no subprocess. When the host installs the synchronous
 `__tsRunTypesJsEngine` hook (the sidecar bundle's IIFE twin, `dist/sidecar-hook.js` —

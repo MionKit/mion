@@ -1,12 +1,15 @@
 // Generated pattern mockSamples — the runtime half of the auto-generation
 // feature: a format pattern with NO declared mockSamples builds under the
-// real pipeline (the resolver generates a deterministic pool from the regex
-// and bakes it into the emitted annotation), so mocking works with nothing
-// declared. The Go matrix (internal/compiler/resolver/
-// format_sample_validation_test.go) proves the build-time enrichment,
-// determinism, and the FMT005 failure lanes; this spec proves the EMITTED
-// artifacts behave: mocks match the regex, validate accepts every mock, and
-// both marker call shapes ride the same cache entry.
+// real pipeline (the resolver generates a pool from the regex and bakes it
+// into the emitted annotation), so mocking works with nothing declared.
+// Pools are random per build unless a literal `{mock: {seed}}` at a
+// createMockDataFn call site pins them (the CompTimeHints lane). The Go
+// matrix (internal/compiler/resolver/format_sample_validation_test.go)
+// proves the build-time enrichment, the seeded/unseeded pool semantics
+// across builds, and the FMT005 failure lanes; this spec proves the
+// EMITTED artifacts behave within a build: mocks match the regex, validate
+// accepts every mock, and both marker call shapes ride the same cache
+// entry.
 
 import type * as TF from '@ts-runtypes/core/formats';
 import * as TFV from '@ts-runtypes/core/formats';
@@ -45,6 +48,28 @@ describe('generated pattern mockSamples', () => {
     const mock = createMockDataFn<Ticket>();
     expect(mock({mock: {seed: 7}})).toBe(mock({mock: {seed: 7}}));
     expect(mock({mock: {seed: 8}})).toBe(mock({mock: {seed: 8}}));
+  });
+
+  it('a literal factory seed (the CompTimeHints lane) mocks reproducibly end to end', () => {
+    // The literal {mock: {seed: 11}} is read at BUILD time (it pins this
+    // pattern's generated pool — the cross-build half is pinned by the Go
+    // resolver tests) AND merges into every call as the runtime pick seed,
+    // so one knob makes the whole mock reproducible.
+    const mock = createMockDataFn<Ticket>(undefined, {mock: {seed: 11}});
+    const validate = createValidateFn<Ticket>();
+    const first = mock();
+    expect(first).toMatch(TICKET);
+    expect(validate(first)).toBe(true);
+    expect(mock()).toBe(first);
+  });
+
+  it('a dynamic options bag stays legal (CompTimeHints never validates)', () => {
+    const dynamicOptions = {mock: {seed: Number('9')}};
+    const mock = createMockDataFn<Ticket>(undefined, dynamicOptions);
+    // The computed seed is invisible to the build (the pool stays on the
+    // per-build key) but works fine at runtime for the pick.
+    expect(mock()).toMatch(TICKET);
+    expect(mock()).toBe(mock());
   });
 
   it('value-first sample-less pattern works too (same params, same pool)', () => {

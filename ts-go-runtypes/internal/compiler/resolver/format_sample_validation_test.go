@@ -371,10 +371,10 @@ func withSampleKnobs(count, retries int) func(*program.Options, *resolver.Option
 
 // TestFormatSamples_GeneratedSamplesFillAnnotation — the headline of the
 // auto-generation feature: a pattern with NO declared mockSamples builds
-// clean, and the wire annotation carries generated samples that all match
-// the pattern; a second independent session generates the IDENTICAL list
-// (content-derived seed), and both marker call shapes share the one
-// enriched node.
+// clean, the wire annotation carries generated samples that all match the
+// pattern, and both marker call shapes share the one enriched node. With
+// no mock.seed anywhere, pools are RANDOM per build: an independent
+// session (fresh engine child = a fresh build) draws a DIFFERENT list.
 func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 	sources := map[string]string{"a.ts": samplelessPatternSource}
 	resp := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
@@ -396,12 +396,66 @@ func TestFormatSamples_GeneratedSamplesFillAnnotation(t *testing.T) {
 		}
 	}
 
-	// Determinism: an independent session (fresh engine child, fresh cache)
-	// generates the exact same list, in order.
+	// No seed anywhere ⇒ a fresh session (fresh build) re-rolls the pool.
+	// (2^-32 chance of two equal random session keys — accepted, matching
+	// the engine-level test.)
 	respAgain := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
 	_, samplesAgain := patternSamplesFrom(t, respAgain)
-	if strings.Join(samplesAgain, "\x00") != strings.Join(samples, "\x00") {
-		t.Fatalf("generation must be deterministic across sessions:\n first: %v\nsecond: %v", samples, samplesAgain)
+	if strings.Join(samplesAgain, "\x00") == strings.Join(samples, "\x00") {
+		t.Fatalf("unseeded pools must differ across builds, both: %v", samples)
+	}
+	// Within ONE session the pool is stable: re-dispatching returns the
+	// same enriched annotation (idempotent pass + engine memo).
+	respSame := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
+	_, first := patternSamplesFrom(t, respSame)
+	_, second := patternSamplesFrom(t, respSame)
+	if strings.Join(first, "\x00") != strings.Join(second, "\x00") {
+		t.Fatalf("one session must stay stable:\n first: %v\nsecond: %v", first, second)
+	}
+}
+
+// seededMockSource is the reproducibility fixture: the SAME sample-less
+// pattern demanded through BOTH createMockDataFn call shapes, each
+// carrying the literal `{mock: {seed: 42}}` the CompTimeHints slot lets
+// the build read.
+const seededMockSource = `import {createMockDataFn} from '@ts-runtypes/core';
+` + typeFormatBrandDecl + `
+type Code = TypeFormat<string, 'stringFormat', {
+  pattern: {source: '^[a-z]{3}$'; flags: ''};
+}>;
+export const mockStatic = createMockDataFn<Code>(undefined, {mock: {seed: 42}});
+declare const value: Code;
+export const mockReflect = createMockDataFn(value, {mock: {seed: 42}});
+`
+
+// TestFormatSamples_SeededMockSitePoolsReproducible — a literal mock.seed
+// at the createMockDataFn call site pins the pool: two independent
+// sessions (two builds) generate the IDENTICAL list, and the seed leaves
+// the typeID untouched (same id as the unseeded fixture's node — the seed
+// shapes only the annotation content).
+func TestFormatSamples_SeededMockSitePoolsReproducible(t *testing.T) {
+	sources := map[string]string{"a.ts": seededMockSource}
+	respA := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
+	idSeeded, samplesA := patternSamplesFrom(t, respA)
+	if len(samplesA) != 5 {
+		t.Fatalf("expected 5 generated samples, got %v", samplesA)
+	}
+	respB := generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10)))
+	_, samplesB := patternSamplesFrom(t, respB)
+	if strings.Join(samplesA, "\x00") != strings.Join(samplesB, "\x00") {
+		t.Fatalf("seeded pools must be identical across builds:\n first: %v\nsecond: %v", samplesA, samplesB)
+	}
+	// A DIFFERENT seed draws a different pool (still reproducible per seed).
+	otherSeed := strings.Replace(seededMockSource, "seed: 42", "seed: 43", 2)
+	respC := generationScan(t, setupInlineWith(t, map[string]string{"a.ts": otherSeed}, withSampleKnobs(5, 10)))
+	_, samplesC := patternSamplesFrom(t, respC)
+	if strings.Join(samplesA, "\x00") == strings.Join(samplesC, "\x00") {
+		t.Fatalf("different seeds must draw different pools, both: %v", samplesA)
+	}
+	// typeID stability: the seed never folds into the structural id.
+	idUnseeded, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, map[string]string{"a.ts": samplelessPatternSource}, withSampleKnobs(5, 10))))
+	if idSeeded != idUnseeded {
+		t.Fatalf("mock.seed must not affect typeIDs: seeded=%s unseeded=%s", idSeeded, idUnseeded)
 	}
 }
 

@@ -66,13 +66,14 @@ type EmitContext interface {
 	// nil like an engine error and emit the missing-runtime diagnostic.
 	JSEngine() jsengine.Engine
 
-	// PatternSampleCount / PatternSampleRetries mirror the resolver's
-	// pattern mockSample auto-generation knobs, so the pattern emitter can
-	// tell "generation disabled" (count 0) from "generation failed" when a
-	// sample-less pattern reaches emit time, and replay the memoized
-	// GeneratePattern call for the failure reason.
+	// PatternSampleCount / PatternGenFailure mirror the resolver's pattern
+	// mockSample auto-generation state, so the pattern emitter can tell
+	// "generation disabled" (count 0) from "generation failed" when a
+	// sample-less pattern reaches emit time — PatternGenFailure returns
+	// the reason the resolver's enrichment pass recorded for
+	// (source, flags), or "" when none.
 	PatternSampleCount() int
-	PatternSampleRetries() int
+	PatternGenFailure(source, flags string) string
 
 	// NextLocalVar returns a fresh, collision-free local identifier with
 	// the given prefix — used to hoist a `const re_N = new RegExp(...)`

@@ -272,6 +272,17 @@ type Session struct {
 	// treats nil as "no cache wired", so test paths that build a
 	// resolver without a CacheDir keep the original semantics.
 	rtStore *diskcache.Store
+	// patternSeedBasis tracks, per (nodeID, pattern source), the mock.seed
+	// basis under which the enrichment pass generated that pattern's
+	// mockSamples pool — so a basis change mid-session (a seeded mock site
+	// scanned later) regenerates OUR pool without ever touching declared
+	// samples. Lazily built by enrichPatternSamples.
+	patternSeedBasis map[string]string
+	// patternGenFailures records, per (pattern source \x00 flags), why the
+	// enrichment pass could not generate a pool — read at emit time by the
+	// pattern emitter's FMT005 lane (threaded via RenderOpts), which has
+	// the demanding call sites for anchoring. Lazily built alongside.
+	patternGenFailures map[string]string
 	// overridesBuilt guards the one-time, whole-program `overrideX<T>(pureFn)`
 	// collection pass (ensureOverrides) for the current Program. The pass must
 	// run before any AssignID so every id folds the override suffix; reset on

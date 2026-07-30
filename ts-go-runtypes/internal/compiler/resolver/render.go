@@ -42,10 +42,10 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map
 		// The JS engine format-pattern checks run on — the validation
 		// authority for mockSamples (FMT001/FMT002), fail-closed with
 		// FMT004 when it cannot run.
-		JSEngine:             sess.opts.JSEngine,
-		PatternSampleCount:   sess.opts.PatternSampleCount,
-		PatternSampleRetries: sess.opts.PatternSampleRetries,
-		RefTable:             sess.fullRefTable(),
+		JSEngine:           sess.opts.JSEngine,
+		PatternSampleCount: sess.opts.PatternSampleCount,
+		PatternGenFailures: sess.patternGenFailures,
+		RefTable:           sess.fullRefTable(),
 		SizeEstimate: typefunctions.SizeEstimateConfig{
 			Bias:        sess.opts.SizeBias,
 			Items:       sess.opts.SizeItems,

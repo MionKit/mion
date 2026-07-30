@@ -16,6 +16,27 @@ type TestResult struct {
 	Offenders []string
 }
 
+// GenerateRequest describes one pattern's sample-generation ask.
+type GenerateRequest struct {
+	Source string
+	Flags  string
+	// Count is how many samples generation aims for; Retries the per-sample
+	// draw multiplier (whole budget = Count × Retries).
+	Count   int
+	Retries int
+	// MinLength / MaxLength are UTF-16 length bounds every value must
+	// satisfy (0 = unbounded).
+	MinLength int
+	MaxLength int
+	// SeedKey, when non-nil, pins the run key mixed into the per-pattern
+	// PRNG seed: same key, same pool, on every machine and every build —
+	// the literal `mock.seed` reproducibility lane. Nil uses the engine's
+	// own per-session RANDOM key: pools then come out different on every
+	// fresh build while staying stable (memoized) within one session, so
+	// watch-mode rebuilds never reshuffle mid-session.
+	SeedKey *uint32
+}
+
 // GenerateResult is one pattern's generated-samples answer from the JS
 // engine.
 type GenerateResult struct {
@@ -42,13 +63,13 @@ type Engine interface {
 	// found, sidecar died, timeout) — the pattern was NOT checked and the
 	// caller surfaces the missing-runtime diagnostic.
 	TestPattern(source, flags string, samples []string) (TestResult, error)
-	// GeneratePattern asks the JS engine for count samples matching
-	// source+flags. The PRNG seed is derived from (source, flags, count),
-	// so output is fully deterministic; retries is the per-sample draw
-	// multiplier (whole budget = count × retries); minLength/maxLength
-	// are UTF-16 length bounds every value must satisfy (0 = unbounded).
-	// Error semantics mirror TestPattern: non-nil error = the engine
-	// itself could not run, and the pattern-level outcomes live in the
-	// result.
-	GeneratePattern(source, flags string, count, retries, minLength, maxLength int) (GenerateResult, error)
+	// GeneratePattern asks the JS engine for req.Count samples matching
+	// req.Source+req.Flags. The PRNG seed mixes the run key (req.SeedKey
+	// when pinned, else the engine's per-session random key) with the
+	// pattern content, so a pinned key is reproducible across builds and
+	// an unpinned one re-rolls per session — while identical asks within
+	// one session always memoize to the same pool. Error semantics mirror
+	// TestPattern: non-nil error = the engine itself could not run, and
+	// the pattern-level outcomes live in the result.
+	GeneratePattern(req GenerateRequest) (GenerateResult, error)
 }

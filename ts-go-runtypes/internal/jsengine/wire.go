@@ -1,8 +1,11 @@
 package jsengine
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"hash/fnv"
 	"strconv"
+	"time"
 )
 
 // Wire shapes for the sidecar's newline-delimited JSON protocol, shared
@@ -40,17 +43,46 @@ type sidecarResponse struct {
 }
 
 // generateSeed derives the per-pattern PRNG seed the sidecar's seeded
-// stream starts from: FNV-1a/32 over source\x00flags\x00count. Purely
-// content-derived — no time, no host state — so a pattern generates the
-// same samples on every machine, build, and rebuild.
-func generateSeed(source, flags string, count int) uint32 {
+// stream starts from: FNV-1a/32 over runKey\x00source\x00flags\x00count.
+// The pattern content keeps distinct patterns on distinct streams; the run
+// key decides reproducibility — a key pinned from a literal mock.seed makes
+// the pool identical on every machine and build, while an engine's random
+// per-session key re-rolls pools on every fresh build.
+func generateSeed(runKey uint32, source, flags string, count int) uint32 {
 	hash := fnv.New32a()
+	hash.Write([]byte(strconv.FormatUint(uint64(runKey), 10)))
+	hash.Write([]byte{0})
 	hash.Write([]byte(source))
 	hash.Write([]byte{0})
 	hash.Write([]byte(flags))
 	hash.Write([]byte{0})
 	hash.Write([]byte(strconv.Itoa(count)))
 	return hash.Sum32()
+}
+
+// SeedKeyFromStrings folds a sorted, deduplicated list of literal seed
+// texts (the mock.seed hints of every call site demanding a node) into the
+// run key GeneratePattern pins. One site, one seed → stable key; several
+// distinct seeds sharing a node mix into one still-deterministic key.
+func SeedKeyFromStrings(seeds []string) uint32 {
+	hash := fnv.New32a()
+	for _, seed := range seeds {
+		hash.Write([]byte(seed))
+		hash.Write([]byte{0})
+	}
+	return hash.Sum32()
+}
+
+// newSessionKey rolls the engine's per-session random run key — the
+// "no seed anywhere" default that makes unpinned pools differ on every
+// fresh build. crypto/rand works native and under js/wasm
+// (crypto.getRandomValues); the clock fallback covers exotic hosts.
+func newSessionKey() uint32 {
+	var buf [4]byte
+	if _, err := cryptorand.Read(buf[:]); err == nil {
+		return binary.LittleEndian.Uint32(buf[:])
+	}
+	return uint32(time.Now().UnixNano())
 }
 
 // generateBudget clamps the knobs and returns the effective (count,
@@ -67,18 +99,27 @@ func generateBudget(count, retries int) (int, int) {
 }
 
 // generateJobFor builds the one true generate-op wire job (ID assigned by
-// the transport): both transports call this, so seed and budget can never
-// be computed two different ways.
-func generateJobFor(source, flags string, count, retries, minLength, maxLength int) sidecarJob {
-	count, maxAttempts := generateBudget(count, retries)
+// the transport) for a request under the resolved run key: both transports
+// call this, so seed and budget can never be computed two different ways.
+func generateJobFor(req GenerateRequest, runKey uint32) sidecarJob {
+	count, maxAttempts := generateBudget(req.Count, req.Retries)
 	return sidecarJob{
 		Op:          "generate",
-		Source:      source,
-		Flags:       flags,
+		Source:      req.Source,
+		Flags:       req.Flags,
 		Count:       count,
-		Seed:        generateSeed(source, flags, count),
+		Seed:        generateSeed(runKey, req.Source, req.Flags, count),
 		MaxAttempts: maxAttempts,
-		MinLength:   minLength,
-		MaxLength:   maxLength,
+		MinLength:   req.MinLength,
+		MaxLength:   req.MaxLength,
 	}
+}
+
+// resolveRunKey picks the run key for a request: the pinned SeedKey when
+// present, else the engine's per-session random key.
+func resolveRunKey(req GenerateRequest, sessionKey uint32) uint32 {
+	if req.SeedKey != nil {
+		return *req.SeedKey
+	}
+	return sessionKey
 }

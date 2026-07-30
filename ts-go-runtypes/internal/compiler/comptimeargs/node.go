@@ -21,10 +21,26 @@ import (
 // declaring module, the same rigor DetectAny applies. Shared by the resolver scan
 // and the pure-fn extractor, the two places that recognise CompTimeArgs params.
 func IsCompTimeArgsParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
+	return isMarkerAliasParamNode(typeChecker, paramSymbol, opts, marker.KindCompTimeArgs)
+}
+
+// IsCompTimeHintsParamNode is the CompTimeHints twin — the LENIENT
+// read-only marker (build reads literal values best-effort, never
+// validates; createMockDataFn's options bag today). Same identity-alias
+// story as CompTimeArgs (no brand survives resolution), so the written
+// annotation is the only signal.
+func IsCompTimeHintsParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
+	return isMarkerAliasParamNode(typeChecker, paramSymbol, opts, marker.KindCompTimeHints)
+}
+
+// isMarkerAliasParamNode is the shared syntactic check: does paramSymbol's
+// written type annotation reference the given marker kind's alias, resolved
+// through import aliases and gated on the marker package's declaring module?
+func isMarkerAliasParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options, kind marker.Kind) bool {
 	if typeChecker == nil || paramSymbol == nil {
 		return false
 	}
-	spec, ok := marker.SpecForKind(opts, marker.KindCompTimeArgs)
+	spec, ok := marker.SpecForKind(opts, kind)
 	if !ok {
 		return false
 	}

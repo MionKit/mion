@@ -2,6 +2,8 @@ package resolver
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -332,7 +334,10 @@ type pendingCall struct {
 	// comma — otherwise the pre-existing comma plus the injected `, …` yield
 	// an empty argument `f(a, , …)`, which is invalid JS.
 	trailingComma bool
-	typeArgument  *checker.Type
+	// mockSeed is the literal mock.seed hint from a CompTimeHints options
+	// slot ("" = none) — see protocol.Site.MockSeed.
+	mockSeed     string
+	typeArgument *checker.Type
 	// owner is the checker that materialized typeArgument. Projection
 	// must run under it — types from different checkers never mix
 	// (upstream contract on Program.GetTypeCheckerForFile).
@@ -374,6 +379,7 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		FnIds:         pending.fnIds,
 		Demand:        pending.demand,
 		TrailingComma: pending.trailingComma,
+		MockSeed:      pending.mockSeed,
 	}, nil, true
 }
 
@@ -530,6 +536,22 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	if len(injecting) == 0 {
 		return nil, diags
 	}
+	// CompTimeHints slot: read the literal mock.seed hint when a marked
+	// options parameter was actually filled. Runs only on genuine marker
+	// calls (the injecting gate above), so plain calls never pay the
+	// per-parameter annotation walk. Lenient by the marker's contract — a
+	// dynamic bag simply yields no hint, never a diagnostic.
+	mockSeed := ""
+	for paramIndex := 0; paramIndex <= lastIndex && paramIndex < argsCount; paramIndex++ {
+		if parameters[paramIndex] == nil || callExpression == nil || callExpression.Arguments == nil {
+			continue
+		}
+		if !comptimeargs.IsCompTimeHintsParamNode(state.scanChecker, parameters[paramIndex], state.sess.marker) {
+			continue
+		}
+		mockSeed = extractMockSeedHint(state.scanChecker, callExpression.Arguments.Nodes[paramIndex])
+		break
+	}
 	// SINGLE TRAILING MARKER — the full path (reflect-form, comptime options,
 	// annotation honoring, the Temporal-not-loaded guard). Byte-identical to the
 	// pre-multislot behaviour for every existing call.
@@ -539,6 +561,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		if !ok {
 			return nil, diags
 		}
+		pending.mockSeed = mockSeed
 		return []pendingCall{pending}, diags
 	}
 	// MULTI-SLOT INJECTION — several marker parameters (or a single non-trailing
@@ -1060,6 +1083,86 @@ func eachOptionPropertyOf(typeChecker *checker.Checker, objectLiteralNode *ast.N
 			eachOptionPropertyOf(typeChecker, container, depth+1, visit)
 		}
 	}
+}
+
+// extractMockSeedHint reads the literal `mock.seed` from a CompTimeHints
+// options argument (createMockDataFn's bag) — the knob that makes generated
+// pattern mockSample pools reproducible across builds. Best-effort by the
+// marker's contract: only a statically readable numeric literal counts; a
+// dynamic bag, computed seed, or absent key yields "" and the site simply
+// carries no hint (its pools then draw a fresh random key per build).
+// Returns canonical decimal text rather than a float so equal seeds written
+// differently ("7", "7.0") mix identically into the pool seed basis.
+func extractMockSeedHint(typeChecker *checker.Checker, argument *ast.Node) string {
+	candidate := comptimeargs.UnwrapWrappers(argument)
+	if candidate == nil {
+		return ""
+	}
+	// A whole-const preset (`createMockDataFn(v, mockPreset)`) resolves to
+	// its object literal, mirroring eachOptionProperty's whole-const path.
+	if candidate.Kind == ast.KindIdentifier {
+		if container, ok := comptimeargs.ResolveSpreadContainer(typeChecker, candidate); ok && container.Kind == ast.KindObjectLiteralExpression {
+			candidate = container
+		}
+	}
+	if candidate.Kind != ast.KindObjectLiteralExpression {
+		return ""
+	}
+	seed := ""
+	eachOptionPropertyOf(typeChecker, candidate, 0, func(name string, initializer *ast.Node) {
+		if name != "mock" || initializer == nil {
+			return
+		}
+		mockObject := comptimeargs.UnwrapWrappers(initializer)
+		if mockObject != nil && mockObject.Kind == ast.KindIdentifier {
+			if container, ok := comptimeargs.ResolveSpreadContainer(typeChecker, mockObject); ok && container.Kind == ast.KindObjectLiteralExpression {
+				mockObject = container
+			}
+		}
+		if mockObject == nil || mockObject.Kind != ast.KindObjectLiteralExpression {
+			return
+		}
+		// Last write wins across spreads/overrides, same as every option reader.
+		eachOptionPropertyOf(typeChecker, mockObject, 0, func(innerName string, innerInitializer *ast.Node) {
+			if innerName != "seed" {
+				return
+			}
+			if text, ok := numericLiteralText(innerInitializer); ok {
+				seed = text
+			}
+		})
+	})
+	return seed
+}
+
+// numericLiteralText returns the canonical decimal text of a (possibly
+// sign-prefixed) numeric literal, or ok=false for anything the build
+// cannot read statically.
+func numericLiteralText(node *ast.Node) (string, bool) {
+	candidate := comptimeargs.UnwrapWrappers(node)
+	if candidate == nil {
+		return "", false
+	}
+	negative := false
+	if candidate.Kind == ast.KindPrefixUnaryExpression {
+		prefixUnary := candidate.AsPrefixUnaryExpression()
+		if prefixUnary == nil || (prefixUnary.Operator != ast.KindMinusToken && prefixUnary.Operator != ast.KindPlusToken) {
+			return "", false
+		}
+		negative = prefixUnary.Operator == ast.KindMinusToken
+		candidate = comptimeargs.UnwrapWrappers(prefixUnary.Operand)
+	}
+	if candidate == nil || candidate.Kind != ast.KindNumericLiteral {
+		return "", false
+	}
+	value, err := strconv.ParseFloat(candidate.Text(), 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+		return "", false
+	}
+	if negative {
+		value = -value
+	}
+	return strconv.FormatFloat(value, 'g', -1, 64), true
 }
 
 // extractStrategyOption reads the `strategy` string property from the options

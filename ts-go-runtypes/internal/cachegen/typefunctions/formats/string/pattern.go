@@ -73,7 +73,7 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *protocol.FormatAn
 	validateSampleBounds(ctx, annotation.Params)
 	conditions := lengthConditions(annotation.Params, vλl)
 	if source, flags, ok := recoverPattern(annotation.Params); ok {
-		validateSamples(ctx, annotation.Params, source, flags, recoverSamples(annotation.Params))
+		validateSamples(ctx, source, flags, recoverSamples(annotation.Params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
 	}
 	return strings.Join(conditions, " && ")
@@ -122,8 +122,8 @@ func emitPatternTest(ctx formats.EmitContext, source, flags, vλl string) string
 // disabled (patternSampleCount 0) or it failed. Both are
 // CodeFMTSampleGenFailed here — the walk has the demanding call sites, so
 // the squiggle lands on the user's createX<T>() call; the failure reason
-// comes from replaying the engine's memoized GeneratePattern.
-func validateSamples(ctx formats.EmitContext, params map[string]any, source, flags string, samples []string) {
+// comes from the record the enrichment pass left (EmitContext.PatternGenFailure).
+func validateSamples(ctx formats.EmitContext, source, flags string, samples []string) {
 	engine := ctx.JSEngine()
 	if engine == nil {
 		ctx.EmitDiagnostic(diagnostics.CodeFMTMissingJsRuntime, source, "no JS engine configured")
@@ -145,25 +145,18 @@ func validateSamples(ctx formats.EmitContext, params map[string]any, source, fla
 		ctx.EmitDiagnostic(diagnostics.CodeFMTSampleMismatch, strings.Join(verdict.Offenders, ", "), source)
 	}
 	if len(samples) == 0 {
-		count := ctx.PatternSampleCount()
-		if count <= 0 {
+		if ctx.PatternSampleCount() <= 0 {
 			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, "sample generation is disabled (patternSampleCount 0)")
 			return
 		}
-		// Replay the EXACT call the resolver's enrichment pass made — same
-		// knobs, same shared length hints, so it hits the engine memo and
-		// recovers that pass's failure reason (a diverging call could get a
-		// different verdict and mask the failure).
-		minLength, maxLength := formats.PatternSampleLengthHints(params)
-		result, genErr := engine.GeneratePattern(source, flags, count, ctx.PatternSampleRetries(), minLength, maxLength)
-		switch {
-		case genErr != nil:
-			ctx.EmitDiagnostic(diagnostics.CodeFMTMissingJsRuntime, source, genErr.Error())
-		case result.GenerateError != "":
-			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, result.GenerateError)
-		case len(result.Values) == 0:
-			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, "sample generation produced no values")
+		// The resolver's enrichment pass already tried to generate for this
+		// pattern and recorded why it could not — surface that reason here,
+		// where the walk has the demanding call sites to anchor it.
+		if reason := ctx.PatternGenFailure(source, flags); reason != "" {
+			ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, reason)
+			return
 		}
+		ctx.EmitDiagnostic(diagnostics.CodeFMTSampleGenFailed, source, "sample generation produced no values")
 	}
 }
 

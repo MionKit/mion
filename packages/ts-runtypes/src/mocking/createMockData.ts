@@ -6,7 +6,7 @@
 import {getRTUtils, isRunTypeSchema} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
 import type {RunType} from '../runtypes/types.ts';
-import type {InjectRunTypeId} from '../index.ts';
+import type {CompTimeHints, InjectRunTypeId} from '../index.ts';
 import {mockRunType} from './mockType.ts';
 import {mockRunTypeInvalid} from './mockInvalid.ts';
 import {mockRunTypeOversized} from './mockOversized.ts';
@@ -18,9 +18,22 @@ import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPart
 /** Returns a mock-value generator for `T`. Each call produces a fresh value
  *  that passes `validate<T>`. Options merge: call < factory < defaults. Accepts
  *  either a value-first schema (`createMockDataFn(rt)`) or the value/static form.
- *  Throws if the Vite plugin isn't active (no `id` injected). **/
-export function createMockDataFn<T>(schema: RunType<T>, options?: RunTypeMockOptions<T>, id?: InjectRunTypeId<T>): MockTypeFn<T>;
-export function createMockDataFn<T>(val?: T, options?: RunTypeMockOptions<T>, id?: InjectRunTypeId<T>): MockTypeFn<T>;
+ *  Throws if the Vite plugin isn't active (no `id` injected).
+ *
+ *  The options slot is `CompTimeHints`: the build READS a literal
+ *  `mock.seed` from it (making generated pattern mockSample pools
+ *  reproducible across builds) but never validates it — a dynamic options
+ *  bag stays legal and simply keeps the build-time knobs invisible. **/
+export function createMockDataFn<T>(
+  schema: RunType<T>,
+  options?: CompTimeHints<RunTypeMockOptions<T>>,
+  id?: InjectRunTypeId<T>
+): MockTypeFn<T>;
+export function createMockDataFn<T>(
+  val?: T,
+  options?: CompTimeHints<RunTypeMockOptions<T>>,
+  id?: InjectRunTypeId<T>
+): MockTypeFn<T>;
 export function createMockDataFn<T>(
   valOrSchema?: T | RunType<T>,
   options?: RunTypeMockOptions<T>,

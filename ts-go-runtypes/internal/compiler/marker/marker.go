@@ -73,6 +73,15 @@ const (
 	// The marker on the pure-fn parameter is what carries the factory-vs-direct
 	// intent through a wrapper.
 	KindPureFunctionFactory
+	// KindCompTimeHints marks a parameter the build READS best-effort but
+	// never validates — the lenient, reusable sibling of KindCompTimeArgs.
+	// Statically readable values inside a literal/const argument are honored
+	// at build time; a dynamic argument stays legal and is simply invisible.
+	// No CTA0xx enforcement, no fn-variant selection, nothing folds into any
+	// id. Identity alias like CompTimeArgs, so detection is syntactic (the
+	// written annotation). Current reader: createMockDataFn's options bag
+	// (`mock.seed` seeds the generated pattern mockSample pools).
+	KindCompTimeHints
 )
 
 // DefaultName is the symbol name the resolver looks for for the
@@ -90,6 +99,11 @@ const DefaultCompTimeArgsName = "CompTimeArgs"
 // DefaultCompTimeFnArgsName is the symbol name for the CompTimeFnArgs brand —
 // the fn-selecting variant of CompTimeArgs used by the createX factories.
 const DefaultCompTimeFnArgsName = "CompTimeFnArgs"
+
+// DefaultCompTimeHintsName is the symbol name for the CompTimeHints marker —
+// the lenient, read-only sibling of CompTimeArgs (build reads literal values
+// best-effort, never validates).
+const DefaultCompTimeHintsName = "CompTimeHints"
 
 // DefaultPureFunctionName is the symbol name for the PureFunction brand (the
 // DIRECT form — the argument is the pure fn itself).
@@ -150,6 +164,10 @@ func DefaultSpecs() []Spec {
 		{Name: DefaultPureFunctionFactoryName, Module: DefaultModule, Kind: KindPureFunctionFactory, BrandProperty: BrandPureFunctionFactory},
 		{Name: DefaultInjectTypeFnArgsName, Module: DefaultModule, Kind: KindInjectTypeFnArgs, BrandProperty: BrandInjectTypeFnArgs},
 		{Name: DefaultInjectPureFnHashName, Module: DefaultModule, Kind: KindInjectPureFnHash, BrandProperty: BrandInjectPureFnHash},
+		// CompTimeHints is an identity alias (no phantom brand exists on
+		// any resolved type), so BrandProperty stays empty — detection is
+		// purely syntactic via the written annotation (comptimeargs node check).
+		{Name: DefaultCompTimeHintsName, Module: DefaultModule, Kind: KindCompTimeHints},
 	}
 }
 

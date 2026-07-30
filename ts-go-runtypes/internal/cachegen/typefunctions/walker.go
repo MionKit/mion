@@ -202,11 +202,11 @@ type Walker struct {
 	// EmitContext.JSEngine). Nil fails pattern checks closed with the
 	// FMT004 missing-runtime diagnostic.
 	JSEngine jsengine.Engine
-	// PatternSampleCount / PatternSampleRetries mirror the RenderOpts
-	// knobs of the same names (exposed via EmitContext) — the pattern
-	// emitter's FMT005 lane reads them at emit time.
-	PatternSampleCount   int
-	PatternSampleRetries int
+	// PatternSampleCount / PatternGenFailures mirror the RenderOpts fields
+	// of the same names (exposed via EmitContext) — the pattern emitter's
+	// FMT005 lane reads them at emit time.
+	PatternSampleCount int
+	PatternGenFailures map[string]string
 	// CrossFamilyDeps records the cross-family RT lookups this function
 	// reaches via registerRTLookup — childIDs whose family-tag prefix
 	// differs from this walker's own InnerPrefix (e.g. a prepareForJson /

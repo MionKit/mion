@@ -208,6 +208,28 @@ export type CompTimeArgs<T> = T;
 export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
 
 /**
+ * Compile-time HINTS marker — the LENIENT sibling of `CompTimeArgs<T>`,
+ * reusable by any function whose options carry build-readable knobs. It
+ * marks a parameter the build READS best-effort but never validates: when
+ * the argument is an object literal (or a `const` preset / spread chain the
+ * scanner can resolve), statically readable values inside it are honored at
+ * build time; anything dynamic stays perfectly legal and is simply
+ * invisible to the build. No `CTA0xx` enforcement, no fn-variant selection,
+ * nothing folds into any cache id.
+ *
+ * Current reader: `createMockDataFn`'s options — a literal `mock.seed`
+ * makes the generated pattern mockSample pools reproducible across builds
+ * (the same seed also drives the runtime pick, since factory options merge
+ * into every call); without one, sample-less pattern pools are drawn fresh
+ * on every build.
+ *
+ * Like `CompTimeArgs<T>` it is the IDENTITY `T` — no phantom brand property
+ * (see the instantiation-cost note above) — and the Go scanner detects it
+ * SYNTACTICALLY off the parameter's `CompTimeHints<…>` type annotation.
+ */
+export type CompTimeHints<T> = T;
+
+/**
  * Pure-function marker — the DIRECT form. Brands a function-typed parameter as
  * the pure function ITSELF: the matching argument must be an inline arrow /
  * function expression that passes the purity rules (no `this`, no `await` /

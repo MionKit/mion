@@ -5,6 +5,7 @@ export {
   type InjectPureFnHash,
   type CompTimeArgs,
   type CompTimeFnArgs,
+  type CompTimeHints,
   type PureFunction,
   type PureFunctionFactory,
   getRunTypeId,

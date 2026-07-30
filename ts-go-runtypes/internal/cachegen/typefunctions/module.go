@@ -64,14 +64,15 @@ type RenderOpts struct {
 	// semantics, every lane). Nil means "no engine": pattern checks fail
 	// closed with the FMT004 missing-runtime diagnostic.
 	JSEngine jsengine.Engine
-	// PatternSampleCount / PatternSampleRetries mirror the resolver's
-	// pattern mockSample auto-generation knobs. The enrichment pass (which
-	// fills the samples) runs resolver-side BEFORE the collects; these
-	// exist so the pattern emitter's emit-time FMT005 lane can distinguish
-	// disabled (count 0) from failed generation and replay the memoized
-	// GeneratePattern for the reason.
-	PatternSampleCount   int
-	PatternSampleRetries int
+	// PatternSampleCount mirrors the resolver's pattern mockSample
+	// auto-generation knob, and PatternGenFailures the reasons the
+	// resolver's enrichment pass (which runs BEFORE the collects and fills
+	// the samples) could not generate, keyed by `source \x00 flags`. The
+	// pattern emitter's emit-time FMT005 lane reads both to distinguish
+	// disabled (count 0) from failed generation — with the demanding call
+	// sites available for anchoring.
+	PatternSampleCount int
+	PatternGenFailures map[string]string
 	// ProvenanceSites maps each cached RunType ID to the set of marker
 	// call sites that reference it. EmitDiagnostic uses this to fan out
 	// one Diagnostic per call site so the user gets actionable file:line:col
@@ -498,7 +499,7 @@ func renderEntryWithDeps(runType *protocol.RunType, settings constants.CacheModu
 	walker.DiagSink = opts.DiagSink
 	walker.JSEngine = opts.JSEngine
 	walker.PatternSampleCount = opts.PatternSampleCount
-	walker.PatternSampleRetries = opts.PatternSampleRetries
+	walker.PatternGenFailures = opts.PatternGenFailures
 	if opts.ProvenanceSites != nil {
 		walker.rootProvenance = opts.ProvenanceSites[runType.ID]
 	}

@@ -526,8 +526,8 @@ func (ctx *EmitContext) JSEngine() jsengine.Engine {
 	return ctx.walker.JSEngine
 }
 
-// PatternSampleCount / PatternSampleRetries mirror the resolver's pattern
-// mockSample auto-generation knobs — see formats.EmitContext.
+// PatternSampleCount / PatternGenFailure mirror the resolver's pattern
+// mockSample auto-generation state — see formats.EmitContext.
 func (ctx *EmitContext) PatternSampleCount() int {
 	if ctx.walker == nil {
 		return 0
@@ -535,11 +535,11 @@ func (ctx *EmitContext) PatternSampleCount() int {
 	return ctx.walker.PatternSampleCount
 }
 
-func (ctx *EmitContext) PatternSampleRetries() int {
-	if ctx.walker == nil {
-		return 0
+func (ctx *EmitContext) PatternGenFailure(source, flags string) string {
+	if ctx.walker == nil || ctx.walker.PatternGenFailures == nil {
+		return ""
 	}
-	return ctx.walker.PatternSampleRetries
+	return ctx.walker.PatternGenFailures[source+"\x00"+flags]
 }
 
 // ArgName looks up the JS identifier the inner function uses for a

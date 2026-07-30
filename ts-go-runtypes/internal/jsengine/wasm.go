@@ -23,13 +23,17 @@ const HookGlobalName = "__tsRunTypesJsEngine"
 // so no locking is needed.
 type hostEngine struct {
 	nextID int
+	// sessionKey mirrors sidecarEngine.sessionKey: the per-session random
+	// run key unpinned generation mixes in (fresh per page load / module
+	// instantiation).
+	sessionKey uint32
 }
 
 // NewHostEngine returns the WASM engine: the host hook when installed,
 // direct host RegExp otherwise (validation only — generation needs the
 // hook's randexp).
 func NewHostEngine() Engine {
-	return &hostEngine{}
+	return &hostEngine{sessionKey: newSessionKey()}
 }
 
 func (engine *hostEngine) TestPattern(source, flags string, samples []string) (TestResult, error) {
@@ -62,12 +66,12 @@ func (engine *hostEngine) TestPattern(source, flags string, samples []string) (T
 	return TestResult{Offenders: offenders}, nil
 }
 
-func (engine *hostEngine) GeneratePattern(source, flags string, count, retries, minLength, maxLength int) (GenerateResult, error) {
+func (engine *hostEngine) GeneratePattern(req GenerateRequest) (GenerateResult, error) {
 	hook, ok := engineHook()
 	if !ok {
 		return GenerateResult{GenerateError: "sample generation is not available here (no " + HookGlobalName + " host hook installed)"}, nil
 	}
-	result, err := engine.callHook(hook, generateJobFor(source, flags, count, retries, minLength, maxLength))
+	result, err := engine.callHook(hook, generateJobFor(req, resolveRunKey(req, engine.sessionKey)))
 	if err != nil {
 		// Degrade like an ungeneratable pattern (declare mockSamples), not
 		// like a missing runtime — the host itself is alive and validating.

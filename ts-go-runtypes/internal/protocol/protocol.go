@@ -680,6 +680,13 @@ type Site struct {
 	// it is present on every scanFiles response — including the plain
 	// transform path that skips entry-module collection.
 	Module string `json:"module,omitempty"`
+	// MockSeed is the literal `mock.seed` hint read from a CompTimeHints
+	// options slot (createMockDataFn), as canonical decimal text; "" when the
+	// site carries none (no options, dynamic bag, or non-numeric seed). It
+	// seeds the generated pattern mockSample pools for the types this site
+	// demands. Resolver-internal — never serialized: the JS host has no use
+	// for it and the wire stays byte-stable.
+	MockSeed string `json:"-"`
 }
 
 // SiteDemand is one cache entry a createX site requires: the family + variant to

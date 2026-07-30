@@ -116,12 +116,15 @@ func TestSidecar_MemoizesVerdicts(t *testing.T) {
 	}
 }
 
+// seedKey returns a pinned SeedKey pointer for request literals.
+func seedKey(value uint32) *uint32 { return &value }
+
 // TestSidecar_GenerateRoundTrip uses the validate op as the oracle:
 // every generated value, fed back as a sample, must produce zero
 // offenders.
 func TestSidecar_GenerateRoundTrip(t *testing.T) {
 	engine := newTestEngine(t)
-	result, err := engine.GeneratePattern("^[a-z]{3}-[0-9]{2}$", "", 8, 10, 0, 0)
+	result, err := engine.GeneratePattern(GenerateRequest{Source: "^[a-z]{3}-[0-9]{2}$", Count: 8, Retries: 10})
 	if err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
@@ -140,37 +143,67 @@ func TestSidecar_GenerateRoundTrip(t *testing.T) {
 	}
 }
 
-// TestSidecar_GenerateDeterministic runs two INDEPENDENT engines (two
-// child processes, no shared memo): the seed is content-derived, so the
-// lists must be identical — the property that keeps rebuilt caches
-// byte-stable.
-func TestSidecar_GenerateDeterministic(t *testing.T) {
+// TestSidecar_GenerateSeededDeterministic runs two INDEPENDENT engines
+// (two child processes, no shared memo, different random session keys)
+// with the SAME pinned SeedKey: the lists must be identical — the
+// mock.seed reproducibility lane.
+func TestSidecar_GenerateSeededDeterministic(t *testing.T) {
 	first := newTestEngine(t)
 	second := newTestEngine(t)
-	a, err := first.GeneratePattern("^[a-f0-9]{8}$", "", 6, 10, 0, 0)
+	request := GenerateRequest{Source: "^[a-f0-9]{8}$", Count: 6, Retries: 10, SeedKey: seedKey(1234)}
+	a, err := first.GeneratePattern(request)
 	if err != nil {
 		t.Fatalf("GeneratePattern (first engine): %v", err)
 	}
-	b, err := second.GeneratePattern("^[a-f0-9]{8}$", "", 6, 10, 0, 0)
+	b, err := second.GeneratePattern(request)
 	if err != nil {
 		t.Fatalf("GeneratePattern (second engine): %v", err)
 	}
 	if !slices.Equal(a.Values, b.Values) {
-		t.Fatalf("independent engines diverged:\n first: %v\nsecond: %v", a.Values, b.Values)
+		t.Fatalf("same SeedKey must generate identical pools:\n first: %v\nsecond: %v", a.Values, b.Values)
 	}
 	if len(a.Values) == 0 {
 		t.Fatal("expected at least one generated value")
 	}
 }
 
+// TestSidecar_GenerateUnpinnedVariesPerEngine — no SeedKey means the
+// engine's own random session key: two engines (two "builds") draw
+// DIFFERENT pools, while one engine stays stable across repeat asks
+// (memo + fixed session key — the within-session guarantee watch mode
+// relies on). The 2^-32 chance of two equal session keys is accepted.
+func TestSidecar_GenerateUnpinnedVariesPerEngine(t *testing.T) {
+	first := newTestEngine(t)
+	second := newTestEngine(t)
+	request := GenerateRequest{Source: "^[a-f0-9]{12}$", Count: 6, Retries: 10}
+	a, err := first.GeneratePattern(request)
+	if err != nil {
+		t.Fatalf("GeneratePattern (first engine): %v", err)
+	}
+	again, err := first.GeneratePattern(request)
+	if err != nil {
+		t.Fatalf("GeneratePattern (first engine, repeat): %v", err)
+	}
+	if !slices.Equal(a.Values, again.Values) {
+		t.Fatalf("one session must stay stable:\n first: %v\nrepeat: %v", a.Values, again.Values)
+	}
+	b, err := second.GeneratePattern(request)
+	if err != nil {
+		t.Fatalf("GeneratePattern (second engine): %v", err)
+	}
+	if slices.Equal(a.Values, b.Values) {
+		t.Fatalf("unpinned pools must differ across engines (fresh builds), both: %v", a.Values)
+	}
+}
+
 func TestSidecar_GenerateMemoized(t *testing.T) {
 	engine := newTestEngine(t)
 	for range 3 {
-		if _, err := engine.GeneratePattern("^x{2}$", "", 4, 10, 0, 0); err != nil {
+		if _, err := engine.GeneratePattern(GenerateRequest{Source: "^x{2}$", Count: 4, Retries: 10}); err != nil {
 			t.Fatalf("GeneratePattern: %v", err)
 		}
 	}
-	if _, err := engine.GeneratePattern("^x{2}$", "", 5, 10, 0, 0); err != nil {
+	if _, err := engine.GeneratePattern(GenerateRequest{Source: "^x{2}$", Count: 5, Retries: 10}); err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
 	engine.mu.Lock()
@@ -187,7 +220,7 @@ func TestSidecar_GenerateMemoized(t *testing.T) {
 // pattern compiles under new RegExp but randexp throws on it.
 func TestSidecar_GenerateUnsupportedConstruct(t *testing.T) {
 	engine := newTestEngine(t)
-	result, err := engine.GeneratePattern("(?<=x)y", "", 5, 10, 0, 0)
+	result, err := engine.GeneratePattern(GenerateRequest{Source: "(?<=x)y", Count: 5, Retries: 10})
 	if err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
@@ -204,7 +237,7 @@ func TestSidecar_GenerateUnsupportedConstruct(t *testing.T) {
 // nothing.
 func TestSidecar_GenerateBudgetExhausted(t *testing.T) {
 	engine := newTestEngine(t)
-	result, err := engine.GeneratePattern("^a$", "", 3, 7, 5, 0)
+	result, err := engine.GeneratePattern(GenerateRequest{Source: "^a$", Count: 3, Retries: 7, MinLength: 5})
 	if err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
@@ -218,7 +251,7 @@ func TestSidecar_GenerateBudgetExhausted(t *testing.T) {
 
 func TestSidecar_GenerateCompileError(t *testing.T) {
 	engine := newTestEngine(t)
-	result, err := engine.GeneratePattern("^[a-z+$", "", 3, 10, 0, 0)
+	result, err := engine.GeneratePattern(GenerateRequest{Source: "^[a-z+$", Count: 3, Retries: 10})
 	if err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}
@@ -229,7 +262,7 @@ func TestSidecar_GenerateCompileError(t *testing.T) {
 
 func TestSidecar_GenerateRespectsBounds(t *testing.T) {
 	engine := newTestEngine(t)
-	result, err := engine.GeneratePattern("^x+$", "", 3, 20, 2, 4)
+	result, err := engine.GeneratePattern(GenerateRequest{Source: "^x+$", Count: 3, Retries: 20, MinLength: 2, MaxLength: 4})
 	if err != nil {
 		t.Fatalf("GeneratePattern: %v", err)
 	}

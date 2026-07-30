@@ -43,6 +43,10 @@ const defaultRoundTripTimeout = 5 * time.Second
 type sidecarEngine struct {
 	explicitRuntime string
 	timeout         time.Duration
+	// sessionKey is the per-session random run key unpinned GeneratePattern
+	// requests mix into their seed — rolled once at construction, so pools
+	// stay stable across a session's dispatches and re-roll per build.
+	sessionKey uint32
 
 	mu         sync.Mutex
 	started    bool
@@ -67,7 +71,7 @@ type memoEntry struct {
 // Construction never fails: a missing runtime surfaces as an error from
 // TestPattern so pattern-free projects never notice.
 func NewSidecar(runtimePath string) Engine {
-	return &sidecarEngine{explicitRuntime: runtimePath, timeout: defaultRoundTripTimeout, memo: make(map[string]memoEntry)}
+	return &sidecarEngine{explicitRuntime: runtimePath, timeout: defaultRoundTripTimeout, sessionKey: newSessionKey(), memo: make(map[string]memoEntry)}
 }
 
 func (engine *sidecarEngine) TestPattern(source, flags string, samples []string) (TestResult, error) {
@@ -76,9 +80,9 @@ func (engine *sidecarEngine) TestPattern(source, flags string, samples []string)
 	return TestResult{CompileError: entry.result.CompileError, Offenders: entry.result.Offenders}, entry.err
 }
 
-func (engine *sidecarEngine) GeneratePattern(source, flags string, count, retries, minLength, maxLength int) (GenerateResult, error) {
-	job := generateJobFor(source, flags, count, retries, minLength, maxLength)
-	key := fmt.Sprintf("generate\x00%s\x00%s\x00%d\x00%d\x00%d\x00%d", job.Source, job.Flags, job.Count, job.MaxAttempts, job.MinLength, job.MaxLength)
+func (engine *sidecarEngine) GeneratePattern(req GenerateRequest) (GenerateResult, error) {
+	job := generateJobFor(req, resolveRunKey(req, engine.sessionKey))
+	key := fmt.Sprintf("generate\x00%s\x00%s\x00%d\x00%d\x00%d\x00%d\x00%d", job.Source, job.Flags, job.Count, job.MaxAttempts, job.MinLength, job.MaxLength, job.Seed)
 	entry := engine.memoizedRoundTrip(key, job)
 	return GenerateResult{CompileError: entry.result.CompileError, GenerateError: entry.result.GenerateError, Values: entry.result.Values}, entry.err
 }
