@@ -104,8 +104,9 @@ only approximates JS semantics (no lookarounds or backreferences, and divergent 
 even on shared syntax), so the resolver drives a real JS engine instead. A small sidecar —
 authored as the private `@ts-runtypes/go-be-sidecar` workspace package, bundled by vite,
 committed at `internal/jsengine/sidecar.bundle.mjs`, and embedded into the binary via
-`go:embed` — is spawned once per session under a host `node` (or `bun`; `--js-runtime` /
-`RT_JS_RUNTIME` pin one, the bundler plugin passes its own runtime automatically) and
+`go:embed` — is spawned once per session under a host JavaScript runtime (`node` and
+`bun` are found automatically; `--js-runtime` / `RT_JS_RUNTIME` pin any node-compatible
+runtime, and the bundler plugin passes its own runtime automatically) and
 answers pattern jobs over newline-delimited JSON with memoized verdicts. Two ops ride the
 protocol: `validate` (pattern compile + sample checks) and `generate` — for a pattern that
 declares no `mockSamples`, the sidecar draws `patternSampleCount` candidate values from

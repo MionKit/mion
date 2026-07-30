@@ -234,7 +234,7 @@ func resolveRuntime(explicit string) (string, error) {
 	if path, err := exec.LookPath("bun"); err == nil {
 		return path, nil
 	}
-	return "", errors.New("no JS runtime found (looked for node, then bun, in PATH) — install one or pass --js-runtime / " + EnvRuntime)
+	return "", errors.New("no JS runtime found (looked for node, then bun, in PATH) — install one, or point --js-runtime / " + EnvRuntime + " at any node-compatible runtime")
 }
 
 // materializeBundle writes the embedded sidecar to a content-hash-named

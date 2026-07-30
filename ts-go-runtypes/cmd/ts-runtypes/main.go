@@ -63,7 +63,7 @@ Shared options (same meaning under every command):
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
     --size-bias / --size-items / --size-string-bytes / --size-max-bytes
-    --js-runtime PATH   node/bun the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
+    --js-runtime PATH   JS runtime the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
     --pure-fn-report-wire / --pure-fn-report-file
@@ -158,7 +158,7 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 	fs.StringVar(&s.moduleMode, "module-mode", constants.ModuleModeDefault,
 		"virtual-module grouping: default | allSingle | allModules")
 	fs.StringVar(&s.jsRuntime, "js-runtime", "",
-		"JS runtime (node/bun path) the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)")
+		"JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)")
 	fs.BoolVar(&s.pureFnReportWire, "pure-fn-report-wire", false,
 		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
