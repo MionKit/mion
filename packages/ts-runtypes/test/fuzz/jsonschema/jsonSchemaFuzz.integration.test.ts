@@ -33,7 +33,7 @@ import {hasBinary, openClient} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {WILD_GEN_OPTIONS, genType, renderDecl, renderType, type GeneratedType} from '../core/typeGen.ts';
-import {hasContainerEntryReuse, renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from './schemaRender.ts';
+import {renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from './schemaRender.ts';
 
 const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../../src/json-schema/fromJsonSchema.ts', import.meta.url));
 
@@ -93,11 +93,6 @@ interface Report {
   runs: number;
   violations: Violation[];
   skippedInvalidTypes: number;
-  /** Fixtures skipped for the RESIDUAL entry-point-anchoring divergence
-   *  (docs/todos/typeid-scc-entry-point-anchoring.md) — the half of the
-   *  shared-recursive-container family the Go depth fix does not cover.
-   *  Remove with the guard when back-edge anchoring is canonicalized. **/
-  skippedEntryPointAnchoring: number;
 }
 
 const SCAN_TIMEOUT_MS = 20_000;
@@ -131,10 +126,6 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
   const generated = withSeededRandom(seed, () => genType(WILD_GEN_OPTIONS));
   const norm = toSchemaExpressible(generated);
   report.runs++;
-  if (hasContainerEntryReuse(norm)) {
-    report.skippedEntryPointAnchoring++;
-    return;
-  }
   const fixture = renderFixture(norm);
 
   let message: string | null = null;
@@ -182,7 +173,7 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
 }
 
 async function runBatch(baseSeed: number, iterations: number): Promise<Report> {
-  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0, skippedEntryPointAnchoring: 0};
+  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0};
   const holder = new ClientHolder();
   try {
     for (let i = 0; i < iterations; i++) {
@@ -195,7 +186,7 @@ async function runBatch(baseSeed: number, iterations: number): Promise<Report> {
 }
 
 async function runForDuration(baseSeed: number, ms: number, onViolation: (v: Violation) => void): Promise<Report> {
-  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0, skippedEntryPointAnchoring: 0};
+  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0};
   const holder = new ClientHolder();
   const deadline = Date.now() + ms;
   try {
@@ -229,12 +220,6 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
     async () => {
       const report = await runBatch(0x5eeded, 100);
       if (report.violations.length > 0) throw new Error(formatViolations(report));
-      // No-silent-caps: say what the residual-divergence guard dropped.
-      if (report.skippedEntryPointAnchoring > 0) {
-        console.error(
-          `[jsonschema-fuzz] ${report.skippedEntryPointAnchoring}/${report.runs} fixture(s) skipped for the open entry-point-anchoring divergence (see docs/todos/typeid-scc-entry-point-anchoring.md)`
-        );
-      }
       expect(report.runs).toBe(100);
     },
     240_000
@@ -249,7 +234,7 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
         console.error(`[jsonschema-fuzz] seed=${v.seed}: ${v.message}`);
       });
       console.error(
-        `[jsonschema-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered, ${report.skippedEntryPointAnchoring} entry-point-anchoring fixture(s) skipped`
+        `[jsonschema-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
       expect(report.violations).toHaveLength(0);
     },

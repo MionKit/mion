@@ -223,6 +223,44 @@ describe('json-schema define — $defs and $ref recursion (M6)', () => {
     expect(isTree({x: [], y: [{x: [], y: []}]})).toBe(false);
   });
 
+  it('entry through a container the cycle also contains converges (canonical anchoring)', () => {
+    // The walk enters N0's cycle THROUGH Array<N0> (the record value), which
+    // N0 itself also contains — the shape class the fuzz lane's soak caught
+    // (seeds 1662213203/2140920747/2144068665 of base 20260730). Type-first
+    // interns one Array<N0> node so the raw back-edge used to anchor at the
+    // ARRAY; the schema side's cloned containers anchored at the knot. The
+    // canonical quotient emission (typeid/canonicalize.go) makes both spell
+    // the loop identically.
+    interface N0 {
+      p1?: N0;
+      p2?: N0[];
+      p3: string;
+      kids4: N0[];
+    }
+    type Board = Record<string, N0[]>;
+    const isBoard = createValidateFn(
+      jsonSchema({
+        $defs: {
+          N0: {
+            type: 'object',
+            properties: {
+              p1: {$ref: '#/$defs/N0'},
+              p2: {type: 'array', items: {$ref: '#/$defs/N0'}},
+              p3: {type: 'string'},
+              kids4: {type: 'array', items: {$ref: '#/$defs/N0'}},
+            },
+            required: ['p3', 'kids4'],
+          },
+        },
+        type: 'object',
+        additionalProperties: {type: 'array', items: {$ref: '#/$defs/N0'}},
+      })
+    );
+    expect(isBoard).toBe(createValidateFn<Board>());
+    expect(isBoard({lane: [{p3: 'x', kids4: [{p3: 'y', kids4: []}]}]})).toBe(true);
+    expect(isBoard({lane: [{p3: 7, kids4: []}]})).toBe(false);
+  });
+
   it("root '#' self-ref through two identical containers converges (the class is not $defs-specific)", () => {
     type Rooted = {p1?: Rooted[]; kids2: Rooted[]};
     const isRooted = createValidateFn(

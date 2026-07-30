@@ -5,7 +5,7 @@
 
 import {describe, expect, it} from 'vitest';
 import type {GeneratedType, TypeShape} from '../core/typeGen.ts';
-import {hasContainerEntryReuse, renderSchemaLiteral, toSchemaExpressible} from './schemaRender.ts';
+import {renderSchemaLiteral, toSchemaExpressible} from './schemaRender.ts';
 
 function norm(root: TypeShape, decls: GeneratedType['decls'] = []): ReturnType<typeof toSchemaExpressible> {
   return toSchemaExpressible({decls, root});
@@ -177,41 +177,6 @@ describe('renderSchemaLiteral — draft 2020-12 spellings', () => {
         })
       )
     ).toBe(`{type: 'object', properties: {"p0": {type: 'string'}}, required: ["p0"], additionalProperties: {type: 'string'}}`);
-  });
-
-  it('flags only container-entry reuse (the open entry-point-anchoring class)', () => {
-    const prop = (name: string, shape: TypeShape, optional = false) => ({name, optional, readonly: false, method: false, shape});
-    const arrOfRef: TypeShape = {kind: 'array', elem: {kind: 'ref', name: 'N0'}};
-    const recursiveDef = (shapes: TypeShape[]): GeneratedType['decls'] => [
-      {kind: 'interface', name: 'N0', props: shapes.map((shape, i) => prop(`p${i}`, shape, i === 0))},
-    ];
-    // Entry through a container that also appears inside the cycle → flagged
-    // (seeds 1662213203 / 2140920747 / 2144068665 of base 20260730 are this shape).
-    expect(
-      hasContainerEntryReuse(toSchemaExpressible({decls: recursiveDef([arrOfRef]), root: {kind: 'record', value: arrOfRef}}))
-    ).toBe(true);
-    // Knot entry (root IS the recursive ref) → the Go depth fix covers it, not flagged.
-    expect(
-      hasContainerEntryReuse(toSchemaExpressible({decls: recursiveDef([arrOfRef, arrOfRef]), root: {kind: 'ref', name: 'N0'}}))
-    ).toBe(false);
-    // Root-only repetition (no container inside the cycle) → converges, not flagged.
-    expect(
-      hasContainerEntryReuse(
-        toSchemaExpressible({
-          decls: recursiveDef([{kind: 'ref', name: 'N0'}]),
-          root: {kind: 'object', props: [prop('a', arrOfRef), prop('b', arrOfRef)]},
-        })
-      )
-    ).toBe(false);
-    // Entry container differs from the cycle's internal container → converges, not flagged.
-    expect(
-      hasContainerEntryReuse(
-        toSchemaExpressible({
-          decls: recursiveDef([{kind: 'object', props: [prop('v', {kind: 'ref', name: 'N0'})]}]),
-          root: {kind: 'record', value: arrOfRef},
-        })
-      )
-    ).toBe(false);
   });
 
   it('recursive interfaces render as $defs + $ref (root ref splices into the $defs block)', () => {

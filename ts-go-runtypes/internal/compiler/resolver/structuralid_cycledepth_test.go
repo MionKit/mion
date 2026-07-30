@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,25 +13,22 @@ import (
 // class the json-schema translation fuzz lane surfaced (see
 // docs/done/json-schema-shared-recursive-container-id-divergence.md).
 //
-// A cycle token `$<kind>_<relDepth>:<sig>` is relative to the CYCLE TARGET, so
-// it is only meaningful at the stack position where it was minted. The typeid
-// Computer memoises composed strings by *checker.Type pointer; before the
-// lowlink cache gate, a memoised string carrying such a token could be spliced
-// in at a DIFFERENT depth — so a container type INTERNED once by the checker
-// (`N1[]` written twice type-first) and the same container CLONED per
-// occurrence (two structurally-identical literal instantiations, the
-// jsonSchema authoring path) walked to different token streams and different
-// ids. These tests pin the fixed contract from the type-first side alone: the
-// authoring-form convergence itself is pinned by the JS define suite and the
-// fuzz lane's id-equality oracle.
+// A cycle token `$<kind>_<relDepth>` is relative to the CYCLE TARGET in the
+// canonical quotient emission (typeid/canonicalize.go), so bisimilar types
+// spell their loops identically regardless of which node a raw walk entered
+// through or how the checker interned container nodes. These tests pin the
+// depth semantics from the type-first side alone: the authoring-form
+// convergence itself is pinned by the JS define suite and the fuzz lane's
+// id-equality oracle.
 
 func kindDigits(kind protocol.ReflectionKind) string { return strconv.Itoa(int(kind)) }
 
-// cycleToken renders the back-edge prefix for a target of `kind` at relative
-// depth `relDepth` — `$<kind>_<relDepth>:` (the `:` anchors the depth digit so
-// `_2:` cannot match a `_2x` prefix of a longer number).
-func cycleToken(kind protocol.ReflectionKind, relDepth int) string {
-	return "$" + kindDigits(kind) + "_" + strconv.Itoa(relDepth) + ":"
+// cycleToken renders a back-edge token for a target of `kind` at relative
+// depth `relDepth`, plus the delimiter that must follow it (tokens are bare,
+// so the caller anchors the depth digit with the composition byte that comes
+// next — `,` before a sibling, `}` at the end of a member group).
+func cycleToken(kind protocol.ReflectionKind, relDepth int, delimiter string) string {
+	return "$" + kindDigits(kind) + "_" + strconv.Itoa(relDepth) + delimiter
 }
 
 // TestCycleDepthID_SharedVsDuplicatedContainer — the motivating class, static
@@ -78,8 +76,11 @@ getRunTypeId<Rec>();
 `})
 	ids := scanSiteIDs(t, r)
 	structural := structuralByID(t, r, ids[0])
-	direct := cycleToken(protocol.KindObjectLiteral, 2)
-	throughArray := cycleToken(protocol.KindObjectLiteral, 3)
+	// Canonical emission of Rec: 30{32:x:30{32:b:$30_2},32:y:25:0:30{32:b:$30_3}}
+	// — the direct Box occurrence closes 2 frames below Rec, the array-wrapped
+	// one 3 frames below; both tokens end the `b` member so `}` anchors them.
+	direct := cycleToken(protocol.KindObjectLiteral, 2, "}")
+	throughArray := cycleToken(protocol.KindObjectLiteral, 3, "}")
 	if !strings.Contains(structural, direct) {
 		t.Fatalf("direct container occurrence must close at relative depth 2 (%q): %q", direct, structural)
 	}
@@ -103,16 +104,17 @@ getRunTypeId<N1>();
 `})
 	ids := scanSiteIDs(t, r)
 	structural := structuralByID(t, r, ids[0])
-	arrayOfBackRef := kindDigits(protocol.KindArray) + ":0:" + cycleToken(protocol.KindObjectLiteral, 2)
-	for _, member := range []string{"p1?:", "kids2:"} {
-		want := member + arrayOfBackRef
+	// Canonical emission: 30{32:kids2:25:0:$30_2,32:p1?:25:0:$30_2} — members
+	// sort by name, so kids2's token is followed by `,` and p1's by `}`.
+	arrayOfBackRef := kindDigits(protocol.KindArray) + ":0:"
+	for member, delimiter := range map[string]string{"kids2:": ",", "p1?:": "}"} {
+		want := member + arrayOfBackRef + cycleToken(protocol.KindObjectLiteral, 2, delimiter)
 		if !strings.Contains(structural, want) {
 			t.Fatalf("member %q must wrap a depth-2 back-edge (%q): %q", member, want, structural)
 		}
 	}
-	stale := "_3:"
-	if strings.Contains(structural, stale) {
-		t.Fatalf("no depth-3 token belongs in this shape (max genuine nesting is 2) — a %q token is a spliced stale depth: %q", stale, structural)
+	if stale := regexp.MustCompile(`\$\d+_3(\D|$)`); stale.MatchString(structural) {
+		t.Fatalf("no depth-3 token belongs in this shape (max genuine nesting is 2): %q", structural)
 	}
 }
 

@@ -181,15 +181,14 @@ drift from the shipped one). Both marker call shapes per fixture (static +
 value-inferred), same in-memory resolver as the type lane.
 
 - **JS-ID** (the one oracle): the two reflection sites resolve to equal ids.
-- `schemaRender.ts` — the normalizer + schema-literal renderer +
-  `hasContainerEntryReuse`, the guard for the one OPEN divergence class
-  (entry-point anchoring, docs/todos/typeid-scc-entry-point-anchoring.md);
-  skipped fixtures are counted and reported, never silent. The lane's first
-  batch caught the depth-splice half of that family, which was then fixed in
-  the Go id computer
-  (docs/done/json-schema-shared-recursive-container-id-divergence.md).
-- `schemaRender.unit.test.ts` — pins the normalizer mappings, the 2020-12
-  spellings, and the guard's class boundary.
+- `schemaRender.ts` — the normalizer + schema-literal renderer. This lane
+  caught BOTH halves of the shared-recursive-container divergence family
+  (batch: the depth-splice class; soak: the entry-point-anchoring class), and
+  both were then fixed in the Go id computer — the second via canonical
+  quotient emission (docs/done/typeid-scc-entry-point-anchoring.md). The lane
+  now runs unguarded.
+- `schemaRender.unit.test.ts` — pins the normalizer mappings and the 2020-12
+  spellings.
 - `jsonSchemaFuzz.integration.test.ts` — the batch/soak
   (`RT_FUZZ_JSONSCHEMA_SOAK_MS`), with the same lazy `tsValidate`
   false-positive gate as the type lane.

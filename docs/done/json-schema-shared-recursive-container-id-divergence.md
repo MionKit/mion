@@ -8,8 +8,9 @@ created: 2026-07-29
 # jsonSchema: shared recursive containers diverge from their type-first twin
 
 **Status:** done — fixed Go-side (the depth-splice class; see "Shipped" below).
-The residual entry-point-anchoring half of the family is split out to
-[typeid-scc-entry-point-anchoring.md](../todos/typeid-scc-entry-point-anchoring.md).
+The entry-point-anchoring half of the family was split out and then also
+fixed via canonical cluster emission:
+[typeid-scc-entry-point-anchoring.md](typeid-scc-entry-point-anchoring.md).
 
 Found by the M7 translation fuzz lane
 ([test/fuzz/jsonschema/](../../packages/ts-runtypes/test/fuzz/jsonschema/)) on
@@ -88,9 +89,9 @@ release bumps, so no artifact regeneration and no manual bump.
   (red on the pre-fix tree, green after).
 - The broad `hasSharedRecursiveContainer` guard and its skip counter are
   deleted; the batch runs green without them. A NARROWER guard
-  (`hasContainerEntryReuse`) remains for the split-out entry-point class
-  only — same-seed soak: 1346 types, 0 violations, exactly the 3 residual
-  fixtures skipped (previously 12 skipped under the broad guard).
+  (`hasContainerEntryReuse`) briefly remained for the split-out entry-point
+  class and was deleted when that class was fixed too — the lane now runs
+  unguarded (see the sibling done doc).
 - The probed class-boundary table is covered:
   `TestCycleDepthID_ConvergingClassesKeepConverging` pins every converging
   row; the diverging rows are the fixed tests above.

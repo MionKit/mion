@@ -3,9 +3,13 @@
 // (ref: packages/run-types/src/lib/typeId.ts) so two structurally-equal types
 // (identical kind + identical children, regardless of alias name) produce the
 // same string. Atomic kinds are just `String(kind)`; collections compose
-// `${kind}{c1,c2,…}`; cycles emit a back-ref token `$<kind>_<i>:<structuralSig>`
-// — anchored on the cycle target's STRUCTURE (not its declaration), so
-// structurally-identical recursive types converge regardless of name/position.
+// `${kind}{c1,c2,…}`; cyclic clusters are CANONICALIZED (canonicalize.go):
+// partition refinement over per-member templates yields the bisimulation
+// quotient, and each block's id is a deterministic rooted unroll whose
+// back-edges are bare `$<kind>_<relDepth>` tokens relative to the emission
+// stack — so the id is a function of the type's bisimulation class alone,
+// independent of walk entry point, checker node interning, and union member
+// order.
 //
 // Output is fed into `internal/cachegen/hashid.Dict.Unique` to produce the short hash
 // id that travels on the wire.
@@ -39,6 +43,32 @@ type Computer struct {
 	// recursive container divergence). Frames whose tokens all close at or
 	// below themselves are position-independent and cache as before.
 	lowlinks []int
+	// cycleTargets parallels stack: true when some back-edge minted inside the
+	// frame's open interval TARGETS it. The lowlink alone cannot mark a direct
+	// self-loop's root (the token's target IS the top frame, so no lowering
+	// happens), and a frame that pops cacheable AND targeted is an SCC root —
+	// the trigger for canonicalization.
+	cycleTargets []bool
+	// pendingMarks parallels stack: len(pending) at push time. pending collects
+	// every pointer popped UNCACHEABLE (a cycle-interior node); the SCC root's
+	// pop consumes its segment (pending[mark:]) as the cluster membership.
+	// Nested disjoint SCCs consume their own segments first, so marks nest
+	// LIFO; a cacheable non-root pop always finds its segment empty (an
+	// unconsumed entry would have poisoned this frame's lowlink).
+	pendingMarks []int
+	pending      []*checker.Type
+	// templating, when non-nil, redirects Compute for in-cluster children to
+	// slot placeholders (canonicalize.go) — the template-extraction re-walk.
+	templating *clusterState
+	// alias maps a block's COMPOSITION SPELLING (its template with every slot
+	// substituted by the target block's full canonical id — exactly what an
+	// acyclic parent pointing into the cluster composes as its dispatch base)
+	// to the block's canonical ids. An entry container that sits OUTSIDE the
+	// pointer-SCC (the interned `Array<N0>` under `Record<string, N0[]>`) is
+	// bisimilar to a cluster block but never triggers canonicalization itself;
+	// the alias probe at its cacheable pop remaps it, which is what makes the
+	// two authoring forms of such roots converge.
+	alias map[string]aliasEntry
 	// depthExceeded latches when Compute hits maxWalkDepth on this computer's
 	// stack — a type graph that instantiates a fresh *checker.Type per level
 	// (defeating the pointer cycle guard) or is genuinely unbounded. The walk
@@ -51,12 +81,6 @@ type Computer struct {
 	// SELF-INSTANTIATING GENERIC — surfaced as MKR009 naming the type), or ""
 	// when no single named type dominates (plain too-deep nesting — MKR008).
 	depthCulprit string
-	// bareCycles makes cycleRef emit a name-free `$<kind>_<index>` token (no
-	// structural anchor). Used only by the sub-walk that COMPUTES the structural
-	// anchor, to terminate without infinite recursion.
-	bareCycles bool
-	// sigCache memoises structuralSignature per recursive type.
-	sigCache map[*checker.Type]string
 	// overrides folds `overrideX<T>(pureFn)` registrations into the structural
 	// id. Keyed by a node's BASE structural key (children's overrides already
 	// folded, this node's own NOT yet) → family op key → cfn body hash. When a
@@ -113,6 +137,14 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
 		return strconv.Itoa(int(protocol.KindNever))
 	}
+	// Template-extraction re-walk (canonicalize.go): an in-cluster child
+	// resolves to a slot placeholder instead of text, so ONE check here covers
+	// every child-resolution site in dispatch and its helpers.
+	if st := computer.templating; st != nil {
+		if slot, ok := st.slotOf[tsType]; ok {
+			return slotMark(slot)
+		}
+	}
 	// Cycle first, cache second: a node can be BOTH cached and on the live
 	// stack when a completed walk cached it and a later re-entrant walk
 	// (BaseStructuralKey at override-stamp time) pushes it again — the cached
@@ -144,18 +176,32 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	}
 	computer.pushFrame(tsType)
 	base := computer.dispatch(tsType)
-	cacheable := computer.popFrame()
+	cacheable, wasTarget, mark := computer.popFrame()
+	if !cacheable {
+		// Cycle interior — this raw text is only meaningful at the current
+		// stack position; it composes into text that the SCC root's pop
+		// discards. Record the pointer so the root's canonicalization includes
+		// it in the cluster. No override fold (doomed text).
+		computer.pending = append(computer.pending, tsType)
+		return base
+	}
+	if wasTarget && !computer.depthExceeded {
+		// SCC root: replace the raw entry-dependent unroll with the canonical
+		// cluster emission; canonicalizeCluster caches every member.
+		return computer.canonicalizeCluster(tsType, mark, base).final
+	}
 	// Fold this node's own override suffix AFTER dispatch: `base` already has
 	// children's suffixes (composed via their Compute calls), and the override
-	// map is keyed by exactly this base key. The cache stores the FINAL (folded)
-	// key so parents compose it — but only position-independent strings may be
-	// memoised (see the lowlinks field): a string with a cycle token targeting
-	// an ancestor above this frame is recomputed at each occurrence so its
-	// relative depth is always the live one.
-	id := base + computer.overrideSuffix(base)
-	if cacheable {
-		computer.cache[tsType] = id
+	// map is keyed by exactly this base key. The alias probe first: a node whose
+	// base equals a canonical block's composition spelling is bisimilar to that
+	// block (an entry container outside the pointer-SCC) and must take the
+	// block's id, or bisimilar roots composed through it would diverge.
+	if entry, ok := computer.alias[base]; ok {
+		computer.cache[tsType] = entry.final
+		return entry.final
 	}
+	id := base + computer.overrideSuffix(base)
+	computer.cache[tsType] = id
 	return id
 }
 
@@ -168,33 +214,41 @@ func (computer *Computer) stackIndex(tsType *checker.Type) int {
 	return -1
 }
 
-// pushFrame opens a walk frame: both parallel slices move together (every
-// pusher must use this — a stack-only push desyncs lowlinks and the pop-time
-// propagation would index past its end).
+// pushFrame opens a walk frame: all parallel slices move together (every
+// pusher must use this — a stack-only push desyncs the others and the
+// pop-time propagation would index past their ends).
 func (computer *Computer) pushFrame(tsType *checker.Type) {
 	computer.stack = append(computer.stack, tsType)
 	computer.lowlinks = append(computer.lowlinks, len(computer.stack)-1)
+	computer.cycleTargets = append(computer.cycleTargets, false)
+	computer.pendingMarks = append(computer.pendingMarks, len(computer.pending))
 }
 
-// popFrame closes the top frame and reports whether its composed string is
-// position-independent (every cycle token minted beneath it closed at or below
-// the frame itself) and therefore safe to memoise. When a token still dangles
-// above, the escape propagates into the parent frame's lowlink; a frame whose
-// lowlink equals its own index is a self-contained cycle root and must NOT
-// propagate (its string closes here — poisoning the parent would needlessly
-// stop it caching).
-func (computer *Computer) popFrame() bool {
+// popFrame closes the top frame. cacheable reports whether the composed
+// string is position-independent (every cycle token minted beneath it closed
+// at or below the frame itself); wasTarget whether some back-edge targeted
+// this frame (cacheable && wasTarget = an SCC root, the canonicalization
+// trigger); mark is the frame's pending watermark (the root's cluster is
+// pending[mark:]). When a token still dangles above, the escape propagates
+// into the parent frame's lowlink; a frame whose lowlink equals its own index
+// is a self-contained cycle root and must NOT propagate (its string closes
+// here — poisoning the parent would needlessly stop it caching).
+func (computer *Computer) popFrame() (cacheable bool, wasTarget bool, mark int) {
 	top := len(computer.stack) - 1
 	low := computer.lowlinks[top]
+	wasTarget = computer.cycleTargets[top]
+	mark = computer.pendingMarks[top]
 	computer.stack = computer.stack[:top]
 	computer.lowlinks = computer.lowlinks[:top]
+	computer.cycleTargets = computer.cycleTargets[:top]
+	computer.pendingMarks = computer.pendingMarks[:top]
 	if low >= top {
-		return true
+		return true, wasTarget, mark
 	}
 	if top > 0 {
 		computer.lowlinks[top-1] = min(computer.lowlinks[top-1], low)
 	}
-	return false
+	return false, wasTarget, mark
 }
 
 // classifySpiral names the depth cap's CAUSE: when instantiations of one named
@@ -264,58 +318,27 @@ func (computer *Computer) cycleRef(tsType *checker.Type, index int) string {
 	// (distinct *checker.Type pointers first reached at different depths) used to
 	// get different back-edge tokens and thus different ids. Relative depth is a
 	// structural quantity, so the two authoring paths converge.
+	//
+	// The token is BARE — no structural anchor. Raw-walk text containing tokens
+	// never survives: it is discarded when the SCC root's pop replaces it with
+	// the canonical cluster emission (canonicalize.go), whose own tokens are
+	// depth-relative within the canonical emission stack and need no anchor
+	// either (the quotient already separates distinct shapes). A token is always
+	// followed by a composition delimiter (`,` `}` `]` `?` `...` or end), never
+	// a digit, so `$30_2` cannot prefix-collide with `$30_21`.
 	relDepth := len(computer.stack) - index
-	base := "$" + strconv.Itoa(int(kind)) + "_" + strconv.Itoa(relDepth)
 	// Every frame between the back-edge and its target composes a string that is
 	// only meaningful at its current stack position — record the escape on the
-	// top frame so popFrame keeps those strings out of the pointer cache. Lives
-	// here (not in Compute) so BaseStructuralKey's cycle path and the bare-token
-	// signature sub-walk register escapes too.
+	// top frame so popFrame keeps those strings out of the pointer cache, and
+	// mark the TARGET frame so its pop triggers canonicalization (the lowlink
+	// alone cannot mark a direct self-loop's root: the target IS the top frame,
+	// so no lowering happens). Lives here (not in Compute) so BaseStructuralKey's
+	// cycle path registers both too.
 	if top := len(computer.lowlinks) - 1; top >= 0 && index < computer.lowlinks[top] {
 		computer.lowlinks[top] = index
 	}
-	// The sub-walk that computes the structural anchor uses bare tokens to
-	// terminate; everyone else anchors on the cycle target's STRUCTURE.
-	if computer.bareCycles {
-		return base
-	}
-	// Anchor the back-edge on the cycle target's STRUCTURE, not its declaration.
-	// Two structurally-identical recursive types therefore share one id — correct
-	// dedup (identical shape ⇒ identical validator) AND it lets a value-first
-	// `circular((self) => …)` schema (an anonymous `Recursive<Body>`) converge with
-	// the equivalent type-first recursive type. A purely undifferentiated token
-	// (`$<kind>_<index>`) is NOT enough — distinct recursive shapes that share a
-	// cycle position would then collide and the renderer would wire the wrong
-	// child (the "shadowing" the tuple-slot case `[bigint, Foo?]` hit). The
-	// structural signature keeps distinct shapes distinct while merging identical
-	// ones.
-	return base + ":" + computer.structuralSignature(tsType)
-}
-
-// structuralSignature returns a name-free hash of tsType's SHAPE, used as the
-// cycle back-edge anchor. Computed by a fresh sub-walk with bare cycle tokens
-// (so it terminates); memoised per type. Structurally-equal recursive types
-// produce the same signature regardless of how/where they were declared.
-func (computer *Computer) structuralSignature(tsType *checker.Type) string {
-	if computer.sigCache == nil {
-		computer.sigCache = make(map[*checker.Type]string)
-	}
-	if sig, ok := computer.sigCache[tsType]; ok {
-		return sig
-	}
-	sub := &Computer{typeChecker: computer.typeChecker, cache: make(map[*checker.Type]string), bareCycles: true, overrides: computer.overrides}
-	sig := sub.Compute(tsType)
-	// A depth-cap hit in the sub-walk must not yield a silently-truncated outer
-	// id: propagate the latch (and its classified cause) so the cache layer
-	// still raises the diagnostic.
-	if sub.depthExceeded {
-		computer.depthExceeded = true
-		if computer.depthCulprit == "" {
-			computer.depthCulprit = sub.depthCulprit
-		}
-	}
-	computer.sigCache[tsType] = sig
-	return sig
+	computer.cycleTargets[index] = true
+	return "$" + strconv.Itoa(int(kind)) + "_" + strconv.Itoa(relDepth)
 }
 
 func (computer *Computer) dispatch(tsType *checker.Type) string {
@@ -327,7 +350,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		flags&checker.TypeFlagsNumberLiteral != 0 ||
 		flags&checker.TypeFlagsBooleanLiteral != 0 ||
 		flags&checker.TypeFlagsBigIntLiteral != 0 {
-		return strconv.Itoa(int(kind)) + ":" + literalString(tsType, computer.typeChecker)
+		return strconv.Itoa(int(kind)) + ":" + computer.lit(literalString(tsType, computer.typeChecker))
 	}
 
 	// Unique symbol literal — also a literal kind in the reflection model,
@@ -337,7 +360,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		if symbol := tsType.Symbol(); symbol != nil {
 			name = symbol.Name
 		}
-		return strconv.Itoa(int(kind)) + ":sym:" + name
+		return strconv.Itoa(int(kind)) + ":sym:" + computer.lit(name)
 	}
 
 	// Atomic primitives — id is just the kind number.
@@ -357,7 +380,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 	// with the bare-kind id because each enum is handed a distinct Type object
 	// per declaration at runtime — we have to dedup ourselves.)
 	if flags&checker.TypeFlagsEnum != 0 || flags&checker.TypeFlagsEnumLike != 0 || flags&checker.TypeFlagsEnumLiteral != 0 {
-		return strconv.Itoa(int(protocol.KindEnum)) + ":" + enumDiscriminator(tsType, computer.typeChecker)
+		return strconv.Itoa(int(protocol.KindEnum)) + ":" + computer.lit(enumDiscriminator(tsType, computer.typeChecker))
 	}
 
 	// Template literal — id captures the literal text segments + the
@@ -375,7 +398,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 				if i > 0 {
 					b.WriteByte('|')
 				}
-				b.WriteString(text)
+				b.WriteString(computer.lit(text))
 			}
 			b.WriteByte('#')
 			for i, id := range spanIDs {
@@ -397,8 +420,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		// dedups `A | B` with `B | A`. Runtime member precedence is unaffected — it's
 		// driven by node.Children downstream (union_safeorder.go), not by this id.
 		unionIDs := computer.childIDs(tsType.Distributed())
-		sort.Strings(unionIDs)
-		return collectionID(int(kind), unionIDs, false)
+		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false)
 	}
 	if flags&checker.TypeFlagsIntersection != 0 {
 		return computer.collapsedIntersectionID(tsType)
@@ -467,7 +489,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 				child += "#variadic"
 			}
 			if label != "" {
-				child = label + ":" + child
+				child = computer.lit(label) + ":" + child
 			}
 			ids = append(ids, child)
 		}
@@ -533,7 +555,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	// matches the `subKind || kind` rule.
 	if symbol := tsType.Symbol(); symbol != nil && protocol.IsNonSerializableSymbol(symbol.Name) {
 		ids := computer.memberIDs(tsType, true)
-		return collectionID(int(protocol.SubKindNonSerializable), ids, false)
+		return collectionJoined(int(protocol.SubKindNonSerializable), computer.sortedJoin(ids), false)
 	}
 	if isClass(tsType) {
 		// Generic user class — composition of property ids (sorted for
@@ -549,12 +571,12 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		// (TS internal symbol name, 0xFE prefix — same test as `userClassName`)
 		// are never registered, so they keep the nameless structural id.
 		ids := computer.memberIDs(tsType, true)
-		id := collectionID(int(protocol.KindClass), ids, false)
+		id := collectionJoined(int(protocol.KindClass), computer.sortedJoin(ids), false)
 		// Append the class name as an unambiguous suffix outside the `{…}`
 		// member group (a bare `name:` token inside could collide with a
 		// property literally named `name`). `#` never appears in a member id.
 		if symbol := tsType.Symbol(); symbol != nil && symbol.Name != "" && symbol.Name[0] != 0xFE {
-			id += "#" + symbol.Name
+			id += "#" + computer.lit(symbol.Name)
 		}
 		return id
 	}
@@ -575,11 +597,13 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		for _, signature := range callSignatures {
 			ids = append(ids, computer.signatureID(signature, protocol.KindCallSignature, ""))
 		}
-		sort.Strings(ids)
 	}
-	return collectionID(int(protocol.KindObjectLiteral), ids, false)
+	return collectionJoined(int(protocol.KindObjectLiteral), computer.sortedJoin(ids), false)
 }
 
+// memberIDs returns the member id list UNSORTED — callers compose it through
+// sortedJoin (ordinary walks sort immediately, template walks defer to
+// emission; see canonicalize.go).
 func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string {
 	properties := computer.typeChecker.GetPropertiesOfType(tsType)
 	out := make([]string, 0, len(properties))
@@ -591,13 +615,12 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 		valueID := computer.Compute(indexInfo.ValueType())
 		out = append(out, strconv.Itoa(int(protocol.KindIndexSignature))+":"+keyID+":"+valueID)
 	}
-	sort.Strings(out)
 	return out
 }
 
 func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	propertyType := computer.typeChecker.GetTypeOfSymbol(symbol)
-	memberName := stableMemberName(symbol.Name)
+	memberName := computer.lit(stableMemberName(symbol.Name))
 	// A non-enumerable-guarded member (lib-global-inherited or `@nonEnumerable`)
 	// is treated as optional in the projected shape — the wire may omit it — so
 	// its `optional` id bit folds the guard in, matching the projection
@@ -738,7 +761,7 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind protoco
 		if i == len(params)-1 && isRestParam(paramSymbol) && checker.IsTupleType(paramType) {
 			if elements, ok := computer.fixedTupleParamElements(paramType); ok {
 				for _, element := range elements {
-					parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, element.label), false, element.id))
+					parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, computer.lit(element.label)), false, element.id))
 					position++
 				}
 				continue
@@ -756,7 +779,7 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind protoco
 		if isRestParam(paramSymbol) {
 			child += "..."
 		}
-		parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, paramSymbol.Name), optional, child))
+		parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, computer.lit(paramSymbol.Name)), optional, child))
 		position++
 	}
 	parts = append(parts, "->"+computer.Compute(computer.typeChecker.GetReturnTypeOfSignature(signature)))
@@ -1064,8 +1087,7 @@ func collapseBooleanPair(typeChecker *checker.Checker, members []*checker.Type) 
 // so a synthesized union and a real one with the same members converge on one id.
 func SyntheticUnionStructural(computer *Computer, members []*checker.Type) string {
 	ids := computer.childIDs(members)
-	sort.Strings(ids)
-	return collectionID(int(protocol.KindUnion), ids, false)
+	return collectionJoined(int(protocol.KindUnion), computer.sortedJoin(ids), false)
 }
 
 // optionalChildID returns the structural id of an optional member's child, with
@@ -1192,10 +1214,17 @@ func isClass(tsType *checker.Type) bool {
 // (e.g. KindTuple) or a ReflectionSubKind (e.g. SubKindNonSerializable)
 // per the `subKind || kind` rule.
 func collectionID(prefix int, children []string, brackets bool) string {
+	return collectionJoined(prefix, strings.Join(children, ","), brackets)
+}
+
+// collectionJoined is collectionID over an already-joined child list — the
+// form the content-sorted composites use so sortedJoin can defer their
+// ordering to canonical emission in template mode.
+func collectionJoined(prefix int, joined string, brackets bool) string {
 	if brackets {
-		return strconv.Itoa(prefix) + "[" + strings.Join(children, ",") + "]"
+		return strconv.Itoa(prefix) + "[" + joined + "]"
 	}
-	return strconv.Itoa(prefix) + "{" + strings.Join(children, ",") + "}"
+	return strconv.Itoa(prefix) + "{" + joined + "}"
 }
 
 func memberID(prefix int, name string, optional bool, child string) string {

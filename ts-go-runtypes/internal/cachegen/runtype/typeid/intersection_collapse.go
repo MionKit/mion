@@ -1,9 +1,7 @@
 package typeid
 
 import (
-	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
@@ -101,10 +99,9 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 			}
 			brandIDs = append(brandIDs, computer.Compute(objectMember))
 		}
-		sort.Strings(brandIDs)
 		result := primaryID
 		if len(brandIDs) > 0 {
-			result += "&{" + strings.Join(brandIDs, ",") + "}"
+			result += "&{" + computer.sortedJoin(brandIDs) + "}"
 		}
 		return result + formatKey
 	}
@@ -143,9 +140,8 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 			for _, signature := range callSignatures {
 				ids = append(ids, computer.signatureID(signature, protocol.KindCallSignature, ""))
 			}
-			sort.Strings(ids)
 		}
-		return collectionID(int(protocol.KindObjectLiteral), ids, false)
+		return collectionJoined(int(protocol.KindObjectLiteral), computer.sortedJoin(ids), false)
 	}
 
 	return strconv.Itoa(int(protocol.KindUnknown))
