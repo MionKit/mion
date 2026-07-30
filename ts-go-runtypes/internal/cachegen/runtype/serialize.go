@@ -595,7 +595,16 @@ func (cache *Cache) stampOverrides(node *protocol.RunType, tsType *checker.Type)
 	if cache.idComputer == nil || len(cache.overrides) == 0 {
 		return
 	}
-	families := cache.idComputer.OverridesForBaseKey(cache.idComputer.BaseStructuralKey(tsType))
+	// The lookup key must be computed on a COLD computer, exactly like the
+	// fold pass builds the map's keys (fresh computer, empty stack): the warm
+	// hashing computer's cache legitimately holds ROOT-FORM spellings of cycle
+	// members (a `Node | null` walked as its own top-level type embeds Node's
+	// final id instead of a back-edge token), and a base key composed from
+	// those differs from the fold key even though both strings are valid.
+	// Cost is gated on an installed override table, so plain sessions pay
+	// nothing.
+	stamper := typeid.NewWithOverrides(cache.typeChecker, cache.overrides)
+	families := stamper.OverridesForBaseKey(stamper.BaseStructuralKey(tsType))
 	if len(families) == 0 {
 		return
 	}

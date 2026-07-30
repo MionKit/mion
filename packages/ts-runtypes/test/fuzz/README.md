@@ -182,10 +182,12 @@ value-inferred), same in-memory resolver as the type lane.
 
 - **JS-ID** (the one oracle): the two reflection sites resolve to equal ids.
 - `schemaRender.ts` — the normalizer + schema-literal renderer +
-  `hasSharedRecursiveContainer`, the documented guard for the KNOWN
-  shared-recursive-container divergence this lane found on its first batch
-  (docs/todos/json-schema-shared-recursive-container-id-divergence.md);
-  skipped fixtures are counted and reported, never silent.
+  `hasContainerEntryReuse`, the guard for the one OPEN divergence class
+  (entry-point anchoring, docs/todos/typeid-scc-entry-point-anchoring.md);
+  skipped fixtures are counted and reported, never silent. The lane's first
+  batch caught the depth-splice half of that family, which was then fixed in
+  the Go id computer
+  (docs/done/json-schema-shared-recursive-container-id-divergence.md).
 - `schemaRender.unit.test.ts` — pins the normalizer mappings, the 2020-12
   spellings, and the guard's class boundary.
 - `jsonSchemaFuzz.integration.test.ts` — the batch/soak

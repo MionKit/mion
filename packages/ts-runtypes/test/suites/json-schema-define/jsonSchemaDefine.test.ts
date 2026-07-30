@@ -168,6 +168,74 @@ describe('json-schema define — $defs and $ref recursion (M6)', () => {
       expect(isNode(mockNode())).toBe(true);
     }
   });
+
+  it('shared recursive containers converge: the same container shape at two members (the fuzz-lane finding)', () => {
+    // The type-first side interns `N1[]` once (one checker node); the schema
+    // side builds one container literal per occurrence. The id computer's
+    // depth-correct cycle walk makes both spell the same back-edge depths, so
+    // the forms converge (docs/done/json-schema-shared-recursive-container-id-divergence.md).
+    interface N1 {
+      p1?: N1[];
+      kids2: N1[];
+    }
+    const isN1 = createValidateFn(
+      jsonSchema({
+        $defs: {
+          N1: {
+            type: 'object',
+            properties: {
+              p1: {type: 'array', items: {$ref: '#/$defs/N1'}},
+              kids2: {type: 'array', items: {$ref: '#/$defs/N1'}},
+            },
+            required: ['kids2'],
+          },
+        },
+        $ref: '#/$defs/N1',
+      })
+    );
+    expect(isN1).toBe(createValidateFn<N1>());
+    expect(isN1({kids2: [{kids2: []}], p1: [{kids2: []}]})).toBe(true);
+    expect(isN1({kids2: [{kids2: [7]}]})).toBe(false);
+  });
+
+  it('nested reuse of a recursive container converges: N1[] standalone and inside N1[][]', () => {
+    interface Tree {
+      x: Tree[];
+      y: Tree[][];
+    }
+    const isTree = createValidateFn(
+      jsonSchema({
+        $defs: {
+          T: {
+            type: 'object',
+            properties: {
+              x: {type: 'array', items: {$ref: '#/$defs/T'}},
+              y: {type: 'array', items: {type: 'array', items: {$ref: '#/$defs/T'}}},
+            },
+            required: ['x', 'y'],
+          },
+        },
+        $ref: '#/$defs/T',
+      })
+    );
+    expect(isTree).toBe(createValidateFn<Tree>());
+    expect(isTree({x: [], y: [[{x: [], y: []}]]})).toBe(true);
+    expect(isTree({x: [], y: [{x: [], y: []}]})).toBe(false);
+  });
+
+  it("root '#' self-ref through two identical containers converges (the class is not $defs-specific)", () => {
+    type Rooted = {p1?: Rooted[]; kids2: Rooted[]};
+    const isRooted = createValidateFn(
+      jsonSchema({
+        type: 'object',
+        properties: {p1: {type: 'array', items: {$ref: '#'}}, kids2: {type: 'array', items: {$ref: '#'}}},
+        required: ['kids2'],
+      })
+    );
+    expect(isRooted).toBe(createValidateFn<Rooted>());
+    expect(isRooted({kids2: [], p1: [{kids2: []}]})).toBe(true);
+    expect(isRooted({p1: [{kids2: []}]})).toBe(false);
+  });
 });
 
 describe('json-schema define — sample-less pattern policy (04-migration-plan §1)', () => {

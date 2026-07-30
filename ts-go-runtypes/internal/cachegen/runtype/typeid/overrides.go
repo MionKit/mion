@@ -79,8 +79,12 @@ func (computer *Computer) BaseStructuralKey(tsType *checker.Type) string {
 	if index := computer.stackIndex(tsType); index >= 0 {
 		return computer.cycleRef(tsType, index)
 	}
-	computer.stack = append(computer.stack, tsType)
+	// Same frame discipline as Compute (both parallel slices), but the result is
+	// deliberately never cached — the base key omits this node's own override
+	// suffix, so a cache entry here would shadow the final key. popFrame still
+	// runs for its escape propagation.
+	computer.pushFrame(tsType)
 	base := computer.dispatch(tsType)
-	computer.stack = computer.stack[:len(computer.stack)-1]
+	computer.popFrame()
 	return base
 }

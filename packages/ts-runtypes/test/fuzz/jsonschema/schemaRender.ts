@@ -163,18 +163,20 @@ function enumToUnion(members: EnumMember[]): TypeShape {
   return literals.length === 1 ? literals[0] : {kind: 'union', members: literals};
 }
 
-/** KNOWN M6 DIVERGENCE GUARD (docs/todos/json-schema-shared-recursive-container-id-divergence.md):
- *  a fixture where the SAME structurally-rendered container subtree wraps a
- *  recursive-interface ref in TWO OR MORE positions does not converge — the
- *  type-first checker interns the container once (one shared node) while each
- *  schema literal occurrence builds its own, and the id computer folds that
- *  sharing difference into the id when the subtree participates in a cycle.
- *  (Direct refs canonicalize through the single $defs lookup, and
- *  non-recursive duplicates canonicalize structurally — both converge; probes
- *  pinned in the todo.) The fuzz lane SKIPS these fixtures, counted +
- *  reported, until the divergence is fixed Go-side. **/
-export function hasSharedRecursiveContainer(norm: SchemaExpressible): boolean {
-  // Which defs are recursive (reach themselves through the defs graph)?
+/** RESIDUAL DIVERGENCE GUARD (docs/todos/typeid-scc-entry-point-anchoring.md):
+ *  when the ROOT expression enters a recursive interface's cycle THROUGH a
+ *  container subtree that also appears inside the cycle's own defs, the two
+ *  authoring forms anchor their back-edges differently — type-first interns
+ *  the container once, so the inner occurrences back-edge to the ON-STACK
+ *  container frame, while each schema literal builds its own container and
+ *  back-edges to the interface knot. The depth-splice half of this family was
+ *  fixed Go-side (docs/done/json-schema-shared-recursive-container-id-divergence.md,
+ *  which pins that knot-entry shapes like `{p1?: N1[]; kids2: N1[]}` now
+ *  converge); entry-point anchoring needs bisimulation-canonical back-edges
+ *  and stays open. Skip = the same rendered subtree (non-ref, containing a
+ *  recursive-def ref) occurs BOTH in the root expression AND inside a def
+ *  body. Root-only or def-only repetition converges and is not skipped. **/
+export function hasContainerEntryReuse(norm: SchemaExpressible): boolean {
   const defProps = new Map(norm.defs.map((d) => [d.name, d.props] as const));
   const reaches = (start: string): boolean => {
     const seen = new Set<string>();
@@ -192,62 +194,52 @@ export function hasSharedRecursiveContainer(norm: SchemaExpressible): boolean {
   const recursiveDefs = new Set(norm.defs.filter((d) => reaches(d.name)).map((d) => d.name));
   if (recursiveDefs.size === 0) return false;
 
-  // Count every non-ref subtree that transitively contains a recursive-def
-  // ref, keyed by its structural signature; ≥2 occurrences = the known class.
-  const counts = new Map<string, number>();
-  let shared = false;
-  const visit = (shape: TypeShape): boolean => {
-    // Returns whether this subtree contains a recursive-def ref.
+  const collect = (shape: TypeShape, into: Set<string>): boolean => {
+    // Returns whether this subtree contains a recursive-def ref; records the
+    // signature of every such non-ref subtree.
     let contains = false;
     switch (shape.kind) {
       case 'ref':
         return recursiveDefs.has(shape.name);
       case 'array':
       case 'set':
-        contains = visit(shape.elem);
+        contains = collect(shape.elem, into);
         break;
       case 'record':
       case 'promise':
-        contains = visit(shape.value);
+        contains = collect(shape.value, into);
         break;
       case 'map':
-        contains = visit(shape.key) || visit(shape.value);
+        contains = collect(shape.key, into) || collect(shape.value, into);
         break;
       case 'tuple':
-        for (const e of shape.elems) if (visit(e)) contains = true;
+        for (const e of shape.elems) if (collect(e, into)) contains = true;
         break;
       case 'union':
       case 'intersection':
-        for (const m of shape.members) if (visit(m)) contains = true;
+        for (const m of shape.members) if (collect(m, into)) contains = true;
         break;
       case 'function':
-        for (const p of shape.params) if (visit(p)) contains = true;
-        if (visit(shape.ret)) contains = true;
+        for (const p of shape.params) if (collect(p, into)) contains = true;
+        if (collect(shape.ret, into)) contains = true;
         break;
       case 'object':
-        for (const p of shape.props) if (visit(p.shape)) contains = true;
-        if (shape.index && visit(shape.index)) contains = true;
+        for (const p of shape.props) if (collect(p.shape, into)) contains = true;
+        if (shape.index && collect(shape.index, into)) contains = true;
         break;
       default:
         return false;
     }
-    if (contains) {
-      const signature = signatureOf(shape);
-      const n = (counts.get(signature) ?? 0) + 1;
-      counts.set(signature, n);
-      if (n >= 2) shared = true;
-    }
+    if (contains) into.add(JSON.stringify(shape));
     return contains;
   };
-  visit(norm.root);
-  for (const def of norm.defs) for (const prop of def.props) visit(prop.shape);
-  return shared;
-}
-
-/** Structural signature for the divergence guard — a stable render of the
- *  subtree (JSON of the shape is deterministic and cheap). **/
-function signatureOf(shape: TypeShape): string {
-  return JSON.stringify(shape);
+  const rootSubtrees = new Set<string>();
+  collect(norm.root, rootSubtrees);
+  if (rootSubtrees.size === 0) return false;
+  const defSubtrees = new Set<string>();
+  for (const def of norm.defs) for (const prop of def.props) collect(prop.shape, defSubtrees);
+  for (const signature of rootSubtrees) if (defSubtrees.has(signature)) return true;
+  return false;
 }
 
 function collectShapeRefs(shape: TypeShape, out: string[]): void {

@@ -29,6 +29,16 @@ type Computer struct {
 	typeChecker *checker.Checker
 	cache       map[*checker.Type]string
 	stack       []*checker.Type
+	// lowlinks parallels stack: lowlinks[i] is the shallowest stack index any
+	// cycle token minted inside frame i's open interval targets (own index when
+	// none). A frame that pops with lowlinks[i] < i composed a string whose
+	// back-edge tokens dangle ABOVE it — the `$<kind>_<relDepth>` depths are
+	// meaningful only at this exact stack position, so the string must never
+	// enter the pointer cache: a later cache hit at a different depth would
+	// splice a relative depth baked elsewhere (the interned-vs-cloned shared
+	// recursive container divergence). Frames whose tokens all close at or
+	// below themselves are position-independent and cache as before.
+	lowlinks []int
 	// depthExceeded latches when Compute hits maxWalkDepth on this computer's
 	// stack — a type graph that instantiates a fresh *checker.Type per level
 	// (defeating the pointer cycle guard) or is genuinely unbounded. The walk
@@ -103,12 +113,18 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
 		return strconv.Itoa(int(protocol.KindNever))
 	}
-	if cached, ok := computer.cache[tsType]; ok {
-		return cached
-	}
-	// Cycle: emit back-ref before pushing onto the stack.
+	// Cycle first, cache second: a node can be BOTH cached and on the live
+	// stack when a completed walk cached it and a later re-entrant walk
+	// (BaseStructuralKey at override-stamp time) pushes it again — the cached
+	// FINAL id must not stand in for the back-edge, or the re-entrant walk
+	// composes a different base key than the fold pass did. On ordinary walks a
+	// node is never both (the cache is written only at pop), so the order costs
+	// nothing.
 	if index := computer.stackIndex(tsType); index >= 0 {
 		return computer.cycleRef(tsType, index)
+	}
+	if cached, ok := computer.cache[tsType]; ok {
+		return cached
 	}
 	// Depth backstop: a graph that instantiates a FRESH *checker.Type on every
 	// member query (lib.esnext's IteratorObject family; a self-instantiating
@@ -126,15 +142,20 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 		}
 		return depthSentinel
 	}
-	computer.stack = append(computer.stack, tsType)
+	computer.pushFrame(tsType)
 	base := computer.dispatch(tsType)
-	computer.stack = computer.stack[:len(computer.stack)-1]
+	cacheable := computer.popFrame()
 	// Fold this node's own override suffix AFTER dispatch: `base` already has
 	// children's suffixes (composed via their Compute calls), and the override
 	// map is keyed by exactly this base key. The cache stores the FINAL (folded)
-	// key so parents compose it.
+	// key so parents compose it — but only position-independent strings may be
+	// memoised (see the lowlinks field): a string with a cycle token targeting
+	// an ancestor above this frame is recomputed at each occurrence so its
+	// relative depth is always the live one.
 	id := base + computer.overrideSuffix(base)
-	computer.cache[tsType] = id
+	if cacheable {
+		computer.cache[tsType] = id
+	}
 	return id
 }
 
@@ -145,6 +166,35 @@ func (computer *Computer) stackIndex(tsType *checker.Type) int {
 		}
 	}
 	return -1
+}
+
+// pushFrame opens a walk frame: both parallel slices move together (every
+// pusher must use this — a stack-only push desyncs lowlinks and the pop-time
+// propagation would index past its end).
+func (computer *Computer) pushFrame(tsType *checker.Type) {
+	computer.stack = append(computer.stack, tsType)
+	computer.lowlinks = append(computer.lowlinks, len(computer.stack)-1)
+}
+
+// popFrame closes the top frame and reports whether its composed string is
+// position-independent (every cycle token minted beneath it closed at or below
+// the frame itself) and therefore safe to memoise. When a token still dangles
+// above, the escape propagates into the parent frame's lowlink; a frame whose
+// lowlink equals its own index is a self-contained cycle root and must NOT
+// propagate (its string closes here — poisoning the parent would needlessly
+// stop it caching).
+func (computer *Computer) popFrame() bool {
+	top := len(computer.stack) - 1
+	low := computer.lowlinks[top]
+	computer.stack = computer.stack[:top]
+	computer.lowlinks = computer.lowlinks[:top]
+	if low >= top {
+		return true
+	}
+	if top > 0 {
+		computer.lowlinks[top-1] = min(computer.lowlinks[top-1], low)
+	}
+	return false
 }
 
 // classifySpiral names the depth cap's CAUSE: when instantiations of one named
@@ -216,6 +266,14 @@ func (computer *Computer) cycleRef(tsType *checker.Type, index int) string {
 	// structural quantity, so the two authoring paths converge.
 	relDepth := len(computer.stack) - index
 	base := "$" + strconv.Itoa(int(kind)) + "_" + strconv.Itoa(relDepth)
+	// Every frame between the back-edge and its target composes a string that is
+	// only meaningful at its current stack position — record the escape on the
+	// top frame so popFrame keeps those strings out of the pointer cache. Lives
+	// here (not in Compute) so BaseStructuralKey's cycle path and the bare-token
+	// signature sub-walk register escapes too.
+	if top := len(computer.lowlinks) - 1; top >= 0 && index < computer.lowlinks[top] {
+		computer.lowlinks[top] = index
+	}
 	// The sub-walk that computes the structural anchor uses bare tokens to
 	// terminate; everyone else anchors on the cycle target's STRUCTURE.
 	if computer.bareCycles {
@@ -602,10 +660,15 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	// structural id and the projected runtype node disagree on the optional child's
 	// shape, and a recursive optional property's cycle back-edge binds inconsistently
 	// ($23 `T | undefined` wrapper vs $30 object) between the type-first and
-	// value-first authoring paths.
-	child := computer.Compute(propertyType)
+	// value-first authoring paths. The if/else (matching the tuple and signature
+	// paths) matters: an unconditional walk of the raw `T | undefined` wrapper
+	// used to pollute the pointer cache with back-edge depths inflated by the
+	// discarded union frame.
+	var child string
 	if optional {
 		child = computer.optionalChildID(propertyType)
+	} else {
+		child = computer.Compute(propertyType)
 	}
 	return memberID(int(kind), memberName, optional, child) + readonlyBit(readonly) + guardedBit(guarded)
 }

@@ -5,7 +5,7 @@
 
 import {describe, expect, it} from 'vitest';
 import type {GeneratedType, TypeShape} from '../core/typeGen.ts';
-import {hasSharedRecursiveContainer, renderSchemaLiteral, toSchemaExpressible} from './schemaRender.ts';
+import {hasContainerEntryReuse, renderSchemaLiteral, toSchemaExpressible} from './schemaRender.ts';
 
 function norm(root: TypeShape, decls: GeneratedType['decls'] = []): ReturnType<typeof toSchemaExpressible> {
   return toSchemaExpressible({decls, root});
@@ -179,35 +179,37 @@ describe('renderSchemaLiteral — draft 2020-12 spellings', () => {
     ).toBe(`{type: 'object', properties: {"p0": {type: 'string'}}, required: ["p0"], additionalProperties: {type: 'string'}}`);
   });
 
-  it('flags only the known shared-recursive-container class (divergence guard)', () => {
+  it('flags only container-entry reuse (the open entry-point-anchoring class)', () => {
     const prop = (name: string, shape: TypeShape, optional = false) => ({name, optional, readonly: false, method: false, shape});
-    const recursiveDef = (props: TypeShape[]): GeneratedType['decls'] => [
-      {kind: 'interface', name: 'N1', props: props.map((shape, i) => prop(`p${i}`, shape, i === 0))},
+    const arrOfRef: TypeShape = {kind: 'array', elem: {kind: 'ref', name: 'N0'}};
+    const recursiveDef = (shapes: TypeShape[]): GeneratedType['decls'] => [
+      {kind: 'interface', name: 'N0', props: shapes.map((shape, i) => prop(`p${i}`, shape, i === 0))},
     ];
-    const arrOfRef: TypeShape = {kind: 'array', elem: {kind: 'ref', name: 'N1'}};
-    // Two identical recursive containers → flagged (the divergent class).
+    // Entry through a container that also appears inside the cycle → flagged
+    // (seeds 1662213203 / 2140920747 / 2144068665 of base 20260730 are this shape).
     expect(
-      hasSharedRecursiveContainer(
-        toSchemaExpressible({decls: recursiveDef([arrOfRef, arrOfRef]), root: {kind: 'ref', name: 'N1'}})
-      )
+      hasContainerEntryReuse(toSchemaExpressible({decls: recursiveDef([arrOfRef]), root: {kind: 'record', value: arrOfRef}}))
     ).toBe(true);
-    // Nested reuse (Array<N1> standalone + inside Array<Array<N1>>) → flagged.
+    // Knot entry (root IS the recursive ref) → the Go depth fix covers it, not flagged.
     expect(
-      hasSharedRecursiveContainer(
-        toSchemaExpressible({decls: recursiveDef([arrOfRef, {kind: 'array', elem: arrOfRef}]), root: {kind: 'ref', name: 'N1'}})
-      )
-    ).toBe(true);
-    // Direct ref + one container → converges, not flagged.
+      hasContainerEntryReuse(toSchemaExpressible({decls: recursiveDef([arrOfRef, arrOfRef]), root: {kind: 'ref', name: 'N0'}}))
+    ).toBe(false);
+    // Root-only repetition (no container inside the cycle) → converges, not flagged.
     expect(
-      hasSharedRecursiveContainer(
-        toSchemaExpressible({decls: recursiveDef([{kind: 'ref', name: 'N1'}, arrOfRef]), root: {kind: 'ref', name: 'N1'}})
+      hasContainerEntryReuse(
+        toSchemaExpressible({
+          decls: recursiveDef([{kind: 'ref', name: 'N0'}]),
+          root: {kind: 'object', props: [prop('a', arrOfRef), prop('b', arrOfRef)]},
+        })
       )
     ).toBe(false);
-    // Duplicated NON-recursive containers → converges, not flagged.
-    const strArr: TypeShape = {kind: 'array', elem: {kind: 'string'}};
+    // Entry container differs from the cycle's internal container → converges, not flagged.
     expect(
-      hasSharedRecursiveContainer(
-        toSchemaExpressible({decls: recursiveDef([{kind: 'ref', name: 'N1'}, strArr, strArr]), root: {kind: 'ref', name: 'N1'}})
+      hasContainerEntryReuse(
+        toSchemaExpressible({
+          decls: recursiveDef([{kind: 'object', props: [prop('v', {kind: 'ref', name: 'N0'})]}]),
+          root: {kind: 'record', value: arrOfRef},
+        })
       )
     ).toBe(false);
   });
