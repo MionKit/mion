@@ -1,5 +1,4 @@
 import * as TF from '@ts-runtypes/core/formats';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {
   createBinaryDecoderFn,
   createBinaryEncoderFn,
@@ -15,10 +14,7 @@ export const OBJECTS = {
     title: 'Interface',
     description:
       'Object literal mixing a Date field, bigint, number, string, null, a string array, a weird-named key, and an optional string, exercising Date and bigint wire round-trip plus an optional prop present in one sample and absent in the other.',
-    serializeNotes: [
-      'Date serialises to ISO string and restores to a Date; bigint round-trips through both JSON and binary.',
-      'JSON Schema: the Date properties are instance types with no schema INPUT spelling. (bigint too)',
-    ],
+    serializeNotes: 'Date serialises to ISO string and restores to a Date; bigint round-trips through both JSON and binary.',
     mutateEncoder: () =>
       createJsonEncoderFn<{
         startDate: Date;
@@ -170,10 +166,6 @@ export const OBJECTS = {
           optionalString: RT.optional(TF.string()),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const value = {
         startDate: new Date('2000-08-06T02:13:00.000Z'),
@@ -447,166 +439,6 @@ export const OBJECTS = {
         })
       );
     },
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a0: {type: 'number'},
-            a1: {type: 'number'},
-            a2: {type: 'number'},
-            a3: {type: 'number'},
-            a4: {type: 'number'},
-            a5: {type: 'number'},
-            a6: {type: 'number'},
-            a7: {type: 'number'},
-            a8: {type: 'number'},
-            a9: {type: 'number'},
-            a10: {type: 'number'},
-            a11: {type: 'number'},
-            a12: {type: 'number'},
-            a13: {type: 'number'},
-            a14: {type: 'number'},
-            a15: {type: 'number'},
-            b0: {type: 'number'},
-            b1: {type: 'number'},
-            b2: {type: 'number'},
-            b3: {type: 'number'},
-            b4: {type: 'number'},
-            b5: {type: 'number'},
-            b6: {type: 'number'},
-            b7: {type: 'number'},
-            b8: {type: 'number'},
-            b9: {type: 'number'},
-            b10: {type: 'number'},
-            b11: {type: 'number'},
-            b12: {type: 'number'},
-            b13: {type: 'number'},
-            b14: {type: 'number'},
-            b15: {type: 'number'},
-          },
-        })
-      ),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a0: {type: 'number'},
-            a1: {type: 'number'},
-            a2: {type: 'number'},
-            a3: {type: 'number'},
-            a4: {type: 'number'},
-            a5: {type: 'number'},
-            a6: {type: 'number'},
-            a7: {type: 'number'},
-            a8: {type: 'number'},
-            a9: {type: 'number'},
-            a10: {type: 'number'},
-            a11: {type: 'number'},
-            a12: {type: 'number'},
-            a13: {type: 'number'},
-            a14: {type: 'number'},
-            a15: {type: 'number'},
-            b0: {type: 'number'},
-            b1: {type: 'number'},
-            b2: {type: 'number'},
-            b3: {type: 'number'},
-            b4: {type: 'number'},
-            b5: {type: 'number'},
-            b6: {type: 'number'},
-            b7: {type: 'number'},
-            b8: {type: 'number'},
-            b9: {type: 'number'},
-            b10: {type: 'number'},
-            b11: {type: 'number'},
-            b12: {type: 'number'},
-            b13: {type: 'number'},
-            b14: {type: 'number'},
-            b15: {type: 'number'},
-          },
-        })
-      ),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a0: {type: 'number'},
-            a1: {type: 'number'},
-            a2: {type: 'number'},
-            a3: {type: 'number'},
-            a4: {type: 'number'},
-            a5: {type: 'number'},
-            a6: {type: 'number'},
-            a7: {type: 'number'},
-            a8: {type: 'number'},
-            a9: {type: 'number'},
-            a10: {type: 'number'},
-            a11: {type: 'number'},
-            a12: {type: 'number'},
-            a13: {type: 'number'},
-            a14: {type: 'number'},
-            a15: {type: 'number'},
-            b0: {type: 'number'},
-            b1: {type: 'number'},
-            b2: {type: 'number'},
-            b3: {type: 'number'},
-            b4: {type: 'number'},
-            b5: {type: 'number'},
-            b6: {type: 'number'},
-            b7: {type: 'number'},
-            b8: {type: 'number'},
-            b9: {type: 'number'},
-            b10: {type: 'number'},
-            b11: {type: 'number'},
-            b12: {type: 'number'},
-            b13: {type: 'number'},
-            b14: {type: 'number'},
-            b15: {type: 'number'},
-          },
-        })
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a0: {type: 'number'},
-            a1: {type: 'number'},
-            a2: {type: 'number'},
-            a3: {type: 'number'},
-            a4: {type: 'number'},
-            a5: {type: 'number'},
-            a6: {type: 'number'},
-            a7: {type: 'number'},
-            a8: {type: 'number'},
-            a9: {type: 'number'},
-            a10: {type: 'number'},
-            a11: {type: 'number'},
-            a12: {type: 'number'},
-            a13: {type: 'number'},
-            a14: {type: 'number'},
-            a15: {type: 'number'},
-            b0: {type: 'number'},
-            b1: {type: 'number'},
-            b2: {type: 'number'},
-            b3: {type: 'number'},
-            b4: {type: 'number'},
-            b5: {type: 'number'},
-            b6: {type: 'number'},
-            b7: {type: 'number'},
-            b8: {type: 'number'},
-            b9: {type: 'number'},
-            b10: {type: 'number'},
-            b11: {type: 'number'},
-            b12: {type: 'number'},
-            b13: {type: 'number'},
-            b14: {type: 'number'},
-            b15: {type: 'number'},
-          },
-        })
-      ),
     getTestData: () => ({
       values: [{a0: 0, a1: 1, b0: 16, a8: 8, b7: 23, b15: 31}, {a0: 0, b8: 24}, {}],
     }),
@@ -616,7 +448,6 @@ export const OBJECTS = {
     description:
       'Class instance with string, number, and Date data fields plus a getFullName() method that serializes its data fields only and decodes to a plain object, dropping the method and losing the prototype.',
     serializeNotes: [
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
       'Class instance decodes to a plain object (asymmetric deserializedValues): the getFullName method is non-serializable and dropped, the instance prototype is not restored.',
       'The startDate Date field round-trips via ISO string.',
     ],
@@ -854,10 +685,6 @@ export const OBJECTS = {
       }
       return createBinaryDecoderFn(RT.classType(MySerializableClass));
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class MySerializableClass {
         name: string;
@@ -883,10 +710,8 @@ export const OBJECTS = {
     title: 'Extended class',
     description:
       'Subclass instance whose serializable shape combines its own extendedProp with the inherited baseProp, confirming inherited string fields are walked and round-tripped alongside own fields.',
-    serializeNotes: [
+    serializeNotes:
       'Inherited baseProp is included in the projection; both fields are plain strings so the round-trip is symmetric (no deserializedValues override).',
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => {
       class BaseClass {
         baseProp: string = 'base';
@@ -1004,10 +829,6 @@ export const OBJECTS = {
       }
       return createBinaryDecoderFn(RT.classType(ExtendedClass));
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class BaseClass {
         baseProp: string = 'base';
@@ -1023,7 +844,6 @@ export const OBJECTS = {
     description:
       'Class instance round-trips to a plain object: the method is dropped and the instance prototype is not restored, while the data fields (including the startDate Date) survive.',
     serializeNotes: [
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
       'Class instance decodes to a plain object (asymmetric deserializedValues): the getFullName method is non-serializable and dropped, the instance prototype is not restored.',
       'The startDate Date field round-trips via ISO string.',
     ],
@@ -1209,10 +1029,6 @@ export const OBJECTS = {
       }
       return createBinaryDecoderFn(RT.classType(NonSerializableClass));
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class NonSerializableClass {
         constructor(
@@ -1234,10 +1050,7 @@ export const OBJECTS = {
     title: 'Undefined prop',
     description:
       'Object with an explicitly `undefined`-typed property alongside string and number fields, where the undefined-valued key is omitted from JSON output so the restored shape drops it (asymmetric deserializedValues).',
-    serializeNotes: [
-      'An undefined-valued property is omitted on the wire and absent after the round-trip.',
-      'JSON Schema: undefined-typed properties are not JSON data and have no schema spelling.',
-    ],
+    serializeNotes: 'An undefined-valued property is omitted on the wire and absent after the round-trip.',
     mutateEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{a: string; b: number; c: undefined}>(undefined, {strategy: 'direct'}),
@@ -1251,10 +1064,6 @@ export const OBJECTS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({a: TF.string(), b: TF.number(), c: RT.literal(undefined)})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({a: TF.string(), b: TF.number(), c: RT.literal(undefined)})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({a: TF.string(), b: TF.number(), c: RT.literal(undefined)})),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [{a: 'hello', b: 42, c: undefined}],
       deserializedValues: [{a: 'hello', b: 42}],
@@ -1277,18 +1086,6 @@ export const OBJECTS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({a: TF.string(), b: RT.optional(TF.string())})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({a: TF.string(), b: RT.optional(TF.string())})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({a: TF.string(), b: RT.optional(TF.string())})),
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}, required: ['a']})),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}, required: ['a']})),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}, required: ['a']})
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}, required: ['a']})
-      ),
     getTestData: () => ({values: [{a: 'helloA', b: 'helloB'}, {a: 'helloA'}]}),
   },
   all_optional_fields: {
@@ -1308,14 +1105,6 @@ export const OBJECTS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.string())})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.string())})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.string())})),
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}})),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}})),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}})),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(jsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'string'}}})),
     getTestData: () => ({values: [{a: 'helloA', b: 'helloB'}, {a: 'helloA'}, {}]}),
   },
   extras_passthrough_unsafe: {
@@ -1323,7 +1112,6 @@ export const OBJECTS = {
     description:
       'Canonical baseline for the unsafe `prepareForJson + JSON.stringify` path where declared children get transformed while structural extras (top-level and nested-in-declared-composites) pass through unchanged, mirroring the `03JsonObjects.spec.ts` strip-extras case whose strip expectation is commented out, with the safe `stripUnknownKeys` divergence exercised in EXTRA_PARAMS.',
     serializeNotes: [
-      'JSON Schema: the Date properties are instance types with no schema INPUT spelling. (bigint too)',
       'Strategy split: `mutate` walks declared children only and lets `JSON.stringify` pass undeclared extras through, so `getTestData` round-trips them unchanged; `clone` and `direct` are shape-derived and strip extras pre-serialise, so `getTestDataForStringify` restores the declared-only shape (`deserializedValues` drops the extras).',
       'Decode split: the `preserve` decoder passes undeclared keys through to the restored value, while the default `strip` decoder nukes them to `undefined`.',
     ],
@@ -1504,10 +1292,6 @@ export const OBJECTS = {
           '?other weird p': RT.object({c: TF.string(), d: TF.number()}),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const startDate = new Date('2000-08-06T02:13:00.000Z');
       const objectWithExtraParams = {
@@ -1643,22 +1427,6 @@ export const OBJECTS = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createBinaryDecoderFn(ic);
     },
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(
-        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
-      ),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(
-        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
-      ),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
-      ),
     getTestData: () => ({
       values: [{name: 'leaf'}, {name: 'hello', child: {name: 'world'}}, {name: 'a', child: {name: 'b', child: {name: 'c'}}}],
     }),
@@ -1746,38 +1514,6 @@ export const OBJECTS = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createBinaryDecoderFn(ica);
     },
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
-          required: ['name'],
-        })
-      ),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
-          required: ['name'],
-        })
-      ),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
-          required: ['name'],
-        })
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({
-          type: 'object',
-          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
-          required: ['name'],
-        })
-      ),
     getTestData: () => ({
       values: [
         {name: 'hello', children: []},
@@ -1789,10 +1525,7 @@ export const OBJECTS = {
     title: 'Circular deep',
     description:
       'Self-referential interface whose recursion is buried inside a nested `embedded` object with a bigint field at each level, exercising deep recursion plus bigint round-trip at multiple depths.',
-    serializeNotes: [
-      'Each level carries a bigint that round-trips through both JSON and binary.',
-      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
-    ],
+    serializeNotes: 'Each level carries a bigint that round-trips through both JSON and binary.',
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -1916,10 +1649,6 @@ export const OBJECTS = {
       );
       return createBinaryDecoderFn(icd);
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {name: 'hello', big: 1n, embedded: {hello: 'world'}},
@@ -1935,10 +1664,7 @@ export const OBJECTS = {
     title: 'Non-circular root',
     description:
       'Non-recursive root with literal `isRoot: true` and a circular `ciChild` that wraps a deeply-recursive bigint-bearing member, confirming a non-circular root resolves correctly when it embeds a circular type.',
-    serializeNotes: [
-      'The nested ciChild carries a bigint at each level that round-trips through both JSON and binary.',
-      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
-    ],
+    serializeNotes: 'The nested ciChild carries a bigint at each level that round-trips through both JSON and binary.',
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -2075,10 +1801,6 @@ export const OBJECTS = {
       const root = RT.object({isRoot: RT.literal(true), ciChild: icd});
       return createBinaryDecoderFn(root);
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}},
@@ -2097,10 +1819,7 @@ export const OBJECTS = {
     title: 'Multiple circular',
     description:
       'Self-referential root that also references two further circular interfaces, a bigint-bearing tree and a Date-bearing one, exercising several distinct circular types coexisting in one graph with Date and bigint fields.',
-    serializeNotes: [
-      'Mixes Date (ISO-string) and bigint round-trips across multiple self-referential interfaces.',
-      'JSON Schema: the Date and bigint members have no schema spelling.',
-    ],
+    serializeNotes: 'Mixes Date (ISO-string) and bigint round-trips across multiple self-referential interfaces.',
     mutateEncoder: () => {
       interface ICircularDeep {
         name: string;
@@ -2362,10 +2081,6 @@ export const OBJECTS = {
       );
       return createBinaryDecoderFn(root);
     },
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ICircularDeep {
         name: string;
@@ -2416,10 +2131,8 @@ export const OBJECTS = {
     title: 'Interface with methods',
     description:
       'Interface with a string field plus a function-typed `methodProp` where the non-serializable method is dropped from the projection, so the restored shape keeps only the data field (asymmetric deserializedValues).',
-    serializeNotes: [
+    serializeNotes:
       'The function-typed property is non-serializable and silently dropped on the wire; only the string field round-trips.',
-      'JSON Schema: function-typed properties are not data and have no schema spelling.',
-    ],
     mutateEncoder: () => {
       interface ObjectWithMethods {
         name: string;
@@ -2487,10 +2200,6 @@ export const OBJECTS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ObjectWithMethods {
         name: string;
@@ -2513,10 +2222,8 @@ export const OBJECTS = {
   // `RT.*` model), so id-integrity skips them.
   registered_root_class: {
     title: 'Registered root class (Date + bigint + array)',
-    serializeNotes: [
+    serializeNotes:
       'A registered `Ledger` class round-trips its declared props through every strategy and reconstructs a real instance; Date rides its ISO arm and bigint its decimal-string arm. Value-first schema not-supported (a class is not an `RT.*` model).',
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => {
       class Ledger {
         constructor(
@@ -2656,10 +2363,6 @@ export const OBJECTS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class Ledger {
         constructor(
@@ -2682,10 +2385,8 @@ export const OBJECTS = {
   },
   nested_registered_class: {
     title: 'Object holding a registered class property',
-    serializeNotes: [
+    serializeNotes:
       'A registered `Vertex` class nested as `origin` reconstructs inside the containing object through every strategy. Value-first schema not-supported (contains a class).',
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => {
       class Vertex {
         constructor(
@@ -2807,10 +2508,6 @@ export const OBJECTS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class Vertex {
         constructor(

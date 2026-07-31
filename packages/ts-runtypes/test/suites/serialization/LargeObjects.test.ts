@@ -7,10 +7,7 @@ import {
   assertBinaryRoundTrip,
   assertSchemaJsonRoundTrip,
   assertSchemaBinaryRoundTrip,
-  assertJsonSchemaJsonRoundTrip,
-  assertJsonSchemaBinaryRoundTrip,
   assertCompactRoundTrip,
-  titleForJsonSchema,
 } from '../../util/serializationAsserts.ts';
 
 describe('serialization / LargeObjects', () => {
@@ -18,8 +15,6 @@ describe('serialization / LargeObjects', () => {
     it(`binary - ${c.title}`, () => assertBinaryRoundTrip(c));
     it(`schema - json - ${c.title}`, () => assertSchemaJsonRoundTrip(c));
     it(`schema - binary - ${c.title}`, () => assertSchemaBinaryRoundTrip(c));
-    it(titleForJsonSchema(c, 'jsonschema/json'), () => assertJsonSchemaJsonRoundTrip(c));
-    it(titleForJsonSchema(c, 'jsonschema/binary'), () => assertJsonSchemaBinaryRoundTrip(c));
     it(`compact - ${c.title}`, () => assertCompactRoundTrip(c));
   }
 });

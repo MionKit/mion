@@ -18,7 +18,6 @@ export const TEMPLATE_LITERAL = {
     validateNotes: [
       'Template literal types are compiled to a JS RegExp at build time and matched at runtime with `regex.test(v)`.',
       'The `${number}` placeholder expects digit-strings (`42`, `-7`, `3.14`) — NOT the words "NaN" or "Infinity" even though those are typeof "number" at the JS level.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
     ],
     validate: () => createValidateFn<`api/user/${number}`>(),
     standardSchema: () => createStandardSchema<`api/user/${number}`>(),
@@ -42,7 +41,6 @@ export const TEMPLATE_LITERAL = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<`api/user/${number}`>>(),
     validateSchema: () => createValidateFn(RT.templateLiteral(['api/user/', TF.number()])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<`api/user/${number}`>(),
     validateReflect: () => {
       const v: `api/user/${number}` = 'api/user/42';
@@ -55,7 +53,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrors: () => createGetValidationErrorsFn<`api/user/${number}`>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<`api/user/${number}`>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.templateLiteral(['api/user/', TF.number()])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<`api/user/${number}`>(),
     getValidationErrorsReflect: () => {
       const v: `api/user/${number}` = 'api/user/42';
@@ -102,16 +99,13 @@ export const TEMPLATE_LITERAL = {
   multi_segment_url: {
     title: 'Multiple placeholders',
     description: "templateLiteral.spec.ts 'multi-segment URL' combines multiple placeholders with literal segments.",
-    validateNotes: [
+    validateNotes:
       'Every literal segment and placeholder is matched positionally in one regex — the `${number}` spans require digit-strings while the `${string}` span accepts any characters; a single mismatched segment fails the whole match.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<`/api/v${number}/user/${string}/posts/${number}`>(),
     standardSchema: () => createStandardSchema<`/api/v${number}/user/${string}/posts/${number}`>(),
     validateDataOnly: () => createValidateFn<DataOnly<`/api/v${number}/user/${string}/posts/${number}`>>(),
     validateSchema: () =>
       createValidateFn(RT.templateLiteral(['/api/v', TF.number(), '/user/', TF.string(), '/posts/', TF.number()])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<`/api/v${number}/user/${string}/posts/${number}`>(),
     validateReflect: () => {
       const v: `/api/v${number}/user/${string}/posts/${number}` = '/api/v1/user/jane/posts/7';
@@ -125,7 +119,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<`/api/v${number}/user/${string}/posts/${number}`>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.templateLiteral(['/api/v', TF.number(), '/user/', TF.string(), '/posts/', TF.number()])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<`/api/v${number}/user/${string}/posts/${number}`>(),
     getValidationErrorsReflect: () => {
       const v: `/api/v${number}/user/${string}/posts/${number}` = '/api/v1/user/jane/posts/7';
@@ -159,15 +152,12 @@ export const TEMPLATE_LITERAL = {
     title: 'Leading string placeholder',
     description:
       "templateLiteral.spec.ts 'leading ${string} placeholder' accepts an empty-string prefix because the string span uses `[\\s\\S]*`, not `+`.",
-    validateNotes: [
+    validateNotes:
       'A leading `${string}` placeholder matches the empty string too — `"/42"` is valid (no characters before the slash).',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<`${string}/${number}`>(),
     standardSchema: () => createStandardSchema<`${string}/${number}`>(),
     validateDataOnly: () => createValidateFn<DataOnly<`${string}/${number}`>>(),
     validateSchema: () => createValidateFn(RT.templateLiteral([TF.string(), '/', TF.number()])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<`${string}/${number}`>(),
     validateReflect: () => {
       const v: `${string}/${number}` = '/42';
@@ -180,7 +170,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrors: () => createGetValidationErrorsFn<`${string}/${number}`>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<`${string}/${number}`>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.templateLiteral([TF.string(), '/', TF.number()])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<`${string}/${number}`>(),
     getValidationErrorsReflect: () => {
       const v: `${string}/${number}` = '/42';
@@ -214,15 +203,12 @@ export const TEMPLATE_LITERAL = {
     title: 'Regex metacharacters',
     description:
       "templateLiteral.spec.ts 'regex special chars in literal' requires that parens and other regex metacharacters in the literal segments be escaped in the compiled regex.",
-    validateNotes: [
+    validateNotes:
       'Regex metacharacters in literal segments are escaped, so the parens are matched literally — `(42)` passes but `42` (no parens) fails.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<`(${number})`>(),
     standardSchema: () => createStandardSchema<`(${number})`>(),
     validateDataOnly: () => createValidateFn<DataOnly<`(${number})`>>(),
     validateSchema: () => createValidateFn(RT.templateLiteral(['(', TF.number(), ')'])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<`(${number})`>(),
     validateReflect: () => {
       const v: `(${number})` = '(42)';
@@ -235,7 +221,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrors: () => createGetValidationErrorsFn<`(${number})`>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<`(${number})`>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.templateLiteral(['(', TF.number(), ')'])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<`(${number})`>(),
     getValidationErrorsReflect: () => {
       const v: `(${number})` = '(42)';
@@ -271,15 +256,12 @@ export const TEMPLATE_LITERAL = {
     title: 'Nested in object',
     description:
       "templateLiteral.spec.ts 'nested in object' uses a template literal as a property value, and the parent object's AND chain composes the typeof+regex check against `v.url`.",
-    validateNotes: [
+    validateNotes:
       'The `url` property is checked with the same typeof+regex as a standalone template literal, so a numeric `url: 42` fails (`expected: "templateLiteral"`) even though it would pass a plain `string` property.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<{url: `api/user/${number}`; method: string}>(),
     standardSchema: () => createStandardSchema<{url: `api/user/${number}`; method: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{url: `api/user/${number}`; method: string}>>(),
     validateSchema: () => createValidateFn(RT.object({url: RT.templateLiteral(['api/user/', TF.number()]), method: TF.string()})),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{url: `api/user/${number}`; method: string}>(),
     validateReflect: () => {
       const v: {url: `api/user/${number}`; method: string} = {url: 'api/user/42', method: 'GET'};
@@ -293,7 +275,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{url: `api/user/${number}`; method: string}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({url: RT.templateLiteral(['api/user/', TF.number()]), method: TF.string()})),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{url: `api/user/${number}`; method: string}>(),
     getValidationErrorsReflect: () => {
       const v: {url: `api/user/${number}`; method: string} = {url: 'api/user/42', method: 'GET'};
@@ -335,15 +316,12 @@ export const TEMPLATE_LITERAL = {
     title: 'Index signature key',
     description:
       "templateLiteral.spec.ts 'as index signature key' uses a template literal pattern as the index signature's key type; the IndexSignature emit compiles the key pattern to a regex (same path as standalone template literals) and adds a per-key `regex.test(k)` check to the for-in loop, mirroring the getKeyPatternVar.",
-    validateNotes: [
+    validateNotes:
       'Index-signature keys constrained by a template literal pattern: every own key on the object must match the compiled regex AND its value must satisfy the value type.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<{[key: `api/${string}`]: number}>(),
     standardSchema: () => createStandardSchema<{[key: `api/${string}`]: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[key: `api/${string}`]: number}>>(),
     validateSchema: () => createValidateFn(RT.record(RT.templateLiteral(['api/', TF.string()]), TF.number())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{[key: `api/${string}`]: number}>(),
     validateReflect: () => {
       const v: {[key: `api/${string}`]: number} = {};
@@ -357,7 +335,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[key: `api/${string}`]: number}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.record(RT.templateLiteral(['api/', TF.string()]), TF.number())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[key: `api/${string}`]: number}>(),
     getValidationErrorsReflect: () => {
       const v: {[key: `api/${string}`]: number} = {};
@@ -398,15 +375,12 @@ export const TEMPLATE_LITERAL = {
     title: 'Union placeholder',
     description:
       'A template literal with a union placeholder, where tsgo distributes the union internally so the type-checker hands the projector either a union span or a pre-distributed set of template literals; either way the compiled regex must constrain the placeholder to {a, b} and reject anything outside the union.',
-    validateNotes: [
+    validateNotes:
       'Union placeholders inside a template literal compile to a character-class / alternation in the regex — only the listed literal values pass.',
-      'JSON Schema: a pattern cannot recover a template-literal type (regex → type is undecidable by design); the closest spelling is a sample-less pattern string, which recovers the pattern brand instead.',
-    ],
     validate: () => createValidateFn<`${'a' | 'b'}-${number}`>(),
     standardSchema: () => createStandardSchema<`${'a' | 'b'}-${number}`>(),
     validateDataOnly: () => createValidateFn<DataOnly<`${'a' | 'b'}-${number}`>>(),
     validateSchema: () => createValidateFn(RT.templateLiteral([RT.union([RT.literal('a'), RT.literal('b')]), '-', TF.number()])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<`${'a' | 'b'}-${number}`>(),
     validateReflect: () => {
       const v: `${'a' | 'b'}-${number}` = 'a-42';
@@ -420,7 +394,6 @@ export const TEMPLATE_LITERAL = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<`${'a' | 'b'}-${number}`>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.templateLiteral([RT.union([RT.literal('a'), RT.literal('b')]), '-', TF.number()])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<`${'a' | 'b'}-${number}`>(),
     getValidationErrorsReflect: () => {
       const v: `${'a' | 'b'}-${number}` = 'a-42';

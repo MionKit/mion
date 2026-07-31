@@ -51,17 +51,6 @@
         "types": "./dist/cjs/schema/index.d.ts",
         "default": "./dist/cjs/schema/index.js"
       }
-    },
-    "./json-schema": {
-      "source": "./src/json-schema/index.ts",
-      "import": {
-        "types": "./dist/json-schema/index.d.ts",
-        "default": "./dist/json-schema/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/json-schema/index.d.ts",
-        "default": "./dist/cjs/json-schema/index.js"
-      }
     }
   },
   "bin": {

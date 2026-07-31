@@ -14,7 +14,6 @@ import {describe, it, expect} from 'vitest';
 import {createValidateFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import * as TF from '@ts-runtypes/core/formats';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 
 // Each pair is two structurally-distinct types whose cached validate factories
 // MUST differ. A failure here means the two distinct types collapsed to ONE
@@ -42,49 +41,6 @@ const DISTINCT_PAIRS: ReadonlyArray<[string, () => unknown, () => unknown]> = [
   ],
   // array element type differs
   ['number[] vs string[]', () => createValidateFn(RT.array(TF.number())), () => createValidateFn(RT.array(TF.string()))],
-  // jsonSchema-authored pairs — the third authoring form must keep the same
-  // distinctions (a schema-side id collapse would pass every convergence
-  // driver, so pin the opposite direction here too).
-  [
-    'jsonSchema string vs number',
-    () => createValidateFn(jsonSchema({type: 'string'})),
-    () => createValidateFn(jsonSchema({type: 'number'})),
-  ],
-  [
-    "jsonSchema const 'a' vs plain string",
-    () => createValidateFn(jsonSchema({const: 'a'})),
-    () => createValidateFn(jsonSchema({type: 'string'})),
-  ],
-  [
-    'jsonSchema bounded string vs bare string',
-    () => createValidateFn(jsonSchema({type: 'string', minLength: 3})),
-    () => createValidateFn(jsonSchema({type: 'string'})),
-  ],
-  [
-    'jsonSchema integer vs number',
-    () => createValidateFn(jsonSchema({type: 'integer'})),
-    () => createValidateFn(jsonSchema({type: 'number'})),
-  ],
-  [
-    'jsonSchema object{a} vs object{a,b}',
-    () => createValidateFn(jsonSchema({type: 'object', properties: {a: {type: 'number'}}, required: ['a']})),
-    () =>
-      createValidateFn(
-        jsonSchema({type: 'object', properties: {a: {type: 'number'}, b: {type: 'number'}}, required: ['a', 'b']})
-      ),
-  ],
-  [
-    'jsonSchema required vs optional prop',
-    () => createValidateFn(jsonSchema({type: 'object', properties: {a: {type: 'number'}}, required: ['a']})),
-    () => createValidateFn(jsonSchema({type: 'object', properties: {a: {type: 'number'}}})),
-  ],
-  // cross-form near-miss: schema-recovered branded string vs the BARE string the
-  // type-first side writes without the constraint — must stay distinct.
-  [
-    'jsonSchema {minLength:3} vs type-first string()',
-    () => createValidateFn(jsonSchema({type: 'string', minLength: 3})),
-    () => createValidateFn(TF.string()),
-  ],
 ];
 
 describe('id-integrity / distinctness — meaningfully-distinct types resolve DISTINCT cached factories', () => {

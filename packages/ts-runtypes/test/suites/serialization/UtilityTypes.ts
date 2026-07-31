@@ -1,5 +1,4 @@
 import * as TF from '@ts-runtypes/core/formats';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -9,10 +8,7 @@ export const UTILITY_TYPES = {
     title: 'Awaited',
     description:
       '`Awaited<Promise<T>>` unwraps the promise at the type level and resolves to the plain object `{a: string; b: number; c: Date}`, so the serializer sees only that resolved shape across JSON and binary.',
-    serializeNotes: [
-      'The unwrapped `c` is a Date — ISO string over JSON (revived `new Date`), 8-byte float64 epoch over binary.',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
-    ],
+    serializeNotes: 'The unwrapped `c` is a Date — ISO string over JSON (revived `new Date`), 8-byte float64 epoch over binary.',
     mutateEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Awaited<Promise<{a: string; b: number; c: Date}>>>(undefined, {strategy: 'direct'}),
@@ -32,10 +28,6 @@ export const UTILITY_TYPES = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({a: TF.string(), b: TF.number(), c: TF.date()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({a: TF.string(), b: TF.number(), c: TF.date()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({a: TF.string(), b: TF.number(), c: TF.date()})),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [{a: 'hello', b: 1, c: new Date('2000-08-06T02:13:00.000Z')}]}),
   },
   exclude_atomic: {
@@ -59,10 +51,6 @@ export const UTILITY_TYPES = {
       createBinaryEncoderFn(RT.exclude(RT.union([RT.literal('name'), RT.literal('age'), TF.number()]), RT.literal('age'))),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.exclude(RT.union([RT.literal('name'), RT.literal('age'), TF.number()]), RT.literal('age'))),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({anyOf: [{const: 'name'}, {type: 'number'}]})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({anyOf: [{const: 'name'}, {type: 'number'}]})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({anyOf: [{const: 'name'}, {type: 'number'}]})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({anyOf: [{const: 'name'}, {type: 'number'}]})),
     getTestData: () => ({values: ['name', 3, 4]}),
   },
   exclude_objects: {
@@ -176,58 +164,6 @@ export const UTILITY_TYPES = {
           RT.object({kind: RT.literal('circle'), radius: TF.number()})
         )
       ),
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
     getTestData: () => ({
       values: [
         {kind: 'square', x: 5},
@@ -240,7 +176,6 @@ export const UTILITY_TYPES = {
     description:
       '`Required<{name?; age?; createdAt?: Date}>` strips optionality from every property, resolving to the all-required object `{name: string; age: number; createdAt: Date}` that the serializer then encodes as a mandatory shape across JSON and binary.',
     serializeNotes: [
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
       'Required<T> removes the `?` modifiers, so every property is expected on the wire — the wire shape carries no optional/absent slots.',
       'The mandatory `createdAt` Date round-trips via ISO string (JSON) / 8-byte float64 epoch (binary).',
     ],
@@ -275,10 +210,6 @@ export const UTILITY_TYPES = {
       createBinaryDecoderFn(
         RT.required(RT.object({name: RT.optional(TF.string()), age: RT.optional(TF.number()), createdAt: RT.optional(TF.date())}))
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [{name: 'John', age: 30, createdAt: new Date('2000-08-06T02:13:00.000Z')}],
     }),
@@ -330,10 +261,6 @@ export const UTILITY_TYPES = {
           RT.union([RT.literal('name'), RT.literal('createdAt')])
         )
       ),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({enum: ['name', 'createdAt']})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({enum: ['name', 'createdAt']})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({enum: ['name', 'createdAt']})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({enum: ['name', 'createdAt']})),
     getTestData: () => ({values: ['name']}),
   },
   extract_objects: {
@@ -441,58 +368,6 @@ export const UTILITY_TYPES = {
           ])
         )
       ),
-    jsonSchemaEncoder: () =>
-      createJsonEncoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaDecoder: () =>
-      createJsonDecoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaBinaryEncoder: () =>
-      createBinaryEncoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
-    jsonSchemaBinaryDecoder: () =>
-      createBinaryDecoderFn(
-        jsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, x: {type: 'number'}, y: {type: 'number'}},
-              required: ['kind', 'x', 'y'],
-            },
-          ],
-        })
-      ),
     getTestData: () => ({values: [{kind: 'square', x: 5}]}),
   },
   partial_properties: {
@@ -500,7 +375,6 @@ export const UTILITY_TYPES = {
     description:
       '`Partial<{name; age; createdAt: Date}>` makes every property optional, resolving to `{name?: string; age?: number; createdAt?: Date}`, with samples covering each property in isolation plus the empty object so omitted optional slots simply do not appear on the wire.',
     serializeNotes: [
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
       'Partial<T> adds the `?` modifier to each property, so absent properties are omitted from the JSON/binary output and stay absent after the round-trip.',
       'When present, the optional `createdAt` Date round-trips via ISO string (JSON) / 8-byte float64 epoch (binary).',
     ],
@@ -525,10 +399,6 @@ export const UTILITY_TYPES = {
       createBinaryEncoderFn(RT.partial(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}))),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.partial(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}))),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const createdAt = new Date('2000-08-06T02:13:00.000Z');
       return {values: [{name: 'John'}, {age: 30}, {createdAt}, {}]};
@@ -538,10 +408,8 @@ export const UTILITY_TYPES = {
     title: 'Pick',
     description:
       "`Pick<{name; age; createdAt: Date; email}, 'name' | 'createdAt'>` keeps only the selected keys, resolving to `{name: string; createdAt: Date}`, so the dropped `age`/`email` are not part of the resolved shape and never appear on the wire.",
-    serializeNotes: [
+    serializeNotes:
       'The kept `createdAt` Date round-trips via ISO string (JSON) / 8-byte float64 epoch (binary); the unpicked `age`/`email` are absent from the resolved type and the wire.',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
-    ],
     mutateEncoder: () =>
       createJsonEncoderFn<Pick<{name: string; age: number; createdAt: Date; email: string}, 'name' | 'createdAt'>>(undefined, {
         strategy: 'mutate',
@@ -588,20 +456,14 @@ export const UTILITY_TYPES = {
       createBinaryDecoderFn(
         RT.pick(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date(), email: TF.string()}), ['name', 'createdAt'])
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [{name: 'John', createdAt: new Date('2000-08-06T02:13:00.000Z')}]}),
   },
   omit_properties: {
     title: 'Omit',
     description:
       "`Omit<{name; age; createdAt: Date; email}, 'email'>` removes the `email` key, resolving to the email-less shape `{name: string; age: number; createdAt: Date}` that the serializer sees across JSON and binary.",
-    serializeNotes: [
+    serializeNotes:
       'The kept `createdAt` Date round-trips via ISO string (JSON) / 8-byte float64 epoch (binary); the omitted `email` is absent from the resolved type and the wire.',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
-    ],
     mutateEncoder: () =>
       createJsonEncoderFn<Omit<{name: string; age: number; createdAt: Date; email: string}, 'email'>>(undefined, {
         strategy: 'mutate',
@@ -645,20 +507,14 @@ export const UTILITY_TYPES = {
       createBinaryDecoderFn(
         RT.omit(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date(), email: TF.string()}), ['email'])
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [{name: 'John', age: 30, createdAt: new Date('2000-08-06T02:13:00.000Z')}]}),
   },
   record_type: {
     title: 'Record',
     description:
       '`Record<string, Date>` resolves to an object with a `string` index signature whose values are Date, accepting arbitrary string keys and round-tripping each Date value, with the empty object as a boundary sample.',
-    serializeNotes: [
+    serializeNotes:
       'Each index-signature value is a Date — ISO string over JSON (revived `new Date`), 8-byte float64 epoch over binary; keys pass through unchanged.',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Record<string, Date>>(undefined, {strategy: 'direct'}),
@@ -674,10 +530,6 @@ export const UTILITY_TYPES = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(TF.date())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(TF.date())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(TF.date())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {

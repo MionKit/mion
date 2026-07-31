@@ -8,7 +8,6 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const NATIVE = {
@@ -19,7 +18,6 @@ export const NATIVE = {
     validateNotes: [
       'Must be an actual `Map` instance — a plain object, array, or `Set` is rejected.',
       'The value side reuses the atomic `number` check, so a `NaN` value is rejected (path `{key, failed: "mapValue"}`).',
-      'JSON Schema: native instance types (Map/Set/RegExp/…) are not JSON data and have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<Map<string, number>>(),
     standardSchema: () => createStandardSchema<Map<string, number>>(),
@@ -43,7 +41,6 @@ export const NATIVE = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<Map<string, number>>>(),
     validateSchema: () => createValidateFn(RT.map(TF.string(), TF.number())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Map<string, number>>(),
     validateReflect: () => {
       const v: Map<string, number> = new Map();
@@ -56,7 +53,6 @@ export const NATIVE = {
     getValidationErrors: () => createGetValidationErrorsFn<Map<string, number>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Map<string, number>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.map(TF.string(), TF.number())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Map<string, number>>(),
     getValidationErrorsReflect: () => {
       const v: Map<string, number> = new Map();
@@ -106,15 +102,12 @@ export const NATIVE = {
   set_string: {
     title: 'Set',
     description: 'A Set of strings validates via `v instanceof Set` plus iteration over `v.values()`.',
-    validateNotes: [
+    validateNotes:
       'Must be an actual `Set` instance — a plain object, array, or `Map` is rejected; each element is checked against the element type (set path is `{key, failed: "setKey"}`, where `key` is the iteration index).',
-      'JSON Schema: native instance types (Map/Set/RegExp/…) are not JSON data and have no schema INPUT spelling.',
-    ],
     validate: () => createValidateFn<Set<string>>(),
     standardSchema: () => createStandardSchema<Set<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Set<string>>>(),
     validateSchema: () => createValidateFn(RT.set(TF.string())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Set<string>>(),
     validateReflect: () => {
       const v: Set<string> = new Set();
@@ -127,7 +120,6 @@ export const NATIVE = {
     getValidationErrors: () => createGetValidationErrorsFn<Set<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Set<string>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.set(TF.string())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Set<string>>(),
     getValidationErrorsReflect: () => {
       const v: Set<string> = new Set();
@@ -184,13 +176,11 @@ export const NATIVE = {
     validateNotes: [
       'TS DIVERGENCE: Promise validation is a "thenable" check — any object with a `then: function` PASSES, even if it is not an actual `Promise` instance.',
       'The wrapped type T is NOT validated — the promise has not resolved yet. Use `Awaited<P>` if you have the resolved value and want to validate it.',
-      'JSON Schema: native instance types (Map/Set/RegExp/…) are not JSON data and have no schema INPUT spelling.',
     ],
     validate: () => createValidateFn<Promise<string>>(),
     standardSchema: () => createStandardSchema<Promise<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Promise<string>>>(),
     validateSchema: () => createValidateFn(RT.promise(TF.string())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Promise<string>>(),
     validateReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
@@ -203,7 +193,6 @@ export const NATIVE = {
     getValidationErrors: () => createGetValidationErrorsFn<Promise<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Promise<string>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.promise(TF.string())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Promise<string>>(),
     getValidationErrorsReflect: () => {
       const v: Promise<string> = Promise.resolve('x');
@@ -244,15 +233,12 @@ export const NATIVE = {
     title: 'Awaited',
     description:
       "TypeScript's built-in `Awaited<P>` utility resolves to the wrapped type, unwrapping the promise to its resolved type; tsgo resolves it at compile time, so this case lands as plain `string` in our cache and reuses the atomic string emit.",
-    validateNotes: [
+    validateNotes:
       '`Awaited<P>` is resolved at the type-checker layer to the resolved value type — `Awaited<Promise<string>>` becomes plain `string`. The validator is identical to the atomic-string emit; a real Promise does NOT satisfy it.',
-      'JSON Schema: unlike its NATIVE siblings this case IS spellable — the type resolves to plain `string`, so `{type: "string"}` spells it exactly and the jsonSchema form is filled.',
-    ],
     validate: () => createValidateFn<Awaited<Promise<string>>>(),
     standardSchema: () => createStandardSchema<Awaited<Promise<string>>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Awaited<Promise<string>>>>(),
     validateSchema: () => createValidateFn(TF.string()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string'})),
     deserializeValidate: () => deserializeValidate<Awaited<Promise<string>>>(),
     validateReflect: () => {
       const v: Awaited<Promise<string>> = 'hello';
@@ -265,7 +251,6 @@ export const NATIVE = {
     getValidationErrors: () => createGetValidationErrorsFn<Awaited<Promise<string>>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Awaited<Promise<string>>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Awaited<Promise<string>>>(),
     getValidationErrorsReflect: () => {
       const v: Awaited<Promise<string>> = 'hello';

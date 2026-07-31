@@ -1,7 +1,6 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import type {SerializationCase} from './types.ts';
 
 export const ATOMIC = {
@@ -23,10 +22,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.string()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.string()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.string()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'string'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'string'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'string'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'string'})),
     getTestData: () => ({values: ['hello', '', 'world', '', '你好', 'مرحبا', 'Здравствуйте', '🌍🚀✨']}),
   },
   number: {
@@ -47,10 +42,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({
       values: [
         0,
@@ -95,10 +86,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({values: [7]}),
     getBinaryByteSizes: () => [8],
   },
@@ -120,10 +107,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({values: [123456]}),
     getBinaryByteSizes: () => [8],
   },
@@ -146,10 +129,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({values: [Number.MAX_SAFE_INTEGER]}),
     getBinaryByteSizes: () => [8],
   },
@@ -172,10 +151,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({values: [3.14]}),
     getBinaryByteSizes: () => [8],
   },
@@ -198,10 +173,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     getTestData: () => ({values: [3.141592653589793]}),
     getBinaryByteSizes: () => [8],
   },
@@ -226,10 +197,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.number()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.number()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.number()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'number'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'number'})),
     // Binary writes float64, which preserves Infinity/NaN natively —
     // no conversion to null like JSON.stringify does.
     getBinaryTestData: () => ({
@@ -252,10 +219,8 @@ export const ATOMIC = {
     title: 'regexp',
     description:
       'Root `RegExp` round-trips across JSON and binary; samples cover various flag combinations (case-insensitive, global, anchored).',
-    serializeNotes: [
+    serializeNotes:
       'RegExp serializes to a `/source/flags` string on the JSON wire and is rebuilt with `new RegExp(...)` on decode; binary stores source and flags as separate strings.',
-      'JSON Schema: no schema input spelling for a RegExp instance (an instance type, not a JSON shape).',
-    ],
     mutateEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<RegExp>(undefined, {strategy: 'direct'}),
@@ -269,10 +234,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.regexp()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.regexp()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.regexp()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [/abc/, /xyz/i, /\d+/g, /^[a-z]+$/]}),
   },
   bigint: {
@@ -282,7 +243,6 @@ export const ATOMIC = {
     serializeNotes: [
       'JSON encodes bigint to a decimal string and rebuilds it with `BigInt(...)` on decode.',
       'Plain `bigint` takes the binary string-fallback path (variable length), so no fixed byte size is asserted; only a 64-bit-fitting bigint format brand would encode to a fixed 8 bytes.',
-      'JSON Schema: no schema input spelling for bigint (JSON has no bigint).',
     ],
     mutateEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<bigint>(undefined, {strategy: 'clone'}),
@@ -297,10 +257,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.bigInt()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.bigInt()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.bigInt()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     // Span zero, negative, and a value beyond 64 bits / Number.MAX_SAFE_INTEGER
     // to exercise the decimal-string transform across magnitudes and signs.
     getTestData: () => ({values: [1n, 0n, -1n, -123456789012345678901234567890n, 18446744073709551616n]}),
@@ -321,20 +277,14 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.boolean()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.boolean()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.boolean()),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'boolean'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'boolean'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'boolean'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'boolean'})),
     getTestData: () => ({values: [true, false]}),
   },
   any: {
     title: 'any',
     description:
       'Root `any` is serialized best-effort via raw JSON (no per-kind transform); samples are all JSON-natural values (primitives, null, nested object and array).',
-    serializeNotes: [
+    serializeNotes:
       'With no static type, `any` round-trips whatever JSON.stringify produces — the adapter only asserts a non-undefined string, not deep equality.',
-      'JSON Schema: no spelling recovers `any` — the always-true schema (`true` / `{}`) denotes `unknown`, a distinct kind.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'direct'}),
@@ -348,10 +298,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     roundTripBestEffort: true,
     getTestData: () => ({values: [42, 'hello', true, null, 0, -1, 1.1, {a: 1, b: 2}, [1, 2, 3, null]]}),
   },
@@ -359,10 +305,8 @@ export const ATOMIC = {
     title: 'any edge cases',
     description:
       'undefined / Date / BigInt are not natively JSON-encodable when the type is `any`, since no per-kind transform applies.',
-    serializeNotes: [
+    serializeNotes:
       'Because the static type is `any`, no Date/BigInt transform fires; undefined and bigint do not survive JSON, so the round-trip is best-effort (string-only assertion) rather than deep-equal.',
-      'JSON Schema: no spelling recovers `any` — the always-true schema (`true` / `{}`) denotes `unknown`, a distinct kind.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<any>(undefined, {strategy: 'direct'}),
@@ -376,10 +320,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.any()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.any()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.any()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     roundTripBestEffort: true,
     getTestData: () => ({values: [undefined, [undefined, 123, null], new Date('2000-08-06T02:13:00.000Z'), BigInt(1)]}),
   },
@@ -399,19 +339,13 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.literal(null)),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(null)),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(null)),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'null'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'null'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'null'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'null'})),
     getTestData: () => ({values: [null]}),
   },
   undefined: {
     title: 'undefined',
     description: 'Root `undefined` literal round-trips across JSON and binary.',
-    serializeNotes: [
+    serializeNotes:
       'JSON has no undefined, so the parsed value may arrive as null or missing; decode force-rebinds it back to undefined. Binary writes a marker byte and reconstructs undefined directly.',
-      'JSON Schema: no schema input spelling for undefined (JSON has no undefined; `const` covers only string/number/boolean/null).',
-    ],
     mutateEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<undefined>(undefined, {strategy: 'direct'}),
@@ -425,19 +359,13 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.literal(undefined)),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(undefined)),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(undefined)),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [undefined]}),
   },
   date: {
     title: 'date',
     description: 'Root `Date` round-trips across JSON and binary, returning a real Date instance on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes Date to an ISO string and revives it with `new Date(...)`; binary stores the epoch as a fixed 8-byte float64 of `getTime()`.',
-      'JSON Schema: no schema input spelling for a native Date instance — `format: date-time` recovers the string brand, not Date.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'direct'}),
@@ -451,10 +379,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.date()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.date()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
     // and a pre-1970 (negative epoch) date — all must survive the ISO/float64
     // round-trip without precision loss.
@@ -479,9 +403,6 @@ export const ATOMIC = {
     // `<Color>` is the named `KindEnum`. Same wire output, but structurally
     // distinct ids by design — so the serializer id-integrity check is skipped.
     idDivergent: true,
-    // Same divergence for the jsonSchema form: `{enum: [...]}` recovers the
-    // value-UNION, structurally distinct from the named `KindEnum` by design.
-    jsonSchemaIdDivergent: true,
     mutateEncoder: () => {
       enum Color {
         Red = 'red',
@@ -560,10 +481,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.enum({Red: 'red', Green: 'green', Blue: 'blue'})),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({enum: ['red', 'green', 'blue']})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({enum: ['red', 'green', 'blue']})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({enum: ['red', 'green', 'blue']})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({enum: ['red', 'green', 'blue']})),
     getTestData: () => {
       enum Color {
         Red = 'red',
@@ -577,7 +494,6 @@ export const ATOMIC = {
     title: 'symbol',
     description:
       'symbol at root is unsupported because identity does not survive JSON or binary round-trips, so the factory is rendered as alwaysThrow.',
-    serializeNotes: 'JSON Schema: no schema input spelling for symbol (not a JSON-representable kind).',
     mutateEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<symbol>(undefined, {strategy: 'direct'}),
@@ -593,10 +509,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.symbol()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.symbol()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.symbol()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -623,23 +535,14 @@ export const ATOMIC = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
-    // Unlike the value-first builder, the jsonSchema form CAN spell this type:
-    // a bare `{type: 'object'}` (no properties/additionalProperties) recovers
-    // exactly the TS `object` primitive.
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({type: 'object'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({type: 'object'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({type: 'object'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({type: 'object'})),
     roundTripBestEffort: true,
     getTestData: () => ({values: [{a: 42, b: 'hello'}, null]}),
   },
   void: {
     title: 'void',
     description: 'Root `void` round-trips across JSON and binary with an undefined sample, decoding back to undefined.',
-    serializeNotes: [
+    serializeNotes:
       'JSON has no undefined, so the parsed value may arrive as null or missing and decode force-rebinds it to undefined; binary writes a marker byte and reconstructs undefined.',
-      'JSON Schema: no schema input spelling for void (JSON has no undefined).',
-    ],
     mutateEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<void>(undefined, {strategy: 'direct'}),
@@ -653,10 +556,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.void()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.void()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.void()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [undefined]}),
   },
   never: {
@@ -676,11 +575,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.never()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.never()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.never()),
-    // The 2020-12 boolean `false` schema denotes never — same alwaysThrow factory.
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema(false)),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema(false)),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema(false)),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema(false)),
     factoryThrows: true,
     getTestData: () => ({values: []}),
   },
@@ -700,10 +594,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.literal('hello')),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal('hello')),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal('hello')),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({const: 'hello'})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({const: 'hello'})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({const: 'hello'})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({const: 'hello'})),
     getTestData: () => ({values: ['hello']}),
   },
   literal_number: {
@@ -722,10 +612,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.literal(42)),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(42)),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(42)),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({const: 42})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({const: 42})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({const: 42})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({const: 42})),
     getTestData: () => ({values: [42]}),
   },
   literal_boolean: {
@@ -744,10 +630,6 @@ export const ATOMIC = {
     schemaDecoder: () => createJsonDecoderFn(RT.literal(true)),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.literal(true)),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.literal(true)),
-    jsonSchemaEncoder: () => createJsonEncoderFn(jsonSchema({const: true})),
-    jsonSchemaDecoder: () => createJsonDecoderFn(jsonSchema({const: true})),
-    jsonSchemaBinaryEncoder: () => createBinaryEncoderFn(jsonSchema({const: true})),
-    jsonSchemaBinaryDecoder: () => createBinaryDecoderFn(jsonSchema({const: true})),
     getTestData: () => ({values: [true]}),
   },
 } as const satisfies Record<string, SerializationCase>;

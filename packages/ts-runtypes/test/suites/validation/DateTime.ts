@@ -32,7 +32,6 @@ export const DATETIME = {
     validateNotes: [
       'Must be an actual Date instance (instanceof Date).',
       'Invalid Date instances are rejected — e.g., `new Date("not-a-date")` or `new Date(NaN)`, whose `.getTime()` returns NaN.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
     ],
     validate: () => createValidateFn<Date>(),
     standardSchema: () => createStandardSchema<Date>(),
@@ -49,7 +48,6 @@ export const DATETIME = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<Date>>(),
     validateSchema: () => createValidateFn(TF.date()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Date>(),
     validateReflect: () => {
       const v: Date = new Date();
@@ -62,7 +60,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Date>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Date>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Date>(),
     getValidationErrorsReflect: () => {
       const v: Date = new Date();
@@ -90,15 +87,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.Instant instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.Instant instance (instanceof).',
     validate: () => createValidateFn<Temporal.Instant>(),
     standardSchema: () => createStandardSchema<Temporal.Instant>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.Instant>>(),
     validateSchema: () => createValidateFn(TFT.instant()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.Instant>(),
     validateReflect: () => {
       const v: Temporal.Instant = T.Instant.from('2020-01-15T10:30:00Z');
@@ -111,7 +104,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.Instant>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.Instant>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.instant()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.Instant>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.Instant = T.Instant.from('2020-01-15T10:30:00Z');
@@ -139,15 +131,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.ZonedDateTime instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.ZonedDateTime instance (instanceof).',
     validate: () => createValidateFn<Temporal.ZonedDateTime>(),
     standardSchema: () => createStandardSchema<Temporal.ZonedDateTime>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.ZonedDateTime>>(),
     validateSchema: () => createValidateFn(TFT.zonedDateTime()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.ZonedDateTime>(),
     validateReflect: () => {
       const v: Temporal.ZonedDateTime = T.ZonedDateTime.from('2020-01-15T10:30:00[UTC]');
@@ -160,7 +148,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.ZonedDateTime>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.ZonedDateTime>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.zonedDateTime()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.ZonedDateTime>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.ZonedDateTime = T.ZonedDateTime.from('2020-01-15T10:30:00[UTC]');
@@ -188,15 +175,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.PlainDate instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.PlainDate instance (instanceof).',
     validate: () => createValidateFn<Temporal.PlainDate>(),
     standardSchema: () => createStandardSchema<Temporal.PlainDate>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.PlainDate>>(),
     validateSchema: () => createValidateFn(TFT.plainDate()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.PlainDate>(),
     validateReflect: () => {
       const v: Temporal.PlainDate = T.PlainDate.from('2020-08-24');
@@ -209,7 +192,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.PlainDate>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.PlainDate>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDate()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.PlainDate>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.PlainDate = T.PlainDate.from('2020-08-24');
@@ -237,15 +219,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.PlainTime instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.PlainTime instance (instanceof).',
     validate: () => createValidateFn<Temporal.PlainTime>(),
     standardSchema: () => createStandardSchema<Temporal.PlainTime>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.PlainTime>>(),
     validateSchema: () => createValidateFn(TFT.plainTime()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.PlainTime>(),
     validateReflect: () => {
       const v: Temporal.PlainTime = T.PlainTime.from('19:39:09');
@@ -258,7 +236,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.PlainTime>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.PlainTime>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainTime()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.PlainTime>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.PlainTime = T.PlainTime.from('19:39:09');
@@ -286,15 +263,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.PlainDateTime instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.PlainDateTime instance (instanceof).',
     validate: () => createValidateFn<Temporal.PlainDateTime>(),
     standardSchema: () => createStandardSchema<Temporal.PlainDateTime>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.PlainDateTime>>(),
     validateSchema: () => createValidateFn(TFT.plainDateTime()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.PlainDateTime>(),
     validateReflect: () => {
       const v: Temporal.PlainDateTime = T.PlainDateTime.from('1995-12-07T15:00:00');
@@ -307,7 +280,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.PlainDateTime>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.PlainDateTime>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainDateTime()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.PlainDateTime>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.PlainDateTime = T.PlainDateTime.from('1995-12-07T15:00:00');
@@ -335,15 +307,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.PlainYearMonth instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.PlainYearMonth instance (instanceof).',
     validate: () => createValidateFn<Temporal.PlainYearMonth>(),
     standardSchema: () => createStandardSchema<Temporal.PlainYearMonth>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.PlainYearMonth>>(),
     validateSchema: () => createValidateFn(TFT.plainYearMonth()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.PlainYearMonth>(),
     validateReflect: () => {
       const v: Temporal.PlainYearMonth = T.PlainYearMonth.from('2020-10');
@@ -356,7 +324,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.PlainYearMonth>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.PlainYearMonth>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainYearMonth()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.PlainYearMonth>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.PlainYearMonth = T.PlainYearMonth.from('2020-10');
@@ -387,15 +354,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.PlainMonthDay instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.PlainMonthDay instance (instanceof).',
     validate: () => createValidateFn<Temporal.PlainMonthDay>(),
     standardSchema: () => createStandardSchema<Temporal.PlainMonthDay>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.PlainMonthDay>>(),
     validateSchema: () => createValidateFn(TFT.plainMonthDay()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.PlainMonthDay>(),
     validateReflect: () => {
       const v: Temporal.PlainMonthDay = T.PlainMonthDay.from('07-14');
@@ -408,7 +371,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.PlainMonthDay>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.PlainMonthDay>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.plainMonthDay()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.PlainMonthDay>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.PlainMonthDay = T.PlainMonthDay.from('07-14');
@@ -436,15 +398,11 @@ export const DATETIME = {
     // Temporal types are validated by native identity; DataOnly's structural
     // object projection mangles them, so createValidateFn<DataOnly<T>>() diverges.
     dataOnlyDivergent: true,
-    validateNotes: [
-      'Must be a Temporal.Duration instance (instanceof).',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling (format "date-time" recovers the ISO STRING brand instead).',
-    ],
+    validateNotes: 'Must be a Temporal.Duration instance (instanceof).',
     validate: () => createValidateFn<Temporal.Duration>(),
     standardSchema: () => createStandardSchema<Temporal.Duration>(),
     validateDataOnly: () => createValidateFn<DataOnly<Temporal.Duration>>(),
     validateSchema: () => createValidateFn(TFT.duration()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Temporal.Duration>(),
     validateReflect: () => {
       const v: Temporal.Duration = T.Duration.from('P1Y2M10DT2H30M');
@@ -457,7 +415,6 @@ export const DATETIME = {
     getValidationErrors: () => createGetValidationErrorsFn<Temporal.Duration>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Temporal.Duration>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TFT.duration()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Temporal.Duration>(),
     getValidationErrorsReflect: () => {
       const v: Temporal.Duration = T.Duration.from('P1Y2M10DT2H30M');

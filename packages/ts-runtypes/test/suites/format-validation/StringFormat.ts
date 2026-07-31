@@ -16,7 +16,6 @@ import {
   registerFormatPattern,
   type DataOnly,
 } from '@ts-runtypes/core';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 // Custom patterns registered once at module load — the call sites the
@@ -89,11 +88,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{maxLength: 5}>>>(),
     validateSchema: () => createValidateFn(TF.string({maxLength: 5})),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', maxLength: 5})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{maxLength: 5}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{maxLength: 5}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({maxLength: 5})),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', maxLength: 5})),
     mockType: () => createMockDataFn<TF.String<{maxLength: 5}>>(),
     getSamples: () => ({valid: ['', 'hello'], invalid: ['hello!', 42]}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 5}, null],
@@ -128,11 +125,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{minLength: 3}>>>(),
     validateSchema: () => createValidateFn(TF.string({minLength: 3})),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', minLength: 3})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{minLength: 3}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{minLength: 3}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({minLength: 3})),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', minLength: 3})),
     mockType: () => createMockDataFn<TF.String<{minLength: 3}>>(),
     getSamples: () => ({valid: ['abc', 'abcd'], invalid: ['ab', '']}),
     expectedFormatErrors: () => [
@@ -143,10 +138,7 @@ export const STRING_FORMAT = {
   string_length: {
     title: 'String length',
     description: 'stringFormat requiring an exact length that rejects anything not exactly `length` chars.',
-    validateNotes: [
-      'Only length 4 passes (`abcd`); both 3 chars (`abc`) and 5 chars (`abcde`) fail with `val` 4 (`length`).',
-      'JSON Schema: no length keyword; minLength/maxLength 4/4 would recover a {minLength, maxLength} brand, not the exact {length} brand.',
-    ],
+    validateNotes: 'Only length 4 passes (`abcd`); both 3 chars (`abc`) and 5 chars (`abcde`) fail with `val` 4 (`length`).',
     validate: () => createValidateFn<TF.String<{length: 4}>>(),
     standardSchema: () => createStandardSchema<TF.String<{length: 4}>>(),
     validateReflect: () => {
@@ -173,11 +165,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{length: 4}>>>(),
     validateSchema: () => createValidateFn(TF.string({length: 4})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{length: 4}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{length: 4}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({length: 4})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{length: 4}>>(),
     getSamples: () => ({valid: ['abcd'], invalid: ['abc', 'abcde']}),
     expectedFormatErrors: () => [
@@ -216,11 +206,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{minLength: 2; maxLength: 4}>>>(),
     validateSchema: () => createValidateFn(TF.string({minLength: 2, maxLength: 4})),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', minLength: 2, maxLength: 4})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{minLength: 2; maxLength: 4}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{minLength: 2; maxLength: 4}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({minLength: 2, maxLength: 4})),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', minLength: 2, maxLength: 4})),
     mockType: () => createMockDataFn<TF.String<{minLength: 2; maxLength: 4}>>(),
     getSamples: () => ({valid: ['ab', 'abcd'], invalid: ['a', 'abcde']}),
     expectedFormatErrors: () => [
@@ -235,7 +223,6 @@ export const STRING_FORMAT = {
       'Each character must be in `0123456789abcdef`; `deadbeef` and `0042` pass.',
       '`xyz` fails with `val` `Invalid characters`.',
       'The space in `dead beef` is not in the set, so it also fails. The empty string passes (no chars to check).',
-      'JSON Schema: the allowedChars param has no schema spelling (params beyond minLength/maxLength/pattern cannot be spelled).',
     ],
     validate: () => createValidateFn<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>(),
@@ -263,12 +250,10 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedChars: {val: '0123456789abcdef'}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({allowedChars: {val: '0123456789abcdef'}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedChars: {val: '0123456789abcdef'}}>>(),
     getSamples: () => ({valid: ['deadbeef', '0042'], invalid: ['xyz', 'dead beef', '']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid characters'}, null, null],
@@ -276,10 +261,8 @@ export const STRING_FORMAT = {
   string_allowedChars_ignoreCase: {
     title: 'String allowedChars ignoreCase',
     description: 'stringFormat allowedChars with `ignoreCase` so both cases of the `abc` set are accepted.',
-    validateNotes: [
+    validateNotes:
       'Case-folded: `ABC` and `aAbBcC` pass even though only lowercase `abc` was listed. `abcd` fails with `val` `Invalid characters` (`d` not in the set).',
-      'JSON Schema: the allowedChars param has no schema spelling (params beyond minLength/maxLength/pattern cannot be spelled).',
-    ],
     validate: () => createValidateFn<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>(),
     validateReflect: () => {
@@ -307,12 +290,10 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedChars: {val: 'abc', ignoreCase: true}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({allowedChars: {val: 'abc', ignoreCase: true}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedChars: {val: 'abc'; ignoreCase: true}}>>(),
     getSamples: () => ({valid: ['ABC', 'aAbBcC'], invalid: ['abcd']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid characters'}],
@@ -320,10 +301,8 @@ export const STRING_FORMAT = {
   string_allowedChars_literal: {
     title: 'String allowedChars literal',
     description: 'stringFormat allowedChars where regex-special chars are matched literally so only `.` and `-` pass.',
-    validateNotes: [
+    validateNotes:
       'The set `.-` is treated as literal chars (NOT a regex range), so `...---` passes. `a` fails with `val` `Invalid characters`.',
-      'JSON Schema: the allowedChars param has no schema spelling (params beyond minLength/maxLength/pattern cannot be spelled).',
-    ],
     validate: () => createValidateFn<TF.String<{allowedChars: {val: '.-'}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedChars: {val: '.-'}}>>(),
     validateReflect: () => {
@@ -350,11 +329,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedChars: {val: '.-'}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedChars: {val: '.-'}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{allowedChars: {val: '.-'}}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{allowedChars: {val: '.-'}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({allowedChars: {val: '.-'}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedChars: {val: '.-'}}>>(),
     getSamples: () => ({valid: ['...---'], invalid: ['a']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid characters'}],
@@ -362,10 +339,8 @@ export const STRING_FORMAT = {
   string_disallowedChars: {
     title: 'String disallowedChars',
     description: 'stringFormat blacklisting the `disallowedChars` set (`!@#`) so any occurrence rejects the string.',
-    validateNotes: [
+    validateNotes:
       'A string passes only if it contains none of `!`, `@`, `#`; `hello` passes. `hi!` and `a@b` each fail with `val` `Invalid characters`.',
-      'JSON Schema: the disallowedChars param has no schema spelling (params beyond minLength/maxLength/pattern cannot be spelled).',
-    ],
     validate: () => createValidateFn<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>(),
     validateReflect: () => {
@@ -393,12 +368,10 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>>(),
     validateSchema: () => createValidateFn(TF.string({disallowedChars: {val: '!@#', mockSamples: 'abc'}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({disallowedChars: {val: '!@#', mockSamples: 'abc'}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{disallowedChars: {val: '!@#'; mockSamples: 'abc'}}>>(),
     getSamples: () => ({valid: ['hello'], invalid: ['hi!', 'a@b']}),
     expectedFormatErrors: () => [
@@ -413,7 +386,6 @@ export const STRING_FORMAT = {
       'The entire string must equal one listed value; `red` and `blue` pass.',
       '`yellow` (not listed) fails with `val` `Invalid value`.',
       'Match is case-sensitive (`RED` fails) and whole-string (`redgreen` fails — no substring/concat).',
-      'JSON Schema: the enum keyword recovers a literal union, not the allowedValues string brand; the allowedValues param has no schema spelling.',
     ],
     validate: () => createValidateFn<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>(),
@@ -442,12 +414,10 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedValues: {val: ['red', 'green', 'blue']}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({allowedValues: {val: ['red', 'green', 'blue']}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedValues: {val: ['red', 'green', 'blue']}}>>(),
     getSamples: () => ({valid: ['red', 'blue'], invalid: ['yellow', 'RED', 'redgreen']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid value'}, null, null],
@@ -455,10 +425,8 @@ export const STRING_FORMAT = {
   string_allowedValues_ignoreCase: {
     title: 'String allowedValues ignoreCase',
     description: 'stringFormat allowedValues with `ignoreCase` so the fixed set matches regardless of case.',
-    validateNotes: [
+    validateNotes:
       'Case-folded equality: `RED` and `Green` pass. `blue` (not in the `red`/`green` set) fails with `val` `Invalid value`.',
-      'JSON Schema: the allowedValues/ignoreCase params have no schema spelling (enum recovers a literal union, not this brand).',
-    ],
     validate: () => createValidateFn<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>(),
     validateReflect: () => {
@@ -486,14 +454,12 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedValues: {val: ['red', 'green'], ignoreCase: true}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({allowedValues: {val: ['red', 'green'], ignoreCase: true}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedValues: {val: ['red', 'green']; ignoreCase: true}}>>(),
     getSamples: () => ({valid: ['RED', 'Green'], invalid: ['blue']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid value'}],
@@ -501,10 +467,8 @@ export const STRING_FORMAT = {
   string_allowedValues_escaped: {
     title: 'String allowedValues literal',
     description: 'stringFormat allowedValues where regex-special chars in the set are matched literally.',
-    validateNotes: [
+    validateNotes:
       'Listed values `a.b` and `c+d` match literally (the `.` and `+` are not regex metacharacters), so they pass. `axb` and `ccd` each fail with `val` `Invalid value`.',
-      'JSON Schema: the allowedValues param has no schema spelling (enum recovers a literal union, not this brand).',
-    ],
     validate: () => createValidateFn<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>(),
     validateReflect: () => {
@@ -531,11 +495,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedValues: {val: ['a.b', 'c+d']}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string({allowedValues: {val: ['a.b', 'c+d']}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedValues: {val: ['a.b', 'c+d']}}>>(),
     getSamples: () => ({valid: ['a.b', 'c+d'], invalid: ['axb', 'ccd']}),
     expectedFormatErrors: () => [
@@ -546,10 +508,8 @@ export const STRING_FORMAT = {
   string_disallowedValues: {
     title: 'String disallowedValues',
     description: 'stringFormat blacklisting whole values (`admin`/`root`) so any other string passes.',
-    validateNotes: [
+    validateNotes:
       'A string passes unless it exactly equals a blacklisted value; `alice` passes. `admin` and `root` each fail with `val` `Invalid value`.',
-      'JSON Schema: the disallowedValues param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.String<{disallowedValues: {val: ['admin', 'root']; mockSamples: ['alice', 'bob']}}>>(),
     standardSchema: () =>
       createStandardSchema<TF.String<{disallowedValues: {val: ['admin', 'root']; mockSamples: ['alice', 'bob']}}>>(),
@@ -581,7 +541,6 @@ export const STRING_FORMAT = {
       createValidateFn<DataOnly<TF.String<{disallowedValues: {val: ['admin', 'root']; mockSamples: ['alice', 'bob']}}>>>(),
     validateSchema: () =>
       createValidateFn(TF.string({disallowedValues: {val: ['admin', 'root'], mockSamples: ['alice', 'bob']}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TF.String<{disallowedValues: {val: ['admin', 'root']; mockSamples: ['alice', 'bob']}}>>(),
     getValidationErrorsDataOnly: () =>
@@ -590,7 +549,6 @@ export const STRING_FORMAT = {
       >(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({disallowedValues: {val: ['admin', 'root'], mockSamples: ['alice', 'bob']}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{disallowedValues: {val: ['admin', 'root']; mockSamples: ['alice', 'bob']}}>>(),
     getSamples: () => ({valid: ['alice'], invalid: ['admin', 'root']}),
     expectedFormatErrors: () => [
@@ -601,10 +559,8 @@ export const STRING_FORMAT = {
   string_customErrorMessage: {
     title: 'String custom errorMessage',
     description: 'stringFormat allowedValues with a custom `errorMessage` that surfaces as the format error `val` on failure.',
-    validateNotes: [
+    validateNotes:
       '`a` and `b` pass. `c` fails with `val` `pick a or b` — the custom `errorMessage` replaces the default `Invalid value`.',
-      'JSON Schema: the allowedValues/errorMessage params have no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>(),
     standardSchema: () => createStandardSchema<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>(),
     validateReflect: () => {
@@ -633,14 +589,12 @@ export const STRING_FORMAT = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>>(),
     validateSchema: () => createValidateFn(TF.string({allowedValues: {val: ['a', 'b'], errorMessage: 'pick a or b'}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({allowedValues: {val: ['a', 'b'], errorMessage: 'pick a or b'}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.String<{allowedValues: {val: ['a', 'b']; errorMessage: 'pick a or b'}}>>(),
     getSamples: () => ({valid: ['a', 'b'], invalid: ['c']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'pick a or b'}],
@@ -654,7 +608,6 @@ export const STRING_FORMAT = {
       'Only ASCII letters pass; `Hello` and `abcXYZ` pass.',
       'A digit (`hello1`) or space (`hi there`) fails with `val` `Invalid pattern`.',
       'The empty string passes (the pattern allows zero letters).',
-      'JSON Schema: no format keyword for Alpha, and the sample-less pattern keyword cannot recover its mockSamples-bearing baked pattern.',
     ],
     validate: () => createValidateFn<TF.Alpha>(),
     standardSchema: () => createStandardSchema<TF.Alpha>(),
@@ -682,11 +635,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Alpha>>(),
     validateSchema: () => createValidateFn(TF.alpha()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Alpha>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Alpha>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.alpha()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Alpha>(),
     getSamples: () => ({valid: ['Hello', 'abcXYZ'], invalid: ['hello1', 'hi there', '']}),
     expectedFormatErrors: () => [{name: 'stringFormat', val: 'Invalid pattern'}, null, null],
@@ -694,10 +645,8 @@ export const STRING_FORMAT = {
   alphaNumeric: {
     title: 'AlphaNumeric',
     description: 'TF.AlphaNumeric (stringFormat with a baked letters+digits pattern) that rejects everything else.',
-    validateNotes: [
+    validateNotes:
       'Letters and digits pass (`abc123`, `ABC`, `123`); a hyphen (`a-b`) or space (`a b`) fails with `val` `Invalid pattern`.',
-      'JSON Schema: no format keyword for AlphaNumeric, and the sample-less pattern keyword cannot recover its mockSamples-bearing baked pattern.',
-    ],
     validate: () => createValidateFn<TF.AlphaNumeric>(),
     standardSchema: () => createStandardSchema<TF.AlphaNumeric>(),
     validateReflect: () => {
@@ -724,11 +673,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.AlphaNumeric>>(),
     validateSchema: () => createValidateFn(TF.alphaNumeric()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.AlphaNumeric>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.AlphaNumeric>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.alphaNumeric()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.AlphaNumeric>(),
     getSamples: () => ({valid: ['abc123', 'ABC', '123'], invalid: ['a-b', 'a b']}),
     expectedFormatErrors: () => [
@@ -739,10 +686,8 @@ export const STRING_FORMAT = {
   numeric: {
     title: 'Numeric',
     description: 'TF.Numeric (stringFormat with a baked digits-only pattern) that rejects non-digit chars.',
-    validateNotes: [
+    validateNotes:
       'Only digit chars pass (`12345`, `007` — leading zeros allowed since it is a string). A decimal point (`12.3`) or letter (`12a`) fails with `val` `Invalid pattern`.',
-      'JSON Schema: no format keyword for Numeric, and the sample-less pattern keyword cannot recover its mockSamples-bearing baked pattern.',
-    ],
     validate: () => createValidateFn<TF.Numeric>(),
     standardSchema: () => createStandardSchema<TF.Numeric>(),
     validateReflect: () => {
@@ -769,11 +714,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Numeric>>(),
     validateSchema: () => createValidateFn(TF.numeric()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Numeric>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Numeric>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.numeric()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Numeric>(),
     getSamples: () => ({valid: ['12345', '007'], invalid: ['12.3', '12a']}),
     expectedFormatErrors: () => [
@@ -784,10 +727,8 @@ export const STRING_FORMAT = {
   alpha_withLength: {
     title: 'Alpha with maxLength',
     description: 'TF.Alpha carrying a `maxLength` param that enforces letters-only AND an inclusive upper-length bound.',
-    validateNotes: [
+    validateNotes:
       '`abc` (3 letters) passes. `abcd` exceeds the bound and fails with `val` 3 (`maxLength`); `a1` is within length but the digit fails the pattern with `val` `Invalid pattern`.',
-      'JSON Schema: no format keyword for Alpha; its mockSamples-bearing baked pattern has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.Alpha<{maxLength: 3}>>(),
     standardSchema: () => createStandardSchema<TF.Alpha<{maxLength: 3}>>(),
     validateReflect: () => {
@@ -814,11 +755,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Alpha<{maxLength: 3}>>>(),
     validateSchema: () => createValidateFn(TF.alpha({maxLength: 3})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Alpha<{maxLength: 3}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Alpha<{maxLength: 3}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.alpha({maxLength: 3})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Alpha<{maxLength: 3}>>(),
     getSamples: () => ({valid: ['abc'], invalid: ['abcd', 'a1']}),
     expectedFormatErrors: () => [
@@ -829,10 +768,8 @@ export const STRING_FORMAT = {
   lowercase_validate: {
     title: 'Lowercase',
     description: 'TF.Lowercase (transformer-only `lowercase` flag) that validate treats as a plain string.',
-    validateNotes: [
+    validateNotes:
       'The lowercase transform applies only via createFormatTransformFn, NOT validate — so ANY string passes regardless of case (`already lower` AND `HasUpper` pass). Only a non-string (42) fails, via the typeof gate.',
-      'JSON Schema: the lowercase transform param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.Lowercase>(),
     standardSchema: () => createStandardSchema<TF.Lowercase>(),
     validateReflect: () => {
@@ -859,11 +796,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Lowercase>>(),
     validateSchema: () => createValidateFn(TF.lowercase()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Lowercase>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Lowercase>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.lowercase()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Lowercase>(),
     getSamples: () => ({valid: ['already lower', 'HasUpper'], invalid: [42]}),
     expectedFormatErrors: () => [null],
@@ -904,11 +839,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.UUIDv4>>(),
     validateSchema: () => createValidateFn(TF.uuidv4()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'uuid'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.UUIDv4>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UUIDv4>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uuidv4()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'uuid'})),
     mockType: () => createMockDataFn<TF.UUIDv4>(),
     getSamples: () => ({valid: [V4], invalid: [V7, 'not-a-uuid', '', V4.replace(/-/g, ''), 123]}),
     expectedFormatErrors: () => [{name: 'uuid', val: '4'}, {name: 'uuid', val: '4'}, null, null, null],
@@ -919,7 +852,6 @@ export const STRING_FORMAT = {
     validateNotes: [
       'The version nibble must be `7`; a valid v4 UUID fails with `val` `7`.',
       'Malformed input is also rejected: a wrong-length UUID, a non-hex character (`g`), a wrong-version-nibble form, the empty string, and a non-string (123) all fail.',
-      'JSON Schema: the uuid format keyword recovers TF.UUIDv4; no keyword pins UUID version 7.',
     ],
     validate: () => createValidateFn<TF.UUIDv7>(),
     standardSchema: () => createStandardSchema<TF.UUIDv7>(),
@@ -947,11 +879,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.UUIDv7>>(),
     validateSchema: () => createValidateFn(TF.uuidv7()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.UUIDv7>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UUIDv7>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uuidv7()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.UUIDv7>(),
     getSamples: () => ({
       valid: [V7],
@@ -995,11 +925,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringDate>>(),
     validateSchema: () => createValidateFn(TF.stringDate()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'date'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringDate>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'date'})),
     mockType: () => createMockDataFn<TF.StringDate>(),
     getSamples: () => ({
       valid: ['2024-02-29', '2026-05-28', '0001-01-01'],
@@ -1010,10 +938,8 @@ export const STRING_FORMAT = {
   date_DMY: {
     title: 'String date DMY',
     description: 'TF.StringDate with the `DD-MM-YYYY` layout using day-first ordering plus calendar validity.',
-    validateNotes: [
+    validateNotes:
       'Layout is `DD-MM-YYYY` (format error `val` `DD-MM-YYYY`); `29-02-2024` passes. An ISO-ordered string (`2024-02-29`) fails the layout, and `31-04-2024` fails calendar validity (April has 30 days).',
-      'JSON Schema: the date format keyword recovers the bare ISO TF.StringDate; a custom layout param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
     validateReflect: () => {
@@ -1040,11 +966,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringDate<{format: 'DD-MM-YYYY'}>>>(),
     validateSchema: () => createValidateFn(TF.stringDate({format: 'DD-MM-YYYY'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'DD-MM-YYYY'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'DD-MM-YYYY'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringDate<{format: 'DD-MM-YYYY'}>>(),
     getSamples: () => ({valid: ['29-02-2024'], invalid: ['2024-02-29', '31-04-2024']}),
     expectedFormatErrors: () => [
@@ -1055,10 +979,8 @@ export const STRING_FORMAT = {
   date_YM: {
     title: 'String date YM',
     description: 'TF.StringDate with the `YYYY-MM` layout (year-month, no day component).',
-    validateNotes: [
+    validateNotes:
       'Layout is `YYYY-MM` (format error `val` `YYYY-MM`); `2024-02` passes. Month 13 (`2024-13`) fails, and supplying a day (`2024-02-29`) fails the layout.',
-      'JSON Schema: the date format keyword recovers the bare ISO TF.StringDate; a custom layout param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringDate<{format: 'YYYY-MM'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'YYYY-MM'}>>(),
     validateReflect: () => {
@@ -1085,11 +1007,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringDate<{format: 'YYYY-MM'}>>>(),
     validateSchema: () => createValidateFn(TF.stringDate({format: 'YYYY-MM'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringDate<{format: 'YYYY-MM'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'YYYY-MM'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'YYYY-MM'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringDate<{format: 'YYYY-MM'}>>(),
     getSamples: () => ({valid: ['2024-02'], invalid: ['2024-13', '2024-02-29']}),
     expectedFormatErrors: () => [
@@ -1100,10 +1020,8 @@ export const STRING_FORMAT = {
   date_MD: {
     title: 'String date MD',
     description: 'TF.StringDate with the `MM-DD` layout (month-day, no year component).',
-    validateNotes: [
+    validateNotes:
       'Layout is `MM-DD` (format error `val` `MM-DD`); `02-29` passes. Month 13 (`13-01`) fails, as does a day-overflow (`02-30`, February has no 30th).',
-      'JSON Schema: the date format keyword recovers the bare ISO TF.StringDate; a custom layout param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringDate<{format: 'MM-DD'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'MM-DD'}>>(),
     validateReflect: () => {
@@ -1130,11 +1048,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringDate<{format: 'MM-DD'}>>>(),
     validateSchema: () => createValidateFn(TF.stringDate({format: 'MM-DD'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringDate<{format: 'MM-DD'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'MM-DD'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDate({format: 'MM-DD'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringDate<{format: 'MM-DD'}>>(),
     getSamples: () => ({valid: ['02-29'], invalid: ['13-01', '02-30']}),
     expectedFormatErrors: () => [
@@ -1145,10 +1061,8 @@ export const STRING_FORMAT = {
   date_minMax_absolute: {
     title: 'String date min/max',
     description: 'TF.StringDate with inclusive absolute `min`/`max` date bounds, accepting dates within [`min`, `max`].',
-    validateNotes: [
+    validateNotes:
       'Bounds `2020-01-01`..`2020-12-31` are inclusive — both endpoints pass. `2019-12-31` fails on `min` (formatPathTail `min`); `2021-01-01` fails on `max` (formatPathTail `max`).',
-      'JSON Schema: the date format keyword recovers the bare ISO TF.StringDate; min/max date bounds have no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>(),
     standardSchema: () => createStandardSchema<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>(),
     validateReflect: () => {
@@ -1177,14 +1091,12 @@ export const STRING_FORMAT = {
     validateDataOnly: () =>
       createValidateFn<DataOnly<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>>(),
     validateSchema: () => createValidateFn(TF.stringDate({format: 'YYYY-MM-DD', min: '2020-01-01', max: '2020-12-31'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.stringDate({format: 'YYYY-MM-DD', min: '2020-01-01', max: '2020-12-31'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     // mockType must respect the bounds — assertMockType re-validates every
     // generated value through validate, so an out-of-range mock would fail.
     mockType: () => createMockDataFn<TF.StringDate<{format: 'YYYY-MM-DD'; min: '2020-01-01'; max: '2020-12-31'}>>(),
@@ -1233,11 +1145,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringTime>>(),
     validateSchema: () => createValidateFn(TF.stringTime()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'time'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringTime>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringTime>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringTime()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'time'})),
     mockType: () => createMockDataFn<TF.StringTime>(),
     getSamples: () => ({
       valid: ['12:30:45Z', '12:30:45.123Z', '12:30:45+05:30', '00:00:00-08:00'],
@@ -1252,10 +1162,8 @@ export const STRING_FORMAT = {
   time_HHmmss: {
     title: 'String time HHmmss',
     description: 'TF.StringTime with the fixed `HH:mm:ss` layout (no tz, no milliseconds).',
-    validateNotes: [
+    validateNotes:
       '`23:59:59` passes. Out-of-range fields (`99:99:99`) fail with `val` `HH:mm:ss`; a missing seconds component (`23:59`) and hour 24 (`24:00:00`) are also rejected.',
-      'JSON Schema: the time format keyword recovers the bare ISO TF.StringTime; a custom layout param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringTime<{format: 'HH:mm:ss'}>>(),
     standardSchema: () => createStandardSchema<TF.StringTime<{format: 'HH:mm:ss'}>>(),
     validateReflect: () => {
@@ -1282,11 +1190,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringTime<{format: 'HH:mm:ss'}>>>(),
     validateSchema: () => createValidateFn(TF.stringTime({format: 'HH:mm:ss'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringTime<{format: 'HH:mm:ss'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringTime<{format: 'HH:mm:ss'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringTime({format: 'HH:mm:ss'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringTime<{format: 'HH:mm:ss'}>>(),
     getSamples: () => ({valid: ['23:59:59'], invalid: ['99:99:99', '23:59', '24:00:00']}),
     expectedFormatErrors: () => [{name: 'time', val: 'HH:mm:ss'}, null, null],
@@ -1294,10 +1200,8 @@ export const STRING_FORMAT = {
   time_HHmmss_ms: {
     title: 'String time with ms',
     description: 'TF.StringTime with the `HH:mm:ss[.mmm]` layout where milliseconds are optional and capped at 3 digits.',
-    validateNotes: [
+    validateNotes:
       'Milliseconds are optional — both `12:30:45` and `12:30:45.999` pass. A 4-digit fraction (`12:30:45.9999`) exceeds the `.mmm` width and fails with `val` `HH:mm:ss[.mmm]`.',
-      'JSON Schema: the time format keyword recovers the bare ISO TF.StringTime; a custom layout param has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>(),
     standardSchema: () => createStandardSchema<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>(),
     validateReflect: () => {
@@ -1324,11 +1228,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>>(),
     validateSchema: () => createValidateFn(TF.stringTime({format: 'HH:mm:ss[.mmm]'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringTime({format: 'HH:mm:ss[.mmm]'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringTime<{format: 'HH:mm:ss[.mmm]'}>>(),
     getSamples: () => ({valid: ['12:30:45', '12:30:45.999'], invalid: ['12:30:45.9999']}),
     expectedFormatErrors: () => [{name: 'time', val: 'HH:mm:ss[.mmm]'}],
@@ -1337,10 +1239,8 @@ export const STRING_FORMAT = {
     title: 'String time min/max',
     description:
       'TF.StringTime with inclusive absolute `min`/`max` time bounds (HH:mm, business hours), accepting times within [`min`, `max`].',
-    validateNotes: [
+    validateNotes:
       'Bounds `09:00`..`17:00` are inclusive — both endpoints pass. `08:59` fails on `min` (formatPathTail `min`); `17:01` fails on `max` (formatPathTail `max`).',
-      'JSON Schema: the time format keyword recovers the bare ISO TF.StringTime; min/max time bounds have no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>(),
     standardSchema: () => createStandardSchema<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>(),
     validateReflect: () => {
@@ -1368,12 +1268,10 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>>(),
     validateSchema: () => createValidateFn(TF.stringTime({format: 'HH:mm', min: '09:00', max: '17:00'})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>(),
     getValidationErrorsDataOnly: () =>
       createGetValidationErrorsFn<DataOnly<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringTime({format: 'HH:mm', min: '09:00', max: '17:00'})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.StringTime<{format: 'HH:mm'; min: '09:00'; max: '17:00'}>>(),
     getSamples: () => ({
       valid: ['09:00', '12:30', '17:00'],
@@ -1421,11 +1319,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.StringDateTime>>(),
     validateSchema: () => createValidateFn(TF.stringDateTime()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'date-time'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.StringDateTime>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDateTime>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDateTime()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'date-time'})),
     mockType: () => createMockDataFn<TF.StringDateTime>(),
     getSamples: () => ({
       valid: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00'],
@@ -1441,7 +1337,6 @@ export const STRING_FORMAT = {
       'Layout is `DD-MM-YYYY` date + `HH:mm` time joined by a space; `29-02-2024 23:59` passes.',
       'An ISO-ordered date (`2024-02-29 23:59`) fails on the date half (formatPathTail `date`).',
       'A `T` separator (`29-02-2024T23:59`) fails the split char (formatPathTail `splitChar`); hour 24 (`29-02-2024 24:00`) fails the time half (formatPathTail `time`).',
-      'JSON Schema: the date-time format keyword recovers the bare ISO TF.StringDateTime; custom date/time/splitChar params have no schema spelling.',
     ],
     validate: () =>
       createValidateFn<TF.StringDateTime<{date: {format: 'DD-MM-YYYY'}; time: {format: 'HH:mm'}; splitChar: ' '}>>(),
@@ -1477,7 +1372,6 @@ export const STRING_FORMAT = {
       createValidateFn<DataOnly<TF.StringDateTime<{date: {format: 'DD-MM-YYYY'}; time: {format: 'HH:mm'}; splitChar: ' '}>>>(),
     validateSchema: () =>
       createValidateFn(TF.stringDateTime({date: {format: 'DD-MM-YYYY'}, time: {format: 'HH:mm'}, splitChar: ' '})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<TF.StringDateTime<{date: {format: 'DD-MM-YYYY'}; time: {format: 'HH:mm'}; splitChar: ' '}>>(),
     getValidationErrorsDataOnly: () =>
@@ -1486,7 +1380,6 @@ export const STRING_FORMAT = {
       >(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.stringDateTime({date: {format: 'DD-MM-YYYY'}, time: {format: 'HH:mm'}, splitChar: ' '})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () =>
       createMockDataFn<TF.StringDateTime<{date: {format: 'DD-MM-YYYY'}; time: {format: 'HH:mm'}; splitChar: ' '}>>(),
     getSamples: () => ({
@@ -1502,10 +1395,8 @@ export const STRING_FORMAT = {
   dateTime_minMax_absolute: {
     title: 'String dateTime min/max',
     description: 'TF.StringDateTime with inclusive absolute `min`/`max` datetime bounds, accepting values within [`min`, `max`].',
-    validateNotes: [
+    validateNotes:
       'Bounds `2020-01-01T00:00:00`..`2020-12-31T23:59:59` are inclusive — both endpoints pass. `2019-12-31T23:59:59` fails on `min` (formatPathTail `min`); `2021-01-01T00:00:00` fails on `max` (formatPathTail `max`).',
-      'JSON Schema: the date-time format keyword recovers the bare ISO TF.StringDateTime; custom layout and min/max params have no schema spelling.',
-    ],
     validate: () =>
       createValidateFn<
         TF.StringDateTime<{
@@ -1618,7 +1509,6 @@ export const STRING_FORMAT = {
           max: '2020-12-31T23:59:59',
         })
       ),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () =>
       createGetValidationErrorsFn<
         TF.StringDateTime<{
@@ -1651,7 +1541,6 @@ export const STRING_FORMAT = {
           max: '2020-12-31T23:59:59',
         })
       ),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () =>
       createMockDataFn<
         TF.StringDateTime<{
@@ -1706,11 +1595,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.IPv4>>(),
     validateSchema: () => createValidateFn(TF.ipv4()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'ipv4'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.IPv4>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv4>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv4()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'ipv4'})),
     mockType: () => createMockDataFn<TF.IPv4>(),
     getSamples: () => ({
       valid: ['192.168.0.1', '0.0.0.0', '255.255.255.255'],
@@ -1750,11 +1637,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.IPv6>>(),
     validateSchema: () => createValidateFn(TF.ipv6()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'ipv6'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.IPv6>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv6>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv6()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'ipv6'})),
     mockType: () => createMockDataFn<TF.IPv6>(),
     getSamples: () => ({valid: ['2001:db8:0:0:0:0:0:1', '::1', 'fe80::1'], invalid: ['192.168.0.1', '12345::1']}),
     expectedFormatErrors: () => [
@@ -1765,10 +1650,8 @@ export const STRING_FORMAT = {
   ip_any: {
     title: 'IP any',
     description: 'TF.IP (format `ip`, version `any`) accepting either an IPv4 or an IPv6 address.',
-    validateNotes: [
+    validateNotes:
       'Both `10.0.0.1` (v4) and `2001:db8::1` (v6) pass. A non-IP string (`definitely not an ip`) fails with `val` `any`.',
-      'JSON Schema: only the ipv4 and ipv6 format keywords exist; the version-agnostic TF.IP has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.IP>(),
     standardSchema: () => createStandardSchema<TF.IP>(),
     validateReflect: () => {
@@ -1795,11 +1678,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.IP>>(),
     validateSchema: () => createValidateFn(TF.ip()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.IP>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IP>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ip()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.IP>(),
     getSamples: () => ({valid: ['10.0.0.1', '2001:db8::1'], invalid: ['definitely not an ip']}),
     expectedFormatErrors: () => [{name: 'ip', val: 'any'}],
@@ -1807,10 +1688,8 @@ export const STRING_FORMAT = {
   ipv4_port: {
     title: 'IPv4 with port',
     description: 'TF.IPv4WithPort (format `ip`, version 4, port allowed) accepting `ipv4:port`.',
-    validateNotes: [
+    validateNotes:
       'The port must be in range; `192.168.0.1:8080` passes, while `192.168.0.1:70000` (port > 65535) fails with `val` 4.',
-      'JSON Schema: the ipv4 format keyword recovers the bare TF.IPv4; the with-port variant has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.IPv4WithPort>(),
     standardSchema: () => createStandardSchema<TF.IPv4WithPort>(),
     validateReflect: () => {
@@ -1837,11 +1716,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.IPv4WithPort>>(),
     validateSchema: () => createValidateFn(TF.ipv4WithPort()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.IPv4WithPort>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv4WithPort>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv4WithPort()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.IPv4WithPort>(),
     getSamples: () => ({valid: ['192.168.0.1:8080'], invalid: ['192.168.0.1:70000']}),
     expectedFormatErrors: () => [{name: 'ip', val: 4}],
@@ -1849,10 +1726,8 @@ export const STRING_FORMAT = {
   ipv6_port: {
     title: 'IPv6 with port',
     description: 'TF.IPv6WithPort (format `ip`, version 6, port allowed) accepting bracketed `[ipv6]:port`.',
-    validateNotes: [
+    validateNotes:
       'The port must be in range; `[2001:db8::1]:443` passes, while `[2001:db8::1]:99999` (port > 65535) fails with `val` 6.',
-      'JSON Schema: the ipv6 format keyword recovers the bare TF.IPv6; the with-port variant has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.IPv6WithPort>(),
     standardSchema: () => createStandardSchema<TF.IPv6WithPort>(),
     validateReflect: () => {
@@ -1879,11 +1754,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.IPv6WithPort>>(),
     validateSchema: () => createValidateFn(TF.ipv6WithPort()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.IPv6WithPort>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv6WithPort>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv6WithPort()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.IPv6WithPort>(),
     getSamples: () => ({valid: ['[2001:db8::1]:443'], invalid: ['[2001:db8::1]:99999']}),
     expectedFormatErrors: () => [{name: 'ip', val: 6}],
@@ -1923,11 +1796,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Domain>>(),
     validateSchema: () => createValidateFn(TF.domain()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'hostname'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.Domain>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Domain>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domain()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'hostname'})),
     mockType: () => createMockDataFn<TF.Domain>(),
     getSamples: () => ({
       valid: ['mion.io', 'example.com', 'sub.example.co.uk', 'a-b.example.org'],
@@ -1942,7 +1813,6 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Up to 6 labels pass (`mion.io`, `sub.example.com`, `aa.bb.cc.dd.ee.com`).',
       'Rejected: a leading-hyphen label (`-bad.com`), more than 6 labels (`aa.bb.cc.dd.ee.ff.com`), a numeric TLD (`example.123`), an underscore in a label (`ex_ample.com`), and a single-part name (`localhost`). The format error is `{name: domain}` (no `val`).',
-      'JSON Schema: the hostname format keyword recovers TF.Domain; the strict variant has no schema spelling.',
     ],
     validate: () => createValidateFn<TF.DomainStrict>(),
     standardSchema: () => createStandardSchema<TF.DomainStrict>(),
@@ -1970,11 +1840,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.DomainStrict>>(),
     validateSchema: () => createValidateFn(TF.domainStrict()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.DomainStrict>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.DomainStrict>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domainStrict()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.DomainStrict>(),
     getSamples: () => ({
       valid: ['mion.io', 'sub.example.com', 'aa.bb.cc.dd.ee.com'],
@@ -2017,11 +1885,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Email>>(),
     validateSchema: () => createValidateFn(TF.email()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'email'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.Email>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Email>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.email()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'email'})),
     mockType: () => createMockDataFn<TF.Email>(),
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io', 'ab@cd.co', 'user+tag@sub.example.org'],
@@ -2035,7 +1901,6 @@ export const STRING_FORMAT = {
     validateNotes: [
       'A punycode-TLD address (`john@example.xn--fiqs8s`) passes, as does an all-punycode domain (`user@xn--e1afmkfd.xn--p1ai`) — the digit/hyphen TLD that plain `Email` rejects.',
       'A non-email string (`not-an-email`), an empty label before the TLD (`john@.xn--fiqs8s`), and a single-char TLD (`john@example.x`) all fail with `{name: email}` (no `val`).',
-      'JSON Schema: the email format keyword recovers TF.Email; the punycode variant has no schema spelling.',
     ],
     validate: () => createValidateFn<TF.EmailPunycode>(),
     standardSchema: () => createStandardSchema<TF.EmailPunycode>(),
@@ -2063,11 +1928,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.EmailPunycode>>(),
     validateSchema: () => createValidateFn(TF.emailPunycode()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.EmailPunycode>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailPunycode>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailPunycode()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.EmailPunycode>(),
     getSamples: () => ({
       valid: ['john@example.xn--fiqs8s', 'user@xn--e1afmkfd.xn--p1ai'],
@@ -2083,7 +1946,6 @@ export const STRING_FORMAT = {
       'Plain addresses pass (`john@example.com`, `jane.doe@mion.io`).',
       'A disallowed local-part char (`a+b@x.com`) fails with `val` `Invalid characters in email local part`.',
       'Also rejected: a space in the local part (`a b@example.com`), a doubled `@` (`john@@example.com`), an underscore in the domain (`john@bad_domain.com`), and no `@` at all (`no-at-symbol`).',
-      'JSON Schema: the email format keyword recovers TF.Email; the strict variant has no schema spelling.',
     ],
     validate: () => createValidateFn<TF.EmailStrict>(),
     standardSchema: () => createStandardSchema<TF.EmailStrict>(),
@@ -2111,11 +1973,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.EmailStrict>>(),
     validateSchema: () => createValidateFn(TF.emailStrict()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.EmailStrict>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.EmailStrict>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.emailStrict()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.EmailStrict>(),
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io'],
@@ -2158,11 +2018,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Url>>(),
     validateSchema: () => createValidateFn(TF.url()),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', format: 'uri'})),
     getValidationErrors: () => createGetValidationErrorsFn<TF.Url>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Url>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.url()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'string', format: 'uri'})),
     mockType: () => createMockDataFn<TF.Url>(),
     getSamples: () => ({
       valid: ['https://example.com', 'http://mion.io/path?q=1', 'ftp://files.example.org', 'wss://socket.example.com'],
@@ -2173,10 +2031,8 @@ export const STRING_FORMAT = {
   urlHttp: {
     title: 'URL http',
     description: 'TF.UrlHttp (format `url`) restricting the scheme to `http` / `https`.',
-    validateNotes: [
+    validateNotes:
       'Both `https://example.com` and `http://example.com` pass; a non-http scheme (`ftp://example.com`) fails with `{name: url}` (no `val`).',
-      'JSON Schema: the uri format keyword recovers TF.Url; the http-only variant has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.UrlHttp>(),
     standardSchema: () => createStandardSchema<TF.UrlHttp>(),
     validateReflect: () => {
@@ -2203,11 +2059,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.UrlHttp>>(),
     validateSchema: () => createValidateFn(TF.urlHttp()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.UrlHttp>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UrlHttp>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.urlHttp()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.UrlHttp>(),
     getSamples: () => ({valid: ['https://example.com', 'http://example.com'], invalid: ['ftp://example.com']}),
     expectedFormatErrors: () => [{name: 'url'}],
@@ -2215,10 +2069,8 @@ export const STRING_FORMAT = {
   urlFile: {
     title: 'URL file',
     description: 'TF.UrlFile (format `url`) restricting the scheme to `file:`.',
-    validateNotes: [
+    validateNotes:
       'A `file:///etc/hosts` URL passes; a non-file scheme (`https://example.com`) fails with `{name: url}` (no `val`).',
-      'JSON Schema: the uri format keyword recovers TF.Url; the file-only variant has no schema spelling.',
-    ],
     validate: () => createValidateFn<TF.UrlFile>(),
     standardSchema: () => createStandardSchema<TF.UrlFile>(),
     validateReflect: () => {
@@ -2245,11 +2097,9 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.UrlFile>>(),
     validateSchema: () => createValidateFn(TF.urlFile()),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.UrlFile>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UrlFile>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.urlFile()),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.UrlFile>(),
     getSamples: () => ({valid: ['file:///etc/hosts'], invalid: ['https://example.com']}),
     expectedFormatErrors: () => [{name: 'url'}],
@@ -2264,7 +2114,6 @@ export const STRING_FORMAT = {
       'Lowercase slug strings pass (`my-slug`, `a-b-c`).',
       'Rejected: capitals (`Has Capitals`, `UPPER`), an embedded space (`has space`), and the empty string.',
       'The pattern registers a custom message (`must be a slug`) and getValidationErrors surfaces it as the format `val` (message is id-relevant, so no cache-identity risk).',
-      'JSON Schema: the pattern keyword carries no mockSamples, so it cannot recover a sampled pattern brand (sample-less schema patterns are covered by the json-schema-define suite; mock for them throws the targeted register-samples error).',
     ],
     validate: () => createValidateFn<Slug>(),
     standardSchema: () => createStandardSchema<Slug>(),
@@ -2301,7 +2150,6 @@ export const STRING_FORMAT = {
           pattern: {source: '^[a-z0-9-]+$', flags: '', mockSamples: ['my-slug', 'abc', 'a-b-c'], message: 'must be a slug'},
         })
       ),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<Slug>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Slug>>(),
     getValidationErrorsSchema: () =>
@@ -2310,7 +2158,6 @@ export const STRING_FORMAT = {
           pattern: {source: '^[a-z0-9-]+$', flags: '', mockSamples: ['my-slug', 'abc', 'a-b-c'], message: 'must be a slug'},
         })
       ),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<Slug>(),
     getSamples: () => ({valid: ['my-slug', 'a-b-c'], invalid: ['Has Capitals', 'UPPER', 'has space', '']}),
     // The pattern's custom `message` IS the error val now: every format param
@@ -2361,13 +2208,10 @@ export const STRING_FORMAT = {
     // Value-first sample-less pattern: the same generated pool serves this
     // form (identical {source, flags} params intern to the same node).
     validateSchema: () => createValidateFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     getValidationErrors: () => createGetValidationErrorsFn<Generated>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Generated>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(jsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     mockType: () => createMockDataFn<Generated>(),
     getSamples: () => ({valid: ['ab-12', 'cd-09'], invalid: ['zz-12', 'ab-1', 'AB-12', '']}),
     expectedFormatErrors: () => [
@@ -2381,10 +2225,8 @@ export const STRING_FORMAT = {
     title: 'Hex pattern',
     description:
       'stringFormat with a registered case-insensitive `pattern` (hex `^[0-9a-f]+$`, flag `i`) accepting hex digits in either case.',
-    validateNotes: [
+    validateNotes:
       'The `i` flag folds case, so both `0042` and `DEADbeef` pass. A non-hex string (`xyz`) and the empty string each fail with `val` `Invalid pattern`.',
-      'JSON Schema: the pattern keyword carries no mockSamples, so it cannot recover a sampled pattern brand (sample-less schema patterns are covered by the json-schema-define suite; mock for them throws the targeted register-samples error).',
-    ],
     validate: () => createValidateFn<Hex>(),
     standardSchema: () => createStandardSchema<Hex>(),
     validateReflect: () => {
@@ -2412,12 +2254,10 @@ export const STRING_FORMAT = {
     validateDataOnly: () => createValidateFn<DataOnly<Hex>>(),
     validateSchema: () =>
       createValidateFn(TF.string({pattern: {source: '^[0-9a-f]+$', flags: 'i', mockSamples: ['DEADbeef', '0042']}})),
-    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<Hex>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Hex>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(TF.string({pattern: {source: '^[0-9a-f]+$', flags: 'i', mockSamples: ['DEADbeef', '0042']}})),
-    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<Hex>(),
     getSamples: () => ({valid: ['0042', 'DEADbeef'], invalid: ['xyz', '']}),
     expectedFormatErrors: () => [

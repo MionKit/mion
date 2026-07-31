@@ -8,7 +8,6 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
-import {jsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const ARRAY = {
@@ -38,7 +37,6 @@ export const ARRAY = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<string[]>>(),
     validateSchema: () => createValidateFn(RT.array(TF.string())),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeValidate: () => deserializeValidate<string[]>(),
     validateReflect: () => {
       const v: string[] = [];
@@ -51,7 +49,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<string[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string())),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[]>(),
     getValidationErrorsReflect: () => {
       const v: string[] = [];
@@ -95,7 +92,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<number[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<number[]>>(),
     validateSchema: () => createValidateFn(RT.array(TF.number())),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'number'}})),
     deserializeValidate: () => deserializeValidate<number[]>(),
     validateReflect: () => {
       const v: number[] = [];
@@ -108,7 +104,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<number[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<number[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.number())),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'number'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<number[]>(),
     getValidationErrorsReflect: () => {
       const v: number[] = [];
@@ -149,7 +144,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<boolean[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<boolean[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.boolean())),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'boolean'}})),
     deserializeValidate: () => deserializeValidate<boolean[]>(),
     validateReflect: () => {
       const v: boolean[] = [];
@@ -162,7 +156,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<boolean[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<boolean[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.boolean())),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'boolean'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<boolean[]>(),
     getValidationErrorsReflect: () => {
       const v: boolean[] = [];
@@ -195,15 +188,12 @@ export const ARRAY = {
   bigint_array: {
     title: 'BigInt array',
     description: 'Every element passes the atomic strict-`typeof` bigint check; `[]` is valid.',
-    validateNotes: [
+    validateNotes:
       'Plain `number` elements (e.g. `2`, `Infinity`) are rejected — `typeof 2n === "bigint"` but `typeof 2 === "number"`.',
-      'JSON Schema: JSON has no bigint; a bigint element type has no schema spelling.',
-    ],
     validate: () => createValidateFn<bigint[]>(),
     standardSchema: () => createStandardSchema<bigint[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<bigint[]>>(),
     validateSchema: () => createValidateFn(RT.array(TF.bigInt())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<bigint[]>(),
     validateReflect: () => {
       const v: bigint[] = [];
@@ -216,7 +206,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<bigint[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<bigint[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.bigInt())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<bigint[]>(),
     getValidationErrorsReflect: () => {
       const v: bigint[] = [];
@@ -248,15 +237,11 @@ export const ARRAY = {
   date_array: {
     title: 'Date array',
     description: 'Each element goes through the atomic `Date` check, so Invalid Date instances fail per element.',
-    validateNotes: [
-      'Each element goes through the atomic `Date` check — Invalid Date instances (`getTime() === NaN`) fail.',
-      'JSON Schema: native Date elements are instance types with no schema INPUT spelling.',
-    ],
+    validateNotes: 'Each element goes through the atomic `Date` check — Invalid Date instances (`getTime() === NaN`) fail.',
     validate: () => createValidateFn<Date[]>(),
     standardSchema: () => createStandardSchema<Date[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<Date[]>>(),
     validateSchema: () => createValidateFn(RT.array(TF.date())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Date[]>(),
     validateReflect: () => {
       const v: Date[] = [];
@@ -269,7 +254,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<Date[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Date[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.date())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Date[]>(),
     getValidationErrorsReflect: () => {
       const v: Date[] = [];
@@ -304,15 +288,12 @@ export const ARRAY = {
   regexp_array: {
     title: 'RegExp array',
     description: 'Every element passes the atomic builtin-class RegExp check (`instanceof RegExp`); `[]` is valid.',
-    validateNotes: [
+    validateNotes:
       'A regex *source string* like `"/abc/"` is rejected — the element check is the nominal `instanceof RegExp`, not a string.',
-      'JSON Schema: RegExp elements are instance types with no schema INPUT spelling.',
-    ],
     validate: () => createValidateFn<RegExp[]>(),
     standardSchema: () => createStandardSchema<RegExp[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.regexp())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<RegExp[]>(),
     validateReflect: () => {
       const v: RegExp[] = [];
@@ -325,7 +306,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<RegExp[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.regexp())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp[]>(),
     getValidationErrorsReflect: () => {
       const v: RegExp[] = [];
@@ -357,15 +337,11 @@ export const ARRAY = {
   undefined_array: {
     title: 'Undefined array',
     description: 'Every element must strictly `=== undefined`; `null` and other falsy values are rejected per element.',
-    validateNotes: [
-      'Every element must strictly === undefined. `null` and other falsy values are rejected per-element.',
-      'JSON Schema: undefined is not JSON data; const covers only string/number/boolean/null.',
-    ],
+    validateNotes: 'Every element must strictly === undefined. `null` and other falsy values are rejected per-element.',
     validate: () => createValidateFn<undefined[]>(),
     standardSchema: () => createStandardSchema<undefined[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<undefined[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.literal(undefined))),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<undefined[]>(),
     validateReflect: () => {
       const v: undefined[] = [];
@@ -378,7 +354,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<undefined[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<undefined[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.literal(undefined))),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<undefined[]>(),
     getValidationErrorsReflect: () => {
       const v: undefined[] = [];
@@ -416,7 +391,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<null[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<null[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.literal(null))),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'null'}})),
     deserializeValidate: () => deserializeValidate<null[]>(),
     validateReflect: () => {
       const v: null[] = [];
@@ -429,7 +403,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<null[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<null[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.literal(null))),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'null'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<null[]>(),
     getValidationErrorsReflect: () => {
       const v: null[] = [];
@@ -469,7 +442,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<Array<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Array<string>>>(),
     validateSchema: () => createValidateFn(RT.array(TF.string())),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeValidate: () => deserializeValidate<Array<string>>(),
     validateReflect: () => {
       const v: Array<string> = [];
@@ -482,7 +454,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<Array<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Array<string>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string())),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Array<string>>(),
     getValidationErrorsReflect: () => {
       const v: Array<string> = [];
@@ -519,7 +490,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<string[][]>(),
     validateDataOnly: () => createValidateFn<DataOnly<string[][]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.array(TF.string()))),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
     deserializeValidate: () => deserializeValidate<string[][]>(),
     validateReflect: () => {
       const v: string[][] = [];
@@ -532,8 +502,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<string[][]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[][]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.array(TF.string()))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'string'}}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[][]>(),
     getValidationErrorsReflect: () => {
       const v: string[][] = [];
@@ -589,8 +557,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<string[][][]>(),
     validateDataOnly: () => createValidateFn<DataOnly<string[][][]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.array(RT.array(TF.string())))),
-    validateJsonSchema: () =>
-      createValidateFn(jsonSchema({type: 'array', items: {type: 'array', items: {type: 'array', items: {type: 'string'}}}})),
     deserializeValidate: () => deserializeValidate<string[][][]>(),
     validateReflect: () => {
       const v: string[][][] = [];
@@ -603,10 +569,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<string[][][]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[][][]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.array(RT.array(TF.string())))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        jsonSchema({type: 'array', items: {type: 'array', items: {type: 'array', items: {type: 'string'}}}})
-      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[][][]>(),
     getValidationErrorsReflect: () => {
       const v: string[][][] = [];
@@ -660,7 +622,6 @@ export const ARRAY = {
       return deserializeValidate(v, {noIsArrayCheck: true});
     },
     validateSchema: () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'string'}}), {noIsArrayCheck: true}),
     getValidationErrors: () => createGetValidationErrorsFn<string[]>(undefined, {noIsArrayCheck: true}),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[]>>(undefined, {noIsArrayCheck: true}),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[]>(undefined, {noIsArrayCheck: true}),
@@ -673,8 +634,6 @@ export const ARRAY = {
       return deserializeGetValidationErrors(v, {noIsArrayCheck: true});
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string()), {noIsArrayCheck: true}),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'string'}}), {noIsArrayCheck: true}),
     mockType: () => createMockDataFn<string[]>(undefined, undefined),
     mockTypeReflect: () => {
       const v: string[] = [];
@@ -703,8 +662,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<{a: string}[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: string}[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.object({a: TF.string()}))),
-    validateJsonSchema: () =>
-      createValidateFn(jsonSchema({type: 'array', items: {type: 'object', properties: {a: {type: 'string'}}, required: ['a']}})),
     deserializeValidate: () => deserializeValidate<{a: string}[]>(),
     validateReflect: () => {
       const v: {a: string}[] = [];
@@ -717,10 +674,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<{a: string}[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: string}[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.object({a: TF.string()}))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        jsonSchema({type: 'array', items: {type: 'object', properties: {a: {type: 'string'}}, required: ['a']}})
-      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string}[]>(),
     getValidationErrorsReflect: () => {
       const v: {a: string}[] = [];
@@ -760,7 +713,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<(string | number)[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<(string | number)[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.union([TF.string(), TF.number()]))),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'string'}, {type: 'number'}]}})),
     deserializeValidate: () => deserializeValidate<(string | number)[]>(),
     validateReflect: () => {
       const v: (string | number)[] = [];
@@ -773,8 +725,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<(string | number)[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<(string | number)[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.union([TF.string(), TF.number()]))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(jsonSchema({type: 'array', items: {anyOf: [{type: 'string'}, {type: 'number'}]}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<(string | number)[]>(),
     getValidationErrorsReflect: () => {
       const v: (string | number)[] = [];
@@ -821,13 +771,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<[string, number][]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[string, number][]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
-    validateJsonSchema: () =>
-      createValidateFn(
-        jsonSchema({
-          type: 'array',
-          items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2},
-        })
-      ),
     deserializeValidate: () => deserializeValidate<[string, number][]>(),
     validateReflect: () => {
       const v: [string, number][] = [];
@@ -840,13 +783,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<[string, number][]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[string, number][]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        jsonSchema({
-          type: 'array',
-          items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2},
-        })
-      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[string, number][]>(),
     getValidationErrorsReflect: () => {
       const v: [string, number][] = [];
@@ -925,7 +861,6 @@ export const ARRAY = {
       const ca = RT.circular(RT.array(RT.self()));
       return createValidateFn(ca);
     },
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
     getValidationErrors: () => {
       type CircularArray = CircularArray[];
       return createGetValidationErrorsFn<CircularArray>();
@@ -938,7 +873,6 @@ export const ARRAY = {
       const ca = RT.circular(RT.array(RT.self()));
       return createGetValidationErrorsFn(ca);
     },
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {$ref: '#'}})),
     deserializeGetValidationErrors: () => {
       type CircularArray = CircularArray[];
       return deserializeGetValidationErrors<CircularArray>();
@@ -1015,18 +949,6 @@ export const ARRAY = {
       );
       return createValidateFn(ot);
     },
-    validateJsonSchema: () =>
-      createValidateFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a: {type: 'string'},
-            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
-            d: {type: 'array', items: {$ref: '#'}},
-          },
-          required: ['a'],
-        })
-      ),
     deserializeValidate: () => {
       type ObjectType = {a: string; deep?: {b: string; c: number}; d?: ObjectType[]};
       return deserializeValidate<ObjectType>();
@@ -1059,18 +981,6 @@ export const ARRAY = {
       );
       return createGetValidationErrorsFn(ot);
     },
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        jsonSchema({
-          type: 'object',
-          properties: {
-            a: {type: 'string'},
-            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
-            d: {type: 'array', items: {$ref: '#'}},
-          },
-          required: ['a'],
-        })
-      ),
     deserializeGetValidationErrors: () => {
       type ObjectType = {a: string; deep?: {b: string; c: number}; d?: ObjectType[]};
       return deserializeGetValidationErrors<ObjectType>();
@@ -1128,17 +1038,14 @@ export const ARRAY = {
     title: 'Symbol array',
     description:
       'A non-serializable symbol element propagates to the root and renders an alwaysThrow factory, so the first `createValidateFn<symbol[]>()` call throws.',
-    validateNotes: [
+    validateNotes:
       'Arrays whose element type is non-serializable (`symbol[]`, `(() => any)[]`, …) cannot be validated: the factory is rendered as alwaysThrow and the first createXxx<symbol[]>() call throws. Use a different shape to carry symbol-like data.',
-      'JSON Schema: symbol elements are not JSON data and have no schema spelling.',
-    ],
     validate: () => createValidateFn<symbol[]>(),
     standardSchema: () => createStandardSchema<symbol[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<symbol[]>>(),
     // Non-serializable array element (symbol) propagates to the root → alwaysThrow.
     // `RT.array(RT.symbol())` resolves the same factory, so the schema thunk throws.
     validateSchema: () => createValidateFn(RT.array(RT.symbol())),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<symbol[]>(),
     validateReflect: () => {
       const v: symbol[] = [];
@@ -1151,7 +1058,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<symbol[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol[]>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.symbol())),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol[]>(),
     getValidationErrorsReflect: () => {
       const v: symbol[] = [];
@@ -1184,7 +1090,6 @@ export const ARRAY = {
     standardSchema: () => createStandardSchema<ReadonlyArray<string>>(),
     validateDataOnly: () => createValidateFn<DataOnly<ReadonlyArray<string>>>(),
     validateSchema: () => createValidateFn(RT.array(TF.string())),
-    validateJsonSchema: () => createValidateFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeValidate: () => deserializeValidate<ReadonlyArray<string>>(),
     validateReflect: () => {
       const v: ReadonlyArray<string> = [];
@@ -1197,7 +1102,6 @@ export const ARRAY = {
     getValidationErrors: () => createGetValidationErrorsFn<ReadonlyArray<string>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<ReadonlyArray<string>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string())),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(jsonSchema({type: 'array', items: {type: 'string'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<ReadonlyArray<string>>(),
     getValidationErrorsReflect: () => {
       const v: ReadonlyArray<string> = [];

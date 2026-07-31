@@ -7,10 +7,9 @@ created: 2026-07-29
 
 # Fuzz cloning lane wiring drift: README, env registry, rtx suite, ci.yml labels
 
-Out-of-scope findings from the json-schema implementation session (surfaced
-while wiring the new `jsonschema` fuzz lane): the `cloning` fuzz lane shipped
-without the wiring every other lane carries, and the ci.yml partition labels
-have rotted.
+Out-of-scope findings from a fuzz-lane wiring audit: the `cloning` fuzz lane
+shipped without the wiring every other lane carries, and the ci.yml partition
+labels have rotted.
 
 ## Findings (verified 2026-07-29)
 
@@ -27,13 +26,13 @@ have rotted.
    contract). Add the `dev`-scoped row + the `.env.sample` line.
 3. **No `cloning` suite in the rtx FUZZ map**
    ([scripts/rt.mjs](../../scripts/rt.mjs)) — `pnpm rtx core fuzz cloning`
-   does not exist, unlike value/types/jsonschema/enrich/i18n/typemod/race.
+   does not exist, unlike value/types/enrich/i18n/typemod/race.
    Add the entry (`patterns: ['cloneFuzz.integration']`, soak knob
    `RT_FUZZ_CLONE_SOAK_MS`) + the usage-string mention.
 4. **Stale ci.yml partition labels**
    ([.github/workflows/ci.yml](../../.github/workflows/ci.yml)): the comment
    says "23 + 151 = 174 files" and the step names repeat "23 files" /
-   "151 files", but `test/fuzz/**` now holds 27 `*.test.ts` files (188 total
+   "151 files", but `test/fuzz/**` now holds 25 `*.test.ts` files (182 total
    package test files). The globs are correct (the partition is pattern-based,
    only the prose is wrong); either refresh the numbers or drop them from the
    labels so they cannot rot again (prefer dropping — a count in a comment is
