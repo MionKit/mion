@@ -71,6 +71,48 @@ export const STRING_FORMAT = {
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.stringDate()),
     getTestData: () => ({values: ['2024-02-29', '2026-05-28', '0001-01-01']}),
   },
+  time: {
+    title: 'String time ISO',
+    description:
+      'JSON and binary (de)serialization of TF.StringTime, a STRING time-of-day such as "12:30:45Z" rather than a native Date or Temporal instance, where the value stays an ISO time string on the wire and round-trips unchanged in both formats.',
+    serializeNotes:
+      'String-on-wire time: the value is already a string, so there is no toJSON/.from conversion — JSON and binary both carry the plain time string. The tz-aware ISO layout is validation-only, so the offset/millisecond text survives verbatim (no normalization to UTC). Samples cover a bare `Z`, a millisecond form, and a negative offset.',
+    mutateEncoder: () => createJsonEncoderFn<TF.StringTime>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<TF.StringTime>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<TF.StringTime>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<TF.StringTime>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<TF.StringTime>(),
+    preserveDecoder: () => createJsonDecoderFn<TF.StringTime>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<TF.StringTime>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<TF.StringTime>(),
+    binaryDecoder: () => createBinaryDecoderFn<TF.StringTime>(),
+    schemaEncoder: () => createJsonEncoderFn(TF.stringTime()),
+    schemaDecoder: () => createJsonDecoderFn(TF.stringTime()),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.stringTime()),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.stringTime()),
+    getTestData: () => ({values: ['12:30:45Z', '12:30:45.123Z', '00:00:00-08:00']}),
+  },
+  dateTime: {
+    title: 'String dateTime default',
+    description:
+      'JSON and binary (de)serialization of TF.StringDateTime, a STRING dateTime such as "2024-02-29T12:30:45Z" rather than a native Date or Temporal instance, where the value stays an ISO dateTime string on the wire and round-trips unchanged in both formats.',
+    serializeNotes:
+      'String-on-wire dateTime: unlike the native TF.Date (DateTime.ts), the value is already a string, so there is no toJSON/.from conversion — JSON and binary both carry the plain dateTime string. The nested date/time layouts and the `T` split char are validation-only, so the exact text (offset and milliseconds included) survives verbatim. Samples cover a leap day at `Z` and a millisecond form at a positive offset.',
+    mutateEncoder: () => createJsonEncoderFn<TF.StringDateTime>(undefined, {strategy: 'mutate'}),
+    cloneEncoder: () => createJsonEncoderFn<TF.StringDateTime>(undefined, {strategy: 'clone'}),
+    directEncoder: () => createJsonEncoderFn<TF.StringDateTime>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => createJsonEncoderFn<TF.StringDateTime>(undefined, {strategy: 'compact'}),
+    stripDecoder: () => createJsonDecoderFn<TF.StringDateTime>(),
+    preserveDecoder: () => createJsonDecoderFn<TF.StringDateTime>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<TF.StringDateTime>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<TF.StringDateTime>(),
+    binaryDecoder: () => createBinaryDecoderFn<TF.StringDateTime>(),
+    schemaEncoder: () => createJsonEncoderFn(TF.stringDateTime()),
+    schemaDecoder: () => createJsonDecoderFn(TF.stringDateTime()),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(TF.stringDateTime()),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(TF.stringDateTime()),
+    getTestData: () => ({values: ['2024-02-29T12:30:45Z', '2026-05-28T00:00:00.500+02:00']}),
+  },
   email: {
     title: 'Email',
     description:
