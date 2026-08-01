@@ -31,6 +31,7 @@ test/fuzz/
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
+├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -182,6 +183,34 @@ must fit the pre-sized buffer with no resize; an **oversized** negative control
   `binaryDynamicGrow` + `binaryEncoderResize` (the grow-in-place path — the
   buffer-overflow / adaptive-history regressions), `binaryIndexSig.smoke` (F1).
 
+### `cloning/` — the compiled clone vs a reference interpreter
+
+Targets `createCloneExactShapeFn<T>()`. The strong oracle is **differential**:
+a naive reference interpreter walks the reflected RunType graph and the
+compiled clone must agree with it on every conforming value. Three input
+streams per target: a **valid** mock, an **extras** mutation (the same mock
+decorated with undeclared keys, so the value stays valid while the clone must
+strip every one), and type-blind **junk** for robustness only.
+
+- `cloneOracle.ts` — **O15** clone-reference (`deepEqual(clone(v), referenceClone(schema, v))`),
+  **O16** clone-isolation (the input still deep-equals its pre-clone snapshot,
+  the clone shares no mutable object reference with it, and an object-typed
+  root keeps the input root's prototype), **O17** clone-consistency
+  (`validate(clone(v))` holds and `clone(clone(v))` is stable).
+- `referenceClone.ts` — the reference interpreter: mirrors the Go emitter's
+  per-kind arms in
+  [`clone_exact_shape.go`](../../../../ts-go-runtypes/internal/cachegen/typefunctions/clone_exact_shape.go)
+  one-for-one, trading every output-shape decision for the dumbest possible
+  implementation (no caching, no fastpaths) so a disagreement is eyeballable.
+- `extrasValue.ts` — the clone-fuzz twin of `invalidValue.ts`: injects 1–3
+  `__fz_extra_<n>` keys at plain-object positions of a deep copy. Same
+  one-directional soundness contract — when it returns a value, `validate<T>`
+  must still be true AND a correct clone must drop every injected key, so the
+  walker stays deliberately conservative.
+- `cloneFuzzRunner.ts` — pure data-in/report-out driver under seeded
+  `Math.random`, so a violation replays from its `seed`.
+- Tests: `cloneFuzz.integration` (the soak, `RT_FUZZ_CLONE_SOAK_MS`).
+
 ### `enrich/` — model-based (stateful) fuzzers
 
 Three **sequence** fuzzers: instead of one input, they feed a _sequence_ of
@@ -219,14 +248,14 @@ The `rtx` front door builds the binary first, then runs the suite:
 
 ```bash
 pnpm rtx core fuzz <suite> [--soak]
-#   suite ∈  unit | value | types | enrich | i18n | typemod | race | all
+#   suite ∈  unit | value | types | cloning | enrich | i18n | typemod | race | all
 #   --soak   swaps the fixed batch for the long soak knobs (see rt.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
   binary).
-- `value` / `types` / `enrich` / `i18n` / `typemod` each run one integration
-  file; `--soak` turns up its iteration/duration env.
+- `value` / `types` / `cloning` / `enrich` / `i18n` / `typemod` each run one
+  integration file; `--soak` turns up its iteration/duration env.
 - `race` is the only path that sets `RT_FUZZ_RACE=1`.
 - `all` is a quick trio (`fuzz.integration`, `typeFuzz.integration`,
   `binaryEncoderResize`).
@@ -271,6 +300,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 | `RT_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
 | `RT_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
 | `RT_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
+| `RT_FUZZ_CLONE_SOAK_MS`                                                      | clone fuzz soak duration (ms)                                           |
 | `RT_FUZZ_ROUNDTRIP_SOAK_MS`                                                  | round-trip fuzz soak duration (ms)                                      |
 | `RT_FUZZ_SIZE_SOAK_MS`                                                       | binary-size fuzz soak duration (ms)                                     |
 | `RT_FUZZ_ENRICH_SEQUENCES` / `_MAXCMDS` / `_REPLAY`                          | enrich fuzz: sequence count / commands per sequence / replay one seed   |
@@ -288,6 +318,7 @@ Grouped by mode.
 | type (build tier)         | **TR1** resolver-clean · **TR2** every-site-resolved · **TR3** every-module-evaluates · **TR4** every-factory-materialises                                                                                                                                           |
 | roundtrip                 | **RT-VALIDATE** · **RT-AGREE** · **RT-STABLE** · **RT-FAILAGREE** · **RT-NATIVE** · **RT-THROW**                                                                                                                                                                     |
 | binary size               | **O-SIZE-NOGROW** · **O-SIZE-ROUNDTRIP** · **O-SIZE-GREW**                                                                                                                                                                                                           |
+| cloning                   | **O15** clone-reference · **O16** clone-isolation · **O17** clone-consistency                                                                                                                                                                                        |
 | enrich (model)            | **R1/R2/R3/R5/R6/R7a/R8/R10**                                                                                                                                                                                                                                        |
 | i18n (model)              | **T1/T2/T3/T4/T5/T6/T7/T10**                                                                                                                                                                                                                                         |
 | type-mod (model)          | **NL** nothing-lost · **RC** rename-carry · **CB** content-blind · **R6** convergence · **R10** totality · **P** parse-safety                                                                                                                                        |

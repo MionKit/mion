@@ -15,7 +15,7 @@ name: ci
 # packages-only change runs the fuzz half without re-running the Go suite. (A Go
 # change still runs js-lint too: typecheck compiles the ts-go-runtypes testfixtures.)
 # `vitest run test/fuzz` and `vitest run --exclude '**/test/fuzz/**'` are a
-# complete, DISJOINT partition of the suite (23 + 151 = 174 files), so no test is
+# complete, DISJOINT partition of the suite, so no test is
 # dropped or double-run — a semantic split by directory instead of a hash shard.
 # (This used to be Go+shard-1 vs lint+shard-2 with `vitest --shard`; once oxlint
 # replaced the much heavier ESLint the lint side went light, so the even shards
@@ -94,7 +94,7 @@ jobs:
       # (cache-warm from go test/vet, so ~fast).
       - name: Build the resolver + dists (spawned/read by the fuzz suite)
         run: pnpm run check:builds
-      - name: JS fuzz suite (test/fuzz/** — 23 files)
+      - name: JS fuzz suite (test/fuzz/**)
         run: pnpm exec vitest run test/fuzz
       # enrichRace self-skips unless RT_FUZZ_RACE=1 (scripts audit §3.4); the
       # test/fuzz run above never sets it, so the concurrency coverage rides here.
@@ -134,7 +134,7 @@ jobs:
         run: pnpm run check:env
       - name: Lint + typecheck
         run: pnpm run lint
-      - name: JS suite (everything except test/fuzz — 151 files)
+      - name: JS suite (everything except test/fuzz)
         run: pnpm exec vitest run --exclude '**/test/fuzz/**'
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
