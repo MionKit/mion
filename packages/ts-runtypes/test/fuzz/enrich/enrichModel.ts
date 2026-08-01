@@ -5,7 +5,8 @@
 // then drive RANDOM sequences of edit events and assert, after each, a rule that
 // the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
 // on hand-written cases — so every assertion here is sound (a failure is a real
-// regression). Rule ids match docs/talks/.../framework-fuzzy-testing.md §6.4:
+// regression). Rule ids match
+// docs/talks/directive-driven-testing/framework-fuzzy-testing.md §6.4:
 //
 //   R1  idempotence      a second `--update` is byte-identical
 //   R2  metamorphic      a type edit makes a bounded, predictable change to E

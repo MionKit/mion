@@ -93,7 +93,6 @@ type RenderOpts struct {
 	//     code slot is `undefined` (runtime derives `code` lazily if read).
 	//   - EmitBoth: both (the body twice) — runtimes that disallow `new Function`
 	//     (Cloudflare WorkerD, browser CSP without `unsafe-eval`) yet read `.code`.
-	// See docs/UNSUPPORTED-KINDS.md.
 	EmitMode constants.EmitMode
 	// RefTable resolves child ref ids to their RunType during a collect. When
 	// non-nil it is used instead of an index built from dump.RunTypes — the
@@ -511,7 +510,7 @@ func renderEntryWithDeps(runType *protocol.RunType, settings constants.CacheModu
 		// consumer can materialise a throwing factory with the catalog
 		// message. Surface the same code as a build-time diagnostic against
 		// every call site referencing this RT — users see the cause at build
-		// time AND at runtime. See docs/UNSUPPORTED-KINDS.md.
+		// time AND at runtime.
 		//
 		// Fallback to silent skip when the emitter registers no code
 		// for the leaf — preserves the safety net for unknown future

@@ -59,7 +59,7 @@ export function regexp(id?: InjectRunTypeId<RegExp>): RunType<RegExp> {
 
 /** A `symbol` builder — `symbol()` → `RunType<symbol>`. Provided for
  *  composition/parity; symbol identity is not round-trippable, so the Go side
- *  emits an unsupported validator (docs/UNSUPPORTED-KINDS.md) — a standalone
+ *  emits an unsupported validator — a standalone
  *  `createValidateFn(symbol())` throws the same way the type-first `symbol` case
  *  does. **/
 export function symbol(id?: InjectRunTypeId<symbol>): RunType<symbol> {

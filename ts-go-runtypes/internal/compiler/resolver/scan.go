@@ -147,7 +147,7 @@ func (sess *Session) dispatchScanFiles(files []string) ([]protocol.Site, []diagn
 	// (registerPureFnFactory's `CompTimeArgs<PureFnId>` used non-literally, …).
 	// The general form of the old marker-only exemption: drop every diagnostic
 	// anchored in an external-library file. Sites/collection are untouched; only
-	// diagnostics are scoped. See docs/done/scan-diagnostics-marker-own-source.md.
+	// diagnostics are scoped.
 	diags = sess.dropExternalLibraryDiagnostics(diags)
 	return sites, diags, err
 }
@@ -1243,8 +1243,7 @@ func (state scanState) enclosedByInjectionMarker(call *ast.Node) bool {
 		// `expect(getRunTypeId<T>()).toBe(x)`, where `Assertion<U>.toBe(expected: U)`
 		// instantiates `expected` to `InjectRunTypeId<T>`. That false positive made
 		// the scanner treat `.toBe` as an enclosing marker and drop the injection
-		// on BOTH inner `getRunTypeId` calls. See
-		// docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md.
+		// on BOTH inner `getRunTypeId` calls.
 		if comptimeargs.IsInjectionMarkerParamNode(state.scanChecker, lastParam, state.sess.marker) {
 			return true
 		}

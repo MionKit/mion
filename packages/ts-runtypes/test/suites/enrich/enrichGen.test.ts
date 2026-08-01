@@ -1,7 +1,7 @@
 // Entry 1 of the AI-enrichment generation suite: for every case, EXTRACT the
 // authored `src` type, GENERATE the FriendlyText / MockData skeleton via the
 // batch `gen --files` CLI, and COMPARE (Prettier-normalized) against the
-// case-authored `friendly` / `mock` expecteds. See docs/AI_ENRICHMENT_TEST_PLAN.md.
+// case-authored `friendly` / `mock` expecteds.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {generateCategory, cleanupTempDir, type CaseComparison} from '../../util/enrichGen.ts';

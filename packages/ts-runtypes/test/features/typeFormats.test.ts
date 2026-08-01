@@ -1,7 +1,6 @@
-// The public type-format metadata surface (Part B of
-// docs/partially/export-compiled-fn-structs-and-reconstruction-api.md, split to
-// docs/done/export-format-name-runtime-constants.md). `typeFormats` is the
-// runtime table a consumer keys off to map a reflected prop's
+// The public type-format metadata surface (Part B of the compiled-fn struct
+// export work). `typeFormats` is the runtime table a consumer keys off to map
+// a reflected prop's
 // `formatAnnotation.name` to something external; `FormatName` is the union of
 // those names. Everything is imported from the package barrel (`@ts-runtypes/
 // core`) so the import itself pins public reachability.

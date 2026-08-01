@@ -78,8 +78,8 @@ type Flatten<T> = {[K in keyof T]: T[K]};
  *  literal (so `InferType` reads `{a: string; b?: number}`, never `{a} & {b?}`).
  *  But that pays all four mapped-type passes on EVERY object — even an all-required
  *  one, where three groups are empty — and the cost compounds at every nesting
- *  level (the dominant value-first type-check cost; see
- *  docs/value-first-typecheck-cost.md). So dispatch on the modifier PROFILE first
+ *  level (the dominant value-first type-check cost).
+ *  So dispatch on the modifier PROFILE first
  *  (two cheap key-probes) and emit the leanest map that's still exact: a single
  *  homomorphic map when no field is modified (the common case — already one literal,
  *  no `Flatten` needed), a `Flatten`ed 2-group split when only one modifier kind is
@@ -154,7 +154,7 @@ export type MapTuple<T extends readonly RunType[]> = {-readonly [K in keyof T]: 
  *  same structural id as the type-first union.
  *
  *  ⚠️ Recursive `infer` is the TS-checker-perf hazard this value-first surface
- *  otherwise avoids (see docs/value-first-formats.md). It is used ONLY here, and
+ *  otherwise avoids. It is used ONLY here, and
  *  the `union` builder reaches it ONLY as the variable-arity fallback: unions up
  *  to the fixed-arity overload count are branded directly (`A | B | …`) via plain
  *  generic inference, with NO `infer`. So the perf cost is confined to unusually

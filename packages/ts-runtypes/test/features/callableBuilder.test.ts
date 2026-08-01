@@ -7,8 +7,7 @@
 // + members. See src/schema/compose.ts.
 //
 // Signature param NAMES are id-relevant (`parameters[].name` must be per-site
-// reliable — see docs/done/tuple-labels-unreliable-on-canonical-nodes.md), and
-// TS call-signature syntax REQUIRES param names while `RT.func` brands an
+// reliable), and TS call-signature syntax REQUIRES param names while `RT.func` brands an
 // unnamed positional expansion — so the two forms are informationally different
 // types now: distinct cache entries with IDENTICAL validator behavior. Both
 // facts are pinned below.

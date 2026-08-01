@@ -45,7 +45,7 @@ import {
 // `deserialize` rebuilds the instance. A custom `serialize` must stay within
 // the declared object shape: the JSON decoder runs a structural pre-pass over
 // the wire value, so a non-object / renamed-key custom shape is not supported
-// on the JSON decode path (see docs/todos/class-serializer-custom-wire-shape.md).
+// on the JSON decode path.
 class Money {
   constructor(
     public amount: number,

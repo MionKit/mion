@@ -133,7 +133,6 @@ export const _b = createBinaryEncoderFn<never>();
 // (Never, Symbol, NonSerializable class, etc.), the property emit
 // drops it from the parent's chain rather than propagating CodeNS
 // to the root. The rest of the object's validator still works.
-// See docs/UNSUPPORTED-KINDS.md.
 func TestDiag_PropertyAbsorbsUnsupportedChild_NeverProp(t *testing.T) {
 	// pj is demand-driven now, so seed it via createJsonEncoderFn(mutate) → [pj].
 	const code = `import {createJsonEncoderFn} from '@ts-runtypes/core';

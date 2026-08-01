@@ -187,9 +187,9 @@ export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunT
  * property: intersecting one onto a TUPLE parameter — the old
  * `T & {__rtCompTimeArgsBrand?: never}` used by `tuple`/`union`/`func` —
  * cost ~700 TS instantiations per call (the array-literal-vs-tuple-intersection
- * check; see docs/value-first-typecheck-cost.md). The Go scanner therefore
- * detects this marker SYNTACTICALLY, off the parameter's `CompTimeArgs<…>` type
- * annotation, instead of off a brand property on the resolved type.
+ * check). The Go scanner therefore detects this marker SYNTACTICALLY, off the
+ * parameter's `CompTimeArgs<…>` type annotation, instead of off a brand property
+ * on the resolved type.
  */
 export type CompTimeArgs<T> = T;
 

@@ -360,8 +360,6 @@ getRunTypeId(v);
 //   `/abc/i`. Triggered by inline regex literals, `as const`
 //   wraps, and (transitively) `const`-binding chains reachable via `typeof`
 //   in static form or via direct identifier reference in reflect form.
-//
-// See docs/atomic-types.md for the worked example matrix.
 // =========================================================================
 
 func TestAtomic_Regexp_Static_RegExpType(t *testing.T) {
@@ -673,7 +671,7 @@ getRunTypeId<Color>();
 func TestAtomic_EnumNumeric_Reflect(t *testing.T) {
 	// `const v = Color.Red` (no annotation) — declared type widens to the
 	// parent enum `Color`. The counterintuitive trap `const v: Color = …`
-	// would narrow to the literal `Color.Red` instead; see docs/atomic-types.md.
+	// would narrow to the literal `Color.Red` instead.
 	const code = `import {getRunTypeId} from '@ts-runtypes/core';
 enum Color {
   Red = 0,

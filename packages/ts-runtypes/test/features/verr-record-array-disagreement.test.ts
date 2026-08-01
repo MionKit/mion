@@ -1,4 +1,4 @@
-// Regression for docs/done/verr-record-array-disagreement.md.
+// Regression for the verr/validate record-vs-array disagreement.
 //
 // The invariant: createValidateFn<T>() and createGetValidationErrorsFn<T>() must
 // ALWAYS agree — for every value v, `validate(v) === (getValidationErrors(v).length === 0)`

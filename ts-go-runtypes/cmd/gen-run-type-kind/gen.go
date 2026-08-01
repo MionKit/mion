@@ -39,8 +39,8 @@ func moduleRoot() string {
 // monorepoRoot is the repository root — the parent of the Go module — where the
 // `packages/` workspaces live. The emitted TS files land under here, NOT under
 // the Go module: a past migration moved the Go tree into ts-go-runtypes/ but left
-// packages/ at the repo root (see docs/done/go-tree-subdir-migration.md), so the
-// output paths need one more level up than the protocol reads.
+// packages/ at the repo root, so the output paths need one more level up than
+// the protocol reads.
 func monorepoRoot() string {
 	return filepath.Dir(moduleRoot())
 }

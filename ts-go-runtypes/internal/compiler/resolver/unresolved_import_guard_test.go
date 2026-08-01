@@ -17,7 +17,7 @@ import (
 // trap: the emitted validator would accept anything with zero signal). A
 // written `any` keyword stays legal even in the same broken file, and fully
 // resolved files never diagnose. Fixtures cover BOTH getRunTypeId call shapes
-// (marker rule). See docs/done/unresolved-import-degrades-marker-type-to-any-silently.md.
+// (marker rule).
 
 func unresolvedImportSession(t *testing.T) *resolver.Session {
 	t.Helper()

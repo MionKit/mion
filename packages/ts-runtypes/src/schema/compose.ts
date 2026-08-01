@@ -134,8 +134,8 @@ export function tuple(
  *  generic inference (NO `infer`) for up to 8 members; beyond that the trailing
  *  array overload falls back to the recursive `UnionOf<T>`. The cutoff is 8 (was 4):
  *  the 8-arm union is a measured outlier (`UNION.large_union_eight_arms`) where the
- *  recursive `UnionOf` build costs ~25% more than the direct `A | … | H` brand
- *  (see docs/value-first-typecheck-cost.md), and overload resolution stops at the
+ *  recursive `UnionOf` build costs ~25% more than the direct `A | … | H` brand,
+ *  and overload resolution stops at the
  *  first matching arity, so narrower unions never pay for the wider overloads.
  *  9+ members still recurse via `UnionOf<T>` — its non-tail recursion only nears
  *  TS's depth wall on very wide unions, which the fixed overloads can't cover anyway. **/

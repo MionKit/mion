@@ -18,8 +18,8 @@ import (
 // written anywhere else would emit the call WITHOUT recording the dep.
 //
 // This matters because the recording drives delivery: the demand-driven built-in
-// pure-fn work (docs/todos/demand-driven-builtin-pure-fns.md) makes the recorded
-// list the source of a fn entry's pure-fn imports. Once delivery is build-owned,
+// pure-fn work makes the recorded list the source of a fn entry's pure-fn
+// imports. Once delivery is build-owned,
 // a missed recording is no longer masked by the always-on side-effect import — it
 // becomes a MISSING IMPORT and a runtime `getPureFn(...) === undefined`. So we pin
 // the invariant now: for every rendered live entry, every `getPureFn('K')` /

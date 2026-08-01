@@ -939,9 +939,8 @@ export const OBJECT = {
       valid: [{}, {a: 'x'}, {a: 'x', b: 'y'}],
       // The trailing four are non-plain objects. A `for...in` enumerates no own
       // string keys on them, so without the brand guard `getValidationErrors`
-      // reported zero errors while `validate` returned false (O4 disagreement,
-      // docs/done/verr-record-array-disagreement.md). `[]` is the documented
-      // minimal repro; Date / Map / Set mirror the fuzz discovery seeds.
+      // reported zero errors while `validate` returned false (O4 disagreement).
+      // `[]` is the documented minimal repro; Date / Map / Set mirror the fuzz discovery seeds.
       invalid: [
         {a: 1},
         {a: 'x', b: 2},
@@ -1392,8 +1391,7 @@ export const OBJECT = {
     // validates it as a function-with-data-props. Ids cannot converge.
     dataOnlyDivergent: true,
     // Signature param names are id-relevant (parameters[].name must be
-    // per-site reliable — see docs/done/tuple-labels-unreliable-on-canonical-nodes.md),
-    // and TS call-signature syntax REQUIRES names, while the value-first
+    // per-site reliable), and TS call-signature syntax REQUIRES names, while the value-first
     // RT.func builder brands an unnamed positional expansion — the two forms
     // are informationally different types now. Behavior stays identical (the
     // schema thunks still run in the behavior suites).

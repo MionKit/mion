@@ -235,7 +235,7 @@ func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
 // ARE id-relevant: cache entries are shared singletons and for createMockDataFn
 // the samples are behaviour — two same-shape formats differing only in
 // samples/message must NOT collapse onto one entry (first-intern
-// nondeterminism; see docs/done/format-pattern-samples-dedup-and-length-soundness.md).
+// nondeterminism).
 func TestFormatAnnotation_SamplesFoldIntoKey(t *testing.T) {
 	withSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
 		Name:   "stringFormat",

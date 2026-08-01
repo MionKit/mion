@@ -1,8 +1,7 @@
 // The model + command set for the FriendlyText i18n-sync fuzzer.
 //
 // SUT: the `enrich --i18n` / `enrich --i18n --no-emit` pipeline over a (SOURCE
-// TYPE, translation file T) pair — the SRC-DERIVED reconcile
-// (docs/done/friendly-unified-src-reconcile.md): a locale file is generated
+// TYPE, translation file T) pair — the SRC-DERIVED reconcile: a locale file is generated
 // from the source TYPE by the same driver as the friendly mirror; the friendly
 // mirror is a DISCOVERY input only (breadcrumb + type-name annotations), never
 // a content input. The fuzzer therefore edits the .ts SOURCE (format params

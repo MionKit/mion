@@ -1,6 +1,6 @@
 // End-to-end acceptance for the unresolved-generics rejection model — drives
 // the Go binary over inline sources and verifies the marker scanner's four
-// behaviors (see docs/done/typeid-walk-depth-backstop.md addendum):
+// behaviors (the typeid-walk depth-backstop addendum):
 //
 //   MKR009 — a self-instantiating generic (Iter<T>.map(): Iter<U>) hits the
 //            structural-id depth backstop and is named, deterministically (no

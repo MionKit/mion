@@ -271,8 +271,7 @@ func (ToBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) 
 		return RTCode{Code: reserveInline(ser, "1", ser+".view.setUint8("+ser+".index++, 1)", ctx), Type: CodeS}
 
 	case protocol.KindSymbol:
-		// Unsupported — symbol identity does not round-trip through
-		// serialisation. See docs/UNSUPPORTED-KINDS.md FAQ.
+		// Unsupported — symbol identity does not round-trip through serialisation.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindRegexp:
@@ -513,8 +512,7 @@ func emitPropertyToBinary(rt *protocol.RunType, ctx *EmitContext, v string, ser 
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property. See
-		// docs/UNSUPPORTED-KINDS.md.
+		// Directly DataOnly-stripped value — drop the property.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

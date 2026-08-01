@@ -215,7 +215,7 @@ type Walker struct {
 	// RTDependencies and are NOT duplicated here. Unlike RTDependencies
 	// this list is NOT consumed by emission/topo decisions today — it is
 	// captured so a later demand-scoping step can follow the edges to the
-	// referenced family. See docs/CROSS-FAMILY-RT-DEPS.md.
+	// referenced family.
 	CrossFamilyDeps []string
 	// IsUnsupported flips to true the first time compileNode sees a
 	// CodeNS sentinel anywhere in the traversal. Once set it stays
@@ -231,7 +231,7 @@ type Walker struct {
 	// DiagCodeForLeaf to derive the per-family code that goes into the
 	// alwaysThrow init() call. First-encounter wins; AbsorbUnsupported
 	// clears this slot so a sibling property's own CodeNS can be tracked
-	// independently. See docs/UNSUPPORTED-KINDS.md.
+	// independently.
 	UnsupportedLeaf *protocol.RunType
 
 	// DiagSink is the destination for compile-time diagnostics this
@@ -380,8 +380,7 @@ func memberLabel(rt *protocol.RunType) string {
 // PropertySignature emits when they choose to drop an unsupported
 // child rather than propagate the CodeNS up. After absorption, the
 // parent returns plain empty code (CodeS or CodeE) so its own parent's
-// chain treats the slot as a no-op. See docs/UNSUPPORTED-KINDS.md
-// for the two-rule model.
+// chain treats the slot as a no-op (the two-rule model).
 func (w *Walker) AbsorbUnsupported() {
 	w.IsUnsupported = false
 	w.UnsupportedLeaf = nil
@@ -553,7 +552,7 @@ func (w *Walker) UpdateDependencies(childHash string, childIsNoop bool) {
 // land here. The InnerPrefix=="" case (hand-constructed walkers in unit
 // tests that never set a prefix) records nothing. Dedup mirrors
 // UpdateDependencies. Additive capture only: nothing in the renderer's
-// emission/topo path reads this list today. See docs/CROSS-FAMILY-RT-DEPS.md.
+// emission/topo path reads this list today.
 func (w *Walker) recordCrossFamilyDep(childID string) {
 	if w.InnerPrefix == "" || strings.HasPrefix(childID, w.InnerPrefix) {
 		return

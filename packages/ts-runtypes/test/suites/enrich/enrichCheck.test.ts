@@ -2,8 +2,7 @@
 // from the authored `src` + `friendly` + `mock` spans, run `ts-runtypes check`,
 // and assert ZERO findings. These maps are valid + tsc-checked, so `check` must
 // not false-positive across the type ranges. (The "check catches real errors"
-// direction stays on the Go unit tests with deliberately-broken maps.) See
-// docs/AI_ENRICHMENT_TEST_PLAN.md.
+// direction stays on the Go unit tests with deliberately-broken maps.)
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {checkCategory, cleanupTempDir, type CaseCheck} from '../../util/enrichGen.ts';

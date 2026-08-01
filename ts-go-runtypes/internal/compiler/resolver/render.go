@@ -245,8 +245,7 @@ func (sess *Session) pureFnReportForEntries(entries []purefunctions.Entry) []pro
 // runtime for every consumer shape. This replaced the old
 // `len(entries) == 0 → skip` guard, which a consumer's own registerPureFnFactory
 // defeated (entries became non-zero, so every built-in dep was then flagged
-// missing — the PFE9012 wall this fixes). See
-// docs/done/pfe9012-consumer-registerpurefn-false-positive.md.
+// missing — the PFE9012 wall this fixes).
 func (sess *Session) validateProgramPureFnDeps(uses []typefunctions.PureFnDepUse) []diagnostics.Diagnostic {
 	if len(uses) == 0 || sess.Program == nil {
 		return nil

@@ -11,7 +11,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// First-party diagnostic scoping (docs/done/scan-diagnostics-marker-own-source.md):
+// First-party diagnostic scoping:
 // when a dependency resolves to its own `.ts` SOURCE (its package.json `source`
 // export condition + a consumer's customConditions:["source"]), the whole-program
 // scan walks the library's own internal generic definitions. A non-literal

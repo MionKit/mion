@@ -102,7 +102,6 @@ func (RestoreFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 
 	case protocol.KindSymbol:
 		// Unsupported — symmetric with prepareForJson's symbol arm.
-		// See docs/UNSUPPORTED-KINDS.md FAQ.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindRegexp:
@@ -222,8 +221,7 @@ func emitPropertyRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v strin
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property. See
-		// docs/UNSUPPORTED-KINDS.md.
+		// Directly DataOnly-stripped value — drop the property.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

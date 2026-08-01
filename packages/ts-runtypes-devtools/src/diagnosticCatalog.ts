@@ -9,7 +9,7 @@
 // plugin, and the runtime alwaysThrow factory: resolve `{0}`, `{1}`, …
 // placeholders in the headline/detail templates against the args array.
 // The wire stays small; messages can be arbitrarily rich (multi-line,
-// code examples) for free. See docs/UNSUPPORTED-KINDS.md "Wire format".
+// code examples) for free.
 //
 // Wording changes go in internal/diagnostics/messages.go, never here — regenerate
 // with `pnpm run gen:diag-catalog`.
@@ -59,7 +59,7 @@ export function renderDetail(code: string, args?: readonly string[]): string | u
  * and an optional `file:line:col` provenance hint as the 9th arg; the
  * cache module forwards both here. The factory throws
  * `[code] headline (at file:line:col)` on invocation. Centralised so
- * the catalog lives in one place. See docs/UNSUPPORTED-KINDS.md.
+ * the catalog lives in one place.
  *
  * The remaining args after siteHint are positional substitution values
  * for the catalog template — passed by the Go renderer in the same

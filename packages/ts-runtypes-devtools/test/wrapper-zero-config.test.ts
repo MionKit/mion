@@ -16,8 +16,7 @@
 // marker overlay, mirroring internal/testfixtures/runtypes.d.ts) rather than a
 // file inside the marker package's own test program: cross-file wrapper sites
 // are currently NOT resolved inside the marker package's self-referential
-// program (docs/todos/cross-file-wrapper-sites-not-scanned-in-self-program.md)
-// while every consumer-shaped program resolves them fine.
+// program, while every consumer-shaped program resolves them fine.
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';

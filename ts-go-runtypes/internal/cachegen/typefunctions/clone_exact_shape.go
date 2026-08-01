@@ -37,8 +37,7 @@ import (
 // Deliberately NO key-count gates and NO reuse shortcuts on the rebuild
 // paths: measured on V8, checking `Object.keys(x).length === N` to skip a
 // small-object rebuild costs MORE than the rebuild itself (1.6x slower for a
-// 7+3-prop shape) — see
-// docs/done/unknown-keys-aftervalidation-and-clone-exact-shape.md.
+// 7+3-prop shape).
 //
 // Intended use is stripping validated parse output:
 //

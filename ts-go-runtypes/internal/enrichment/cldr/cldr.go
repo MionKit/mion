@@ -1,6 +1,6 @@
 // Package cldr carries the built-in CLDR plural-category table the enrichment
 // generator uses to decide which arms a plural error template scaffolds for a
-// given locale (docs/done/friendly-type-i18n.md → §4). The table is REQUIRED at
+// given locale (friendly-type i18n, §4). The table is REQUIRED at
 // generation (it sets the emitted shape) but the runtime never reads it —
 // `Intl.PluralRules` selects at render, and the mandatory `other` arm backstops
 // any table imperfection, so a wrong/missing arm degrades, never breaks.

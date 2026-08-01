@@ -110,7 +110,7 @@ describe('getRunType — reflected RunType node accessor', () => {
   });
 });
 
-// Regression for docs/done/inject-runtypeid-helper-getruntype-undefined.md: the
+// Regression for the InjectRunTypeId helper fix: the
 // documented wrapper pattern. A helper declares a trailing
 // `id?: InjectRunTypeId<T>`; the build injects an opaque handle at each concrete
 // call site; the body resolves it by FORWARDING it to a public resolver as the

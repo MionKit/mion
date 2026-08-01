@@ -8,8 +8,8 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// External-module marker matrix (docs/done/external-module-markers.md). Each row
-// defines a type / schema / preset / pure-fn in one module and uses the marker
+// External-module marker matrix. Each row defines a type / schema / preset /
+// pure-fn in one module and uses the marker
 // in another, asserting the cross-module result converges with the inline twin —
 // and that the new hardening diagnostics (CTA004 widened const, PFN002 external
 // pure-fn handle) fire where intended.

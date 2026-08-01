@@ -1,5 +1,4 @@
-// Resolver lifecycle hardening — the buildEnd close race and its two fixes
-// (see docs/done/resolver-client-drain-close-and-retry.md):
+// Resolver lifecycle hardening — the buildEnd close race and its two fixes:
 //   - MessageTransport.close() DRAINS: a request already on the wire gets its
 //     real response instead of rejecting with "resolver exited"; only new
 //     requests are refused.

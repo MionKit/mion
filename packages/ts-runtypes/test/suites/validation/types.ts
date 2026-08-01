@@ -167,7 +167,7 @@ export interface ValidationCase {
    *  on invocation. Used for kinds that are unsupported at root —
    *  the Go pipeline renders the factory as an `alwaysThrow` entry,
    *  so the very first `createXxx<T>()` call surfaces the build-time
-   *  diagnostic at runtime. See docs/UNSUPPORTED-KINDS.md.
+   *  diagnostic at runtime.
    *
    *  `getSamples` / `getExpectedErrors` are not consulted when this
    *  flag is set — the test stops at the throw assertion. **/

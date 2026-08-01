@@ -1,5 +1,4 @@
-// Runtime-enumerability guard for global-inherited + `@nonEnumerable` props
-// (docs/done/runtime-enumerability-checks-for-global-props.md). A guarded
+// Runtime-enumerability guard for global-inherited + `@nonEnumerable` props. A guarded
 // property's by-name write is gated on a runtime own-enumerability check
 // (`Object.prototype.propertyIsEnumerable`, JSON.stringify semantics) in the
 // families that build output by name (prepareForJsonSafe / stringifyJson /

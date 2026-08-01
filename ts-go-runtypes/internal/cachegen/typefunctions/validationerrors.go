@@ -212,7 +212,7 @@ func (ValidationErrorsEmitter) emitKindDefault(rt *protocol.RunType, ctx *EmitCo
 		}
 
 	case protocol.KindSymbol:
-		// Unsupported — see docs/UNSUPPORTED-KINDS.md FAQ.
+		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindNull:
@@ -697,7 +697,7 @@ func emitPropertyValidationErrors(rt *protocol.RunType, ctx *EmitContext, v stri
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
 		// Directly DataOnly-stripped value — drop the property, matching
-		// `DataOnly<{a: symbol}>` = `{}`. See docs/UNSUPPORTED-KINDS.md.
+		// `DataOnly<{a: symbol}>` = `{}`.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

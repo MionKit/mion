@@ -1,4 +1,4 @@
-// AI-enrichment generation pipeline (per docs/AI_ENRICHMENT_TEST_PLAN.md):
+// AI-enrichment generation pipeline:
 // write each case's `src` span to its own temp module file under the in-repo
 // `.tmp/` dir, run ONE `gen --files … --type Target` batch over all of them,
 // then Prettier-normalize both the generated skeletons and the case-authored

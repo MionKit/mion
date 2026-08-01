@@ -19,8 +19,8 @@ func countMKR003(diags []diagnostics.Diagnostic) int {
 }
 
 // TestScan_WrapperForwardsHandle_NoMKR003 pins the fix for the documented
-// wrapper pattern (docs/done/inject-runtypeid-helper-getruntype-undefined.md):
-// a helper `describe<T>(id?: InjectRunTypeId<T>)` resolves its injected handle
+// wrapper pattern: a helper `describe<T>(id?: InjectRunTypeId<T>)` resolves its
+// injected handle
 // by FORWARDING it to a public resolver as the explicit trailing arg
 // (`getRunTypeId<T>(undefined, id)`). The forward call has its id slot filled,
 // so it is a pass-through: no injection AND no MKR003 — even though `T` is the
@@ -82,9 +82,9 @@ export const idLocal = useLocal();
 	}
 }
 
-// TestScan_GenericPassthroughDoesNotEncloseMarker pins the fix for
-// docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md: a
-// marker call passed as an argument to an unrelated GENERIC function is NOT
+// TestScan_GenericPassthroughDoesNotEncloseMarker pins the fix for the
+// same-typeid two-marker-calls case: a marker call passed as an argument to an
+// unrelated GENERIC function is NOT
 // "enclosed" by it, even when that function's trailing parameter INFERS the
 // branded marker type.
 //

@@ -220,7 +220,7 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
 
   // ---- literal rehydration — bigint (static) -------------------------------
   // Single-form: generic inference widens this literal in the other form
-  // (a `const v = 1n` widens to `bigint`). See docs/atomic-types.md.
+  // (a `const v = 1n` widens to `bigint`).
   runTest(
     'literal: bigint 1n rehydrates to BigInt [static]',
     {'m.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<1n>();\n`},
@@ -236,7 +236,7 @@ describe('@ts-runtypes/devtools / reflection-AST shape', () => {
   // serialize.go KEEPS the method signature in the reflected tree; the
   // cache-exit pass flags exactly that node `notSupported` and the runtime
   // rt() factory round-trips it. The data property stays unflagged. Emit
-  // behaviour is unchanged (see docs/UNSUPPORTED-KINDS.md).
+  // behaviour is unchanged.
   function assertNotSupported(cache: Cache) {
     const root = getTypeFor(cache, 'm.ts');
     expect(root.kind).toBe(ReflectionKind.objectLiteral);

@@ -9,7 +9,7 @@ import (
 // root-error code via the supplied family-specific map. Returns "" for
 // kinds not in the map — the renderer falls back to silent skip (no
 // alwaysThrow factory) so unknown future kinds don't surface diagnostics
-// without a registered code. See docs/UNSUPPORTED-KINDS.md.
+// without a registered code.
 type rootCodeMap struct {
 	never           string // KindNever
 	nonSerializable string // KindPromise + KindClass.SubKindNonSerializable

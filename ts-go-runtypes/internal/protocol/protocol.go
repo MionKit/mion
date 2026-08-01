@@ -123,8 +123,8 @@ type RunType struct {
 	// symbol / never / non-serialisable class). These nodes are KEPT in the
 	// reflected tree so reflection stays complete, but the validators and
 	// serializers drop them at property positions and throw at propagating
-	// ones (unchanged — see docs/UNSUPPORTED-KINDS.md). Set on the node
-	// itself only (never its children) by PopulateFamily at cache-exit,
+	// ones (unchanged). Set on the node itself only (never its children) by
+	// PopulateFamily at cache-exit,
 	// using the same Kind classification the emitters apply. Reflection
 	// consumers read it to know which members the type functions skip.
 	NotSupported bool `json:"notSupported,omitempty"`

@@ -1,5 +1,4 @@
-// Tuple labels + function param names are id-relevant (see
-// docs/done/tuple-labels-unreliable-on-canonical-nodes.md): same-shape types
+// Tuple labels + function param names are id-relevant: same-shape types
 // differing only in labels/param names are DIFFERENT canonical nodes, each
 // carrying its own reliable `children[].name` / `parameters[].name` — the
 // names a framework reads to expose handler param names (mion's

@@ -2,9 +2,8 @@ package protocol
 
 import "testing"
 
-// TestIsNotSupportedKind — the "non-data" set documented in
-// docs/UNSUPPORTED-KINDS.md is flagged; data kinds (including the
-// validation-supported Promise and serialisable classes) are not.
+// TestIsNotSupportedKind — the "non-data" set is flagged; data kinds (including
+// the validation-supported Promise and serialisable classes) are not.
 func TestIsNotSupportedKind(t *testing.T) {
 	notSupported := []struct {
 		kind    ReflectionKind

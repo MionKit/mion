@@ -1,5 +1,5 @@
-// Marker calls in function-argument position — regression for
-// docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md.
+// Marker calls in function-argument position — regression for two marker calls
+// with the same typeid in one statement not being injected.
 //
 // A `getRunTypeId<T>()` call returns the branded `InjectRunTypeId<T>` handle, so
 // when it is the argument to a GENERIC function the function's type parameter

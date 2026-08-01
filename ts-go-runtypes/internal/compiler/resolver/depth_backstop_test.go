@@ -42,7 +42,7 @@ func requireSingle(t *testing.T, diags []diagnostics.Diagnostic, code, expectedA
 }
 
 // TestScan_SelfInstantiatingGeneric_EmitsMKR009 pins the typeid walker depth
-// backstop's cause classification (docs/done/typeid-walk-depth-backstop.md).
+// backstop's cause classification.
 // `Iter<T>`'s `map` method returns a FRESH instantiation `Iter<U>` on every
 // level, so each spine level is a new *checker.Type pointer: the structural-id
 // walk's pointer cycle guard never fires and, without the cap, Compute recursed

@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-// Regression for docs/done/verr-record-array-disagreement.md: the
+// Regression for the verr/validate record-vs-array disagreement: the
 // `validationErrors` (verr) family under-reported a non-plain-object input (an
 // array, Map, Set, Date, …) against a record / index-signature type. `validate`
 // carries an array-rejection brand guard for index-signature objects

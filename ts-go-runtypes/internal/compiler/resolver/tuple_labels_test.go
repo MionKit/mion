@@ -13,8 +13,7 @@ import (
 // shared singletons carrying `children[].name` / `parameters[].name`, so two
 // same-shape types differing only in labels/param names must intern as
 // DIFFERENT nodes — otherwise whichever call site is scanned first supplies
-// the names for both (the mion route-param-names bug; see
-// docs/done/tuple-labels-unreliable-on-canonical-nodes.md).
+// the names for both (the mion route-param-names bug).
 //
 // Fixtures live in internal/testfixtures/tuplelabels/, one file per variant,
 // each containing BOTH getRunTypeId call shapes (marker coverage rule) so the

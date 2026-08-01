@@ -1,8 +1,7 @@
 // The all-strategy round-trip oracle.
 //
 // One conforming, data-only value is generated per random type and run through
-// every wired lane (clone / mutate / direct / compact / binary). The invariants
-// (from docs/todos/all-strategy-roundtrip-fuzzer.md):
+// every wired lane (clone / mutate / direct / compact / binary). The invariants:
 //
 //   RT-VALIDATE   both ends validate: validate(value) and validate(roundtrip)
 //                 are both true.

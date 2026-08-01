@@ -37,8 +37,7 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
       // and oversized values actually exercised grows. runSizeFuzz drives a fixed
       // deterministic floor case first, so these hold by construction whenever the
       // resolver is reachable — a resolver that dies under load makes runFloor throw
-      // a clear "resolver unavailable" instead of silently zeroing these counters
-      // (see docs/done/flaky-binary-size-estimate-fuzz.md).
+      // a clear "resolver unavailable" instead of silently zeroing these counters.
       expect(report.stats.noGrowChecked, 'no-resize lane never ran').toBeGreaterThan(0);
       expect(report.stats.negativesExercised, 'negative control never grew a buffer').toBeGreaterThan(0);
     },

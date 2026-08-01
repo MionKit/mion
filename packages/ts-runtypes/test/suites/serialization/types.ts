@@ -118,7 +118,7 @@ export interface SerializationCase {
    *  first lookup — the materialised throwing stub fires inside
    *  `lookupRTFn` before returning to the caller. Tests assert the
    *  throw at the thunk-invocation site rather than a successful
-   *  round-trip. See docs/UNSUPPORTED-KINDS.md. **/
+   *  round-trip. **/
   factoryThrows?: boolean;
 
   /** When the factory builds successfully but `JSON.stringify(prepared)`

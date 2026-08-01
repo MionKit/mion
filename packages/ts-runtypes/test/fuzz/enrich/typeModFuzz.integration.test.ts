@@ -12,7 +12,7 @@
 // were made stable):
 //   NL  nothing authored is ever lost — exactly the "edit again, nothing lost" property
 //   RC  a ROOT rename (incl. rename + reshape) moves authored labels onto the LIVE
-//       const, not into an @rtOrphan carcass (docs/done/reconcile-rename-detection.md)
+//       const, not into an @rtOrphan carcass
 //   CB  content-blind: an empty-valued twin driven through the same edits reconciles to
 //       identical structure as the filled one (filling labels can't change the result)
 //   R6  a valid edit converges (a second --update is a byte-identical no-op)

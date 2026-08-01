@@ -1,5 +1,5 @@
-// External-module marker matrix (docs/done/external-module-markers.md), run
-// through the REAL marker package and the live plugin: every marker's type /
+// External-module marker matrix, run through the REAL marker package and the
+// live plugin: every marker's type /
 // schema / preset is defined in a SIBLING module (external-module-library.ts)
 // and used here, proving the cross-module path works end-to-end at runtime and
 // converges with the inline-defined form.

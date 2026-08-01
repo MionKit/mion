@@ -156,7 +156,6 @@ func TestValidatePureFnDependencies_MissingKey_PFE9012(t *testing.T) {
 // exactly the published-package consumer's shape (core resolved to its .d.ts,
 // so no registration source is in the program). A user-namespace miss in the
 // same batch still fires, so the check keeps its value for genuine user typos.
-// See docs/done/pfe9012-consumer-registerpurefn-false-positive.md.
 func TestValidatePureFnDependencies_BuiltinNamespacesExempt(t *testing.T) {
 	idx := NewIndex(nil, nil)
 	deps := []protocol.PureFnDep{

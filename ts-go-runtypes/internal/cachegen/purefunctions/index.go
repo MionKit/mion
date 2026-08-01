@@ -8,10 +8,9 @@ import (
 )
 
 // KEPT-UNWIRED (owner decision, 2026-07-05): this validation API has no
-// production caller yet — the resolver wiring is the planned follow-up
-// specced in docs/todos/pfe9012-orphaned-diagnostic.md (build-time
-// PFE9012 "missing pure-fn dep" surfaced through the lint plugin). Do
-// NOT delete as dead code.
+// production caller yet — the resolver wiring is the planned follow-up for
+// the orphaned build-time PFE9012 "missing pure-fn dep" diagnostic, surfaced
+// through the lint plugin. Do NOT delete as dead code.
 //
 // Index is a lookup-only view of an extraction result. The resolver
 // builds one after ExtractFromProgramCached and reuses it for dep validation
@@ -100,7 +99,7 @@ func (idx *Index) merge(entries []Entry, filePath string) {
 // namespaces are cross-checked against the program's registrations. This is the
 // principled replacement for the old whole-program "any registration present?"
 // guard, which a consumer's own registerPureFnFactory defeated — false-flagging
-// every built-in. See docs/done/pfe9012-consumer-registerpurefn-false-positive.md.
+// every built-in.
 var builtinPureFnNamespaces = map[string]bool{
 	"rt":        true,
 	"rtFormats": true,

@@ -124,7 +124,7 @@ func (PrepareForJsonSafeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ 
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 
 	case protocol.KindSymbol:
-		// Unsupported — see docs/UNSUPPORTED-KINDS.md FAQ.
+		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindRegexp:

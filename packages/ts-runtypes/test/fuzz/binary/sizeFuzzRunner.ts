@@ -44,8 +44,7 @@ export const SIZE_CONFIGS: ReadonlyArray<Required<BinarySizingOptions>> = [
  *  regardless of what the random fuzz happens to produce. The lane guards would
  *  otherwise go vacuous when every fuzz iteration skips — which is what a
  *  resolver dying under full-suite load does (one crash closes the client, so
- *  every later request on it throws and cascades to `skipped`). See
- *  docs/done/flaky-binary-size-estimate-fuzz.md. **/
+ *  every later request on it throws and cascades to `skipped`). **/
 const FLOOR_TYPE: GeneratedType = {
   decls: [],
   root: {

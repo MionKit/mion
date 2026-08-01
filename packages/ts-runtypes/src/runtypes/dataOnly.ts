@@ -26,8 +26,7 @@
  *  (`name` / `message`) is not guarded — it is always serialized, and
  *  `DataOnly<Error>` correctly lists it. (A `@nonEnumerable` tag on a REQUIRED
  *  property is a no-op — the property serializes unconditionally — and the `NE`
- *  lint rule flags it; make it optional for the tag to take effect.) See
- *  docs/done/runtime-enumerability-checks-for-global-props.md.
+ *  lint rule flags it; make it optional for the tag to take effect.)
  *
  *  This lives in its own module because it is load-bearing and exhaustively
  *  tested: every branch has a correctness + instantiation-budget case in
@@ -67,8 +66,7 @@ export interface DataOnlyNativeExtra {}
  *     neither kept verbatim nor stripped. **/
 type DataOnlyNative = Date | RegExp | DataOnlyNativeExtra[keyof DataOnlyNativeExtra];
 
-/** Kinds the AOT validator treats as NON-DATA and strips (docs/UNSUPPORTED-KINDS.md
- *  "the unsupported set"):
+/** Kinds the AOT validator treats as NON-DATA and strips (the unsupported set):
  *   - `symbol` — runtime identity, not round-trippable;
  *   - any callable / constructable value (function, method, class value);
  *   - `Promise` / thenables — `validate` validates inbound public-API *data*,
@@ -117,7 +115,7 @@ type _DataOnlyDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 /** The data-only projection of `T` — the exact shape `createValidateFn<T>()` /
  *  `createGetValidationErrorsFn<T>()` validate. It walks `T` and DROPS every member the
  *  AOT emitter treats as non-data (see CLAUDE.md "validate contract — serializable
- *  data only" + docs/UNSUPPORTED-KINDS.md):
+ *  data only"):
  *   - `DataOnlyStripped` kinds (symbol / function / constructor / promise /
  *     non-serialisable built-ins / `never`) → `never`;
  *   - primitives, `Date`/`RegExp` (+ augmented Temporal), and `Map`/`Set` →

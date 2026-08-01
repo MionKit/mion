@@ -561,8 +561,7 @@ export const TUPLE = {
     validateNotes:
       'Element labels never affect validation behaviour — only positional types are checked. Labels ARE id-relevant reflection data though (`children[].name` must be per-site reliable), so this labeled tuple is a different cache entry than the unlabelled `[string, number]`.',
     // Labels fold into the structural id (canonical nodes carry children[].name,
-    // so same-shape/different-labels must not share a node — see
-    // docs/done/tuple-labels-unreliable-on-canonical-nodes.md). The value-first
+    // so same-shape/different-labels must not share a node). The value-first
     // RT.tuple builder models the UNLABELED shape, so the two forms are
     // different types informationally and cannot converge on one id.
     idDivergent: true,

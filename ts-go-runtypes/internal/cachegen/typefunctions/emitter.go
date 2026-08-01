@@ -293,7 +293,7 @@ func (ctx *EmitContext) registerRTLookup(childID string) {
 	// gate, so same-family lookups (also funnelled through here by
 	// emitDepCall) stay in RTDependencies and only genuine cross-family
 	// references are captured. Additive: nothing consumes CrossFamilyDeps
-	// in emission today. See docs/CROSS-FAMILY-RT-DEPS.md.
+	// in emission today.
 	if ctx.walker != nil {
 		ctx.walker.recordCrossFamilyDep(childID)
 	}
@@ -444,7 +444,7 @@ type DiagCodeProvider interface {
 // per-family code (PJ001 for Never under prepareForJson, etc.).
 // Returning "" preserves the silent-skip path (no factory emitted) —
 // used as a safety net for unknown future kinds without a registered
-// code. See docs/UNSUPPORTED-KINDS.md for the unified throw model.
+// code (the unified throw model).
 type LeafDiagCodeProvider interface {
 	DiagCodeForLeaf(leaf *protocol.RunType) string
 }

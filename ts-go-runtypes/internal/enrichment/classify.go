@@ -1,7 +1,7 @@
 package enrichment
 
 // Count-bearing constraint classification — the single shared table behind
-// generator-owned plurals (docs/done/friendly-type-i18n.md → §4). A constraint
+// generator-owned plurals (friendly-type i18n, §4). A constraint
 // whose violated bound is a COUNT can pluralize its message, so the scaffold
 // emits a plural OBJECT there (arms per the file-locale's CLDR categories) and
 // a plain STRING everywhere else (an object would have dead arms — only

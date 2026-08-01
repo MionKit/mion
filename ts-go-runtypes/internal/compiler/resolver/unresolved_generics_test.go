@@ -9,7 +9,7 @@ import (
 )
 
 // unresolved_generics_test.go pins the unresolved-generics rejection model
-// (docs/done/typeid-walk-depth-backstop.md addendum): a marker call must
+// (the typeid-walk depth-backstop addendum): a marker call must
 // reflect a FULLY RESOLVED type. Bare free params are MKR003 (existing);
 // free params CONTAINED in data positions are MKR010; a written generic
 // reference MISSING required (default-less) type arguments is MKR011; and

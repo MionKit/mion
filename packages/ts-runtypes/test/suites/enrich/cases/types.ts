@@ -1,5 +1,4 @@
-// Shared case shape for the AI-enrichment generation suite (see
-// docs/AI_ENRICHMENT_TEST_PLAN.md). Each case's `case()` body is real,
+// Shared case shape for the AI-enrichment generation suite. Each case's `case()` body is real,
 // type-checked TypeScript carrying four marker-delimited spans:
 //
 //   // ##### src #####       — `type Target = …;`

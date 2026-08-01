@@ -49,7 +49,7 @@ function violation(oracle: SizeOracleId, compiled: CompiledType, ctx: SizeCtx, m
  *     exact cached byte length instead, which is TIGHTER — so leaving it warm lets a
  *     later "cold" encode fit a buffer a true cold start would have grown, silently
  *     masking an under-allocation AND making the negative lane non-deterministic
- *     (first encode grows, the rest don't). See docs/done/flaky-binary-size-estimate-fuzz.md. **/
+ *     (first encode grows, the rest don't). **/
 function coldStart(): void {
   setSerializationOptions({sizeHistory: new Map(), stringBytesCache: new Map()});
 }

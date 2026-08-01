@@ -96,7 +96,7 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 
 	case protocol.KindNever:
 		// Unsupported leaf — walker latches, renderer emits alwaysThrow
-		// factory keyed by PJ001 (see docs/UNSUPPORTED-KINDS.md).
+		// factory keyed by PJ001.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindBigInt:
@@ -108,7 +108,6 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 		// Unsupported — symbol identity does not survive a JSON
 		// round-trip (Symbol("x") !== Symbol("x")), so the previous
 		// "Symbol:" + description encoding was lossy by construction.
-		// See docs/UNSUPPORTED-KINDS.md FAQ for the rationale.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindRegexp:
@@ -364,8 +363,7 @@ func emitPropertyPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string
 		// live object with `JSON.stringify`, which DROPS symbol / function /
 		// undefined values natively but SERIALIZES a Promise / typed array /
 		// ArrayBuffer as a plain object — so those must be `delete`d to match the
-		// data-only projection (and the clone / direct / binary output). See
-		// docs/UNSUPPORTED-KINDS.md "How a parent absorbs".
+		// data-only projection (and the clone / direct / binary output).
 		if jsonStringifyLeaks(resolved) {
 			return RTCode{Code: "delete " + propertyAccessor(v, rt.Name, rt.IsSafeName), Type: CodeS}
 		}
@@ -500,7 +498,7 @@ func emitTupleMemberPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v str
 	// function arm returns CodeNS, the walker latches the leaf, and the
 	// renderer surfaces an alwaysThrow factory. Tuple slots are
 	// positional (no absorb), so dropping silently would emit a lossy
-	// validator. See docs/UNSUPPORTED-KINDS.md.
+	// validator.
 	if isRestTupleMember(rt) {
 		return emitElementLoop(rt.Child, ctx, v, positionStr(rt))
 	}

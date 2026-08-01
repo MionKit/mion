@@ -1,7 +1,5 @@
 // Mock soundness: `validate(createMockDataFn<T>()())` must hold — or fail
-// loudly. Pins the fixes from
-// docs/done/mocking-gaps-format-transforms-and-domain-allowedvalues.md and
-// docs/done/format-pattern-samples-dedup-and-length-soundness.md:
+// loudly. Pins the mocking-gaps and format-pattern-samples soundness fixes:
 //   1. format case-transforms apply to mocks (the fmt cache lookup used a
 //      dead 'fmt_'-prefixed key; now resolved via familyTag scan);
 //   2. domain formats restricted by allowedValues mock FROM the allowed set;

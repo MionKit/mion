@@ -186,10 +186,9 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 		{"number", &protocol.RunType{ID: "num", Kind: protocol.KindNumber}, "return Number.isFinite(v)", false},
 		{"boolean", &protocol.RunType{ID: "boo", Kind: protocol.KindBoolean}, "return typeof v === 'boolean'", false},
 		{"bigint", &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}, "return typeof v === 'bigint'", false},
-		// KindSymbol is unsupported at root — see docs/UNSUPPORTED-KINDS.md
-		// FAQ. Renderer emits an alwaysThrow factory whose final slot is the
-		// VL002 message, rendered here at build time (not a body-bearing
-		// validator).
+		// KindSymbol is unsupported at root. Renderer emits an alwaysThrow
+		// factory whose final slot is the VL002 message, rendered here at
+		// build time (not a body-bearing validator).
 		{"symbol", &protocol.RunType{ID: "sym", Kind: protocol.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")", false},
 		{"null", &protocol.RunType{ID: "nul", Kind: protocol.KindNull}, "return v === null", false},
 		{"undefined", &protocol.RunType{ID: "und", Kind: protocol.KindUndefined}, "return typeof v === 'undefined'", false},
@@ -903,7 +902,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		// v2: property positions ABSORB unsupported children rather than
 		// propagating CodeNS to root. The object's emit drops the unsupported
 		// property from its AND chain and still renders for the supported
-		// siblings. See docs/UNSUPPORTED-KINDS.md "How a parent absorbs".
+		// siblings.
 		propUns := &protocol.RunType{
 			ID:         "pU",
 			Kind:       protocol.KindPropertySignature,
@@ -985,7 +984,7 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 	t.Run("plain_user_class_with_nonserializable_subkind_throws", func(t *testing.T) {
 		// alwaysThrow init() carries the fully rendered VL001 message as its
 		// final slot (rendered here in Go at build time, not resolved
-		// JS-side). See docs/UNSUPPORTED-KINDS.md "Wire format".
+		// JS-side).
 		ns := &protocol.RunType{ID: "ns1", Kind: protocol.KindClass, SubKind: protocol.SubKindNonSerializable}
 		dump := protocol.Dump{RunTypes: []*protocol.RunType{ns, stringRT}}
 		out := renderToString(t, dump)

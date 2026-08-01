@@ -4,8 +4,7 @@
 // instantiation the program uses. Each instantiation hashes to a different
 // structural type id; what they share is the class name, which the emitter
 // bakes into the lookup (`utl.getClassSerializer('<id>', '<className>')`) and
-// the registry indexes as its fallback lane (see
-// docs/done/generic-class-serializers-single-instantiation.md).
+// the registry indexes as its fallback lane.
 //
 // Pairing rule (CLAUDE.md): getRunTypeId is exercised in BOTH call shapes and
 // asserted to converge for equivalent T.

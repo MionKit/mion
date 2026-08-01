@@ -43,8 +43,7 @@ import (
 // here: each emitter dispatches those on SubKind before reaching the
 // SubKindNone arm, so this helper only ever sees plain user classes.
 //
-// See docs/UNSUPPORTED-KINDS.md "Adding a new ... family" and the T7 design
-// notes for the locked contract.
+// See the T7 design notes for the locked contract.
 
 // userClassName returns the user-facing class name for a plain user class
 // RunType, or "" when the class is anonymous (no stable name to key the

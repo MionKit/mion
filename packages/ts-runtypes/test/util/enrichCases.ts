@@ -1,7 +1,7 @@
 // Shared harness for the AI-enrichment generation suite: extract every case's
 // `case()` arrow-function body from a category file via `ts-go-runtypes/cmd/extract-fn-bodies`,
 // then split each body by the `// ##### … #####` markers into its `src` /
-// `friendly` / `mock` spans. See docs/AI_ENRICHMENT_TEST_PLAN.md.
+// `friendly` / `mock` spans.
 
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';

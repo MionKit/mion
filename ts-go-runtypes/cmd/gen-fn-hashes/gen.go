@@ -14,9 +14,8 @@ import (
 // monorepoRoot is the repository root — three dirs up from this file (cmd/
 // gen-fn-hashes → cmd → ts-go-runtypes → repo root). The `packages/` workspaces
 // live here, NOT under the Go module: a past migration moved the Go tree into
-// ts-go-runtypes/ but left packages/ at the repo root (see
-// docs/done/go-tree-subdir-migration.md), so the output path is one level above
-// the Go module.
+// ts-go-runtypes/ but left packages/ at the repo root, so the output path is
+// one level above the Go module.
 func monorepoRoot() string {
 	_, thisFile, _, _ := runtime.Caller(0)
 	return filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", "..", ".."))

@@ -19,7 +19,6 @@ import (
 // reflection-only file emits ZERO val_ entries, a createValidateFn file emits
 // them, and a file that ONLY serializes a (non-merging) union still gets the
 // per-member val_ entries its decoder needs.
-// See docs/DEMAND-DRIVEN-FN-CACHES.md.
 
 func scopeScan(t *testing.T, code string) protocol.Response {
 	t.Helper()

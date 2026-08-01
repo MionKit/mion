@@ -11,9 +11,9 @@ import (
 //
 // CompTimeArgs is the zero-cost identity `type CompTimeArgs<T> = T` (markers.ts):
 // the old `T & {__rtCompTimeArgsBrand?: never}` cost ~700 TS instantiations when
-// T was a tuple — the `tuple` / `union` / `func` member lists (see
-// docs/value-first-typecheck-cost.md). Identity removes the cost, but its
-// instantiation drops the alias from the RESOLVED parameter type, so
+// T was a tuple — the `tuple` / `union` / `func` member lists. Identity
+// removes the cost, but its instantiation drops the alias from the RESOLVED
+// parameter type, so
 // marker.DetectAny (resolved-type alias name / brand-property matching) can no
 // longer see it. The written `CompTimeArgs<…>` annotation does survive in the
 // .d.ts, so detect it here off the parameter's type node — resolving the reference
@@ -87,8 +87,7 @@ func isMarkerAliasParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbo
 // syntactic annotation (`expected: U`, not `expected: InjectRunTypeId<…>`)
 // tells them apart. enclosedByInjectionMarker gates on this so it never
 // mistakes such a passer-through for an enclosing marker (which would wrongly
-// drop the argument's OWN injection). See
-// docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md.
+// drop the argument's OWN injection).
 func IsInjectionMarkerParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbol, opts marker.Options) bool {
 	if typeChecker == nil || paramSymbol == nil {
 		return false

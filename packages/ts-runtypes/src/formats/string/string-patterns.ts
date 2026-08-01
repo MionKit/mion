@@ -8,7 +8,7 @@
 //
 // Why not a `/regex/` literal: `typeof /x/` is `RegExp` (no literal regex type),
 // and `.d.ts` emission erases the initializer — so the source/flags would be
-// invisible to any downstream consumer. See docs/format-pattern-typelevel.md.
+// invisible to any downstream consumer.
 
 import {registerFormatPattern} from '../../runtypes/formatPattern.ts';
 

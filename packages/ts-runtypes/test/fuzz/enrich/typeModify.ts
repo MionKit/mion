@@ -424,9 +424,9 @@ const renameRootReshaped: ValidOp = {
 };
 
 // The default operation set: field edits, `addDecl` (introducing a named sub-const),
-// and the TYPE-RENAME ops. Renames carry across the const-level graph-parity matcher
-// (docs/done/reconcile-rename-detection.md); the carry — pure rename AND rename +
-// reshape — is asserted on every run by the runner's RC oracle.
+// and the TYPE-RENAME ops. Renames carry across the const-level graph-parity matcher;
+// the carry — pure rename AND rename + reshape — is asserted on every run by the
+// runner's RC oracle.
 const VALID_OPS: ValidOp[] = [
   renameProp,
   addProp,

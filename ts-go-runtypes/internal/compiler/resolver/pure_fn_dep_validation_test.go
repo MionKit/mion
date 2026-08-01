@@ -63,7 +63,6 @@ func assertNoPFE9012(t *testing.T, diags []diagnostics.Diagnostic) {
 // non-zero, defeating the "any registration present?" guard and turning every
 // built-in reference into a PFE9012 wall that halted the build. Built-in
 // namespaces are now exempt, so no PFE9012 must appear on any path.
-// See docs/done/pfe9012-consumer-registerpurefn-false-positive.md.
 func TestPureFnDepValidation_ConsumerOwnPureFnNoFalsePositive(t *testing.T) {
 	sources := map[string]string{
 		"runtypes.d.ts": runtypesDTSWithPureFn,

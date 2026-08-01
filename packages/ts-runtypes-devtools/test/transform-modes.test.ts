@@ -78,7 +78,7 @@ getRunTypeId(u);
     }
   );
 
-  // Regression (docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md):
+  // Regression (two marker calls with the same typeid in one statement):
   // a marker call passed as an argument to an unrelated GENERIC function whose
   // parameter INFERS the branded marker type must still inject — in BOTH wire
   // modes. Real-world trigger: vitest's

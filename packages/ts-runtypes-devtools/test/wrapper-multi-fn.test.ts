@@ -8,7 +8,7 @@
 // createGetValidationErrorsFn / createJsonDecoderFn / createJsonEncoderFn. It also
 // re-exercises the zero-config gate — the CONSUMER file never names
 // '@ts-runtypes/core', so only the resolver's site-file set can bring it into
-// transform scope (docs/done/mion-adoption.md, Feature 2).
+// transform scope (mion adoption, Feature 2).
 import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';

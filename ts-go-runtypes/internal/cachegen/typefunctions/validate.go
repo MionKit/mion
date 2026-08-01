@@ -253,7 +253,7 @@ func (ValidateEmitter) emitKindDefault(rt *protocol.RunType, ctx *EmitContext, _
 		// giving the false impression that the user's specific symbol
 		// value was validated. Symbol identity isn't comparable across
 		// realms / round-trips, so the validator gives no useful
-		// guarantee. See docs/UNSUPPORTED-KINDS.md FAQ.
+		// guarantee.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindNull:
@@ -1299,7 +1299,7 @@ func emitPropertyValidate(rt *protocol.RunType, ctx *EmitContext, v string) RTCo
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
 		// Directly DataOnly-stripped value (symbol / function / Promise / never /
 		// non-serializable native) — drop the slot from the AND chain, matching
-		// `DataOnly<{a: symbol}>` = `{}`. See docs/UNSUPPORTED-KINDS.md.
+		// `DataOnly<{a: symbol}>` = `{}`.
 		return RTCode{Code: "", Type: CodeE}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

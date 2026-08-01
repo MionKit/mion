@@ -84,7 +84,7 @@ func strippedPropertyDrop(resolved *protocol.RunType, name string, ctx *EmitCont
 //     a real scan today, since tsgo collapses intersections etc.) is ABSORBED:
 //     the walker latch is cleared and the property drops with no diagnostic, the
 //     rest of the object still renders — the pre-DataOnly "property absorbs
-//     unsupported" contract (docs/UNSUPPORTED-KINDS.md). Returns false.
+//     unsupported" contract. Returns false.
 func propertyChildFailed(ctx *EmitContext) (propagate bool) {
 	if isStrippedUnionMember(ctx.walker.UnsupportedLeaf) {
 		return true

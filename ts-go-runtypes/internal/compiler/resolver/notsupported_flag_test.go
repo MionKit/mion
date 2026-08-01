@@ -12,7 +12,7 @@ import (
 // exactly those nodes with NotSupported at cache-exit. The data members and
 // the non-data node's OWN children stay unflagged — only the node itself
 // carries the flag. The type-function emitters are unchanged: they still drop
-// these members at compile time (see docs/UNSUPPORTED-KINDS.md); this is the
+// these members at compile time; this is the
 // reflection annotation only.
 //
 // Paired *_Static / *_Reflect per the marker test coverage rule (CLAUDE.md),

@@ -155,7 +155,6 @@ export function makeId<T>() {
     // its id slot filled, so it is a pass-through — the build must leave it
     // untouched and must NOT flag the wrapper's free T as an unresolved injection
     // (MKR003). Only the OUTER concrete-T call is an injection site.
-    // See docs/done/inject-runtypeid-helper-getruntype-undefined.md.
     const sources = {
       'forward.ts': `import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
 export function describeType<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T> {

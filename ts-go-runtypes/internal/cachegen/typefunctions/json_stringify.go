@@ -19,8 +19,7 @@ import (
 // `restoreFromJson(JSON.parse(stringifyJson(v)))` must deep-equal v
 // for every valid sample. Output is observably equivalent to
 // `JSON.stringify(prepareForJson(v))` modulo property order (the spec
-// sorts optional members first; we keep declaration order — see
-// docs/port-status.md "Intentional deviations") and the
+// sorts optional members first; we keep declaration order) and the
 // no-mutation contract on `v`.
 //
 // Mirrors the per-kind switch in
@@ -152,7 +151,7 @@ func (StringifyJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeT
 		return RTCode{Code: "JSON.stringify(" + v + ".toString())", Type: CodeE}
 
 	case protocol.KindSymbol:
-		// Unsupported — see docs/UNSUPPORTED-KINDS.md FAQ.
+		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindUndefined:
@@ -479,8 +478,7 @@ func emitPropertyStringifyJson(rt *protocol.RunType, ctx *EmitContext, v string)
 		return RTCode{Code: "", Type: CodeE}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property. See
-		// docs/UNSUPPORTED-KINDS.md.
+		// Directly DataOnly-stripped value — drop the property.
 		return RTCode{Code: "", Type: CodeE}
 	}
 	accessor := propertyAccessor(v, rt.Name, rt.IsSafeName)

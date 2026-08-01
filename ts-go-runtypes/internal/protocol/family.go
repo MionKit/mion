@@ -92,8 +92,8 @@ func FamilyOf(kind ReflectionKind) Family {
 
 // IsNotSupportedKind reports whether a node's Kind (+ SubKind) is one the
 // type-function emitters cannot faithfully validate or serialise — the
-// "non-data" set documented in docs/UNSUPPORTED-KINDS.md: functions,
-// methods, method-signatures and call-signatures (no value form), symbols
+// "non-data" set: functions, methods, method-signatures and call-signatures
+// (no value form), symbols
 // (identity doesn't round-trip), never (no inhabitants), and non-
 // serialisable classes (WeakMap, typed arrays, …). KindPromise is
 // deliberately absent: it is validation-supported (a real thenable runtime

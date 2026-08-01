@@ -126,7 +126,7 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 		return RTCode{Code: ret + " = (" + des + ".index++, undefined)", Type: CodeS}
 
 	case protocol.KindSymbol:
-		// Unsupported — see docs/UNSUPPORTED-KINDS.md FAQ.
+		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
 	case protocol.KindRegexp:
@@ -344,8 +344,7 @@ func emitPropertyFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des str
 		return RTCode{Code: "", Type: CodeS}
 	}
 	if strippedPropertyDrop(resolved, rt.Name, ctx) {
-		// Directly DataOnly-stripped value — drop the property. See
-		// docs/UNSUPPORTED-KINDS.md.
+		// Directly DataOnly-stripped value — drop the property.
 		return RTCode{Code: "", Type: CodeS}
 	}
 	accessor := propertyAccessor(ret, rt.Name, rt.IsSafeName)

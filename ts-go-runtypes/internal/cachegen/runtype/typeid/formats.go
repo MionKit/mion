@@ -395,8 +395,7 @@ func FormatAnnotationStructuralKey(annotation *protocol.FormatAnnotation) string
 // `createMockDataFn` the samples ARE behaviour: two same-shape formats
 // differing only in samples collapsed onto one entry, and whichever call
 // site interned first supplied the mock samples for BOTH (first-intern
-// nondeterminism — the same failure mode as tuple labels; see
-// docs/done/format-pattern-samples-dedup-and-length-soundness.md). Folding
+// nondeterminism — the same failure mode as tuple labels). Folding
 // them in also lets emitters surface a pattern's custom `message` as the
 // error val without cache-identity risk. Formats sharing every param still
 // dedup exactly as before.

@@ -1,5 +1,4 @@
-// Error subclasses as wire types, under the runtime-enumerability guard
-// (docs/done/runtime-enumerability-checks-for-global-props.md). A member
+// Error subclasses as wire types, under the runtime-enumerability guard. A member
 // inherited from the default-lib `Error` global is guarded (its by-name write is
 // gated on a runtime own-enumerability check, JSON.stringify semantics) ONLY when
 // it is OPTIONAL in the type: `stack?` and `cause?`. The REQUIRED envelope

@@ -131,7 +131,7 @@ createFour(s);
 // fnIds. This is the exact three-family combination mion forwards to
 // createGetValidationErrorsFn / createJsonDecoderFn / createJsonEncoderFn, so it must
 // keep resolving to three separate handles (a silent regression to fewer would
-// mis-wire mion's routes — see docs/done/mion-adoption.md).
+// mis-wire mion's routes).
 func TestResolver_MultiFn_MionShape(t *testing.T) {
 	const code = `import {createMion} from '@ts-runtypes/core';
 createMion<{name: string}>();

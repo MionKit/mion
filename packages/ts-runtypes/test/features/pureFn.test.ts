@@ -169,7 +169,7 @@ describe('arrow function factory functions', () => {
   });
 });
 
-// The hollowed built-in lane (docs/todos/demand-driven-builtin-pure-fns.md phase
+// The hollowed built-in lane (demand-driven built-in pure-fns, phase
 // E): the dist build strips the `rt::`/`rtFormats::` factory bodies to `null`
 // because the resolver now delivers them on demand through the pure-fn cache. A
 // `null` factory for such a key must be an inert no-op — never a throw, and never

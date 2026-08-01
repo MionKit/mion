@@ -617,8 +617,7 @@ getRunTypeId<Color>();
   );
 
   // `const v = Color.Red` (no annotation) widens to the parent enum `Color`.
-  // The trap `const v: Color = …` narrows to the literal `Color.Red` — see
-  // docs/atomic-types.md.
+  // The trap `const v: Color = …` narrows to the literal `Color.Red`.
   runTest(
     'numeric enum reflect -> values + enum object + indexType=number',
     {
