@@ -5,5 +5,4 @@
 // first-party diagnostic scoping (program.IsSourceFileFromExternalLibrary) drops
 // their diagnostics. Without it this app's build halts with the library's own
 // CTA001/CTA003 — the exact regression this app guards.
-// See docs/done/scan-diagnostics-marker-own-source.md.
 export {selfCheck} from '../../shared/src/minimal';

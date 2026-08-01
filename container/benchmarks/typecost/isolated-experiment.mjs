@@ -14,7 +14,7 @@
 // Run (after `pnpm install`, so `typescript` resolves from the root devDep):
 //   node container/benchmarks/typecost/isolated-experiment.mjs
 //
-// Findings this reproduces (see docs/value-first-typecheck-cost.md):
+// Findings this reproduces:
 //   1. Removing the InjectRunTypeId<…> marker param changes the count by 0
 //      (it is optional+omitted → never materialized at type-check time).
 //   2. A faithful lazy/TypeBox-style carrier is NOT cheaper (≈ same or worse).

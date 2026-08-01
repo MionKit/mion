@@ -8,8 +8,7 @@
 //
 // (Fixed: the injected handle is an opaque entry tuple, so the old
 // getRTUtils().getRunType(id) path returned undefined; forwarding to
-// getRunType / getRunTypeId resolves it. See
-// docs/done/inject-runtypeid-helper-getruntype-undefined.md.)
+// getRunType / getRunTypeId resolves it.)
 import {getRunType, getRunTypeId, RunTypeKind, type InjectRunTypeId, type RunType} from '@ts-runtypes/core';
 import {type CheckResult, ok, eq} from './check';
 
@@ -58,7 +57,6 @@ export function checkMarkers(): CheckResult[] {
     // branded args — the shape that used to make the scanner treat eq() itself as
     // an enclosing marker and silently drop BOTH injections (getRunTypeId then
     // threw "no id injected" at runtime). Both must inject and resolve equal.
-    // docs/done/same-typeid-two-marker-calls-one-statement-not-injected.md
     // NB: keep the literal `getRunTypeId<...>()` call syntax OUT of this description
     // string - test/rewrite-evidence.test.mjs regex-scans the dist BYTES for residual
     // un-rewritten markers, and a description embedding that syntax survives into the

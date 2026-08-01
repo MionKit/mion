@@ -2,7 +2,7 @@
 // the published dist, keeping only the registration scaffolding.
 //
 // Why: the resolver now delivers every `rt::…` / `rtFormats::…` body on demand
-// from the built-in table (docs/todos/demand-driven-builtin-pure-fns.md), so the
+// from the built-in table, so the
 // side-effect-imported registration files (pure-fns-utils.js, *-pure-fns.js) no
 // longer need to CARRY the bodies — they cost ~1.6 KB (`rt::`) + ~9.7 KB
 // (`rtFormats::`) in every bundle. This post-build step rewrites each

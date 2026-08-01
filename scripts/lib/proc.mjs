@@ -3,7 +3,7 @@
 // `command -v` probes, and the `die()`/`info()`/`success()` helpers duplicated
 // across build.sh / lib.sh / bench.sh / image.sh.
 //
-// Contract (see docs/todos/scripts-shell-to-mjs-migration.md): leaves never call
+// Contract: leaves never call
 // process.exit — they throw a CliError via die(); rt.mjs catches it, prints, and
 // sets process.exitCode. Anything that isn't a CliError rethrows (a real bug).
 

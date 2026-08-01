@@ -473,4 +473,4 @@ The plugin also gained a first-sync summary (`scaffolded N, reconciled M`) so a
 fresh opt-in is never a silent burst of new files. The same audit, extended to
 the REST of the Request surface (`outDir`, `omitSourcesContent`, the dead
 `resolveId` op), is specced in
-[docs/todos/protocol-startup-config-audit.md](../todos/protocol-startup-config-audit.md).
+[docs/done/protocol-startup-config-audit.md](./protocol-startup-config-audit.md).

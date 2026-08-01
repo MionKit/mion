@@ -8,7 +8,7 @@
 // modules IN-PROCESS (they inherit the loaded process.env) or spawns the tools
 // they drive (go/podman/pnpm/vitest/git/npm) with stdio inherited. Leaves throw a
 // CliError on failure (never process.exit); this file catches it, prints, and sets
-// process.exitCode. See docs/done/scripts-shell-to-mjs-migration.md.
+// process.exitCode.
 import {spawnSync} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';

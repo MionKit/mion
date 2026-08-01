@@ -6,7 +6,6 @@
   // internal generics (registerPureFnFactory's non-literal CompTimeArgs<PureFnId>).
   // Those are not consumer call sites — the resolver's first-party diagnostic
   // scoping must drop them, else the build halts on CTA001/CTA003.
-  // See docs/done/scan-diagnostics-marker-own-source.md.
   "compilerOptions": {
     "customConditions": ["source"]
   },

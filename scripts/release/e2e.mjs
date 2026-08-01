@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// The single front door for the pre- AND post-publish e2e
-// (docs/done/prepublish-e2e-1-harness.md + prepublish-e2e-3-post-publish-npm.md).
+// The single front door for the pre- AND post-publish e2e.
 // Local and every CI lane call the SAME script, so they cannot drift:
 //
 //   build -> registry -> install the PUBLISHED @ts-runtypes/* -> run the consumer suite

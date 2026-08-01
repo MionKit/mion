@@ -63,7 +63,7 @@ const APP_LIST = [
   // Source-first consumer: customConditions:["source"] makes @ts-runtypes/core
   // resolve to its published src/, so the plugin's scan walks the library's own
   // internals. Guards the first-party diagnostic scoping — without it the build
-  // halts on the library's own CTA001/CTA003 (docs/done/scan-diagnostics-marker-own-source.md).
+  // halts on the library's own CTA001/CTA003.
   {name: 'smoke-source', adapter: 'esbuild'},
 ];
 

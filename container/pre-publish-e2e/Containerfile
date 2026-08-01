@@ -1,6 +1,6 @@
 # syntax=podman
 # -----------------------------------------------------------------------------
-# Pre-publish e2e image (docs/todos/prepublish-e2e-1-harness.md): a verdaccio
+# Pre-publish e2e image: a verdaccio
 # registry + the multi-bundler builder toolchains, kept SEPARATE from the docs
 # website + benchmark image so the lightweight CI smoke never has to pull these
 # heavy toolchains. Only the release gate's e2e lane pulls this image.

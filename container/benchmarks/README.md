@@ -372,7 +372,7 @@ pnpm rtx bench audit        # build + audit-run every competitor, then aggregate
 ```
 
 Tooling lives in [`_audit/`](_audit/); the committed write-up is
-[`docs/cross-library-validation-alignment-report.md`](../docs/cross-library-validation-alignment-report.md).
+[`docs/cross-library-validation-alignment-report.md`](../../docs/cross-library-validation-alignment-report.md).
 The audit also feeds the website's **Correctness** benchmark page (an `alignment` bench
 in `scripts/website/bench-data/gen-docs.mjs`); `pnpm rtx bench --website` runs the audit so that page's
 data regenerates with the rest.

@@ -12,7 +12,7 @@
 //   _audit/findings/<caseKey>__<competitor>__<path>__<idx>.md   one per live finding
 //   _audit/classification-summary.json                          machine-readable roll-up
 //
-// Buckets (see docs/done/cross-library-validation-alignment-audit.md step 1):
+// Buckets:
 //   LIBRARY_SEMANTIC_DIFFERENCE  library deliberately defines "valid" differently
 //   LIBRARY_LIMITATION           library cannot express the shared constraint
 //   AUTHORING_DRIFT              competitor schema doesn't match the shared type

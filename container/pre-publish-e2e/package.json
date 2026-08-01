@@ -2,7 +2,7 @@
   "name": "ts-runtypes-pre-publish-e2e",
   "private": true,
   "type": "module",
-  "description": "Consumer end-to-end feature matrix. Drives the PUBLISHED @ts-runtypes/* packages (installed from a local verdaccio) through EVERY shipped bundler adapter: the shared feature library (apps/shared, all 13 families) is transformed as SOURCE by each bundler's RunTypes plugin — build-vite (Vite-on-Rolldown + oxlint) runs the full matrix, the smoke-* apps prove each other adapter loads + transforms + runs. Tests assert runtime behavior, rewrite evidence, and lint transport over the build output. Toolchains are baked into the shared image (_deps); each run installs only the changing @ts-runtypes/*. See docs/todos/prepublish-e2e-2-feature-matrix.md.",
+  "description": "Consumer end-to-end feature matrix. Drives the PUBLISHED @ts-runtypes/* packages (installed from a local verdaccio) through EVERY shipped bundler adapter: the shared feature library (apps/shared, all 13 families) is transformed as SOURCE by each bundler's RunTypes plugin — build-vite (Vite-on-Rolldown + oxlint) runs the full matrix, the smoke-* apps prove each other adapter loads + transforms + runs. Tests assert runtime behavior, rewrite evidence, and lint transport over the build output. Toolchains are baked into the shared image (_deps); each run installs only the changing @ts-runtypes/*.",
   "scripts": {
     "build:all": "node build-all.mjs",
     "test": "node --test test/*.test.mjs",

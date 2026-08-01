@@ -1,5 +1,4 @@
-// Transform-wire benchmark — 'go' vs 'edits' transform mode, the choice
-// docs/todos/transform-wire-modes.md exists to settle on DATA.
+// Transform-wire benchmark — 'go' vs 'edits' transform mode, settled on DATA.
 //
 // 'go' mode: the resolver applies the rewrite and ships the whole rewritten
 // file + source map per file. 'edits' mode: it ships the raw edit list

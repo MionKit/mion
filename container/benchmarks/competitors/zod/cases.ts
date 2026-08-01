@@ -443,7 +443,7 @@ export const cases: CompetitorCases = {
   // interface_all_optional: {a?:string, b?:number} — declared as the same interface as ts-runtypes.
   // NB zod's z.object accepts Date/Map/Set instances (its isObject only excludes arrays/null), so this
   // accepts those where ts-runtypes rejects them; that pass/reject discrepancy is the correctness
-  // benchmark's job to surface (see docs/todos/correctness-zod-object-guard-cases.md), not a hand guard's.
+  // benchmark's job to surface, not a hand guard's.
   'OBJECT.interface_all_optional': {
     buildErrors: () => {
       const schema = z.object({a: z.string().optional(), b: z.number().optional()});

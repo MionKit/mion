@@ -11,8 +11,7 @@
 // registration defeated the resolver's whole-program "any registration present?"
 // guard, and every runtime-owned rt:: / rtFormats:: built-in was then flagged
 // missing, halting the build. Fixed by exempting those built-in namespaces from
-// the missing-dep check; see
-// docs/done/pfe9012-consumer-registerpurefn-false-positive.md.
+// the missing-dep check.
 import {createValidateFn, overrideValidate, registerPureFnFactory, getRTUtils} from '@ts-runtypes/core';
 import {type CheckResult, ok, eq} from './check';
 
