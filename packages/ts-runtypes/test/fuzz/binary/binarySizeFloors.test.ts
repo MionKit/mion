@@ -17,7 +17,8 @@
 import path from 'node:path';
 import {describe, it, expect} from 'vitest';
 import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, createMockDataFn} from '@ts-runtypes/core';
-import {ResolverClient, type ResolverClientOptions} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
+import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {
   RUNTYPES_DTS,
   evalEntryModules,
@@ -138,7 +139,7 @@ describe('binary size — packed formats never grow the cold buffer (Part A)', (
 // items=2, stringBytes=1: the smallest budgets, where the string / index-sig-key /
 // regexp / enum reserve floors (binary_size_estimate.go) and the reserve-aware mock
 // bounds (binarySize.ts) are load-bearing. A naive wire-size estimate resizes here.
-const TINY: Required<Pick<ResolverClientOptions, 'sizeBias' | 'sizeItems' | 'sizeStringBytes' | 'sizeMaxBytes'>> = {
+const TINY: Required<BinarySizingOptions> = {
   sizeBias: 1,
   sizeItems: 2,
   sizeStringBytes: 1,

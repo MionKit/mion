@@ -46,13 +46,15 @@ export interface ResolverClientOptions {
   // via `new Function`), 'functions' (live factory only, code derived lazily),
   // or 'both' (code string + live factory). Defaults to 'code' when omitted.
   emitMode?: 'code' | 'functions' | 'both';
-  // Forwarded as --size-bias / --size-items / --size-string-bytes /
-  // --size-max-bytes. Tune the binary `dynamic` cold-start buffer estimate;
-  // omitted values fall through to the binary defaults (0.8 / 100 / 32 / 65536).
-  sizeBias?: number;
-  sizeItems?: number;
-  sizeStringBytes?: number;
-  sizeMaxBytes?: number;
+  // Forwarded as --binary-sizing-bias / --binary-sizing-items /
+  // --binary-sizing-string-bytes / --binary-sizing-max-bytes (field names mirror
+  // the flags, for greppability). Tune the binary `dynamic` cold-start buffer
+  // estimate; omitted values fall through to the binary defaults
+  // (0.8 / 100 / 32 / 65536).
+  binarySizingBias?: number;
+  binarySizingItems?: number;
+  binarySizingStringBytes?: number;
+  binarySizingMaxBytes?: number;
   // Forwarded as --number-mode. Project-wide default for the validate
   // `numberMode` option: 'isFinite' (default) / 'typeof' / 'notNaN'. A
   // per-call-site numberMode overrides it.
@@ -558,10 +560,10 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   // cacheDir is NOT a CLI arg — it rides the child's RT_CACHE_DIR env var
   // (set by ResolverClient's spawn) so parallel spawns stay isolated.
   if (opts.emitMode) args.push('--emit-mode', opts.emitMode);
-  if (opts.sizeBias !== undefined) args.push('--size-bias', String(opts.sizeBias));
-  if (opts.sizeItems !== undefined) args.push('--size-items', String(opts.sizeItems));
-  if (opts.sizeStringBytes !== undefined) args.push('--size-string-bytes', String(opts.sizeStringBytes));
-  if (opts.sizeMaxBytes !== undefined) args.push('--size-max-bytes', String(opts.sizeMaxBytes));
+  if (opts.binarySizingBias !== undefined) args.push('--binary-sizing-bias', String(opts.binarySizingBias));
+  if (opts.binarySizingItems !== undefined) args.push('--binary-sizing-items', String(opts.binarySizingItems));
+  if (opts.binarySizingStringBytes !== undefined) args.push('--binary-sizing-string-bytes', String(opts.binarySizingStringBytes));
+  if (opts.binarySizingMaxBytes !== undefined) args.push('--binary-sizing-max-bytes', String(opts.binarySizingMaxBytes));
   if (opts.numberMode) args.push('--number-mode', opts.numberMode);
   if (opts.parallelScan === false) args.push('--no-parallel-scan');
   if (opts.parallelRender === false) args.push('--no-parallel-render');

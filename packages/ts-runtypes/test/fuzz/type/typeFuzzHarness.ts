@@ -30,6 +30,7 @@ import {
   createMockDataFn,
 } from '@ts-runtypes/core';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
+import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {ResolverClient, type ResolverClientOptions} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import {
   RUNTYPES_DTS,
@@ -92,13 +93,19 @@ export interface CompiledType {
   reflectionTuple?: readonly unknown[];
 }
 
-/** Open a resolver client. `sizeOpts` forwards the `--size-*` estimator config so
- *  the baked cold-start estimate matches a size-lane run's value bounds. **/
-export function openClient(
-  sizeOpts?: Pick<ResolverClientOptions, 'sizeBias' | 'sizeItems' | 'sizeStringBytes' | 'sizeMaxBytes'>
-): ResolverClient {
+/** Open a resolver client. `sizing` forwards the `--binary-sizing-*` estimator
+ *  config so the baked cold-start estimate matches a size-lane run's value
+ *  bounds. Takes the RUNTIME `BinarySizingOptions` shape (the same object the
+ *  size lane hands createMockDataFn) and maps it onto the build-side flag
+ *  names, so one config literal still drives both ends of the oracle. **/
+export function openClient(sizing?: BinarySizingOptions): ResolverClient {
   if (!hasBinary()) throw new Error(`ts-runtypes binary not built: ${BIN}`);
-  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both', ...sizeOpts});
+  const sizingArgs: Partial<ResolverClientOptions> = {};
+  if (sizing?.sizeBias !== undefined) sizingArgs.binarySizingBias = sizing.sizeBias;
+  if (sizing?.sizeItems !== undefined) sizingArgs.binarySizingItems = sizing.sizeItems;
+  if (sizing?.sizeStringBytes !== undefined) sizingArgs.binarySizingStringBytes = sizing.sizeStringBytes;
+  if (sizing?.sizeMaxBytes !== undefined) sizingArgs.binarySizingMaxBytes = sizing.sizeMaxBytes;
+  return new ResolverClient(BIN, REPO_ROOT, '', {serverMode: true, emitMode: 'both', ...sizingArgs});
 }
 
 /** Render the full fixture: import block, named decls, `type T = root`, and one

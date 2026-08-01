@@ -62,7 +62,7 @@ Shared options (same meaning under every command):
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
-    --size-bias / --size-items / --size-string-bytes / --size-max-bytes
+    --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
     --js-runtime PATH   JS runtime the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)
@@ -117,28 +117,28 @@ func main() {
 // registered on each subcommand's own FlagSet by registerSharedFlags so a knob
 // spells and means the same thing wherever it appears.
 type sharedFlags struct {
-	tsconfig             string
-	cwd                  string
-	hashLength           int
-	singleThreaded       bool
-	noSingleThreaded     bool
-	noParallelScan       bool
-	noParallelRender     bool
-	emitMode             string
-	inlineMode           string
-	moduleMode           string
-	jsRuntime            string
-	pureFnReportWire     bool
-	pureFnReportFile     bool
-	sizeBias             float64
-	sizeItems            int
-	sizeStringBytes      int
-	sizeMaxBytes         int
-	numberMode           string
-	patternSampleCount   int
-	patternSampleRetries int
-	pprofCPU             string
-	pprofHeap            string
+	tsconfig                string
+	cwd                     string
+	hashLength              int
+	singleThreaded          bool
+	noSingleThreaded        bool
+	noParallelScan          bool
+	noParallelRender        bool
+	emitMode                string
+	inlineMode              string
+	moduleMode              string
+	jsRuntime               string
+	pureFnReportWire        bool
+	pureFnReportFile        bool
+	binarySizingBias        float64
+	binarySizingItems       int
+	binarySizingStringBytes int
+	binarySizingMaxBytes    int
+	numberMode              string
+	patternSampleCount      int
+	patternSampleRetries    int
+	pprofCPU                string
+	pprofHeap               string
 }
 
 func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
@@ -163,13 +163,13 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan")
 	fs.BoolVar(&s.pureFnReportFile, "pure-fn-report-file", false,
 		"also write the whole-program pure-fn report as JSON to <genDir>/types/pure-fns-report.json")
-	fs.Float64Var(&s.sizeBias, "size-bias", constants.DefaultSizeBias,
+	fs.Float64Var(&s.binarySizingBias, "binary-sizing-bias", constants.DefaultSizeBias,
 		"binary `dynamic` cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)")
-	fs.IntVar(&s.sizeItems, "size-items", constants.DefaultSizeItems,
+	fs.IntVar(&s.binarySizingItems, "binary-sizing-items", constants.DefaultSizeItems,
 		"assumed element count for an unbounded collection in the binary cold-start estimate (default 100)")
-	fs.IntVar(&s.sizeStringBytes, "size-string-bytes", constants.DefaultSizeStringBytes,
+	fs.IntVar(&s.binarySizingStringBytes, "binary-sizing-string-bytes", constants.DefaultSizeStringBytes,
 		"assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)")
-	fs.IntVar(&s.sizeMaxBytes, "size-max-bytes", constants.DefaultSizeMaxBytes,
+	fs.IntVar(&s.binarySizingMaxBytes, "binary-sizing-max-bytes", constants.DefaultSizeMaxBytes,
 		"per-type cap on the binary cold-start estimate (default 65536)")
 	fs.StringVar(&s.numberMode, "number-mode", "",
 		"project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN")
@@ -269,25 +269,25 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		}
 	}
 	merged := mergeBuildOptions(buildFlags{
-		set:                  setFlags,
-		hashLength:           s.hashLength,
-		singleThreaded:       s.singleThreaded,
-		noSingleThreaded:     s.noSingleThreaded,
-		noParallelScan:       s.noParallelScan,
-		noParallelRender:     s.noParallelRender,
-		genDir:               genDirFlag,
-		emitMode:             s.emitMode,
-		inlineMode:           s.inlineMode,
-		moduleMode:           s.moduleMode,
-		pureFnReportWire:     s.pureFnReportWire,
-		pureFnReportFile:     s.pureFnReportFile,
-		sizeBias:             s.sizeBias,
-		sizeItems:            s.sizeItems,
-		sizeStringBytes:      s.sizeStringBytes,
-		sizeMaxBytes:         s.sizeMaxBytes,
-		numberMode:           s.numberMode,
-		patternSampleCount:   s.patternSampleCount,
-		patternSampleRetries: s.patternSampleRetries,
+		set:                     setFlags,
+		hashLength:              s.hashLength,
+		singleThreaded:          s.singleThreaded,
+		noSingleThreaded:        s.noSingleThreaded,
+		noParallelScan:          s.noParallelScan,
+		noParallelRender:        s.noParallelRender,
+		genDir:                  genDirFlag,
+		emitMode:                s.emitMode,
+		inlineMode:              s.inlineMode,
+		moduleMode:              s.moduleMode,
+		pureFnReportWire:        s.pureFnReportWire,
+		pureFnReportFile:        s.pureFnReportFile,
+		binarySizingBias:        s.binarySizingBias,
+		binarySizingItems:       s.binarySizingItems,
+		binarySizingStringBytes: s.binarySizingStringBytes,
+		binarySizingMaxBytes:    s.binarySizingMaxBytes,
+		numberMode:              s.numberMode,
+		patternSampleCount:      s.patternSampleCount,
+		patternSampleRetries:    s.patternSampleRetries,
 	}, plugin, absCwd)
 
 	// Validate the MERGED values: a bad mode can arrive from tsconfig as
@@ -357,10 +357,10 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		JSEngine:             jsengine.NewSidecar(s.jsRuntime),
 		PureFnReportWire:     merged.pureFnReportWire,
 		PureFnReportFile:     merged.pureFnReportFile,
-		SizeBias:             merged.sizeBias,
-		SizeItems:            merged.sizeItems,
-		SizeStringBytes:      merged.sizeStringBytes,
-		SizeMaxBytes:         merged.sizeMaxBytes,
+		SizeBias:             merged.binarySizingBias,
+		SizeItems:            merged.binarySizingItems,
+		SizeStringBytes:      merged.binarySizingStringBytes,
+		SizeMaxBytes:         merged.binarySizingMaxBytes,
 		ValidateDefaults:     resolver.ValidateDefaults{NumberMode: merged.numberMode},
 		PatternSampleCount:   merged.patternSampleCount,
 		PatternSampleRetries: merged.patternSampleRetries,

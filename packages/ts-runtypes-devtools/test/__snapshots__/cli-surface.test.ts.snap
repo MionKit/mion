@@ -14,6 +14,14 @@ the tsconfig outDir; requires a tsconfig; no stdio protocol.
 (tsc --noEmit-style).
 
 Flags:
+  --binary-sizing-bias dynamic
+    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
+  --binary-sizing-items int
+    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
+  --binary-sizing-max-bytes int
+    	per-type cap on the binary cold-start estimate (default 65536)
+  --binary-sizing-string-bytes int
+    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -52,14 +60,6 @@ Flags:
     	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
   --single-threaded
     	single-threaded mode (also disables the parallel scan + renders)
-  --size-bias dynamic
-    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
-  --size-items int
-    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
-  --size-max-bytes int
-    	per-type cap on the binary cold-start estimate (default 65536)
-  --size-string-bytes int
-    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --tsconfig string
     	tsconfig.json path (default: discover upward from --cwd, tsc-style)
 "
@@ -125,6 +125,14 @@ default), stdin (a {"sources":{…}} handshake line, one inferred Program), or o
 (no startup Program; the client drives setSources / scanFiles / dump).
 
 Flags:
+  --binary-sizing-bias dynamic
+    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
+  --binary-sizing-items int
+    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
+  --binary-sizing-max-bytes int
+    	per-type cap on the binary cold-start estimate (default 65536)
+  --binary-sizing-string-bytes int
+    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --cwd string
     	working directory (default: $PWD)
   --emit-mode string
@@ -177,14 +185,6 @@ Flags:
     	emit the structured pure-fn build report ON THE WIRE (Response.pureFnSites) on generate/scan
   --single-threaded
     	single-threaded mode (also disables the parallel scan + renders)
-  --size-bias dynamic
-    	binary dynamic cold-start size bias in [0,1]: 0 = tightest, 1 = most generous (default 0.8)
-  --size-items int
-    	assumed element count for an unbounded collection in the binary cold-start estimate (default 100)
-  --size-max-bytes int
-    	per-type cap on the binary cold-start estimate (default 65536)
-  --size-string-bytes int
-    	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --sources string
     	startup Program source: project | stdin | ops
   --transform-relative
@@ -217,7 +217,7 @@ Shared options (same meaning under every command):
     --number-mode MODE  validate numberMode default: isFinite (default) | typeof | notNaN
     --single-threaded / --no-single-threaded
     --no-parallel-scan / --no-parallel-render
-    --size-bias / --size-items / --size-string-bytes / --size-max-bytes
+    --binary-sizing-bias / --binary-sizing-items / --binary-sizing-string-bytes / --binary-sizing-max-bytes
     --js-runtime PATH   JS runtime the pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH)
     --pattern-sample-count N    generated mockSamples per sample-less pattern (default 100; 0 disables)
     --pattern-sample-retries N  per-sample draw multiplier for pattern generation (default 10)

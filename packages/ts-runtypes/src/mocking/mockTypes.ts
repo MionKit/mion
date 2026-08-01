@@ -110,7 +110,7 @@ export interface MockOptions {
 }
 
 /** Tuning knobs for the binary cold-start size estimate, mirrored from the
- *  resolver's `sizeBias` / `sizeItems` / `sizeStringBytes` / `sizeMaxBytes`
+ *  resolver's `--binary-sizing-bias` / `-items` / `-string-bytes` / `-max-bytes`
  *  options (and the Go `constants.DefaultSize*`). Used by `respectBinarySize`. **/
 export interface BinarySizingOptions {
   sizeBias?: number;

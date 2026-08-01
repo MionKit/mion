@@ -15,46 +15,46 @@ import (
 // tell an explicit `--single-threaded=false` from an absent flag, so tsconfig
 // only fills the gaps the command line left.
 type buildFlags struct {
-	set                  map[string]bool
-	hashLength           int
-	singleThreaded       bool
-	noSingleThreaded     bool
-	noParallelScan       bool
-	noParallelRender     bool
-	genDir               string
-	emitMode             string
-	inlineMode           string
-	moduleMode           string
-	pureFnReportWire     bool
-	pureFnReportFile     bool
-	sizeBias             float64
-	sizeItems            int
-	sizeStringBytes      int
-	sizeMaxBytes         int
-	numberMode           string
-	patternSampleCount   int
-	patternSampleRetries int
+	set                     map[string]bool
+	hashLength              int
+	singleThreaded          bool
+	noSingleThreaded        bool
+	noParallelScan          bool
+	noParallelRender        bool
+	genDir                  string
+	emitMode                string
+	inlineMode              string
+	moduleMode              string
+	pureFnReportWire        bool
+	pureFnReportFile        bool
+	binarySizingBias        float64
+	binarySizingItems       int
+	binarySizingStringBytes int
+	binarySizingMaxBytes    int
+	numberMode              string
+	patternSampleCount      int
+	patternSampleRetries    int
 }
 
 // buildOptions is the merged build configuration the resolver consumes.
 type buildOptions struct {
-	hashLength            int
-	singleThreaded        bool
-	disableParallelScan   bool
-	disableParallelRender bool
-	genDir                string
-	emitMode              string
-	inlineMode            string
-	moduleMode            string
-	pureFnReportWire      bool
-	pureFnReportFile      bool
-	sizeBias              float64
-	sizeItems             int
-	sizeStringBytes       int
-	sizeMaxBytes          int
-	numberMode            string
-	patternSampleCount    int
-	patternSampleRetries  int
+	hashLength              int
+	singleThreaded          bool
+	disableParallelScan     bool
+	disableParallelRender   bool
+	genDir                  string
+	emitMode                string
+	inlineMode              string
+	moduleMode              string
+	pureFnReportWire        bool
+	pureFnReportFile        bool
+	binarySizingBias        float64
+	binarySizingItems       int
+	binarySizingStringBytes int
+	binarySizingMaxBytes    int
+	numberMode              string
+	patternSampleCount      int
+	patternSampleRetries    int
 }
 
 // mergeBuildOptions resolves the effective build configuration from the CLI
@@ -69,20 +69,20 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 	// as their flag default, so an unset flag already holds the default; a
 	// present tsconfig value overrides only when the flag was not passed.
 	out := buildOptions{
-		hashLength:           flags.hashLength,
-		singleThreaded:       flags.singleThreaded,
-		emitMode:             flags.emitMode,
-		inlineMode:           flags.inlineMode,
-		moduleMode:           flags.moduleMode,
-		pureFnReportWire:     flags.pureFnReportWire,
-		pureFnReportFile:     flags.pureFnReportFile,
-		sizeBias:             flags.sizeBias,
-		sizeItems:            flags.sizeItems,
-		sizeStringBytes:      flags.sizeStringBytes,
-		sizeMaxBytes:         flags.sizeMaxBytes,
-		numberMode:           flags.numberMode,
-		patternSampleCount:   flags.patternSampleCount,
-		patternSampleRetries: flags.patternSampleRetries,
+		hashLength:              flags.hashLength,
+		singleThreaded:          flags.singleThreaded,
+		emitMode:                flags.emitMode,
+		inlineMode:              flags.inlineMode,
+		moduleMode:              flags.moduleMode,
+		pureFnReportWire:        flags.pureFnReportWire,
+		pureFnReportFile:        flags.pureFnReportFile,
+		binarySizingBias:        flags.binarySizingBias,
+		binarySizingItems:       flags.binarySizingItems,
+		binarySizingStringBytes: flags.binarySizingStringBytes,
+		binarySizingMaxBytes:    flags.binarySizingMaxBytes,
+		numberMode:              flags.numberMode,
+		patternSampleCount:      flags.patternSampleCount,
+		patternSampleRetries:    flags.patternSampleRetries,
 	}
 
 	if !flags.set["emit-mode"] && strings.TrimSpace(plugin.EmitMode) != "" {
@@ -124,20 +124,20 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.pureFnReportWire = true
 	}
 
-	// Size-estimate knobs: a tsconfig value fills in only when the flag was not
-	// explicitly passed (the flag already carries the binary default).
-	if size := plugin.Size; size != nil {
-		if !flags.set["size-bias"] && size.Bias != nil {
-			out.sizeBias = *size.Bias
+	// Binary cold-start sizing knobs: a tsconfig value fills in only when the
+	// flag was not explicitly passed (the flag already carries the binary default).
+	if sizing := plugin.BinarySizing; sizing != nil {
+		if !flags.set["binary-sizing-bias"] && sizing.Bias != nil {
+			out.binarySizingBias = *sizing.Bias
 		}
-		if !flags.set["size-items"] && size.Items != nil {
-			out.sizeItems = *size.Items
+		if !flags.set["binary-sizing-items"] && sizing.Items != nil {
+			out.binarySizingItems = *sizing.Items
 		}
-		if !flags.set["size-string-bytes"] && size.StringBytes != nil {
-			out.sizeStringBytes = *size.StringBytes
+		if !flags.set["binary-sizing-string-bytes"] && sizing.StringBytes != nil {
+			out.binarySizingStringBytes = *sizing.StringBytes
 		}
-		if !flags.set["size-max-bytes"] && size.MaxBytes != nil {
-			out.sizeMaxBytes = *size.MaxBytes
+		if !flags.set["binary-sizing-max-bytes"] && sizing.MaxBytes != nil {
+			out.binarySizingMaxBytes = *sizing.MaxBytes
 		}
 	}
 

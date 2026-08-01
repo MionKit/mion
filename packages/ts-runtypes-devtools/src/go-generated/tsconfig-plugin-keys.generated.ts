@@ -7,6 +7,7 @@
 // bundler PluginOptions so a project option added to only one side fails CI.
 
 export const TSCONFIG_PLUGIN_KEYS = [
+  'binarySizing',
   'emitMode',
   'failOnError',
   'genDir',
@@ -21,7 +22,6 @@ export const TSCONFIG_PLUGIN_KEYS = [
   'patternSampleRetries',
   'pureFnReport',
   'singleThreaded',
-  'size',
   'validate',
 ] as const;
 

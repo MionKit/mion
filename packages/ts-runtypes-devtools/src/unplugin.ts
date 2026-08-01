@@ -94,16 +94,16 @@ export interface PluginOptions {
   // into the entry; `createBinaryEncoderFn({sizeStrategy: 'dynamic'})` uses it as
   // the initial buffer size (instead of a 16 MiB default) until per-key history
   // warms up. All are optional and fold into the disk cache fingerprint.
-  //   - sizeBias (0..1, default 0.8): 0 = tightest (more grows), 1 = most generous.
-  //   - sizeItems (default 100): assumed element count for an unbounded collection.
-  //   - sizeStringBytes (default 32): assumed byte length of an unbounded string.
-  //   - sizeMaxBytes (default 65536): per-type cap so a huge declared bound
+  //   - bias (0..1, default 0.8): 0 = tightest (more grows), 1 = most generous.
+  //   - items (default 100): assumed element count for an unbounded collection.
+  //   - stringBytes (default 32): assumed byte length of an unbounded string.
+  //   - maxBytes (default 65536): per-type cap so a huge declared bound
   //     never seeds a multi-MB cold buffer.
-  //   All four ride the single `size` object (like the tsconfig `size` key):
-  //   {bias, items, stringBytes, maxBytes}.
-  size?: {bias?: number; items?: number; stringBytes?: number; maxBytes?: number};
+  //   All four ride the single `binarySizing` object (same shape and name as the
+  //   tsconfig `binarySizing` key): {bias, items, stringBytes, maxBytes}.
+  binarySizing?: {bias?: number; items?: number; stringBytes?: number; maxBytes?: number};
   // Project-wide defaults for the per-call-site ValidateOptions bag, grouped
-  // under one `validate` object (like `size`). Merged per field into every
+  // under one `validate` object (like `binarySizing`). Merged per field into every
   // validate / validationErrors call site by the compiler (a per-call option
   // wins over the default for that field).
   //   - numberMode: the base `number` check every validator uses — 'isFinite'
@@ -373,10 +373,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // plugin carries no config logic of its own.
     resolver = new ResolverClient(binaryPath, cwdAbs, options.tsconfig ?? '', {
       ...(options.emitMode ? {emitMode: options.emitMode} : {}),
-      ...(options.size?.bias !== undefined ? {sizeBias: options.size.bias} : {}),
-      ...(options.size?.items !== undefined ? {sizeItems: options.size.items} : {}),
-      ...(options.size?.stringBytes !== undefined ? {sizeStringBytes: options.size.stringBytes} : {}),
-      ...(options.size?.maxBytes !== undefined ? {sizeMaxBytes: options.size.maxBytes} : {}),
+      ...(options.binarySizing?.bias !== undefined ? {binarySizingBias: options.binarySizing.bias} : {}),
+      ...(options.binarySizing?.items !== undefined ? {binarySizingItems: options.binarySizing.items} : {}),
+      ...(options.binarySizing?.stringBytes !== undefined ? {binarySizingStringBytes: options.binarySizing.stringBytes} : {}),
+      ...(options.binarySizing?.maxBytes !== undefined ? {binarySizingMaxBytes: options.binarySizing.maxBytes} : {}),
       ...(options.validate?.numberMode ? {numberMode: options.validate.numberMode} : {}),
       ...(options.inlineMode ? {inlineMode: options.inlineMode} : {}),
       ...(options.parallelScan !== undefined ? {parallelScan: options.parallelScan} : {}),

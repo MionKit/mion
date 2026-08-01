@@ -95,12 +95,12 @@ type tsRuntypesPlugin struct {
 	// default). A pointer so an absent key (nil) is distinct from an explicit
 	// false. The enrich lane ignores it.
 	FailOnError *bool `json:"failOnError"`
-	// Size groups the binary `dynamic` strategy's cold-start buffer-estimate
-	// knobs under one `size` object (like `i18n`). A nil object (absent key)
-	// keeps every binary default.
-	Size *sizePluginConfig `json:"size"`
+	// BinarySizing groups the binary `dynamic` strategy's cold-start
+	// buffer-estimate knobs under one `binarySizing` object (like `i18n`). A nil
+	// object (absent key) keeps every binary default.
+	BinarySizing *binarySizingPluginConfig `json:"binarySizing"`
 	// Validate groups project-wide defaults for the per-call-site ValidateOptions
-	// bag under one `validate` object (like `size`). A nil object (absent key)
+	// bag under one `validate` object (like `binarySizing`). A nil object (absent key)
 	// keeps every validator on its built-in default. Merged per field into each
 	// validate / validationErrors call site by the scanner (site value wins per
 	// field); folds into each entry's fnHash variant, so it is NOT a disk
@@ -108,14 +108,15 @@ type tsRuntypesPlugin struct {
 	Validate *validatePluginConfig `json:"validate"`
 }
 
-// sizePluginConfig is the `size` object under the ts-runtypes plugin entry:
+// binarySizingPluginConfig is the `binarySizing` object under the ts-runtypes
+// plugin entry:
 //
 //	{ "bias": 0.8, "items": 100, "stringBytes": 32, "maxBytes": 65536 }
 //
 // bias (0..1) tunes how generous the first buffer is; items / stringBytes are
 // the assumed magnitudes for unbounded collections and strings; maxBytes caps
 // the estimate. Pointers so an absent key falls through to the binary default.
-type sizePluginConfig struct {
+type binarySizingPluginConfig struct {
 	Bias        *float64 `json:"bias"`
 	Items       *int     `json:"items"`
 	StringBytes *int     `json:"stringBytes"`
