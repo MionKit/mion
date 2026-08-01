@@ -197,11 +197,25 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	// block (an entry container outside the pointer-SCC) and must take the
 	// block's id, or bisimilar roots composed through it would diverge.
 	if entry, ok := computer.alias[base]; ok {
-		computer.cache[tsType] = entry.final
-		return entry.final
+		return computer.commitCache(tsType, entry.final)
 	}
-	id := base + computer.overrideSuffix(base)
-	computer.cache[tsType] = id
+	return computer.commitCache(tsType, base+computer.overrideSuffix(base))
+}
+
+// commitCache writes the pop-time pointer-cache entry and returns id, EXCEPT
+// while the depth latch is set. The sentinel itself is never cached, but an
+// ANCESTOR of the frame that returned it composes the sentinel into its own
+// text, and the latch is cleared per top-level walk (ResetDepthExceeded) — so
+// without this gate a later, non-latching walk could cache-hit that ancestor
+// and commit a `$depth`-poisoned structural string as a real id, with no
+// diagnostic. Skipping the write is a safe overapproximation: frames popped
+// BEFORE the latch cannot contain the sentinel (they only lose a cache entry,
+// and recompute identically), and a walk that latches is discarded and
+// diagnosed anyway (MKR008 / MKR009 via assignID).
+func (computer *Computer) commitCache(tsType *checker.Type, id string) string {
+	if !computer.depthExceeded {
+		computer.cache[tsType] = id
+	}
 	return id
 }
 

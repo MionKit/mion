@@ -1,6 +1,7 @@
 package resolver_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -207,5 +208,89 @@ export const d = getRunTypeId<Deep>();
 		if site.ID == "" {
 			t.Fatalf("a legit type must resolve to a real id, got empty: %+v", site)
 		}
+	}
+}
+
+// sentinelSharedSpine renders a program with a SHARED chain `S0…S300` plus a
+// separate spine `D0…D400` whose bottom (`D0`) reaches into `S300`, then one
+// call site per entry in `sites`. Walking `D400` descends 401 frames to reach
+// `S300` and 112 more before hitting the 512 cap INSIDE the shared chain — so
+// `S300` is still on the stack when the walk latches, and the text it composes
+// carries the `$depth` sentinel. Walking `S300` on its own is only 301 frames
+// deep, comfortably under the cap, so it must resolve to a real sentinel-free
+// id. The over-deep site is listed FIRST so its frames are already cached by
+// the time the shallow one is walked.
+func sentinelSharedSpine(sites ...string) string {
+	var b strings.Builder
+	b.WriteString("import {getRunTypeId} from '@ts-runtypes/core';\n")
+	b.WriteString("type S0 = {v: string};\n")
+	for i := 1; i <= 300; i++ {
+		b.WriteString("type S" + strconv.Itoa(i) + " = {n: S" + strconv.Itoa(i-1) + "};\n")
+	}
+	b.WriteString("type D0 = {s: S300};\n")
+	for i := 1; i <= 400; i++ {
+		b.WriteString("type D" + strconv.Itoa(i) + " = {n: D" + strconv.Itoa(i-1) + "};\n")
+	}
+	for i, site := range sites {
+		b.WriteString("export const s" + strconv.Itoa(i) + " = getRunTypeId<" + site + ">();\n")
+	}
+	return b.String()
+}
+
+// TestScan_DepthSentinelDoesNotPoisonALaterWalk pins the cache-write gate in
+// typeid.Compute. The `$depth` sentinel is deliberately never cached itself,
+// but an ANCESTOR of the frame that returned it composes the sentinel into its
+// own text, and that ancestor used to take the ordinary pop-time cache write.
+// Because the latch clears per top-level walk (assignID → ResetDepthExceeded),
+// a LATER walk that is itself shallow enough to be perfectly legal could
+// cache-hit the poisoned ancestor and commit a `$depth`-bearing structural
+// string as a REAL id — no MKR008, no MKR009, just a silently wrong id.
+//
+// The assertion is differential: `S300` resolved in a program that also walks
+// the over-deep `D400` must get a byte-identical id to `S300` resolved alone.
+// Before the gate the first folded the sentinel in and the two diverged.
+func TestScan_DepthSentinelDoesNotPoisonALaterWalk(t *testing.T) {
+	// Poisoning run: the over-deep site latches first, the shared chain second.
+	poisonedSrc := sentinelSharedSpine("D400", "S300")
+	poisoned := setupInline(t, map[string]string{"a.ts": poisonedSrc})
+	poisonedResp := poisoned.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+	if poisonedResp.Error != "" {
+		t.Fatalf("scan: %s", poisonedResp.Error)
+	}
+	// Preconditions — without every one of these the test proves nothing. The
+	// over-deep site is diagnosed and drops out, so exactly the S300 site
+	// survives; assert on its position so a future emit change can't silently
+	// leave us comparing the D400 site instead.
+	if got := countCode(poisonedResp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded); got != 1 {
+		t.Fatalf("precondition: D400 must trip the depth cap exactly once, got %d MKR008: %+v", got, poisonedResp.Diagnostics)
+	}
+	if len(poisonedResp.Sites) != 1 {
+		t.Fatalf("precondition: the diagnosed D400 site drops out, leaving 1 site, got %d", len(poisonedResp.Sites))
+	}
+	if shallowCall := strings.Index(poisonedSrc, "getRunTypeId<S300>"); poisonedResp.Sites[0].Pos < shallowCall {
+		t.Fatalf("precondition: the surviving site must be the S300 call (pos > %d), got pos %d", shallowCall, poisonedResp.Sites[0].Pos)
+	}
+
+	// Control run: the same shared chain, with no over-deep walk to poison it.
+	control := setupInline(t, map[string]string{"a.ts": sentinelSharedSpine("S300")})
+	controlResp := control.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+	if controlResp.Error != "" {
+		t.Fatalf("control scan: %s", controlResp.Error)
+	}
+	if got := countCode(controlResp.Diagnostics, diagnostics.CodeStructuralIdDepthExceeded); got != 0 {
+		t.Fatalf("precondition: S300 alone is 301 frames deep and must NOT trip the cap, got %d MKR008", got)
+	}
+	if len(controlResp.Sites) != 1 {
+		t.Fatalf("precondition: expected 1 control injection site, got %d", len(controlResp.Sites))
+	}
+
+	poisonedID := poisonedResp.Sites[0].ID
+	controlID := controlResp.Sites[0].ID
+	if poisonedID == "" {
+		t.Fatalf("S300 must resolve to a real id even after a sibling walk latched, got empty")
+	}
+	if poisonedID != controlID {
+		t.Fatalf("S300 resolved to %q after an over-deep sibling walk but %q on its own — "+
+			"a $depth-poisoned ancestor was served from the pointer cache", poisonedID, controlID)
 	}
 }
