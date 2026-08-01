@@ -69,6 +69,32 @@ uniform fix was to drop the pointer and keep the sentence grammatical:
 `docs/talks/.../framework-fuzzy-testing.md` with a literal `...` elision. The
 real file exists, so the full path was written out.
 
+## Out of scope: `docs/` prose carries the same rot
+
+This spec's "Done when" scoped the sweep to code comments — `packages/` and
+`ts-go-runtypes/` — and that is what shipped. The same purged specs are ALSO
+cited from inside `docs/` itself, which was never in scope and is deliberately
+left alone here. It is a different job, not more of the same one:
+
+- These are inline **markdown links whose text is part of the sentence**
+  (`see [docs/done/oxlint-diagnostics-plugin.md](./done/…)`), so each needs the
+  sentence reworded rather than truncated — the mechanical pass that handled 126
+  code comments does not apply. They are also relative links GitHub renders, so
+  they are visible 404s for a reader rather than stale comments.
+- A blind sweep would **destroy evidence**: some of those citations are bug
+  reports NAMING the missing files (this very document's own Intent section, and
+  `docs/done/stale-docs-drift-cluster.md`). Fixing them would delete the finding.
+- Two apparent hits in `docs/talks/…/research/` are false positives — substrings
+  of external GitHub URLs, not local paths.
+
+Tracked and fixed separately in
+[#310](https://github.com/MionKit/ts-run-types/pull/310): 19 citations across 6
+files (`ROADMAP.md`, `AI_ENRICHMENT.md`, `FUZZING.md`,
+`done/reconcile-publish-docs-to-token-model.md`,
+`maybe/support-circular-refs-validation.md`,
+`done/mock-format-registry-side-effect-import.md`), leaving the evidence
+citations and the URL false positives in place.
+
 ## Verified
 
 - The "Done when" grep returns **zero** dangling paths across `packages/`,
