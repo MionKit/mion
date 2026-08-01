@@ -1,6 +1,6 @@
 # Next.js integration — webpack path + Turbopack loader-rules path
 
-**Status:** maybe — moved out of [`docs/todos/oxc-migration-followups.md`](../todos/oxc-migration-followups.md) on 2026-07-22 (originally created 2026-07-04).
+**Status:** maybe — moved out of the OXC migration follow-ups todo on 2026-07-22 (originally created 2026-07-04; that todo has since been dropped).
 
 Motivation: let a Next.js app (with or without Turborepo orchestration) consume
 RunTypes end-to-end. Next.js ships two bundlers today; RunTypes needs a story
