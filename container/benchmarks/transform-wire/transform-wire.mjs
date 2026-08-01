@@ -15,6 +15,13 @@
 // 'go' is measured twice — with and without the sourcesContent map trim — since
 // eliding it is the cheap milestone-0 win that narrows the comparison.
 //
+// RE-BASELINE (protocol startup-config audit): request wire sizes dropped by
+// the `outDir` + `omitSourcesContent` bytes that used to ride EVERY transform
+// request — both are spawn config now. The trim itself became a session flag,
+// so each mode's client is constructed with it rather than passing it per call.
+// Numbers recorded before that change read a few bytes high on the request side;
+// response sizes and timings are unaffected.
+//
 // Reusable both ways: `node transform-wire/transform-wire.mjs` on the host (the
 // binary + built ts-runtypes-devtools resolve locally) and in the bench container
 // (`pnpm rtx bench transform-wire`), where the numbers are stable.
@@ -118,7 +125,7 @@ const MODES = [
 async function transformFile(client, mode, file, source) {
   if (mode.emitEdits) {
     const t0 = process.hrtime.bigint();
-    const resp = await client.transform([file], undefined, {emitEdits: true});
+    const resp = await client.transform([file], {emitEdits: true});
     const rtMs = Number(process.hrtime.bigint() - t0) / 1e6;
     const fr = resp.transformed[file];
     if (!fr) return {rtMs, applyMs: 0};
@@ -127,7 +134,7 @@ async function transformFile(client, mode, file, source) {
     return {rtMs, applyMs: Number(process.hrtime.bigint() - t1) / 1e6};
   }
   const t0 = process.hrtime.bigint();
-  await client.transform([file], undefined, mode.omitSourcesContent ? {omitSourcesContent: true} : undefined);
+  await client.transform([file]);
   return {rtMs: Number(process.hrtime.bigint() - t0) / 1e6, applyMs: 0};
 }
 
@@ -142,7 +149,12 @@ const median = (xs) => {
 const round2 = (n) => Math.round(n * 100) / 100;
 
 async function runMode(mode, names, sources) {
-  const client = new ResolverClient(RT_BINARY, COMPETITOR_DIR, '', {serverMode: true});
+  // The sourcesContent trim is SESSION config (--omit-sources-content), so it
+  // rides client construction — one spawn per mode, which this loop already did.
+  const client = new ResolverClient(RT_BINARY, COMPETITOR_DIR, '', {
+    serverMode: true,
+    ...(mode.omitSourcesContent ? {omitSourcesContent: true} : {}),
+  });
   try {
     await client.setSources(sources);
     // Warm-up pass (discarded): first-touch scan + type interning per file.

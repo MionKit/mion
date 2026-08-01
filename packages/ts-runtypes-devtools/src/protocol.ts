@@ -313,15 +313,13 @@ export interface FormatAnnotation {
 }
 
 export interface Request {
-  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'resolveId' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
-  // scanFiles only — the files to scan in this request. The response's
-  // sites cover every listed file (each tagged with .file); when the
-  // include* flags are set, runTypes / runTypeCacheSource are projected
-  // over these files only (NOT the cache's session-wide contents — use
-  // dump for that).
+  op: 'scanFiles' | 'dump' | 'setSources' | 'reset' | 'tsCompile' | 'transform' | 'generate' | 'enrich';
+  // The op's file input: the files to scan (scanFiles), rewrite (transform),
+  // or enrichment-check (enrich). The response's sites cover every listed file
+  // (each tagged with .file); when the include* flags are set, runTypes /
+  // runTypeCacheSource are projected over these files only (NOT the cache's
+  // session-wide contents — use dump for that).
   files?: string[];
-  // resolveId only — hash id of the RunType to look up in the cache.
-  id?: string;
   // setSources only — { relpath: source-text }.
   sources?: Record<string, string>;
   // scanFiles only — when set, the response includes a runTypes slice
@@ -355,10 +353,6 @@ export interface Request {
   // for the FE to apply itself. A per-request wire knob; the artifacts are
   // identical either way, so it never affects the disk cache.
   emitEdits?: boolean;
-  // transform only ('go' mode) — drop the original source from the map's
-  // sourcesContent (the heaviest single wire item). The bundler composes the
-  // chained map and fills original content itself, so it rarely needs our copy.
-  omitSourcesContent?: boolean;
   // enrich carries NO fields of its own beyond `files` (empty = whole program):
   // the wire carries the event, the session carries the config — families, i18n
   // locales, and the output root ride the spawn flags (--gen-dir / --enrich-*),

@@ -409,9 +409,10 @@ func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *protocol.RunType {
 	return cache.nodes[id]
 }
 
-// NodeByID returns the canonical full Type for id, or nil if no such id
-// has been interned. Backs the OpResolveID query op for callers walking a
-// member type's child KindRef slots.
+// NodeByID returns the canonical full Type for id, or nil if no such id has
+// been interned. Backs the enrichment bridge/closure walkers and the
+// demand-scope pass, which follow a member type's child KindRef slots by
+// re-looking-up each referenced id.
 func (cache *Cache) NodeByID(id string) *protocol.RunType {
 	return cache.nodes[id]
 }

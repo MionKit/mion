@@ -392,11 +392,15 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // the hardcoded genDir/types path).
       ...(reportEnabled ? {pureFnReportWire: true} : {}),
       ...(writeReportFile ? {pureFnReportFile: true} : {}),
-      // Enrichment session config (spawn-time — the enrich op's wire carries
-      // only files). An explicit genDir rides --gen-dir so OpEnrich roots the
-      // mirror tree identically; families + i18n select what the daemon syncs,
-      // with locales/sourceLocale defaulting from the tsconfig i18n block.
+      // Session config the wire deliberately does not carry. An explicit genDir
+      // rides --gen-dir so EVERY op (generate, transform, enrich) roots
+      // identically; the plugin lane always relativizes transform imports (the
+      // generated modules are real files on disk); sourcesContent:false becomes
+      // the map trim. Families + i18n select what the enrich daemon syncs, with
+      // locales/sourceLocale defaulting from the tsconfig i18n block.
       ...(genDirAbs ? {genDir: genDirAbs} : {}),
+      transformRelative: true,
+      ...(options.sourcesContent === false ? {omitSourcesContent: true} : {}),
       ...(enrichFriendly ? {enrichFriendly: true} : {}),
       ...(enrichMock ? {enrichMock: true} : {}),
       ...(enrichI18nEnabled ? {enrichI18n: true} : {}),
@@ -425,14 +429,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // edit, but the returned sourceHash lets us at least DETECT and warn. It is
   // omitted on the 'edits'-mode fallback path (the drift is already known there).
   async function transformViaGo(ctx: any, rel: string, driftCheck?: {code: string}) {
-    // Default keeps self-contained maps; an explicit `sourcesContent: false`
-    // trims the embedded original source from the map.
-    const goOpts = options.sourcesContent === false ? {omitSourcesContent: true} : undefined;
-    const result = await resolver!.transform([rel], genDirAbs, goOpts);
+    const result = await resolver!.transform([rel]);
     // A file outside the buildStart Program may surface new types / pure fns;
     // regenerate so the modules its injected imports point at exist on disk
     // before the bundler resolves them. (write-only-on-change keeps it cheap.)
-    if (result.addedRunTypes || result.addedPureFns) await resolver!.generate(genDirAbs);
+    if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
     // A file the buildStart scan couldn't have seen can introduce NEW
     // Error-severity diagnostics — surface them here so the transform fails
     // per the failOnError contract (warnings already surfaced program-wide).
@@ -460,8 +461,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // we fall back to 'go' mode so a build is never broken by this optimization.
   async function transformViaEdits(ctx: any, rel: string, code: string) {
     const incomingHash = sourceHash(code);
-    let result = await resolver!.transform([rel], genDirAbs, {emitEdits: true});
-    if (result.addedRunTypes || result.addedPureFns) await resolver!.generate(genDirAbs);
+    let result = await resolver!.transform([rel], {emitEdits: true});
+    if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
     // New Error-severity diagnostics from a file the buildStart scan couldn't
     // have seen — fail the transform per the failOnError contract.
     surfaceDiagnostics(ctx, result.diagnostics ?? [], (d) => d.severity === Severity.Error, {halt: failOnError});
@@ -476,8 +477,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       );
       try {
         await resolver!.setSources({[rel]: code});
-        result = await resolver!.transform([rel], genDirAbs, {emitEdits: true});
-        if (result.addedRunTypes || result.addedPureFns) await resolver!.generate(genDirAbs);
+        result = await resolver!.transform([rel], {emitEdits: true});
+        if (result.addedRunTypes || result.addedPureFns) await resolver!.generate();
         if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
         fileResult = result.transformed[rel];
       } catch {
@@ -630,12 +631,14 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // observe a zero count while this container's startup work is running.
       activeBuilds += 1;
       ensureResolver();
-      // generate writes the modules and, when genDirAbs is empty, returns the
-      // resolver-inferred <srcDir>/__runtypes. Adopt that resolved path so
-      // every later transform/HMR call reuses it. The VCS-hygiene files
-      // (per-folder READMEs, the types/.gitignore) are written by the Go side
-      // inside generate, so the CLI compile lane gets them too.
-      const gen = await resolver!.generate(genDirAbs || undefined);
+      // generate writes the modules and echoes the SESSION-resolved root back.
+      // When no explicit genDir was set that is the resolver's inferred
+      // <srcDir>/__runtypes, which this dependency-free plugin cannot compute
+      // for itself — adopt it so the enriched-dir HMR suppression knows where
+      // the tree lives. The VCS-hygiene files (per-folder READMEs, the
+      // types/.gitignore) are written by the Go side inside generate, so the
+      // CLI compile lane gets them too.
+      const gen = await resolver!.generate();
       if (gen.outDir) genDirAbs = gen.outDir;
       // Adopt the tsconfig-echoed failOnError as the halt default (the explicit
       // plugin option still wins, then this echo, then the built-in true), so a
@@ -797,7 +800,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         // Regenerate so any new/changed modules hit disk; the watcher reloads
         // them (the folder lives in the project root, which Vite watches).
         try {
-          await resolver.generate(genDirAbs);
+          await resolver.generate();
         } catch {
           // A regenerate failure shouldn't tear down the dev server mid-edit.
         }

@@ -1,8 +1,9 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-07-25
+completed: 2026-08-01
 ---
 
 # Protocol startup-config audit — move session-constant config off the wire
@@ -29,7 +30,7 @@ version in lockstep (exact-pinned, published together), so wire changes carry no
 | `op`, `files`, `sources` | stay | The events themselves. Fix doc drift while here: the `files` comment says "scanFiles only" (transform + enrich read it too); the Go `outDir` comment says "ignored by other ops" (false — transform reads it at `dispatch.go:1064,1078`). |
 | `id` + `OpResolveId` | **delete** | Dead surface: no JS client method exists (`resolver-client.ts` has no `resolveId()`), the op string sits unused in the TS union, and the sole consumer is `resolveid_test.go`. Remove the op const, the dispatch case (`dispatch.go:988-993`), `Session.ResolveID` (`dispatch.go:1118-1126`), the Request field, and the test; check whether `cache.NodeByID` loses its last caller (delete or fix its comment); update the wasm doc comment (`cmd/ts-runtypes-wasm/main.go:13`). |
 | `includeRunTypes`, `includeEntryModules` | stay | Response-payload selectors scoped to THIS request's files — inherently per-event. Live consumers: the website playground (`engine.ts:166`), `scripts/core/smoke.mjs:83`, the suite-data exporters, `test/helpers/inline.ts:268` (the shared vitest worker mixes them per request), and ~27 Go test files. |
-| `includeMetrics` | stay | Same payload-selector shape ("instrument THIS op"); zero cost when unset. Live consumer `render_parallel_test.go:99`, and it is the documented bench instrumentation hook (`docs/done/transform-wire-modes.md`). An earlier sweep called it dead — it is not. |
+| `includeMetrics` | stay | Same payload-selector shape ("instrument THIS op"); zero cost when unset. Live consumer `render_parallel_test.go:99`, and it is the documented bench instrumentation hook for the transform-wire modes. An earlier sweep called it dead — it is not. |
 | `checkEnrich`, `includeRtDiagnostics` | stay (deliberate exception) | Lane selectors for the one-pass lint scan. The lint worker owns its own session (`eslint/lint-worker.ts:78`), so spawn flags WOULD be possible — but (a) CLAUDE.md documents the lint plugin as "pure transport over the resolver's checkEnrich + includeRtDiagnostics scan flags", (b) `includeRtDiagnostics` is implied by `includeEntryModules` (`dispatch.go:809`), so a spawn variant would split one walker mode across two triggers, and (c) the cost is ~45 bytes on a lane that ships whole file texts. Recorded here so the next audit does not re-litigate. |
 | `emitEdits` | stay | A real per-request lane: `transformViaEdits` degrades to go-mode WITHIN one session on source-hash drift or applier throw (`unplugin.ts` fallback), and the mode-parity tests run both modes on one client. `protocol.go` already pins it: "a per-request knob … must never fold into any disk-cache fingerprint". |
 | `outDir` | **→ spawn** (the big one) | Session-constant adopted `genDirAbs` in every wire consumer. Design below (`Options.GenDir` + `Options.TransformRelative`). |
@@ -112,10 +113,59 @@ version in lockstep (exact-pinned, published together), so wire changes carry no
 - Migrating `checkEnrich`/`includeRtDiagnostics` (D3: deliberate exception).
 - Response-side changes beyond rewording the `OutDir` echo doc.
 
+## What shipped
+
+All five phases landed. `protocol.Request` is now exactly the taxonomy the spec
+asked for, and the Request doc block states it as a rule for future fields.
+
+**Deviations from the plan, and why:**
+
+- **Phase 1's "move `--gen-dir` into `registerSharedFlags`" was unnecessary.**
+  The OpEnrich slim-down had already given `serve` its own `--gen-dir` wired to
+  `opts.GenDir`. Moving it into the shared registration would have changed
+  `compile`'s flag semantics (compile defaults the value to `<cwd>/__runtypes`;
+  serve's empty value must keep meaning "infer from srcDir") for no gain, so
+  both keep their own registration. This is the split the spec itself warned
+  about in the same bullet.
+- **ARCHITECTURE.md needed no edit.** The spec expected an ops count/table and a
+  `resolveId` row there; neither exists (grep finds no `resolveId` / `outDir` /
+  `omitSourcesContent` in it). ROADMAP.md's ops row DID name `resolveId` and was
+  updated — it was also missing `transform` / `generate` / `enrich`, so the row
+  now lists the real op set.
+- **`cache.NodeByID` keeps its callers.** The spec asked to check whether it
+  loses its last one: it does not (enrichment `bridge.go` / `closure.go`,
+  `pattern_enrich.go`, `scope.go`). Only its stale "Backs the OpResolveID query
+  op" citation was rewritten.
+- **One extra test fix, in scope.** `TestPureFnReport_OffByDefault` asserted "no
+  report file at `<outDir>/types/`" against a session that never wrote there.
+  Once the root became session config this would have passed vacuously, so the
+  session is now pinned to the dir the assertion checks.
+
+**Phase 5 test shape.** `generate_test.go`'s multi-dir sequences became
+one-session-per-dir through a new `setupGen(t, sources, genDir)` helper — the
+production shape now that a session's dir is spawn-pinned. `transform-modes`'
+sourcesContent case became the two-client A/B the spec called for. The
+transform-wire bench already spawned a client per mode, so the trim just moved
+to construction; a re-baseline note sits next to the mode table.
+
+## Verified
+
+- Go: `go -C ts-go-runtypes test ./internal/... ./cmd/...` fully green.
+- JS: `pnpm test` green — 241 files / 8296 tests (+2 from the new
+  `resolver-args` flag cases).
+- `cli-surface` golden regenerated: exactly two added lines
+  (`--transform-relative`, `--omit-sources-content`).
+- `pnpm run lint` + `pnpm run format` green.
+- Grep confirms zero remaining references to `OpResolveID`, `request.OutDir`,
+  `req.omitSourcesContent`, or the `'resolveId'` op string anywhere outside
+  `docs/done/`.
+
 ## Done when
 
-`protocol.Request` is exactly: `op` + `files` + `sources` (events), `includeRunTypes` /
-`includeEntryModules` / `includeMetrics` (payload selectors), `checkEnrich` /
-`includeRtDiagnostics` / `emitEdits` (lane selectors). `resolveId` is gone. Full Go
-(`go -C ts-go-runtypes test ./internal/...`) + JS (`pnpm test`) gates green, cli-surface goldens
-regenerated, docs/comments match the new taxonomy. (~600 changed lines; 2-3 focused sessions.)
+- [x] `protocol.Request` is exactly: `op` + `files` + `sources` (events),
+      `includeRunTypes` / `includeEntryModules` / `includeMetrics` (payload
+      selectors), `checkEnrich` / `includeRtDiagnostics` / `emitEdits` (lane
+      selectors).
+- [x] `resolveId` is gone.
+- [x] Full Go + JS gates green, cli-surface goldens regenerated, docs/comments
+      match the new taxonomy.

@@ -157,6 +157,8 @@ Flags:
     	force multi-threaded (the default), overriding a tsconfig singleThreaded:true
   --number-mode string
     	project-wide default for the validate numberMode option: isFinite (default) | typeof | notNaN
+  --omit-sources-content
+    	drop the original source from each 'go'-mode transform source map (the host fills it from its own copy)
   --out-json string
     	after stdin EOF, write the cache as JSON to PATH
   --out-modules string
@@ -185,6 +187,8 @@ Flags:
     	assumed UTF-8 byte length of an unbounded string in the binary cold-start estimate (default 32)
   --sources string
     	startup Program source: project | stdin | ops
+  --transform-relative
+    	transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers
   --tsconfig string
     	tsconfig.json path (default: discover upward from --cwd, tsc-style)
 "

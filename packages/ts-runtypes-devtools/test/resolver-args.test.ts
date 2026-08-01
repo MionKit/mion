@@ -88,12 +88,20 @@ describe('buildResolverArgs — bundler-lane project knobs', () => {
   });
 });
 
-describe('buildResolverArgs — session config the wire does not carry (enrich + gen-dir)', () => {
+describe('buildResolverArgs — session config the wire does not carry (enrich + output/transform)', () => {
   it('forwards genDir as `--gen-dir <abs>`', () => {
     const args = buildResolverArgs('/proj', 'tsconfig.json', {genDir: '/proj/generated'});
     const idx = args.indexOf('--gen-dir');
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe('/proj/generated');
+  });
+
+  it('forwards transformRelative as `--transform-relative`', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {transformRelative: true})).toContain('--transform-relative');
+  });
+
+  it('forwards omitSourcesContent as `--omit-sources-content`', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {omitSourcesContent: true})).toContain('--omit-sources-content');
   });
 
   it('forwards the enrich family + i18n selection as boolean flags', () => {
@@ -117,6 +125,8 @@ describe('buildResolverArgs — session config the wire does not carry (enrich +
     const args = buildResolverArgs('/proj', 'tsconfig.json', {});
     for (const flag of [
       '--gen-dir',
+      '--transform-relative',
+      '--omit-sources-content',
       '--enrich-friendly',
       '--enrich-mock',
       '--enrich-i18n',

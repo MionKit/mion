@@ -359,11 +359,6 @@ const (
 	// and replacing it with a fresh one — the connection stays open. A
 	// subsequent setSources is required before scanFiles will work.
 	OpReset = "reset"
-	// OpResolveID returns the canonical full RunType for a given hash id.
-	// Child slots inside the returned RunType stay as KindRef sentinels — the
-	// caller re-issues OpResolveID per id to drill in. Lets consumers walk
-	// member-type child refs without dumping the whole cache.
-	OpResolveID = "resolveId"
 	// OpTsCompile runs the embedded tsgo through bind + typecheck + emit
 	// on the resolver's current source overlay, returns the wall time in
 	// the response's TsCompileMs field, and discards the emit output.
@@ -385,11 +380,14 @@ const (
 	OpTransform = "transform"
 	// OpGenerate runs the full-program entry-module collection (the same
 	// machinery as OpDump) then WRITES each module to
-	// <Request.OutDir>/types/<basename>.js on disk — write-only-on-change,
-	// pruning stale generated files — instead of returning the sources on the
-	// wire. Response.Generated is the manifest of live module basenames. This
-	// is the filesystem-output path that replaces virtual modules; the
-	// transform op injects relative imports to these real files.
+	// <outDir>/types/<basename>.js on disk — write-only-on-change, pruning
+	// stale generated files — instead of returning the sources on the wire.
+	// The root is session config (resolver.Options.GenDir > tsconfig genDir >
+	// inferred <srcDir>/__runtypes) and comes back on Response.OutDir.
+	// Response.Generated is the manifest of live module basenames. This is the
+	// filesystem-output path that replaces virtual modules; the transform op
+	// injects relative imports to these real files when the session sets
+	// Options.TransformRelative.
 	OpGenerate = "generate"
 	// OpEnrich scaffolds / reconciles the enrichment mirror files — the daemon face
 	// of the CLI `enrich` verb, so a bundler plugin can drive the scaffold + sync
@@ -402,16 +400,33 @@ const (
 
 // Request is the union of all query operations (see resolver/dispatch).
 //
-// Files carries the scanFiles op's input — every file the caller wants
-// scanned in this request. The response's Sites carries entries for
-// every listed file (each tagged with .File), and IncludeRunTypes /
-// IncludeEntryModules scope their payload to **this request's Files
-// only**, not to any session-wide accumulation. Callers that want the
-// whole in-memory cache call OpDump.
+// THE WIRE CARRIES EVENTS; THE SESSION CARRIES CONFIG. Every field below is
+// one of exactly three kinds, and a new field must justify itself as one of
+// them — anything session-constant belongs in resolver.Options, loaded once
+// from a `serve` flag at spawn (respawn-safe for free, since the client
+// replays the same argv):
+//
+//   - EVENTS — what happened / what is being asked: Op, Files, Sources.
+//   - PAYLOAD SELECTORS — how much of THIS request's answer to ship back:
+//     IncludeRunTypes, IncludeEntryModules, IncludeMetrics.
+//   - LANE SELECTORS — which walker/emit mode THIS request runs:
+//     CheckEnrich, IncludeRtDiagnostics, EmitEdits.
+//
+// Config that used to ride here and now lives in resolver.Options: the
+// output root (Options.GenDir, via resolveOutDir), files-mode import
+// relativization (Options.TransformRelative), the source-map trim
+// (Options.OmitSourcesContent), and the whole OpEnrich block (families,
+// locales, update/no-emit).
+//
+// Files carries the op's file input — every file the caller wants scanned
+// (scanFiles), rewritten (transform), or enrichment-checked (enrich). The
+// response's Sites carries entries for every listed file (each tagged with
+// .File), and IncludeRunTypes / IncludeEntryModules scope their payload to
+// **this request's Files only**, not to any session-wide accumulation.
+// Callers that want the whole in-memory cache call OpDump.
 type Request struct {
 	Op              string            `json:"op"`
 	Files           []string          `json:"files,omitempty"`
-	ID              string            `json:"id,omitempty"`
 	Sources         map[string]string `json:"sources,omitempty"`
 	IncludeRunTypes bool              `json:"includeRunTypes,omitempty"`
 	// IncludeEntryModules opts a scanFiles response into the per-entry
@@ -423,10 +438,6 @@ type Request struct {
 	// and Go memory deltas. Zero measurement cost when unset — the
 	// dispatcher skips every ReadMemStats / stopwatch entirely.
 	IncludeMetrics bool `json:"includeMetrics,omitempty"`
-	// OutDir is the resolved RunTypes output root (e.g. <srcDir>/__runtypes) for
-	// OpGenerate. Modules are written under <OutDir>/types/. Required by
-	// OpGenerate; ignored by other ops.
-	OutDir string `json:"outDir,omitempty"`
 	// CheckEnrich opts a scanFiles response into the enrichment-health pass
 	// over this request's Files: tag hygiene (@todo scaffolds, @rtOrphan /
 	// @rtOrphanChild carcasses), FriendlyText/MockData content validity, and
@@ -448,13 +459,6 @@ type Request struct {
 	// wire shape, never the artifacts, so it must never fold into any disk-cache
 	// fingerprint. Ignored by every op other than OpTransform.
 	EmitEdits bool `json:"emitEdits,omitempty"`
-	// OmitSourcesContent drops the ORIGINAL source out of each 'go'-mode
-	// TransformResult.Map.sourcesContent (the heaviest single wire item — the
-	// whole source a second time). The bundler composes chained maps and fills
-	// original content downstream, so it rarely needs our copy. Off by default
-	// (self-contained maps stay the norm); the transform-mode benchmark sweeps
-	// it. No effect in 'edits' mode (the FE generates its own map).
-	OmitSourcesContent bool `json:"omitSourcesContent,omitempty"`
 	// OpEnrich carries NO fields of its own beyond Files: the wire carries the
 	// EVENT (which files changed; empty = whole program) and the session carries
 	// the CONFIG — families, i18n locales, and the output root all ride
@@ -598,11 +602,15 @@ type Response struct {
 	// plugin) writes them under its own HMR-suppression window. Emitted via the
 	// hand-rolled MarshalJSON below (the struct tag alone doesn't put it on the wire).
 	EnrichFiles []EnrichFile `json:"enrichFiles,omitempty"`
-	// OutDir is the RunTypes output root OpGenerate actually wrote to. When the
-	// request left OutDir empty the resolver infers <srcDir>/__runtypes from the
-	// tsconfig (rootDir → common-ancestor of the program's files → baseUrl →
-	// cwd) and echoes the resolved absolute path here, so the dependency-free
-	// plugin can adopt it (write .gitignore/.gitkeep, reuse it for transform).
+	// OutDir is the SESSION-RESOLVED RunTypes output root OpGenerate wrote to
+	// (Options.GenDir > tsconfig genDir > inferred). This echo stays even though
+	// the root is no longer a request field: when neither override is set the
+	// resolver infers <srcDir>/__runtypes from the tsconfig (rootDir →
+	// common-ancestor of the program's files → baseUrl → cwd), which the
+	// dependency-free plugin cannot compute for itself but still needs — to
+	// write .gitignore/.gitkeep and to suppress HMR under the enriched dir.
+	// Together with FailOnError this is the sanctioned resolved-config
+	// server→client echo channel.
 	OutDir string `json:"outDir,omitempty"`
 	// FailOnError echoes the tsconfig plugin's failOnError on OpGenerate (nil
 	// when the tsconfig sets none) so the dependency-free host can honor a

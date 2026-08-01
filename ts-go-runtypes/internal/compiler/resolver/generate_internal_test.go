@@ -138,3 +138,41 @@ func TestUnwritableOutDirError(t *testing.T) {
 		t.Errorf("generic error should still name the dir, got: %v", generic)
 	}
 }
+
+// TestResolveOutDir_Precedence pins the output-root layering now that it is
+// SESSION config rather than a request field: the explicit spawn-time
+// Options.GenDir (`serve --gen-dir`, the host plugin's own genDir option) wins,
+// else the tsconfig genDir, else the inferred <srcDir>/__runtypes. Relative
+// values anchor under the session cwd. Every op that needs the root — generate,
+// transform, enrich — reads it through here, so this ordering is the single
+// place the lanes can agree or drift.
+func TestResolveOutDir_Precedence(t *testing.T) {
+	cwd := t.TempDir()
+	tests := []struct {
+		name           string
+		genDir         string
+		tsconfigGenDir string
+		want           string
+	}{
+		{"explicit GenDir wins over tsconfig", "/abs/flag", "/abs/tsconfig", "/abs/flag"},
+		{"tsconfig used when GenDir unset", "", "/abs/tsconfig", "/abs/tsconfig"},
+		{"relative GenDir anchors under cwd", "gen/rt", "/abs/tsconfig", filepath.Join(cwd, "gen/rt")},
+		{"relative tsconfig anchors under cwd", "", "gen/ts", filepath.Join(cwd, "gen/ts")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			sess := &Session{opts: Options{Cwd: cwd, GenDir: test.genDir, TsconfigGenDir: test.tsconfigGenDir}}
+			if got := sess.resolveOutDir(); got != test.want {
+				t.Errorf("resolveOutDir() = %q, want %q", got, test.want)
+			}
+		})
+	}
+
+	// Neither override set: fall through to the <srcDir>/__runtypes inference.
+	// With no Program to infer from, inferSrcDir lands on the session cwd, so
+	// the default is observable without building one.
+	sess := &Session{opts: Options{Cwd: cwd}}
+	if got, want := sess.resolveOutDir(), filepath.Join(cwd, outputDirName); got != want {
+		t.Errorf("no override: resolveOutDir() = %q, want the inferred %q", got, want)
+	}
+}

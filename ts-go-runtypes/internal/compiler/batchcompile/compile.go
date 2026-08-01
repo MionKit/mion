@@ -76,11 +76,18 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	// ── Pass 1: original program, scan, rewrite, generate caches ──────────────
+	// The output root is session config now: set it BEFORE resolver.New so
+	// OpGenerate's resolveOutDir lands on the same dir the emit step uses.
+	// TransformRelative stays false — pass 1 keeps the virtual rtmod:
+	// specifiers and the EMITTED .js is relativized later (see below).
+	resolverOpts := opts.ResolverOpts
+	resolverOpts.GenDir = genDir
+
 	p1, err := program.New(program.Options{Cwd: cwd, TsconfigPath: opts.TsconfigPath})
 	if err != nil {
 		return nil, fmt.Errorf("compile: program: %w", err)
 	}
-	r1, err := resolver.New(p1, opts.ResolverOpts)
+	r1, err := resolver.New(p1, resolverOpts)
 	if err != nil {
 		return nil, fmt.Errorf("compile: resolver: %w", err)
 	}
@@ -108,8 +115,9 @@ func Run(opts Options) (*Result, error) {
 	rewrittenByAbs := make(map[string]string, len(markerFiles))
 	mapAByAbs := make(map[string]*protocol.SourceMap, len(markerFiles))
 	if len(markerFiles) > 0 {
-		// Empty OutDir keeps the rtmod: specifiers — we relativize the
-		// EMITTED .js later, against its output location, not the source.
+		// TransformRelative is off for this session, so the rtmod: specifiers
+		// survive — we relativize the EMITTED .js later, against its output
+		// location, not the source.
 		tr := r1.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: markerFiles})
 		if tr.Error != "" {
 			return nil, fmt.Errorf("compile: transform: %s", tr.Error)
@@ -126,7 +134,7 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	// Generate the cache modules to <genDir>/types.
-	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: genDir})
+	gen := r1.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		return nil, fmt.Errorf("compile: generate: %s", gen.Error)
 	}

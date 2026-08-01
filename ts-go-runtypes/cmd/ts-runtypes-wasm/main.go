@@ -10,7 +10,7 @@
 //
 // Both arguments are JSON strings using the exact same protocol.Request /
 // protocol.Response wire shapes the native binary speaks — so a caller can
-// drive setSources / scanFiles / dump / resolveId identically to the
+// drive setSources / scanFiles / dump identically to the
 // `--inline-server` CLI mode, no Unix socket and no child process.
 //
 // The resolver runs single-threaded with the parallel scan + render disabled

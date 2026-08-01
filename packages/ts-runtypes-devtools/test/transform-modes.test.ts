@@ -26,7 +26,7 @@ async function assertModeParity(client: ResolverClient, file: string, source: st
   expect(goFile, `'go' mode produced no result for ${file}`).toBeDefined();
   expect(typeof goFile.code).toBe('string');
 
-  const ed = await client.transform([file], undefined, {emitEdits: true});
+  const ed = await client.transform([file], {emitEdits: true});
   const edFile = ed.transformed[file];
   expect(edFile, `'edits' mode produced no result for ${file}`).toBeDefined();
   // Happy path: no drift, so no re-sync would fire in the plugin.
@@ -252,7 +252,7 @@ getRunTypeId<Guard>();
         const original = sources['guard.ts'];
 
         // Happy path: the resolver's hash matches the FE hash of the same source.
-        const ed = await client.transform(['guard.ts'], undefined, {emitEdits: true});
+        const ed = await client.transform(['guard.ts'], {emitEdits: true});
         const first = ed.transformed['guard.ts'];
         expect(first.sourceHash).toBe(sourceHash(original));
 
@@ -265,7 +265,7 @@ getRunTypeId<Guard>();
         // re-request. Now the resolver's hash matches the drifted code, and the
         // fresh edits land correctly when applied to the drifted source.
         await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, 'guard.ts': drifted});
-        const ed2 = await client.transform(['guard.ts'], undefined, {emitEdits: true});
+        const ed2 = await client.transform(['guard.ts'], {emitEdits: true});
         const second = ed2.transformed['guard.ts'];
         expect(second.sourceHash).toBe(sourceHash(drifted));
 
@@ -314,9 +314,26 @@ getRunTypeId<SC>();
 `,
     },
     async (sources) => {
-      await withInlineSources(sources, async ({client}) => {
+      // The trim is SESSION config now (--omit-sources-content), so this is a
+      // two-CLIENT A/B rather than two calls on one client: the shared worker
+      // client keeps self-contained maps, and a one-shot client spawned with
+      // the flag produces the trimmed twin.
+      await withInlineSources(sources, async ({client, sources: augmented}) => {
         const withContent = (await client.transform(['sc.ts'])).transformed['sc.ts'];
-        const withoutContent = (await client.transform(['sc.ts'], undefined, {omitSourcesContent: true})).transformed['sc.ts'];
+
+        const trimmed = new ResolverClient(BIN, BARE_CWD, '', {
+          serverMode: true,
+          emitMode: 'both',
+          omitSourcesContent: true,
+        });
+        let withoutContent;
+        try {
+          await trimmed.setSources(augmented);
+          withoutContent = (await trimmed.transform(['sc.ts'])).transformed['sc.ts'];
+        } finally {
+          trimmed.close();
+        }
+
         const a = withContent.map as SourceMap;
         const b = withoutContent.map as SourceMap;
         // Same code, same mappings — only the embedded original source is gone.

@@ -73,10 +73,33 @@ type Options struct {
 	TsconfigGenDir string
 	// GenDir is the EXPLICIT output-root override (the serve --gen-dir flag —
 	// the host plugin's own genDir option, forwarded at spawn). resolveOutDir
-	// prefers it over TsconfigGenDir; a per-request outDir (generate/transform)
-	// still wins. Session config, not wire config: OpEnrich reads only this
-	// (via resolveOutDir), never a request field.
+	// prefers it over TsconfigGenDir. Session config, not wire config: EVERY op
+	// that needs the output root reads it through resolveOutDir, never a
+	// request field.
 	GenDir string
+	// TransformRelative makes OpTransform rewrite the injected import block's
+	// `rtmod:` specifiers to paths relative to the resolved output root (the
+	// files-mode lane: the generated modules exist on disk under
+	// <outDir>/types). False leaves the virtual `rtmod:` specifiers intact for
+	// a host that resolves them itself.
+	//
+	// A SESSION knob, not a per-request one: every consumer is
+	// session-homogeneous. The bundler plugin always relativizes; batchcompile's
+	// pass-1 transform, the transform-wire bench and the inline test lane always
+	// want the virtual form. It cannot be inferred from GenDir resolving
+	// non-empty (resolveOutDir always resolves to something), nor from "this
+	// session ran OpGenerate" — batchcompile generates AND virtual-transforms in
+	// the same session.
+	TransformRelative bool
+	// OmitSourcesContent drops the ORIGINAL source out of each 'go'-mode
+	// TransformResult.Map.sourcesContent (the heaviest single wire item — the
+	// whole source a second time). The bundler composes chained maps and fills
+	// original content downstream, so it rarely needs our copy. Off by default;
+	// mirrors the immutable plugin option `sourcesContent: false`, which is why
+	// it is spawn config rather than a request field. A pure WIRE trim — it
+	// changes no artifact, and transforms are never disk-cached, so it is not a
+	// fingerprint input.
+	OmitSourcesContent bool
 	// TsconfigFailOnError is the tsconfig plugin's failOnError (nil when unset);
 	// OpGenerate echoes it on Response.FailOnError so the dependency-free host
 	// can honor a tsconfig-only setting. The resolver never acts on it.

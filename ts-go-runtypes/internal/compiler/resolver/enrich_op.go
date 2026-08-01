@@ -22,7 +22,7 @@ import (
 // The wire carries only the EVENT (request.Files — empty = whole program); every
 // piece of CONFIG is session state loaded at spawn (Options.EnrichFriendly/Mock,
 // EnrichI18n + EnrichLocales/SourceLocale, and the output root via
-// resolveOutDir("") — flag > tsconfig genDir > inferred — so enrich and generate
+// resolveOutDir — flag > tsconfig genDir > inferred — so enrich and generate
 // always agree). The op is always a SYNC: reconcile an existing mirror
 // (value-preserving), scaffold a missing one, and return the hygiene worklist
 // alongside the content.
@@ -58,7 +58,7 @@ func (sess *Session) dispatchEnrich(request protocol.Request) protocol.Response 
 	// The session-resolved output root, handed to ResolveConfig in its
 	// flag-precedence slot — the same value OpGenerate resolves, so the mirror
 	// tree and the generated-modules tree never disagree.
-	genDir := sess.resolveOutDir("")
+	genDir := sess.resolveOutDir()
 
 	// Reconcile reads sibling sources for cross-file value imports through the
 	// Program FS, so the daemon never touches disk (parity with the CLI, which

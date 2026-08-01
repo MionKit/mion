@@ -287,17 +287,13 @@ func (sess *Session) absPath(p string) string {
 // "generated — safe to gitignore wholesale".
 const outputDirName = "__runtypes"
 
-// resolveOutDir turns the request's (possibly empty) OutDir into the absolute
-// output root. Precedence: an explicit request value, else the spawn-time
-// Options.GenDir override (the serve --gen-dir flag), else the tsconfig genDir,
-// else the inferred <srcDir>/__runtypes — so a consumer that can't parse
-// tsconfig (the dependency-free plugin) gets a sensible default it can adopt,
-// and every op on one session (generate, transform, enrich via
-// resolveOutDir("")) agrees on the same root.
-func (sess *Session) resolveOutDir(requested string) string {
-	if requested != "" {
-		return sess.absPath(requested)
-	}
+// resolveOutDir resolves the session's absolute output root. Precedence: the
+// spawn-time Options.GenDir override (the serve --gen-dir flag), else the
+// tsconfig genDir, else the inferred <srcDir>/__runtypes — so a consumer that
+// can't parse tsconfig (the dependency-free plugin) gets a sensible default it
+// can adopt from the OpGenerate echo, and every op on one session (generate,
+// transform, enrich) agrees on the same root by construction.
+func (sess *Session) resolveOutDir() string {
 	if sess.opts.GenDir != "" {
 		return sess.absPath(sess.opts.GenDir)
 	}

@@ -107,10 +107,25 @@ export interface ResolverClientOptions {
   pureFnReportWire?: boolean;
   pureFnReportFile?: boolean;
   // Forwarded as --gen-dir: the explicit RunTypes output-root override (the
-  // plugin's own genDir option, absolute). Session config — OpEnrich resolves
-  // its mirror root from it (flag > tsconfig genDir > inferred); undefined lets
-  // the Go side resolve from tsconfig / inference.
+  // plugin's own genDir option, absolute). Session config — EVERY op that needs
+  // the root (generate, transform, enrich) resolves it the same way
+  // (flag > tsconfig genDir > inferred <srcDir>/__runtypes); undefined lets the
+  // Go side resolve from tsconfig / inference and echo the result back on
+  // GenerateResult.outDir.
   genDir?: string;
+  // Forwarded as --transform-relative: transform rewrites the injected import
+  // block's `rtmod:` specifiers to paths relative to the resolved output root
+  // (files mode). The bundler plugin always sets it; the virtual-module lanes
+  // (batchcompile pass 1, the transform-wire bench, the inline test lane) leave
+  // it off. Session config because every consumer is session-homogeneous.
+  transformRelative?: boolean;
+  // Forwarded as --omit-sources-content: drop the embedded original source from
+  // each 'go'-mode transform source map (the heaviest single wire item). Mirrors
+  // the immutable plugin option `sourcesContent: false`, which is why it is a
+  // spawn flag rather than a per-call argument. A pure wire trim — no artifact
+  // changes, and transforms are never disk-cached, so it is not a fingerprint
+  // input.
+  omitSourcesContent?: boolean;
   // Enrichment session config, forwarded as --enrich-friendly / --enrich-mock /
   // --enrich-i18n / --enrich-locales / --enrich-source-locale. The wire's enrich
   // op carries only `files`; these spawn flags select the families OpEnrich
@@ -353,8 +368,8 @@ export interface EnrichResult {
 // without caring which transport is in use.
 export interface ResolverConnection {
   scanFiles(files: string[], opts?: ScanFilesOptions): Promise<ScanFilesResult>;
-  transform(files: string[], outDir?: string, opts?: TransformOptions): Promise<TransformFilesResult>;
-  generate(outDir?: string): Promise<GenerateResult>;
+  transform(files: string[], opts?: TransformOptions): Promise<TransformFilesResult>;
+  generate(): Promise<GenerateResult>;
   enrich(files: string[]): Promise<EnrichResult>;
   dump(): Promise<Response>;
   setSources(sources: Record<string, string>): Promise<void>;
@@ -364,14 +379,15 @@ export interface ResolverConnection {
   close(): void;
 }
 
-// TransformOptions selects the transform wire mode. `emitEdits: true` is
-// 'edits' mode — each TransformResult carries importBlock + edits + sourceHash
-// for the FE to apply itself; omitted (or false) is 'go' mode (full code + map).
-// `omitSourcesContent` is a 'go'-mode wire trim (drop the embedded original
-// source from the map); no effect in 'edits' mode.
+// TransformOptions selects the transform wire mode, the one genuinely
+// per-request transform knob: `emitEdits: true` is 'edits' mode — each
+// TransformResult carries importBlock + edits + sourceHash for the FE to apply
+// itself; omitted (or false) is 'go' mode (full code + map). A session can
+// degrade from edits to go mid-flight (source-hash drift, applier throw), which
+// is why this stays on the wire. The output root, files-mode relativization and
+// the source-map trim are all spawn config (ResolverClientOptions).
 export interface TransformOptions {
   emitEdits?: boolean;
-  omitSourcesContent?: boolean;
 }
 
 // Mixed-in ops implementation shared between the two clients. Inheritance
@@ -430,12 +446,10 @@ abstract class ResolverClientBase implements ResolverConnection {
   // map per file. In 'edits' mode (opts.emitEdits) it instead returns the raw
   // edit list (importBlock + edits + sourceHash) for the FE applier — a lighter
   // wire. Either way the plugin drives HMR off the same added* signals.
-  async transform(files: string[], outDir?: string, opts: TransformOptions = {}): Promise<TransformFilesResult> {
+  async transform(files: string[], opts: TransformOptions = {}): Promise<TransformFilesResult> {
     if (files.length === 0) throw new Error('transform: files must be non-empty');
     const req: Request = {op: 'transform', files};
-    if (outDir) req.outDir = outDir;
     if (opts.emitEdits) req.emitEdits = true;
-    if (opts.omitSourcesContent) req.omitSourcesContent = true;
     const resp = await this.send(req);
     if (resp.error) throw new Error(`transform [${files.join(', ')}]: ${resp.error}`);
     return {
@@ -452,17 +466,17 @@ abstract class ResolverClientBase implements ResolverConnection {
   // and WRITES it under <outDir>/types/ (write-only-on-change, relativized
   // inter-module imports, stale-file GC), returning the live manifest of
   // module basenames plus the output root it wrote to. The files-mode
-  // replacement for the virtual-module load path. Pass an empty outDir to let
-  // the resolver infer <srcDir>/__runtypes from the tsconfig; the resolved path
-  // comes back in `outDir`.
-  async generate(outDir?: string): Promise<GenerateResult> {
-    const req: Request = {op: 'generate'};
-    if (outDir) req.outDir = outDir;
-    const resp = await this.send(req);
+  // replacement for the virtual-module load path. The root is SESSION config
+  // (the `genDir` spawn option, else the tsconfig genDir, else the resolver's
+  // <srcDir>/__runtypes inference); the resolved absolute path always comes
+  // back in `outDir` so a dependency-free host can adopt an inference it
+  // cannot compute for itself.
+  async generate(): Promise<GenerateResult> {
+    const resp = await this.send({op: 'generate'});
     if (resp.error) throw new Error(`generate: ${resp.error}`);
     return {
       modules: resp.generated ?? [],
-      outDir: resp.outDir ?? outDir ?? '',
+      outDir: resp.outDir ?? '',
       siteFiles: resp.siteFiles ?? [],
       diagnostics: resp.diagnostics,
       pureFnSites: resp.pureFnSites,
@@ -567,6 +581,8 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   // Session config the wire deliberately does not carry: the output-root
   // override and the OpEnrich family / i18n selection.
   if (opts.genDir) args.push('--gen-dir', opts.genDir);
+  if (opts.transformRelative) args.push('--transform-relative');
+  if (opts.omitSourcesContent) args.push('--omit-sources-content');
   if (opts.enrichFriendly) args.push('--enrich-friendly');
   if (opts.enrichMock) args.push('--enrich-mock');
   if (opts.enrichI18n) args.push('--enrich-i18n');

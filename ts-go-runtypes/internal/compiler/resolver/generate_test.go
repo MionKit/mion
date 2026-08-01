@@ -7,18 +7,36 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
+// setupGen builds a session PINNED to genDir as its output root (the spawn-time
+// `serve --gen-dir` posture) with files-mode import relativization on — the
+// bundler plugin's configuration. The root is session config rather than a
+// request field, so a test that needs several roots builds several sessions,
+// which is exactly what production does: one spawn, one dir.
+func setupGen(t testing.TB, sources map[string]string, genDir string) *resolver.Session {
+	t.Helper()
+	return setupInlineWith(t, sources, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+		resolverOpts.GenDir = genDir
+		resolverOpts.TransformRelative = true
+	})
+}
+
 // TestGenerate_WritesModulesToDisk verifies OpGenerate writes every entry
-// module the session knows to <OutDir>/types/<basename>.js (with inter-module
+// module the session knows to <genDir>/types/<basename>.js (with inter-module
 // imports relativized so no rtmod: specifier survives on disk) and returns
 // the live manifest.
 func TestGenerate_WritesModulesToDisk(t *testing.T) {
 	const src = `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<{a: number; b: string}>();
 `
-	r := setupInline(t, map[string]string{"a.ts": src})
+	outDir := t.TempDir()
+	r := setupGen(t, map[string]string{"a.ts": src}, outDir)
 
 	// The authoritative module set is whatever OpDump renders for the session.
 	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump})
@@ -29,8 +47,7 @@ getRunTypeId<{a: number; b: string}>();
 		t.Fatal("dump produced no entry modules to generate")
 	}
 
-	outDir := t.TempDir()
-	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: outDir})
+	gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
@@ -98,14 +115,14 @@ func TestGenerate_RefusesOutDirInUse(t *testing.T) {
 	const src = `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<{a: number}>();
 `
-	r := setupInline(t, map[string]string{"a.ts": src})
+	sources := map[string]string{"a.ts": src}
 
 	// Collision case: a pre-existing dir with a hand-authored source file.
 	inUse := t.TempDir()
 	if err := os.WriteFile(filepath.Join(inUse, "entryTuple.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: inUse})
+	resp := setupGen(t, sources, inUse).Dispatch(protocol.Request{Op: protocol.OpGenerate})
 	if resp.Error == "" {
 		t.Fatal("expected OpGenerate to refuse an output dir already in use, got no error")
 	}
@@ -118,7 +135,7 @@ getRunTypeId<{a: number}>();
 	if err := os.MkdirAll(filepath.Join(okDir, "enriched"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: okDir}); resp.Error != "" {
+	if resp := setupGen(t, sources, okDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
 		t.Fatalf("a RunTypes-only output dir (enriched/ present) must be accepted, got: %s", resp.Error)
 	}
 
@@ -133,17 +150,18 @@ getRunTypeId<{a: number}>();
 			t.Fatal(err)
 		}
 	}
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: noiseDir}); resp.Error != "" {
+	if resp := setupGen(t, sources, noiseDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error != "" {
 		t.Fatalf("OS-noise files must be tolerated, got: %s", resp.Error)
 	}
 
 	// Adopted: our OWN previous run — a second generate into a dir we already
 	// wrote (it now carries the types/ marker) must not be mistaken for foreign.
 	prev := t.TempDir()
-	if first := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: prev}); first.Error != "" {
+	prevSession := setupGen(t, sources, prev)
+	if first := prevSession.Dispatch(protocol.Request{Op: protocol.OpGenerate}); first.Error != "" {
 		t.Fatalf("first generate into a fresh dir should succeed: %s", first.Error)
 	}
-	if second := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: prev}); second.Error != "" {
+	if second := prevSession.Dispatch(protocol.Request{Op: protocol.OpGenerate}); second.Error != "" {
 		t.Fatalf("a second generate into our own previous-run dir must be adopted, got: %s", second.Error)
 	}
 
@@ -153,7 +171,7 @@ getRunTypeId<{a: number}>();
 	if err := os.MkdirAll(filepath.Join(extraneousDir, "models"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: extraneousDir}); resp.Error == "" {
+	if resp := setupGen(t, sources, extraneousDir).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
 		t.Fatal("expected refusal of an output dir holding an extraneous folder, got no error")
 	}
 
@@ -165,7 +183,7 @@ getRunTypeId<{a: number}>();
 	if err := os.WriteFile(filepath.Join(fileNamedTypes, "types"), []byte("not a dir\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if resp := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: fileNamedTypes}); resp.Error == "" {
+	if resp := setupGen(t, sources, fileNamedTypes).Dispatch(protocol.Request{Op: protocol.OpGenerate}); resp.Error == "" {
 		t.Fatal("expected refusal of an output dir holding a file named `types`, got no error")
 	} else if !strings.Contains(resp.Error, "not a directory") {
 		t.Fatalf("error should explain `types` is not a directory, got: %s", resp.Error)
@@ -182,12 +200,12 @@ func TestGenerateTransformConsistency_Reflection(t *testing.T) {
 interface MapThing { mapProp: string }
 export const id = getRunTypeId<MapThing>();
 `
-	r := setupInline(t, map[string]string{"a.ts": src})
 	outDir := t.TempDir()
-	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate, OutDir: outDir}); gen.Error != "" {
+	r := setupGen(t, map[string]string{"a.ts": src}, outDir)
+	if gen := r.Dispatch(protocol.Request{Op: protocol.OpGenerate}); gen.Error != "" {
 		t.Fatalf("generate: %s", gen.Error)
 	}
-	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}, OutDir: outDir})
+	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
 	if tr.Error != "" {
 		t.Fatalf("transform: %s", tr.Error)
 	}
@@ -206,16 +224,17 @@ export const id = getRunTypeId<MapThing>();
 	}
 }
 
-// TestTransform_FilesModeInjectsRelativeImports verifies that with an OutDir,
-// OpTransform's injected import block points at relative on-disk module paths
-// (under OutDir/types) instead of rtmod: specifiers.
+// TestTransform_FilesModeInjectsRelativeImports verifies that a session with
+// TransformRelative set has OpTransform's injected import block point at
+// relative on-disk module paths (under <genDir>/types) instead of rtmod:
+// specifiers.
 func TestTransform_FilesModeInjectsRelativeImports(t *testing.T) {
 	const src = `import {createValidateFn} from '@ts-runtypes/core';
 interface Thing { id: string }
 export const isThing = createValidateFn<Thing>();
 `
-	r := setupInline(t, map[string]string{"a.ts": src})
-	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}, OutDir: "__runtypes"})
+	r := setupGen(t, map[string]string{"a.ts": src}, "__runtypes")
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{"a.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("transform: %s", resp.Error)
 	}

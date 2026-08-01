@@ -431,6 +431,10 @@ func runServe(args []string) {
 	// per-locale translation-mirror sync whose locales/sourceLocale default from
 	// the tsconfig plugin i18n block (project mode) unless overridden here.
 	genDirFlag := fs.String("gen-dir", "", "RunTypes output root override (precedence: this flag > tsconfig genDir > inferred <srcDir>/__runtypes)")
+	transformRelative := fs.Bool("transform-relative", false,
+		"transform rewrites injected rtmod: specifiers to paths relative to the output root (files mode); off keeps the virtual specifiers")
+	omitSourcesContent := fs.Bool("omit-sources-content", false,
+		"drop the original source from each 'go'-mode transform source map (the host fills it from its own copy)")
 	enrichFriendly := fs.Bool("enrich-friendly", false, "OpEnrich maintains the FriendlyText mirrors (neither family flag = both)")
 	enrichMock := fs.Bool("enrich-mock", false, "OpEnrich maintains the MockData mirrors (neither family flag = both)")
 	enrichI18n := fs.Bool("enrich-i18n", false, "OpEnrich also syncs the per-locale translation mirrors (scaffold + sync only, never translated content)")
@@ -461,6 +465,8 @@ func runServe(args []string) {
 		}
 		cfg.opts.GenDir = genDir
 	}
+	cfg.opts.TransformRelative = *transformRelative
+	cfg.opts.OmitSourcesContent = *omitSourcesContent
 	cfg.opts.EnrichFriendly = *enrichFriendly
 	cfg.opts.EnrichMock = *enrichMock
 	cfg.opts.EnrichI18n = *enrichI18n
