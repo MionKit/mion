@@ -140,10 +140,23 @@ export type RunTypesCache = Record<string, RunType>;
 
 export type AnyFn = (...args: any[]) => any;
 
+/** One emitted-function parameter table, keyed by CONCEPTUAL SLOT (`vλl`,
+ *  `pλth`, `εrr`, `θpts`, `sεr`, `dεs`) — the Go-side mirror of
+ *  `typefunctions.ArgSpec` (`args[key] = name`, `defaultParamValues[key] =
+ *  default`).
+ *
+ *  ⚠️ Every value is a JS-SOURCE FRAGMENT, never a runtime value. `args` holds
+ *  identifiers (`'v'`, `'pth'`); `defaultParamValues` holds default
+ *  EXPRESSIONS (`'[]'`, `'{}'`, `''` for no default). Both get spliced back
+ *  into a signature when a consumer rebuilds the function via
+ *  `new Function(...)`, which is why they are text and not values — and it is
+ *  what keeps `CompiledFnData` JSON-serializable with NO conversion step. Put a
+ *  real `undefined` / `[]` / `{}` in here and `JSON.stringify` emits invalid
+ *  JSON (`"vλl":undefined`) for a required slot. **/
 export type CompiledFnArgs = {
-  /** The name of the value of to be */
+  /** The value parameter — present in every family. */
   vλl: string;
-  /** Other argument names */
+  /** The remaining slots, family-dependent. */
   [key: string]: string;
 };
 
@@ -156,7 +169,13 @@ export interface CompiledFnData {
    *  emitting family, so consumers can tell a primitive from a composite. */
   readonly familyTag?: string;
   readonly rtFnHash: string;
+  /** Slot → the JS IDENTIFIER that slot takes in the emitted signature
+   *  (`{vλl: 'v', pλth: 'pth', εrr: 'er'}` → `function verr_x(v, pth, er)`). */
   readonly args: CompiledFnArgs;
+  /** Slot → that parameter's DEFAULT EXPRESSION as JS source, `''` when the
+   *  parameter has no default. `{vλl: '', pλth: '[]', εrr: '[]'}` is what makes
+   *  the emitted `function verr_x(v, pth=[], er=[])`. Text, not values — see
+   *  the CompiledFnArgs contract above. */
   readonly defaultParamValues: CompiledFnArgs;
   /** True for collapsed-to-identity compilations. */
   readonly isNoop?: boolean;

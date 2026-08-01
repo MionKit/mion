@@ -460,9 +460,9 @@ const noopToBinary = (_v: unknown, Ser: unknown) => Ser;
 const noopFromBinary = (ret: unknown) => ret;
 
 const valueArgs = () => ({vλl: 'v'}) as CompiledFnArgs;
-const valueDefaults = () => ({vλl: undefined}) as unknown as CompiledFnArgs;
+const valueDefaults = (): CompiledFnArgs => ({vλl: ''});
 const errorArgs = () => ({vλl: 'v', pλth: 'pth', εrr: 'er'}) as CompiledFnArgs;
-const errorDefaults = () => ({vλl: undefined, pλth: [], εrr: []}) as unknown as CompiledFnArgs;
+const errorDefaults = (): CompiledFnArgs => ({vλl: '', pλth: '[]', εrr: '[]'});
 
 const valueShaped = (fnID: string, noop: AnyFn): FamilyMeta => ({fnID, args: valueArgs, defaultParamValues: valueDefaults, noop});
 const errorShaped = (fnID: string): FamilyMeta => ({fnID, args: errorArgs, defaultParamValues: errorDefaults, noop: noopErrors});
@@ -492,7 +492,7 @@ const familyMeta: Record<string, FamilyMeta> = {
   huk: {
     fnID: 'huk',
     args: () => ({vλl: 'v', θpts: 'opts'}) as CompiledFnArgs,
-    defaultParamValues: () => ({vλl: undefined, θpts: {}}) as unknown as CompiledFnArgs,
+    defaultParamValues: (): CompiledFnArgs => ({vλl: '', θpts: '{}'}),
     noop: noopFalse,
   },
   ces: valueShaped('ces', noopIdentity),
@@ -501,13 +501,13 @@ const familyMeta: Record<string, FamilyMeta> = {
   tb: {
     fnID: 'tb',
     args: () => ({vλl: 'v', sεr: 'Ser'}) as CompiledFnArgs,
-    defaultParamValues: () => ({vλl: undefined, sεr: undefined}) as unknown as CompiledFnArgs,
+    defaultParamValues: (): CompiledFnArgs => ({vλl: '', sεr: ''}),
     noop: noopToBinary,
   },
   fb: {
     fnID: 'fb',
     args: () => ({vλl: 'ret', dεs: 'Des'}) as CompiledFnArgs,
-    defaultParamValues: () => ({vλl: undefined, dεs: undefined}) as unknown as CompiledFnArgs,
+    defaultParamValues: (): CompiledFnArgs => ({vλl: '', dεs: ''}),
     noop: noopFromBinary,
   },
   fmt: valueShaped('fmt', noopIdentity),
