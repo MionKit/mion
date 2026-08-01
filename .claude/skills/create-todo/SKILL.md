@@ -38,7 +38,7 @@ created: 2026-07-22 # absolute date (today)           — conventional
 
 Get the intent and the reason behind it, not just a restatement. A good todo tells a future reader *why this is worth doing*, so if the user gave you only a terse line ("dedup the union guard"), draw out the missing "why" and any constraints they already have in mind. Keep it short; you are recording a request, not solving it yet.
 
-Before going further, glance at whether this already exists: a quick look across `docs/todos/`, `docs/done/`, `docs/partially/`, and `docs/maybe/` for the same topic. If there's a match, surface it rather than filing a duplicate — the user may want to reopen or extend the existing one instead.
+Before going further, glance at whether this already exists: a quick look across `docs/todos/`, `docs/done/`, and `docs/maybe/` for the same topic. If there's a match, surface it rather than filing a duplicate — the user may want to reopen or extend the existing one instead.
 
 ## Step 2 — Classify the type
 
@@ -97,7 +97,7 @@ Close by telling the user where you filed it and, if they want, that they can pi
 - **Do not write the file before approval.** Steps 1-5 are analysis; the doc lands only after a yes.
 - **Do not over-investigate a guidelines todo.** Superficial-but-correct is the target; deep planning is the implementer's job and doing it here duplicates the work.
 - **Do not omit or guess the header fields.** `type` and `spec` are the contract `implement-todo` runs on — a missing or wrong `spec` sends the implementer down the wrong path.
-- **Do not file a duplicate.** If the topic already lives in `docs/todos/` (or done/partially/maybe), surface it instead.
+- **Do not file a duplicate.** If the topic already lives in `docs/todos/` (or done/maybe), surface it instead.
 - **Do not answer the skill's own AskUserQuestion for the user** — the spec choice is theirs.
 
 ## Gotchas

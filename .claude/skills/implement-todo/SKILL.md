@@ -22,7 +22,7 @@ Take one spec from `docs/todos/` and carry it to a finished, PR-ready change. Th
 
 ## Step 1 — Pick the todo
 
-The source is **`docs/todos/*.md` only**. The sibling dirs are not candidates: `docs/done/` is finished, `docs/partially/` is mid-flight, `docs/maybe/` is parked and deliberately not ready. Ignore `.gitkeep`.
+The source is **`docs/todos/*.md` only**. The sibling dirs are not candidates: `docs/done/` is finished, `docs/maybe/` is parked and deliberately not ready. Ignore `.gitkeep`.
 
 - **If the user already named a todo** — a filename, a path under `docs/todos/`, or an unambiguous description ("the union guard dedup one") — skip the question, confirm which file you landed on, and move to step 2.
 - **Otherwise ask with AskUserQuestion.** AskUserQuestion caps at 4 options, and there are often more todos than that, so: first list **every** todo in prose (one line each — filename, a one-line gist, and its status if the file states one like `READY`), then offer a curated set as options (prefer the `READY`/next-release ones) with "Other" covering the rest of the listed set. That way the user sees the full menu even though only a few are one-click.
@@ -104,7 +104,7 @@ Run the gate before calling it done:
 - **Lint + format** — `pnpm run lint` and `pnpm run format` (never hand-format).
 - **Docs updated** per the plan.
 - **Reconcile the spec with what shipped.** If the implementation diverged from the original todo — a different approach, a narrower or wider outcome, a decision the spec did not anticipate — edit the todo file so it describes what was **actually built** before it moves. A stale spec landing in `docs/done/` misleads the next reader.
-- **Move the spec.** `git mv` it from `docs/todos/` into `docs/done/` (or `docs/partially/` if you deliberately shipped only part of it). This is a hard PR-readiness requirement, not an afterthought.
+- **Move the spec.** `git mv` it from `docs/todos/` into `docs/done/` and update it to match what shipped. This is a hard PR-readiness requirement, not an afterthought. If you deliberately shipped only PART of it, SPLIT rather than park: the moved doc records what landed and why the rest was cut, and the remainder becomes a NEW `docs/todos/` spec that reads on its own. There is no half-done lane.
 
 Close by telling the user what shipped versus the todo's Done-when, and flag anything you consciously left for a follow-up.
 
@@ -113,7 +113,7 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not edit any file before the plan is approved.** Steps 1-6 are analysis only.
 - **Do not skip tests on a fix or a feature** — the gate rejects it and so should you.
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
-- **Do not pull candidates from `docs/done/`, `docs/partially/`, or `docs/maybe/`** — only `docs/todos/` holds ready work.
+- **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
 - **Do not chase an *unrelated* issue inline** — file it as a new `docs/todos/` spec and leave it; only issues genuinely related to the current fix fold into this change.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
