@@ -17,8 +17,7 @@
 >   subtrees, with a one-shot auto-migration of pre-split combined mirrors) and the
 >   **FriendlyText i18n layer** — per-locale translation mirrors, generator-owned
 >   plural templates (checked by **FT006 / FT007 / FT008**), `createFriendlyTextI18n`,
->   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n) and
->   [docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md)).
+>   `enrich --i18n` / `enrich --i18n --no-emit` (see [Translations (i18n)](#translations-i18n)).
 >
 > **Storage + consumption model (this doc):** enrichment is committed to a **mirror
 > directory** (`src/__runtypes/enriched/`, configured via the tsconfig `plugins` entry;
@@ -304,7 +303,7 @@ construction in
 dataonly-extract`) — this repo's reference for a *cheap* recursive type. The
 codebase is acutely sensitive to TS instantiation cost (see the
 [markers.ts](../packages/ts-runtypes/src/markers.ts) note on the
-~700-instantiation tuple-intersection trap, and `docs/value-first-typecheck-cost.md`).
+~700-instantiation tuple-intersection trap).
 Three rules carried over from `DataOnly`:
 
 1. **Depth-bounded** via a tuple-decrement budget, so circular / mutually-recursive
@@ -359,8 +358,7 @@ Localized rendering wraps the same walk: `createFriendlyTextI18n<T>(source, { lo
 translations, currency? })` returns the identical `FriendlyRenderer`, resolving the
 locale by naive BCP-47 truncation and falling back **per leaf** to the source map
 (the source `FriendlyText` IS the source language — a partial translation never
-throws). See [Translations (i18n)](#translations-i18n) and
-[docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md).
+throws). See [Translations (i18n)](#translations-i18n).
 
 **UI form-building is deferred and *does* need the runtype.** To enumerate every
 field of `User` (labelling the ones in the map, falling back to raw names for the
@@ -864,12 +862,11 @@ with no carcasses is left untouched.
 
 ### Translations (i18n)
 
-The friendly family translates per locale — the full design lives in
-[docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md); this is the
-mirror-side summary. The tsconfig `i18n` object is optional (defaults apply when
-absent — zero change for a project that never translates), and the source
-`FriendlyText` map IS the source language (no separate default catalog) —
-anything unfilled falls back to it at render time.
+The friendly family translates per locale — [Translations (i18n)](#translations-i18n)
+carries the full design; this is the mirror-side summary. The tsconfig `i18n`
+object is optional (defaults apply when absent — zero change for a project that
+never translates), and the source `FriendlyText` map IS the source language (no
+separate default catalog) — anything unfilled falls back to it at render time.
 
 ```
 ts-runtypes enrich --i18n <locale> [<src.ts>]           # scaffold (create-only)
@@ -1064,11 +1061,8 @@ production graph. No special registration-gating mechanism required.
 These were the open small-detail questions; all are now **decided** (none affect the
 overall architecture) and documented here:
 
-- **i18n — SHIPPED** (no longer parked; full design in
-  [docs/done/friendly-type-i18n.md](./done/friendly-type-i18n.md) plus the
-  src-derived unification in
-  [docs/done/friendly-unified-src-reconcile.md](./done/friendly-unified-src-reconcile.md),
-  summary in [Translations (i18n)](#translations-i18n) above). Per-locale
+- **i18n — SHIPPED** (no longer parked; the full design, including the
+  src-derived reconcile, is in [Translations (i18n)](#translations-i18n) above). Per-locale
   translation mirrors live under `<genDir>/enriched/i18n/<locale>/`, scaffolded as
   blank-leaf `FriendlyText<T>` consts straight from the source type (source
   text is never copied as if translated, and no generated file feeds another);

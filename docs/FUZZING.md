@@ -175,9 +175,7 @@ parameter passed through a helper (that injects the `unknown` runtype).
   `RangeError: buffer too small … Call resize() and retry.` instead of growing.
   Fixed in two steps: the serializer's writers now GROW IN PLACE (no throw, no
   re-encode) and the size predictor moved from a mean-EMA to Welford
-  mean + k·σ. See
-  [`docs/done/binary-buffer-sizing.md`](./done/binary-buffer-sizing.md); pinned by
-  `binaryEncoderResize.test.ts`.
+  mean + k·σ. Pinned by `binaryEncoderResize.test.ts`.
 
 ## Phase 2 — random TypeScript type generation (implemented)
 

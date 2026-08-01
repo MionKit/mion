@@ -11,8 +11,8 @@ created: 2026-07-29
 **Type:** bug — silent mock-soundness loss (mock ⇏ validate) depending on import elision
 **Created:** 2026-07-29
 **Found by:** the JSON Schema investigation prototype
-(`packages/ts-runtypes/test/features/jsonSchemaInput.proto.test.ts`; see
-`docs/investigations/json-schema/02-phase2-first-class-input.md`)
+(`packages/ts-runtypes/test/features/jsonSchemaInput.proto.test.ts`; the
+investigation notes were removed with the first-class JSON Schema revert)
 
 ## The bug
 

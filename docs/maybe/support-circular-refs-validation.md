@@ -1,8 +1,8 @@
 # `supportCircularRefs` — validate cyclic graphs instead of rejecting them
 
 Status: **IDEA — needs a motivating use case before implementation.** Captured
-from the design discussion that followed shipping
-[docs/done/reject-circular-refs-as-compiler-option.md](../done/reject-circular-refs-as-compiler-option.md).
+from the design discussion that followed shipping the
+`rejectCircularRefs` compiler option.
 Priority LOW: the scenarios below are real but niche, and the owner's own
 assessment tempers them — support-mode validation only matters once values are
 already **in memory**, and in-memory values are usually constructed by typed

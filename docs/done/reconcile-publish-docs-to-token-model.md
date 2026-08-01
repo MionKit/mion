@@ -10,7 +10,7 @@ completed: 2026-07-25
 
 ## Origin
 
-Split out of [docs/done/staged-npm-publish-and-deploy.md](../done/staged-npm-publish-and-deploy.md)
+Split out of the staged-npm-publish-and-deploy spec (since removed in the docs archive prune)
 during the 2026-07-25 `docs/partially/` triage, then further trimmed 2026-07-25 after review: the
 sibling "first-release bring-up" work item was retired (the pipeline has since run green multiple
 times on `prod` and `@ts-runtypes/core@0.10.0` is live), and the OIDC-migration work item was
@@ -68,9 +68,9 @@ the provenance paragraph as-is — provenance staying gated on `RT_NPM_PROVENANC
   and says "every future release stages via OIDC in CI". Rewrite: CI stages with `NPM_TOKEN`;
   the follow-up runbook step is to make sure the repo `NPM_TOKEN` secret is set (or to add a
   new sibling package to the token's scope), NOT to register OIDC.
-- **This spec's origin doc** — [docs/done/staged-npm-publish-and-deploy.md:10](../done/staged-npm-publish-and-deploy.md#L10)
-  is the only inbound link; update the pointer to this file's new name when the rename lands
-  (already done in this same PR — leaving the note here so it doesn't get re-broken).
+- **This spec's origin doc** — the staged-npm-publish-and-deploy spec (line 10) was the only
+  inbound link; the pointer was updated to this file's new name when the rename landed. That
+  spec has since been removed in the docs archive prune.
 
 ## Verification
 
@@ -108,8 +108,9 @@ Done-when bar ("every reader-facing doc/script"):
 In SETUP.md the heading anchor (`#releasing-through-ci--staged-publishing-npm_token--2fa-approval`)
 was updated in lockstep with the heading rename (the one same-file inbound link). `publish.yml`
 and `stage-approve.mjs` were left untouched (Out of scope; their only OIDC mentions are
-npm-version-requirement code comments). The archived specs `docs/done/publish-local-core-filter-bug.md`
-and `docs/done/release-pipeline-first-run-fixes.md` keep their OIDC mentions as historical record.
+npm-version-requirement code comments). The archived publish-local-core-filter-bug and
+release-pipeline-first-run-fixes specs kept their OIDC mentions as historical record; both have
+since been removed in the docs archive prune.
 
 ## Done when
 
