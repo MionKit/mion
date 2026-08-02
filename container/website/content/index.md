@@ -424,7 +424,8 @@ A JSON Schema (draft 2020-12) is a third way to describe a shape. Hand it over a
 
 [JSON Schema, first class →](/guide/json-schema)
 ::::
-
+:::
+::
 
 
 ::u-page-section
@@ -547,9 +548,6 @@ export function __rt_a1b_Xk7(value) {
 }
 ```
 ::::
-:::
-::
-
 :::
 ::
 
