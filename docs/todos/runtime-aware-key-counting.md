@@ -24,17 +24,38 @@ The claim is correct on V8 and **inverts on JavaScriptCore** (Bun). JSC serves
 `for-in`, array allocation for `getOwnPropertyNames`).
 
 This is the entire `runsAfterValidation` key-count fast path, so it is the whole
-strict-mode cost. Measured on the emitted benchmark bundle, full strict path
-(`validate(v) && !hasUnknownKeys(v)`), median of 5 runs of 1M iterations:
+strict-mode cost.
 
-| engine | `for-in` (today) | `getOwnPropertyNames` | |
+Measured on the emitted benchmark bundle, full strict path
+(`validate(v) && !hasUnknownKeys(v)`), with **one strategy per process** over a
+rotating pool of 64 distinct objects, median of 7 samples, and the variant order
+reversed on a second pass to rule out ordering effects:
+
+| engine | `for-in` (today) | `getOwnPropertyNames` | `Object.keys` |
 |---|---|---|---|
-| node v22.22.2 | **15.18M ops/s** | 8.26M ops/s | for-in 1.85x better |
-| bun 1.2.12 | 1.87M ops/s | **2.27M ops/s** | gOPN 1.22x better |
+| node v22.22.2 | **20.5 / 19.9 ns/op** | 34.9 / 32.8 ns/op | 30.3 / 33.2 ns/op |
+| bun 1.2.12 | 25.4 / 25.1 ns/op | **12.7 / 13.6 ns/op** | **12.7 / 14.1 ns/op** |
 
-Isolating the pieces on Bun, `hasUnknownKeys` alone runs at ~1.7M ops/s while
-the full strict path runs at ~1.6M — `validate` contributes almost nothing, so
-the key counter *is* the bottleneck.
+So `for-in` is ~1.6x better on V8, and the alternatives are **~1.9x better on
+JSC**. Both orders agree, and every figure is within a physically plausible
+range (5-35ns for a ten-field check), which is what makes them trustworthy.
+
+**`Object.keys` is the strategy to use on JSC.** It ties `getOwnPropertyNames`
+within noise while being semantically much closer to `for-in`, which removes
+most of the divergence risk described below.
+
+### Methodology note — the first version of this spec was wrong
+
+The numbers above replace an earlier set (claiming 1.22x on JSC and 3.4x for
+for-in on V8) that were measured with a shared `measure(fn)` helper. Passing a
+different function per variant makes that call site polymorphic, so whichever
+variant ran first got the monomorphic fast path and the rest were penalised. A
+second error compounded it: counting keys of a single frozen constant lets JSC
+fold the whole call away, which produced a nonsense 1342M pairs/s.
+
+Anything re-measuring this must therefore: run **one variant per process**, use
+**non-constant inputs**, **reverse the order** across passes, and **sanity-check
+ns/op against physical plausibility** before believing any of it.
 
 Real-world impact, from the published
 [typescript-runtime-type-benchmarks](https://github.com/moltar/typescript-runtime-type-benchmarks)
@@ -45,9 +66,16 @@ results (`docs/results/*.json`, margins <1% so these are solid measurements):
 | `assertStrict` node-24 | 38.10M | 28.50M | **1.34x ahead** |
 | `assertStrict` bun-1.2 | 3.12M | 4.57M | **0.68x behind** |
 
-The same code leads on V8 and trails on JSC, purely because of this one
-primitive. A local A/B puts the patched counter at 2.27M against typebox's
-2.3M on Bun, i.e. the swap closes essentially the whole gap.
+The same code leads on V8 and trails on JSC. Those published figures are the
+independent evidence that a real JSC strict-path deficit exists: they come from
+moltar's CI rather than a local machine, and their sub-1% margins clear the
+plausibility checks.
+
+The ~1.9x local improvement above is roughly twice the size of that published
+gap, so the swap should close it comfortably — but the published numbers and the
+local ones come from different hardware and cannot be composed into a single
+predicted result. Treat "closes the gap" as the hypothesis this change tests,
+not as a measured outcome.
 
 ## Fix direction
 
@@ -69,7 +97,7 @@ export const pf_countEnumKeys = registerPureFnFactory('rt::countEnumKeys', funct
   // counter stays branch-free.
   if (typeof Bun !== 'undefined') {
     return function _countEnumKeys(obj: Record<StrNumber, any>): number {
-      return Object.getOwnPropertyNames(obj).length;
+      return Object.keys(obj).length;
     };
   }
   return function _countEnumKeys(obj: Record<StrNumber, any>): number {
@@ -117,11 +145,20 @@ child is required, there is no index-signature child, and the RT children are
 *all* the children; combined with the serializable-data validate contract, the
 realistic input is a plain object literal, where all three agree.
 
-`Object.keys` would be the semantically closest swap, but it measured 25.5M vs
-for-in's 27.9M on JSC — no win. So `getOwnPropertyNames` is the only option that
-pays, and it carries the delta. Decide explicitly: either prove the fast-path
-eligibility rules make the divergence unreachable, or narrow the JSC branch to
-the shapes where equivalence holds.
+The re-measurement above resolves most of this: **`Object.keys` matches
+`getOwnPropertyNames` on JSC** (12.7 / 14.1 vs 12.7 / 13.6 ns/op), so there is
+no need to accept the non-enumerable divergence to get the win. `Object.keys`
+differs from `for-in` only on **inherited** enumerable properties.
+
+That leaves one question to settle rather than three: can a fast-path-eligible
+value carry inherited enumerable properties? Given `countFastPathN` requires all
+children required, no index signature, and RT children equal all children — and
+given the serializable-data validate contract — the answer is very likely no,
+but it should be proven rather than assumed, since the cost of being wrong is a
+value validating differently on Bun and on Node.
+
+An earlier draft of this spec claimed `Object.keys` was not competitive on JSC
+(25.5M vs 27.9M). That came from the flawed measurement described above.
 
 ### Rebuild the built-in table
 
@@ -196,6 +233,7 @@ the risk section is about. Fits the existing harness under
 - The built-in table is regenerated and `codegen all --check` is green.
 - Cross-strategy equivalence is pinned by tests, and the semantics question above
   is explicitly resolved (proven unreachable, or the branch narrowed).
-- Measured: no regression on V8, and a win on Bun in the region of the 1.22x
-  above.
+- Measured: no regression on V8, and a win on Bun in the region of the 1.9x
+  above — re-measured with one variant per process, non-constant inputs, and
+  reversed ordering, per the methodology note.
 - The V8-only comments and the stale purity reference are corrected.
