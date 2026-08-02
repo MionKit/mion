@@ -71,7 +71,7 @@ func (uuidEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotati
 }
 
 // ValidateParams ports the UUID validateParams: the version must be
-// '4' or '7' when present.
+// '4', '7' or 'any' (the version-agnostic UUID) when present.
 func (uuidEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
@@ -80,8 +80,8 @@ func (uuidEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []strin
 		return nil
 	}
 	version, ok := readVersion(annotation.Params)
-	if !ok || (version != "4" && version != "7") {
-		return []string{"FormatUUID: `version` must be '4' or '7'"}
+	if !ok || (version != "4" && version != "7" && version != "any") {
+		return []string{"FormatUUID: `version` must be '4', '7' or 'any'"}
 	}
 	return nil
 }

@@ -3,6 +3,16 @@
 // satisfies Record<string, Record<string, EnrichCase>>`. A mis-shaped case
 // fails the compile here; the gen adapter also asserts every case produced CLI
 // output, so a typo'd key surfaces as a red test.
+//
+// No runTypeFromJsonSchema-authored case here, BY DECISION (json-schema M3): the
+// span-extraction convention lifts each case's `// ##### src #####` span into
+// a standalone program via the Go extract-fn-bodies tool, and a schema const
+// referenced from `type Target = FromJsonSchema<typeof S>` would live outside
+// the lifted span — supporting it would be a disproportionate tooling change
+// for zero added coverage. Enrichment keys off the RESOLVED type graph, and a
+// runTypeFromJsonSchema-authored root resolves to the same structural id (same registered
+// graph) as its type-first twin, so enrich behavior is covered by convergence
+// transitivity (pinned by suites/id-integrity/runTypeFromJsonSchema.test.ts).
 import type {EnrichCase} from './types.ts';
 import {ATOMIC} from './Atomic.ts';
 import {OBJECT} from './Object.ts';

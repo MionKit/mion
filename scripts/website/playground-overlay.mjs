@@ -28,6 +28,7 @@ const VIRTUAL_PACKAGE_JSON = JSON.stringify(
     exports: {
       '.': './src/index.ts',
       './schema': './src/schema/index.ts',
+      './json-schema': './src/json-schema/index.ts',
       './formats': './src/formats/index.ts',
       './formats/temporal': './src/formats/datetime/temporalFormats.ts',
     },

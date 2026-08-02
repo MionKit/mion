@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -21,6 +22,22 @@ export const EXTRA_PARAMS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
     getTestData: () => ({
       values: [{declared: 'x', extra: 'hello'}],
       // Unsafe: extra preserved through round-trip.
@@ -48,6 +65,22 @@ export const EXTRA_PARAMS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
     jsonStringifyThrows: true,
     getTestData: () => ({values: [{declared: 'x', extra: 123n}]}),
     getTestDataForStringify: () => ({
@@ -73,6 +106,22 @@ export const EXTRA_PARAMS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
     getTestData: () => ({
       values: [{declared: 'x', sym: Symbol('extra')}],
       // JSON.stringify drops the symbol — restored shape has no `sym`.
@@ -98,6 +147,22 @@ export const EXTRA_PARAMS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({declared: TF.string()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({declared: TF.string()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({declared: TF.string()})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']})
+      ),
     getTestData: () => ({
       values: [{declared: 'x', fn: () => 0}],
       deserializedValues: [{declared: 'x'}],
@@ -122,6 +187,38 @@ export const EXTRA_PARAMS = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({outer: RT.object({declared: TF.string()})})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {outer: {type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']}},
+          required: ['outer'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {outer: {type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']}},
+          required: ['outer'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {outer: {type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']}},
+          required: ['outer'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {outer: {type: 'object', properties: {declared: {type: 'string'}}, required: ['declared']}},
+          required: ['outer'],
+        })
+      ),
     getTestData: () => ({
       values: [{outer: {declared: 'x', extra: 'y'}}],
       // Unsafe: nested extra preserved.

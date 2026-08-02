@@ -8,16 +8,27 @@ import (
 )
 
 // FingerprintInputs are the build-option knobs that change emitted JS
-// output other than the binary version. Version is intentionally absent
-// — it lives inside every typeID hash (see internal/constants/version.go)
-// so cross-version files end up in different typeID directories without
-// needing a separate path component.
+// output, plus the BINARY IDENTITY. constants.Version alone is NOT enough
+// for the binary: it lives inside every typeID hash, so RELEASE builds
+// already land in distinct typeID directories — but two DEV builds share
+// the version while their emitters differ, and the shared fingerprint
+// served stale function bodies (the reason every emitter change used to
+// need a manual `rm -rf node_modules/.cache/ts-runtypes`). BinaryStamp
+// (the executable's mtime + size) moves on every real rebuild — `go build`
+// leaves an unchanged binary untouched, so a no-op rebuild keeps the
+// cache — and release installs move it once per install, which the
+// version fold already forces anyway.
 //
 // Add a field here whenever a new option starts affecting cache bodies;
 // the resulting fingerprint moves and the previous cache is naturally
 // orphaned.
 type FingerprintInputs struct {
-	HashLength int
+	// BinaryVersion is constants.Version (belt) and BinaryStamp the
+	// executable's mtime+size (suspenders, empty when undeterminable —
+	// e.g. the WASM twin, where no disk cache exists to protect).
+	BinaryVersion string
+	BinaryStamp   string
+	HashLength    int
 	// EmitMode mirrors typefns.RenderOpts.EmitMode ("code" / "functions" /
 	// "both") — each mode renders different code/factory slots, so folding it
 	// into the fingerprint keeps the three modes in distinct cache subdirs and
@@ -68,10 +79,17 @@ type FingerprintInputs struct {
 // call, so every union-encoder body (and its cross-family edge set) changed.
 // "v9"->"v10" added the pattern mockSample auto-generation knobs
 // (PatternSampleCount / PatternSampleRetries) whose values shape the
-// generated samples baked into emitted formatAnnotations.
+// generated samples baked into emitted formatAnnotations. "v10"->"v11"
+// added the binary identity (BinaryVersion + BinaryStamp) so a rebuilt
+// DEV binary with changed emitters stops serving the previous build's
+// cached function bodies.
 func Fingerprint(inputs FingerprintInputs) string {
 	var sb strings.Builder
-	sb.WriteString("v10\n")
+	sb.WriteString("v11\n")
+	sb.WriteString(inputs.BinaryVersion)
+	sb.WriteByte('\n')
+	sb.WriteString(inputs.BinaryStamp)
+	sb.WriteByte('\n')
 	sb.WriteString(strconv.Itoa(inputs.HashLength))
 	sb.WriteByte('\n')
 	sb.WriteString(inputs.EmitMode)

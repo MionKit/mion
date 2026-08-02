@@ -31,7 +31,10 @@ registerPureFnFactory('rtFormats::isUUID', function () {
     for (let i = 0; i < 36; i++) {
       if (i === 8 || i === 13 || i === 18 || i === 23) {
         if (value[i] !== '-') return false;
-      } else if (i === 14) {
+      } else if (i === 14 && params.version !== 'any') {
+        // Version-pinned formats check the version digit; the
+        // version-agnostic UUID ('any' — JSON Schema `format: uuid`)
+        // treats slot 14 as an ordinary hex digit below.
         if (value[i] !== params.version) return false;
       } else {
         const charCode = value.charCodeAt(i);

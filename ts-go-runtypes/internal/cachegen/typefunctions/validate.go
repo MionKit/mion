@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
+	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -196,14 +197,15 @@ func (ValidateEmitter) ReturnName() string {
 func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCType CodeType) RTCode {
 	base := e.emitKindDefault(rt, ctx, expectedCType)
 	// Format annotations attach a format-specific predicate on top of
-	// the kind-default validator. We only splice when (a) the host kind
-	// produced a plain expression (CodeE) — splicing into a CodeRB
-	// statement body would require a second pass; (b) a format emitter
-	// is actually registered (Phase-0 graceful no-op); (c) the
-	// emitter's check is non-empty. The format predicate AND-chains
-	// after the base check so `typeof v === 'string'` runs before the
-	// format-specific regex / call.
-	if base.Type == CodeE && base.Code != "" && rt != nil && rt.FormatAnnotation != nil {
+	// the kind-default validator, spliced when (a) a format emitter is
+	// actually registered (Phase-0 graceful no-op) and (b) the emitter's
+	// check is non-empty. The format predicate AND-chains after the base
+	// check so `typeof v === 'string'` runs before the format-specific
+	// regex / call. Structural formats (arrayFormat / objectFormat) ride
+	// statement-shaped bases — those hoist through the tier-3 ctxFn wrap
+	// first, exactly like the negation splice below; skipping them would
+	// silently drop a declared constraint.
+	if base.Code != "" && rt != nil && rt.FormatAnnotation != nil {
 		if emitter, ok := formats.LookupForRunType(rt); ok {
 			// Build-time param validation (the validateParams check, run AOT).
 			// Emitted from the validate walk since validate is rendered for every
@@ -215,11 +217,229 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 			}
 			check := emitter.EmitValidateCheck(rt.FormatAnnotation, ctx.Vλl, ctx)
 			if check != "" {
+				if base.Type != CodeE {
+					base = ctx.AsExpression(base)
+				}
+				if base.Type != CodeE {
+					panic("validate: format check on a base that did not reduce to a boolean expression (kind " +
+						strconv.Itoa(int(rt.Kind)) + ") — dropping it would silently weaken validation")
+				}
 				base.Code = "(" + base.Code + " && (" + check + "))"
 			}
 		}
 	}
+	// Negations invert their CHILD's validate expression and AND-chain after
+	// the base (and any format check): `base && !(child1) && !(child2)`.
+	// Children compile through the same CompileChild path union arms use, so
+	// heavy kinds arrive as opaque call expressions. A negation child that
+	// cannot produce a boolean expression would DROP the constraint silently
+	// — hard-fail instead (the loud-contract rule for unsupported child
+	// kinds). The root `true` of an any/unknown base is elided so a bare
+	// negation reads `!(child)`, not `(true && !(child))`. A statement-shaped
+	// base (array / tuple / object bodies) hoists into a context fn first —
+	// skipping it would silently drop the ¬, the one thing this block must
+	// never do.
+	// Contains assertions count the items matching their CHILD and gate on
+	// the occurrence bounds — statement bases hoist exactly like the format
+	// and negation splices. The child compiles against a fresh element
+	// accessor; an empty child (any/unknown — `contains: true`) counts every
+	// item, so the length itself is the count.
+	if rt != nil && len(rt.Contains) > 0 {
+		if base.Type != CodeE {
+			base = ctx.AsExpression(base)
+		}
+		if base.Type != CodeE {
+			panic("validate: contains on a base that did not reduce to a boolean expression (kind " +
+				strconv.Itoa(int(rt.Kind)) + ") — dropping it would silently weaken validation")
+		}
+		code := base.Code
+		for _, containsCheck := range rt.Contains {
+			check := emitContainsCount(ctx, containsCheck)
+			if code == "" || code == "true" {
+				code = check
+			} else {
+				code = "(" + code + " && " + check + ")"
+			}
+		}
+		base.Code = code
+	}
+	// patternProperties / propertyNames: per-key checks over the object's
+	// own keys — same statement-base hoist discipline as every splice above.
+	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil) {
+		if base.Type != CodeE {
+			base = ctx.AsExpression(base)
+		}
+		if base.Type != CodeE {
+			panic("validate: patternProperties/propertyNames on a base that did not reduce to a boolean expression (kind " +
+				strconv.Itoa(int(rt.Kind)) + ") — dropping them would silently weaken validation")
+		}
+		code := base.Code
+		for _, patternProp := range rt.PatternProps {
+			check := emitPatternPropCheck(ctx, patternProp)
+			if code == "" || code == "true" {
+				code = check
+			} else {
+				code = "(" + code + " && " + check + ")"
+			}
+		}
+		if rt.PropNames != nil {
+			check := emitPropNamesCheck(ctx, rt.PropNames)
+			if check != "" {
+				if code == "" || code == "true" {
+					code = check
+				} else {
+					code = "(" + code + " && " + check + ")"
+				}
+			}
+		}
+		base.Code = code
+	}
+	if rt != nil && len(rt.Negations) > 0 {
+		if base.Type != CodeE {
+			base = ctx.AsExpression(base)
+		}
+		if base.Type != CodeE {
+			panic("validate: negation base did not reduce to a boolean expression (kind " +
+				strconv.Itoa(int(rt.Kind)) + ") — dropping the ¬ would silently weaken validation")
+		}
+		code := base.Code
+		for _, negation := range rt.Negations {
+			resolved := ctx.ResolveRef(negation)
+			if resolved == nil {
+				panic("validate: unresolvable negation child — dropping it would silently weaken validation")
+			}
+			childRT := ctx.CompileChild(negation, CodeE)
+			if childRT.Type != CodeE || childRT.Code == "" {
+				panic("validate: negation child did not compile to a boolean expression (kind " +
+					strconv.Itoa(int(resolved.Kind)) + ") — dropping it would silently weaken validation")
+			}
+			if code == "" || code == "true" {
+				code = "!(" + childRT.Code + ")"
+			} else {
+				code = "(" + code + " && !(" + childRT.Code + "))"
+			}
+		}
+		base.Code = code
+	}
 	return base
+}
+
+// emitContainsCount builds the boolean expression for one ContainsCheck:
+// count the items matching the child, assert Min ≤ count (≤ Max when
+// bounded). The child compiles through CompileChild with an element
+// accessor, so heavy children arrive as call expressions exactly like
+// union arms and negation children.
+func emitContainsCount(ctx *EmitContext, containsCheck *protocol.ContainsCheck) string {
+	boundsOver := func(countExpr string) string {
+		conditions := []string{countExpr + " >= " + formats.FormatNumber(containsCheck.Min)}
+		if containsCheck.Max >= 0 {
+			conditions = append(conditions, countExpr+" <= "+formats.FormatNumber(containsCheck.Max))
+		}
+		return "(" + strings.Join(conditions, " && ") + ")"
+	}
+	if ctx.ResolveRef(containsCheck.Child) == nil {
+		panic("validate: unresolvable contains child — dropping it would silently weaken validation")
+	}
+	iVar := ctx.NextLocalVar("ci")
+	ctx.SetChildAccessor(ctx.Vλl + "[" + iVar + "]")
+	childRT := ctx.CompileChild(containsCheck.Child, CodeE)
+	ctx.SetChildAccessor("")
+	if childRT.Type != CodeE {
+		panic("validate: contains child did not compile to a boolean expression — dropping it would silently weaken validation")
+	}
+	if childRT.Code == "" {
+		return boundsOver(ctx.Vλl + ".length")
+	}
+	nVar := ctx.NextLocalVar("cn")
+	return "((() => {let " + nVar + " = 0;for (let " + iVar + " = 0; " + iVar + " < " + ctx.Vλl + ".length; " + iVar + "++) {if (" +
+		childRT.Code + ") " + nVar + "++;}return " + boundsOver(nVar) + ";})())"
+}
+
+// emitOneOfCount builds the exactly-one counting IIFE over the oneOf
+// branches: every branch validates the SAME value, the match count must
+// satisfy `count === <want>` ("1" for validate; verr reuses the counter
+// with a different comparison). A branch that compiles to no check
+// (unknown / noop) counts as an unconditional match — with two or more
+// branches that makes the oneOf statically unsatisfiable, which the
+// counting reports honestly (count ≥ 2 → false).
+func emitOneOfCount(ctx *EmitContext, branches []*protocol.RunType, v, want string) string {
+	nVar := ctx.NextLocalVar("xo")
+	var body strings.Builder
+	body.WriteString("((() => {let " + nVar + " = 0;")
+	for _, branch := range branches {
+		resolved := ctx.ResolveRef(branch)
+		if resolved == nil {
+			panic("validate: unresolvable oneOf branch — dropping it would silently weaken validation")
+		}
+		branchRT := ctx.CompileChild(branch, CodeE)
+		if branchRT.Type != CodeE {
+			panic("validate: oneOf branch did not compile to a boolean expression — dropping it would silently weaken validation")
+		}
+		branchCode := branchRT.Code
+		if branchCode == "" {
+			branchCode = "true"
+		}
+		// Mirror the OR-chain's per-child treatment: the weak-type presence
+		// gate for all-optional object members, and the object guard an
+		// object arm DROPPED because its immediate parent frame is this
+		// union (emitObjectValidate's ParentIsUnion elision assumes the
+		// OR-chain's shared guard, which the counting path replaces).
+		if gate := looseCheckGate(resolved, ctx, v); gate != "" {
+			branchCode = "(" + branchCode + " && " + gate + ")"
+		}
+		if isObjectLikeKind(resolved.Kind) {
+			branchCode = "(typeof " + v + " === 'object' && " + v + " !== null && " + branchCode + ")"
+		}
+		body.WriteString("if (" + branchCode + ") " + nVar + "++;")
+	}
+	body.WriteString("return " + nVar + " === " + want + ";})())")
+	return body.String()
+}
+
+// emitPatternPropCheck: keys matching the entry's source must have values
+// validating against the entry's value child. The regex hoists into the
+// factory prologue once per (source, factory); the value child compiles
+// against a walker-allocated key accessor so a hoisted child still sees it.
+func emitPatternPropCheck(ctx *EmitContext, patternProp *protocol.PatternPropCheck) string {
+	if ctx.ResolveRef(patternProp.Value) == nil {
+		panic("validate: unresolvable patternProperties value child — dropping it would silently weaken validation")
+	}
+	// Hoist the key regex into the factory prologue (the emitPatternTest
+	// discipline — compiled once per factory, not per call).
+	reVar := ctx.NextLocalVar("reKey")
+	if !ctx.HasContextItem(reVar) {
+		ctx.SetContextItem(reVar, "const "+reVar+" = new RegExp("+jsquote.Double(patternProp.Source)+")")
+	}
+	kVar := ctx.NextLocalVar("pk")
+	ctx.SetChildAccessor(ctx.Vλl + "[" + kVar + "]")
+	childRT := ctx.CompileChild(patternProp.Value, CodeE)
+	ctx.SetChildAccessor("")
+	if childRT.Type != CodeE {
+		panic("validate: patternProperties value child did not compile to a boolean expression")
+	}
+	if childRT.Code == "" {
+		return "true"
+	}
+	return "((() => {for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {if (" + reVar + ".test(" + kVar + ") && !(" +
+		childRT.Code + ")) return false;}return true;})())"
+}
+
+// emitPropNamesCheck: every key validates (as a string) against the child.
+func emitPropNamesCheck(ctx *EmitContext, propNames *protocol.RunType) string {
+	if ctx.ResolveRef(propNames) == nil {
+		panic("validate: unresolvable propertyNames child — dropping it would silently weaken validation")
+	}
+	kVar := ctx.NextLocalVar("pk")
+	ctx.SetChildAccessor(kVar)
+	childRT := ctx.CompileChild(propNames, CodeE)
+	ctx.SetChildAccessor("")
+	if childRT.Type != CodeE {
+		panic("validate: propertyNames child did not compile to a boolean expression")
+	}
+	if childRT.Code == "" {
+		return ""
+	}
+	return "Object.keys(" + ctx.Vλl + ").every((" + kVar + ") => " + childRT.Code + ")"
 }
 
 func (ValidateEmitter) emitKindDefault(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
@@ -754,6 +974,13 @@ func emitTupleMemberValidate(rt *protocol.RunType, ctx *EmitContext, v string) R
 // (no required props to fail on), which is incorrect per TS's
 // weak-type rules.
 func emitUnionValidate(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+	// OneOf — the exactly-one combinator: the branch counting replaces the
+	// OR-chain entirely (a count of one implies membership in the flattened
+	// union, and a value matching two branches must FAIL even though the
+	// plain union accepts it).
+	if len(rt.OneOf) > 0 {
+		return RTCode{Code: emitOneOfCount(ctx, rt.OneOf, v, "1"), Type: CodeE}
+	}
 	// DataOnly-strip members (symbol / function-like / Promise /
 	// non-serializable / never) so `Date | symbol` validates as `Date`,
 	// matching DataOnly<T>. An all-stripped union keeps its members and falls

@@ -284,3 +284,46 @@ func TestBuildFlatLayout_ClassWithSubKindFallsBackToAtomic(t *testing.T) {
 		t.Errorf("expected AtomicNeedsTuple=true (object branch present), got false")
 	}
 }
+
+// TestBuildFlatLayout_MethodMemberMarksStrippedCandidate — the binary
+// union arm-desync repro (`{kind:'t1', f0?: string} | {kind:'t2', f0: () =>
+// number}`): a method-like MEMBER kind is a DataOnly-dropped slot exactly
+// like a property whose value is function-typed, so a surviving same-name
+// candidate from a sibling member must get the value guard
+// (HasStrippedCandidate) — a value from the method member still carries the
+// key holding a function, and the surviving serString codec must not run on
+// it. Covers both spellings: the method-signature member AND the
+// property-with-function-child twin.
+func TestBuildFlatLayout_MethodMemberMarksStrippedCandidate(t *testing.T) {
+	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
+	fn := &protocol.RunType{ID: "fn", Kind: protocol.KindFunction}
+	f0Opt := &protocol.RunType{ID: "f0o", Kind: protocol.KindProperty, Name: "f0", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	f0Method := &protocol.RunType{ID: "f0m", Kind: protocol.KindMethodSignature, Name: "f0", IsSafeName: true}
+	f1Opt := &protocol.RunType{ID: "f1o", Kind: protocol.KindProperty, Name: "f1", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	f1FnProp := &protocol.RunType{ID: "f1f", Kind: protocol.KindProperty, Name: "f1", IsSafeName: true, Child: makeRef("fn")}
+	objA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("f0o"), makeRef("f1o")}}
+	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("f0m"), makeRef("f1f")}}
+	union := &protocol.RunType{
+		ID: "uni", Kind: protocol.KindUnion,
+		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	}
+	ctx := layoutCtx(t, []*protocol.RunType{str, fn, f0Opt, f0Method, f1Opt, f1FnProp, objA, objB, union})
+
+	layout := buildFlatLayout(union, ctx)
+
+	if len(layout.MergedProps) != 2 {
+		t.Fatalf("expected 2 MergedProps (f0, f1), got %d", len(layout.MergedProps))
+	}
+	for _, mp := range layout.MergedProps {
+		if len(mp.Candidates) != 1 {
+			t.Errorf("MergedProps[%s]: expected the function candidate dropped (1 surviving), got %d", mp.Name, len(mp.Candidates))
+		}
+		if !mp.HasStrippedCandidate {
+			t.Errorf("MergedProps[%s].HasStrippedCandidate = false, want true (sibling member declares it function-typed)", mp.Name)
+		}
+		if mp.Required {
+			t.Errorf("MergedProps[%s].Required = true, want false (stripped sibling can omit it)", mp.Name)
+		}
+	}
+}

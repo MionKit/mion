@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -48,14 +49,32 @@ export const CIRCULAR_REFS = {
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}))),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     getTestData: () => ({values: [{name: 'hello', child: {name: 'world'}}]}),
   },
   circular_union_array: {
     title: 'Circular union array',
     description:
       'Recursive `type CuArray = (CuArray | Date | number | string)[]` is an array whose elements are itself, Date, number, or string, exercising a recursive union element with a mix of scalar and Date members nested several levels deep.',
-    serializeNotes:
+    serializeNotes: [
       'The decoder selects each element by trying the union members (Date arrives as an ISO string and is revived to a Date); the recursive `CuArray` branch lets the array contain further arrays of the same union.',
+      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
+    ],
     mutateEncoder: () => {
       type CuArray = (CuArray | Date | number | string)[];
       return createJsonEncoderFn<CuArray>(undefined, {strategy: 'mutate'});
@@ -98,6 +117,10 @@ export const CIRCULAR_REFS = {
       createBinaryEncoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const date = new Date('2000-08-06T02:13:00.000Z');
       return {
@@ -113,8 +136,10 @@ export const CIRCULAR_REFS = {
     title: 'Circular tuple',
     description:
       'Recursive `interface CircularTuple { list: [bigint, CircularTuple?] }` is an object holding a tuple of a bigint and an optional self, exercising an object-to-tuple recursion cycle.',
-    serializeNotes:
+    serializeNotes: [
       'The leading tuple slot is a bigint, so each `list[0]` JSON-encodes to a decimal string and rebuilds with `BigInt(...)`; the optional trailing slot recurses into the same shape.',
+      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () => {
       interface CircularTuple {
         list: [bigint, CircularTuple?];
@@ -173,6 +198,10 @@ export const CIRCULAR_REFS = {
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [{list: [1n, {list: [2n, {list: [3n, {list: [4n]}]}]}]}, {list: [1n, {list: [2n]}]}, {list: [1n]}],
     }),
@@ -239,6 +268,38 @@ export const CIRCULAR_REFS = {
     schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({index: RT.record(RT.self())}))),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
+          required: ['index'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
+          required: ['index'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
+          required: ['index'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
+          required: ['index'],
+        })
+      ),
     getTestData: () => ({
       values: [{index: {a: {index: {b: {index: {}}}}}}, {index: {a: {index: {}}}}, {index: {}}],
     }),
@@ -317,6 +378,86 @@ export const CIRCULAR_REFS = {
       createBinaryDecoderFn(
         RT.circular(RT.object({deep1: RT.object({deep2: RT.object({deep3: RT.object({deep4: RT.optional(RT.self())})})})}))
       ),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            deep1: {
+              type: 'object',
+              properties: {
+                deep2: {
+                  type: 'object',
+                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
+                  required: ['deep3'],
+                },
+              },
+              required: ['deep2'],
+            },
+          },
+          required: ['deep1'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            deep1: {
+              type: 'object',
+              properties: {
+                deep2: {
+                  type: 'object',
+                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
+                  required: ['deep3'],
+                },
+              },
+              required: ['deep2'],
+            },
+          },
+          required: ['deep1'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            deep1: {
+              type: 'object',
+              properties: {
+                deep2: {
+                  type: 'object',
+                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
+                  required: ['deep3'],
+                },
+              },
+              required: ['deep2'],
+            },
+          },
+          required: ['deep1'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            deep1: {
+              type: 'object',
+              properties: {
+                deep2: {
+                  type: 'object',
+                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
+                  required: ['deep3'],
+                },
+              },
+              required: ['deep2'],
+            },
+          },
+          required: ['deep1'],
+        })
+      ),
     getTestData: () => ({
       values: [{deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}}, {deep1: {deep2: {deep3: {}}}}],
     }),
@@ -325,8 +466,10 @@ export const CIRCULAR_REFS = {
     title: 'Root circular tuple',
     description:
       'ROOT-level recursive tuple `type CircularTupleComplex = [bigint, CircularTupleComplex?]` is a tuple of a bigint and an optional self where each bigint slot JSON-encodes to a decimal string and the optional tail recurses, with samples nesting several levels deep.',
-    serializeNotes:
+    serializeNotes: [
       'A root recursive tuple cannot be authored value-first (`circular` over a tuple hits TS2589), so the schema thunks opt out; the object→tuple cycle is covered value-first by `circular_tuple`.',
+      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
+    ],
     mutateEncoder: () => {
       type CircularTupleComplex = [bigint, CircularTupleComplex?];
       return createJsonEncoderFn<CircularTupleComplex>(undefined, {strategy: 'mutate'});
@@ -371,6 +514,10 @@ export const CIRCULAR_REFS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [[1n, [2n, [3n, [4n]]]], [1n, [2n]], [1n]]}),
   },
   object_with_circular_array: {
@@ -488,6 +635,54 @@ export const CIRCULAR_REFS = {
             d: RT.optional(RT.array(RT.self())),
           })
         )
+      ),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+            d: {type: 'array', items: {$ref: '#'}},
+          },
+          required: ['a'],
+        })
       ),
     getTestData: () => ({
       values: [

@@ -765,7 +765,19 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 
 	case flags&checker.TypeFlagsUnion != 0:
 		node.Kind = protocol.KindUnion
-		for _, member := range tsType.Distributed() {
+		members := tsType.Distributed()
+		// OneOf carriers (the exactly-one combinator / JSON Schema oneOf):
+		// land the level branch tuple on node.OneOf so validate counts
+		// branch matches. Members serialize as-is — the intersection
+		// collapse skips each member's carrier constituent, so children
+		// come out as their plain selves. Twin of the `oo{…}` id fold in
+		// typeid.go.
+		if branches, ok := typeid.OneOfFromMembers(cache.typeChecker, members); ok {
+			for _, branch := range branches {
+				node.OneOf = append(node.OneOf, cache.Serialize(branch))
+			}
+		}
+		for _, member := range members {
 			node.Children = append(node.Children, cache.Serialize(member))
 		}
 		// Compute safe order + discriminator marks once at serialize time
@@ -895,12 +907,25 @@ func toAnySlice(strs []string) []any {
 // ---------------------------------------------------------------------------
 
 func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunType) {
+	// A bare negation sentinel (`{__rtNot?: Child}` alone — how
+	// `unknown & {__rtNot?: …}` arrives after TS collapses the identity
+	// intersection): an unknown base carrying the negation, never an
+	// object literal with a property. Twin of the objectID early return.
+	if childType := typeid.NotChildTypeFromMember(cache.typeChecker, tsType); childType != nil {
+		node.Kind = protocol.KindUnknown
+		node.Negations = append(node.Negations, cache.Serialize(childType))
+		return
+	}
 	if checker.IsTupleType(tsType) {
 		cache.projectTuple(tsType, node)
 		return
 	}
 
-	if cache.typeChecker.IsArrayLikeType(tsType) {
+	// GetTypeArguments only works on TypeReference targets — an array-LIKE
+	// mapped hybrid (e.g. a mapped type over `T[] & {brand}`) passes
+	// IsArrayLikeType with no reference target and would segfault the
+	// checker; gate on the Reference flag (id twin: typeid.objectID).
+	if cache.typeChecker.IsArrayLikeType(tsType) && tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		typeArguments := cache.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			node.Kind = protocol.KindArray
@@ -1240,6 +1265,17 @@ func (cache *Cache) projectMembersInto(
 		// literals can legally have a property literally named
 		// "prototype" (rare but possible).
 		if asClass && propertySymbol != nil && propertySymbol.Name == "prototype" {
+			continue
+		}
+		// The negation / format sentinels are never real properties: when an
+		// object ∧ `{__rtNot?: …}` / `∧ {__rtFormatName?: …}` intersection
+		// routes through the merged property walk, the collapse has already
+		// lifted them onto node.Negations / node.FormatAnnotation —
+		// projecting the props too would surface them on the wire shape.
+		// Twin of the typeid.memberIDs skip.
+		if propertySymbol != nil &&
+			(typeid.IsNotSentinelPropName(propertySymbol.Name) || typeid.IsFormatSentinelPropName(propertySymbol.Name) ||
+				typeid.IsContainsSentinelPropName(propertySymbol.Name)) {
 			continue
 		}
 		// Members inherited from a default-lib global type (Error's

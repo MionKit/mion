@@ -41,6 +41,7 @@ import type {
   InferType,
   MapTuple,
   UnionOf,
+  OneOf,
   IntersectionOf,
   TemplatePart,
   AssembleTemplate,
@@ -179,6 +180,58 @@ export function union<const T extends readonly RunType[]>(
 ): RunType<UnionOf<T>>;
 export function union(members: readonly RunType[], id?: InjectRunTypeId<unknown>): RunType {
   return builderResult(id, {type: 'union', children: members});
+}
+
+/** The at-least-one combinator builder — JSON Schema `anyOf` name parity.
+ *  A union already IS at-least-one, so this is the union builder itself:
+ *  same brand, same id, same generated validator. **/
+export const anyOf = union;
+
+/** The exactly-one combinator builder — `oneOf([string(), number()])` →
+ *  `RunType<OneOf<[string, number]>>`. The brand carries the member tuple on
+ *  the `__rtOneOf` sentinel (exclusivity counts BRANCHES, and TS union
+ *  flattening erases that grouping), so the generated validator asserts the
+ *  value matches exactly one member — a value matching two overlapping
+ *  members fails where `union` / `anyOf` accept it. Fixed-arity overloads
+ *  brand the direct tuple for 2–8 members (the `union` discipline: no
+ *  recursive `infer` on the common path); the trailing array overload
+ *  covers 9+ via `MapTuple`. **/
+export function oneOf<A, B>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>]>,
+  id?: InjectRunTypeId<OneOf<[A, B]>>
+): RunType<OneOf<[A, B]>>;
+export function oneOf<A, B, C>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>, RunType<C>]>,
+  id?: InjectRunTypeId<OneOf<[A, B, C]>>
+): RunType<OneOf<[A, B, C]>>;
+export function oneOf<A, B, C, D>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>, RunType<C>, RunType<D>]>,
+  id?: InjectRunTypeId<OneOf<[A, B, C, D]>>
+): RunType<OneOf<[A, B, C, D]>>;
+export function oneOf<A, B, C, D, E>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>, RunType<C>, RunType<D>, RunType<E>]>,
+  id?: InjectRunTypeId<OneOf<[A, B, C, D, E]>>
+): RunType<OneOf<[A, B, C, D, E]>>;
+export function oneOf<A, B, C, D, E, F>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>, RunType<C>, RunType<D>, RunType<E>, RunType<F>]>,
+  id?: InjectRunTypeId<OneOf<[A, B, C, D, E, F]>>
+): RunType<OneOf<[A, B, C, D, E, F]>>;
+export function oneOf<A, B, C, D, E, F, G>(
+  members: CompTimeArgs<readonly [RunType<A>, RunType<B>, RunType<C>, RunType<D>, RunType<E>, RunType<F>, RunType<G>]>,
+  id?: InjectRunTypeId<OneOf<[A, B, C, D, E, F, G]>>
+): RunType<OneOf<[A, B, C, D, E, F, G]>>;
+export function oneOf<A, B, C, D, E, F, G, H>(
+  members: CompTimeArgs<
+    readonly [RunType<A>, RunType<B>, RunType<C>, RunType<D>, RunType<E>, RunType<F>, RunType<G>, RunType<H>]
+  >,
+  id?: InjectRunTypeId<OneOf<[A, B, C, D, E, F, G, H]>>
+): RunType<OneOf<[A, B, C, D, E, F, G, H]>>;
+export function oneOf<const T extends readonly [RunType, RunType, ...RunType[]]>(
+  members: CompTimeArgs<T>,
+  id?: InjectRunTypeId<OneOf<MapTuple<T>>>
+): RunType<OneOf<MapTuple<T>>>;
+export function oneOf(members: readonly RunType[], id?: InjectRunTypeId<unknown>): RunType {
+  return builderResult(id, {type: 'oneOf', children: members});
 }
 
 /** An intersection builder, two call shapes:

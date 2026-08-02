@@ -209,6 +209,23 @@ func writeFooter(buffer *strings.Builder, runType *protocol.RunType) {
 	if runType.FormatAnnotation != nil {
 		writeFormatAnnotation(buffer, name, runType)
 	}
+	// negations — the negated children of a `__rtNot` sentinel; the mock
+	// walker rejection-samples against them at runtime.
+	if len(runType.Negations) > 0 {
+		buffer.WriteString(fmt.Sprintf("%s.negations = [%s];\n", name, joinRefs(runType.Negations)))
+	}
+	if len(runType.Contains) > 0 {
+		writeContains(buffer, name, runType)
+	}
+	if len(runType.PatternProps) > 0 {
+		writePatternProps(buffer, name, runType)
+	}
+	if runType.PropNames != nil {
+		writePropNames(buffer, name, runType)
+	}
+	if len(runType.OneOf) > 0 {
+		writeOneOf(buffer, name, runType)
+	}
 	if len(runType.TypeArguments) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.typeArguments = [%s];\n", name, joinRefs(runType.TypeArguments)))
 	}
@@ -258,6 +275,7 @@ func renderRelations(runType *protocol.RunType, indexOf map[string]int) string {
 		relRefs(runType.ExtendsArguments, indexOf),    // 11 extendsArguments
 		relRefs(runType.Implements, indexOf),          // 12 implements
 		relRefs(runType.Extends, indexOf),             // 13 extends
+		relRefs(runType.Negations, indexOf),           // 14 negations
 	}
 	slots = trimTrailingHoles(slots)
 	if len(slots) == 0 {
@@ -321,7 +339,11 @@ func trimTrailingHoles(slots []string) []string {
 func hasBundleSpecials(runType *protocol.RunType) bool {
 	return runType.FormatAnnotation != nil ||
 		(runType.ClassRef != nil && runType.ClassRef.Builtin != "") ||
-		isFooterLiteral(runType)
+		isFooterLiteral(runType) ||
+		len(runType.Contains) > 0 ||
+		len(runType.PatternProps) > 0 ||
+		runType.PropNames != nil ||
+		len(runType.OneOf) > 0
 }
 
 // writeBundleSpecials writes the residual footer lines for the runtime-special
@@ -345,6 +367,62 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 	if isFooterLiteral(runType) {
 		buffer.WriteString(fmt.Sprintf("%s.literal = %s;\n", name, footerLiteralExpr(runType)))
 	}
+	// contains / patternProps / propNames — structured entries, not bare
+	// refs, so they ride the residual footer in the bundle layout too. The
+	// child derefs go through the registry (`c('<id>')`), which resolves
+	// bundle rows as well — rows register before the residual footer runs.
+	if len(runType.Contains) > 0 {
+		writeContains(buffer, name, runType)
+	}
+	if len(runType.PatternProps) > 0 {
+		writePatternProps(buffer, name, runType)
+	}
+	if runType.PropNames != nil {
+		writePropNames(buffer, name, runType)
+	}
+	if len(runType.OneOf) > 0 {
+		writeOneOf(buffer, name, runType)
+	}
+}
+
+// writeContains emits the `<ref>.contains = [{child, min, max}, …];` line.
+// Runtime consumers: the mock walker's contains construction and the
+// negation matcher's occurrence counting.
+func writeContains(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	entries := make([]string, 0, len(runType.Contains))
+	for _, containsCheck := range runType.Contains {
+		entries = append(entries, fmt.Sprintf("{child: %s, min: %s, max: %s}",
+			derefExpr(containsCheck.Child),
+			strconv.FormatFloat(containsCheck.Min, 'g', -1, 64),
+			strconv.FormatFloat(containsCheck.Max, 'g', -1, 64)))
+	}
+	buffer.WriteString(fmt.Sprintf("%s.contains = [%s];\n", name, strings.Join(entries, ", ")))
+}
+
+// writePatternProps / writePropNames — the patternProperties / propertyNames
+// runtime mirrors (key mocking + negation matching).
+func writePatternProps(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	entries := make([]string, 0, len(runType.PatternProps))
+	for _, patternProp := range runType.PatternProps {
+		entries = append(entries, fmt.Sprintf("{source: %s, key: %s, value: %s}",
+			quoteJS(patternProp.Source), derefExpr(patternProp.Key), derefExpr(patternProp.Value)))
+	}
+	buffer.WriteString(fmt.Sprintf("%s.patternProps = [%s];\n", name, strings.Join(entries, ", ")))
+}
+
+func writePropNames(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	buffer.WriteString(fmt.Sprintf("%s.propNames = %s;\n", name, derefExpr(runType.PropNames)))
+}
+
+// writeOneOf emits the `<ref>.oneOf = [branch, …];` line — the exactly-one
+// branch list (runtime consumers: the mock walker's exclusive-branch loop
+// and the negation matcher's counting arm).
+func writeOneOf(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	branches := make([]string, 0, len(runType.OneOf))
+	for _, branch := range runType.OneOf {
+		branches = append(branches, derefExpr(branch))
+	}
+	buffer.WriteString(fmt.Sprintf("%s.oneOf = [%s];\n", name, strings.Join(branches, ", ")))
 }
 
 // writeFormatAnnotation emits the `<ref>.formatAnnotation = {…};` line. The

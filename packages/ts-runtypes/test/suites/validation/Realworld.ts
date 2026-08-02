@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import type {ValidationCase} from './types.ts';
 import {
   createValidateFn,
@@ -138,6 +139,22 @@ export const REALWORLD = {
           createdAt: TF.string(),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<User>(),
     validateReflect: () => {
       const v: User = sampleUser();
@@ -159,6 +176,22 @@ export const REALWORLD = {
           roles: RT.array(RT.union([RT.literal('admin'), RT.literal('editor'), RT.literal('user')])),
           active: RT.boolean(),
           createdAt: TF.string(),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            email: {type: 'string'},
+            name: {type: 'string'},
+            age: {type: 'number'},
+            roles: {type: 'array', items: {enum: ['admin', 'editor', 'user']}},
+            active: {type: 'boolean'},
+            createdAt: {type: 'string'},
+          },
+          required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<User>(),
@@ -251,6 +284,39 @@ export const REALWORLD = {
           note: RT.optional(TF.string()),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<Order>(),
     validateReflect: () => {
       const v: Order = makeOrder();
@@ -284,6 +350,39 @@ export const REALWORLD = {
           ]),
           total: TF.number(),
           note: RT.optional(TF.string()),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            customer: {type: 'object', properties: {id: {type: 'number'}, email: {type: 'string'}}, required: ['id', 'email']},
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {sku: {type: 'string'}, name: {type: 'string'}, qty: {type: 'number'}, price: {type: 'number'}},
+                required: ['sku', 'name', 'qty', 'price'],
+              },
+            },
+            shipping: {
+              type: 'object',
+              properties: {
+                street: {type: 'string'},
+                city: {type: 'string'},
+                state: {type: 'string'},
+                zip: {type: 'string'},
+                country: {type: 'string'},
+              },
+              required: ['street', 'city', 'state', 'zip', 'country'],
+            },
+            status: {enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled']},
+            total: {type: 'number'},
+            note: {type: 'string'},
+          },
+          required: ['id', 'customer', 'items', 'shipping', 'status', 'total'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Order>(),
@@ -360,6 +459,24 @@ export const REALWORLD = {
           meta: RT.object({views: TF.number(), likes: TF.number()}),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<BlogPost>(),
     validateReflect: () => {
       const v: BlogPost = makeBlogPost();
@@ -383,6 +500,24 @@ export const REALWORLD = {
           published: RT.boolean(),
           publishedAt: RT.optional(TF.string()),
           meta: RT.object({views: TF.number(), likes: TF.number()}),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'number'},
+            title: {type: 'string'},
+            slug: {type: 'string'},
+            body: {type: 'string'},
+            tags: {type: 'array', items: {type: 'string'}},
+            author: {type: 'object', properties: {name: {type: 'string'}, email: {type: 'string'}}, required: ['name', 'email']},
+            published: {type: 'boolean'},
+            publishedAt: {type: 'string'},
+            meta: {type: 'object', properties: {views: {type: 'number'}, likes: {type: 'number'}}, required: ['views', 'likes']},
+          },
+          required: ['id', 'title', 'slug', 'body', 'tags', 'author', 'published', 'meta'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<BlogPost>(),
@@ -451,6 +586,27 @@ export const REALWORLD = {
           dimensions: RT.optional(RT.object({width: TF.number(), height: TF.number(), depth: TF.number()})),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<Product>(),
     validateReflect: () => {
       const v: Product = makeProduct();
@@ -473,6 +629,27 @@ export const REALWORLD = {
           inStock: RT.boolean(),
           categories: RT.array(TF.string()),
           dimensions: RT.optional(RT.object({width: TF.number(), height: TF.number(), depth: TF.number()})),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            id: {type: 'string'},
+            name: {type: 'string'},
+            description: {type: 'string'},
+            price: {type: 'number'},
+            currency: {enum: ['USD', 'EUR', 'GBP']},
+            inStock: {type: 'boolean'},
+            categories: {type: 'array', items: {type: 'string'}},
+            dimensions: {
+              type: 'object',
+              properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+              required: ['width', 'height', 'depth'],
+            },
+          },
+          required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Product>(),
@@ -559,6 +736,40 @@ export const REALWORLD = {
           hasMore: RT.boolean(),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<ProductPage>(),
     validateReflect: () => {
       const v: ProductPage = {data: [makeProduct()], page: 1, pageSize: 20, total: 1, hasMore: false};
@@ -589,6 +800,40 @@ export const REALWORLD = {
           pageSize: TF.number(),
           total: TF.number(),
           hasMore: RT.boolean(),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {type: 'string'},
+                  name: {type: 'string'},
+                  description: {type: 'string'},
+                  price: {type: 'number'},
+                  currency: {enum: ['USD', 'EUR', 'GBP']},
+                  inStock: {type: 'boolean'},
+                  categories: {type: 'array', items: {type: 'string'}},
+                  dimensions: {
+                    type: 'object',
+                    properties: {width: {type: 'number'}, height: {type: 'number'}, depth: {type: 'number'}},
+                    required: ['width', 'height', 'depth'],
+                  },
+                },
+                required: ['id', 'name', 'description', 'price', 'currency', 'inStock', 'categories'],
+              },
+            },
+            page: {type: 'number'},
+            pageSize: {type: 'number'},
+            total: {type: 'number'},
+            hasMore: {type: 'boolean'},
+          },
+          required: ['data', 'page', 'pageSize', 'total', 'hasMore'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<ProductPage>(),
@@ -654,6 +899,23 @@ export const REALWORLD = {
           profile: RT.object({firstName: TF.string(), lastName: TF.string(), age: RT.optional(TF.number())}),
         })
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<RegistrationForm>(),
     validateReflect: () => {
       const v: RegistrationForm = makeRegistrationForm();
@@ -672,6 +934,23 @@ export const REALWORLD = {
           password: TF.string(),
           acceptedTerms: RT.literal(true),
           profile: RT.object({firstName: TF.string(), lastName: TF.string(), age: RT.optional(TF.number())}),
+        })
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            email: {type: 'string'},
+            password: {type: 'string'},
+            acceptedTerms: {const: true},
+            profile: {
+              type: 'object',
+              properties: {firstName: {type: 'string'}, lastName: {type: 'string'}, age: {type: 'number'}},
+              required: ['firstName', 'lastName'],
+            },
+          },
+          required: ['email', 'password', 'acceptedTerms', 'profile'],
         })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegistrationForm>(),

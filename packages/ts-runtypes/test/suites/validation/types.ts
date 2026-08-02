@@ -95,6 +95,18 @@ export interface ValidationCase {
    *  can't carry) — the assert then logs once and the title shows
    *  `(not supported)`. **/
   validateSchema: ValidateThunk;
+  /** JSON-SCHEMA form: `() => createValidateFn(runTypeFromJsonSchema({…}))` — the THIRD
+   *  authoring form (draft 2020-12 schema literal), sibling of `validateSchema`.
+   *  Run against the same samples as `validate`. OPTIONAL while the runTypeFromJsonSchema
+   *  column drains milestone-by-milestone
+   *  (docs/done/json-schema-first-class-implementation.md): an omitted field
+   *  renders `(not implemented)` (pending, a later milestone fills it); the
+   *  `'not-supported'` sentinel marks a type with no JSON Schema input spelling
+   *  (explain the reason in `validateNotes`, in a line prefixed `JSON Schema:`
+   *  — the completion meta-check requires it). The schema literal must be INLINE
+   *  in the thunk — the serialization suite's self-contained rule applies to
+   *  these thunks too (doc/benchmark extraction consumes them later). **/
+  validateJsonSchema?: ValidateThunk;
   /** Plugin-rewritten thunk returning the getValidationErrors validator —
    *  STATIC form. Caller supplies `T` explicitly. Same dispatch and
    *  caching as `validate` but the validator returns `RTValidationError[]`
@@ -120,6 +132,10 @@ export interface ValidationCase {
    *  case; supports the same `'not-supported'` sentinel for a case whose schema
    *  variant CANNOT be authored value-first. **/
   getValidationErrorsSchema: Thunk<GetValidationErrorsFn>;
+  /** JSON-SCHEMA form: `() => createGetValidationErrorsFn(runTypeFromJsonSchema({…}))`.
+   *  Companion to `validateJsonSchema` for the getValidationErrors family — same
+   *  optional-while-draining + `'not-supported'` + inline-literal contract. **/
+  getValidationErrorsJsonSchema?: Thunk<GetValidationErrorsFn>;
   /** Expected error arrays for invalid samples — index-parallel to
    *  `getSamples().invalid`. Outer array length must match
    *  `invalid.length`; entry i is the `RTValidationError[]` the validator
@@ -182,6 +198,17 @@ export interface ValidationCase {
    *  mirrors the same option, e.g. `createValidateFn(RT.literal(2), {noLiterals: true})`.) **/
   idDivergent?: boolean;
 
+  /** Opt a case out of the runTypeFromJsonSchema id-integrity driver
+   *  (`assertJsonSchemaValidatorIdIntegrity`): its runTypeFromJsonSchema-authored form and
+   *  the type-first form are KNOWN not to resolve the same structural id, by
+   *  design. A SEPARATE flag from `idDivergent` because the divergence sets
+   *  differ per authoring form (e.g. a readonly-modifier type is expressible
+   *  value-first but has no JSON Schema spelling for readonly, while an enum
+   *  diverges value-first yet its `enum: […]` schema converges on the literal
+   *  union). Leave UNSET wherever convergence should hold so a regression
+   *  surfaces as a failure. **/
+  jsonSchemaIdDivergent?: boolean;
+
   /** Opt a case out of the DataOnly-equivalence suite
    *  (`assertDataOnlyEquivalence`): `createValidateFn<DataOnly<T>>()` is KNOWN not to
    *  validate the same way as `createValidateFn<T>()`, by design, because `DataOnly`
@@ -204,4 +231,13 @@ export interface ValidationCase {
 
   /** Pure sample data — same for every adapter. */
   getSamples: () => {valid: unknown[]; invalid: unknown[]};
+
+  /** Sample override for the runTypeFromJsonSchema adapters ONLY — for the
+   *  rare case whose schema spelling deliberately validates a DIFFERENT value
+   *  set than the type-first form (pairs with `jsonSchemaIdDivergent`). The
+   *  one current citizen: `{type: 'object'}` follows JSON Schema's object
+   *  kind (arrays and class instances rejected by the record check) while
+   *  TS `object` accepts any non-null non-primitive. Leave UNSET wherever
+   *  the shared samples should hold. **/
+  getJsonSchemaSamples?: () => {valid: unknown[]; invalid: unknown[]};
 }

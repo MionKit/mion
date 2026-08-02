@@ -325,6 +325,20 @@ h2[data-slot='title'] {
   }
 }
 
+/* Three-up variant, for the pages that show all three authoring forms
+   (type / schema / JSON Schema) at once. Opt-in modifier rather than a wider
+   base class: the plain two-column grid is still what most pages want. Drops
+   straight to one column, since a 3-col grid at 2 columns orphans the third. */
+.rt-define-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .rt-define-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Home feature row — a card (gradient h3 + blurb) beside a code block, in either
    order, both stretched to equal height. Reused by "One object" (card | code) and
    "Reflection" (code | card). "One object" adds a 4-up snippet grid below it. */

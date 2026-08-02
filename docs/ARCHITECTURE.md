@@ -290,11 +290,50 @@ small, because the specialised code is generated. What ships here is:
   type, `registerClassSerializer` to rebuild real class instances, plus hooks for custom
   formats, mock functions, and helper functions.
 
-There are two ways to describe a type, and they meet in the same place. Type first uses
-plain TypeScript (`createValidateFn<User>()`). Value first uses builders from the
-`/schema` subpath (`RT.object({...})`) with `InferType` to get the type back out. The
-`/formats` subpath adds string, number, and date formats such as email and uuid, and
-`/formats/temporal` adds Temporal support as an opt in so nobody pays for it unintentionally.
+There are three ways to describe a type, and they all meet in the same place. Type first
+uses plain TypeScript (`createValidateFn<User>()`). Value first uses builders from the
+`/schema` subpath (`RT.object({...})`) with `InferType` to get the type back out. JSON
+Schema first passes a draft 2020-12 literal from the `/json-schema` subpath
+(`createValidateFn(runTypeFromJsonSchema({...}))`) with `FromJsonSchema` to get the type back out.
+All three converge on the same structural id, so equivalent shapes resolve to the same
+cached factory whichever way they were written. The `/formats` subpath adds string,
+number, and date formats such as email and uuid, and `/formats/temporal` adds Temporal
+support as an opt in so nobody pays for it unintentionally.
+
+The JSON Schema form is a translation, not a second engine. The schema literal is read at
+build time and turned into the TypeScript type it denotes (constraint keywords land in the
+same format brands the other two forms use), and the resolver never sees the schema at
+all; it reflects the computed type. Keywords a type cannot express ride sentinel-encoded
+slots the intersection collapse lifts off the base — `__rtNot` (negation), `__rtContains`
+(occurrence counting), `__rtPatternProps` / `__rtPropNames` (key-scoped children) — plus
+the structural format families (arrayFormat / objectFormat) for length, uniqueness,
+key-count and closedness checks, so the generated validator is exact even where the
+recovered type is the closest expressible supertype. Every sentinel slot and both
+structural families also have value-first spellings (`RT.arrayFormat` / `RT.objectFormat`
+/ `RT.contains` / `RT.patternProperties` / `RT.propertyNames` in formats/structural.ts,
+the door's exact twins), except closedness, whose allowed-key param is door-owned. The collapse also merges TUPLE ∩
+TUPLE intersections slot-wise (the shape allOf-over-prefixItems produces; boolean slot
+schemas ride along — `true` pads, `false` forbids the position): unknown sides defer,
+id-equal sides collapse, the length window intersects, and the merged node is
+indistinguishable from the equivalent hand-written tuple — while a genuine slot conflict
+or impossible length window projects `never` (over-rejects; a silent noop validator is
+the one forbidden outcome). Plain-union validation is
+at-least-one (pinned by test), which makes anyOf the faithful spelling of a union; oneOf
+is the exactly-one combinator (`OneOf<[…]>` / `RT.oneOf`): every non-nullish member
+carries the branch tuple on an OPTIONAL `__rtOneOf` sentinel prop
+(`A & {__rtOneOf?: Bs} | B & {__rtOneOf?: Bs} | null`, built as ONE shallow mapped type
+plus an indexed access — O(1) instantiation depth at any width; the per-arm nullish
+check is a naked-parameter conditional so it distributes into union-valued branches and
+their null stays plain). Per-member carriage is deliberate: a whole-union intersection
+distributes and destroys null branches, and an extra tag member breaks plain-union
+consumption (discriminated switches, widening back to `A | B`). The union projection
+reads the carriers (or their merged DataOnly shadow) onto the node's `oneOf` branch
+list, both collapses skip the carrier so members serialize as their plain selves, and
+validate counts branch matches instead of short-circuiting. One degenerate is handled
+explicitly: identical branches intern to one arm and dedup the union away, so a
+STANDALONE carrier'd intersection with duplicate branch ids projects the one-member
+union with counting (nothing validates — exactly what duplicate branches mean) instead
+of silently degrading to the plain base.
 
 `DataOnly<T>` lives here too. It is the type level statement of the data only contract: it
 projects a type down to what can actually survive a JSON round trip, which is why decoders

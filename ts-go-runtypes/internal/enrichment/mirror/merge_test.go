@@ -688,3 +688,82 @@ func TestCarcassFoldStart_Detection(t *testing.T) {
 		}
 	})
 }
+
+// TestMerge_FriendlyChildTypeChanged_SameTemplateMerges: the i18n fuzz T3
+// finding (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A
+// friendly-family field whose @rtIds child id changed but whose structural
+// template did NOT (a format param dropped: pattern-string → plain string)
+// merges IN PLACE: the authored rt$label and `type` message survive verbatim,
+// and only the vanished constraint key carcasses (key-level @rtOrphanChild).
+// Before the fix the whole field was orphan-childed and re-scaffolded blank.
+func TestMerge_FriendlyChildTypeChanged_SameTemplateMerges(t *testing.T) {
+	existing := "{rt$label: '', bravo: {rt$label: 'Etykieta', rt$errors: {type: 'Musi być tekstem', pattern: ''}}}"
+	desired := "{rt$label: '', bravo: {rt$label: '', rt$errors: {type: ''}}}"
+	ctx := mergeCtx{
+		metaKeys:       friendlyReservedKeys,
+		existingChild:  map[string]string{"bravo": "oldID"},
+		desiredChild:   map[string]string{"bravo": "newID"},
+		friendlyFamily: true,
+	}
+	got := mergeWithCtx(t, existing, desired, ctx)
+	if strings.Contains(got, "@rtOrphanChild bravo") {
+		t.Errorf("same-template type change must NOT orphan the whole field:\n%s", got)
+	}
+	if !strings.Contains(got, "rt$label: 'Etykieta'") {
+		t.Errorf("authored rt$label must survive the type change:\n%s", got)
+	}
+	if !strings.Contains(got, "type: 'Musi być tekstem'") {
+		t.Errorf("authored type message must survive the type change:\n%s", got)
+	}
+	if !strings.Contains(got, "@rtOrphanChild pattern") {
+		t.Errorf("the dropped constraint key must carcass at KEY level:\n%s", got)
+	}
+	assertReparses(t, got)
+}
+
+// TestMerge_FriendlyChildTypeChanged_TemplateChangeReplaces: the friendly-family
+// relaxation only covers SAME-template changes. A child-type change that also
+// changes the structural template (string → array grows rt$items) still
+// replaces the field whole — there is no positionwise merge across templates.
+func TestMerge_FriendlyChildTypeChanged_TemplateChangeReplaces(t *testing.T) {
+	existing := "{bravo: {rt$label: 'Etykieta', rt$errors: {type: 'Musi być tekstem'}}}"
+	desired := "{bravo: {rt$label: '', rt$errors: {type: ''}, rt$items: {rt$label: '', rt$errors: {type: ''}}}}"
+	ctx := mergeCtx{
+		metaKeys:       friendlyReservedKeys,
+		existingChild:  map[string]string{"bravo": "oldID"},
+		desiredChild:   map[string]string{"bravo": "newID"},
+		friendlyFamily: true,
+	}
+	got := mergeWithCtx(t, existing, desired, ctx)
+	if !strings.Contains(got, "@rtOrphanChild") {
+		t.Errorf("template change must still orphan the stale value:\n%s", got)
+	}
+	if !strings.Contains(got, "rt$items:") {
+		t.Errorf("fresh skeleton for the new template must be inserted:\n%s", got)
+	}
+	assertReparses(t, got)
+}
+
+// TestMerge_MockChildTypeChanged_StillReplaces: the friendly relaxation must
+// NOT leak into mock mirrors — their kind-specific config rides RESERVED keys
+// the merge never drops, so a same-looking in-place merge would leave a stale
+// number-range config riding a string field (the A4 hazard). Identical inputs
+// to TestMerge_ChildTypeChanged, spelled with the flag explicitly false.
+func TestMerge_MockChildTypeChanged_StillReplaces(t *testing.T) {
+	existing := "{rt$label: '', age: {min: 0, max: 120}}"
+	desired := "{rt$label: '', age: {pool: ['x']}}"
+	ctx := mergeCtx{
+		metaKeys:       mockReservedKeys,
+		existingChild:  map[string]string{"age": "numID"},
+		desiredChild:   map[string]string{"age": "strID"},
+		friendlyFamily: false,
+	}
+	got := mergeWithCtx(t, existing, desired, ctx)
+	if !strings.Contains(got, "@rtOrphanChild") {
+		t.Errorf("mock family must keep the whole-field replace on a type change:\n%s", got)
+	}
+	if !strings.Contains(got, "age: {pool: ['x']}") {
+		t.Errorf("fresh mock skeleton must be inserted:\n%s", got)
+	}
+	assertReparses(t, got)
+}

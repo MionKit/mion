@@ -1,6 +1,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
+import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 // start-type
 // Option A — a plain TypeScript type. Fastest path, nothing extra to write.
@@ -29,5 +30,24 @@ type ProductFromSchema = InferType<typeof productSchema>;
 const isProductB = createValidateFn(productSchema);
 // end-schema
 
-export {isProductA, isProductB};
-export type {Product, ProductFromSchema};
+// start-json-schema
+// Option C — a draft 2020-12 JSON Schema, handed over as-is.
+const productJsonSchema = {
+  type: 'object',
+  properties: {
+    id: {type: 'number'},
+    name: {type: 'string'},
+    tags: {type: 'array', items: {type: 'string'}},
+    status: {enum: ['draft', 'live']},
+  },
+  required: ['id', 'name', 'tags', 'status'],
+} as const;
+
+// The TypeScript type is recovered from the schema, so nothing drifts.
+type ProductFromJsonSchema = FromJsonSchema<typeof productJsonSchema>;
+
+const isProductC = createValidateFn(runTypeFromJsonSchema(productJsonSchema));
+// end-json-schema
+
+export {isProductA, isProductB, isProductC};
+export type {Product, ProductFromSchema, ProductFromJsonSchema};

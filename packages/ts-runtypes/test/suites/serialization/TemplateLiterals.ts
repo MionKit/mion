@@ -8,8 +8,10 @@ export const TEMPLATE_LITERALS = {
     title: 'Root template literal',
     description:
       'Root template-literal type `` `api/users/${number}` `` round-trips identically across JSON and binary as a plain string, with samples covering integer, negative, fractional, and max-safe-integer interpolations.',
-    serializeNotes:
+    serializeNotes: [
       'A template literal is a string subtype on the wire — no pattern-specific transform applies; it serializes exactly like a `string`.',
+      'JSON Schema: a pattern cannot recover a template-literal type (regex → type undecidable by design).',
+    ],
     mutateEncoder: () => createJsonEncoderFn<`api/users/${number}`>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<`api/users/${number}`>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<`api/users/${number}`>(undefined, {strategy: 'direct'}),
@@ -23,6 +25,10 @@ export const TEMPLATE_LITERALS = {
     schemaDecoder: () => createJsonDecoderFn(RT.templateLiteral(['api/users/', TF.number()])),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.templateLiteral(['api/users/', TF.number()])),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.templateLiteral(['api/users/', TF.number()])),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         'api/users/0',
@@ -38,6 +44,7 @@ export const TEMPLATE_LITERALS = {
     title: 'Template literal property',
     description:
       'Object with a template-literal-typed `url` property plus a plain `method: string` round-trips identically across JSON and binary as plain strings.',
+    serializeNotes: 'JSON Schema: a pattern cannot recover a template-literal type (regex → type undecidable by design).',
     mutateEncoder: () => createJsonEncoderFn<{url: `api/user/${number}`; method: string}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{url: `api/user/${number}`; method: string}>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{url: `api/user/${number}`; method: string}>(undefined, {strategy: 'direct'}),
@@ -55,6 +62,10 @@ export const TEMPLATE_LITERALS = {
       createBinaryEncoderFn(RT.object({url: RT.templateLiteral(['api/user/', TF.number()]), method: TF.string()})),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.object({url: RT.templateLiteral(['api/user/', TF.number()]), method: TF.string()})),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {url: 'api/user/1', method: 'GET'},
@@ -67,8 +78,10 @@ export const TEMPLATE_LITERALS = {
     title: 'Template literal index key',
     description:
       'Record whose index-signature key is a template literal `` `api/${string}` `` with `number` values round-trips as a plain key/value object across JSON and binary, including the empty-object case.',
-    serializeNotes:
+    serializeNotes: [
       'The template-literal key constrains which property names are valid but is not encoded separately — entries serialize as ordinary string-keyed members.',
+      'JSON Schema: a pattern cannot recover a template-literal type (regex → type undecidable by design).',
+    ],
     mutateEncoder: () => createJsonEncoderFn<{[key: `api/${string}`]: number}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: `api/${string}`]: number}>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{[key: `api/${string}`]: number}>(undefined, {strategy: 'direct'}),
@@ -82,12 +95,17 @@ export const TEMPLATE_LITERALS = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(RT.templateLiteral(['api/', TF.string()]), TF.number())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(RT.templateLiteral(['api/', TF.string()]), TF.number())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(RT.templateLiteral(['api/', TF.string()]), TF.number())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [{}, {'api/users': 1, 'api/posts': 2}, {'api/v1/users': 7, 'api/admin': 0}]}),
   },
   url_index_key_with_named: {
     title: 'Index key with named sibling',
     description:
       'Object combining a template-literal-keyed index signature (`` `api/${string}` `` → `string | number`) with a sibling named `meta: string` resolves to an intersection of the keyed record and an object carrying the named prop, round-tripping as a plain object across JSON and binary.',
+    serializeNotes: 'JSON Schema: a pattern cannot recover a template-literal type (regex → type undecidable by design).',
     mutateEncoder: () =>
       createJsonEncoderFn<{meta: string; [key: `api/${string}`]: string | number}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () =>
@@ -134,6 +152,10 @@ export const TEMPLATE_LITERALS = {
           RT.object({meta: TF.string()})
         )
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [{meta: 'a'}, {meta: 'b', 'api/users': 1}, {meta: 'c', 'api/users': 1, 'api/posts': 2}],
     }),

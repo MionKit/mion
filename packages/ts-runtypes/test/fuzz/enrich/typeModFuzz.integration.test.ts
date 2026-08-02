@@ -97,6 +97,8 @@ describe('enrichment type-modification fuzz', () => {
       // generator can't masquerade as green.
       expect(report.skipped).toBeLessThan(report.runs);
     },
-    180_000
+    // Scales with the sequence knob (soak runs; ~7s/sequence observed) — a
+    // fixed timeout flags a finished sync body and discards its verdict.
+    180_000 + SEQUENCES * 15_000
   );
 });

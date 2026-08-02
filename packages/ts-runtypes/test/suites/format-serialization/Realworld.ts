@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import type {SerializationCase} from './types.ts';
 import * as RT from '@ts-runtypes/core/schema';
 import '@ts-runtypes/core/formats';
@@ -99,6 +100,38 @@ export const REALWORLD = {
     schemaDecoder: () => createJsonDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({id: TF.uuidv4(), name: TF.string(), email: TF.email()})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', format: 'uuid'}, name: {type: 'string'}, email: {type: 'string', format: 'email'}},
+          required: ['id', 'name', 'email'],
+        })
+      ),
     getTestData: () => ({
       values: [
         {id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f', name: 'Ada Lovelace', email: 'ada@example.com'},
@@ -112,6 +145,7 @@ export const REALWORLD = {
     description:
       'A DTO mixing two formats, a `TF.UUIDv4` id and a `TF.Email` contact, with a numeric total, a `Date` placedAt and a string-literal status union.',
     serializeNotes: [
+      'JSON Schema: the placedAt Date property is an instance type with no schema INPUT spelling.',
       '`placedAt` serialises to an ISO string and restores to a real `Date`.',
       'The uuid / email brands round-trip as plain strings through both JSON and binary.',
     ],
@@ -245,6 +279,10 @@ export const REALWORLD = {
           status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
         })
       ),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {
@@ -274,8 +312,10 @@ export const REALWORLD = {
     title: 'Class with a currency-format field + Date',
     description:
       'A registered `Invoice` class carrying a `TF.Currency<{integer,min:0,max:65535}>` field and a Date. Reconstruction composes with the format families: the uint16 currency bounds pick the 2-byte binary width inside the class encode, the Date rides its ISO-string arm, and decode rebuilds a real Invoice.',
-    serializeNotes:
+    serializeNotes: [
       'Class serializer keyed by type id; the currency format still packs to 2 bytes on the binary wire inside the class body. Value-first schema is not-supported (a class is not an `RT.*` model).',
+      'JSON Schema: the currency brand and Date property have no schema spelling.',
+    ],
     mutateEncoder: () => {
       class Invoice {
         constructor(
@@ -406,6 +446,10 @@ export const REALWORLD = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class Invoice {
         constructor(

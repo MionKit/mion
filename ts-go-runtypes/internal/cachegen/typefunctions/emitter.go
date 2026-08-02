@@ -122,6 +122,19 @@ func (ctx *EmitContext) CompileChild(rt *protocol.RunType, expectedCType CodeTyp
 	return ctx.walker.compileNode(rt, expectedCType)
 }
 
+// AsExpression converts a statement / return-block RTCode into a call
+// expression by hoisting the body into a factory-local context function
+// (tier 3 of the dispatch ladder — see wrapAsCtxFn). Pass-through for
+// CodeE and empty bodies. Used by emitters that must AND-chain onto a
+// base whose kind emits a statement body, e.g. negations over array /
+// tuple / object bases.
+func (ctx *EmitContext) AsExpression(code RTCode) RTCode {
+	if code.Type == CodeE || code.Code == "" {
+		return code
+	}
+	return ctx.walker.wrapAsCtxFn(code)
+}
+
 // IsRoot reports whether the current Emit call is at the RT
 // function's root (the outermost frame). Mirrors
 // `comp.getNestLevel(runType) === 0`. Used by emitters whose output

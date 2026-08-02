@@ -54,13 +54,20 @@ function primitiveBound(val: TypeFormatError['val']): string | number | bigint |
 
 // defaultMessage derives a mechanical, dependency-free message from the
 // structured error. Human-readable phrasing is the friendly-map's job (wire it
-// via IssueMappingOptions.message when that lands).
+// via IssueMappingOptions.message when that lands). The parenthesized bound
+// appears only when it informs: a WILDCARD bound ('any' — e.g. the
+// version-agnostic uuid) means the FORMAT itself failed, so the format name
+// replaces the sub-constraint and the bound is dropped ("Failed uuid
+// constraint", not "Failed version constraint (any)"); a bound that merely
+// echoes the constraint name (the opaque 'pattern' stand-in) is dropped too.
 function defaultMessage(err: RTValidationError): string {
   if (err.expected === 'circular') return 'Circular reference';
   if (!err.format) return `Expected ${err.expected}`;
   const constraint = constraintName(err.format);
   const bound = primitiveBound(err.format.val);
-  return bound === undefined ? `Failed ${constraint} constraint` : `Failed ${constraint} constraint (${String(bound)})`;
+  if (bound === 'any') return `Failed ${err.format.name} constraint`;
+  if (bound === undefined || String(bound) === constraint) return `Failed ${constraint} constraint`;
+  return `Failed ${constraint} constraint (${String(bound)})`;
 }
 
 /** Maps a flat `RTValidationError[]` to a flat `RTValidationIssue[]` (one issue

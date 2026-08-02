@@ -169,6 +169,17 @@ type mergeCtx struct {
 	pathPrefix    string
 	existingChild map[string]string
 	desiredChild  map[string]string
+	// friendlyFamily is true for friendly-family mirrors (the source-language
+	// mirror AND every i18n locale file). The friendly family reconciles the
+	// kind-specific vocabulary granularly (mergeErrorsNode adds/orphans
+	// individual constraint keys), so a kept field whose child TYPE ID changed
+	// can MERGE in place when its structural template still matches — the
+	// authored rt$label / still-declared error keys survive, only the vanished
+	// constraint keys carcass. Mock mirrors keep the whole-field replace: their
+	// kind-specific config rides RESERVED keys the merge never drops, so an
+	// in-place merge would let a stale (e.g. number-range) config silently ride
+	// the new type.
+	friendlyFamily bool
 }
 
 // childPath joins the ctx prefix with a field key (root prefix is "").
@@ -216,13 +227,25 @@ func mergeObject(ops *[]spliceOp, existing, desired *objectView, ctx mergeCtx) {
 
 	// KEEP / RECURSE / REPLACE for fields present in both (excluding renamed
 	// pairs, handled above as a key swap with no recursion — a rename preserves
-	// the old value). A kept key whose CHILD TYPE changed (its @rtIds childID
-	// differs, e.g. `age: number`→`age: string`) or whose SHAPE changed (existing
-	// object vs desired leaf, or vice versa) is REPLACED IN PLACE: the stale value
-	// is orphan-childed (preserved verbatim) and the fresh desired skeleton is
+	// the old value). A kept key whose SHAPE changed (existing object vs desired
+	// leaf, or vice versa) is REPLACED IN PLACE: the stale value is
+	// orphan-childed (preserved verbatim) and the fresh desired skeleton is
 	// spliced in right after it, so the value never silently mismatches the new
 	// type. Both halves ride a single splice op over the property's range, so the
 	// field keeps its position and there is no anchor/separator interaction.
+	//
+	// A kept key whose CHILD TYPE changed (its @rtIds childID differs) splits by
+	// family. Mock mirrors always replace (`age: number`→`age: string` must not
+	// leave a number-range config riding the string field — the A4 regression).
+	// Friendly-family mirrors replace ONLY when the structural template also
+	// changed (a string field growing rt$items, a Map losing rt$keys …): for a
+	// same-template change (a format param added/dropped — the id folds them),
+	// the field MERGES in place instead, so authored leaves that still exist in
+	// the new shape (rt$label, the `type` message, still-declared constraint
+	// keys) survive and mergeErrorsNode carcasses exactly the vanished keys.
+	// Without this, re-typing a field nuked its whole translation subtree into
+	// an @rtOrphanChild carcass and re-scaffolded blanks (the i18n fuzz T3
+	// finding, docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md).
 	for key := range existingFields {
 		if renamedExisting[key] {
 			continue
@@ -236,11 +259,14 @@ func mergeObject(ops *[]spliceOp, existing, desired *objectView, ctx mergeCtx) {
 			continue
 		}
 		childPath := ctx.childPath(key)
-		if childTypeChanged(ctx, childPath) || shapeMismatch(existingProp, desiredProp) {
+		bothObjects := existingProp.isObject() && desiredProp.isObject()
+		mergeAcrossTypeChange := ctx.friendlyFamily && bothObjects &&
+			sameStructuralTemplate(existing, desired, existingProp, desiredProp)
+		if shapeMismatch(existingProp, desiredProp) || (childTypeChanged(ctx, childPath) && !mergeAcrossTypeChange) {
 			*ops = append(*ops, replaceChildOp(existing, desired, key))
 			continue
 		}
-		if existingProp.isObject() && desiredProp.isObject() {
+		if bothObjects {
 			childExisting := newObjectView(existing.text, existing.sourceFile, existingProp.value)
 			childDesired := newObjectView(desired.text, desired.sourceFile, desiredProp.value)
 			mergeObject(ops, childExisting, childDesired, ctx.descend(key))
@@ -482,6 +508,25 @@ func childTypeChanged(ctx mergeCtx, childPath string) bool {
 // longer matches the desired type, so it is replaced (orphan + fresh skeleton).
 func shapeMismatch(existingProp, desiredProp *propView) bool {
 	return existingProp.isObject() != desiredProp.isObject()
+}
+
+// sameStructuralTemplate reports whether two object-form field values carry the
+// SAME structural meta-node skeleton — the presence set of rt$items / rt$keys /
+// rt$values / rt$slots. Matching skeletons mean the two enrichment templates
+// nest the same way, so a friendly-family field can merge across a child-type
+// change (the granular walks — data fields, meta nodes, rt$errors keys — each
+// reconcile their own level). A differing skeleton (string→array grows
+// rt$items, Map→Set drops rt$keys) has no positionwise merge, so the caller
+// replaces the field whole.
+func sameStructuralTemplate(existing, desired *objectView, existingProp, desiredProp *propView) bool {
+	childExisting := newObjectView(existing.text, existing.sourceFile, existingProp.value)
+	childDesired := newObjectView(desired.text, desired.sourceFile, desiredProp.value)
+	for _, metaKey := range append([]string{"rt$slots"}, objectMetaKeys...) {
+		if (childExisting.props[metaKey] != nil) != (childDesired.props[metaKey] != nil) {
+			return false
+		}
+	}
+	return true
 }
 
 // replaceChildOp replaces a kept-but-changed field in place: it orphan-childs the

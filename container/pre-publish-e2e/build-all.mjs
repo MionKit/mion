@@ -50,9 +50,11 @@ function rtOptions(appDir) {
 
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
-// ── the six apps ────────────────────────────────────────────────────────────
+// ── the apps: six bundler adapters over seven builds ────────────────────────
 // build-vite carries the FULL feature matrix (imports the shared index); every
-// light smoke imports apps/shared/src/minimal.ts.
+// light smoke imports apps/shared/src/minimal.ts. smoke-source is the seventh
+// build but not a seventh bundler — it reuses the esbuild adapter to cover a
+// different resolution mode.
 const APP_LIST = [
   {name: 'build-vite', adapter: 'vite'},
   {name: 'smoke-esbuild', adapter: 'esbuild'},

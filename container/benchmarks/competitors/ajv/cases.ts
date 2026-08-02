@@ -1,6 +1,23 @@
 import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
+// The JSON_SCHEMA lane compiles the case's OWN document, imported rather than
+// re-authored, so "same schema, two libraries" is true by construction.
+import {JSON_SCHEMA} from '../../shared/cases/json-schema/index.ts';
+
+// The 2020-12 dialect twin. The default `Ajv` export is draft-07 and would
+// silently ignore `prefixItems` (and read `items: false` with draft-07
+// semantics), so this lane must not use it.
+type JsonSchemaKey = keyof typeof JSON_SCHEMA;
+const doc = (key: JsonSchemaKey): object => JSON_SCHEMA[key].schema as object;
+
+function compile2020(key: JsonSchemaKey, allErrors: boolean): (value: unknown) => boolean {
+  const ajv = new Ajv2020({strict: false, allowUnionTypes: true, allErrors});
+  addFormats(ajv, {mode: 'full'});
+  const validate = ajv.compile(doc(key));
+  return (value: unknown) => validate(value) === true;
+}
 
 // Each supported case compiles its JSON Schema inside its own builder thunk —
 // self-contained and copy-paste runnable, with any shared sub-schema inlined. The
@@ -3335,5 +3352,50 @@ export const cases: CompetitorCases = {
       });
       return (value: unknown) => validate(value) === true;
     },
+  },
+
+  // ── JSON_SCHEMA ──
+  // One document, compiled by ajv 2020-12 exactly as ts-runtypes receives it.
+  'JSON_SCHEMA.string_email': {
+    build: () => compile2020('string_email', false),
+    buildErrors: () => compile2020('string_email', true),
+  },
+  'JSON_SCHEMA.int_bounded': {
+    build: () => compile2020('int_bounded', false),
+    buildErrors: () => compile2020('int_bounded', true),
+  },
+  'JSON_SCHEMA.string_pattern': {
+    build: () => compile2020('string_pattern', false),
+    buildErrors: () => compile2020('string_pattern', true),
+  },
+  'JSON_SCHEMA.string_array': {
+    build: () => compile2020('string_array', false),
+    buildErrors: () => compile2020('string_array', true),
+  },
+  'JSON_SCHEMA.tuple_pair': {
+    build: () => compile2020('tuple_pair', false),
+    buildErrors: () => compile2020('tuple_pair', true),
+  },
+  'JSON_SCHEMA.object_simple': {
+    build: () => compile2020('object_simple', false),
+    buildErrors: () => compile2020('object_simple', true),
+  },
+  'JSON_SCHEMA.record_number': {
+    build: () => compile2020('record_number', false),
+    buildErrors: () => compile2020('record_number', true),
+    samples: {invalid: [{a: 'x'}, {a: null}, 'nope', null, undefined]},
+  }, // override: ajv {type:number} accepts NaN/Infinity; drop them from invalid
+  'JSON_SCHEMA.union_anyof': {
+    build: () => compile2020('union_anyof', false),
+    buildErrors: () => compile2020('union_anyof', true),
+    samples: {invalid: [true, {}, [], undefined]},
+  }, // override: the anyOf number arm lets NaN/Infinity through in ajv
+  'JSON_SCHEMA.recursive_tree': {
+    build: () => compile2020('recursive_tree', false),
+    buildErrors: () => compile2020('recursive_tree', true),
+  },
+  'JSON_SCHEMA.realworld_user': {
+    build: () => compile2020('realworld_user', false),
+    buildErrors: () => compile2020('realworld_user', true),
   },
 };

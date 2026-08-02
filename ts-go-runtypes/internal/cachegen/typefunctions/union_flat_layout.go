@@ -409,6 +409,21 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 			if prop == nil || prop.IsStatic {
 				continue
 			}
+			// A method-like member (`f0(): T` / `f0: () => T` scanned as a
+			// method signature) is a DataOnly-dropped slot exactly like a
+			// property whose VALUE is function-typed — but it is a different
+			// member KIND, so the stripped-child branch below never sees it.
+			// Record it so a surviving same-name candidate from a sibling
+			// member gets the value guard: a value from THIS member still
+			// carries the key holding a function, and the surviving codec
+			// (e.g. serString) must not be applied to it. No diagnostic here —
+			// methods are silent skip slots in the standalone object walks too.
+			if isFunctionLikeKind(prop.Kind) {
+				if prop.Name != "" {
+					strippedByName[prop.Name] = true
+				}
+				continue
+			}
 			if prop.Kind != protocol.KindProperty && prop.Kind != protocol.KindPropertySignature {
 				continue
 			}

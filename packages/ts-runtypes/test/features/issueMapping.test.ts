@@ -64,12 +64,21 @@ describe('runTypeErrorsToIssues', () => {
     ];
     expect(runTypeErrorsToIssues(errs)).toEqual([
       {
-        message: 'Failed pattern constraint (pattern)',
+        // The 'pattern' bound merely echoes the constraint name, so the
+        // parenthesized clause is dropped; the structured format keeps it.
+        message: 'Failed pattern constraint',
         path: ['email'],
         expected: 'string',
         format: {name: 'email', val: 'pattern', formatPath: ['pattern']},
       },
     ]);
+  });
+
+  test('a wildcard bound names the FORMAT and drops the bound clause', () => {
+    const errs: RTValidationError[] = [
+      {path: ['id'], expected: 'string', format: {name: 'uuid', val: 'any', formatPath: ['version']}},
+    ];
+    expect(runTypeErrorsToIssues(errs)[0].message).toBe('Failed uuid constraint');
   });
 
   test('no-format error omits the format field (not set to undefined)', () => {

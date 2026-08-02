@@ -48,11 +48,18 @@ function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nat
     case 'ip':
       return mockIp(params as Partial<IPParams>, random);
     case 'domain':
-      return mockDomain(params as DomainParams, random);
+      return lengthFiltered(params, () => mockDomain(params as DomainParams, random));
     case 'email':
-      return mockEmail(params as EmailParams, random);
+      return lengthFiltered(params, () => mockEmail(params as EmailParams, random));
     case 'url':
-      return mockUrl(params as UrlParams, random);
+      return lengthFiltered(params, () => mockUrl(params as UrlParams, random));
+    case 'jsonContent': {
+      // contentMediaType: application/json — draw from the declared samples
+      // (the translation bakes a pool; base64-encoded pools arrive encoded).
+      const samples = (params as {mockSamples?: readonly string[]}).mockSamples;
+      if (samples && samples.length > 0) return samples[random.int(0, samples.length - 1)];
+      return '{}';
+    }
     default:
       return undefined;
   }
@@ -229,6 +236,29 @@ function mockDomain(params: DomainParams, random: MockRandom): string {
 function domainPartSamples(part: {mockSamples?: Samples; pattern?: unknown} | undefined): readonly string[] | undefined {
   if (!part) return undefined;
   return toSampleList(part.mockSamples) ?? patternSampleList(asPattern(part.pattern));
+}
+
+// Named-family draws come from pattern sample pools that predate any
+// schema-sibling length bounds (the JSON Schema door REPLACES the brand's
+// default bounds with the document's) — filter the draw against params
+// minLength / maxLength so validate(mock()) holds. Bounds no pool entry
+// satisfies are an authoring problem the mock must surface, not paper
+// over: loud exhaustion after the standard attempt budget.
+function lengthFiltered(params: object, draw: () => string): string {
+  const {minLength, maxLength} = params as {minLength?: number; maxLength?: number};
+  if (minLength === undefined && maxLength === undefined) return draw();
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const candidate = draw();
+    if (
+      (minLength === undefined || candidate.length >= minLength) &&
+      (maxLength === undefined || candidate.length <= maxLength)
+    ) {
+      return candidate;
+    }
+  }
+  throw new Error(
+    'Cannot mock format: no sample satisfied the minLength/maxLength bounds after 32 attempts — widen the bounds or provide mockSamples that fit.'
+  );
 }
 
 function mockEmail(params: EmailParams, random: MockRandom): string {

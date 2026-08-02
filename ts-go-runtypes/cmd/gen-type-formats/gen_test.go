@@ -26,8 +26,16 @@ func TestTypeFormatsFileInSync(t *testing.T) {
 		t.Fatalf("read %s: %v", typeFormatsOutputPath(), err)
 	}
 	src := string(committed)
+	// One family may register under several base kinds (objectFormat:
+	// objectLiteral + object); the name-keyed table carries the first
+	// (kind, name)-sorted row, so the kind check accepts any of the name's
+	// registered kinds.
+	kindsByName := map[string][]string{}
 	for _, emitter := range formats.Registered() {
 		name := emitter.Name()
+		kindsByName[name] = append(kindsByName[name], kindJsName(emitter.Kind()))
+	}
+	for name, kinds := range kindsByName {
 		if !strings.Contains(src, name+":") {
 			t.Errorf("format %q missing its key from %s — regenerate via `pnpm rtx core codegen typeformats`",
 				name, typeFormatsOutputPath())
@@ -36,10 +44,17 @@ func TestTypeFormatsFileInSync(t *testing.T) {
 			t.Errorf("format name %s missing its value from the committed table — regenerate via `pnpm rtx core codegen typeformats`",
 				jsStr(name))
 		}
-		want := "kind: RunTypeKind." + kindJsName(emitter.Kind())
-		if !strings.Contains(src, want) {
-			t.Errorf("format %q kind reference %q missing from the committed table — regenerate via `pnpm rtx core codegen typeformats`",
-				name, want)
+		row := name + ": {name: " + jsStr(name) + ", kind: RunTypeKind."
+		anyKind := false
+		for _, kind := range kinds {
+			if strings.Contains(src, row+kind+"}") {
+				anyKind = true
+				break
+			}
+		}
+		if !anyKind {
+			t.Errorf("format %q row with any of its registered kinds %v missing from the committed table — regenerate via `pnpm rtx core codegen typeformats`",
+				name, kinds)
 		}
 	}
 }

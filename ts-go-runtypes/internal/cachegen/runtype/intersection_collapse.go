@@ -2,6 +2,7 @@ package runtype
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
@@ -27,6 +28,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	var (
 		primitiveMember *checker.Type
 		literalMember   *checker.Type
+		carrierMember   *checker.Type
 		objectMembers   []*checker.Type
 		hasNever        bool
 		// hasIncompatiblePrimitives surfaces `string & number`-style cases
@@ -62,7 +64,23 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 			if !samePrimitiveBase(primitiveMember, member) {
 				hasIncompatiblePrimitives = true
 			}
-		case memberFlags&checker.TypeFlagsObject != 0:
+		case memberFlags&checker.TypeFlagsObject != 0,
+			// The bare `object` keyword (TypeFlagsNonPrimitive) — a real base
+			// in `object & {__rtNot?: …}` intersections. Without this case the
+			// member is silently DROPPED and the collapse degrades the base to
+			// unknown, deleting the kind check from the generated validator.
+			memberFlags&checker.TypeFlagsNonPrimitive != 0:
+			// OneOf carriers never classify: the member must serialize as its
+			// plain self on every downstream path (primitive brand, builtin
+			// class, object merge) — the branch semantics live on the UNION
+			// node (typeid.OneOfFromMembers), never on a member. Captured
+			// (not dropped) for the duplicate-branch degenerate below.
+			if typeid.IsOneOfCarrierMember(cache.typeChecker, member) {
+				if carrierMember == nil {
+					carrierMember = member
+				}
+				continue
+			}
 			objectMembers = append(objectMembers, member)
 		}
 	}
@@ -70,6 +88,56 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	if hasNever || hasIncompatiblePrimitives {
 		node.Kind = protocol.KindNever
 		return
+	}
+
+	// Duplicate-branch degenerate: identical oneOf branches intern to ONE
+	// arm, the union dedups away, and the carrier'd intersection stands
+	// alone. Distinct-branch carriers always live under a surviving union
+	// (which owns the semantics), so the standalone treatment fires ONLY
+	// when the branch ids collide — then the node is the one-member union
+	// with counting (count ≥ 2 always, so nothing validates: exactly what
+	// duplicate branches mean). A multi-base intersection here has no
+	// single child to project — never, loud over silently under-checking.
+	if carrierMember != nil {
+		branches := typeid.OneOfCarrierBranches(cache.typeChecker, carrierMember)
+		branchNodes := make([]*protocol.RunType, 0, len(branches))
+		seenIDs := map[string]bool{}
+		hasDuplicate := false
+		for _, branch := range branches {
+			branchNode := cache.Serialize(branch)
+			if seenIDs[branchNode.ID] {
+				hasDuplicate = true
+			}
+			seenIDs[branchNode.ID] = true
+			branchNodes = append(branchNodes, branchNode)
+		}
+		if hasDuplicate {
+			var base *checker.Type
+			baseCount := 0
+			if primitiveMember != nil {
+				base = primitiveMember
+				baseCount++
+			}
+			if literalMember != nil {
+				base = literalMember
+				baseCount++
+			}
+			if len(objectMembers) == 1 {
+				base = objectMembers[0]
+				baseCount++
+			} else if len(objectMembers) > 1 {
+				baseCount += len(objectMembers)
+			}
+			if baseCount != 1 {
+				node.Kind = protocol.KindNever
+				return
+			}
+			node.Kind = protocol.KindUnion
+			node.Children = append(node.Children, cache.Serialize(base))
+			cache.finalizeUnion(node)
+			node.OneOf = branchNodes
+			return
+		}
 	}
 
 	// Primitive narrowing: `string & "x"` should already be reduced by the
@@ -96,9 +164,19 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	}
 	if primary != nil && len(objectMembers) > 0 {
 		cache.projectPrimitiveInto(primary, node)
+		var annotations []*protocol.FormatAnnotation
 		for _, objectMember := range objectMembers {
+			// Negation sentinel (`{__rtNot?: Child}`): serialize the CHILD
+			// onto node.Negations — the validate/verr emit inverts its check
+			// (`base && !(child)`). Never a TypeMeta decorator and never a
+			// property. Twin of the `!{…}` id fold in
+			// typeid/intersection_collapse.go.
+			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
+				node.Negations = append(node.Negations, cache.Serialize(childType))
+				continue
+			}
 			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
-				node.FormatAnnotation = annotation
+				annotations = append(annotations, annotation)
 				continue
 			}
 			// Pure `{__rtFormatBrand}` nominal-brand member — TS-only, no runtime
@@ -108,6 +186,21 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 				continue
 			}
 			node.TypeMeta = append(node.TypeMeta, cache.Serialize(objectMember))
+		}
+		// Same-family annotations MERGE (sibling conjunction: a `$ref` to a
+		// branded base ∧ a local constraint keyword). Cross-family stacks and
+		// param contradictions FAIL THE BUILD here — the historical last-wins
+		// silently dropped a declared constraint, which is the one thing the
+		// pipeline promises never to do.
+		if merged, ok := typeid.MergeFormatAnnotations(annotations); ok {
+			node.FormatAnnotation = merged
+		} else {
+			names := make([]string, 0, len(annotations))
+			for _, annotation := range annotations {
+				names = append(names, annotation.Name)
+			}
+			panic("ts-runtypes: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
+				") — merging across format families is not supported yet; spell the constraints in one brand")
 		}
 		return
 	}
@@ -143,6 +236,102 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	// + GetSignaturesOfType, all of which are safe on intersections —
 	// the TS checker has already merged property sets across members.
 	if len(objectMembers) > 0 {
+		// Lift negation sentinels and structural format brands first
+		// (`{a} & {__rtNot?: Child}`, `unknown[] & {__rtFormatName?: …}`):
+		// sentinel members become Negations entries / the FormatAnnotation,
+		// never merged properties (projectMembersInto skips the props by
+		// name as well).
+		var restMembers []*checker.Type
+		var annotations []*protocol.FormatAnnotation
+		for _, objectMember := range objectMembers {
+			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
+				node.Negations = append(node.Negations, cache.Serialize(childType))
+				continue
+			}
+			if childType, minCount, maxCount, ok := typeid.ContainsSpecFromMember(cache.typeChecker, objectMember); ok {
+				node.Contains = append(node.Contains, &protocol.ContainsCheck{Child: cache.Serialize(childType), Min: minCount, Max: maxCount})
+				continue
+			}
+			if specs, ok := typeid.PatternPropsFromMember(cache.typeChecker, objectMember); ok {
+				for _, spec := range specs {
+					check := &protocol.PatternPropCheck{Source: spec.Source, Value: cache.Serialize(spec.Value)}
+					if spec.Key != nil {
+						check.Key = cache.Serialize(spec.Key)
+					}
+					node.PatternProps = append(node.PatternProps, check)
+				}
+				continue
+			}
+			if childType := typeid.PropNamesChildFromMember(cache.typeChecker, objectMember); childType != nil {
+				node.PropNames = cache.Serialize(childType)
+				continue
+			}
+			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
+				annotations = append(annotations, annotation)
+				continue
+			}
+			if typeid.IsFormatBrandMember(cache.typeChecker, objectMember) {
+				continue
+			}
+			restMembers = append(restMembers, objectMember)
+		}
+		restCount := len(restMembers)
+		var soleRest *checker.Type
+		if restCount == 1 {
+			soleRest = restMembers[0]
+		}
+		// Same-family merge + loud cross-family failure as the primitive
+		// branch above — a structural brand must never silently drop.
+		if merged, ok := typeid.MergeFormatAnnotations(annotations); ok {
+			node.FormatAnnotation = merged
+		} else {
+			names := make([]string, 0, len(annotations))
+			for _, annotation := range annotations {
+				names = append(names, annotation.Name)
+			}
+			panic("ts-runtypes: conflicting format annotations on one intersection (" + strings.Join(names, " & ") +
+				") — merging across format families is not supported yet; spell the constraints in one brand")
+		}
+		if restCount == 0 {
+			// Every member was a sentinel — the base is `unknown` with the
+			// negation(s) attached (bare JSON Schema `not`).
+			node.Kind = protocol.KindUnknown
+			return
+		}
+		if restCount == 1 &&
+			(len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
+				len(node.PatternProps) > 0 || node.PropNames != nil) {
+			// Single base ∧ sentinel(s) — `unknown[] & {__rtNot?: …}`,
+			// `Record<string, unknown> & {…}`: project the BASE as itself
+			// (array / record / class / tuple), negations attached. Routing
+			// it through the merged-property path would surface the array's
+			// interface members as an objectLiteral. The bare `object`
+			// keyword is not a TypeFlagsObject type — project it directly
+			// (projectObjectType would misroute it).
+			if soleRest.Flags()&checker.TypeFlagsNonPrimitive != 0 {
+				node.Kind = protocol.KindObject
+				return
+			}
+			cache.projectObjectType(soleRest, node)
+			return
+		}
+		// Tuple ∩ tuple — merge slot-wise (typeid/tuplemerge.go) into ONE
+		// tuple node whose shape (and id, via the typeid twin) equals the
+		// equivalent hand-written tuple; a genuine conflict projects never
+		// (over-rejects, never a silent noop — the historical behavior
+		// surfaced two tuples as a junk objectLiteral whose validator
+		// passed everything).
+		if restCount >= 2 && typeid.AllTupleTypes(restMembers) {
+			picks, ok := typeid.MergeTupleIntersection(cache.typeChecker, restMembers, func(a, b *checker.Type) bool {
+				return cache.Serialize(a).ID == cache.Serialize(b).ID
+			})
+			if !ok {
+				node.Kind = protocol.KindNever
+				return
+			}
+			cache.projectMergedTuple(picks, node)
+			return
+		}
 		node.Kind = protocol.KindObjectLiteral
 		properties := cache.typeChecker.GetPropertiesOfType(tsType)
 		callSignatures := cache.typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall)
@@ -152,6 +341,45 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 
 	// Fully reduced to any/unknown — pick unknown as a safe fallback.
 	node.Kind = protocol.KindUnknown
+}
+
+// projectMergedTuple builds the tuple node for a slot-wise tuple ∩ tuple
+// merge — the member construction mirrors serialize.go:projectTuple (same
+// TupleMember wrappers, same unique member-id discipline) so the merged
+// node is indistinguishable from the equivalent hand-written tuple's.
+func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *protocol.RunType) {
+	node.Kind = protocol.KindTuple
+	for i, pick := range picks {
+		position := i
+		// Optional slots resolve through serializeOptionalChild, exactly as
+		// projectTuple does — picks carry RAW slot types by contract.
+		var elementChild *protocol.RunType
+		if pick.Optional {
+			elementChild = cache.serializeOptionalChild(pick.Type)
+		} else {
+			elementChild = cache.Serialize(pick.Type)
+		}
+		member := &protocol.RunType{
+			Kind:     protocol.KindTupleMember,
+			Child:    elementChild,
+			Position: &position,
+		}
+		if pick.Optional {
+			member.Optional = true
+		}
+		if pick.Rest {
+			member.Flags = append(member.Flags, "rest")
+		}
+		structural := fmt.Sprintf("_tm_%s_%d", node.ID, i)
+		memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
+		if err != nil {
+			memberID = "x_tm_" + structural
+		}
+		member.ID = memberID
+		cache.intern(structural, memberID)
+		cache.putNode(memberID, member)
+		node.Children = append(node.Children, protocol.NewRef(memberID))
+	}
 }
 
 // projectPrimitiveInto fills `node` with the kind+literal data for a

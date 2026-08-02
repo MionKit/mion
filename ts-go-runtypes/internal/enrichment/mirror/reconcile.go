@@ -197,7 +197,7 @@ func reconcileOneConst(ops *[]spliceOp, addedConsts *[]enrichment.NamedConst, in
 	// by id again instead of the var-name fallback.
 	refreshMarker(ops, index.raw, existing, named)
 
-	mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs)
+	mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs, friendly)
 }
 
 // formParts returns the var name, body text, and reserved-key set for one form
@@ -213,17 +213,19 @@ func formParts(named enrichment.NamedConst, friendly bool) (varName, body string
 // mergeConstBody records the property-merge splices for one const: it builds the
 // existing + desired object views and merges them under the given reserved-key
 // set + child-id maps. No-op when the desired body is not an object literal.
-// Assumes existing.body is non-nil (the caller guards it).
-func mergeConstBody(ops *[]spliceOp, index *Index, existing *constEntry, body string, metaKeys map[string]bool, desiredChild map[string]string) {
+// Assumes existing.body is non-nil (the caller guards it). `friendly` selects
+// the family's merge semantics (see mergeCtx.friendlyFamily).
+func mergeConstBody(ops *[]spliceOp, index *Index, existing *constEntry, body string, metaKeys map[string]bool, desiredChild map[string]string, friendly bool) {
 	existingView := newObjectView(string(index.raw), index.sourceFile, existing.body)
 	desiredView := parseDesiredObject(body)
 	if desiredView == nil {
 		return
 	}
 	mergeObject(ops, existingView, desiredView, mergeCtx{
-		metaKeys:      metaKeys,
-		existingChild: existing.childIDs,
-		desiredChild:  desiredChild,
+		metaKeys:       metaKeys,
+		existingChild:  existing.childIDs,
+		desiredChild:   desiredChild,
+		friendlyFamily: friendly,
 	})
 }
 
@@ -574,7 +576,7 @@ func emitConstRename(ops *[]spliceOp, index *Index, rename constRename) {
 	refreshMarker(ops, index.raw, existing, named)
 
 	if existing.body != nil {
-		mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs)
+		mergeConstBody(ops, index, existing, body, metaKeys, named.ChildIDs, rename.friendly)
 	}
 }
 

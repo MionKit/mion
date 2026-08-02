@@ -7,6 +7,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -120,6 +121,156 @@ func (e ValidationErrorsEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, ex
 			}
 		}
 	}
+	// Negations: the value fails ¬child precisely when it PASSES the child,
+	// i.e. when the child's own verr body pushes ZERO errors. The child's
+	// statements are compiled with this walker and probed against a SCRATCH
+	// error array (er/pth shadowed in an IIFE), so this works uniformly for
+	// every child kind — leaf, format-branded, compound — with no
+	// cross-family cache reference and no risk of polluting the real error
+	// list with the child's (meaningless-under-negation) positive errors.
+	// One canonical 'not' error per negation, matching how JSON Schema
+	// validators report a single "must NOT be valid". Gated on the base-kind
+	// guard so a type-mismatched value reports only the base error.
+	// patternProperties / propertyNames: per-key probes with the scratch
+	// error array; one canonical error per violated entry, gated on the
+	// base-kind guard like every splice here.
+	if base.Type == CodeS && rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil) {
+		appendCheck := func(check string) {
+			check = wrapFormatCheckPath(ctx, check)
+			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
+			switch {
+			case base.Code == "":
+				base.Code = check
+			case guard == "":
+				base.Code = base.Code + ";" + check
+			default:
+				base.Code = base.Code + ";if (" + guard + ") {" + check + "}"
+			}
+		}
+		for _, patternProp := range rt.PatternProps {
+			if ctx.ResolveRef(patternProp.Value) == nil {
+				panic("validationErrors: unresolvable patternProperties value child")
+			}
+			reVar := ctx.NextLocalVar("reKey")
+			if !ctx.HasContextItem(reVar) {
+				ctx.SetContextItem(reVar, "const "+reVar+" = new RegExp("+jsquote.Double(patternProp.Source)+")")
+			}
+			kVar := ctx.NextLocalVar("pk")
+			ctx.SetChildAccessor(ctx.Vλl + "[" + kVar + "]")
+			childRT := ctx.CompileChild(patternProp.Value, CodeS)
+			ctx.SetChildAccessor("")
+			if childRT.Type == CodeNS || childRT.Code == "" {
+				continue
+			}
+			okVar := ctx.NextLocalVar("pok")
+			scratch := ctx.NextLocalVar("per")
+			check := "let " + okVar + " = true;for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {" +
+				"if (!" + reVar + ".test(" + kVar + ")) continue;" +
+				"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
+				"if (" + scratch + ".length > 0) " + okVar + " = false;}" +
+				"if (!" + okVar + ") " + formats.FormatErrCall("pth", "er", "object", "patternProperties", "pattern", jsquote.Single(patternProp.Source))
+			appendCheck(check)
+		}
+		if rt.PropNames != nil {
+			if ctx.ResolveRef(rt.PropNames) == nil {
+				panic("validationErrors: unresolvable propertyNames child")
+			}
+			kVar := ctx.NextLocalVar("pk")
+			ctx.SetChildAccessor(kVar)
+			childRT := ctx.CompileChild(rt.PropNames, CodeS)
+			ctx.SetChildAccessor("")
+			if childRT.Type != CodeNS && childRT.Code != "" {
+				okVar := ctx.NextLocalVar("pok")
+				scratch := ctx.NextLocalVar("per")
+				check := "let " + okVar + " = true;for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {" +
+					"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
+					"if (" + scratch + ".length > 0) " + okVar + " = false;}" +
+					"if (!" + okVar + ") " + formats.FormatErrCall("pth", "er", "object", "propertyNames", "propertyNames", "true")
+				appendCheck(check)
+			}
+		}
+	}
+	// Contains: count the items whose child verr body pushes ZERO errors
+	// (the same scratch-array probe the negation splice uses) and push one
+	// canonical error per violated bound. Gated on the base-kind guard so a
+	// non-array value reports only the base error.
+	if base.Type == CodeS && rt != nil && len(rt.Contains) > 0 {
+		for _, containsCheck := range rt.Contains {
+			if ctx.ResolveRef(containsCheck.Child) == nil {
+				panic("validationErrors: unresolvable contains child — dropping it would silently weaken validation")
+			}
+			iVar := ctx.NextLocalVar("ci")
+			ctx.SetChildAccessor(ctx.Vλl + "[" + iVar + "]")
+			childRT := ctx.CompileChild(containsCheck.Child, CodeS)
+			ctx.SetChildAccessor("")
+			nVar := ctx.NextLocalVar("cn")
+			var count string
+			switch {
+			case childRT.Type == CodeNS:
+				// A never-ish child matches nothing — the count is zero.
+				count = "const " + nVar + " = 0;"
+			case childRT.Code == "":
+				// any/unknown child matches every item.
+				count = "const " + nVar + " = " + ctx.Vλl + ".length;"
+			default:
+				scratch := ctx.NextLocalVar("cer")
+				count = "let " + nVar + " = 0;for (let " + iVar + " = 0; " + iVar + " < " + ctx.Vλl + ".length; " + iVar + "++) {" +
+					"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
+					"if (" + scratch + ".length === 0) " + nVar + "++;}"
+			}
+			check := count +
+				"if (" + nVar + " < " + formats.FormatNumber(containsCheck.Min) + ") " +
+				formats.FormatErrCall("pth", "er", "array", "contains", "minContains", formats.FormatNumber(containsCheck.Min))
+			if containsCheck.Max >= 0 {
+				check += ";if (" + nVar + " > " + formats.FormatNumber(containsCheck.Max) + ") " +
+					formats.FormatErrCall("pth", "er", "array", "contains", "maxContains", formats.FormatNumber(containsCheck.Max))
+			}
+			check = wrapFormatCheckPath(ctx, check)
+			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
+			switch {
+			case base.Code == "":
+				base.Code = check
+			case guard == "":
+				base.Code = base.Code + ";" + check
+			default:
+				base.Code = base.Code + ";if (" + guard + ") {" + check + "}"
+			}
+		}
+	}
+	if base.Type == CodeS && rt != nil && len(rt.Negations) > 0 {
+		for _, negation := range rt.Negations {
+			if ctx.ResolveRef(negation) == nil {
+				panic("validationErrors: unresolvable negation child — dropping it would silently weaken validation")
+			}
+			childRT := ctx.CompileChild(negation, CodeS)
+			if childRT.Type == CodeNS {
+				// The child's validator always throws (never-ish): no value can
+				// match it, so the negation can never fail — nothing to emit.
+				continue
+			}
+			notErr := formats.FormatErrCall("pth", "er", "not", "not", "not", "true")
+			var check string
+			if childRT.Code == "" {
+				// A noop child (any/unknown) matches EVERY value, so the
+				// negation unconditionally fails.
+				check = notErr
+			} else {
+				scratch := ctx.NextLocalVar("ner")
+				check = "const " + scratch + "=[];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
+					"if (" + scratch + ".length===0) {" + notErr + "}"
+			}
+			check = wrapFormatCheckPath(ctx, check)
+			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
+			switch {
+			case base.Code == "":
+				base.Code = check
+			case guard == "":
+				base.Code = base.Code + ";" + check
+			default:
+				base.Code = base.Code + ";if (" + guard + ") {" + check + "}"
+			}
+		}
+	}
 	return base
 }
 
@@ -169,6 +320,13 @@ func baseKindGuard(rt *protocol.RunType, vλl, numberMode string) string {
 		// bound check so it only runs on a valid Date — `.getTime()` on a
 		// non-Date would throw instead of pushing a clean error.
 		return vλl + " instanceof Date && !isNaN(" + vλl + ".getTime())"
+	case protocol.KindArray, protocol.KindTuple:
+		// Structural array formats read `.length` — guard so a wrong-kind
+		// value (null!) reports only the base error instead of throwing.
+		return "Array.isArray(" + vλl + ")"
+	case protocol.KindObjectLiteral, protocol.KindObject:
+		// Structural object formats read Object.keys — same throw guard.
+		return "typeof " + vλl + " === 'object' && " + vλl + " !== null"
 	}
 	return ""
 }
@@ -997,6 +1155,40 @@ func emitTemplateLiteralValidationErrors(rt *protocol.RunType, ctx *EmitContext,
 func emitUnionValidationErrors(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
 	validateHash := operations.PlainHash("validate") + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
+	// OneOf — the validate delegate already enforces exactly-one (its
+	// boolean is the counting check), so detection is unchanged; inside the
+	// failure block the branches are re-probed against scratch error arrays
+	// (the negation-splice idiom) purely to tell the two failure stories
+	// apart: matched none → the canonical union error, matched several →
+	// one 'oneOf' error carrying the match count as its val.
+	if len(rt.OneOf) > 0 {
+		nVar := ctx.NextLocalVar("xn")
+		var count strings.Builder
+		count.WriteString("let " + nVar + " = 0;")
+		for _, branch := range rt.OneOf {
+			if ctx.ResolveRef(branch) == nil {
+				panic("validationErrors: unresolvable oneOf branch — dropping it would silently weaken validation")
+			}
+			branchRT := ctx.CompileChild(branch, CodeS)
+			if branchRT.Type == CodeNS {
+				panic("validationErrors: non-serializable oneOf branch — dropping it would silently weaken validation")
+			}
+			if branchRT.Code == "" {
+				// No-check branch (unknown / noop) matches unconditionally.
+				count.WriteString(nVar + "++;")
+				continue
+			}
+			scratch := ctx.NextLocalVar("xer")
+			count.WriteString("const " + scratch + " = [];((er,pth)=>{" + branchRT.Code + "})(" + scratch + ",[]);" +
+				"if (" + scratch + ".length === 0) " + nVar + "++;")
+		}
+		return RTCode{
+			Code: "if (!" + validateHash + ".fn(" + v + ")) {" + count.String() +
+				"if (" + nVar + " > 1) {" + formats.FormatErrCall("pth", "er", "union", "oneOf", "oneOf", nVar) +
+				"} else {" + callRTErr(ctx, "union", "") + "}}",
+			Type: CodeS,
+		}
+	}
 	return RTCode{
 		Code: "if (!" + validateHash + ".fn(" + v + ")) " + callRTErr(ctx, "union", ""),
 		Type: CodeS,

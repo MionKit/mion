@@ -79,6 +79,16 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunTyp
 	tmObj := &protocol.RunType{ID: "tmObj", Kind: protocol.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
 	tupObj := &protocol.RunType{ID: "tupObj", Kind: protocol.KindTuple, Children: []*protocol.RunType{makeRef("tmObj")}}
 
+	// Named-class registry-branch rule (the tb tripwire repro): a NAMED plain
+	// user class always compiles wrapToBinaryWithClassSerializer's runtime
+	// registry branch, so it can never claim identity — even when every
+	// member is a dropped (`p0: never`) or write-nothing (literal) slot.
+	// Anonymous classes and interface twins stay structural/noop.
+	clsNever := &protocol.RunType{ID: "clsNever", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, TypeName: "C0", Children: []*protocol.RunType{makeRef("pnev")}}
+	aclsNever := &protocol.RunType{ID: "aclsNever", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, Children: []*protocol.RunType{makeRef("pnev")}}
+	objNeverOnly := &protocol.RunType{ID: "objNeverOnly", Kind: protocol.KindObjectLiteral, TypeName: "I0", Children: []*protocol.RunType{makeRef("pnev")}}
+	clsLit := &protocol.RunType{ID: "clsLit", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, TypeName: "C1", Children: []*protocol.RunType{makeRef("plit")}}
+
 	all := []*protocol.RunType{
 		str, num, undef, voidT, bigint, date, mapT, fn,
 		propA, propBig, propDate, propFn,
@@ -91,6 +101,7 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunTyp
 		anyT, unkT, lit, nev, propNever, objNever,
 		idxAtomic, recAtomic, propLit, objLitOnly,
 		tmLit, tupLit, tmObj, tupObj,
+		clsNever, aclsNever, objNeverOnly, clsLit,
 	}
 	refTable := make(map[string]*protocol.RunType, len(all))
 	byID := make(map[string]*protocol.RunType, len(all))
@@ -444,6 +455,15 @@ func TestNoopType_ToBinary(t *testing.T) {
 		{"objCompat", false},
 		{"arrStr", false}, // varint length prefix
 		{"uAt", false},    // discriminant byte
+		// Named-class registry-branch rule: the emitted body always carries
+		// the class-serializer registry check, so a named class never claims
+		// identity — the tb tripwire repro (`declare class C0 {p0: never}`).
+		{"clsNever", false},
+		{"clsLit", false},
+		// Anonymous class + interface twins skip the wrapper and stay
+		// structural: all-dropped / write-nothing members = identity.
+		{"aclsNever", true},
+		{"objNeverOnly", true},
 	}
 	for _, c := range cases {
 		t.Run(c.id, func(t *testing.T) {

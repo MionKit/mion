@@ -543,6 +543,11 @@ func isNoopForValidate(rt *protocol.RunType, ctx *EmitContext) bool {
 	if rt == nil {
 		return false
 	}
+	// A negation- or contains-bearing unknown is a REAL check (`!(child)` /
+	// the occurrence count) — never the trivial `() => true`.
+	if len(rt.Negations) > 0 || len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || rt.PropNames != nil || len(rt.OneOf) > 0 {
+		return false
+	}
 	return rt.Kind == protocol.KindAny || rt.Kind == protocol.KindUnknown
 }
 
@@ -552,6 +557,10 @@ func isNoopForValidate(rt *protocol.RunType, ctx *EmitContext) bool {
 func isNoopForValidationErrors(rt *protocol.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
+		return false
+	}
+	// Negation- and contains-bearing nodes push real errors.
+	if len(rt.Negations) > 0 || len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || rt.PropNames != nil || len(rt.OneOf) > 0 {
 		return false
 	}
 	return rt.Kind == protocol.KindAny || rt.Kind == protocol.KindUnknown
@@ -773,6 +782,14 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 
 	case protocol.KindClass:
 		if rt.SubKind == protocol.SubKindNone {
+			// Named user classes always emit the runtime class-serializer
+			// registry branch (wrapToBinaryWithClassSerializer) — never
+			// identity, even when every member is a dropped/no-write slot
+			// (`declare class C {p: never}`). Same rule as jsonNoopRecursive's
+			// SubKindNone arm; anonymous classes stay structural.
+			if userClassName(rt) != "" {
+				return false
+			}
 			return toBinaryNoopObjectChildren(rt, ctx, visited)
 		}
 		return false

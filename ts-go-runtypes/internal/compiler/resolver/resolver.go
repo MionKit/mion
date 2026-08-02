@@ -29,7 +29,9 @@ package resolver
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -392,6 +394,8 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		return nil
 	}
 	fp := diskcache.Fingerprint(diskcache.FingerprintInputs{
+		BinaryVersion:        constants.Version,
+		BinaryStamp:          binaryStamp(),
 		HashLength:           opts.HashLength,
 		EmitMode:             string(opts.EmitMode),
 		InlineMode:           string(opts.InlineMode),
@@ -403,6 +407,24 @@ func newRTStore(opts Options, incremental bool) *diskcache.Store {
 		PatternSampleRetries: opts.PatternSampleRetries,
 	})
 	return diskcache.New(baseDir, fp)
+}
+
+// binaryStamp identifies THIS build of the resolver executable (mtime +
+// size), so a rebuilt dev binary — same constants.Version, different
+// emitters — moves the disk-cache fingerprint instead of serving the
+// previous build's cached function bodies. `go build` leaves an unchanged
+// binary untouched, so no-op rebuilds keep the cache. Empty when the
+// executable cannot be resolved (the WASM twin — no disk cache there).
+func binaryStamp() string {
+	executablePath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	info, err := os.Stat(executablePath)
+	if err != nil {
+		return ""
+	}
+	return strconv.FormatInt(info.ModTime().UnixNano(), 10) + "-" + strconv.FormatInt(info.Size(), 10)
 }
 
 // New builds a Session against prog. Defaults to hashid's default length when

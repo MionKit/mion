@@ -131,11 +131,30 @@ const ROUNDTRIPS = [
   {key: 'direct', enc: 'directEncoder', dec: 'preserveDecoder', kind: 'json'},
   {key: 'compact', enc: 'compactEncoder', dec: 'compactDecoder', kind: 'json'},
   {key: 'binary', enc: 'binaryEncoder', dec: 'binaryDecoder', kind: 'binary'},
+  // The codec authored from a JSON Schema document instead of a TypeScript type.
+  // It converges on the same structural id as the `clone` column's type-first
+  // twin, hence the same generated codec — so this column is the evidence that
+  // the authoring form costs nothing at run time, not a different strategy.
+  {key: 'jsonSchema', enc: 'jsonSchemaEncoder', dec: 'jsonSchemaDecoder', kind: 'json'},
+  {key: 'jsonSchema binary', enc: 'jsonSchemaBinaryEncoder', dec: 'jsonSchemaBinaryDecoder', kind: 'binary'},
   {key: 'native JSON', enc: null, dec: null, kind: 'native'},
 ];
 
 // Thunk fields whose TS source we extract for the hover panel.
-const SOURCE_FIELDS = ['cloneEncoder', 'mutateEncoder', 'directEncoder', 'compactEncoder', 'binaryEncoder', 'preserveDecoder', 'compactDecoder', 'binaryDecoder'];
+const SOURCE_FIELDS = [
+  'cloneEncoder',
+  'mutateEncoder',
+  'directEncoder',
+  'compactEncoder',
+  'binaryEncoder',
+  'jsonSchemaEncoder',
+  'jsonSchemaBinaryEncoder',
+  'preserveDecoder',
+  'compactDecoder',
+  'binaryDecoder',
+  'jsonSchemaDecoder',
+  'jsonSchemaBinaryDecoder',
+];
 
 // Bandwidth options for the page's round-trip selector (Mbps). Default mid-tier.
 const BANDWIDTHS_MBPS = [10, 100, 1000];

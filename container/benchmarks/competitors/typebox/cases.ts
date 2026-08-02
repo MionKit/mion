@@ -3645,4 +3645,21 @@ export const cases: CompetitorCases = {
       };
     },
   },
+
+  // ── JSON_SCHEMA ──
+  // TypeBox has no runtime JSON Schema INPUT door: TypeCompiler dispatches on
+  // TypeBox's own [Kind] symbol, which a plain document does not carry, and
+  // Type.Unsafe() only overrides the static side (its compiled check is a
+  // no-op). Converting a document to TypeBox needs the separate
+  // json-schema-to-typebox CODEGEN step, which is not a runtime door.
+  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.string_array': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.tuple_pair': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.object_simple': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.record_number': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.union_anyof': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.recursive_tree': NOT_SUPPORTED, // no runtime JSON Schema input door
+  'JSON_SCHEMA.realworld_user': NOT_SUPPORTED, // no runtime JSON Schema input door
 };

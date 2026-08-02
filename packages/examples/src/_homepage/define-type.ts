@@ -1,10 +1,11 @@
+import type * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn} from '@ts-runtypes/core';
 
 // Your TypeScript type is the single source of truth — nothing else to write.
 type User = {
   id: number;
   name: string;
-  email: string;
+  email: TF.Email;
   roles: ('admin' | 'user')[];
 };
 

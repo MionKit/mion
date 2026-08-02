@@ -112,6 +112,13 @@ export interface SerializationCase {
    *  convergence should hold so a regression surfaces as a failure. **/
   idDivergent?: boolean;
 
+  /** Opt a case out of the runTypeFromJsonSchema serializer id-integrity driver
+   *  (`assertJsonSchemaSerializerIdIntegrity`): its runTypeFromJsonSchema-authored encoders
+   *  and the type-first encoders are KNOWN not to resolve the same structural
+   *  id, by design. A SEPARATE flag from `idDivergent` — the divergence sets
+   *  differ per authoring form. Leave UNSET wherever convergence should hold. **/
+  jsonSchemaIdDivergent?: boolean;
+
   /** When `createXxx<T>()` is rendered as an alwaysThrow cache entry
    *  by the Go pipeline (e.g. `never`, root `symbol`, function-typed
    *  tuple slot, Promise root, …). Calling the factory throws at the
@@ -181,4 +188,19 @@ export interface SerializationCase {
   schemaDecoder: SchemaThunk<JsonDecoderFn>;
   schemaBinaryEncoder: SchemaThunk<BinaryEncoderFn>;
   schemaBinaryDecoder: SchemaThunk<BinaryDecoderFn>;
+
+  /** JSON-Schema variants — the THIRD authoring form (draft 2020-12 schema
+   *  literal via `runTypeFromJsonSchema({…})`), mirroring the four `schema*` thunks above:
+   *  the JSON pair uses the default strategy (clone encoder / strip decoder) and
+   *  the schema literal is duplicated across all four BY DESIGN (every thunk
+   *  stays self-contained + single-purpose — benchmarking, code extraction,
+   *  doc-gen). OPTIONAL while the runTypeFromJsonSchema column drains
+   *  milestone-by-milestone (docs/done/json-schema-first-class-implementation.md):
+   *  omitted → `(not implemented)` pending; `'not-supported'` → no JSON Schema
+   *  input spelling for the case's type (note the reason in `serializeNotes`, in
+   *  a line prefixed `JSON Schema:` — the completion meta-check requires it). **/
+  jsonSchemaEncoder?: SchemaThunk<JsonEncoderFn>;
+  jsonSchemaDecoder?: SchemaThunk<JsonDecoderFn>;
+  jsonSchemaBinaryEncoder?: SchemaThunk<BinaryEncoderFn>;
+  jsonSchemaBinaryDecoder?: SchemaThunk<BinaryDecoderFn>;
 }

@@ -18,7 +18,15 @@
 //
 // Everything draws from a passed `rng` so a seed replays the whole edit sequence.
 
-import {type Decl, type GeneratedType, type PropShape, type TypeShape, renderDecl} from '../core/typeGen.ts';
+import {
+  FUZZ_FORMAT_PREAMBLE,
+  renderDecl,
+  usesFormatLeaves,
+  type Decl,
+  type GeneratedType,
+  type PropShape,
+  type TypeShape,
+} from '../core/typeGen.ts';
 
 // A "rooted" type is the unit the gen CLI targets: a set of exported decls plus
 // the NAME of the one the `createX<Root>()` / `gen <Root>` site points at. A
@@ -62,8 +70,12 @@ export interface ModifyResult {
 // Render a rooted type to a source module: every decl exported so the resolver
 // can target any of them by name. `renderDecl` already emits `interface` /
 // `type` / `declare class` / `enum`; prefixing `export ` keeps all valid.
+// Format/not leaves reference the Fz* aliases, so the module carries the
+// (import-free) preamble exactly when a decl uses one.
 export function renderRootedSource(rooted: RootedType): string {
-  return rooted.decls.map((decl) => `export ${renderDecl(decl)}`).join('\n') + '\n';
+  const decls = rooted.decls.map((decl) => `export ${renderDecl(decl)}`).join('\n') + '\n';
+  const usesFormats = usesFormatLeaves({decls: rooted.decls, root: {kind: 'null'}});
+  return usesFormats ? `${FUZZ_FORMAT_PREAMBLE}\n${decls}` : decls;
 }
 
 // --- seeded helpers ------------------------------------------------------------

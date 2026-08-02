@@ -22,8 +22,10 @@ export const CURRENCY = {
   currency_plain: {
     title: 'Unconstrained currency amount',
     description: 'A bare Currency mark: validates as a plain number (isCurrency is presentation metadata, not a constraint).',
-    validateNotes:
+    validateNotes: [
       'Any finite number passes — the isCurrency param adds no numeric constraint of its own. A non-number ("5") fails the number typeof gate.',
+      'JSON Schema: no currency format keyword in draft 2020-12; the currency brand has no schema spelling.',
+    ],
     validate: () => createValidateFn<TF.Currency>(),
     standardSchema: () => createStandardSchema<TF.Currency>(),
     validateReflect: () => {
@@ -50,9 +52,11 @@ export const CURRENCY = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Currency>>(),
     validateSchema: () => createValidateFn(TF.currency()),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Currency>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Currency>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.currency()),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Currency>(),
     getSamples: () => ({valid: [19.99, 0, -50.25], invalid: ['5']}),
     expectedFormatErrors: () => [null],
@@ -60,8 +64,10 @@ export const CURRENCY = {
   currency_max: {
     title: 'Currency with inclusive max',
     description: 'Currency with an upper bound; the format error echoes isCurrency (the friendly-renderer discriminator).',
-    validateNotes:
+    validateNotes: [
       'Boundary value 100 passes (inclusive); 101 fails on `max` with an isCurrency-flagged format error. A non-number ("5") fails the number typeof gate before any format check.',
+      'JSON Schema: no currency format keyword in draft 2020-12; the currency brand has no schema spelling.',
+    ],
     validate: () => createValidateFn<TF.Currency<{max: 100}>>(),
     standardSchema: () => createStandardSchema<TF.Currency<{max: 100}>>(),
     // One hand-authored Standard Schema expectation per file (see
@@ -103,9 +109,11 @@ export const CURRENCY = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Currency<{max: 100}>>>(),
     validateSchema: () => createValidateFn(TF.currency({max: 100})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Currency<{max: 100}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Currency<{max: 100}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.currency({max: 100})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Currency<{max: 100}>>(),
     getSamples: () => ({valid: [100, 0, -50], invalid: [101, '5']}),
     expectedFormatErrors: () => [{name: 'numberFormat', val: 100, formatPathTail: 'max'}, null],
@@ -114,8 +122,10 @@ export const CURRENCY = {
     title: 'Currency in integer minor units',
     description:
       'Currency stored as integer minor units (cents) with a uint16 range; validation mirrors the equivalent Number brand.',
-    validateNotes:
+    validateNotes: [
       'Non-integers fail on `integer`; values above 65535 fail on `max`; negatives fail on `min`. The [0, 65535] bounds also drive the 2-byte binary packing (see the format-serialization suite).',
+      'JSON Schema: no currency format keyword in draft 2020-12; the currency brand has no schema spelling.',
+    ],
     validate: () => createValidateFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     standardSchema: () => createStandardSchema<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     validateReflect: () => {
@@ -142,9 +152,11 @@ export const CURRENCY = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Currency<{integer: true; min: 0; max: 65535}>>>(),
     validateSchema: () => createValidateFn(TF.currency({integer: true, min: 0, max: 65535})),
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Currency<{integer: true; min: 0; max: 65535}>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.currency({integer: true, min: 0, max: 65535})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Currency<{integer: true; min: 0; max: 65535}>>(),
     getSamples: () => ({valid: [0, 1999, 65535], invalid: [19.99, 65536, -1]}),
     expectedFormatErrors: () => [

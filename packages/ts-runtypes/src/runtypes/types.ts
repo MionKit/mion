@@ -115,6 +115,27 @@ export interface RunType<T = unknown> {
   // Populated for a TypeFormat-branded primitive. Drives mock
   // generation (mockSamples) + format-formatter lookup at runtime.
   formatAnnotation?: FormatAnnotation;
+  /** Negated children (the `__rtNot` sentinel on the wire): the generated
+   *  validator accepts only values that match NONE of these. Mocking draws
+   *  from the base generator and rejection-samples against them. */
+  negations?: RunType[];
+  /** Contains assertions (the `__rtContains` sentinel on the wire — JSON
+   *  Schema contains / minContains / maxContains): at least `min` (and at
+   *  most `max`, when `max` ≥ 0) of the array's items validate against
+   *  `child`. Mocking splices `min` child mocks among definitively
+   *  non-matching fillers. */
+  contains?: {child: RunType; min: number; max: number}[];
+  /** patternProperties entries: keys matching `source` must have values
+   *  valid against `value`; `key` is the pattern-branded string child whose
+   *  build-time sample pool powers key mocking. */
+  patternProps?: {source: string; key?: RunType; value: RunType}[];
+  /** propertyNames child: every key validates (as a string) against it. */
+  propNames?: RunType;
+  /** OneOf branch list (the `__rtOneOf` sentinel on a union node — the
+   *  exactly-one combinator / JSON Schema oneOf): the value must match
+   *  exactly one branch. Mocking draws a branch and rejects candidates a
+   *  second branch also matches. */
+  oneOf?: RunType[];
   typeArguments?: RunType[];
   arguments?: RunType[];
   extendsArguments?: RunType[];

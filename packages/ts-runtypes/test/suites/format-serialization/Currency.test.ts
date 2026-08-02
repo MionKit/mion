@@ -14,6 +14,9 @@ import {
   assertBinaryRoundTrip,
   assertSchemaJsonRoundTrip,
   assertSchemaBinaryRoundTrip,
+  assertJsonSchemaJsonRoundTrip,
+  assertJsonSchemaBinaryRoundTrip,
+  titleForJsonSchema,
 } from '../../util/serializationAsserts.ts';
 
 describe('format-serialization / Currency', () => {
@@ -28,5 +31,7 @@ describe('format-serialization / Currency', () => {
     it(`binary - ${c.title}`, () => assertBinaryRoundTrip(c));
     it(`schema - json - ${c.title}`, () => assertSchemaJsonRoundTrip(c));
     it(`schema - binary - ${c.title}`, () => assertSchemaBinaryRoundTrip(c));
+    it(titleForJsonSchema(c, 'jsonschema/json'), () => assertJsonSchemaJsonRoundTrip(c));
+    it(titleForJsonSchema(c, 'jsonschema/binary'), () => assertJsonSchemaBinaryRoundTrip(c));
   }
 });

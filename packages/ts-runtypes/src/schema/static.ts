@@ -166,6 +166,70 @@ export type UnionOf<T extends readonly RunType[]> = T extends readonly [
   ? InferType<Head> | UnionOf<Tail>
   : never;
 
+/** The exactly-one union combinator: the value space is the union of the
+ *  branches, and the generated validator additionally asserts the value
+ *  matches EXACTLY ONE branch (JSON Schema `oneOf` semantics) — a value
+ *  matching two overlapping branches fails where the plain union accepts it.
+ *  Encoding: every non-nullish member carries an OPTIONAL sentinel prop
+ *  holding the branch TUPLE (`A & {__rtOneOf?: Bs} | B & {__rtOneOf?: Bs}`),
+ *  built arm-by-arm so tsgo's subtype reduction cannot swallow a carrier.
+ *  The optional prop keeps every member mutually assignable with its plain
+ *  form, so consumption is exactly plain-union DX: `switch (u.kind)`
+ *  narrows, the value widens back to `A | B`, and `typeof` narrowing leaves
+ *  no phantom arm. `null` / `undefined` branches stay plain (an
+ *  intersection would reduce them to never — any one surviving carrier
+ *  provides the tuple). The tuple preserves the grouping union flattening
+ *  erases, because exclusivity counts BRANCHES: in `OneOf<[A, B | C]>` a
+ *  value matching both B and C matched one branch and passes. Requires two
+ *  or more branches — exactly-one over a single branch is that branch. **/
+export type OneOf<Branches extends readonly [unknown, unknown, ...unknown[]]> = {
+  [K in keyof Branches]: OneOfArm<Branches[K], Branches>;
+}[number];
+// One shallow mapped type + one indexed access — O(1) instantiation depth,
+// no recursion wall at any width. tsgo's indexed-access subtype reduction
+// may drop a REDUNDANT type arm (a branch that subtypes a sibling), which
+// costs only the hover: the branch tuple inside every carrier is what the
+// validator counts, and at least one carrier always survives reduction.
+// OneOfArm's parameter is deliberately NAKED so the conditional
+// distributes: a branch that is itself `A | null` keeps its null plain
+// (`(A & carrier) | null`) instead of dying in an intersection.
+// A DUPLICATED nullish branch resolves never: a null value matches every
+// branch spelling it, so it can never win exactly-one — without this the
+// all-nullish degenerate (`OneOf<[null, null]>`) carries no sentinel at all
+// and silently accepted what the spec rejects. The branch TUPLE keeps the
+// duplicates, so runtime counting stays branch-accurate in the mixed case
+// (`OneOf<[null, null, A]>` rejects null by count, accepts a lone A match).
+// The nullish-dup walk recurses over the tuple, but only a nullish arm ever
+// instantiates it — non-nullish arms keep the O(1) path.
+type OneOfArm<Arm, All extends readonly unknown[]> = Arm extends null | undefined
+  ? OneOfNullishDup<Arm, All> extends true
+    ? never
+    : Arm
+  : Arm & {readonly __rtOneOf?: All};
+// Mutual-extends equality keeps the match exact for the pure null /
+// undefined branches this guards; a nullish value hiding inside a
+// union-valued branch is counted by the runtime (its other arms carry the
+// tuple) and stays out of this static walk.
+type OneOfNullishDup<V, All extends readonly unknown[]> = All extends readonly [infer Head, ...infer Tail]
+  ? [V] extends [Head]
+    ? [Head] extends [V]
+      ? OneOfNullishAgain<V, Tail>
+      : OneOfNullishDup<V, Tail>
+    : OneOfNullishDup<V, Tail>
+  : false;
+type OneOfNullishAgain<V, Rest> = Rest extends readonly [infer Head, ...infer Tail]
+  ? [V] extends [Head]
+    ? [Head] extends [V]
+      ? true
+      : OneOfNullishAgain<V, Tail>
+    : OneOfNullishAgain<V, Tail>
+  : false;
+
+/** The at-least-one union combinator — spelled for JSON Schema `anyOf` name
+ *  parity. Pure sugar: a union already IS at-least-one, so this carries no
+ *  sentinel, adds no runtime behavior, and converges on the plain union's id. **/
+export type AnyOf<Branches extends readonly [unknown, ...unknown[]]> = Branches[number];
+
 /** The intersection of the `InferType` types of a RunType tuple, built recursively
  *  (`InferType<Head> & IntersectionOf<Tail>`), terminating at `unknown` — the identity
  *  of `&` (`X & unknown = X`). The array-form `intersection` fallback brands this for

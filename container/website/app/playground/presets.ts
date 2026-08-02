@@ -239,4 +239,45 @@ type Tree = InferType<typeof MyType>;`,
   ],
 }`,
   },
+  {
+    name: 'JSON Schema',
+    ts: `type MyType = {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  tags: string[];
+};`,
+    // The THIRD authoring form: a draft 2020-12 schema literal handed to
+    // \`runTypeFromJsonSchema(…)\`. It rides the same value-first call shape as the RT.*
+    // builders (\`createX(MyType)\`), so the schema mode needs no special casing,
+    // and \`FromJsonSchema\` recovers the TS type. The \`ts\` form here is the
+    // plain-shape counterpart: the schema's constraint keywords (format /
+    // minLength / minimum) become real checks the plain type has no way to
+    // state, which is the point of the pairing.
+    schema: `import { runTypeFromJsonSchema, FromJsonSchema } from '@ts-runtypes/core/json-schema';
+
+const schema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    name: { type: 'string', minLength: 2, maxLength: 50 },
+    email: { type: 'string', format: 'email' },
+    age: { type: 'integer', minimum: 0, maximum: 130 },
+    tags: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['id', 'name', 'email', 'age', 'tags'],
+} as const;
+
+const MyType = runTypeFromJsonSchema(schema);
+
+type Account = FromJsonSchema<typeof schema>;`,
+    input: `{
+  "id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "age": 36,
+  "tags": ["math", "code"]
+}`,
+  },
 ];

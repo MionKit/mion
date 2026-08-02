@@ -13,6 +13,8 @@ import type {RunType} from '../runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunTypeKindValue} from '../go-generated/runTypeKind.generated.ts';
 import {getMockingFunction} from './mockRegistry.ts';
+import {negationChildMatches, analyticNumericComplement, isNegationMockError} from './negationMatch.ts';
+import {canonicalJson, isStructuralFormat, structuralFormatAccepts} from './structuralFormat.ts';
 import {getRTUtils} from '../runtypes/rtUtils.ts';
 import {nativeMockRandom} from './mockRandom.ts';
 import type {MockRandom} from './mockRandom.ts';
@@ -145,9 +147,82 @@ function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): nu
   return undefined;
 }
 
+// Bounded rejection sampling for negated types: complements of real-world
+// constraints are dense, so a handful of draws converges. A type whose
+// candidates keep matching the negation is an authoring problem and must
+// surface loudly, not spin.
+const NEGATION_MOCK_ATTEMPTS = 32;
+
+/** Dispatch wrapper: negation-bearing nodes (`runType.negations`, the wire
+ *  form of the `__rtNot` sentinel) draw from the base generator — enrichment
+ *  pools included — and keep the first candidate matching NO negated child,
+ *  so `validate(mock())` holds (the compiled validator checks `!(child)`).
+ *  A pool whose values all match the negation throws below rather than
+ *  shipping unsound mocks. **/
+function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
+  const negations = runType.negations;
+  // Structural format annotations (arrayFormat / objectFormat) reject-sample
+  // through the same loop: the array case pre-shapes its draws (length
+  // clamp, unique-aware fill), so this guard mostly polices tuple / record /
+  // bare-object bases where the annotation landed on a non-array node.
+  const structural = isStructuralFormat(runType.formatAnnotation) ? runType.formatAnnotation : undefined;
+  const hasNegations = !!negations && negations.length > 0;
+  if (!hasNegations && !structural) return mockKindSwitch(runType, options, stack);
+  for (let attempt = 0; attempt < NEGATION_MOCK_ATTEMPTS; attempt++) {
+    // Back half of the attempts: shrink collection draws — short (and empty)
+    // arrays dodge negated contains / minItems children that long random
+    // arrays keep matching, turning a ~1e-4 exhaustion flake into never.
+    const attemptOptions =
+      attempt < NEGATION_MOCK_ATTEMPTS / 2
+        ? options
+        : {...options, mock: {...(options.mock as MockOptions), arrayLength: attempt % 3}};
+    const candidate = mockKindSwitch(runType, attemptOptions, stack);
+    if (structural && !structuralFormatAccepts(candidate, structural)) continue;
+    if (hasNegations && negations.some((child) => negationChildMatches(candidate, child))) continue;
+    return candidate;
+  }
+  if (!hasNegations) {
+    throw new Error(
+      `Cannot mock a structural format: ${NEGATION_MOCK_ATTEMPTS} candidates all failed the ${String(runType.formatAnnotation?.name)} constraints. ` +
+        'Provide a MockData pool for this type (enrich) with values that satisfy them.'
+    );
+  }
+  // Numeric bases: the random generator may sit entirely inside the negated
+  // set (integer draws vs ¬Integer); construct complements from the child's
+  // own params instead of giving up.
+  const kind = runType.kind as number;
+  if (kind === RunTypeKind.number || kind === RunTypeKind.bigint) {
+    for (const candidate of analyticNumericComplement(runType)) {
+      if (kind === RunTypeKind.number && !numberFormatAccepts(candidate, runType)) continue;
+      if (!negations.some((child) => negationChildMatches(candidate, child))) return candidate;
+    }
+  }
+  throw new Error(
+    `Cannot mock a negated type: ${NEGATION_MOCK_ATTEMPTS} candidates all matched the negated constraint. ` +
+      'Provide a MockData pool for this type (enrich) with values that do not match the negation.'
+  );
+}
+
+/** Positive filter for analytic complement candidates: the candidate must
+ *  still satisfy the PARENT's own format params (when the negated node also
+ *  carries positive constraints, e.g. a schema-authored
+ *  `{type:'number', minimum: 0, not: {multipleOf: 1}}`). **/
+function numberFormatAccepts(candidate: unknown, runType: RunType): boolean {
+  if (typeof candidate !== 'number' || !Number.isFinite(candidate)) return false;
+  const params = runType.formatAnnotation?.params;
+  if (!params) return true;
+  if (typeof params.min === 'number' && candidate < params.min) return false;
+  if (typeof params.max === 'number' && candidate > params.max) return false;
+  if (typeof params.gt === 'number' && candidate <= params.gt) return false;
+  if (typeof params.lt === 'number' && candidate >= params.lt) return false;
+  if (params.integer === true && !Number.isInteger(candidate)) return false;
+  if (typeof params.multipleOf === 'number' && params.multipleOf !== 0 && candidate % params.multipleOf !== 0) return false;
+  return true;
+}
+
 /** Per-kind dispatch. New kinds land here, NOT in helper files — the whole
  *  switch lives in one place. **/
-function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
+function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
   const mOps = options.mock as MockOptions;
   // The generation's shared random source (seeded or native), threaded on the
   // options bag; every draw below goes through it. Falls back to the shared
@@ -270,9 +345,98 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
       if (!child) throw new Error('Cannot mock array: child runtype missing.');
       // Data-node `rt$length` (fixed or [min,max]) overrides the global length;
       // `rt$items` is the element node threaded into each child mock.
-      const length = dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
-      if (length === 0) return [];
+      let length = dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
+      // arrayFormat annotation: clamp the draw into the declared bounds and
+      // fill unique-aware, so the mockSwitch rejection loop above converges
+      // instead of re-rolling whole arrays.
+      const annotation = runType.formatAnnotation;
+      const arrayParams = annotation?.name === 'arrayFormat' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
+      if (arrayParams) {
+        if (typeof arrayParams.maxItems === 'number' && length > arrayParams.maxItems) length = arrayParams.maxItems;
+        if (typeof arrayParams.minItems === 'number' && length < arrayParams.minItems) length = arrayParams.minItems;
+      }
       const childOpts = withDataNode(options, asDataNode(dataNode?.rt$items));
+      // Contains entries: splice exactly `min` CHILD MOCKS (they validate
+      // the child by the mock soundness invariant) among fillers the loose
+      // matcher DEFINITIVELY rejects (matches() === false is definitive),
+      // so per-entry counts are exact by construction. Contradictions the
+      // construction can prove (min > max, or a matched item the element
+      // type definitively rejects) throw loudly instead of shipping an
+      // unsound mock.
+      const containsChecks = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
+      if (containsChecks.length > 0) {
+        const matchedByEntry: unknown[][] = [];
+        for (const entry of containsChecks) {
+          if (entry.max >= 0 && entry.min > entry.max) {
+            throw new Error('Cannot mock contains: minContains exceeds maxContains — the schema is provably empty.');
+          }
+          const entryItems: unknown[] = [];
+          for (let n = 0; n < entry.min; n++) {
+            const item = mockRunType(entry.child, childOpts, stack);
+            if (!negationChildMatches(item, child)) {
+              throw new Error(
+                'Cannot mock contains: the contains child and the items type are contradictory. ' +
+                  'Provide a MockData pool for this type (enrich).'
+              );
+            }
+            entryItems.push(item);
+          }
+          matchedByEntry.push(entryItems);
+        }
+        const matched = matchedByEntry.flat();
+        const items: unknown[] = [...matched];
+        let fillerAttempts = 0;
+        while (items.length < Math.max(length, matched.length) && fillerAttempts < 64) {
+          fillerAttempts++;
+          const filler = mockRunType(child, childOpts, stack);
+          if (containsChecks.every((entry) => !negationChildMatches(filler, entry.child))) items.push(filler);
+        }
+        if (arrayParams?.uniqueItems === true) {
+          const seen = new Set<string>();
+          const unique = items.filter((item) => {
+            const key = canonicalJson(item);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          // Per-entry survivor count by REFERENCE against that entry's own
+          // constructed items — those validate their child by construction,
+          // so the count is exact, never the loose matcher's over-estimate.
+          containsChecks.forEach((entry, index) => {
+            const surviving = matchedByEntry[index].filter((item) => unique.includes(item)).length;
+            if (surviving < entry.min) {
+              throw new Error(
+                'Cannot mock contains with uniqueItems: the contains child cannot produce enough distinct values. ' +
+                  'Provide a MockData pool for this type (enrich).'
+              );
+            }
+          });
+          return unique;
+        }
+        return items;
+      }
+      if (length === 0) return [];
+      if (arrayParams?.uniqueItems === true) {
+        const seen = new Set<string>();
+        const items: unknown[] = [];
+        let attempts = 0;
+        while (items.length < length && attempts < length * 32) {
+          attempts++;
+          const item = mockRunType(child, childOpts, stack);
+          const key = canonicalJson(item);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          items.push(item);
+        }
+        const minItems = typeof arrayParams.minItems === 'number' ? arrayParams.minItems : 0;
+        if (items.length < minItems) {
+          throw new Error(
+            `Cannot mock a uniqueItems array: the element type cannot produce ${minItems} distinct values. ` +
+              'Provide a MockData pool for this type (enrich) with enough distinct samples.'
+          );
+        }
+        return items;
+      }
       const items: unknown[] = [];
       for (let i = 0; i < length; i++) items.push(mockRunType(child, childOpts, stack));
       return items;
@@ -294,17 +458,60 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
       });
       // Flatten a trailing rest member into the tuple.
       const lastMember = children[children.length - 1];
-      if (lastMember && isRestTupleMember(lastMember) && Array.isArray(params[params.length - 1])) {
-        return [...params.slice(0, -1), ...(params[params.length - 1] as unknown[])];
+      const flattened =
+        lastMember && isRestTupleMember(lastMember) && Array.isArray(params[params.length - 1])
+          ? [...params.slice(0, -1), ...(params[params.length - 1] as unknown[])]
+          : params;
+      // arrayFormat annotation on a tuple base (a prefixItems schema with
+      // uniqueItems / maxItems): shape the draw — dedupe first, then cap the
+      // length — so the mockSwitch rejection loop converges. A dedupe that
+      // starves a REQUIRED slot just fails validate and re-rolls up there.
+      const annotation = runType.formatAnnotation;
+      let shaped = flattened;
+      if (annotation?.name === 'arrayFormat') {
+        const arrayParams = (annotation.params ?? {}) as Record<string, unknown>;
+        if (arrayParams.uniqueItems === true) {
+          const seen = new Set<string>();
+          shaped = shaped.filter((item) => {
+            const key = canonicalJson(item);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+        if (typeof arrayParams.maxItems === 'number' && shaped.length > arrayParams.maxItems) {
+          shaped = shaped.slice(0, arrayParams.maxItems);
+        }
       }
-      return params;
+      // contains over a TUPLE base has no sound generation story (fixed
+      // slots cannot be spliced): pass only when the bounds are provably
+      // met — min 0 with the loose over-count inside max — else give up
+      // loudly rather than ship a maybe-invalid mock.
+      const tupleContains = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
+      for (const entry of tupleContains) {
+        const overCount = shaped.filter((item) => negationChildMatches(item, entry.child)).length;
+        if (entry.min > 0 || (entry.max >= 0 && overCount > entry.max)) {
+          throw new Error(
+            'Cannot mock contains over a tuple (prefixItems) base. Provide a MockData pool for this type (enrich).'
+          );
+        }
+      }
+      return shaped;
     }
     case RunTypeKind.tupleMember:
     case RunTypeKind.parameter: {
       // Both check `optional` before recursing on `child`. Rest members
-      // are flagged via the child's RunTypeKind.rest kind.
+      // arrive either as a RunTypeKind.rest child or as flags: ['rest']
+      // with the ELEMENT type as the direct child (the Go tuple form) —
+      // the latter generates its member array here, mirroring the rest case.
       const child = runType.child as RunType | undefined;
       if (!child) return undefined;
+      if (Array.isArray(runType.flags) && (runType.flags as unknown[]).includes('rest') && child.kind !== RunTypeKind.rest) {
+        const length = random.int(0, mOps.maxRandomItemsLength);
+        const items: unknown[] = [];
+        for (let i = 0; i < length; i++) items.push(mockRunType(child, options, stack));
+        return items;
+      }
       if (runType.optional && !isRestTupleMember(runType)) {
         if (random.float() > mOps.optionalProbability) return undefined;
       }
@@ -372,6 +579,41 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
       return parent;
     }
     case RunTypeKind.union: {
+      // OneOf (exactly-one): draw from the BRANCH list and reject any
+      // candidate a second branch also matches — the mock must land in
+      // exactly one branch or the generated validator rejects it. Branch
+      // rotation + a bounded attempt budget mirror the negation loop;
+      // exclusivity can be genuinely unsatisfiable (duplicate branches), so
+      // exhaustion throws loudly instead of shipping an invalid mock.
+      const oneOfBranches = runType.oneOf as RunType[] | undefined;
+      if (oneOfBranches && oneOfBranches.length > 0) {
+        // An explicit unionIndex picks the BRANCH (the tuple as written,
+        // duplicates and grouping preserved) — the author's pick, no silent
+        // fallback: every draw comes from that branch and a pick that can't
+        // land exclusively throws.
+        const pickedBranch = mOps.unionIndex;
+        if (pickedBranch !== undefined && (pickedBranch < 0 || pickedBranch >= oneOfBranches.length)) {
+          throw new Error('unionIndex must be between 0 and the number of oneOf branches.');
+        }
+        // Budget scales with width so rotation reaches EVERY branch even
+        // past 32 of them (each branch gets at least four draws).
+        const attempts = Math.max(32, oneOfBranches.length * 4);
+        for (let attempt = 0; attempt < attempts; attempt++) {
+          const branchIndex: number = pickedBranch ?? attempt % oneOfBranches.length;
+          let candidate: unknown;
+          try {
+            candidate = mockRunType(oneOfBranches[branchIndex], options, stack);
+          } catch (error) {
+            if (!isNegationMockError(error)) throw error;
+            continue;
+          }
+          const exclusive = oneOfBranches.every((other, i) => i === branchIndex || !negationChildMatches(candidate, other));
+          if (exclusive) return candidate;
+        }
+        throw new Error(
+          `Cannot mock OneOf: no candidate matched exactly one branch after ${attempts} attempts — the branches overlap too heavily (or are duplicates, which no value can satisfy).`
+        );
+      }
       const allChildren = (runType.children ?? []) as RunType[];
       // Pick only among the DataOnly-surviving members so the value passes
       // validate<T> (the validator drops stripped members like symbol /
@@ -386,7 +628,22 @@ function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunTyp
         throw new Error('unionIndex must be between 0 and the number of types in the union.');
       }
       const index = mOps.unionIndex ?? random.int(0, children.length - 1);
-      return mockRunType(children[index], options, stack);
+      // An explicit unionIndex is the author's pick — no silent fallback.
+      if (mOps.unionIndex !== undefined) return mockRunType(children[index], options, stack);
+      // A negated arm can be provably empty (a schema enum member excluded
+      // by a sibling `not`) and exhaust its rejection sampling. Fall through
+      // to the remaining arms; only an all-arms failure surfaces.
+      let negationFailure: unknown;
+      for (let offset = 0; offset < children.length; offset++) {
+        const arm = children[(index + offset) % children.length];
+        try {
+          return mockRunType(arm, options, stack);
+        } catch (error) {
+          if (!isNegationMockError(error)) throw error;
+          negationFailure = error;
+        }
+      }
+      throw negationFailure;
     }
     case RunTypeKind.templateLiteral:
       return buildTemplateLiteralString(runType, mOps, random);
@@ -450,6 +707,94 @@ function buildObjectLiteral(
     const value = mockRunType(member, memberOpts, stack);
     parent[name] = value;
   }
+  // objectFormat annotation (minProperties / maxProperties): shape the draw
+  // into the declared key-count bounds — record mocks deal out dozens of
+  // index keys, so pure rejection sampling in mockSwitch cannot converge.
+  // Undeclared (index-signature) keys trim first; top-up draws more index
+  // batches. Shapes the loop cannot fix (a closed literal below its
+  // minProperties) fall back to the rejection loop's loud give-up.
+  const annotation = runType.formatAnnotation;
+  if (annotation?.name === 'objectFormat') {
+    const params = (annotation.params ?? {}) as Record<string, unknown>;
+    const declared = new Set<string | number>();
+    let indexMember: RunType | undefined;
+    for (const member of children) {
+      if ((member.kind as number) === RunTypeKind.indexSignature) indexMember = member;
+      const name = member.name as string | number | undefined;
+      if (name !== undefined) declared.add(name);
+    }
+    if (typeof params.maxProperties === 'number') {
+      for (const key of Object.keys(parent)) {
+        if (Object.keys(parent).length <= params.maxProperties) break;
+        if (!declared.has(key)) delete parent[key];
+      }
+    }
+    if (typeof params.minProperties === 'number' && indexMember) {
+      let attempts = 0;
+      while (Object.keys(parent).length < params.minProperties && attempts < 32) {
+        attempts++;
+        const indexed = mockRunType(indexMember, options, stack);
+        if (indexed && typeof indexed === 'object') Object.assign(parent, indexed);
+      }
+      if (typeof params.maxProperties === 'number') {
+        for (const key of Object.keys(parent)) {
+          if (Object.keys(parent).length <= params.maxProperties) break;
+          if (!declared.has(key)) delete parent[key];
+        }
+      }
+    }
+  }
+  // patternProperties: values under pattern-matching keys regenerate from
+  // the pattern's own value child (sound by construction); one extra key
+  // per pattern is drawn from the pattern-branded key child so its sample
+  // pool gets exercised. propertyNames: undeclared keys that definitively
+  // fail the child re-key from the child's own mock (a string by
+  // construction), or drop.
+  const patternProps = (runType.patternProps ?? []) as {source: string; key?: RunType; value: RunType}[];
+  if (patternProps.length > 0) {
+    const regexes = patternProps.map((entry) => new RegExp(entry.source));
+    for (const key of Object.keys(parent)) {
+      const matching = patternProps.filter((_entry, index) => regexes[index].test(key));
+      // One matching pattern: regenerate the value from ITS child (sound by
+      // construction). Overlapping patterns need a value satisfying ALL —
+      // no sound single-child generation, so the key drops instead.
+      if (matching.length === 1) parent[key] = mockRunType(matching[0].value, options, stack);
+      else if (matching.length > 1) delete parent[key];
+    }
+    patternProps.forEach((entry, index) => {
+      if (!entry.key) return;
+      const generated = mockRunType(entry.key, options, stack);
+      if (typeof generated === 'string' && regexes[index].test(generated) && !(generated in parent)) {
+        const others = patternProps.some((_other, otherIndex) => otherIndex !== index && regexes[otherIndex].test(generated));
+        if (!others) parent[generated] = mockRunType(entry.value, options, stack);
+      }
+    });
+  }
+  const propNames = runType.propNames as RunType | undefined;
+  if (propNames) {
+    const declaredNames = new Set<string | number>();
+    for (const member of children) {
+      const name = member.name as string | number | undefined;
+      if (name !== undefined) declaredNames.add(name);
+    }
+    // Undeclared keys re-key unconditionally from the child's own mock —
+    // it satisfies the real validator by the soundness invariant, while
+    // keeping a random key would lean on the loose matcher. Declared keys
+    // stay (a schema whose declared names fail propertyNames is
+    // contradictory and surfaces through the rejection loop).
+    for (const key of Object.keys(parent)) {
+      if (declaredNames.has(key)) continue;
+      const entryValue = parent[key];
+      delete parent[key];
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const renamed = mockRunType(propNames, options, stack);
+        if (typeof renamed === 'string' && !(renamed in parent)) {
+          parent[renamed] = entryValue;
+          break;
+        }
+      }
+    }
+  }
   return parent;
 }
 
@@ -489,6 +834,7 @@ function mockNonSerializableNative(runType: RunType): unknown {
 /** True iff `member` is a tuple/parameter wrapper around RunTypeKind.rest. **/
 function isRestTupleMember(member: RunType): boolean {
   if (member.kind === RunTypeKind.rest) return true;
+  if (Array.isArray(member.flags) && (member.flags as unknown[]).includes('rest')) return true;
   const child = member.child as RunType | undefined;
   return child !== undefined && child.kind === RunTypeKind.rest;
 }

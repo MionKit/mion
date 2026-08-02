@@ -58,6 +58,8 @@ describe('FriendlyText i18n sync fuzz', () => {
       }
       expect(report.runs).toBe(SEQUENCES);
     },
-    180_000
+    // Scales with the sequence knob — see enrichFuzz/typeModFuzz (same
+    // sync-body timeout-flag hazard on soak-sized runs).
+    180_000 + SEQUENCES * 8_000
   );
 });

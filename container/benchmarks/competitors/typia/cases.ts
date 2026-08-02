@@ -2708,4 +2708,19 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+
+  // ── JSON_SCHEMA ──
+  // typia validates from a TypeScript type resolved at compile time; a schema
+  // document is data it has no door for. Its json.application<[T]>() is the
+  // OUTPUT direction only.
+  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.string_array': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.tuple_pair': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.object_simple': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.record_number': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.union_anyof': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.recursive_tree': NOT_SUPPORTED, // no JSON Schema input
+  'JSON_SCHEMA.realworld_user': NOT_SUPPORTED, // no JSON Schema input
 };

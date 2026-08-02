@@ -218,9 +218,9 @@ var builtinEntries = []builtinEntry{
 	{
 		namespace:    "rtFormats",
 		functionName: "isUUID",
-		bodyHash:     "LJM7QfXFLI2I25",
+		bodyHash:     "-qbmpXV0FzUXhQ",
 		paramNames:   nil,
-		code:         "return function _isUUID(value, params) {\n    if (typeof value !== 'string' || value.length !== 36) return false;\n    for (let i = 0; i < 36; i++) {\n      if (i === 8 || i === 13 || i === 18 || i === 23) {\n        if (value[i] !== '-') return false;\n      } else if (i === 14) {\n        if (value[i] !== params.version) return false;\n      } else {\n        const charCode = value.charCodeAt(i);\n        const is09 = charCode >= 48 && charCode <= 57;\n        const isaf = charCode >= 97 && charCode <= 102;\n        const isAF = charCode >= 65 && charCode <= 70;\n        if (!(is09 || isaf || isAF)) return false;\n      }\n    }\n    return true;\n  };",
+		code:         "return function _isUUID(value, params) {\n    if (typeof value !== 'string' || value.length !== 36) return false;\n    for (let i = 0; i < 36; i++) {\n      if (i === 8 || i === 13 || i === 18 || i === 23) {\n        if (value[i] !== '-') return false;\n      } else if (i === 14 && params.version !== 'any') {\n        // Version-pinned formats check the version digit; the\n        // version-agnostic UUID ('any' — JSON Schema `format: uuid`)\n        // treats slot 14 as an ordinary hex digit below.\n        if (value[i] !== params.version) return false;\n      } else {\n        const charCode = value.charCodeAt(i);\n        const is09 = charCode >= 48 && charCode <= 57;\n        const isaf = charCode >= 97 && charCode <= 102;\n        const isAF = charCode >= 65 && charCode <= 70;\n        if (!(is09 || isaf || isAF)) return false;\n      }\n    }\n    return true;\n  };",
 		deps:         nil,
 	},
 	{

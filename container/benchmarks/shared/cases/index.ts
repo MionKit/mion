@@ -8,10 +8,11 @@
 
 import {VALIDATION_SUITE} from './validation/index.ts';
 import {FORMAT_VALIDATION_SUITE} from './format-validation/index.ts';
+import {JSON_SCHEMA_SUITE} from './json-schema/index.ts';
 import {REALWORLD} from './realworld/index.ts';
 import type {SharedCase} from './types.ts';
 
-export type SuiteName = 'validation' | 'format-validation' | 'realworld';
+export type SuiteName = 'validation' | 'format-validation' | 'json-schema' | 'realworld';
 
 // `${GROUP}.${case}` over every group in a suite object (`{ATOMIC: {...}, ...}`).
 type GroupKeys<S> = {[G in keyof S]: `${G & string}.${keyof S[G] & string}`}[keyof S];
@@ -19,6 +20,7 @@ type GroupKeys<S> = {[G in keyof S]: `${G & string}.${keyof S[G] & string}`}[key
 export type CaseKey =
   | GroupKeys<typeof VALIDATION_SUITE>
   | GroupKeys<typeof FORMAT_VALIDATION_SUITE>
+  | GroupKeys<typeof JSON_SCHEMA_SUITE>
   | `REALWORLD.${keyof typeof REALWORLD & string}`;
 
 export interface IteratedCase {
@@ -42,6 +44,7 @@ function collect(suite: SuiteName, groups: Groups, out: IteratedCase[]): void {
 const ALL: IteratedCase[] = [];
 collect('validation', VALIDATION_SUITE as unknown as Groups, ALL);
 collect('format-validation', FORMAT_VALIDATION_SUITE as unknown as Groups, ALL);
+collect('json-schema', JSON_SCHEMA_SUITE as unknown as Groups, ALL);
 collect('realworld', {REALWORLD} as unknown as Groups, ALL);
 
 export function iterateCases(): readonly IteratedCase[] {

@@ -57,6 +57,10 @@ describe('enrichment sync fuzz', () => {
       }
       expect(report.runs).toBe(SEQUENCES);
     },
-    120_000
+    // Scales with the sequence knob: a soak-sized run (e.g. 400 sequences /
+    // ~3.3s each observed) must not be flagged by a fixed batch timeout —
+    // sync bodies cannot be preempted, so the flag lands AFTER the work and
+    // discards the verdict.
+    120_000 + SEQUENCES * 8_000
   );
 });

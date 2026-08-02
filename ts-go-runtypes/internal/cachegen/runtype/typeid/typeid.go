@@ -433,8 +433,22 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		// `A | B | …` even when tsgo computes the two in different member orders, and
 		// dedups `A | B` with `B | A`. Runtime member precedence is unaffected — it's
 		// driven by node.Children downstream (union_safeorder.go), not by this id.
-		unionIDs := computer.childIDs(tsType.Distributed())
-		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false)
+		members := tsType.Distributed()
+		oneOfKey := ""
+		// OneOf carriers: the level branch tuple's SORTED ids fold under
+		// `oo{…}` — counting is order-insensitive (`oneOf: [A, B]` ≡
+		// `oneOf: [B, A]`) but the grouping is id-relevant, keeping
+		// OneOf<[A, B]> apart from `A | B`. Member ids stay plain — the
+		// intersection-collapse id skips each member's carrier constituent.
+		if branches, ok := OneOfFromMembers(computer.typeChecker, members); ok {
+			branchIDs := make([]string, 0, len(branches))
+			for _, branch := range branches {
+				branchIDs = append(branchIDs, computer.Compute(branch))
+			}
+			oneOfKey = "oo{" + computer.sortedJoin(branchIDs) + "}"
+		}
+		unionIDs := computer.childIDs(members)
+		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false) + oneOfKey
 	}
 	if flags&checker.TypeFlagsIntersection != 0 {
 		return computer.collapsedIntersectionID(tsType)
@@ -450,6 +464,13 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 }
 
 func (computer *Computer) objectID(tsType *checker.Type) string {
+	// A bare negation sentinel (`{__rtNot?: Child}` with no other member —
+	// how `unknown & {__rtNot?: …}` reaches us after TS collapses the
+	// identity intersection): the id is an unknown base plus the negation
+	// fold, NOT an object literal carrying a property.
+	if childType := NotChildTypeFromMember(computer.typeChecker, tsType); childType != nil {
+		return strconv.Itoa(int(protocol.KindUnknown)) + "!{" + computer.Compute(childType) + "}"
+	}
 	if checker.IsTupleType(tsType) {
 		// Tuple — bracket-delimited child list per the reference algorithm, with
 		// each element's variadic FLAGS (rest / variadic) folded into the id.
@@ -510,8 +531,12 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		return collectionID(int(protocol.KindTuple), ids, true)
 	}
 
-	// Array.
-	if computer.typeChecker.IsArrayLikeType(tsType) {
+	// Array. GetTypeArguments only works on TypeReference targets — an
+	// array-LIKE mapped hybrid (e.g. a mapped type over `T[] & {brand}`)
+	// passes IsArrayLikeType with no reference target and would segfault
+	// the checker, so gate on the Reference flag and let non-references
+	// fall through to the member walks.
+	if computer.typeChecker.IsArrayLikeType(tsType) && tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
@@ -622,6 +647,15 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 	properties := computer.typeChecker.GetPropertiesOfType(tsType)
 	out := make([]string, 0, len(properties))
 	for _, propertySymbol := range properties {
+		// The negation / format sentinels are never real properties: when an
+		// object ∧ sentinel intersection is hashed through the merged
+		// property walk, the sentinel props must stay out of the member list
+		// (the collapse folds them as a `!{…}` tag / format key instead).
+		// Mirrors the serialize-side projectMembersInto skip.
+		if propertySymbol.Name == notChildProp || IsFormatSentinelPropName(propertySymbol.Name) ||
+			IsContainsSentinelPropName(propertySymbol.Name) {
+			continue
+		}
 		out = append(out, computer.memberID(propertySymbol, asClass))
 	}
 	for _, indexInfo := range computer.typeChecker.GetIndexInfosOfType(tsType) {

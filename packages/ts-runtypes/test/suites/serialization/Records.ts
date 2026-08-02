@@ -1,4 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import type {SerializationCase} from './types.ts';
@@ -23,6 +24,12 @@ export const RECORDS = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(TF.string())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(TF.string())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(TF.string())),
+    jsonSchemaEncoder: () => createJsonEncoderFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
+    jsonSchemaDecoder: () => createJsonDecoderFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
     getTestData: () => ({values: [{key1: 'value1', key2: 'value2'}, {}]}),
   },
   index_property_and_prop: {
@@ -44,6 +51,42 @@ export const RECORDS = {
     schemaDecoder: () => createJsonDecoderFn(RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}},
+          required: ['a'],
+          additionalProperties: {type: 'string'},
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}},
+          required: ['a'],
+          additionalProperties: {type: 'string'},
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}},
+          required: ['a'],
+          additionalProperties: {type: 'string'},
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}},
+          required: ['a'],
+          additionalProperties: {type: 'string'},
+        })
+      ),
     getTestData: () => ({values: [{a: 'helloA'}, {a: 'helloA', b: 'helloB'}]}),
   },
   index_property_extra: {
@@ -83,6 +126,42 @@ export const RECORDS = {
       createBinaryDecoderFn(
         RT.intersection(RT.record(RT.union([TF.string(), TF.number()])), RT.object({a: TF.string(), b: TF.number()}))
       ),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
     getTestData: () => ({values: [{key1: 'value1', key2: 'value2', a: 'extra1', b: 123}]}),
   },
   multiple_index_props: {
@@ -90,6 +169,7 @@ export const RECORDS = {
     description:
       'Root `{[key: string]: string; [key: number]: string; [abc: symbol]: Date}` with three heterogeneous index signatures where string and number keys round-trip as object keys while non-serializable symbol-keyed entries are silently dropped, leaving the decoded value with only the string/number keys.',
     serializeNotes: [
+      'JSON Schema: multiple/number-keyed index signatures have no schema spelling (schema property names are strings).',
       'Symbol-keyed entries are non-serializable: JSON.stringify omits them and the round-trip restores only the string/number keys (deserializedValues reflects the dropped symbol keys).',
       'No value-first schema can express multiple heterogeneous index signatures (RT.record takes a single key/value pair), so the schema variants opt out via not-supported.',
     ],
@@ -116,6 +196,10 @@ export const RECORDS = {
     schemaDecoder: 'not-supported',
     schemaBinaryEncoder: 'not-supported',
     schemaBinaryDecoder: 'not-supported',
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const objWithSymbolKeys = {
         key1: 'value1',
@@ -157,14 +241,32 @@ export const RECORDS = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(RT.record(TF.number()))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(RT.record(TF.number()))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(RT.record(TF.number()))),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
     getTestData: () => ({values: [{key1: {nestedKey1: 1, nestedKey2: 2}}]}),
   },
   index_property_nested_date: {
     title: 'Nested Date index',
     description:
       'Root `{[key: string]: {[key: string]: Date}}` record of string-keyed records whose innermost values are `Date`, where JSON and binary round-trip both levels of dynamic keys with each `Date` becoming an ISO string on encode and rebuilt via `new Date(...)` on decode.',
-    serializeNotes:
+    serializeNotes: [
       'Innermost Date values serialize via their ISO string and restore with new Date(...); both index signatures admit every key, so strip and preserve decode identically.',
+      'JSON Schema: the Date properties are instance types with no schema INPUT spelling.',
+    ],
     mutateEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<{[key: string]: {[key: string]: Date}}>(undefined, {strategy: 'direct'}),
@@ -178,6 +280,10 @@ export const RECORDS = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(RT.record(TF.date()))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(RT.record(TF.date()))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(RT.record(TF.date()))),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {
@@ -194,6 +300,7 @@ export const RECORDS = {
     description:
       'Root `{[key: string]: bigint}` dynamic-key record of bigint values where JSON serializes each value as a decimal string (not natively JSON-encodable) and restores it with `BigInt(...)`, binary encodes the values natively, and keys round-trip as plain object keys.',
     serializeNotes: [
+      'JSON Schema: JSON has no bigint; a bigint index value has no schema spelling.',
       'bigint values serialize as decimal strings and restore via BigInt(...); JSON cannot encode bigint directly.',
       'The index signature admits every key, so strip and preserve decode identically.',
     ],
@@ -210,6 +317,10 @@ export const RECORDS = {
     schemaDecoder: () => createJsonDecoderFn(RT.record(TF.bigInt())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.record(TF.bigInt())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.record(TF.bigInt())),
+    jsonSchemaEncoder: 'not-supported',
+    jsonSchemaDecoder: 'not-supported',
+    jsonSchemaBinaryEncoder: 'not-supported',
+    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {key1: 1n, key2: 2n},
@@ -243,6 +354,50 @@ export const RECORDS = {
       createBinaryEncoderFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
+      ),
     getTestData: () => ({values: [{b: 'hello', c: {a: 'world', c: 'world'}}]}),
   },
 } as const satisfies Record<string, SerializationCase>;

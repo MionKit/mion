@@ -135,6 +135,7 @@ const RUN_TYPE_REL_KEYS = [
   'extendsArguments',
   'implements',
   'extends',
+  'negations',
 ] as const;
 
 // Parallel to RUN_TYPE_REL_KEYS: true = the slot holds an ARRAY of relation
@@ -155,6 +156,7 @@ const RUN_TYPE_REL_IS_ARRAY = [
   true, // extendsArguments
   true, // implements
   true, // extends
+  true, // negations
 ] as const;
 
 /** One relation target inside a bundle `rels` row: a row INDEX (number), a

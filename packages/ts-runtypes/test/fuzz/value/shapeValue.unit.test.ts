@@ -5,7 +5,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {withSeededRandom, mixSeed} from '../core/seededRng.ts';
-import {genType, isRecursive, type Decl, type GeneratedType, type TypeShape} from '../core/typeGen.ts';
+import {FORMAT_LEAVES, genType, isRecursive, type Decl, type GeneratedType, type TypeShape} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from './shapeValue.ts';
 
 // Reference validator over the safe subset (an INDEPENDENT oracle for the
@@ -51,6 +51,15 @@ function conforms(shape: TypeShape, value: unknown, decls: Map<string, Decl>): b
       return shape.members.every((m) => conforms(m, value, decls));
     case 'object':
       return objectConforms(shape.props, value, decls);
+    case 'format':
+      return FORMAT_LEAVES[shape.name].test(value); // predicate includes the base-kind check
+    case 'not': {
+      // Not<F> = base kind holds AND the format check fails (never a bare ¬).
+      if (shape.child.kind !== 'format') return false;
+      const spec = FORMAT_LEAVES[shape.child.name];
+      const baseOk = spec.family === 'string' ? typeof value === 'string' : typeof value === 'number' && Number.isFinite(value);
+      return baseOk && !spec.test(value);
+    }
     case 'ref':
       return refConforms(shape.name, value, decls);
     default:

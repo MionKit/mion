@@ -177,6 +177,9 @@ export type Capitalize<P extends StringParams = {}> = String<P & {capitalize: tr
 export interface UUIDParams {
   version: '4' | '7';
 }
+// Version-agnostic UUID — any RFC 9562 version (the JSON Schema `format:
+// 'uuid'` meaning; the spec never pins a version).
+export type UUID = TypeFormat<string, 'uuid', {version: 'any'}, never>;
 export type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}, never>;
 export type UUIDv7 = TypeFormat<string, 'uuid', {version: '7'}, never>;
 
@@ -341,6 +344,8 @@ export const uppercase = presetBuilder<Uppercase>('stringFormat');
 /** Capitalized string (`Capitalize`). **/
 export const capitalize = presetBuilder<Capitalize>('stringFormat');
 
+/** Version-agnostic UUID (`UUID`). **/
+export const uuid = presetBuilder<UUID>('uuid');
 /** UUID v4 (`UUIDv4`). **/
 export const uuidv4 = presetBuilder<UUIDv4>('uuid');
 /** UUID v7 (`UUIDv7`). **/

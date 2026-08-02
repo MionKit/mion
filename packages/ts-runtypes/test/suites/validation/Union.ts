@@ -8,6 +8,7 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const UNION = {
@@ -15,6 +16,7 @@ export const UNION = {
     title: 'Atomic union',
     description: 'union.spec.ts "validate union" Atomic Union suite over common atomic types including Date and bigint.',
     validateNotes: [
+      'JSON Schema: the Date and bigint arms have no schema spelling.',
       'Validates as an OR-chain — first matching arm wins.',
       'Each arm runs its full atomic check: numbers reject NaN / Infinity, Dates reject Invalid Date, etc.',
     ],
@@ -38,6 +40,7 @@ export const UNION = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<Date | number | string | null | bigint>>(),
     validateSchema: () => createValidateFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Date | number | string | null | bigint>(),
     validateReflect: () => {
       const v: Date | number | string | null | bigint = 123;
@@ -51,6 +54,7 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Date | number | string | null | bigint>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Date | number | string | null | bigint>(),
     getValidationErrorsReflect: () => {
       const v: Date | number | string | null | bigint = 123;
@@ -90,6 +94,7 @@ export const UNION = {
     standardSchema: () => createStandardSchema<'UNO' | 'DOS' | 'TRES'>(),
     validateDataOnly: () => createValidateFn<DataOnly<'UNO' | 'DOS' | 'TRES'>>(),
     validateSchema: () => createValidateFn(RT.union([RT.literal('UNO'), RT.literal('DOS'), RT.literal('TRES')])),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({enum: ['UNO', 'DOS', 'TRES']})),
     deserializeValidate: () => deserializeValidate<'UNO' | 'DOS' | 'TRES'>(),
     validateReflect: () => {
       const v: 'UNO' | 'DOS' | 'TRES' = 'UNO';
@@ -103,6 +108,7 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<'UNO' | 'DOS' | 'TRES'>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.literal('UNO'), RT.literal('DOS'), RT.literal('TRES')])),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({enum: ['UNO', 'DOS', 'TRES']})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<'UNO' | 'DOS' | 'TRES'>(),
     getValidationErrorsReflect: () => {
       const v: 'UNO' | 'DOS' | 'TRES' = 'UNO';
@@ -138,8 +144,10 @@ export const UNION = {
     title: 'Large union',
     description:
       'Past the 4 positional union() overloads, the value-first builder routes 8 heterogeneous arms (literals, primitives, and a {a}/{a;b} subset+superset pair) through the recursive UnionOf<T> infer fallback, which must both generate a correct validator and converge on the type-first union id while preserving the subset/superset arms with no subtype collapse at depth 8.',
-    validateNotes:
+    validateNotes: [
       'The `{a}`/`{a; b}` subset pair both stay reachable: a value matching the smaller `{a: string}` arm passes (e.g. `{a: "x"}` is valid), so the superset arm never swallows it. A failing value reports a single `expected: "union"` at the root, not per-arm errors.',
+      'JSON Schema: the bigint arm has no schema spelling (JSON has no bigint).',
+    ],
     validate: () => createValidateFn<'a' | 'b' | number | boolean | null | {a: string} | {a: string; b: number} | {c: bigint}>(),
     standardSchema: () =>
       createStandardSchema<'a' | 'b' | number | boolean | null | {a: string} | {a: string; b: number} | {c: bigint}>(),
@@ -158,6 +166,7 @@ export const UNION = {
           RT.object({c: TF.bigInt()}),
         ])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () =>
       deserializeValidate<'a' | 'b' | number | boolean | null | {a: string} | {a: string; b: number} | {c: bigint}>(),
     validateReflect: () => {
@@ -187,6 +196,7 @@ export const UNION = {
           RT.object({c: TF.bigInt()}),
         ])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<'a' | 'b' | number | boolean | null | {a: string} | {a: string; b: number} | {c: bigint}>(),
     getValidationErrorsReflect: () => {
@@ -227,6 +237,7 @@ export const UNION = {
     standardSchema: () => createStandardSchema<string | number>(),
     validateDataOnly: () => createValidateFn<DataOnly<string | number>>(),
     validateSchema: () => createValidateFn(RT.union([TF.string(), TF.number()])),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}]})),
     deserializeValidate: () => deserializeValidate<string | number>(),
     validateReflect: () => {
       const v: string | number = 'hello';
@@ -239,6 +250,8 @@ export const UNION = {
     getValidationErrors: () => createGetValidationErrorsFn<string | number>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string | number>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.union([TF.string(), TF.number()])),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}]})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string | number>(),
     getValidationErrorsReflect: () => {
       const v: string | number = 'hello';
@@ -279,6 +292,16 @@ export const UNION = {
     standardSchema: () => createStandardSchema<string[] | number[] | boolean[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<string[] | number[] | boolean[]>>(),
     validateSchema: () => createValidateFn(RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean())])),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'array', items: {type: 'string'}},
+            {type: 'array', items: {type: 'number'}},
+            {type: 'array', items: {type: 'boolean'}},
+          ],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<string[] | number[] | boolean[]>(),
     validateReflect: () => {
       const v: string[] | number[] | boolean[] = ['a'];
@@ -292,6 +315,16 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string[] | number[] | boolean[]>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.array(TF.string()), RT.array(TF.number()), RT.array(RT.boolean())])),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'array', items: {type: 'string'}},
+            {type: 'array', items: {type: 'number'}},
+            {type: 'array', items: {type: 'boolean'}},
+          ],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string[] | number[] | boolean[]>(),
     getValidationErrorsReflect: () => {
       const v: string[] | number[] | boolean[] = ['a'];
@@ -325,12 +358,15 @@ export const UNION = {
   array_of_union: {
     title: 'Array of union',
     description: 'union.spec.ts "Arr with union of types" where each element independently runs the full union OR-chain.',
-    validateNotes:
+    validateNotes: [
       'Each element runs the full union OR-chain independently. Mixed-type arrays pass as long as every element matches some arm.',
+      'JSON Schema: the bigint and Date element arms have no schema spelling.',
+    ],
     validate: () => createValidateFn<(string | bigint | boolean | Date)[]>(),
     standardSchema: () => createStandardSchema<(string | bigint | boolean | Date)[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<(string | bigint | boolean | Date)[]>>(),
     validateSchema: () => createValidateFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<(string | bigint | boolean | Date)[]>(),
     validateReflect: () => {
       const v: (string | bigint | boolean | Date)[] = [];
@@ -344,6 +380,7 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<(string | bigint | boolean | Date)[]>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.array(RT.union([TF.string(), TF.bigInt(), RT.boolean(), TF.date()]))),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<(string | bigint | boolean | Date)[]>(),
     getValidationErrorsReflect: () => {
       const v: (string | bigint | boolean | Date)[] = [];
@@ -386,8 +423,10 @@ export const UNION = {
     title: 'Union of objects',
     description:
       "union.spec.ts 'Union Obj' where disjoint object-typed members go through the dependency-call layer with the shared `typeof === 'object' && !== null` guard lifted out of the OR-chain.",
-    validateNotes:
+    validateNotes: [
       'An input passes if it satisfies AT LEAST one arm\'s required props; extra props are ignored (structural), so `{a: "x", aa: true, b: 1}` passes via the `{b: number}` arm. A failing value reports a single `expected: "union"` at the root, not per-arm errors.',
+      'JSON Schema: the bigint-propped arm has no schema spelling (JSON has no bigint).',
+    ],
     validate: () => createValidateFn<{a: string; aa: boolean} | {b: number} | {c: bigint}>(),
     standardSchema: () => createStandardSchema<{a: string; aa: boolean} | {b: number} | {c: bigint}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: string; aa: boolean} | {b: number} | {c: bigint}>>(),
@@ -395,6 +434,7 @@ export const UNION = {
       createValidateFn(
         RT.union([RT.object({a: TF.string(), aa: RT.boolean()}), RT.object({b: TF.number()}), RT.object({c: TF.bigInt()})])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{a: string; aa: boolean} | {b: number} | {c: bigint}>(),
     validateReflect: () => {
       const v: {a: string; aa: boolean} | {b: number} | {c: bigint} = {b: 1};
@@ -411,6 +451,7 @@ export const UNION = {
       createGetValidationErrorsFn(
         RT.union([RT.object({a: TF.string(), aa: RT.boolean()}), RT.object({b: TF.number()}), RT.object({c: TF.bigInt()})])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string; aa: boolean} | {b: number} | {c: bigint}>(),
     getValidationErrorsReflect: () => {
       const v: {a: string; aa: boolean} | {b: number} | {c: bigint} = {b: 1};
@@ -458,6 +499,15 @@ export const UNION = {
       createValidateFn(
         RT.union([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {kind: {const: 'a'}, n: {type: 'number'}}, required: ['kind', 'n']},
+            {type: 'object', properties: {kind: {const: 'b'}, s: {type: 'string'}}, required: ['kind', 's']},
+          ],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{kind: 'a'; n: number} | {kind: 'b'; s: string}>(),
     validateReflect: () => {
       const v: {kind: 'a'; n: number} | {kind: 'b'; s: string} = {kind: 'a', n: 1};
@@ -472,6 +522,15 @@ export const UNION = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.union([RT.object({kind: RT.literal('a'), n: TF.number()}), RT.object({kind: RT.literal('b'), s: TF.string()})])
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {kind: {const: 'a'}, n: {type: 'number'}}, required: ['kind', 'n']},
+            {type: 'object', properties: {kind: {const: 'b'}, s: {type: 'string'}}, required: ['kind', 's']},
+          ],
+        })
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{kind: 'a'; n: number} | {kind: 'b'; s: string}>(),
     getValidationErrorsReflect: () => {
@@ -521,7 +580,10 @@ export const UNION = {
     title: 'Circular union',
     description:
       'union.spec.ts "Union circular" where a self-referential union via object and array arms is handled by always-non-inlined Union, Object, and Array with no IsCircular detection needed, terminating via the dependency-call layer\'s lazy-init two-phase cache registration.',
-    validateNotes: 'Self-recursive unions traverse the cycle until the input value bottoms out at an atomic arm.',
+    validateNotes: [
+      'Self-recursive unions traverse the cycle until the input value bottoms out at an atomic arm.',
+      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
+    ],
     validateSchema: () => {
       const uc = RT.circular(
         RT.union([
@@ -534,6 +596,7 @@ export const UNION = {
       );
       return createValidateFn(uc);
     },
+    validateJsonSchema: 'not-supported',
     validate: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return createValidateFn<UnionC>();
@@ -580,6 +643,7 @@ export const UNION = {
       );
       return createGetValidationErrorsFn(uc);
     },
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
       return deserializeGetValidationErrors<UnionC>();
@@ -623,8 +687,10 @@ export const UNION = {
     title: 'Union with methods',
     description:
       'union.spec.ts "Union with objects containing methods" where each arm carries a method that is skipped via the property-emit function-skip rule, so the AND chain inside each object reduces to the data-only props.',
-    validateNotes:
+    validateNotes: [
       'TS DIVERGENCE: method members (`getName`/`getAge`) are non-serializable and dropped, so each arm checks only its data prop — `{name: "x"}` with no method at all PASSES, and a wrong-typed method would not be caught.',
+      'JSON Schema: method-bearing arms are not data and have no schema spelling.',
+    ],
     validate: () => createValidateFn<{name: string; getName(): string} | {age: number; getAge(): number}>(),
     standardSchema: () => createStandardSchema<{name: string; getName(): string} | {age: number; getAge(): number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{name: string; getName(): string} | {age: number; getAge(): number}>>(),
@@ -635,6 +701,7 @@ export const UNION = {
           RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
         ])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{name: string; getName(): string} | {age: number; getAge(): number}>(),
     validateReflect: () => {
       const v: {name: string; getName(): string} | {age: number; getAge(): number} = {
@@ -660,6 +727,7 @@ export const UNION = {
           RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
         ])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<{name: string; getName(): string} | {age: number; getAge(): number}>(),
     getValidationErrorsReflect: () => {
@@ -711,6 +779,15 @@ export const UNION = {
     standardSchema: () => createStandardSchema<{a: string} & {b: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: string} & {b: number}>>(),
     validateSchema: () => createValidateFn(RT.intersection(RT.object({a: TF.string()}), RT.object({b: TF.number()}))),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          allOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{a: string} & {b: number}>(),
     validateReflect: () => {
       const v: {a: string} & {b: number} = {a: 'x', b: 1};
@@ -724,6 +801,15 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: string} & {b: number}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.intersection(RT.object({a: TF.string()}), RT.object({b: TF.number()}))),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          allOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {b: {type: 'number'}}, required: ['b']},
+          ],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string} & {b: number}>(),
     getValidationErrorsReflect: () => {
       const v: {a: string} & {b: number} = {a: 'x', b: 1};
@@ -768,8 +854,10 @@ export const UNION = {
     title: 'Union with index arm',
     description:
       "union.spec.ts 'validate an union with index property' where one arm carries a named prop and an index signature, accepting index-typed extras alongside the named prop.",
-    validateNotes:
+    validateNotes: [
       'The index arm is NOT a catch-all: every extra key must match the index value type, so `{c: 1n, d: 2n}` passes but `{c: 1n, d: "hello"}` fails (string under a `bigint` index). A failing value reports a single `expected: "union"` at the root.',
+      'JSON Schema: the bigint index arm has no schema spelling (JSON has no bigint).',
+    ],
     validate: () => createValidateFn<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>(),
     standardSchema: () => createStandardSchema<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>(),
     validateDataOnly: () =>
@@ -782,6 +870,7 @@ export const UNION = {
           RT.intersection(RT.record(TF.bigInt()), RT.object({c: TF.bigInt()})),
         ])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>(),
     validateReflect: () => {
       const v: {a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint} = {b: 123};
@@ -803,6 +892,7 @@ export const UNION = {
           RT.intersection(RT.record(TF.bigInt()), RT.object({c: TF.bigInt()})),
         ])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>(),
     getValidationErrorsReflect: () => {
@@ -862,6 +952,16 @@ export const UNION = {
           RT.object({type: RT.literal('c'), prop: TF.string()}),
         ])
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {type: {const: 'a'}, prop: {type: 'boolean'}}, required: ['type', 'prop']},
+            {type: 'object', properties: {type: {const: 'b'}, prop: {type: 'number'}}, required: ['type', 'prop']},
+            {type: 'object', properties: {type: {const: 'c'}, prop: {type: 'string'}}, required: ['type', 'prop']},
+          ],
+        })
+      ),
     deserializeValidate: () =>
       deserializeValidate<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>(),
     validateReflect: () => {
@@ -889,6 +989,16 @@ export const UNION = {
           RT.object({type: RT.literal('b'), prop: TF.number()}),
           RT.object({type: RT.literal('c'), prop: TF.string()}),
         ])
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {type: {const: 'a'}, prop: {type: 'boolean'}}, required: ['type', 'prop']},
+            {type: 'object', properties: {type: {const: 'b'}, prop: {type: 'number'}}, required: ['type', 'prop']},
+            {type: 'object', properties: {type: {const: 'c'}, prop: {type: 'string'}}, required: ['type', 'prop']},
+          ],
+        })
       ),
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>(),
@@ -947,8 +1057,10 @@ export const UNION = {
     title: 'Mixed arrays and objects',
     description:
       "union.spec.ts 'Union Mixed' where array types and object shapes share the same union and the OR-chain dispatches on shape via Array.isArray versus object typeof.",
-    validateNotes:
+    validateNotes: [
       'Array arms match the WHOLE array, so a mixed array like `[1, "b"]` fails (no single array arm covers it); object arms accept extra props (`{b: 123, c: 123n}` passes via the `{b: number}` arm). A failing value reports a single `expected: "union"` at the root.',
+      'JSON Schema: the bigint-propped arm has no schema spelling (JSON has no bigint).',
+    ],
     validate: () =>
       createValidateFn<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(),
     standardSchema: () =>
@@ -970,6 +1082,7 @@ export const UNION = {
           RT.object({c: TF.bigInt(), aa: RT.literal('string')}),
         ])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () =>
       deserializeValidate<string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}>(),
     validateReflect: () => {
@@ -1007,6 +1120,7 @@ export const UNION = {
           RT.object({c: TF.bigInt(), aa: RT.literal('string')}),
         ])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<
         string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}
@@ -1076,6 +1190,15 @@ export const UNION = {
     standardSchema: () => createStandardSchema<{a: boolean} | {a: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: boolean} | {a: number}>>(),
     validateSchema: () => createValidateFn(RT.union([RT.object({a: RT.boolean()}), RT.object({a: TF.number()})])),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'boolean'}}, required: ['a']},
+            {type: 'object', properties: {a: {type: 'number'}}, required: ['a']},
+          ],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{a: boolean} | {a: number}>(),
     validateReflect: () => {
       const v: {a: boolean} | {a: number} = {a: true};
@@ -1089,6 +1212,15 @@ export const UNION = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: boolean} | {a: number}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.object({a: RT.boolean()}), RT.object({a: TF.number()})])),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'boolean'}}, required: ['a']},
+            {type: 'object', properties: {a: {type: 'number'}}, required: ['a']},
+          ],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: boolean} | {a: number}>(),
     getValidationErrorsReflect: () => {
       const v: {a: boolean} | {a: number} = {a: true};
@@ -1122,8 +1254,10 @@ export const UNION = {
     title: 'Mixed with index',
     description:
       "union.spec.ts 'Union mixed with index property' where arrays and plain objects share the same union as objects carrying index signatures.",
-    validateNotes:
+    validateNotes: [
       'Each index arm constrains ALL extra keys to its value type, so `{a: "hello", b: 123n}` fails every arm (the string-index arm rejects the `bigint` `b`, the bigint-index arm rejects the string `a`). A failing value reports a single `expected: "union"` at the root.',
+      'JSON Schema: the bigint index arm has no schema spelling (JSON has no bigint).',
+    ],
     validate: () =>
       createValidateFn<
         | string[]
@@ -1160,6 +1294,7 @@ export const UNION = {
           RT.intersection(RT.record(TF.bigInt()), RT.object({b: TF.bigInt()})),
         ])
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () =>
       deserializeValidate<
         | string[]
@@ -1214,6 +1349,7 @@ export const UNION = {
           RT.intersection(RT.record(TF.bigInt()), RT.object({b: TF.bigInt()})),
         ])
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<
         | string[]
@@ -1281,12 +1417,15 @@ export const UNION = {
     title: 'Any fallback',
     description:
       "union.spec.ts 'support union with any type' where tsgo collapses `T | any` to `any`, so every value passes and the validator is effectively a no-op true.",
-    validateNotes:
+    validateNotes: [
       '`T | any` collapses to `any` at the type-checker layer — the validator becomes a no-op that always returns true. `T | unknown` behaves the same way. If you want a real fallback that still narrows, use a concrete sibling type.',
+      'JSON Schema: the union collapses to `any`, which has no schema spelling (the always-true schema recovers `unknown`).',
+    ],
     validate: () => createValidateFn<string | any>(),
     standardSchema: () => createStandardSchema<string | any>(),
     validateDataOnly: () => createValidateFn<DataOnly<string | any>>(),
     validateSchema: () => createValidateFn(RT.any()),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<string | any>(),
     validateReflect: () => {
       const v: string | any = 'hello';
@@ -1299,6 +1438,7 @@ export const UNION = {
     getValidationErrors: () => createGetValidationErrorsFn<string | any>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string | any>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.any()),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string | any>(),
     getValidationErrorsReflect: () => {
       const v: string | any = 'hello';
@@ -1331,6 +1471,7 @@ export const UNION = {
     standardSchema: () => createStandardSchema<string | unknown>(),
     validateDataOnly: () => createValidateFn<DataOnly<string | unknown>>(),
     validateSchema: () => createValidateFn(RT.unknown()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema(true)),
     deserializeValidate: () => deserializeValidate<string | unknown>(),
     validateReflect: () => {
       const v: string | unknown = 'hello';
@@ -1343,6 +1484,7 @@ export const UNION = {
     getValidationErrors: () => createGetValidationErrorsFn<string | unknown>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string | unknown>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.unknown()),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema(true)),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string | unknown>(),
     getValidationErrorsReflect: () => {
       const v: string | unknown = 'hello';
@@ -1401,6 +1543,15 @@ export const UNION = {
       return createValidateFn<DataOnly<SmallObj | LargeObj>>();
     },
     validateSchema: () => createValidateFn(RT.union([RT.object({a: TF.string()}), RT.object({a: TF.string(), b: TF.number()})])),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']},
+          ],
+        })
+      ),
     deserializeValidate: () => {
       interface SmallObj {
         a: string;
@@ -1455,6 +1606,15 @@ export const UNION = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.object({a: TF.string()}), RT.object({a: TF.string(), b: TF.number()})])),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {a: {type: 'string'}}, required: ['a']},
+            {type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']},
+          ],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       interface SmallObj {
         a: string;
@@ -1583,6 +1743,20 @@ export const UNION = {
           RT.object({x: TF.string(), y: TF.number(), z: RT.boolean()}),
         ])
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {x: {type: 'string'}}, required: ['x']},
+            {type: 'object', properties: {x: {type: 'string'}, y: {type: 'number'}}, required: ['x', 'y']},
+            {
+              type: 'object',
+              properties: {x: {type: 'string'}, y: {type: 'number'}, z: {type: 'boolean'}},
+              required: ['x', 'y', 'z'],
+            },
+          ],
+        })
+      ),
     deserializeValidate: () => {
       interface Tiny {
         x: string;
@@ -1667,6 +1841,20 @@ export const UNION = {
           RT.object({x: TF.string(), y: TF.number()}),
           RT.object({x: TF.string(), y: TF.number(), z: RT.boolean()}),
         ])
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {x: {type: 'string'}}, required: ['x']},
+            {type: 'object', properties: {x: {type: 'string'}, y: {type: 'number'}}, required: ['x', 'y']},
+            {
+              type: 'object',
+              properties: {x: {type: 'string'}, y: {type: 'number'}, z: {type: 'boolean'}},
+              required: ['x', 'y', 'z'],
+            },
+          ],
+        })
       ),
     deserializeGetValidationErrors: () => {
       interface Tiny {
@@ -1812,6 +2000,16 @@ export const UNION = {
       createValidateFn(
         RT.union([RT.object({id: TF.string()}), RT.object({id: TF.string(), name: TF.string()}), RT.object({value: TF.number()})])
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {id: {type: 'string'}}, required: ['id']},
+            {type: 'object', properties: {id: {type: 'string'}, name: {type: 'string'}}, required: ['id', 'name']},
+            {type: 'object', properties: {value: {type: 'number'}}, required: ['value']},
+          ],
+        })
+      ),
     deserializeValidate: () => {
       interface Base {
         id: string;
@@ -1882,6 +2080,16 @@ export const UNION = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.union([RT.object({id: TF.string()}), RT.object({id: TF.string(), name: TF.string()}), RT.object({value: TF.number()})])
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          anyOf: [
+            {type: 'object', properties: {id: {type: 'string'}}, required: ['id']},
+            {type: 'object', properties: {id: {type: 'string'}, name: {type: 'string'}}, required: ['id', 'name']},
+            {type: 'object', properties: {value: {type: 'number'}}, required: ['value']},
+          ],
+        })
       ),
     deserializeGetValidationErrors: () => {
       interface Base {

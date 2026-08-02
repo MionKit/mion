@@ -11,6 +11,7 @@
 import type * as TF from '@ts-runtypes/core/formats';
 import type * as TFT from '@ts-runtypes/core/formats/temporal';
 import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} from '@ts-runtypes/core';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
@@ -2684,6 +2685,138 @@ export const cases: CompetitorCases = {
         profile: {firstName: string; lastName: string; age?: number};
       }
       const getErrors = createGetValidationErrorsFn<RegistrationForm>();
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+
+  // ── JSON_SCHEMA ──
+  // The schema document is re-authored inline on purpose: `runTypeFromJsonSchema(…)` reads
+  // its literal at BUILD time off this call site, so a cross-module reference
+  // has nothing to read. Kept byte-honest against shared/cases/json-schema by
+  // the alignment audit, which runs both columns over the same samples.
+  'JSON_SCHEMA.string_email': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'email'})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'email'}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.int_bounded': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'integer', minimum: 0, maximum: 130})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'integer', minimum: 0, maximum: 130}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.string_pattern': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z][a-z0-9-]*$'})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z][a-z0-9-]*$'}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.string_array': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.tuple_pair': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.object_simple': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'integer'}, name: {type: 'string'}, nickname: {type: 'string'}},
+        required: ['id', 'name'],
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'integer'}, name: {type: 'string'}, nickname: {type: 'string'}},
+        required: ['id', 'name'],
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.record_number': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'number'}})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'number'}}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.union_anyof': {
+    build: () => createValidateFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}, {type: 'null'}]})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}, {type: 'null'}]}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.recursive_tree': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        $defs: {
+          node: {
+            type: 'object',
+            properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#/$defs/node'}}},
+            required: ['name', 'children'],
+          },
+        },
+        $ref: '#/$defs/node',
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        $defs: {
+          node: {
+            type: 'object',
+            properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#/$defs/node'}}},
+            required: ['name', 'children'],
+          },
+        },
+        $ref: '#/$defs/node',
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.realworld_user': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          id: {type: 'string', format: 'uuid'},
+          email: {type: 'string', format: 'email'},
+          name: {type: 'string', minLength: 2, maxLength: 50},
+          age: {type: 'integer', minimum: 0, maximum: 130},
+          tags: {type: 'array', items: {type: 'string'}},
+          address: {
+            type: 'object',
+            properties: {street: {type: 'string'}, city: {type: 'string'}},
+            required: ['street'],
+          },
+        },
+        required: ['id', 'email', 'name', 'age', 'tags', 'address'],
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          id: {type: 'string', format: 'uuid'},
+          email: {type: 'string', format: 'email'},
+          name: {type: 'string', minLength: 2, maxLength: 50},
+          age: {type: 'integer', minimum: 0, maximum: 130},
+          tags: {type: 'array', items: {type: 'string'}},
+          address: {
+            type: 'object',
+            properties: {street: {type: 'string'}, city: {type: 'string'}},
+            required: ['street'],
+          },
+        },
+        required: ['id', 'email', 'name', 'age', 'tags', 'address'],
+      }));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

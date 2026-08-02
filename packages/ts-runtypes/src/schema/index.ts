@@ -10,6 +10,26 @@
 // the `brand` tag) moved to the `ts-runtypes/formats` surface (namespaced `TF`),
 // and the `temporal.*` builders to `ts-runtypes/formats/temporal` (`TFT`); none of
 // them are exported here — a format's TYPE and its BUILDER now live together.
+// ONE deliberate exception: `not` (format negation) is re-exported below so the
+// schema surface can spell `RT.not(TF.email())` — negation reads as composition,
+// and the schema namespace is where composition lives.
+export {not} from '../formats/not.ts';
+
+// Same exception for the STRUCTURAL formats and child-schema slots — they
+// wrap a composed schema (`RT.arrayFormat(RT.array(…), {…})`), so they read
+// as composition too. Types + builders live together in formats/structural.ts
+// (the schema-door twins; all three authoring modes converge on one id).
+export {arrayFormat, objectFormat, contains, patternProperties, propertyNames} from '../formats/structural.ts';
+export type {
+  ArrayFormat,
+  ObjectFormat,
+  Contains,
+  PatternProperties,
+  PropertyNames,
+  ArrayFormatParams,
+  ObjectFormatParams,
+  ContainsBounds,
+} from '../formats/structural.ts';
 
 // Atomic NON-format builders — the atomic leaves (`literal` / `regexp` / `symbol`),
 // `boolean`, the top / bottom kinds (`any` / `unknown` / `never` / `void`;
@@ -41,6 +61,8 @@ export {
   array,
   tuple,
   union,
+  oneOf,
+  anyOf,
   intersection,
   record,
   map,
@@ -77,7 +99,7 @@ export {
 // Type-level composer helpers (in static.ts). The format-builder helpers
 // (`InferType` / `BrandArg` / `LeafType` / …) live in runtypes/builderTypes.ts;
 // `InferType` is re-exported from the package root.
-export type {PropModifiers, MapTuple, TemplatePart, AssembleTemplate} from './static.ts';
+export type {PropModifiers, MapTuple, TemplatePart, AssembleTemplate, OneOf, AnyOf} from './static.ts';
 
 // Run-type registration is per-entry now: the value-first builders' marker
 // call sites import their type's virtual entry module and register it (plus

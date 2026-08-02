@@ -112,6 +112,7 @@ export const REGISTRY = [
   {name: 'RT_FUZZ_SIZE_SOAK_MS', scope: 'dev', task: '-', desc: 'binary-size fuzz soak duration in ms'},
   {name: 'RT_FUZZ_ROUNDTRIP_SOAK_MS', scope: 'dev', task: '-', desc: 'round-trip fuzz soak duration in ms'},
   {name: 'RT_FUZZ_NONDATA_SOAK_MS', scope: 'dev', task: '-', desc: 'non-data type fuzz soak duration in ms'},
+  {name: 'RT_FUZZ_JSONSCHEMA_SOAK_MS', scope: 'dev', task: '-', desc: 'json-schema translation fuzz soak duration in ms'},
   {name: 'RT_FUZZ_CLONE_SOAK_MS', scope: 'dev', task: '-', desc: 'clone fuzz soak duration in ms'},
   {name: 'RT_FUZZ_ENRICH_SEQUENCES', scope: 'dev', task: '-', desc: 'enrich fuzz sequence count (default 6)'},
   {name: 'RT_FUZZ_ENRICH_MAXCMDS', scope: 'dev', task: '-', desc: 'enrich fuzz max commands per sequence (default 8)'},

@@ -301,11 +301,17 @@ func TestExample_RenameEnum_ambiguousRepoint_fallsThrough(t *testing.T) {
 	requireContains(t, out, "export const friendlyE2: FriendlyText<E2> = {rt$label: ''") // E2 scaffolded empty — no mis-carry
 }
 
-// Change a field's TYPE (age: number -> string). The old value can't carry to a
-// different type, so it is preserved verbatim in a prunable @rtOrphanChild carcass
-// and a fresh skeleton replaces it. This is preservation, not garbage — `gen
-// --prune` removes the carcass.
-func TestExample_ChangeFieldType_parksOldValueInCarcass(t *testing.T) {
+// Change a field's TYPE without changing its template (age: number -> string).
+// The friendly family merges IN PLACE: the authored label still names the
+// field whatever its kind, so it stays LIVE (no carcass, no blank re-scaffold);
+// constraint keys reconcile individually via the rt$errors descent. This is
+// the i18n fuzz T3 preservation contract
+// (docs/done/i18n-sync-authored-leaf-lost-on-prune-update.md). A change that
+// also changes the structural template still replaces
+// (TestMerge_FriendlyChildTypeChanged_TemplateChangeReplaces), and the mock
+// family keeps the whole-field carcass on any type change
+// (TestMerge_MockChildTypeChanged_StillReplaces).
+func TestExample_ChangeFieldType_keepsStillValidLeavesLive(t *testing.T) {
 	existing := "import type { User } from '../src';\n" +
 		"import type { FriendlyText, MockData } from '@ts-runtypes/core';\n\n" +
 		"/** @rtType User#u1 @rtIds {age: numId} */\n" +
@@ -321,8 +327,11 @@ func TestExample_ChangeFieldType_parksOldValueInCarcass(t *testing.T) {
 	})
 	out := mustReconcile(t, spec, existing, sourceDeclaring("User"))
 
-	requireContains(t, out, "@rtOrphanChild")        // old value parked in a carcass...
-	requireContains(t, out, "rt$label: 'Years old'") // ...preserved verbatim (prune to drop it)
+	if strings.Contains(out, "@rtOrphanChild") {
+		t.Errorf("same-template type change must not carcass the field:\n%s", out)
+	}
+	requireContains(t, out, "age: {rt$label: 'Years old'}") // authored label lives on, in place
+	requireContains(t, out, "@rtIds {age: strId}")          // marker refreshed to the new id
 }
 
 // Add a field. A fresh skeleton is inserted; existing authored values are

@@ -48,9 +48,9 @@ func jsStr(s string) string {
 
 // kindJsName maps the base ReflectionKind a format refines onto its RunTypeKind
 // JS property name, so the emitted metadata references RunTypeKind.<name> instead
-// of a bare wire integer. Formats only ever refine these four kinds; a new one
-// panics so the generator (and TestTypeFormatsFileInSync) fail loudly until this
-// map is extended, rather than emitting a broken RunTypeKind.undefined reference.
+// of a bare wire integer. A kind outside this map panics so the generator (and
+// TestTypeFormatsFileInSync) fail loudly until it is extended, rather than
+// emitting a broken RunTypeKind.undefined reference.
 func kindJsName(kind protocol.ReflectionKind) string {
 	switch kind {
 	case protocol.KindString:
@@ -61,6 +61,14 @@ func kindJsName(kind protocol.ReflectionKind) string {
 		return "bigint"
 	case protocol.KindClass:
 		return "class"
+	case protocol.KindArray:
+		return "array"
+	case protocol.KindTuple:
+		return "tuple"
+	case protocol.KindObject:
+		return "object"
+	case protocol.KindObjectLiteral:
+		return "objectLiteral"
 	default:
 		panic(fmt.Sprintf("gen-type-formats: format refines unmapped ReflectionKind %d — extend kindJsName", int(kind)))
 	}
@@ -73,7 +81,14 @@ func Generate() string {
 	entries := formats.Registered()
 	// Registered() sorts by (kind, name); re-sort by name alone for a stable,
 	// human-scannable alphabetical table (and unique-key detection below).
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	// Same-name entries (one family under several base kinds) tie-break by
+	// kind so the deduped row below is deterministic — sort.Slice is unstable.
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Name() != entries[j].Name() {
+			return entries[i].Name() < entries[j].Name()
+		}
+		return entries[i].Kind() < entries[j].Kind()
+	})
 
 	var out strings.Builder
 	out.WriteString("// ============================================================================\n")
@@ -113,7 +128,12 @@ func Generate() string {
 	for _, emitter := range entries {
 		name := emitter.Name()
 		if seen[name] {
-			panic("gen-type-formats: duplicate format name " + name)
+			// One family may register under SEVERAL base kinds (objectFormat
+			// covers objectLiteral AND the bare `object` keyword); the table
+			// stays name-keyed with the first (kind, name)-sorted entry —
+			// the registry itself already panics on an exact (kind, name)
+			// duplicate, so this is never a silent clash between emitters.
+			continue
 		}
 		seen[name] = true
 		fmt.Fprintf(&out, "  %s: {name: %s, kind: RunTypeKind.%s},\n", name, jsStr(name), kindJsName(emitter.Kind()))

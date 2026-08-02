@@ -185,3 +185,20 @@ func TestFingerprint_OptionIsolation(t *testing.T) {
 		t.Errorf("identical inputs should produce identical fingerprint: %q vs %q", a, d)
 	}
 }
+
+// TestFingerprint_BinaryIdentityIsolation — a rebuilt binary (new stamp) or
+// a new release (new version) moves the fingerprint, so a dev binary with
+// changed emitters never serves the previous build's cached function
+// bodies.
+func TestFingerprint_BinaryIdentityIsolation(t *testing.T) {
+	base := Fingerprint(FingerprintInputs{BinaryVersion: "0.11.0", BinaryStamp: "100-200", HashLength: 7, EmitMode: "code"})
+	if rebuilt := Fingerprint(FingerprintInputs{BinaryVersion: "0.11.0", BinaryStamp: "300-200", HashLength: 7, EmitMode: "code"}); rebuilt == base {
+		t.Errorf("binary stamp change should move fingerprint: both %q", base)
+	}
+	if released := Fingerprint(FingerprintInputs{BinaryVersion: "0.12.0", BinaryStamp: "100-200", HashLength: 7, EmitMode: "code"}); released == base {
+		t.Errorf("binary version change should move fingerprint: both %q", base)
+	}
+	if same := Fingerprint(FingerprintInputs{BinaryVersion: "0.11.0", BinaryStamp: "100-200", HashLength: 7, EmitMode: "code"}); same != base {
+		t.Errorf("identical binary identity should produce identical fingerprint: %q vs %q", base, same)
+	}
+}

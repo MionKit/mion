@@ -313,10 +313,15 @@ function buildValidationBench() {
   for (const comp of competitors) sources.set(comp, extractCaseSources(path.join(COMPETITORS_DIR, comp, 'cases.ts')));
 
   const isFormat = (row) => row.suite === 'format-validation';
+  // The json-schema suite gets its OWN bench: its cases are the SAME document
+  // compiled by each library that can read one, which is a different question
+  // from "each library in its own dialect" — folding it into `validation` would
+  // silently mix the two comparisons in one table.
+  const isJsonSchema = (row) => row.suite === 'json-schema';
   const core = emitValidationBench(
     'validation',
     'Validation',
-    rows.filter((row) => !isFormat(row)),
+    rows.filter((row) => !isFormat(row) && !isJsonSchema(row)),
     competitors,
     byComp,
     sources
@@ -329,7 +334,15 @@ function buildValidationBench() {
     byComp,
     sources
   );
-  return core + formats;
+  const jsonSchema = emitValidationBench(
+    'json-schema',
+    'JSON Schema',
+    rows.filter(isJsonSchema),
+    competitors,
+    byComp,
+    sources
+  );
+  return core + formats + jsonSchema;
 }
 
 // Emit one validation bench (index.json + per-case source JSON) for a filtered set of
@@ -392,10 +405,25 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // ── typecost bench ───────────────────────────────────────────────────────────
 // Forms (not runtime competitors): each measures TypeScript type-instantiation
 // count per case (lower is better). Source for the hover comes from each form's
-// authoring file. No ajv — JSON Schema has no static type inference.
+// authoring file, resolved against COMPETITORS_DIR — so `srcFile` is a path
+// relative to container/benchmarks/competitors/, NOT an npm specifier (the two
+// ts-runtypes rows used to name `@ts-runtypes/core/…`, which resolves to a
+// directory that does not exist; extractCaseSources returns empty for a missing
+// file, so both columns shipped with no hover source at all).
+//
+// AJV has no row here, and that asymmetry is the page's point: it consumes the
+// same document ts-go(jsonSchema) and json-schema-to-ts do, but recovers NO
+// static type from it, so there is no type cost to measure.
 const TYPECOST_FORMS = [
-  {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: '@ts-runtypes/core/cases.ts', srcVar: 'cases'},
-  {id: 'ts-runtypes-schema', label: 'ts-runtypes (schema)', srcFile: '@ts-runtypes/core/schemaCases.ts', srcVar: 'schemaCases'},
+  {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: 'ts-runtypes/cases.ts', srcVar: 'cases'},
+  {id: 'ts-runtypes-schema', label: 'ts-runtypes (schema)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
+  {
+    id: 'ts-runtypes-json-schema',
+    label: 'ts-runtypes (jsonSchema)',
+    srcFile: 'ts-runtypes/jsonSchemaCases.ts',
+    srcVar: 'jsonSchemaCases',
+  },
+  {id: 'json-schema-to-ts', label: 'json-schema-to-ts', srcFile: 'json-schema-to-ts/cases.ts', srcVar: 'cases'},
   {id: 'typia', label: 'typia', srcFile: 'typia/cases.ts', srcVar: 'cases'},
   {id: 'typebox', label: 'typebox', srcFile: 'typebox/cases.ts', srcVar: 'cases'},
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
@@ -427,7 +455,12 @@ function buildTypecostBench() {
     return 0;
   }
 
-  const forms = TYPECOST_FORMS.filter((f) => byForm.get(f.id)?.size);
+  // Every declared form is a column, always. A form whose results are missing or
+  // empty (failed non-fatal typia install, dep not in the image yet, partial
+  // re-run over a stale .docdata) renders as n/a cells instead of vanishing — a
+  // silently disappearing column reads as "removed on purpose" when it is really
+  // "no data this run".
+  const forms = TYPECOST_FORMS;
   const sources = new Map(forms.map((f) => [f.id, extractCaseSources(path.join(COMPETITORS_DIR, f.srcFile), f.srcVar)]));
 
   const outDir = path.join(OUT_ROOT, 'typecost');
@@ -458,6 +491,8 @@ function buildTypecostBench() {
   const FORM_LIB = {
     'ts-runtypes-type': 'ts-runtypes',
     'ts-runtypes-schema': 'ts-runtypes',
+    'ts-runtypes-json-schema': 'ts-runtypes',
+    'json-schema-to-ts': 'json-schema-to-ts',
     typia: 'typia',
     typebox: 'typebox',
     zod: 'zod',
@@ -655,9 +690,13 @@ function buildCompiletimeBench() {
     ['transform cost', (d) => clamp0(d.full_ms - d.typecheck_ms)],
   ];
   const tierLabels = TIERS.map(([label]) => label);
-  const cases = competitors.map((lib) => {
+  // Every declared library is a row, always (same posture as the typecost
+  // columns): a lib whose results file is absent — e.g. a quick run narrowed
+  // RT_COMPILETIME_COMPETITORS to ts-runtypes on a fresh .docdata — renders as a
+  // row of n/a cells instead of silently dropping out of the comparison.
+  const cases = COMPILETIME_LIBS.map((lib) => {
     const results = {};
-    for (const [label, pick] of TIERS) results[label] = {compiletime: {valid: rounded(pick(data[lib], lib)), status: 'ok'}};
+    if (data[lib]) for (const [label, pick] of TIERS) results[label] = {compiletime: {valid: rounded(pick(data[lib], lib)), status: 'ok'}};
     fs.writeFileSync(path.join(outDir, `${lib}.json`), JSON.stringify({competitors: []}));
     return {key: lib, title: lib, results};
   });

@@ -31,14 +31,17 @@ export interface TypeFormatMeta {
 
 // Every built-in type format, keyed by its canonical name.
 export const typeFormats = {
+  arrayFormat: {name: 'arrayFormat', kind: RunTypeKind.array},
   bigintFormat: {name: 'bigintFormat', kind: RunTypeKind.bigint},
   date: {name: 'date', kind: RunTypeKind.string},
   dateTime: {name: 'dateTime', kind: RunTypeKind.string},
   domain: {name: 'domain', kind: RunTypeKind.string},
   email: {name: 'email', kind: RunTypeKind.string},
   ip: {name: 'ip', kind: RunTypeKind.string},
+  jsonContent: {name: 'jsonContent', kind: RunTypeKind.string},
   nativeDate: {name: 'nativeDate', kind: RunTypeKind.class},
   numberFormat: {name: 'numberFormat', kind: RunTypeKind.number},
+  objectFormat: {name: 'objectFormat', kind: RunTypeKind.object},
   stringFormat: {name: 'stringFormat', kind: RunTypeKind.string},
   temporalInstant: {name: 'temporalInstant', kind: RunTypeKind.class},
   temporalPlainDate: {name: 'temporalPlainDate', kind: RunTypeKind.class},

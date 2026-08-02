@@ -8,6 +8,7 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const OBJECT = {
@@ -40,6 +41,10 @@ export const OBJECT = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<{a: string; b: number}>>(),
     validateSchema: () => createValidateFn(RT.object({a: TF.string(), b: TF.number()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeValidate: () => deserializeValidate<{a: string; b: number}>(),
     validateReflect: () => {
       const v: {a: string; b: number} = {a: 'hello', b: 1};
@@ -52,6 +57,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{a: string; b: number}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: string; b: number}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({a: TF.string(), b: TF.number()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string; b: number}>(),
     getValidationErrorsReflect: () => {
       const v: {a: string; b: number} = {a: 'hello', b: 1};
@@ -103,8 +112,10 @@ export const OBJECT = {
     title: 'As const literals',
     description:
       'Object pinned with `as const` so every property becomes a readonly literal type, verifying the static and reflect forms agree.',
-    validateNotes:
+    validateNotes: [
       '`readonly` is erased at runtime. Every property must strictly === its literal value (name === "john", age === 30) — no looser matches.',
+      'JSON Schema: readonly property modifiers fold into the structural id and have no schema spelling.',
+    ],
     validate: () => createValidateFn<{readonly name: 'john'; readonly age: 30}>(),
     standardSchema: () => createStandardSchema<{readonly name: 'john'; readonly age: 30}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{readonly name: 'john'; readonly age: 30}>>(),
@@ -114,6 +125,7 @@ export const OBJECT = {
       createValidateFn(
         RT.object({name: RT.propMod({readonly: true}, RT.literal('john')), age: RT.propMod({readonly: true}, RT.literal(30))})
       ),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{readonly name: 'john'; readonly age: 30}>(),
     validateReflect: () => {
       const Usr = {name: 'john', age: 30} as const;
@@ -129,6 +141,7 @@ export const OBJECT = {
       createGetValidationErrorsFn(
         RT.object({name: RT.propMod({readonly: true}, RT.literal('john')), age: RT.propMod({readonly: true}, RT.literal(30))})
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{readonly name: 'john'; readonly age: 30}>(),
     getValidationErrorsReflect: () => {
       const Usr = {name: 'john', age: 30} as const;
@@ -197,6 +210,14 @@ export const OBJECT = {
       return createValidateFn<DataOnly<ReturnType<typeof makeUser>>>();
     },
     validateSchema: () => createValidateFn(RT.object({id: TF.number(), name: TF.string()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     // All REFLECT forms are opted out: a reflect thunk here would be
     // `createValidateFn(makeUser())`, which INVOKES the factory at runtime purely to
     // infer its type — the anti-pattern the resolver flags as a build-time warning
@@ -226,6 +247,14 @@ export const OBJECT = {
       return createGetValidationErrorsFn<DataOnly<ReturnType<typeof makeUser>>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({id: TF.number(), name: TF.string()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       function makeUser(): {id: number; name: string} {
         return {id: 1, name: 'john'};
@@ -263,6 +292,14 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{id: number; name: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{id: number; name: string}>>(),
     validateSchema: () => createValidateFn(RT.object({id: TF.number(), name: TF.string()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{id: number; name: string}>(),
     validateReflect: () => {
       const outer: {user: {id: number; name: string}} = {user: {id: 1, name: 'john'}};
@@ -275,6 +312,14 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{id: number; name: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{id: number; name: string}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({id: TF.number(), name: TF.string()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{id: number; name: string}>(),
     getValidationErrorsReflect: () => {
       const outer: {user: {id: number; name: string}} = {user: {id: 1, name: 'john'}};
@@ -311,6 +356,14 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{id: number; name: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{id: number; name: string}>>(),
     validateSchema: () => createValidateFn(RT.object({id: TF.number(), name: TF.string()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{id: number; name: string}>(),
     validateReflect: () => {
       const items: {id: number; name: string}[] = [{id: 1, name: 'john'}];
@@ -323,6 +376,14 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{id: number; name: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{id: number; name: string}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({id: TF.number(), name: TF.string()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'number'}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{id: number; name: string}>(),
     getValidationErrorsReflect: () => {
       const items: {id: number; name: string}[] = [{id: 1, name: 'john'}];
@@ -364,6 +425,10 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{a: string; b?: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: string; b?: number}>>(),
     validateSchema: () => createValidateFn(RT.object({a: TF.string(), b: RT.optional(TF.number())})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a']})
+      ),
     deserializeValidate: () => deserializeValidate<{a: string; b?: number}>(),
     validateReflect: () => {
       const v: {a: string; b?: number} = {a: 'x'};
@@ -376,6 +441,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{a: string; b?: number}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: string; b?: number}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({a: TF.string(), b: RT.optional(TF.number())})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a']})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string; b?: number}>(),
     getValidationErrorsReflect: () => {
       const v: {a: string; b?: number} = {a: 'x'};
@@ -410,11 +479,15 @@ export const OBJECT = {
   interface_with_date: {
     title: 'Date property',
     description: 'Interface whose Date child validates via instanceof inside the AND chain.',
-    validateNotes: 'Date-typed properties run the atomic `Date` check — Invalid Date instances inside the property fail too.',
+    validateNotes: [
+      'Date-typed properties run the atomic `Date` check — Invalid Date instances inside the property fail too.',
+      'JSON Schema: the native Date property is an instance type with no schema INPUT spelling.',
+    ],
     validate: () => createValidateFn<{date: Date; name: string}>(),
     standardSchema: () => createStandardSchema<{date: Date; name: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{date: Date; name: string}>>(),
     validateSchema: () => createValidateFn(RT.object({date: TF.date(), name: TF.string()})),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{date: Date; name: string}>(),
     validateReflect: () => {
       const v: {date: Date; name: string} = {date: new Date(), name: 'x'};
@@ -427,6 +500,7 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{date: Date; name: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{date: Date; name: string}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({date: TF.date(), name: TF.string()})),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{date: Date; name: string}>(),
     getValidationErrorsReflect: () => {
       const v: {date: Date; name: string} = {date: new Date(), name: 'x'};
@@ -469,6 +543,7 @@ export const OBJECT = {
     description:
       "Interface with a method, where function-typed properties are skipped from validate so `validate({name:'x'})` passes even without `cb`.",
     validateNotes: [
+      'JSON Schema: function-typed properties are not data and have no schema spelling.',
       'TS DIVERGENCE: Function-typed properties are completely IGNORED by validate.',
       'The property may be absent, `undefined`, `null`, a number, a string — anything passes. Even a fresh function is fine.',
       'Rationale: function values cannot be serialized, so the validator (which gates serialization) treats them as out-of-scope.',
@@ -478,6 +553,7 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{name: string; cb: () => any}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{name: string; cb: () => any}>>(),
     validateSchema: () => createValidateFn(RT.object({name: TF.string(), cb: RT.func([], RT.any())})),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{name: string; cb: () => any}>(),
     validateReflect: () => {
       const v: {name: string; cb: () => any} = {name: 'x', cb: () => null};
@@ -490,6 +566,7 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{name: string; cb: () => any}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{name: string; cb: () => any}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({name: TF.string(), cb: RT.func([], RT.any())})),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{name: string; cb: () => any}>(),
     getValidationErrorsReflect: () => {
       const v: {name: string; cb: () => any} = {name: 'x', cb: () => null};
@@ -524,6 +601,17 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{a: string; deep: {b: string; c: number}}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a: string; deep: {b: string; c: number}}>>(),
     validateSchema: () => createValidateFn(RT.object({a: TF.string(), deep: RT.object({b: TF.string(), c: TF.number()})})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+          },
+          required: ['a', 'deep'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{a: string; deep: {b: string; c: number}}>(),
     validateReflect: () => {
       const v: {a: string; deep: {b: string; c: number}} = {a: 'x', deep: {b: 'y', c: 1}};
@@ -537,6 +625,17 @@ export const OBJECT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a: string; deep: {b: string; c: number}}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({a: TF.string(), deep: RT.object({b: TF.string(), c: TF.number()})})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            a: {type: 'string'},
+            deep: {type: 'object', properties: {b: {type: 'string'}, c: {type: 'number'}}, required: ['b', 'c']},
+          },
+          required: ['a', 'deep'],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a: string; deep: {b: string; c: number}}>(),
     getValidationErrorsReflect: () => {
       const v: {a: string; deep: {b: string; c: number}} = {a: 'x', deep: {b: 'y', c: 1}};
@@ -587,6 +686,10 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{tags: string[]}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{tags: string[]}>>(),
     validateSchema: () => createValidateFn(RT.object({tags: RT.array(TF.string())})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {tags: {type: 'array', items: {type: 'string'}}}, required: ['tags']})
+      ),
     deserializeValidate: () => deserializeValidate<{tags: string[]}>(),
     validateReflect: () => {
       const v: {tags: string[]} = {tags: []};
@@ -599,6 +702,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{tags: string[]}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{tags: string[]}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({tags: RT.array(TF.string())})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {tags: {type: 'array', items: {type: 'string'}}}, required: ['tags']})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{tags: string[]}>(),
     getValidationErrorsReflect: () => {
       const v: {tags: string[]} = {tags: []};
@@ -650,6 +757,10 @@ export const OBJECT = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createValidateFn(ic);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     deserializeValidate: () => {
       type ICircular = {name: string; child?: ICircular};
       return deserializeValidate<ICircular>();
@@ -676,6 +787,10 @@ export const OBJECT = {
       const ic = RT.circular(RT.object({name: TF.string(), child: RT.optional(RT.self())}));
       return createGetValidationErrorsFn(ic);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {name: {type: 'string'}, child: {$ref: '#'}}, required: ['name']})
+      ),
     deserializeGetValidationErrors: () => {
       type ICircular = {name: string; child?: ICircular};
       return deserializeGetValidationErrors<ICircular>();
@@ -743,6 +858,14 @@ export const OBJECT = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createValidateFn(ica);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
     deserializeValidate: () => {
       type ICircularArray = {name: string; children?: ICircularArray[]};
       return deserializeValidate<ICircularArray>();
@@ -769,6 +892,14 @@ export const OBJECT = {
       const ica = RT.circular(RT.object({name: TF.string(), children: RT.optional(RT.array(RT.self()))}));
       return createGetValidationErrorsFn(ica);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#'}}},
+          required: ['name'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       type ICircularArray = {name: string; children?: ICircularArray[]};
       return deserializeGetValidationErrors<ICircularArray>();
@@ -829,6 +960,17 @@ export const OBJECT = {
       );
       return createValidateFn(icd);
     },
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            name: {type: 'string'},
+            embedded: {type: 'object', properties: {hello: {type: 'string'}, child: {$ref: '#'}}, required: ['hello']},
+          },
+          required: ['name', 'embedded'],
+        })
+      ),
     deserializeValidate: () => {
       type ICircularDeep = {name: string; embedded: {hello: string; child?: ICircularDeep}};
       return deserializeValidate<ICircularDeep>();
@@ -860,6 +1002,17 @@ export const OBJECT = {
       );
       return createGetValidationErrorsFn(icd);
     },
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            name: {type: 'string'},
+            embedded: {type: 'object', properties: {hello: {type: 'string'}, child: {$ref: '#'}}, required: ['hello']},
+          },
+          required: ['name', 'embedded'],
+        })
+      ),
     deserializeGetValidationErrors: () => {
       type ICircularDeep = {name: string; embedded: {hello: string; child?: ICircularDeep}};
       return deserializeGetValidationErrors<ICircularDeep>();
@@ -909,6 +1062,7 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{[key: string]: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[key: string]: string}>>(),
     validateSchema: () => createValidateFn(RT.record(TF.string())),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
     deserializeValidate: () => deserializeValidate<{[key: string]: string}>(),
     validateReflect: () => {
       const v: {[key: string]: string} = {};
@@ -921,6 +1075,8 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{[key: string]: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[key: string]: string}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(TF.string())),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'string'}})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[key: string]: string}>(),
     getValidationErrorsReflect: () => {
       const v: {[key: string]: string} = {};
@@ -983,6 +1139,15 @@ export const OBJECT = {
       createValidateFn(
         RT.intersection(RT.record(RT.union([TF.string(), TF.number()])), RT.object({a: TF.string(), b: TF.number()}))
       ),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{a: string; b: number; [key: string]: string | number}>(),
     validateReflect: () => {
       const v: {a: string; b: number; [key: string]: string | number} = {a: 'x', b: 1};
@@ -998,6 +1163,15 @@ export const OBJECT = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.intersection(RT.record(RT.union([TF.string(), TF.number()])), RT.object({a: TF.string(), b: TF.number()}))
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {a: {type: 'string'}, b: {type: 'number'}},
+          required: ['a', 'b'],
+          additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]},
+        })
       ),
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<{a: string; b: number; [key: string]: string | number}>(),
@@ -1052,6 +1226,10 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{[key: string]: {[key: string]: number}}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[key: string]: {[key: string]: number}}>>(),
     validateSchema: () => createValidateFn(RT.record(RT.record(TF.number()))),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
     deserializeValidate: () => deserializeValidate<{[key: string]: {[key: string]: number}}>(),
     validateReflect: () => {
       const v: {[key: string]: {[key: string]: number}} = {};
@@ -1064,6 +1242,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{[key: string]: {[key: string]: number}}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[key: string]: {[key: string]: number}}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(RT.record(TF.number()))),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'object', additionalProperties: {type: 'number'}}})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[key: string]: {[key: string]: number}}>(),
     getValidationErrorsReflect: () => {
       const v: {[key: string]: {[key: string]: number}} = {};
@@ -1095,12 +1277,15 @@ export const OBJECT = {
   index_signature_date_value: {
     title: 'Index signature with Date leaves',
     description: 'Nested index signatures using Date as the leaf value type.',
-    validateNotes:
+    validateNotes: [
       "Each leaf value runs the atomic `Date` check — an Invalid Date (`new Date('invalid')`) at a leaf is rejected as `expected: 'date'` despite being a `Date` instance.",
+      'JSON Schema: the Date-valued index signature has no schema INPUT spelling (instance type).',
+    ],
     validate: () => createValidateFn<{[key: string]: {[key: string]: Date}}>(),
     standardSchema: () => createStandardSchema<{[key: string]: {[key: string]: Date}}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[key: string]: {[key: string]: Date}}>>(),
     validateSchema: () => createValidateFn(RT.record(RT.record(TF.date()))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{[key: string]: {[key: string]: Date}}>(),
     validateReflect: () => {
       const v: {[key: string]: {[key: string]: Date}} = {};
@@ -1113,6 +1298,7 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{[key: string]: {[key: string]: Date}}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[key: string]: {[key: string]: Date}}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(RT.record(TF.date()))),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[key: string]: {[key: string]: Date}}>(),
     getValidationErrorsReflect: () => {
       const v: {[key: string]: {[key: string]: Date}} = {};
@@ -1180,6 +1366,17 @@ export const OBJECT = {
     },
     validateSchema: () =>
       createValidateFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
+      ),
     deserializeValidate: () => {
       interface Obj1 {
         a: string;
@@ -1240,6 +1437,17 @@ export const OBJECT = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})
+      ),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            b: {type: 'string'},
+            c: {type: 'object', properties: {a: {type: 'string'}}, required: ['a'], additionalProperties: {type: 'string'}},
+          },
+          required: ['b', 'c'],
+        })
       ),
     deserializeGetValidationErrors: () => {
       interface Obj1 {
@@ -1320,6 +1528,7 @@ export const OBJECT = {
     title: 'Top-level function',
     description: "Function type at the root, validated with `typeof v === 'function'` so any function passes.",
     validateNotes: [
+      'JSON Schema: function types are not data and have no schema spelling.',
       'TS DIVERGENCE: ANY function passes, regardless of signature — arrow functions, async functions, class declarations (typeof === "function") all satisfy `() => void`.',
       'Parameter types and return type are NOT verified at runtime. If you need a specific call shape, validate at the call boundary.',
     ],
@@ -1333,6 +1542,7 @@ export const OBJECT = {
     // (dataOnlyDivergent above), but the thunk is declared so the contract holds.
     validateDataOnly: () => createValidateFn<DataOnly<() => void>>(),
     validateSchema: () => createValidateFn(RT.func()),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<() => void>(),
     validateReflect: () => {
       const v: () => void = () => {};
@@ -1345,6 +1555,7 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<() => void>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<() => void>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.func()),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<() => void>(),
     getValidationErrorsReflect: () => {
       const v: () => void = () => {};
@@ -1384,8 +1595,10 @@ export const OBJECT = {
     title: 'Callable interface',
     description:
       'Interface with a call signature plus data properties, switching the typeof guard from `object` to `function` and AND-chaining the remaining properties.',
-    validateNotes:
+    validateNotes: [
       'Callable interfaces require a function value (`typeof === "function"`) PLUS the declared data properties. JS functions can carry properties; this case validates both halves.',
+      'JSON Schema: callable interfaces are not data and have no schema spelling.',
+    ],
     // Callable interface: it has a call signature, so DataOnly<T> matches the
     // `(...args) => any` branch and collapses to `never`, whereas the emitter
     // validates it as a function-with-data-props. Ids cannot converge.
@@ -1403,6 +1616,7 @@ export const OBJECT = {
     validateDataOnly: () => createValidateFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     validateSchema: () =>
       createValidateFn(RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{(a: number, b: boolean): string; extra: string}>(),
     validateReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1428,6 +1642,7 @@ export const OBJECT = {
       createGetValidationErrorsFn(
         RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}))
       ),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{(a: number, b: boolean): string; extra: string}>(),
     getValidationErrorsReflect: () => {
       const v: {(a: number, b: boolean): string; extra: string} = Object.assign(
@@ -1508,6 +1723,8 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{a?: string; b?: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{a?: string; b?: number}>>(),
     validateSchema: () => createValidateFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
+    validateJsonSchema: () =>
+      createValidateFn(runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}})),
     deserializeValidate: () => deserializeValidate<{a?: string; b?: number}>(),
     validateReflect: () => {
       const v: {a?: string; b?: number} = {};
@@ -1521,6 +1738,10 @@ export const OBJECT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{a?: string; b?: number}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{a?: string; b?: number}>(),
     getValidationErrorsReflect: () => {
       const v: {a?: string; b?: number} = {};
@@ -1565,6 +1786,7 @@ export const OBJECT = {
     description:
       'Class with two atomic props validated structurally, where synthetic `prototype` members are filtered and methods drop out via the function-skip rule.',
     validateNotes: [
+      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
       'Plain object literals matching the class shape PASS — `instanceof` is NOT checked.',
       'Methods are skipped per the function-property rule; only data properties are validated.',
     ],
@@ -1624,6 +1846,7 @@ export const OBJECT = {
       }
       return createValidateFn(RT.classType(MySerializableClass));
     },
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       class MySerializableClass {
         date: Date;
@@ -1710,6 +1933,7 @@ export const OBJECT = {
       }
       return createGetValidationErrorsFn(RT.classType(MySerializableClass));
     },
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       class MySerializableClass {
         date: Date;
@@ -1825,6 +2049,7 @@ export const OBJECT = {
     description:
       'Local RpcError-shaped class with a literal-true brand plus generic type discriminator, exercising the standard class projection end-to-end.',
     validateNotes: [
+      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
       'Brand property + `type` discriminator + `publicMessage` are all required.',
       '`Error` base-class fields (`message`, `name`, `stack`) are NOT declared on the class shape and so are NOT validated.',
     ],
@@ -1894,6 +2119,7 @@ export const OBJECT = {
       }
       return createValidateFn(RT.classType<RpcError<'test-error'>>(RpcError));
     },
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       // Mirrors a typical RpcError public shape:
       //   - `mion@isΣrrθr: true` brand (literal true)
@@ -1988,6 +2214,7 @@ export const OBJECT = {
       }
       return createGetValidationErrorsFn(RT.classType<RpcError<'test-error'>>(RpcError));
     },
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       class RpcError<ErrType extends string> {
         public readonly 'mion@isΣrrθr': true = true;
@@ -2126,6 +2353,7 @@ export const OBJECT = {
     description:
       'Function parameters extracted via `Parameters<F>` as a first-class tuple reusing the standard tuple emit, accepting the right args and rejecting wrong-type or excess args.',
     validateNotes: [
+      'JSON Schema: call-signature parameter tuples are function territory with no schema spelling.',
       'The value validated is the ARGUMENTS array — a positional tuple, not the function. Each slot runs its parameter type check.',
       "Excess args are rejected as `expected: 'tuple'` at the root; a missing required arg fails its slot type (e.g. `[1]` → `expected: 'boolean'` at index 1), since the omitted value reads as `undefined`.",
     ],
@@ -2148,6 +2376,7 @@ export const OBJECT = {
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
     validateSchema: () => createValidateFn(RT.parameters(RT.func([TF.number(), RT.boolean()], TF.string()))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean) => string;
       return deserializeValidate<Parameters<CallSig>>();
@@ -2172,6 +2401,7 @@ export const OBJECT = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.parameters(RT.func([TF.number(), RT.boolean()], TF.string()))),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean) => string;
       return deserializeGetValidationErrors<Parameters<CallSig>>();
@@ -2236,8 +2466,10 @@ export const OBJECT = {
     title: 'Parameters tuple with optional',
     description:
       '`Parameters<F>` tuple with a trailing optional resolving to `[number, boolean, string?]`, where the optional slot accepts undefined or a string.',
-    validateNotes:
+    validateNotes: [
       "The trailing optional slot may be omitted (`[3, false]` passes), but if present it must satisfy its type; excess args beyond the optional are still rejected as `expected: 'tuple'`.",
+      'JSON Schema: call-signature parameter tuples are function territory with no schema spelling.',
+    ],
     // `Parameters<F>` labels are id-relevant; the unlabeled RT.tuple schema
     // cannot converge (see call_signature_params above).
     idDivergent: true,
@@ -2254,6 +2486,7 @@ export const OBJECT = {
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
     validateSchema: () => createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], [TF.string()])))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
       return deserializeValidate<Parameters<CallSig>>();
@@ -2278,6 +2511,7 @@ export const OBJECT = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], [TF.string()])))),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
       return deserializeGetValidationErrors<Parameters<CallSig>>();
@@ -2341,8 +2575,10 @@ export const OBJECT = {
     idDivergent: true,
     description:
       '`Parameters<F>` tuple ending in a rest segment resolving to `[number, boolean, ...Date[]]`, where all trailing slots must satisfy Date.',
-    validateNotes:
+    validateNotes: [
       "Every trailing rest slot runs the rest element check (here `Date`); each failing rest entry is reported at its own index, and an Invalid Date in a rest slot is rejected as `expected: 'date'`.",
+      'JSON Schema: call-signature parameter tuples are function territory with no schema spelling.',
+    ],
     validate: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
       return createValidateFn<Parameters<CallSig>>();
@@ -2356,6 +2592,7 @@ export const OBJECT = {
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
     validateSchema: () => createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], TF.date())))),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
       return deserializeValidate<Parameters<CallSig>>();
@@ -2380,6 +2617,7 @@ export const OBJECT = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], TF.date())))),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
       return deserializeGetValidationErrors<Parameters<CallSig>>();
@@ -2456,6 +2694,10 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<Record<'a' | 'b', number>>(),
     validateDataOnly: () => createValidateFn<DataOnly<Record<'a' | 'b', number>>>(),
     validateSchema: () => createValidateFn(RT.object({a: TF.number(), b: TF.number()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'number'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeValidate: () => deserializeValidate<Record<'a' | 'b', number>>(),
     validateReflect: () => {
       const v: Record<'a' | 'b', number> = {a: 1, b: 2};
@@ -2468,6 +2710,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<Record<'a' | 'b', number>>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Record<'a' | 'b', number>>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({a: TF.number(), b: TF.number()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'number'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Record<'a' | 'b', number>>(),
     getValidationErrorsReflect: () => {
       const v: Record<'a' | 'b', number> = {a: 1, b: 2};
@@ -2526,6 +2772,10 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{[key: string]: string | number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[key: string]: string | number}>>(),
     validateSchema: () => createValidateFn(RT.record(RT.union([TF.string(), TF.number()]))),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]}})
+      ),
     deserializeValidate: () => deserializeValidate<{[key: string]: string | number}>(),
     validateReflect: () => {
       const v: {[key: string]: string | number} = {};
@@ -2538,6 +2788,10 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{[key: string]: string | number}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[key: string]: string | number}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(RT.union([TF.string(), TF.number()]))),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', additionalProperties: {anyOf: [{type: 'string'}, {type: 'number'}]}})
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[key: string]: string | number}>(),
     getValidationErrorsReflect: () => {
       const v: {[key: string]: string | number} = {};
@@ -2577,6 +2831,14 @@ export const OBJECT = {
     standardSchema: () => createStandardSchema<{kind: 'a' | 'b'; n: number}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{kind: 'a' | 'b'; n: number}>>(),
     validateSchema: () => createValidateFn(RT.object({kind: RT.union([RT.literal('a'), RT.literal('b')]), n: TF.number()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {kind: {enum: ['a', 'b']}, n: {type: 'number'}},
+          required: ['kind', 'n'],
+        })
+      ),
     deserializeValidate: () => deserializeValidate<{kind: 'a' | 'b'; n: number}>(),
     validateReflect: () => {
       const v: {kind: 'a' | 'b'; n: number} = {kind: 'a', n: 1};
@@ -2590,6 +2852,14 @@ export const OBJECT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{kind: 'a' | 'b'; n: number}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.object({kind: RT.union([RT.literal('a'), RT.literal('b')]), n: TF.number()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {kind: {enum: ['a', 'b']}, n: {type: 'number'}},
+          required: ['kind', 'n'],
+        })
+      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{kind: 'a' | 'b'; n: number}>(),
     getValidationErrorsReflect: () => {
       const v: {kind: 'a' | 'b'; n: number} = {kind: 'a', n: 1};
@@ -2656,6 +2926,10 @@ export const OBJECT = {
       return createValidateFn<DataOnly<Child>>();
     },
     validateSchema: () => createValidateFn(RT.object({a: TF.string(), b: TF.number()})),
+    validateJsonSchema: () =>
+      createValidateFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeValidate: () => {
       interface Base {
         a: string;
@@ -2704,6 +2978,10 @@ export const OBJECT = {
       return createGetValidationErrorsFn<DataOnly<Child>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({a: TF.string(), b: TF.number()})),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(
+        runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}, b: {type: 'number'}}, required: ['a', 'b']})
+      ),
     deserializeGetValidationErrors: () => {
       interface Base {
         a: string;
@@ -2781,8 +3059,10 @@ export const OBJECT = {
     dataOnlyDivergent: true,
     description:
       "Class that extends a parent class, where inherited data members appear in the child's children alongside its own on the class branch.",
-    validateNotes:
+    validateNotes: [
       'Validated structurally — a plain object `{a: "x", b: 1}` PASSES (no `instanceof` check); inherited props are checked directly alongside the child\'s own, so a missing parent prop fails just like a missing own prop.',
+      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
+    ],
     validate: () => {
       class Base {
         a: string = '';
@@ -2819,6 +3099,7 @@ export const OBJECT = {
       }
       return createValidateFn(RT.classType(Sub));
     },
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       class Base {
         a: string = '';
@@ -2875,6 +3156,7 @@ export const OBJECT = {
       }
       return createGetValidationErrorsFn(RT.classType(Sub));
     },
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       class Base {
         a: string = '';
@@ -2949,8 +3231,10 @@ export const OBJECT = {
     title: 'Number-key index signature',
     description:
       '`{[k: number]: T}` normalises to the same shape as a string-key index signature, since JS object keys are always strings at runtime.',
-    validateNotes:
+    validateNotes: [
       'TS DIVERGENCE: At runtime, all object keys are strings; the number key type constraint is enforced only by the TS compiler. The validator accepts any own enumerable key whose value satisfies T.',
+      'JSON Schema: number-keyed index signatures have no schema spelling (schema property names are strings).',
+    ],
     validate: () => createValidateFn<{[k: number]: string}>(),
     standardSchema: () => createStandardSchema<{[k: number]: string}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{[k: number]: string}>>(),
@@ -2958,6 +3242,7 @@ export const OBJECT = {
     // identically to a string-key one — but the key TYPE is part of the structural
     // id, so the value-first model uses an explicit number key to match.
     validateSchema: () => createValidateFn(RT.record(TF.number(), TF.string())),
+    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{[k: number]: string}>(),
     validateReflect: () => {
       const v: {[k: number]: string} = {};
@@ -2970,6 +3255,7 @@ export const OBJECT = {
     getValidationErrors: () => createGetValidationErrorsFn<{[k: number]: string}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{[k: number]: string}>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(TF.number(), TF.string())),
+    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{[k: number]: string}>(),
     getValidationErrorsReflect: () => {
       const v: {[k: number]: string} = {};

@@ -23,7 +23,9 @@ RunTypes is that channel:
 
 - **Driven by TypeScript, nothing else.** The runtime model is exactly what the type
   system can express. Your types are the schema; there is no parallel schema dialect
-  to learn or keep in sync.
+  to learn or keep in sync. Already have a draft 2020-12 JSON Schema? Hand it over as
+  is (`createValidateFn(runTypeFromJsonSchema({...}))`) and the TypeScript type comes back out of
+  it, landing on the very same generated function as the hand-written type would.
 - **Build time, not run time.** Every `createValidateFn<T>()` is a specialized function
   written out ahead of time. No reflection when your app is live, and no first-call
   cost.

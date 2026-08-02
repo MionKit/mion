@@ -35,11 +35,43 @@ func (runType *RunType) EachRefSlot(visit func(*RunType)) {
 		runType.ExtendsArguments,
 		runType.Implements,
 		runType.Extends,
+		// Negations — the `__rtNot` children; reachable only from the
+		// negation-bearing node, exactly like TypeMeta from a branded one.
+		runType.Negations,
 	} {
 		for _, slot := range slots {
 			if slot != nil {
 				visit(slot)
 			}
+		}
+	}
+	// Contains — the `__rtContains` children (JSON Schema contains); each
+	// entry's child is a full node slot exactly like a negation child.
+	for _, containsCheck := range runType.Contains {
+		if containsCheck != nil && containsCheck.Child != nil {
+			visit(containsCheck.Child)
+		}
+	}
+	// PatternProps / PropNames — the `__rtPatternProps` / `__rtPropNames`
+	// children (JSON Schema patternProperties / propertyNames).
+	for _, patternProp := range runType.PatternProps {
+		if patternProp == nil {
+			continue
+		}
+		if patternProp.Key != nil {
+			visit(patternProp.Key)
+		}
+		if patternProp.Value != nil {
+			visit(patternProp.Value)
+		}
+	}
+	if runType.PropNames != nil {
+		visit(runType.PropNames)
+	}
+	// OneOf — the `__rtOneOf` branch children (the OneOf<[…]> combinator).
+	for _, branch := range runType.OneOf {
+		if branch != nil {
+			visit(branch)
 		}
 	}
 }
