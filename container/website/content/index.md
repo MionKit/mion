@@ -408,6 +408,24 @@ export const userMock: MockData<User> = {
 :::
 ::
 
+::u-page-section
+#title
+Bring the JSON Schemas you already have
+
+#body
+:::div{class="rt-feature-row rt-stack-reverse"}
+<code-import path="packages/examples/src/_homepage/define-json-schema.ts" lang="ts" />
+
+::::card{class="rt-feature-card"}
+### From OpenAPI straight to run-time
+A JSON Schema (draft 2020-12) is a third way to describe a shape. Hand it over as-is and every factory accepts it — validation, JSON + binary serialization, mocking, reflection. Keywords become real checks, the TypeScript type comes back out, and a schema describing the same shape as a type compiles to the exact same generated function.
+
+<br>
+
+[JSON Schema, first class →](/guide/json-schema)
+::::
+
+
 
 ::u-page-section
 #title
@@ -532,22 +550,6 @@ export function __rt_a1b_Xk7(value) {
 :::
 ::
 
-::u-page-section
-#title
-Bring the JSON Schemas you already have
-
-#body
-:::div{class="rt-feature-row rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/define-json-schema.ts" lang="ts" />
-
-::::card{class="rt-feature-card"}
-### From OpenAPI straight to run-time
-A JSON Schema (draft 2020-12) is a third way to describe a shape. Hand it over as-is and every factory accepts it — validation, JSON + binary serialization, mocking, reflection. Keywords become real checks, the TypeScript type comes back out, and a schema describing the same shape as a type compiles to the exact same generated function.
-
-<br>
-
-[JSON Schema, first class →](/guide/json-schema)
-::::
 :::
 ::
 

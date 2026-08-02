@@ -2,12 +2,13 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {run, setResolver, transformedSource} from '../../../../container/website/app/playground/index.ts';
-import {PRESETS} from '../../../../container/website/app/playground/presets.ts';
 import {buildRuntypesOverlay} from '../../../../scripts/website/playground-overlay.mjs';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
-// The JSON Schema authoring form in the playground. Two resolver-free contract
-// checks (the overlay's exports map, the preset itself) plus the live WASM lane.
+// The JSON Schema authoring form in the playground: the overlay's exports-map
+// contract check plus the live WASM lane. The dedicated preset was removed
+// pending the selector-mode rework (docs/todos/playground-json-schema-selector-mode.md);
+// the ENGINE capability stays and is what these tests pin.
 
 const REPO = new URL('../../../../', import.meta.url);
 const RUNTYPES_PKG = fileURLToPath(new URL('packages/ts-runtypes/package.json', REPO));
@@ -30,21 +31,6 @@ describe('playground source overlay — subpath exports', () => {
   it('ships the json-schema sources the map points at', () => {
     const overlay = buildRuntypesOverlay(RUNTYPES_SRC) as Record<string, string>;
     expect(overlay['node_modules/@ts-runtypes/core/src/json-schema/index.ts']).toContain('export {runTypeFromJsonSchema}');
-  });
-});
-
-describe('playground presets — JSON Schema', () => {
-  const preset = PRESETS.find((p) => p.name === 'JSON Schema');
-
-  it('is present and authored against the json-schema subpath', () => {
-    expect(preset).toBeDefined();
-    expect(preset!.schema).toContain("from '@ts-runtypes/core/json-schema'");
-    // The engine's call template is `<factory>(MyType)`, so the root binding name is load-bearing.
-    expect(preset!.schema).toContain('const MyType = runTypeFromJsonSchema(schema)');
-  });
-
-  it('carries an input value the schema accepts', () => {
-    expect(() => JSON.parse(preset!.input)).not.toThrow();
   });
 });
 
@@ -112,10 +98,34 @@ describeIf('playground engine — JSON Schema form (WASM, live execution)', () =
     expect(fromSchema).toBe(fromType);
   });
 
-  it('runs the shipped JSON Schema preset end to end', async () => {
-    const preset = PRESETS.find((p) => p.name === 'JSON Schema')!;
-    const ok = await run('validate', preset.schema, JSON.parse(preset.input), undefined, 'schema');
+  it('runs a constraint-bearing schema document end to end', async () => {
+    // The document the removed preset carried — kept inline so the engine
+    // lane still covers format/bound keywords, not just the plain shape.
+    const source = `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    name: { type: 'string', minLength: 2, maxLength: 50 },
+    email: { type: 'string', format: 'email' },
+    age: { type: 'integer', minimum: 0, maximum: 130 },
+    tags: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['id', 'name', 'email', 'age', 'tags'],
+} as const);`;
+    const value = {
+      id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      age: 36,
+      tags: ['math', 'code'],
+    };
+    const ok = await run('validate', source, value, undefined, 'schema');
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
+    const bad = await run('validate', source, {...value, email: 'not-an-email'}, undefined, 'schema');
+    if (bad.kind !== 'predicate') throw new Error('expected predicate result');
+    expect(bad.value).toBe(false);
   });
 });

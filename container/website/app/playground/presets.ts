@@ -239,14 +239,7 @@ type Tree = InferType<typeof MyType>;`,
   ],
 }`,
   },
-  {
-    name: 'JSON Schema',
-    ts: `type MyType = {
-  id: string;
-  name: string;
-  email: string;
-  age: number;
-  tags: string[];
+];
 };`,
     // The THIRD authoring form: a draft 2020-12 schema literal handed to
     // \`runTypeFromJsonSchema(…)\`. It rides the same value-first call shape as the RT.*
