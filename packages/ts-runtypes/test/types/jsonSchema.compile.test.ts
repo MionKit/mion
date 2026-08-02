@@ -276,7 +276,10 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         {a: string} & {readonly __rtFormatName?: 'objectFormat'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
       >>;
       `,
-      2697
+      // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
+      // ReadonlyPropKeys check on the common path) — a priced feature cost, not
+      // a regression; the ratchet stays one-way from here.
+      2780
     );
   });
 
@@ -302,6 +305,41 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
       4756
+    );
+  });
+
+  it('readOnly lift — a property schema with readOnly: true recovers a readonly member', () => {
+    check(
+      `
+      type _01 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'object';
+          readonly properties: {
+            readonly id: {readonly type: 'string'; readonly readOnly: true};
+            readonly name: {readonly type: 'string'};
+          };
+          readonly required: readonly ['id', 'name'];
+        }>,
+        {readonly id: string; name: string}
+      >>;
+      // Optional + readonly compose; writeOnly stays a read-and-ignored
+      // annotation; readOnly at a NON-property position is an annotation too.
+      type _02 = Expect<Equal<
+        FromJsonSchema<{
+          readonly type: 'object';
+          readonly properties: {
+            readonly note: {readonly type: 'string'; readonly readOnly: true};
+            readonly draft: {readonly type: 'string'; readonly writeOnly: true};
+          };
+        }>,
+        {readonly note?: string; draft?: string}
+      >>;
+      type _03 = Expect<Equal<
+        FromJsonSchema<{readonly type: 'string'; readonly readOnly: true}>,
+        string
+      >>;
+      `,
+      1659
     );
   });
 
@@ -332,7 +370,9 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         {a?: string} & {readonly __rtFormatName?: 'objectFormat'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
       >>;
       `,
-      2448
+      // Raised 2448 → 2468 with the readOnly-lift gate (same reason as the
+      // objects branch).
+      2468
     );
   });
 

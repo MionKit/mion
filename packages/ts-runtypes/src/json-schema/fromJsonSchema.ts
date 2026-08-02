@@ -361,11 +361,37 @@ type IntegerFrom<S> = NumberFormat<Flatten<NumberParamsFrom<S> & {integer: true}
 // object: `required` membership decides `?` — the object-level → property-level
 // optionality inversion (quirk §5.1 of the phase-1 mapping). Two homomorphic
 // groups (required / optional), flattened into one literal.
-type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = Flatten<
+//
+// `readOnly: true` on a PROPERTY schema lifts to the `readonly` modifier —
+// the one annotation with a faithful TS spelling. A readonly member is part
+// of the type's identity (as in TypeScript itself), so the lifted type
+// converges with the hand-written READONLY-membered twin; the generated
+// function bodies are unchanged (the modifier never alters emitted checks).
+// Gated on
+// ReadonlyPropKeys so the common no-readOnly object keeps the two-group cost;
+// a readOnly-bearing object splits each group by modifier (four groups, one
+// Flatten — Flatten is homomorphic, so the modifiers survive it). At every
+// NON-property position (root, items, combinator members) readOnly stays the
+// read-and-ignored annotation the spec defaults it to.
+type ReadonlyPropKeys<P> = {[K in keyof P]: P[K] extends {readOnly: true} ? K : never}[keyof P];
+type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = [ReadonlyPropKeys<P>] extends [never]
+  ? Flatten<
+      {
+        -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
+      } & {
+        -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
+      }
+    >
+  : ObjectFromPropsSplit<P, Req, ReadonlyPropKeys<P>, Root, F>;
+type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Root, F extends [unknown]> = Flatten<
   {
-    -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
+    -readonly [K in keyof P as K extends Req ? (K extends RO ? never : K) : never]: FromJsonSchemaIn<P[K], Root, F>;
   } & {
-    -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
+    readonly [K in keyof P as K extends Req ? (K extends RO ? K : never) : never]: FromJsonSchemaIn<P[K], Root, F>;
+  } & {
+    -readonly [K in keyof P as K extends Req ? never : K extends RO ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
+  } & {
+    readonly [K in keyof P as K extends Req ? never : K extends RO ? K : never]?: FromJsonSchemaIn<P[K], Root, F>;
   }
 >;
 // Structural format brands: the same two TypeFormat sentinels carried by a

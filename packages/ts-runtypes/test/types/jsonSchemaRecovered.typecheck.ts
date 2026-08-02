@@ -383,8 +383,12 @@ export const sUnevaluated = {
 export type TUnevaluated = FromJsonSchema<typeof sUnevaluated>;
 export const vUnevaluated: TUnevaluated = {id: 'a'};
 
-// Annotations describe the schema, never the data — the recovered type is the
-// bare shape (readOnly / writeOnly included: read and ignored, no modifier).
+// Annotations describe the schema, never the data — with ONE lift: a property
+// whose schema carries readOnly: true recovers a `readonly` member and
+// converges with the readonly-membered hand-written twin (the modifier is
+// part of the type's identity, exactly as in TypeScript). writeOnly and every
+// other annotation are read and ignored; readOnly at NON-property positions
+// stays an annotation too.
 export const sAnnotated = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://example.com/user.json',
@@ -401,6 +405,9 @@ export const sAnnotated = {
 } as const;
 export type TAnnotated = FromJsonSchema<typeof sAnnotated>;
 export const vAnnotated: TAnnotated = {id: 'u_1', name: 'ada'};
+// @ts-expect-error readOnly: true lifts to a readonly member
+export const vAnnotatedMutation = (u: TAnnotated): void => void (u.id = 'other');
+export const vAnnotatedWritable = (u: TAnnotated): void => void (u.name = 'ok');
 
 // ---------------------------------------------------------------------------
 // Input-side acceptance — every schema above is a valid runTypeFromJsonSchema

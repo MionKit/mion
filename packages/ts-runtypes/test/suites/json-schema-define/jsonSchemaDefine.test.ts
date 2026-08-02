@@ -343,6 +343,34 @@ describe('json-schema define — ignored annotations', () => {
     );
     expect(annotated).toBe(bare);
   });
+
+  it('readOnly lifts to the readonly modifier and converges with the readonly twin (static shape)', () => {
+    // A readonly member is part of the type's identity (exactly as in
+    // TypeScript), so the lifted schema lands on the cache entry of the
+    // hand-written READONLY-membered twin, not the mutable one.
+    const lifted = getRunTypeId(
+      runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'string', readOnly: true}, name: {type: 'string'}},
+        required: ['id', 'name'],
+      })
+    );
+    expect(lifted).toBe(getRunTypeId<{readonly id: string; name: string}>());
+    expect(lifted).not.toBe(getRunTypeId<{id: string; name: string}>());
+  });
+
+  it('readOnly lifts to the readonly modifier and converges with the readonly twin (reflected value shape)', () => {
+    const value: {readonly id: string; name: string} = {id: 'u_1', name: 'ada'};
+    expect(getRunTypeId(value)).toBe(
+      getRunTypeId(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {id: {type: 'string', readOnly: true}, name: {type: 'string'}},
+          required: ['id', 'name'],
+        })
+      )
+    );
+  });
 });
 
 describe('json-schema define — keyword subset enforcement (type-level)', () => {
