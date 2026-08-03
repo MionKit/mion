@@ -79,6 +79,14 @@ no engine-bug workarounds.
    `oxlint@<v>(oxlint-tsgolint@<v>)`). `pnpm add -Dw oxlint@<v> oxlint-tsgolint@<v>`.
    No `allowBuilds` entry needed — tsgolint ships prebuilt platform binaries
    (`@oxlint-tsgolint/<os>-<arch>`), no install script, so `ignoreScripts: true` is fine.
+
+   **Don't wait for a newer oxlint minor.** As of 2026-08-03, `oxlint` 1.75.0, 1.76.0 and
+   1.77.0 all declare `peerDependencies: { "oxlint-tsgolint": ">=7.0.2001" }`, and 7.0.2001
+   (published 2026-07-21 14:33 UTC, `latest`) is the only version satisfying it — the
+   type-aware engine, and therefore the `ModuleMode` bug below, is the same artifact across
+   all of them. A later oxlint minor only moves the *core* (syntax rules), which just adds
+   unrelated findings to triage in step 3. **`oxlint-tsgolint` moving is the only thing worth
+   re-checking before the run**; if a newer one has itself aged past 30 days, take it.
 2. **Enable** — add `"options": { "typeAware": true }` to
    [`.oxlintrc.json`](../../.oxlintrc.json) (root-config only; **do not** enable `typeCheck` —
    the repo already runs `tsc` for compiler diagnostics). Everything that uses the
