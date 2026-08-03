@@ -46,17 +46,27 @@ import {renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from '
 
 const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../../src/json-schema/fromJsonSchema.ts', import.meta.url));
 const STRUCTURAL_TS = fileURLToPath(new URL('../../../src/formats/structural.ts', import.meta.url));
+const STATIC_TS = fileURLToPath(new URL('../../../src/schema/static.ts', import.meta.url));
 
-/** The `structural-slice` region of formats/structural.ts — the REAL
- *  `FormattedArray` / `FormattedObject` type definitions the translation
- *  references, pulled in verbatim so the fuzz module uses them directly instead
- *  of hand-written stand-ins. `Flatten` is provided by the translation slice. **/
-function extractStructuralRegion(): string {
-  const source = readFileSync(STRUCTURAL_TS, 'utf8');
-  const start = source.indexOf('// #region structural-slice');
-  const end = source.indexOf('// #endregion structural-slice');
-  if (start === -1 || end === -1) throw new Error('structural-slice region markers not found');
+/** Slice a marked `#region <name>` block out of `file` verbatim. **/
+function extractRegion(file: string, name: string): string {
+  const source = readFileSync(file, 'utf8');
+  const start = source.indexOf(`// #region ${name}`);
+  const end = source.indexOf(`// #endregion ${name}`);
+  if (start === -1 || end === -1) throw new Error(`${name} region markers not found`);
   return source.slice(start, end);
+}
+
+/** The `structural-slice` region of formats/structural.ts + the `oneof-slice`
+ *  region of schema/static.ts — the REAL `FormattedArray` / `FormattedObject`
+ *  and `OneOf` definitions the translation references, pulled in verbatim so the
+ *  fuzz module uses them directly instead of hand-written copies. `Flatten` is
+ *  provided by the translation slice. **/
+function extractStructuralRegion(): string {
+  return extractRegion(STRUCTURAL_TS, 'structural-slice');
+}
+function extractOneOfRegion(): string {
+  return extractRegion(STATIC_TS, 'oneof-slice');
 }
 
 /** The sliced `jsonschema-extract` region as a standalone virtual MODULE:
@@ -94,6 +104,7 @@ type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pat
 type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; mockSamples: ['{}', '[]', '"text"', '7', 'true', 'null']}>;
 type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'; mockSamples: ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']}>;
 ${extractStructuralRegion()}
+${extractOneOfRegion()}
 ${source.slice(start, end)}
 `;
 }

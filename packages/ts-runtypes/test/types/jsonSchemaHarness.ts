@@ -1,98 +1,52 @@
 // Harness for the per-branch `FromJsonSchema<S>` instantiation-budget test
-// (runTypeFromJsonSchema.compile.test.ts). Builds the PREAMBLE — the REAL inference
-// machinery sliced VERBATIM out of src/json-schema/fromJsonSchema.ts between
-// the `#region jsonschema-extract` markers (so the harness can never drift from
-// the shipped type) + structural stand-ins for the format brand aliases the
-// region references + assertion helpers — and binds it to the shared compiler
-// measurer in compileHarness.ts.
+// (jsonSchema.compile.test.ts). The budget exists to measure the REAL
+// type-check cost a consumer pays, so the snippets import the REAL
+// `FromJsonSchema` + the REAL format brands straight from source — no sliced
+// region, no hand-written stand-ins. `makeMeasurer` runs the actual TypeScript
+// compiler; with bundler module resolution it follows those imports into the
+// real formats graph, so the instantiation count is the genuine article.
 //
-// The brand stand-ins mirror the REAL `TypeFormat` shape (typeFormat.ts: base &
-// two optional readonly sentinel props) with one distinct row per referenced
-// alias, so the dispatch cost measured here matches the shipped brands without
-// pulling the formats module graph (which would swamp the instantiation count).
-// Brand-level correctness against the real aliases is proven at runtime by the
-// convergence suites; this harness verifies the DISPATCH picks the right row
-// and the mapping logic stays within budget.
+// The measured file lives next to this harness (SNIPPET_FILE) so its relative
+// imports resolve against the real `src/` tree; the extra libs match
+// packages/ts-runtypes/tsconfig.json (the formats value-code names `atob` /
+// `console` / `URL` / Temporal, which es2023 alone lacks).
 
-import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
+import * as ts from 'typescript';
+import {makeMeasurer, type MeasureResult, type MeasurerConfig} from './compileHarness.ts';
 
 export type {MeasureResult};
 
-const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../src/json-schema/fromJsonSchema.ts', import.meta.url));
-const STRUCTURAL_TS = fileURLToPath(new URL('../../src/formats/structural.ts', import.meta.url));
+// The snippet is compiled AT this path, so `../../src/...` reaches the real
+// source tree (this harness is itself at test/types/).
+const SNIPPET_FILE = fileURLToPath(new URL('./__jsonschema_measure__.ts', import.meta.url));
 
-/** Slice the inference machinery out of fromJsonSchema.ts between the region
- *  markers and drop the `export` modifiers so it can live in a non-module
- *  snippet. **/
-function extractJsonSchemaRegion(): string {
-  const source = readFileSync(FROM_JSON_SCHEMA_TS, 'utf8');
-  const start = source.indexOf('// #region jsonschema-extract');
-  const end = source.indexOf('// #endregion jsonschema-extract');
-  if (start === -1 || end === -1) {
-    throw new Error('jsonschema-extract region markers not found in src/json-schema/fromJsonSchema.ts');
-  }
-  return source.slice(start, end).replace(/^export (type|interface) /gm, '$1 ');
-}
-
-/** Slice the `structural-slice` region of formats/structural.ts — the REAL
- *  `FormattedArray` / `FormattedObject` definitions the translation references —
- *  so the budget snippet measures them directly instead of hand-written copies.
- *  `Flatten` is provided by the translation region; `export const` is dropped
- *  too (the name consts) for the non-module snippet. **/
-function extractStructuralRegion(): string {
-  const source = readFileSync(STRUCTURAL_TS, 'utf8');
-  const start = source.indexOf('// #region structural-slice');
-  const end = source.indexOf('// #endregion structural-slice');
-  if (start === -1 || end === -1) {
-    throw new Error('structural-slice region markers not found in src/formats/structural.ts');
-  }
-  return source.slice(start, end).replace(/^export (type|interface|const) /gm, '$1 ');
-}
-
-// Structural stand-ins for the brand names the region references from OUTSIDE
-// itself — the real TypeFormat sentinel shape plus one distinct (Name, Params)
-// identity per format alias (mirroring formats/: uuid carries a version param,
-// ip a version number). StringFormat/NumberFormat are the imported TF.String /
-// TF.Number aliases; the region references them by those names, so they need
-// structural stand-ins here too.
-const BRAND_PREAMBLE = `
-type TypeFormat<Base, Name extends string, Params extends object> = Base & {
-  readonly __rtFormatName?: Name;
-  readonly __rtFormatParams?: Params;
-};
-type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
-type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
-type Email<P extends object = {}> = TypeFormat<string, 'email', P>;
-type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
-type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}>;
-type StringDate = TypeFormat<string, 'date', {}>;
-type StringTime = TypeFormat<string, 'time', {}>;
-type StringDateTime = TypeFormat<string, 'dateTime', {}>;
-type Domain<P extends object = {}> = TypeFormat<string, 'domain', P>;
-type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
-type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
-type Url<P extends object = {}> = TypeFormat<string, 'url', P>;
-type Base64<P extends object = {}> = TypeFormat<
-  string,
-  'stringFormat',
-  P & {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''}}
->;
-type Base32<P extends object = {}> = TypeFormat<
-  string,
-  'stringFormat',
-  P & {pattern: {source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$'; flags: ''}}
->;
-type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''}}>;
-type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true}>;
-type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'}>;
-type OneOf<Branches extends readonly [unknown, unknown, ...unknown[]]> = {
-  [K in keyof Branches]: OneOfStandinArm<Branches[K], Branches>;
-}[number];
-type OneOfStandinArm<Arm, All extends readonly unknown[]> = Arm extends null | undefined
-  ? Arm
-  : Arm & {readonly __rtOneOf?: All};
+// Real imports — the SAME modules fromJsonSchema.ts pulls in. `FromJsonSchema`
+// + every format brand the compile-test twins name, spelled once so the twins
+// (and the door output they compare against) resolve to the shipped types.
+const IMPORTS = `import type {FromJsonSchema, ExactJsonSchema} from '../../src/json-schema/fromJsonSchema.ts';
+import type {
+  Email,
+  UUID,
+  UUIDv4,
+  StringDate,
+  StringTime,
+  StringDateTime,
+  Domain,
+  IPv4,
+  IPv6,
+  Url,
+  Base64,
+  Base32,
+  Base16,
+  JsonContent,
+  JsonContentBase64,
+  FormattedArray,
+  FormattedObject,
+  String as StringFormat,
+  Number as NumberFormat,
+} from '../../src/formats/index.ts';
+import type {OneOf} from '../../src/schema/static.ts';
 `;
 
 // Type-level assertion helpers used by the snippets.
@@ -103,7 +57,20 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const PREAMBLE = `${BRAND_PREAMBLE}\n${extractStructuralRegion()}\n${extractJsonSchemaRegion()}\n${ASSERT_PREAMBLE}\n`;
+const PREAMBLE = `${IMPORTS}\n${ASSERT_PREAMBLE}\n`;
 
-/** Compile `PREAMBLE + snippet` and report errors + raw/net instantiation counts. **/
-export const measureJsonSchema = makeMeasurer(PREAMBLE);
+// Bundler resolution + the package's libs so the real import graph type-checks;
+// merged over the measurer defaults.
+const REAL_IMPORT_CONFIG: MeasurerConfig = {
+  snippetFile: SNIPPET_FILE,
+  options: {
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    allowImportingTsExtensions: true,
+    lib: ['lib.es2023.d.ts', 'lib.dom.d.ts', 'lib.esnext.temporal.d.ts'],
+  },
+};
+
+/** Compile `PREAMBLE + snippet` (against the REAL modules) and report errors +
+ *  raw/net instantiation counts. **/
+export const measureJsonSchema = makeMeasurer(PREAMBLE, REAL_IMPORT_CONFIG);

@@ -47,6 +47,7 @@ import type {
   FormattedArray,
   FormattedObject,
 } from '../formats/index.ts';
+import type {OneOf} from '../schema/static.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
 // #region jsonschema-extract — sliced verbatim by test/types/jsonSchemaHarness.ts
@@ -1410,47 +1411,15 @@ type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends
       : M extends readonly [infer Only extends JsonSchemaInput]
         ? FromJsonSchemaIn<Only, Root, F>
         : FromOneOfBranches<M, Root, F> extends infer Branches extends readonly [unknown, unknown, ...unknown[]]
-          ? {[K in keyof Branches]: OneOfArmFrom<Branches[K], Branches>}[number]
+          ? OneOf<Branches>
           : never
     : never
   : unknown;
-// -readonly: the branch tuple must be TYPE-IDENTICAL to the OneOf<[…]>
-// spelling (whose tuple parameter is mutable), not merely id-convergent.
+// -readonly: the lowered branch tuple must be TYPE-IDENTICAL to the public
+// `OneOf<[…]>` spelling (whose tuple parameter is mutable), so the door hands
+// the tuple straight to the imported combinator instead of re-implementing the
+// carrier / nullish-dedup walk.
 type FromOneOfBranches<M, Root, F extends [unknown]> = {-readonly [K in keyof M]: FromJsonSchemaIn<M[K], Root, F>};
-// The OneOf carrier spelling (the schema-door twin of the public
-// OneOf<[…]> — keep the two in lockstep): one shallow mapped type + one
-// indexed access, O(1) instantiation depth at any width. Every non-nullish
-// member carries the branch tuple on an OPTIONAL sentinel prop, so
-// consumption keeps plain-union DX. The NAKED parameter makes the nullish
-// check distributive: a branch that is itself `A | null` keeps its null
-// plain instead of dying in an intersection. A DUPLICATED nullish branch
-// resolves never (a null matches every branch spelling it, so it can never
-// win exactly-one) — without this the all-nullish degenerate
-// (`oneOf: [{type: 'null'}, {type: 'null'}]`) carried no sentinel and
-// silently accepted null. The branch tuple keeps the duplicates, so
-// runtime counting stays branch-accurate in the mixed case.
-type OneOfArmFrom<Arm, All extends readonly unknown[]> = Arm extends null | undefined
-  ? OneOfNullishDupFrom<Arm, All> extends true
-    ? never
-    : Arm
-  : Arm & {readonly __rtOneOf?: All};
-// Twin of static.ts's OneOfNullishDup (the extract region stays
-// self-contained). Mutual-extends equality is exact for the pure null /
-// undefined branches this guards; only a nullish arm instantiates the walk.
-type OneOfNullishDupFrom<V, All extends readonly unknown[]> = All extends readonly [infer Head, ...infer Tail]
-  ? [V] extends [Head]
-    ? [Head] extends [V]
-      ? OneOfNullishAgainFrom<V, Tail>
-      : OneOfNullishDupFrom<V, Tail>
-    : OneOfNullishDupFrom<V, Tail>
-  : false;
-type OneOfNullishAgainFrom<V, Rest> = Rest extends readonly [infer Head, ...infer Tail]
-  ? [V] extends [Head]
-    ? [Head] extends [V]
-      ? true
-      : OneOfNullishAgainFrom<V, Tail>
-    : OneOfNullishAgainFrom<V, Tail>
-  : false;
 type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly JsonSchemaInput[]}
   ? FromAllOf<M, Root, F>
   : unknown;

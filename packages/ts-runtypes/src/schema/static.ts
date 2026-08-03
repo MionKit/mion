@@ -182,6 +182,10 @@ export type UnionOf<T extends readonly RunType[]> = T extends readonly [
  *  erases, because exclusivity counts BRANCHES: in `OneOf<[A, B | C]>` a
  *  value matching both B and C matched one branch and passes. Requires two
  *  or more branches — exactly-one over a single branch is that branch. **/
+// #region oneof-slice — OneOf + its arm/nullish-dedup helpers, sliced verbatim
+// into the FromJsonSchema fuzz module (jsonSchemaFuzz.integration.test.ts) so
+// the door's `OneOf<Branches>` lowering resolves against the REAL combinator
+// there, not a copy. RunType-free + dep-free by construction.
 export type OneOf<Branches extends readonly [unknown, unknown, ...unknown[]]> = {
   [K in keyof Branches]: OneOfArm<Branches[K], Branches>;
 }[number];
@@ -224,6 +228,7 @@ type OneOfNullishAgain<V, Rest> = Rest extends readonly [infer Head, ...infer Ta
       : OneOfNullishAgain<V, Tail>
     : OneOfNullishAgain<V, Tail>
   : false;
+// #endregion oneof-slice
 
 /** The at-least-one union combinator — spelled for JSON Schema `anyOf` name
  *  parity. Pure sugar: a union already IS at-least-one, so this carries no

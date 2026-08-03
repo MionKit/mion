@@ -39,20 +39,33 @@ const COMPILER_OPTIONS: ts.CompilerOptions = {
   moduleDetection: ts.ModuleDetectionKind.Force, // each snippet is its own module
 };
 
-const SNIPPET_FILE = '__measure_case__.ts';
+const DEFAULT_SNIPPET_FILE = '__measure_case__.ts';
+
+/** Options for measurers that need to `import` real source modules (so the
+ *  budget reflects the REAL type-check cost, not cheap stand-ins). `options`
+ *  merges over the defaults — a real-import measurer adds bundler module
+ *  resolution + the libs the imported graph needs; `snippetFile` must be an
+ *  ABSOLUTE path inside the package so the snippet's relative imports resolve
+ *  against the real source tree. Omit both for the self-contained default. **/
+export interface MeasurerConfig {
+  options?: ts.CompilerOptions;
+  snippetFile?: string;
+}
 
 /** Build a `measure(snippet)` bound to a fixed `preamble`. Each measurer keeps
  *  its own cached host + lazily-computed baseline. **/
-export function makeMeasurer(preamble: string): (snippet: string) => MeasureResult {
+export function makeMeasurer(preamble: string, config: MeasurerConfig = {}): (snippet: string) => MeasureResult {
+  const compilerOptions: ts.CompilerOptions = {...COMPILER_OPTIONS, ...config.options};
+  const snippetFile = config.snippetFile ?? DEFAULT_SNIPPET_FILE;
   const preambleLines = preamble.split('\n').length - 1;
   const libCache = new Map<string, ts.SourceFile | undefined>();
-  const baseHost = ts.createCompilerHost(COMPILER_OPTIONS, true);
+  const baseHost = ts.createCompilerHost(compilerOptions, true);
   let currentSnippet = '';
 
   const host: ts.CompilerHost = {
     ...baseHost,
     getSourceFile(fileName, languageVersionOrOptions, onError, shouldCreate) {
-      if (fileName === SNIPPET_FILE) {
+      if (fileName === snippetFile) {
         return ts.createSourceFile(fileName, currentSnippet, languageVersionOrOptions, true);
       }
       if (libCache.has(fileName)) return libCache.get(fileName);
@@ -61,13 +74,13 @@ export function makeMeasurer(preamble: string): (snippet: string) => MeasureResu
       return sf;
     },
     writeFile() {},
-    fileExists: (fileName) => fileName === SNIPPET_FILE || baseHost.fileExists(fileName),
-    readFile: (fileName) => (fileName === SNIPPET_FILE ? currentSnippet : baseHost.readFile(fileName)),
+    fileExists: (fileName) => fileName === snippetFile || baseHost.fileExists(fileName),
+    readFile: (fileName) => (fileName === snippetFile ? currentSnippet : baseHost.readFile(fileName)),
   };
 
   function raw(snippet: string): {errors: string[]; instantiations: number; types: number} {
     currentSnippet = `${preamble}${snippet}\n`;
-    const program = ts.createProgram([SNIPPET_FILE], COMPILER_OPTIONS, host);
+    const program = ts.createProgram([snippetFile], compilerOptions, host);
     const diagnostics = [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()];
     const errors = diagnostics.map((d) => {
       let where = '';
