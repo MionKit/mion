@@ -9,12 +9,20 @@ created: 2026-08-03
 
 Found while implementing
 [purefn-type-stripper-drops-no-type-arguments.md](../done/purefn-type-stripper-drops-no-type-arguments.md).
-`pnpm test` reported 4 failures that had nothing to do with that change; they
-reproduce on a completely untouched tree.
+`pnpm test` reported 4 failures that had nothing to do with that change.
+
+**This is a local-cache condition, not a broken branch.** It needs no source
+edit, but it does need a stale `.cache/rt-wasm/`, which is per-machine state:
+that directory is git-ignored, so it is absent on a fresh clone and on CI (the
+handled case, where the suites skip), and a `git worktree add` does not
+inherit a valid one. The failure showed up here precisely because the work ran
+in a worktree carrying a WASM build from before the module-prefix rename. On a
+checkout whose cache was rebuilt recently, the whole suite passes. Do not read
+the transcript below as "main is red".
 
 ## Evidence
 
-Failing, on a clean checkout with no local edits:
+Failing, with no local edits, against a stale cache:
 
 ```
 FAIL |playground| engine.test.ts > transformedSource is the real transform: injected import + a clean __rt_ arg (type mode)
