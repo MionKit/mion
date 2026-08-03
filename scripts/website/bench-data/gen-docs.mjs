@@ -312,37 +312,17 @@ function buildValidationBench() {
   const sources = new Map();
   for (const comp of competitors) sources.set(comp, extractCaseSources(path.join(COMPETITORS_DIR, comp, 'cases.ts')));
 
+  // Two benches, split by suite. The JSON Schema cases are NOT a third one: they
+  // are the `JSON_SCHEMA` group inside each of these two suites (structural
+  // keywords in validation, value constraints in format-validation), so they
+  // render as one more section per page. They used to be their own bench, which
+  // framed the lane as "who can consume a document" and left every column but
+  // ajv reading not-supported; each competitor now states the same constraint in
+  // its own dialect, which is the question the rest of the table already asks.
   const isFormat = (row) => row.suite === 'format-validation';
-  // The json-schema suite gets its OWN bench: its cases are the SAME document
-  // compiled by each library that can read one, which is a different question
-  // from "each library in its own dialect" — folding it into `validation` would
-  // silently mix the two comparisons in one table.
-  const isJsonSchema = (row) => row.suite === 'json-schema';
-  const core = emitValidationBench(
-    'validation',
-    'Validation',
-    rows.filter((row) => !isFormat(row) && !isJsonSchema(row)),
-    competitors,
-    byComp,
-    sources
-  );
-  const formats = emitValidationBench(
-    'validation-formats',
-    'Validation Formats',
-    rows.filter(isFormat),
-    competitors,
-    byComp,
-    sources
-  );
-  const jsonSchema = emitValidationBench(
-    'json-schema',
-    'JSON Schema',
-    rows.filter(isJsonSchema),
-    competitors,
-    byComp,
-    sources
-  );
-  return core + formats + jsonSchema;
+  const core = emitValidationBench('validation', 'Validation', rows.filter((row) => !isFormat(row)), competitors, byComp, sources);
+  const formats = emitValidationBench('validation-formats', 'Validation Formats', rows.filter(isFormat), competitors, byComp, sources);
+  return core + formats;
 }
 
 // Emit one validation bench (index.json + per-case source JSON) for a filtered set of

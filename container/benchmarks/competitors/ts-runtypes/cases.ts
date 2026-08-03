@@ -2692,8 +2692,112 @@ export const cases: CompetitorCases = {
   // ── JSON_SCHEMA ──
   // The schema document is re-authored inline on purpose: `runTypeFromJsonSchema(…)` reads
   // its literal at BUILD time off this call site, so a cross-module reference
-  // has nothing to read. Kept byte-honest against shared/cases/json-schema by
-  // the alignment audit, which runs both columns over the same samples.
+  // has nothing to read. Kept byte-honest against shared/cases (validation and
+  // format-validation each hold half the group) by the alignment audit, which
+  // runs every column over the same samples.
+  'JSON_SCHEMA.closed_object': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'integer'}, name: {type: 'string'}},
+        required: ['id', 'name'],
+        additionalProperties: false,
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'integer'}, name: {type: 'string'}},
+        required: ['id', 'name'],
+        additionalProperties: false,
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.pattern_properties': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        patternProperties: {'^col_': {type: 'number'}},
+        additionalProperties: false,
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        patternProperties: {'^col_': {type: 'number'}},
+        additionalProperties: false,
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.property_names': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        propertyNames: {pattern: '^[a-z]+$'},
+        additionalProperties: {type: 'number'},
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        propertyNames: {pattern: '^[a-z]+$'},
+        additionalProperties: {type: 'number'},
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.contains_count': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'array',
+        items: {type: 'number'},
+        contains: {type: 'number', minimum: 10},
+        minContains: 2,
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'array',
+        items: {type: 'number'},
+        contains: {type: 'number', minimum: 10},
+        minContains: 2,
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.unique_items': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true})),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true}));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.object_size': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        additionalProperties: {type: 'number'},
+        minProperties: 1,
+        maxProperties: 3,
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        additionalProperties: {type: 'number'},
+        minProperties: 1,
+        maxProperties: 3,
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+  'JSON_SCHEMA.dependent_required': {
+    build: () => createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {credit_card: {type: 'integer'}, billing_address: {type: 'string'}},
+        dependentRequired: {credit_card: ['billing_address']},
+      })),
+    buildErrors: () => {
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {credit_card: {type: 'integer'}, billing_address: {type: 'string'}},
+        dependentRequired: {credit_card: ['billing_address']},
+      }));
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
   'JSON_SCHEMA.string_email': {
     build: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'email'})),
     buildErrors: () => {
@@ -2715,108 +2819,10 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
-  'JSON_SCHEMA.string_array': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}})),
+  'JSON_SCHEMA.multiple_of': {
+    build: () => createValidateFn(runTypeFromJsonSchema({type: 'number', multipleOf: 5})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}}));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.tuple_pair': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2}));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.object_simple': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {id: {type: 'integer'}, name: {type: 'string'}, nickname: {type: 'string'}},
-        required: ['id', 'name'],
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {id: {type: 'integer'}, name: {type: 'string'}, nickname: {type: 'string'}},
-        required: ['id', 'name'],
-      }));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.record_number': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'number'}})),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', additionalProperties: {type: 'number'}}));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.union_anyof': {
-    build: () => createValidateFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}, {type: 'null'}]})),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}, {type: 'null'}]}));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.recursive_tree': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        $defs: {
-          node: {
-            type: 'object',
-            properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#/$defs/node'}}},
-            required: ['name', 'children'],
-          },
-        },
-        $ref: '#/$defs/node',
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        $defs: {
-          node: {
-            type: 'object',
-            properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#/$defs/node'}}},
-            required: ['name', 'children'],
-          },
-        },
-        $ref: '#/$defs/node',
-      }));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.realworld_user': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {
-          id: {type: 'string', format: 'uuid'},
-          email: {type: 'string', format: 'email'},
-          name: {type: 'string', minLength: 2, maxLength: 50},
-          age: {type: 'integer', minimum: 0, maximum: 130},
-          tags: {type: 'array', items: {type: 'string'}},
-          address: {
-            type: 'object',
-            properties: {street: {type: 'string'}, city: {type: 'string'}},
-            required: ['street'],
-          },
-        },
-        required: ['id', 'email', 'name', 'age', 'tags', 'address'],
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {
-          id: {type: 'string', format: 'uuid'},
-          email: {type: 'string', format: 'email'},
-          name: {type: 'string', minLength: 2, maxLength: 50},
-          age: {type: 'integer', minimum: 0, maximum: 130},
-          tags: {type: 'array', items: {type: 'string'}},
-          address: {
-            type: 'object',
-            properties: {street: {type: 'string'}, city: {type: 'string'}},
-            required: ['street'],
-          },
-        },
-        required: ['id', 'email', 'name', 'age', 'tags', 'address'],
-      }));
+      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'number', multipleOf: 5}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },

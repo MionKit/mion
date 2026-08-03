@@ -26,3 +26,19 @@ export interface FormatErrorExpectation {
 export type FormatValidationCase = SharedCase & {
   expectedFormatErrors?: () => Array<FormatErrorExpectation | null>;
 };
+
+/** A case whose SUBJECT is a draft 2020-12 schema keyword. The document lives on
+ *  the case as plain library-free data so the ajv column compiles the very same
+ *  bytes rather than a re-typed lookalike. These cases live inside the validation
+ *  and format-validation suites (group `JSON_SCHEMA` in each), not a suite of
+ *  their own — see ./json-schema/index.ts. */
+export type JsonSchemaCase = SharedCase & {
+  /** The draft 2020-12 document under test. Plain data: no library types. */
+  schema: unknown;
+};
+
+/** The format-validation half of the JSON_SCHEMA group: same document field, but
+ *  it sits in a suite whose cases may also carry `expectedFormatErrors`. */
+export type JsonSchemaFormatCase = FormatValidationCase & {
+  schema: unknown;
+};

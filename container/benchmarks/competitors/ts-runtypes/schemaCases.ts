@@ -721,34 +721,21 @@ export const schemaCases: CompetitorCases = {
     ),
 
   // ── JSON_SCHEMA ──
-  // The value-first spelling of each JSON Schema document — this map measures the
-  // TYPE-INSTANTIATION cost of the RT.* form, so the point is the authoring cost
-  // of the same shape, not id-for-id equality with the document.
-  'JSON_SCHEMA.string_email': () => createValidateFn(TF.email()),
-  'JSON_SCHEMA.int_bounded': () => createValidateFn(TF.number({integer: true, min: 0, max: 130})),
-  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // a value-first pattern needs a registerFormatPattern value; the document carries a bare regex
-  'JSON_SCHEMA.string_array': () => createValidateFn(RT.array(TF.string())),
-  'JSON_SCHEMA.tuple_pair': () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
-  'JSON_SCHEMA.object_simple': () =>
-    createValidateFn(RT.object({id: TF.integer(), name: TF.string(), nickname: RT.optional(TF.string())})),
-  'JSON_SCHEMA.record_number': () => createValidateFn(RT.record(TF.number())),
-  'JSON_SCHEMA.union_anyof': () => createValidateFn(RT.union([TF.string(), TF.number(), RT.literal(null)])),
-  'JSON_SCHEMA.recursive_tree': () => {
-    const node = RT.circular(RT.object({name: TF.string(), children: RT.array(RT.self())}));
-    return createValidateFn(node);
-  },
-  'JSON_SCHEMA.realworld_user': () =>
-    createValidateFn(
-      RT.object({
-        // The document says `format: 'uuid'` (any version); the value-first
-        // surface only ships version-specific builders, so this is the closest
-        // spelling rather than an exact twin.
-        id: TF.uuidv4(),
-        email: TF.email(),
-        name: TF.string({minLength: 2, maxLength: 50}),
-        age: TF.number({integer: true, min: 0, max: 130}),
-        tags: RT.array(TF.string()),
-        address: RT.object({street: TF.string(), city: RT.optional(TF.string())}),
-      })
-    ),
+  // The whole group opts out, on purpose. These cases exist to measure the JSON
+  // SCHEMA door, and there is no runtypes-to-JSON-Schema transform: a value-first
+  // builder that happens to describe the same shape is a stand-in we invented for
+  // the bench, not a second way to consume the document. Presenting its cost as
+  // "ts-runtypes on this document" would be a fabricated comparison, so the
+  // jsonSchema column is the single ts-runtypes answer on these rows.
+  'JSON_SCHEMA.closed_object': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.pattern_properties': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.property_names': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.unique_items': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.dependent_required': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  'JSON_SCHEMA.multiple_of': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
 };

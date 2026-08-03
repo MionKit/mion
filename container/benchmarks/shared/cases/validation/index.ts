@@ -14,6 +14,7 @@ import {CIRCULAR_REFS} from './CircularRefs.ts';
 import {UTILITY} from './Utility.ts';
 import {TYPE_MAPPINGS} from './TypeMappings.ts';
 import {DATETIME} from './DateTime.ts';
+import {JSON_SCHEMA} from './JsonSchema.ts';
 import type {SharedCase} from '../types.ts';
 
 export const VALIDATION_SUITE = {
@@ -29,6 +30,7 @@ export const VALIDATION_SUITE = {
   UTILITY,
   TYPE_MAPPINGS,
   DATETIME,
+  JSON_SCHEMA,
 } as const satisfies {
   ATOMIC: Record<string, SharedCase>;
   ARRAY: Record<string, SharedCase>;
@@ -42,4 +44,5 @@ export const VALIDATION_SUITE = {
   UTILITY: Record<string, SharedCase>;
   TYPE_MAPPINGS: Record<string, SharedCase>;
   DATETIME: Record<string, SharedCase>;
+  JSON_SCHEMA: Record<string, SharedCase>;
 };

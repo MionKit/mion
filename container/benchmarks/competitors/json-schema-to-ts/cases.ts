@@ -12,42 +12,42 @@
 // the one place a schema-document comparison means anything.
 
 export const cases = {
+  'JSON_SCHEMA.closed_object': {
+    type: 'object',
+    properties: {id: {type: 'integer'}, name: {type: 'string'}},
+    required: ['id', 'name'],
+    additionalProperties: false,
+  },
+  'JSON_SCHEMA.pattern_properties': {
+    type: 'object',
+    patternProperties: {'^col_': {type: 'number'}},
+    additionalProperties: false,
+  },
+  'JSON_SCHEMA.property_names': {
+    type: 'object',
+    propertyNames: {pattern: '^[a-z]+$'},
+    additionalProperties: {type: 'number'},
+  },
+  'JSON_SCHEMA.contains_count': {
+    type: 'array',
+    items: {type: 'number'},
+    contains: {type: 'number', minimum: 10},
+    minContains: 2,
+  },
+  'JSON_SCHEMA.unique_items': {type: 'array', items: {type: 'number'}, uniqueItems: true},
+  'JSON_SCHEMA.object_size': {
+    type: 'object',
+    additionalProperties: {type: 'number'},
+    minProperties: 1,
+    maxProperties: 3,
+  },
+  'JSON_SCHEMA.dependent_required': {
+    type: 'object',
+    properties: {credit_card: {type: 'integer'}, billing_address: {type: 'string'}},
+    dependentRequired: {credit_card: ['billing_address']},
+  },
   'JSON_SCHEMA.string_email': {type: 'string', format: 'email'},
   'JSON_SCHEMA.int_bounded': {type: 'integer', minimum: 0, maximum: 130},
   'JSON_SCHEMA.string_pattern': {type: 'string', pattern: '^[a-z][a-z0-9-]*$'},
-  'JSON_SCHEMA.string_array': {type: 'array', items: {type: 'string'}},
-  'JSON_SCHEMA.tuple_pair': {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2},
-  'JSON_SCHEMA.object_simple': {
-    type: 'object',
-    properties: {id: {type: 'integer'}, name: {type: 'string'}, nickname: {type: 'string'}},
-    required: ['id', 'name'],
-  },
-  'JSON_SCHEMA.record_number': {type: 'object', additionalProperties: {type: 'number'}},
-  'JSON_SCHEMA.union_anyof': {anyOf: [{type: 'string'}, {type: 'number'}, {type: 'null'}]},
-  'JSON_SCHEMA.recursive_tree': {
-    $defs: {
-      node: {
-        type: 'object',
-        properties: {name: {type: 'string'}, children: {type: 'array', items: {$ref: '#/$defs/node'}}},
-        required: ['name', 'children'],
-      },
-    },
-    $ref: '#/$defs/node',
-  },
-  'JSON_SCHEMA.realworld_user': {
-    type: 'object',
-    properties: {
-      id: {type: 'string', format: 'uuid'},
-      email: {type: 'string', format: 'email'},
-      name: {type: 'string', minLength: 2, maxLength: 50},
-      age: {type: 'integer', minimum: 0, maximum: 130},
-      tags: {type: 'array', items: {type: 'string'}},
-      address: {
-        type: 'object',
-        properties: {street: {type: 'string'}, city: {type: 'string'}},
-        required: ['street'],
-      },
-    },
-    required: ['id', 'email', 'name', 'age', 'tags', 'address'],
-  },
+  'JSON_SCHEMA.multiple_of': {type: 'number', multipleOf: 5},
 } as const;

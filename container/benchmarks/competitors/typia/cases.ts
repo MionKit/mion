@@ -2710,17 +2710,104 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // typia validates from a TypeScript type resolved at compile time; a schema
-  // document is data it has no door for. Its json.application<[T]>() is the
-  // OUTPUT direction only.
-  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.string_array': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.tuple_pair': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.object_simple': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.record_number': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.union_anyof': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.recursive_tree': NOT_SUPPORTED, // no JSON Schema input
-  'JSON_SCHEMA.realworld_user': NOT_SUPPORTED, // no JSON Schema input
+  // typia has no JSON Schema INPUT door (json.application<[T]>() is the OUTPUT
+  // direction), so these entries state the same CONSTRAINT as a typia type plus
+  // tags, like every other group here. Closedness cases use createEquals /
+  // createValidateEquals: createIs is structural and accepts excess keys, which
+  // is exactly what these cases must reject. Every entry below was verified
+  // against this group's EXACT shared samples by building it through the real
+  // ttsc transform, not inferred from the tag names.
+  //
+  // NOTE: these use `typia.createValidate` — the real export. The rest of this
+  // file calls `typia.createValidateFn`, which typia does not export (a stray
+  // hit from our own createX->createXFn rename); that break is tracked in
+  // docs/todos/typia-validationerrors-column-calls-a-removed-api.md and is not
+  // widened into here.
+  'JSON_SCHEMA.closed_object': {
+    build: () => {
+      const check = typia.createEquals<{id: number & tags.Type<'int32'>; name: string}>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidateEquals<{id: number & tags.Type<'int32'>; name: string}>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.pattern_properties': {
+    build: () => {
+      const check = typia.createEquals<Record<`col_${string}`, number>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidateEquals<Record<`col_${string}`, number>>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.property_names': NOT_SUPPORTED, // an index signature key cannot carry a regex constraint
+  'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no count-of-matching-items tag
+  'JSON_SCHEMA.unique_items': {
+    build: () => {
+      const check = typia.createIs<Array<number> & tags.UniqueItems>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<Array<number> & tags.UniqueItems>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no key-count bounds on an index signature
+  'JSON_SCHEMA.dependent_required': {
+    build: () => {
+      const check = typia.createEquals<
+        {credit_card: number & tags.Type<'int32'>; billing_address: string} | {billing_address?: string}
+      >();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidateEquals<
+        {credit_card: number & tags.Type<'int32'>; billing_address: string} | {billing_address?: string}
+      >();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.string_email': {
+    build: () => {
+      const check = typia.createIs<string & tags.Format<'email'>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<string & tags.Format<'email'>>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.int_bounded': {
+    build: () => {
+      const check = typia.createIs<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<130>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<130>>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.string_pattern': {
+    build: () => {
+      const check = typia.createIs<string & tags.Pattern<'^[a-z][a-z0-9-]*$'>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<string & tags.Pattern<'^[a-z][a-z0-9-]*$'>>();
+      return (v) => val(v).success;
+    },
+  },
+  'JSON_SCHEMA.multiple_of': {
+    build: () => {
+      const check = typia.createIs<number & tags.MultipleOf<5>>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      const val = typia.createValidate<number & tags.MultipleOf<5>>();
+      return (v) => val(v).success;
+    },
+  },
 };

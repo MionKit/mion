@@ -3356,6 +3356,40 @@ export const cases: CompetitorCases = {
 
   // ── JSON_SCHEMA ──
   // One document, compiled by ajv 2020-12 exactly as ts-runtypes receives it.
+  // No `samples` override survives in this group: every remaining case was
+  // verified to agree with our semantics by RUNNING ajv (full-mode email
+  // requires the dotted TLD; multipleOf rejects NaN and Infinity). The two
+  // cases that did diverge (record_number, union_anyof, both the bare
+  // `{type:'number'}` NaN/Infinity split) were plain shapes and left this group
+  // with the rest of the shape cases.
+  'JSON_SCHEMA.closed_object': {
+    build: () => compile2020('closed_object', false),
+    buildErrors: () => compile2020('closed_object', true),
+  },
+  'JSON_SCHEMA.pattern_properties': {
+    build: () => compile2020('pattern_properties', false),
+    buildErrors: () => compile2020('pattern_properties', true),
+  },
+  'JSON_SCHEMA.property_names': {
+    build: () => compile2020('property_names', false),
+    buildErrors: () => compile2020('property_names', true),
+  },
+  'JSON_SCHEMA.contains_count': {
+    build: () => compile2020('contains_count', false),
+    buildErrors: () => compile2020('contains_count', true),
+  },
+  'JSON_SCHEMA.unique_items': {
+    build: () => compile2020('unique_items', false),
+    buildErrors: () => compile2020('unique_items', true),
+  },
+  'JSON_SCHEMA.object_size': {
+    build: () => compile2020('object_size', false),
+    buildErrors: () => compile2020('object_size', true),
+  },
+  'JSON_SCHEMA.dependent_required': {
+    build: () => compile2020('dependent_required', false),
+    buildErrors: () => compile2020('dependent_required', true),
+  },
   'JSON_SCHEMA.string_email': {
     build: () => compile2020('string_email', false),
     buildErrors: () => compile2020('string_email', true),
@@ -3368,34 +3402,8 @@ export const cases: CompetitorCases = {
     build: () => compile2020('string_pattern', false),
     buildErrors: () => compile2020('string_pattern', true),
   },
-  'JSON_SCHEMA.string_array': {
-    build: () => compile2020('string_array', false),
-    buildErrors: () => compile2020('string_array', true),
-  },
-  'JSON_SCHEMA.tuple_pair': {
-    build: () => compile2020('tuple_pair', false),
-    buildErrors: () => compile2020('tuple_pair', true),
-  },
-  'JSON_SCHEMA.object_simple': {
-    build: () => compile2020('object_simple', false),
-    buildErrors: () => compile2020('object_simple', true),
-  },
-  'JSON_SCHEMA.record_number': {
-    build: () => compile2020('record_number', false),
-    buildErrors: () => compile2020('record_number', true),
-    samples: {invalid: [{a: 'x'}, {a: null}, 'nope', null, undefined]},
-  }, // override: ajv {type:number} accepts NaN/Infinity; drop them from invalid
-  'JSON_SCHEMA.union_anyof': {
-    build: () => compile2020('union_anyof', false),
-    buildErrors: () => compile2020('union_anyof', true),
-    samples: {invalid: [true, {}, [], undefined]},
-  }, // override: the anyOf number arm lets NaN/Infinity through in ajv
-  'JSON_SCHEMA.recursive_tree': {
-    build: () => compile2020('recursive_tree', false),
-    buildErrors: () => compile2020('recursive_tree', true),
-  },
-  'JSON_SCHEMA.realworld_user': {
-    build: () => compile2020('realworld_user', false),
-    buildErrors: () => compile2020('realworld_user', true),
+  'JSON_SCHEMA.multiple_of': {
+    build: () => compile2020('multiple_of', false),
+    buildErrors: () => compile2020('multiple_of', true),
   },
 };

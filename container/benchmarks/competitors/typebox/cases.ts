@@ -3647,19 +3647,158 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // TypeBox has no runtime JSON Schema INPUT door: TypeCompiler dispatches on
-  // TypeBox's own [Kind] symbol, which a plain document does not carry, and
-  // Type.Unsafe() only overrides the static side (its compiled check is a
-  // no-op). Converting a document to TypeBox needs the separate
-  // json-schema-to-typebox CODEGEN step, which is not a runtime door.
-  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.string_array': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.tuple_pair': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.object_simple': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.record_number': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.union_anyof': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.recursive_tree': NOT_SUPPORTED, // no runtime JSON Schema input door
-  'JSON_SCHEMA.realworld_user': NOT_SUPPORTED, // no runtime JSON Schema input door
+  // TypeBox has no runtime JSON Schema INPUT door (TypeCompiler dispatches on
+  // TypeBox's own [Kind] symbol, which a plain document does not carry), so
+  // these entries state the same CONSTRAINT in TypeBox's own dialect — which is
+  // mostly a direct spelling, because TypeBox schemas ARE JSON Schema. Three
+  // keywords are accepted into the schema object but never compiled into a
+  // check, so they opt out rather than report a validator that passes
+  // everything (each verified by compiling and running it).
+  'JSON_SCHEMA.closed_object': {
+    build: () => {
+      const schema = Type.Object({id: Type.Integer(), name: Type.String()}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({id: Type.Integer(), name: Type.String()}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.pattern_properties': {
+    // `Type.Record(/^col_/, …)` compiles to `{"not":{}}` in the pinned build (it
+    // rejects everything), so the prefix is expressed as a template-literal key,
+    // which compiles to a real key check. `additionalProperties: false` is what
+    // CLOSES it: without that the template-literal Record constrains matching
+    // keys but lets a foreign key through, which is open patternProperties, not
+    // this case.
+    build: () => {
+      const schema = Type.Record(Type.TemplateLiteral('col_${string}'), Type.Number(), {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Record(Type.TemplateLiteral('col_${string}'), Type.Number(), {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.property_names': NOT_SUPPORTED, // propertyNames is carried in the schema but never compiled into a check
+  'JSON_SCHEMA.contains_count': {
+    build: () => {
+      const schema = Type.Array(Type.Number(), {contains: Type.Number({minimum: 10}), minContains: 2});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Array(Type.Number(), {contains: Type.Number({minimum: 10}), minContains: 2});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.unique_items': {
+    build: () => {
+      const schema = Type.Array(Type.Number(), {uniqueItems: true});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Array(Type.Number(), {uniqueItems: true});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.object_size': {
+    build: () => {
+      const schema = Type.Record(Type.String(), Type.Number(), {minProperties: 1, maxProperties: 3});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Record(Type.String(), Type.Number(), {minProperties: 1, maxProperties: 3});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.dependent_required': NOT_SUPPORTED, // dependentRequired is carried in the schema but never compiled into a check
+  'JSON_SCHEMA.string_email': {
+    build: () => {
+      const schema = Type.String({
+        pattern: '^[a-zA-Z0-9.+_-]+@([a-zA-Z0-9]{2,}([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?[.])+[a-zA-Z]{2,}$',
+      });
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.String({
+        pattern: '^[a-zA-Z0-9.+_-]+@([a-zA-Z0-9]{2,}([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?[.])+[a-zA-Z]{2,}$',
+      });
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.int_bounded': {
+    build: () => {
+      const schema = Type.Integer({minimum: 0, maximum: 130});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Integer({minimum: 0, maximum: 130});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.string_pattern': {
+    build: () => {
+      const schema = Type.String({pattern: '^[a-z][a-z0-9-]*$'});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.String({pattern: '^[a-z][a-z0-9-]*$'});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'JSON_SCHEMA.multiple_of': {
+    build: () => {
+      const schema = Type.Number({multipleOf: 5});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Number({multipleOf: 5});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
 };
