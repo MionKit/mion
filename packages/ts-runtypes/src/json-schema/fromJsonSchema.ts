@@ -37,6 +37,11 @@ import type {
   IPv4,
   IPv6,
   Url,
+  Base64,
+  Base32,
+  Base16,
+  JsonContent,
+  JsonContentBase64,
   String as StringFormat,
   Number as NumberFormat,
 } from '../formats/index.ts';
@@ -263,45 +268,50 @@ interface BrandBySchemaFormat {
 type SchemaFormatKeyword = keyof BrandBySchemaFormat;
 
 // format keyword → brand via the lookup row; non-format strings fall through to
-// the keyword params; a bare `{type: 'string'}` stays plain `string`.
-// Content keywords: the three registered encodings lower to anchored
-// pattern params (sample pools baked, so mocks ride the pattern machinery);
-// application/json lowers to the jsonContent parse-check family, carrying
-// the sibling string params in the SAME annotation so no cross-family brand
-// stack ever reaches the collapse. Unlowerable combinations are never, loud
-// over lossy: a user pattern beside an encoding pattern (one pattern slot),
-// a named format beside a media type, and encoded JSON in an encoding the
-// emitted check cannot decode (only base64 has a runtime decoder).
-type StringFrom<S> = S extends {contentEncoding: string; pattern: string}
-  ? never
+// the keyword params; a bare `{type: 'string'}` stays plain `string`. Content
+// keywords route to the formats surface: the three registered encodings are the
+// Base64/Base32/Base16 brands (anchored pattern baked in), and application/json
+// is the JsonContent parse-check brand (base64-then-JSON behind an encoding).
+// Unlowerable combinations are never, loud over lossy: a user pattern or named
+// format beside an encoding (one pattern slot), a named format beside a media
+// type, and encoded JSON in an encoding the emitted check cannot decode (only
+// base64 has a runtime decoder).
+// contentEncoding is tested FIRST (as one plain guard), so the far more common
+// no-content path pays a single check and then flows straight through the
+// format / plain lowering — the encoding logic lives entirely in
+// `StringWithEncodingFrom`, off the hot path.
+type StringFrom<S> = S extends {contentEncoding: string}
+  ? StringWithEncodingFrom<S>
   : S extends {contentMediaType: string; format: string}
     ? never
     : S extends {contentMediaType: 'application/json'}
-      ? S extends {contentEncoding: infer E}
-        ? E extends 'base64'
-          ? JsonContentFormat<
-              Flatten<
-                StringParamsFrom<S> & {
-                  readonly json: true;
-                  readonly decode: 'base64';
-                  readonly mockSamples: readonly ['e30=', 'W10=', 'InRleHQi', 'bnVsbA=='];
-                }
-              >
-            >
-          : never
-        : JsonContentFormat<
-            Flatten<
-              StringParamsFrom<S> & {
-                readonly json: true;
-                readonly mockSamples: readonly ['{}', '[]', '"text"', '7', 'true', 'null'];
-              }
-            >
-          >
+      ? // contentMediaType: application/json (no encoding) → the JsonContent
+        // parse-check brand, whose baked json flag + sample pool live in the
+        // formats surface; the door only routes to it.
+        JsonContent<Flatten<StringParamsFrom<S>>>
       : S extends {format: infer F extends SchemaFormatKeyword}
         ? FormatWithSiblings<F, S>
-        : keyof StringParamsWithContent<S> extends never
+        : keyof StringParamsFrom<S> extends never
           ? string
-          : StringFormat<Flatten<StringParamsWithContent<S>>>;
+          : StringFormat<Flatten<StringParamsFrom<S>>>;
+// contentEncoding present: a `pattern` or named `format` sibling would stack a
+// second pattern slot (one slot only) → never, loud over lossy. Behind
+// contentMediaType: application/json it is the base64-then-JSON parse family
+// (only base64 has a runtime decoder; other encodings → never). A bare RFC 4648
+// encoding is the matching Base64/Base32/Base16 brand — all defined in the
+// formats surface, the door only routes the keyword and folds length siblings
+// through P.
+type StringWithEncodingFrom<S> = S extends {pattern: string} | {format: string}
+  ? never
+  : S extends {contentMediaType: 'application/json'}
+    ? S extends {contentEncoding: 'base64'}
+      ? JsonContentBase64<Flatten<StringParamsFrom<S>>>
+      : never
+    : S extends {contentEncoding: 'base64'}
+      ? Base64<Flatten<StringParamsFrom<S>>>
+      : S extends {contentEncoding: 'base32'}
+        ? Base32<Flatten<StringParamsFrom<S>>>
+        : Base16<Flatten<StringParamsFrom<S>>>;
 // Sibling constraint keywords beside a named format apply conjunctively per
 // 2020-12. minLength / maxLength REPLACE the brand's default bounds for the
 // variable-width pattern families (email / hostname / uri — their emitters
@@ -327,30 +337,6 @@ type RebrandWithLengths<B, L> = TypeFormat<
   NonNullable<B['__rtFormatName' & keyof B]> & string,
   Flatten<Omit<NonNullable<B['__rtFormatParams' & keyof B]>, keyof L & string> & L>
 >;
-type JsonContentFormat<P extends object> = TypeFormat<string, 'jsonContent', P>;
-type StringParamsWithContent<S> = StringParamsFrom<S> &
-  (S extends {contentEncoding: infer E extends keyof ContentEncodingPattern}
-    ? {readonly pattern: ContentEncodingPattern[E]}
-    : unknown);
-// Anchored RFC 4648 shapes: the alternation groups enforce the padded block
-// lengths, so a plain regex is the exact check.
-type ContentEncodingPattern = {
-  base64: {
-    readonly source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$';
-    readonly flags: '';
-    readonly mockSamples: readonly ['', 'QQ==', 'QUJD', 'SGVsbG8='];
-  };
-  base32: {
-    readonly source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$';
-    readonly flags: '';
-    readonly mockSamples: readonly ['', 'MY======', 'MZXQ===='];
-  };
-  base16: {
-    readonly source: '^(?:[0-9A-Fa-f]{2})*$';
-    readonly flags: '';
-    readonly mockSamples: readonly ['', '48656C6C6F', 'DEADBEEF'];
-  };
-};
 
 // Numeric keywords ride the `Number` params bag in their JSON Schema spelling
 // (minimum / maximum / exclusiveMinimum / exclusiveMaximum / multipleOf); the

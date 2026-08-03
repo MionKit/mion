@@ -188,18 +188,20 @@ export type Base16<P extends StringParams = {}> = TypeFormat<string, 'stringForm
 // `contentEncoding: 'base64'`). Params mirror the schema door's lowering so
 // the two authoring modes converge. `mockSamples` are id-irrelevant (they feed
 // createMockDataFn only) but carried so the mock draws valid JSON either way.
-export type JsonContent = TypeFormat<
+/* eslint-disable @typescript-eslint/no-empty-object-type */
+export type JsonContent<P extends StringParams = {}> = TypeFormat<
   string,
   'jsonContent',
-  {json: true; mockSamples: readonly ['{}', '[]', '"text"', '7', 'true', 'null']},
+  P & {json: true; mockSamples: readonly ['{}', '[]', '"text"', '7', 'true', 'null']},
   never
 >;
-export type JsonContentBase64 = TypeFormat<
+export type JsonContentBase64<P extends StringParams = {}> = TypeFormat<
   string,
   'jsonContent',
-  {json: true; decode: 'base64'; mockSamples: readonly ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']},
+  P & {json: true; decode: 'base64'; mockSamples: readonly ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']},
   never
 >;
+/* eslint-enable @typescript-eslint/no-empty-object-type */
 
 // ─────────────────────────────── UUID ───────────────────────────────
 

@@ -58,6 +58,19 @@ type Domain = TypeFormat<string, 'domain', {}>;
 type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
 type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
 type Url = TypeFormat<string, 'url', {}>;
+type Base64<P extends object = {}> = TypeFormat<
+  string,
+  'stringFormat',
+  P & {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''}}
+>;
+type Base32<P extends object = {}> = TypeFormat<
+  string,
+  'stringFormat',
+  P & {pattern: {source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$'; flags: ''}}
+>;
+type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''}}>;
+type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true}>;
+type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'}>;
 type OneOf<Branches extends readonly [unknown, unknown, ...unknown[]]> = {
   [K in keyof Branches]: OneOfStandinArm<Branches[K], Branches>;
 }[number];

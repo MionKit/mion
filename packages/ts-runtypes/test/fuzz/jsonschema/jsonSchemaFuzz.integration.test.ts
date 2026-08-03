@@ -75,6 +75,11 @@ type Domain = TypeFormat<string, 'domain', {}>;
 type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
 type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
 type Url = TypeFormat<string, 'url', {}>;
+type Base64<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;
+type Base32<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$'; flags: ''; mockSamples: ['', 'MY======', 'MZXQ====']}}>;
+type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''; mockSamples: ['', '48656C6C6F', 'DEADBEEF']}}>;
+type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; mockSamples: ['{}', '[]', '"text"', '7', 'true', 'null']}>;
+type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'; mockSamples: ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']}>;
 ${source.slice(start, end)}
 `;
 }

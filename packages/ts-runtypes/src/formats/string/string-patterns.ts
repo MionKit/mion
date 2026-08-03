@@ -86,11 +86,11 @@ export const NUMERIC_PATTERN = registerFormatPattern({
 });
 
 // contentEncoding patterns — anchored RFC 4648 shapes. The alternation groups
-// enforce the padded block lengths, so a plain regex is the exact check. The
-// sources + samples match the schema door's ContentEncodingPattern verbatim, so
-// `contentEncoding: 'base64'` and `TF.base64()` converge on one id. `flags` is
-// omitted (→ ''); base16 is case-insensitive by CHARACTER CLASS, not an `i`
-// flag, so its source must stay literal.
+// enforce the padded block lengths, so a plain regex is the exact check. These
+// are the single source of truth for the Base64/Base32/Base16 brands (the
+// schema door references those brands), so `contentEncoding: 'base64'` and
+// `TF.base64()` converge on one id. `flags` is omitted (→ ''); base16 is
+// case-insensitive by CHARACTER CLASS, not an `i` flag, so its source must stay literal.
 export const BASE64_PATTERN = registerFormatPattern({
   source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
   mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8='],
