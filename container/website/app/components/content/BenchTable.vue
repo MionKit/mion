@@ -43,6 +43,14 @@ interface BenchSection {
   cases: BenchCase[];
 }
 
+/** What one column measures — surfaced by hovering that column's header
+ *  (BenchColumnInfo). Optional per bench: no `columnNotes` block in the index,
+ *  no glyph and no hover. */
+interface ColumnNote {
+  text: string;
+  detail?: string;
+}
+
 interface BenchIndex {
   bench: string;
   label: string;
@@ -67,6 +75,10 @@ interface BenchIndex {
   competitors: string[];
   /** competitor/form label -> installed library version (shown under the header) */
   versions?: Record<string, string>;
+  /** competitor label -> what that column is, revealed by hovering its column
+   *  header. Absent for benches whose column names speak for themselves (the
+   *  library names on the validation pages), which then render no info glyph. */
+  columnNotes?: Record<string, ColumnNote>;
   /** run environment captured at benchmark time */
   meta?: {generatedAt?: string; os?: string; cpu?: string; cores?: number | null; node?: string; typescript?: string};
   sections: BenchSection[];
@@ -295,6 +307,18 @@ function strategyOf(competitor: string): 'comptime' | 'jit' | 'interpreted' {
 /** Build-strategy tags describe RUNTIME validator construction, so they only apply to
  *  the throughput benches — the typecost (type-instantiation count) table hides them. */
 const showStrategy = computed(() => index.value?.showStrategy !== false && index.value?.unit !== 'count');
+
+/** Per-column explanations for the caption info icon — empty when the bench index
+ *  ships no `columnNotes`, which is what keeps the icon off the other pages. */
+const columnNotes = computed<Record<string, ColumnNote>>(() => index.value?.columnNotes ?? {});
+
+/** Which edge a column's tip hangs from: columns in the left half open rightward
+ *  and vice versa, so a wide tip always grows toward the middle of the table and
+ *  never spills out of the horizontally scrolling wrapper. */
+function tipAlign(columnIndex: number): 'left' | 'right' {
+  const total = index.value?.competitors.length ?? 0;
+  return columnIndex * 2 < total ? 'left' : 'right';
+}
 
 /** Installed library version for a column (competitor name, or typecost form label). */
 function versionOf(competitor: string): string | undefined {
@@ -807,8 +831,8 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
               <thead>
                 <tr class="bench-head">
                   <th class="bench-th bench-th--case">category</th>
-                  <th v-for="comp in index.competitors" :key="comp" class="bench-th bench-th--comp">
-                    <span class="bench-th-name">{{ comp }}</span>
+                  <th v-for="(comp, ci) in index.competitors" :key="comp" class="bench-th bench-th--comp">
+                    <span class="bench-th-name">{{ comp }}<BenchColumnInfo v-if="columnNotes[comp]" :label="comp" :note="columnNotes[comp]" :align="tipAlign(ci)" /></span>
                     <span v-if="versionOf(comp)" class="bench-th-version" :title="versionOf(comp)">v{{ shortVersion(versionOf(comp)) }}</span>
                     <span v-if="showStrategy" class="bench-tag" :class="`bench-tag--${strategyOf(comp)}`">{{ strategyOf(comp) }}</span>
                   </th>
@@ -856,8 +880,8 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
               <thead>
                 <tr class="bench-head">
                   <th class="bench-th bench-th--case">case</th>
-                  <th v-for="comp in index.competitors" :key="comp" class="bench-th bench-th--comp">
-                    <span class="bench-th-name">{{ comp }}</span>
+                  <th v-for="(comp, ci) in index.competitors" :key="comp" class="bench-th bench-th--comp">
+                    <span class="bench-th-name">{{ comp }}<BenchColumnInfo v-if="columnNotes[comp]" :label="comp" :note="columnNotes[comp]" :align="tipAlign(ci)" /></span>
                     <span v-if="versionOf(comp)" class="bench-th-version" :title="versionOf(comp)">v{{ shortVersion(versionOf(comp)) }}</span>
                     <span v-if="showStrategy" class="bench-tag" :class="`bench-tag--${strategyOf(comp)}`">{{ strategyOf(comp) }}</span>
                   </th>
@@ -1201,6 +1225,20 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
 .bench-th--comp .bench-tag {
   margin-top: 0.2rem;
   font-weight: 600;
+}
+
+/* The whole header cell is the hover target for its column note — the info glyph
+   BenchColumnInfo draws is only the cue that there is something to hover. Reaching
+   into the child's tip is deliberate: the trigger has to be the cell, which lives
+   here, while the tip's own look stays the child's business. */
+.bench-th--comp:hover :deep(.bench-info-tip) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bench-th--comp:hover :deep(.bench-info-glyph) {
+  color: var(--ui-primary, #79af43);
+  opacity: 1;
 }
 
 /* Run-environment line above the tables — quiet, terminal-style. */

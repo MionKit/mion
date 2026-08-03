@@ -808,19 +808,3 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
   font-weight: 700;
 }
 
-/* Serialization bench page — compact "what each column is" cards. Docus renders
-   each card as .group with the title in a <p> and the body in the following
-   <div> (see the Nuxt UI Card slots). Primary-colour title, smaller caption body. */
-.rt-bench-strategies .group > p {
-  color: var(--ui-primary);
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 0.35rem;
-}
-
-.rt-bench-strategies .group > div {
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: var(--ui-text-muted, var(--color-gray-400));
-}
