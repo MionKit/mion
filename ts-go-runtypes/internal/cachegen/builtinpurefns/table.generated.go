@@ -48,6 +48,14 @@ var builtinEntries = []builtinEntry{
 		deps:         nil,
 	},
 	{
+		namespace:    "rt",
+		functionName: "uniqueItems",
+		bodyHash:     "gjx5dea1ckOqae",
+		paramNames:   nil,
+		code:         "// The 2020-12 `uniqueItems` predicate: JSON equality — numbers by\n  // mathematical value (so 0 and -0 collide), objects by unordered key set,\n  // arrays by order. `canon` is built once here at registration rather than\n  // once per validator call, which is why this lives in a pure fn instead of\n  // inline in the emitted body.\n  //\n  // Only objects and arrays pay for canonicalisation; primitives key a Set\n  // directly, so an array of numbers or strings never builds a string. Set\n  // membership is SameValueZero, which is exactly the partition the canonical\n  // form produced (0 with -0, NaN with itself). The two sets are kept SEPARATE\n  // so a raw string can never collide with the canonical form of an object —\n  // the string '{}' and the value {} are different items.\n  const canon = (x) => {\n    if (x === null || typeof x !== 'object') {\n      return typeof x === 'string' ? JSON.stringify(x) : typeof x + ':' + String(x);\n    }\n    if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';\n    return (\n      '{' +\n      Object.keys(x)\n        .sort()\n        .map((k) => JSON.stringify(k) + ':' + canon(x[k]))\n        .join(',') +\n      '}'\n    );\n  };\n  return function _uniqueItems(arr) {\n    const len = arr.length;\n    if (len < 2) return true;\n    // No `new Set<T>()` type arguments anywhere in a pure-fn body: the\n    // built-in extractor strips annotations but not type arguments, so they\n    // would survive into the emitted JS as a comparison expression.\n    const primitives = new Set();\n    let objects = null;\n    for (let i = 0; i < len; i++) {\n      const item = arr[i];\n      if (item === null || typeof item !== 'object') {\n        if (primitives.has(item)) return false;\n        primitives.add(item);\n        continue;\n      }\n      if (objects === null) objects = new Set();\n      const key = canon(item);\n      if (objects.has(key)) return false;\n      objects.add(key);\n    }\n    return true;\n  };",
+		deps:         nil,
+	},
+	{
 		namespace:    "rtFormats",
 		functionName: "dateStrToMs",
 		bodyHash:     "1cYe7lPKwYRyFR",

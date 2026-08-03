@@ -164,7 +164,7 @@ func (e ValidationErrorsEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, ex
 			}
 			okVar := ctx.NextLocalVar("pok")
 			scratch := ctx.NextLocalVar("per")
-			check := "let " + okVar + " = true;for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {" +
+			check := "let " + okVar + " = true;for (const " + kVar + " in " + ctx.Vλl + ") {" +
 				"if (!" + reVar + ".test(" + kVar + ")) continue;" +
 				"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
 				"if (" + scratch + ".length > 0) " + okVar + " = false;}" +
@@ -182,7 +182,7 @@ func (e ValidationErrorsEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, ex
 			if childRT.Type != CodeNS && childRT.Code != "" {
 				okVar := ctx.NextLocalVar("pok")
 				scratch := ctx.NextLocalVar("per")
-				check := "let " + okVar + " = true;for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {" +
+				check := "let " + okVar + " = true;for (const " + kVar + " in " + ctx.Vλl + ") {" +
 					"const " + scratch + " = [];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
 					"if (" + scratch + ".length > 0) " + okVar + " = false;}" +
 					"if (!" + okVar + ") " + formats.FormatErrCall("pth", "er", "object", "propertyNames", "propertyNames", "true")

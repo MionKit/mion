@@ -420,11 +420,19 @@ func emitPatternPropCheck(ctx *EmitContext, patternProp *protocol.PatternPropChe
 	if childRT.Code == "" {
 		return "true"
 	}
-	return "((() => {for (const " + kVar + " of Object.keys(" + ctx.Vλl + ")) {if (" + reVar + ".test(" + kVar + ") && !(" +
+	// `for…in` rather than `for…of Object.keys(v)`: same enumeration the index
+	// signature loop and the closedness sweep use, without materialising a key
+	// array on every call. The loop stays an IIFE (not a prologue function)
+	// because the value child compiled against `v[<key>]` and closes over v.
+	return "((() => {for (const " + kVar + " in " + ctx.Vλl + ") {if (" + reVar + ".test(" + kVar + ") && !(" +
 		childRT.Code + ")) return false;}return true;})())"
 }
 
 // emitPropNamesCheck: every key validates (as a string) against the child.
+// The child compiles against the KEY, never against `v[key]`, so the whole
+// sweep hoists into the factory prologue — no key array, no per-key callback,
+// and nothing allocated per call (the `Object.keys(v).every(cb)` form paid all
+// three).
 func emitPropNamesCheck(ctx *EmitContext, propNames *protocol.RunType) string {
 	if ctx.ResolveRef(propNames) == nil {
 		panic("validate: unresolvable propertyNames child — dropping it would silently weaken validation")
@@ -439,7 +447,12 @@ func emitPropNamesCheck(ctx *EmitContext, propNames *protocol.RunType) string {
 	if childRT.Code == "" {
 		return ""
 	}
-	return "Object.keys(" + ctx.Vλl + ").every((" + kVar + ") => " + childRT.Code + ")"
+	fnVar := ctx.NextLocalVar("pnFn")
+	if !ctx.HasContextItem(fnVar) {
+		ctx.SetContextItem(fnVar, "const "+fnVar+" = function(o){for (const "+kVar+" in o) {if (!("+
+			childRT.Code+")) return false;}return true}")
+	}
+	return fnVar + "(" + ctx.Vλl + ")"
 }
 
 func (ValidateEmitter) emitKindDefault(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {

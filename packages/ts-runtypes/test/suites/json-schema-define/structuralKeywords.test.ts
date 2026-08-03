@@ -146,6 +146,118 @@ describe('additionalProperties: false — closedness', () => {
   });
 });
 
+// The emitted shape for these keywords is deliberately allocation-free: the
+// closed / bounds sweep is ONE hoisted `for…in` (no key array, no per-key
+// callback, key list as an identity chain or a hoisted Set past
+// identityChainMaxKeys), and uniqueItems runs through the `rt::uniqueItems`
+// pure fn, which keys primitives raw and canonicalises only objects. These
+// pin the semantics that shape must not quietly change.
+describe('closedness and uniqueness — emitted-shape edge cases', () => {
+  it('closes over key lists on both sides of the identity-chain threshold', () => {
+    // Ten declared keys pushes the allowed-key test past the chain threshold
+    // onto the hoisted Set; the verdicts must be identical either way.
+    const wide = createValidateFn(
+      runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          k0: {type: 'number'},
+          k1: {type: 'number'},
+          k2: {type: 'number'},
+          k3: {type: 'number'},
+          k4: {type: 'number'},
+          k5: {type: 'number'},
+          k6: {type: 'number'},
+          k7: {type: 'number'},
+          k8: {type: 'number'},
+          k9: {type: 'number'},
+        },
+        additionalProperties: false,
+      })
+    );
+    expect(wide({})).toBe(true);
+    expect(wide({k0: 1, k9: 2})).toBe(true);
+    expect(wide({k0: 1, k10: 2})).toBe(false);
+    expect(wide({zz: 1})).toBe(false);
+  });
+
+  it('counts and closes in one sweep when bounds and closedness combine', () => {
+    const fn = createValidateFn(
+      runTypeFromJsonSchema({
+        type: 'object',
+        properties: {a: {type: 'number'}, b: {type: 'number'}, c: {type: 'number'}},
+        minProperties: 2,
+        maxProperties: 3,
+        additionalProperties: false,
+      })
+    );
+    expect(fn({a: 1, b: 2})).toBe(true);
+    expect(fn({a: 1, b: 2, c: 3})).toBe(true);
+    expect(fn({a: 1})).toBe(false); // under minProperties
+    expect(fn({a: 1, b: 2, z: 3})).toBe(false); // undeclared key, count still in range
+  });
+
+  it('treats an inherited enumerable key as an additional key', () => {
+    // The sweep is `for…in`, matching the index-signature loop and
+    // pf_hasUnknownKeysFromArray. JSON-shaped data never carries inherited
+    // enumerables, so this only pins the intent.
+    const fn = createValidateFn(
+      runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'number'}}, additionalProperties: false})
+    );
+    const withProto = Object.create({inherited: 1}) as Record<string, unknown>;
+    withProto.a = 1;
+    expect(fn({a: 1})).toBe(true);
+    expect(fn(withProto)).toBe(false);
+  });
+
+  it('applies propertyNames and patternProperties over the same key enumeration', () => {
+    // Both sweeps are `for…in` too, so every key-walking keyword agrees on
+    // which keys exist. Inherited enumerables are included, as above.
+    const names = createValidateFn(
+      runTypeFromJsonSchema({type: 'object', propertyNames: {pattern: '^[a-z]+$'}, additionalProperties: true})
+    );
+    expect(names({abc: 1, de: 2})).toBe(true);
+    expect(names({Abc: 1})).toBe(false);
+    const inheritedBadKey = Object.create({Bad: 1}) as Record<string, unknown>;
+    inheritedBadKey.ok = 1;
+    expect(names(inheritedBadKey)).toBe(false);
+
+    const patterned = createValidateFn(runTypeFromJsonSchema({type: 'object', patternProperties: {'^n_': {type: 'number'}}}));
+    expect(patterned({n_a: 1, other: 'x'})).toBe(true);
+    expect(patterned({n_a: 'x'})).toBe(false);
+    const inheritedBadValue = Object.create({n_z: 'x'}) as Record<string, unknown>;
+    inheritedBadValue.n_a = 1;
+    expect(inheritedBadValue.n_z).toBe('x');
+    expect(patterned(inheritedBadValue)).toBe(false);
+  });
+
+  it('never collides a raw string with an object canonical form', () => {
+    // Primitives key a Set raw and objects key a separate Set of canonical
+    // strings, so the STRING '{}' and the VALUE {} stay distinct items.
+    const fn = createValidateFn(runTypeFromJsonSchema({type: 'array', uniqueItems: true}));
+    expect(fn(['{}', {}])).toBe(true);
+    expect(fn(['[]', []])).toBe(true);
+    expect(fn(['number:1', 1])).toBe(true);
+    expect(fn(['object:null', null])).toBe(true);
+    expect(fn([{}, {}])).toBe(false);
+    expect(fn(['{}', '{}'])).toBe(false);
+  });
+
+  it('keeps mixed primitive and object uniqueness exact', () => {
+    const fn = createValidateFn(runTypeFromJsonSchema({type: 'array', uniqueItems: true}));
+    expect(fn([1, 'a', true, null, {a: 1}, [2]])).toBe(true);
+    expect(fn([1, 'a', {a: 1}, [2], {a: 1}])).toBe(false); // duplicate object
+    expect(fn([1, 'a', {a: 1}, [2], 'a'])).toBe(false); // duplicate primitive
+    expect(
+      fn([
+        [1, 2],
+        [2, 1],
+      ])
+    ).toBe(true); // array order matters
+    expect(fn([{a: {b: 1}}, {a: {b: 1}}])).toBe(false); // nested deep equality
+    expect(fn([1])).toBe(true); // single item short-circuits
+  });
+});
+
 describe('structural keywords under negation', () => {
   it('not uniqueItems accepts exactly the arrays with duplicates', () => {
     const fn = createValidateFn(runTypeFromJsonSchema({not: {uniqueItems: true}}));

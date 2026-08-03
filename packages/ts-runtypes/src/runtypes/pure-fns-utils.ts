@@ -72,6 +72,57 @@ export const pf_hasUnknownKeysFromArray = registerPureFnFactory('rt::hasUnknownK
   };
 });
 
+export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function () {
+  // The 2020-12 `uniqueItems` predicate: JSON equality — numbers by
+  // mathematical value (so 0 and -0 collide), objects by unordered key set,
+  // arrays by order. `canon` is built once here at registration rather than
+  // once per validator call, which is why this lives in a pure fn instead of
+  // inline in the emitted body.
+  //
+  // Only objects and arrays pay for canonicalisation; primitives key a Set
+  // directly, so an array of numbers or strings never builds a string. Set
+  // membership is SameValueZero, which is exactly the partition the canonical
+  // form produced (0 with -0, NaN with itself). The two sets are kept SEPARATE
+  // so a raw string can never collide with the canonical form of an object —
+  // the string '{}' and the value {} are different items.
+  const canon = (x: any): string => {
+    if (x === null || typeof x !== 'object') {
+      return typeof x === 'string' ? JSON.stringify(x) : typeof x + ':' + String(x);
+    }
+    if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+    return (
+      '{' +
+      Object.keys(x)
+        .sort()
+        .map((k) => JSON.stringify(k) + ':' + canon(x[k]))
+        .join(',') +
+      '}'
+    );
+  };
+  return function _uniqueItems(arr: readonly any[]): boolean {
+    const len = arr.length;
+    if (len < 2) return true;
+    // No `new Set<T>()` type arguments anywhere in a pure-fn body: the
+    // built-in extractor strips annotations but not type arguments, so they
+    // would survive into the emitted JS as a comparison expression.
+    const primitives: Set<any> = new Set();
+    let objects: Set<string> | null = null;
+    for (let i = 0; i < len; i++) {
+      const item = arr[i];
+      if (item === null || typeof item !== 'object') {
+        if (primitives.has(item)) return false;
+        primitives.add(item);
+        continue;
+      }
+      if (objects === null) objects = new Set();
+      const key = canon(item);
+      if (objects.has(key)) return false;
+      objects.add(key);
+    }
+    return true;
+  };
+});
+
 export const pf_newRunTypeErr = registerPureFnFactory('rt::newRunTypeErr', function () {
   return function _err(
     pλth: readonly StrNumber[],

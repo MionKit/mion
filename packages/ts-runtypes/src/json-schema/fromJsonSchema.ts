@@ -521,6 +521,22 @@ type AllowedKeysOf<S> = S extends {properties: infer P} ? KeysToTuple<P> : reado
 // sample pools reach the runtime for key mocking) and a bare key-validating
 // child. propertyNames booleans: true is a no-op, false admits only {}
 // (every key fails the never child).
+//
+// Why a SENTINEL and not an index signature (a Record, or a Record carrying
+// the key rule as a settings brand): TypeScript allows several index
+// signatures on one type only when their KEY TYPES differ. 2020-12 lets
+// patternProperties declare N patterns with N different value types, and
+// every arbitrary-regex pattern is keyed plain `string`, so two of them
+// collide and cannot be spelled as intersected Records. Template-literal keys
+// dodge that (the index-signature emitter already turns one into a hoisted
+// key regex), but they only reach prefix / suffix / infix shapes, never an
+// arbitrary regex like `^[a-z]{2}_`. The sentinel is TOTAL over the keyword
+// where a Record would be partial, so it stays.
+//
+// The cost is that the emitted check is a separate per-key sweep rather than
+// riding the index-signature loop. Everything reusable in it is hoisted into
+// the factory prologue (see emitPatternPropCheck), so the remaining cost is
+// the extra walk, not per-key allocation.
 type PatternPropsPart<S, Root, F extends [unknown]> = S extends {patternProperties: infer P}
   ? {
       readonly __rtPatternProps?: {

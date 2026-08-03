@@ -39,12 +39,33 @@ func (emitter arrayFormatEmitter) Kind() protocol.ReflectionKind {
 	return emitter.kind
 }
 
+// corePureFnNamespace / uniqueItemsPureFnPath — the `rt::uniqueItems` helper
+// lives with the other core runtime helpers in pure-fns-utils.ts, NOT under
+// `rtFormats::`, because that module is side-effect imported from the package
+// entry (src/index.ts) and is therefore always registered. The `rtFormats::`
+// modules only register when `ts-runtypes/formats` is imported, which a
+// schema-door-only program never does.
+const (
+	corePureFnNamespace   = "rt"
+	uniqueItemsPureFnPath = "packages/ts-runtypes/src/runtypes/pure-fns-utils.ts"
+	uniqueItemsPureFnName = "uniqueItems"
+)
+
 // uniqueItemsCheck is the 2020-12 uniqueItems predicate: JSON equality
 // (numbers by mathematical value — so 0 and -0 collide, 1 and 1.0 collide —
-// objects by unordered key set, arrays by order) via a canonical stringify
-// with sorted keys. Self-contained IIFE, no pure-fn registration (the email
-// decomposition precedent).
-func uniqueItemsCheck(vλl string) string {
+// objects by unordered key set, arrays by order). The body lives in the
+// `rt::uniqueItems` pure fn so its canonicalisation closure is built ONCE per
+// module instead of once per validator call, and so primitives skip
+// canonicalisation entirely.
+//
+// Without a context (direct emitter tests) it degrades to the original
+// self-contained IIFE, which is semantically identical but rebuilds the
+// closure per call.
+func uniqueItemsCheck(ctx formats.EmitContext, vλl string) string {
+	if ctx != nil {
+		alias := ctx.UsePureFn(corePureFnNamespace, uniqueItemsPureFnName, uniqueItemsPureFnPath)
+		return alias + "(" + vλl + ")"
+	}
 	return "((a) => {const seen = new Set();const canon = (x) => {" +
 		"if (x === null || typeof x !== 'object') return typeof x === 'string' ? JSON.stringify(x) : typeof x + ':' + String(x);" +
 		"if (Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';" +
@@ -52,7 +73,7 @@ func uniqueItemsCheck(vλl string) string {
 		"for (const item of a) {const key = canon(item);if (seen.has(key)) return false;seen.add(key);}return true;})(" + vλl + ")"
 }
 
-func arrayConditions(params map[string]any, vλl string) []string {
+func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
 	var conditions []string
 	if value, ok := formats.ReadNumberParam(params, "minItems"); ok {
 		conditions = append(conditions, vλl+".length >= "+formats.FormatNumber(value))
@@ -61,19 +82,19 @@ func arrayConditions(params map[string]any, vλl string) []string {
 		conditions = append(conditions, vλl+".length <= "+formats.FormatNumber(value))
 	}
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
-		conditions = append(conditions, uniqueItemsCheck(vλl))
+		conditions = append(conditions, uniqueItemsCheck(ctx, vλl))
 	}
 	return conditions
 }
 
-func (arrayFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (arrayFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
-	return strings.Join(arrayConditions(annotation.Params, vλl), " && ")
+	return strings.Join(arrayConditions(annotation.Params, vλl, ctx), " && ")
 }
 
-func (arrayFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
+func (arrayFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
@@ -89,7 +110,7 @@ func (arrayFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatA
 	}
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
 		statements = append(statements,
-			"if (!("+uniqueItemsCheck(vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", arrayFormatName, "uniqueItems", "true"))
+			"if (!("+uniqueItemsCheck(ctx, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", arrayFormatName, "uniqueItems", "true"))
 	}
 	return strings.Join(statements, ";")
 }

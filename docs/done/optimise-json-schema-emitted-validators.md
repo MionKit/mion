@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-03
 ---
 
@@ -125,7 +125,7 @@ Each case is its own investigation. Do not batch a single refactor across all of
   `go -C ts-go-runtypes test ./internal/...` for the emitters. `pnpm test` green.
 - Correctness did not move: `pnpm rtx bench spec` still reports **61/65** for ts-runtypes
   (the four known gaps are
-  [json-schema-spec-conformance-gaps.md](json-schema-spec-conformance-gaps.md), not this
+  [json-schema-spec-conformance-gaps.md](../todos/json-schema-spec-conformance-gaps.md), not this
   todo's problem), and the Correctness alignment table gains no new misalignments.
 - No docs change expected. The benchmark pages read their numbers from the results, so
   they update themselves.
@@ -133,6 +133,128 @@ Each case is its own investigation. Do not batch a single refactor across all of
 ## Out of scope
 
 - The four conformance gaps in
-  [json-schema-spec-conformance-gaps.md](json-schema-spec-conformance-gaps.md).
+  [json-schema-spec-conformance-gaps.md](../todos/json-schema-spec-conformance-gaps.md).
 - Type-instantiation cost (the Compile-time page). Different axis, different fix.
 - Any competitor-side or harness change.
+
+---
+
+## Plan and outcome — implemented 2026-08-03
+
+Approved plan, and what actually shipped. Two rules drove every change, both with an
+existing house implementation that was copied rather than reinvented:
+
+1. **Anything reusable and expensive to build goes in the factory prologue** —
+   `ctx.NextLocalVar` + `ctx.SetContextItem`, the `emitPatternTest` idiom.
+2. **No callback per key** — the `Record` / index-signature path
+   (`emitIndexSignatureValidate`) is the reference: a bare `for…in` with early returns, its
+   key regex hoisted, membership against a prologue `Set`.
+
+### What changed
+
+- **`formats/structural/objectformat.go`** — stopped discarding the `EmitContext`. One
+  prologue-hoisted `for…in` sweep now covers `minProperties`, `maxProperties` and
+  `additionalProperties: false` together, where each of the three previously allocated its
+  own `Object.keys(v)` array. Allowed keys are an identity chain up to
+  `identityChainMaxKeys` (8) and a hoisted `Set` above it; every `closedPatterns` regex
+  hoists. The errors lane keeps one statement per keyword so attribution is unchanged, and
+  shares a single hoisted count fn between the two bounds.
+- **`formats/structural/arrayformat.go` + `pure-fns-utils.ts`** — `uniqueItems` moved into
+  the new `rt::uniqueItems` pure fn, so the canonicalisation closure is built once per
+  module instead of once per validator call. Primitives key a Set raw and only objects and
+  arrays are canonicalised, with the two kept in SEPARATE sets so the string `'{}'` can
+  never collide with the canonical form of `{}`. `rt::` and not `rtFormats::` deliberately:
+  pure-fns-utils.ts is side-effect imported from the package entry, so it is always
+  registered, whereas the rtFormats modules only register when `ts-runtypes/formats` is
+  imported, which a schema-door-only program never does.
+- **`validate.go` / `validationerrors.go`** — `propertyNames` moved off
+  `Object.keys(v).every(cb)` onto a hoisted `for…in` sweep (its child compiles against the
+  KEY, so the whole loop hoists); `patternProperties` keeps its IIFE (its value child closes
+  over `v`) but walks `for…in` instead of `for…of Object.keys(v)`. After this there is not a
+  single `.every(` callback or `Object.keys` key array left in the emitted corpus.
+
+### RichRecord — investigated and rejected
+
+Raised during planning: could `patternProperties` lower to a Record carrying the key rule as
+settings, landing it on the already-optimal index-signature loop? Feasible for ONE pattern,
+but TypeScript allows several index signatures only with distinct key types, and 2020-12
+permits N arbitrary-regex patterns with N value types, all keyed plain `string`. It cannot be
+made total, so the sentinel stays. The reasoning is now recorded at `PatternPropsPart` in
+[fromJsonSchema.ts](../../packages/ts-runtypes/src/json-schema/fromJsonSchema.ts) so it is
+not re-litigated.
+
+### Results
+
+Valid-input ops/sec. **Competitor columns are re-measured in the same session**; the "before"
+column is the earlier baseline run, which is why every untouched row reads 3-7% low. That
+offset is cross-run drift, not regression: two runs of identical code reproduced it, and
+`property_names` alone swung 12.3 to 17.0 between them, so anything inside roughly +/-7% here
+is noise.
+
+**validate**
+
+| case | before | after | delta | typebox | ajv | typia |
+|---|---|---|---|---|---|---|
+| `unique_items` | 9.0 | **30.3** | **+236%** | 0.9 | 11.8 | 31.5 |
+| `pattern_properties` | 8.0 | **13.4** | **+67%** | 8.6 | 15.7 | 12.7 |
+| `closed_object` | 24.7 | **34.9** | **+41%** | 33.9 | 31.3 | 33.8 |
+| `object_size` | 23.7 | 26.1 | +10% | 12.3 | 23.2 | n/a |
+| `property_names` | 18.3 | 18.1 | -1% | n/a | 19.7 | n/a |
+| `contains_count` | 44.3 | 42.7 | -4% | 46.0 | 23.5 | n/a |
+| `dependent_required` | 35.5 | 33.4 | -6% | n/a | 34.3 | 30.8 |
+| `string_email` | 18.7 | 17.4 | -7% | 18.9 | 15.5 | 18.3 |
+| `int_bounded` | 91.5 | 87.7 | -4% | 93.5 | 40.2 | 81.2 |
+| `string_pattern` | 33.9 | 31.4 | -7% | 31.9 | 25.8 | 11.6 |
+| `multiple_of` | 67.8 | 65.8 | -3% | 65.9 | 41.1 | 63.8 |
+
+**getValidationErrors** (targets only; the rest sit in the drift band)
+
+| case | before | after | delta | typebox | ajv | typia |
+|---|---|---|---|---|---|---|
+| `unique_items` | 8.8 | **28.8** | **+229%** | 0.7 | 19.2 | 30.1 |
+| `pattern_properties` | 8.0 | **13.0** | **+62%** | 1.9 | 15.5 | 12.9 |
+| `closed_object` | 15.1 | **17.9** | **+18%** | 1.3 | 27.1 | 33.5 |
+
+Standing versus the field changed on all three targets: `closed_object` went from last to
+first on validate, `unique_items` from last-but-one to level with typia, `pattern_properties`
+from last to second. **`closed_object` on the errors lane is still well behind ajv (17.9 vs
+27.1) and typia (33.5)** — the closed sweep is now cheap, so the remaining cost is elsewhere
+in the errors path, and that is a separate investigation.
+
+### Verification
+
+- `go -C ts-go-runtypes test ./internal/...` green, including 12 new shape tests in
+  `formats/structural/{objectformat,arrayformat}_test.go` (the package had none).
+- `pnpm test` 9781 passed, 0 failed, with 6 new behavioural cases in
+  `structuralKeywords.test.ts` covering both sides of the identity-chain threshold, the fused
+  count-and-close sweep, inherited enumerable keys, string-versus-object-canon separation,
+  and mixed primitive/object uniqueness.
+- `pnpm rtx bench spec` **61/65**, the same four pre-existing gaps
+  ([json-schema-spec-conformance-gaps.md](../todos/json-schema-spec-conformance-gaps.md)), no new
+  failures. Alignment audit: **0 divergences** for ts-runtypes, no JSON_SCHEMA entries.
+- `pnpm run lint` and `pnpm run format` clean.
+
+### Deliberate semantic change
+
+The key sweeps are `for…in`, which enumerates inherited enumerable properties where
+`Object.keys` does not. A closed object inheriting an enumerable key is now rejected as
+having an additional key, and `propertyNames` / `patternProperties` likewise see inherited
+keys. This makes every key-walking keyword agree with the index-signature loop,
+`pf_hasUnknownKeysFromArray` and `pf_countEnumKeys`, which were already `for…in`. JSON-shaped
+data carries no inherited enumerables, so the contract is unaffected; a test pins the intent.
+
+### Found along the way
+
+[purefn-type-stripper-drops-no-type-arguments.md](../todos/purefn-type-stripper-drops-no-type-arguments.md)
+— the pure-fn extractor strips type annotations but not call/new type arguments, so
+`new Set<any>()` in any pure-fn body ships as invalid JavaScript with nothing to catch it.
+Hit while writing `rt::uniqueItems`; worked around with a comment there, filed for a real fix.
+
+### Left for later
+
+- `closed_object` and `contains_count` on the errors lane still trail ajv; the cost is no
+  longer in the key sweep.
+- `patternProperties` beside `additionalProperties: false` still walks the keys twice and
+  hoists the same regex source under two prologue names, because the closedness brand and the
+  pattern sentinel are emitted by different files. Fusing them is the remaining
+  `pattern_properties` gap versus ajv.
