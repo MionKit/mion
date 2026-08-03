@@ -469,7 +469,7 @@ describe('oneOf — carrier interning regression', () => {
   // exclusivity silently drops (caught by the jsonschema fuzz lane,
   // seed 1644750389). This pins the reduced fixture.
   it('two non-interned carrier spellings still detect as one level', () => {
-    type BrandedArr = Array<string> & {readonly __rtFormatName?: 'arrayFormat'; readonly __rtFormatParams?: {maxItems: 4}};
+    type BrandedArr = Array<string> & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {maxItems: 4}};
     type T = Record<
       string,
       [

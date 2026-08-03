@@ -1,5 +1,5 @@
 // Package structural holds the Go-side emitters for the structural format
-// families — arrayFormat (base kind array/tuple) and objectFormat (object
+// families — formattedArray (base kind array/tuple) and formattedObject (object
 // literal / record plus the bare `object` keyword). First formats whose base
 // is not a primitive: the JSON Schema door lowers uniqueItems / maxItems /
 // minProperties / maxProperties / additionalProperties: false onto them, and
@@ -14,28 +14,28 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-const arrayFormatName = "arrayFormat"
+const formattedArrayName = "formattedArray"
 
-// arrayFormatEmitter implements the "arrayFormat" family. Surface:
+// formattedArrayEmitter implements the "formattedArray" family. Surface:
 // minItems / maxItems (length bounds — the schema door usually spells
 // minItems as a padded tuple instead, but the params stay supported so the
 // brand is total) and uniqueItems (2020-12 deep equality). Registered under
 // BOTH array-shaped base kinds: plain arrays and tuples (a prefixItems
 // schema with uniqueItems brands a tuple base).
-type arrayFormatEmitter struct {
+type formattedArrayEmitter struct {
 	kind protocol.ReflectionKind
 }
 
 func init() {
-	formats.Register(arrayFormatEmitter{kind: protocol.KindArray})
-	formats.Register(arrayFormatEmitter{kind: protocol.KindTuple})
+	formats.Register(formattedArrayEmitter{kind: protocol.KindArray})
+	formats.Register(formattedArrayEmitter{kind: protocol.KindTuple})
 }
 
-func (arrayFormatEmitter) Name() string {
-	return arrayFormatName
+func (formattedArrayEmitter) Name() string {
+	return formattedArrayName
 }
 
-func (emitter arrayFormatEmitter) Kind() protocol.ReflectionKind {
+func (emitter formattedArrayEmitter) Kind() protocol.ReflectionKind {
 	return emitter.kind
 }
 
@@ -87,14 +87,14 @@ func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext
 	return conditions
 }
 
-func (arrayFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (formattedArrayEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
 	return strings.Join(arrayConditions(annotation.Params, vλl, ctx), " && ")
 }
 
-func (arrayFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
@@ -102,22 +102,22 @@ func (arrayFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatA
 	var statements []string
 	if value, ok := formats.ReadNumberParam(params, "minItems"); ok {
 		statements = append(statements,
-			"if ("+vλl+".length < "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", arrayFormatName, "minItems", formats.FormatNumber(value)))
+			"if ("+vλl+".length < "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "minItems", formats.FormatNumber(value)))
 	}
 	if value, ok := formats.ReadNumberParam(params, "maxItems"); ok {
 		statements = append(statements,
-			"if ("+vλl+".length > "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", arrayFormatName, "maxItems", formats.FormatNumber(value)))
+			"if ("+vλl+".length > "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "maxItems", formats.FormatNumber(value)))
 	}
 	if unique, _ := formats.ReadBoolParam(params, "uniqueItems"); unique {
 		statements = append(statements,
-			"if (!("+uniqueItemsCheck(ctx, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", arrayFormatName, "uniqueItems", "true"))
+			"if (!("+uniqueItemsCheck(ctx, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "array", formattedArrayName, "uniqueItems", "true"))
 	}
 	return strings.Join(statements, ";")
 }
 
 // ValidateParams surfaces bound contradictions at build time (AOT twin of
 // the JS-side validateParams convention).
-func (arrayFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (formattedArrayEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (arrayFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) 
 	maxValue, hasMax := formats.ReadNumberParam(params, "maxItems")
 	minValue, hasMin := formats.ReadNumberParam(params, "minItems")
 	if hasMax && hasMin && maxValue < minValue {
-		errs = append(errs, "ArrayFormat: `maxItems` cannot be less than `minItems`")
+		errs = append(errs, "FormattedArray: `maxItems` cannot be less than `minItems`")
 	}
 	return errs
 }

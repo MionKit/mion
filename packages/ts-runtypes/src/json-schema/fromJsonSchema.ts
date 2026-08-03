@@ -74,7 +74,7 @@ export interface JsonSchemaInput {
   readonly minItems?: number;
   readonly maxItems?: number;
   // uniqueItems / key-count bounds ride the structural format brands
-  // (arrayFormat / objectFormat) — exact validators over the base shape.
+  // (formattedArray / formattedObject) — exact validators over the base shape.
   readonly uniqueItems?: boolean;
   readonly minProperties?: number;
   readonly maxProperties?: number;
@@ -403,7 +403,7 @@ type StructuralFormat<Name extends string, P extends object> = {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: P;
 };
-// The object-family keywords with no TS spelling ride the objectFormat
+// The object-family keywords with no TS spelling ride the formattedObject
 // brand: key-count bounds and `additionalProperties: false` closedness (the
 // allowed-key list comes from the schema's own `properties`; without
 // `properties` EVERY key is additional, so the list is empty and only `{}`
@@ -558,7 +558,7 @@ type ObjectFrom<S, Root, F extends [unknown]> =
     ? never
     : (keyof ObjectKeywordParams<S> extends never
         ? ObjectShapeFrom<S, Root, F>
-        : ObjectShapeFrom<S, Root, F> & StructuralFormat<'objectFormat', ObjectKeywordParams<S>>) &
+        : ObjectShapeFrom<S, Root, F> & StructuralFormat<'formattedObject', ObjectKeywordParams<S>>) &
         PatternPropsPart<S, Root, F> &
         PropNamesPart<S, Root, F>;
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
@@ -599,7 +599,7 @@ type PresentValue = null | boolean | number | string | unknown[] | Record<string
 // `additionalProperties: <schema>` ALONGSIDE `properties` intersects the
 // declared props with the index-signature record (01-phase1-mapping §3.2 — the
 // mixed form). The boolean forms contribute nothing HERE: `true`/omitted stay
-// open, and `false` is enforced by the objectFormat closedness brand that
+// open, and `false` is enforced by the formattedObject closedness brand that
 // ObjectFrom layers on top (the type level cannot subtract keys).
 type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additionalProperties: infer A}
   ? A extends boolean
@@ -623,7 +623,7 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additional
 // expands to `[T, T, ...T[]]` instead of silently dropping the bound.
 // uniqueItems and maxItems have no tuple spelling (uniqueItems is a value
 // relation; a maxItems tuple truncation cannot compose with the required
-// pad), so they ride the arrayFormat brand — the shape stays the tightest
+// pad), so they ride the formattedArray brand — the shape stays the tightest
 // tuple the OTHER keywords produce and the validator gains the exact length
 // / deep-equality checks.
 type ArrayKeywordParams<S> = Flatten<
@@ -651,7 +651,7 @@ type ArrayFrom<S, Root, F extends [unknown]> =
     ? never
     : keyof ArrayKeywordParams<S> extends never
       ? ArrayShapeFrom<S, Root, F> & ContainsPart<S, Root, F>
-      : ArrayShapeFrom<S, Root, F> & StructuralFormat<'arrayFormat', ArrayKeywordParams<S>> & ContainsPart<S, Root, F>;
+      : ArrayShapeFrom<S, Root, F> & StructuralFormat<'formattedArray', ArrayKeywordParams<S>> & ContainsPart<S, Root, F>;
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
   prefixItems: infer P extends readonly (JsonSchemaInput | boolean)[];
 }
@@ -1549,8 +1549,8 @@ type SchemaStoryByFormatName = {
   dateTime: 'format: date-time';
   stringFormat: 'constraint keywords (minLength/maxLength/…)';
   numberFormat: 'constraint keywords (minimum/maximum/…/multipleOf; type: integer)';
-  arrayFormat: 'constraint keywords (uniqueItems/maxItems; minItems spells as a padded tuple)';
-  objectFormat: 'constraint keywords (minProperties/maxProperties/additionalProperties: false)';
+  formattedArray: 'constraint keywords (uniqueItems/maxItems; minItems spells as a padded tuple)';
+  formattedObject: 'constraint keywords (minProperties/maxProperties/additionalProperties: false)';
   jsonContent: 'contentMediaType: application/json (optionally behind contentEncoding: base64)';
   bigintFormat: 'no schema input form (JSON has no bigint)';
   nativeDate: 'no schema input form (instance type, not a JSON shape)';

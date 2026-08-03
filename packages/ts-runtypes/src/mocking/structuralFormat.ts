@@ -1,5 +1,5 @@
 // Runtime twins of the structural format checks the Go emitters compile
-// (arrayFormat / objectFormat — internal/cachegen/typefunctions/formats/
+// (formattedArray / formattedObject — internal/cachegen/typefunctions/formats/
 // structural). The mock walker needs the same answers at generation time:
 // rejection sampling over annotated bases and honest negation-child tests.
 // The generated VALIDATORS never import this — their checks are compiled.
@@ -30,7 +30,7 @@ export function hasDuplicateItems(items: readonly unknown[]): boolean {
 }
 
 export function isStructuralFormat(annotation: FormatAnnotation | undefined): boolean {
-  return annotation !== undefined && (annotation.name === 'arrayFormat' || annotation.name === 'objectFormat');
+  return annotation !== undefined && (annotation.name === 'formattedArray' || annotation.name === 'formattedObject');
 }
 
 /** Does `value` satisfy the structural format annotation? True when the
@@ -40,14 +40,14 @@ export function isStructuralFormat(annotation: FormatAnnotation | undefined): bo
 export function structuralFormatAccepts(value: unknown, annotation: FormatAnnotation | undefined): boolean {
   if (!annotation) return true;
   const params = (annotation.params ?? {}) as Record<string, unknown>;
-  if (annotation.name === 'arrayFormat') {
+  if (annotation.name === 'formattedArray') {
     if (!Array.isArray(value)) return false;
     if (typeof params.minItems === 'number' && value.length < params.minItems) return false;
     if (typeof params.maxItems === 'number' && value.length > params.maxItems) return false;
     if (params.uniqueItems === true && hasDuplicateItems(value)) return false;
     return true;
   }
-  if (annotation.name === 'objectFormat') {
+  if (annotation.name === 'formattedObject') {
     if (typeof value !== 'object' || value === null) return false;
     const keys = Object.keys(value as Record<string, unknown>);
     if (typeof params.minProperties === 'number' && keys.length < params.minProperties) return false;

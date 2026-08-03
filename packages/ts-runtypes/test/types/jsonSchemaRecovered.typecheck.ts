@@ -195,7 +195,7 @@ export const vBoolSlotsB: TBoolSlots = ['a', {any: 'thing'}];
 // @ts-expect-error the false slot forbids a third member
 export const vBoolSlotsBad: TBoolSlots = ['a', 1, 2];
 
-// uniqueItems / maxItems ride an arrayFormat brand; the base stays assignable.
+// uniqueItems / maxItems ride an formattedArray brand; the base stays assignable.
 export const sArrayBounds = {type: 'array', items: {type: 'number'}, uniqueItems: true, maxItems: 5} as const;
 export type TArrayBounds = FromJsonSchema<typeof sArrayBounds>;
 export const vArrayBounds: TArrayBounds = [1, 2, 3];

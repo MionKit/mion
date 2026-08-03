@@ -1,12 +1,12 @@
 // format-validation / STRUCTURAL_FORMAT — the JSON Schema structural
-// keywords (arrayFormat / objectFormat brands, the contains /
+// keywords (formattedArray / formattedObject brands, the contains /
 // patternProperties / propertyNames child-schema slots) and the oneOf /
 // anyOf combinators, run through the full case matrix. The STATIC type
 // twin of every schema-door case is the door-recovered type itself
 // (FromJsonSchema<…>), so the id-integrity driver pins schema-literal ↔
 // type-first convergence by construction. The value-first twins are real
-// across the board since M9-P6: RT.oneOf / RT.anyOf plus RT.arrayFormat /
-// RT.objectFormat / RT.contains / RT.patternProperties / RT.propertyNames
+// across the board since M9-P6: RT.oneOf / RT.anyOf plus RT.formattedArray /
+// RT.formattedObject / RT.contains / RT.patternProperties / RT.propertyNames
 // (formats/structural.ts — the door's exact sentinel twins). The two
 // remaining 'not-supported' schema thunks are deliberate: bounded_items
 // (the door lowers minItems to a required tuple prefix, a different
@@ -73,7 +73,7 @@ export const STRUCTURAL_FORMAT = {
     description: 'JSON Schema `uniqueItems: true` on a typed array — 2020-12 deep JSON equality, not identity.',
     validateNotes: [
       'Duplicates compare by JSON value: [1, 1] fails even though the elements are distinct number instances.',
-      'Value-first twin: RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true}).',
+      'Value-first twin: RT.array(TF.number(), {uniqueItems: true}).',
     ],
     validate: () => createValidateFn<UniqueNumbers>(),
     standardSchema: () => createStandardSchema<UniqueNumbers>(),
@@ -100,24 +100,24 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<UniqueNumbers>>(),
-    validateSchema: () => createValidateFn(RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true})),
+    validateSchema: () => createValidateFn(RT.array(TF.number(), {uniqueItems: true})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true})),
     getValidationErrors: () => createGetValidationErrorsFn<UniqueNumbers>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<UniqueNumbers>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true})),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.number(), {uniqueItems: true})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true})),
     mockType: () => createMockDataFn<UniqueNumbers>(),
     getSamples: () => ({valid: [[], [1, 2, 3]], invalid: [[1, 1], ['x'], 5]}),
-    expectedFormatErrors: () => [{name: 'arrayFormat'}, null, null],
+    expectedFormatErrors: () => [{name: 'formattedArray'}, null, null],
   },
 
   bounded_items: {
     title: 'minItems / maxItems',
     description: 'JSON Schema `minItems: 1` + `maxItems: 2` — exact length bounds on a typed array.',
     validateNotes: [
-      'JSON Schema: the door lowers minItems to a required tuple prefix; RT.arrayFormat carries minItems as a brand param instead — same checks, different encoding (and id), so the columns stay door-authored.',
+      'JSON Schema: the door lowers minItems to a required tuple prefix; RT.array(..., {minItems}) carries minItems as a brand param instead — same checks, different encoding (and id), so the columns stay door-authored.',
     ],
     validate: () => createValidateFn<BoundedStrings>(),
     standardSchema: () => createStandardSchema<BoundedStrings>(),
@@ -156,14 +156,14 @@ export const STRUCTURAL_FORMAT = {
     getSamples: () => ({valid: [['a'], ['a', 'b']], invalid: [[], ['a', 'b', 'c'], 'x']}),
     // minItems lowers to a REQUIRED TUPLE PREFIX (an under-length array
     // fails as a missing element, no format payload); only maxItems rides
-    // the arrayFormat brand.
-    expectedFormatErrors: () => [null, {name: 'arrayFormat', val: 2, formatPathTail: 'maxItems'}, null],
+    // the formattedArray brand.
+    expectedFormatErrors: () => [null, {name: 'formattedArray', val: 2, formatPathTail: 'maxItems'}, null],
   },
 
   key_counts: {
     title: 'minProperties / maxProperties',
-    description: 'JSON Schema key-count bounds on an open object — the objectFormat brand counts own keys.',
-    validateNotes: ['JSON Schema: value-first twin: RT.objectFormat — author it through the schema door.'],
+    description: 'JSON Schema key-count bounds on an open object — the formattedObject brand counts own keys.',
+    validateNotes: ['JSON Schema: value-first twin: RT.formattedObject — author it through the schema door.'],
     validate: () => createValidateFn<KeyCounted>(),
     standardSchema: () => createStandardSchema<KeyCounted>(),
     validateReflect: () => {
@@ -189,25 +189,24 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<KeyCounted>>(),
-    validateSchema: () => createValidateFn(RT.objectFormat(RT.record(RT.unknown()), {minProperties: 1, maxProperties: 2})),
+    validateSchema: () => createValidateFn(RT.record(RT.unknown(), {minProperties: 1, maxProperties: 2})),
     validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'object', minProperties: 1, maxProperties: 2})),
     getValidationErrors: () => createGetValidationErrorsFn<KeyCounted>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<KeyCounted>>(),
-    getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.objectFormat(RT.record(RT.unknown()), {minProperties: 1, maxProperties: 2})),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.record(RT.unknown(), {minProperties: 1, maxProperties: 2})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', minProperties: 1, maxProperties: 2})),
     mockType: () => createMockDataFn<KeyCounted>(),
     getSamples: () => ({valid: [{a: 1}, {a: 1, b: 2}], invalid: [{}, {a: 1, b: 2, c: 3}, null]}),
-    expectedFormatErrors: () => [{name: 'objectFormat'}, {name: 'objectFormat'}, null],
+    expectedFormatErrors: () => [{name: 'formattedObject'}, {name: 'formattedObject'}, null],
   },
 
   closed_object: {
     title: 'additionalProperties false',
-    description: 'JSON Schema `additionalProperties: false` — the objectFormat closedness rejects undeclared keys.',
+    description: 'JSON Schema `additionalProperties: false` — the formattedObject closedness rejects undeclared keys.',
     validateNotes: [
       'Structural TS validation normally lets extra properties pass; closedness makes them a validation failure.',
-      'JSON Schema: value-first twin: RT.objectFormat — author it through the schema door.',
+      'JSON Schema: value-first twin: RT.formattedObject — author it through the schema door.',
     ],
     validate: () => createValidateFn<ClosedShape>(),
     standardSchema: () => createStandardSchema<ClosedShape>(),
@@ -258,7 +257,7 @@ export const STRUCTURAL_FORMAT = {
       ),
     mockType: () => createMockDataFn<ClosedShape>(),
     getSamples: () => ({valid: [{a: 'x'}], invalid: [{a: 'x', b: 1}, {}, null]}),
-    expectedFormatErrors: () => [{name: 'objectFormat'}, null, null],
+    expectedFormatErrors: () => [{name: 'formattedObject'}, null, null],
   },
 
   contains: {
@@ -293,12 +292,12 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<ContainsNumber>>(),
-    validateSchema: () => createValidateFn(RT.contains(RT.array(RT.unknown()), TF.number())),
+    validateSchema: () => createValidateFn(RT.array(RT.unknown(), {contains: TF.number()})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, minContains: 1})),
     getValidationErrors: () => createGetValidationErrorsFn<ContainsNumber>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<ContainsNumber>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.contains(RT.array(RT.unknown()), TF.number())),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.unknown(), {contains: TF.number()})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, minContains: 1})),
     mockType: () => createMockDataFn<ContainsNumber>(),
@@ -338,13 +337,13 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<PatternKeyed>>(),
-    validateSchema: () => createValidateFn(RT.patternProperties(RT.record(RT.unknown()), {'^a': TF.number()})),
+    validateSchema: () => createValidateFn(RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'object', patternProperties: {'^a': {type: 'number'}}})),
     getValidationErrors: () => createGetValidationErrorsFn<PatternKeyed>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<PatternKeyed>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.patternProperties(RT.record(RT.unknown()), {'^a': TF.number()})),
+      createGetValidationErrorsFn(RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', patternProperties: {'^a': {type: 'number'}}})),
     mockType: () => createMockDataFn<PatternKeyed>(),
@@ -381,13 +380,13 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<ShortKeys>>(),
-    validateSchema: () => createValidateFn(RT.propertyNames(RT.record(RT.unknown()), TF.string({maxLength: 3}))),
+    validateSchema: () => createValidateFn(RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'object', propertyNames: {type: 'string', maxLength: 3}})),
     getValidationErrors: () => createGetValidationErrorsFn<ShortKeys>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<ShortKeys>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.propertyNames(RT.record(RT.unknown()), TF.string({maxLength: 3}))),
+      createGetValidationErrorsFn(RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object', propertyNames: {type: 'string', maxLength: 3}})),
     mockType: () => createMockDataFn<ShortKeys>(),

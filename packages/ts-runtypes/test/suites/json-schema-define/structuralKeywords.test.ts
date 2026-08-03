@@ -1,6 +1,6 @@
 // Structural keywords — uniqueItems / maxItems / minProperties /
-// maxProperties / additionalProperties: false, lowered onto the arrayFormat
-// and objectFormat brands. The collapse lifts the brand off the base shape
+// maxProperties / additionalProperties: false, lowered onto the formattedArray
+// and formattedObject brands. The collapse lifts the brand off the base shape
 // (array / tuple / record / object literal), validate AND-chains the exact
 // check onto the — possibly hoisted — base, verr reports one format error
 // per violated param, and mocks reject-sample into the constrained set.
@@ -59,7 +59,7 @@ describe('uniqueItems — 2020-12 deep equality', () => {
   });
 });
 
-describe('maxItems — length bound via the arrayFormat brand', () => {
+describe('maxItems — length bound via the formattedArray brand', () => {
   it('bounds plain and typed arrays', () => {
     const fn = createValidateFn(runTypeFromJsonSchema({type: 'array', maxItems: 3}));
     expect(fn([])).toBe(true);
@@ -289,7 +289,7 @@ describe('structural keywords under negation', () => {
 });
 
 describe('structural brands and the marker rule', () => {
-  type UniqueArray = unknown[] & {readonly __rtFormatName?: 'arrayFormat'; readonly __rtFormatParams?: {uniqueItems: true}};
+  type UniqueArray = unknown[] & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {uniqueItems: true}};
 
   it('the schema door converges with the raw-sentinel spelling (static shape)', () => {
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'array', uniqueItems: true}))).toBe(getRunTypeId<UniqueArray>());
@@ -591,33 +591,33 @@ describe('boolean subschemas in array positions (2020-12 core §4.3.2)', () => {
 });
 
 describe('value-first structural builders — three-mode convergence (M9-P6)', () => {
-  // RT.arrayFormat / RT.objectFormat / RT.contains / RT.patternProperties /
+  // RT.formattedArray / RT.formattedObject / RT.contains / RT.patternProperties /
   // RT.propertyNames are the schema door's exact twins: same sentinel
   // encodings, one structural id per shape across all three authoring modes.
-  it('arrayFormat: door ↔ RT ↔ type-first, both marker shapes', () => {
+  it('formattedArray: door ↔ RT ↔ type-first, both marker shapes', () => {
     const door = getRunTypeId(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true}));
-    expect(getRunTypeId(RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true}))).toBe(door);
-    type Branded = RT.ArrayFormat<number[], {uniqueItems: true}>;
+    expect(getRunTypeId(RT.array(TF.number(), {uniqueItems: true}))).toBe(door);
+    type Branded = TF.FormattedArray<number[], {uniqueItems: true}>;
     expect(getRunTypeId<Branded>()).toBe(door);
     const value = [1, 2] as Branded;
     expect(getRunTypeId(value)).toBe(door); // reflection shape agrees
   });
 
-  it('objectFormat: key-count bounds converge', () => {
+  it('formattedObject: key-count bounds converge', () => {
     const door = getRunTypeId(runTypeFromJsonSchema({type: 'object', minProperties: 1, maxProperties: 2}));
-    expect(getRunTypeId(RT.objectFormat(RT.record(RT.unknown()), {minProperties: 1, maxProperties: 2}))).toBe(door);
-    expect(getRunTypeId<RT.ObjectFormat<Record<string, unknown>, {minProperties: 1; maxProperties: 2}>>()).toBe(door);
+    expect(getRunTypeId(RT.record(RT.unknown(), {minProperties: 1, maxProperties: 2}))).toBe(door);
+    expect(getRunTypeId<TF.FormattedObject<Record<string, unknown>, {minProperties: 1; maxProperties: 2}>>()).toBe(door);
   });
 
   it('contains: default and explicit occurrence bounds converge', () => {
     const door = getRunTypeId(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, minContains: 1}));
-    expect(getRunTypeId(RT.contains(RT.array(RT.unknown()), TF.number()))).toBe(door);
-    expect(getRunTypeId<RT.Contains<unknown[], number>>()).toBe(door);
-    const bounded = getRunTypeId(RT.contains(RT.array(RT.unknown()), TF.number(), {minContains: 2, maxContains: 3}));
+    expect(getRunTypeId(RT.array(RT.unknown(), {contains: TF.number()}))).toBe(door);
+    expect(getRunTypeId<TF.FormattedArray<unknown[], {contains: number}>>()).toBe(door);
+    const bounded = getRunTypeId(RT.array(RT.unknown(), {contains: TF.number(), minContains: 2, maxContains: 3}));
     expect(bounded).toBe(
       getRunTypeId(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, minContains: 2, maxContains: 3}))
     );
-    const fn = createValidateFn(RT.contains(RT.array(RT.unknown()), TF.number(), {minContains: 2, maxContains: 3}));
+    const fn = createValidateFn(RT.array(RT.unknown(), {contains: TF.number(), minContains: 2, maxContains: 3}));
     expect(fn([1, 2])).toBe(true);
     expect(fn([1])).toBe(false);
     expect(fn([1, 2, 3, 4])).toBe(false);
@@ -625,8 +625,8 @@ describe('value-first structural builders — three-mode convergence (M9-P6)', (
 
   it('patternProperties: pattern-keyed value schemas converge', () => {
     const door = getRunTypeId(runTypeFromJsonSchema({type: 'object', patternProperties: {'^a': {type: 'number'}}}));
-    expect(getRunTypeId(RT.patternProperties(RT.record(RT.unknown()), {'^a': TF.number()}))).toBe(door);
-    expect(getRunTypeId<RT.PatternProperties<Record<string, unknown>, {'^a': number}>>()).toBe(door);
+    expect(getRunTypeId(RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}}))).toBe(door);
+    expect(getRunTypeId<TF.FormattedObject<Record<string, unknown>, {patternProperties: {'^a': number}}>>()).toBe(door);
   });
 
   it('propertyNames: the TYPED child is the value-first twin', () => {
@@ -634,15 +634,15 @@ describe('value-first structural builders — three-mode convergence (M9-P6)', (
     // 2020-12 kind relevance; the value-first key schema is
     // string-constrained, so its twin is the typed spelling.
     const door = getRunTypeId(runTypeFromJsonSchema({type: 'object', propertyNames: {type: 'string', maxLength: 3}}));
-    expect(getRunTypeId(RT.propertyNames(RT.record(RT.unknown()), TF.string({maxLength: 3})))).toBe(door);
-    expect(getRunTypeId<RT.PropertyNames<Record<string, unknown>, TF.String<{maxLength: 3}>>>()).toBe(door);
-    const fn = createValidateFn(RT.propertyNames(RT.record(RT.unknown()), TF.string({maxLength: 3})));
+    expect(getRunTypeId(RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})}))).toBe(door);
+    expect(getRunTypeId<TF.FormattedObject<Record<string, unknown>, {propertyNames: TF.String<{maxLength: 3}>}>>()).toBe(door);
+    const fn = createValidateFn(RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})}));
     expect(fn({ab: 1})).toBe(true);
     expect(fn({abcd: 1})).toBe(false);
   });
 
   it('mocks stay inside the value-first structural constraints', () => {
-    const schema = RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true, maxItems: 3});
+    const schema = RT.array(TF.number(), {uniqueItems: true, maxItems: 3});
     const mock = createMockDataFn(schema);
     const check = createValidateFn(schema);
     for (let i = 0; i < 16; i++) expect(check(mock())).toBe(true);

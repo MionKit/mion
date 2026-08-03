@@ -201,7 +201,7 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 	// actually registered (Phase-0 graceful no-op) and (b) the emitter's
 	// check is non-empty. The format predicate AND-chains after the base
 	// check so `typeof v === 'string'` runs before the format-specific
-	// regex / call. Structural formats (arrayFormat / objectFormat) ride
+	// regex / call. Structural formats (formattedArray / formattedObject) ride
 	// statement-shaped bases — those hoist through the tier-3 ctxFn wrap
 	// first, exactly like the negation splice below; skipping them would
 	// silently drop a declared constraint.

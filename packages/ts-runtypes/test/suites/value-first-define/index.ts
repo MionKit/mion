@@ -141,11 +141,11 @@ const NOW = Date.now();
 // JSON Schema array/object keywords (M9-P6). Each model is the schema door's
 // exact twin (three-mode id convergence pinned in
 // json-schema-define/structuralKeywords.test.ts).
-const UniqueList = RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true, maxItems: 3});
-const CountedRecord = RT.objectFormat(RT.record(RT.unknown()), {minProperties: 1, maxProperties: 2});
-const ContainsNumbers = RT.contains(RT.array(RT.unknown()), TF.number(), {minContains: 2});
-const PatternKeyed = RT.patternProperties(RT.record(RT.unknown()), {'^a': TF.number()});
-const ShortKeys = RT.propertyNames(RT.record(RT.unknown()), TF.string({maxLength: 3}));
+const UniqueList = RT.array(TF.number(), {uniqueItems: true, maxItems: 3});
+const CountedRecord = RT.record(RT.unknown(), {minProperties: 1, maxProperties: 2});
+const ContainsNumbers = RT.array(RT.unknown(), {contains: TF.number(), minContains: 2});
+const PatternKeyed = RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}});
+const ShortKeys = RT.record(RT.unknown(), {propertyNames: TF.string({maxLength: 3})});
 
 export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   flat_mixed: {
@@ -505,7 +505,7 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   },
 
   structural_array_format: {
-    title: 'arrayFormat — uniqueItems + maxItems on a typed array',
+    title: 'formattedArray — uniqueItems + maxItems on a typed array',
     validate: () => createValidateFn<InferType<typeof UniqueList>>(),
     validateReflect: () => {
       const v = [1, 2] as unknown as InferType<typeof UniqueList>;
@@ -524,7 +524,7 @@ export const VALUE_FIRST_SUITE: Record<string, ValueFirstCase> = {
   },
 
   structural_object_format: {
-    title: 'objectFormat — key-count bounds on a record',
+    title: 'formattedObject — key-count bounds on a record',
     validate: () => createValidateFn<InferType<typeof CountedRecord>>(),
     validateReflect: () => {
       const v = {a: 1} as unknown as InferType<typeof CountedRecord>;

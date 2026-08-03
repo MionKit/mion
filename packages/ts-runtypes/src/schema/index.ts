@@ -15,21 +15,12 @@
 // and the schema namespace is where composition lives.
 export {not} from '../formats/not.ts';
 
-// Same exception for the STRUCTURAL formats and child-schema slots — they
-// wrap a composed schema (`RT.arrayFormat(RT.array(…), {…})`), so they read
-// as composition too. Types + builders live together in formats/structural.ts
-// (the schema-door twins; all three authoring modes converge on one id).
-export {arrayFormat, objectFormat, contains, patternProperties, propertyNames} from '../formats/structural.ts';
-export type {
-  ArrayFormat,
-  ObjectFormat,
-  Contains,
-  PatternProperties,
-  PropertyNames,
-  ArrayFormatParams,
-  ObjectFormatParams,
-  ContainsBounds,
-} from '../formats/structural.ts';
+// The STRUCTURAL array/object keywords are no longer separate builders: every
+// one rides a trailing params bag on `array` / `object` / `record`
+// (`RT.array(RT.number(), {uniqueItems: true})`), and the wrapper TYPES
+// `FormattedArray` / `FormattedObject` live on the `ts-runtypes/formats`
+// surface beside the other format types. All three authoring modes (type-first,
+// value-first, JSON Schema) converge on one id.
 
 // Atomic NON-format builders — the atomic leaves (`literal` / `regexp` / `symbol`),
 // `boolean`, the top / bottom kinds (`any` / `unknown` / `never` / `void`;

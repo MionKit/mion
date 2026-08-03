@@ -26,7 +26,7 @@ func TestTypeFormatsFileInSync(t *testing.T) {
 		t.Fatalf("read %s: %v", typeFormatsOutputPath(), err)
 	}
 	src := string(committed)
-	// One family may register under several base kinds (objectFormat:
+	// One family may register under several base kinds (formattedObject:
 	// objectLiteral + object); the name-keyed table carries the first
 	// (kind, name)-sorted row, so the kind check accepts any of the name's
 	// registered kinds.

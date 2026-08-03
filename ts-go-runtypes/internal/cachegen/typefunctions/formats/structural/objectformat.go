@@ -1,4 +1,4 @@
-// objectFormat — key-count bounds and closedness for JSON objects. One
+// formattedObject — key-count bounds and closedness for JSON objects. One
 // emitter registered under BOTH base kinds JSON objects project as:
 // objectLiteral (covers records too — a Record is an objectLiteral with an
 // index-signature member) and the bare `object` keyword.
@@ -12,7 +12,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
-const objectFormatName = "objectFormat"
+const formattedObjectName = "formattedObject"
 
 // identityChainMaxKeys — at or below this many declared keys the allowed-key
 // test is a chain of `k === 'a'` identity compares (a pointer compare each,
@@ -21,20 +21,20 @@ const objectFormatName = "objectFormat"
 // the chain is the common case.
 const identityChainMaxKeys = 8
 
-type objectFormatEmitter struct {
+type formattedObjectEmitter struct {
 	kind protocol.ReflectionKind
 }
 
 func init() {
-	formats.Register(objectFormatEmitter{kind: protocol.KindObjectLiteral})
-	formats.Register(objectFormatEmitter{kind: protocol.KindObject})
+	formats.Register(formattedObjectEmitter{kind: protocol.KindObjectLiteral})
+	formats.Register(formattedObjectEmitter{kind: protocol.KindObject})
 }
 
-func (objectFormatEmitter) Name() string {
-	return objectFormatName
+func (formattedObjectEmitter) Name() string {
+	return formattedObjectName
 }
 
-func (emitter objectFormatEmitter) Kind() protocol.ReflectionKind {
+func (emitter formattedObjectEmitter) Kind() protocol.ReflectionKind {
 	return emitter.kind
 }
 
@@ -221,14 +221,14 @@ func closedWalkCall(ctx formats.EmitContext, params map[string]any, keys []strin
 	return "((o) => {" + body + "})(" + vλl + ")"
 }
 
-func (objectFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (formattedObjectEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
 	return objectWalkCall(ctx, annotation.Params, vλl)
 }
 
-func (objectFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (formattedObjectEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
@@ -244,22 +244,22 @@ func (objectFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.Format
 	}
 	if hasMin {
 		statements = append(statements,
-			"if ("+countCall+" < "+formats.FormatNumber(minValue)+") "+formats.FormatErrCall(pathExpr, errorsArr, "object", objectFormatName, "minProperties", formats.FormatNumber(minValue)))
+			"if ("+countCall+" < "+formats.FormatNumber(minValue)+") "+formats.FormatErrCall(pathExpr, errorsArr, "object", formattedObjectName, "minProperties", formats.FormatNumber(minValue)))
 	}
 	if hasMax {
 		statements = append(statements,
-			"if ("+countCall+" > "+formats.FormatNumber(maxValue)+") "+formats.FormatErrCall(pathExpr, errorsArr, "object", objectFormatName, "maxProperties", formats.FormatNumber(maxValue)))
+			"if ("+countCall+" > "+formats.FormatNumber(maxValue)+") "+formats.FormatErrCall(pathExpr, errorsArr, "object", formattedObjectName, "maxProperties", formats.FormatNumber(maxValue)))
 	}
 	if keys, ok := readClosedKeys(params); ok {
 		statements = append(statements,
-			"if (!("+closedWalkCall(ctx, params, keys, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "object", objectFormatName, "closed", "true"))
+			"if (!("+closedWalkCall(ctx, params, keys, vλl)+")) "+formats.FormatErrCall(pathExpr, errorsArr, "object", formattedObjectName, "closed", "true"))
 	}
 	return strings.Join(statements, ";")
 }
 
 // ValidateParams surfaces bound contradictions at build time (AOT twin of
 // the JS-side validateParams convention).
-func (objectFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (formattedObjectEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -268,7 +268,7 @@ func (objectFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation)
 	maxValue, hasMax := formats.ReadNumberParam(params, "maxProperties")
 	minValue, hasMin := formats.ReadNumberParam(params, "minProperties")
 	if hasMax && hasMin && maxValue < minValue {
-		errs = append(errs, "ObjectFormat: `maxProperties` cannot be less than `minProperties`")
+		errs = append(errs, "FormattedObject: `maxProperties` cannot be less than `minProperties`")
 	}
 	return errs
 }

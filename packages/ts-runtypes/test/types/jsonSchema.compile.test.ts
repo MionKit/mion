@@ -263,7 +263,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         }>,
         {a: string} & Record<string, number>
       >>;
-      // additionalProperties: false is ENFORCED closedness — the objectFormat
+      // additionalProperties: false is ENFORCED closedness — the formattedObject
       // brand carries the allowed-key list and the validator rejects
       // undeclared keys (it used to be a type-level no-op).
       type _06 = Expect<Equal<
@@ -273,7 +273,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
           readonly required: readonly ['a'];
           readonly additionalProperties: false;
         }>,
-        {a: string} & {readonly __rtFormatName?: 'objectFormat'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
+        {a: string} & {readonly __rtFormatName?: 'formattedObject'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
       >>;
       `,
       // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
@@ -348,16 +348,16 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       `
       type _01 = Expect<Equal<
         FromJsonSchema<{readonly type: 'array'; readonly uniqueItems: true}>,
-        unknown[] & {readonly __rtFormatName?: 'arrayFormat'; readonly __rtFormatParams?: {readonly uniqueItems: true}}
+        unknown[] & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {readonly uniqueItems: true}}
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly type: 'array'; readonly items: {readonly type: 'number'}; readonly maxItems: 3}>,
-        number[] & {readonly __rtFormatName?: 'arrayFormat'; readonly __rtFormatParams?: {readonly maxItems: 3}}
+        number[] & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {readonly maxItems: 3}}
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly type: 'object'; readonly minProperties: 1; readonly maxProperties: 3}>,
         Record<string, unknown> & {
-          readonly __rtFormatName?: 'objectFormat';
+          readonly __rtFormatName?: 'formattedObject';
           readonly __rtFormatParams?: {readonly minProperties: 1; readonly maxProperties: 3};
         }
       >>;
@@ -367,7 +367,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
           readonly properties: {readonly a: {readonly type: 'string'}};
           readonly additionalProperties: false;
         }>,
-        {a?: string} & {readonly __rtFormatName?: 'objectFormat'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
+        {a?: string} & {readonly __rtFormatName?: 'formattedObject'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
       >>;
       `,
       // Raised 2448 → 2468 with the readOnly-lift gate (same reason as the

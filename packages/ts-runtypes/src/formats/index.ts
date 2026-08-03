@@ -33,6 +33,18 @@ export type * from './datetime/stringDateTimeFormats.ts';
 export type * from './datetime/dateFormats.ts';
 export type * from './numberFormats.ts';
 export type * from './bigintFormats.ts';
+// The structural wrapper TYPES (`FormattedArray` / `FormattedObject` + their
+// params bags) — the type-first spelling of the array/object keywords, beside
+// the other format types. The value-first spelling is the trailing params bag
+// on `RT.array` / `RT.object` / `RT.record`.
+export type {
+  FormattedArray,
+  FormattedObject,
+  FormattedArrayParams,
+  FormattedObjectParams,
+  FormattedArrayParamsValueFirst,
+  FormattedObjectParamsValueFirst,
+} from './structural.ts';
 
 // Re-export the value-first BUILDER surface — the scalar leaves (`TF.string()` /
 // `TF.number()` / `TF.bigInt()` / `TF.date()`), the `brand` nominal tag, and one

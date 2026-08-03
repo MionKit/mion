@@ -161,7 +161,7 @@ const NEGATION_MOCK_ATTEMPTS = 32;
  *  shipping unsound mocks. **/
 function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
   const negations = runType.negations;
-  // Structural format annotations (arrayFormat / objectFormat) reject-sample
+  // Structural format annotations (formattedArray / formattedObject) reject-sample
   // through the same loop: the array case pre-shapes its draws (length
   // clamp, unique-aware fill), so this guard mostly polices tuple / record /
   // bare-object bases where the annotation landed on a non-array node.
@@ -346,11 +346,12 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // Data-node `rt$length` (fixed or [min,max]) overrides the global length;
       // `rt$items` is the element node threaded into each child mock.
       let length = dataArrayLength(dataNode, random) ?? mOps.arrayLength ?? random.int(0, mOps.maxRandomItemsLength);
-      // arrayFormat annotation: clamp the draw into the declared bounds and
+      // formattedArray annotation: clamp the draw into the declared bounds and
       // fill unique-aware, so the mockSwitch rejection loop above converges
       // instead of re-rolling whole arrays.
       const annotation = runType.formatAnnotation;
-      const arrayParams = annotation?.name === 'arrayFormat' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
+      const arrayParams =
+        annotation?.name === 'formattedArray' ? ((annotation.params ?? {}) as Record<string, unknown>) : undefined;
       if (arrayParams) {
         if (typeof arrayParams.maxItems === 'number' && length > arrayParams.maxItems) length = arrayParams.maxItems;
         if (typeof arrayParams.minItems === 'number' && length < arrayParams.minItems) length = arrayParams.minItems;
@@ -462,13 +463,13 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         lastMember && isRestTupleMember(lastMember) && Array.isArray(params[params.length - 1])
           ? [...params.slice(0, -1), ...(params[params.length - 1] as unknown[])]
           : params;
-      // arrayFormat annotation on a tuple base (a prefixItems schema with
+      // formattedArray annotation on a tuple base (a prefixItems schema with
       // uniqueItems / maxItems): shape the draw — dedupe first, then cap the
       // length — so the mockSwitch rejection loop converges. A dedupe that
       // starves a REQUIRED slot just fails validate and re-rolls up there.
       const annotation = runType.formatAnnotation;
       let shaped = flattened;
-      if (annotation?.name === 'arrayFormat') {
+      if (annotation?.name === 'formattedArray') {
         const arrayParams = (annotation.params ?? {}) as Record<string, unknown>;
         if (arrayParams.uniqueItems === true) {
           const seen = new Set<string>();
@@ -707,14 +708,14 @@ function buildObjectLiteral(
     const value = mockRunType(member, memberOpts, stack);
     parent[name] = value;
   }
-  // objectFormat annotation (minProperties / maxProperties): shape the draw
+  // formattedObject annotation (minProperties / maxProperties): shape the draw
   // into the declared key-count bounds — record mocks deal out dozens of
   // index keys, so pure rejection sampling in mockSwitch cannot converge.
   // Undeclared (index-signature) keys trim first; top-up draws more index
   // batches. Shapes the loop cannot fix (a closed literal below its
   // minProperties) fall back to the rejection loop's loud give-up.
   const annotation = runType.formatAnnotation;
-  if (annotation?.name === 'objectFormat') {
+  if (annotation?.name === 'formattedObject') {
     const params = (annotation.params ?? {}) as Record<string, unknown>;
     const declared = new Set<string | number>();
     let indexMember: RunType | undefined;

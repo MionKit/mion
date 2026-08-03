@@ -1,23 +1,30 @@
-// Structural formats and child-schema slots — the value-first spellings of
-// the JSON Schema array/object keywords that have no plain TS shape:
-// arrayFormat (length bounds, uniqueItems), objectFormat (key-count
-// bounds), and the contains / patternProperties / propertyNames sentinel
-// slots. Each TYPE here is the exact twin of the schema door's lowering
-// (fromJsonSchema.ts), so the three authoring modes converge on ONE
-// structural id by construction — the OneOf/Not precedent.
+// Structural formats — the value-first + type-first spelling of the JSON
+// Schema array/object keywords that have no plain TS shape. There are exactly
+// TWO wrappers, `FormattedArray<Base, P>` and `FormattedObject<Base, P>`, and
+// EVERY array/object keyword rides their params bag (`FormattedArrayParams` /
+// `FormattedObjectParams`). The literal keywords (length/count bounds,
+// uniqueItems, closedness) ride the `__rtFormatParams` brand; the
+// type-carrying keywords (contains, patternProperties, propertyNames) ride
+// their own sentinel slots, because format params are walked into a literal
+// map — a child schema can't live there. Each wrapper reproduces the schema
+// door's lowering (fromJsonSchema.ts) member-for-member, so the three
+// authoring modes (type-first, value-first, JSON Schema) converge on ONE
+// structural id by construction.
 //
-// Closedness (`additionalProperties: false`) is deliberately ABSENT from
-// the value-first surface: its `closed` param carries the allowed-key list
-// derived from the schema's own `properties` (the emitter documents it as
-// never hand-authored), and a hand-written list that disagrees with the
-// inner shape would be a silent footgun. Spell closedness through the
-// schema door, or use the native unknown-keys tooling
-// (createHasUnknownKeysFn / cloneExactShape).
+// `closed` / `closedPatterns` (from `additionalProperties: false`) are part of
+// `FormattedObjectParams` but are DERIVED, never hand-authored: an allowed-key
+// list that disagrees with the inner shape is a silent always-reject footgun,
+// so the value-first `object` builder computes them from the shape rather than
+// taking a hand-written list (see compose.ts). The schema door derives them
+// from the schema's own `properties`.
 
-import {builderResult, lastInjectedId} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
-import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
-import type {ExactParams} from '../runtypes/builderTypes.ts';
+
+/** The literal format-name strings the structural brands carry. Kept in sync
+ *  with the Go emitters (internal/cachegen/typefunctions/formats/structural)
+ *  and the generated catalog. */
+export const FORMATTED_ARRAY_NAME = 'formattedArray';
+export const FORMATTED_OBJECT_NAME = 'formattedObject';
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
@@ -29,128 +36,193 @@ type StructuralBrand<Name extends string, P extends object> = {
   readonly __rtFormatParams?: P;
 };
 
-/** arrayFormat params — the engine's emitter surface (formats/structural).
- *  minItems/maxItems are exact length bounds; uniqueItems is 2020-12 deep
- *  JSON equality (numbers by value, objects by unordered keys). **/
-export interface ArrayFormatParams {
+// ─────────────────────────── Array params ───────────────────────────
+
+/** Every JSON Schema array keyword, as one bag. `minItems`/`maxItems` are
+ *  exact length bounds, `uniqueItems` is 2020-12 deep JSON equality;
+ *  `contains` (with the optional `minContains`/`maxContains` occurrence
+ *  bounds) is the element type at least one item must match. In the type-first
+ *  form `contains` is the element TYPE; the value-first `array` builder takes a
+ *  `RunType` and maps it to that type. **/
+export interface FormattedArrayParams {
   readonly minItems?: number;
   readonly maxItems?: number;
   readonly uniqueItems?: true;
-}
-
-/** objectFormat params — key-count bounds (`Object.keys(v).length`). **/
-export interface ObjectFormatParams {
-  readonly minProperties?: number;
-  readonly maxProperties?: number;
-}
-
-/** An array/tuple base carrying the arrayFormat brand: the generated
- *  validator gains the exact length / uniqueness checks while the type
- *  stays assignable with its base. **/
-export type ArrayFormat<Base extends readonly unknown[], P extends ArrayFormatParams> = Base & StructuralBrand<'arrayFormat', P>;
-
-/** An object/record base carrying the objectFormat brand (key-count
- *  bounds). **/
-export type ObjectFormat<Base extends object, P extends ObjectFormatParams> = Base & StructuralBrand<'objectFormat', P>;
-
-/** JSON Schema `contains` as a type: at least Min (default 1) and at most
- *  Max (unbounded when never) items of Base validate against C. The
- *  sentinel value shape is the door's exact Flatten twin. **/
-export type Contains<Base extends readonly unknown[], C, Min extends number = 1, Max extends number = never> = Base & {
-  readonly __rtContains?: Flatten<
-    {readonly rt$child: C; readonly rt$min: Min} & ([Max] extends [never] ? unknown : {readonly rt$max: Max})
-  >;
-};
-
-/** JSON Schema `patternProperties` as a type: values under keys matching
- *  each pattern validate against that pattern's value type. Map is
- *  pattern-source → value type. The rt$key brand feeds the build-time
- *  pattern sample pools (key mocking); ids fold source + value only. **/
-export type PatternProperties<Base extends object, Map extends Record<string, unknown>> = Base & {
-  readonly __rtPatternProps?: {
-    readonly [K in keyof Map]: {
-      readonly rt$key: string & StructuralBrand<'stringFormat', {readonly pattern: {readonly source: K; readonly flags: ''}}>;
-      readonly rt$value: Map[K];
-    };
-  };
-};
-
-/** JSON Schema `propertyNames` as a type: every KEY of Base (as a string)
- *  validates against K — typically a string format. **/
-export type PropertyNames<Base extends object, K extends string> = Base & {readonly __rtPropNames?: K};
-
-/** Length / uniqueness constraints on an array or tuple schema:
- *  `RT.arrayFormat(RT.array(TF.number()), {uniqueItems: true})` ≡
- *  `{type: 'array', items: {type: 'number'}, uniqueItems: true}`. **/
-export function arrayFormat<T extends readonly unknown[], const P extends ArrayFormatParams>(
-  inner: RunType<T>,
-  params: CompTimeArgs<ExactParams<P, ArrayFormatParams>>,
-  id?: InjectRunTypeId<ArrayFormat<T, P>>
-): RunType<ArrayFormat<T, P>> {
-  return builderResult(lastInjectedId(inner, id), {type: 'arrayFormat', child: inner, params});
-}
-
-/** Key-count bounds on an object or record schema:
- *  `RT.objectFormat(RT.record(TF.string()), {minProperties: 1})` ≡
- *  `{type: 'object', minProperties: 1}`. **/
-export function objectFormat<T extends object, const P extends ObjectFormatParams>(
-  inner: RunType<T>,
-  params: CompTimeArgs<ExactParams<P, ObjectFormatParams>>,
-  id?: InjectRunTypeId<ObjectFormat<T, P>>
-): RunType<ObjectFormat<T, P>> {
-  return builderResult(lastInjectedId(inner, id), {type: 'objectFormat', child: inner, params});
-}
-
-/** Occurrence bounds for `contains`: how many items must match. **/
-export interface ContainsBounds {
+  readonly contains?: unknown;
   readonly minContains?: number;
   readonly maxContains?: number;
 }
 
-/** JSON Schema `contains`: at least min (default 1) / at most max items of
- *  the array match the child schema:
- *  `RT.contains(RT.array(TF.string()), TF.uuid())` ≡
- *  `{type: 'array', items: {type: 'string'}, contains: {format: 'uuid'}}`. **/
-export function contains<T extends readonly unknown[], C, const B extends ContainsBounds = Record<never, never>>(
-  inner: RunType<T>,
-  child: RunType<C>,
-  bounds?: CompTimeArgs<ExactParams<B, ContainsBounds>>,
-  id?: InjectRunTypeId<
-    Contains<
-      T,
-      C,
-      B extends {minContains: infer N extends number} ? N : 1,
-      B extends {maxContains: infer N extends number} ? N : never
-    >
-  >
-): RunType<
-  Contains<
-    T,
-    C,
-    B extends {minContains: infer N extends number} ? N : 1,
-    B extends {maxContains: infer N extends number} ? N : never
-  >
-> {
-  return builderResult(lastInjectedId(child, id), {type: 'contains', child: inner, contains: child, bounds});
+/** The value-first shape of `FormattedArrayParams` — `contains` carries a
+ *  `RunType` instead of the bare element type. **/
+export interface FormattedArrayParamsValueFirst {
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly uniqueItems?: true;
+  readonly contains?: RunType<unknown>;
+  readonly minContains?: number;
+  readonly maxContains?: number;
 }
 
-/** JSON Schema `patternProperties`: keys matching each pattern must map to
- *  values of that pattern's schema:
- *  `RT.patternProperties(RT.record(TF.number()), {'^a': TF.number()})`. **/
-export function patternProperties<T extends object, const M extends Record<string, RunType<unknown>>>(
-  inner: RunType<T>,
-  map: CompTimeArgs<M>,
-  id?: InjectRunTypeId<PatternProperties<T, {[K in keyof M]: M[K] extends RunType<infer V> ? V : never}>>
-): RunType<PatternProperties<T, {[K in keyof M]: M[K] extends RunType<infer V> ? V : never}>> {
-  return builderResult(lastInjectedId(inner, id), {type: 'patternProperties', child: inner, patterns: map});
+// The literal keywords that ride `__rtFormatParams` (contains/*Contains ride
+// the sentinel below, so they're excluded here).
+type ArrayLiteralPart<P> = Flatten<
+  (P extends {minItems: infer N extends number} ? {readonly minItems: N} : unknown) &
+    (P extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
+    (P extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown)
+>;
+
+// The `contains` child slot — matches the door's ContainsPart exactly:
+// `{rt$child: C; rt$min: N|1; rt$max?: M}` under an optional `__rtContains`.
+type ContainsSlot<P> = P extends {contains: infer C}
+  ? {
+      readonly __rtContains?: Flatten<
+        {readonly rt$child: C} & (P extends {minContains: infer N extends number} ? {readonly rt$min: N} : {readonly rt$min: 1}) &
+          (P extends {maxContains: infer N extends number} ? {readonly rt$max: N} : unknown)
+      >;
+    }
+  : unknown;
+
+/** An array/tuple base carrying every array keyword in `P`. The literal bounds
+ *  ride the `formattedArray` brand (added only when at least one is present,
+ *  matching the door), `contains` rides its own child sentinel. **/
+export type FormattedArray<Base extends readonly unknown[], P extends FormattedArrayParams> = Base &
+  ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_ARRAY_NAME, ArrayLiteralPart<P>>) &
+  ContainsSlot<P>;
+
+// Map a value-first array params bag to its type-first form (unwrap the
+// `contains` RunType to its carried element type).
+type ArrayParamsType<P> = Flatten<
+  Pick<P, Extract<keyof P, 'minItems' | 'maxItems' | 'uniqueItems' | 'minContains' | 'maxContains'>> &
+    (P extends {contains: RunType<infer C>} ? {readonly contains: C} : unknown)
+>;
+
+/** The type-first `FormattedArray` a value-first `array(item, params)` call
+ *  produces — used for the builder's `InjectRunTypeId` / return type. **/
+export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<T, ArrayParamsType<P> & FormattedArrayParams>;
+
+// ─────────────────────────── Object params ──────────────────────────
+
+/** Every JSON Schema object keyword, as one bag. `minProperties`/
+ *  `maxProperties` are key-count bounds; `patternProperties` maps a
+ *  pattern-source to the value TYPE its matching keys carry; `propertyNames`
+ *  is the string constraint every key must satisfy; `closed`/`closedPatterns`
+ *  are the derived allowed-key lists behind `additionalProperties: false`. **/
+export interface FormattedObjectParams {
+  readonly minProperties?: number;
+  readonly maxProperties?: number;
+  readonly patternProperties?: Record<string, unknown>;
+  readonly propertyNames?: string;
+  readonly closed?: readonly string[];
+  readonly closedPatterns?: readonly string[];
 }
 
-/** JSON Schema `propertyNames`: every key validates (as a string) against
- *  the key schema: `RT.propertyNames(RT.record(TF.number()), TF.string({maxLength: 3}))`. **/
-export function propertyNames<T extends object, K extends string>(
-  inner: RunType<T>,
-  keys: RunType<K>,
-  id?: InjectRunTypeId<PropertyNames<T, K>>
-): RunType<PropertyNames<T, K>> {
-  return builderResult(lastInjectedId(keys, id), {type: 'propertyNames', child: inner, keys});
+/** The value-first shape of `FormattedObjectParams` — `patternProperties`
+ *  maps to `RunType`s and `propertyNames` is a `RunType`. **/
+export interface FormattedObjectParamsValueFirst {
+  readonly minProperties?: number;
+  readonly maxProperties?: number;
+  readonly patternProperties?: Record<string, RunType<unknown>>;
+  readonly propertyNames?: RunType<string>;
+  readonly closed?: readonly string[];
+  readonly closedPatterns?: readonly string[];
+}
+
+type ObjectLiteralPart<P> = Flatten<
+  (P extends {minProperties: infer N extends number} ? {readonly minProperties: N} : unknown) &
+    (P extends {maxProperties: infer N extends number} ? {readonly maxProperties: N} : unknown) &
+    (P extends {closed: infer K extends readonly string[]} ? {readonly closed: K} : unknown) &
+    (P extends {closedPatterns: infer K extends readonly string[]} ? {readonly closedPatterns: K} : unknown)
+>;
+
+// The `patternProperties` slot — matches the door's PatternPropsPart: each
+// key's `rt$key` is a stringFormat pattern brand over the source, `rt$value`
+// is the pattern's value type.
+type PatternPropsSlot<P> = P extends {patternProperties: infer M}
+  ? {
+      readonly __rtPatternProps?: {
+        readonly [K in keyof M]: {
+          readonly rt$key: string & StructuralBrand<'stringFormat', {readonly pattern: {readonly source: K; readonly flags: ''}}>;
+          readonly rt$value: M[K];
+        };
+      };
+    }
+  : unknown;
+
+// The `propertyNames` slot — matches the door's PropNamesPart (`never` is the
+// `propertyNames: false` case: no key may be present).
+type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly __rtPropNames?: N} : unknown;
+
+/** An object/record base carrying every object keyword in `P`. The literal
+ *  bounds + closedness ride the `formattedObject` brand (added only when at
+ *  least one is present), `patternProperties` and `propertyNames` ride their
+ *  own sentinels. **/
+export type FormattedObject<Base extends object, P extends FormattedObjectParams> = Base &
+  ([keyof ObjectLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_OBJECT_NAME, ObjectLiteralPart<P>>) &
+  PatternPropsSlot<P> &
+  PropNamesSlot<P>;
+
+type ObjectParamsType<P> = Flatten<
+  Pick<P, Extract<keyof P, 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns'>> &
+    (P extends {patternProperties: infer M}
+      ? {readonly patternProperties: {[K in keyof M]: M[K] extends RunType<infer V> ? V : never}}
+      : unknown) &
+    (P extends {propertyNames: RunType<infer K extends string>} ? {readonly propertyNames: K} : unknown)
+>;
+
+/** The type-first `FormattedObject` a value-first `object(config, params)` /
+ *  `record(…, params)` call produces. **/
+export type FormattedObjectFrom<T extends object, P> = FormattedObject<T, ObjectParamsType<P> & FormattedObjectParams>;
+
+// ───────────────────── Runtime carrier composition ──────────────────
+
+// The runtime builder carrier is an opaque plain object (`builderResult` takes
+// it as `unknown` — the reflected node comes from the injected type, so the
+// carrier is only the nested runtime value). Typed `object`, never `RunType`,
+// exactly like the composer carriers in compose.ts.
+
+/** Wraps a base array/tuple carrier with whatever array keywords `params`
+ *  declares, composing the same carrier nodes the engine already understands
+ *  (a `formattedArray` brand for the literal bounds, a `contains` child slot).
+ *  Returns the base unchanged when `params` is undefined/empty. **/
+export function applyArrayParams(base: object, params: FormattedArrayParamsValueFirst | undefined): object {
+  if (!params) return base;
+  let node: object = base;
+  const literal: Record<string, unknown> = {};
+  if (params.minItems !== undefined) literal.minItems = params.minItems;
+  if (params.maxItems !== undefined) literal.maxItems = params.maxItems;
+  if (params.uniqueItems !== undefined) literal.uniqueItems = params.uniqueItems;
+  if (Object.keys(literal).length > 0) {
+    node = {type: FORMATTED_ARRAY_NAME, child: node, params: literal};
+  }
+  if (params.contains !== undefined) {
+    const bounds: Record<string, unknown> = {};
+    if (params.minContains !== undefined) bounds.minContains = params.minContains;
+    if (params.maxContains !== undefined) bounds.maxContains = params.maxContains;
+    node = {type: 'contains', child: node, contains: params.contains, bounds};
+  }
+  return node;
+}
+
+/** Wraps a base object/record carrier with whatever object keywords `params`
+ *  declares (a `formattedObject` brand for the literal bounds + closedness,
+ *  the `patternProperties` / `propertyNames` child slots). **/
+export function applyObjectParams(base: object, params: FormattedObjectParamsValueFirst | undefined): object {
+  if (!params) return base;
+  let node: object = base;
+  const literal: Record<string, unknown> = {};
+  if (params.minProperties !== undefined) literal.minProperties = params.minProperties;
+  if (params.maxProperties !== undefined) literal.maxProperties = params.maxProperties;
+  if (params.closed !== undefined) literal.closed = params.closed;
+  if (params.closedPatterns !== undefined) literal.closedPatterns = params.closedPatterns;
+  if (Object.keys(literal).length > 0) {
+    node = {type: FORMATTED_OBJECT_NAME, child: node, params: literal};
+  }
+  if (params.patternProperties !== undefined) {
+    node = {type: 'patternProperties', child: node, patterns: params.patternProperties};
+  }
+  if (params.propertyNames !== undefined) {
+    node = {type: 'propertyNames', child: node, keys: params.propertyNames};
+  }
+  return node;
 }

@@ -83,7 +83,7 @@ export type FormatLeafName =
   | 'jsonContent';
 
 /** Structural constraint params the jsonschema lane can attach to an array /
- *  record shape (the arrayFormat / objectFormat brands). Rendered as RAW
+ *  record shape (the formattedArray / formattedObject brands). Rendered as RAW
  *  sentinel spellings on the TS side and the matching keywords on the schema
  *  side; generated ONLY under `GenOptions.structuralFormats` so the value /
  *  binary / roundtrip lanes never see them (their value generators don't
@@ -360,7 +360,7 @@ export interface GenOptions {
   /** Generate named decls (interfaces / classes / enums), including recursive
    *  interfaces. **/
   named: boolean;
-  /** Emit the JSON Schema STRUCTURAL surface: arrayFormat / objectFormat
+  /** Emit the JSON Schema STRUCTURAL surface: formattedArray / formattedObject
    *  params on arrays and records, and exclusive (oneOf) unions over
    *  disjoint-by-construction branches. ONLY the jsonschema id-convergence
    *  lane turns this on — the value lanes' generators don't enforce the
@@ -856,7 +856,7 @@ export function renderType(shape: TypeShape): string {
       let text = `Array<${renderType(shape.elem)}>`;
       const arrayStructural = shape.structural;
       if (arrayStructural && (arrayStructural.uniqueItems || arrayStructural.maxItems !== undefined)) {
-        text = `(${text} & {readonly __rtFormatName?: 'arrayFormat'; readonly __rtFormatParams?: ${structuralParamsText(arrayStructural)}})`;
+        text = `(${text} & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: ${structuralParamsText(arrayStructural)}})`;
       }
       if (arrayStructural?.contains) {
         const maxText = arrayStructural.contains.max !== undefined ? `; readonly rt$max: ${arrayStructural.contains.max}` : '';
@@ -870,7 +870,7 @@ export function renderType(shape: TypeShape): string {
       let text = `Record<string, ${renderType(shape.value)}>`;
       const recordStructural = shape.structural;
       if (recordStructural && (recordStructural.minProperties !== undefined || recordStructural.maxProperties !== undefined)) {
-        text = `(${text} & {readonly __rtFormatName?: 'objectFormat'; readonly __rtFormatParams?: ${structuralParamsText(recordStructural)}})`;
+        text = `(${text} & {readonly __rtFormatName?: 'formattedObject'; readonly __rtFormatParams?: ${structuralParamsText(recordStructural)}})`;
       }
       if (recordStructural?.patternProps) {
         text =

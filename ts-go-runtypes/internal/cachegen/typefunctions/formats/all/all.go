@@ -19,7 +19,7 @@ import (
 	// String-family emitters. JS-side mirrors live under
 	// `packages/ts-runtypes/src/formats/string/`.
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/string"
-	// Structural-family emitters (arrayFormat + objectFormat) — the JSON
+	// Structural-family emitters (formattedArray + formattedObject) — the JSON
 	// Schema door's uniqueItems / maxItems / minProperties / maxProperties /
 	// additionalProperties: false lowering. No JS-side runtype mirror: the
 	// brands are emitted by the schema translation, not hand-authored.

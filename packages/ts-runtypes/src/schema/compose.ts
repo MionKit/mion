@@ -37,6 +37,26 @@ import {builderResult} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {ExactParams} from '../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
+import {
+  applyArrayParams,
+  applyObjectParams,
+  type FormattedArrayParamsValueFirst,
+  type FormattedObjectParamsValueFirst,
+  type FormattedArrayFrom,
+  type FormattedObjectFrom,
+} from '../formats/structural.ts';
+
+// A trailing structural-format-params bag is a PLAIN object with none of the
+// runtime RunType markers (`kind` on a reflected node, `type` on a builder
+// carrier, `__rtType` on the phantom) — that's what tells it apart from a
+// child schema in a slot that also accepts one (`record`'s key/value), and
+// from an injected id (a string or an entry-module tuple / Array).
+function isRunTypeLike(arg: unknown): boolean {
+  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && ('kind' in arg || 'type' in arg || '__rtType' in arg);
+}
+function isFormatParams(arg: unknown): boolean {
+  return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && !isRunTypeLike(arg);
+}
 import type {
   InferType,
   MapTuple,
@@ -52,9 +72,27 @@ import type {
   Recursive,
 } from './static.ts';
 
-/** An array builder — `array(string())` → `RunType<string[]>`. **/
-export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]> {
-  return builderResult(id, {type: 'array', child: item});
+/** An array builder. `array(string())` → `RunType<string[]>`; with a trailing
+ *  structural-format params bag, `array(number(), {uniqueItems: true, maxItems: 3})`
+ *  → `RunType<FormattedArray<number[], …>>`, the value-first spelling of the
+ *  JSON Schema array keywords (`minItems`/`maxItems`/`uniqueItems`/`contains`
+ *  + `minContains`/`maxContains`). **/
+export function array<T>(item: CompTimeArgs<RunType<T>>, id?: InjectRunTypeId<T[]>): RunType<T[]>;
+export function array<T, const P extends FormattedArrayParamsValueFirst>(
+  item: CompTimeArgs<RunType<T>>,
+  params: CompTimeArgs<ExactParams<P, FormattedArrayParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedArrayFrom<T[], P>>
+): RunType<FormattedArrayFrom<T[], P>>;
+export function array(
+  item: RunType,
+  arg2?: FormattedArrayParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: InjectRunTypeId<unknown>
+): RunType {
+  const base = {type: 'array', child: item};
+  if (isFormatParams(arg2)) {
+    return builderResult(arg3, applyArrayParams(base, arg2 as FormattedArrayParamsValueFirst));
+  }
+  return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
 /** A tuple builder. Four forms, each adding a trailing kind:
@@ -287,18 +325,45 @@ export function record<V>(
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Record<string, V>>
 ): RunType<Record<string, V>>;
+export function record<V, const P extends FormattedObjectParamsValueFirst>(
+  valueSchema: CompTimeArgs<RunType<V>>,
+  params: CompTimeArgs<ExactParams<P, FormattedObjectParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedObjectFrom<Record<string, V>, P>>
+): RunType<FormattedObjectFrom<Record<string, V>, P>>;
 export function record<K extends string | number, V>(
   keySchema: CompTimeArgs<RunType<K>>,
   valueSchema: CompTimeArgs<RunType<V>>,
   id?: InjectRunTypeId<Record<K, V>>
 ): RunType<Record<K, V>>;
-export function record(arg1: RunType, arg2?: RunType | InjectRunTypeId<unknown>, arg3?: InjectRunTypeId<unknown>): RunType {
-  // A RunType OBJECT second arg is the (key, value) form; a string (injected id) or
-  // undefined is the value-only form (key defaults to string).
-  if (typeof arg2 === 'object' && arg2 !== null) {
-    return builderResult(arg3, {type: 'record', index: arg1, child: arg2 as RunType});
+export function record<K extends string | number, V, const P extends FormattedObjectParamsValueFirst>(
+  keySchema: CompTimeArgs<RunType<K>>,
+  valueSchema: CompTimeArgs<RunType<V>>,
+  params: CompTimeArgs<ExactParams<P, FormattedObjectParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedObjectFrom<Record<K, V>, P>>
+): RunType<FormattedObjectFrom<Record<K, V>, P>>;
+export function record(
+  arg1: RunType,
+  arg2?: RunType | FormattedObjectParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: FormattedObjectParamsValueFirst | InjectRunTypeId<unknown>,
+  arg4?: InjectRunTypeId<unknown>
+): RunType {
+  // arg2 is a child RunType → (key, value) form; a params bag → (value, params);
+  // else (string / tuple / undefined) → value-only, key defaults to string.
+  if (isRunTypeLike(arg2)) {
+    const base = {type: 'record', index: arg1, child: arg2 as RunType};
+    if (isFormatParams(arg3)) {
+      return builderResult(arg4, applyObjectParams(base, arg3 as FormattedObjectParamsValueFirst));
+    }
+    return builderResult(arg3 as InjectRunTypeId<unknown> | undefined, base);
   }
-  return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, {type: 'record', child: arg1});
+  const base = {type: 'record', child: arg1};
+  if (isFormatParams(arg2)) {
+    return builderResult(
+      arg3 as InjectRunTypeId<unknown> | undefined,
+      applyObjectParams(base, arg2 as FormattedObjectParamsValueFirst)
+    );
+  }
+  return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
 
 /** A `Map` builder — `map(string(), number())` → `RunType<Map<string, number>>`.
@@ -471,6 +536,19 @@ export function optional<const F>(field: CompTimeArgs<F>): PropModCarrier<{optio
 export function object<const C extends Record<string, unknown>>(
   config: CompTimeArgs<C>,
   id?: InjectRunTypeId<ObjectType<C>>
-): RunType<ObjectType<C>> {
-  return builderResult<ObjectType<C>>(id, config);
+): RunType<ObjectType<C>>;
+export function object<const C extends Record<string, unknown>, const P extends FormattedObjectParamsValueFirst>(
+  config: CompTimeArgs<C>,
+  params: CompTimeArgs<ExactParams<P, FormattedObjectParamsValueFirst>>,
+  id?: InjectRunTypeId<FormattedObjectFrom<ObjectType<C>, P>>
+): RunType<FormattedObjectFrom<ObjectType<C>, P>>;
+export function object(
+  config: Record<string, unknown>,
+  arg2?: FormattedObjectParamsValueFirst | InjectRunTypeId<unknown>,
+  arg3?: InjectRunTypeId<unknown>
+): RunType {
+  if (isFormatParams(arg2)) {
+    return builderResult(arg3, applyObjectParams(config, arg2 as FormattedObjectParamsValueFirst));
+  }
+  return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, config);
 }

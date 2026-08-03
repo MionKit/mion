@@ -63,7 +63,7 @@ func (c *stubCtx) prologue() string {
 }
 
 func objAnnotation(params map[string]any) *protocol.FormatAnnotation {
-	return &protocol.FormatAnnotation{Name: objectFormatName, Params: params}
+	return &protocol.FormatAnnotation{Name: formattedObjectName, Params: params}
 }
 
 func keyList(keys ...string) []any {
@@ -74,13 +74,13 @@ func keyList(keys ...string) []any {
 	return out
 }
 
-// TestObjectFormat_ClosedWalkIsAllocationFree pins the whole point of the
+// TestFormattedObject_ClosedWalkIsAllocationFree pins the whole point of the
 // emitted shape: ONE hoisted `for…in` sweep with early returns, and none of
 // the per-key allocations the previous `Object.keys(v).every(cb)` form paid
 // (a key array, a callback, and a fresh `[…]` literal per key).
-func TestObjectFormat_ClosedWalkIsAllocationFree(t *testing.T) {
+func TestFormattedObject_ClosedWalkIsAllocationFree(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	got := emitter.EmitValidateCheck(objAnnotation(map[string]any{"closed": keyList("id", "name")}), "v", ctx)
 
 	if got != "okObj0(v)" {
@@ -100,12 +100,12 @@ func TestObjectFormat_ClosedWalkIsAllocationFree(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_ClosedPatternsHoistTheRegex is the regression this change
+// TestFormattedObject_ClosedPatternsHoistTheRegex is the regression this change
 // exists for: the pattern regex used to be constructed INSIDE the per-key
 // callback, so it recompiled once per key per call.
-func TestObjectFormat_ClosedPatternsHoistTheRegex(t *testing.T) {
+func TestFormattedObject_ClosedPatternsHoistTheRegex(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	params := map[string]any{"closed": keyList("id"), "closedPatterns": keyList("^col_")}
 	emitter.EmitValidateCheck(objAnnotation(params), "v", ctx)
 
@@ -124,16 +124,16 @@ func TestObjectFormat_ClosedPatternsHoistTheRegex(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_LargeKeyListUsesHoistedSet — above the identity-chain
+// TestFormattedObject_LargeKeyListUsesHoistedSet — above the identity-chain
 // threshold the allowed-key test switches to a prologue Set, matching the
 // index-signature sibling-skip idiom (unknownkeys_shared.go).
-func TestObjectFormat_LargeKeyListUsesHoistedSet(t *testing.T) {
+func TestFormattedObject_LargeKeyListUsesHoistedSet(t *testing.T) {
 	keys := make([]string, 0, identityChainMaxKeys+1)
 	for i := 0; i <= identityChainMaxKeys; i++ {
 		keys = append(keys, "k"+strconv.Itoa(i))
 	}
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	emitter.EmitValidateCheck(objAnnotation(map[string]any{"closed": keyList(keys...)}), "v", ctx)
 
 	prologue := ctx.prologue()
@@ -145,12 +145,12 @@ func TestObjectFormat_LargeKeyListUsesHoistedSet(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_BoundsShareTheClosedWalk — minProperties / maxProperties /
+// TestFormattedObject_BoundsShareTheClosedWalk — minProperties / maxProperties /
 // closed used to emit one independent `Object.keys(v)` allocation EACH. They
 // now ride the same single sweep.
-func TestObjectFormat_BoundsShareTheClosedWalk(t *testing.T) {
+func TestFormattedObject_BoundsShareTheClosedWalk(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	params := map[string]any{"minProperties": 1.0, "maxProperties": 3.0, "closed": keyList("a")}
 	emitter.EmitValidateCheck(objAnnotation(params), "v", ctx)
 
@@ -166,11 +166,11 @@ func TestObjectFormat_BoundsShareTheClosedWalk(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_NoAllowedKeysRejectsEveryKey — a bare
+// TestFormattedObject_NoAllowedKeysRejectsEveryKey — a bare
 // `additionalProperties: false` with no `properties` admits only `{}`.
-func TestObjectFormat_NoAllowedKeysRejectsEveryKey(t *testing.T) {
+func TestFormattedObject_NoAllowedKeysRejectsEveryKey(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	emitter.EmitValidateCheck(objAnnotation(map[string]any{"closed": []any{}}), "v", ctx)
 
 	if !strings.Contains(ctx.items["okObj0"], "if (!(false)) return false") {
@@ -178,12 +178,12 @@ func TestObjectFormat_NoAllowedKeysRejectsEveryKey(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_ErrorsLaneAttributesEachKeyword — the errors lane keeps one
+// TestFormattedObject_ErrorsLaneAttributesEachKeyword — the errors lane keeps one
 // statement per keyword so each failure reports under its own name, and shares
 // a single hoisted count fn between the two bounds.
-func TestObjectFormat_ErrorsLaneAttributesEachKeyword(t *testing.T) {
+func TestFormattedObject_ErrorsLaneAttributesEachKeyword(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	params := map[string]any{"minProperties": 1.0, "maxProperties": 3.0, "closed": keyList("a")}
 	got := emitter.EmitValidationErrorsCheck(objAnnotation(params), "v", "pth", "er", ctx)
 
@@ -200,21 +200,21 @@ func TestObjectFormat_ErrorsLaneAttributesEachKeyword(t *testing.T) {
 	}
 }
 
-// TestObjectFormat_NoContextStillEmits — direct emitter callers pass no
+// TestFormattedObject_NoContextStillEmits — direct emitter callers pass no
 // context; the same sweep runs as an IIFE rather than panicking.
-func TestObjectFormat_NoContextStillEmits(t *testing.T) {
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+func TestFormattedObject_NoContextStillEmits(t *testing.T) {
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	got := emitter.EmitValidateCheck(objAnnotation(map[string]any{"closed": keyList("a")}), "v", nil)
 	if !strings.Contains(got, "for (const k in o)") || !strings.HasSuffix(got, "(v)") {
 		t.Errorf("context-free emit must still produce the sweep; got %q", got)
 	}
 }
 
-// TestObjectFormat_EmptyAnnotationEmitsNothing keeps the no-keyword case free
+// TestFormattedObject_EmptyAnnotationEmitsNothing keeps the no-keyword case free
 // of a pointless prologue entry.
-func TestObjectFormat_EmptyAnnotationEmitsNothing(t *testing.T) {
+func TestFormattedObject_EmptyAnnotationEmitsNothing(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := objectFormatEmitter{kind: protocol.KindObjectLiteral}
+	emitter := formattedObjectEmitter{kind: protocol.KindObjectLiteral}
 	if got := emitter.EmitValidateCheck(objAnnotation(map[string]any{}), "v", ctx); got != "" {
 		t.Errorf("no keywords should emit no check; got %q", got)
 	}

@@ -8,15 +8,15 @@ import (
 )
 
 func arrAnnotation(params map[string]any) *protocol.FormatAnnotation {
-	return &protocol.FormatAnnotation{Name: arrayFormatName, Params: params}
+	return &protocol.FormatAnnotation{Name: formattedArrayName, Params: params}
 }
 
-// TestArrayFormat_UniqueItemsGoesThroughThePureFn — the canonicalisation
+// TestFormattedArray_UniqueItemsGoesThroughThePureFn — the canonicalisation
 // closure used to be rebuilt inside the emitted body on EVERY validator call.
 // It now lives in `rt::uniqueItems`, constructed once per module.
-func TestArrayFormat_UniqueItemsGoesThroughThePureFn(t *testing.T) {
+func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := arrayFormatEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: protocol.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", ctx)
 
 	if got != "uniqueItems(v)" {
@@ -32,11 +32,11 @@ func TestArrayFormat_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	}
 }
 
-// TestArrayFormat_UniqueItemsPureFnIsCoreNamespace — `rt::`, not `rtFormats::`.
+// TestFormattedArray_UniqueItemsPureFnIsCoreNamespace — `rt::`, not `rtFormats::`.
 // The rtFormats modules only register when `ts-runtypes/formats` is imported,
 // which a schema-door-only program never does; pure-fns-utils.ts is
 // side-effect imported from the package entry, so it is always registered.
-func TestArrayFormat_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {
+func TestFormattedArray_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {
 	if corePureFnNamespace != "rt" {
 		t.Fatalf("namespace = %q, want rt", corePureFnNamespace)
 	}
@@ -45,12 +45,12 @@ func TestArrayFormat_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {
 	}
 }
 
-// TestArrayFormat_BothLanesShareOnePureFnAlias — validate and the errors lane
+// TestFormattedArray_BothLanesShareOnePureFnAlias — validate and the errors lane
 // both route through the alias, and the errors lane keeps its keyword
 // attribution.
-func TestArrayFormat_BothLanesShareOnePureFnAlias(t *testing.T) {
+func TestFormattedArray_BothLanesShareOnePureFnAlias(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := arrayFormatEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: protocol.KindArray}
 	got := emitter.EmitValidationErrorsCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", "pth", "er", ctx)
 
 	if !strings.Contains(got, "uniqueItems(v)") {
@@ -61,11 +61,11 @@ func TestArrayFormat_BothLanesShareOnePureFnAlias(t *testing.T) {
 	}
 }
 
-// TestArrayFormat_LengthBoundsUnchanged — min/maxItems were already optimal
+// TestFormattedArray_LengthBoundsUnchanged — min/maxItems were already optimal
 // (`v.length` is a field read, nothing to hoist); pin that they stayed inline.
-func TestArrayFormat_LengthBoundsUnchanged(t *testing.T) {
+func TestFormattedArray_LengthBoundsUnchanged(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := arrayFormatEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: protocol.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"minItems": 1.0, "maxItems": 4.0}), "v", ctx)
 
 	if got != "v.length >= 1 && v.length <= 4" {
@@ -76,10 +76,10 @@ func TestArrayFormat_LengthBoundsUnchanged(t *testing.T) {
 	}
 }
 
-// TestArrayFormat_NoContextFallsBackInline — direct emitter callers pass no
+// TestFormattedArray_NoContextFallsBackInline — direct emitter callers pass no
 // context and must still get a semantically identical check.
-func TestArrayFormat_NoContextFallsBackInline(t *testing.T) {
-	emitter := arrayFormatEmitter{kind: protocol.KindArray}
+func TestFormattedArray_NoContextFallsBackInline(t *testing.T) {
+	emitter := formattedArrayEmitter{kind: protocol.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", nil)
 	if !strings.Contains(got, "const canon") {
 		t.Errorf("context-free emit must inline the canonical form; got %q", got)

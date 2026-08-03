@@ -128,7 +128,7 @@ func Generate() string {
 	for _, emitter := range entries {
 		name := emitter.Name()
 		if seen[name] {
-			// One family may register under SEVERAL base kinds (objectFormat
+			// One family may register under SEVERAL base kinds (formattedObject
 			// covers objectLiteral AND the bare `object` keyword); the table
 			// stays name-keyed with the first (kind, name)-sorted entry —
 			// the registry itself already panics on an exact (kind, name)

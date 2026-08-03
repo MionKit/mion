@@ -1,5 +1,5 @@
 // format-validation / StructuralFormat — the JSON Schema structural
-// keywords (arrayFormat / objectFormat, contains / patternProperties /
+// keywords (formattedArray / formattedObject, contains / patternProperties /
 // propertyNames) and the oneOf / anyOf combinators, through the same
 // per-variant it() matrix as StringFormat: 5 validate + 5
 // getValidationErrors forms + the schema/json-schema contracts + 2
