@@ -25,12 +25,15 @@ const orderSchema = {
   required: ['id', 'total', 'lines'],
 } as const satisfies JsonSchemaInput;
 
-// One schema, the whole toolbelt. Every factory takes it the same way.
-const isOrder = createValidateFn(runTypeFromJsonSchema(orderSchema));
-const encodeOrder = createJsonEncoderFn(runTypeFromJsonSchema(orderSchema));
-const decodeOrder = createJsonDecoderFn(runTypeFromJsonSchema(orderSchema));
-const mockOrder = createMockDataFn(runTypeFromJsonSchema(orderSchema));
-const orderStandardSchema = createStandardSchema(runTypeFromJsonSchema(orderSchema));
+// One schema, the whole toolbelt. Convert it once, then every factory takes
+// the result the same way.
+const orderRT = runTypeFromJsonSchema(orderSchema);
+
+const isOrder = createValidateFn(orderRT);
+const encodeOrder = createJsonEncoderFn(orderRT);
+const decodeOrder = createJsonDecoderFn(orderRT);
+const mockOrder = createMockDataFn(orderRT);
+const orderStandardSchema = createStandardSchema(orderRT);
 // end-factories
 
 // start-usage
