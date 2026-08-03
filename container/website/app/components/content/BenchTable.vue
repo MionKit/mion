@@ -750,7 +750,7 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
         <!-- Serialization verdict: page-level sticky link-speed bar — re-derives every
              round-trip headline + the heatmap live; enc/dec + bytes stay frozen below. -->
         <div v-if="isVerdict && index.bandwidthsMbps" class="bench-bw-bar">
-          <span id="bench-bw-label" class="bench-bw-label"><i class="ti ti-wifi" aria-hidden="true"></i> link speed</span>
+          <span id="bench-bw-label" class="bench-bw-label"><svg class="bench-bw-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.4 7a9.2 9.2 0 0 1 13.2 0" /><path d="M4.2 9.3a5.6 5.6 0 0 1 7.6 0" /><path d="M6.4 11.9a2.2 2.2 0 0 1 3.2 0" /></g><circle cx="8" cy="13.4" r="0.95" fill="currentColor" /></svg> link speed</span>
           <span class="bench-bw-seg" role="group" aria-labelledby="bench-bw-label">
             <button
               v-for="bw in index.bandwidthsMbps"
@@ -1401,10 +1401,11 @@ const aggregates = computed<Record<string, AggRow[]>>(() => {
   font-size: 0.82rem;
   color: var(--ui-text-muted, #b3b8bd);
 }
-.bench-bw-label .ti {
-  font-size: 0.95rem;
-  vertical-align: -0.12em;
-  margin-right: 0.15rem;
+/* Inline SVG rather than an icon font: the site ships no webfont, so the Tabler
+   class this used to carry drew nothing at all. */
+.bench-bw-icon {
+  vertical-align: -0.14em;
+  margin-right: 0.2rem;
 }
 .bench-bw-seg {
   display: inline-flex;
