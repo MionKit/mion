@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-02
 ---
 
@@ -26,7 +26,7 @@ Two defects in the typecost bench's JSON Schema story:
    real door for a schema document is `runTypeFromJsonSchema` — the
    (jsonSchema) column.
 
-2. **The document columns cover 10 of 276 cases.** `jsonSchemaCases.ts` (70
+2. **The document columns cover 10 of 277 cases.** `jsonSchemaCases.ts` (70
    lines) and `json-schema-to-ts/cases.ts` (53 lines) are deliberately
    lane-scoped to the JSON_SCHEMA group (their headers say so), so
    `ts-runtypes (jsonSchema)` and `json-schema-to-ts` render n/a on every
@@ -41,7 +41,9 @@ Two defects in the typecost bench's JSON Schema story:
 
 ## Plan
 
-**A. Kill the stand-ins (one ts-runtypes column per lane).**
+**A. Kill the stand-ins (one ts-runtypes column per lane).** SHIPPED in the
+sibling change ([json-schema-bench-page-to-validation-sections.md](json-schema-bench-page-to-validation-sections.md)),
+which rewrote the same keys.
 
 - `container/benchmarks/competitors/ts-runtypes/schemaCases.ts:723-737` —
   replace the ten JSON_SCHEMA entries with `NOT_SUPPORTED` (comment: a schema
@@ -63,9 +65,9 @@ Two defects in the typecost bench's JSON Schema story:
 - `container/benchmarks/competitors/json-schema-to-ts/cases.ts` — same
   growth: per-key document `as const` (FromSchema needs the literal type) or
   `NOT_SUPPORTED`; rewrite the "Lane-scoped like jsonSchemaCases" header.
-- `container/benchmarks/_lib/extract-cases.mjs` — `extractSchemaDocs` must
-  skip `NOT_SUPPORTED` string entries (thunk maps already skip via
-  `unwrapThunk`; the docs map is plain values).
+- `container/benchmarks/_lib/extract-cases.mjs` — NO CHANGE NEEDED, contrary to
+  the original plan: `extractSchemaDocs` already skips anything that is not an
+  object literal, so a `NOT_SUPPORTED` identifier falls out naturally.
 - **The not-supported set mirrors the validation suite exactly** (ajv's 115).
   Where an ajv-supported document trips a `runTypeFromJsonSchema` rejected
   corner (embedded `$id`, `contentSchema`, `unevaluated*` beside
@@ -87,7 +89,42 @@ Two defects in the typecost bench's JSON Schema story:
 - Runtime json-schema suite (10 cases), zod/typebox/typia typecost entries:
   untouched.
 
+## What shipped
+
+Both maps are total over the 277 shared keys: **164 documents, 113
+not-supported**, mirroring ajv's set exactly. They were GENERATED from ajv's map
+by a one-shot AST script (run once, output committed as normal source, script
+discarded) and are kept honest by the new contract test.
+
+**One deliberate divergence from ajv's bytes**, found by running it: ajv writes
+tuples the draft-07 way (`items: [...]` plus `additionalItems`) because its
+non-JSON_SCHEMA lane uses the draft-07 default export, and the RunTypes door is
+2020-12 only. Nine tuple documents (`ARRAY.tuple_array`,
+`OBJECT.call_signature_params{,_with_optional}`, and six `TUPLE.*`) initially
+failed the type probe with "No overload matches this call" and are now written
+with `prefixItems`. Same constraint, current dialect, noted in both file
+headers.
+
+Every one of the 164 documents was verified accepted by the real
+`runTypeFromJsonSchema` through the resolver (a temporary entry invoking every
+thunk during a container build reported `164/164 documents accepted`), and both
+columns now measure 164/164 with zero errored probes.
+
+The execution smoke could NOT become a permanent Vitest test as planned: the
+bench tree resolves `@ts-runtypes/core` only inside the image, so importing the
+map from `packages/` fails. The permanent guard is the ajv-mirror contract test;
+the acceptance check is the bench run itself, which fails loudly on a rejected
+document.
+
 ## Tests
+
+SHIPPED as `packages/ts-runtypes-devtools/test/bench-json-schema-cases.test.ts`
+(32 tests, covering both this spec and the sibling page-fold one). It loads the
+shared cases in a SUBPROCESS rather than importing them, because importing pulls
+`container/benchmarks` into the package tsconfig and its DateTime groups need
+the Temporal lib only the bench image configures.
+
+Original plan:
 
 - New host-side contract test (sibling of
   `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`, which already
@@ -132,8 +169,8 @@ is the cheap oracle: every document accepted by the real
   — the new contract test pins only the JSON-Schema mirror, not general
   totality.
 - Runtime json-schema validation suite changes (its 10 cases stay).
-- Typecost runtime cost: ~150 extra probes per document column lengthen the
-  container run; acceptable, `RT_BENCH_QUICK` exists if it hurts.
+- Typecost runtime cost: the extra probes lengthen the container run as
+  expected; acceptable, `RT_BENCH_QUICK` exists if it hurts.
 
 ## Done when
 

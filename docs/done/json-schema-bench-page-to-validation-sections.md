@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-02
 ---
 
@@ -86,21 +86,35 @@ with a `samples` override — the ATOMIC.number posture).
 **C. Competitor fill (the framing change).**
 
 Entries are authored in each library's OWN dialect, like every other
-validation row — not document consumption. Starting matrix, every cell to be
-VERIFIED against the image-pinned versions before authoring (mark honest
-`NOT_SUPPORTED` with a one-line reason where it fails):
+validation row, not document consumption. **As shipped**, every cell below was
+verified by running the real validator against this group's exact samples
+(TypeBox `TypeCompiler.Compile`, zod `safeParse`, typia through a real ttsc
+transform build), which corrected the original guesses in both directions:
 
 | case | ajv | typebox | zod | typia |
 |---|---|---|---|---|
 | closed_object | doc | `additionalProperties: false` | `strictObject` | `createEquals` |
-| pattern_properties | doc | verify | verify (v4 record key regex) | no |
-| property_names | doc | verify | `z.record(keySchema, …)` verify | no |
-| contains_count | doc | array `contains` option, verify | no | no |
-| unique_items | doc | `uniqueItems` option | no | no |
-| object_size | doc | `minProperties`/`maxProperties` | no | no |
-| dependent_required | doc | verify | no | no |
-| multiple_of | doc | `multipleOf` | `.multipleOf()` | tags, verify |
-| string_email / int_bounded / string_pattern | doc | format/bounds/pattern options | `z.email()` / min-max / `.regex()` | `tags.Format` / `Minimum`-`Maximum` / `Pattern` |
+| pattern_properties | doc | `Record(TemplateLiteral)` + `additionalProperties: false` | `record(key regex)` | ``Record<`col_${string}`, number>`` + Equals |
+| property_names | doc | not compiled | `record(key regex)` | no regex-constrained key |
+| contains_count | doc | `contains` + `minContains` | no array contains | no count tag |
+| unique_items | doc | `uniqueItems` | no array uniqueness | `tags.UniqueItems` |
+| object_size | doc | `min/maxProperties` | no key-count bounds | no key-count bounds |
+| dependent_required | doc | not compiled | `z.union` | union + Equals |
+| multiple_of | doc | `multipleOf` | `.multipleOf()` | `tags.MultipleOf` |
+| string_email / int_bounded / string_pattern | doc | pattern / bounds | `z.email()` / min-max / `.regex()` | `tags.Format` / `Minimum`-`Maximum` / `Pattern` |
+
+Corrections against the original guesses:
+
+- **zod is far stronger than assumed** (8 of 11, not "some"): a regex-constrained
+  record key really does reject a bad key, covering both patternProperties and
+  propertyNames.
+- **TypeBox is weaker than assumed** on three: it accepts `propertyNames` and
+  `dependentRequired` into the schema object but never compiles them into a
+  check, and `Type.Record(/regex/)` compiles to `{"not":{}}` in the pinned build.
+  Its template-literal Record needs `additionalProperties: false` to close, which
+  the alignment audit caught after the first pass shipped an open one.
+- **typia needs `createEquals`** for every closedness case, since `createIs` is
+  structural and accepts excess keys.
 
 ts-runtypes' own entries stay the schema door:
 `createValidateFn(runTypeFromJsonSchema(<inline document>))` in
@@ -123,10 +137,9 @@ new keyword is supported by the door.
   page's section (prose edit, docs style: plain language, no dash
   punctuation). NOTE: the typecost todo also rewrites this paragraph —
   whichever lands second reconciles.
-- One short intro sentence for the new section on
-  `1.validation.md` / `2.validation-formats.md` frontmatter description or
-  body, if the bare section label is not enough (implementer's call, docs
-  style rules apply).
+- SHIPPED: one short intro sentence on each of `1.validation.md` and
+  `2.validation-formats.md` explaining what the JSON Schema section covers and
+  that a dialect which cannot express a constraint reads n-a.
 - CaseKey ripple: dropped/added keys must be reflected in EVERY competitor
   map (`zod`, `typebox`, `typia`, `ajv` cases.ts; ts-runtypes `cases.ts`,
   `schemaCases.ts` — new keys land there as `NOT_SUPPORTED` per the
@@ -174,6 +187,19 @@ every competitor against shared samples as the correctness oracle.
   ([benchmark-competitor-maps-never-typechecked.md](benchmark-competitor-maps-never-typechecked.md)).
 - Playground JSON Schema mode, the (schema) rename, and any change to the
   guide's keyword semantics.
+
+## What shipped
+
+Case count 276 -> 277 (7 dropped, 3 re-homed to formats, 8 added). Verified end
+to end: `pnpm rtx bench --website` regenerates 277 cases across validation,
+validation-formats, typecost and alignment; `pnpm rtx website check --static`
+passes on 8 benchmark pages (the 9th is gone) with the JSON Schema section
+rendering real numbers on both pages. The only two FAILED lines in the run are
+the pre-existing typia and zod exit codes, both already tracked and neither in
+this group.
+
+The `schemaCases.ts` opt-out (item A) was folded in here rather than left to the
+typecost spec, since the same keys were being rewritten.
 
 ## Done when
 
