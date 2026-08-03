@@ -1,7 +1,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
-import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-type
 // Option A — a plain TypeScript type. Fastest path, nothing extra to write.
@@ -41,7 +41,7 @@ const productJsonSchema = {
     status: {enum: ['draft', 'live']},
   },
   required: ['id', 'name', 'tags', 'status'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 // The TypeScript type is recovered from the schema, so nothing drifts.
 type ProductFromJsonSchema = FromJsonSchema<typeof productJsonSchema>;

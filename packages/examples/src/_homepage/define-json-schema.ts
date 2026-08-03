@@ -1,5 +1,5 @@
 import {createValidateFn} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // Already have a JSON Schema? Hand it over as-is (draft 2020-12).
 const userSchema = {
@@ -11,7 +11,7 @@ const userSchema = {
     roles: {type: 'array', items: {enum: ['admin', 'user']}},
   },
   required: ['id', 'name', 'email', 'roles'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 // Same validator, same result — your call.
 const isUser = createValidateFn(runTypeFromJsonSchema(userSchema));

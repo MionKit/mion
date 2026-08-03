@@ -1,5 +1,5 @@
 import {createValidateFn, createGetValidationErrorsFn} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-formats
 // Constraint keywords are not annotations here. Each one becomes part of the
@@ -15,7 +15,7 @@ const accountSchema = {
     joined: {type: 'string', format: 'date-time'},
   },
   required: ['email', 'handle', 'age'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 const isAccount = createValidateFn(runTypeFromJsonSchema(accountSchema));
 

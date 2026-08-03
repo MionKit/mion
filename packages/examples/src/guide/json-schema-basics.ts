@@ -1,5 +1,5 @@
 import {createValidateFn} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-basics
 // A draft 2020-12 JSON Schema, exactly as you already have it.
@@ -11,7 +11,7 @@ const userSchema = {
     tags: {type: 'array', items: {type: 'string'}},
   },
   required: ['id', 'name'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 // Hand it to any factory. The validator is generated at build time,
 // the same way it is for a plain TypeScript type.

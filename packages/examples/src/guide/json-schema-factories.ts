@@ -5,7 +5,7 @@ import {
   createMockDataFn,
   createStandardSchema,
 } from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-factories
 const orderSchema = {
@@ -23,7 +23,7 @@ const orderSchema = {
     },
   },
   required: ['id', 'total', 'lines'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 // One schema, the whole toolbelt. Every factory takes it the same way.
 const isOrder = createValidateFn(runTypeFromJsonSchema(orderSchema));

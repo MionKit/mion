@@ -1,6 +1,6 @@
 import * as RT from '@ts-runtypes/core/schema';
 import {createValidateFn} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-utilities
 const employeeSchema = {
@@ -12,7 +12,7 @@ const employeeSchema = {
     manager: {type: 'string'},
   },
   required: ['id', 'name', 'email', 'manager'],
-} as const;
+} as const satisfies JsonSchemaInput;
 
 const employee = runTypeFromJsonSchema(employeeSchema);
 
@@ -42,7 +42,7 @@ const categorySchema = {
     },
   },
   $ref: '#/$defs/node',
-} as const;
+} as const satisfies JsonSchemaInput;
 
 const isCategory = createValidateFn(runTypeFromJsonSchema(categorySchema));
 
