@@ -519,8 +519,9 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 
 // TestFormatSamples_TypeIDStableAcrossKnobs — generation is post-intern:
 // the SAME sample-less pattern interns to the SAME typeID whatever the
-// knobs say (5, 50, or disabled), and stays distinct from the
-// declared-samples variant (declared samples are params and DO fold in).
+// knobs say (5, 50, or disabled). And since mockSamples is NOT id-relevant,
+// a DECLARED-samples variant of the same pattern interns to that same id too
+// (samples describe the same validator — they no longer fold in).
 func TestFormatSamples_TypeIDStableAcrossKnobs(t *testing.T) {
 	sources := map[string]string{"a.ts": samplelessPatternSource}
 	id5, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, sources, withSampleKnobs(5, 10))))
@@ -537,8 +538,14 @@ type Code = TypeFormat<string, 'stringFormat', {
 export const _ = createValidateFn<Code>();
 `
 	idDeclared, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, map[string]string{"a.ts": declared}, withSampleKnobs(5, 10))))
-	if idDeclared == id5 {
-		t.Fatalf("declared samples are params and must fork the typeID; both %s", id5)
+	if idDeclared != id5 {
+		t.Fatalf("declared samples are NOT id-relevant and must share the sample-less id; declared=%s sampleless=%s", idDeclared, id5)
+	}
+	// A different VALIDATION param (a pattern source change) still forks the id.
+	otherPattern := strings.Replace(declared, "^[a-z]{3}$", "^[a-z]{4}$", 1)
+	idOther, _ := patternSamplesFrom(t, generationScan(t, setupInlineWith(t, map[string]string{"a.ts": otherPattern}, withSampleKnobs(5, 10))))
+	if idOther == id5 {
+		t.Fatalf("a different pattern source must fork the typeID; both %s", id5)
 	}
 }
 

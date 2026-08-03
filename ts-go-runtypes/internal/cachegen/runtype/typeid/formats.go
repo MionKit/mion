@@ -774,22 +774,30 @@ func FormatAnnotationStructuralKey(annotation *protocol.FormatAnnotation) string
 	return builder.String()
 }
 
-// EVERY format param is id-relevant, `mockSamples` and `message` included.
-// They used to be excluded as "mock/diagnostic metadata, not validation
-// behaviour" — but cache entries are shared singletons and for
-// `createMockDataFn` the samples ARE behaviour: two same-shape formats
-// differing only in samples collapsed onto one entry, and whichever call
-// site interned first supplied the mock samples for BOTH (first-intern
-// nondeterminism — the same failure mode as tuple labels). Folding
-// them in also lets emitters surface a pattern's custom `message` as the
-// error val without cache-identity risk. Formats sharing every param still
-// dedup exactly as before.
+// `mockSamples` is NOT id-relevant; every OTHER format param is (`message`
+// included). Samples are generation metadata read only by createMockDataFn,
+// not validation behaviour, so two formats identical but for their sample
+// pools describe the SAME validator and MUST dedup onto one cache entry —
+// folding samples in fragments the cache instead. `message` stays folded in
+// because it changes the emitted validator's error `val` (real behaviour of
+// the same function), and a pattern's `source`/`flags` stay because they ARE
+// the check. When two sites that dedup onto one entry declare DIFFERENT
+// sample pools, the shared entry mocks from whichever interned first; that
+// residual ambiguity is surfaced by a build diagnostic rather than hidden in
+// the id (see docs/todos for the cross-site sample-conflict diagnostic).
+const mockSamplesKey = "mockSamples"
 
 // canonicalLiteralMap serialises a literal-value map with sorted keys at
-// every nesting depth so equivalent maps hash to the same string.
+// every nesting depth so equivalent maps hash to the same string. The
+// `mockSamples` key is skipped at every depth (top-level params, a nested
+// `pattern`, or a `disallowed*`/`allowed*` op object) so samples never enter
+// the id.
 func canonicalLiteralMap(values map[string]any) string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
+		if key == mockSamplesKey {
+			continue
+		}
 		keys = append(keys, key)
 	}
 	if len(keys) == 0 {

@@ -231,24 +231,41 @@ func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
 	}
 }
 
-// TestFormatAnnotation_SamplesFoldIntoKey pins that mockSamples and message
-// ARE id-relevant: cache entries are shared singletons and for createMockDataFn
-// the samples are behaviour — two same-shape formats differing only in
-// samples/message must NOT collapse onto one entry (first-intern
-// nondeterminism).
-func TestFormatAnnotation_SamplesFoldIntoKey(t *testing.T) {
+// TestFormatAnnotation_SamplesExcludedFromKey pins that mockSamples is NOT
+// id-relevant (generation metadata, not validation behaviour) while `message`
+// and a pattern's `source`/`flags` still are. Two same-shape formats differing
+// only in samples MUST share one key (and dedup onto one cache entry).
+func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 	withSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
 		Name:   "stringFormat",
-		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"a", "b"}, "message": "too long"},
+		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"a", "b"}},
 	})
 	bare := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"maxLength": 10.0},
 	})
-	if withSamples == bare {
-		t.Fatalf("mockSamples/message must affect the key; both gave %q", bare)
+	if withSamples != bare {
+		t.Fatalf("mockSamples must NOT affect the key; %q != %q", withSamples, bare)
 	}
-	// Id-relevant at nested depth too (FormatPattern nests them in `pattern`).
+	// Different declared pools still converge on the same key (the conflict is a
+	// build diagnostic, not an id split).
+	otherSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+		Name:   "stringFormat",
+		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"x", "y", "z"}},
+	})
+	if otherSamples != bare {
+		t.Fatalf("a different sample pool must NOT change the key; %q != %q", otherSamples, bare)
+	}
+	// `message` DOES stay id-relevant (it changes the emitted error val).
+	withMessage := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+		Name:   "stringFormat",
+		Params: map[string]any{"maxLength": 10.0, "message": "too long"},
+	})
+	if withMessage == bare {
+		t.Fatalf("message must affect the key; both gave %q", bare)
+	}
+	// Samples are skipped at NESTED depth too (FormatPattern nests them in
+	// `pattern`), but the pattern's source/flags stay.
 	nested := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"pattern": map[string]any{"source": "^x$", "flags": "", "mockSamples": []any{"x"}}},
@@ -257,15 +274,16 @@ func TestFormatAnnotation_SamplesFoldIntoKey(t *testing.T) {
 		Name:   "stringFormat",
 		Params: map[string]any{"pattern": map[string]any{"source": "^x$", "flags": ""}},
 	})
-	if nested == nestedNoSamples {
-		t.Fatalf("nested mockSamples must affect the key; both gave %q", nested)
+	if nested != nestedNoSamples {
+		t.Fatalf("nested mockSamples must NOT affect the key; %q != %q", nested, nestedNoSamples)
 	}
-	// Identical params (samples included) still converge on one key.
-	if again := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	// A different pattern SOURCE still differentiates.
+	nestedOtherSource := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
 		Name:   "stringFormat",
-		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"a", "b"}, "message": "too long"},
-	}); again != withSamples {
-		t.Fatalf("identical params must share a key: %q vs %q", again, withSamples)
+		Params: map[string]any{"pattern": map[string]any{"source": "^y$", "flags": ""}},
+	})
+	if nestedOtherSource == nested {
+		t.Fatalf("a different pattern source must still differ")
 	}
 	// Sanity: a real validation param (maxLength) still differentiates.
 	if bare == nestedNoSamples {
@@ -273,11 +291,11 @@ func TestFormatAnnotation_SamplesFoldIntoKey(t *testing.T) {
 	}
 }
 
-// TestFormatAnnotation_SamplesDistinctEndToEnd confirms sample id-relevance
+// TestFormatAnnotation_SamplesSharedEndToEnd confirms sample id-irrelevance
 // holds through the full scan → structural id (not just the key fn): formats
-// differing only in mockSamples intern as DIFFERENT entries, each mocking
-// from its own samples.
-func TestFormatAnnotation_SamplesDistinctEndToEnd(t *testing.T) {
+// differing ONLY in mockSamples intern as the SAME entry (samples describe the
+// same validator). A different validation param still forks the id.
+func TestFormatAnnotation_SamplesSharedEndToEnd(t *testing.T) {
 	a := runFormatScan(t, `
 import {getRunTypeId} from '@ts-runtypes/core';
 import type {TypeFormat} from '@ts-runtypes/core';
@@ -290,7 +308,17 @@ import type {TypeFormat} from '@ts-runtypes/core';
 type T = TypeFormat<string, 'stringFormat', {maxLength: 10; mockSamples: ['x', 'y', 'z']}>;
 getRunTypeId<T>();
 `)
-	if a.ID == b.ID {
-		t.Fatalf("formats differing only in mockSamples must NOT share one id; both gave %q", a.ID)
+	if a.ID != b.ID {
+		t.Fatalf("formats differing only in mockSamples must share one id; %q != %q", a.ID, b.ID)
+	}
+	// A real validation param still differentiates.
+	c := runFormatScan(t, `
+import {getRunTypeId} from '@ts-runtypes/core';
+import type {TypeFormat} from '@ts-runtypes/core';
+type T = TypeFormat<string, 'stringFormat', {maxLength: 20; mockSamples: ['a', 'b']}>;
+getRunTypeId<T>();
+`)
+	if c.ID == a.ID {
+		t.Fatalf("a different maxLength must fork the id; both gave %q", a.ID)
 	}
 }
