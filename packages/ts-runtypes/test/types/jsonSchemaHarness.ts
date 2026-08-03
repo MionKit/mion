@@ -48,16 +48,16 @@ type TypeFormat<Base, Name extends string, Params extends object> = Base & {
 };
 type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
 type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
-type Email = TypeFormat<string, 'email', {}>;
+type Email<P extends object = {}> = TypeFormat<string, 'email', P>;
 type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
 type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}>;
 type StringDate = TypeFormat<string, 'date', {}>;
 type StringTime = TypeFormat<string, 'time', {}>;
 type StringDateTime = TypeFormat<string, 'dateTime', {}>;
-type Domain = TypeFormat<string, 'domain', {}>;
+type Domain<P extends object = {}> = TypeFormat<string, 'domain', P>;
 type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
 type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
-type Url = TypeFormat<string, 'url', {}>;
+type Url<P extends object = {}> = TypeFormat<string, 'url', P>;
 type Base64<P extends object = {}> = TypeFormat<
   string,
   'stringFormat',

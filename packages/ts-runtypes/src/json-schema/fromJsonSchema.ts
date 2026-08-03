@@ -45,7 +45,6 @@ import type {
   String as StringFormat,
   Number as NumberFormat,
 } from '../formats/index.ts';
-import type {TypeFormat} from '../runtypes/typeFormat.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
 // #region jsonschema-extract — sliced verbatim by test/types/jsonSchemaHarness.ts
@@ -314,28 +313,28 @@ type StringWithEncodingFrom<S> = S extends {pattern: string} | {format: string}
         : Base16<Flatten<StringParamsFrom<S>>>;
 // Sibling constraint keywords beside a named format apply conjunctively per
 // 2020-12. minLength / maxLength REPLACE the brand's default bounds for the
-// variable-width pattern families (email / hostname / uri — their emitters
-// already enforce length params, and the RFC-ish defaults on the brands are
-// the type-first surface's opinion, not something this schema asked for);
-// on the fixed-width families (uuid / date / time / date-time / ipv4 /
-// ipv6) a length sibling is redundant or contradictory, and a sibling
-// `pattern` or `contentEncoding` beside any named format would stack a
-// second pattern slot — all of those resolve never, loud over lossy.
+// variable-width pattern families (email / hostname / uri): each rides its
+// imported generic (Email/Domain/Url), which merges the length override over
+// its built-in defaults, so the door manufactures no brand of its own. On the
+// fixed-width families (uuid / date / time / date-time / ipv4 / ipv6) a length
+// sibling is redundant or contradictory, and a sibling `pattern` or
+// `contentEncoding` beside any named format would stack a second pattern slot —
+// all of those resolve never, loud over lossy.
 type FormatSiblingKeys = 'minLength' | 'maxLength';
-type VariableWidthFormat = 'email' | 'hostname' | 'uri';
 type FormatWithSiblings<F extends SchemaFormatKeyword, S> = S extends {pattern: unknown} | {contentEncoding: unknown}
   ? never
-  : Extract<keyof S, FormatSiblingKeys> extends never
-    ? BrandBySchemaFormat[F]
-    : F extends VariableWidthFormat
-      ? RebrandWithLengths<BrandBySchemaFormat[F], LengthParamsFrom<S>>
-      : never;
-type LengthParamsFrom<S> = (S extends {minLength: infer N extends number} ? {readonly minLength: N} : unknown) &
-  (S extends {maxLength: infer N extends number} ? {readonly maxLength: N} : unknown);
-type RebrandWithLengths<B, L> = TypeFormat<
-  string,
-  NonNullable<B['__rtFormatName' & keyof B]> & string,
-  Flatten<Omit<NonNullable<B['__rtFormatParams' & keyof B]>, keyof L & string> & L>
+  : F extends 'email'
+    ? Email<LengthParamsFrom<S>>
+    : F extends 'hostname'
+      ? Domain<LengthParamsFrom<S>>
+      : F extends 'uri'
+        ? Url<LengthParamsFrom<S>>
+        : Extract<keyof S, FormatSiblingKeys> extends never
+          ? BrandBySchemaFormat[F]
+          : never;
+type LengthParamsFrom<S> = Flatten<
+  (S extends {minLength: infer N extends number} ? {readonly minLength: N} : unknown) &
+    (S extends {maxLength: infer N extends number} ? {readonly maxLength: N} : unknown)
 >;
 
 // Numeric keywords ride the `Number` params bag in their JSON Schema spelling

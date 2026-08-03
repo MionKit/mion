@@ -267,7 +267,9 @@ export interface DomainParams {
   allowedValues?: AllowedValuesParam;
 }
 
-export type Domain = TypeFormat<string, 'domain', {pattern: typeof DOMAIN_PATTERN; maxLength: 253; minLength: 5}, never>;
+type DEFAULT_DOMAIN_PARAMS = {pattern: typeof DOMAIN_PATTERN; maxLength: 253; minLength: 5};
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type Domain<P extends DomainParams = {}> = TypeFormat<string, 'domain', FormatDefaults<DEFAULT_DOMAIN_PARAMS, P>, never>;
 export type DomainUnicode = TypeFormat<
   string,
   'domain',
@@ -293,6 +295,15 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
 // alphabetical tld.
 export type DomainStrict = TypeFormat<string, 'domain', DEFAULT_STRICT_DOMAIN_PARAMS, never>;
 
+// FormatDefaults — a defaults bag with an override P layered on top (P's keys
+// win, the rest of the defaults survive). This is what lets a partial override
+// keep the built-in pattern + bounds: `Email<{maxLength: 100}>` replaces only
+// `maxLength`, so the baked pattern and `minLength` remain. The schema door
+// rides the SAME merge (a `format: 'email'` + `minLength` sibling lowers to
+// `Email<{minLength}>`), so the two authoring modes converge on one id.
+type Simplify<T> = {[K in keyof T]: T[K]};
+type FormatDefaults<Defaults, P> = Simplify<Omit<Defaults, keyof P> & P>;
+
 // ─────────────────────────────── Email ──────────────────────────────
 
 // EmailParams — pattern path, or localPart + domain decomposition.
@@ -305,7 +316,9 @@ export interface EmailParams {
   domain?: DomainParams;
 }
 
-export type Email = TypeFormat<string, 'email', {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7}, never>;
+type DEFAULT_EMAIL_PARAMS = {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7};
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type Email<P extends EmailParams = {}> = TypeFormat<string, 'email', FormatDefaults<DEFAULT_EMAIL_PARAMS, P>, never>;
 export type EmailPunycode = TypeFormat<
   string,
   'email',
@@ -333,11 +346,15 @@ export type EmailStrict = TypeFormat<string, 'email', DEFAULT_STRICT_EMAIL_PARAM
 // ──────────────────────────────── URL ───────────────────────────────
 
 export interface UrlParams {
+  maxLength?: number;
+  minLength?: number;
   pattern?: {source: string; flags?: string} | {val: RegExp};
   mockSamples?: readonly string[];
 }
 
-export type Url = TypeFormat<string, 'url', {pattern: typeof URL_PATTERN; maxLength: 2048}, never>;
+type DEFAULT_URL_PARAMS = {pattern: typeof URL_PATTERN; maxLength: 2048};
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type Url<P extends UrlParams = {}> = TypeFormat<string, 'url', FormatDefaults<DEFAULT_URL_PARAMS, P>, never>;
 export type UrlHttp = TypeFormat<string, 'url', {pattern: typeof URL_HTTP_PATTERN; maxLength: 2048}, never>;
 export type UrlFile = TypeFormat<string, 'url', {pattern: typeof URL_FILE_PATTERN; maxLength: 2048}, never>;
 
@@ -407,8 +424,18 @@ export const ipv4WithPort = presetBuilder<IPv4WithPort>('ip');
 /** IPv6 with port (`IPv6WithPort`). **/
 export const ipv6WithPort = presetBuilder<IPv6WithPort>('ip');
 
-/** Domain name (`Domain`). **/
-export const domain = presetBuilder<Domain>('domain');
+/** Domain name (`Domain`); `domain({maxLength: 100})` overrides bounds, keeping
+ *  the built-in pattern. **/
+export function domain(id?: InjectRunTypeId<Domain>): RunType<Domain>;
+export function domain<const P extends DomainParams>(
+  formatParams: CompTimeArgs<ExactParams<P, DomainParams>>,
+  id?: InjectRunTypeId<Domain<P>>
+): RunType<Domain<P>>;
+export function domain(formatParamsOrId?: DomainParams | InjectRunTypeId<Domain>, id?: InjectRunTypeId<Domain>): RunType<Domain> {
+  const formatParams = typeof formatParamsOrId === 'object' ? formatParamsOrId : {};
+  const injectedId = typeof formatParamsOrId === 'string' ? formatParamsOrId : id;
+  return builderResult(injectedId, {type: 'domain', formatParams});
+}
 /** Unicode domain (`DomainUnicode`). **/
 export const domainUnicode = presetBuilder<DomainUnicode>('domain');
 /** Punycode domain (`DomainPunycode`). **/
@@ -416,15 +443,35 @@ export const domainPunycode = presetBuilder<DomainPunycode>('domain');
 /** Strict domain — ≤6 labels, ≥2 parts, alphabetical tld (`DomainStrict`). **/
 export const domainStrict = presetBuilder<DomainStrict>('domain');
 
-/** Email (`Email`). **/
-export const email = presetBuilder<Email>('email');
+/** Email (`Email`); `email({maxLength: 100})` overrides bounds, keeping the
+ *  built-in pattern. **/
+export function email(id?: InjectRunTypeId<Email>): RunType<Email>;
+export function email<const P extends EmailParams>(
+  formatParams: CompTimeArgs<ExactParams<P, EmailParams>>,
+  id?: InjectRunTypeId<Email<P>>
+): RunType<Email<P>>;
+export function email(formatParamsOrId?: EmailParams | InjectRunTypeId<Email>, id?: InjectRunTypeId<Email>): RunType<Email> {
+  const formatParams = typeof formatParamsOrId === 'object' ? formatParamsOrId : {};
+  const injectedId = typeof formatParamsOrId === 'string' ? formatParamsOrId : id;
+  return builderResult(injectedId, {type: 'email', formatParams});
+}
 /** Punycode-domain email (`EmailPunycode`). **/
 export const emailPunycode = presetBuilder<EmailPunycode>('email');
 /** Strict email — strict local part + strict domain (`EmailStrict`). **/
 export const emailStrict = presetBuilder<EmailStrict>('email');
 
-/** URL (`Url`). **/
-export const url = presetBuilder<Url>('url');
+/** URL (`Url`); `url({maxLength: 100})` overrides bounds, keeping the built-in
+ *  pattern. **/
+export function url(id?: InjectRunTypeId<Url>): RunType<Url>;
+export function url<const P extends UrlParams>(
+  formatParams: CompTimeArgs<ExactParams<P, UrlParams>>,
+  id?: InjectRunTypeId<Url<P>>
+): RunType<Url<P>>;
+export function url(formatParamsOrId?: UrlParams | InjectRunTypeId<Url>, id?: InjectRunTypeId<Url>): RunType<Url> {
+  const formatParams = typeof formatParamsOrId === 'object' ? formatParamsOrId : {};
+  const injectedId = typeof formatParamsOrId === 'string' ? formatParamsOrId : id;
+  return builderResult(injectedId, {type: 'url', formatParams});
+}
 /** HTTP(S) URL (`UrlHttp`). **/
 export const urlHttp = presetBuilder<UrlHttp>('url');
 /** file:// URL (`UrlFile`). **/

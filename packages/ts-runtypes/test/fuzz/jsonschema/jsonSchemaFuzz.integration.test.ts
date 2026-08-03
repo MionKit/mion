@@ -66,15 +66,15 @@ function buildJsonSchemaModule(): string {
 };
 type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
 type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
-type Email = TypeFormat<string, 'email', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: ''}}>;
+type Email<P extends object = {}> = TypeFormat<string, 'email', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: ''}}>;
 type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
 type StringDate = TypeFormat<string, 'date', {}>;
 type StringTime = TypeFormat<string, 'time', {}>;
 type StringDateTime = TypeFormat<string, 'dateTime', {}>;
-type Domain = TypeFormat<string, 'domain', {}>;
+type Domain<P extends object = {}> = TypeFormat<string, 'domain', P>;
 type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
 type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
-type Url = TypeFormat<string, 'url', {}>;
+type Url<P extends object = {}> = TypeFormat<string, 'url', P>;
 type Base64<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;
 type Base32<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$'; flags: ''; mockSamples: ['', 'MY======', 'MZXQ====']}}>;
 type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''; mockSamples: ['', '48656C6C6F', 'DEADBEEF']}}>;
