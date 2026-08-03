@@ -458,7 +458,11 @@ function buildTypecostBench() {
       // Single metric, single path — typecost has no valid/invalid split.
       if (inst !== undefined) results[form.label] = {typecost: {valid: inst, status: 'ok'}};
       // typecost is single-metric: show the type/schema form (validate body), or the
-      // error form for libraries with no cheap validator (zod).
+      // error form for libraries with no cheap validator (zod). Only for a form
+      // that actually produced a number: the source files are read per FORM, not
+      // per measured cell, so a form whose authoring file happens to mention the
+      // case would otherwise show a hover body under a cell reading n-a.
+      if (inst === undefined) continue;
       const caseSources = sources.get(form.id)?.get(key);
       const source = caseSources?.validate ?? caseSources?.validationErrors;
       if (source) detailComps.push({name: form.label, source});

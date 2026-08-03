@@ -375,9 +375,14 @@ async function main() {
       ? measure('typebox', 'typebox', PROBE_TYPEBOX, probeTypebox(typebox.preamble, [], 'Type.String()', V), probeTypebox(typebox.preamble, typebox.entries[key].locals, typebox.entries[key].exprText, value))
       : {status: 'na'};
 
-    // The two SCHEMA-DOCUMENT forms. Both are lane-scoped to the JSON_SCHEMA
-    // group, so every other row is n/a for them by design — that IS the story
-    // the page tells (ajv has no typecost form at all: no static inference).
+    // The two SCHEMA-DOCUMENT forms, both TOTAL over the suite: every case ajv
+    // can state as a document is measured here too, so the columns answer "what
+    // does recovering a type from this document cost" across the whole table
+    // rather than in one lane. A case JSON Schema cannot express (bigint, Date,
+    // Map/Set, Temporal, circular refs, the advanced TS utility types) is n/a in
+    // both, mirroring ajv's own not-supported set. ajv has no typecost form at
+    // all — it validates the document and recovers no static type, which is the
+    // trade the page exists to show.
     const js = tsJsonSchema.entries[key];
     cell.tsJsonSchema = js
       ? measure('tsJsonSchema', 'tsgo', PROBE_TSGO, probeTsSchema(tsJsonSchema.preamble, [], "runTypeFromJsonSchema({type: 'string'})", V), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, value), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, undefined))

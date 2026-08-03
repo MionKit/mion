@@ -144,3 +144,60 @@ describe('every competitor map covers the whole group', () => {
     }
   });
 });
+
+// The two typecost DOCUMENT maps answer "what does recovering a type from this
+// document cost the checker". They used to cover the 10 cases of the old
+// json-schema lane and read n-a everywhere else, which made the columns look
+// like a niche rather than the whole comparison. They are now total, and their
+// supported set mirrors ajv's: ajv is the validation suite's JSON Schema
+// reference, so what it can state as a document is what these columns must
+// answer. The maps are generated from ajv's and committed, so this test is what
+// keeps the mirror true after a hand edit.
+describe('the typecost document maps mirror ajv', () => {
+  // `'KEY': NOT_SUPPORTED` vs `'KEY': <anything else>`, read off the source.
+  function declaredKeys(file: string): {supported: Set<string>; unsupported: Set<string>} {
+    const source = readFileSync(join(competitorsDir, file), 'utf8');
+    const supported = new Set<string>();
+    const unsupported = new Set<string>();
+    for (const match of source.matchAll(/^ {2}'([A-Z_]+\.[A-Za-z_0-9]+)':\s*(.*)$/gm)) {
+      (match[2].startsWith('NOT_SUPPORTED') ? unsupported : supported).add(match[1]);
+    }
+    return {supported, unsupported};
+  }
+
+  const ajv = declaredKeys('ajv/cases.ts');
+  const allKeys = all.map((entry) => entry.key);
+  const MAPS = ['ts-runtypes/jsonSchemaCases.ts', 'json-schema-to-ts/cases.ts'];
+
+  it('ajv itself still declares every shared case', () => {
+    const declared = new Set([...ajv.supported, ...ajv.unsupported]);
+    expect(allKeys.filter((key) => !declared.has(key))).toEqual([]);
+  });
+
+  it.each(MAPS)('%s is total over every shared case', (file) => {
+    const {supported, unsupported} = declaredKeys(file);
+    const declared = new Set([...supported, ...unsupported]);
+    expect(
+      allKeys.filter((key) => !declared.has(key)),
+      'missing keys'
+    ).toEqual([]);
+    expect(
+      [...declared].filter((key) => !allKeys.includes(key)),
+      'stale keys'
+    ).toEqual([]);
+  });
+
+  it.each(MAPS)('%s opts out of exactly what ajv opts out of', (file) => {
+    const {supported, unsupported} = declaredKeys(file);
+    // A case ajv states as a document but this map skips is lost coverage; the
+    // reverse claims a document for something JSON Schema cannot express.
+    expect(
+      [...ajv.unsupported].filter((key) => supported.has(key)),
+      'claimed but ajv cannot'
+    ).toEqual([]);
+    expect(
+      [...ajv.supported].filter((key) => unsupported.has(key)),
+      'skipped but ajv can'
+    ).toEqual([]);
+  });
+});
