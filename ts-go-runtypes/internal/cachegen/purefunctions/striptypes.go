@@ -75,6 +75,23 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 		*ranges = append(*ranges, textRange{nnExpr.Expression.End(), node.End()})
 		collectTypeRanges(sourceFile, nnExpr.Expression, ranges)
 		return
+	case ast.KindCallExpression:
+		callExpr := node.AsCallExpression()
+		// `foo<T>(1)` — drop the `<T>`. Left in place it stays valid JS but
+		// means something else entirely: `(foo < T) > 1`, a chain of
+		// comparisons evaluating to a boolean.
+		appendTypeArgumentsRange(sourceFile.Text(), callExpr.TypeArguments, ranges)
+		collectTypeRanges(sourceFile, callExpr.Expression, ranges)
+		collectListTypeRanges(sourceFile, callExpr.Arguments, ranges)
+		return
+	case ast.KindNewExpression:
+		newExpr := node.AsNewExpression()
+		// `new Set<any>()` — drop the `<any>`; unlike the call form it is not
+		// even parseable as JS.
+		appendTypeArgumentsRange(sourceFile.Text(), newExpr.TypeArguments, ranges)
+		collectTypeRanges(sourceFile, newExpr.Expression, ranges)
+		collectListTypeRanges(sourceFile, newExpr.Arguments, ranges)
+		return
 	case ast.KindParameter:
 		paramDecl := node.AsParameterDeclaration()
 		if paramDecl.Type != nil {
@@ -149,6 +166,35 @@ func collectTypeRanges(sourceFile *ast.SourceFile, node *ast.Node, ranges *[]tex
 		collectTypeRanges(sourceFile, child, ranges)
 		return false
 	})
+}
+
+// appendTypeArgumentsRange splices the `<...>` type-argument list of a call or
+// new expression. Like a function-like's TypeParameters, the list's own range
+// covers only the inner type nodes, so the surrounding angle brackets are found
+// by scanning outwards. A no-op when the expression has no type arguments.
+func appendTypeArgumentsRange(src string, typeArguments *ast.NodeList, ranges *[]textRange) {
+	if typeArguments == nil {
+		return
+	}
+	start := typeArguments.Pos()
+	end := typeArguments.End()
+	if openAngle := findPrecedingAngleBracket(src, start, '<'); openAngle >= 0 {
+		start = openAngle
+	}
+	if closeAngle := findCharAfter(src, end, '>'); closeAngle >= 0 {
+		end = closeAngle + 1
+	}
+	*ranges = append(*ranges, textRange{start, end})
+}
+
+// collectListTypeRanges descends into every node of an optional list.
+func collectListTypeRanges(sourceFile *ast.SourceFile, list *ast.NodeList, ranges *[]textRange) {
+	if list == nil {
+		return
+	}
+	for _, item := range list.Nodes {
+		collectTypeRanges(sourceFile, item, ranges)
+	}
 }
 
 // findPrecedingColon scans backward from pos (exclusive) for the nearest `:`

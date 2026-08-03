@@ -102,10 +102,7 @@ export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function 
   return function _uniqueItems(arr: readonly any[]): boolean {
     const len = arr.length;
     if (len < 2) return true;
-    // No `new Set<T>()` type arguments anywhere in a pure-fn body: the
-    // built-in extractor strips annotations but not type arguments, so they
-    // would survive into the emitted JS as a comparison expression.
-    const primitives: Set<any> = new Set();
+    const primitives = new Set<any>();
     let objects: Set<string> | null = null;
     for (let i = 0; i < len; i++) {
       const item = arr[i];
@@ -114,7 +111,7 @@ export const pf_uniqueItems = registerPureFnFactory('rt::uniqueItems', function 
         primitives.add(item);
         continue;
       }
-      if (objects === null) objects = new Set();
+      if (objects === null) objects = new Set<string>();
       const key = canon(item);
       if (objects.has(key)) return false;
       objects.add(key);

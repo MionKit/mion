@@ -206,6 +206,74 @@ export const x = function () {
 	}
 }
 
+// TestStripTypes_TypeArguments pins the call / new type-argument positions.
+// Left in place these do not merely look wrong: `new Set<any>()` is a
+// SyntaxError, and `foo<T>(1)` quietly parses as `(foo < T) > 1`.
+func TestStripTypes_TypeArguments(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "new with one type argument",
+			body: "const seen = new Set<string>();\n  return seen;",
+			want: "const seen = new Set();\n  return seen;",
+		},
+		{
+			name: "new with two type arguments",
+			body: "const seen = new Map<string, number>();\n  return seen;",
+			want: "const seen = new Map();\n  return seen;",
+		},
+		{
+			name: "new with nested type arguments",
+			body: "const seen = new Map<string, Set<number>>();\n  return seen;",
+			want: "const seen = new Map();\n  return seen;",
+		},
+		{
+			name: "new without parentheses",
+			body: "const seen = new Set<string>;\n  return seen;",
+			want: "const seen = new Set;\n  return seen;",
+		},
+		{
+			name: "generic call",
+			body: "return ident<number>(1);",
+			want: "return ident(1);",
+		},
+		{
+			name: "generic call with two type arguments",
+			body: "return pick<string, number>(a, b);",
+			want: "return pick(a, b);",
+		},
+		{
+			name: "type arguments nested in an argument",
+			body: "return wrap(new Set<string>(), 1);",
+			want: "return wrap(new Set(), 1);",
+		},
+		{
+			name: "type arguments on a property-access callee",
+			body: "return util.make<string>(1);",
+			want: "return util.make(1);",
+		},
+		{
+			name: "annotation and type argument together",
+			body: "const seen: Set<string> = new Set<string>();\n  return seen;",
+			want: "const seen = new Set();\n  return seen;",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripFactoryBody(t, "export const x = function () {\n  "+tc.body+"\n};")
+			if got != tc.want {
+				t.Errorf("got:\n%q\nwant:\n%q", got, tc.want)
+			}
+			if strings.ContainsAny(got, "<>") {
+				t.Errorf("angle brackets survived stripping:\n%s", got)
+			}
+		})
+	}
+}
+
 func TestStripTypes_ReadonlyParameterType(t *testing.T) {
 	got := stripFactoryBody(t, `
 export const x = function () {

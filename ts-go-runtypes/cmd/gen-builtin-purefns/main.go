@@ -29,9 +29,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
+	"github.com/microsoft/typescript-go/shim/core"
+	"github.com/microsoft/typescript-go/shim/parser"
+	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
 // builtinSourceFiles are the package's own pure-fn registration modules, relative
@@ -99,6 +104,10 @@ func run() error {
 		seen[entry.Key()] = true
 	}
 
+	if err := parseCheckEntries(entries); err != nil {
+		return err
+	}
+
 	source, err := render(entries)
 	if err != nil {
 		return err
@@ -108,6 +117,47 @@ func run() error {
 	}
 	fmt.Fprintf(os.Stderr, "gen-builtin-purefns: wrote %d entries to %s\n", len(entries), outputRel)
 	return nil
+}
+
+// parseCheckEntries re-parses every extracted body the way the runtime builds
+// it and refuses to write the table if any of them is not valid JavaScript.
+//
+// The stripper works by walking the type positions it knows about, so an
+// unhandled one ships silently: `new Set<any>()` survived into the table as a
+// load-time SyntaxError until the call/new TypeArguments case was added. This
+// gate turns that whole class from silent to build-breaking. Parsing as JS
+// rather than TS is what does the work — in a JS file, leftover annotations and
+// type arguments are grammar errors rather than valid syntax.
+//
+// It cannot catch stripped-but-still-wrong output that happens to stay valid
+// JS: `foo<T>(1)` reads as `(foo < T) > 1` and parses clean either way.
+func parseCheckEntries(entries []purefunctions.Entry) error {
+	var failures []string
+	// The parser asserts a normalized absolute name; nothing reads this file.
+	checkPath := tspath.NormalizePath("/purefn-check.js")
+	for _, entry := range entries {
+		// Mirrors rtUtils.ts's buildFactoryFromCode:
+		// `new Function(...paramNames, "'use strict'; " + code)`.
+		body := "(function (" + strings.Join(entry.ParamNames, ", ") + ") {\n'use strict';\n" + entry.Code + "\n})"
+		sourceFile := parser.ParseSourceFile(
+			ast.SourceFileParseOptions{FileName: checkPath, Path: tspath.Path(checkPath)},
+			body,
+			core.ScriptKindJS,
+		)
+		if sourceFile == nil {
+			failures = append(failures, fmt.Sprintf("  %s: parser returned no source file", entry.Key()))
+			continue
+		}
+		for _, diag := range sourceFile.Diagnostics() {
+			line, col := textpos.LineCol(sourceFile, diag.Pos())
+			failures = append(failures, fmt.Sprintf("  %s (rendered body %d:%d): TS%d %s", entry.Key(), line, col, diag.Code(), diag.MessageKey()))
+		}
+	}
+	if len(failures) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d extracted pure-fn body/bodies are not valid JavaScript — the type stripper left TS syntax behind.\n%s\nFix internal/cachegen/purefunctions/striptypes.go (add the missing type position), not the source or the table",
+		len(failures), strings.Join(failures, "\n"))
 }
 
 func render(entries []purefunctions.Entry) ([]byte, error) {
