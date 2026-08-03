@@ -55,21 +55,24 @@ Atomics done (all verified against the full Go + JS suites, pushed):
   `RebrandWithLengths` + `VariableWidthFormat` and the now-unused `TypeFormat`
   import. Length-override convergence pinned by `formatLengthOverrides.test.ts`.
 
+### Door "type-migration" pass — structural (2026-08-03, arrays + objects)
+
+- **DONE — arrays + objects emit through the shared wrappers.** The door now
+  builds a params bag (`ArrayAllParams` / `ObjectAllParams`, pure mappings) and
+  hands it to the imported `FormattedArray` / `FormattedObject`, deleting the
+  door-private `StructuralFormat`, `ContainsPart`, `PatternPropsPart` and
+  `PropNamesPart` twins. To keep ONE definition (not a re-faked copy in the
+  tests), `formats/structural.ts` gained a `#region structural-slice` around its
+  RunType-free type-first defs, sliced verbatim into BOTH translation harnesses
+  (`jsonSchemaHarness.ts`, `jsonSchemaFuzz.integration.test.ts`); `Flatten` is
+  shared from the translation slice. Byte-identical ids confirmed by the fuzzer
+  (raw-sentinel type-first side) + all runtime suites. A keyword-less array /
+  object / tuple / Record fast-paths around the wrapper (unchanged budget); a
+  keyword-bearing one pays a bounded one-time re-split cost (structural-keywords
+  budget rebaselined 2468 → 2899, documented in the compile test).
+
 **Still open (this spec stays here until done):**
 
-- **Door structural pass — arrays + objects.** The canonical `FormattedArray` /
-  `FormattedObject` types already live in `formats/structural.ts`; the door still
-  carries byte-identical twins (`StructuralFormat`, `ArrayKeywordParams` +
-  `ContainsPart`, `ObjectKeywordParams` + `PatternPropsPart` + `PropNamesPart`).
-  Deduping = the door emits through the imported wrappers. ARCHITECTURE NOTE: the
-  two test harnesses (`jsonSchemaHarness.ts`, `jsonSchemaFuzz.integration.test.ts`)
-  slice the door's `#region jsonschema-extract` and provide one-line stand-ins for
-  every imported brand; `FormattedArray`/`FormattedObject` are NOT one-liners, so a
-  naive stand-in re-duplicates them in the tests. The clean approach is to SHARE
-  the structural type defs into the sliced module (add a `#region` to
-  `structural.ts` + a minimal `RunType` stand-in), so there is exactly one
-  definition. The fuzzer independently spells the raw sentinels, so it guards
-  convergence either way.
 - **Collapse the `jsonContent` FORMAT** into `StringParams` (riskiest Go surgery;
   value-first authoring gap already closed by `TF.jsonContent()`).
 - **`SchemaLoweringByKeyword`** typechecked contract + totality assert, the

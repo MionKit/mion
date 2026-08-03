@@ -21,6 +21,7 @@ import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
 export type {MeasureResult};
 
 const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../src/json-schema/fromJsonSchema.ts', import.meta.url));
+const STRUCTURAL_TS = fileURLToPath(new URL('../../src/formats/structural.ts', import.meta.url));
 
 /** Slice the inference machinery out of fromJsonSchema.ts between the region
  *  markers and drop the `export` modifiers so it can live in a non-module
@@ -33,6 +34,21 @@ function extractJsonSchemaRegion(): string {
     throw new Error('jsonschema-extract region markers not found in src/json-schema/fromJsonSchema.ts');
   }
   return source.slice(start, end).replace(/^export (type|interface) /gm, '$1 ');
+}
+
+/** Slice the `structural-slice` region of formats/structural.ts — the REAL
+ *  `FormattedArray` / `FormattedObject` definitions the translation references —
+ *  so the budget snippet measures them directly instead of hand-written copies.
+ *  `Flatten` is provided by the translation region; `export const` is dropped
+ *  too (the name consts) for the non-module snippet. **/
+function extractStructuralRegion(): string {
+  const source = readFileSync(STRUCTURAL_TS, 'utf8');
+  const start = source.indexOf('// #region structural-slice');
+  const end = source.indexOf('// #endregion structural-slice');
+  if (start === -1 || end === -1) {
+    throw new Error('structural-slice region markers not found in src/formats/structural.ts');
+  }
+  return source.slice(start, end).replace(/^export (type|interface|const) /gm, '$1 ');
 }
 
 // Structural stand-ins for the brand names the region references from OUTSIDE
@@ -87,7 +103,7 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const PREAMBLE = `${BRAND_PREAMBLE}\n${extractJsonSchemaRegion()}\n${ASSERT_PREAMBLE}\n`;
+const PREAMBLE = `${BRAND_PREAMBLE}\n${extractStructuralRegion()}\n${extractJsonSchemaRegion()}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `PREAMBLE + snippet` and report errors + raw/net instantiation counts. **/
 export const measureJsonSchema = makeMeasurer(PREAMBLE);

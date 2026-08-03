@@ -44,6 +44,8 @@ import type {
   JsonContentBase64,
   String as StringFormat,
   Number as NumberFormat,
+  FormattedArray,
+  FormattedObject,
 } from '../formats/index.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
@@ -384,15 +386,6 @@ type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Ro
     readonly [K in keyof P as K extends Req ? never : K extends RO ? K : never]?: FromJsonSchemaIn<P[K], Root, F>;
   }
 >;
-// Structural format brands: the same two TypeFormat sentinels carried by a
-// plain intersection member (TypeFormat's Base is primitive-constrained, so
-// arrays / objects spell the brand raw). The collapse lifts them off the
-// single non-sentinel base exactly like the negation sentinel, so the node
-// keeps its array / record / objectLiteral kind plus a FormatAnnotation.
-type StructuralFormat<Name extends string, P extends object> = {
-  readonly __rtFormatName?: Name;
-  readonly __rtFormatParams?: P;
-};
 // The object-family keywords with no TS spelling ride the formattedObject
 // brand: key-count bounds and `additionalProperties: false` closedness (the
 // allowed-key list comes from the schema's own `properties`; without
@@ -527,30 +520,42 @@ type AllowedKeysOf<S> = S extends {properties: infer P} ? KeysToTuple<P> : reado
 // riding the index-signature loop. Everything reusable in it is hoisted into
 // the factory prologue (see emitPatternPropCheck), so the remaining cost is
 // the extra walk, not per-key allocation.
-type PatternPropsPart<S, Root, F extends [unknown]> = S extends {patternProperties: infer P}
-  ? {
-      readonly __rtPatternProps?: {
-        readonly [K in keyof P]: {
-          readonly rt$key: string &
-            StructuralFormat<'stringFormat', {readonly pattern: {readonly source: K; readonly flags: ''}}>;
-          readonly rt$value: FromJsonSchemaIn<P[K], Root, F>;
-        };
-      };
-    }
+// The object keyword bag handed to the imported `FormattedObject`: the literal
+// bounds + closedness (ObjectKeywordParams), the patternProperties value map
+// (pattern source → already-lowered value type), and the propertyNames key type.
+// `FormattedObject` splits this into the formattedObject brand + the
+// `__rtPatternProps` / `__rtPropNames` sentinels — the three members the door
+// used to spell by hand.
+type PatternPropsParam<S, Root, F extends [unknown]> = S extends {patternProperties: infer P}
+  ? {readonly patternProperties: {readonly [K in keyof P]: FromJsonSchemaIn<P[K], Root, F>}}
   : unknown;
-type PropNamesPart<S, Root, F extends [unknown]> = S extends {propertyNames: infer N}
+// propertyNames → the key type `FormattedObject` carries: absent for `true` (no
+// slot), `never` for `false` (no key may be present), else the lowered key schema.
+type PropNamesParam<S, Root, F extends [unknown]> = S extends {propertyNames: infer N}
   ? [N] extends [true]
     ? unknown
-    : {readonly __rtPropNames?: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
+    : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
   : unknown;
+type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
+  ObjectKeywordParams<S> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
+>;
+// Fast path: an object with none of the structural keywords is just its shape
+// (no brand, no sentinels), so it never pays the FormattedObject wrapper. Only
+// `additionalProperties: false` (closedness) is keyword-bearing — a schema-valued
+// `additionalProperties` (the common Record form) rides ObjectShapeFrom, so it
+// is value-checked here rather than lumped in by key presence.
+type ObjectKeywordKeys = 'minProperties' | 'maxProperties' | 'unevaluatedProperties' | 'patternProperties' | 'propertyNames';
+type ObjectHasKeywords<S> = [Extract<keyof S, ObjectKeywordKeys>] extends [never]
+  ? S extends {additionalProperties: false}
+    ? true
+    : false
+  : true;
 type ObjectFrom<S, Root, F extends [unknown]> =
   UnevalPropsPoison<S> extends true
     ? never
-    : (keyof ObjectKeywordParams<S> extends never
-        ? ObjectShapeFrom<S, Root, F>
-        : ObjectShapeFrom<S, Root, F> & StructuralFormat<'formattedObject', ObjectKeywordParams<S>>) &
-        PatternPropsPart<S, Root, F> &
-        PropNamesPart<S, Root, F>;
+    : ObjectHasKeywords<S> extends true
+      ? FormattedObject<Extract<ObjectShapeFrom<S, Root, F>, object>, ObjectAllParams<S, Root, F>>
+      : ObjectShapeFrom<S, Root, F>;
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
@@ -616,32 +621,30 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additional
 // pad), so they ride the formattedArray brand — the shape stays the tightest
 // tuple the OTHER keywords produce and the validator gains the exact length
 // / deep-equality checks.
-type ArrayKeywordParams<S> = Flatten<
+// The array keyword bag handed to the imported `FormattedArray`: the literal
+// bounds (uniqueItems / maxItems, incl. the unevaluatedItems-derived maxItems)
+// plus the `contains` element type (already lowered) and its occurrence bounds.
+// `minItems` stays in the tuple shape, never the brand. `FormattedArray` splits
+// this bag into the formattedArray brand + the `__rtContains` child sentinel,
+// exactly the two members the door used to spell by hand.
+type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
   (S extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown) &
     (S extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
-    UnevalItemsParams<S>
+    UnevalItemsParams<S> &
+    (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
+    (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
+    (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown)
 >;
-// contains rides its own sentinel (a CHILD slot, like `not` — occurrence
-// bounds cannot live in format params because the child is a validator):
-// `{rt$child: C; rt$min: N; rt$max?: M}` under the optional `__rtContains`
-// prop. Both collapse halves lift it onto the node's Contains entries; the
-// generated validator counts the matching items.
-type ContainsPart<S, Root, F extends [unknown]> = S extends {contains: infer C}
-  ? {
-      readonly __rtContains?: Flatten<
-        {readonly rt$child: FromJsonSchemaIn<C, Root, F>} & (S extends {minContains: infer N extends number}
-          ? {readonly rt$min: N}
-          : {readonly rt$min: 1}) &
-          (S extends {maxContains: infer N extends number} ? {readonly rt$max: N} : unknown)
-      >;
-    }
-  : unknown;
+// Fast path: an array with none of the structural keywords is just its tuple/
+// array shape (no brand, no contains slot) — so it never pays the FormattedArray
+// wrapper, keeping the common `{type: 'array', items: …}` case cheap.
+type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems';
 type ArrayFrom<S, Root, F extends [unknown]> =
   UnevalItemsPoison<S> extends true
     ? never
-    : keyof ArrayKeywordParams<S> extends never
-      ? ArrayShapeFrom<S, Root, F> & ContainsPart<S, Root, F>
-      : ArrayShapeFrom<S, Root, F> & StructuralFormat<'formattedArray', ArrayKeywordParams<S>> & ContainsPart<S, Root, F>;
+    : [Extract<keyof S, ArrayKeywordKeys>] extends [never]
+      ? ArrayShapeFrom<S, Root, F>
+      : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, ArrayAllParams<S, Root, F>>;
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
   prefixItems: infer P extends readonly (JsonSchemaInput | boolean)[];
 }

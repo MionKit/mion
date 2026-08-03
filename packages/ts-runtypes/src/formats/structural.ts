@@ -20,13 +20,20 @@
 
 import type {RunType} from '../runtypes/types.ts';
 
+type Flatten<T> = {[K in keyof T]: T[K]};
+
+// #region structural-slice — the type-first structural surface below is shared
+// VERBATIM into the JSON Schema translation tests (jsonSchemaHarness.ts and
+// jsonSchemaFuzz.integration.test.ts), so those tests exercise these REAL type
+// definitions rather than hand-written copies. It is RunType-free on purpose
+// (the value-first halves that need RunType live BELOW the region); `Flatten`
+// (above) is supplied by the translation module the tests slice alongside this.
+
 /** The literal format-name strings the structural brands carry. Kept in sync
  *  with the Go emitters (internal/cachegen/typefunctions/formats/structural)
  *  and the generated catalog. */
 export const FORMATTED_ARRAY_NAME = 'formattedArray';
 export const FORMATTED_OBJECT_NAME = 'formattedObject';
-
-type Flatten<T> = {[K in keyof T]: T[K]};
 
 /** The two structural-brand sentinels, spelled raw (TypeFormat's base is
  *  primitive-constrained, so array / object brands carry the sentinels as a
@@ -49,17 +56,6 @@ export interface FormattedArrayParams {
   readonly maxItems?: number;
   readonly uniqueItems?: true;
   readonly contains?: unknown;
-  readonly minContains?: number;
-  readonly maxContains?: number;
-}
-
-/** The value-first shape of `FormattedArrayParams` — `contains` carries a
- *  `RunType` instead of the bare element type. **/
-export interface FormattedArrayParamsValueFirst {
-  readonly minItems?: number;
-  readonly maxItems?: number;
-  readonly uniqueItems?: true;
-  readonly contains?: RunType<unknown>;
   readonly minContains?: number;
   readonly maxContains?: number;
 }
@@ -90,17 +86,6 @@ export type FormattedArray<Base extends readonly unknown[], P extends FormattedA
   ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_ARRAY_NAME, ArrayLiteralPart<P>>) &
   ContainsSlot<P>;
 
-// Map a value-first array params bag to its type-first form (unwrap the
-// `contains` RunType to its carried element type).
-type ArrayParamsType<P> = Flatten<
-  Pick<P, Extract<keyof P, 'minItems' | 'maxItems' | 'uniqueItems' | 'minContains' | 'maxContains'>> &
-    (P extends {contains: RunType<infer C>} ? {readonly contains: C} : unknown)
->;
-
-/** The type-first `FormattedArray` a value-first `array(item, params)` call
- *  produces — used for the builder's `InjectRunTypeId` / return type. **/
-export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<T, ArrayParamsType<P> & FormattedArrayParams>;
-
 // ─────────────────────────── Object params ──────────────────────────
 
 /** Every JSON Schema object keyword, as one bag. `minProperties`/
@@ -113,17 +98,6 @@ export interface FormattedObjectParams {
   readonly maxProperties?: number;
   readonly patternProperties?: Record<string, unknown>;
   readonly propertyNames?: string;
-  readonly closed?: readonly string[];
-  readonly closedPatterns?: readonly string[];
-}
-
-/** The value-first shape of `FormattedObjectParams` — `patternProperties`
- *  maps to `RunType`s and `propertyNames` is a `RunType`. **/
-export interface FormattedObjectParamsValueFirst {
-  readonly minProperties?: number;
-  readonly maxProperties?: number;
-  readonly patternProperties?: Record<string, RunType<unknown>>;
-  readonly propertyNames?: RunType<string>;
   readonly closed?: readonly string[];
   readonly closedPatterns?: readonly string[];
 }
@@ -161,6 +135,45 @@ export type FormattedObject<Base extends object, P extends FormattedObjectParams
   ([keyof ObjectLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_OBJECT_NAME, ObjectLiteralPart<P>>) &
   PatternPropsSlot<P> &
   PropNamesSlot<P>;
+
+// #endregion structural-slice
+
+// ───────────── Value-first param shapes + reflected `…From` types ─────────────
+// These carry `RunType` (the value-first builders' argument shape), so they sit
+// OUTSIDE the shared region above — the tests never need them.
+
+/** The value-first shape of `FormattedArrayParams` — `contains` carries a
+ *  `RunType` instead of the bare element type. **/
+export interface FormattedArrayParamsValueFirst {
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly uniqueItems?: true;
+  readonly contains?: RunType<unknown>;
+  readonly minContains?: number;
+  readonly maxContains?: number;
+}
+
+// Map a value-first array params bag to its type-first form (unwrap the
+// `contains` RunType to its carried element type).
+type ArrayParamsType<P> = Flatten<
+  Pick<P, Extract<keyof P, 'minItems' | 'maxItems' | 'uniqueItems' | 'minContains' | 'maxContains'>> &
+    (P extends {contains: RunType<infer C>} ? {readonly contains: C} : unknown)
+>;
+
+/** The type-first `FormattedArray` a value-first `array(item, params)` call
+ *  produces — used for the builder's `InjectRunTypeId` / return type. **/
+export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<T, ArrayParamsType<P> & FormattedArrayParams>;
+
+/** The value-first shape of `FormattedObjectParams` — `patternProperties`
+ *  maps to `RunType`s and `propertyNames` is a `RunType`. **/
+export interface FormattedObjectParamsValueFirst {
+  readonly minProperties?: number;
+  readonly maxProperties?: number;
+  readonly patternProperties?: Record<string, RunType<unknown>>;
+  readonly propertyNames?: RunType<string>;
+  readonly closed?: readonly string[];
+  readonly closedPatterns?: readonly string[];
+}
 
 type ObjectParamsType<P> = Flatten<
   Pick<P, Extract<keyof P, 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns'>> &

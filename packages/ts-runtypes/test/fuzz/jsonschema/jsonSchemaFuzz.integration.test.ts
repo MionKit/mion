@@ -45,6 +45,19 @@ import {
 import {renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from './schemaRender.ts';
 
 const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../../src/json-schema/fromJsonSchema.ts', import.meta.url));
+const STRUCTURAL_TS = fileURLToPath(new URL('../../../src/formats/structural.ts', import.meta.url));
+
+/** The `structural-slice` region of formats/structural.ts — the REAL
+ *  `FormattedArray` / `FormattedObject` type definitions the translation
+ *  references, pulled in verbatim so the fuzz module uses them directly instead
+ *  of hand-written stand-ins. `Flatten` is provided by the translation slice. **/
+function extractStructuralRegion(): string {
+  const source = readFileSync(STRUCTURAL_TS, 'utf8');
+  const start = source.indexOf('// #region structural-slice');
+  const end = source.indexOf('// #endregion structural-slice');
+  if (start === -1 || end === -1) throw new Error('structural-slice region markers not found');
+  return source.slice(start, end);
+}
 
 /** The sliced `jsonschema-extract` region as a standalone virtual MODULE:
  *  exports kept (unlike the compile harness, which strips them for non-module
@@ -80,6 +93,7 @@ type Base32<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pat
 type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''; mockSamples: ['', '48656C6C6F', 'DEADBEEF']}}>;
 type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; mockSamples: ['{}', '[]', '"text"', '7', 'true', 'null']}>;
 type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'; mockSamples: ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']}>;
+${extractStructuralRegion()}
 ${source.slice(start, end)}
 `;
 }

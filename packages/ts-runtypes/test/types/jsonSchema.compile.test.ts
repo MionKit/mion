@@ -371,8 +371,15 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       `,
       // Raised 2448 → 2468 with the readOnly-lift gate (same reason as the
-      // objects branch).
-      2468
+      // objects branch). Raised 2468 → 2899 when array/object keyword lowering
+      // moved onto the shared FormattedArray / FormattedObject wrapper types
+      // (deleting the door's StructuralFormat / ContainsPart / PatternPropsPart /
+      // PropNamesPart twins): a keyword-bearing array/object now builds a params
+      // bag the wrapper re-splits, a bounded one-time cost paid ONLY by schemas
+      // that use these keywords — the common keyword-less array / object / tuple /
+      // Record cases fast-path around the wrapper and are unchanged (see the
+      // arrays / objects / tuples branches, all still green at their old budgets).
+      2899
     );
   });
 
