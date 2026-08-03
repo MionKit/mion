@@ -201,3 +201,79 @@ describe('the typecost document map mirrors ajv', () => {
     ).toEqual([]);
   });
 });
+
+// ── the spec-conformance corpus ──────────────────────────────────────────────
+// A second, separate corpus (shared/cases/json-schema-spec) that does NOT widen
+// CaseKey, so it never reaches the validation or typecost tables. Its samples are
+// labelled by draft 2020-12 rather than by ts-runtypes, which is what lets the
+// Correctness page score OUR door instead of treating it as the reference.
+//
+// ts-runtypes has to re-author every document inline, because the schema door
+// reads its literal at build time off the call site. That second copy is the
+// thing most likely to rot, so it is deep-equalled against the corpus here.
+describe('the JSON Schema spec-conformance corpus', () => {
+  function loadSpec(): {key: string; group: string; schema: unknown; valid: number; invalid: number}[] {
+    const script = `
+      import {iterateSpecCases} from './container/benchmarks/shared/cases/json-schema-spec/index.ts';
+      console.log(JSON.stringify(iterateSpecCases().map((c) => ({
+        key: c.key, group: c.group, schema: c.case.schema,
+        valid: c.case.valid.length, invalid: c.case.invalid.length,
+      }))));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script], {cwd: repoRoot, encoding: 'utf8'});
+    if (run.status !== 0) throw new Error(`failed to load the spec corpus: ${run.stderr}`);
+    return JSON.parse(run.stdout);
+  }
+
+  const spec = loadSpec();
+
+  it('covers every keyword family', () => {
+    const groups = [...new Set(spec.map((c) => c.group))].sort();
+    expect(groups).toEqual([
+      'ANNOTATIONS',
+      'ARRAYS',
+      'COMBINATORS',
+      'CONDITIONALS',
+      'CONTENT',
+      'NUMBERS',
+      'OBJECTS',
+      'REFERENCES',
+      'STRINGS',
+      'TYPES',
+      'UNEVALUATED',
+    ]);
+  });
+
+  it.each(spec.map((c) => [c.key, c] as const))('%s carries a document and samples on both sides', (_key, entry) => {
+    expect(entry.schema, 'needs a draft 2020-12 document').toBeTruthy();
+    // Both sides are required: a case with no invalid samples would score a
+    // validator that accepts everything as fully conforming.
+    expect(entry.valid, 'needs samples the spec accepts').toBeGreaterThan(0);
+    expect(entry.invalid, 'needs samples the spec rejects').toBeGreaterThan(0);
+  });
+
+  it('the ts-runtypes inline documents match the corpus exactly', () => {
+    const file = join(competitorsDir, 'ts-runtypes/specCases.ts');
+    const source = readFileSync(file, 'utf8');
+    // Evaluate each `runTypeFromJsonSchema(<literal>)` argument as a plain object
+    // literal; the documents are pure data, so this is total over the file.
+    const inlined = new Map<string, unknown>();
+    for (const match of source.matchAll(
+      /^ {2}'([A-Z_]+\.[A-Za-z_0-9]+)': \(\) =>\s*\n?\s*createValidateFn\(\s*\n?\s*runTypeFromJsonSchema\(/gm
+    )) {
+      const start = match.index! + match[0].length;
+      let depth = 1;
+      let i = start;
+      for (; i < source.length && depth > 0; i++) {
+        if (source[i] === '(') depth++;
+        else if (source[i] === ')') depth--;
+      }
+      const literal = source.slice(start, i - 1).trim();
+      inlined.set(match[1], new Function(`return (${literal});`)());
+    }
+    expect(inlined.size, 'every case must be inlined').toBe(spec.length);
+    for (const entry of spec) {
+      expect(inlined.get(entry.key), `${entry.key} inline document must equal the corpus`).toEqual(entry.schema);
+    }
+  });
+});

@@ -11,7 +11,7 @@
 // blocks stay shell.
 //
 // Commands: prep | build-image | bench | bench-one <name> | fullbench | serialization
-// | website-bench | build [<name>] | smoke | audit | typecost | compiletime |
+// | website-bench | build [<name>] | smoke | audit | spec | typecost | compiletime |
 // transform-wire | capture-env | shell | login | push | pull | clean. A `--quick`
 // flag anywhere maps onto every stage's native fast lever.
 
@@ -313,6 +313,7 @@ function cmdWebsiteBench(cfg) {
   cmdSerialization(cfg);
   cmdCompiletime(cfg);
   cmdAudit(cfg); // correctness/alignment data for the "Correctness" page
+  cmdSpec(cfg); // JSON Schema spec-conformance data for the same page's second table
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
   note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
@@ -385,6 +386,29 @@ function cmdAudit(cfg) {
   if (run('node', [join(BENCH_DIR, '_audit/classify.mjs')]) !== 0) die('bench: audit classify failed');
 }
 
+// JSON Schema spec conformance: only the two competitors that CONSUME a document
+// take part (ts-runtypes' schema door and ajv). TypeBox's compiler refuses a plain
+// document and zod / typia have no document input at all, so there is nothing to
+// run for them — see shared/harness/spec.ts.
+const SPEC_COMPETITORS = ['ts-runtypes', 'ajv'];
+
+function cmdSpec(cfg) {
+  ensurePrereqs(cfg);
+  clearResults((f) => f.endsWith('.spec.json'));
+  let failures = 0;
+  for (const competitor of SPEC_COMPETITORS) {
+    console.log(`-------- spec: ${competitor} --------`);
+    if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build && RT_SPEC_CONFORMANCE=1 node dist/run.mjs`]) !== 0) {
+      console.log(`==> spec '${competitor}' FAILED (build or run) - see output above`);
+      failures++;
+    }
+  }
+  // A competitor that cannot even build produces no data, and the page would then
+  // render its column as absent rather than wrong — worth a hard stop.
+  if (failures) die(`bench: spec conformance FAILED for ${failures} competitor(s) - see output above.`);
+  publishDocdata(cfg);
+}
+
 function cmdShell(cfg) {
   ensurePrereqs(cfg);
   runInContainer(cfg, ['bash']);
@@ -424,6 +448,7 @@ function dispatch(cfg, args) {
     case 'build': return (requireEngine(cfg), cmdBuild(cfg, rest[0]));
     case 'smoke': return (requireEngine(cfg), cmdSmoke(cfg));
     case 'audit': return (requireEngine(cfg), cmdAudit(cfg));
+    case 'spec': return (requireEngine(cfg), cmdSpec(cfg));
     case 'typecost': return (requireEngine(cfg), cmdTypecost(cfg));
     case 'compiletime': return (requireEngine(cfg), cmdCompiletime(cfg));
     case 'transform-wire': return (requireEngine(cfg), cmdTransformWire(cfg));
