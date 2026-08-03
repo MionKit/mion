@@ -306,12 +306,14 @@ same format brands the other two forms use), and the resolver never sees the sch
 all; it reflects the computed type. Keywords a type cannot express ride sentinel-encoded
 slots the intersection collapse lifts off the base — `__rtNot` (negation), `__rtContains`
 (occurrence counting), `__rtPatternProps` / `__rtPropNames` (key-scoped children) — plus
-the structural format families (arrayFormat / objectFormat) for length, uniqueness,
+the structural format families (formattedArray / formattedObject) for length, uniqueness,
 key-count and closedness checks, so the generated validator is exact even where the
-recovered type is the closest expressible supertype. Every sentinel slot and both
-structural families also have value-first spellings (`RT.arrayFormat` / `RT.objectFormat`
-/ `RT.contains` / `RT.patternProperties` / `RT.propertyNames` in formats/structural.ts,
-the door's exact twins), except closedness, whose allowed-key param is door-owned. The collapse also merges TUPLE ∩
+recovered type is the closest expressible supertype. Every one of these keywords also has
+a value-first + type-first spelling: they ride a single params bag on the collection
+builders — `RT.array(item, {uniqueItems, contains, …})` / `RT.object(config, {minProperties,
+patternProperties, propertyNames, …})` / `RT.record(…, {…})` — and the `FormattedArray<Base, P>`
+/ `FormattedObject<Base, P>` wrapper types (formats/structural.ts), the door's exact twins.
+Closedness is derived from the shape rather than hand-authored. The collapse also merges TUPLE ∩
 TUPLE intersections slot-wise (the shape allOf-over-prefixItems produces; boolean slot
 schemas ride along — `true` pads, `false` forbids the position): unknown sides defer,
 id-equal sides collapse, the length window intersects, and the merged node is
