@@ -20,6 +20,7 @@ import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, read
 import {join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../../../scripts/lib/env.mjs';
 import {capture, die, note, reportCliError, run, warn, which} from '../../../scripts/lib/proc.mjs';
+import {readWasmStamp, wasmInputsDigest} from '../../../scripts/website/playground-wasm-inputs.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const CACHE_DIR = join(REPO_ROOT, '.cache/rt-wasm');
@@ -35,9 +36,8 @@ const OUT_DIR = join(WEBSITE_DIR, 'public/playground-app');
 const VENDOR_DIR = join(WEBSITE_DIR, 'app/playground/.vendor/ts-runtypes-dist');
 
 const WASM_PKG = './cmd/ts-runtypes-wasm';
-// Every Go input the wasm links; if none is newer than the stamp, tier 1 short-circuits.
-// Repo-relative under the Go tree (anyNewer joins each with REPO_ROOT).
-const WASM_INPUTS = ['ts-go-runtypes/cmd/ts-runtypes-wasm', 'ts-go-runtypes/internal', 'ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum'];
+// The Go inputs the wasm links live in scripts/website/playground-wasm-inputs.mjs,
+// shared with the test loader so both gates agree on what an input is.
 // The source overlay tracks only the marker package's src.
 const SOURCES_INPUT = 'packages/ts-runtypes/src';
 
@@ -69,8 +69,12 @@ function findWasmExecSrc() {
 
 // ── WASM: two-tier staleness gate (rebuilds the raw .wasm only on real change) ──
 
-// Tier 1 (cheap): missing wasm/stamp, or any Go input newer than the stamp.
-const wasmMaybeStale = () => !existsSync(RAW_WASM) || !existsSync(STAMP) || anyNewer(WASM_INPUTS, mtime(STAMP));
+// Tier 1 (~60ms): missing wasm, or the digest recorded beside it no longer
+// matches the Go tree. Content rather than mtimes, because a stale cache copied
+// into a worktree can carry a stamp NEWER than the checkout it no longer matches
+// — an mtime compare calls that fresh and hands the tests dead code.
+const stampWasm = () => writeFileSync(STAMP, `${wasmInputsDigest(REPO_ROOT)}\n`);
+const wasmMaybeStale = () => !existsSync(RAW_WASM) || readWasmStamp(STAMP) !== wasmInputsDigest(REPO_ROOT);
 
 // sameAsDisk: would the freshly built wasm ship identically to what's on disk?
 // Plain `go` output isn't byte-stable across builds but its buildid is, so compare buildids.
@@ -83,7 +87,7 @@ function sameAsDisk(builtPath, diskPath) {
 // Returns true when the raw wasm bytes changed (so derived artifacts must refresh).
 function buildWasmIfStale() {
   if (!wasmMaybeStale()) {
-    note('wasm up to date (no Go input newer than the stamp)');
+    note('wasm up to date (Go inputs digest matches the stamp)');
     return false;
   }
   if (!which('go')) {
@@ -98,14 +102,15 @@ function buildWasmIfStale() {
     const built = run('go', ['build', '-o', tmp, WASM_PKG], {cwd: GO_ROOT, env: {GOOS: 'js', GOARCH: 'wasm'}});
     if (built !== 0) die('==> ERROR: wasm build failed.');
     if (existsSync(RAW_WASM) && sameAsDisk(tmp, RAW_WASM)) {
-      // False-alarm mtime (touch / checkout): bytes are identical. Quiet tier 1 for
-      // next time by bumping the STAMP only; skip the expensive gzip + wasm_exec copy.
-      touch(STAMP);
+      // Inputs changed but the compiler produced the same bytes (comments, tests,
+      // testdata). Record the new digest so tier 1 is quiet next time; skip the
+      // expensive gzip + wasm_exec copy.
+      stampWasm();
       note('wasm unchanged - skipped gzip');
       return false;
     }
     renameSync(tmp, RAW_WASM);
-    touch(STAMP);
+    stampWasm();
     note('wasm rebuilt');
     return true;
   } finally {

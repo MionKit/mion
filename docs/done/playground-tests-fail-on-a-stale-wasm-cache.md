@@ -1,8 +1,9 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-03
+completed: 2026-08-03
 ---
 
 # The playground engine tests fail confusingly on a stale WASM cache
@@ -101,3 +102,56 @@ A stale `.cache/rt-wasm/` makes the playground suite skip (or rebuild) with a
 message naming the fix, rather than failing on assertions about unrelated
 code, and that behaviour is pinned by a test that points the loader at a
 deliberately old stamp.
+
+## What shipped
+
+Option 1 + 2 from Direction, but content-addressed rather than mtime-based, and
+narrowed after the first cut proved too eager.
+
+**The root cause was not the worktree.** `pretest` is `check:builds` (resolver
+binary + dists) and never builds the playground WASM, so `pnpm test` had **no**
+freshness gate on `.cache/rt-wasm/` at all. Edit Go in the main checkout, run
+the suite, and it loads whatever wasm happens to be there. The worktree was one
+trigger, not the cause. Worth recording: worktrees already get their own
+`.cache/` (a real directory, not a share), so per-worktree isolation was never
+the missing piece; the worktree that exposed this was a recycled one carrying a
+build from its own earlier life.
+
+New [scripts/website/playground-wasm-inputs.mjs](../../scripts/website/playground-wasm-inputs.mjs)
+owns the input list and a sha256 over (path, bytes) of every file that compiles
+into the wasm. Both sides share it, so they cannot disagree about what "out of
+date" means:
+
+- [build-playground.mjs](../../container/website/scripts/build-playground.mjs)
+  writes the digest into `.wasm-stamp` (previously an empty mtime anchor) and
+  its tier-1 gate now compares digests instead of mtimes.
+- [nodeResolver.ts](../../packages/ts-runtypes/test/playground/nodeResolver.ts)
+  gains `wasmAssetState() -> 'ready' | 'missing' | 'stale'`, and `assetsBuilt()`
+  is `state === 'ready'`. A stale cache warns once with the rebuild command.
+
+**The digest ignores `*_test.go` and `testdata/`.** The first version hashed the
+whole tree, which was actively worse than the bug: because the gate SKIPS on a
+mismatch, touching any Go test file would have dropped the playground suites
+from the run, trading a loud confusing failure for silent coverage loss on most
+Go-touching PRs. `go build` compiles neither category, so excluding them is
+correct rather than a heuristic. Everything else stays in, including non-Go
+files, so a `//go:embed` asset cannot slip through.
+
+Content, not mtimes, because a copied cache can carry a stamp NEWER than the
+checkout it no longer matches, and an mtime compare calls that fresh.
+
+## Verified
+
+- Stale stamp: **34 skipped, 0 failures** (previously 4 confusing failures).
+- Fresh stamp: **7 files, 52 tests pass**.
+- Appending to `atomic_test.go` does **not** change the digest; restoring it
+  returns the original value.
+- Second `build-playground.mjs` run short-circuits on the digest.
+- The rebuild message reaches the reader. The default reporter hides `stderr`
+  for non-failing files; `--reporter=verbose` shows it, alongside each suite's
+  own existing skip note.
+
+[wasmAssetState.test.ts](../../packages/ts-runtypes/test/playground/wasmAssetState.test.ts)
+pins all three states against fixture dirs (including the pre-stamp empty-file
+case) and pins the `_test.go` / `testdata/` exclusions, since that filter is
+what keeps the gate from eating coverage.
