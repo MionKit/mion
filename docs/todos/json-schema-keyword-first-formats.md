@@ -73,6 +73,17 @@ Atomics done (all verified against the full Go + JS suites, pushed):
 
 **Still open (this spec stays here until done):**
 
+- **Unions — the `oneOf` carrier twin.** `OneOfPart` still hand-spells
+  `OneOfArmFrom` / `OneOfNullishDupFrom` / `OneOfNullishAgainFrom`, a documented
+  lockstep twin of the public `OneOf<[…]>` in `schema/static.ts`. Migrate the door
+  to `OneOf<FromOneOfBranches<M>>` and slice the real `OneOf` region into the
+  harnesses (same pattern as `structural-slice`), replacing the compile harness's
+  `OneOf` stand-in.
+- **Negation — the `__rtNot` sentinel.** Spelled raw at ~5 door sites. The public
+  `Not<F>` covers only primitive operands, while the door negates general gate
+  arms; a shared `NotSlot<Child>` in `formats/not.ts` would let the door drop the
+  raw sentinel. Small; the surrounding negation LOGIC (GateArmFrom / NotChildFor)
+  is genuine door mapping and stays.
 - **Collapse the `jsonContent` FORMAT** into `StringParams` (riskiest Go surgery;
   value-first authoring gap already closed by `TF.jsonContent()`).
 - **`SchemaLoweringByKeyword`** typechecked contract + totality assert, the
