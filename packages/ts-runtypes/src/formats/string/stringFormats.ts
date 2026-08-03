@@ -28,6 +28,9 @@ import {
   URL_PATTERN,
   URL_HTTP_PATTERN,
   URL_FILE_PATTERN,
+  BASE64_PATTERN,
+  BASE32_PATTERN,
+  BASE16_PATTERN,
 } from './string-patterns.ts';
 import {builderResult, presetBuilder} from '../../runtypes/builderCore.ts';
 import type {RunType} from '../../runtypes/types.ts';
@@ -170,7 +173,33 @@ export type Numeric<P extends StringParams = {}> = TypeFormat<
 export type Lowercase<P extends StringParams = {}> = String<P & {lowercase: true}>;
 export type Uppercase<P extends StringParams = {}> = String<P & {uppercase: true}>;
 export type Capitalize<P extends StringParams = {}> = String<P & {capitalize: true}>;
+// contentEncoding formats — a base64/32/16-encoded string. The type-first
+// spelling of JSON Schema `contentEncoding`; each rides the registered RFC 4648
+// pattern so the door's `contentEncoding: 'base64'` and `TF.base64()` converge.
+export type Base64<P extends StringParams = {}> = TypeFormat<string, 'stringFormat', P & {pattern: typeof BASE64_PATTERN}, never>;
+export type Base32<P extends StringParams = {}> = TypeFormat<string, 'stringFormat', P & {pattern: typeof BASE32_PATTERN}, never>;
+export type Base16<P extends StringParams = {}> = TypeFormat<string, 'stringFormat', P & {pattern: typeof BASE16_PATTERN}, never>;
 /* eslint-enable @typescript-eslint/no-empty-object-type */
+
+// ─────────────────────────── JsonContent ────────────────────────────
+//
+// A string whose content parses as JSON — the type-first spelling of JSON
+// Schema `contentMediaType: 'application/json'` (optionally behind
+// `contentEncoding: 'base64'`). Params mirror the schema door's lowering so
+// the two authoring modes converge. `mockSamples` are id-irrelevant (they feed
+// createMockDataFn only) but carried so the mock draws valid JSON either way.
+export type JsonContent = TypeFormat<
+  string,
+  'jsonContent',
+  {json: true; mockSamples: readonly ['{}', '[]', '"text"', '7', 'true', 'null']},
+  never
+>;
+export type JsonContentBase64 = TypeFormat<
+  string,
+  'jsonContent',
+  {json: true; decode: 'base64'; mockSamples: readonly ['e30=', 'W10=', 'InRleHQi', 'bnVsbA==']},
+  never
+>;
 
 // ─────────────────────────────── UUID ───────────────────────────────
 
@@ -336,6 +365,18 @@ export function alpha(formatParamsOrId?: StringParams | InjectRunTypeId<Alpha>, 
 export const alphaNumeric = presetBuilder<AlphaNumeric>('stringFormat');
 /** Digits-only string (`Numeric`). **/
 export const numeric = presetBuilder<Numeric>('stringFormat');
+/** Base64-encoded string (`Base64`) — JSON Schema `contentEncoding: 'base64'`. **/
+export const base64 = presetBuilder<Base64>('stringFormat');
+/** Base32-encoded string (`Base32`) — JSON Schema `contentEncoding: 'base32'`. **/
+export const base32 = presetBuilder<Base32>('stringFormat');
+/** Base16 / hex-encoded string (`Base16`) — JSON Schema `contentEncoding: 'base16'`. **/
+export const base16 = presetBuilder<Base16>('stringFormat');
+/** A JSON-parseable string (`JsonContent`) — JSON Schema
+ *  `contentMediaType: 'application/json'`. **/
+export const jsonContent = presetBuilder<JsonContent>('jsonContent');
+/** A base64-encoded JSON-parseable string (`JsonContentBase64`) — JSON Schema
+ *  `contentMediaType: 'application/json'` + `contentEncoding: 'base64'`. **/
+export const jsonContentBase64 = presetBuilder<JsonContentBase64>('jsonContent');
 /** Lowercase string (`Lowercase`) — the transform applies only via
  *  `createFormatTransformFn`; validate validates it as a plain string. **/
 export const lowercase = presetBuilder<Lowercase>('stringFormat');

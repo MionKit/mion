@@ -84,3 +84,22 @@ export const NUMERIC_PATTERN = registerFormatPattern({
   flags: 'u',
   mockSamples: ['123', '007', '42'],
 });
+
+// contentEncoding patterns — anchored RFC 4648 shapes. The alternation groups
+// enforce the padded block lengths, so a plain regex is the exact check. The
+// sources + samples match the schema door's ContentEncodingPattern verbatim, so
+// `contentEncoding: 'base64'` and `TF.base64()` converge on one id. `flags` is
+// omitted (→ ''); base16 is case-insensitive by CHARACTER CLASS, not an `i`
+// flag, so its source must stay literal.
+export const BASE64_PATTERN = registerFormatPattern({
+  source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$',
+  mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8='],
+});
+export const BASE32_PATTERN = registerFormatPattern({
+  source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$',
+  mockSamples: ['', 'MY======', 'MZXQ===='],
+});
+export const BASE16_PATTERN = registerFormatPattern({
+  source: '^(?:[0-9A-Fa-f]{2})*$',
+  mockSamples: ['', '48656C6C6F', 'DEADBEEF'],
+});
