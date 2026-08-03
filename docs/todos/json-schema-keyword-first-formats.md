@@ -1,11 +1,56 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: in-progress
 created: 2026-08-03
 ---
 
 # Keyword-first type formats: JSON Schema param aliases, absorb the schema door's bridge types
+
+## Implementation status (2026-08-03)
+
+Landed on `feature/json-schema-keyword-first-formats` (all commits verified
+against the full Go + JS suites):
+
+- **DONE — mockSamples out of the typeID** (`d0b2271`). Samples no longer fold
+  into the format id; same-shape formats differing only in sample pools dedup
+  onto one entry. Cross-site sample-pool conflict diagnostic deferred as
+  [format-sample-conflict-diagnostic.md](format-sample-conflict-diagnostic.md).
+- **DONE — the unified collection surface** (`359bcfe`), the core: every
+  array/object keyword rides one params bag on `RT.array` / `RT.object` /
+  `RT.record` and the `FormattedArray` / `FormattedObject` types; the five old
+  builders + wrapper types are gone; the internal format names are
+  `formattedArray` / `formattedObject`.
+- **DONE — bound-keyword aliases** (`8c0b738`): `minimum` / `maximum` /
+  `exclusiveMinimum` / `exclusiveMaximum` accepted on numeric / bigint / date /
+  Temporal formats, canonicalised to `min` / `max` / `gt` / `lt` in the Go
+  scanner (one place; emitters unchanged). Folded in the `bigintParamsMatch`
+  gt/lt/multipleOf fix and `UUIDParams.version: 'any'`.
+- **DONE — value-first content formats** (`fa15973`): `TF.base64/base32/base16`
+  (contentEncoding) + `TF.jsonContent()` / `TF.jsonContentBase64()`
+  (contentMediaType), each converging with the door. NOTE: this keeps
+  `jsonContent` as a registered Go format — the fuller "collapse the jsonContent
+  format into StringParams + move its JSON-parse check into the stringFormat
+  emitter" is still open (below).
+- **DONE — doc references** (`8198acd`): ARCHITECTURE / ROADMAP / the JSON Schema
+  guide table point at the new surface.
+
+**Still open (this spec stays here until done):**
+
+- **Collapse the `jsonContent` FORMAT** into `StringParams`
+  (`contentMediaType` / `contentEncoding` as string params; delete
+  `jsoncontent.go` and fold its parse check into the stringFormat emitter;
+  drop the `jsonContent` `FormatName` + its `SchemaStoryByFormatName` row;
+  drop the door's `{json: true}` discriminator). Riskiest Go surgery; the
+  value-first authoring gap is already closed by `TF.jsonContent()`.
+- **Generic `Email` / `Domain` / `Url`** on the `IP` template (widen
+  `UrlParams` with maxLength/minLength; re-spell variants through the generic;
+  delete `RebrandWithLengths` / `FormatWithSiblings` / `VariableWidthFormat`).
+- **`SchemaLoweringByKeyword`** typechecked contract + totality assert, the
+  website 4-column keyword table + a compiled examples file.
+- Then reconcile + `git mv` this spec into `docs/done/`.
+
+## Original plan follows
 
 Investigated 2026-08-03 (full sweep: formats surface, json-schema module, Go
 readers/mirrors, enrichment, docs, benchmarks). Three PRs (tiers). Decided
