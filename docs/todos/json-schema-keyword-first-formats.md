@@ -35,17 +35,43 @@ against the full Go + JS suites):
 - **DONE — doc references** (`8198acd`): ARCHITECTURE / ROADMAP / the JSON Schema
   guide table point at the new surface.
 
+### Door "type-migration" pass — atomics (2026-08-03, second wave)
+
+The user's follow-up directive: the schema file must be **mappings only** — every
+format TYPE lives in the formats package and the door only routes keywords to it.
+Atomics done (all verified against the full Go + JS suites, pushed):
+
+- **DONE — numeric keywords** (`a4bc910`): the door imports `Number` and maps
+  `minimum`/`maximum`/`exclusive*`/`multipleOf` onto it; deleted the door-local
+  `NumberFormat` alias and `NumberKeywordRemap`.
+- **DONE — string content family** (`d497f44`): the door imports
+  `Base64`/`Base32`/`Base16`/`JsonContent`/`JsonContentBase64` and routes
+  `contentEncoding`/`contentMediaType` to them; deleted `JsonContentFormat`,
+  `StringParamsWithContent`, `ContentEncodingPattern`.
+- **DONE — generic `Email`/`Domain`/`Url`** (`31b8824`): the three are now
+  option-accepting (`email({maxLength})` MERGES over built-in defaults via a
+  `FormatDefaults` helper), builders gained params overloads, `UrlParams` widened;
+  the door maps a `format` + length sibling to `Email<lengths>` etc., deleting
+  `RebrandWithLengths` + `VariableWidthFormat` and the now-unused `TypeFormat`
+  import. Length-override convergence pinned by `formatLengthOverrides.test.ts`.
+
 **Still open (this spec stays here until done):**
 
-- **Collapse the `jsonContent` FORMAT** into `StringParams`
-  (`contentMediaType` / `contentEncoding` as string params; delete
-  `jsoncontent.go` and fold its parse check into the stringFormat emitter;
-  drop the `jsonContent` `FormatName` + its `SchemaStoryByFormatName` row;
-  drop the door's `{json: true}` discriminator). Riskiest Go surgery; the
-  value-first authoring gap is already closed by `TF.jsonContent()`.
-- **Generic `Email` / `Domain` / `Url`** on the `IP` template (widen
-  `UrlParams` with maxLength/minLength; re-spell variants through the generic;
-  delete `RebrandWithLengths` / `FormatWithSiblings` / `VariableWidthFormat`).
+- **Door structural pass — arrays + objects.** The canonical `FormattedArray` /
+  `FormattedObject` types already live in `formats/structural.ts`; the door still
+  carries byte-identical twins (`StructuralFormat`, `ArrayKeywordParams` +
+  `ContainsPart`, `ObjectKeywordParams` + `PatternPropsPart` + `PropNamesPart`).
+  Deduping = the door emits through the imported wrappers. ARCHITECTURE NOTE: the
+  two test harnesses (`jsonSchemaHarness.ts`, `jsonSchemaFuzz.integration.test.ts`)
+  slice the door's `#region jsonschema-extract` and provide one-line stand-ins for
+  every imported brand; `FormattedArray`/`FormattedObject` are NOT one-liners, so a
+  naive stand-in re-duplicates them in the tests. The clean approach is to SHARE
+  the structural type defs into the sliced module (add a `#region` to
+  `structural.ts` + a minimal `RunType` stand-in), so there is exactly one
+  definition. The fuzzer independently spells the raw sentinels, so it guards
+  convergence either way.
+- **Collapse the `jsonContent` FORMAT** into `StringParams` (riskiest Go surgery;
+  value-first authoring gap already closed by `TF.jsonContent()`).
 - **`SchemaLoweringByKeyword`** typechecked contract + totality assert, the
   website 4-column keyword table + a compiled examples file.
 - Then reconcile + `git mv` this spec into `docs/done/`.
