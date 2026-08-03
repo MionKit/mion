@@ -27,7 +27,19 @@
 // shape a hand-written `type T = {next?: T}` produces — which the id computer
 // walks with its back-ref token (maxWalkDepth guarded).
 
-import type {Email, UUID, StringDate, StringTime, StringDateTime, Domain, IPv4, IPv6, Url} from '../formats/index.ts';
+import type {
+  Email,
+  UUID,
+  StringDate,
+  StringTime,
+  StringDateTime,
+  Domain,
+  IPv4,
+  IPv6,
+  Url,
+  String as StringFormat,
+  Number as NumberFormat,
+} from '../formats/index.ts';
 import type {TypeFormat} from '../runtypes/typeFormat.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
@@ -37,14 +49,10 @@ import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 // names imported above (the harness preamble declares structural stand-ins for
 // those).
 
-// Local spellings of the two constraint-keyword leaf brands, built on the RAW
-// TypeFormat sentinel shape rather than the TF.String / TF.Number aliases so
-// the extract region stays self-contained (the compile harness slices it into
-// a standalone program). Structurally identical to the aliases for every
-// param set (TF.String<P> IS TypeFormat<string, 'stringFormat', P>), so ids
-// converge unchanged.
-type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
-type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
+// StringFormat / NumberFormat are the imported TF.String / TF.Number aliases
+// (see the import block above) — the door references the single formats-surface
+// definition rather than re-declaring the brand. The extract harness declares
+// structural stand-ins for both.
 
 /** The seven 2020-12 type names; `type` also accepts an ARRAY of them (a union
  *  of the named types, each arm re-reading the schema's own constraint
@@ -344,16 +352,13 @@ type ContentEncodingPattern = {
   };
 };
 
-// Numeric keywords → NumberParams (minimum→min, maximum→max, exclusive*→gt/lt).
-type NumberKeywordRemap = {
-  minimum: 'min';
-  maximum: 'max';
-  exclusiveMinimum: 'gt';
-  exclusiveMaximum: 'lt';
-  multipleOf: 'multipleOf';
-};
+// Numeric keywords ride the `Number` params bag in their JSON Schema spelling
+// (minimum / maximum / exclusiveMinimum / exclusiveMaximum / multipleOf); the
+// Go scanner canonicalises them to min/max/gt/lt, so no remap table lives here.
 type NumberParamsFrom<S> = {
-  [K in keyof S as K extends keyof NumberKeywordRemap ? NumberKeywordRemap[K] : never]: S[K];
+  readonly [K in keyof S as K extends 'minimum' | 'maximum' | 'exclusiveMinimum' | 'exclusiveMaximum' | 'multipleOf'
+    ? K
+    : never]: S[K];
 };
 type NumberFrom<S> = keyof NumberParamsFrom<S> extends never ? number : NumberFormat<Flatten<NumberParamsFrom<S>>>;
 type IntegerFrom<S> = NumberFormat<Flatten<NumberParamsFrom<S> & {integer: true}>>;

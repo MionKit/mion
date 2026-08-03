@@ -64,6 +64,8 @@ function buildJsonSchemaModule(): string {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;
 };
+type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
+type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
 type Email = TypeFormat<string, 'email', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: ''}}>;
 type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
 type StringDate = TypeFormat<string, 'date', {}>;

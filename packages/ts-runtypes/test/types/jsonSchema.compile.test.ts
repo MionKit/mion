@@ -111,16 +111,16 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
     );
   });
 
-  it('number/integer keyword remap (minimum→min, exclusive*→gt/lt, multipleOf)', () => {
+  it('number/integer keywords ride the Number params bag in their JSON spelling (Go canonicalises)', () => {
     check(
       `
       type _01 = Expect<Equal<
         FromJsonSchema<{readonly type: 'number'; readonly minimum: 0; readonly maximum: 10}>,
-        NumberFormat<{readonly min: 0; readonly max: 10}>
+        NumberFormat<{readonly minimum: 0; readonly maximum: 10}>
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly type: 'number'; readonly exclusiveMinimum: 0; readonly exclusiveMaximum: 1}>,
-        NumberFormat<{readonly gt: 0; readonly lt: 1}>
+        NumberFormat<{readonly exclusiveMinimum: 0; readonly exclusiveMaximum: 1}>
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly type: 'number'; readonly multipleOf: 5}>,
@@ -129,7 +129,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _04 = Expect<Equal<FromJsonSchema<{readonly type: 'integer'}>, NumberFormat<{integer: true}>>>;
       type _05 = Expect<Equal<
         FromJsonSchema<{readonly type: 'integer'; readonly minimum: 0; readonly maximum: 130}>,
-        NumberFormat<{readonly min: 0; readonly max: 130; integer: true}>
+        NumberFormat<{readonly minimum: 0; readonly maximum: 130; integer: true}>
       >>;
       `,
       1550
@@ -166,7 +166,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _03 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['string', 'null']}>, string | null>>;
       type _04 = Expect<Equal<
         FromJsonSchema<{readonly type: readonly ['string', 'number']; readonly minLength: 3; readonly minimum: 0}>,
-        StringFormat<{readonly minLength: 3}> | NumberFormat<{readonly min: 0}>
+        StringFormat<{readonly minLength: 3}> | NumberFormat<{readonly minimum: 0}>
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
@@ -398,7 +398,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _01 = Expect<Equal<User, {
         id: UUID;
         name: StringFormat<{readonly minLength: 2; readonly maxLength: 50}>;
-        age: NumberFormat<{readonly min: 0; readonly max: 130; integer: true}>;
+        age: NumberFormat<{readonly minimum: 0; readonly maximum: 130; integer: true}>;
         email?: Email;
         tags: string[];
         address: {street: string; city?: string};

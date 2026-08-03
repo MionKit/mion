@@ -38,13 +38,16 @@ function extractJsonSchemaRegion(): string {
 // Structural stand-ins for the brand names the region references from OUTSIDE
 // itself — the real TypeFormat sentinel shape plus one distinct (Name, Params)
 // identity per format alias (mirroring formats/: uuid carries a version param,
-// ip a version number). StringFormat/NumberFormat need no stand-in: the region
-// itself declares them over TypeFormat.
+// ip a version number). StringFormat/NumberFormat are the imported TF.String /
+// TF.Number aliases; the region references them by those names, so they need
+// structural stand-ins here too.
 const BRAND_PREAMBLE = `
 type TypeFormat<Base, Name extends string, Params extends object> = Base & {
   readonly __rtFormatName?: Name;
   readonly __rtFormatParams?: Params;
 };
+type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
+type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
 type Email = TypeFormat<string, 'email', {}>;
 type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
 type UUIDv4 = TypeFormat<string, 'uuid', {version: '4'}>;
