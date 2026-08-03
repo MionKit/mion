@@ -175,7 +175,7 @@ export type Capitalize<P extends StringParams = {}> = String<P & {capitalize: tr
 // ─────────────────────────────── UUID ───────────────────────────────
 
 export interface UUIDParams {
-  version: '4' | '7';
+  version: '4' | '7' | 'any';
 }
 // Version-agnostic UUID — any RFC 9562 version (the JSON Schema `format:
 // 'uuid'` meaning; the spec never pins a version).

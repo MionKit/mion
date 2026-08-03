@@ -25,6 +25,14 @@ export interface NumberParams {
   lt?: number;
   gt?: number;
   multipleOf?: number;
+  /** JSON Schema alias of `min` (inclusive lower bound). Normalised to `min`. */
+  minimum?: number;
+  /** JSON Schema alias of `max` (inclusive upper bound). Normalised to `max`. */
+  maximum?: number;
+  /** JSON Schema alias of `gt` (exclusive lower bound). Normalised to `gt`. */
+  exclusiveMinimum?: number;
+  /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
+  exclusiveMaximum?: number;
   /** Marks the value as a monetary amount. PURE PRESENTATION METADATA — the
    *  only number param with no failable constraint: validation, serialization
    *  and mocking ignore it, and it never becomes an `rt$errors` template key.

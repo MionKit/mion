@@ -38,4 +38,12 @@ export interface MinMax<Bound extends string = string> {
   max?: Bound;
   gt?: Bound;
   lt?: Bound;
+  /** JSON Schema alias of `min` (inclusive lower bound). Normalised to `min`. */
+  minimum?: Bound;
+  /** JSON Schema alias of `max` (inclusive upper bound). Normalised to `max`. */
+  maximum?: Bound;
+  /** JSON Schema alias of `gt` (exclusive lower bound). Normalised to `gt`. */
+  exclusiveMinimum?: Bound;
+  /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
+  exclusiveMaximum?: Bound;
 }

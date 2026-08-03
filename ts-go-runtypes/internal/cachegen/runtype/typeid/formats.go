@@ -134,7 +134,38 @@ func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type
 	}
 	paramsType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(paramsSymbol))
 	params := literalParamsFromType(typeChecker, paramsType)
+	canonicalizeBoundAliases(params)
 	return &protocol.FormatAnnotation{Name: name, Params: params}
+}
+
+// boundAliasCanonical maps the JSON Schema bound keyword spellings to the
+// engine's canonical short param keys.
+var boundAliasCanonical = map[string]string{
+	"minimum":          "min",
+	"maximum":          "max",
+	"exclusiveMinimum": "gt",
+	"exclusiveMaximum": "lt",
+}
+
+// canonicalizeBoundAliases renames any JSON Schema bound-keyword spelling
+// (minimum/maximum/exclusiveMinimum/exclusiveMaximum) a numeric/date/temporal
+// format carries to the engine's canonical short key (min/max/gt/lt), so a
+// format written with EITHER spelling folds to one structural id and the
+// emitters — which read only the short keys — work unchanged. A canonical key
+// already present wins (the explicit short spelling is authoritative), so a
+// redundant double-spelling never overwrites it. No-op for formats that carry
+// none of the alias keys (strings, structural, …).
+func canonicalizeBoundAliases(params map[string]any) {
+	for alias, canonical := range boundAliasCanonical {
+		value, hasAlias := params[alias]
+		if !hasAlias {
+			continue
+		}
+		delete(params, alias)
+		if _, hasCanonical := params[canonical]; !hasCanonical {
+			params[canonical] = value
+		}
+	}
 }
 
 // MergeFormatAnnotations merges the format annotations of one collapsed

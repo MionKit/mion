@@ -23,6 +23,14 @@ export interface BigIntParams {
   lt?: bigint;
   gt?: bigint;
   multipleOf?: bigint;
+  /** JSON Schema alias of `min` (inclusive lower bound). Normalised to `min`. */
+  minimum?: bigint;
+  /** JSON Schema alias of `max` (inclusive upper bound). Normalised to `max`. */
+  maximum?: bigint;
+  /** JSON Schema alias of `gt` (exclusive lower bound). Normalised to `gt`. */
+  exclusiveMinimum?: bigint;
+  /** JSON Schema alias of `lt` (exclusive upper bound). Normalised to `lt`. */
+  exclusiveMaximum?: bigint;
 }
 
 // BigInt — the branded bigint alias users annotate with:

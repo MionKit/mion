@@ -324,6 +324,17 @@ function bigintParamsMatch(value: bigint, annotation: FormatAnnotation | undefin
       case 'max':
         if (value > BigInt(param as string | number | bigint)) return false;
         break;
+      case 'gt':
+        if (value <= BigInt(param as string | number | bigint)) return false;
+        break;
+      case 'lt':
+        if (value >= BigInt(param as string | number | bigint)) return false;
+        break;
+      case 'multipleOf': {
+        const divisor = BigInt(param as string | number | bigint);
+        if (divisor !== 0n && value % divisor !== 0n) return false;
+        break;
+      }
       case 'mockSamples':
       case 'not':
         break;
