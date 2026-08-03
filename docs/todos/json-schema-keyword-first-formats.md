@@ -71,14 +71,29 @@ Atomics done (all verified against the full Go + JS suites, pushed):
   keyword-bearing one pays a bounded one-time re-split cost (structural-keywords
   budget rebaselined 2468 → 2899, documented in the compile test).
 
+### Door "type-migration" pass — unions + test fidelity (2026-08-03)
+
+- **DONE — `oneOf` uses the public `OneOf`** (`31129c8`): `OneOfPart` hands its
+  lowered branch tuple to `OneOf<[…]>` (schema/static.ts), deleting the
+  `OneOfArmFrom` / `OneOfNullishDupFrom` / `OneOfNullishAgainFrom` twins. The last
+  copied type in the schema file is gone.
+- **DONE — the budget test measures REAL cost** (`31129c8`): the
+  `FromJsonSchema` instantiation-budget harness imports the real `FromJsonSchema`
+  + real formats graph (bundler resolution over source, `makeMeasurer` gained a
+  `MeasurerConfig`) instead of cheap stand-ins; the 16 budgets were re-baselined
+  to genuine counts (mostly LOWER than the old padded-fake proxies).
+- **DONE — website API-truth**: 02.json-schema.md now maps `contentEncoding` →
+  `TF.Base64/32/16` and `contentMediaType` → `TF.JsonContent(Base64)` (+ builders),
+  and drops the stale "content keywords have no named type spelling" line.
+- **FILED — the fuzz still slices** (its Go serve/ops resolver is a pure virtual
+  FS, can't import the real module): see
+  [jsonschema-fuzz-real-module-import.md](jsonschema-fuzz-real-module-import.md).
+  It uses the REAL `FormattedArray` / `FormattedObject` / `OneOf` (sliced); ~10
+  atomic brand stand-ins remain there, covered meanwhile by the real-type
+  convergence suites.
+
 **Still open (this spec stays here until done):**
 
-- **Unions — the `oneOf` carrier twin.** `OneOfPart` still hand-spells
-  `OneOfArmFrom` / `OneOfNullishDupFrom` / `OneOfNullishAgainFrom`, a documented
-  lockstep twin of the public `OneOf<[…]>` in `schema/static.ts`. Migrate the door
-  to `OneOf<FromOneOfBranches<M>>` and slice the real `OneOf` region into the
-  harnesses (same pattern as `structural-slice`), replacing the compile harness's
-  `OneOf` stand-in.
 - **Negation — the `__rtNot` sentinel.** Spelled raw at ~5 door sites. The public
   `Not<F>` covers only primitive operands, while the door negates general gate
   arms; a shared `NotSlot<Child>` in `formats/not.ts` would let the door drop the
