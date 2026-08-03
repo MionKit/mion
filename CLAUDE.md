@@ -1,5 +1,7 @@
 # RunTypes Architectural Guidelines
 
+> ⚠️ **When replying to the user, talk in plain everyday language.** Avoid jargon and internal nicknames unless very basic. If a term or idea could be unclear, define it in one short sentence, and add a tiny code example when it helps. (This is about how you communicate, not how you write docs or code.)
+
 > **Do not load linked / relevant files into context unless the current task strictly needs them** — [SETUP.md](SETUP.md) only for setup / build / publish work; skill dirs only when invoking them; deep-dive docs only when touching what they describe.
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document. **To set up or repair a local dev environment (submodules + patches, `bin/ts-runtypes`, workspace deps, package dists), run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** ([scripts/setup-claude-web.sh](scripts/setup-claude-web.sh) is the Linux web-container variant only — never for local/macOS; it hard-exits off Linux and redirects you to the skill.)
