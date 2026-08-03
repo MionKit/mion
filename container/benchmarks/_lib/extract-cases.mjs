@@ -233,30 +233,6 @@ export function makeExtractors(ts) {
     return {preamble: extractPreamble(source, mapName), entries, keys};
   }
 
-  /** A DOCUMENT map (`{'GROUP.case': {…json schema…}}`) → {preamble,
-   *  entries:{key:{locals, exprText}}}. The third authoring shape in this file: the
-   *  json-schema-to-ts competitor has no runtime at all (it ships `FromSchema<S>`
-   *  and nothing else), so its map is the bare documents rather than build thunks.
-   *  `locals` is always empty — a document references nothing. Shaped like the
-   *  other extractors' output so the probe assembly is uniform. */
-  function extractSchemaDocs(file, mapName) {
-    const source = sf(file);
-    const obj = findMapObject(source, mapName);
-    const entries = {};
-    const keys = [];
-    if (obj) {
-      for (const prop of obj.properties) {
-        if (!ts.isPropertyAssignment(prop)) continue;
-        const key = prop.name.getText(source).replace(/['"]/g, '');
-        keys.push(key);
-        const init = unwrapExpr(prop.initializer);
-        if (!init || !ts.isObjectLiteralExpression(init)) continue; // not a document
-        entries[key] = {locals: [], exprText: init.getText(source)};
-      }
-    }
-    return {preamble: extractPreamble(source, mapName), entries, keys};
-  }
-
   return {
     read,
     sf,
@@ -267,7 +243,6 @@ export function makeExtractors(ts) {
     extractTsGo,
     extractSchemaFromThunk,
     extractSchemaCompetitor,
-    extractSchemaDocs,
     findTypedCall,
     extractTypeForm,
   };

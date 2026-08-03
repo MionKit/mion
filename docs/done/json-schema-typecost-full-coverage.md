@@ -89,6 +89,19 @@ which rewrote the same keys.
 - Runtime json-schema suite (10 cases), zod/typebox/typia typecost entries:
   untouched.
 
+## Follow-up: the json-schema-to-ts column was removed (2026-08-03)
+
+Right after this landed, the `json-schema-to-ts` competitor was dropped from the
+comparison entirely at the maintainer's request: it was never asked for, and its
+column is not needed to read the `ts-runtypes (jsonSchema)` numbers. Removed:
+the competitor directory and its `_deps` manifest, the Containerfile install
+layer, the typecost probe / form / LIBS row, the now-unused `extractSchemaDocs`
+extractor, and the gen-docs form entry. The typecost table is now six columns.
+
+Everything below describes the state at the time this spec landed, when the
+document coverage was built for BOTH maps; the ts-runtypes half is unaffected
+and still total at 164 documents.
+
 ## What shipped
 
 Both maps are total over the 277 shared keys: **164 documents, 113

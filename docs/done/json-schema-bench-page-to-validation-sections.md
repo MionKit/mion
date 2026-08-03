@@ -144,7 +144,7 @@ new keyword is supported by the door.
   map (`zod`, `typebox`, `typia`, `ajv` cases.ts; ts-runtypes `cases.ts`,
   `schemaCases.ts` — new keys land there as `NOT_SUPPORTED` per the
   one-door rule — plus `jsonSchemaCases.ts` and
-  `json-schema-to-ts/cases.ts` for typecost). Totality is declared but
+  `json-schema-to-ts/cases.ts` for typecost, since removed). Totality is declared but
   unenforced ([benchmark-competitor-maps-never-typechecked.md](benchmark-competitor-maps-never-typechecked.md)).
 
 ## Tests

@@ -102,14 +102,6 @@ COPY .bench-deps/competitors/ts-runtypes/package.json /bench/competitors/ts-runt
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     cd /bench/competitors/ts-runtypes && pnpm install --no-frozen-lockfile
 
-# json-schema-to-ts is TYPE-LEVEL ONLY (FromSchema<S>, no runtime), so it never
-# runs a bench — it exists for the typecost probe compiled in its own dir, which
-# is why it also carries its own TypeScript.
-COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/json-schema-to-ts/
-COPY .bench-deps/competitors/json-schema-to-ts/package.json /bench/competitors/json-schema-to-ts/package.json
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    cd /bench/competitors/json-schema-to-ts && pnpm install --no-frozen-lockfile
-
 COPY .bench-deps/pnpm-workspace.yaml .bench-deps/.npmrc /bench/competitors/typia/
 COPY .bench-deps/competitors/typia/package.json /bench/competitors/typia/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \

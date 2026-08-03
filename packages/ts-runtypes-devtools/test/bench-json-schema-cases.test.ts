@@ -145,15 +145,15 @@ describe('every competitor map covers the whole group', () => {
   });
 });
 
-// The two typecost DOCUMENT maps answer "what does recovering a type from this
-// document cost the checker". They used to cover the 10 cases of the old
-// json-schema lane and read n-a everywhere else, which made the columns look
-// like a niche rather than the whole comparison. They are now total, and their
+// The typecost DOCUMENT map answers "what does recovering a type from this
+// document cost the checker". It used to cover the 10 cases of the old
+// json-schema lane and read n-a everywhere else, which made the column look
+// like a niche rather than the whole comparison. It is now total, and its
 // supported set mirrors ajv's: ajv is the validation suite's JSON Schema
 // reference, so what it can state as a document is what these columns must
-// answer. The maps are generated from ajv's and committed, so this test is what
+// answer. The map is generated from ajv's and committed, so this test is what
 // keeps the mirror true after a hand edit.
-describe('the typecost document maps mirror ajv', () => {
+describe('the typecost document map mirrors ajv', () => {
   // `'KEY': NOT_SUPPORTED` vs `'KEY': <anything else>`, read off the source.
   function declaredKeys(file: string): {supported: Set<string>; unsupported: Set<string>} {
     const source = readFileSync(join(competitorsDir, file), 'utf8');
@@ -167,7 +167,7 @@ describe('the typecost document maps mirror ajv', () => {
 
   const ajv = declaredKeys('ajv/cases.ts');
   const allKeys = all.map((entry) => entry.key);
-  const MAPS = ['ts-runtypes/jsonSchemaCases.ts', 'json-schema-to-ts/cases.ts'];
+  const MAPS = ['ts-runtypes/jsonSchemaCases.ts'];
 
   it('ajv itself still declares every shared case', () => {
     const declared = new Set([...ajv.supported, ...ajv.unsupported]);

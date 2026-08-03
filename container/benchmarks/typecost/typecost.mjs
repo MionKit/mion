@@ -87,9 +87,6 @@ const TSGO_DIR = path.join(COMPETITORS, 'ts-runtypes');
 const ZOD_DIR = path.join(COMPETITORS, 'zod');
 const TYPEBOX_DIR = path.join(COMPETITORS, 'typebox');
 const TYPIA_DIR = path.join(COMPETITORS, 'typia');
-// Type-level-only competitor: json-schema-to-ts ships FromSchema<S> and no runtime,
-// so it has a typecost form and NO runtime column.
-const JSTS_DIR = path.join(COMPETITORS, 'json-schema-to-ts');
 
 const RESULTS_DIR = process.env.RT_BENCH_RESULTS_DIR ?? '/app/results';
 
@@ -99,8 +96,7 @@ const PROBE_TSGO = path.join(TSGO_DIR, '__typecost_probe.ts');
 const PROBE_ZOD = path.join(ZOD_DIR, '__typecost_probe.ts');
 const PROBE_TYPEBOX = path.join(TYPEBOX_DIR, '__typecost_probe.ts');
 const PROBE_TYPIA = path.join(TYPIA_DIR, '__typecost_probe.ts');
-const PROBE_JSTS = path.join(JSTS_DIR, '__typecost_probe.ts');
-const PROBE_PATHS = new Set([PROBE_TSGO, PROBE_ZOD, PROBE_TYPEBOX, PROBE_TYPIA, PROBE_JSTS]);
+const PROBE_PATHS = new Set([PROBE_TSGO, PROBE_ZOD, PROBE_TYPEBOX, PROBE_TYPIA]);
 
 const MARKER = path.join(TSGO_DIR, 'node_modules', '@ts-runtypes', 'core', 'dist');
 
@@ -140,13 +136,12 @@ const OPTIONS = {
 // The AST helpers live in the shared _lib so compiletime/compiletime.mjs reads the
 // competitor maps the exact same way (one source of truth). `ts` is injected here.
 
-const {extractTsGo, extractSchemaCompetitor, extractSchemaDocs, extractTypeForm} = makeExtractors(ts);
+const {extractTsGo, extractSchemaCompetitor, extractTypeForm} = makeExtractors(ts);
 
 // ── probe assembly ──────────────────────────────────────────────────────────
 
 const INFERTYPE_IMPORT = `import {type InferType} from '@ts-runtypes/core';`;
 const TB_STATIC_IMPORT = `import {type Static as __TBStatic} from '@sinclair/typebox';`;
-const JSTS_IMPORT = `import {type FromSchema} from 'json-schema-to-ts';`;
 
 // Force TypeScript to fully RESOLVE + structurally check the recovered type by
 // assigning a real value (the case's first valid sample). A bare `let x!: T`
@@ -173,13 +168,6 @@ function probeZod(preamble, locals, exprText, value) {
 }
 function probeTypebox(preamble, locals, exprText, value) {
   return `${preamble.join('\n')}\n${TB_STATIC_IMPORT}\n${decls(locals)}const __s = ${exprText};\ntype __T = __TBStatic<typeof __s>;${force(value)}`;
-}
-// json-schema-to-ts: the document is the value, `as const` so its literal types
-// survive, and FromSchema<> is the recovery type — the direct twin of ts-go's
-// FromJsonSchema<> via InferType above.
-function probeJsonSchemaToTs(preamble, locals, exprText, value) {
-  const imps = preamble.includes(JSTS_IMPORT) ? preamble : [...preamble, JSTS_IMPORT];
-  return `${imps.join('\n')}\n${decls(locals)}const __s = ${exprText} as const;\ntype __T = FromSchema<typeof __s>;${force(value)}`;
 }
 
 // ── isolated compile + instantiation count ──────────────────────────────────
@@ -313,13 +301,6 @@ async function main() {
   if (!typiaInstalled) console.error('typecost: typia is not installed in this image (its install layer is non-fatal); its column renders n/a.');
   const typia = typiaInstalled ? extractTypeForm(path.join(TYPIA_DIR, 'cases.ts'), 'cases', 'typia.createIs') : {preamble: [], entries: {}, keys: []};
   const tsJsonSchema = extractTsGo(path.join(TSGO_DIR, 'jsonSchemaCases.ts'), 'jsonSchemaCases', 'schema');
-  // json-schema-to-ts arrived after the shared image's current tag, so an image
-  // built before its install layer has no node_modules for it. Degrade to an
-  // empty form (every cell n/a) rather than an 'err' cell per case — same
-  // posture as typia's non-fatal install in the Containerfile.
-  const jstsInstalled = fs.existsSync(path.join(JSTS_DIR, 'node_modules', 'json-schema-to-ts'));
-  if (!jstsInstalled) console.error('typecost: json-schema-to-ts is not installed in this image; its column renders n/a.');
-  const jsts = jstsInstalled ? extractSchemaDocs(path.join(JSTS_DIR, 'cases.ts'), 'cases') : {preamble: [], entries: {}, keys: []};
 
   const valueByKey = await loadSampleValues();
 
@@ -352,8 +333,6 @@ async function main() {
       if (tp) console.log(`\n===== typia =====\n${probeTsType(typia.preamble, tp.locals, tp.typeText, value)}`);
       const js = tsJsonSchema.entries[key];
       if (js) console.log(`\n===== ts-go(jsonSchema) =====\n${probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, value)}`);
-      const jd = jsts.entries[key];
-      if (jd) console.log(`\n===== json-schema-to-ts =====\n${probeJsonSchemaToTs(jsts.preamble, jd.locals, jd.exprText, value)}`);
       process.exit(0);
     }
 
@@ -388,10 +367,6 @@ async function main() {
       ? measure('tsJsonSchema', 'tsgo', PROBE_TSGO, probeTsSchema(tsJsonSchema.preamble, [], "runTypeFromJsonSchema({type: 'string'})", V), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, value), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, undefined))
       : {status: 'na'};
 
-    const jd = jsts.entries[key];
-    cell.jsonSchemaToTs = jd
-      ? measure('jsonSchemaToTs', 'jsts', PROBE_JSTS, probeJsonSchemaToTs(jsts.preamble, [], "{type: 'string'}", V), probeJsonSchemaToTs(jsts.preamble, jd.locals, jd.exprText, value), probeJsonSchemaToTs(jsts.preamble, jd.locals, jd.exprText, undefined))
-      : {status: 'na'};
 
     const tp = typia.entries[key];
     cell.typia = tp
@@ -410,7 +385,6 @@ const LIBS = [
   ['ts-go(type)', 'tsType', 'ts-runtypes-type'],
   ['ts-go(schema)', 'tsSchema', 'ts-runtypes-schema'],
   ['ts-go(jsonSchema)', 'tsJsonSchema', 'ts-runtypes-json-schema'],
-  ['json-schema-to-ts', 'jsonSchemaToTs', 'json-schema-to-ts'],
   ['zod', 'zod', 'zod'],
   ['typebox', 'typebox', 'typebox'],
   ['typia', 'typia', 'typia'],

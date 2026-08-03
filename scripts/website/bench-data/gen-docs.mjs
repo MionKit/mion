@@ -392,8 +392,8 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // file, so both columns shipped with no hover source at all).
 //
 // AJV has no row here, and that asymmetry is the page's point: it consumes the
-// same document ts-go(jsonSchema) and json-schema-to-ts do, but recovers NO
-// static type from it, so there is no type cost to measure.
+// same document ts-go(jsonSchema) does, but recovers NO static type from it, so
+// there is no type cost to measure.
 const TYPECOST_FORMS = [
   {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: 'ts-runtypes/cases.ts', srcVar: 'cases'},
   {id: 'ts-runtypes-schema', label: 'ts-runtypes (schema)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
@@ -403,7 +403,6 @@ const TYPECOST_FORMS = [
     srcFile: 'ts-runtypes/jsonSchemaCases.ts',
     srcVar: 'jsonSchemaCases',
   },
-  {id: 'json-schema-to-ts', label: 'json-schema-to-ts', srcFile: 'json-schema-to-ts/cases.ts', srcVar: 'cases'},
   {id: 'typia', label: 'typia', srcFile: 'typia/cases.ts', srcVar: 'cases'},
   {id: 'typebox', label: 'typebox', srcFile: 'typebox/cases.ts', srcVar: 'cases'},
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
@@ -476,7 +475,6 @@ function buildTypecostBench() {
     'ts-runtypes-type': 'ts-runtypes',
     'ts-runtypes-schema': 'ts-runtypes',
     'ts-runtypes-json-schema': 'ts-runtypes',
-    'json-schema-to-ts': 'json-schema-to-ts',
     typia: 'typia',
     typebox: 'typebox',
     zod: 'zod',
