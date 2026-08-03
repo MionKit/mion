@@ -3,8 +3,9 @@
 //   1. format case-transforms apply to mocks (the fmt cache lookup used a
 //      dead 'fmt_'-prefixed key; now resolved via familyTag scan);
 //   2. domain formats restricted by allowedValues mock FROM the allowed set;
-//   3. same-shape formats differing only in mockSamples are distinct entries
-//      mocking from their OWN samples (samples are id-relevant now);
+//   3. same-shape formats differing only in mockSamples share ONE entry
+//      (samples are NOT id-relevant — they describe the same validator), and
+//      the shared entry still mocks soundly;
 //   4. length-incompatible pattern samples never silently produce an invalid
 //      mock — the mock throws a pointed error instead;
 //   5. a FormatPattern's `message` is surfaced as the validation error `val`.
@@ -54,21 +55,25 @@ describe('mock soundness — validate(mock()) holds or fails loudly', () => {
     }
   });
 
-  it('same-shape formats differing only in mockSamples are distinct entries with their own samples', () => {
+  it('same-shape formats differing only in mockSamples share ONE entry and still mock soundly', () => {
     type FormatA = StringFormat<{maxLength: 10; mockSamples: ['aaa', 'aa']}>;
     type FormatB = StringFormat<{maxLength: 10; mockSamples: ['zzz', 'zz']}>;
     const idA = getRunTypeId<FormatA>();
     const idB = getRunTypeId<FormatB>();
-    expect(idA).not.toBe(idB);
-    // reflect form converges per format (marker coverage rule)
+    // Samples are generation metadata, not validation behaviour: the two
+    // formats describe the SAME validator, so they dedup onto one entry.
+    expect(idA).toBe(idB);
+    // reflect form converges too (marker coverage rule)
     const sampleA: FormatA = 'aaa';
     expect(getRunTypeId(sampleA)).toBe(idA);
-
+    // The shared entry mocks from the first-interned pool; assert soundness
+    // (validate holds, bound respected), not a specific pool.
+    const isFormat = createValidateFn<FormatA>();
     const mockA = createMockDataFn<FormatA>();
-    const mockB = createMockDataFn<FormatB>();
     for (let i = 0; i < 8; i++) {
-      expect(['aaa', 'aa']).toContain(mockA());
-      expect(['zzz', 'zz']).toContain(mockB());
+      const value = mockA() as string;
+      expect(isFormat(value)).toBe(true);
+      expect(value.length).toBeLessThanOrEqual(10);
     }
   });
 
