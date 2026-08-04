@@ -165,8 +165,13 @@ function randomString(length: number, random: MockRandom): string {
 
 // ─────────────────────────────── UUID ───────────────────────────────
 
+// The version-agnostic `'any'` never leaves the generator guessing: a mock only
+// has to produce ONE value the validator accepts, and every v4 UUID is a valid
+// `'any'` UUID. So the generator narrows (always v4) exactly where the validator
+// stays open (any RFC 9562 layout) — the safe direction, since mock ⊆ valid.
+// Only `'7'` needs its own generator, because a v4 would fail a v4-pinned check.
 function mockUuid(params: Partial<UUIDParams>, random: MockRandom): string {
-  return (params.version ?? '4') === '7' ? random.uuidV7() : random.uuidV4();
+  return params.version === '7' ? random.uuidV7() : random.uuidV4();
 }
 
 // Date / Time / DateTime mocking lives in ./mockDateTimeBounds.ts — it must

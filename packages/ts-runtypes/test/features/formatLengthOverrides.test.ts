@@ -49,3 +49,62 @@ describe('variable-width format length overrides converge across authoring modes
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'uri', minLength: 12, maxLength: 200}))).toBe(typeFirst);
   });
 });
+
+// The named VARIANTS of those families (urlHttp, emailPunycode, domainStrict,
+// ipv4, base64, …) used to be take-it-or-leave-it presets: the type accepted no
+// override and the builder took no params. They now ride the same merge as their
+// generic sibling, so the preset's own defaults survive whatever the caller
+// leaves out.
+describe('every predefined string format accepts an override', () => {
+  it('urlHttp: the override retunes the bound and KEEPS the http(s) pattern', () => {
+    const typeFirst = getRunTypeId<TF.UrlHttp<{maxLength: 100}>>();
+    const value: TF.UrlHttp<{maxLength: 100}> = 'https://example.com' as TF.UrlHttp<{maxLength: 100}>;
+    expect(getRunTypeId(value)).toBe(typeFirst);
+    expect(getRunTypeId(TF.urlHttp({maxLength: 100}))).toBe(typeFirst);
+    // Overriding a bound must NOT silently degrade to the generic Url pattern.
+    expect(typeFirst).not.toBe(getRunTypeId(TF.url({maxLength: 100})));
+    const isHttpUrl = createValidateFn(TF.urlHttp({maxLength: 100}));
+    expect(isHttpUrl('https://example.com/path')).toBe(true);
+    expect(isHttpUrl('file:///etc/hosts')).toBe(false);
+  });
+
+  it('urlFile / emailPunycode / domainUnicode take an override too', () => {
+    expect(getRunTypeId(TF.urlFile({maxLength: 300}))).toBe(getRunTypeId<TF.UrlFile<{maxLength: 300}>>());
+    expect(getRunTypeId(TF.emailPunycode({minLength: 9}))).toBe(getRunTypeId<TF.EmailPunycode<{minLength: 9}>>());
+    expect(getRunTypeId(TF.domainUnicode({maxLength: 120}))).toBe(getRunTypeId<TF.DomainUnicode<{maxLength: 120}>>());
+  });
+
+  it('domainStrict / emailStrict keep their decomposition while bounds retune', () => {
+    expect(getRunTypeId(TF.domainStrict({maxLength: 120}))).toBe(getRunTypeId<TF.DomainStrict<{maxLength: 120}>>());
+    expect(getRunTypeId(TF.emailStrict({maxLength: 120}))).toBe(getRunTypeId<TF.EmailStrict<{maxLength: 120}>>());
+    const isStrict = createValidateFn(TF.domainStrict({maxLength: 120}));
+    expect(isStrict('sub.example.com')).toBe(true);
+    expect(isStrict('-bad-.example.com')).toBe(false);
+  });
+
+  it('ipv4: the override adds a port while the version stays pinned', () => {
+    const typeFirst = getRunTypeId<TF.IPv4<{allowPort: true}>>();
+    expect(getRunTypeId(TF.ipv4({allowPort: true}))).toBe(typeFirst);
+    // …which is exactly the standalone alias that existed for this case.
+    expect(typeFirst).toBe(getRunTypeId<TF.IPv4WithPort>());
+    const isIPv4Port = createValidateFn(TF.ipv4({allowPort: true}));
+    expect(isIPv4Port('192.168.0.1:8080')).toBe(true);
+    expect(isIPv4Port('not-an-ip')).toBe(false);
+  });
+
+  it('base64 and the case transformers take bounds', () => {
+    expect(getRunTypeId(TF.base64({maxLength: 64}))).toBe(getRunTypeId<TF.Base64<{maxLength: 64}>>());
+    expect(getRunTypeId(TF.lowercase({maxLength: 8}))).toBe(getRunTypeId<TF.Lowercase<{maxLength: 8}>>());
+    const isShortBase64 = createValidateFn(TF.base64({maxLength: 8}));
+    expect(isShortBase64('QUJD')).toBe(true);
+    expect(isShortBase64('QUJDREVGR0hJSg==')).toBe(false); // over the bound
+  });
+
+  it('the bare spelling of every preset is unchanged by gaining the override', () => {
+    expect(getRunTypeId(TF.urlHttp())).toBe(getRunTypeId<TF.UrlHttp>());
+    expect(getRunTypeId(TF.emailStrict())).toBe(getRunTypeId<TF.EmailStrict>());
+    expect(getRunTypeId(TF.ipv4())).toBe(getRunTypeId<TF.IPv4>());
+    expect(getRunTypeId(TF.base32())).toBe(getRunTypeId<TF.Base32>());
+    expect(getRunTypeId(TF.domainPunycode())).toBe(getRunTypeId<TF.DomainPunycode>());
+  });
+});

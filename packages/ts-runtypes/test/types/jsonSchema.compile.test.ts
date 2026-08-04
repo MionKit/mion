@@ -31,7 +31,13 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  Budget history: re-baselined when the harness switched from cheap stand-in
  *  types to importing the REAL FromJsonSchema + formats graph — each budget is
  *  now the genuine per-branch net instantiation count a consumer pays, not a
- *  fictional cheap-fake proxy. The ratchet stays one-way from these values. **/
+ *  fictional cheap-fake proxy. The ratchet stays one-way from these values.
+ *  Lowered again (objects 2769→2735, structural keywords 2899→2769) when the
+ *  structural literal-part extractors became a single keyed mapped type
+ *  instead of a chain of `P extends {k: infer N}` intersections, and once more
+ *  (format lookup rows 2188→2045, composite 2087→2035) when `FormatDefaults`
+ *  gained its no-override fast path — every bare format alias in the lookup
+ *  table now skips the merge entirely. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -90,7 +96,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Url>>;
       `,
-      2188
+      2045
     );
   });
 
@@ -278,7 +284,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
       // ReadonlyPropKeys check on the common path) — a priced feature cost, not
       // a regression; the ratchet stays one-way from here.
-      2769
+      2735
     );
   });
 
@@ -378,7 +384,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2899
+      2769
     );
   });
 
@@ -410,7 +416,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2087
+      2035
     );
   });
 

@@ -37,13 +37,11 @@ import {builderResult} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {ExactParams} from '../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
-import {
-  applyArrayParams,
-  applyObjectParams,
-  type FormattedArrayParamsValueFirst,
-  type FormattedObjectParamsValueFirst,
-  type FormattedArrayFrom,
-  type FormattedObjectFrom,
+import type {
+  FormattedArrayParamsValueFirst,
+  FormattedObjectParamsValueFirst,
+  FormattedArrayFrom,
+  FormattedObjectFrom,
 } from '../formats/structural.ts';
 
 // A trailing structural-format-params bag is a PLAIN object with none of the
@@ -90,7 +88,7 @@ export function array(
 ): RunType {
   const base = {type: 'array', child: item};
   if (isFormatParams(arg2)) {
-    return builderResult(arg3, applyArrayParams(base, arg2 as FormattedArrayParamsValueFirst));
+    return builderResult(arg3, base);
   }
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
@@ -352,16 +350,13 @@ export function record(
   if (isRunTypeLike(arg2)) {
     const base = {type: 'record', index: arg1, child: arg2 as RunType};
     if (isFormatParams(arg3)) {
-      return builderResult(arg4, applyObjectParams(base, arg3 as FormattedObjectParamsValueFirst));
+      return builderResult(arg4, base);
     }
     return builderResult(arg3 as InjectRunTypeId<unknown> | undefined, base);
   }
   const base = {type: 'record', child: arg1};
   if (isFormatParams(arg2)) {
-    return builderResult(
-      arg3 as InjectRunTypeId<unknown> | undefined,
-      applyObjectParams(base, arg2 as FormattedObjectParamsValueFirst)
-    );
+    return builderResult(arg3 as InjectRunTypeId<unknown> | undefined, base);
   }
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, base);
 }
@@ -548,7 +543,7 @@ export function object(
   arg3?: InjectRunTypeId<unknown>
 ): RunType {
   if (isFormatParams(arg2)) {
-    return builderResult(arg3, applyObjectParams(config, arg2 as FormattedObjectParamsValueFirst));
+    return builderResult(arg3, config);
   }
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, config);
 }

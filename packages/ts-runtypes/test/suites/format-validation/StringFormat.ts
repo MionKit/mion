@@ -49,6 +49,12 @@ type Generated = TF.String<{pattern: {source: '^[a-d]{2}-[0-9]{2}$'; flags: ''}}
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 4
 const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
+const V1 = '9f1b8c2e-3d4a-1b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 1
+// RFC 9562 §5.9 / §5.10 — the Nil and Max UUIDs are VALID UUIDs whose version
+// nibble (0 / f) names no version at all. They are the reason `format: 'uuid'`
+// cannot default to a pinned version: doing so would reject them.
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const MAX_UUID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
 export const STRING_FORMAT = {
   // ─────────────────────────── TF.String ───────────────────────
@@ -888,6 +894,7 @@ export const STRING_FORMAT = {
       'TF.UUID (format `uuid`, version `any`) — the version-agnostic UUID that JSON Schema `format: uuid` recovers; the version nibble is an ordinary hex digit.',
     validateNotes: [
       'Both a v4 and a v7 UUID pass; no version nibble is pinned.',
+      'A v1 UUID and the RFC 9562 Nil / Max UUIDs pass too: `any` checks the RFC string layout (36 chars, hyphens at 8/13/18/23, hex everywhere else) and reads the version nibble as an ordinary hex digit. This is what JSON Schema `format: uuid` means, so pinning a default version here would reject valid UUIDs.',
       'Malformed input still fails: a non-UUID string, the empty string, a hyphen-stripped UUID, and a non-string (123) are all rejected.',
       'JSON Schema: `{type: "string", format: "uuid"}` converges on this exact brand (same cached factory).',
     ],
@@ -923,7 +930,7 @@ export const STRING_FORMAT = {
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uuid()),
     getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'uuid'})),
     mockType: () => createMockDataFn<TF.UUID>(),
-    getSamples: () => ({valid: [V4, V7], invalid: ['not-a-uuid', '', V4.replace(/-/g, ''), 123]}),
+    getSamples: () => ({valid: [V4, V7, V1, NIL_UUID, MAX_UUID], invalid: ['not-a-uuid', '', V4.replace(/-/g, ''), 123]}),
     expectedFormatErrors: () => [{name: 'uuid', val: 'any'}, null, null, null],
   },
   uuidv4: {

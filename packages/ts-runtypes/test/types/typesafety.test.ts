@@ -41,6 +41,7 @@ test('type-only assertions are referenced (no runtime work here)', () => {
   expect(typeof assertionsComposerExactInference).toBe('function');
   expect(typeof assertionsFormatBranding).toBe('function');
   expect(typeof assertionsValueFirstBranding).toBe('function');
+  expect(typeof assertionsStructuralBrandKeys).toBe('function');
 });
 
 // Runtime contract: the markers throw at runtime when no id is injected
@@ -618,4 +619,65 @@ function assertionsValueFirstBranding(): void {
     void _toBase;
   };
   void _brandFlows;
+}
+
+// ── Structural brand keys: exactly what a FormattedObject/FormattedArray exposes ──
+//
+// The keyword sentinels ride an INTERSECTION member, so `keyof` sees them:
+// `keyof FormattedObject<User, P>` is `keyof User | '__rtFormatName' |
+// '__rtFormatParams'`. That is the resolver's contract rather than a preference
+// — Go reads those two by literal property NAME and folds them into the id hash
+// (typeid/formats.go), so re-keying them onto a `unique symbol` would move every
+// id across Go and JS in one step. Filed as
+// docs/todos/structural-brand-symbol-keys.md.
+//
+// These assertions pin the blast radius so a change to it fails the build
+// instead of surprising a consumer. The `@ts-expect-error` lines pin what
+// currently LEAKS: if the leak is ever fixed they go unused and TS2578 reds this
+// file, which is the prompt to update the pins. The plain lines pin what must
+// keep working regardless.
+function assertionsStructuralBrandKeys() {
+  interface User {
+    id: string;
+    name: string;
+  }
+  type BoundedUser = TF.FormattedObject<User, {minProperties: 1}>;
+  type UniqueTags = TF.FormattedArray<string[], {uniqueItems: true}>;
+
+  // Unaffected: a plain literal still assigns (the sentinels are optional, so a
+  // branded type stays interchangeable with the shape it brands), properties
+  // read normally, and the array stays an array.
+  const user: BoundedUser = {id: 'u1', name: 'Ada'};
+  const userId: string = user.id;
+  const tags: UniqueTags = ['a', 'b'];
+  const firstTag: string = tags[0];
+  const tagCount: number = tags.length;
+
+  // Unaffected: a branded type used AS A PROPERTY does not leak into the
+  // enclosing type's keys — the blast radius stops at the branded type itself.
+  interface Wrapper {
+    inner: BoundedUser;
+    other: number;
+  }
+  const wrapperKeys: 'inner' | 'other' = null as unknown as keyof Wrapper;
+
+  const spreadOfUser = {...user};
+
+  // LEAKS (pinned): key enumeration sees the two sentinels.
+  // @ts-expect-error — keyof BoundedUser also yields '__rtFormatName' | '__rtFormatParams'
+  const objectKeys: 'id' | 'name' = null as unknown as keyof BoundedUser;
+  // @ts-expect-error — the array brand is equally visible to keyof
+  const arrayKeys: keyof string[] = null as unknown as keyof UniqueTags;
+  // @ts-expect-error — and an object spread carries them onto the result type
+  const spreadKeys: 'id' | 'name' = null as unknown as keyof typeof spreadOfUser;
+
+  void user;
+  void userId;
+  void tags;
+  void firstTag;
+  void tagCount;
+  void wrapperKeys;
+  void objectKeys;
+  void arrayKeys;
+  void spreadKeys;
 }

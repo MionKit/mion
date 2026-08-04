@@ -2,14 +2,24 @@
 // Schema array/object keywords that have no plain TS shape. There are exactly
 // TWO wrappers, `FormattedArray<Base, P>` and `FormattedObject<Base, P>`, and
 // EVERY array/object keyword rides their params bag (`FormattedArrayParams` /
-// `FormattedObjectParams`). The literal keywords (length/count bounds,
-// uniqueItems, closedness) ride the `__rtFormatParams` brand; the
-// type-carrying keywords (contains, patternProperties, propertyNames) ride
-// their own sentinel slots, because format params are walked into a literal
-// map — a child schema can't live there. Each wrapper reproduces the schema
-// door's lowering (fromJsonSchema.ts) member-for-member, so the three
-// authoring modes (type-first, value-first, JSON Schema) converge on ONE
-// structural id by construction.
+// `FormattedObjectParams`). Each wrapper reproduces the schema translation's
+// lowering (fromJsonSchema.ts) member-for-member, so the three authoring modes
+// (type-first, value-first, JSON Schema) converge on ONE structural id by
+// construction.
+//
+// ONE BAG IN, TWO CHANNELS OUT. The params bag is the whole authoring surface:
+// `contains` sits in `FormattedArrayParams` next to `minItems`, and a caller
+// never picks a channel. The ENCODING splits, and only because the resolver
+// forces it: `__rtFormatParams` is walked into a JSON literal map
+// (`literalParamsFromType`, typeid/formats.go), whose fallback for a
+// non-literal member is the PRINTED TYPE STRING. A child schema stored there
+// would survive as text, so two different element types could collide on one
+// id and one type spelled two ways could split. The keywords that carry a TYPE
+// (`contains`, `patternProperties`, `propertyNames`) therefore ride a
+// dedicated one-property sentinel instead, which the resolver walks as a real
+// type — the same convention the negation sentinel `__rtNot` already uses
+// (`NotChildTypeFromMember`, same file). The literal-valued keywords
+// (length/count bounds, uniqueItems, closedness) ride the brand.
 //
 // `closed` / `closedPatterns` (from `additionalProperties: false`) are part of
 // `FormattedObjectParams` but are DERIVED, never hand-authored: an allowed-key
@@ -48,25 +58,28 @@ type StructuralBrand<Name extends string, P extends object> = {
 /** Every JSON Schema array keyword, as one bag. `minItems`/`maxItems` are
  *  exact length bounds, `uniqueItems` is 2020-12 deep JSON equality;
  *  `contains` (with the optional `minContains`/`maxContains` occurrence
- *  bounds) is the element type at least one item must match. In the type-first
- *  form `contains` is the element TYPE; the value-first `array` builder takes a
- *  `RunType` and maps it to that type. **/
-export interface FormattedArrayParams {
+ *  bounds) is the element type at least one item must match.
+ *
+ *  `Contains` re-parameterises the one type-carrying slot so the value-first
+ *  and type-first surfaces are the SAME interface: type-first passes the
+ *  element type itself (the `unknown` default), while the `array` builder
+ *  takes `FormattedArrayParamsValueFirst` — this bag with a `RunType` in that
+ *  slot. **/
+export interface FormattedArrayParams<Contains = unknown> {
   readonly minItems?: number;
   readonly maxItems?: number;
   readonly uniqueItems?: true;
-  readonly contains?: unknown;
+  readonly contains?: Contains;
   readonly minContains?: number;
   readonly maxContains?: number;
 }
 
-// The literal keywords that ride `__rtFormatParams` (contains/*Contains ride
-// the sentinel below, so they're excluded here).
-type ArrayLiteralPart<P> = Flatten<
-  (P extends {minItems: infer N extends number} ? {readonly minItems: N} : unknown) &
-    (P extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
-    (P extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown)
->;
+// The literal keywords that ride `__rtFormatParams`. Selecting them by key is
+// the whole job — the values pass through verbatim, so the id is whatever the
+// caller wrote. `contains`/`minContains`/`maxContains` are absent by
+// construction: they belong to the sentinel below.
+type ArrayLiteralKeys = 'minItems' | 'maxItems' | 'uniqueItems';
+type ArrayLiteralPart<P> = {readonly [K in Extract<keyof P, ArrayLiteralKeys>]: P[K]};
 
 // The `contains` child slot — matches the door's ContainsPart exactly:
 // `{rt$child: C; rt$min: N|1; rt$max?: M}` under an optional `__rtContains`.
@@ -92,22 +105,23 @@ export type FormattedArray<Base extends readonly unknown[], P extends FormattedA
  *  `maxProperties` are key-count bounds; `patternProperties` maps a
  *  pattern-source to the value TYPE its matching keys carry; `propertyNames`
  *  is the string constraint every key must satisfy; `closed`/`closedPatterns`
- *  are the derived allowed-key lists behind `additionalProperties: false`. **/
-export interface FormattedObjectParams {
+ *  are the derived allowed-key lists behind `additionalProperties: false`.
+ *
+ *  `Value` / `Key` re-parameterise the two type-carrying slots, exactly as
+ *  `FormattedArrayParams` does with `Contains` — the value-first `object` /
+ *  `record` builders take `FormattedObjectParamsValueFirst`, this same bag
+ *  holding `RunType`s in those two slots. **/
+export interface FormattedObjectParams<Value = unknown, Key = string> {
   readonly minProperties?: number;
   readonly maxProperties?: number;
-  readonly patternProperties?: Record<string, unknown>;
-  readonly propertyNames?: string;
+  readonly patternProperties?: Record<string, Value>;
+  readonly propertyNames?: Key;
   readonly closed?: readonly string[];
   readonly closedPatterns?: readonly string[];
 }
 
-type ObjectLiteralPart<P> = Flatten<
-  (P extends {minProperties: infer N extends number} ? {readonly minProperties: N} : unknown) &
-    (P extends {maxProperties: infer N extends number} ? {readonly maxProperties: N} : unknown) &
-    (P extends {closed: infer K extends readonly string[]} ? {readonly closed: K} : unknown) &
-    (P extends {closedPatterns: infer K extends readonly string[]} ? {readonly closedPatterns: K} : unknown)
->;
+type ObjectLiteralKeys = 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns';
+type ObjectLiteralPart<P> = {readonly [K in Extract<keyof P, ObjectLiteralKeys>]: P[K]};
 
 // The `patternProperties` slot — matches the door's PatternPropsPart: each
 // key's `rt$key` is a stringFormat pattern brand over the source, `rt$value`
@@ -139,19 +153,14 @@ export type FormattedObject<Base extends object, P extends FormattedObjectParams
 // #endregion structural-slice
 
 // ───────────── Value-first param shapes + reflected `…From` types ─────────────
-// These carry `RunType` (the value-first builders' argument shape), so they sit
-// OUTSIDE the shared region above — the tests never need them.
+// A builder's params bag is the SAME bag as above holding `RunType`s in its
+// type-carrying slots, so these are ALIASES, never twins — a keyword added to
+// one surface cannot go missing from the other. They sit outside the shared
+// region only because they name `RunType`, which the region must not.
 
-/** The value-first shape of `FormattedArrayParams` — `contains` carries a
- *  `RunType` instead of the bare element type. **/
-export interface FormattedArrayParamsValueFirst {
-  readonly minItems?: number;
-  readonly maxItems?: number;
-  readonly uniqueItems?: true;
-  readonly contains?: RunType<unknown>;
-  readonly minContains?: number;
-  readonly maxContains?: number;
-}
+/** The `array` builder's params — `FormattedArrayParams` with a `RunType` in
+ *  the `contains` slot. **/
+export type FormattedArrayParamsValueFirst = FormattedArrayParams<RunType<unknown>>;
 
 // Map a value-first array params bag to its type-first form (unwrap the
 // `contains` RunType to its carried element type).
@@ -162,18 +171,14 @@ type ArrayParamsType<P> = Flatten<
 
 /** The type-first `FormattedArray` a value-first `array(item, params)` call
  *  produces — used for the builder's `InjectRunTypeId` / return type. **/
-export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<T, ArrayParamsType<P> & FormattedArrayParams>;
+export type FormattedArrayFrom<T extends readonly unknown[], P> = FormattedArray<
+  T,
+  Extract<ArrayParamsType<P>, FormattedArrayParams>
+>;
 
-/** The value-first shape of `FormattedObjectParams` — `patternProperties`
- *  maps to `RunType`s and `propertyNames` is a `RunType`. **/
-export interface FormattedObjectParamsValueFirst {
-  readonly minProperties?: number;
-  readonly maxProperties?: number;
-  readonly patternProperties?: Record<string, RunType<unknown>>;
-  readonly propertyNames?: RunType<string>;
-  readonly closed?: readonly string[];
-  readonly closedPatterns?: readonly string[];
-}
+/** The `object` / `record` builders' params — `FormattedObjectParams` with
+ *  `RunType`s in the `patternProperties` / `propertyNames` slots. **/
+export type FormattedObjectParamsValueFirst = FormattedObjectParams<RunType<unknown>, RunType<string>>;
 
 type ObjectParamsType<P> = Flatten<
   Pick<P, Extract<keyof P, 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns'>> &
@@ -185,57 +190,13 @@ type ObjectParamsType<P> = Flatten<
 
 /** The type-first `FormattedObject` a value-first `object(config, params)` /
  *  `record(…, params)` call produces. **/
-export type FormattedObjectFrom<T extends object, P> = FormattedObject<T, ObjectParamsType<P> & FormattedObjectParams>;
+export type FormattedObjectFrom<T extends object, P> = FormattedObject<T, Extract<ObjectParamsType<P>, FormattedObjectParams>>;
 
-// ───────────────────── Runtime carrier composition ──────────────────
-
-// The runtime builder carrier is an opaque plain object (`builderResult` takes
-// it as `unknown` — the reflected node comes from the injected type, so the
-// carrier is only the nested runtime value). Typed `object`, never `RunType`,
-// exactly like the composer carriers in compose.ts.
-
-/** Wraps a base array/tuple carrier with whatever array keywords `params`
- *  declares, composing the same carrier nodes the engine already understands
- *  (a `formattedArray` brand for the literal bounds, a `contains` child slot).
- *  Returns the base unchanged when `params` is undefined/empty. **/
-export function applyArrayParams(base: object, params: FormattedArrayParamsValueFirst | undefined): object {
-  if (!params) return base;
-  let node: object = base;
-  const literal: Record<string, unknown> = {};
-  if (params.minItems !== undefined) literal.minItems = params.minItems;
-  if (params.maxItems !== undefined) literal.maxItems = params.maxItems;
-  if (params.uniqueItems !== undefined) literal.uniqueItems = params.uniqueItems;
-  if (Object.keys(literal).length > 0) {
-    node = {type: FORMATTED_ARRAY_NAME, child: node, params: literal};
-  }
-  if (params.contains !== undefined) {
-    const bounds: Record<string, unknown> = {};
-    if (params.minContains !== undefined) bounds.minContains = params.minContains;
-    if (params.maxContains !== undefined) bounds.maxContains = params.maxContains;
-    node = {type: 'contains', child: node, contains: params.contains, bounds};
-  }
-  return node;
-}
-
-/** Wraps a base object/record carrier with whatever object keywords `params`
- *  declares (a `formattedObject` brand for the literal bounds + closedness,
- *  the `patternProperties` / `propertyNames` child slots). **/
-export function applyObjectParams(base: object, params: FormattedObjectParamsValueFirst | undefined): object {
-  if (!params) return base;
-  let node: object = base;
-  const literal: Record<string, unknown> = {};
-  if (params.minProperties !== undefined) literal.minProperties = params.minProperties;
-  if (params.maxProperties !== undefined) literal.maxProperties = params.maxProperties;
-  if (params.closed !== undefined) literal.closed = params.closed;
-  if (params.closedPatterns !== undefined) literal.closedPatterns = params.closedPatterns;
-  if (Object.keys(literal).length > 0) {
-    node = {type: FORMATTED_OBJECT_NAME, child: node, params: literal};
-  }
-  if (params.patternProperties !== undefined) {
-    node = {type: 'patternProperties', child: node, patterns: params.patternProperties};
-  }
-  if (params.propertyNames !== undefined) {
-    node = {type: 'propertyNames', child: node, keys: params.propertyNames};
-  }
-  return node;
-}
+// NO runtime counterpart to any of the above, deliberately. A builder's
+// keywords reach the engine through the REFLECTED TYPE, never through a
+// runtime value: `builderResult` resolves the injected id against the cache and
+// discards the carrier it was handed (`presetBuilder` proves the point — it
+// passes an empty `formatParams` stub for formats with real params). The
+// carrier survives only on the un-injected fallback path, where the sole thing
+// read of it is `isRunTypeLike`'s `'type' in arg` sniff. Composing the params
+// into it a second time would be metadata no reader ever consults.
