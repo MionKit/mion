@@ -7,6 +7,7 @@
 // except where unavoidable (per CLAUDE.md): every helper is an `extends`-guard +
 // indexed-access read.
 
+import type {__rtOneOf, __rtFormatName} from '../runtypes/sentinelKeys.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {InferType} from '../runtypes/builderTypes.ts';
 
@@ -209,7 +210,7 @@ type OneOfArm<Arm, All extends readonly unknown[]> = Arm extends null | undefine
   ? OneOfNullishDup<Arm, All> extends true
     ? never
     : Arm
-  : Arm & {readonly __rtOneOf?: All};
+  : Arm & {readonly [__rtOneOf]?: All};
 // Mutual-extends equality keeps the match exact for the pure null /
 // undefined branches this guards; a nullish value hiding inside a
 // union-valued branch is counted by the runtime (its other arms carry the
@@ -267,7 +268,7 @@ type Interpolatable = string | number | bigint | boolean | null | undefined;
  *  required-property `extends` check: the sentinels are optional on `TypeFormat`
  *  (so a format stays assignable from its base), and an optional prop does not
  *  satisfy a required-prop constraint — but the key is still present in `keyof`. **/
-type Unbrand<X> = '__rtFormatName' extends keyof X
+type Unbrand<X> = typeof __rtFormatName extends keyof X
   ? X extends string
     ? string
     : X extends number

@@ -1,3 +1,5 @@
+import type {__rtFormatName, __rtNot, __rtContains, __rtPatternProps, __rtPropNames, __rtOneOf} from './sentinelKeys.ts';
+
 /* ########
  * 2024 ma-jerez
  * Author: Ma-jerez
@@ -180,7 +182,13 @@ export type DataOnly<T, Depth extends number = 8> = Depth extends 0
 // shape-filtered (__rtNot carries an arbitrary child) is gated off records
 // entirely; a record-based negation under DataOnly stays a documented
 // residual rather than a silent strip of record values.
-type DataOnlySentinelKeys = '__rtFormatName' | '__rtNot' | '__rtContains' | '__rtPatternProps' | '__rtPropNames' | '__rtOneOf';
+type DataOnlySentinelKeys =
+  | typeof __rtFormatName
+  | typeof __rtNot
+  | typeof __rtContains
+  | typeof __rtPatternProps
+  | typeof __rtPropNames
+  | typeof __rtOneOf;
 // The common path (every plain object / array / tuple in every DataOnly
 // walk) pays ONE Extract + ONE index-signature check: a literal sentinel
 // key in keyof T is definitive (the __rt namespace is reserved), and only
@@ -197,10 +205,10 @@ type DataOnlyProperStringLiteral<X> = [X] extends [never] ? false : string exten
 // arbitrary child and cannot be shape-filtered — record-based negation
 // stays a documented DataOnly divergence rather than a silent strip.
 type DataOnlyRecordSentinelKept<T> = true extends
-  | DataOnlyProperStringLiteral<NonNullable<T['__rtFormatName' & keyof T]>>
-  | DataOnlySentinelProbe<NonNullable<T['__rtPatternProps' & keyof T]>, Record<string, {rt$value: unknown}>>
-  | DataOnlySentinelProbe<NonNullable<T['__rtPropNames' & keyof T]>, string>
-  | DataOnlySentinelProbe<NonNullable<T['__rtOneOf' & keyof T]>, readonly [unknown, unknown, ...unknown[]]>
+  | DataOnlyProperStringLiteral<NonNullable<T[typeof __rtFormatName & keyof T]>>
+  | DataOnlySentinelProbe<NonNullable<T[typeof __rtPatternProps & keyof T]>, Record<string, {rt$value: unknown}>>
+  | DataOnlySentinelProbe<NonNullable<T[typeof __rtPropNames & keyof T]>, string>
+  | DataOnlySentinelProbe<NonNullable<T[typeof __rtOneOf & keyof T]>, readonly [unknown, unknown, ...unknown[]]>
   ? true
   : false;
 type DataOnlyLadder<T, Depth extends number> =

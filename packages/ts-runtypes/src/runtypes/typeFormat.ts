@@ -1,3 +1,5 @@
+import type {__rtFormatName, __rtFormatParams, __rtFormatBrand} from './sentinelKeys.ts';
+
 // TypeFormat is the brand marker for runtype-format types
 // (String, UUIDv4, Email, …). Concrete format types
 // live under `src/formats/` (the `ts-runtypes/formats`
@@ -7,7 +9,8 @@
 // The shape mirrors `TypeFormat<Base, Name, Params, BrandName>`
 // (ref: packages/run-types/src/lib/formats.runtype.ts) but uses a plain
 // two-property brand object — `__rtFormatName` + `__rtFormatParams` —
-// instead of deepkit's TypeAnnotation tag. Both sides of the wire
+// instead of deepkit's TypeAnnotation tag. Both are SYMBOL keys (see
+// ./sentinelKeys.ts) so branding a type leaves its string keys untouched. Both sides of the wire
 // agree on the same brand shape: the tsgo-backed format scanner in
 // `ts-go-runtypes/internal/cachegen/runtype/typeid/formats.go` looks for exactly
 // these two sentinel properties and lifts them into the RunType's
@@ -57,6 +60,6 @@ export type TypeFormat<
   Params extends object,
   BrandName extends string = never,
 > = Base & {
-  readonly __rtFormatName?: Name;
-  readonly __rtFormatParams?: Params;
-} & ([BrandName] extends [never] ? unknown : {readonly __rtFormatBrand: BrandName});
+  readonly [__rtFormatName]?: Name;
+  readonly [__rtFormatParams]?: Params;
+} & ([BrandName] extends [never] ? unknown : {readonly [__rtFormatBrand]: BrandName});

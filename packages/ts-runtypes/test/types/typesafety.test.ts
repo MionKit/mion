@@ -623,19 +623,15 @@ function assertionsValueFirstBranding(): void {
 
 // ── Structural brand keys: exactly what a FormattedObject/FormattedArray exposes ──
 //
-// The keyword sentinels ride an INTERSECTION member, so `keyof` sees them:
-// `keyof FormattedObject<User, P>` is `keyof User | '__rtFormatName' |
-// '__rtFormatParams'`. That is the resolver's contract rather than a preference
-// — Go reads those two by literal property NAME and folds them into the id hash
-// (typeid/formats.go), so re-keying them onto a `unique symbol` would move every
-// id across Go and JS in one step. Filed as
-// docs/todos/structural-brand-symbol-keys.md.
+// The keyword sentinels ride SYMBOL keys (src/runtypes/sentinelKeys.ts), so
+// branding a type leaves the STRING keys of the shape it brands untouched.
+// These assertions pin that contract from both directions: what must stay
+// clean, and the one thing that cannot be cleaned.
 //
-// These assertions pin the blast radius so a change to it fails the build
-// instead of surprising a consumer. The `@ts-expect-error` lines pin what
-// currently LEAKS: if the leak is ever fixed they go unused and TS2578 reds this
-// file, which is the prompt to update the pins. The plain lines pin what must
-// keep working regardless.
+// The `@ts-expect-error` line pins the residue: a property cannot be hidden
+// from `keyof` at all, so the bare `keyof BoundedUser` still yields the two
+// symbols (as symbols). If TypeScript ever changes that, the directive goes
+// unused and TS2578 reds this file — the prompt to update the pin.
 function assertionsStructuralBrandKeys() {
   interface User {
     id: string;
@@ -644,40 +640,54 @@ function assertionsStructuralBrandKeys() {
   type BoundedUser = TF.FormattedObject<User, {minProperties: 1}>;
   type UniqueTags = TF.FormattedArray<string[], {uniqueItems: true}>;
 
-  // Unaffected: a plain literal still assigns (the sentinels are optional, so a
-  // branded type stays interchangeable with the shape it brands), properties
-  // read normally, and the array stays an array.
+  // CLEAN — every operation that treats the value as data sees the user's
+  // members and nothing else. This is the whole point of the symbol keys: with
+  // string keys each of these also surfaced '__rtFormatName'/'__rtFormatParams'.
+  const objectKeys: 'id' | 'name' = null as unknown as Extract<keyof BoundedUser, string>;
+  const arrayKeys: keyof string[] = null as unknown as Extract<keyof UniqueTags, string>;
+  const spreadOfUser = {...(null as unknown as BoundedUser)};
+  const spreadKeys: 'id' | 'name' = null as unknown as Extract<keyof typeof spreadOfUser, string>;
+
+  // CLEAN — a string-constrained key helper (the shape `Object.keys` wrappers
+  // take) needs no filtering at the call site.
+  const helperKeys: ('id' | 'name')[] = keysOf(null as unknown as BoundedUser);
+
+  // CLEAN — a string-keyed mapped type rebuilds the user's shape exactly.
+  type Rebuilt = {[K in Extract<keyof BoundedUser, string>]: BoundedUser[K]};
+  const rebuilt: {id: string; name: string} = null as unknown as Rebuilt;
+
+  // CLEAN — branding never cost assignability: the sentinels are optional, so a
+  // plain literal still flows in, members read normally, and a branded array is
+  // still an array.
   const user: BoundedUser = {id: 'u1', name: 'Ada'};
   const userId: string = user.id;
   const tags: UniqueTags = ['a', 'b'];
   const firstTag: string = tags[0];
   const tagCount: number = tags.length;
 
-  // Unaffected: a branded type used AS A PROPERTY does not leak into the
-  // enclosing type's keys — the blast radius stops at the branded type itself.
+  // CLEAN — a branded type used as a PROPERTY never affected the enclosing keys.
   interface Wrapper {
     inner: BoundedUser;
     other: number;
   }
   const wrapperKeys: 'inner' | 'other' = null as unknown as keyof Wrapper;
 
-  const spreadOfUser = {...user};
+  // RESIDUE (pinned): the bare `keyof` still yields the sentinel symbols.
+  // @ts-expect-error — keyof BoundedUser is 'id' | 'name' | typeof __rtFormatName | typeof __rtFormatParams
+  const bareKeyof: 'id' | 'name' = null as unknown as keyof BoundedUser;
 
-  // LEAKS (pinned): key enumeration sees the two sentinels.
-  // @ts-expect-error — keyof BoundedUser also yields '__rtFormatName' | '__rtFormatParams'
-  const objectKeys: 'id' | 'name' = null as unknown as keyof BoundedUser;
-  // @ts-expect-error — the array brand is equally visible to keyof
-  const arrayKeys: keyof string[] = null as unknown as keyof UniqueTags;
-  // @ts-expect-error — and an object spread carries them onto the result type
-  const spreadKeys: 'id' | 'name' = null as unknown as keyof typeof spreadOfUser;
-
+  void objectKeys;
+  void arrayKeys;
+  void spreadKeys;
+  void helperKeys;
+  void rebuilt;
   void user;
   void userId;
   void tags;
   void firstTag;
   void tagCount;
   void wrapperKeys;
-  void objectKeys;
-  void arrayKeys;
-  void spreadKeys;
+  void bareKeyof;
 }
+
+declare function keysOf<T extends object>(o: T): Extract<keyof T, string>[];

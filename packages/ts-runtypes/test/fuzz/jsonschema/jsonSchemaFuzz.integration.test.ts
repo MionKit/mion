@@ -83,9 +83,22 @@ function buildJsonSchemaModule(): string {
   const start = source.indexOf('// #region jsonschema-extract');
   const end = source.indexOf('// #endregion jsonschema-extract');
   if (start === -1 || end === -1) throw new Error('jsonschema-extract region markers not found');
-  return `type TypeFormat<Base, Name extends string, Params extends object> = Base & {
-  readonly __rtFormatName?: Name;
-  readonly __rtFormatParams?: Params;
+  // The sentinel KEY symbols the sliced regions reference. They only have to
+  // carry the same DECLARATION NAMES as src/runtypes/sentinelKeys.ts — the
+  // resolver matches a symbol-keyed property on that name — so declaring them
+  // locally makes the slice self-contained without importing the real module
+  // (which serve/ops mode cannot reach; see
+  // docs/todos/jsonschema-fuzz-real-module-import.md).
+  return `declare const __rtFormatName: unique symbol;
+declare const __rtFormatParams: unique symbol;
+declare const __rtContains: unique symbol;
+declare const __rtPatternProps: unique symbol;
+declare const __rtPropNames: unique symbol;
+declare const __rtOneOf: unique symbol;
+declare const __rtNot: unique symbol;
+type TypeFormat<Base, Name extends string, Params extends object> = Base & {
+  readonly [__rtFormatName]?: Name;
+  readonly [__rtFormatParams]?: Params;
 };
 type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
 type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;

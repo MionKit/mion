@@ -74,6 +74,48 @@ const (
 	oneOfProp = "__rtOneOf"
 )
 
+// lateBoundNamePrefix is how tsgo spells a property whose key is a `unique
+// symbol` instead of a string: InternalSymbolNamePrefix, '@', the symbol
+// DECLARATION's name, '@', then a per-program symbol id (see
+// checker.getESSymbolLikeTypeForNode). The trailing id is NOT stable across
+// programs, so the match runs to the second '@' and no further.
+//
+// The prefix is taken from the upstream constant rather than spelled out, so a
+// change to it arrives as a compile-time change here instead of a silent
+// mismatch. The '@' separators are still upstream's own convention, which is
+// why TestSymbolKeyedSentinel_MatchesStringKeyed resolves a symbol-keyed brand
+// through the REAL checker: if upstream ever renames the scheme, that test goes
+// red instead of every branded type quietly degrading to its base.
+var lateBoundNamePrefix = ast.InternalSymbolNamePrefix + "@"
+
+// isSentinelProp reports whether a property name is the sentinel `base`,
+// spelled either way:
+//
+//   - as a `unique symbol` key whose declaration is named `base` — what the
+//     SHIPPED types use, so the sentinels stay out of a branded type's string
+//     keys (`Extract<keyof T, string>`, object spread, string-constrained
+//     mapped types all come back clean for the user's own shape);
+//   - as a plain string property named `base` — still recognised, which is
+//     what lets a hand-written .d.ts fixture and the fuzz's INDEPENDENT
+//     type-first oracle spell the sentinel literally without importing the
+//     symbol. Both spellings fold to the same id: the property name never
+//     reaches the hash (memberIDs skips it, the annotation supplies the id).
+//
+// LateBoundNamePrefixForTest exposes the prefix to the package's external test
+// so its failure message can name the exact scheme that stopped matching.
+func LateBoundNamePrefixForTest() string { return lateBoundNamePrefix }
+
+func isSentinelProp(name, base string) bool {
+	if name == base {
+		return true
+	}
+	if !strings.HasPrefix(name, lateBoundNamePrefix) {
+		return false
+	}
+	rest := name[len(lateBoundNamePrefix):]
+	return len(rest) > len(base) && strings.HasPrefix(rest, base) && rest[len(base)] == '@'
+}
+
 // IsFormatBrandMember reports whether tsType is a pure TypeFormat nominal-brand
 // member — an object whose ONLY property is `__rtFormatBrand`. tsgo keeps the
 // `Base & {sentinels} & {__rtFormatBrand}` intersection as distinct object
@@ -92,7 +134,7 @@ func IsFormatBrandMember(typeChecker *checker.Checker, tsType *checker.Type) boo
 	if len(properties) != 1 {
 		return false
 	}
-	return properties[0].Name == formatBrandProp
+	return isSentinelProp(properties[0].Name, formatBrandProp)
 }
 
 // FormatAnnotationFromType inspects an object-literal *checker.Type for the
@@ -107,10 +149,10 @@ func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type
 	properties := typeChecker.GetPropertiesOfType(tsType)
 	var nameSymbol, paramsSymbol *ast.Symbol
 	for _, symbol := range properties {
-		switch symbol.Name {
-		case formatNameProp:
+		switch {
+		case isSentinelProp(symbol.Name, formatNameProp):
 			nameSymbol = symbol
-		case formatParamsProp:
+		case isSentinelProp(symbol.Name, formatParamsProp):
 			paramsSymbol = symbol
 		}
 	}
@@ -204,7 +246,7 @@ func MergeFormatAnnotations(annotations []*protocol.FormatAnnotation) (*protocol
 // surfaces as a real object property when TS merges it into an
 // intersection's property set.
 func IsNotSentinelPropName(name string) bool {
-	return name == notChildProp
+	return isSentinelProp(name, notChildProp)
 }
 
 // IsFormatSentinelPropName is the TypeFormat twin of IsNotSentinelPropName:
@@ -212,7 +254,7 @@ func IsNotSentinelPropName(name string) bool {
 // …}`) onto node.FormatAnnotation / the id's format key, the merged property
 // walks must not surface the brand sentinels as real members.
 func IsFormatSentinelPropName(name string) bool {
-	return name == formatNameProp || name == formatParamsProp || name == formatBrandProp
+	return isSentinelProp(name, formatNameProp) || isSentinelProp(name, formatParamsProp) || isSentinelProp(name, formatBrandProp)
 }
 
 // IsContainsSentinelPropName is the contains twin for the property walks.
@@ -221,7 +263,8 @@ func IsFormatSentinelPropName(name string) bool {
 // (GetPropertiesOfType on the whole type) surface `__rtOneOf` as a prop,
 // and it must never become a real member or an id contribution.
 func IsContainsSentinelPropName(name string) bool {
-	return name == containsChildProp || name == patternPropsProp || name == propNamesProp || name == oneOfProp
+	return isSentinelProp(name, containsChildProp) || isSentinelProp(name, patternPropsProp) ||
+		isSentinelProp(name, propNamesProp) || isSentinelProp(name, oneOfProp)
 }
 
 // oneOfCarrierTuple inspects one intersection CONSTITUENT for the oneOf
@@ -235,7 +278,7 @@ func oneOfCarrierTuple(typeChecker *checker.Checker, constituent *checker.Type) 
 		return nil, nil
 	}
 	properties := typeChecker.GetPropertiesOfType(constituent)
-	if len(properties) != 1 || properties[0].Name != oneOfProp {
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, oneOfProp) {
 		return nil, nil
 	}
 	return oneOfTupleFromSymbol(typeChecker, properties[0])
@@ -252,7 +295,7 @@ func oneOfCarrierFromProps(typeChecker *checker.Checker, member *checker.Type) (
 		return nil, nil
 	}
 	for _, symbol := range typeChecker.GetPropertiesOfType(member) {
-		if symbol.Name == oneOfProp {
+		if isSentinelProp(symbol.Name, oneOfProp) {
 			return oneOfTupleFromSymbol(typeChecker, symbol)
 		}
 	}
@@ -383,7 +426,7 @@ func PatternPropsFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 		return nil, false
 	}
 	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || properties[0].Name != patternPropsProp {
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, patternPropsProp) {
 		return nil, false
 	}
 	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
@@ -419,7 +462,7 @@ func PropNamesChildFromMember(typeChecker *checker.Checker, tsType *checker.Type
 		return nil
 	}
 	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || properties[0].Name != propNamesProp {
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, propNamesProp) {
 		return nil
 	}
 	childType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
@@ -438,7 +481,7 @@ func ContainsSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 		return nil, 0, 0, false
 	}
 	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || properties[0].Name != containsChildProp {
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, containsChildProp) {
 		return nil, 0, 0, false
 	}
 	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
@@ -496,7 +539,7 @@ func NotChildTypeFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 		return nil
 	}
 	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || properties[0].Name != notChildProp {
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, notChildProp) {
 		return nil
 	}
 	// Same optional-sentinel discipline as the format props: the prop is

@@ -22,6 +22,7 @@
 
 import {builderResult, lastInjectedId} from '../runtypes/builderCore.ts';
 import type {RunType} from '../runtypes/types.ts';
+import type {__rtFormatName, __rtFormatParams, __rtNot} from '../runtypes/sentinelKeys.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
 
 /** The shape a `Not` operand must have. NOTE: the optional sentinels make
@@ -29,8 +30,8 @@ import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
  *  that is WHY `ValidNotOperand` exists (it keys on actually inferring a
  *  format-name literal, which a bare primitive cannot produce). */
 export type NotableFormat = (string | number | bigint) & {
-  readonly __rtFormatName?: string;
-  readonly __rtFormatParams?: object;
+  readonly [__rtFormatName]?: string;
+  readonly [__rtFormatParams]?: object;
 };
 
 /** True only when EVERY union arm of F carries a real format-name literal.
@@ -38,7 +39,7 @@ export type NotableFormat = (string | number | bigint) & {
  *  `[string] extends [N]` detects; for a genuine format N is `'email' |
  *  undefined`-shaped and the test fails, marking the arm real. */
 type EveryArmIsFormat<F> = (
-  F extends {readonly __rtFormatName?: infer N} ? ([string] extends [N] ? false : true) : false
+  F extends {readonly [__rtFormatName]?: infer N} ? ([string] extends [N] ? false : true) : false
 ) extends true
   ? true
   : false;
@@ -62,7 +63,7 @@ export type Not<F extends NotableFormat & ValidNotOperand<F>> = ([F] extends [st
   ? string
   : [F] extends [number]
     ? number
-    : bigint) & {readonly __rtNot?: F};
+    : bigint) & {readonly [__rtNot]?: F};
 
 /** Value-first negation: `TF.not(TF.email())` / `RT.not(RT.string({pattern}))`.
  *  Wraps a format builder's RunType; the reflected return type IS `Not<F>`,

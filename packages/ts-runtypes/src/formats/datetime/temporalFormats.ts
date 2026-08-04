@@ -29,6 +29,8 @@
 // units only; PlainDate/PlainYearMonth → date units; PlainDateTime/
 // ZonedDateTime → both) and emits `Temporal.X.compare(value, bound) >= 0/<= 0`.
 
+import type {__rtFormatName, __rtFormatParams} from '../../runtypes/sentinelKeys.ts';
+
 import {builderResult} from '../../runtypes/builderCore.ts';
 import type {MinMax} from './dateTimeParams.ts';
 import type {RunType} from '../../runtypes/types.ts';
@@ -66,33 +68,33 @@ type TPlainMonthDay = TemporalInstanceOf<'PlainMonthDay'>;
 type TDuration = TemporalInstanceOf<'Duration'>;
 
 export type Instant<P extends MinMax = MinMax> = TInstant & {
-  readonly __rtFormatName?: 'temporalInstant';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalInstant';
+  readonly [__rtFormatParams]?: P;
 };
 
 export type ZonedDateTime<P extends MinMax = MinMax> = TZonedDateTime & {
-  readonly __rtFormatName?: 'temporalZonedDateTime';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalZonedDateTime';
+  readonly [__rtFormatParams]?: P;
 };
 
 export type PlainDate<P extends MinMax = MinMax> = TPlainDate & {
-  readonly __rtFormatName?: 'temporalPlainDate';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalPlainDate';
+  readonly [__rtFormatParams]?: P;
 };
 
 export type PlainTime<P extends MinMax = MinMax> = TPlainTime & {
-  readonly __rtFormatName?: 'temporalPlainTime';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalPlainTime';
+  readonly [__rtFormatParams]?: P;
 };
 
 export type PlainDateTime<P extends MinMax = MinMax> = TPlainDateTime & {
-  readonly __rtFormatName?: 'temporalPlainDateTime';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalPlainDateTime';
+  readonly [__rtFormatParams]?: P;
 };
 
 export type PlainYearMonth<P extends MinMax = MinMax> = TPlainYearMonth & {
-  readonly __rtFormatName?: 'temporalPlainYearMonth';
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: 'temporalPlainYearMonth';
+  readonly [__rtFormatParams]?: P;
 };
 
 // Unbranded base instance type per temporal format — the type a no-params

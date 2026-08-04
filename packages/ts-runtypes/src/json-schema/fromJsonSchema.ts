@@ -27,6 +27,8 @@
 // shape a hand-written `type T = {next?: T}` produces — which the id computer
 // walks with its back-ref token (maxWalkDepth guarded).
 
+import type {__rtNot} from '../runtypes/sentinelKeys.ts';
+
 import type {
   Email,
   UUID,
@@ -886,13 +888,13 @@ type NotArm<K extends 'string' | 'number' | 'array' | 'object', S, NS, Root, F e
       ? K extends NSTypeGateOf<NS>
         ? NSKindOnly<NS> extends true
           ? never
-          : GateArmFrom<K, S, Root, F> & {readonly __rtNot?: NotChildFor<K, NS, Root, F>}
+          : GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: NotChildFor<K, NS, Root, F>}
         : GateArmFrom<K, S, Root, F>
       : Extract<keyof NS, ValueScopedKeys> extends never
         ? K extends NSFamilyNamesOf<NS>
-          ? GateArmFrom<K, S, Root, F> & {readonly __rtNot?: NotChildFor<K, NS, Root, F>}
+          ? GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: NotChildFor<K, NS, Root, F>}
           : never
-        : GateArmFrom<K, S, Root, F> & {readonly __rtNot?: FromJsonSchemaIn<NS, Root, F>}
+        : GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
     : never;
 // Sentinel child: family-projected when NS carries no value-scoped keywords
 // (exact per kind relevance, single-kind for the Go negation compile, and id-
@@ -1234,7 +1236,7 @@ type NotLayer<S, Root, F extends [unknown]> = S extends {not: infer NS}
           : // A $ref / combinator sits beside `not`: the core may hold a lazily
             // tied fixpoint, and ANY probe of it (distribution included) blows
             // the instantiation depth — attach the sentinel verbatim instead.
-            FromJsonSchemaCore<S, Root, F> & {readonly __rtNot?: FromJsonSchemaIn<NS, Root, F>}
+            FromJsonSchemaCore<S, Root, F> & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
   : FromJsonSchemaCore<S, Root, F>;
 // The keywords whose CORE translation asserts across kinds (if/dependent* are
 // owned by the layers above, so their presence must not reroute the `not`).
@@ -1270,7 +1272,7 @@ type DistributeNotV<T, NS, Root, F extends [unknown], NV extends Verdict, TV ext
           ? T
           : never
         : T extends unknown
-          ? T & {readonly __rtNot?: FromJsonSchemaIn<NS, Root, F>}
+          ? T & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
           : never;
 
 // The CORE is a CONJUNCTION of independent keyword parts — 2020-12 evaluates

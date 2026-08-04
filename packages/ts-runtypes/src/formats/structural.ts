@@ -29,6 +29,7 @@
 // from the schema's own `properties`.
 
 import type {RunType} from '../runtypes/types.ts';
+import type {__rtFormatName, __rtFormatParams, __rtContains, __rtPatternProps, __rtPropNames} from '../runtypes/sentinelKeys.ts';
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
@@ -37,7 +38,11 @@ type Flatten<T> = {[K in keyof T]: T[K]};
 // jsonSchemaFuzz.integration.test.ts), so those tests exercise these REAL type
 // definitions rather than hand-written copies. It is RunType-free on purpose
 // (the value-first halves that need RunType live BELOW the region); `Flatten`
-// (above) is supplied by the translation module the tests slice alongside this.
+// (above) and the sentinel KEY symbols are supplied by the module the tests
+// slice this into. The key symbols only have to be declared with the same NAMES
+// (`declare const __rtFormatName: unique symbol`, …) — the resolver matches a
+// symbol-keyed property on its declaration name, so a locally declared symbol
+// is recognised exactly like the shipped one.
 
 /** The literal format-name strings the structural brands carry. Kept in sync
  *  with the Go emitters (internal/cachegen/typefunctions/formats/structural)
@@ -49,8 +54,8 @@ export const FORMATTED_OBJECT_NAME = 'formattedObject';
  *  primitive-constrained, so array / object brands carry the sentinels as a
  *  plain intersection member — same encoding the schema door emits). **/
 type StructuralBrand<Name extends string, P extends object> = {
-  readonly __rtFormatName?: Name;
-  readonly __rtFormatParams?: P;
+  readonly [__rtFormatName]?: Name;
+  readonly [__rtFormatParams]?: P;
 };
 
 // ─────────────────────────── Array params ───────────────────────────
@@ -85,7 +90,7 @@ type ArrayLiteralPart<P> = {readonly [K in Extract<keyof P, ArrayLiteralKeys>]: 
 // `{rt$child: C; rt$min: N|1; rt$max?: M}` under an optional `__rtContains`.
 type ContainsSlot<P> = P extends {contains: infer C}
   ? {
-      readonly __rtContains?: Flatten<
+      readonly [__rtContains]?: Flatten<
         {readonly rt$child: C} & (P extends {minContains: infer N extends number} ? {readonly rt$min: N} : {readonly rt$min: 1}) &
           (P extends {maxContains: infer N extends number} ? {readonly rt$max: N} : unknown)
       >;
@@ -128,7 +133,7 @@ type ObjectLiteralPart<P> = {readonly [K in Extract<keyof P, ObjectLiteralKeys>]
 // is the pattern's value type.
 type PatternPropsSlot<P> = P extends {patternProperties: infer M}
   ? {
-      readonly __rtPatternProps?: {
+      readonly [__rtPatternProps]?: {
         readonly [K in keyof M]: {
           readonly rt$key: string & StructuralBrand<'stringFormat', {readonly pattern: {readonly source: K; readonly flags: ''}}>;
           readonly rt$value: M[K];
@@ -139,7 +144,7 @@ type PatternPropsSlot<P> = P extends {patternProperties: infer M}
 
 // The `propertyNames` slot — matches the door's PropNamesPart (`never` is the
 // `propertyNames: false` case: no key may be present).
-type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly __rtPropNames?: N} : unknown;
+type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly [__rtPropNames]?: N} : unknown;
 
 /** An object/record base carrying every object keyword in `P`. The literal
  *  bounds + closedness ride the `formattedObject` brand (added only when at

@@ -9,7 +9,7 @@
 
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
+import {makeMeasurer, SENTINEL_KEYS_PREAMBLE, type MeasureResult} from './compileHarness.ts';
 
 export type {MeasureResult};
 
@@ -36,8 +36,8 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const FRIENDLY_PREAMBLE = `${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
-const MOCK_PREAMBLE = `${extractRegion(MOCK_TS, 'mockdata-extract')}\n${ASSERT_PREAMBLE}\n`;
+const FRIENDLY_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${extractRegion(FRIENDLY_TS, 'friendlytext-extract')}\n${ASSERT_PREAMBLE}\n`;
+const MOCK_PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${extractRegion(MOCK_TS, 'mockdata-extract')}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `FRIENDLY_PREAMBLE + snippet`; report errors + raw/net instantiations. **/
 export const measureFriendly = makeMeasurer(FRIENDLY_PREAMBLE);

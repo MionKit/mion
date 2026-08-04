@@ -29,7 +29,7 @@ import {measureFriendly} from './enrichHarness.ts';
 
 // Local format-brand carrier for snippets (matches TypeFormat's params sentinel).
 const BRAND = `
-      type Fmt<Base, P extends object> = Base & {readonly __rtFormatParams?: P};
+      type Fmt<Base, P extends object> = Base & {readonly [__rtFormatParams]?: P};
 `;
 
 function check(snippet: string, budget: number): number {

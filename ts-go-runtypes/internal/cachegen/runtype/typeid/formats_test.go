@@ -26,17 +26,43 @@ const runtypesWithFormatsDTS = `declare module '@ts-runtypes/core' {
 }
 `
 
+// runtypesWithSymbolFormatsDTS is the SHIPPED spelling of the same alias: the
+// sentinels ride `unique symbol` keys (src/runtypes/sentinelKeys.ts) so that
+// branding a type leaves the STRING keys of the shape it brands untouched.
+// tsgo names such a property InternalSymbolNamePrefix + "@" + the DECLARATION's
+// name + "@" + a per-program id, which is what isSentinelProp matches.
+const runtypesWithSymbolFormatsDTS = `declare module '@ts-runtypes/core' {
+  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
+  export function getRunTypeId<T>(id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+  export function getRunTypeId<T>(value: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+  export const __rtFormatName: unique symbol;
+  export const __rtFormatParams: unique symbol;
+  export type TypeFormat<Base, Name extends string, Params, BrandName extends string = never> = Base & {
+    readonly [__rtFormatName]?: Name;
+    readonly [__rtFormatParams]?: Params;
+  };
+}
+`
+
 // runFormatScan builds an in-memory program with the format-aware .d.ts
 // overlay, scans the supplied code, and returns the root call site's
 // RunType. Sibling of rootFor in structural_test.go — kept separate so
 // the format-specific .d.ts doesn't leak into the shared overlay.
 func runFormatScan(t *testing.T, code string) *protocol.RunType {
 	t.Helper()
+	return runFormatScanWithDTS(t, runtypesWithFormatsDTS, code)
+}
+
+// runFormatScanWithDTS is runFormatScan over a caller-supplied marker .d.ts, so
+// the string-keyed and symbol-keyed spellings of the sentinels can be scanned
+// through the identical pipeline and compared.
+func runFormatScanWithDTS(t *testing.T, markerDTS, code string) *protocol.RunType {
+	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
 	dtsPath := tspath.ResolvePath(cwd, "runtypes.d.ts")
 	testPath := tspath.ResolvePath(cwd, "test.ts")
 	overlay := map[string]string{
-		dtsPath:  runtypesWithFormatsDTS,
+		dtsPath:  markerDTS,
 		testPath: code,
 	}
 	prog, err := program.NewInferred(program.Options{
@@ -320,5 +346,48 @@ getRunTypeId<T>();
 `)
 	if c.ID == a.ID {
 		t.Fatalf("a different maxLength must fork the id; both gave %q", a.ID)
+	}
+}
+
+// TestSymbolKeyedSentinel_MatchesStringKeyed is the tripwire for the ONE
+// compiler-internal detail this package depends on: how tsgo names a property
+// whose key is a `unique symbol`. The shipped types brand with symbol keys so
+// they stay out of a branded type's string keys, and the resolver recognises
+// them by matching that name.
+//
+// If upstream ever changes the naming scheme, the failure mode without this
+// test is SILENT and total: no sentinel is ever matched, every branded type
+// degrades to its base, and ids shift wholesale with nothing red. So assert the
+// end state directly — a symbol-keyed brand must be recognised, and must land
+// on the SAME structural id as the string-keyed spelling of the same type,
+// since the property name never reaches the hash.
+func TestSymbolKeyedSentinel_MatchesStringKeyed(t *testing.T) {
+	const code = `
+import {getRunTypeId} from '@ts-runtypes/core';
+import type {TypeFormat} from '@ts-runtypes/core';
+type FixtureFormat = TypeFormat<string, 'fixture', {tag: 1}>;
+getRunTypeId<FixtureFormat>();
+`
+	stringKeyed := runFormatScanWithDTS(t, runtypesWithFormatsDTS, code)
+	symbolKeyed := runFormatScanWithDTS(t, runtypesWithSymbolFormatsDTS, code)
+
+	if symbolKeyed.FormatAnnotation == nil {
+		t.Fatalf("symbol-keyed sentinels were NOT recognised: the brand degraded to a bare %v. "+
+			"isSentinelProp expects tsgo to name such a property %q + declName + \"@\" + symbolId; "+
+			"if upstream changed that scheme, update it there", symbolKeyed.Kind, typeid.LateBoundNamePrefixForTest())
+	}
+	if symbolKeyed.FormatAnnotation.Name != "fixture" {
+		t.Fatalf("symbol-keyed format name = %q, want %q", symbolKeyed.FormatAnnotation.Name, "fixture")
+	}
+	if got, ok := symbolKeyed.FormatAnnotation.Params["tag"]; !ok || got != float64(1) {
+		t.Fatalf("symbol-keyed params.tag = %v (ok=%v), want 1", got, ok)
+	}
+	if stringKeyed.FormatAnnotation == nil {
+		t.Fatalf("string-keyed sentinels were not recognised — the baseline itself is broken")
+	}
+	// The point of the whole encoding: how the key is SPELLED must not change
+	// the type's identity, so a fixture written either way caches as one entry.
+	if symbolKeyed.ID != stringKeyed.ID {
+		t.Fatalf("id depends on the sentinel key spelling: symbol-keyed %q vs string-keyed %q", symbolKeyed.ID, stringKeyed.ID)
 	}
 }

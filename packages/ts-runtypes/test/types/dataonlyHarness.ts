@@ -11,7 +11,7 @@
 
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
+import {makeMeasurer, SENTINEL_KEYS_PREAMBLE, type MeasureResult} from './compileHarness.ts';
 
 export type {MeasureResult};
 
@@ -63,7 +63,7 @@ type ExpectFalse<T extends false> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const PREAMBLE = `${TEMPORAL_PREAMBLE}\n${extractDataOnlyRegion()}\n${ASSERT_PREAMBLE}\n`;
+const PREAMBLE = `${SENTINEL_KEYS_PREAMBLE}\n${TEMPORAL_PREAMBLE}\n${extractDataOnlyRegion()}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `PREAMBLE + snippet` and report errors + raw/net instantiation counts. **/
 export const measureDataOnly = makeMeasurer(PREAMBLE);

@@ -12,6 +12,8 @@
 // test/types/enrichHarness.ts into the instantiation-budget compile test, so
 // it must reference only `lib` types + its own declarations.
 
+import type {__rtFormatParams} from '../runtypes/sentinelKeys.ts';
+
 // #region friendlytext-extract — FriendlyText machinery; sliced verbatim between
 // these markers by test/types/enrichHarness.ts. Self-contained: `lib` + own decls only.
 
@@ -94,7 +96,7 @@ type BareTemplates = DefaultOnlyTemplates | ({type: FriendlyTemplate} & {rt$defa
  *  was REMOVED (opaque to translation, reconcile and the checker). */
 export type ErrorTemplates<F = never> = [F] extends [never]
   ? BareTemplates
-  : F extends {readonly __rtFormatParams?: infer P}
+  : F extends {readonly [__rtFormatParams]?: infer P}
     ? [NonNullable<P>] extends [object]
       ? DefaultOnlyTemplates | ConstraintTemplates<NonNullable<P>>
       : BareTemplates

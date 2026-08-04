@@ -278,7 +278,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
           readonly required: readonly ['a'];
           readonly additionalProperties: false;
         }>,
-        {a: string} & {readonly __rtFormatName?: 'formattedObject'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
+        {a: string} & {readonly [__rtFormatName]?: 'formattedObject'; readonly [__rtFormatParams]?: {readonly closed: readonly ['a']}}
       >>;
       `,
       // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
@@ -297,15 +297,15 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly not: {readonly pattern: '^a'}}>,
-        string & {readonly __rtNot?: StringFormat<{readonly pattern: {readonly source: '^a'; readonly flags: ''}}>}
+        string & {readonly [__rtNot]?: StringFormat<{readonly pattern: {readonly source: '^a'; readonly flags: ''}}>}
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly not: {readonly enum: readonly [null, 5, 'a']}}>,
-        | (string & {readonly __rtNot?: null | 5 | 'a'})
-        | (number & {readonly __rtNot?: null | 5 | 'a'})
+        | (string & {readonly [__rtNot]?: null | 5 | 'a'})
+        | (number & {readonly [__rtNot]?: null | 5 | 'a'})
         | boolean
-        | (unknown[] & {readonly __rtNot?: null | 5 | 'a'})
-        | (Record<string, unknown> & {readonly __rtNot?: null | 5 | 'a'})
+        | (unknown[] & {readonly [__rtNot]?: null | 5 | 'a'})
+        | (Record<string, unknown> & {readonly [__rtNot]?: null | 5 | 'a'})
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
@@ -353,17 +353,17 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       `
       type _01 = Expect<Equal<
         FromJsonSchema<{readonly type: 'array'; readonly uniqueItems: true}>,
-        unknown[] & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {readonly uniqueItems: true}}
+        unknown[] & {readonly [__rtFormatName]?: 'formattedArray'; readonly [__rtFormatParams]?: {readonly uniqueItems: true}}
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly type: 'array'; readonly items: {readonly type: 'number'}; readonly maxItems: 3}>,
-        number[] & {readonly __rtFormatName?: 'formattedArray'; readonly __rtFormatParams?: {readonly maxItems: 3}}
+        number[] & {readonly [__rtFormatName]?: 'formattedArray'; readonly [__rtFormatParams]?: {readonly maxItems: 3}}
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly type: 'object'; readonly minProperties: 1; readonly maxProperties: 3}>,
         Record<string, unknown> & {
-          readonly __rtFormatName?: 'formattedObject';
-          readonly __rtFormatParams?: {readonly minProperties: 1; readonly maxProperties: 3};
+          readonly [__rtFormatName]?: 'formattedObject';
+          readonly [__rtFormatParams]?: {readonly minProperties: 1; readonly maxProperties: 3};
         }
       >>;
       type _04 = Expect<Equal<
@@ -372,7 +372,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
           readonly properties: {readonly a: {readonly type: 'string'}};
           readonly additionalProperties: false;
         }>,
-        {a?: string} & {readonly __rtFormatName?: 'formattedObject'; readonly __rtFormatParams?: {readonly closed: readonly ['a']}}
+        {a?: string} & {readonly [__rtFormatName]?: 'formattedObject'; readonly [__rtFormatParams]?: {readonly closed: readonly ['a']}}
       >>;
       `,
       // Raised 2448 → 2468 with the readOnly-lift gate (same reason as the

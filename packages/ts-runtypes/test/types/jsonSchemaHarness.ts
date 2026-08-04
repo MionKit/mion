@@ -25,6 +25,7 @@ const SNIPPET_FILE = fileURLToPath(new URL('./__jsonschema_measure__.ts', import
 // + every format brand the compile-test twins name, spelled once so the twins
 // (and the door output they compare against) resolve to the shipped types.
 const IMPORTS = `import type {FromJsonSchema, ExactJsonSchema} from '../../src/json-schema/fromJsonSchema.ts';
+import type {__rtFormatName, __rtFormatParams, __rtNot} from '../../src/runtypes/sentinelKeys.ts';
 import type {
   Email,
   UUID,

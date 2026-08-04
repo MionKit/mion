@@ -17,6 +17,27 @@
 
 import * as ts from 'typescript';
 
+/** The sentinel KEY symbols, declared for a SLICED preamble.
+ *
+ *  Harnesses here slice a `#region …-extract` block verbatim out of src, which
+ *  leaves behind whatever that file imports — including the `unique symbol`
+ *  keys the brands ride (src/runtypes/sentinelKeys.ts). Re-declaring them by the
+ *  same NAMES is enough: the resolver matches a symbol-keyed property on its
+ *  declaration name, and for a pure typecheck like this only the shape matters.
+ *  Slicing is what keeps these harnesses measuring the REAL machinery rather
+ *  than a copy of it, so supplying the few names a slice cannot carry is the
+ *  price of that fidelity. **/
+export const SENTINEL_KEYS_PREAMBLE = `
+declare const __rtFormatName: unique symbol;
+declare const __rtFormatParams: unique symbol;
+declare const __rtFormatBrand: unique symbol;
+declare const __rtNot: unique symbol;
+declare const __rtContains: unique symbol;
+declare const __rtPatternProps: unique symbol;
+declare const __rtPropNames: unique symbol;
+declare const __rtOneOf: unique symbol;
+`;
+
 export interface MeasureResult {
   /** Type-check + syntax errors, with line numbers rebased to the SNIPPET (the
    *  preamble offset removed) so messages point at the case's own code. **/
