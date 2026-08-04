@@ -1532,3 +1532,102 @@ export type AssertSchemaStoryTotality = [
   MustBeNever<Exclude<keyof SchemaStoryByFormatName, FormatName>>,
 ];
 type MustBeNever<T extends never> = T;
+
+// ───────────────────── keyword lowering contract ─────────────────────────
+//
+// The other direction of the same anti-drift idea: every keyword this module
+// ACCEPTS (`keyof RootJsonSchemaInput`, i.e. the nested vocabulary plus the two
+// root-only ones) must say where it lands. There are exactly seven channels,
+// and this file is a router between them — it owns no format type of its own,
+// so a row naming `format:` or `params:` is naming something imported from
+// ../formats. Adding a keyword without a row here breaks the build, which is
+// the point: an accepted keyword with no lowering is a constraint silently
+// dropped.
+
+type LoweringChannel =
+  /** Changes the recovered TypeScript type itself (members, slots, unions, literals). **/
+  | 'shape'
+  /** Selects a named format brand from ../formats. **/
+  | 'format'
+  /** Rides a params entry on its kind's params bag. **/
+  | 'params'
+  /** Rides a sentinel slot the intersection collapse lifts off the base. **/
+  | 'slot'
+  /** Rewritten into other keywords before lowering. **/
+  | 'desugar'
+  /** Reference / anchor resolution — the target's own lowering applies. **/
+  | 'ref'
+  /** Accepted and ignored: it does not constrain the instance. **/
+  | 'ignored';
+
+/** One row per accepted keyword: `<channel>: <where it lands>`. Dual-channel
+ *  keywords (a value shape that routes two ways) name both, `+`-joined. **/
+type SchemaLoweringByKeyword = {
+  type: 'shape: the kind union every other keyword narrows';
+  properties: 'shape: object members';
+  required: 'shape: member optionality';
+  additionalProperties: 'shape+params: index signature (schema form) / FormattedObjectParams.closed (false)';
+  items: 'shape: array element or tuple rest';
+  prefixItems: 'shape: tuple slots (boolean slots pad or forbid a position)';
+  minItems: 'shape: required tuple slots — the padded tuple, never the brand';
+  maxItems: 'params: FormattedArrayParams.maxItems';
+  uniqueItems: 'params: FormattedArrayParams.uniqueItems';
+  minProperties: 'params: FormattedObjectParams.minProperties';
+  maxProperties: 'params: FormattedObjectParams.maxProperties';
+  contains: 'slot: __rtContains child, via FormattedArrayParams.contains';
+  minContains: 'slot: __rtContains rt$min (default 1), via FormattedArrayParams.minContains';
+  maxContains: 'slot: __rtContains rt$max, via FormattedArrayParams.maxContains';
+  contentEncoding: 'format: Base64 / Base32 / Base16 (the RFC 4648 anchored patterns)';
+  contentMediaType: 'format: JsonContent / JsonContentBase64 (parse check on the decoded content)';
+  patternProperties: 'slot: __rtPatternProps, via FormattedObjectParams.patternProperties';
+  propertyNames: 'slot: __rtPropNames, via FormattedObjectParams.propertyNames (false → never key)';
+  $anchor: 'ref: declares a #name target';
+  $dynamicAnchor: 'ref: declares a #name target (also registers as a plain anchor)';
+  $dynamicRef: 'ref: resolves #name statically — one candidate per document';
+  unevaluatedProperties: 'params: FormattedObjectParams.closed over the merged applicator set (false); indeterminate scopes resolve never';
+  unevaluatedItems: 'params: FormattedArrayParams.maxItems at the longest prefix (false); indeterminate scopes resolve never';
+  enum: 'shape: literal union';
+  const: 'shape: single literal';
+  anyOf: 'shape: plain union (at least one branch)';
+  oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
+  allOf: 'shape: intersection, merged by the collapse';
+  $defs: 'ref: named targets for #/$defs/<name>';
+  $ref: 'ref: resolves # (root fixpoint), #/$defs/<name> and #name';
+  format: 'format: the BrandBySchemaFormat row — unrecognised values stay annotations';
+  minLength: 'params: StringParams.minLength';
+  maxLength: 'params: StringParams.maxLength';
+  pattern: 'params: StringParams.pattern — {source, flags: ""}';
+  minimum: 'params: NumberParams.minimum, canonicalised to min by the scanner';
+  maximum: 'params: NumberParams.maximum, canonicalised to max by the scanner';
+  exclusiveMinimum: 'params: NumberParams.exclusiveMinimum, canonicalised to gt by the scanner';
+  exclusiveMaximum: 'params: NumberParams.exclusiveMaximum, canonicalised to lt by the scanner';
+  multipleOf: 'params: NumberParams.multipleOf';
+  not: 'slot: __rtNot — the type also narrows through the kind complement';
+  if: 'desugar: (If ∧ Then) ∨ (¬If ∧ Else)';
+  then: 'desugar: the if-branch; an annotation without if';
+  else: 'desugar: the if-branch; an annotation without if';
+  dependentRequired: 'desugar: (has-key ∧ required extras) ∨ ¬has-key, per entry';
+  dependentSchemas: 'desugar: (has-key ∧ schema) ∨ ¬has-key, per entry';
+  $schema: 'ignored: dialect declaration — 2020-12 is the one accepted value';
+  title: 'ignored: annotation';
+  description: 'ignored: annotation';
+  examples: 'ignored: annotation';
+  default: 'ignored: annotation';
+  $comment: 'ignored: annotation';
+  deprecated: 'ignored: annotation';
+  readOnly: 'ignored: annotation';
+  writeOnly: 'ignored: annotation';
+  $id: 'ignored: root-only identity metadata — an EMBEDDED $id is rejected at the key';
+  $vocabulary: 'ignored: root-only meta-schema declaration';
+};
+
+/** Compiles only while every accepted keyword has a row, every row names an
+ *  accepted keyword, and every row opens with a real channel. Exported
+ *  (internal, not re-exported from the subpath entry) so declaration emit keeps
+ *  the check alive. **/
+export type AssertSchemaLoweringTotality = [
+  MustBeNever<Exclude<keyof RootJsonSchemaInput, keyof SchemaLoweringByKeyword>>,
+  MustBeNever<Exclude<keyof SchemaLoweringByKeyword, keyof RootJsonSchemaInput>>,
+  MustBeNever<Exclude<SchemaLoweringByKeyword[keyof SchemaLoweringByKeyword], ChannelPrefixed>>,
+];
+type ChannelPrefixed = `${LoweringChannel}: ${string}` | `${LoweringChannel}+${LoweringChannel}: ${string}`;
