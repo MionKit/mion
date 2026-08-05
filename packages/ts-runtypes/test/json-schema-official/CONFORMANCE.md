@@ -23,7 +23,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | enum.json                                  |       51 |         34 |              0 |         0 |              0 |                17 |       0 |
 | exclusiveMaximum.json                      |        4 |          4 |              0 |         0 |              0 |                 0 |       0 |
 | exclusiveMinimum.json                      |        4 |          4 |              0 |         0 |              0 |                 0 |       0 |
-| format.json                                |      133 |        117 |             16 |         0 |              0 |                 0 |       0 |
+| format.json                                |      133 |        116 |             17 |         0 |              0 |                 0 |       0 |
 | if-then-else.json                          |       30 |         30 |              0 |         0 |              0 |                 0 |       0 |
 | infinite-loop-detection.json               |        2 |          2 |              0 |         0 |              0 |                 0 |       0 |
 | items.json                                 |       29 |         28 |              0 |         1 |              0 |                 0 |       0 |
@@ -45,9 +45,9 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | optional/format/duration.json              |       52 |         52 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/ecmascript-regex.json      |       12 |          6 |              0 |         6 |              0 |                 0 |       0 |
 | optional/format/email.json                 |       27 |         20 |              0 |         7 |              0 |                 0 |       0 |
-| optional/format/hostname.json              |       64 |         41 |              0 |        23 |              0 |                 0 |       0 |
+| optional/format/hostname.json              |       64 |         64 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/idn-email.json             |       18 |         16 |              0 |         2 |              0 |                 0 |       0 |
-| optional/format/idn-hostname.json          |       90 |         36 |              0 |        54 |              0 |                 0 |       0 |
+| optional/format/idn-hostname.json          |       90 |         90 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/ipv4.json                  |       41 |         41 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/ipv6.json                  |       40 |         40 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/iri-reference.json         |       13 |         13 |              0 |         0 |              0 |                 0 |       0 |
@@ -73,4 +73,4 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | unevaluatedProperties.json                 |      129 |         64 |              0 |        24 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1566** |         **20** |   **191** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1642** |         **21** |   **114** |          **0** |           **171** |  **40** |

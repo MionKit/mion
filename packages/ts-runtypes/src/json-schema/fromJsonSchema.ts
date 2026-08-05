@@ -36,6 +36,7 @@ import type {
   StringTime,
   StringDateTime,
   Hostname,
+  IdnHostname,
   IPv4,
   IPv6,
   Uri,
@@ -276,6 +277,7 @@ interface BrandBySchemaFormat {
   // Hostname, not Domain: a host name may be a single label (`localhost`),
   // where `TF.Domain` wants a dotted name with a TLD.
   readonly hostname: Hostname;
+  readonly 'idn-hostname': IdnHostname;
   readonly ipv4: IPv4;
   readonly ipv6: IPv6;
   // Uri, not Url: RFC 3986 accepts any scheme (`mailto:`, `urn:`), where

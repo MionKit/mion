@@ -3084,10 +3084,57 @@ export const STRING_FORMAT = {
     getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'hostname'})),
     mockType: () => createMockDataFn<TF.Hostname>(),
     getSamples: () => ({
-      valid: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com'],
-      invalid: ['-hostname', 'hostname-', 'host_name', '.example', 'example.', ''],
+      valid: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com', 'xn--9n2bp8q.xn--9t4b11yi5a'],
+      invalid: ['-hostname', 'hostname-', 'host_name', '.example', 'example.', '', 'xn--X', 'xn--hello-zed'],
     }),
-    expectedFormatErrors: () => [null, null, null, null, null, null],
+    expectedFormatErrors: () => [null, null, null, null, null, null, null, null],
+  },
+  idn_hostname: {
+    title: 'IdnHostname',
+    description:
+      'TF.IdnHostname (format `idn-hostname`) — an internationalized host name: labels in their own script, with the IDNA contextual and bidirectional rules.',
+    validateNotes: [
+      'A name written in its own script passes (`실례.테스트`), as does the punycode spelling of the same name.',
+      'The rules a pattern cannot express are enforced: an `xn--` label is decoded and must re-encode to itself, a contextual character is judged by its neighbours, and one right-to-left letter puts the whole name under the bidi rule.',
+    ],
+    validate: () => createValidateFn<TF.IdnHostname>(),
+    standardSchema: () => createStandardSchema<TF.IdnHostname>(),
+    validateReflect: () => {
+      const v: TF.IdnHostname = '실례.테스트';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.IdnHostname>(),
+    deserializeValidateReflect: () => {
+      const v: TF.IdnHostname = '실례.테스트';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.IdnHostname = '실례.테스트';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.IdnHostname>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.IdnHostname = '실례.테스트';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.IdnHostname = '실례.테스트';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.IdnHostname>>(),
+    validateSchema: () => createValidateFn(TF.idnHostname()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'idn-hostname'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.IdnHostname>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IdnHostname>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.idnHostname()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'idn-hostname'})),
+    mockType: () => createMockDataFn<TF.IdnHostname>(),
+    getSamples: () => ({
+      valid: ['실례.테스트', 'example.com', 'l·l', 'ヲ・ァ'],
+      invalid: ['a·l', 'xn--X', 'א0٠', '-nope', ''],
+    }),
+    expectedFormatErrors: () => [null, null, null, null, null],
   },
   pattern_generated: {
     title: 'Generated pattern samples',

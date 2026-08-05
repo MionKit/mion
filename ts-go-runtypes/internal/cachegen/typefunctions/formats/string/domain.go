@@ -34,12 +34,19 @@ func (domainEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, v�
 	if annotation != nil && domainHasNames(annotation.Params) {
 		return domainValidateExprFor(ctx, annotation.Params, vλl)
 	}
+	if annotation != nil && domainHasIdna(annotation.Params) {
+		return idnaCheckExpr(ctx, annotation.Params, vλl)
+	}
 	return namedPatternValidate(ctx, annotation, vλl)
 }
 
 func (domainEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation != nil && domainHasNames(annotation.Params) {
 		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
+	}
+	if annotation != nil && domainHasIdna(annotation.Params) {
+		return "if (!(" + idnaCheckExpr(ctx, annotation.Params, vλl) + ")) " +
+			formats.FormatErrCall(pathExpr, errorsArr, "string", "domain", "idna", jsBool(idnaAllowsUnicode(annotation.Params)))
 	}
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "domain")
 }
@@ -86,6 +93,43 @@ func (domainEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []str
 func domainHasNames(params map[string]any) bool {
 	_, ok := params["names"].(map[string]any)
 	return ok
+}
+
+// ── IDNA path ────────────────────────────────────────────────────────
+//
+// A host name is not expressible as a pattern: an `xn--` label must be DECODED
+// before its characters can be judged, re-encoded to prove the spelling is
+// canonical, and the Bidi rule reads every label at once. So the `idna` param
+// routes the whole check to the pure-fn engine
+// (rtFormats::isIdnHostname and its deps in string-formats-pure-fns.ts), with
+// the declared length bounds AND-chained in front of it exactly as the pattern
+// path does.
+//
+//   idna: 'ascii'    → `format: 'hostname'`, RFC 1123 labels, A-labels decoded
+//   idna: 'unicode'  → `format: 'idn-hostname'`, U-labels accepted directly
+
+func domainHasIdna(params map[string]any) bool {
+	mode, ok := params["idna"].(string)
+	return ok && mode != ""
+}
+
+func idnaAllowsUnicode(params map[string]any) bool {
+	mode, _ := params["idna"].(string)
+	return mode == "unicode"
+}
+
+func jsBool(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
+}
+
+func idnaCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	conditions := lengthConditions(params, vλl, ctx)
+	call := pureFnAlias(ctx, "isIdnHostname") + "(" + vλl + ",{idn:" + jsBool(idnaAllowsUnicode(params)) + "})"
+	conditions = append(conditions, call)
+	return strings.Join(conditions, " && ")
 }
 
 // hasAllowedValues reports whether a sub-param map has an allowedValues

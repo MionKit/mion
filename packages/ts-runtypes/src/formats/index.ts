@@ -81,6 +81,7 @@ export {
   iriReference,
   uriTemplate,
   hostname,
+  idnHostname,
   stringDuration,
   jsonPointer,
   relativeJsonPointer,

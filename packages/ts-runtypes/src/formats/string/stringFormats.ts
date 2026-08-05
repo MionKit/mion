@@ -498,7 +498,12 @@ type DEFAULT_URI_REFERENCE_PARAMS = {pattern: typeof URI_REFERENCE_PATTERN};
 type DEFAULT_IRI_PARAMS = {pattern: typeof IRI_PATTERN};
 type DEFAULT_IRI_REFERENCE_PARAMS = {pattern: typeof IRI_REFERENCE_PATTERN};
 type DEFAULT_URI_TEMPLATE_PARAMS = {pattern: typeof URI_TEMPLATE_PATTERN};
-type DEFAULT_HOSTNAME_PARAMS = {pattern: typeof HOSTNAME_PATTERN; maxLength: 253};
+// `idna` routes the check to the pure-fn engine instead of a pattern: an
+// `xn--` label has to be decoded before its characters can be judged. 'ascii'
+// is the RFC 1123 host name, 'unicode' additionally accepts the U-label
+// spelling. HOSTNAME_PATTERN stays on the ASCII preset for its mock pool.
+type DEFAULT_HOSTNAME_PARAMS = {pattern: typeof HOSTNAME_PATTERN; maxLength: 253; idna: 'ascii'};
+type DEFAULT_IDN_HOSTNAME_PARAMS = {maxLength: 253; idna: 'unicode'};
 type DEFAULT_STRING_DURATION_PARAMS = {pattern: typeof STRING_DURATION_PATTERN};
 type DEFAULT_JSON_POINTER_PARAMS = {pattern: typeof JSON_POINTER_PATTERN};
 type DEFAULT_RELATIVE_JSON_POINTER_PARAMS = {pattern: typeof RELATIVE_JSON_POINTER_PATTERN};
@@ -523,8 +528,17 @@ export type IriReference<P extends Override<UrlParams, 'pattern'> = {}> = Preset
 /** RFC 6570 URI template — a URI with `{…}` expressions left to fill in. **/
 export type UriTemplate<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_TEMPLATE_PARAMS, P>;
 /** RFC 1123 host name. Unlike `Domain` a single label is fine (`localhost`),
- *  since a host name need not be a dotted public name. **/
+ *  since a host name need not be a dotted public name. An `xn--` label is
+ *  decoded and checked against the IDNA rules rather than taken on trust. **/
 export type Hostname<P extends Override<DomainParams, 'pattern'> = {}> = PresetFormat<'domain', DEFAULT_HOSTNAME_PARAMS, P>;
+/** Internationalized host name (RFC 5890) — the same rules as `Hostname` plus
+ *  labels written in their own script (`実例.テスト`), including the contextual and
+ *  bidirectional rules those bring with them. **/
+export type IdnHostname<P extends Override<DomainParams, 'pattern'> = {}> = PresetFormat<
+  'domain',
+  DEFAULT_IDN_HOSTNAME_PARAMS,
+  P
+>;
 /** RFC 3339 duration string (`P4DT12H30M5S`). A LENGTH of time, so it is not
  *  one of the Date/Time formats and takes no min/max bounds; those describe an
  *  instant. Note this grammar is stricter than the `now±P…` bound specs. **/
@@ -675,6 +689,10 @@ export const iriReference = presetFormatBuilder<'url', DEFAULT_IRI_REFERENCE_PAR
 export const uriTemplate = presetFormatBuilder<'url', DEFAULT_URI_TEMPLATE_PARAMS, Override<UrlParams, 'pattern'>>('url');
 /** RFC 1123 host name, single label allowed (`Hostname`). **/
 export const hostname = presetFormatBuilder<'domain', DEFAULT_HOSTNAME_PARAMS, Override<DomainParams, 'pattern'>>('domain');
+/** Internationalized host name (`IdnHostname`). **/
+export const idnHostname = presetFormatBuilder<'domain', DEFAULT_IDN_HOSTNAME_PARAMS, Override<DomainParams, 'pattern'>>(
+  'domain'
+);
 /** RFC 3339 duration string (`StringDuration`). **/
 export const stringDuration = presetFormatBuilder<
   'stringFormat',
