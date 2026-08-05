@@ -76,6 +76,22 @@ arm is closed against unrelated properties.
 Both are format-pattern definitions rather than schema-door logic, so they are
 likely a much smaller fix than 1-3 and may want to be split out.
 
+## Update 2026-08-05 — the official-suite lane now tracks these
+
+The full official JSON-Schema-Test-Suite lane
+(`packages/ts-runtypes/test/json-schema-official/`, see its README) now runs
+1988 draft 2020-12 cases and records every divergence in its
+`known-divergences.json` ledger — the four gap families below all appear there
+as non-byDesign entries (dependentSchemas/dependentRequired, allOf/oneOf bare
+constraints, ipv4/uri format patterns), alongside the larger newly measured
+surfaces (unevaluated* annotation tracking, optional/format pattern
+strictness). One correction to finding 2: the bare-constraint `oneOf` document
+no longer halts the build with MKR009 — it now compiles and validates, merely
+diverging on verdicts — so the halt half of that finding is already fixed;
+the constraint-dropping half remains. Fixes should make the corresponding
+ledger entries disappear (the lane's stale-entry assert enforces the ledger is
+trimmed with `report --update-ledger`).
+
 ## Direction
 
 Investigate 1 and 2 together: both point at how a constraint keyword with no

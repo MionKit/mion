@@ -90,9 +90,12 @@ official.test.ts          the driver
 markerPairing.test.ts     CLAUDE.md marker-rule paired getRunTypeId test
 generator.test.ts         codegen determinism pin (golden fixture)
 vitest.config.ts          own project; plugin config mirrors the marker project
-tsconfig.suite-official.json
 README.md
 ```
+
+(The project's tsconfig, `tsconfig.suite-official.json`, sits at the package
+root beside `tsconfig.test.json`, and the script's typed surface for
+generator.test.ts is a sibling `.d.mts` beside the `.mjs`.)
 
 One script owns the pipeline: `scripts/core/gen-json-schema-suite.mjs` with
 subcommands `triage` / `generate` / `report`, exporting its functions so
@@ -274,3 +277,22 @@ existing fuzz lanes already cover generative schema input.
   [json-schema-spec-conformance-gaps.md](json-schema-spec-conformance-gaps.md).
 - `markerPairing.test.ts` and `generator.test.ts` pass; `pnpm run lint`,
   `pnpm run format` and the typecheck chain stay green.
+
+## Shipped (2026-08-05)
+
+Implemented as specified, with these observed outcomes:
+
+- Triage over the pinned commit `cc73f5fa`: 396 groups considered → **319 ok,
+  64 unsupported-input, 11 remote, 2 proto-literal** (plus refRemote.json's 15
+  groups excluded at the file level). The whole probe pass takes ~11 s.
+- First full run: **1988 cases → 1465 conforming, 13 by-design divergences,
+  299 open divergences, 0 build-rejected, 171 unsupported-input cases, 40
+  skipped** — see the lane's CONFORMANCE.md. The contingencies never fired:
+  no transform halts (quarantine.json is empty) and no build-rejected groups;
+  notably the MKR009 bare-constraint halt documented in
+  json-schema-spec-conformance-gaps.md no longer reproduces (it now compiles
+  and merely diverges), which is recorded as an update in that todo.
+- `content.json` joined `format.json` as a by-design ledger default (both test
+  annotation-only semantics the door deliberately enforces).
+- The lane runs in ~10 s inside `pnpm test` as its own project; the four known
+  gap families all appear in the ledger as non-byDesign entries.

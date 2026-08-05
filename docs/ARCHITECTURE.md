@@ -337,6 +337,15 @@ STANDALONE carrier'd intersection with duplicate branch ids projects the one-mem
 union with counting (nothing validates — exactly what duplicate branches mean) instead
 of silently degrading to the plain base.
 
+How faithful the whole translation is gets measured, not asserted: the official
+JSON-Schema-Test-Suite (draft 2020-12 required set plus optional/format) runs as its own
+vitest project at `packages/ts-runtypes/test/json-schema-official/`. The suite is a
+commit-pinned git devDependency; `scripts/core/gen-json-schema-suite.mjs` type-probes every
+schema group against the door's input contract (committed `triage.json`), generates real
+`as const` call-site modules (gitignored, rebuilt by `check:builds`), and the lane pins
+every verdict against a committed two-way divergence ledger — a regression AND a silently
+fixed divergence both turn it red. The scoreboard is that directory's `CONFORMANCE.md`.
+
 `DataOnly<T>` lives here too. It is the type level statement of the data only contract: it
 projects a type down to what can actually survive a JSON round trip, which is why decoders
 return it. The return type cannot claim a method survived when it did not.
