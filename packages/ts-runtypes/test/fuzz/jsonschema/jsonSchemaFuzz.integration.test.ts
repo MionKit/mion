@@ -24,8 +24,6 @@
 //
 // Needs the Go binary (skipped when absent). Soak: RT_FUZZ_JSONSCHEMA_SOAK_MS.
 
-import {readFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import {RUNTYPES_DTS} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
@@ -43,86 +41,13 @@ import {
   type GeneratedType,
 } from '../core/typeGen.ts';
 import {renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from './schemaRender.ts';
+import {SRC_OVERLAY} from '../core/srcOverlay.ts';
 
-const FROM_JSON_SCHEMA_TS = fileURLToPath(new URL('../../../src/json-schema/fromJsonSchema.ts', import.meta.url));
-const STRUCTURAL_TS = fileURLToPath(new URL('../../../src/formats/structural.ts', import.meta.url));
-const STATIC_TS = fileURLToPath(new URL('../../../src/schema/static.ts', import.meta.url));
+/** The translation module the fixture imports — a RE-EXPORT of the real one.
+ *  No stand-ins, no sliced regions: `FromJsonSchema` and every format brand it
+ *  references are the shipped definitions. **/
+const JSONSCHEMA_MODULE = `export type {FromJsonSchema} from './src/json-schema/fromJsonSchema.ts';\n`;
 
-/** Slice a marked `#region <name>` block out of `file` verbatim. **/
-function extractRegion(file: string, name: string): string {
-  const source = readFileSync(file, 'utf8');
-  const start = source.indexOf(`// #region ${name}`);
-  const end = source.indexOf(`// #endregion ${name}`);
-  if (start === -1 || end === -1) throw new Error(`${name} region markers not found`);
-  return source.slice(start, end);
-}
-
-/** The `structural-slice` region of formats/structural.ts + the `oneof-slice`
- *  region of schema/static.ts — the REAL `FormattedArray` / `FormattedObject`
- *  and `OneOf` definitions the translation references, pulled in verbatim so the
- *  fuzz module uses them directly instead of hand-written copies. `Flatten` is
- *  provided by the translation slice. **/
-function extractStructuralRegion(): string {
-  return extractRegion(STRUCTURAL_TS, 'structural-slice');
-}
-function extractOneOfRegion(): string {
-  return extractRegion(STATIC_TS, 'oneof-slice');
-}
-
-/** The sliced `jsonschema-extract` region as a standalone virtual MODULE:
- *  exports kept (unlike the compile harness, which strips them for non-module
- *  snippets), plus structural brand stand-ins for the real formats module.
- *  The Email / UUID stand-ins are CONVERGENCE-RELEVANT — the normalizer
- *  emits `format: 'email' | 'uuid'`, and the type-first side spells the same
- *  brands via FUZZ_FORMAT_PREAMBLE, so both must carry identical params
- *  (Email's pattern is interpolated from the shared FUZZ_EMAIL_PATTERN).
- *  The remaining stand-ins (date/time/ip/…) are never emitted by the
- *  normalizer and only need to typecheck. **/
-function buildJsonSchemaModule(): string {
-  const source = readFileSync(FROM_JSON_SCHEMA_TS, 'utf8');
-  const start = source.indexOf('// #region jsonschema-extract');
-  const end = source.indexOf('// #endregion jsonschema-extract');
-  if (start === -1 || end === -1) throw new Error('jsonschema-extract region markers not found');
-  // The sentinel KEY symbols the sliced regions reference. They only have to
-  // carry the same DECLARATION NAMES as src/runtypes/sentinelKeys.ts — the
-  // resolver matches a symbol-keyed property on that name — so declaring them
-  // locally makes the slice self-contained without importing the real module
-  // (which serve/ops mode cannot reach; see
-  // docs/todos/jsonschema-fuzz-real-module-import.md).
-  return `declare const __rtFormatName: unique symbol;
-declare const __rtFormatParams: unique symbol;
-declare const __rtContains: unique symbol;
-declare const __rtPatternProps: unique symbol;
-declare const __rtPropNames: unique symbol;
-declare const __rtOneOf: unique symbol;
-declare const __rtNot: unique symbol;
-type TypeFormat<Base, Name extends string, Params extends object> = Base & {
-  readonly [__rtFormatName]?: Name;
-  readonly [__rtFormatParams]?: Params;
-};
-type StringFormat<P extends object> = TypeFormat<string, 'stringFormat', P>;
-type NumberFormat<P extends object> = TypeFormat<number, 'numberFormat', P>;
-type Email<P extends object = {}> = TypeFormat<string, 'email', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: ''}}>;
-type UUID = TypeFormat<string, 'uuid', {version: 'any'}>;
-type StringDate = TypeFormat<string, 'date', {}>;
-type StringTime = TypeFormat<string, 'time', {}>;
-type StringDateTime = TypeFormat<string, 'dateTime', {}>;
-type Domain<P extends object = {}> = TypeFormat<string, 'domain', P>;
-type IPv4 = TypeFormat<string, 'ip', {version: 4}>;
-type IPv6 = TypeFormat<string, 'ip', {version: 6}>;
-type Url<P extends object = {}> = TypeFormat<string, 'url', P>;
-type Base64<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''}}>;
-type Base32<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}={6}|[A-Z2-7]{4}={4}|[A-Z2-7]{5}={3}|[A-Z2-7]{7}=)?$'; flags: ''}}>;
-type Base16<P extends object = {}> = TypeFormat<string, 'stringFormat', P & {pattern: {source: '^(?:[0-9A-Fa-f]{2})*$'; flags: ''}}>;
-type JsonContent<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true}>;
-type JsonContentBase64<P extends object = {}> = TypeFormat<string, 'jsonContent', P & {json: true; decode: 'base64'}>;
-${extractStructuralRegion()}
-${extractOneOfRegion()}
-${source.slice(start, end)}
-`;
-}
-
-const JSONSCHEMA_MODULE = buildJsonSchemaModule();
 const FIXTURE = 'g.ts';
 
 /** The format-alias preamble when the normalized shape carries format/not
@@ -203,7 +128,12 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
   try {
     const client = holder.get();
     const scan = (async () => {
-      await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, 'jsonschema.ts': JSONSCHEMA_MODULE, [FIXTURE]: fixture});
+      await client.setSources({
+        ...SRC_OVERLAY,
+        'runtypes.d.ts': RUNTYPES_DTS,
+        'jsonschema.ts': JSONSCHEMA_MODULE,
+        [FIXTURE]: fixture,
+      });
       return client.scanFiles([FIXTURE]);
     })();
     scan.catch(() => {});

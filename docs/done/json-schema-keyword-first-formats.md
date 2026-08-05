@@ -1,7 +1,8 @@
 ---
 type: feature
 spec: full-plan
-status: in-progress
+status: done
+completed: 2026-08-05
 created: 2026-08-03
 ---
 
@@ -92,18 +93,37 @@ Atomics done (all verified against the full Go + JS suites, pushed):
   atomic brand stand-ins remain there, covered meanwhile by the real-type
   convergence suites.
 
-**Still open (this spec stays here until done):**
+**Shipped after the above, in the PR review round:**
 
-- **Negation — the `__rtNot` sentinel.** Spelled raw at ~5 door sites. The public
-  `Not<F>` covers only primitive operands, while the door negates general gate
-  arms; a shared `NotSlot<Child>` in `formats/not.ts` would let the door drop the
-  raw sentinel. Small; the surrounding negation LOGIC (GateArmFrom / NotChildFor)
-  is genuine door mapping and stays.
-- **Collapse the `jsonContent` FORMAT** into `StringParams` (riskiest Go surgery;
-  value-first authoring gap already closed by `TF.jsonContent()`).
-- **`SchemaLoweringByKeyword`** typechecked contract + totality assert, the
-  website 4-column keyword table + a compiled examples file.
-- Then reconcile + `git mv` this spec into `docs/done/`.
+- **The `SchemaLoweringByKeyword` contract** — one row per accepted keyword
+  naming its channel (shape / format / params / slot / desugar / ref / ignored),
+  with a both-directions totality assert: an accepted keyword with no row, or a
+  row with an invented channel, is a build error naming the offender.
+  `test/suites/json-schema-define/loweringTable.test.ts` covers the half the
+  compiler cannot — whether each row is TRUE — and immediately caught one that
+  was not: `readOnly` was filed as an annotation when it actually lifts the
+  member to `readonly`. Row corrected, and the row TEXT is now pinned to the
+  behaviour so the two cannot drift.
+- **The review round on the structural surface** (`0a5dddc`): the two params
+  bags became one generic interface instead of hand-kept twins; the literal-part
+  extractors collapsed to a single keyed mapped type (which also LOWERED four
+  budgets); `applyArrayParams` / `applyObjectParams` were deleted as dead —
+  `builderResult` discards the carrier whenever an id is injected; every
+  predefined string format gained the same params override its generic sibling
+  has, through one `PresetFormat` encoding and one builder.
+- **Symbol-keyed sentinels** (`c461160`): branding no longer pollutes the string
+  keys of the type it brands. See
+  [structural-brand-symbol-keys.md](structural-brand-symbol-keys.md).
+- **The fuzz uses the shipped types** — all ~10 atomic stand-ins deleted, no
+  resolver change needed. See
+  [jsonschema-fuzz-real-module-import.md](jsonschema-fuzz-real-module-import.md).
+
+**Split out, still open** — two items that never shipped and are independent of
+everything above, so they moved to their own spec rather than holding this one
+open: a shared `NotSlot<Child>` (so the translation stops spelling `__rtNot`
+raw) and collapsing the `jsonContent` format into `StringParams`, plus the
+website keyword table that goes with it. See
+[json-schema-negation-and-jsoncontent-collapse.md](../todos/json-schema-negation-and-jsoncontent-collapse.md).
 
 ## Original plan follows
 

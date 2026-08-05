@@ -1564,7 +1564,7 @@ type LoweringChannel =
 
 /** One row per accepted keyword: `<channel>: <where it lands>`. Dual-channel
  *  keywords (a value shape that routes two ways) name both, `+`-joined. **/
-type SchemaLoweringByKeyword = {
+export type SchemaLoweringByKeyword = {
   type: 'shape: the kind union every other keyword narrows';
   properties: 'shape: object members';
   required: 'shape: member optionality';
@@ -1617,7 +1617,7 @@ type SchemaLoweringByKeyword = {
   default: 'ignored: annotation';
   $comment: 'ignored: annotation';
   deprecated: 'ignored: annotation';
-  readOnly: 'ignored: annotation';
+  readOnly: 'shape: lifts the member to `readonly` at a property position; a bare annotation anywhere else';
   writeOnly: 'ignored: annotation';
   $id: 'ignored: root-only identity metadata — an EMBEDDED $id is rejected at the key';
   $vocabulary: 'ignored: root-only meta-schema declaration';

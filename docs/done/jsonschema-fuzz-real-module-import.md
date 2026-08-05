@@ -1,7 +1,8 @@
 ---
 type: chore
 spec: guidelines
-status: open
+status: done
+completed: 2026-08-05
 created: 2026-08-03
 ---
 
@@ -43,30 +44,45 @@ The **batchcompile** path already overlays rewritten sources ON TOP of the real
 program (see `ts-go-runtypes/internal/compiler/batchcompile/compile.go` header,
 "the rewritten sources OVERLAID at the same paths"). serve/ops does not.
 
-## Fix (sketch)
+## What shipped — and why no resolver change was needed
 
-Teach the resolver's serve/ops mode to overlay the virtual `setSources` files ON
-the real on-disk program (rooted at the client `cwd`), the way batchcompile does,
-so a fixture can import real source by relative path and pull the real graph.
-Then in the fuzz:
+The premise above is right: serve/ops builds its program from the overlay keys
+alone. The wrong conclusion was that a fixture therefore cannot reach the real
+sources. It can — by putting them IN the overlay.
 
-- fixture: `import type {FromJsonSchema} from '<real relative>/fromJsonSchema.ts'`;
-- overlay the fixture at a real-mirroring key so relative imports resolve;
-- delete `buildJsonSchemaModule`, all atomic stand-ins, and the `#region
-  jsonschema-extract` / `structural-slice` / `oneof-slice` markers + their
-  slicing (the real module supplies every type);
-- keep `FUZZ_FORMAT_PREAMBLE` (the type-first raw-sentinel oracle — INDEPENDENT by
-  design; importing the real type there would make the convergence check
-  tautological).
+`test/fuzz/core/srcOverlay.ts` reads the whole `src/` tree and hands it to
+`setSources` alongside the fixture. `src/` imports nothing non-relative (its
+only bare specifiers live in comments), so the graph closes with no stubs, and
+the fixture imports the shipped `FromJsonSchema` by relative path.
 
-Ends with zero hand-written format types in the fuzz. The real-type convergence
-is already covered meanwhile by the dedicated suites (`contentFormats`,
-`boundAliases`, `structuralKeywords`, `formatLengthOverrides`), so this is a
-test-fidelity + de-duplication win, not a coverage gap.
+Deleted from the json-schema fuzz as a result: `buildJsonSchemaModule`, all ~10
+atomic brand stand-ins, both `#region` slices and their extraction helpers. The
+translation module is now one line:
 
-## Risk / size
+```ts
+export type {FromJsonSchema} from './src/json-schema/fromJsonSchema.ts';
+```
 
-Touches the core Go resolver's program construction — the riskiest area. Gate on
-the full JS suite + `go -C ts-go-runtypes test ./internal/...` and confirm the
-other serve/ops consumers (the general type fuzz, enrich fuzz, the 28 RUNTYPES_DTS
-resolver suites) are unaffected.
+Verified to be reading the real tree rather than passing vacuously: breaking the
+shipped lowering (`format: 'uuid'` mapped to `Email`) makes the fuzz fail with a
+translation violation; reverting it makes it pass again. It runs 100 generated
+types per batch.
+
+The same helper removed the last hand-written `TypeFormat` copy from the
+binary-size fuzz (`TYPE_FORMAT_OVERLAY`, two files instead of the whole tree).
+
+## What is deliberately still hand-written
+
+`FUZZ_FORMAT_PREAMBLE` (typeGen.ts) — the `Fz*` aliases are the INDEPENDENT
+type-first oracle the translation is checked against. Importing the shipped types
+there would compare a type with itself and the convergence check would pass by
+construction. Independence is the point.
+
+`test/fuzz/enrich/i18nModel.ts` still writes inline brand intersections into the
+`.ts` source it generates: that fixture is a scaffolded project on disk with no
+package resolution, and the brand is incidental scaffolding for a fuzz about
+FriendlyText/MockData reconciliation, not about the format encoding. The Go side
+accepts the string spelling permanently (see
+[structural-brand-symbol-keys.md](structural-brand-symbol-keys.md)), so it cannot
+silently break — but it would keep testing an older encoding, so it is worth
+revisiting if that fixture ever gains package resolution.
