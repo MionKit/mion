@@ -93,8 +93,11 @@ vitest.config.ts          own project; plugin config mirrors the marker project
 README.md
 ```
 
-(The project's tsconfig, `tsconfig.suite-official.json`, sits at the package
-root beside `tsconfig.test.json`, and the script's typed surface for
+(The project's tsconfig lives INSIDE the lane dir — `tsconfig.json` there —
+because the resolver roots its genDir at the tsconfig's home: the lane's cache
+modules land in its own `./__runtypes/` instead of colliding with the marker
+project's tree when both run concurrently under `pnpm test`, mirroring the
+mock-format-isolation precedent. The script's typed surface for
 generator.test.ts is a sibling `.d.mts` beside the `.mjs`.)
 
 One script owns the pipeline: `scripts/core/gen-json-schema-suite.mjs` with

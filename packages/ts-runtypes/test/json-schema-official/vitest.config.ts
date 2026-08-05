@@ -8,7 +8,11 @@ import runtypesPlugin from '@ts-runtypes/devtools/vite';
 // never pay for the ~hundreds of heavy FromJsonSchema call sites in the
 // GENERATED modules here (produced by scripts/core/gen-json-schema-suite.mjs
 // via `pnpm run check:builds`; gitignored). Same plugin shape as the marker
-// project, but over tsconfig.suite-official.json (src + this dir only).
+// project, but over this directory's own tsconfig.json — which also roots the
+// resolver's genDir HERE (./__runtypes/), away from the marker project's tree
+// at the package root; the two projects run concurrently under `pnpm test`
+// and sharing one genDir makes the resolver instances clobber each other's
+// emitted cache modules (mock-format-isolation solves it the same way).
 //
 // failOnError: false is load-bearing: suite documents the resolver marks with
 // Error-severity diagnostics must not refuse the lane's boot — their entries
@@ -25,7 +29,7 @@ export default defineConfig({
     runtypesPlugin({
       binary: resolve(REPO_ROOT, 'bin/ts-runtypes'),
       cwd: PACKAGE_ROOT,
-      tsconfig: 'tsconfig.suite-official.json',
+      tsconfig: 'test/json-schema-official/tsconfig.json',
       failOnError: false,
     }),
   ],

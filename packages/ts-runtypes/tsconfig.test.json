@@ -42,7 +42,8 @@
   // so it is NOT part of the marker package's type-check. It runs as its own vitest
   // project (see test/playground/vitest.config.ts).
   // test/json-schema-official/** is the official JSON-Schema-Test-Suite lane —
-  // its own project over tsconfig.suite-official.json, kept out of this Program
+  // its own project over its own test/json-schema-official/tsconfig.json (which
+  // also roots that project's resolver genDir there), kept out of this Program
   // so the fast lanes never type-walk the generated suite call sites.
   "exclude": ["node_modules", "dist", "test/playground", "test/json-schema-official"]
 }

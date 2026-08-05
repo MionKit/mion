@@ -92,10 +92,13 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 /packages/ts-runtypes/test/tmp-build-*/
 
 # Official JSON-Schema-Test-Suite lane: generated call-site modules are build
-# output (scripts/core/gen-json-schema-suite.mjs via check:builds), and
-# results.json is the per-run artifact the report script reads.
+# output (scripts/core/gen-json-schema-suite.mjs via check:builds),
+# results.json is the per-run artifact the report script reads, and __runtypes/
+# is that project's own resolver genDir (rooted by its tsconfig, away from the
+# marker project's tree — the two run concurrently under pnpm test).
 /packages/ts-runtypes/test/json-schema-official/generated/
 /packages/ts-runtypes/test/json-schema-official/results.json
+/packages/ts-runtypes/test/json-schema-official/__runtypes/
 
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/

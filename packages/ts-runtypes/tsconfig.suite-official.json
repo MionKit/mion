@@ -1,9 +1,0 @@
-{
-  // Program for the json-schema-official lane ONLY (vitest plugin + its
-  // typecheck leg). Split from tsconfig.test.json so the marker project's
-  // resolver Program never pays for the generated suite call sites — and vice
-  // versa this Program skips the whole regular test tree.
-  "extends": "./tsconfig.test.json",
-  "include": ["src/**/*", "test/json-schema-official/**/*"],
-  "exclude": ["node_modules", "dist"]
-}

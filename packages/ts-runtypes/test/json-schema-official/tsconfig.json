@@ -1,0 +1,14 @@
+{
+  // Program for the json-schema-official lane ONLY: this directory's files as
+  // roots (their imports pull in the reachable src), mirroring the
+  // mock-format-isolation shape. Living HERE is load-bearing twice over: the
+  // resolver infers its genDir from the tsconfig, so this project's cache
+  // modules land in ./__runtypes/ instead of colliding with the marker
+  // project's tree at the package root (the two projects run concurrently
+  // under `pnpm test`), and the narrow include keeps this extra resolver
+  // instance's boot cheap. The inherited exclude must be overridden — the
+  // package test config excludes this very directory.
+  "extends": "../../tsconfig.test.json",
+  "include": ["./**/*"],
+  "exclude": ["__runtypes"]
+}
