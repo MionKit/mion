@@ -313,7 +313,7 @@ a value-first + type-first spelling: they ride a single params bag on the collec
 builders — `RT.array(item, {uniqueItems, contains, …})` / `RT.object(config, {minProperties,
 patternProperties, propertyNames, …})` / `RT.record(…, {…})` — and the `FormattedArray<Base, P>`
 / `FormattedObject<Base, P>` wrapper types (formats/structural.ts), the door's exact twins.
-Closedness is derived from the shape rather than hand-authored. The collapse also merges TUPLE ∩
+Closedness is derived from the shape rather than hand-authored. Two emit-side rules keep the translation honest where the recovered type alone would not: a key matched by a sibling `__rtPatternProps` entry is EXEMPT from the index signature a schema-valued `additionalProperties` lowers to (2020-12: a matched key is not "additional"), the pattern twin of the long-standing sibling-named-key skip; and a REQUIRED member whose type imposes no value check (`unknown` / `any`) still emits a PRESENCE check, since `{}` is not assignable to `{foo: unknown}` — without it the slot leaves the AND chain and the member silently turns optional, which also breaks the weak-type gate's "one required prop already enforces presence" shortcut. The collapse also merges TUPLE ∩
 TUPLE intersections slot-wise (the shape allOf-over-prefixItems produces; boolean slot
 schemas ride along — `true` pads, `false` forbids the position): unknown sides defer,
 id-equal sides collapse, the length window intersects, and the merged node is

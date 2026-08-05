@@ -3,6 +3,7 @@ package typeid
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"reflect"
 	"sort"
 	"strconv"
@@ -214,10 +215,10 @@ func canonicalizeBoundAliases(params map[string]any) {
 // intersection. Same-name annotations merge their param maps (the sibling
 // conjunction case: a `$ref` to a branded number ∧ a local `maximum`);
 // ok=false when the names differ (cross-family stacking needs sub-format
-// nesting that does not exist yet) or when one param key carries two
-// different values (a genuine contradiction the caller must surface LOUDLY
-// — the historical behavior silently kept the LAST annotation, dropping a
-// constraint the schema declared).
+// nesting that does not exist yet) or when one param key carries two values
+// that cannot be conjoined (a genuine contradiction the caller must surface
+// LOUDLY — the historical behavior silently kept the LAST annotation, dropping
+// a constraint the schema declared).
 func MergeFormatAnnotations(annotations []*protocol.FormatAnnotation) (*protocol.FormatAnnotation, bool) {
 	if len(annotations) == 0 {
 		return nil, true
@@ -231,13 +232,75 @@ func MergeFormatAnnotations(annotations []*protocol.FormatAnnotation) (*protocol
 			return nil, false
 		}
 		for key, value := range annotation.Params {
-			if existing, exists := merged.Params[key]; exists && !reflect.DeepEqual(existing, value) {
+			existing, exists := merged.Params[key]
+			if !exists || reflect.DeepEqual(existing, value) {
+				merged.Params[key] = value
+				continue
+			}
+			tightened, ok := mergeParamValue(key, existing, value)
+			if !ok {
 				return nil, false
 			}
-			merged.Params[key] = value
+			merged.Params[key] = tightened
 		}
 	}
 	return merged, true
+}
+
+// mergeParamValue resolves ONE param key two same-family annotations disagree
+// on. A conjunction of constraints is the TIGHTER of the two — `min: 20 ∧ min:
+// 30` is `min: 30` — so the bound keys fold by max (lower bounds) or min (upper
+// bounds), and `multipleOf` folds by least common multiple. Every other key must
+// agree exactly; ok=false hands the clash back to the caller to report. The
+// shape reaching here is ordinary schema authoring:
+// `allOf: [{minimum: 20}, {minimum: 30}]` lowers to two number brands.
+func mergeParamValue(key string, existing, incoming any) (any, bool) {
+	left, leftOK := existing.(float64)
+	right, rightOK := incoming.(float64)
+	if !leftOK || !rightOK {
+		return nil, false
+	}
+	switch key {
+	case "min", "gt", "minLength", "minItems", "minProperties", "minContains":
+		return math.Max(left, right), true
+	case "max", "lt", "maxLength", "maxItems", "maxProperties", "maxContains":
+		return math.Min(left, right), true
+	case "multipleOf":
+		return leastCommonMultiple(left, right)
+	}
+	return nil, false
+}
+
+// leastCommonMultiple folds two `multipleOf` constraints into the one that
+// means the same thing: a value divisible by BOTH is exactly a value divisible
+// by their least common multiple. Defined here for positive integers only —
+// a fractional multipleOf would need exact rational arithmetic, and a product
+// past the exact-integer range would silently lose precision, so both stay
+// clashes the caller reports.
+func leastCommonMultiple(left, right float64) (any, bool) {
+	if left <= 0 || right <= 0 || left != math.Trunc(left) || right != math.Trunc(right) {
+		return nil, false
+	}
+	if left > float64(maxExactInteger) || right > float64(maxExactInteger) {
+		return nil, false
+	}
+	leftInt, rightInt := int64(left), int64(right)
+	reduced := leftInt / greatestCommonDivisor(leftInt, rightInt)
+	if reduced > maxExactInteger/rightInt {
+		return nil, false
+	}
+	return float64(reduced * rightInt), true
+}
+
+// The largest integer a float64 represents exactly (JS Number.MAX_SAFE_INTEGER
+// + 1) — past it, a folded multiple would not round-trip through the wire.
+const maxExactInteger = int64(1) << 53
+
+func greatestCommonDivisor(left, right int64) int64 {
+	for right != 0 {
+		left, right = right, left%right
+	}
+	return left
 }
 
 // IsNotSentinelPropName reports whether a property name is the negation

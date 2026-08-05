@@ -754,6 +754,7 @@ func emitObjectValidationErrors(rt *protocol.RunType, ctx *EmitContext, v string
 	// Publish sibling-named-prop set for any index-signature child
 	// (see emitObjectValidate for the rationale).
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
+	publishSiblingPatternsForIndexSig(rt, ctx)
 
 	// Compile per-child error-accumulation code, filtering the same
 	// way emitObjectValidate does, AND track whether all contributing
@@ -872,8 +873,26 @@ func emitPropertyValidationErrors(rt *protocol.RunType, ctx *EmitContext, v stri
 		}
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if childRT.Code == "" {
-		return RTCode{Code: "", Type: CodeS}
+	// Presence twin of emitPropertyValidate's: a REQUIRED member whose type
+	// imposes no VALUE check (`unknown` / `any`) still imposes presence, so a
+	// missing key has to REPORT, not pass. Without it validate rejects `{}`
+	// against `{foo: unknown}` while validationErrors returns no errors — and the
+	// two factories must never disagree about a value. The label is the child's
+	// own kind, exactly as a failing typed member reports its expected type; the
+	// property name rides the trailing path segment, since the child frame that
+	// would normally carry it is never pushed.
+	if childRT.Code == "" || isNoopForValidationErrors(rt.Child, ctx) {
+		if rt.Optional {
+			return RTCode{Code: "", Type: CodeS}
+		}
+		expected := "unknown"
+		if resolved.Kind == protocol.KindAny {
+			expected = "any"
+		}
+		return RTCode{
+			Code: "if (!(" + quoteJS(rt.Name) + " in " + v + ")) " + callRTErr(ctx, expected, quoteJS(rt.Name)) + ";",
+			Type: CodeS,
+		}
 	}
 	if rt.Optional {
 		return RTCode{
@@ -937,6 +956,10 @@ func emitIndexSignatureValidationErrors(rt *protocol.RunType, ctx *EmitContext, 
 	body.WriteString(v)
 	body.WriteString(") {")
 	if skip := siblingNamedSkipCode(rt, ctx, keyVar); skip != "" {
+		body.WriteString(skip)
+		body.WriteString(" ")
+	}
+	if skip := siblingPatternSkipCode(rt, ctx, keyVar); skip != "" {
 		body.WriteString(skip)
 		body.WriteString(" ")
 	}

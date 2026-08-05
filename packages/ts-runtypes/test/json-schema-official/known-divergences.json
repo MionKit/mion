@@ -10,24 +10,6 @@
       "note": ""
     },
     {
-      "file": "allOf.json",
-      "group": "allOf combined with anyOf, oneOf",
-      "case": "allOf: true, anyOf: true, oneOf: true",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "allOf.json",
-      "group": "allOf simple types",
-      "case": "mismatch one",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
       "file": "content.json",
       "group": "validation of binary string-encoding",
       "case": "an invalid base64 string (% is not a valid character); validates true",
@@ -69,114 +51,6 @@
       "case": "invalid definition schema",
       "expected": false,
       "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "empty dependents",
-      "case": "non-object is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "multiple dependents required",
-      "case": "nondependants",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "single dependency",
-      "case": "ignores arrays",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "single dependency",
-      "case": "ignores other non-objects",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "single dependency",
-      "case": "ignores strings",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentRequired.json",
-      "group": "single dependency",
-      "case": "nondependant",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "dependent subschema incompatible with root",
-      "case": "matches dependency",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "dependent subschema incompatible with root",
-      "case": "no dependency",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "single dependency",
-      "case": "ignores arrays",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "single dependency",
-      "case": "ignores other non-objects",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "single dependency",
-      "case": "ignores strings",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "dependentSchemas.json",
-      "group": "single dependency",
-      "case": "no dependency",
-      "expected": true,
-      "observed": false,
       "byDesign": false,
       "note": ""
     },
@@ -361,60 +235,6 @@
       "note": ""
     },
     {
-      "file": "not.json",
-      "group": "forbidden property",
-      "case": "property absent",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "oneOf.json",
-      "group": "oneOf with base schema",
-      "case": "one oneOf valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "oneOf.json",
-      "group": "oneOf with required",
-      "case": "first valid - valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "oneOf.json",
-      "group": "oneOf with required",
-      "case": "second valid - valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "properties.json",
-      "group": "object properties validation",
-      "case": "doesn't invalidate other properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "properties.json",
-      "group": "properties, patternProperties, additionalProperties interaction",
-      "case": "patternProperty validates nonproperty",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
       "file": "ref.json",
       "group": "empty tokens in $ref json-pointer",
       "case": "number is valid",
@@ -508,15 +328,6 @@
       "file": "ref.json",
       "group": "URN base URI with URN and JSON pointer ref",
       "case": "a non-string is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "required.json",
-      "group": "required validation",
-      "case": "non-present required property is invalid",
       "expected": false,
       "observed": true,
       "byDesign": false,

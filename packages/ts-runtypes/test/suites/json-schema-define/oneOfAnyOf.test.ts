@@ -261,13 +261,27 @@ describe('oneOf — exactly-one across the three authoring modes', () => {
     expect(pin).toBe(true);
   });
 
-  it('constraining siblings beside oneOf poison to never (loud, never silent widening)', () => {
-    type WithType = FromJsonSchema<{
-      readonly type: 'string';
+  it('a kind or literal sibling beside oneOf pushes into every branch', () => {
+    // `base ∧ exactly-one-of(B…)` and `exactly-one-of(base ∧ B…)` accept the
+    // same values — the base holds for every branch or for none, so it can
+    // never change the match COUNT — and the pushed form is the one the
+    // collapse can classify.
+    const fn = createValidateFn(runTypeFromJsonSchema({type: 'string', oneOf: [{minLength: 2}, {maxLength: 4}]}));
+    expect(fn('foobar')).toBe(true);
+    expect(fn('a')).toBe(true);
+    expect(fn('abc')).toBe(false);
+    expect(fn(12 as never)).toBe(false);
+  });
+
+  it('the siblings the OUTER layers own still poison to never (loud, never silent widening)', () => {
+    // not / if / dependent* conjoin onto the whole core, so they would wrap the
+    // sentinel'd union rather than ride inside it — no honest pushing exists.
+    type WithNot = FromJsonSchema<{
+      readonly not: {readonly type: 'number'};
       readonly oneOf: readonly [{readonly minLength: 1}, {readonly maxLength: 2}];
     }>;
-    const typePin: [WithType] extends [never] ? true : false = true;
-    expect(typePin).toBe(true);
+    const notPin: [WithNot] extends [never] ? true : false = true;
+    expect(notPin).toBe(true);
     type InAllOf = FromJsonSchema<{
       readonly allOf: readonly [
         {readonly oneOf: readonly [{readonly type: 'string'}, {readonly type: 'number'}]},

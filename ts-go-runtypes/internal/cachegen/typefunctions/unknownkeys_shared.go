@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
 
@@ -439,6 +440,79 @@ func siblingNamedSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop strin
 		return ""
 	}
 	return "if (" + ctxKey + ".has(" + prop + ")) continue;"
+}
+
+// siblingPatternsCtxKey / siblingPatternRegexCtxKey name the closure-prologue
+// items the patternProperties EXEMPTION rides. Keyed by the index signature's
+// canonical id for the same reason siblingNamedKeysCtxKey is (never
+// parent-relative data on a canonical node).
+func siblingPatternsCtxKey(idxSig *protocol.RunType) string {
+	return "ppSkip_" + idxSig.ID
+}
+func siblingPatternRegexCtxKey(idxSig *protocol.RunType, position int) string {
+	return "rePPSkip_" + idxSig.ID + "_" + strconv.Itoa(position)
+}
+
+// publishSiblingPatternsForIndexSig is the patternProperties twin of
+// publishSiblingNamedKeysForIndexSig. Per 2020-12 a key matched by a sibling
+// `patternProperties` entry is NOT "additional", so it must be exempt from the
+// index signature a schema-valued `additionalProperties` lowers to — exactly as
+// a sibling NAMED property is. Without the exemption
+// `{properties: …, patternProperties: {'f.o': …}, additionalProperties: {type:
+// 'integer'}}` rejects `{fxo: [1, 2]}`, which the pattern entry accepts.
+//
+// Registers one hoisted RegExp per source plus a single prologue predicate
+// (`const ppSkip_X = (k) => reA.test(k) || reB.test(k)`) so the loop pays one
+// call per key and allocates nothing. No-op for objects with no patternProps or
+// no index signature — i.e. every non-schema-authored type.
+func publishSiblingPatternsForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
+	if len(rt.PatternProps) == 0 {
+		return
+	}
+	var sources []string
+	for _, patternProp := range rt.PatternProps {
+		if patternProp != nil && patternProp.Source != "" {
+			sources = append(sources, patternProp.Source)
+		}
+	}
+	if len(sources) == 0 {
+		return
+	}
+	sources = dedupSortStrings(sources)
+	for _, child := range rt.Children {
+		resolved := ctx.ResolveRef(child)
+		if resolved == nil || resolved.Kind != protocol.KindIndexSignature {
+			continue
+		}
+		predicateKey := siblingPatternsCtxKey(resolved)
+		if ctx.HasContextItem(predicateKey) {
+			continue
+		}
+		tests := make([]string, 0, len(sources))
+		for position, source := range sources {
+			regexKey := siblingPatternRegexCtxKey(resolved, position)
+			if !ctx.HasContextItem(regexKey) {
+				ctx.SetContextItem(regexKey, "const "+regexKey+" = new RegExp("+jsquote.Double(source)+")")
+			}
+			tests = append(tests, regexKey+".test(k)")
+		}
+		ctx.SetContextItem(predicateKey, "const "+predicateKey+" = (k) => "+strings.Join(tests, " || "))
+	}
+}
+
+// siblingPatternSkipCode is the patternProperties twin of siblingNamedSkipCode:
+// the `if (…) continue;` line the index-signature for-in loop opens with so a
+// pattern-matched key never also faces the additionalProperties value check.
+// Returns "" when the parent emit published no predicate for this index sig.
+func siblingPatternSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop string) string {
+	if idxSig == nil {
+		return ""
+	}
+	predicateKey := siblingPatternsCtxKey(idxSig)
+	if !ctx.HasContextItem(predicateKey) {
+		return ""
+	}
+	return "if (" + predicateKey + "(" + prop + ")) continue;"
 }
 
 // unknownKeysChildrenCode collects each non-static, non-function child's

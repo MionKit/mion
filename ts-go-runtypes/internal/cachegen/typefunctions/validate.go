@@ -1413,6 +1413,7 @@ func emitObjectValidate(rt *protocol.RunType, ctx *EmitContext, v string) RTCode
 	// IndexSignatureRunType.getSkipCode + InterfaceRunType.getNamedChildren.
 	// No-op when the object has no index sig or no named props.
 	publishSiblingNamedKeysForIndexSig(rt, ctx)
+	publishSiblingPatternsForIndexSig(rt, ctx)
 	allOptional := true
 	hasContributingChild := false
 	hasIndexSig := false
@@ -1556,8 +1557,18 @@ func emitPropertyValidate(rt *protocol.RunType, ctx *EmitContext, v string) RTCo
 		}
 		return RTCode{Code: "", Type: CodeE}
 	}
-	if childRT.Code == "" {
-		return RTCode{Code: "", Type: CodeE}
+	// A member whose type imposes NO value check (`unknown` / `any`, which emit
+	// the bare `true`) still imposes PRESENCE when it is REQUIRED: `{}` is not
+	// assignable to `{foo: unknown}`. Emitting the value check alone drops the
+	// slot out of the AND chain entirely and the member silently becomes
+	// optional — which also quietly breaks looseCheckGate's "one required prop
+	// means the bare validate already enforces presence" shortcut. An OPTIONAL
+	// noop member asserts nothing at all, so it leaves the chain as before.
+	if childRT.Code == "" || isNoopForValidate(rt.Child, ctx) {
+		if rt.Optional {
+			return RTCode{Code: "", Type: CodeE}
+		}
+		return RTCode{Code: "(" + quoteJS(rt.Name) + " in " + v + ")", Type: CodeE}
 	}
 	if rt.Optional {
 		return RTCode{
@@ -1629,6 +1640,10 @@ func emitIndexSignatureValidate(rt *protocol.RunType, ctx *EmitContext, v string
 	body.WriteString(v)
 	body.WriteString(") { ")
 	if skip := siblingNamedSkipCode(rt, ctx, keyVar); skip != "" {
+		body.WriteString(skip)
+		body.WriteString(" ")
+	}
+	if skip := siblingPatternSkipCode(rt, ctx, keyVar); skip != "" {
 		body.WriteString(skip)
 		body.WriteString(" ")
 	}

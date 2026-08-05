@@ -127,8 +127,19 @@ function normalizeShape(shape: TypeShape, ctx: NormCtx): TypeShape {
         members: shape.members.map((m) => normalizeShape(m, ctx)),
         ...(shape.exclusive ? {exclusive: true as const} : {}),
       };
-    case 'intersection':
-      return {kind: 'intersection', members: shape.members.map((m) => normalizeShape(m, ctx))};
+    case 'intersection': {
+      // A PRIMITIVE member of an object intersection has no schema spelling
+      // that denotes the same type. `allOf: [{type: 'object', …}, {type:
+      // 'string'}]` is unsatisfiable — nothing is both — so the door lowers it
+      // to never, while the TS `{…} & string` spelling stays a branded string
+      // (typeGen adds one under `wild` as a cheap brand). The two are genuinely
+      // different types, so the normalizer keeps the OBJECT members, which both
+      // sides do spell identically.
+      const members = shape.members.filter((m) => m.kind === 'object').map((m) => normalizeShape(m, ctx));
+      if (members.length === 0) return {kind: 'record', value: {kind: 'unknown'}};
+      if (members.length === 1) return members[0];
+      return {kind: 'intersection', members};
+    }
     case 'format':
       return shape; // fully expressible — constraint keywords / format
     case 'not':

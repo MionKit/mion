@@ -8,7 +8,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | File                                       |    Cases | Conforming | By-design div. | Open div. | Build-rejected | Unsupported input | Skipped |
 | ------------------------------------------ | -------: | ---------: | -------------: | --------: | -------------: | ----------------: | ------: |
 | additionalProperties.json                  |       21 |         20 |              0 |         1 |              0 |                 0 |       0 |
-| allOf.json                                 |       30 |         25 |              0 |         2 |              0 |                 3 |       0 |
+| allOf.json                                 |       30 |         27 |              0 |         0 |              0 |                 3 |       0 |
 | anchor.json                                |        8 |          2 |              0 |         0 |              0 |                 0 |       6 |
 | anyOf.json                                 |       18 |         15 |              0 |         0 |              0 |                 3 |       0 |
 | boolean_schema.json                        |       18 |         18 |              0 |         0 |              0 |                 0 |       0 |
@@ -17,8 +17,8 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | content.json                               |       18 |          6 |              4 |         0 |              0 |                 8 |       0 |
 | default.json                               |        7 |          7 |              0 |         0 |              0 |                 0 |       0 |
 | defs.json                                  |        2 |          1 |              0 |         1 |              0 |                 0 |       0 |
-| dependentRequired.json                     |       20 |         14 |              0 |         6 |              0 |                 0 |       0 |
-| dependentSchemas.json                      |       20 |         14 |              0 |         6 |              0 |                 0 |       0 |
+| dependentRequired.json                     |       20 |         20 |              0 |         0 |              0 |                 0 |       0 |
+| dependentSchemas.json                      |       20 |         20 |              0 |         0 |              0 |                 0 |       0 |
 | dynamicRef.json                            |       44 |          6 |              0 |         0 |              0 |                25 |      13 |
 | enum.json                                  |       51 |         34 |              0 |         0 |              0 |                17 |       0 |
 | exclusiveMaximum.json                      |        4 |          4 |              0 |         0 |              0 |                 0 |       0 |
@@ -38,8 +38,8 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | minLength.json                             |        7 |          7 |              0 |         0 |              0 |                 0 |       0 |
 | minProperties.json                         |       10 |         10 |              0 |         0 |              0 |                 0 |       0 |
 | multipleOf.json                            |       11 |         11 |              0 |         0 |              0 |                 0 |       0 |
-| not.json                                   |       40 |         37 |              0 |         1 |              0 |                 2 |       0 |
-| oneOf.json                                 |       27 |         16 |              0 |         3 |              0 |                 8 |       0 |
+| not.json                                   |       40 |         38 |              0 |         0 |              0 |                 2 |       0 |
+| oneOf.json                                 |       27 |         19 |              0 |         0 |              0 |                 8 |       0 |
 | optional/format/date-time.json             |       33 |         33 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/date.json                  |       81 |         81 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/duration.json              |       52 |         52 |              0 |         0 |              0 |                 0 |       0 |
@@ -64,13 +64,13 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | pattern.json                               |       12 |         12 |              0 |         0 |              0 |                 0 |       0 |
 | patternProperties.json                     |       25 |         20 |              0 |         0 |              0 |                 5 |       0 |
 | prefixItems.json                           |       11 |         11 |              0 |         0 |              0 |                 0 |       0 |
-| properties.json                            |       28 |         15 |              0 |         2 |              0 |                 4 |       7 |
+| properties.json                            |       28 |         17 |              0 |         0 |              0 |                 4 |       7 |
 | propertyNames.json                         |       22 |         22 |              0 |         0 |              0 |                 0 |       0 |
 | ref.json                                   |       79 |         37 |              0 |        11 |              0 |                29 |       2 |
-| required.json                              |       18 |         10 |              0 |         1 |              0 |                 0 |       7 |
+| required.json                              |       18 |         11 |              0 |         0 |              0 |                 0 |       7 |
 | type.json                                  |       80 |         80 |              0 |         0 |              0 |                 0 |       0 |
 | unevaluatedItems.json                      |       71 |         40 |              0 |        24 |              0 |                 7 |       0 |
 | unevaluatedProperties.json                 |      129 |         64 |              0 |        24 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1671** |         **23** |    **83** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1692** |         **23** |    **62** |          **0** |           **171** |  **40** |

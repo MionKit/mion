@@ -724,6 +724,27 @@ function buildObjectLiteral(
       const name = member.name as string | number | undefined;
       if (name !== undefined) declared.add(name);
     }
+    // `closed` (additionalProperties / unevaluatedProperties: false) names the
+    // ONLY admissible keys. An index signature riding the same object still
+    // deals out arbitrary ones, so trim what the closed set (and its patterns)
+    // does not admit — rejection sampling alone never converges here, it just
+    // burns all 32 candidates and gives up. Runs before AND after the
+    // minProperties top-up, since the top-up draws fresh index batches.
+    const closed = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
+    const closedPatterns = Array.isArray(params.closedPatterns)
+      ? (params.closedPatterns as unknown[])
+          .filter((entry): entry is string => typeof entry === 'string')
+          .map((source) => new RegExp(source))
+      : [];
+    const trimDisallowedKeys = (): void => {
+      if (!closed) return;
+      for (const key of Object.keys(parent)) {
+        if (declared.has(key) || closed.includes(key)) continue;
+        if (closedPatterns.some((regexp) => regexp.test(key))) continue;
+        delete parent[key];
+      }
+    };
+    trimDisallowedKeys();
     if (typeof params.maxProperties === 'number') {
       for (const key of Object.keys(parent)) {
         if (Object.keys(parent).length <= params.maxProperties) break;
@@ -736,6 +757,7 @@ function buildObjectLiteral(
         attempts++;
         const indexed = mockRunType(indexMember, options, stack);
         if (indexed && typeof indexed === 'object') Object.assign(parent, indexed);
+        trimDisallowedKeys();
       }
       if (typeof params.maxProperties === 'number') {
         for (const key of Object.keys(parent)) {

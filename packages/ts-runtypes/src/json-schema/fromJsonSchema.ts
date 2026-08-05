@@ -624,6 +624,23 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
  *  intersection collapses in the engine's member merge). **/
 type PresentValue = null | boolean | number | string | unknown[] | Record<string, unknown>;
 
+/** An object arm inside a UNION must stay OPEN. Two rules meet here: a 2020-12
+ *  object admits undeclared keys unless a closedness keyword says otherwise,
+ *  and a union arm only wins when the value's keys are covered by it — so a
+ *  members-only arm quietly rejects every object carrying anything else
+ *  (`{properties: {foo: …}}` rejecting `{quux: 1}`). The open spelling is the
+ *  same `Record<string, unknown>` a property-less object arm already lowers to,
+ *  with the declared members keeping their own checks on top. A schema that DOES
+ *  own its key set (`additionalProperties` in either form,
+ *  `unevaluatedProperties`) is left alone — the record would erase exactly the
+ *  closedness those keywords express. **/
+type ObjectArmFrom<S, Root, F extends [unknown]> =
+  Extract<keyof S, 'additionalProperties' | 'unevaluatedProperties'> extends never
+    ? Extract<keyof S, 'properties' | 'required'> extends never
+      ? ObjectFrom<S, Root, F>
+      : Record<string, unknown> & ObjectFrom<S, Root, F>
+    : ObjectFrom<S, Root, F>;
+
 // `additionalProperties: <schema>` ALONGSIDE `properties` intersects the
 // declared props with the index-signature record (01-phase1-mapping §3.2 — the
 // mixed form). The boolean forms contribute nothing HERE: `true`/omitted stay
@@ -756,9 +773,26 @@ type HasOneOfArm<M> = M extends readonly [infer Head, ...infer Tail]
     ? true
     : HasOneOfArm<Tail>
   : false;
-type FromAllOfRec<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Tail]
-  ? FromJsonSchemaIn<Head, Root, F> & FromAllOfRec<Tail, Root, F>
+// Arms combine through Conj, not a bare `&`: a type-LESS arm lowers to the
+// six-kind union, and `(string | Number<max> | …) & (string | Number<min> | …)`
+// stays unreduced — a shape the collapse cannot classify, so both bounds are
+// lost and `allOf: [{maximum: 30}, {minimum: 20}]` accepts 35. Conj distributes
+// over the arms and prunes the cross-kind pairs, leaving one union whose number
+// arm carries BOTH bounds. A `$ref`-bearing arm keeps the bare `&`: Conj's
+// `[unknown] extends [A]` probe would force a lazily-tied fixpoint (TS2589).
+type FromAllOfRec<M, Root, F extends [unknown]> =
+  HasLazyArm<M> extends true ? FromAllOfRaw<M, Root, F> : FromAllOfConj<M, Root, F>;
+type FromAllOfRaw<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Tail]
+  ? FromJsonSchemaIn<Head, Root, F> & FromAllOfRaw<Tail, Root, F>
   : unknown;
+type FromAllOfConj<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Tail]
+  ? Conj<FromJsonSchemaIn<Head, Root, F>, FromAllOfConj<Tail, Root, F>>
+  : unknown;
+type HasLazyArm<M> = M extends readonly [infer Head, ...infer Tail]
+  ? Extract<keyof Head, '$ref' | '$dynamicRef'> extends never
+    ? HasLazyArm<Tail>
+    : true
+  : false;
 
 // The `type: [...]` array form is a union of the named types; each arm
 // re-reads the schema's OWN constraint keywords through the per-type helpers,
@@ -781,7 +815,7 @@ type TypeArmFrom<Name extends SchemaTypeName, S, Root, F extends [unknown]> = Na
           : Name extends 'array'
             ? ArrayFrom<S, Root, F>
             : Name extends 'object'
-              ? ObjectFrom<S, Root, F>
+              ? ObjectArmFrom<S, Root, F>
               : never;
 
 // ── `not` — the negation entry ─────────────────────────────────────────────
@@ -1211,14 +1245,23 @@ type IteFrom<If, S, Root, F extends [unknown]> = If extends boolean
 // changing its type; "K absent" is `{[K]?: never}`. Entries fold through
 // Conj one key at a time (keys of a literal map, recursed via the accumulator
 // tuple to stay off the union-to-tuple machinery).
+// Both keywords are OBJECT-scoped: 2020-12 kind relevance leaves every
+// non-object instance unconstrained by them, so each arm set spans the other
+// five kinds too (without them `{dependentRequired: {…}}` rejects `12`). The
+// object arms carry the open record for the same reason ObjectArmFrom does —
+// they are union arms, and the trigger-absent arm in particular must not
+// reject an object merely for holding unrelated keys.
+type NonObjectDomain = null | boolean | number | string | unknown[];
 type DepRequiredArm<K extends PropertyKey, Reqs> =
-  | ({[P in K]: PresentValue} & {
+  | NonObjectDomain
+  | (Record<string, unknown> & {[P in K]: PresentValue} & {
       [R in Extract<Reqs extends readonly unknown[] ? Reqs[number] : never, PropertyKey>]: PresentValue;
     })
-  | {[P in K]?: never};
+  | (Record<string, unknown> & {[P in K]?: never});
 type DepSchemaArm<K extends PropertyKey, B, Root, F extends [unknown]> =
-  | Conj<{[P in K]: PresentValue}, FromJsonSchemaIn<B, Root, F>>
-  | {[P in K]?: never};
+  | NonObjectDomain
+  | Conj<Record<string, unknown> & {[P in K]: PresentValue}, FromJsonSchemaIn<B, Root, F>>
+  | (Record<string, unknown> & {[P in K]?: never});
 type DepRequiredFold<D, Ks, Root, F extends [unknown]> = Ks extends readonly [infer K extends PropertyKey, ...infer Rest]
   ? Conj<K extends keyof D ? DepRequiredArm<K, D[K]> : unknown, DepRequiredFold<D, Rest, Root, F>>
   : unknown;
@@ -1358,11 +1401,14 @@ type RefSiblingParts<S, Root, F extends [unknown]> = Conj<
   AnyOfPart<S, Root, F>,
   Conj<OneOfPart<S, Root, F>, Conj<AllOfPart<S, Root, F>, Conj<ConstPart<S>, Conj<EnumPart<S>, RefKindPart<S, Root, F>>>>>
 >;
-type NonRefParts<S, Root, F extends [unknown]> = Conj<AnyOfPart<S, Root, F>, CombinatorTail<S, Root, F>>;
-type CombinatorTail<S, Root, F extends [unknown]> = Conj<
-  OneOfPart<S, Root, F>,
-  Conj<AllOfPart<S, Root, F>, LiteralTail<S, Root, F>>
->;
+// A oneOf-bearing schema routes through OneOfPart ALONE — it has already
+// conjoined every other Core part into each branch, and conjoining them a
+// second time out here would wrap the sentinel'd union in exactly the
+// intersection the pushing exists to avoid.
+type NonRefParts<S, Root, F extends [unknown]> = S extends {oneOf: unknown}
+  ? OneOfPart<S, Root, F>
+  : Conj<AnyOfPart<S, Root, F>, CombinatorTail<S, Root, F>>;
+type CombinatorTail<S, Root, F extends [unknown]> = Conj<AllOfPart<S, Root, F>, LiteralTail<S, Root, F>>;
 type LiteralTail<S, Root, F extends [unknown]> = Conj<ConstPart<S>, Conj<EnumPart<S>, KindPart<S, Root, F>>>;
 type RefPart<S, Root, F extends [unknown]> = S extends {$ref: '#'}
   ? F[0]
@@ -1413,45 +1459,59 @@ type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends
 // exclusivity counts BRANCHES (a branch may itself be a union — flattening
 // must not merge it into its siblings); a single branch normalizes to that
 // branch (exactly-one of one is the branch itself, a common real-world
-// spelling); an empty list accepts nothing. Constraining siblings (a type
-// gate, a second combinator, family keywords, a reference) would need a
-// conjunction over a union that the collapse cannot classify, so they
-// resolve `never` — loud over silently dropping the exclusivity; push the
-// shared constraint into every branch instead.
-type OneOfConflictKeys =
+// spelling); an empty list accepts nothing.
+//
+// Constraining siblings split in two. The KIND / LITERAL ones are PUSHED INTO
+// every branch: `base ∧ exactly-one-of(B…)` and `exactly-one-of(base ∧ B…)`
+// accept the same values, because the base holds for every branch or for none
+// and so never changes the match COUNT — and the pushed spelling is the one the
+// collapse can classify. The rest stay `never` (loud over silently dropping the
+// exclusivity): a second combinator, a reference or a conditional would need a
+// conjunction over the sentinel'd union itself, which the collapse cannot read.
+// The hard set is what the OUTER layers own (`not` / `if` / `dependent*`
+// conjoin onto the whole Core, so they would wrap the sentinel'd union rather
+// than ride inside it) plus the references, whose lazily-tied fixpoint Conj
+// must never probe. Everything the Core itself asserts — the kind gate, the
+// literals, and the other two combinators — is pushable.
+type OneOfHardKeys = 'not' | 'if' | 'then' | 'else' | 'dependentSchemas' | 'dependentRequired' | '$ref' | '$dynamicRef';
+type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
+  ? Extract<keyof S, OneOfHardKeys> extends never
+    ? OneOfLowered<M, OneOfBase<S, Root, F>, Root, F>
+    : never
+  : unknown;
+// A sibling-LESS oneOf is the overwhelmingly common spelling, so it exits on a
+// single key probe: with nothing to push, the base is `unknown` and Conj hands
+// each branch back verbatim (keeping that shape's type, and id, unchanged).
+type OneOfSiblingKeys =
   | 'type'
   | 'const'
   | 'enum'
   | 'anyOf'
   | 'allOf'
-  | 'not'
-  | 'if'
-  | 'then'
-  | 'else'
-  | 'dependentSchemas'
-  | 'dependentRequired'
-  | '$ref'
-  | '$dynamicRef'
   | StringFamilyKeys
   | NumberFamilyKeys
   | ArrayFamilyKeys
   | ObjectFamilyKeys;
-type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
-  ? Extract<keyof S, OneOfConflictKeys> extends never
-    ? M extends readonly []
-      ? never
-      : M extends readonly [infer Only extends JsonSchemaInput]
-        ? FromJsonSchemaIn<Only, Root, F>
-        : FromOneOfBranches<M, Root, F> extends infer Branches extends readonly [unknown, unknown, ...unknown[]]
-          ? OneOf<Branches>
-          : never
-    : never
-  : unknown;
+type OneOfBase<S, Root, F extends [unknown]> =
+  Extract<keyof S, OneOfSiblingKeys> extends never ? unknown : Conj<AnyOfPart<S, Root, F>, CombinatorTail<S, Root, F>>;
+// A sibling-less oneOf has `unknown` for its base (every own keyword is either
+// oneOf itself or excluded by TypelessFrom), and Conj returns the branch
+// VERBATIM against `unknown` — so that shape keeps the exact type, and id, it
+// has always had.
+type OneOfLowered<M, Base, Root, F extends [unknown]> = M extends readonly []
+  ? never
+  : M extends readonly [infer Only extends JsonSchemaInput]
+    ? Conj<Base, FromJsonSchemaIn<Only, Root, F>>
+    : FromOneOfBranches<M, Base, Root, F> extends infer Branches extends readonly [unknown, unknown, ...unknown[]]
+      ? OneOf<Branches>
+      : never;
 // -readonly: the lowered branch tuple must be TYPE-IDENTICAL to the public
 // `OneOf<[…]>` spelling (whose tuple parameter is mutable), so the door hands
 // the tuple straight to the imported combinator instead of re-implementing the
 // carrier / nullish-dedup walk.
-type FromOneOfBranches<M, Root, F extends [unknown]> = {-readonly [K in keyof M]: FromJsonSchemaIn<M[K], Root, F>};
+type FromOneOfBranches<M, Base, Root, F extends [unknown]> = {
+  -readonly [K in keyof M]: Conj<Base, FromJsonSchemaIn<M[K], Root, F>>;
+};
 type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly JsonSchemaInput[]}
   ? FromAllOf<M, Root, F>
   : unknown;
@@ -1503,7 +1563,7 @@ type TypelessFrom<S, Root, F extends [unknown]> =
     | 'allOf'
   > extends never
     ? unknown
-    : StringFrom<S> | NumberFrom<S> | boolean | null | ArrayFrom<S, Root, F> | ObjectFrom<S, Root, F>;
+    : StringFrom<S> | NumberFrom<S> | boolean | null | ArrayFrom<S, Root, F> | ObjectArmFrom<S, Root, F>;
 
 /** The static type a draft 2020-12 schema literal denotes — RunTypes' analogue of
  *  json-schema-to-ts's `FromSchema` / TypeBox's `Static`. Constraint keywords do
