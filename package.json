@@ -65,6 +65,7 @@
     "commitizen": "4.3.1",
     "cz-conventional-changelog": "3.3.0",
     "husky": "9.1.7",
+    "json-schema-test-suite": "github:json-schema-org/JSON-Schema-Test-Suite#cc73f5fa64c3b0d11f6c277db4edc22938994b54",
     "lint-staged": "16.4.0",
     "oxfmt": "0.53.0",
     "oxlint": "1.68.0",

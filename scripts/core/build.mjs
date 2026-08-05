@@ -37,6 +37,7 @@ import {dirname, join} from 'node:path';
 import {GO_ROOT, loadEnv, REPO_ROOT} from '../lib/env.mjs';
 import {capture, die, hostGoArch, info, red, reportCliError, run, success, warn, which} from '../lib/proc.mjs';
 import {describe, headCommit, readPin, submoduleInitialised} from '../lib/tsgolint.mjs';
+import {runGenerate as generateSuiteModules} from './gen-json-schema-suite.mjs';
 
 const GO_MODULE = 'github.com/mionkit/ts-runtypes';
 const GO_BIN = join(REPO_ROOT, 'bin/ts-runtypes');
@@ -261,6 +262,26 @@ function checkPkgDist(pkgDir, srcName, sentinels, pkgName) {
 const checkMarkerDist = () => checkPkgDist(MARKER_PKG_DIR, 'packages/ts-runtypes', MARKER_SENTINELS, '@ts-runtypes/core');
 const checkPluginDist = () => checkPkgDist(PLUGIN_PKG_DIR, 'packages/ts-runtypes-devtools', PLUGIN_SENTINELS, '@ts-runtypes/devtools');
 
+// ── suite-modules ────────────────────────────────────────────────────────────
+
+// The official JSON-Schema-Test-Suite lane's generated call-site modules
+// (gitignored build output under test/json-schema-official/generated/).
+// Regenerating is deterministic and takes well under a second, so we always
+// regenerate rather than diffing for staleness. Skips with a warning when the
+// suite dep isn't installed or triage.json doesn't exist yet (bootstrap
+// states); the generator itself fails loudly when the committed triage.json
+// was derived from a different suite commit than the lockfile pins.
+function checkSuiteModules() {
+  info('Checking json-schema-official generated modules...');
+  if (!existsSync(join(REPO_ROOT, 'node_modules/json-schema-test-suite'))) {
+    return warn('json-schema-test-suite is not installed (pnpm install) — skipping suite module generation.');
+  }
+  if (!existsSync(join(REPO_ROOT, 'packages/ts-runtypes/test/json-schema-official/triage.json'))) {
+    return warn('json-schema-official/triage.json not found — skipping suite module generation.');
+  }
+  generateSuiteModules();
+}
+
 // ── dispatch ────────────────────────────────────────────────────────────────
 
 function runTarget(target) {
@@ -270,8 +291,9 @@ function runTarget(target) {
     case 'linux-extract': return checkLinuxExtract();
     case 'marker-dist': return checkMarkerDist();
     case 'plugin-dist': return checkPluginDist();
-    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); return;
-    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | all`);
+    case 'suite-modules': return checkSuiteModules();
+    case 'all': checkGo(); checkMarkerDist(); checkPluginDist(); checkSuiteModules(); return;
+    default: fail(`unknown target '${target}'. Valid: go | linux-go | marker-dist | plugin-dist | suite-modules | all`);
   }
 }
 

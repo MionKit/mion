@@ -91,5 +91,11 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # Cross-bundler real-build test fixtures (created + cleaned per run).
 /packages/ts-runtypes/test/tmp-build-*/
 
+# Official JSON-Schema-Test-Suite lane: generated call-site modules are build
+# output (scripts/core/gen-json-schema-suite.mjs via check:builds), and
+# results.json is the per-run artifact the report script reads.
+/packages/ts-runtypes/test/json-schema-official/generated/
+/packages/ts-runtypes/test/json-schema-official/results.json
+
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/
