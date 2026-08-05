@@ -177,6 +177,18 @@ const (
 	// so the type definition must declare them. Args: [pattern source,
 	// reason].
 	CodeFMTSampleGenFailed = "FMT005"
+
+	// CodeFMTSampleConflict — two sites resolve to ONE cache entry (their
+	// formats are identical apart from the sample pools, which are not
+	// id-relevant) but each DECLARES a different mockSamples pool. The shared
+	// entry can only carry one, so it mocks from whichever interned first —
+	// deterministic for a fixed input, but adding or reordering unrelated code
+	// can silently change which pool wins. Error severity: the build fails
+	// rather than pick for you. Declared-vs-absent is NOT a conflict (absence is
+	// not an opinion — the declared pool is adopted), and auto-generated pools
+	// are deterministic per pattern so they cannot disagree. Args: [format name,
+	// the pool in use, the conflicting pool, the site that interned first].
+	CodeFMTSampleConflict = "FMT006"
 )
 
 // Unknown-keys family — no root throws today; only child drops.
@@ -278,6 +290,7 @@ func init() {
 	register(Definition{Code: CodeFMTSampleBounds, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample violates a sibling constraint"})
 	register(Definition{Code: CodeFMTMissingJsRuntime, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern checks need a JS runtime and none was found"})
 	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern mockSamples could not be auto-generated"})
+	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Title: "two sites declare different mockSamples for one shared format entry"})
 
 	// Class-serializer family — a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,

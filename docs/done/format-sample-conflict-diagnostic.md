@@ -1,7 +1,8 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
+completed: 2026-08-05
 created: 2026-08-03
 ---
 
@@ -22,6 +23,49 @@ when it happens, so the ambiguity is surfaced instead of silent.
 This was scoped out of the keyword-first-formats change deliberately: it is a
 self-contained safety net, not part of the core id change, and proper
 cross-site detection with dual source attribution is its own subproject.
+
+## What shipped — FMT006
+
+Detection sits exactly where the investigation predicted, at `Cache.assignID`'s
+`byStructural` hit. That path deliberately returns WITHOUT projecting the
+incoming type, so the second site's pool was never looked at; `reconcileSamples`
+now reads it there and compares against the entry's.
+
+Three outcomes, matching "absence is not an opinion":
+
+| both declare, pools differ | FMT006, an error, naming both pools and the site that interned first |
+| one declares, other absent | no error, and the declared pool is **adopted** onto the shared entry |
+| both declare the same pool | no error, still one entry |
+
+Pool comparison is ORDER-SENSITIVE: the order is what the mock generator indexes
+into, so the same members in a different order really do produce different values
+for one seed. Covered by its own test.
+
+### Provenance turned out to be free
+
+The spec expected to thread a declared-vs-generated flag to the comparison point.
+Not needed: pattern sample AUTO-GENERATION is a separate later pass over already
+interned nodes (`resolver.enrichPatternSamples`), so everything reachable at
+`assignID` time is declared-only. Nothing to thread, nothing to recompute.
+
+### Both sites, without new position plumbing
+
+The cache cannot name a site — it has types, not call sites. So it LATCHES the
+conflict (the pattern `depthExceeded` already uses) and `commitPending` raises it,
+because that is where the call site lives. The resolver keeps `sampleOrigins`,
+mapping an id to the FIRST site that resolved it — precisely the site whose pool
+the entry kept — so the diagnostic anchors on the second site and names the first
+in its message. No `*checker.Type`-to-position work was required.
+
+### Tests
+
+`internal/compiler/resolver/sample_conflict_test.go`: differing pools error with
+both pools and the first site in the args at Error severity; declared-vs-absent
+does not fire in EITHER scan order; identical pools do not fire; a reordered pool
+does; and the shared entry demonstrably carries the adopted pool rather than
+merely not erroring.
+
+## Original direction follows
 
 ## Direction
 

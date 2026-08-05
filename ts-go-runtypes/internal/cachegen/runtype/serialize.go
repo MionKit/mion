@@ -117,6 +117,14 @@ type Cache struct {
 	// depthCulprit carries the walker's classified cause alongside the latch:
 	// the self-instantiating generic's name (→ MKR009), or "" (→ MKR008).
 	depthCulprit string
+	// sampleConflicts latches cross-site mock-sample disagreements found at the
+	// dedup point. Samples are NOT id-relevant (they are generation metadata, not
+	// validation behaviour), so two sites differing only in their declared pools
+	// share ONE entry — the intended win. The residue this catches: when both
+	// sites DECLARE a pool and the pools differ, the shared entry mocks from
+	// whichever interned first, so adding or reordering unrelated code can change
+	// which pool wins. Latched here, raised by the resolver, which owns the sites.
+	sampleConflicts []SampleConflict
 
 	// overrides is the `overrideX<T>(pureFn)` table built by the resolver's
 	// early override-collection pass, keyed by a node's BASE structural key →
@@ -324,7 +332,24 @@ func (cache *Cache) DepthCulprit() string { return cache.depthCulprit }
 func (cache *Cache) ResetDepthExceeded() {
 	cache.depthExceeded = false
 	cache.depthCulprit = ""
+	cache.sampleConflicts = nil
 }
+
+// SampleConflict is one cross-site disagreement: an entry two sites share, each
+// having DECLARED a different mock-sample pool for it.
+type SampleConflict struct {
+	// ID is the shared cache entry both sites resolved to.
+	ID string
+	// Format names the format whose pool disagrees (`stringFormat`, `email`, …).
+	Format string
+	// Kept is the pool already interned — today's winner, purely by having been
+	// seen first. Incoming is the pool the second site declared.
+	Kept     []string
+	Incoming []string
+}
+
+// SampleConflicts returns the disagreements latched since the last reset.
+func (cache *Cache) SampleConflicts() []SampleConflict { return cache.sampleConflicts }
 
 // AssignID projects tsType into the cache (if new) and returns its hash id.
 // Public alias for the internal assignID used by callers — like the marker
@@ -550,6 +575,10 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 		if cache.inProgress[id] {
 			cache.circularIDs[id] = true
 		}
+		// The incoming type is NOT projected on this path — that is the point of
+		// the hit — so its declared pool would otherwise never be looked at.
+		// Reconcile it against the entry's before returning.
+		cache.reconcileSamples(id, tsType)
 		return id
 	}
 
@@ -1680,6 +1709,91 @@ func isSafeName(name string) bool {
 				return false
 			}
 		default:
+			return false
+		}
+	}
+	return true
+}
+
+// ─────────────────── cross-site mock-sample reconciliation ───────────────────
+
+// reconcileSamples compares the DECLARED mock-sample pool of a type that just
+// deduped onto an existing entry against the pool that entry already carries.
+//
+// Everything reachable here is declared-only: pattern sample AUTO-GENERATION is
+// a separate later pass over interned nodes (resolver.enrichPatternSamples), so
+// nothing in the cache has a generated pool yet. That is what makes provenance
+// free — no flag to thread, no recomputation.
+//
+// Three outcomes, matching the rule that absence is not an opinion:
+//
+//   - the entry has no pool and the incoming one declares → ADOPT it, so a
+//     declared pool is never lost to whichever site happened to intern first;
+//   - the pools agree (or neither declares) → nothing to do;
+//   - both declare and they differ → latch a conflict for the resolver to raise.
+func (cache *Cache) reconcileSamples(id string, tsType *checker.Type) {
+	node := cache.nodes[id]
+	if node == nil || node.FormatAnnotation == nil {
+		return
+	}
+	incomingAnnotation := typeid.FormatAnnotationFromType(cache.typeChecker, tsType)
+	if incomingAnnotation == nil {
+		return
+	}
+	incoming, hasIncoming := declaredSamples(incomingAnnotation.Params)
+	if !hasIncoming {
+		return
+	}
+	kept, hasKept := declaredSamples(node.FormatAnnotation.Params)
+	if !hasKept {
+		// Absence is not an opinion: the declared pool wins rather than being
+		// dropped because the pool-less site was seen first.
+		node.FormatAnnotation.Params["mockSamples"] = incomingAnnotation.Params["mockSamples"]
+		return
+	}
+	if sameSamples(kept, incoming) {
+		return
+	}
+	cache.sampleConflicts = append(cache.sampleConflicts, SampleConflict{
+		ID:       id,
+		Format:   node.FormatAnnotation.Name,
+		Kept:     kept,
+		Incoming: incoming,
+	})
+}
+
+// declaredSamples reads a params map's `mockSamples` as a string slice. The
+// second result distinguishes "declared nothing" from "declared an empty pool";
+// only a non-empty declaration is an opinion worth comparing.
+func declaredSamples(params map[string]any) ([]string, bool) {
+	raw, ok := params["mockSamples"]
+	if !ok {
+		return nil, false
+	}
+	values, ok := raw.([]any)
+	if !ok || len(values) == 0 {
+		return nil, false
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		text, ok := value.(string)
+		if !ok {
+			return nil, false
+		}
+		out = append(out, text)
+	}
+	return out, true
+}
+
+// sameSamples compares two pools ORDER-SENSITIVELY: the order is what the mock
+// generator indexes into, so two pools with the same members in a different
+// order genuinely produce different values for the same seed.
+func sameSamples(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
 			return false
 		}
 	}

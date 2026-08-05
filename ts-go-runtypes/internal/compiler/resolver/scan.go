@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -369,6 +370,22 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		}
 		return protocol.Site{}, []diagnostics.Diagnostic{diag}, false
 	}
+	// Cross-site mock-sample disagreement on an entry this site shares with an
+	// earlier one. Raised HERE rather than in the cache because only the resolver
+	// knows the call sites: the diagnostic anchors on THIS site and names the one
+	// that interned first, so both ends of the conflict are in the message.
+	var diags []diagnostics.Diagnostic
+	for _, conflict := range sess.cache.SampleConflicts() {
+		diags = append(diags, diagnostics.New(
+			diagnostics.CodeFMTSampleConflict, pending.site,
+			conflict.Format,
+			formatSamplePool(conflict.Kept),
+			formatSamplePool(conflict.Incoming),
+			sess.formatSampleOrigin(conflict.ID),
+		))
+	}
+	sess.rememberSampleOrigin(id, pending)
+
 	return protocol.Site{
 		File:          pending.file,
 		Pos:           pending.pos,
@@ -380,7 +397,39 @@ func (sess *Session) commitPending(pending pendingCall) (protocol.Site, []diagno
 		Demand:        pending.demand,
 		TrailingComma: pending.trailingComma,
 		MockSeed:      pending.mockSeed,
-	}, nil, true
+	}, diags, true
+}
+
+// rememberSampleOrigin records the FIRST site to resolve an id, so a later
+// conflicting site can name it. Only the first wins — that is precisely the site
+// whose declared pool the shared entry kept.
+func (sess *Session) rememberSampleOrigin(id string, pending pendingCall) {
+	if sess.sampleOrigins == nil {
+		sess.sampleOrigins = map[string]string{}
+	}
+	if _, seen := sess.sampleOrigins[id]; seen {
+		return
+	}
+	sess.sampleOrigins[id] = pending.file + ":" + strconv.Itoa(pending.pos)
+}
+
+// formatSampleOrigin renders the remembered site, or a plain fallback when the
+// entry was interned by something other than a scanned call site.
+func (sess *Session) formatSampleOrigin(id string) string {
+	if origin, ok := sess.sampleOrigins[id]; ok {
+		return origin
+	}
+	return "another site"
+}
+
+// formatSamplePool renders a pool for the message: the values, comma-joined, in
+// declaration order (which is the order the mock generator indexes into).
+func formatSamplePool(samples []string) string {
+	quoted := make([]string, 0, len(samples))
+	for _, sample := range samples {
+		quoted = append(quoted, strconv.Quote(sample))
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
 // analyzeCall inspects one call expression — the checker-bound analysis
