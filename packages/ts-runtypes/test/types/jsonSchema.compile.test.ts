@@ -86,7 +86,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         FromJsonSchema<{readonly type: 'string'; readonly minLength: 2; readonly maxLength: 50}>,
         StringFormat<{readonly minLength: 2; readonly maxLength: 50}>
       >>;
-      type _03 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'email'}>, Email>>;
+      type _03 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'email'}>, EmailAddress>>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uuid'}>, UUID>>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'date'}>, StringDate>>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'time'}>, StringTime>>;
@@ -411,7 +411,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         id: UUID;
         name: StringFormat<{readonly minLength: 2; readonly maxLength: 50}>;
         age: NumberFormat<{readonly minimum: 0; readonly maximum: 130; integer: true}>;
-        email?: Email;
+        email?: EmailAddress;
         tags: string[];
         address: {street: string; city?: string};
       }>>;

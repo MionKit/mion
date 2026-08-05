@@ -2,6 +2,7 @@ package datetime
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
@@ -20,6 +21,19 @@ func init() {
 
 func (dateTimeEmitter) Name() string                  { return "dateTime" }
 func (dateTimeEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+
+// splitSearch locates the date/time separator. A LETTER separator is matched
+// case-insensitively: RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
+// upper-case spelling, and a plain indexOf would miss it. Anything else keeps
+// the exact single-character search.
+func splitSearch(vλl, splitChar string) string {
+	lower := strings.ToLower(splitChar)
+	upper := strings.ToUpper(splitChar)
+	if lower == upper {
+		return vλl + ".indexOf(" + strconv.Quote(splitChar) + ")"
+	}
+	return vλl + ".search(/[" + upper + lower + "]/)"
+}
 
 // dateTimeParts resolves the date pure-fn, time pure-fn, and split char.
 func dateTimeParts(params map[string]any) (dateFn, timeFn, splitChar string, ok bool) {
@@ -84,12 +98,11 @@ func (dateTimeEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, 
 	}
 	dateAlias := pureFnAlias(ctx, dateFn)
 	timeAlias := pureFnAlias(ctx, timeFn)
-	split := strconv.Quote(splitChar)
 	// IIFE: bind the split position once, bail on -1, then AND the two
 	// sub-validators over the substrings.
 	structural := "((dtp) => dtp !== -1 && " +
 		dateAlias + "(" + vλl + ".substring(0,dtp)) && " +
-		timeAlias + "(" + vλl + ".substring(dtp+1)))(" + vλl + ".indexOf(" + split + "))"
+		timeAlias + "(" + vλl + ".substring(dtp+1)))(" + splitSearch(vλl, splitChar) + ")"
 	if bounds := boundValidateChecks(ctx, annotation.Params, vλl, dateTimeKind, splitChar); bounds != "" {
 		return "(" + structural + " && " + bounds + ")"
 	}

@@ -96,7 +96,7 @@ export interface ExpectedUser {
   id: TF.UUID;
   name: TF.String<{minLength: 2; maxLength: 50}>;
   age: TF.Number<{integer: true; min: 0; max: 130}>;
-  email?: TF.Email;
+  email?: TF.EmailAddress;
   tags: string[];
   address: {street: string; city?: string};
 }

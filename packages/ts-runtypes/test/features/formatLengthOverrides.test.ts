@@ -14,12 +14,12 @@ import '@ts-runtypes/core/formats';
 
 describe('variable-width format length overrides converge across authoring modes', () => {
   it('email: minLength sibling ≡ type-first ≡ value-first ≡ door', () => {
-    const typeFirst = getRunTypeId<TF.Email<{minLength: 10}>>();
+    const typeFirst = getRunTypeId<TF.EmailAddress<{minLength: 10}>>();
     // reflection form (marker rule)
-    const value: TF.Email<{minLength: 10}> = 'a@example.com' as TF.Email<{minLength: 10}>;
+    const value: TF.EmailAddress<{minLength: 10}> = 'a@example.com' as TF.EmailAddress<{minLength: 10}>;
     expect(getRunTypeId(value)).toBe(typeFirst);
     // value-first builder
-    expect(getRunTypeId(TF.email({minLength: 10}))).toBe(typeFirst);
+    expect(getRunTypeId(TF.emailAddress({minLength: 10}))).toBe(typeFirst);
     // JSON Schema door
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'email', minLength: 10}))).toBe(typeFirst);
   });

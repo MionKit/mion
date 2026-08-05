@@ -227,6 +227,15 @@
     },
     {
       "file": "format.json",
+      "group": "idn-email format",
+      "case": "invalid idn-email string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
       "group": "idn-hostname format",
       "case": "invalid idn-hostname string is only an annotation by default",
       "expected": true,
@@ -274,6 +283,15 @@
       "file": "format.json",
       "group": "json-pointer format",
       "case": "invalid json-pointer string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "regex format",
+      "case": "invalid regex string is only an annotation by default",
       "expected": true,
       "observed": false,
       "byDesign": true,
@@ -373,285 +391,6 @@
       "file": "oneOf.json",
       "group": "oneOf with required",
       "case": "second valid - valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "a second fraction of fifteen nines is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "a valid date-time string",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "a valid date-time string with plus offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "a valid date-time with a leap second, UTC",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "a valid date-time with a leap second, with minus offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/date-time.json",
-      "group": "validation of date-time strings",
-      "case": "case-insensitive T and Z",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "\\a is not an ECMA 262 control escape",
-      "case": "when used as a pattern",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "global inline flag groups are not valid ECMA 262",
-      "case": "a single global inline flag (?i)",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "global inline flag groups are not valid ECMA 262",
-      "case": "multiple global inline flags (?ims)",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "Python-specific regular expression syntax is not valid ECMA 262",
-      "case": "inline comment group (?#...) is not ECMA 262",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "Python-specific regular expression syntax is not valid ECMA 262",
-      "case": "Python named backreference (?P=name) is not ECMA 262",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/ecmascript-regex.json",
-      "group": "Python-specific regular expression syntax is not valid ECMA 262",
-      "case": "Python named group (?P<name>...) is not ECMA 262",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "a quoted string with a @ in the local part is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "a quoted string with a space in the local part is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "an IPv4-address-literal after the @ is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "an IPv6-address-literal after the @ is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "dot after local part is not valid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "dot before local part is not valid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/email.json",
-      "group": "validation of e-mail addresses",
-      "case": "two subsequent dots inside local part are not valid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/idn-email.json",
-      "group": "validation of an internationalized e-mail addresses",
-      "case": "a fullwidth commercial at is not a local-part separator",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/idn-email.json",
-      "group": "validation of an internationalized e-mail addresses",
-      "case": "an invalid e-mail/idn e-mail address",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/regex.json",
-      "group": "validation of regular expressions",
-      "case": "a regular expression with unclosed parens is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "a valid time string with leap second, Zulu",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "a valid time string with precise second fraction",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "a valid time string with second fraction",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "invalid time string with no leading zero for single digit",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "valid leap second, large negative time-offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "valid leap second, large positive time-offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "valid leap second, negative time-offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "valid leap second, positive time-offset",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/time.json",
-      "group": "validation of time strings",
-      "case": "valid leap second, zero time-offset",
       "expected": true,
       "observed": false,
       "byDesign": false,

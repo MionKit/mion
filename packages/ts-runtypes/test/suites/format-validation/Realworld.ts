@@ -27,7 +27,7 @@ export const REALWORLD = {
   user: {
     title: 'User',
     description:
-      'A DTO whose id is a `TF.UUID` and whose email is a `TF.Email`; the plain `name` rides alongside as a normal string.',
+      'A DTO whose id is a `TF.UUID` and whose email is a `TF.EmailAddress`; the plain `name` rides alongside as a normal string.',
     validateNotes: [
       'The `id` must be a UUID (any version) and `email` a valid email — a plain string that is structurally fine still fails the format check.',
       'Structural — extra properties beyond the declared shape PASS.',
@@ -36,7 +36,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createValidateFn<User>();
     },
@@ -44,7 +44,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createStandardSchema<User>();
     },
@@ -66,10 +66,12 @@ export const REALWORLD = {
       ],
       [
         {
-          message: 'Failed pattern constraint',
+          // TF.EmailAddress checks the RFC 5321 grammar through the pure-fn
+          // engine, so the failing param is `emailRfc`, not a pattern.
+          message: 'Failed emailRfc constraint (ascii)',
           path: ['email'],
           expected: 'string',
-          format: {name: 'email', formatPath: ['pattern'], val: 'pattern'},
+          format: {name: 'email', formatPath: ['emailRfc'], val: 'ascii'},
         },
       ],
       [{message: 'Expected string', path: ['name'], expected: 'string'}],
@@ -78,11 +80,11 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createValidateFn<DataOnly<User>>();
     },
-    validateSchema: () => createValidateFn(RT.object({id: TF.uuid(), name: TF.string(), email: TF.email()})),
+    validateSchema: () => createValidateFn(RT.object({id: TF.uuid(), name: TF.string(), email: TF.emailAddress()})),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({
@@ -95,7 +97,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return deserializeValidate<User>();
     },
@@ -103,12 +105,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       const v: User = {
         id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f' as TF.UUID,
         name: 'Ada Lovelace',
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
       };
       return createValidateFn(v);
     },
@@ -116,12 +118,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       const v: User = {
         id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f' as TF.UUID,
         name: 'Ada Lovelace',
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
       };
       return deserializeValidate(v);
     },
@@ -129,7 +131,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createGetValidationErrorsFn<User>();
     },
@@ -137,12 +139,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createGetValidationErrorsFn<DataOnly<User>>();
     },
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.object({id: TF.uuid(), name: TF.string(), email: TF.email()})),
+      createGetValidationErrorsFn(RT.object({id: TF.uuid(), name: TF.string(), email: TF.emailAddress()})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({
@@ -155,7 +157,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return deserializeGetValidationErrors<User>();
     },
@@ -163,12 +165,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       const v: User = {
         id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f' as TF.UUID,
         name: 'Ada Lovelace',
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
       };
       return createGetValidationErrorsFn(v);
     },
@@ -176,12 +178,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       const v: User = {
         id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f' as TF.UUID,
         name: 'Ada Lovelace',
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
       };
       return deserializeGetValidationErrors(v);
     },
@@ -189,7 +191,7 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       return createMockDataFn<User>();
     },
@@ -197,12 +199,12 @@ export const REALWORLD = {
       interface User {
         id: TF.UUID;
         name: string;
-        email: TF.Email;
+        email: TF.EmailAddress;
       }
       const v: User = {
         id: '0d8f2b1c-1e2a-4d3b-9f4c-5a6b7c8d9e0f' as TF.UUID,
         name: 'Ada Lovelace',
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
       };
       return createMockDataFn(v);
     },
@@ -224,12 +226,12 @@ export const REALWORLD = {
   order: {
     title: 'Order',
     description:
-      'A DTO mixing two formats (a `TF.UUID` id and a `TF.Email` contact) with a numeric total and a string-literal status union.',
+      'A DTO mixing two formats (a `TF.UUID` id and a `TF.EmailAddress` contact) with a numeric total and a string-literal status union.',
     validateNotes: 'A malformed email or uuid surfaces its named format error; an out-of-set status fails the union.',
     validate: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -238,7 +240,7 @@ export const REALWORLD = {
     standardSchema: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -247,7 +249,7 @@ export const REALWORLD = {
     validateDataOnly: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -257,7 +259,7 @@ export const REALWORLD = {
       createValidateFn(
         RT.object({
           id: TF.uuid(),
-          email: TF.email(),
+          email: TF.emailAddress(),
           total: TF.number(),
           status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
         })
@@ -278,7 +280,7 @@ export const REALWORLD = {
     deserializeValidate: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -287,13 +289,13 @@ export const REALWORLD = {
     validateReflect: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       const v: Order = {
         id: '6f9619ff-8b86-4011-b42d-00cf4fc964ff' as TF.UUID,
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
         total: 78,
         status: 'paid',
       };
@@ -302,13 +304,13 @@ export const REALWORLD = {
     deserializeValidateReflect: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       const v: Order = {
         id: '6f9619ff-8b86-4011-b42d-00cf4fc964ff' as TF.UUID,
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
         total: 78,
         status: 'paid',
       };
@@ -317,7 +319,7 @@ export const REALWORLD = {
     getValidationErrors: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -326,7 +328,7 @@ export const REALWORLD = {
     getValidationErrorsDataOnly: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -336,7 +338,7 @@ export const REALWORLD = {
       createGetValidationErrorsFn(
         RT.object({
           id: TF.uuid(),
-          email: TF.email(),
+          email: TF.emailAddress(),
           total: TF.number(),
           status: RT.union([RT.literal('pending'), RT.literal('paid'), RT.literal('shipped'), RT.literal('cancelled')]),
         })
@@ -357,7 +359,7 @@ export const REALWORLD = {
     deserializeGetValidationErrors: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -366,13 +368,13 @@ export const REALWORLD = {
     getValidationErrorsReflect: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       const v: Order = {
         id: '6f9619ff-8b86-4011-b42d-00cf4fc964ff' as TF.UUID,
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
         total: 78,
         status: 'paid',
       };
@@ -381,13 +383,13 @@ export const REALWORLD = {
     deserializeGetValidationErrorsReflect: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       const v: Order = {
         id: '6f9619ff-8b86-4011-b42d-00cf4fc964ff' as TF.UUID,
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
         total: 78,
         status: 'paid',
       };
@@ -396,7 +398,7 @@ export const REALWORLD = {
     mockType: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
@@ -405,13 +407,13 @@ export const REALWORLD = {
     mockTypeReflect: () => {
       interface Order {
         id: TF.UUID;
-        email: TF.Email;
+        email: TF.EmailAddress;
         total: number;
         status: 'pending' | 'paid' | 'shipped' | 'cancelled';
       }
       const v: Order = {
         id: '6f9619ff-8b86-4011-b42d-00cf4fc964ff' as TF.UUID,
-        email: 'ada@example.com' as TF.Email,
+        email: 'ada@example.com' as TF.EmailAddress,
         total: 78,
         status: 'paid',
       };

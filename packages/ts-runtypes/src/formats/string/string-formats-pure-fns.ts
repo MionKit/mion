@@ -72,6 +72,25 @@ registerPureFnFactory('rtFormats::codePointLength', function () {
   };
 });
 
+// ############### Regex pure fn ###############
+//
+// `format: 'regex'` asks whether the STRING is a usable ECMA-262 regular
+// expression, which is not a shape question — the only honest test is handing
+// it to the engine. Unicode mode is what rejects the constructs from other
+// regex dialects that plain mode would quietly accept as literals: the inline
+// flag groups `(?i)` / `(?ims)`, the comment group `(?#…)`, and Python's named
+// group and backreference spellings.
+registerPureFnFactory('rtFormats::isEcmaRegex', function () {
+  return function _is_ecma_regex(value: string): boolean {
+    try {
+      new RegExp(value, 'u');
+      return true;
+    } catch {
+      return false;
+    }
+  };
+});
+
 // ############### IDNA pure fns ###############
 //
 // The internationalized host name engine, split the way the date/time fns are:
@@ -359,6 +378,54 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
       decoded.push(label);
     }
     return satisfiesBidi(decoded);
+  };
+});
+
+// ############### Email pure fn ###############
+//
+// RFC 5321 addressing, which the EMAIL_PATTERN cannot express: a QUOTED local
+// part may carry spaces, dots in a row, even an `@` of its own, and the domain
+// may be an address literal (`[127.0.0.1]`, `[IPv6:::1]`) instead of a name.
+// Composed from the engines already registered above — the IP checks for the
+// literals, the host-name engine for the ordinary domain — so the rules live in
+// one place each.
+registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
+  const isIPV4 = utl.getPureFn('rtFormats::isIPV4') as (ip: string, params: object) => boolean;
+  const isIPV6 = utl.getPureFn('rtFormats::isIPV6') as (ip: string, params: object) => boolean;
+  const isIdnHostname = utl.getPureFn('rtFormats::isIdnHostname') as (value: string, params: object) => boolean;
+  const asciiAtextRegexp = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+$/;
+  // The internationalized local part widens the repertoire rather than listing
+  // it: anything that is not a separator, a space, or a bracket.
+  const idnAtextRegexp = /^[^ \t\r\n@.[\]]+$/u;
+  const bareQuoteRegexp = /(^|[^\\])"/;
+  function isQuoted(local: string): boolean {
+    if (local.length < 2 || local[0] !== '"' || local[local.length - 1] !== '"') return false;
+    // A bare quote inside would have ended the string early.
+    return !bareQuoteRegexp.test(local.substring(1, local.length - 1));
+  }
+  function isLocalPart(local: string, idn: boolean): boolean {
+    if (local === '') return false;
+    if (isQuoted(local)) return true;
+    const atextRegexp = idn ? idnAtextRegexp : asciiAtextRegexp;
+    const parts = local.split('.');
+    // A dot separates atoms, so it may not lead, trail, or repeat.
+    for (const part of parts) if (part === '' || !atextRegexp.test(part)) return false;
+    return true;
+  }
+  return function _is_email_address(value: string, params: {idn?: boolean}): boolean {
+    // The LAST '@' separates: a quoted local part may contain one of its own.
+    const at = value.lastIndexOf('@');
+    if (at <= 0 || at === value.length - 1) return false;
+    if (!isLocalPart(value.substring(0, at), params.idn === true)) return false;
+    const domain = value.substring(at + 1);
+    if (domain[0] === '[' && domain[domain.length - 1] === ']') {
+      const literal = domain.substring(1, domain.length - 1);
+      if (literal.substring(0, 5) === 'IPv6:') {
+        return isIPV6(literal.substring(5), {version: 6, allowLocalHost: true});
+      }
+      return isIPV4(literal, {version: 4, allowLocalHost: false});
+    }
+    return isIdnHostname(domain, {idn: params.idn === true});
   };
 });
 

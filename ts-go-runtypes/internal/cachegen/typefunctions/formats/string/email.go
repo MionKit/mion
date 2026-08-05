@@ -1,6 +1,7 @@
 package string
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
@@ -30,10 +31,43 @@ func (emailEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλ
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailValidateExprFor(ctx, annotation.Params, vλl)
 	}
+	if annotation != nil && emailHasRfc(annotation.Params) {
+		return emailRfcCheckExpr(ctx, annotation.Params, vλl)
+	}
 	return namedPatternValidate(ctx, annotation, vλl)
 }
 
+// ── RFC 5321 path ────────────────────────────────────────────────────
+//
+// `emailRfc` routes the whole check to the pure-fn engine: a quoted local part
+// and an address-literal domain are not expressible as a pattern. 'ascii' backs
+// `format: 'email'`, 'unicode' backs `format: 'idn-email'`.
+
+func emailHasRfc(params map[string]any) bool {
+	mode, ok := params["emailRfc"].(string)
+	return ok && mode != ""
+}
+
+func emailRfcAllowsUnicode(params map[string]any) bool {
+	mode, _ := params["emailRfc"].(string)
+	return mode == "unicode"
+}
+
+func emailRfcCheckExpr(ctx formats.EmitContext, params map[string]any, vλl string) string {
+	conditions := lengthConditions(params, vλl, ctx)
+	idn := "false"
+	if emailRfcAllowsUnicode(params) {
+		idn = "true"
+	}
+	conditions = append(conditions, pureFnAlias(ctx, "isEmailAddress")+"("+vλl+",{idn:"+idn+"})")
+	return strings.Join(conditions, " && ")
+}
+
 func (emailEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+	if annotation != nil && emailHasRfc(annotation.Params) {
+		return "if (!(" + emailRfcCheckExpr(ctx, annotation.Params, vλl) + ")) " +
+			formats.FormatErrCall(pathExpr, errorsArr, "string", "email", "emailRfc", strconv.Quote(annotation.Params["emailRfc"].(string)))
+	}
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
 	}

@@ -30,7 +30,8 @@
 import type {NotSlot} from '../formats/not.ts';
 
 import type {
-  Email,
+  EmailAddress,
+  IdnEmail,
   UUID,
   StringDate,
   StringTime,
@@ -45,6 +46,7 @@ import type {
   Iri,
   IriReference,
   StringDuration,
+  RegexString,
   JsonPointer,
   RelativeJsonPointer,
   Base64,
@@ -268,7 +270,10 @@ type StringParamsFrom<S> = Flatten<
  *  one structural id. ONE lookup row per accepted keyword; `StringFrom` reads it
  *  by indexed access instead of a per-format conditional ladder. **/
 interface BrandBySchemaFormat {
-  readonly email: Email;
+  // EmailAddress, not Email: the keyword means the full RFC 5321 grammar, where
+  // TF.Email is the everyday shape most fields actually want.
+  readonly email: EmailAddress;
+  readonly 'idn-email': IdnEmail;
   // Version-agnostic per 2020-12 — `format: 'uuid'` never pins a version.
   readonly uuid: UUID;
   readonly date: StringDate;
@@ -288,6 +293,7 @@ interface BrandBySchemaFormat {
   readonly iri: Iri;
   readonly 'iri-reference': IriReference;
   readonly duration: StringDuration;
+  readonly regex: RegexString;
   readonly 'json-pointer': JsonPointer;
   readonly 'relative-json-pointer': RelativeJsonPointer;
 }
@@ -353,7 +359,7 @@ type FormatSiblingKeys = 'minLength' | 'maxLength';
 type FormatWithSiblings<F extends SchemaFormatKeyword, S> = S extends {pattern: unknown} | {contentEncoding: unknown}
   ? never
   : F extends 'email'
-    ? Email<LengthParamsFrom<S>>
+    ? EmailAddress<LengthParamsFrom<S>>
     : F extends 'hostname'
       ? Hostname<LengthParamsFrom<S>>
       : F extends 'uri'

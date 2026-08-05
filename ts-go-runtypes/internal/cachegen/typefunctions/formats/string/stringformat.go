@@ -104,6 +104,11 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 		conditions = append(conditions, jsonParseCheck(params, vλl))
 	}
 	conditions = append(conditions, lengthConditions(params, vλl, ctx)...)
+	// `isRegex` routes to the pure-fn engine: whether a string COMPILES as a
+	// regular expression is not something a pattern can ask.
+	if isRegex, _ := params["isRegex"].(bool); isRegex {
+		conditions = append(conditions, pureFnAlias(ctx, "isEcmaRegex")+"("+vλl+")")
+	}
 	// `pattern` adds a regex test (and triggers build-time mockSample
 	// validation). Backs FormatAlpha / FormatNumeric and any user
 	// FormatString carrying a registerFormatPattern result.
@@ -237,6 +242,11 @@ func valuesSource(vals []string) string {
 // confirm it.
 func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName string) []string {
 	var statements []string
+	if isRegex, _ := params["isRegex"].(bool); isRegex {
+		statements = append(statements,
+			"if (!"+pureFnAlias(ctx, "isEcmaRegex")+"("+vλl+")) "+
+				formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "isRegex", "true"))
+	}
 	codePointLength := pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)

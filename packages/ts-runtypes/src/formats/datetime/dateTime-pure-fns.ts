@@ -100,46 +100,55 @@ registerPureFnFactory('rtFormats::isDateString_DM', function (utl: RTUtils) {
 
 // ############### Time pure fns ###############
 
+// Each segment is exactly TWO ASCII digits. `Number()` alone accepted a single
+// digit ('8:3:6'), leading whitespace, and 0x-prefixed hex, none of which is a
+// time; the digit class also keeps non-ASCII numerals out.
 registerPureFnFactory('rtFormats::isHours', function () {
+  const twoDigitsRegexp = /^[0-9]{2}$/;
   return function _is_h(hours: string): boolean {
-    if (!hours.length || hours.length > 2) return false;
-    const n = Number(hours);
-    if (isNaN(n)) return false;
-    return n >= 0 && n <= 23;
+    return twoDigitsRegexp.test(hours) && Number(hours) <= 23;
   };
 });
 
 registerPureFnFactory('rtFormats::isMinutes', function () {
+  const twoDigitsRegexp = /^[0-9]{2}$/;
   return function _is_m(mins: string): boolean {
-    if (!mins.length || mins.length > 2) return false;
-    const n = Number(mins);
-    if (isNaN(n)) return false;
-    return n >= 0 && n <= 59;
+    return twoDigitsRegexp.test(mins) && Number(mins) <= 59;
   };
 });
 
 registerPureFnFactory('rtFormats::isSeconds', function () {
+  const twoDigitsRegexp = /^[0-9]{2}$/;
   return function _is_s(secs: string): boolean {
-    if (!secs.length || secs.length > 2) return false;
-    const n = Number(secs);
-    if (isNaN(n)) return false;
-    return n >= 0 && n <= 59;
+    return twoDigitsRegexp.test(secs) && Number(secs) <= 59;
   };
 });
 
+// Seconds with an optional MILLISECOND fraction — exactly three digits, because
+// this backs the layouts that name them (`HH:mm:ss.sss`). The RFC 3339 rule,
+// where the fraction may be any length, lives in isSecondsWithLeap below; the
+// two are deliberately different questions.
 registerPureFnFactory('rtFormats::isSecondsWithMs', function (utl: RTUtils) {
   const isS = utl.getPureFn('rtFormats::isSeconds') as SegmentFn;
+  const msRegexp = /^[0-9]{3}$/;
   return function _is_s_ms(secsAndMs: string): boolean {
-    const parts = secsAndMs.split('.');
-    if (parts.length > 2) return false;
-    if (!isS(parts[0])) return false;
-    const ms = parts[1];
-    if (ms) {
-      if (ms.length !== 3) return false;
-      const n = Number(ms);
-      if (isNaN(n) || n < 0 || n > 999) return false;
-    }
-    return true;
+    const dot = secsAndMs.indexOf('.');
+    if (dot === -1) return isS(secsAndMs);
+    return isS(secsAndMs.substring(0, dot)) && msRegexp.test(secsAndMs.substring(dot + 1));
+  };
+});
+
+// The same, but tolerating second 60. Whether that leap second is REAL depends
+// on the offset, which only the full-time validator knows, so this one just
+// admits it and isTimeString_ISO_TZ decides.
+registerPureFnFactory('rtFormats::isSecondsWithLeap', function () {
+  const twoDigitsRegexp = /^[0-9]{2}$/;
+  const fractionRegexp = /^[0-9]+$/;
+  return function _is_s_leap(secsAndMs: string): boolean {
+    const dot = secsAndMs.indexOf('.');
+    const secs = dot === -1 ? secsAndMs : secsAndMs.substring(0, dot);
+    if (dot !== -1 && !fractionRegexp.test(secsAndMs.substring(dot + 1))) return false;
+    return twoDigitsRegexp.test(secs) && Number(secs) <= 60;
   };
 });
 
@@ -163,17 +172,41 @@ registerPureFnFactory('rtFormats::isTimeString_ISO', function (utl: RTUtils) {
   };
 });
 
+// RFC 3339 full-time: HH:MM:SS[.frac] then `Z` or a ±HH:MM offset.
+//
+// The offset is parsed here rather than delegated because of the leap second: a
+// second of 60 is only real at 23:59:60 UTC, so `23:59:60+01:00` (22:59 UTC) is
+// invalid while `01:29:60+01:30` is the same instant as `23:59:60Z` and valid.
+// That answer needs the local time and the offset together, which is only true
+// at this level.
 registerPureFnFactory('rtFormats::isTimeString_ISO_TZ', function (utl: RTUtils) {
-  const isTime = utl.getPureFn('rtFormats::isTimeString_ISO') as SegmentFn;
-  const isTZ = utl.getPureFn('rtFormats::isTimeZone') as SegmentFn;
+  const isH = utl.getPureFn('rtFormats::isHours') as SegmentFn;
+  const isM = utl.getPureFn('rtFormats::isMinutes') as SegmentFn;
+  const isSecs = utl.getPureFn('rtFormats::isSecondsWithLeap') as SegmentFn;
+  const MINUTES_PER_DAY = 1440;
   return function _is_iso_tz(value: string): boolean {
-    const isZ = value.endsWith('Z') || value.endsWith('z');
-    const isPositiveTZ = isZ || value.indexOf('+') !== -1;
-    const isNegativeTZ = isZ || value.indexOf('-') !== -1;
-    if (!isZ && !isPositiveTZ && !isNegativeTZ) return false;
-    const timeAndTz = isZ ? [value.substring(0, value.length - 1), 'Z'] : value.split(isPositiveTZ ? '+' : '-');
-    if (timeAndTz.length !== 2) return false;
-    return isTime(timeAndTz[0]) && isTZ(timeAndTz[1]);
+    let time: string;
+    let offsetMinutes: number;
+    const last = value[value.length - 1];
+    if (last === 'Z' || last === 'z') {
+      time = value.substring(0, value.length - 1);
+      offsetMinutes = 0;
+    } else {
+      // An offset is always exactly `±HH:MM`, so its sign sits six from the end.
+      const at = value.length - 6;
+      const sign = at >= 0 ? value[at] : '';
+      if (sign !== '+' && sign !== '-') return false;
+      time = value.substring(0, at);
+      const offset = value.substring(at + 1).split(':');
+      if (offset.length !== 2 || !isH(offset[0]) || !isM(offset[1])) return false;
+      offsetMinutes = (Number(offset[0]) * 60 + Number(offset[1])) * (sign === '-' ? -1 : 1);
+    }
+    const parts = time.split(':');
+    if (parts.length !== 3) return false;
+    if (!isH(parts[0]) || !isM(parts[1]) || !isSecs(parts[2])) return false;
+    if (Number(parts[2].substring(0, 2)) !== 60) return true;
+    const utcMinutes = (Number(parts[0]) * 60 + Number(parts[1]) - offsetMinutes + MINUTES_PER_DAY * 2) % MINUTES_PER_DAY;
+    return utcMinutes === 23 * 60 + 59;
   };
 });
 

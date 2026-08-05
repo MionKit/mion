@@ -28,6 +28,7 @@ const IMPORTS = `import type {FromJsonSchema, ExactJsonSchema} from '../../src/j
 import type {__rtFormatName, __rtFormatParams, __rtNot} from '../../src/runtypes/sentinelKeys.ts';
 import type {
   Email,
+  EmailAddress,
   UUID,
   UUIDv4,
   StringDate,

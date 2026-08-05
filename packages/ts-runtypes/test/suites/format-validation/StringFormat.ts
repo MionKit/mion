@@ -2337,6 +2337,7 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Standard addresses pass, including subaddressing (`user+tag@sub.example.org`).',
       'Rejected: no `@` (`not-an-email`), too short (`a@b.co`, below `minLength` 7), missing local part (`@example.com`), missing domain (`john@`), a TLD-less domain (`john@example`), an embedded space (`john doe@example.com`), and the empty string. The format error is `{name: email}` (no `val`).',
+      "JSON Schema: `format: 'email'` lowers to TF.EmailAddress (the full RFC 5321 grammar), so this brand has no schema spelling.",
     ],
     validate: () => createValidateFn<TF.Email>(),
     standardSchema: () => createStandardSchema<TF.Email>(),
@@ -2364,11 +2365,13 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Email>>(),
     validateSchema: () => createValidateFn(TF.email()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'email'})),
+    // `format: 'email'` now lowers to TF.EmailAddress (the full RFC 5321
+    // grammar), not this everyday brand, so it has no schema spelling.
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Email>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Email>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.email()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'email'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Email>(),
     getSamples: () => ({
       valid: ['john@example.com', 'jane.doe@mion.io', 'ab@cd.co', 'user+tag@sub.example.org'],

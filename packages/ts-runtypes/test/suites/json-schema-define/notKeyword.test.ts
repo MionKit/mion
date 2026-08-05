@@ -77,11 +77,12 @@ describe('JSON Schema not keyword', () => {
   });
 
   it('unknown format values are accepted as annotations (base type, nothing enforced)', () => {
-    // `iri-reference` used to sit here; it is asserted now, so this needs a
-    // keyword the dialect defines but we do not lower to a format.
-    const unknown = createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'idn-email'}));
+    // Every format the dialect names is asserted now, so an unknown value has
+    // to be one nobody defines — which is exactly what the spec says to do with
+    // it: keep the annotation, enforce nothing.
+    const unknown = createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'x-internal-ticket-id'}));
     expect(unknown('anything goes')).toBe(true);
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'idn-email'}))).toBe(getRunTypeId<string>());
+    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'x-internal-ticket-id'}))).toBe(getRunTypeId<string>());
   });
 
   it('sibling-typed structural negation: not {required} excludes matching objects', () => {

@@ -447,9 +447,34 @@ export interface EmailParams {
 }
 
 type DEFAULT_EMAIL_PARAMS = {pattern: typeof EMAIL_PATTERN; maxLength: 254; minLength: 7};
+// The RFC 5321 pair. `TF.Email` above is the everyday shape (a dotted domain, a
+// plain local part), which is what most fields want; these two are what the
+// JSON Schema keywords mean, and they accept the whole grammar — quoted local
+// parts, address literals, and for the idn twin a local part in any script.
+type DEFAULT_EMAIL_ADDRESS_PARAMS = {
+  emailRfc: 'ascii';
+  maxLength: 254;
+  mockSamples: ['joe.bloggs@example.com', 'jane@mion.io', 'contact@test.org'];
+};
+type DEFAULT_IDN_EMAIL_PARAMS = {
+  emailRfc: 'unicode';
+  maxLength: 254;
+  mockSamples: ['joe.bloggs@example.com', 'δοκιμή@example.com'];
+};
 type DEFAULT_EMAIL_PUNYCODE_PARAMS = {pattern: typeof EMAIL_PUNYCODE_PATTERN; maxLength: 254; minLength: 7};
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 export type Email<P extends Override<EmailParams> = {}> = PresetFormat<'email', DEFAULT_EMAIL_PARAMS, P>;
+/** A full RFC 5321 address — what `format: 'email'` means. Wider than `Email`:
+ *  a quoted local part (`"joe bloggs"@example.com`) and an address literal
+ *  (`joe@[127.0.0.1]`) both pass. **/
+export type EmailAddress<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
+  'email',
+  DEFAULT_EMAIL_ADDRESS_PARAMS,
+  P
+>;
+/** The same grammar with the local part and domain in any script — what
+ *  `format: 'idn-email'` means. **/
+export type IdnEmail<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<'email', DEFAULT_IDN_EMAIL_PARAMS, P>;
 export type EmailPunycode<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_PUNYCODE_PARAMS,
@@ -505,6 +530,13 @@ type DEFAULT_URI_TEMPLATE_PARAMS = {pattern: typeof URI_TEMPLATE_PATTERN};
 type DEFAULT_HOSTNAME_PARAMS = {pattern: typeof HOSTNAME_PATTERN; maxLength: 253; idna: 'ascii'};
 type DEFAULT_IDN_HOSTNAME_PARAMS = {maxLength: 253; idna: 'unicode'};
 type DEFAULT_STRING_DURATION_PARAMS = {pattern: typeof STRING_DURATION_PATTERN};
+// No pattern: whether a string compiles as a regular expression is a question
+// only the engine can answer, so the check is a pure fn and the pool is
+// declared (nothing can be generated from a constraint like this).
+type DEFAULT_REGEX_PARAMS = {
+  isRegex: true;
+  mockSamples: ['^[a-z]+$', '\\d{4}-\\d{2}-\\d{2}', '(foo|bar)+', '^.*$'];
+};
 type DEFAULT_JSON_POINTER_PARAMS = {pattern: typeof JSON_POINTER_PATTERN};
 type DEFAULT_RELATIVE_JSON_POINTER_PARAMS = {pattern: typeof RELATIVE_JSON_POINTER_PATTERN};
 
@@ -547,6 +579,10 @@ export type StringDuration<P extends Override<StringParams, 'pattern'> = {}> = P
   DEFAULT_STRING_DURATION_PARAMS,
   P
 >;
+/** A string that is itself a usable ECMA-262 regular expression — what
+ *  `format: 'regex'` asserts. Not to be confused with the `pattern` param,
+ *  which is a regex the VALUE must match; here the value IS the regex. **/
+export type RegexString<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<'stringFormat', DEFAULT_REGEX_PARAMS, P>;
 /** RFC 6901 JSON pointer (`/store/book/0/title`). The empty string is the
  *  whole document, and so is valid. **/
 export type JsonPointer<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
@@ -699,6 +735,10 @@ export const stringDuration = presetFormatBuilder<
   DEFAULT_STRING_DURATION_PARAMS,
   Override<StringParams, 'pattern'>
 >('stringFormat');
+/** A string that compiles as an ECMA-262 regular expression (`RegexString`). **/
+export const regexString = presetFormatBuilder<'stringFormat', DEFAULT_REGEX_PARAMS, Override<StringParams, 'pattern'>>(
+  'stringFormat'
+);
 /** RFC 6901 JSON pointer (`JsonPointer`). **/
 export const jsonPointer = presetFormatBuilder<'stringFormat', DEFAULT_JSON_POINTER_PARAMS, Override<StringParams, 'pattern'>>(
   'stringFormat'
@@ -729,6 +769,10 @@ export const domainStrict = presetFormatBuilder<'domain', DEFAULT_STRICT_DOMAIN_
 /** Email (`Email`); `email({maxLength: 100})` overrides bounds, keeping the
  *  built-in pattern. **/
 export const email = presetFormatBuilder<'email', DEFAULT_EMAIL_PARAMS, Override<EmailParams>>('email');
+/** Full RFC 5321 address (`EmailAddress`). **/
+export const emailAddress = presetFormatBuilder<'email', DEFAULT_EMAIL_ADDRESS_PARAMS, Override<EmailParams, 'pattern'>>('email');
+/** Internationalized address (`IdnEmail`). **/
+export const idnEmail = presetFormatBuilder<'email', DEFAULT_IDN_EMAIL_PARAMS, Override<EmailParams, 'pattern'>>('email');
 /** Punycode-domain email (`EmailPunycode`). **/
 export const emailPunycode = presetFormatBuilder<'email', DEFAULT_EMAIL_PUNYCODE_PARAMS, Override<EmailParams, 'pattern'>>(
   'email'
