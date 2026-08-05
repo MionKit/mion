@@ -1971,8 +1971,9 @@ export const STRING_FORMAT = {
     title: 'IPv4',
     description: 'TF.IPv4 (format `ip`, version 4) accepting dotted-quad IPv4 addresses only.',
     validateNotes: [
-      'Each octet must be 0–255; `192.168.0.1`, `0.0.0.0`, and `255.255.255.255` pass.',
-      'Out-of-range octets (`999.999.999.999`, `256.0.0.1`), a 3-octet address (`1.2.3`), and an IPv6 address (`::1`) all fail; the first failure carries `val` 4.',
+      'Each octet must be 0–255 in plain decimal; `192.168.0.1`, `0.0.0.0`, and `255.255.255.255` pass.',
+      'Out-of-range octets (`999.999.999.999`, `256.0.0.1`), a 3-octet address (`1.2.3`), an IPv6 address (`::1`), hex/empty octets (`0x7f.0.0.1`, `192.168..1`) and trailing whitespace all fail; the first failure carries `val` 4.',
+      'The hostname `localhost` is NOT an address, so it fails here; `TF.IPv4<{allowLocalHost: true}>` opts back into it.',
     ],
     validate: () => createValidateFn<TF.IPv4>(),
     standardSchema: () => createStandardSchema<TF.IPv4>(),
@@ -2008,9 +2009,56 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<TF.IPv4>(),
     getSamples: () => ({
       valid: ['192.168.0.1', '0.0.0.0', '255.255.255.255'],
-      invalid: ['999.999.999.999', '256.0.0.1', '1.2.3', '::1'],
+      invalid: ['999.999.999.999', '256.0.0.1', '1.2.3', '::1', 'localhost', '0x7f.0.0.1', '192.168..1', '192.168.0.1 '],
     }),
-    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null, null],
+    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null, null, null, null, null, null],
+  },
+  ipv4_localhost: {
+    title: 'IPv4 with localhost',
+    description:
+      'TF.IPv4<{allowLocalHost: true}> (format `ip`, version 4) opting back into the hostname `localhost` beside the dotted quad.',
+    validateNotes: [
+      'The opt-in widens the format by exactly one spelling: `localhost` passes here and fails under the default `TF.IPv4`.',
+      'It widens nothing else — a malformed address (`256.0.0.1`) and a near-miss hostname (`localhost.localdomain`) still fail with `val` 4.',
+      'JSON Schema: `format: "ipv4"` is an address assertion with no room for a hostname, so this shape has no schema spelling.',
+    ],
+    validate: () => createValidateFn<TF.IPv4<{allowLocalHost: true}>>(),
+    standardSchema: () => createStandardSchema<TF.IPv4<{allowLocalHost: true}>>(),
+    validateReflect: () => {
+      const v: TF.IPv4<{allowLocalHost: true}> = 'localhost';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.IPv4<{allowLocalHost: true}>>(),
+    deserializeValidateReflect: () => {
+      const v: TF.IPv4<{allowLocalHost: true}> = 'localhost';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.IPv4<{allowLocalHost: true}> = 'localhost';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.IPv4<{allowLocalHost: true}>>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.IPv4<{allowLocalHost: true}> = 'localhost';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.IPv4<{allowLocalHost: true}> = 'localhost';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.IPv4<{allowLocalHost: true}>>>(),
+    validateSchema: () => createValidateFn(TF.ipv4({allowLocalHost: true})),
+    validateJsonSchema: 'not-supported',
+    getValidationErrors: () => createGetValidationErrorsFn<TF.IPv4<{allowLocalHost: true}>>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IPv4<{allowLocalHost: true}>>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.ipv4({allowLocalHost: true})),
+    getValidationErrorsJsonSchema: 'not-supported',
+    mockType: () => createMockDataFn<TF.IPv4<{allowLocalHost: true}>>(),
+    getSamples: () => ({
+      valid: ['localhost', '192.168.0.1', '127.0.0.1'],
+      invalid: ['256.0.0.1', 'localhost.localdomain', '::1'],
+    }),
+    expectedFormatErrors: () => [{name: 'ip', val: 4}, null, null],
   },
   ipv6: {
     title: 'IPv6',

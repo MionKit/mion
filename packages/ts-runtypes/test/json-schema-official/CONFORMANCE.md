@@ -48,8 +48,8 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | optional/format/hostname.json              |       64 |         44 |              0 |        20 |              0 |                 0 |       0 |
 | optional/format/idn-email.json             |       18 |         16 |              0 |         2 |              0 |                 0 |       0 |
 | optional/format/idn-hostname.json          |       90 |         36 |              0 |        54 |              0 |                 0 |       0 |
-| optional/format/ipv4.json                  |       41 |         31 |              0 |        10 |              0 |                 0 |       0 |
-| optional/format/ipv6.json                  |       40 |         29 |              0 |        11 |              0 |                 0 |       0 |
+| optional/format/ipv4.json                  |       41 |         41 |              0 |         0 |              0 |                 0 |       0 |
+| optional/format/ipv6.json                  |       40 |         40 |              0 |         0 |              0 |                 0 |       0 |
 | optional/format/iri-reference.json         |       13 |         11 |              0 |         2 |              0 |                 0 |       0 |
 | optional/format/iri.json                   |       15 |         11 |              0 |         4 |              0 |                 0 |       0 |
 | optional/format/json-pointer.json          |       40 |         28 |              0 |        12 |              0 |                 0 |       0 |
@@ -73,4 +73,4 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | unevaluatedProperties.json                 |      129 |         64 |              0 |        24 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1465** |         **13** |   **299** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1486** |         **13** |   **278** |          **0** |           **171** |  **40** |

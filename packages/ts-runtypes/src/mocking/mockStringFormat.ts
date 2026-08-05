@@ -188,18 +188,20 @@ function mockIp(params: Partial<IPParams>, random: MockRandom): string {
 }
 
 function mockIpV4(params: Partial<IPParams>, random: MockRandom): string {
-  // '127:0:0:1' is a valid v4 loopback only WITHOUT a port — the allowPort
-  // address parser splits on ':' and rejects >2 segments — so when ports
-  // are allowed the loopback is emitted as 'localhost' (the colon-free form).
+  // Only reachable with allowLocalHost — the hostname is not an address, so a
+  // format that has not opted in must never see it in its mock pool. It stays
+  // valid with a port: the allowPort parser splits the port off first.
   if (params.allowLocalHost && random.float() > 0.8) {
-    return params.allowPort ? 'localhost' : random.float() > 0.5 ? 'localhost' : '127:0:0:1';
+    return params.allowPort ? `localhost:${randomPort(random)}` : 'localhost';
   }
   const address = Array.from({length: 4}, () => random.int(0, 255)).join('.');
   return params.allowPort ? `${address}:${randomPort(random)}` : address;
 }
 
 function mockIpV6(params: Partial<IPParams>, random: MockRandom): string {
-  if (params.allowLocalHost && random.float() > 0.8) {
+  // The loopback ADDRESS needs no opt-in (allowLocalHost covers the hostname
+  // spelling only), so it stays in the pool for every v6 format.
+  if (random.float() > 0.8) {
     const loopback = random.float() > 0.5 ? '0:0:0:0:0:0:0:1' : '::1';
     // The allowPort v6 parser requires the bracketed `[addr]` (optionally
     // `[addr]:port`) form — a bare address fails to match.

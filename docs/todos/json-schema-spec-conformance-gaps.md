@@ -67,7 +67,10 @@ arm is closed against unrelated properties.
 
 ## 4. Two string formats disagree with the spec
 
-- `format: 'ipv4'` **accepts `"localhost"`**, which is not an IPv4 literal.
+- ~~`format: 'ipv4'` **accepts `"localhost"`**, which is not an IPv4 literal.~~
+  **FIXED** (see the 2026-08-05 update below): `allowLocalHost` now defaults to
+  false on every IP preset and covers the hostname spelling only, so `ipv4`
+  turns `"localhost"` down while `127.0.0.1` and `::1` stay valid.
   `SPEC_SUITE.STRINGS.format_ipv4`.
 - `format: 'uri'` **rejects `"mailto:ada@example.com"`**, a valid absolute URI.
   Our pattern may require an authority (`//`).
@@ -91,6 +94,16 @@ diverging on verdicts — so the halt half of that finding is already fixed;
 the constraint-dropping half remains. Fixes should make the corresponding
 ledger entries disappear (the lane's stale-entry assert enforces the ledger is
 trimmed with `report --update-ledger`).
+
+The ipv4 half of finding 4 is now **done**, along with the whole `ipv4` /
+`ipv6` suite files (41/41 and 40/40 conforming, 21 ledger entries dropped).
+Two things were wrong beyond the reported one: the octet check went through
+`Number()`, which accepts `''`, `'0x7f'`, `'1e2'`, `'+1'` and trailing
+whitespace/newlines, and the v6 group scan accepted a lone leading or trailing
+`:` while rejecting valid elisions (`::`, `1::d6:192.168.0.1`). Both parsers
+were rewritten, `allowLocalHost` was redefined to gate the HOSTNAME spelling
+only (so it no longer excludes the `::1` address) and flipped to default false.
+The `uri` half of this finding is untouched and stays open.
 
 ## Direction
 

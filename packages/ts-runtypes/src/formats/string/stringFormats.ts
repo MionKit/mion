@@ -294,12 +294,18 @@ export interface IPParams {
 // The version-pinned aliases pin `version`: `ipv4({allowPort: true})` is the
 // point of the override, `ipv4({version: 6})` would just be `ipv6()` wearing the
 // wrong name.
-type DEFAULT_IP_PARAMS = {version: 'any'; allowLocalHost: true};
-type DEFAULT_IPV4_PARAMS = {version: 4; allowLocalHost: true};
-type DEFAULT_IPV6_PARAMS = {version: 6; allowLocalHost: true};
-type DEFAULT_IP_PORT_PARAMS = {version: 'any'; allowLocalHost: true; allowPort: true};
-type DEFAULT_IPV4_PORT_PARAMS = {version: 4; allowLocalHost: true; allowPort: true};
-type DEFAULT_IPV6_PORT_PARAMS = {version: 6; allowLocalHost: true; allowPort: true};
+// `allowLocalHost` is OFF by default on every IP preset: these formats describe
+// an ADDRESS, so the hostname spelling "localhost" is opt-in
+// (`IPv4<{allowLocalHost: true}>`) rather than something a field silently
+// accepts. It never gates the loopback ADDRESSES — `127.0.0.1` and `::1` are
+// well-formed and pass on their own. This is also what JSON Schema's `ipv4` /
+// `ipv6` format keywords mean, so the schema door needs no override.
+type DEFAULT_IP_PARAMS = {version: 'any'; allowLocalHost: false};
+type DEFAULT_IPV4_PARAMS = {version: 4; allowLocalHost: false};
+type DEFAULT_IPV6_PARAMS = {version: 6; allowLocalHost: false};
+type DEFAULT_IP_PORT_PARAMS = {version: 'any'; allowLocalHost: false; allowPort: true};
+type DEFAULT_IPV4_PORT_PARAMS = {version: 4; allowLocalHost: false; allowPort: true};
+type DEFAULT_IPV6_PORT_PARAMS = {version: 6; allowLocalHost: false; allowPort: true};
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 export type IP<P extends Override<IPParams> = {}> = PresetFormat<'ip', DEFAULT_IP_PARAMS, P>;
 export type IPv4<P extends Override<IPParams, 'version'> = {}> = PresetFormat<'ip', DEFAULT_IPV4_PARAMS, P>;
@@ -579,7 +585,8 @@ export const uuidv4 = presetBuilder<UUIDv4>('uuid');
 /** UUID v7 (`UUIDv7`). **/
 export const uuidv7 = presetBuilder<UUIDv7>('uuid');
 
-/** IP address, any version with localhost (`IP`). **/
+/** IP address, any version (`IP`); `ip({allowLocalHost: true})` also accepts the
+ *  hostname `localhost`. **/
 export const ip = presetFormatBuilder<'ip', DEFAULT_IP_PARAMS, Override<IPParams>>('ip');
 /** IPv4 (`IPv4`); `ipv4({allowPort: true})` accepts a trailing port. **/
 export const ipv4 = presetFormatBuilder<'ip', DEFAULT_IPV4_PARAMS, Override<IPParams, 'version'>>('ip');

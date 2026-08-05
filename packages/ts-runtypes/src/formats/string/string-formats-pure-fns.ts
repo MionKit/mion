@@ -50,9 +50,8 @@ registerPureFnFactory('rtFormats::isUUID', function () {
 
 // ############### IP pure fns ###############
 //
-// isIPV4 / isIPV6 accept a params object carrying the version (for the
-// localhost check), allowLocalHost, and allowPort flags. Both delegate
-// the loopback test to isLocalHost.
+// isIPV4 / isIPV6 accept a params object carrying the version, allowLocalHost,
+// and allowPort flags. Both delegate the hostname test to isLocalHost.
 
 interface IPParams {
   version: 4 | 6 | 'any';
@@ -60,48 +59,51 @@ interface IPParams {
   allowPort?: boolean;
 }
 
-type IsIpFn = (ip: string, params: IPParams) => boolean;
+type IsLocalHostFn = (ip: string) => boolean;
 
+// The HOSTNAME spelling only, and off by default: `allowLocalHost` widens an IP
+// format to also accept the word "localhost", which suits a config field that
+// takes either but is not an address. The loopback ADDRESSES (`127.0.0.1`,
+// `::1`, `0:0:0:0:0:0:0:1`) are ordinary well-formed addresses that the version
+// parsers accept on their own — gating those behind the flag would reject a
+// perfectly good `::1` from anyone who turned it off.
 registerPureFnFactory('rtFormats::isLocalHost', function () {
-  const lhr = /^localhost$/i;
-  return function _is_local_host(ip: string, params: IPParams): boolean {
-    if (params.version === 4) return lhr.test(ip) || ip === '127:0:0:1';
-    if (params.version === 6) return ip === '::1' || ip === '0:0:0:0:0:0:0:1';
-    return lhr.test(ip) || ip === '127:0:0:1' || ip === '::1' || ip === '0:0:0:0:0:0:0:1';
+  const localHostRegexp = /^localhost$/i;
+  return function _is_local_host(ip: string): boolean {
+    return localHostRegexp.test(ip);
   };
 });
 
 registerPureFnFactory('rtFormats::isIPV4', function (utl: RTUtils) {
-  const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsIpFn;
+  const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsLocalHostFn;
+  // Dotted quad, ASCII digits only. Anchored + `Number`-free on purpose:
+  // `Number('')` is 0, `Number('0x7f')` is 127 and `Number(' 1\n')` is 1, so a
+  // coercion-based octet check silently accepts `192.168..1`, `0x7f.0.0.1` and
+  // trailing whitespace / newlines. `\d` stays ASCII under every flag, which is
+  // what keeps full-width and Bengali digits out.
+  const ipv4Regexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
   function getAddress(ip: string, params: IPParams): false | string {
     if (!params.allowPort) return ip;
     const parts = ip.split(':');
     if (parts.length > 2) return false;
     const [address, portS] = parts;
     if (!portS) return address;
-    const port = Number(portS);
-    if (isNaN(port) || port < 0 || port > 65535) return false;
+    if (!/^\d{1,5}$/.test(portS) || Number(portS) > 65535) return false;
     return address;
   }
   return function _is_ip_v4(ip: string, params: IPParams): boolean {
     const address = getAddress(ip, params);
     if (address === false) return false;
-    const isLocal = isLocalHost(address, params);
-    if (params.allowLocalHost && isLocal) return true;
-    if (!params.allowLocalHost && isLocal) return false;
-    const sections = address.split('.');
-    if (sections.length !== 4) return false;
-    for (const section of sections) {
-      const num = Number(section);
-      if (isNaN(num) || num < 0 || num > 255) return false;
-    }
-    return true;
+    if (isLocalHost(address)) return params.allowLocalHost === true;
+    return ipv4Regexp.test(address);
   };
 });
 
 registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
-  const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsIpFn;
+  const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsLocalHostFn;
   const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
+  const hexGroupRegexp = /^[0-9a-fA-F]{1,4}$/;
+  const ipv4TailRegexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
   function getAddress(ip: string, params: IPParams): false | string {
     if (!params.allowPort) return ip;
     const match = ip.match(ipv6PortRegexp);
@@ -109,29 +111,41 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     const address = match[1];
     const port = match[2];
     if (!port) return address;
-    const num = Number(port);
-    if (isNaN(num) || num < 0 || num > 65535) return false;
+    if (Number(port) > 65535) return false;
     return address;
+  }
+  // Counts the 16-bit groups written in one `:`-separated run, or -1 when any
+  // group is malformed. A dotted quad is accepted in the LAST position only
+  // (the ipv4-mapped form) and counts as the two groups it encodes.
+  function countGroups(run: string, allowIPv4Tail: boolean): number {
+    if (run === '') return 0;
+    const groups = run.split(':');
+    let count = 0;
+    for (let i = 0; i < groups.length; i++) {
+      if (allowIPv4Tail && i === groups.length - 1 && ipv4TailRegexp.test(groups[i])) {
+        count += 2;
+        continue;
+      }
+      if (!hexGroupRegexp.test(groups[i])) return -1;
+      count++;
+    }
+    return count;
   }
   return function _is_ip_v6(ip: string, params: IPParams): boolean {
     const address = getAddress(ip, params);
     if (address === false) return false;
-    const isLocal = isLocalHost(address, params);
-    if (params.allowLocalHost && isLocal) return true;
-    if (!params.allowLocalHost && isLocal) return false;
-    const sections = address.split(':');
-    if (sections.length < 3 || sections.length > 8) return false;
-    let doubleColon = 0;
-    for (const section of sections) {
-      if (section.length === 0) {
-        doubleColon++;
-        if (doubleColon > 1) return false;
-        continue;
-      }
-      if (section.length > 4) return false;
-      const num = parseInt(section, 16);
-      if (isNaN(num) || num < 0 || num > 0xffff) return false;
-    }
-    return true;
+    if (isLocalHost(address)) return params.allowLocalHost === true;
+    // `::` elides one or more all-zero groups and may appear at most once; a
+    // lone leading / trailing `:` is not an elision, so those runs come back
+    // with an empty group and are rejected.
+    const elision = address.indexOf('::');
+    if (elision !== address.lastIndexOf('::')) return false;
+    if (elision === -1) return countGroups(address, true) === 8;
+    const head = countGroups(address.slice(0, elision), false);
+    const tail = countGroups(address.slice(elision + 2), true);
+    if (head === -1 || tail === -1) return false;
+    // The elision stands for at least one group, so the written ones must leave
+    // room for it.
+    return head + tail <= 7;
   };
 });
