@@ -1,0 +1,31 @@
+[
+  {
+    "description": "a bounded string",
+    "schema": {"type": "string", "minLength": 2},
+    "tests": [
+      {"description": "long enough", "data": "ab", "valid": true},
+      {"description": "too short", "data": "a", "valid": false},
+      {"description": "wrong type", "data": 7, "valid": false}
+    ]
+  },
+  {
+    "description": "a remote ref",
+    "schema": {"$ref": "http://localhost:1234/integer.json"},
+    "tests": [{"description": "any value", "data": 1, "valid": true}]
+  },
+  {
+    "description": "properties whose names are hazardous in literals",
+    "schema": {"type": "object", "properties": {"__proto__": {"type": "number"}}},
+    "tests": [{"description": "present", "data": {"__proto__": 1}, "valid": true}]
+  },
+  {
+    "description": "an unknown keyword",
+    "schema": {"type": "string", "unknownKeyword": 1},
+    "tests": [{"description": "still a string", "data": "x", "valid": true}]
+  },
+  {
+    "description": "a quarantined shape",
+    "schema": {"oneOf": [{"multipleOf": 3}, {"multipleOf": 5}]},
+    "tests": [{"description": "multiple of three", "data": 9, "valid": true}]
+  }
+]

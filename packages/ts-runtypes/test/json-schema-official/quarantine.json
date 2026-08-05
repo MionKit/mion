@@ -1,0 +1,4 @@
+{
+  "_comment": "Hand-maintained escape hatch: groups that hard-halt a whole generated module's transform (instead of failing only their own entry) are listed here by their 'file :: group' key and emitted data-only with verdict transform-halt. Keep empty unless a halt actually happens; see README.md.",
+  "groups": {}
+}

@@ -73,7 +73,10 @@ export default defineConfig({
     // test/mock-format-isolation/** is the mock-format-registry regression: it
     // must run in a process whose ONLY formats import is type-only, and inside
     // this project any sibling test file's formats value import would mask it.
-    exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**'],
+    // test/json-schema-official/** is the official JSON-Schema-Test-Suite lane:
+    // its own project + tsconfig so this project's resolver Program skips the
+    // hundreds of generated FromJsonSchema call sites.
+    exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**', 'test/json-schema-official/**'],
     // Generating + validating the deepest mock cases (e.g. a 3-D string array,
     // MOCK_ITERATIONS times) takes a few seconds; under the full suite's
     // parallel CPU contention that occasionally crossed vitest's tight 5 s

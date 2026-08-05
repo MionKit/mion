@@ -90,7 +90,7 @@
   },
   "scripts": {
     "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.suite-official.json --noEmit",
     "pretest": "pnpm --filter @ts-runtypes/devtools run build",
     "test": "vitest run",
     "dev:test": "vitest watch",

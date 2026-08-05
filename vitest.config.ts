@@ -29,6 +29,11 @@ export default defineConfig({
       // runtime import graph stays free of formats value imports (the marker
       // project above excludes it — import-graph isolation is the repro).
       'packages/ts-runtypes/test/mock-format-isolation/vitest.config.ts',
+      // The official JSON-Schema-Test-Suite conformance lane — its own project
+      // (and its own tsconfig) so the marker project's resolver Program never
+      // pays for the generated suite call sites. Modules under its generated/
+      // are build output from scripts/core/gen-json-schema-suite.mjs.
+      'packages/ts-runtypes/test/json-schema-official/vitest.config.ts',
     ],
     // Coverage is a root-level (cross-project) concern. Vitest 4 removed
     // `coverage.all`; the report now defaults to covered files only, so the
