@@ -20,29 +20,47 @@ required set alone is **46 files / 383 schema groups / 1299 cases**, plus
 `optional/format/` (**21 files / 28 groups / 720 cases**), which matters to us
 because our door enforces formats.
 
-This spec adds a repeatable pipeline that vendors the suite at a pinned
-revision, generates strongly typed `as const` call sites from it, runs the
-whole thing as a Vitest lane, and reports conformance. **Scope is implement +
+This spec adds a repeatable pipeline that installs the suite as a
+commit-pinned dependency, generates strongly typed `as const` call sites from
+it, runs the whole thing as a Vitest lane, and reports conformance. **Scope is implement +
 run + report only: no conformance fixes ride this change.** Divergences land in
 a committed ledger (extending the flow started by
 [json-schema-spec-conformance-gaps.md](json-schema-spec-conformance-gaps.md));
 fixing them is later, separate work.
 
-## Sourcing: pinned-commit vendoring, not npm, not a submodule
+## Sourcing: a commit-pinned git devDependency, no vendored files
 
-- The npm packages are dead ends: `@json-schema-org/tests` (2.0.0) and
-  `json-schema-test-suite` (0.0.10) were both last published in 2022 against
-  ancient suite snapshots, and the suite repo's own `package.json` is an
-  unpublished `0.1.0`. Nothing current exists to install.
-- [pnpm-workspace.yaml](../../pnpm-workspace.yaml) sets
-  `allowNonRegistryProtocols: false`, so a `github:` dependency is blocked by
-  policy anyway.
-- A submodule is rejected per the request (and adds bootstrap friction).
+The suite is NOT consumable from the npm registry: `@json-schema-org/tests`
+(2.0.0) and `json-schema-test-suite` (0.0.10) were both last published in 2022
+against ancient suite snapshots, and the suite repo's own `package.json` is an
+unpublished `0.1.0`. A submodule is rejected per the request. Instead the
+suite rides as a root-level devDependency pinned to a FULL commit SHA:
 
-So: a fetch script shallow-clones the suite repo at the commit pinned in a lock
-manifest and copies the JSON subset we consume into the repo (with the suite's
-MIT LICENSE alongside). Upgrading the suite = bump the SHA in the lock, re-run
-fetch + triage + generate, review the diff.
+```json
+"json-schema-test-suite": "github:json-schema-org/JSON-Schema-Test-Suite#cc73f5fa64c3b0d11f6c277db4edc22938994b54"
+```
+
+Verified empirically under the repo's exact pnpm (11.8.0):
+
+- **No policy exception is needed.** `allowNonRegistryProtocols: false` in
+  [pnpm-workspace.yaml](../../pnpm-workspace.yaml) refuses non-registry
+  specifiers only when external packages declare them; a direct,
+  workspace-declared git dependency installs, and the lockfile pins the
+  resolved commit (`resolution: {commit: cc73f5fa…, type: git}`).
+- The rest of the posture holds unchanged: `ignoreScripts: true` blocks
+  lifecycle scripts (the package declares none anyway), `frozenLockfile`
+  freezes the pin, and `minimumReleaseAge` is registry-only, so the immutable
+  commit SHA is the supply-chain guarantee here.
+- The install works even through the restricted Claude-web container proxy.
+  One checkpoint for the first CI run: pnpm normalizes the specifier to a
+  `git+ssh://git@github.com/…` resolution in the lockfile — confirm a cold
+  `pnpm install` on the Actions runner fetches it (public repo; both the
+  `github:` and `git+https://` specifier forms resolve to the same commit if
+  one form ever misbehaves on a runner).
+
+Upgrading the suite = replace the SHA in the specifier, run
+`pnpm install --no-frozen-lockfile`, re-run triage + generate, refresh the
+ledger and report, review the diff.
 
 ## Why codegen (`as const`) instead of importing the JSON
 
@@ -60,15 +78,13 @@ New self-contained test area `packages/ts-runtypes/test/json-schema-official/`
 (its own Vitest project, like `test/playground/`):
 
 ```
-suite.lock.json           pinned source: {repo, commit, fetchedAt, subsets}
-vendor/                   raw suite JSON at the pin + its LICENSE (committed)
-  draft2020-12/*.json     required set (refRemote.json excluded at fetch)
-  draft2020-12/optional/format/*.json
-triage.json               committed group partition (see Triage)
+triage.json               committed group partition (see Triage); records the
+                          suite commit it was derived from
 quarantine.json           hand-maintained escape hatch (see Contingencies)
 known-divergences.json    committed two-way verdict ledger
 CONFORMANCE.md            committed per-file summary report
-generated/                committed generated TS modules + index barrel
+generated/                TS modules + index barrel — GITIGNORED build output,
+                          rebuilt from node_modules by the build step
 harness.ts                group/case runner helpers + result collection
 official.test.ts          the driver
 markerPairing.test.ts     CLAUDE.md marker-rule paired getRunTypeId test
@@ -79,23 +95,23 @@ README.md
 ```
 
 One script owns the pipeline: `scripts/core/gen-json-schema-suite.mjs` with
-subcommands `fetch` / `triage` / `generate` / `report`, exporting its functions
-so `generator.test.ts` can unit-test them.
+subcommands `triage` / `generate` / `report`, exporting its functions so
+`generator.test.ts` can unit-test them.
 
 ## Plan
 
-### 1. fetch (network; upgrade-time only)
+### 1. the dependency (network only at install time)
 
-`node scripts/core/gen-json-schema-suite.mjs fetch` reads `suite.lock.json`,
-shallow-fetches `json-schema-org/JSON-Schema-Test-Suite` at the pinned commit
-(`git init` + `fetch --depth 1 <sha>` into a temp dir), and copies the subsets
-listed in the lock into `vendor/`, plus the LICENSE. `refRemote.json` is
-excluded here (wholly remote-dependent). Everything downstream is offline.
+Add the SHA-pinned devDependency above to the root `package.json` (all
+devDependencies live root-level per CLAUDE.md). Everything downstream reads
+the suite JSON from `node_modules/json-schema-test-suite/tests/draft2020-12/`
+(+ `optional/format/`) — no network after install. `refRemote.json` is skipped
+wholesale by a constant in the script (wholly remote-dependent).
 
 ### 2. triage (offline)
 
-For each vendored group (keyed `file :: group description`, stable across
-upgrades), classify into committed `triage.json`:
+For each group of the installed suite files (keyed `file :: group
+description`, stable across upgrades), classify into committed `triage.json`:
 
 - `remote` — schema mentions `localhost:1234` (26 groups in the required set).
 - `proto-literal` — schema/properties contain a `__proto__` key (one group
@@ -131,10 +147,14 @@ emitted with a deterministic JSON-to-TS printer (sorted nothing — suite order
 preserved; keys quoted as needed). Every generated file carries a header naming
 the source repo, the pinned SHA, and the MIT license.
 
-Wire it as an rtx codegen target: `pnpm rtx core codegen jsonschema [--check]`
-runs triage + generate with the existing drift gate in
-[scripts/rt.mjs](../../scripts/rt.mjs) (`fetch` deliberately stays out of
-`codegen all` — it needs network).
+Because `generated/` is gitignored build output, there is no committed-drift
+gate; generation is folded into
+[scripts/core/build.mjs](../../scripts/core/build.mjs) (the `check:builds` /
+`pretest` step every lane already runs, and which `rtx` triggers build-first),
+so the modules exist before vitest boots and before typecheck. `generate`
+fails loudly when `triage.json` was derived from a different suite commit than
+the lockfile pins (the stale-triage guard). Determinism is pinned by
+`generator.test.ts` instead of a git-diff check.
 
 ### 4. run (the Vitest lane)
 
@@ -240,10 +260,12 @@ existing fuzz lanes already cover generative schema input.
 
 ## Done when
 
-- `node scripts/core/gen-json-schema-suite.mjs fetch` reproduces `vendor/`
-  byte-identically at the pinned SHA, and re-pinning to a newer suite commit
-  changes only `vendor/`, `triage.json`, `generated/`, ledgers and report.
-- `pnpm rtx core codegen jsonschema --check` passes offline and gates drift.
+- A cold `pnpm install` brings the suite in at the pinned commit (CI runner
+  included), and bumping the SHA + `pnpm install --no-frozen-lockfile` +
+  triage + generate is the whole upgrade path — only `triage.json`, the
+  ledgers and `CONFORMANCE.md` change in-repo.
+- `pnpm run check:builds` leaves `generated/` populated, and the stale-triage
+  guard trips when `triage.json` and the lockfile pin disagree.
 - The lane runs in `pnpm test` (or its documented own script if measurement
   says so) and is green: every non-skipped case either conforms or matches a
   ledger entry, both directions enforced.
