@@ -47,10 +47,26 @@ function mockNumberParams(params: NumberParams, random: MockRandom): number {
 
   // Snap down to the largest multiple of multipleOf that is <= result.
   if (params.multipleOf !== undefined) {
-    const multipleOf = numVal(params.multipleOf);
-    result = Math.floor(result / multipleOf) * multipleOf;
+    result = snapToMultiple(result, numVal(params.multipleOf));
   }
   return result;
+}
+
+// An integer divisor multiplies back exactly, so it keeps the plain floor. A
+// fractional one does not: `75 * 0.0001` is 0.007500000000000001, whose
+// quotient is 75.00000000000001, and the mock would then fail the very
+// validator it was generated for (~11% of draws). Rounding the product back to
+// 15 significant digits clears that noise; the walk down covers the rare
+// divisor where one rounding is not enough, and 0 is the last resort — zero is
+// a multiple of everything.
+function snapToMultiple(value: number, multipleOf: number): number {
+  const quotient = Math.floor(value / multipleOf);
+  if (Number.isInteger(multipleOf)) return quotient * multipleOf;
+  for (let step = 0; step < 4; step++) {
+    const candidate = Number(((quotient - step) * multipleOf).toPrecision(15));
+    if (Number.isInteger(candidate / multipleOf)) return candidate;
+  }
+  return 0;
 }
 
 // numVal unwraps the `{val, …}` meta-object form (the paramVal); the

@@ -30,14 +30,14 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | maxContains.json                           |       14 |         14 |              0 |         0 |              0 |                 0 |       0 |
 | maximum.json                               |        8 |          8 |              0 |         0 |              0 |                 0 |       0 |
 | maxItems.json                              |        6 |          6 |              0 |         0 |              0 |                 0 |       0 |
-| maxLength.json                             |        7 |          6 |              0 |         1 |              0 |                 0 |       0 |
+| maxLength.json                             |        7 |          7 |              0 |         0 |              0 |                 0 |       0 |
 | maxProperties.json                         |       10 |         10 |              0 |         0 |              0 |                 0 |       0 |
 | minContains.json                           |       28 |         28 |              0 |         0 |              0 |                 0 |       0 |
 | minimum.json                               |       11 |         11 |              0 |         0 |              0 |                 0 |       0 |
 | minItems.json                              |        6 |          6 |              0 |         0 |              0 |                 0 |       0 |
-| minLength.json                             |        7 |          6 |              0 |         1 |              0 |                 0 |       0 |
+| minLength.json                             |        7 |          7 |              0 |         0 |              0 |                 0 |       0 |
 | minProperties.json                         |       10 |         10 |              0 |         0 |              0 |                 0 |       0 |
-| multipleOf.json                            |       11 |          9 |              0 |         2 |              0 |                 0 |       0 |
+| multipleOf.json                            |       11 |         11 |              0 |         0 |              0 |                 0 |       0 |
 | not.json                                   |       40 |         37 |              0 |         1 |              0 |                 2 |       0 |
 | oneOf.json                                 |       27 |         16 |              0 |         3 |              0 |                 8 |       0 |
 | optional/format/date-time.json             |       33 |         27 |              0 |         6 |              0 |                 0 |       0 |
@@ -61,7 +61,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | optional/format/uri-template.json          |       18 |         12 |              0 |         6 |              0 |                 0 |       0 |
 | optional/format/uri.json                   |       44 |         25 |              0 |        19 |              0 |                 0 |       0 |
 | optional/format/uuid.json                  |       28 |         28 |              0 |         0 |              0 |                 0 |       0 |
-| pattern.json                               |       12 |         10 |              0 |         2 |              0 |                 0 |       0 |
+| pattern.json                               |       12 |         12 |              0 |         0 |              0 |                 0 |       0 |
 | patternProperties.json                     |       25 |         20 |              0 |         0 |              0 |                 5 |       0 |
 | prefixItems.json                           |       11 |         11 |              0 |         0 |              0 |                 0 |       0 |
 | properties.json                            |       28 |         15 |              0 |         2 |              0 |                 4 |       7 |
@@ -73,4 +73,4 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | unevaluatedProperties.json                 |      129 |         64 |              0 |        24 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1486** |         **13** |   **278** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1492** |         **13** |   **272** |          **0** |           **171** |  **40** |

@@ -2,7 +2,7 @@ package string
 
 import (
 	"strings"
-	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
@@ -71,7 +71,7 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *protocol.FormatAn
 		return ""
 	}
 	validateSampleBounds(ctx, annotation.Params)
-	conditions := lengthConditions(annotation.Params, vλl)
+	conditions := lengthConditions(annotation.Params, vλl, ctx)
 	if source, flags, ok := recoverPattern(annotation.Params); ok {
 		validateSamples(ctx, source, flags, recoverSamples(annotation.Params))
 		conditions = append(conditions, emitPatternTest(ctx, source, flags, vλl))
@@ -210,7 +210,7 @@ func lengthSurvivors(params map[string]any, pool []string) []string {
 		return pool
 	}
 	return filterSamples(pool, func(sample string) bool {
-		size := utf16Len(sample)
+		size := codePointLen(sample)
 		if hasLength && size != int(length) {
 			return false
 		}
@@ -259,19 +259,19 @@ func lengthBoundViolations(params map[string]any, pool []string) []string {
 	var messages []string
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		want := int(value)
-		if offenders := filterSamples(pool, func(sample string) bool { return utf16Len(sample) != want }); len(offenders) > 0 {
+		if offenders := filterSamples(pool, func(sample string) bool { return codePointLen(sample) != want }); len(offenders) > 0 {
 			messages = append(messages, "sample(s) "+quoteJoin(offenders)+" are not exactly length "+formats.FormatNumber(value))
 		}
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		min := int(value)
-		if offenders := filterSamples(pool, func(sample string) bool { return utf16Len(sample) < min }); len(offenders) > 0 {
+		if offenders := filterSamples(pool, func(sample string) bool { return codePointLen(sample) < min }); len(offenders) > 0 {
 			messages = append(messages, "sample(s) "+quoteJoin(offenders)+" are shorter than minLength "+formats.FormatNumber(value))
 		}
 	}
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		max := int(value)
-		if offenders := filterSamples(pool, func(sample string) bool { return utf16Len(sample) > max }); len(offenders) > 0 {
+		if offenders := filterSamples(pool, func(sample string) bool { return codePointLen(sample) > max }); len(offenders) > 0 {
 			messages = append(messages, "sample(s) "+quoteJoin(offenders)+" are longer than maxLength "+formats.FormatNumber(value))
 		}
 	}
@@ -319,12 +319,14 @@ func filterSamples(pool []string, predicate func(string) bool) []string {
 	return out
 }
 
-// utf16Len counts the UTF-16 code units in s — what JS `String.length`
-// reports (an astral character is two units). Go's len() counts bytes and
-// utf8.RuneCountInString counts code points; neither matches the emitted
-// validator, so samples with astral characters would mis-validate.
-func utf16Len(s string) int {
-	return len(utf16.Encode([]rune(s)))
+// codePointLen counts the code points in s — what the emitted length check
+// counts (see lengthConditions in stringformat.go: the bounds follow JSON
+// Schema and measure code points, so '💩💩' is 2). Go's len() counts bytes and
+// UTF-16 units are JS `String.length`, one unit per surrogate half; neither
+// matches the validator, so samples with astral characters would be reported
+// as out of bounds here while validating fine at run time.
+func codePointLen(s string) int {
+	return utf8.RuneCountInString(s)
 }
 
 // quoteJoin renders a sample list as a comma-separated run of

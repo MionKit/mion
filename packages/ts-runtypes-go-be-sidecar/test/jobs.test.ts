@@ -63,6 +63,57 @@ describe('runJobs — generate op', () => {
     expect(second.values).toEqual(first.values);
   });
 
+  // The JSON Schema door compiles every schema `pattern` in `u` mode, where
+  // \p{...} means what the author wrote. randexp cannot parse those escapes, so
+  // the generator source expands them first; these pin that a pool comes back
+  // AND that every value satisfies the ORIGINAL pattern.
+  it('generates values for unicode property escapes in u mode', () => {
+    const [letters] = runJobs([
+      {id: 30, op: 'generate', source: '^\\p{Letter}+$', flags: 'u', count: 5, seed: 7, maxAttempts: 200},
+    ]);
+    expect(letters.generateError).toBeUndefined();
+    expect(letters.values!.length).toBeGreaterThan(0);
+    for (const value of letters.values!) expect(value).toMatch(/^\p{Letter}+$/u);
+
+    // Inside an existing class the members splice in bare — a nested [...] would
+    // not parse — and the negated form works the same way.
+    const [mixed] = runJobs([
+      {id: 31, op: 'generate', source: '^[\\p{Nd}abc]+$', flags: 'u', count: 4, seed: 7, maxAttempts: 200},
+    ]);
+    expect(mixed.generateError).toBeUndefined();
+    for (const value of mixed.values!) expect(value).toMatch(/^[\p{Nd}abc]+$/u);
+
+    const [negated] = runJobs([
+      {id: 32, op: 'generate', source: '^\\P{Letter}+$', flags: 'u', count: 4, seed: 7, maxAttempts: 200},
+    ]);
+    expect(negated.generateError).toBeUndefined();
+    for (const value of negated.values!) expect(value).toMatch(/^\P{Letter}+$/u);
+  });
+
+  it('measures the declared length bounds in code points, like the emitted validator', () => {
+    // Two astral characters are two code points but FOUR UTF-16 units, so under
+    // maxLength 2 the old `.length` filter dropped every draw and the job died
+    // with generateError. The validator counts code points, so the pool must
+    // keep them.
+    const [result] = runJobs([
+      {
+        id: 33,
+        op: 'generate',
+        source: '^(?:\u{1F600}|\u{1F601}){2}$',
+        flags: 'u',
+        count: 2,
+        seed: 11,
+        maxAttempts: 200,
+        maxLength: 2,
+      },
+    ]);
+    expect(result.generateError).toBeUndefined();
+    for (const value of result.values!) {
+      expect([...value]).toHaveLength(2);
+      expect(value.length).toBe(4); // two surrogate pairs
+    }
+  });
+
   it('different seeds produce different lists', () => {
     const base = {id: 21, op: 'generate', source: '^[a-z]{6}$', count: 6, maxAttempts: 60};
     const [a] = runJobs([{...base, seed: 1}]);

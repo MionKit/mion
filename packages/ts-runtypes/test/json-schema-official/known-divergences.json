@@ -271,42 +271,6 @@
       "note": ""
     },
     {
-      "file": "maxLength.json",
-      "group": "maxLength validation",
-      "case": "two graphemes is long enough",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "minLength.json",
-      "group": "minLength validation",
-      "case": "one grapheme is not long enough",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "multipleOf.json",
-      "group": "by small number",
-      "case": "0.0075 is multiple of 0.0001",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "multipleOf.json",
-      "group": "small multiple of large integer",
-      "case": "any integer is a multiple of 1e-8",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
       "file": "not.json",
       "group": "forbidden property",
       "case": "property absent",
@@ -2040,24 +2004,6 @@
       "case": "unescaped non US-ASCII characters",
       "expected": false,
       "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "pattern.json",
-      "group": "pattern with Unicode property escape requires unicode mode",
-      "case": "ASCII letters match",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "pattern.json",
-      "group": "pattern with Unicode property escape requires unicode mode",
-      "case": "Non-ASCII letters match",
-      "expected": true,
-      "observed": false,
       "byDesign": false,
       "note": ""
     },

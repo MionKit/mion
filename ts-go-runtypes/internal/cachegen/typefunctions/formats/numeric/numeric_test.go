@@ -164,8 +164,13 @@ func TestValidateParams(t *testing.T) {
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"gt": 5.0, "lt": 2.0})); len(errs) == 0 {
 		t.Error("expected gt>=lt ordering error")
 	}
-	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 2.5})); len(errs) == 0 {
-		t.Error("expected multipleOf-must-be-integer error")
+	// A fractional multipleOf is ALLOWED (JSON Schema permits any positive
+	// number, e.g. 0.01 on a money field); only a non-positive one is an error.
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 2.5})); len(errs) != 0 {
+		t.Errorf("expected fractional multipleOf to be accepted, got %v", errs)
+	}
+	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 0.0})); len(errs) == 0 {
+		t.Error("expected multipleOf-must-be-positive error")
 	}
 	if errs := number.ValidateParams(annotation(numberFormatName, map[string]any{"multipleOf": 5.0, "float": true})); len(errs) == 0 {
 		t.Error("expected multipleOf+float error")

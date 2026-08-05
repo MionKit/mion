@@ -45,7 +45,9 @@ type Hex = TF.String<{pattern: typeof hex}>;
 
 // Sample-less inline pattern — the pattern_generated case: no mockSamples
 // anywhere, the build generates the pool from the regex.
-type Generated = TF.String<{pattern: {source: '^[a-d]{2}-[0-9]{2}$'; flags: ''}}>;
+// flags 'u': this case's runTypeFromJsonSchema twin spells the constraint as
+// the schema `pattern` keyword, which the door compiles in unicode mode.
+type Generated = TF.String<{pattern: {source: '^[a-d]{2}-[0-9]{2}$'; flags: 'u'}}>;
 
 const V4 = '9f1b8c2e-3d4a-4b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 4
 const V7 = '018f1b8c-2e3d-7b5c-8d6e-1f2a3b4c5d6e'; // version nibble = 7
@@ -2702,12 +2704,12 @@ export const STRING_FORMAT = {
     validateDataOnly: () => createValidateFn<DataOnly<Generated>>(),
     // Value-first sample-less pattern: the same generated pool serves this
     // form (identical {source, flags} params intern to the same node).
-    validateSchema: () => createValidateFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+    validateSchema: () => createValidateFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: 'u'}})),
     validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     getValidationErrors: () => createGetValidationErrorsFn<Generated>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Generated>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: ''}})),
+      createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-d]{2}-[0-9]{2}$', flags: 'u'}})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-d]{2}-[0-9]{2}$'})),
     mockType: () => createMockDataFn<Generated>(),

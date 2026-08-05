@@ -164,37 +164,37 @@ export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
 	}
 }
 
-// TestFormatSamples_AstralLengthUTF16 — sample lengths are counted in
-// UTF-16 code units, matching the emitted `.length` validator: an astral
-// character (U+1D7D8 '𝟘', two UTF-16 units) trips maxLength 1 but not
-// maxLength 2. Counting bytes (4) or runes (1) would disagree with the
-// runtime.
-func TestFormatSamples_AstralLengthUTF16(t *testing.T) {
-	// maxLength 1: the astral sample is length 2 in UTF-16 → violation.
-	tooLong := `import {createValidateFn} from '@ts-runtypes/core';
+// TestFormatSamples_AstralLengthCodePoints — sample lengths are counted in CODE
+// POINTS, matching the emitted validator (JSON Schema's rule): an astral
+// character (U+1D7D8 '𝟘') is ONE, so it fits maxLength 1, and only a second one
+// trips it. Counting bytes (4 each) or UTF-16 units (2 each) would report a
+// violation the runtime never agrees with.
+func TestFormatSamples_AstralLengthCodePoints(t *testing.T) {
+	// maxLength 1: one astral character is one code point → fits.
+	fits := `import {createValidateFn} from '@ts-runtypes/core';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
   maxLength: 1;
   mockSamples: ['𝟘'];
 }>>();
 `
-	resp := scanBuild(t, setupInline(t, map[string]string{"a.ts": tooLong}))
-	if findDiag(resp, diagnostics.CodeFMTSampleBounds) == nil {
-		t.Fatalf("maxLength 1: expected %s for a length-2 astral sample, got %+v",
-			diagnostics.CodeFMTSampleBounds, resp.Diagnostics)
+	resp := scanBuild(t, setupInline(t, map[string]string{"a.ts": fits}))
+	if found := findDiag(resp, diagnostics.CodeFMTSampleBounds); found != nil {
+		t.Fatalf("maxLength 1: expected no bounds diagnostic (one code point fits), got %+v", found)
 	}
 
-	// maxLength 2: the same sample fits exactly → no violation.
-	fits := `import {createValidateFn} from '@ts-runtypes/core';
+	// maxLength 1 with TWO astral characters → two code points → violation.
+	tooLong := `import {createValidateFn} from '@ts-runtypes/core';
 ` + typeFormatBrandDecl + `
 export const _ = createValidateFn<TypeFormat<string, 'stringFormat', {
-  maxLength: 2;
-  mockSamples: ['𝟘'];
+  maxLength: 1;
+  mockSamples: ['𝟘𝟘'];
 }>>();
 `
-	resp = scanBuild(t, setupInline(t, map[string]string{"a.ts": fits}))
-	if found := findDiag(resp, diagnostics.CodeFMTSampleBounds); found != nil {
-		t.Fatalf("maxLength 2: expected no bounds diagnostic (UTF-16 length 2 fits), got %+v", found)
+	resp = scanBuild(t, setupInline(t, map[string]string{"a.ts": tooLong}))
+	if findDiag(resp, diagnostics.CodeFMTSampleBounds) == nil {
+		t.Fatalf("maxLength 1: expected %s for a two-code-point astral sample, got %+v",
+			diagnostics.CodeFMTSampleBounds, resp.Diagnostics)
 	}
 }
 

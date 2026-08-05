@@ -103,7 +103,7 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 	if wantsJSONContent(params) {
 		conditions = append(conditions, jsonParseCheck(params, vλl))
 	}
-	conditions = append(conditions, lengthConditions(params, vλl)...)
+	conditions = append(conditions, lengthConditions(params, vλl, ctx)...)
 	// `pattern` adds a regex test (and triggers build-time mockSample
 	// validation). Backs FormatAlpha / FormatNumeric and any user
 	// FormatString carrying a registerFormatPattern result.
@@ -129,16 +129,29 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 // lengthConditions returns the JS boolean expressions for whichever of
 // maxLength / minLength / length are set. Shared by the stringFormat
 // emitter and the named-pattern (domain/email/url) emitters.
-func lengthConditions(params map[string]any, vλl string) []string {
+//
+// The bounds count CODE POINTS (JSON Schema's rule, and what a reader means by
+// "two characters"): '💩💩' is two code points with a `.length` of 4. Since the
+// code-point count is never GREATER than `.length`, each bound keeps `.length`
+// as a short-circuit and only pays for the exact count on the ambiguous side:
+//
+//	maxLength → `.length <= N` already proves it fits
+//	minLength → `.length >= N` is necessary, so the exact count decides
+//	length    → `.length >= N` is necessary, so the exact count decides
+func lengthConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
 	var conditions []string
+	codePointLength := func() string { return pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")" }
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
-		conditions = append(conditions, vλl+".length <= "+formats.FormatNumber(value))
+		bound := formats.FormatNumber(value)
+		conditions = append(conditions, "("+vλl+".length <= "+bound+" || "+codePointLength()+" <= "+bound+")")
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
-		conditions = append(conditions, vλl+".length >= "+formats.FormatNumber(value))
+		bound := formats.FormatNumber(value)
+		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+codePointLength()+" >= "+bound+")")
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
-		conditions = append(conditions, vλl+".length === "+formats.FormatNumber(value))
+		bound := formats.FormatNumber(value)
+		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+codePointLength()+" === "+bound+")")
 	}
 	return conditions
 }
@@ -218,19 +231,27 @@ func valuesSource(vals []string) string {
 // lengthErrorStatements returns the `if (fail) pf_formatErr(...)`
 // statements for whichever length bounds are set. fmtName tags the
 // emitted format error (stringFormat / domain / email / url …).
+// The failure conditions are the negation of lengthConditions, and keep the
+// same `.length` short-circuit: a string can only be too long once `.length`
+// exceeds the bound, so the exact code-point count is asked for solely to
+// confirm it.
 func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName string) []string {
 	var statements []string
+	codePointLength := pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
+		bound := formats.FormatNumber(value)
 		statements = append(statements,
-			"if ("+vλl+".length > "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "maxLength", formats.FormatNumber(value)))
+			"if ("+vλl+".length > "+bound+" && "+codePointLength+" > "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "maxLength", bound))
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
+		bound := formats.FormatNumber(value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "minLength", formats.FormatNumber(value)))
+			"if ("+vλl+".length < "+bound+" || "+codePointLength+" < "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "minLength", bound))
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
+		bound := formats.FormatNumber(value)
 		statements = append(statements,
-			"if ("+vλl+".length !== "+formats.FormatNumber(value)+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "length", formats.FormatNumber(value)))
+			"if ("+vλl+".length < "+bound+" || "+codePointLength+" !== "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "length", bound))
 	}
 	return statements
 }

@@ -238,16 +238,20 @@ type ExactJsonSchemaList<M> = {[I in keyof M]: M[I] extends boolean ? M[I] : Exa
 type Flatten<T> = {[K in keyof T]: T[K]};
 
 // String constraint keywords → StringParams. minLength/maxLength keep their
-// names; the `pattern` keyword (a bare 2020-12 regex string, always anchored to
-// the empty flag set) is rebuilt into the object form the stringFormat brand
-// carries. A schema pattern declares NO mockSamples — validation works in
+// names; the `pattern` keyword (a bare 2020-12 regex string) is rebuilt into
+// the object form the stringFormat brand carries, compiled with the `u` flag.
+// Unicode mode is what makes `\p{Letter}` and friends mean what the schema
+// author wrote — without it `\p{…}` degrades to a literal `p{…}` match — and it
+// is the same default other 2020-12 validators compile patterns under. A
+// type-first `String<{pattern: …}>` still chooses its own flags.
+// A schema pattern declares NO mockSamples — validation works in
 // full, and the build auto-generates a deterministic sample pool from the
 // regex so `createMockDataFn` works too (the sidecar-generated pools that
 // superseded the original throw-only policy of
 // docs/investigations/json-schema/04-migration-plan.md §1).
 type StringParamsFrom<S> = Flatten<
   {[K in keyof S as K extends 'minLength' | 'maxLength' ? K : never]: S[K]} & (S extends {pattern: infer P extends string}
-    ? {readonly pattern: {readonly source: P; readonly flags: ''}}
+    ? {readonly pattern: {readonly source: P; readonly flags: 'u'}}
     : unknown)
 >;
 

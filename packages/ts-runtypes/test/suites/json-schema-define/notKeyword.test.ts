@@ -174,7 +174,7 @@ describe('bare not over type-less children excludes the untouched kinds', () => 
   });
 
   it('converges on the Not<F> spelling through both call shapes', () => {
-    type NoAPrefix = Not<TF.String<{pattern: {source: '^a'; flags: ''}}>>;
+    type NoAPrefix = Not<TF.String<{pattern: {source: '^a'; flags: 'u'}}>>;
     const doorId = getRunTypeId(runTypeFromJsonSchema({not: {pattern: '^a'}}));
     expect(doorId).toBe(getRunTypeId<NoAPrefix>());
     const reflected = 'b-side' as NoAPrefix;

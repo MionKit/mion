@@ -89,6 +89,64 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+// randexp does not understand Unicode property escapes: it renders `\p{Letter}`
+// as the literal text `p{Letter}`, so every draw fails the pattern's own
+// self-check and the job dies with generateError. Those escapes are exactly
+// what a `u`-mode pattern is for, and the JSON Schema door compiles every
+// schema `pattern` in `u` mode, so before the GENERATOR sees the source each
+// escape is swapped for a character class of characters that really do satisfy
+// it — decided by the regex engine, so no Unicode table lives here. Inside an
+// existing class the members are spliced in bare, since a nested `[...]` would
+// not parse. The TESTER keeps compiling the ORIGINAL source, which is what
+// makes this safe: an approximation that drifts just fails the self-check and
+// the candidate is dropped, exactly as any other unlucky draw.
+const PROPERTY_ESCAPE = /\\[pP]\{[^}]*\}/;
+// One character per family the escapes in real schemas select on: latin (both
+// cases), digits, punctuation/space, then accented latin, greek, cyrillic,
+// arabic, hebrew, han, hiragana, hangul, and a non-ASCII digit.
+const PROPERTY_ALPHABET = 'aQz09 _-.,éßπΩЖДاבּ中日ひカ한٣';
+
+function classEscape(char: string): string {
+  return '\\^]-'.includes(char) ? '\\' + char : char;
+}
+
+function expandPropertyEscapes(source: string): string {
+  let out = '';
+  let rest = source;
+  let inClass = false;
+  while (rest.length > 0) {
+    // Copy escaped pairs verbatim unless the escape is the property one.
+    if (rest[0] === '\\') {
+      const property = PROPERTY_ESCAPE.exec(rest);
+      if (property && property.index === 0) {
+        out += expandOneProperty(property[0], inClass);
+        rest = rest.slice(property[0].length);
+        continue;
+      }
+      out += rest.slice(0, 2);
+      rest = rest.slice(2);
+      continue;
+    }
+    if (rest[0] === '[') inClass = true;
+    else if (rest[0] === ']') inClass = false;
+    out += rest[0];
+    rest = rest.slice(1);
+  }
+  return out;
+}
+
+function expandOneProperty(escape: string, inClass: boolean): string {
+  let probe: RegExp;
+  try {
+    probe = new RegExp(escape, 'u');
+  } catch {
+    return escape;
+  }
+  const members = [...PROPERTY_ALPHABET].filter((char) => probe.test(char)).map(classEscape);
+  if (members.length === 0) return escape;
+  return inClass ? members.join('') : '[' + members.join('') + ']';
+}
+
 function runValidate(job: SidecarJob): SidecarResult {
   let tester: RegExp;
   try {
@@ -114,7 +172,7 @@ function mulberry32(seed: number): () => number {
 }
 
 // runGenerate draws candidate values from randexp and keeps the ones that
-// survive the SELF-CHECK: the real compiled regex plus the UTF-16 length
+// survive the SELF-CHECK: the real compiled regex plus the code-point length
 // bounds. The self-check is load-bearing — randexp is lenient with
 // impossible constructs (bad positionals are ignored, unknown backrefs
 // yield empty strings), so a candidate can legitimately fail the pattern
@@ -132,7 +190,7 @@ function runGenerate(job: SidecarJob): SidecarResult {
   }
   let generator: RandExp;
   try {
-    generator = new RandExp(job.source, flags);
+    generator = new RandExp(expandPropertyEscapes(job.source), flags);
   } catch (err) {
     return {id: job.id, generateError: errorMessage(err)};
   }
@@ -154,8 +212,10 @@ function runGenerate(job: SidecarJob): SidecarResult {
       return {id: job.id, generateError: errorMessage(err)};
     }
     if (!tester.test(candidate)) continue;
-    if (candidate.length < minLength) continue;
-    if (maxLength > 0 && candidate.length > maxLength) continue;
+    // Code points, matching the bounds the emitted validator checks.
+    const size = [...candidate].length;
+    if (size < minLength) continue;
+    if (maxLength > 0 && size > maxLength) continue;
     values.add(candidate);
   }
   if (values.size === 0) {

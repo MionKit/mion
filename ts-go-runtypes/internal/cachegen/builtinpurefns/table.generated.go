@@ -57,6 +57,14 @@ var builtinEntries = []builtinEntry{
 	},
 	{
 		namespace:    "rtFormats",
+		functionName: "codePointLength",
+		bodyHash:     "3QehXUiVzZOyd9",
+		paramNames:   nil,
+		code:         "const highSurrogateRegexp = /[\\uD800-\\uDBFF]/;\n  return function _code_point_length(value) {\n    if (!highSurrogateRegexp.test(value)) return value.length;\n    let count = 0;\n    for (let i = 0; i < value.length; i++) {\n      const code = value.charCodeAt(i);\n      if (code >= 0xd800 && code <= 0xdbff && i + 1 < value.length) i++;\n      count++;\n    }\n    return count;\n  };",
+		deps:         nil,
+	},
+	{
+		namespace:    "rtFormats",
 		functionName: "dateStrToMs",
 		bodyHash:     "1cYe7lPKwYRyFR",
 		paramNames:   nil,

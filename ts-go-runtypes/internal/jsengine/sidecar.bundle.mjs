@@ -794,6 +794,45 @@ function statelessFlags(flags) {
 function errorMessage(err) {
 	return err instanceof Error ? err.message : String(err);
 }
+var PROPERTY_ESCAPE = /\\[pP]\{[^}]*\}/;
+var PROPERTY_ALPHABET = "aQz09 _-.,éßπΩЖДاבּ中日ひカ한٣";
+function classEscape(char) {
+	return "\\^]-".includes(char) ? "\\" + char : char;
+}
+function expandPropertyEscapes(source) {
+	let out = "";
+	let rest = source;
+	let inClass = false;
+	while (rest.length > 0) {
+		if (rest[0] === "\\") {
+			const property = PROPERTY_ESCAPE.exec(rest);
+			if (property && property.index === 0) {
+				out += expandOneProperty(property[0], inClass);
+				rest = rest.slice(property[0].length);
+				continue;
+			}
+			out += rest.slice(0, 2);
+			rest = rest.slice(2);
+			continue;
+		}
+		if (rest[0] === "[") inClass = true;
+		else if (rest[0] === "]") inClass = false;
+		out += rest[0];
+		rest = rest.slice(1);
+	}
+	return out;
+}
+function expandOneProperty(escape, inClass) {
+	let probe;
+	try {
+		probe = new RegExp(escape, "u");
+	} catch {
+		return escape;
+	}
+	const members = [...PROPERTY_ALPHABET].filter((char) => probe.test(char)).map(classEscape);
+	if (members.length === 0) return escape;
+	return inClass ? members.join("") : "[" + members.join("") + "]";
+}
 function runValidate(job) {
 	let tester;
 	try {
@@ -832,7 +871,7 @@ function runGenerate(job) {
 	}
 	let generator;
 	try {
-		generator = new import_randexp.default(job.source, flags);
+		generator = new import_randexp.default(expandPropertyEscapes(job.source), flags);
 	} catch (err) {
 		return {
 			id: job.id,
@@ -858,8 +897,9 @@ function runGenerate(job) {
 			};
 		}
 		if (!tester.test(candidate)) continue;
-		if (candidate.length < minLength) continue;
-		if (maxLength > 0 && candidate.length > maxLength) continue;
+		const size = [...candidate].length;
+		if (size < minLength) continue;
+		if (maxLength > 0 && size > maxLength) continue;
 		values.add(candidate);
 	}
 	if (values.size === 0) return {

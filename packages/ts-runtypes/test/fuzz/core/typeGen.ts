@@ -158,7 +158,10 @@ export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
   },
   patternA: {
     family: 'string',
-    tsText: "FzString<{pattern: {source: '^a'; flags: ''}}>",
+    // flags 'u': the schema twin below spells this as the `pattern` keyword,
+    // which the door compiles in unicode mode, so the type-first side has to
+    // say so too for the two to converge on one id.
+    tsText: "FzString<{pattern: {source: '^a'; flags: 'u'}}>",
     schema: {type: 'string', pattern: '^a'},
     valid: ['abc', 'a'],
     counter: ['b-side', 'zzz'],

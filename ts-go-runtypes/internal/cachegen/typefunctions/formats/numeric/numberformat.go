@@ -75,7 +75,7 @@ func numberConditions(params map[string]any, vλl string) []string {
 		conditions = append(conditions, vλl+" > "+formats.FormatNumber(value))
 	}
 	if value, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
-		conditions = append(conditions, "("+vλl+" % "+formats.FormatNumber(value)+" === 0)")
+		conditions = append(conditions, multipleOfCondition(vλl, value))
 	}
 	return conditions
 }
@@ -120,7 +120,7 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.Format
 		statements = append(statements, "if ("+vλl+" <= "+formats.FormatNumber(value)+") "+errCall("gt", formats.FormatNumber(value)))
 	}
 	if value, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
-		statements = append(statements, "if (("+vλl+" % "+formats.FormatNumber(value)+" !== 0)) "+errCall("multipleOf", formats.FormatNumber(value)))
+		statements = append(statements, "if (!"+multipleOfCondition(vλl, value)+") "+errCall("multipleOf", formats.FormatNumber(value)))
 	}
 	return strings.Join(statements, ";")
 }
@@ -309,14 +309,33 @@ func (numberFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation)
 	if multipleOf, ok := formats.ReadNumberParam(params, "multipleOf"); ok {
 		if multipleOf <= 0 {
 			errs = append(errs, label+": `multipleOf` must be greater than 0")
-		} else if multipleOf != float64(int64(multipleOf)) {
-			errs = append(errs, label+": `multipleOf` must be an integer to avoid floating-point precision issues")
 		}
+		// A fractional `multipleOf` used to be rejected here over floating-point
+		// precision. JSON Schema allows any positive number (`multipleOf: 0.01`
+		// on a money field is the obvious case) and defines the rule as "division
+		// by this value results in an integer", so multipleOfCondition emits that
+		// division directly rather than a modulo that cannot express it.
 		if float {
 			errs = append(errs, label+": `multipleOf` cannot be used with the `float` constraint")
 		}
 	}
 	return errs
+}
+
+// multipleOfCondition emits the "is a multiple of" predicate. An INTEGER divisor
+// keeps the modulo: it is exact on doubles, cheaper than a division, and stays
+// right for magnitudes past 2^53 where a quotient is integral simply because
+// every double that large is. A FRACTIONAL divisor cannot use it — `0.0075 %
+// 0.0001` is 9.99e-5, not 0 — so it takes JSON Schema's own wording, "division
+// by this value results in an integer". That also gives the spec's answer for an
+// overflowing divisor: `1e308 / 0.123456789` is Infinity, which is not an
+// integer, so the value is rejected instead of raising.
+func multipleOfCondition(vλl string, value float64) string {
+	literal := formats.FormatNumber(value)
+	if value == float64(int64(value)) {
+		return "(" + vλl + " % " + literal + " === 0)"
+	}
+	return "Number.isInteger(" + vλl + " / " + literal + ")"
 }
 
 // numberTruthy returns 1 when the param is present AND its value is

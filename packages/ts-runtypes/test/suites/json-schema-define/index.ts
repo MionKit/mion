@@ -225,15 +225,17 @@ export const JSON_SCHEMA_DEFINE_SUITE: Record<string, JsonSchemaDefineCase> = {
     title: "pattern '^[a-z-]+$' — validation in full, mock throws the targeted register-samples error",
     // The hand-written twin writes the RAW TypeFormat brand — what TF.String<P>
     // resolves to — so the sample-less pattern type is spellable type-first and
-    // the two forms converge. No mockSamples anywhere: the build auto-generates
-    // the pool from the regex, so the mock lanes work on both forms.
-    validate: () => createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+    // the two forms converge. `flags: 'u'` is part of that spelling: the door
+    // compiles a schema `pattern` in unicode mode. No mockSamples anywhere: the
+    // build auto-generates the pool from the regex, so the mock lanes work on
+    // both forms.
+    validate: () => createValidateFn<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: 'u'}}>>(),
     validateReflect: () => {
-      const v = 'my-slug' as TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>;
+      const v = 'my-slug' as TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: 'u'}}>;
       return createValidateFn(v);
     },
     deserializeValidate: () =>
-      deserializeValidate<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: ''}}>>(),
+      deserializeValidate<TypeFormat<string, 'stringFormat', {pattern: {source: '^[a-z-]+$'; flags: 'u'}}>>(),
     validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     getValidationErrors: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z-]+$'})),
     mockType: () => createMockDataFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z-]+$'})),

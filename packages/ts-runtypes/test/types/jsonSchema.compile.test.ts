@@ -105,11 +105,11 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       `
       type _01 = Expect<Equal<
         FromJsonSchema<{readonly type: 'string'; readonly pattern: '^[a-z-]+$'}>,
-        StringFormat<{readonly pattern: {readonly source: '^[a-z-]+$'; readonly flags: ''}}>
+        StringFormat<{readonly pattern: {readonly source: '^[a-z-]+$'; readonly flags: 'u'}}>
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly type: 'string'; readonly minLength: 5; readonly pattern: '^a+$'}>,
-        StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: ''}}>
+        StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: 'u'}}>
       >>;
       `,
       651
@@ -297,7 +297,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _02 = Expect<Equal<
         FromJsonSchema<{readonly not: {readonly pattern: '^a'}}>,
-        string & {readonly [__rtNot]?: StringFormat<{readonly pattern: {readonly source: '^a'; readonly flags: ''}}>}
+        string & {readonly [__rtNot]?: StringFormat<{readonly pattern: {readonly source: '^a'; readonly flags: 'u'}}>}
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly not: {readonly enum: readonly [null, 5, 'a']}}>,

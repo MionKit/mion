@@ -48,6 +48,30 @@ registerPureFnFactory('rtFormats::isUUID', function () {
   };
 });
 
+// ############### Length pure fn ###############
+//
+// `minLength` / `maxLength` / `length` count CODE POINTS, not UTF-16 code
+// units, which is what JSON Schema specifies and what a reader means by "two
+// characters": `'💩💩'` is two code points but `.length === 4`, so a plain
+// `.length` check calls it too long under `maxLength: 2`. Only the ambiguous
+// side of each bound routes through here (see lengthConditions in
+// internal/cachegen/typefunctions/formats/string/stringformat.go), and the
+// surrogate pre-test keeps the all-BMP case a single native scan with no
+// per-character loop.
+registerPureFnFactory('rtFormats::codePointLength', function () {
+  const highSurrogateRegexp = /[\uD800-\uDBFF]/;
+  return function _code_point_length(value: string): number {
+    if (!highSurrogateRegexp.test(value)) return value.length;
+    let count = 0;
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i);
+      if (code >= 0xd800 && code <= 0xdbff && i + 1 < value.length) i++;
+      count++;
+    }
+    return count;
+  };
+});
+
 // ############### IP pure fns ###############
 //
 // isIPV4 / isIPV6 accept a params object carrying the version, allowLocalHost,

@@ -257,10 +257,11 @@ function lengthFiltered(params: object, draw: () => string): string {
   if (minLength === undefined && maxLength === undefined) return draw();
   for (let attempt = 0; attempt < 32; attempt++) {
     const candidate = draw();
-    if (
-      (minLength === undefined || candidate.length >= minLength) &&
-      (maxLength === undefined || candidate.length <= maxLength)
-    ) {
+    // Code points, matching the emitted validator's bounds (JSON Schema's
+    // rule): a draw carrying an astral character must not be filtered out over
+    // a `.length` the validator never looks at.
+    const size = [...candidate].length;
+    if ((minLength === undefined || size >= minLength) && (maxLength === undefined || size <= maxLength)) {
       return candidate;
     }
   }

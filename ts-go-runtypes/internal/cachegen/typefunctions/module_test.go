@@ -440,11 +440,15 @@ func extractInitLine(out, key string) string {
 	if start < 0 {
 		return ""
 	}
-	end := strings.Index(out[start:], ");")
-	if end < 0 {
-		return out[start:]
+	// One rendered entry is one line, so take the line. (Cutting at the first
+	// `);` used to work only because no emitted body contained one; a pure-fn
+	// preamble — `utl.getPureFn('rtFormats::codePointLength');` — does, and it
+	// truncated the entry before the assertions could see it.)
+	rest := out[start:]
+	if end := strings.IndexByte(rest, '\n'); end >= 0 {
+		return rest[:end]
 	}
-	return out[start : start+end+2]
+	return rest
 }
 
 // TestValidateModule_InterfaceEmitBody covers KindObjectLiteral —
