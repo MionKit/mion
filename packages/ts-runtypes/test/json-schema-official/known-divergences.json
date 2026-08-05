@@ -200,6 +200,15 @@
     },
     {
       "file": "format.json",
+      "group": "duration format",
+      "case": "invalid duration string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
       "group": "email format",
       "case": "invalid email string is only an annotation by default",
       "expected": true,
@@ -236,6 +245,42 @@
     },
     {
       "file": "format.json",
+      "group": "iri format",
+      "case": "invalid iri string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "iri-reference format",
+      "case": "invalid iri-reference string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "json-pointer format",
+      "case": "invalid json-pointer string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "relative-json-pointer format",
+      "case": "invalid relative-json-pointer string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
       "group": "time format",
       "case": "invalid time string is only an annotation by default",
       "expected": true,
@@ -247,6 +292,24 @@
       "file": "format.json",
       "group": "uri format",
       "case": "invalid uri string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "uri-reference format",
+      "case": "invalid uri-reference string is only an annotation by default",
+      "expected": true,
+      "observed": false,
+      "byDesign": true,
+      "note": ""
+    },
+    {
+      "file": "format.json",
+      "group": "uri-template format",
+      "case": "invalid uri-template string is only an annotation by default",
       "expected": true,
       "observed": false,
       "byDesign": true,
@@ -357,231 +420,6 @@
       "case": "case-insensitive T and Z",
       "expected": true,
       "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "a comma as the decimal separator is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "a leading sign is not allowed",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "a number before the time separator has no unit",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "a sign inside a component is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "a trailing newline is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "an invalid duration string",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "element without unit",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "elements out of order",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "empty string is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "exponent notation is not allowed in a component",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "fractional duration is not allowed by RFC 3339 ABNF",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "hours and seconds cannot appear without minutes",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "invalid non-ASCII '২' (a Bengali 2)",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "leading whitespace is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "missing time separator",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "must start with P",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "no date or time elements present",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "no elements present",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "no time elements present",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "time element in the date position",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "trailing whitespace is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "weeks cannot be combined with a time component",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "weeks cannot be combined with a zero-valued component",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "weeks cannot be combined with other units",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/duration.json",
-      "group": "validation of duration strings",
-      "case": "years and days cannot appear without months",
-      "expected": false,
-      "observed": true,
       "byDesign": false,
       "note": ""
     },
@@ -705,180 +543,207 @@
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "a valid host name (example.test in Hangul)",
-      "expected": true,
-      "observed": false,
+      "case": "Arabic-Indic digits mixed with Extended Arabic-Indic digits",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Arabic-Indic digits not mixed with Extended Arabic-Indic digits",
-      "expected": true,
-      "observed": false,
+      "case": "Begins with a Nonspacing Mark",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Exceptions that are PVALID, left-to-right chars",
-      "expected": true,
-      "observed": false,
+      "case": "Begins with a Spacing Combining Mark",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Exceptions that are PVALID, right-to-left chars",
-      "expected": true,
-      "observed": false,
+      "case": "Begins with an Enclosing Mark",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Extended Arabic-Indic digits not mixed with Arabic-Indic digits",
-      "expected": true,
-      "observed": false,
+      "case": "contains \"--\" in the 3rd and 4th position",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Greek KERAIA followed by Greek",
-      "expected": true,
-      "observed": false,
+      "case": "contains illegal char U+302E Hangul single dot tone mark",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Hebrew GERESH preceded by Hebrew",
-      "expected": true,
-      "observed": false,
+      "case": "Exceptions that are DISALLOWED, left-to-right chars",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "Hebrew GERSHAYIM preceded by Hebrew",
-      "expected": true,
-      "observed": false,
+      "case": "Exceptions that are DISALLOWED, right-to-left chars",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "KATAKANA MIDDLE DOT with Han",
-      "expected": true,
-      "observed": false,
+      "case": "Greek KERAIA not followed by anything",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "KATAKANA MIDDLE DOT with Hiragana",
-      "expected": true,
-      "observed": false,
+      "case": "Greek KERAIA not followed by Greek",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "KATAKANA MIDDLE DOT with Katakana",
-      "expected": true,
-      "observed": false,
+      "case": "Hebrew GERESH not preceded by anything",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "MIDDLE DOT with surrounding 'l's",
-      "expected": true,
-      "observed": false,
+      "case": "Hebrew GERESH not preceded by Hebrew",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "ZERO WIDTH JOINER preceded by Virama",
-      "expected": true,
-      "observed": false,
+      "case": "Hebrew GERSHAYIM not preceded by anything",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "ZERO WIDTH NON-JOINER not preceded by Virama but matches regexp",
-      "expected": true,
-      "observed": false,
+      "case": "Hebrew GERSHAYIM not preceded by Hebrew",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
       "group": "validation of A-label (punycode) host names",
-      "case": "ZERO WIDTH NON-JOINER preceded by Virama",
-      "expected": true,
-      "observed": false,
+      "case": "invalid Punycode",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
-      "group": "validation of host names",
-      "case": "single label",
-      "expected": true,
-      "observed": false,
+      "group": "validation of A-label (punycode) host names",
+      "case": "KATAKANA MIDDLE DOT with no Hiragana, Katakana, or Han",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
-      "group": "validation of host names",
-      "case": "single label ending with digit",
-      "expected": true,
-      "observed": false,
+      "group": "validation of A-label (punycode) host names",
+      "case": "KATAKANA MIDDLE DOT with no other characters",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
-      "group": "validation of host names",
-      "case": "single label starting with digit",
-      "expected": true,
-      "observed": false,
+      "group": "validation of A-label (punycode) host names",
+      "case": "MIDDLE DOT with no following 'l'",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
-      "group": "validation of host names",
-      "case": "single label with digits",
-      "expected": true,
-      "observed": false,
+      "group": "validation of A-label (punycode) host names",
+      "case": "MIDDLE DOT with no preceding 'l'",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
     {
       "file": "optional/format/hostname.json",
-      "group": "validation of host names",
-      "case": "single label with hyphen",
-      "expected": true,
-      "observed": false,
+      "group": "validation of A-label (punycode) host names",
+      "case": "MIDDLE DOT with nothing following",
+      "expected": false,
+      "observed": true,
+      "byDesign": false,
+      "note": ""
+    },
+    {
+      "file": "optional/format/hostname.json",
+      "group": "validation of A-label (punycode) host names",
+      "case": "MIDDLE DOT with nothing preceding",
+      "expected": false,
+      "observed": true,
+      "byDesign": false,
+      "note": ""
+    },
+    {
+      "file": "optional/format/hostname.json",
+      "group": "validation of A-label (punycode) host names",
+      "case": "ZERO WIDTH JOINER not preceded by anything",
+      "expected": false,
+      "observed": true,
+      "byDesign": false,
+      "note": ""
+    },
+    {
+      "file": "optional/format/hostname.json",
+      "group": "validation of A-label (punycode) host names",
+      "case": "ZERO WIDTH JOINER not preceded by Virama",
+      "expected": false,
+      "observed": true,
       "byDesign": false,
       "note": ""
     },
@@ -1387,279 +1252,9 @@
       "note": ""
     },
     {
-      "file": "optional/format/iri-reference.json",
-      "group": "validation of IRI References",
-      "case": "an invalid IRI fragment",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/iri-reference.json",
-      "group": "validation of IRI References",
-      "case": "an invalid IRI Reference",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/iri.json",
-      "group": "validation of IRIs",
-      "case": "an invalid IRI",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/iri.json",
-      "group": "validation of IRIs",
-      "case": "an invalid IRI though valid IRI reference",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/iri.json",
-      "group": "validation of IRIs",
-      "case": "an invalid relative IRI Reference",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/iri.json",
-      "group": "validation of IRIs",
-      "case": "an IPv6 address without enclosing brackets is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (~ not escaped)",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (isn't empty nor starts with /) #1",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (isn't empty nor starts with /) #2",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (isn't empty nor starts with /) #3",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (multiple characters not escaped)",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (some escaped, but not all) #1",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (some escaped, but not all) #2",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (URI Fragment Identifier) #1",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (URI Fragment Identifier) #2",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (URI Fragment Identifier) #3",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (wrong escape character) #1",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/json-pointer.json",
-      "group": "validation of JSON-pointers (JSON String Representation)",
-      "case": "not a valid JSON-pointer (wrong escape character) #2",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
       "file": "optional/format/regex.json",
       "group": "validation of regular expressions",
       "case": "a regular expression with unclosed parens is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "## is not a valid json-pointer",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "an invalid RJP that is a valid JSON Pointer",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "empty string",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "explicit positive prefix",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "negative prefix",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "non-ASCII digit in the prefix is not allowed",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "octothorpe followed by a json-pointer",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "tilde not followed by 0 or 1 in the json-pointer part",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "trailing newline after the non-negative integer",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "unescaped tilde at the end of the json-pointer part",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "zero cannot be followed by other digits, plus json-pointer",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/relative-json-pointer.json",
-      "group": "validation of Relative JSON Pointers (RJP)",
-      "case": "zero cannot be followed by other digits, plus octothorpe",
       "expected": false,
       "observed": true,
       "byDesign": false,
@@ -1743,267 +1338,6 @@
       "case": "valid leap second, zero time-offset",
       "expected": true,
       "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-reference.json",
-      "group": "validation of URI References",
-      "case": "an invalid URI fragment",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-reference.json",
-      "group": "validation of URI References",
-      "case": "an invalid URI Reference",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-reference.json",
-      "group": "validation of URI References",
-      "case": "invalid backslash character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-reference.json",
-      "group": "validation of URI References",
-      "case": "unescaped non US-ASCII characters",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "a five-digit prefix max-length is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "a zero prefix max-length is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "an empty expression is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "an empty varspec inside the variable list is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "an invalid uri-template",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri-template.json",
-      "group": "format: uri-template",
-      "case": "an unmatched closing brace is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid mailto URI",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid newsgroup URI",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid tel URI",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid URL",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid URL with many special characters",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "a valid URN",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "incomplete percent-encoding triplet",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid \" character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid {} characters",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid ` character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid ^ character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid <> characters",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid | character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid backslash character",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid percent-encoding with non-hex digits",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "invalid userinfo",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "lone percent sign is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "non-numeric port is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "optional/format/uri.json",
-      "group": "validation of URIs",
-      "case": "unescaped non US-ASCII characters",
-      "expected": false,
-      "observed": true,
       "byDesign": false,
       "note": ""
     },

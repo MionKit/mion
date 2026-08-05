@@ -2240,6 +2240,7 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Multi-label hostnames pass (`mion.io`, `example.com`, `sub.example.co.uk`, `a-b.example.org`).',
       'Rejected: a bare label (`not-a-domain`), a leading dot (`.com`), a single-char TLD (`example.c`), a leading-hyphen label (`-bad.com`), an embedded space (`exa mple.com`), and the empty string. The format error is `{name: domain}` (no `val`).',
+      "JSON Schema: `format: 'hostname'` lowers to TF.Hostname (a single label counts), so this brand has no schema spelling.",
     ],
     validate: () => createValidateFn<TF.Domain>(),
     standardSchema: () => createStandardSchema<TF.Domain>(),
@@ -2267,11 +2268,13 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Domain>>(),
     validateSchema: () => createValidateFn(TF.domain()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'hostname'})),
+    // `format: 'hostname'` now lowers to TF.Hostname (a single label is a valid
+    // host name), not TF.Domain — so this brand has no schema spelling of its own.
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Domain>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Domain>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.domain()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'hostname'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Domain>(),
     getSamples: () => ({
       valid: ['mion.io', 'example.com', 'sub.example.co.uk', 'a-b.example.org'],
@@ -2475,6 +2478,7 @@ export const STRING_FORMAT = {
     validateNotes: [
       'Multiple schemes pass (`https://`, `http://` with path+query, `ftp://`, `wss://`).',
       'Rejected: a scheme-less string (`not-a-url`), a bare host (`example.com`), a `mailto:` URI, and a scheme with no host (`https://`). The format error is `{name: url}` (no `val`).',
+      "JSON Schema: `format: 'uri'` lowers to TF.Uri (RFC 3986, any scheme), so this narrower brand has no schema spelling.",
     ],
     validate: () => createValidateFn<TF.Url>(),
     standardSchema: () => createStandardSchema<TF.Url>(),
@@ -2502,11 +2506,13 @@ export const STRING_FORMAT = {
     },
     validateDataOnly: () => createValidateFn<DataOnly<TF.Url>>(),
     validateSchema: () => createValidateFn(TF.url()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'uri'})),
+    // `format: 'uri'` now lowers to TF.Uri (RFC 3986, any scheme), not TF.Url —
+    // the narrow web-address brand has no schema spelling of its own.
+    validateJsonSchema: 'not-supported',
     getValidationErrors: () => createGetValidationErrorsFn<TF.Url>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Url>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.url()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'uri'})),
+    getValidationErrorsJsonSchema: 'not-supported',
     mockType: () => createMockDataFn<TF.Url>(),
     getSamples: () => ({
       valid: ['https://example.com', 'http://mion.io/path?q=1', 'ftp://files.example.org', 'wss://socket.example.com'],
@@ -2668,6 +2674,420 @@ export const STRING_FORMAT = {
       {name: 'stringFormat', val: 'must be a slug'},
       {name: 'stringFormat', val: 'must be a slug'},
     ],
+  },
+  json_pointer: {
+    title: 'JsonPointer',
+    description:
+      'TF.JsonPointer (format `stringFormat`) — RFC 6901 JSON pointer — the path syntax `$ref` and patch documents use.',
+    validateNotes: [
+      'The empty string is the whole document and is valid; `/store/book/0` walks in.',
+      '`~0` and `~1` are the escapes for `~` and `/`; a bare `~` or a path not starting with `/` fails.',
+    ],
+    validate: () => createValidateFn<TF.JsonPointer>(),
+    standardSchema: () => createStandardSchema<TF.JsonPointer>(),
+    validateReflect: () => {
+      const v: TF.JsonPointer = '';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.JsonPointer>(),
+    deserializeValidateReflect: () => {
+      const v: TF.JsonPointer = '';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.JsonPointer = '';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.JsonPointer>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.JsonPointer = '';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.JsonPointer = '';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.JsonPointer>>(),
+    validateSchema: () => createValidateFn(TF.jsonPointer()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'json-pointer'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.JsonPointer>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.JsonPointer>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.jsonPointer()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'json-pointer'})),
+    mockType: () => createMockDataFn<TF.JsonPointer>(),
+    getSamples: () => ({
+      valid: ['', '/foo', '/foo/0', '/a~1b', '/c~0d'],
+      invalid: ['foo', '/~', '/a~2b', '#/foo'],
+    }),
+    expectedFormatErrors: () => [null, null, null, null],
+  },
+  relative_json_pointer: {
+    title: 'RelativeJsonPointer',
+    description:
+      'TF.RelativeJsonPointer (format `stringFormat`) — RFC 6901 relative JSON pointer — a hop count up the tree, then a pointer or `#`.',
+    validateNotes: [
+      '`0` is here, `1/foo` is one level up then into `foo`, `2#` is the key two levels up.',
+      'A leading zero on the hop count (`01`), a missing hop count, and `#` in the middle all fail.',
+    ],
+    validate: () => createValidateFn<TF.RelativeJsonPointer>(),
+    standardSchema: () => createStandardSchema<TF.RelativeJsonPointer>(),
+    validateReflect: () => {
+      const v: TF.RelativeJsonPointer = '0';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.RelativeJsonPointer>(),
+    deserializeValidateReflect: () => {
+      const v: TF.RelativeJsonPointer = '0';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.RelativeJsonPointer = '0';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.RelativeJsonPointer>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.RelativeJsonPointer = '0';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.RelativeJsonPointer = '0';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.RelativeJsonPointer>>(),
+    validateSchema: () => createValidateFn(TF.relativeJsonPointer()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'relative-json-pointer'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.RelativeJsonPointer>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.RelativeJsonPointer>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.relativeJsonPointer()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'relative-json-pointer'})),
+    mockType: () => createMockDataFn<TF.RelativeJsonPointer>(),
+    getSamples: () => ({
+      valid: ['0', '1/foo', '2#', '0/a~1b'],
+      invalid: ['01', '/foo', '1#/foo', '-1/foo'],
+    }),
+    expectedFormatErrors: () => [null, null, null, null],
+  },
+  string_duration: {
+    title: 'StringDuration',
+    description:
+      'TF.StringDuration (format `stringFormat`) — RFC 3339 duration string — a LENGTH of time (`P4DT12H30M5S`), not an instant.',
+    validateNotes: [
+      'Components nest: a year may be followed by a month, a month by a day, never skipping, so `P1Y2M3D` passes and `P1Y2D` does not.',
+      'The week form stands alone (`P2W`), fractions are not allowed (`PT0.5S`), and this is deliberately stricter than the `now±P…` bound syntax.',
+    ],
+    validate: () => createValidateFn<TF.StringDuration>(),
+    standardSchema: () => createStandardSchema<TF.StringDuration>(),
+    validateReflect: () => {
+      const v: TF.StringDuration = 'P4DT12H30M5S';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.StringDuration>(),
+    deserializeValidateReflect: () => {
+      const v: TF.StringDuration = 'P4DT12H30M5S';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.StringDuration = 'P4DT12H30M5S';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.StringDuration>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.StringDuration = 'P4DT12H30M5S';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.StringDuration = 'P4DT12H30M5S';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.StringDuration>>(),
+    validateSchema: () => createValidateFn(TF.stringDuration()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'duration'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.StringDuration>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.StringDuration>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.stringDuration()),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'duration'})),
+    mockType: () => createMockDataFn<TF.StringDuration>(),
+    getSamples: () => ({
+      valid: ['P4DT12H30M5S', 'P1Y2M3D', 'PT1H30M', 'P2W', 'PT0S'],
+      invalid: ['P', 'PT', 'P1Y2D', 'PT1H2S', 'P1Y2W', 'PT0.5S', 'P1D '],
+    }),
+    expectedFormatErrors: () => [null, null, null, null, null, null, null],
+  },
+  uri: {
+    title: 'Uri',
+    description: 'TF.Uri (format `url`) — RFC 3986 URI — any scheme, not just the web ones `TF.Url` accepts.',
+    validateNotes: [
+      '`mailto:`, `urn:` and `tel:` are URIs and pass here while failing `TF.Url`, which is the narrow web-address form.',
+      'A scheme is required, so a relative reference like `../a` fails; use `TF.UriReference` for those.',
+    ],
+    validate: () => createValidateFn<TF.Uri>(),
+    standardSchema: () => createStandardSchema<TF.Uri>(),
+    validateReflect: () => {
+      const v: TF.Uri = 'https://example.com/path';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.Uri>(),
+    deserializeValidateReflect: () => {
+      const v: TF.Uri = 'https://example.com/path';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.Uri = 'https://example.com/path';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.Uri>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.Uri = 'https://example.com/path';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.Uri = 'https://example.com/path';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.Uri>>(),
+    validateSchema: () => createValidateFn(TF.uri()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'uri'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.Uri>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Uri>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uri()),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'uri'})),
+    mockType: () => createMockDataFn<TF.Uri>(),
+    getSamples: () => ({
+      valid: ['https://example.com/path', 'mailto:ada@example.com', 'urn:isbn:0451450523', 'ftp://files.example.org/pub'],
+      invalid: ['../a', '//example.com', 'http://example.com/ä', '1http://example.com'],
+    }),
+    expectedFormatErrors: () => [null, null, null, null],
+  },
+  uri_reference: {
+    title: 'UriReference',
+    description: 'TF.UriReference (format `url`) — RFC 3986 URI reference — a URI, or a relative one resolved against a base.',
+    validateNotes: [
+      'Absolute URIs pass, and so do `/abs/path`, `../up` and a bare `#fragment`.',
+      'The character repertoire stays ASCII; a non-ASCII path fails (that is `TF.IriReference`).',
+    ],
+    validate: () => createValidateFn<TF.UriReference>(),
+    standardSchema: () => createStandardSchema<TF.UriReference>(),
+    validateReflect: () => {
+      const v: TF.UriReference = '/relative/path';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.UriReference>(),
+    deserializeValidateReflect: () => {
+      const v: TF.UriReference = '/relative/path';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.UriReference = '/relative/path';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.UriReference>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.UriReference = '/relative/path';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.UriReference = '/relative/path';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.UriReference>>(),
+    validateSchema: () => createValidateFn(TF.uriReference()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'uri-reference'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.UriReference>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UriReference>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uriReference()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'uri-reference'})),
+    mockType: () => createMockDataFn<TF.UriReference>(),
+    getSamples: () => ({
+      valid: ['/relative/path', '../up', '#fragment', 'https://example.com'],
+      invalid: ['\\\\\\\\host\\\\share', 'http://example.com/ä', 'a b'],
+    }),
+    expectedFormatErrors: () => [null, null, null],
+  },
+  iri: {
+    title: 'Iri',
+    description: 'TF.Iri (format `url`) — RFC 3987 IRI — the same grammar as a URI with non-ASCII characters allowed.',
+    validateNotes: [
+      '`https://例え.テスト/ページ` passes here and fails `TF.Uri`, which is ASCII only.',
+      'A scheme is still required; relative forms belong to `TF.IriReference`.',
+    ],
+    validate: () => createValidateFn<TF.Iri>(),
+    standardSchema: () => createStandardSchema<TF.Iri>(),
+    validateReflect: () => {
+      const v: TF.Iri = 'https://example.com/päth';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.Iri>(),
+    deserializeValidateReflect: () => {
+      const v: TF.Iri = 'https://example.com/päth';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.Iri = 'https://example.com/päth';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.Iri>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.Iri = 'https://example.com/päth';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.Iri = 'https://example.com/päth';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.Iri>>(),
+    validateSchema: () => createValidateFn(TF.iri()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'iri'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.Iri>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Iri>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.iri()),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'iri'})),
+    mockType: () => createMockDataFn<TF.Iri>(),
+    getSamples: () => ({
+      valid: ['https://example.com/päth', 'https://例え.テスト/ページ', 'mailto:ada@example.com'],
+      invalid: ['../päth', 'http://example.com/a b', '1http://example.com'],
+    }),
+    expectedFormatErrors: () => [null, null, null],
+  },
+  iri_reference: {
+    title: 'IriReference',
+    description: 'TF.IriReference (format `url`) — RFC 3987 IRI reference — an IRI, or a relative one.',
+    validateNotes: [
+      'Absolute IRIs pass, and so do relative paths and fragments carrying non-ASCII characters.',
+      'Whitespace is still not a URI character, so `a b` fails.',
+    ],
+    validate: () => createValidateFn<TF.IriReference>(),
+    standardSchema: () => createStandardSchema<TF.IriReference>(),
+    validateReflect: () => {
+      const v: TF.IriReference = '/relative/päth';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.IriReference>(),
+    deserializeValidateReflect: () => {
+      const v: TF.IriReference = '/relative/päth';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.IriReference = '/relative/päth';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.IriReference>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.IriReference = '/relative/päth';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.IriReference = '/relative/päth';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.IriReference>>(),
+    validateSchema: () => createValidateFn(TF.iriReference()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'iri-reference'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.IriReference>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.IriReference>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.iriReference()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'iri-reference'})),
+    mockType: () => createMockDataFn<TF.IriReference>(),
+    getSamples: () => ({
+      valid: ['/relative/päth', '#フラグ', 'https://例え.テスト'],
+      invalid: ['a b', '\\\\\\\\host\\\\share'],
+    }),
+    expectedFormatErrors: () => [null, null],
+  },
+  uri_template: {
+    title: 'UriTemplate',
+    description: 'TF.UriTemplate (format `url`) — RFC 6570 URI template — a URI with `{…}` expressions still to be filled in.',
+    validateNotes: [
+      '`http://example.com/search{?q,lang}` and `{/path*}` pass; the operators, prefix (`:3`) and explode (`*`) modifiers are all understood.',
+      'An unclosed or empty expression fails, as does a stray `}`.',
+    ],
+    validate: () => createValidateFn<TF.UriTemplate>(),
+    standardSchema: () => createStandardSchema<TF.UriTemplate>(),
+    validateReflect: () => {
+      const v: TF.UriTemplate = 'http://example.com/{id}';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.UriTemplate>(),
+    deserializeValidateReflect: () => {
+      const v: TF.UriTemplate = 'http://example.com/{id}';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.UriTemplate = 'http://example.com/{id}';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.UriTemplate>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.UriTemplate = 'http://example.com/{id}';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.UriTemplate = 'http://example.com/{id}';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.UriTemplate>>(),
+    validateSchema: () => createValidateFn(TF.uriTemplate()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'uri-template'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.UriTemplate>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.UriTemplate>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.uriTemplate()),
+    getValidationErrorsJsonSchema: () =>
+      createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'uri-template'})),
+    mockType: () => createMockDataFn<TF.UriTemplate>(),
+    getSamples: () => ({
+      valid: ['http://example.com/{id}', 'http://example.com/~{username}/', 'http://example.com/search{?q,lang}', '{/path*}'],
+      invalid: ['http://example.com/{id', 'http://example.com/{}', 'http://example.com/}'],
+    }),
+    expectedFormatErrors: () => [null, null, null],
+  },
+  hostname: {
+    title: 'Hostname',
+    description:
+      'TF.Hostname (format `domain`) — RFC 1123 host name — labels of letters, digits and hyphens, a single label allowed.',
+    validateNotes: [
+      'A bare `localhost` or `db1` is a valid host name, which is where this differs from `TF.Domain` (that one wants a dotted name with a TLD).',
+      'A label may not start or end with a hyphen, may not exceed 63 characters, and the whole name may not exceed 253.',
+    ],
+    validate: () => createValidateFn<TF.Hostname>(),
+    standardSchema: () => createStandardSchema<TF.Hostname>(),
+    validateReflect: () => {
+      const v: TF.Hostname = 'example.com';
+      return createValidateFn(v);
+    },
+    deserializeValidate: () => deserializeValidate<TF.Hostname>(),
+    deserializeValidateReflect: () => {
+      const v: TF.Hostname = 'example.com';
+      return deserializeValidate(v);
+    },
+    getValidationErrorsReflect: () => {
+      const v: TF.Hostname = 'example.com';
+      return createGetValidationErrorsFn(v);
+    },
+    deserializeGetValidationErrors: () => deserializeGetValidationErrors<TF.Hostname>(),
+    deserializeGetValidationErrorsReflect: () => {
+      const v: TF.Hostname = 'example.com';
+      return deserializeGetValidationErrors(v);
+    },
+    mockTypeReflect: () => {
+      const v: TF.Hostname = 'example.com';
+      return createMockDataFn(v);
+    },
+    validateDataOnly: () => createValidateFn<DataOnly<TF.Hostname>>(),
+    validateSchema: () => createValidateFn(TF.hostname()),
+    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'hostname'})),
+    getValidationErrors: () => createGetValidationErrorsFn<TF.Hostname>(),
+    getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<TF.Hostname>>(),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.hostname()),
+    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'hostname'})),
+    mockType: () => createMockDataFn<TF.Hostname>(),
+    getSamples: () => ({
+      valid: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com'],
+      invalid: ['-hostname', 'hostname-', 'host_name', '.example', 'example.', ''],
+    }),
+    expectedFormatErrors: () => [null, null, null, null, null, null],
   },
   pattern_generated: {
     title: 'Generated pattern samples',

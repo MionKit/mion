@@ -34,6 +34,8 @@ import type {
   StringTime,
   StringDateTime,
   Domain,
+  Hostname,
+  Uri,
   IPv4,
   IPv6,
   Url,

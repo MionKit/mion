@@ -91,10 +91,10 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'date'}>, StringDate>>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'time'}>, StringTime>>;
       type _07 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'date-time'}>, StringDateTime>>;
-      type _08 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'hostname'}>, Domain>>;
+      type _08 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'hostname'}>, Hostname>>;
       type _09 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv4'}>, IPv4>>;
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
-      type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Url>>;
+      type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Uri>>;
       `,
       2045
     );

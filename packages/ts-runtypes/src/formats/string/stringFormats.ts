@@ -31,6 +31,15 @@ import {
   BASE64_PATTERN,
   BASE32_PATTERN,
   BASE16_PATTERN,
+  HOSTNAME_PATTERN,
+  STRING_DURATION_PATTERN,
+  JSON_POINTER_PATTERN,
+  RELATIVE_JSON_POINTER_PATTERN,
+  URI_PATTERN,
+  URI_REFERENCE_PATTERN,
+  IRI_PATTERN,
+  IRI_REFERENCE_PATTERN,
+  URI_TEMPLATE_PATTERN,
 } from './string-patterns.ts';
 import {builderResult, presetBuilder} from '../../runtypes/builderCore.ts';
 import type {RunType} from '../../runtypes/types.ts';
@@ -480,6 +489,20 @@ export interface UrlParams {
   mockSamples?: readonly string[];
 }
 
+// ── JSON Schema named formats ──
+// Each is the shape its `format` keyword lowers to. They ride the existing
+// 'url' / 'stringFormat' emitters (a pattern plus optional length bounds is all
+// they need), so no new Go emitter arrives with them.
+type DEFAULT_URI_PARAMS = {pattern: typeof URI_PATTERN};
+type DEFAULT_URI_REFERENCE_PARAMS = {pattern: typeof URI_REFERENCE_PATTERN};
+type DEFAULT_IRI_PARAMS = {pattern: typeof IRI_PATTERN};
+type DEFAULT_IRI_REFERENCE_PARAMS = {pattern: typeof IRI_REFERENCE_PATTERN};
+type DEFAULT_URI_TEMPLATE_PARAMS = {pattern: typeof URI_TEMPLATE_PATTERN};
+type DEFAULT_HOSTNAME_PARAMS = {pattern: typeof HOSTNAME_PATTERN; maxLength: 253};
+type DEFAULT_STRING_DURATION_PARAMS = {pattern: typeof STRING_DURATION_PATTERN};
+type DEFAULT_JSON_POINTER_PARAMS = {pattern: typeof JSON_POINTER_PATTERN};
+type DEFAULT_RELATIVE_JSON_POINTER_PARAMS = {pattern: typeof RELATIVE_JSON_POINTER_PATTERN};
+
 type DEFAULT_URL_PARAMS = {pattern: typeof URL_PATTERN; maxLength: 2048};
 type DEFAULT_URL_HTTP_PARAMS = {pattern: typeof URL_HTTP_PATTERN; maxLength: 2048};
 type DEFAULT_URL_FILE_PARAMS = {pattern: typeof URL_FILE_PATTERN; maxLength: 2048};
@@ -487,6 +510,43 @@ type DEFAULT_URL_FILE_PARAMS = {pattern: typeof URL_FILE_PATTERN; maxLength: 204
 export type Url<P extends Override<UrlParams> = {}> = PresetFormat<'url', DEFAULT_URL_PARAMS, P>;
 export type UrlHttp<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_HTTP_PARAMS, P>;
 export type UrlFile<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URL_FILE_PARAMS, P>;
+
+/** Any RFC 3986 URI, whatever the scheme (`mailto:`, `urn:`, `tel:`) — what
+ *  `format: 'uri'` means. `Url` is the narrower web-address form. **/
+export type Uri<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_PARAMS, P>;
+/** An RFC 3986 URI reference: a URI, or a relative one like `../a` or `#frag`. **/
+export type UriReference<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_REFERENCE_PARAMS, P>;
+/** RFC 3987 IRI — a URI whose characters may be non-ASCII. **/
+export type Iri<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_IRI_PARAMS, P>;
+/** An IRI reference: an IRI, or a relative one. **/
+export type IriReference<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_IRI_REFERENCE_PARAMS, P>;
+/** RFC 6570 URI template — a URI with `{…}` expressions left to fill in. **/
+export type UriTemplate<P extends Override<UrlParams, 'pattern'> = {}> = PresetFormat<'url', DEFAULT_URI_TEMPLATE_PARAMS, P>;
+/** RFC 1123 host name. Unlike `Domain` a single label is fine (`localhost`),
+ *  since a host name need not be a dotted public name. **/
+export type Hostname<P extends Override<DomainParams, 'pattern'> = {}> = PresetFormat<'domain', DEFAULT_HOSTNAME_PARAMS, P>;
+/** RFC 3339 duration string (`P4DT12H30M5S`). A LENGTH of time, so it is not
+ *  one of the Date/Time formats and takes no min/max bounds; those describe an
+ *  instant. Note this grammar is stricter than the `now±P…` bound specs. **/
+export type StringDuration<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+  'stringFormat',
+  DEFAULT_STRING_DURATION_PARAMS,
+  P
+>;
+/** RFC 6901 JSON pointer (`/store/book/0/title`). The empty string is the
+ *  whole document, and so is valid. **/
+export type JsonPointer<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+  'stringFormat',
+  DEFAULT_JSON_POINTER_PARAMS,
+  P
+>;
+/** RFC 6901 relative JSON pointer (`1/foo`, `2#`) — a hop count, then either a
+ *  pointer or `#` for the key it landed on. **/
+export type RelativeJsonPointer<P extends Override<StringParams, 'pattern'> = {}> = PresetFormat<
+  'stringFormat',
+  DEFAULT_RELATIVE_JSON_POINTER_PARAMS,
+  P
+>;
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
 // ───────────────────── Predefined string builders ───────────────────
@@ -602,6 +662,35 @@ export const ipv4WithPort = presetFormatBuilder<'ip', DEFAULT_IPV4_PORT_PARAMS, 
 export const ipv6WithPort = presetFormatBuilder<'ip', DEFAULT_IPV6_PORT_PARAMS, Override<IPParams, 'version' | 'allowPort'>>(
   'ip'
 );
+
+/** Any RFC 3986 URI, any scheme (`Uri`). **/
+export const uri = presetFormatBuilder<'url', DEFAULT_URI_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** URI reference, relative allowed (`UriReference`). **/
+export const uriReference = presetFormatBuilder<'url', DEFAULT_URI_REFERENCE_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** IRI — a URI with non-ASCII characters allowed (`Iri`). **/
+export const iri = presetFormatBuilder<'url', DEFAULT_IRI_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** IRI reference, relative allowed (`IriReference`). **/
+export const iriReference = presetFormatBuilder<'url', DEFAULT_IRI_REFERENCE_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** RFC 6570 URI template (`UriTemplate`). **/
+export const uriTemplate = presetFormatBuilder<'url', DEFAULT_URI_TEMPLATE_PARAMS, Override<UrlParams, 'pattern'>>('url');
+/** RFC 1123 host name, single label allowed (`Hostname`). **/
+export const hostname = presetFormatBuilder<'domain', DEFAULT_HOSTNAME_PARAMS, Override<DomainParams, 'pattern'>>('domain');
+/** RFC 3339 duration string (`StringDuration`). **/
+export const stringDuration = presetFormatBuilder<
+  'stringFormat',
+  DEFAULT_STRING_DURATION_PARAMS,
+  Override<StringParams, 'pattern'>
+>('stringFormat');
+/** RFC 6901 JSON pointer (`JsonPointer`). **/
+export const jsonPointer = presetFormatBuilder<'stringFormat', DEFAULT_JSON_POINTER_PARAMS, Override<StringParams, 'pattern'>>(
+  'stringFormat'
+);
+/** RFC 6901 relative JSON pointer (`RelativeJsonPointer`). **/
+export const relativeJsonPointer = presetFormatBuilder<
+  'stringFormat',
+  DEFAULT_RELATIVE_JSON_POINTER_PARAMS,
+  Override<StringParams, 'pattern'>
+>('stringFormat');
 
 /** Domain name (`Domain`); `domain({maxLength: 100})` overrides bounds, keeping
  *  the built-in pattern. **/

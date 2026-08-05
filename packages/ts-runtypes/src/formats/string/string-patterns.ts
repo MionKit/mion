@@ -68,6 +68,78 @@ export const URL_FILE_PATTERN = registerFormatPattern({
   mockSamples: ['file:///etc/hosts', 'file:///var/log/app.log'],
 });
 
+// ─────────────── JSON Schema named formats (draft 2020-12) ───────────────
+//
+// One pattern per `format` keyword the schema door lowers, transcribed from the
+// RFC each keyword names and pinned case-by-case against the official
+// JSON-Schema-Test-Suite (see packages/ts-runtypes/test/json-schema-official/).
+//
+// HOSTNAME_PATTERN is RFC 1123, which DOMAIN_PATTERN is not: a domain here
+// wants a dotted name with a TLD, while a hostname may be a single label
+// (`localhost`, `db1`). Keeping both means `format: 'hostname'` can be exact
+// without narrowing what `TF.Domain` means to everyone already using it.
+//
+// STRING_DURATION_PATTERN is RFC 3339 Appendix A, which is NOT the same grammar
+// as the `now±P…` relative bound specs in the date/time params (validated Go-side
+// by parseISODuration in internal/cachegen/typefunctions/formats/datetime/bounds.go).
+// RFC 3339 nests its components — a year may be followed by a month, a month by
+// a day, never skipping — and forbids the week form from combining with
+// anything, so `P1Y2D` and `PT1H2S` are invalid here while staying perfectly
+// good bound specs. Two grammars on purpose: this one is what the keyword
+// means, that one is what our own parameter syntax accepts.
+//
+// URI_PATTERN is RFC 3986 and accepts ANY scheme (`mailto:`, `urn:`, `tel:`),
+// where URL_PATTERN above is deliberately the narrow web-address form
+// (http/ftp/ws only). The IRI twins are the same grammar with RFC 3987's
+// non-ASCII ranges added to each character class.
+
+export const STRING_DURATION_PATTERN = registerFormatPattern({
+  source:
+    '^P(?:\\d+W|(?:\\d+Y(?:\\d+M(?:\\d+D)?)?|\\d+M(?:\\d+D)?|\\d+D)(?:T(?:\\d+H(?:\\d+M(?:\\d+S)?)?|\\d+M(?:\\d+S)?|\\d+S))?|T(?:\\d+H(?:\\d+M(?:\\d+S)?)?|\\d+M(?:\\d+S)?|\\d+S))$',
+  mockSamples: ['P4DT12H30M5S', 'P1Y2M3D', 'PT1H30M', 'P2W', 'PT0S'],
+});
+export const JSON_POINTER_PATTERN = registerFormatPattern({
+  source: '^(?:\\/(?:[^~\\/]|~[01])*)*$',
+  mockSamples: ['', '/foo', '/foo/0', '/a~1b', '/c~0d'],
+});
+export const RELATIVE_JSON_POINTER_PATTERN = registerFormatPattern({
+  source: '^(?:0|[1-9][0-9]*)(?:#|(?:\\/(?:[^~\\/]|~[01])*)*)$',
+  mockSamples: ['0', '1/foo', '2#', '0/a~1b'],
+});
+export const URI_PATTERN = registerFormatPattern({
+  source:
+    "^[A-Za-z][A-Za-z0-9+\\-.]*:(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)(?:\\?(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?]|%[0-9A-Fa-f]{2})*)?$",
+  flags: 'u',
+  mockSamples: ['https://example.com/path', 'mailto:ada@example.com', 'urn:isbn:0451450523', 'ftp://files.example.org/pub'],
+});
+export const URI_REFERENCE_PATTERN = registerFormatPattern({
+  source:
+    "^(?:[A-Za-z][A-Za-z0-9+\\-.]*:(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)|(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=@]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|))(?:\\?(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?]|%[0-9A-Fa-f]{2})*)?$",
+  flags: 'u',
+  mockSamples: ['/relative/path', '../up', '#fragment', 'https://example.com'],
+});
+export const IRI_PATTERN = registerFormatPattern({
+  source:
+    "^[A-Za-z][A-Za-z0-9+\\-.]*:(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)(?:\\?(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$",
+  flags: 'u',
+  mockSamples: ['https://example.com/päth', 'https://例え.テスト/ページ', 'mailto:ada@example.com'],
+});
+export const IRI_REFERENCE_PATTERN = registerFormatPattern({
+  source:
+    "^(?:[A-Za-z][A-Za-z0-9+\\-.]*:(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)|(?:\\/\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\[[0-9A-Fa-f:.]+\\]|(?:[A-Za-z0-9\\-._~!$&'()*+,;=\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\/(?:(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\-._~!$&'()*+,;=@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\/(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|))(?:\\?(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\-._~!$&'()*+,;=:@\\/?\\u{A0}-\\u{D7FF}\\u{F900}-\\u{FDCF}\\u{FDF0}-\\u{FFEF}\\u{10000}-\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$",
+  flags: 'u',
+  mockSamples: ['/relative/päth', '#フラグ', 'https://例え.テスト'],
+});
+export const URI_TEMPLATE_PATTERN = registerFormatPattern({
+  source:
+    '^(?:[^\\x00-\\x20"\'<>\\\\^\\x60{|}\\x7F]|\\{[+#./;?&=,!@|]?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\*)?(?:,(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\*)?)*\\})*$',
+  mockSamples: ['http://example.com/{id}', 'http://example.com/~{username}/', 'http://example.com/search{?q,lang}', '{/path*}'],
+});
+export const HOSTNAME_PATTERN = registerFormatPattern({
+  source: '^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$',
+  mockSamples: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com'],
+});
+
 // Default char-class formats (Alpha / AlphaNumeric / Numeric).
 export const ALPHA_PATTERN = registerFormatPattern({
   source: '^[\\p{L}]+$',

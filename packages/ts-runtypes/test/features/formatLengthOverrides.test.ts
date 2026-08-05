@@ -1,4 +1,4 @@
-// The variable-width string formats (Email / Domain / Url) accept a partial
+// The variable-width string formats (Email / Hostname / Uri) accept a partial
 // options object that OVERRIDES their built-in bounds while keeping the built-in
 // pattern: `TF.email({minLength: 10})` is still the email pattern, just with a
 // different minimum. The JSON Schema door rides the SAME merge — a
@@ -35,17 +35,17 @@ describe('variable-width format length overrides converge across authoring modes
     expect(isEmail('not-an-email')).toBe(false);
   });
 
-  it('domain: maxLength sibling converges (type-first + reflection + builder + door)', () => {
-    const typeFirst = getRunTypeId<TF.Domain<{maxLength: 100}>>();
-    const value: TF.Domain<{maxLength: 100}> = 'example.com' as TF.Domain<{maxLength: 100}>;
+  it('hostname: maxLength sibling converges (type-first + reflection + builder + door)', () => {
+    const typeFirst = getRunTypeId<TF.Hostname<{maxLength: 100}>>();
+    const value: TF.Hostname<{maxLength: 100}> = 'example.com' as TF.Hostname<{maxLength: 100}>;
     expect(getRunTypeId(value)).toBe(typeFirst);
-    expect(getRunTypeId(TF.domain({maxLength: 100}))).toBe(typeFirst);
+    expect(getRunTypeId(TF.hostname({maxLength: 100}))).toBe(typeFirst);
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'hostname', maxLength: 100}))).toBe(typeFirst);
   });
 
-  it('url: minLength + maxLength siblings converge', () => {
-    const typeFirst = getRunTypeId<TF.Url<{minLength: 12; maxLength: 200}>>();
-    expect(getRunTypeId(TF.url({minLength: 12, maxLength: 200}))).toBe(typeFirst);
+  it('uri: minLength + maxLength siblings converge', () => {
+    const typeFirst = getRunTypeId<TF.Uri<{minLength: 12; maxLength: 200}>>();
+    expect(getRunTypeId(TF.uri({minLength: 12, maxLength: 200}))).toBe(typeFirst);
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'uri', minLength: 12, maxLength: 200}))).toBe(typeFirst);
   });
 });

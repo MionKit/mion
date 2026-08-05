@@ -80,7 +80,17 @@ export type FormatLeafName =
   | 'integer'
   | 'min0max100'
   | 'base64'
-  | 'jsonContent';
+  | 'jsonContent'
+  // The JSON Schema named formats.
+  | 'jsonPointer'
+  | 'relativeJsonPointer'
+  | 'stringDuration'
+  | 'hostname'
+  | 'uriTemplate'
+  | 'uri'
+  | 'uriReference'
+  | 'iri'
+  | 'iriReference';
 
 /** Structural constraint params the jsonschema lane can attach to an array /
  *  record shape (the formattedArray / formattedObject brands). Rendered as RAW
@@ -167,6 +177,89 @@ export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
     counter: ['b-side', 'zzz'],
     test: (value) => typeof value === 'string' && /^a/.test(value),
   },
+  jsonPointer: {
+    family: 'string',
+    tsText: 'FzJsonPointer',
+    schema: {type: 'string', format: 'json-pointer'},
+    valid: ['/store/book/0', '/a~1b'],
+    counter: ['no-leading-slash', '/a~2b'],
+    test: (value) => typeof value === 'string' && /^(?:\/(?:[^~\/]|~[01])*)*$/.test(value),
+  },
+  relativeJsonPointer: {
+    family: 'string',
+    tsText: 'FzRelativeJsonPointer',
+    schema: {type: 'string', format: 'relative-json-pointer'},
+    valid: ['1/foo', '2#'],
+    counter: ['01', '/foo'],
+    test: (value) => typeof value === 'string' && /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~\/]|~[01])*)*)$/.test(value),
+  },
+  stringDuration: {
+    family: 'string',
+    tsText: 'FzStringDuration',
+    schema: {type: 'string', format: 'duration'},
+    valid: ['P4DT12H30M5S', 'P2W'],
+    counter: ['P1Y2D', 'PT0.5S'],
+    test: (value) =>
+      typeof value === 'string' &&
+      /^P(?:\d+W|(?:\d+Y(?:\d+M(?:\d+D)?)?|\d+M(?:\d+D)?|\d+D)(?:T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))?|T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))$/.test(
+        value
+      ),
+  },
+  hostname: {
+    family: 'string',
+    tsText: 'FzHostname',
+    schema: {type: 'string', format: 'hostname'},
+    valid: ['example.com', 'localhost'],
+    counter: ['-bad', 'under_score'],
+    test: (value) =>
+      typeof value === 'string' &&
+      /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/.test(value) &&
+      value.length <= 253,
+  },
+  uriTemplate: {
+    family: 'string',
+    tsText: 'FzUriTemplate',
+    schema: {type: 'string', format: 'uri-template'},
+    valid: ['http://example.com/{id}', '{/path*}'],
+    counter: ['http://example.com/{id', 'a b'],
+    test: (value) =>
+      typeof value === 'string' &&
+      /^(?:[^\x00-\x20"'<>\\^\x60{|}\x7F]|\{[+#./;?&=,!@|]?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\*)?(?:,(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\*)?)*\})*$/.test(
+        value
+      ),
+  },
+  uri: {
+    family: 'string',
+    tsText: 'FzUri',
+    schema: {type: 'string', format: 'uri'},
+    valid: ['https://example.com/a', 'mailto:ada@example.com'],
+    counter: ['../relative', 'a b'],
+    test: (value) => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9+\-.]*:\S*$/.test(value) && !/[^\x00-\x7F]/.test(value),
+  },
+  uriReference: {
+    family: 'string',
+    tsText: 'FzUriReference',
+    schema: {type: 'string', format: 'uri-reference'},
+    valid: ['/abs/path', '#frag'],
+    counter: ['a b', 'http://example.com/\u00e4'],
+    test: (value) => typeof value === 'string' && !/[\s]/.test(value) && !/[^\x00-\x7F]/.test(value),
+  },
+  iri: {
+    family: 'string',
+    tsText: 'FzIri',
+    schema: {type: 'string', format: 'iri'},
+    valid: ['https://example.com/p\u00e4th', 'mailto:ada@example.com'],
+    counter: ['../p\u00e4th', 'a b'],
+    test: (value) => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9+\-.]*:\S*$/.test(value),
+  },
+  iriReference: {
+    family: 'string',
+    tsText: 'FzIriReference',
+    schema: {type: 'string', format: 'iri-reference'},
+    valid: ['/relative/p\u00e4th', '#\u30d5\u30e9\u30b0'],
+    counter: ['a b'],
+    test: (value) => typeof value === 'string' && !/[\s]/.test(value),
+  },
   integer: {
     family: 'number',
     tsText: 'FzInteger',
@@ -242,6 +335,19 @@ export const FUZZ_FORMAT_PREAMBLE = [
   // are string PARAMS, not formats of their own.
   "type FzBase64 = FzTF<string, 'stringFormat', {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;",
   "type FzJson = FzTF<string, 'stringFormat', {contentMediaType: 'application/json'; mockSamples: ['{}', '[]', '\"text\"', '7', 'true', 'null']}>;",
+  // The JSON Schema named formats. Transcribed, like every alias here, so the
+  // oracle stays independent of the shipped brands — the params must match what
+  // the door lowers each keyword to, pattern source and mock pool included, or
+  // the ids diverge on the first draw.
+  "type FzStringDuration = FzTF<string, 'stringFormat', {pattern: {source: '^P(?:\\\\d+W|(?:\\\\d+Y(?:\\\\d+M(?:\\\\d+D)?)?|\\\\d+M(?:\\\\d+D)?|\\\\d+D)(?:T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))?|T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))$'; flags: ''; mockSamples: ['P4DT12H30M5S', 'P1Y2M3D', 'PT1H30M', 'P2W', 'PT0S']}}>;",
+  "type FzJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:\\\\/(?:[^~\\\\/]|~[01])*)*$'; flags: ''; mockSamples: ['', '/foo', '/foo/0', '/a~1b', '/c~0d']}}>;",
+  "type FzRelativeJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:0|[1-9][0-9]*)(?:#|(?:\\\\/(?:[^~\\\\/]|~[01])*)*)$'; flags: ''; mockSamples: ['0', '1/foo', '2#', '0/a~1b']}}>;",
+  "type FzUriTemplate = FzTF<string, 'url', {pattern: {source: '^(?:[^\\\\x00-\\\\x20\"\\'<>\\\\\\\\^\\\\x60{|}\\\\x7F]|\\\\{[+#./;?&=,!@|]?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\\\*)?(?:,(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\\\*)?)*\\\\})*$'; flags: ''; mockSamples: ['http://example.com/{id}', 'http://example.com/~{username}/', 'http://example.com/search{?q,lang}', '{/path*}']}}>;",
+  "type FzHostname = FzTF<string, 'domain', {pattern: {source: '^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'; flags: ''; mockSamples: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com']}; maxLength: 253}>;",
+  "type FzUri = FzTF<string, 'url', {pattern: {source: '^[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['https://example.com/path', 'mailto:ada@example.com', 'urn:isbn:0451450523', 'ftp://files.example.org/pub']}}>;",
+  "type FzUriReference = FzTF<string, 'url', {pattern: {source: '^(?:[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)|(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|))(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['/relative/path', '../up', '#fragment', 'https://example.com']}}>;",
+  "type FzIri = FzTF<string, 'url', {pattern: {source: '^[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['https://example.com/päth', 'https://例え.テスト/ページ', 'mailto:ada@example.com']}}>;",
+  "type FzIriReference = FzTF<string, 'url', {pattern: {source: '^(?:[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)|(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|))(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['/relative/päth', '#フラグ', 'https://例え.テスト']}}>;",
 ].join('\n');
 
 /** True when any shape in the generated type is a format/not leaf — the

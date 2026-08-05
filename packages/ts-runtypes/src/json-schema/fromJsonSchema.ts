@@ -35,10 +35,17 @@ import type {
   StringDate,
   StringTime,
   StringDateTime,
-  Domain,
+  Hostname,
   IPv4,
   IPv6,
-  Url,
+  Uri,
+  UriReference,
+  UriTemplate,
+  Iri,
+  IriReference,
+  StringDuration,
+  JsonPointer,
+  RelativeJsonPointer,
   Base64,
   Base32,
   Base16,
@@ -266,10 +273,21 @@ interface BrandBySchemaFormat {
   readonly date: StringDate;
   readonly time: StringTime;
   readonly 'date-time': StringDateTime;
-  readonly hostname: Domain;
+  // Hostname, not Domain: a host name may be a single label (`localhost`),
+  // where `TF.Domain` wants a dotted name with a TLD.
+  readonly hostname: Hostname;
   readonly ipv4: IPv4;
   readonly ipv6: IPv6;
-  readonly uri: Url;
+  // Uri, not Url: RFC 3986 accepts any scheme (`mailto:`, `urn:`), where
+  // `TF.Url` is deliberately the narrow web-address form.
+  readonly uri: Uri;
+  readonly 'uri-reference': UriReference;
+  readonly 'uri-template': UriTemplate;
+  readonly iri: Iri;
+  readonly 'iri-reference': IriReference;
+  readonly duration: StringDuration;
+  readonly 'json-pointer': JsonPointer;
+  readonly 'relative-json-pointer': RelativeJsonPointer;
 }
 
 /** The `format` keyword values the string arm accepts. **/
@@ -335,9 +353,9 @@ type FormatWithSiblings<F extends SchemaFormatKeyword, S> = S extends {pattern: 
   : F extends 'email'
     ? Email<LengthParamsFrom<S>>
     : F extends 'hostname'
-      ? Domain<LengthParamsFrom<S>>
+      ? Hostname<LengthParamsFrom<S>>
       : F extends 'uri'
-        ? Url<LengthParamsFrom<S>>
+        ? Uri<LengthParamsFrom<S>>
         : Extract<keyof S, FormatSiblingKeys> extends never
           ? BrandBySchemaFormat[F]
           : never;
