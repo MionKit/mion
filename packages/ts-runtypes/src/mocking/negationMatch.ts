@@ -224,17 +224,6 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
   if (!annotation) return true;
   const name = annotation.name;
   if (name === 'stringFormat') return stringParamsMatch(value, annotation.params ?? {});
-  if (name === 'jsonContent') {
-    // Parse the DECODED content when the annotation declares an encoding —
-    // testing the raw string would under-match, the unsound direction.
-    try {
-      const params = (annotation.params ?? {}) as {decode?: string};
-      JSON.parse(params.decode === 'base64' ? atob(value) : value);
-      return true;
-    } catch {
-      return false;
-    }
-  }
   const named = NAMED_STRING_FORMATS[name];
   if (!named) throw negationMatchError(`no runtime test for string format '${name}'`);
   // A named format may still carry narrowing params; the loose name test is
@@ -245,6 +234,21 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
 function stringParamsMatch(value: string, params: Record<string, unknown>): boolean {
   for (const [key, param] of Object.entries(params)) {
     switch (key) {
+      case 'contentMediaType': {
+        // Parse the DECODED content when an encoding is declared — testing the
+        // raw string would under-match, which is the unsound direction.
+        if (param !== 'application/json') break;
+        try {
+          JSON.parse(params.contentEncoding === 'base64' ? atob(value) : value);
+        } catch {
+          return false;
+        }
+        break;
+      }
+      // `contentEncoding` alone constrains nothing here: the encodings ride a
+      // registered RFC 4648 pattern, so the `pattern` arm already tested it.
+      case 'contentEncoding':
+        break;
       case 'minLength':
         if (typeof param === 'number' && value.length < param) return false;
         break;

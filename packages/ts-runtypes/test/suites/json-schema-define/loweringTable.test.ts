@@ -54,6 +54,9 @@ type _minLengthIsParams = ExpectChannel<'minLength', 'params'>;
 type _maxItemsIsParams = ExpectChannel<'maxItems', 'params'>;
 type _formatIsFormat = ExpectChannel<'format', 'format'>;
 type _containsIsSlot = ExpectChannel<'contains', 'slot'>;
+// contentMediaType is a string PARAM, not a format of its own — the jsonContent
+// format was collapsed into StringParams, and this pins that it stays collapsed.
+type _contentMediaTypeIsParams = ExpectChannel<'contentMediaType', 'params'>;
 
 describe('SchemaLoweringByKeyword — rows filed as `ignored` really are ignored', () => {
   it('annotations do not change what a string lowers to', () => {

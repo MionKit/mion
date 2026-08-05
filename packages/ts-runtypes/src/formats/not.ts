@@ -56,6 +56,19 @@ type OneBase<F> = [F] extends [string] ? true : [F] extends [number] ? true : [F
  *  JSON Schema counterpart worth the id subtleties; unwrap by hand. */
 export type ValidNotOperand<F> = OneBase<F> extends true ? (EveryArmIsFormat<F> extends true ? unknown : never) : never;
 
+/** The negation sentinel itself, with NO operand constraint: a base type
+ *  intersected with `NotSlot<Child>` is "this base, minus whatever `Child`
+ *  matches". The resolver lifts the slot onto the node's Negations and folds
+ *  the child's id under a `!` tag.
+ *
+ *  Split out of `Not<F>` so the JSON Schema translation can emit the sentinel
+ *  without restating it: `Not<F>` is the PUBLIC surface and deliberately
+ *  accepts only primitive-based formats (see `ValidNotOperand`), while the
+ *  translation negates general gate arms — objects, arrays, unions, literal
+ *  verdicts — which that constraint would reject. Same slot either way, so the
+ *  two spellings cannot drift into two encodings. **/
+export type NotSlot<Child> = {readonly [__rtNot]?: Child};
+
 /** Format negation: still the base type, accepting exactly the values the
  *  negated format rejects (within that base). `Not<Email>` is a string that
  *  is NOT a valid email. */
@@ -63,7 +76,8 @@ export type Not<F extends NotableFormat & ValidNotOperand<F>> = ([F] extends [st
   ? string
   : [F] extends [number]
     ? number
-    : bigint) & {readonly [__rtNot]?: F};
+    : bigint) &
+  NotSlot<F>;
 
 /** Value-first negation: `TF.not(TF.email())` / `RT.not(RT.string({pattern}))`.
  *  Wraps a format builder's RunType; the reflected return type IS `Not<F>`,

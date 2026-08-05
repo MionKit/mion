@@ -232,11 +232,13 @@ export const FUZZ_FORMAT_PREAMBLE = [
   "type FzInteger = FzTF<number, 'numberFormat', {integer: true}>;",
   "type FzString<P extends object> = FzTF<string, 'stringFormat', P>;",
   "type FzNumber<P extends object> = FzTF<number, 'numberFormat', P>;",
-  // Content leaves — the params must match the door's lowering EXACTLY
-  // (anchored RFC 4648 pattern + baked mock pool for base64; json flag +
-  // pool for jsonContent), or the ids diverge on the very first draw.
+  // Content leaves — the params must match the translation's lowering EXACTLY
+  // (anchored RFC 4648 pattern + baked mock pool for base64; the
+  // contentMediaType keyword + pool for JSON content), or the ids diverge on
+  // the very first draw. Both are plain `stringFormat`: the content keywords
+  // are string PARAMS, not formats of their own.
   "type FzBase64 = FzTF<string, 'stringFormat', {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;",
-  "type FzJson = FzTF<string, 'jsonContent', {json: true; mockSamples: ['{}', '[]', '\"text\"', '7', 'true', 'null']}>;",
+  "type FzJson = FzTF<string, 'stringFormat', {contentMediaType: 'application/json'; mockSamples: ['{}', '[]', '\"text\"', '7', 'true', 'null']}>;",
 ].join('\n');
 
 /** True when any shape in the generated type is a format/not leaf — the

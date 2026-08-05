@@ -27,7 +27,7 @@
 // shape a hand-written `type T = {next?: T}` produces — which the id computer
 // walks with its back-ref token (maxWalkDepth guarded).
 
-import type {__rtNot} from '../runtypes/sentinelKeys.ts';
+import type {NotSlot} from '../formats/not.ts';
 
 import type {
   Email,
@@ -888,13 +888,13 @@ type NotArm<K extends 'string' | 'number' | 'array' | 'object', S, NS, Root, F e
       ? K extends NSTypeGateOf<NS>
         ? NSKindOnly<NS> extends true
           ? never
-          : GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: NotChildFor<K, NS, Root, F>}
+          : GateArmFrom<K, S, Root, F> & NotSlot<NotChildFor<K, NS, Root, F>>
         : GateArmFrom<K, S, Root, F>
       : Extract<keyof NS, ValueScopedKeys> extends never
         ? K extends NSFamilyNamesOf<NS>
-          ? GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: NotChildFor<K, NS, Root, F>}
+          ? GateArmFrom<K, S, Root, F> & NotSlot<NotChildFor<K, NS, Root, F>>
           : never
-        : GateArmFrom<K, S, Root, F> & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
+        : GateArmFrom<K, S, Root, F> & NotSlot<FromJsonSchemaIn<NS, Root, F>>
     : never;
 // Sentinel child: family-projected when NS carries no value-scoped keywords
 // (exact per kind relevance, single-kind for the Go negation compile, and id-
@@ -1236,7 +1236,7 @@ type NotLayer<S, Root, F extends [unknown]> = S extends {not: infer NS}
           : // A $ref / combinator sits beside `not`: the core may hold a lazily
             // tied fixpoint, and ANY probe of it (distribution included) blows
             // the instantiation depth — attach the sentinel verbatim instead.
-            FromJsonSchemaCore<S, Root, F> & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
+            FromJsonSchemaCore<S, Root, F> & NotSlot<FromJsonSchemaIn<NS, Root, F>>
   : FromJsonSchemaCore<S, Root, F>;
 // The keywords whose CORE translation asserts across kinds (if/dependent* are
 // owned by the layers above, so their presence must not reroute the `not`).
@@ -1272,7 +1272,7 @@ type DistributeNotV<T, NS, Root, F extends [unknown], NV extends Verdict, TV ext
           ? T
           : never
         : T extends unknown
-          ? T & {readonly [__rtNot]?: FromJsonSchemaIn<NS, Root, F>}
+          ? T & NotSlot<FromJsonSchemaIn<NS, Root, F>>
           : never;
 
 // The CORE is a CONJUNCTION of independent keyword parts — 2020-12 evaluates
@@ -1515,7 +1515,6 @@ type SchemaStoryByFormatName = {
   numberFormat: 'constraint keywords (minimum/maximum/…/multipleOf; type: integer)';
   formattedArray: 'constraint keywords (uniqueItems/maxItems; minItems spells as a padded tuple)';
   formattedObject: 'constraint keywords (minProperties/maxProperties/additionalProperties: false)';
-  jsonContent: 'contentMediaType: application/json (optionally behind contentEncoding: base64)';
   bigintFormat: 'no schema input form (JSON has no bigint)';
   nativeDate: 'no schema input form (instance type, not a JSON shape)';
   temporalInstant: 'no schema input form (instance type)';
@@ -1580,7 +1579,7 @@ export type SchemaLoweringByKeyword = {
   minContains: 'slot: __rtContains rt$min (default 1), via FormattedArrayParams.minContains';
   maxContains: 'slot: __rtContains rt$max, via FormattedArrayParams.maxContains';
   contentEncoding: 'format: Base64 / Base32 / Base16 (the RFC 4648 anchored patterns)';
-  contentMediaType: 'format: JsonContent / JsonContentBase64 (parse check on the decoded content)';
+  contentMediaType: 'params: StringParams.contentMediaType — the parse check on the decoded content';
   patternProperties: 'slot: __rtPatternProps, via FormattedObjectParams.patternProperties';
   propertyNames: 'slot: __rtPropNames, via FormattedObjectParams.propertyNames (false → never key)';
   $anchor: 'ref: declares a #name target';

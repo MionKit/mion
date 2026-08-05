@@ -65,12 +65,45 @@ func (stringFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotati
 // Shared by the stringFormat emitter and the domain/email decomposition
 // sub-checks (each name/tld/localPart part is validated as a sub-format
 // over its own variable).
+// contentMediaTypeJSON is the one media type the parse check understands.
+// JSON Schema's `contentMediaType` is open-ended; anything else is accepted and
+// ignored (it describes the payload, it does not constrain the string).
+const contentMediaTypeJSON = "application/json"
+
+// jsonParseCheck builds the content predicate: JSON.parse on the raw string, or
+// on the base64-decoded bytes when `contentEncoding` says the string is encoded
+// (2020-12: contentMediaType describes the DECODED content). `atob` throws on
+// malformed base64 and the try/catch turns that into `false`, so the decode step
+// doubles as the encoding check. Absorbed from the former standalone
+// `jsonContent` format: contentMediaType is an ordinary string keyword, so it
+// belongs on the string emitter next to minLength rather than in a format of its
+// own.
+func jsonParseCheck(params map[string]any, vλl string) string {
+	decoded := vλl
+	if encoding, _ := params["contentEncoding"].(string); encoding == "base64" {
+		decoded = "atob(" + vλl + ")"
+	}
+	return "((s) => {try {JSON.parse(" + strings.Replace(decoded, vλl, "s", 1) + ");return true;} catch {return false;}})(" + vλl + ")"
+}
+
+// wantsJSONContent reports whether the params ask for the JSON parse check.
+func wantsJSONContent(params map[string]any) bool {
+	mediaType, _ := params["contentMediaType"].(string)
+	return mediaType == contentMediaTypeJSON
+}
+
 func stringConditions(ctx formats.EmitContext, params map[string]any, vλl string) []string {
 	// Build-time mockSample validation against the statically checkable
 	// sibling bounds (length + char/value ops); independent of whether a
 	// pattern is present.
 	validateSampleBounds(ctx, params)
-	conditions := lengthConditions(params, vλl)
+	var conditions []string
+	// The content check leads, matching the order the former jsonContent
+	// emitter produced: parse first, then the sibling string keywords.
+	if wantsJSONContent(params) {
+		conditions = append(conditions, jsonParseCheck(params, vλl))
+	}
+	conditions = append(conditions, lengthConditions(params, vλl)...)
 	// `pattern` adds a regex test (and triggers build-time mockSample
 	// validation). Backs FormatAlpha / FormatNumeric and any user
 	// FormatString carrying a registerFormatPattern result.
@@ -230,7 +263,13 @@ func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.Format
 // the emitted format error so domain/email decomposition can reuse this
 // over their own variable + sub-params.
 func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl, pathExpr, errorsArr, fmtName string) []string {
-	statements := lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, fmtName)
+	var statements []string
+	if wantsJSONContent(params) {
+		statements = append(statements,
+			"if (!("+jsonParseCheck(params, vλl)+")) "+
+				formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "contentMediaType", strconv.Quote(contentMediaTypeJSON)))
+	}
+	statements = append(statements, lengthErrorStatements(ctx, params, vλl, pathExpr, errorsArr, fmtName)...)
 	if source, flags, ok := recoverPattern(params); ok {
 		test := emitPatternTest(ctx, source, flags, vλl)
 		statements = append(statements,

@@ -53,13 +53,6 @@ function mockStringFormat(annotation: FormatAnnotation, random: MockRandom = nat
       return lengthFiltered(params, () => mockEmail(params as EmailParams, random));
     case 'url':
       return lengthFiltered(params, () => mockUrl(params as UrlParams, random));
-    case 'jsonContent': {
-      // contentMediaType: application/json — draw from the declared samples
-      // (the translation bakes a pool; base64-encoded pools arrive encoded).
-      const samples = (params as {mockSamples?: readonly string[]}).mockSamples;
-      if (samples && samples.length > 0) return samples[random.int(0, samples.length - 1)];
-      return '{}';
-    }
     default:
       return undefined;
   }
@@ -85,6 +78,14 @@ function mockStringParams(params: StringParams, random: MockRandom): string {
     random
   );
   if (sample !== undefined) return sample;
+  // `contentMediaType` needs a floor: a random string is not JSON, and a mock
+  // must satisfy its own validator. The shipped JsonContent aliases carry a
+  // sample pool, so this only catches a hand-written
+  // `String<{contentMediaType: 'application/json'}>` — for which the emptiest
+  // valid document is the honest answer.
+  if (params.contentMediaType === 'application/json') {
+    return params.contentEncoding === 'base64' ? 'e30=' : '{}';
+  }
   const charSet = params.allowedChars?.val ?? asCharString(params.disallowedChars?.mockSamples);
   if (charSet) return randomStringFrom(charSet, Math.max(1, pickMockLength(params, random)), random);
   if (params.pattern !== undefined) {

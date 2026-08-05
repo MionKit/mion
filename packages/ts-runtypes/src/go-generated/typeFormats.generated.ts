@@ -39,7 +39,6 @@ export const typeFormats = {
   formattedArray: {name: 'formattedArray', kind: RunTypeKind.array},
   formattedObject: {name: 'formattedObject', kind: RunTypeKind.object},
   ip: {name: 'ip', kind: RunTypeKind.string},
-  jsonContent: {name: 'jsonContent', kind: RunTypeKind.string},
   nativeDate: {name: 'nativeDate', kind: RunTypeKind.class},
   numberFormat: {name: 'numberFormat', kind: RunTypeKind.number},
   stringFormat: {name: 'stringFormat', kind: RunTypeKind.string},

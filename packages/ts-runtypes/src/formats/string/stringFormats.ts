@@ -118,6 +118,12 @@ export interface StringParams {
   allowedValues?: AllowedValuesParam;
   disallowedValues?: DisallowedValuesParam;
   mockSamples?: readonly string[];
+  // JSON Schema content keywords. `contentEncoding` says how the string is
+  // encoded; `contentMediaType` says what the DECODED content is, so they
+  // compose: with both, the value must decode AND parse. These are ordinary
+  // string keywords — there is no separate content FORMAT.
+  contentEncoding?: 'base64' | 'base32' | 'base16';
+  contentMediaType?: 'application/json';
   // Transformer flags — applied only by the `createFormatTransformFn<T>`
   // RT-fn, NOT by validate / validationErrors validation.
   trim?: boolean;
@@ -199,7 +205,9 @@ export type Base16<P extends Override<StringParams, 'pattern'> = {}> = PresetFor
 //
 // A string whose content parses as JSON — the type-first spelling of JSON
 // Schema `contentMediaType: 'application/json'` (optionally behind
-// `contentEncoding: 'base64'`). Params mirror the schema door's lowering so
+// `contentEncoding: 'base64'`). NOT a format of its own: these are `String`
+// aliases over the two content keywords, which the string emitter reads like
+// any other string param. Params mirror the schema translation's lowering so
 // the two authoring modes converge. `mockSamples` are id-irrelevant (they feed
 // createMockDataFn only) but carried so the mock draws valid JSON either way.
 // Spans what a JSON payload actually looks like, not just what parses: the
@@ -208,7 +216,7 @@ export type Base16<P extends Override<StringParams, 'pattern'> = {}> = PresetFor
 // (quote / backslash / newline) plus non-ASCII text — so a mock consumer meets
 // real escaping instead of only `{}`.
 type DEFAULT_JSON_CONTENT_PARAMS = {
-  json: true;
+  contentMediaType: 'application/json';
   mockSamples: readonly [
     '{}',
     '[]',
@@ -223,8 +231,8 @@ type DEFAULT_JSON_CONTENT_PARAMS = {
 // (the last is multi-byte UTF-8, so it exercises the decode step rather than
 // just the parse step).
 type DEFAULT_JSON_CONTENT_BASE64_PARAMS = {
-  json: true;
-  decode: 'base64';
+  contentEncoding: 'base64';
+  contentMediaType: 'application/json';
   mockSamples: readonly [
     'e30=',
     'W10=',
@@ -235,9 +243,9 @@ type DEFAULT_JSON_CONTENT_BASE64_PARAMS = {
   ];
 };
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-export type JsonContent<P extends Override<StringParams> = {}> = PresetFormat<'jsonContent', DEFAULT_JSON_CONTENT_PARAMS, P>;
+export type JsonContent<P extends Override<StringParams> = {}> = PresetFormat<'stringFormat', DEFAULT_JSON_CONTENT_PARAMS, P>;
 export type JsonContentBase64<P extends Override<StringParams> = {}> = PresetFormat<
-  'jsonContent',
+  'stringFormat',
   DEFAULT_JSON_CONTENT_BASE64_PARAMS,
   P
 >;
@@ -539,11 +547,13 @@ export const base16 = presetFormatBuilder<'stringFormat', {pattern: typeof BASE1
 );
 /** A JSON-parseable string (`JsonContent`) — JSON Schema
  *  `contentMediaType: 'application/json'`. **/
-export const jsonContent = presetFormatBuilder<'jsonContent', DEFAULT_JSON_CONTENT_PARAMS, Override<StringParams>>('jsonContent');
+export const jsonContent = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_PARAMS, Override<StringParams>>(
+  'stringFormat'
+);
 /** A base64-encoded JSON-parseable string (`JsonContentBase64`) — JSON Schema
  *  `contentMediaType: 'application/json'` + `contentEncoding: 'base64'`. **/
-export const jsonContentBase64 = presetFormatBuilder<'jsonContent', DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>(
-  'jsonContent'
+export const jsonContentBase64 = presetFormatBuilder<'stringFormat', DEFAULT_JSON_CONTENT_BASE64_PARAMS, Override<StringParams>>(
+  'stringFormat'
 );
 /** Lowercase string (`Lowercase`) — the transform applies only via
  *  `createFormatTransformFn`; validate validates it as a plain string. **/

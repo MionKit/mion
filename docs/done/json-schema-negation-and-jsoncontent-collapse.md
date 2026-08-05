@@ -1,7 +1,8 @@
 ---
 type: feature
 spec: guidelines
-status: open
+status: done
+completed: 2026-08-05
 created: 2026-08-05
 ---
 
@@ -67,9 +68,44 @@ and moves every jsonContent id. The authoring gap that motivated it is already
 closed (`TF.jsonContent()` exists and converges), so there is no user-facing
 urgency; this is about the mapping rule being uniform.
 
-## Also deferred: the website keyword table
+## What shipped
 
-The JSON Schema guide is API-TRUE (the content-keyword rows landed with the
-main spec), but the 4-column keyword table and its compiled examples file under
-`packages/examples/src/` were never written. Worth doing alongside item 2, since
-that is what changes the content rows again.
+**1. `NotSlot<Child>`** — added to `formats/not.ts` with no operand constraint;
+`Not<F>` is now expressed through it, and the translation imports it, so all 5
+raw `__rtNot` spellings are gone. `Not<F>`'s operand constraint is untouched, so
+`Not<Not<F>>` and mixed-base unions still fail at the write site. Ids unchanged.
+
+**2. The `jsonContent` format is gone.** `jsoncontent.go` deleted with its
+registration; the parse check now lives in the string emitter, fired by
+`contentMediaType` and decoding first when `contentEncoding` is `base64` (`atob`
+throws on malformed input and the try/catch turns that into `false`, so the
+decode doubles as the encoding check). `StringParams` gained `contentEncoding`
+and `contentMediaType`; `JsonContent` / `JsonContentBase64` are now `String`
+aliases over them; the mock and negation arms moved onto the string path; the
+`SchemaStoryByFormatName` row is gone and the catalog regenerated.
+
+The public surface is unchanged — `TF.JsonContent`, `TF.jsonContent()` and the
+schema spelling all still work and still converge — so the website needed no
+edit. What DID change, by explicit decision, is the validation error payload:
+
+```
+before  {name: 'jsonContent',  formatPath: ['contentMediaType'], val: 'application/json'}
+after   {name: 'stringFormat', formatPath: ['contentMediaType'], val: 'application/json'}
+```
+
+which is the shape a `minLength` failure already reports. Special-casing the old
+name back would have kept a `jsonContent` branch in the emitter, which is the
+thing being removed.
+
+**Caught by the fuzz:** the roundtrip suite failed on one seed after the Go
+format was deleted. Its `FzJson` oracle still spelled the old encoding
+(`'jsonContent'` + `{json: true}`), so a negated JSON-content leaf had nothing
+left to negate and validate rejected its own generated value. The oracle now
+spells `stringFormat` + `contentMediaType`. Worth recording as the failure mode
+this class of change produces: a stale hand-written oracle does not error, it
+silently inverts.
+
+## Still open: the website keyword table
+
+Deferred by decision when this landed — see
+[../todos/json-schema-website-keyword-table.md](../todos/json-schema-website-keyword-table.md).

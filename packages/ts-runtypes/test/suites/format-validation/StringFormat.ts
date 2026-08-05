@@ -21,7 +21,7 @@ import {deserializeValidate, deserializeGetValidationErrors} from '../../util/de
 
 // The JSON Schema content keywords recover ordinary string formats: the
 // encodings lower to the anchored RFC 4648 pattern params (with the door's
-// baked mock pools), contentMediaType application/json is the jsonContent
+// baked mock pools), contentMediaType application/json is a string-param
 // parse-check family. The STATIC type twin is the door-recovered type
 // itself, so the id-integrity driver pins schema-literal ↔ type-first
 // convergence by construction.
@@ -1206,10 +1206,10 @@ export const STRING_FORMAT = {
   json_content: {
     title: 'contentMediaType application/json',
     description:
-      'JSON Schema `contentMediaType: application/json` — the string must parse as JSON; the jsonContent family carries the check.',
+      'JSON Schema `contentMediaType: application/json` — the string must parse as JSON; it is an ordinary string param, checked by the stringFormat emitter alongside minLength.',
     validateNotes: [
       'Any JSON document text passes (objects, arrays, numbers, booleans, null, quoted strings); the empty string and truncated JSON fail.',
-      'JSON Schema: no value-first builder spells the jsonContent family — author it through the schema door.',
+      'JSON Schema: `TF.jsonContent()` / `TF.jsonContentBase64()` spell the same String alias value-first.',
     ],
     validate: () => createValidateFn<JsonString>(),
     standardSchema: () => createStandardSchema<JsonString>(),
@@ -1246,9 +1246,9 @@ export const STRING_FORMAT = {
     mockType: () => createMockDataFn<JsonString>(),
     getSamples: () => ({valid: ['{}', '[1,2]', '"text"', '7', 'true', 'null'], invalid: ['not json', '{', '', 123]}),
     expectedFormatErrors: () => [
-      {name: 'jsonContent', val: 'application/json', formatPathTail: 'contentMediaType'},
-      {name: 'jsonContent', val: 'application/json', formatPathTail: 'contentMediaType'},
-      {name: 'jsonContent', val: 'application/json', formatPathTail: 'contentMediaType'},
+      {name: 'stringFormat', val: 'application/json', formatPathTail: 'contentMediaType'},
+      {name: 'stringFormat', val: 'application/json', formatPathTail: 'contentMediaType'},
+      {name: 'stringFormat', val: 'application/json', formatPathTail: 'contentMediaType'},
       null,
     ],
   },
