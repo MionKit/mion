@@ -396,6 +396,7 @@ type UnevaluatedCheck struct {
 	Value   *RunType       `json:"value,omitempty"`
 	Keys    []string       `json:"keys,omitempty"`
 	Sources []string       `json:"sources,omitempty"`
+	Prefix  int            `json:"prefix,omitempty"`
 	Groups  []*UnevalGroup `json:"groups,omitempty"`
 }
 
@@ -409,6 +410,7 @@ type UnevalGroup struct {
 	WhenKey string   `json:"whenKey,omitempty"`
 	Keys    []string `json:"keys,omitempty"`
 	Sources []string `json:"sources,omitempty"`
+	Prefix  int      `json:"prefix,omitempty"`
 	All     bool     `json:"all,omitempty"`
 }
 

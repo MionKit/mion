@@ -325,7 +325,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 		// (over-rejects, never a silent noop — the historical behavior
 		// surfaced two tuples as a junk objectLiteral whose validator
 		// passed everything).
-		if restCount >= 2 && typeid.AllTupleTypes(restMembers) {
+		if restCount >= 2 && typeid.AllTupleOrArrayTypes(cache.typeChecker, restMembers) {
 			picks, ok := typeid.MergeTupleIntersection(cache.typeChecker, restMembers, func(a, b *checker.Type) bool {
 				return cache.Serialize(a).ID == cache.Serialize(b).ID
 			})
@@ -352,7 +352,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 // Twin of the id side's unevaluatedKey — the two must read the same fields in
 // the same order or a cache entry and its id part company.
 func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *protocol.UnevaluatedCheck {
-	check := &protocol.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources}
+	check := &protocol.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources, Prefix: spec.Prefix}
 	// A `never` value is the `false` reading — nothing satisfies it, so the
 	// sweep rejects rather than checking, and the node carries no child.
 	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
@@ -363,6 +363,7 @@ func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *protocol.Uneva
 			WhenKey: group.WhenKey,
 			Keys:    group.Keys,
 			Sources: group.Sources,
+			Prefix:  group.Prefix,
 			All:     group.All,
 		}
 		if group.When != nil {

@@ -509,13 +509,13 @@ type UnevalItemsMode<S, Root> = S extends {unevaluatedItems: infer U}
       ? 'noop'
       : [U] extends [false]
         ? UnevalItemsIndeterminate<S> extends true
-          ? 'poison'
+          ? 'sweep'
           : 'closed'
         : [LongestPrefixOf<S, Root>] extends [readonly []]
           ? UnevalItemsIndeterminate<S> extends true
-            ? 'poison'
+            ? 'sweep'
             : 'leftover'
-          : 'poison'
+          : 'sweep'
   : 'noop';
 // `leftover` needs the evaluated set to be EMPTY, since the lowering is an index
 // signature / element type that covers every member. Anything already evaluated
@@ -533,11 +533,56 @@ type PropsEvaluatedSoFar<S, Root> = [MergedClosedKeys<S, Root>] extends [readonl
 // decide rides the run-time sweep instead. The ITEMS side still does, pending
 // the same treatment.
 type UnevalPropsPoison<S, Root> = [S, Root] extends [never, never] ? true : false;
-type UnevalItemsPoison<S, Root> = S extends {unevaluatedItems: unknown}
-  ? UnevalItemsMode<S, Root> extends 'poison'
-    ? true
-    : false
-  : false;
+// The items side no longer poisons either — an evaluated prefix the document
+// cannot pin down rides the run-time sweep.
+type UnevalItemsPoison<S, Root> = [S, Root] extends [never, never] ? true : false;
+// The array twin: contributions are PREFIX LENGTHS, and the sweep starts at the
+// highest one the value's own branches turned on.
+type UnevalItemsSweepParams<S, Root, F extends [unknown]> = {
+  readonly unevaluated: Flatten<
+    {
+      readonly prefix: LongestPrefixOf<S, Root>['length'] & number;
+      readonly groups: UnevalItemGroupsOf<S, Root, F>;
+    } & (S extends {unevaluatedItems: infer U}
+      ? [U] extends [false]
+        ? unknown
+        : {readonly value: FromJsonSchemaIn<U, Root, F>}
+      : unknown)
+  >;
+};
+type UnevalItemGroupsOf<S, Root, F extends [unknown]> = readonly [
+  ...ItemArmGroups<S extends {anyOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
+  ...ItemArmGroups<S extends {oneOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
+  ...ItemIfGroups<S, Root, F>,
+];
+type ItemArmGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
+  ? readonly [GuardedItemGroup<{readonly when: FromJsonSchemaIn<Head, Root, F>}, Head, Root>, ...ItemArmGroups<Rest, Root, F>]
+  : readonly [];
+type ItemIfGroups<S, Root, F extends [unknown]> = S extends {if: infer If}
+  ? readonly [
+      Flatten<
+        {readonly when: FromJsonSchemaIn<If, Root, F>} & {
+          readonly prefix: Longest2<LongestPrefixOf<If, Root>, BranchPrefix<S, 'then', Root>>['length'] & number;
+        }
+      >,
+      ...(S extends {else: unknown}
+        ? readonly [
+            Flatten<
+              {readonly whenNot: FromJsonSchemaIn<If, Root, F>} & {
+                readonly prefix: BranchPrefix<S, 'else', Root>['length'] & number;
+              }
+            >,
+          ]
+        : readonly []),
+    ]
+  : readonly [];
+type BranchPrefix<S, K extends 'then' | 'else', Root> = S extends {[P in K]: infer B} ? LongestPrefixOf<B, Root> : readonly [];
+type GuardedItemGroup<Guard, Arm, Root> = Flatten<
+  Guard & {readonly prefix: LongestPrefixOf<Arm, Root>['length'] & number} & (HasAnyItems<Arm, Root> extends true
+      ? {readonly all: true}
+      : unknown)
+>;
+
 // ── the run-time sweep payload ────────────────────────────────────────────
 // What the document cannot decide, the VALUE does. The sentinel carries the
 // unconditionally evaluated members (own + allOf + $ref, which all have to pass
@@ -727,12 +772,14 @@ type AllOfPatternSources<M, Root, Fuel extends readonly unknown[]> = M extends r
 // LONGEST merged prefix (evaluated indexes are the union of the prefixes);
 // any `items` in scope evaluates every index, making it a no-op. An
 // explicit sibling maxItems keeps its own bound (skip the contribution).
-type UnevalItemsParams<S, Root> = S extends {unevaluatedItems: unknown}
-  ? UnevalItemsMode<S, Root> extends 'closed'
-    ? S extends {maxItems: number}
-      ? unknown
-      : {readonly maxItems: LongestPrefixOf<S, Root>['length'] & number}
-    : unknown
+type UnevalItemsParams<S, Root, F extends [unknown]> = S extends {unevaluatedItems: unknown}
+  ? UnevalItemsMode<S, Root> extends 'sweep'
+    ? UnevalItemsSweepParams<S, Root, F>
+    : UnevalItemsMode<S, Root> extends 'closed'
+      ? S extends {maxItems: number}
+        ? unknown
+        : {readonly maxItems: LongestPrefixOf<S, Root>['length'] & number}
+      : unknown
   : unknown;
 // `items` behind a `$ref` evaluates every index just the same, so the walk
 // follows references on the same fuel the key merge does.
@@ -953,7 +1000,7 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additional
 type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
   (S extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown) &
     (S extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
-    UnevalItemsParams<S, Root> &
+    UnevalItemsParams<S, Root, F> &
     (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
     (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
     (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown)

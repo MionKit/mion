@@ -305,7 +305,8 @@ build time and turned into the TypeScript type it denotes (constraint keywords l
 same format brands the other two forms use), and the resolver never sees the schema at
 all; it reflects the computed type. Keywords a type cannot express ride sentinel-encoded
 slots the intersection collapse lifts off the base — `__rtNot` (negation), `__rtContains`
-(occurrence counting), `__rtPatternProps` / `__rtPropNames` (key-scoped children) — plus
+(occurrence counting), `__rtPatternProps` / `__rtPropNames` (key-scoped children),
+`__rtUnevaluated` (the `unevaluated*` evaluated-set sweep) — plus
 the structural format families (formattedArray / formattedObject) for length, uniqueness,
 key-count and closedness checks, so the generated validator is exact even where the
 recovered type is the closest expressible supertype. Every one of these keywords also has
@@ -319,7 +320,21 @@ schemas ride along — `true` pads, `false` forbids the position): unknown sides
 id-equal sides collapse, the length window intersects, and the merged node is
 indistinguishable from the equivalent hand-written tuple — while a genuine slot conflict
 or impossible length window projects `never` (over-rejects; a silent noop validator is
-the one forbidden outcome). Plain-union validation is
+the one forbidden outcome). A plain ARRAY joins the same merge as a tuple with no fixed
+slots and an open tail of its element type, which is what `prefixItems` in one applicator
+meeting `items` in another lowers to.
+
+`unevaluatedProperties` / `unevaluatedItems` read the same way. Where the DOCUMENT pins
+the evaluated set down the keyword resolves statically (a no-op when something in scope
+already evaluates every member, a closed shape over the merged key set, or a leftover
+value type); where the VALUE decides it — a passing `anyOf` / `oneOf` arm, an `if` with or
+without branches, a `dependentSchemas` trigger key, a `contains` match — the door hands
+the engine a `__rtUnevaluated` payload carrying the unconditional key set / prefix plus
+one guarded group per conditional contributor, and the emit sweeps the members against it.
+The object side sweeps keys with `for…in`; the array side raises a prefix watermark per
+passing group and skips `contains`-matched indexes past it. Both splices are gated on the
+node kind (the payload is shared by the two families), and the two collapse halves must
+lift it identically or a cache entry and its id part company. Plain-union validation is
 at-least-one (pinned by test), which makes anyOf the faithful spelling of a union; oneOf
 is the exactly-one combinator (`OneOf<[…]>` / `RT.oneOf`): every non-nullish member
 carries the branch tuple on an OPTIONAL `__rtOneOf` sentinel prop

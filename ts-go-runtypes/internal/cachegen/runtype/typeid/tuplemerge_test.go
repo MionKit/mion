@@ -74,6 +74,58 @@ getRunTypeId<[unknown, unknown, ...unknown[]] & [string?]>();
 	}
 }
 
+// TestTupleMerge_ArrayReadsAsAnOpenTuple — a plain array is a tuple with NO
+// fixed slots and an open tail, so `tuple ∩ array` merges through the same
+// slot-wise path. This is the shape JSON Schema produces whenever a
+// `prefixItems` in one applicator meets an `items` in another; before the gate
+// widened, the pair fell through to the junk-objectLiteral path and the
+// validator rejected every array.
+func TestTupleMerge_ArrayReadsAsAnOpenTuple(t *testing.T) {
+	// The array's element type fills the slots the tuple leaves unknown.
+	_, merged := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[unknown?, ...unknown[]] & number[]>();
+`)
+	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[number?, ...number[]]>();
+`)
+	if merged.Kind != protocol.KindTuple {
+		t.Fatalf("tuple ∩ array: expected KindTuple, got %d", merged.Kind)
+	}
+	if merged.ID != plain.ID {
+		t.Errorf("tuple ∩ array: merged %s != hand-written %s", merged.ID, plain.ID)
+	}
+
+	// The tuple's own slot wins over an unknown-element array, and the tail
+	// stays open — `['a', 1, true]` still validates.
+	_, tupleWins := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[string?, ...unknown[]] & unknown[]>();
+`)
+	_, tupleAlone := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[string?, ...unknown[]]>();
+`)
+	if tupleWins.ID != tupleAlone.ID {
+		t.Errorf("tuple ∩ unknown[]: merged %s != hand-written %s", tupleWins.ID, tupleAlone.ID)
+	}
+
+	// Reflection shape resolves the same entry (marker rule).
+	_, reflectNode := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+const value: [unknown?, ...unknown[]] & number[] = [1];
+getRunTypeId(value);
+`)
+	if reflectNode.ID != merged.ID {
+		t.Errorf("form equivalence: static %s != reflection %s", merged.ID, reflectNode.ID)
+	}
+
+	// A conflicting slot (string tuple slot vs number array element) still
+	// rejects everything rather than dropping one of the two constraints.
+	_, conflict := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[string, ...unknown[]] & number[]>();
+`)
+	if conflict.Kind != protocol.KindNever {
+		t.Errorf("tuple ∩ array conflict: expected KindNever, got kind %d (id %s)", conflict.Kind, conflict.ID)
+	}
+}
+
 // TestTupleMerge_ClosedSideCapsTheMerge — a single closed tuple closes the
 // merge at its fixed length; the open side's tail is dropped.
 func TestTupleMerge_ClosedSideCapsTheMerge(t *testing.T) {

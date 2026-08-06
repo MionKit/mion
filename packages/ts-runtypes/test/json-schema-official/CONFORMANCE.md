@@ -69,8 +69,8 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | ref.json                                   |       79 |         47 |              1 |         0 |              0 |                29 |       2 |
 | required.json                              |       18 |         11 |              0 |         0 |              0 |                 0 |       7 |
 | type.json                                  |       80 |         80 |              0 |         0 |              0 |                 0 |       0 |
-| unevaluatedItems.json                      |       71 |         46 |              0 |        18 |              0 |                 7 |       0 |
+| unevaluatedItems.json                      |       71 |         64 |              0 |         0 |              0 |                 7 |       0 |
 | unevaluatedProperties.json                 |      129 |         88 |              0 |         0 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1733** |         **25** |    **19** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1751** |         **25** |     **1** |          **0** |           **171** |  **40** |

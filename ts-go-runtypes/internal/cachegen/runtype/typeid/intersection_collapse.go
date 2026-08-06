@@ -313,7 +313,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		// the equivalent hand-written tuple's; a genuine conflict hashes as
 		// never (over-rejects, never silently under-validates). Twin of the
 		// serialize-side merge in runtype/intersection_collapse.go.
-		if restCount >= 2 && AllTupleTypes(restMembers) {
+		if restCount >= 2 && AllTupleOrArrayTypes(computer.typeChecker, restMembers) {
 			picks, ok := MergeTupleIntersection(computer.typeChecker, restMembers, func(a, b *checker.Type) bool {
 				return computer.Compute(a) == computer.Compute(b)
 			})
@@ -384,6 +384,7 @@ func (computer *Computer) unevaluatedKey(spec UnevalSpec) string {
 	var builder strings.Builder
 	builder.WriteString("k[" + strings.Join(spec.Keys, ",") + "]")
 	builder.WriteString("s[" + strings.Join(spec.Sources, ",") + "]")
+	builder.WriteString("p" + strconv.Itoa(spec.Prefix))
 	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
 		builder.WriteString("v" + computer.Compute(spec.Value))
 	}
@@ -402,7 +403,8 @@ func (computer *Computer) unevaluatedKey(spec UnevalSpec) string {
 			builder.WriteString("*")
 		}
 		builder.WriteString("k[" + strings.Join(group.Keys, ",") + "]")
-		builder.WriteString("s[" + strings.Join(group.Sources, ",") + "]}")
+		builder.WriteString("s[" + strings.Join(group.Sources, ",") + "]")
+		builder.WriteString("p" + strconv.Itoa(group.Prefix) + "}")
 	}
 	return builder.String()
 }

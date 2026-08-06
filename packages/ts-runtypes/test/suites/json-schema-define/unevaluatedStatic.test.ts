@@ -4,7 +4,7 @@
 //   noop     — something in scope already evaluates every member
 //   closed   — `false` over a knowable evaluated set
 //   leftover — a schema value with nothing else evaluating members
-//   poison   — still `never`, and only when a branch decides it at run time
+//   sweep    — the value decides, so the check runs over the members instead
 import {describe, expect, it} from 'vitest';
 import {createValidateFn} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
@@ -86,6 +86,31 @@ describe('something else evaluating everything makes it a no-op', () => {
     expect(isType(['no'])).toBe(false);
   });
 
+  it('an items nested in allOf, beside that arm own prefixItems', () => {
+    // The arm lowers to a tuple, the outer to an array, and the collapse
+    // merges the pair slot-wise — before it did, this rejected every array.
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        allOf: [{prefixItems: [{type: 'string'}], items: true}],
+        unevaluatedItems: false,
+      } as const)
+    );
+    expect(isType(['foo'])).toBe(true);
+    expect(isType(['foo', 42, true])).toBe(true);
+    expect(isType([42])).toBe(false); // the arm prefix slot still enforces
+  });
+
+  it('an unevaluatedItems: true in a sibling allOf arm', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        allOf: [{prefixItems: [{type: 'string'}]}, {unevaluatedItems: true}],
+        unevaluatedItems: false,
+      } as const)
+    );
+    expect(isType(['foo'])).toBe(true);
+    expect(isType(['foo', 42, true])).toBe(true);
+  });
+
   it('an unevaluatedProperties: true anywhere in scope', () => {
     const inside = createValidateFn(
       runTypeFromJsonSchema({
@@ -138,6 +163,37 @@ describe('a run-time decided scope sweeps instead of resolving never', () => {
   it('keeps `true` a no-op', () => {
     const open = createValidateFn(runTypeFromJsonSchema({type: 'object', unevaluatedProperties: true} as const));
     expect(open({anything: 1})).toBe(true);
+  });
+
+  it('counts the prefix an `if` evaluated, with no then and no else', () => {
+    // 2020-12: a passing `if` still annotates, even with no branch attached.
+    const isType = createValidateFn(runTypeFromJsonSchema({if: {prefixItems: [{const: 'a'}]}, unevaluatedItems: false} as const));
+    expect(isType(['a'])).toBe(true);
+    expect(isType(['b'])).toBe(false);
+  });
+
+  it('takes the else-branch prefix when the if fails', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        prefixItems: [{const: 'foo'}],
+        if: {prefixItems: [true, {const: 'bar'}]},
+        then: {prefixItems: [true, true, {const: 'then'}]},
+        else: {prefixItems: [true, true, true, {const: 'else'}]},
+        unevaluatedItems: false,
+      } as const)
+    );
+    expect(isType(['foo', 'bar', 'then'])).toBe(true);
+    expect(isType(['foo', 'bar', 'then', 'else'])).toBe(false);
+    expect(isType(['foo', 42, 42, 'else'])).toBe(true);
+    expect(isType(['foo', 42, 42, 'else', 42])).toBe(false);
+  });
+
+  it('lets contains decide which indexes count as evaluated', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, unevaluatedItems: false} as const)
+    );
+    expect(isType([1, 2, 3])).toBe(true);
+    expect(isType([1, 'a'])).toBe(false);
   });
 });
 

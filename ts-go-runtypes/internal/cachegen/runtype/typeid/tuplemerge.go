@@ -49,18 +49,49 @@ type tupleShape struct {
 	required int
 }
 
-// AllTupleTypes reports whether every member is a checker tuple type — the
-// gate both collapse halves use before attempting the merge.
-func AllTupleTypes(members []*checker.Type) bool {
+// AllTupleOrArrayTypes is the gate both collapse halves use before attempting
+// the merge. It covers `tuple ∩ array` too — the shape JSON
+// Schema produces whenever a `prefixItems` in one applicator meets an `items`
+// in another (`[number?, ...unknown[]] & number[]`). A plain array reads as a
+// tuple with NO fixed slots and an open tail of its element type, so the same
+// slot-wise merge covers it. At least one member must be a real tuple:
+// array ∩ array is already handled upstream (single-base + sentinels) and
+// re-routing it here would change ids for no gain.
+func AllTupleOrArrayTypes(typeChecker *checker.Checker, members []*checker.Type) bool {
 	if len(members) == 0 {
 		return false
 	}
+	tuples := 0
 	for _, member := range members {
-		if member == nil || !checker.IsTupleType(member) {
+		switch {
+		case member == nil:
+			return false
+		case checker.IsTupleType(member):
+			tuples++
+		case arrayElementType(typeChecker, member) != nil:
+		default:
 			return false
 		}
 	}
-	return true
+	return tuples > 0
+}
+
+// arrayElementType returns the element type of a plain (non-tuple) array
+// reference, or nil. The Reference gate mirrors serialize.go / typeid.go: an
+// array-LIKE mapped hybrid passes IsArrayLikeType with no reference target and
+// would segfault GetTypeArguments.
+func arrayElementType(typeChecker *checker.Checker, tsType *checker.Type) *checker.Type {
+	if tsType == nil || checker.IsTupleType(tsType) {
+		return nil
+	}
+	if !typeChecker.IsArrayLikeType(tsType) || tsType.ObjectFlags()&checker.ObjectFlagsReference == 0 {
+		return nil
+	}
+	typeArguments := typeChecker.GetTypeArguments(tsType)
+	if len(typeArguments) == 0 {
+		return nil
+	}
+	return typeArguments[0]
 }
 
 // MergeTupleIntersection resolves an intersection of tuple types into one
@@ -213,6 +244,13 @@ func MergeTupleIntersection(
 }
 
 func readTupleShape(typeChecker *checker.Checker, tupleType *checker.Type) (tupleShape, bool) {
+	if element := arrayElementType(typeChecker, tupleType); element != nil {
+		// No fixed slots, no required prefix, every index typed by the element.
+		return tupleShape{restType: element}, true
+	}
+	if !checker.IsTupleType(tupleType) {
+		return tupleShape{}, false
+	}
 	elementInfos := tupleType.TargetTupleType().ElementInfos()
 	typeArguments := typeChecker.GetTypeArguments(tupleType)
 	shape := tupleShape{}

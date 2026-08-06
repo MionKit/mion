@@ -265,7 +265,9 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 	}
 	// patternProperties / propertyNames: per-key checks over the object's
 	// own keys — same statement-base hoist discipline as every splice above.
-	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil || rt.Unevaluated != nil) {
+	// `rt.Unevaluated` is shared by both kinds — the KEY sweep here, the index
+	// sweep below — so each side must claim only its own.
+	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil || (rt.Unevaluated != nil && !isArrayNodeKind(rt.Kind))) {
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
@@ -294,7 +296,7 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 		}
 		// The evaluated-key sweep runs LAST, so a value already rejected by the
 		// shape never pays for it.
-		if rt.Unevaluated != nil {
+		if rt.Unevaluated != nil && !isArrayNodeKind(rt.Kind) {
 			check := emitUnevaluatedCheck(ctx, rt.Unevaluated)
 			if check != "" && check != "true" {
 				if code == "" || code == "true" {
@@ -305,6 +307,22 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 			}
 		}
 		base.Code = code
+	}
+	// The array twin of the key sweep, spliced the same way and equally last.
+	if rt != nil && rt.Unevaluated != nil && isArrayNodeKind(rt.Kind) {
+		if base.Type != CodeE {
+			base = ctx.AsExpression(base)
+		}
+		if base.Type == CodeE {
+			check := emitUnevaluatedItemsCheck(ctx, rt, rt.Unevaluated)
+			if check != "" && check != "true" {
+				if base.Code == "" || base.Code == "true" {
+					base.Code = check
+				} else {
+					base.Code = "(" + base.Code + " && " + check + ")"
+				}
+			}
+		}
 	}
 	if rt != nil && len(rt.Negations) > 0 {
 		if base.Type != CodeE {
@@ -499,6 +517,73 @@ func emitUnevaluatedCheck(ctx *EmitContext, check *protocol.UnevaluatedCheck) st
 	}
 	body.WriteString("}return true;})())")
 	return body.String()
+}
+
+// emitUnevaluatedItemsCheck: the array twin of the key sweep. Contributions are
+// PREFIX LENGTHS, so the boundary is the highest prefix the value's own passing
+// branches turned on, and everything past it is unevaluated.
+func emitUnevaluatedItemsCheck(ctx *EmitContext, rt *protocol.RunType, check *protocol.UnevaluatedCheck) string {
+	v := ctx.Vλl
+	iVar := ctx.NextLocalVar("ui")
+	wVar := ctx.NextLocalVar("uw")
+	var body strings.Builder
+	body.WriteString("((() => {let " + wVar + " = " + strconv.Itoa(check.Prefix) + ";")
+	for _, group := range check.Groups {
+		guard := unevalGuardExpr(ctx, group, v)
+		if guard == "" {
+			continue
+		}
+		if group.All {
+			// The arm evaluates every index when it fires, so nothing is left.
+			body.WriteString("if (" + guard + ") return true;")
+			continue
+		}
+		if group.Prefix <= check.Prefix {
+			continue
+		}
+		body.WriteString("if (" + guard + " && " + wVar + " < " + strconv.Itoa(group.Prefix) + ") " +
+			wVar + " = " + strconv.Itoa(group.Prefix) + ";")
+	}
+	// `contains` is the one keyword that evaluates SCATTERED indexes, so with one
+	// in scope the boundary alone cannot decide: every index past it still has to
+	// be offered to the contains children before it counts as unevaluated.
+	var containsTests []string
+	for _, containsCheck := range rt.Contains {
+		if containsCheck == nil || ctx.ResolveRef(containsCheck.Child) == nil {
+			continue
+		}
+		ctx.SetChildAccessor(v + "[" + iVar + "]")
+		childRT := ctx.CompileChild(containsCheck.Child, CodeE)
+		ctx.SetChildAccessor("")
+		if childRT.Type == CodeE && childRT.Code != "" {
+			containsTests = append(containsTests, "("+childRT.Code+")")
+		}
+	}
+	if check.Value == nil && len(containsTests) == 0 {
+		body.WriteString("return " + v + ".length <= " + wVar + ";})())")
+		return body.String()
+	}
+	leftover := "return false;"
+	if check.Value != nil {
+		ctx.SetChildAccessor(v + "[" + iVar + "]")
+		childRT := ctx.CompileChild(check.Value, CodeE)
+		ctx.SetChildAccessor("")
+		if childRT.Type != CodeE || childRT.Code == "" {
+			return "true"
+		}
+		leftover = "if (!(" + childRT.Code + ")) return false;"
+	}
+	body.WriteString("for (let " + iVar + " = " + wVar + "; " + iVar + " < " + v + ".length; " + iVar + "++) {")
+	if len(containsTests) > 0 {
+		body.WriteString("if (" + strings.Join(containsTests, " || ") + ") continue;")
+	}
+	body.WriteString(leftover + "}return true;})())")
+	return body.String()
+}
+
+// isArrayNodeKind reports whether the node is the array side of the sweep.
+func isArrayNodeKind(kind protocol.ReflectionKind) bool {
+	return kind == protocol.KindArray || kind == protocol.KindTuple
 }
 
 // unevalGuardExpr renders the condition that fires one group: a subschema

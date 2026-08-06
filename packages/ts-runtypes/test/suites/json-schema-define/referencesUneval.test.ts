@@ -143,12 +143,15 @@ describe('unevaluatedItems — determinable lowering', () => {
     expect(fn([])).toBe(true);
   });
 
-  it('items in scope makes it a no-op; contains in scope poisons', () => {
+  it('items in scope makes it a no-op; contains in scope sweeps', () => {
     const noop = createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, unevaluatedItems: false}));
     expect(noop([1, 2, 3])).toBe(true);
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, unevaluatedItems: false}))).toBe(
-      getRunTypeId<never>()
-    );
+    // `contains` evaluates the indexes it MATCHED, and which ones those are is
+    // a property of the value, not the document — so the close runs as a sweep
+    // over the members instead of resolving `never`.
+    const swept = createValidateFn(runTypeFromJsonSchema({type: 'array', contains: {type: 'number'}, unevaluatedItems: false}));
+    expect(swept([1, 2, 3])).toBe(true);
+    expect(swept([1, 'a'])).toBe(false);
   });
 });
 

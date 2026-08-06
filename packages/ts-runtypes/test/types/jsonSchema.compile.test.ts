@@ -54,7 +54,7 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  the two probes they always did, so the 9 is what an UNRESOLVABLE name now pays
  *  to rule out an escape before giving up.
  *
- *  `unevaluated*` gained a mode classifier (noop / closed / leftover / poison)
+ *  `unevaluated*` gained a mode classifier (noop / closed / leftover / sweep)
  *  so the keyword stops resolving `never` wherever the document actually pins
  *  the evaluated set down. Every consumer probes for the KEYWORD before asking
  *  for the mode, so seven branches came DOWN and only two moved: `not` 4681→4689
@@ -79,7 +79,14 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  — it carries the guards on a sentinel and sweeps while validating, which
  *  took `unevaluatedProperties.json` from 13 open divergences to ZERO. The slot
  *  is one conditional on FormattedObject and the payload is built only in the
- *  'sweep' mode, so a schema that never writes the keyword is unaffected. **/
+ *  'sweep' mode, so a schema that never writes the keyword is unaffected.
+ *
+ *  A sixth REVIEWED EXCEPTION, +3 to +23 across five branches (arrays +19,
+ *  tuples +23, the other three +3 to +8; `not` −9 and combinators −2 came down
+ *  with it): the array side got the same treatment, so `unevaluatedItems` reads
+ *  its own mode and carries its own guarded-group payload instead of resolving
+ *  `never`. That closed the whole `unevaluatedItems.json` file bar one case, and
+ *  the array-shaped branches are the only ones that pay for it. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -138,7 +145,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Uri>>;
       `,
-      2012
+      2016
     );
   });
 
@@ -231,7 +238,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      972
+      991
     );
   });
 
@@ -275,7 +282,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2347
+      2370
     );
   });
 
@@ -351,7 +358,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4698
+      4689
     );
   });
 
@@ -426,7 +433,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2830
+      2828
     );
   });
 
@@ -458,7 +465,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2022
+      2030
     );
   });
 
@@ -489,7 +496,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2150
+      2153
     );
   });
 

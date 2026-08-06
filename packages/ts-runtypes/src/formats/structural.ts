@@ -84,6 +84,7 @@ export interface FormattedArrayParams<Contains = unknown> {
   readonly contains?: Contains;
   readonly minContains?: number;
   readonly maxContains?: number;
+  readonly unevaluated?: UnevaluatedSpec<Contains>;
 }
 
 // The literal keywords that ride `__rtFormatParams`. Selecting them by key is
@@ -109,7 +110,8 @@ type ContainsSlot<P> = P extends {contains: infer C}
  *  matching the door), `contains` rides its own child sentinel. **/
 export type FormattedArray<Base extends readonly unknown[], P extends FormattedArrayParams> = Base &
   ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_ARRAY_NAME, ArrayLiteralPart<P>>) &
-  ContainsSlot<P>;
+  ContainsSlot<P> &
+  UnevaluatedSlot<P>;
 
 // ─────────────────────────── Object params ──────────────────────────
 
@@ -149,6 +151,8 @@ export interface UnevaluatedSpec<Value = unknown> {
   readonly value?: Value;
   readonly keys?: readonly string[];
   readonly sources?: readonly string[];
+  /** The array twin of `keys`: how many leading indexes are evaluated. **/
+  readonly prefix?: number;
   readonly groups?: readonly UnevaluatedGroup<Value>[];
 }
 
@@ -164,6 +168,7 @@ export interface UnevaluatedGroup<Value = unknown> {
   readonly whenKey?: string;
   readonly keys?: readonly string[];
   readonly sources?: readonly string[];
+  readonly prefix?: number;
   readonly all?: true;
 }
 

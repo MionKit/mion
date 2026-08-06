@@ -1,11 +1,16 @@
 ---
 type: feature
 spec: ready
-status: ready
+status: done
 created: 2026-08-06
 ---
 
 # `unevaluated*` over a run-time evaluated set
+
+**Status:** done. All 27 cases conform, plus 6 more the spec did not count (the
+`contains` interaction groups). `unevaluated*` no longer resolves `never` for
+any input. See "Shipped" at the bottom for where the implementation departed
+from this plan.
 
 ## Intent
 
@@ -272,3 +277,50 @@ The 27 cases conform (`node scripts/core/gen-json-schema-suite.mjs report
 one, the serialize and typeid halves produce matching ids, a schema without the
 keyword emits byte-identical code to today, and the guide's "Unevaluated"
 section stops describing the `never` fallback.
+
+## Shipped
+
+All of it, and the plan held. `UnevalPropsPoison` / `UnevalItemsPoison` are now
+constant `false` and the `never` fallback is gone from the door. Four places
+where the implementation differs from the text above:
+
+**The payload is flatter than the sketch.** `GuardRef` as a tagged union did not
+survive contact with the wire format: a guard is a compiled subschema, and the
+protocol already knows how to carry those. `UnevalGroup`
+([protocol.go](../../ts-go-runtypes/internal/protocol/protocol.go)) carries
+`When` / `WhenNot` as plain `*RunType` children and `WhenKey` as a string, so
+the three guard kinds are three fields rather than a discriminator. `Prefix`
+sits beside `Keys` / `Sources` so one struct serves both the object and array
+sides.
+
+**The items sweep is a watermark, not a ternary chain.** The descending-sort
+trick assumed the groups are ordered at build time; they are not, once `if`
+without `then` and a sibling `else` both contribute. `emitUnevaluatedItemsCheck`
+opens `let uw = <static prefix>` and raises it per passing group
+(`if (guard && uw < N) uw = N`), which is one comparison per group and needs no
+ordering guarantee.
+
+**`contains` reads the node, not the payload.** Scattered evaluated indexes
+cannot ride a prefix at all, so the items emit takes the RunType node and reads
+`rt.Contains` directly: any index at or past the watermark that matches a
+`contains` child is skipped. This is what closed the 6 extra cases.
+
+**Object and array splices had to be gated apart.** `rt.Unevaluated` is shared
+by both kinds, and the first cut ran the object key sweep (`for (const k in v)`)
+over arrays, rejecting every one. `isArrayNodeKind` now gates each side.
+
+### Follow-up debt
+
+Guard subschemas are compiled **twice** — once for the applicator itself, once
+for the sweep — so their checks run twice at run time. Correct, but wasteful;
+hoisting each arm into a shared flag (which is what this spec's "compile each arm
+exactly once" line was reaching for) is the next optimisation pass. It is a
+performance change, not a correctness one, so it did not block the feature.
+
+### The last array gap, closed separately
+
+`unevaluatedItems with nested prefixItems and items` and `… with nested
+unevaluatedItems` were correctly identified here as belonging to the collapse
+merge, not to this feature. They shipped in the same change via a widened
+`tuple ∩ array` merge gate; see
+[applicator-scoped-coverage-additionalproperties-items.md](applicator-scoped-coverage-additionalproperties-items.md).

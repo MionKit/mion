@@ -86,6 +86,7 @@ const (
 	unevalWhenNotKey = "whenNot"
 	unevalWhenKeyKey = "whenKey"
 	unevalAllKey     = "all"
+	unevalPrefixKey  = "prefix"
 )
 
 // lateBoundNamePrefix is how tsgo spells a property whose key is a `unique
@@ -597,6 +598,7 @@ type UnevalSpec struct {
 	Value   *checker.Type
 	Keys    []string
 	Sources []string
+	Prefix  int
 	Groups  []UnevalSpecGroup
 }
 
@@ -608,6 +610,7 @@ type UnevalSpecGroup struct {
 	WhenKey string
 	Keys    []string
 	Sources []string
+	Prefix  int
 	All     bool
 }
 
@@ -637,6 +640,10 @@ func UnevalSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) (U
 			spec.Keys = stringTupleOf(typeChecker, specProp)
 		case unevalSourcesKey:
 			spec.Sources = stringTupleOf(typeChecker, specProp)
+		case unevalPrefixKey:
+			if value, isNumber := literalNumberOf(typeChecker, specProp); isNumber {
+				spec.Prefix = int(value)
+			}
 		case unevalGroupsKey:
 			spec.Groups = unevalGroupsOf(typeChecker, specProp)
 		}
@@ -667,6 +674,10 @@ func unevalGroupsOf(typeChecker *checker.Checker, symbol *ast.Symbol) []UnevalSp
 				group.Keys = stringTupleOf(typeChecker, groupProp)
 			case unevalSourcesKey:
 				group.Sources = stringTupleOf(typeChecker, groupProp)
+			case unevalPrefixKey:
+				if value, isNumber := literalNumberOf(typeChecker, groupProp); isNumber {
+					group.Prefix = int(value)
+				}
 			case unevalAllKey:
 				group.All = true
 			}

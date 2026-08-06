@@ -1,11 +1,18 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-05
 ---
 
 # `additionalProperties` / `items` must not see inside `allOf`
+
+**Status:** done for 3 of the 4 cases. The `additionalProperties` half shipped
+via design 2 (explicit exemption params, no index-signature guessing) and the
+two `unevaluatedItems` cases via a widened tuple merge. The `items` case did NOT
+ship and is now its own spec:
+[docs/todos/tuple-merge-conflicting-slot-fold.md](../todos/tuple-merge-conflicting-slot-fold.md).
+See "Shipped" at the bottom.
 
 ## Intent
 
@@ -124,3 +131,56 @@ Both suite cases conform (`node scripts/core/gen-json-schema-suite.mjs report
 --update-ledger` drops them), the chosen design is recorded with why the other
 was not taken, `validate` and `validationErrors` agree on every case added, and
 the collapse's serialize half and `typeid` half stay twins.
+
+## Shipped
+
+**Both designs landed, each where it fits.** They were never exclusive, and the
+two halves of the problem wanted different answers.
+
+### The object half — design 2, explicit exemption params
+
+`additionalProperties` no longer infers its exemption set from whatever the
+intersection merge produced. `FormattedObjectParams` gained an
+`additionalOwn?: readonly string[]` field carrying the schema's OWN declared
+keys, and the emitters read it: `indexSigExemptKeys`
+([unknownkeys_shared.go](../../ts-go-runtypes/internal/cachegen/typefunctions/unknownkeys_shared.go))
+takes the list off the format annotation when present, and only falls back to
+`collectSiblingNamedKeys` when it is absent. So a key declared inside an `allOf`
+arm is no longer exempt, because it was never on the schema's own list.
+
+The door gates the parameter on `HasMergingKeyword<S>` — a schema with no
+`allOf` / `$ref` / `$dynamicRef` has nothing to merge with, so it keeps the
+plain `Record<string, V>` lowering and its id keeps converging with the
+type-first spelling. Writing the param unconditionally broke the whole
+id-integrity suite; the gate is what makes it free.
+
+The `patternProperties` exemption shipped alongside it, through the same
+mechanism (`publishSiblingPatternsForIndexSig` / `siblingPatternSkipCode`): a
+key a sibling pattern matches is not "additional".
+
+### The array half — design 1, but only its cheap layer
+
+`AllTupleOrArrayTypes` widened the merge gate so a plain array reads as a tuple
+with **no fixed slots and an open tail of its element type**
+([tuplemerge.go](../../ts-go-runtypes/internal/cachegen/runtype/typeid/tuplemerge.go)).
+That is all `tuple ∩ array` needs whenever the slots do not contest each other —
+one side is `unknown`, or both agree — which covers:
+
+- `unevaluatedItems with nested prefixItems and items` (both cases)
+- `unevaluatedItems with nested unevaluatedItems` (both cases)
+
+and, incidentally, every type-first `[T?, ...unknown[]] & U[]` spelling, which
+had the same junk-objectLiteral failure.
+
+The protocol-level NODE merge the original direction described was **not** built.
+It is only needed when two slots carry genuinely different constraints, which is
+exactly the one case left over.
+
+### What did not ship
+
+`items.json :: items does not look in applicators, valid case` still
+over-rejects. Its slot is constrained twice with different bounds
+(`minimum: 3` from the arm, `minimum: 5` from the sibling `items`), so the merge
+reports a conflict and the array projects `never`. Split out, with the node-merge
+design and the twin-discipline risk written up, as
+[docs/todos/tuple-merge-conflicting-slot-fold.md](../todos/tuple-merge-conflicting-slot-fold.md).
