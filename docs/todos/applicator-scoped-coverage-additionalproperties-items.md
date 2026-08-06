@@ -18,6 +18,15 @@ Per 2020-12 both keywords look at their OWN siblings only. Everything else in
 their families now conforms; these two are the last of the family, and one of
 them UNDER-validates, which is the outcome the pipeline promises never to have.
 
+## Scope note
+
+Two MORE cases turn out to need the same capability, both from
+`unevaluatedItems.json` (`with nested prefixItems and items`, `with nested
+unevaluatedItems`): a tuple from an `allOf` arm meeting an array from the outer
+schema. So this todo is worth **4** suite cases, not 2, and it is the only thing
+standing between the door and full conformance once
+`unevaluated-runtime-evaluated-set.md` lands.
+
 ## The two cases
 
 Both from `node_modules/json-schema-test-suite/tests/draft2020-12/`:
