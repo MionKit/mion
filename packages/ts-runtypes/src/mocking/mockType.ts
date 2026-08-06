@@ -715,8 +715,11 @@ function buildObjectLiteral(
   // batches. Shapes the loop cannot fix (a closed literal below its
   // minProperties) fall back to the rejection loop's loud give-up.
   const annotation = runType.formatAnnotation;
-  if (annotation?.name === 'formattedObject') {
-    const params = (annotation.params ?? {}) as Record<string, unknown>;
+  // `unevaluatedKeys` rides the node rather than the annotation params (the
+  // keyword never shapes the type, so a node can carry the sweep and no
+  // formattedObject brand at all), which is why it opens this block too.
+  if (annotation?.name === 'formattedObject' || runType.unevaluatedKeys) {
+    const params = (annotation?.name === 'formattedObject' ? (annotation.params ?? {}) : {}) as Record<string, unknown>;
     const declared = new Set<string | number>();
     let indexMember: RunType | undefined;
     for (const member of children) {
@@ -724,18 +727,28 @@ function buildObjectLiteral(
       const name = member.name as string | number | undefined;
       if (name !== undefined) declared.add(name);
     }
-    // `closed` (additionalProperties / unevaluatedProperties: false) names the
-    // ONLY admissible keys. An index signature riding the same object still
-    // deals out arbitrary ones, so trim what the closed set (and its patterns)
-    // does not admit — rejection sampling alone never converges here, it just
-    // burns all 32 candidates and gives up. Runs before AND after the
-    // minProperties top-up, since the top-up draws fresh index batches.
-    const closed = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
-    const closedPatterns = Array.isArray(params.closedPatterns)
-      ? (params.closedPatterns as unknown[])
-          .filter((entry): entry is string => typeof entry === 'string')
-          .map((source) => new RegExp(source))
-      : [];
+    // `closed` (additionalProperties: false) names the ONLY admissible keys. An
+    // index signature riding the same object still deals out arbitrary ones, so
+    // trim what the closed set (and its patterns) does not admit — rejection
+    // sampling alone never converges here, it just burns all 32 candidates and
+    // gives up. Runs before AND after the minProperties top-up, since the
+    // top-up draws fresh index batches.
+    //
+    // `unevaluatedProperties` closes the same way, but off the SENTINEL rather
+    // than a param, since it never shapes the type. Its admissible set is the
+    // unconditionally evaluated keys plus every guarded group's — a group's key
+    // only counts when its arm passed, and a mock that carries the key carries
+    // whatever the arm demanded to produce it, so including them is sound and
+    // leaving them out would delete keys the shape itself asked for. A schema
+    // VALUE (`unevaluatedProperties: {…}`) admits leftovers as long as they
+    // match it, which an arbitrary index draw will not, so it trims the same.
+    const stringList = (value: unknown): string[] =>
+      Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+    const closedParam = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
+    const closed = closedParam ?? runType.unevaluatedKeys;
+    const closedPatterns = [...stringList(params.closedPatterns), ...(runType.unevaluatedSources ?? [])].map(
+      (source) => new RegExp(source)
+    );
     const trimDisallowedKeys = (): void => {
       if (!closed) return;
       for (const key of Object.keys(parent)) {

@@ -131,6 +131,14 @@ export interface RunType<T = unknown> {
   patternProps?: {source: string; key?: RunType; value: RunType}[];
   /** propertyNames child: every key validates (as a string) against it. */
   propNames?: RunType;
+  /** The FLATTENED admissible key set behind an `unevaluated*` sweep (JSON
+   *  Schema unevaluatedProperties): the unconditionally evaluated keys plus
+   *  every guarded group's. The guards stay compile-time — the emitted
+   *  validator carries them — so this is the mock walker's view only, telling
+   *  it which keys it may deal. `unevaluatedSources` is the same for the
+   *  pattern sources a matching key is exempt under. */
+  unevaluatedKeys?: string[];
+  unevaluatedSources?: string[];
   /** OneOf branch list (the `__rtOneOf` sentinel on a union node — the
    *  exactly-one combinator / JSON Schema oneOf): the value must match
    *  exactly one branch. Mocking draws a branch and rejects candidates a

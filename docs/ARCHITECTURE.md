@@ -332,17 +332,26 @@ the failure direction over-rejection. The fold verdict is computed once, in the 
 `typeid` package, so both collapse halves reach it identically; every slot that reaches it
 used to project `never`, so no id that resolves without it can move.
 
-`unevaluatedProperties` / `unevaluatedItems` read the same way. Where the DOCUMENT pins
-the evaluated set down the keyword resolves statically (a no-op when something in scope
-already evaluates every member, a closed shape over the merged key set, or a leftover
-value type); where the VALUE decides it — a passing `anyOf` / `oneOf` arm, an `if` with or
-without branches, a `dependentSchemas` trigger key, a `contains` match — the door hands
-the engine a `__rtUnevaluated` payload carrying the unconditional key set / prefix plus
-one guarded group per conditional contributor, and the emit sweeps the members against it.
-The object side sweeps keys with `for…in`; the array side raises a prefix watermark per
-passing group and skips `contains`-matched indexes past it. Both splices are gated on the
-node kind (the payload is shared by the two families), and the two collapse halves must
-lift it identically or a cache entry and its id part company. Plain-union validation is
+`unevaluatedProperties` / `unevaluatedItems` are METADATA ONLY, and that is the whole
+design. The recovered type never changes shape for them: an object carrying the keyword is
+the same object type it would be without it, an array the same array. What the keyword
+asserts rides the `__rtUnevaluated` sentinel — the unconditionally evaluated key set (or
+prefix) plus one guarded group per conditional contributor: a passing `anyOf` / `oneOf`
+arm, an `if` with or without branches, a `dependentSchemas` trigger key, a `contains`
+match. The emit sweeps the members against it; the object side sweeps keys with `for…in`,
+the array side raises a prefix watermark per passing group and skips `contains`-matched
+indexes past it. Both splices are gated on the node kind (the payload is shared by the two
+families), and the two collapse halves must lift it identically or a cache entry and its
+id part company. The ONE thing decided at the type level is whether to emit at all: an
+`additionalProperties` / `items` in an always-passing scope, or an `unevaluated*: true`,
+already evaluates every member, so the keyword asserts nothing and no sentinel is written.
+Earlier revisions tried to SPELL the keyword in the type (closing the object over a merged
+key set, capping the array at the longest prefix, turning a schema value into an index
+signature), which forced the door to prove statically that the evaluated set was knowable;
+every one of those proofs was unnecessary, since the sweep is exact in all of those cases
+too. The runtime node carries a FLATTENED key list (`unevaluatedKeys` /
+`unevaluatedSources`) purely so the mock walker knows which keys it may deal — the guards
+stay compile-time. Plain-union validation is
 at-least-one (pinned by test), which makes anyOf the faithful spelling of a union; oneOf
 is the exactly-one combinator (`OneOf<[…]>` / `RT.oneOf`): every non-nullish member
 carries the branch tuple on an OPTIONAL `__rtOneOf` sentinel prop

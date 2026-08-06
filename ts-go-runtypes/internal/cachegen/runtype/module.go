@@ -343,7 +343,8 @@ func hasBundleSpecials(runType *protocol.RunType) bool {
 		len(runType.Contains) > 0 ||
 		len(runType.PatternProps) > 0 ||
 		runType.PropNames != nil ||
-		len(runType.OneOf) > 0
+		len(runType.OneOf) > 0 ||
+		runType.Unevaluated != nil
 }
 
 // writeBundleSpecials writes the residual footer lines for the runtime-special
@@ -383,6 +384,44 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 	if len(runType.OneOf) > 0 {
 		writeOneOf(buffer, name, runType)
 	}
+	writeUnevaluatedKeys(buffer, name, runType)
+}
+
+// writeUnevaluatedKeys emits the FLATTENED admissible key set behind an
+// `unevaluated*` sweep — the unconditionally evaluated keys plus every guarded
+// group's, and the same for pattern sources. The guards themselves stay a
+// compile-time concern (the emitted validator carries them); the mock walker
+// only needs to know which keys it may deal, so it gets the flat set and no
+// child derefs. Nothing is written when the sweep names no keys at all, which
+// is the `unevaluatedProperties: false` on a bare object case — there the mock
+// has nothing to trim TO and an empty list would read as "no constraint".
+func writeUnevaluatedKeys(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	check := runType.Unevaluated
+	if check == nil {
+		return
+	}
+	keys := append([]string{}, check.Keys...)
+	sources := append([]string{}, check.Sources...)
+	for _, group := range check.Groups {
+		if group == nil {
+			continue
+		}
+		keys = append(keys, group.Keys...)
+		sources = append(sources, group.Sources...)
+	}
+	buffer.WriteString(fmt.Sprintf("%s.unevaluatedKeys = [%s];\n", name, joinQuoted(keys)))
+	if len(sources) > 0 {
+		buffer.WriteString(fmt.Sprintf("%s.unevaluatedSources = [%s];\n", name, joinQuoted(sources)))
+	}
+}
+
+// joinQuoted renders a string slice as the inside of a JS array literal.
+func joinQuoted(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, quoteJS(value))
+	}
+	return strings.Join(quoted, ", ")
 }
 
 // writeContains emits the `<ref>.contains = [{child, min, max}, …];` line.

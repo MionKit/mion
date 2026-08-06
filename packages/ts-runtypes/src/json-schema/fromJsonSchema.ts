@@ -129,10 +129,9 @@ export interface JsonSchemaInput {
   readonly $anchor?: string;
   readonly $dynamicAnchor?: string;
   readonly $dynamicRef?: string;
-  // unevaluated*: `false` lowers to closedness over the STATICALLY
-  // determinable applicator set (own + allOf keywords, $defs-resolved);
-  // instance-dependent evaluation (if/then/else, anyOf/oneOf, dependent
-  // schemas, refs in scope) resolves `never` — loud over lossy.
+  // unevaluated*: metadata only. The recovered type is the same object / array
+  // it would be without the keyword; what it asserts rides the
+  // `__rtUnevaluated` sentinel the emitters read.
   readonly unevaluatedProperties?: JsonSchemaInput | boolean;
   readonly unevaluatedItems?: JsonSchemaInput | boolean;
   readonly enum?: readonly (string | number | boolean | null)[];
@@ -450,92 +449,52 @@ type ObjectKeywordParams<S, Root, F extends [unknown]> = Flatten<
       ? {readonly closed: AllowedKeysOf<S>} & (S extends {patternProperties: infer P}
           ? {readonly closedPatterns: KeysToTuple<P>}
           : unknown)
-      : // unevaluatedProperties: false closes over the MERGED applicator set
-        // (own + allOf, recursively) — a key evaluated by any allOf member
-        // is not "unevaluated". additionalProperties: false is stricter
-        // (it never sees allOf keywords) and wins when both are present.
+      : // unevaluatedProperties rides METADATA only — see UnevalPropsMode.
         S extends {unevaluatedProperties: unknown}
-        ? UnevalPropsMode<S, Root> extends 'sweep'
+        ? UnevalPropsMode<S> extends 'sweep'
           ? UnevalSweepParams<S, Root, F>
-          : UnevalPropsMode<S, Root> extends 'closed'
-            ? {readonly closed: MergedClosedKeys<S, Root>} & ([MergedPatternSources<S, Root>] extends [readonly []]
-                ? unknown
-                : {readonly closedPatterns: MergedPatternSources<S, Root>})
-            : unknown
+          : unknown
         : unknown)
 >;
-// ── unevaluated* — document-consulted lowering ────────────────────────────
-// `false` lowers exactly when the evaluated set is statically determinable:
-// own keywords plus allOf members (recursively). Conditional or selective
-// applicators (if / dependentSchemas / anyOf / oneOf) and in-scope refs make
-// the set instance-dependent — those schemas resolve NEVER, loud over lossy,
-// exactly like an undecidable negation verdict. Schema-valued unevaluated*
-// has no honest static story either and poisons the same way; `true` is a
-// no-op per 2020-12.
-// A `$ref` is NOT indeterminate: its target has to pass for the schema to pass,
-// so whatever it evaluates is evaluated unconditionally and MergedClosedKeys
-// follows it. `$dynamicRef` stays out — it resolves by dynamic scope.
-type UnevalIndeterminateKeys = 'if' | 'dependentSchemas' | 'anyOf' | 'oneOf' | '$dynamicRef';
-// What the keyword lowers to, decided from the document:
-//   'noop'     — something in scope already evaluates EVERY member, so the
-//                keyword asserts nothing. Two ways that happens: an
-//                `additionalProperties` / `items` in an always-passing scope
-//                (they apply to everything their siblings did not), or an
-//                `unevaluated*: true` in one.
-//   'closed'   — `false` over an evaluated set the document pins down.
-//   'leftover' — a SCHEMA value with nothing else evaluating members, which is
-//                exactly what `additionalProperties` / `items` already mean.
-//   'poison'   — the evaluated set depends on which branch matched at run time,
-//                so no static answer is honest: resolve never, loud over lossy.
-type UnevalPropsMode<S, Root> = S extends {unevaluatedProperties: infer U}
+// ── unevaluated* — a METADATA-only keyword ────────────────────────────────
+// The recovered TYPE never changes shape for `unevaluated*`. An object with the
+// keyword is the same object type it would be without it, an array the same
+// array; what the keyword asserts rides the `__rtUnevaluated` sentinel, which
+// the emitters read and TypeScript ignores.
+//
+// That is deliberate, and it is why this section is short. Earlier revisions
+// tried to SPELL the keyword in the type — closing the object over a merged key
+// set, capping the array at the longest prefix, turning a schema value into an
+// index signature — which meant the door had to prove, at the type level, that
+// the evaluated set was statically knowable. Every one of those proofs is
+// unnecessary: the sweep the sentinel drives is exact in all of the cases, and
+// dropping them makes the keyword's whole story "carry the metadata".
+//
+// So there are only two answers left:
+//   'noop'  — something in scope already evaluates EVERY member, so the keyword
+//             asserts nothing at all and no sentinel is emitted. Two ways that
+//             happens: an `additionalProperties` / `items` in an always-passing
+//             scope (they apply to everything their siblings did not), or an
+//             `unevaluated*: true` in one.
+//   'sweep' — carry the payload: the unconditionally evaluated members plus one
+//             guarded group per conditional contributor.
+type UnevalPropsMode<S> = S extends {unevaluatedProperties: infer U}
   ? [U] extends [true]
     ? 'noop'
     : ScopeEvaluatesAllProps<S> extends true
       ? 'noop'
-      : [U] extends [false]
-        ? UnevalScopeIndeterminate<S> extends true
-          ? 'sweep'
-          : 'closed'
-        : PropsEvaluatedSoFar<S, Root> extends true
-          ? 'sweep'
-          : UnevalScopeIndeterminate<S> extends true
-            ? 'sweep'
-            : 'leftover'
+      : 'sweep'
   : 'noop';
 type UnevalItemsMode<S, Root> = S extends {unevaluatedItems: infer U}
   ? [U] extends [true]
     ? 'noop'
     : ScopeEvaluatesAllItems<S, Root> extends true
       ? 'noop'
-      : [U] extends [false]
-        ? UnevalItemsIndeterminate<S> extends true
-          ? 'sweep'
-          : 'closed'
-        : [LongestPrefixOf<S, Root>] extends [readonly []]
-          ? UnevalItemsIndeterminate<S> extends true
-            ? 'sweep'
-            : 'leftover'
-          : 'sweep'
+      : 'sweep'
   : 'noop';
-// `leftover` needs the evaluated set to be EMPTY, since the lowering is an index
-// signature / element type that covers every member. Anything already evaluated
-// (own or allOf-member properties, a pattern source) would be wrongly re-checked
-// against it, so those stay poison until the run-time set lands.
-type PropsEvaluatedSoFar<S, Root> = [MergedClosedKeys<S, Root>] extends [readonly []]
-  ? [MergedPatternSources<S, Root>] extends [readonly []]
-    ? false
-    : true
-  : true;
 // Every mode consumer probes for the KEYWORD before asking for the mode, so a
 // schema that never mentions `unevaluated*` (all but a handful) pays a single
 // `extends` and no scope walk at all.
-// The properties side no longer poisons: an evaluated set the document cannot
-// decide rides the run-time sweep instead. The ITEMS side still does, pending
-// the same treatment.
-type UnevalPropsPoison<S, Root> = [S, Root] extends [never, never] ? true : false;
-// The items side no longer poisons either — an evaluated prefix the document
-// cannot pin down rides the run-time sweep.
-type UnevalItemsPoison<S, Root> = [S, Root] extends [never, never] ? true : false;
 // The array twin: contributions are PREFIX LENGTHS, and the sweep starts at the
 // highest one the value's own branches turned on.
 type UnevalItemsSweepParams<S, Root, F extends [unknown]> = {
@@ -680,31 +639,7 @@ type MembersCarryTrue<M, K extends string> = M extends readonly [infer H, ...inf
       ? true
       : MembersCarryTrue<R, K>
   : false;
-type UnevalScopeIndeterminate<S> =
-  Extract<keyof S, UnevalIndeterminateKeys> extends never ? AllOfAnyIndeterminate<AllOfMembersOf<S>> : true;
 type AllOfMembersOf<S> = S extends {allOf: infer M extends readonly unknown[]} ? M : readonly [];
-type AllOfAnyIndeterminate<M> = M extends readonly [infer H, ...infer R]
-  ? Extract<keyof H, UnevalIndeterminateKeys> extends never
-    ? AllOfAnyIndeterminate<AllOfMembersOf<H>> extends true
-      ? true
-      : AllOfAnyIndeterminate<R>
-    : true
-  : false;
-// contains-evaluated indexes are instance-dependent, so unevaluatedItems
-// beside (own or member) contains stays indeterminate.
-type UnevalItemsIndeterminate<S> =
-  UnevalScopeIndeterminate<S> extends true
-    ? true
-    : Extract<keyof S, 'contains'> extends never
-      ? AllOfAnyContains<AllOfMembersOf<S>>
-      : true;
-type AllOfAnyContains<M> = M extends readonly [infer H, ...infer R]
-  ? Extract<keyof H, 'contains'> extends never
-    ? AllOfAnyContains<AllOfMembersOf<H>> extends true
-      ? true
-      : AllOfAnyContains<R>
-    : true
-  : false;
 // The UNCONDITIONALLY evaluated key set: a schema's own `properties`, every
 // `allOf` member's, and every `$ref` target's. All three must pass for the
 // schema to pass, so whatever they evaluate is evaluated for every value that
@@ -768,18 +703,13 @@ type AllOfPatternSources<M, Root, Fuel extends readonly unknown[]> = M extends r
       ...AllOfPatternSources<R, Root, Fuel>,
     ]
   : readonly [];
-// unevaluatedItems: false over prefix-only shapes closes the array at the
-// LONGEST merged prefix (evaluated indexes are the union of the prefixes);
-// any `items` in scope evaluates every index, making it a no-op. An
-// explicit sibling maxItems keeps its own bound (skip the contribution).
+// unevaluatedItems rides METADATA only — the array shape is untouched and the
+// sentinel carries the evaluated prefix. `items` anywhere in scope evaluates
+// every index, which is the one case that emits nothing at all.
 type UnevalItemsParams<S, Root, F extends [unknown]> = S extends {unevaluatedItems: unknown}
   ? UnevalItemsMode<S, Root> extends 'sweep'
     ? UnevalItemsSweepParams<S, Root, F>
-    : UnevalItemsMode<S, Root> extends 'closed'
-      ? S extends {maxItems: number}
-        ? unknown
-        : {readonly maxItems: LongestPrefixOf<S, Root>['length'] & number}
-      : unknown
+    : unknown
   : unknown;
 // `items` behind a `$ref` evaluates every index just the same, so the walk
 // follows references on the same fuel the key merge does.
@@ -898,11 +828,9 @@ type ObjectHasKeywords<S> = [Extract<keyof S, ObjectKeywordKeys>] extends [never
 // `additionalProperties` is known present, so an ordinary object never pays it.
 type HasMergingKeyword<S> = Extract<keyof S, 'allOf' | '$ref' | '$dynamicRef'> extends never ? false : true;
 type ObjectFrom<S, Root, F extends [unknown]> =
-  UnevalPropsPoison<S, Root> extends true
-    ? never
-    : ObjectHasKeywords<S> extends true
-      ? FormattedObject<Extract<ObjectShapeFrom<S, Root, F>, object>, ObjectAllParams<S, Root, F>>
-      : ObjectShapeFrom<S, Root, F>;
+  ObjectHasKeywords<S> extends true
+    ? FormattedObject<Extract<ObjectShapeFrom<S, Root, F>, object>, ObjectAllParams<S, Root, F>>
+    : ObjectShapeFrom<S, Root, F>;
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
@@ -921,18 +849,12 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       WithAdditional<S, {-readonly [K in R[number]]: PresentValue}, Root, F>
     : S extends {additionalProperties: infer A extends JsonSchemaInput}
       ? Record<string, FromJsonSchemaIn<A, Root, F>>
-      : S extends {unevaluatedProperties: infer U extends JsonSchemaInput}
-        ? // Nothing else evaluates a key here, so `unevaluatedProperties` covers
-          // every one of them — which is what `additionalProperties` spells.
-          UnevalPropsMode<S, Root> extends 'leftover'
-          ? Record<string, FromJsonSchemaIn<U, Root, F>>
-          : Record<string, unknown>
-        : // Keyword-less object gate: Record<string, unknown>, NOT the TS
-          // `object` keyword — `object` admits arrays (and its emitted check
-          // accepts them), while JSON Schema's object kind excludes them; the
-          // record check is the exact spelling. Also what every negation object
-          // arm uses via GateArmFrom, where array leakage would corrupt ¬.
-          Record<string, unknown>;
+      : // Keyword-less object gate: Record<string, unknown>, NOT the TS
+        // `object` keyword — `object` admits arrays (and its emitted check
+        // accepts them), while JSON Schema's object kind excludes them; the
+        // record check is the exact spelling. Also what every negation object
+        // arm uses via GateArmFrom, where array leakage would corrupt ¬.
+        Record<string, unknown>;
 
 /** "The key exists" as a type: any JSON value, undefined excluded. Spelled as
  *  the six-kind JSON domain — NOT `unknown` (admits undefined, which stops
@@ -951,11 +873,12 @@ type PresentValue = null | boolean | number | string | unknown[] | Record<string
  *  (`{properties: {foo: …}}` rejecting `{quux: 1}`). The open spelling is the
  *  same `Record<string, unknown>` a property-less object arm already lowers to,
  *  with the declared members keeping their own checks on top. A schema that DOES
- *  own its key set (`additionalProperties` in either form,
- *  `unevaluatedProperties`) is left alone — the record would erase exactly the
- *  closedness those keywords express. **/
+ *  own its key set (`additionalProperties` in either form) is left alone — the
+ *  record would erase exactly the closedness that keyword expresses.
+ *  `unevaluatedProperties` is NOT in that list: it never shapes the type, so an
+ *  arm carrying it stays as open as any other. **/
 type ObjectArmFrom<S, Root, F extends [unknown]> =
-  Extract<keyof S, 'additionalProperties' | 'unevaluatedProperties'> extends never
+  Extract<keyof S, 'additionalProperties'> extends never
     ? Extract<keyof S, 'properties' | 'required'> extends never
       ? ObjectFrom<S, Root, F>
       : Record<string, unknown> & ObjectFrom<S, Root, F>
@@ -1009,12 +932,9 @@ type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
 // array shape (no brand, no contains slot) — so it never pays the FormattedArray
 // wrapper, keeping the common `{type: 'array', items: …}` case cheap.
 type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems';
-type ArrayFrom<S, Root, F extends [unknown]> =
-  UnevalItemsPoison<S, Root> extends true
-    ? never
-    : [Extract<keyof S, ArrayKeywordKeys>] extends [never]
-      ? ArrayShapeFrom<S, Root, F>
-      : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, ArrayAllParams<S, Root, F>>;
+type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKeys>] extends [never]
+  ? ArrayShapeFrom<S, Root, F>
+  : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, ArrayAllParams<S, Root, F>>;
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
   prefixItems: infer P extends readonly (JsonSchemaInput | boolean)[];
 }
@@ -1024,13 +944,7 @@ type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
       ? I extends false
         ? []
         : FromJsonSchemaIn<I, Root, F>[]
-      : S extends {unevaluatedItems: infer U extends JsonSchemaInput}
-        ? // Same reading as the properties side: with no prefix evaluating an
-          // index, `unevaluatedItems` covers every one, which is `items`.
-          UnevalItemsMode<S, Root> extends 'leftover'
-          ? FromJsonSchemaIn<U, Root, F>[]
-          : unknown[]
-        : unknown[]
+      : unknown[]
     : BuildTupleRequired<[], MinItemsOf<S>, RestOf<S>, [], Root, F>;
 type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
 type RestOf<S> = S extends {items: infer I} ? I : 'rt$open';
@@ -2140,8 +2054,8 @@ export type SchemaLoweringByKeyword = {
   $anchor: 'ref: declares a #name target';
   $dynamicAnchor: 'ref: declares a #name target (also registers as a plain anchor)';
   $dynamicRef: 'ref: resolves #name statically — one candidate per document';
-  unevaluatedProperties: 'params: FormattedObjectParams.closed over the merged applicator set (false); indeterminate scopes resolve never';
-  unevaluatedItems: 'params: FormattedArrayParams.maxItems at the longest prefix (false); indeterminate scopes resolve never';
+  unevaluatedProperties: 'slot: __rtUnevaluated — metadata only, the object type is unchanged';
+  unevaluatedItems: 'slot: __rtUnevaluated — metadata only, the array type is unchanged';
   enum: 'shape: literal union';
   const: 'shape: single literal';
   anyOf: 'shape: plain union (at least one branch)';

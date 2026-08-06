@@ -309,6 +309,39 @@ cannot ride a prefix at all, so the items emit takes the RunType node and reads
 by both kinds, and the first cut ran the object key sweep (`for (const k in v)`)
 over arrays, rejecting every one. `isArrayNodeKind` now gates each side.
 
+### Then the type-level half was DELETED
+
+Review call, and the right one: `unevaluated*` should not shape the recovered type
+at all. It now rides the sentinel and nothing else, so an object carrying the
+keyword is the same object type it would be without it.
+
+That removed every static reading this spec argued for. Gone: the `closed` /
+`closedPatterns` params derived from the merged key set, the `maxItems` derived
+from the longest prefix, the index-signature and element-type readings of a
+schema value, and with them the whole apparatus that existed only to PROVE a set
+was statically knowable — `UnevalScopeIndeterminate`, `AllOfAnyIndeterminate`,
+`UnevalItemsIndeterminate`, `AllOfAnyContains`, `PropsEvaluatedSoFar` and both
+poison stubs. The mode is now a two-way choice: emit nothing when something in
+scope already evaluates every member, otherwise carry the payload. 136 lines out
+of `fromJsonSchema.ts`, ten instantiation budgets ratcheted DOWN, and every case
+still conforms — the sweep was always exact in the cases the static readings
+were covering.
+
+Two latent bugs surfaced the moment the type stopped compensating:
+
+- **The collapse's single-base guard never listed `__rtUnevaluated`.** An array
+  whose ONLY sentinel was the unevaluated payload fell through to the
+  merged-property path and emitted a validator that rejected every array. It had
+  been masked because such an array always used to carry a format annotation too,
+  so the guard passed for the wrong reason. The ID twin had folded it in all
+  along, so the two halves were quietly disagreeing.
+- **`hasBundleSpecials` never listed it either**, so nodes whose only special was
+  the payload skipped the footer writer entirely and the runtime node carried
+  nothing. That is what the mock walker reads, so mocks dealt keys the sweep then
+  rejected. The node now carries a FLATTENED `unevaluatedKeys` /
+  `unevaluatedSources` (the guards stay compile-time — the mock only needs to
+  know which keys it may deal).
+
 ### Follow-up debt
 
 Guard subschemas are compiled **twice** — once for the applicator itself, once

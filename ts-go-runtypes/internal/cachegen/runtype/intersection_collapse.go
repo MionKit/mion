@@ -305,7 +305,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 		}
 		if restCount == 1 &&
 			(len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
-				len(node.PatternProps) > 0 || node.PropNames != nil) {
+				len(node.PatternProps) > 0 || node.PropNames != nil || node.Unevaluated != nil) {
 			// Single base ∧ sentinel(s) — `unknown[] & {__rtNot?: …}`,
 			// `Record<string, unknown> & {…}`: project the BASE as itself
 			// (array / record / class / tuple), negations attached. Routing
@@ -313,6 +313,12 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 			// interface members as an objectLiteral. The bare `object`
 			// keyword is not a TypeFlagsObject type — project it directly
 			// (projectObjectType would misroute it).
+			//
+			// `__rtUnevaluated` belongs in this list for the same reason as the
+			// rest, and the ID twin has always folded it in (the `u{…}` key).
+			// It only became reachable once `unevaluated*` stopped shaping the
+			// type: before that an array carrying it also carried a format
+			// annotation, so the guard passed for the wrong reason.
 			if soleRest.Flags()&checker.TypeFlagsNonPrimitive != 0 {
 				node.Kind = protocol.KindObject
 				return
