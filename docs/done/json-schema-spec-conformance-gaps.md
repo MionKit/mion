@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-03
 ---
 
@@ -123,3 +123,31 @@ check: `pnpm rtx bench spec` must report 65/65 for ts-runtypes.
 `pnpm rtx bench spec` reports **65/65 conforming for ts-runtypes**, the corpus
 is unchanged except for removing the MKR009 workaround comment on
 `one_of_exclusive`, and each fix carries a unit test.
+
+## Closed 2026-08-06 — all four conform
+
+Every finding above now passes, verified against the door directly and pinned by
+the official-suite lane's ledger. What each one turned out to be:
+
+1. **`allOf` dropping a bare numeric constraint.** The arms were combined with a
+   plain `&`, and a type-LESS arm lowers to the six-kind union, so
+   `(string | Number<min 10> | …) & (…)` stayed unreduced and both bounds were
+   lost. Arms now combine through `Conj`, which distributes over the union and
+   prunes the cross-kind pairs. `allOf: [{type: 'integer'}, {minimum: 10}]`
+   rejects 9. Same change closed `allOf: [{maximum: 30}, {minimum: 20}]`.
+2. **Bare constraints under `oneOf`.** The MKR009 halt was already gone (noted in
+   the 2026-08-05 update); the constraint-dropping half went with finding 1, and
+   sibling keywords beside `oneOf` now push INTO each branch rather than
+   resolving the schema to an impossible type.
+3. **`dependentSchemas` over-constraining with the trigger absent.** Two causes,
+   both fixed: the keyword is object-scoped so every non-object now passes
+   untouched, and the "trigger absent" arm was an exact object that rejected
+   unrelated keys — object arms inside a kind union carry the open record now.
+4. **The two formats.** `ipv4` was recorded done on 2026-08-05; `uri` became its
+   own RFC 3986 pattern accepting any scheme, so `mailto:ada@example.com` and
+   `urn:isbn:…` validate. `format: 'uri'` lowers to `TF.Uri` rather than the
+   narrower `TF.Url`.
+
+The official suite is the live scoreboard now
+(`packages/ts-runtypes/test/json-schema-official/CONFORMANCE.md`); the remaining
+open divergences are tracked in their own specs, not here.
