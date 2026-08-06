@@ -1,11 +1,15 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-06
 ---
 
 # Fold a tuple slot two applicators constrain differently
+
+**Status:** done, the same day it was filed. The suite now reports **zero** open
+divergences. See "Shipped" at the bottom, including the one thing this spec did
+not anticipate.
 
 ## Intent
 
@@ -79,7 +83,7 @@ Then the two callers materialize the fold:
   formula the single-base-plus-sentinel branch already uses, so the merged id
   stays byte-equal to the hand-written equivalent.
 
-## Why this is filed rather than fixed
+## Why this was filed rather than fixed on the spot
 
 It touches the two-halves-stay-twins invariant: `runtype/intersection_collapse.go`
 and `typeid/intersection_collapse.go` must fold identically or a cache entry and
@@ -93,3 +97,43 @@ id-convergence coverage, and the divergence it fixes is one over-rejecting case.
 divergences; an id-integrity test pins that the merged slot converges with the
 hand-written `readonly [number & Min5, ...(number & Min5)[]]` spelling; and Go
 unit tests cover both the folding and the still-conflicting paths.
+
+## Shipped
+
+The design above held. `TupleMergePick` gained a `Fold` field, `SlotFold` carries
+the resolution, and `SlotFold.Structural` is the single formula both halves
+call, so the fold verdict is reached in ONE place and the twins cannot drift.
+The serialize half builds a FRESH node keyed by that structural (never mutating
+an interned one) and the id half reuses the same string.
+
+One safety property made the whole change cheap to reason about: **every slot
+that reaches the fold previously projected `never`.** The path is new ground, so
+no id that resolves today can move. The full suite confirms it.
+
+### What the spec missed: the slots are UNIONS, not primitives
+
+The plan assumed a contended slot is a branded primitive. It is not, for the
+very case being fixed. A type-LESS JSON Schema keyword denotes the six-kind
+union, so the two sides are `string | Min3 | boolean | null | unknown[] |
+Record<…>` and the same with `Min5` — identical but for the number arm. So the
+fold conjoins ARM BY ARM: identical arms pass through, same-base arms merge
+their annotations, and a pair nothing here can express is DROPPED. Dropping a
+union arm narrows the slot, so the failure direction is still over-rejection.
+
+Two shapes had to be squared up before any pairing could happen, and both were
+found by reading the actual node dumps rather than reasoning about them:
+
+- **Opaque optionals.** The tuple slot is `U3 | undefined` whose strip keeps
+  `null`, so `ResolveOptionalChild` returns a member LIST and no single type.
+  The merge used to give up on that outright. `tupleSlot` now carries the member
+  list, and an opaque side counts as a disagreement whose arms fold like any
+  union's.
+- **`boolean` has two spellings.** A raw union reports it as `true | false`; the
+  optional-child resolution reports it whole. Pairing them at different
+  granularity pruned the boolean arm out of the result entirely, which is how
+  the first working version quietly rejected `[true]`. `normalizeBooleanArms`
+  rewrites the literal pair into whichever whole `boolean` another contender
+  already spelled, before anything pairs.
+
+With those two in place the folded node is byte-identical to the hand-written
+twin, arm for arm.

@@ -126,6 +126,74 @@ getRunTypeId<[string, ...unknown[]] & number[]>();
 	}
 }
 
+// The raw sentinel encoding of a branded number, so these cases need nothing
+// from the formats module graph — same trick the fuzz generator's preamble uses.
+const foldBrands = `import {getRunTypeId} from '@ts-runtypes/core';
+type Min3 = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 3}};
+type Min5 = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 5}};
+`
+
+// TestTupleMerge_ContendedSlotFoldsItsAnnotations — two applicators constraining
+// ONE position with different bounds is a conjunction, not a conflict: the slot
+// folds to the base wearing the tightened annotation. Every slot that reaches
+// this path used to project `never`, so nothing that resolves today can move.
+func TestTupleMerge_ContendedSlotFoldsItsAnnotations(t *testing.T) {
+	_, folded := rootFor(t, foldBrands+`getRunTypeId<[Min3?, ...unknown[]] & Min5[]>();
+`)
+	if folded.Kind != protocol.KindTuple {
+		t.Fatalf("contended slot: expected KindTuple, got %d (id %s)", folded.Kind, folded.ID)
+	}
+	// `min: 3 ∧ min: 5` is `min: 5`, so the merged slot IS the tighter bound.
+	_, tighter := rootFor(t, foldBrands+`getRunTypeId<[Min5?, ...Min5[]]>();
+`)
+	if folded.ID != tighter.ID {
+		t.Errorf("annotation fold: merged %s != tightened %s", folded.ID, tighter.ID)
+	}
+}
+
+// TestTupleMerge_ContendedUnionSlotFoldsArmwise — the shape a TYPE-LESS JSON
+// Schema keyword produces: each side is the six-kind union and only the number
+// arm differs. Arms pair up, the branded pair folds, and the identical arms
+// pass through. The tuple slot is also an OPAQUE optional here (its union keeps
+// `null` after `undefined` is stripped), which used to fail the merge outright.
+func TestTupleMerge_ContendedUnionSlotFoldsArmwise(t *testing.T) {
+	unions := foldBrands + `type U3 = string | Min3 | boolean | null | unknown[] | Record<string, unknown>;
+type U5 = string | Min5 | boolean | null | unknown[] | Record<string, unknown>;
+`
+	_, folded := rootFor(t, unions+`getRunTypeId<[U3?, ...unknown[]] & U5[]>();
+`)
+	if folded.Kind != protocol.KindTuple {
+		t.Fatalf("union slot: expected KindTuple, got %d (id %s)", folded.Kind, folded.ID)
+	}
+	_, tighter := rootFor(t, unions+`getRunTypeId<[U5?, ...U5[]]>();
+`)
+	if folded.ID != tighter.ID {
+		t.Errorf("armwise fold: merged %s != tightened %s", folded.ID, tighter.ID)
+	}
+}
+
+// TestTupleMerge_UnfoldableContentionStillProjectsNever — the fold is bounded
+// too. Different format FAMILIES on one slot, and a slot whose sides share no
+// base at all, both stay conflicts.
+func TestTupleMerge_UnfoldableContentionStillProjectsNever(t *testing.T) {
+	_, families := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+type Numeric = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 3}};
+type Texty = string & {__rtFormatName?: 'string'; __rtFormatParams?: {minLength: 3}};
+getRunTypeId<[Numeric?, ...unknown[]] & Texty[]>();
+`)
+	if families.Kind != protocol.KindNever {
+		t.Errorf("cross-family: expected KindNever, got kind %d (id %s)", families.Kind, families.ID)
+	}
+
+	// A plain disagreement with no annotation anywhere has nothing to fold.
+	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<[string?, ...unknown[]] & number[]>();
+`)
+	if plain.Kind != protocol.KindNever {
+		t.Errorf("plain disagreement: expected KindNever, got kind %d (id %s)", plain.Kind, plain.ID)
+	}
+}
+
 // TestTupleMerge_ClosedSideCapsTheMerge — a single closed tuple closes the
 // merge at its fixed length; the open side's tail is dropped.
 func TestTupleMerge_ClosedSideCapsTheMerge(t *testing.T) {

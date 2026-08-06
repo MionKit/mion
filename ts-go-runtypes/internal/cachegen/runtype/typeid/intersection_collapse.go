@@ -327,9 +327,17 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 				// through "..." — so the merged id is byte-equal to the
 				// equivalent hand-written tuple's.
 				var child string
-				if pick.Optional {
+				switch {
+				case pick.Fold != nil:
+					// A folded slot is already undefined-stripped, so it needs
+					// no optional-child resolution — just the `?` marker.
+					child = pick.Fold.Structural(computer)
+					if pick.Optional {
+						child += "?"
+					}
+				case pick.Optional:
 					child = computer.optionalChildID(pick.Type) + "?"
-				} else {
+				default:
 					child = computer.Compute(pick.Type)
 				}
 				if pick.Rest {

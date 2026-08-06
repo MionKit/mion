@@ -26,7 +26,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | format.json                                |      133 |        114 |             19 |         0 |              0 |                 0 |       0 |
 | if-then-else.json                          |       30 |         30 |              0 |         0 |              0 |                 0 |       0 |
 | infinite-loop-detection.json               |        2 |          2 |              0 |         0 |              0 |                 0 |       0 |
-| items.json                                 |       29 |         28 |              0 |         1 |              0 |                 0 |       0 |
+| items.json                                 |       29 |         29 |              0 |         0 |              0 |                 0 |       0 |
 | maxContains.json                           |       14 |         14 |              0 |         0 |              0 |                 0 |       0 |
 | maximum.json                               |        8 |          8 |              0 |         0 |              0 |                 0 |       0 |
 | maxItems.json                              |        6 |          6 |              0 |         0 |              0 |                 0 |       0 |
@@ -73,4 +73,4 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | unevaluatedProperties.json                 |      129 |         88 |              0 |         0 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1751** |         **25** |     **1** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1752** |         **25** |     **0** |          **0** |           **171** |  **40** |

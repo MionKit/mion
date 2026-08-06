@@ -322,7 +322,15 @@ indistinguishable from the equivalent hand-written tuple — while a genuine slo
 or impossible length window projects `never` (over-rejects; a silent noop validator is
 the one forbidden outcome). A plain ARRAY joins the same merge as a tuple with no fixed
 slots and an open tail of its element type, which is what `prefixItems` in one applicator
-meeting `items` in another lowers to.
+meeting `items` in another lowers to. Slots the two sides constrain DIFFERENTLY get one
+more chance before the conflict verdict: they fold ARM BY ARM (a type-less schema keyword
+denotes the six-kind union, so both sides are unions differing in one arm), identical arms
+pass through, same-base arms merge their format annotations through the same
+`MergeFormatAnnotations` that tightens bounds and folds `multipleOf` by least common
+multiple, and a pair the fold cannot express is DROPPED — which narrows the slot, keeping
+the failure direction over-rejection. The fold verdict is computed once, in the shared
+`typeid` package, so both collapse halves reach it identically; every slot that reaches it
+used to project `never`, so no id that resolves without it can move.
 
 `unevaluatedProperties` / `unevaluatedItems` read the same way. Where the DOCUMENT pins
 the evaluated set down the keyword resolves statically (a no-op when something in scope

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
+	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
@@ -388,9 +389,14 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *prot
 		// Optional slots resolve through serializeOptionalChild, exactly as
 		// projectTuple does — picks carry RAW slot types by contract.
 		var elementChild *protocol.RunType
-		if pick.Optional {
+		switch {
+		case pick.Fold != nil:
+			// A folded slot is already undefined-stripped, so it skips the
+			// optional-child resolution the raw picks need.
+			elementChild = cache.serializeFoldedSlot(pick.Fold)
+		case pick.Optional:
 			elementChild = cache.serializeOptionalChild(pick.Type)
-		} else {
+		default:
 			elementChild = cache.Serialize(pick.Type)
 		}
 		member := &protocol.RunType{
@@ -414,6 +420,48 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *prot
 		cache.putNode(memberID, member)
 		node.Children = append(node.Children, protocol.NewRef(memberID))
 	}
+}
+
+// serializeFoldedSlot materializes a tuple slot several tuples constrained
+// differently: a plain type, a primitive base wearing the merged format
+// annotation, or a union of arms that each resolved on their own. The
+// structural key is the id side's twin (SlotFold.Structural), so the node
+// dedups against the equivalent hand-written spelling instead of minting a
+// parallel entry. Building a FRESH node is the point — Serialize returns an
+// INTERNED node and attaching the annotation to it would corrupt every other
+// holder of that id.
+func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *protocol.RunType {
+	if len(fold.Arms) == 0 && fold.Annotation == nil {
+		return cache.Serialize(fold.Base)
+	}
+	structural := fold.Structural(cache.idComputer)
+	if id, ok := cache.byStructural[structural]; ok {
+		return protocol.NewRef(id)
+	}
+	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
+	if err != nil {
+		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
+	}
+	cache.intern(structural, id)
+	node := &protocol.RunType{ID: id}
+	if len(fold.Arms) > 0 {
+		node.Kind = protocol.KindUnion
+		// Reserve the slot before projecting arms, exactly as
+		// serializeSyntheticUnion does, so an arm that cycles back sees the id.
+		cache.putNode(id, node)
+		for _, arm := range fold.Arms {
+			node.Children = append(node.Children, cache.serializeFoldedSlot(arm))
+		}
+		cache.finalizeUnion(node)
+		protocol.PopulateFamily(node)
+		cache.nodes[id] = node
+		return protocol.NewRef(id)
+	}
+	cache.projectPrimitiveInto(fold.Base, node)
+	node.FormatAnnotation = fold.Annotation
+	protocol.PopulateFamily(node)
+	cache.putNode(id, node)
+	return protocol.NewRef(id)
 }
 
 // projectPrimitiveInto fills `node` with the kind+literal data for a

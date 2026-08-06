@@ -217,15 +217,6 @@
       "note": ""
     },
     {
-      "file": "items.json",
-      "group": "items does not look in applicators, valid case",
-      "case": "prefixItems in allOf does not constrain items, valid case",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": "index 0 is constrained twice with DIFFERENT bounds (minimum 3 from the allOf prefixItems, minimum 5 from the sibling items). The tuple-intersection merge resolves a slot only when the sides agree or one is unknown, so a two-bound slot reports a conflict and the whole array projects never - an OVER-rejection, never a silent accept. Fix plan: docs/todos/tuple-merge-conflicting-slot-fold.md"
-    },
-    {
       "file": "ref.json",
       "group": "remote ref, containing refs itself",
       "case": "remote ref invalid",

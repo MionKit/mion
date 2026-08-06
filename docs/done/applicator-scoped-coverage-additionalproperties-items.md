@@ -7,11 +7,11 @@ created: 2026-08-05
 
 # `additionalProperties` / `items` must not see inside `allOf`
 
-**Status:** done for 3 of the 4 cases. The `additionalProperties` half shipped
-via design 2 (explicit exemption params, no index-signature guessing) and the
-two `unevaluatedItems` cases via a widened tuple merge. The `items` case did NOT
-ship and is now its own spec:
-[docs/todos/tuple-merge-conflicting-slot-fold.md](../todos/tuple-merge-conflicting-slot-fold.md).
+**Status:** done, all 4 cases. The `additionalProperties` half shipped via
+design 2 (explicit exemption params, no index-signature guessing); the two
+`unevaluatedItems` cases via a widened tuple merge; and the `items` case via the
+slot fold, split out and finished as
+[tuple-merge-conflicting-slot-fold.md](tuple-merge-conflicting-slot-fold.md).
 See "Shipped" at the bottom.
 
 ## Intent
@@ -176,11 +176,13 @@ The protocol-level NODE merge the original direction described was **not** built
 It is only needed when two slots carry genuinely different constraints, which is
 exactly the one case left over.
 
-### What did not ship
+### The last case, split out and finished
 
-`items.json :: items does not look in applicators, valid case` still
-over-rejects. Its slot is constrained twice with different bounds
-(`minimum: 3` from the arm, `minimum: 5` from the sibling `items`), so the merge
-reports a conflict and the array projects `never`. Split out, with the node-merge
-design and the twin-discipline risk written up, as
-[docs/todos/tuple-merge-conflicting-slot-fold.md](../todos/tuple-merge-conflicting-slot-fold.md).
+`items.json :: items does not look in applicators, valid case` needed the
+protocol-level merge as well: its slot is constrained twice with DIFFERENT
+bounds (`minimum: 3` from the arm, `minimum: 5` from the sibling `items`), which
+the widened gate alone still reported as a conflict. That went out as its own
+spec and shipped the same day, taking the suite to zero open divergences. The
+arm-wise fold, the opaque-optional handling, and the `boolean` granularity trap
+are all written up in
+[tuple-merge-conflicting-slot-fold.md](tuple-merge-conflicting-slot-fold.md).
