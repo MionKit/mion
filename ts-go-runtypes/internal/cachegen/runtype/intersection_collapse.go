@@ -266,6 +266,10 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 				node.PropNames = cache.Serialize(childType)
 				continue
 			}
+			if spec, isUneval := typeid.UnevalSpecFromMember(cache.typeChecker, objectMember); isUneval {
+				node.Unevaluated = cache.serializeUnevaluated(spec)
+				continue
+			}
 			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
 				annotations = append(annotations, annotation)
 				continue
@@ -341,6 +345,35 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 
 	// Fully reduced to any/unknown — pick unknown as a safe fallback.
 	node.Kind = protocol.KindUnknown
+}
+
+// serializeUnevaluated turns the raw sentinel payload into the protocol shape,
+// serializing each guard subschema (and the leftover value) as a child node.
+// Twin of the id side's unevaluatedKey — the two must read the same fields in
+// the same order or a cache entry and its id part company.
+func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *protocol.UnevaluatedCheck {
+	check := &protocol.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources}
+	// A `never` value is the `false` reading — nothing satisfies it, so the
+	// sweep rejects rather than checking, and the node carries no child.
+	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
+		check.Value = cache.Serialize(spec.Value)
+	}
+	for _, group := range spec.Groups {
+		entry := &protocol.UnevalGroup{
+			WhenKey: group.WhenKey,
+			Keys:    group.Keys,
+			Sources: group.Sources,
+			All:     group.All,
+		}
+		if group.When != nil {
+			entry.When = cache.Serialize(group.When)
+		}
+		if group.WhenNot != nil {
+			entry.WhenNot = cache.Serialize(group.WhenNot)
+		}
+		check.Groups = append(check.Groups, entry)
+	}
+	return check
 }
 
 // projectMergedTuple builds the tuple node for a slot-wise tuple ∩ tuple

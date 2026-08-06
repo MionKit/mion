@@ -75,15 +75,21 @@ describe('unevaluatedProperties — determinable lowering', () => {
     expect(fn({id: 'a', z: 1})).toBe(false);
   });
 
-  it('true is a no-op and instance-dependent scopes poison to never', () => {
+  it('true is a no-op, and an instance-dependent scope sweeps at run time', () => {
     const open = createValidateFn(runTypeFromJsonSchema({type: 'object', unevaluatedProperties: true}));
     expect(open({anything: 1})).toBe(true);
-    expect(
-      getRunTypeId(runTypeFromJsonSchema({type: 'object', if: {type: 'object'}, then: true, unevaluatedProperties: false}))
-    ).toBe(getRunTypeId<never>());
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'object', anyOf: [{minProperties: 1}], unevaluatedProperties: false}))).toBe(
-      getRunTypeId<never>()
+    // These used to resolve `never` — the evaluated set is now decided while
+    // validating, from the branches that actually matched.
+    const conditional = createValidateFn(
+      runTypeFromJsonSchema({
+        type: 'object',
+        if: {properties: {foo: {const: 'yes'}}, required: ['foo']},
+        then: {properties: {bar: {type: 'string'}}, required: ['bar']},
+        unevaluatedProperties: false,
+      })
     );
+    expect(conditional({foo: 'yes', bar: 'a'})).toBe(true);
+    expect(conditional({foo: 'yes', bar: 'a', extra: 1})).toBe(false);
   });
 
   it('mocks stay inside the closed set', () => {

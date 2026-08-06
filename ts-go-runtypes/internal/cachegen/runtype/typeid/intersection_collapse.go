@@ -2,6 +2,7 @@ package typeid
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
@@ -221,6 +222,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		var containsIDs []string
 		var patternIDs []string
 		var propNamesIDs []string
+		var unevalIDs []string
 		var annotations []*protocol.FormatAnnotation
 		var restMembers []*checker.Type
 		for _, objectMember := range objectMembers {
@@ -244,6 +246,10 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 			}
 			if childType := PropNamesChildFromMember(computer.typeChecker, objectMember); childType != nil {
 				propNamesIDs = append(propNamesIDs, computer.Compute(childType))
+				continue
+			}
+			if spec, isUneval := UnevalSpecFromMember(computer.typeChecker, objectMember); isUneval {
+				unevalIDs = append(unevalIDs, computer.unevaluatedKey(spec))
 				continue
 			}
 			if annotation := FormatAnnotationFromType(computer.typeChecker, objectMember); annotation != nil {
@@ -288,6 +294,9 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		}
 		if len(propNamesIDs) > 0 {
 			containsKey += "pn{" + computer.sortedJoin(propNamesIDs) + "}"
+		}
+		if len(unevalIDs) > 0 {
+			containsKey += "u{" + computer.sortedJoin(unevalIDs) + "}"
 		}
 		if restCount == 0 {
 			// Every member was a sentinel — the base is `unknown`.
@@ -366,6 +375,38 @@ var builtinClassNamesID = map[string]bool{"Date": true, "Map": true, "Set": true
 // member, the canonical format key (folded into the id so two brands that
 // differ only in params hash distinctly), and ok=true. Mirrors the
 // serialize-side splitBuiltinClassBrand — keep them in sync.
+// unevaluatedKey folds an `__rtUnevaluated` payload into the structural id.
+// TWIN of the serialize side's serializeUnevaluated: same fields, same order,
+// so a cache entry and its id can never part company. Literal lists go in
+// verbatim (the door already emits them deterministically) and every guard
+// subschema contributes its own structural id.
+func (computer *Computer) unevaluatedKey(spec UnevalSpec) string {
+	var builder strings.Builder
+	builder.WriteString("k[" + strings.Join(spec.Keys, ",") + "]")
+	builder.WriteString("s[" + strings.Join(spec.Sources, ",") + "]")
+	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
+		builder.WriteString("v" + computer.Compute(spec.Value))
+	}
+	for _, group := range spec.Groups {
+		builder.WriteString("g{")
+		if group.When != nil {
+			builder.WriteString("w" + computer.Compute(group.When))
+		}
+		if group.WhenNot != nil {
+			builder.WriteString("n" + computer.Compute(group.WhenNot))
+		}
+		if group.WhenKey != "" {
+			builder.WriteString("p" + group.WhenKey)
+		}
+		if group.All {
+			builder.WriteString("*")
+		}
+		builder.WriteString("k[" + strings.Join(group.Keys, ",") + "]")
+		builder.WriteString("s[" + strings.Join(group.Sources, ",") + "]}")
+	}
+	return builder.String()
+}
+
 func (computer *Computer) splitBuiltinClassBrandID(objectMembers []*checker.Type) (*checker.Type, string, bool) {
 	var classMember *checker.Type
 	var formatKey string

@@ -29,7 +29,14 @@
 // from the schema's own `properties`.
 
 import type {RunType} from '../runtypes/types.ts';
-import type {__rtFormatName, __rtFormatParams, __rtContains, __rtPatternProps, __rtPropNames} from '../runtypes/sentinelKeys.ts';
+import type {
+  __rtFormatName,
+  __rtFormatParams,
+  __rtContains,
+  __rtPatternProps,
+  __rtPropNames,
+  __rtUnevaluated,
+} from '../runtypes/sentinelKeys.ts';
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
@@ -129,6 +136,35 @@ export interface FormattedObjectParams<Value = unknown, Key = string> {
    *  property contributed by an `allOf` member wrongly escapes the check —
    *  2020-12 has `additionalProperties` look at its own siblings only. **/
   readonly additionalOwn?: readonly string[];
+  readonly unevaluated?: UnevaluatedSpec<Value>;
+}
+
+/** The run-time evaluated-key sweep behind `unevaluatedProperties`, for the
+ *  scopes the document alone cannot decide. `keys` / `sources` are evaluated
+ *  UNCONDITIONALLY (own keywords, every `allOf` member, every `$ref` target —
+ *  all must pass for the schema to pass); `groups` carry the contributions a
+ *  guard decides at run time. `value` is what a key nobody evaluated must
+ *  satisfy, absent for the `false` reading where nothing does. **/
+export interface UnevaluatedSpec<Value = unknown> {
+  readonly value?: Value;
+  readonly keys?: readonly string[];
+  readonly sources?: readonly string[];
+  readonly groups?: readonly UnevaluatedGroup<Value>[];
+}
+
+/** One conditional contribution. Exactly one guard: `when` is a subschema whose
+ *  SUCCESS fires it (an `anyOf` / `oneOf` arm, or an `if`), `whenNot` the same
+ *  subschema failing (the `else` side), `whenKey` a key's presence
+ *  (`dependentSchemas`). `all` marks a group evaluating EVERY key when it fires
+ *  — an arm carrying `additionalProperties`, `items` or its own
+ *  `unevaluated*`. **/
+export interface UnevaluatedGroup<Value = unknown> {
+  readonly when?: Value;
+  readonly whenNot?: Value;
+  readonly whenKey?: string;
+  readonly keys?: readonly string[];
+  readonly sources?: readonly string[];
+  readonly all?: true;
 }
 
 type ObjectLiteralKeys = 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns' | 'additionalOwn';
@@ -152,6 +188,10 @@ type PatternPropsSlot<P> = P extends {patternProperties: infer M}
 // `propertyNames: false` case: no key may be present).
 type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly [__rtPropNames]?: N} : unknown;
 
+// The `unevaluated` slot — carried whole so the collapse can lift the guard
+// subschemas as CHILD TYPES (a format-annotation param cannot hold a RunType).
+type UnevaluatedSlot<P> = P extends {unevaluated: infer U} ? {readonly [__rtUnevaluated]?: U} : unknown;
+
 /** An object/record base carrying every object keyword in `P`. The literal
  *  bounds + closedness ride the `formattedObject` brand (added only when at
  *  least one is present), `patternProperties` and `propertyNames` ride their
@@ -159,7 +199,8 @@ type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly [__rtProp
 export type FormattedObject<Base extends object, P extends FormattedObjectParams> = Base &
   ([keyof ObjectLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_OBJECT_NAME, ObjectLiteralPart<P>>) &
   PatternPropsSlot<P> &
-  PropNamesSlot<P>;
+  PropNamesSlot<P> &
+  UnevaluatedSlot<P>;
 
 // #endregion structural-slice
 

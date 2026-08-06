@@ -299,6 +299,14 @@ type RunType struct {
 	// and every other positive pathway stay untouched. validate/verr-only.
 	OneOf []*RunType `json:"oneOf,omitempty"`
 
+	// Unevaluated — populated when the type carries an `__rtUnevaluated`
+	// sentinel member (JSON Schema unevaluatedProperties, for the scopes the
+	// document alone cannot decide). Keys/Sources are evaluated
+	// unconditionally; Groups carry the contributions a guard decides at run
+	// time. Lifted off the property walks and folded into the structural id
+	// like Negations, and equally validate/verr-only.
+	Unevaluated *UnevaluatedCheck `json:"unevaluated,omitempty"`
+
 	// Overrides — populated when a user registers a custom function for this
 	// type via `overrideX<T>(pureFn)`. Maps a public family op key ("val",
 	// "verr", "jsonEncoder", …) to the cfn body hash of the override pure fn
@@ -379,6 +387,29 @@ type ContainsCheck struct {
 	Child *RunType `json:"child"`
 	Min   float64  `json:"min"`
 	Max   float64  `json:"max"`
+}
+
+// UnevaluatedCheck is the evaluated-member sweep. Value is what a member
+// nobody evaluated must satisfy; nil is the `false` reading, where nothing
+// does.
+type UnevaluatedCheck struct {
+	Value   *RunType       `json:"value,omitempty"`
+	Keys    []string       `json:"keys,omitempty"`
+	Sources []string       `json:"sources,omitempty"`
+	Groups  []*UnevalGroup `json:"groups,omitempty"`
+}
+
+// UnevalGroup is one conditional contribution. Exactly one guard is set: When
+// is a subschema whose SUCCESS fires the group, WhenNot the same subschema
+// failing (the `else` side), WhenKey a key's mere presence
+// (dependentSchemas). All marks a group evaluating EVERY key when it fires.
+type UnevalGroup struct {
+	When    *RunType `json:"when,omitempty"`
+	WhenNot *RunType `json:"whenNot,omitempty"`
+	WhenKey string   `json:"whenKey,omitempty"`
+	Keys    []string `json:"keys,omitempty"`
+	Sources []string `json:"sources,omitempty"`
+	All     bool     `json:"all,omitempty"`
 }
 
 // PatternPropCheck is one JSON Schema patternProperties entry: keys matching

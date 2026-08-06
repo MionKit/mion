@@ -73,6 +73,19 @@ const (
 	// collapses skip the carrier so members serialize as their plain
 	// selves.
 	oneOfProp = "__rtOneOf"
+	// unevaluatedProp marks the evaluated-key sweep sentinel — the internal
+	// encoding of JSON Schema unevaluatedProperties for the scopes the document
+	// alone cannot decide. Both collapse passes lift it (serialize →
+	// node.Unevaluated, id → a `u{…}` fold) and the property walks skip it.
+	unevaluatedProp  = "__rtUnevaluated"
+	unevalValueKey   = "value"
+	unevalKeysKey    = "keys"
+	unevalSourcesKey = "sources"
+	unevalGroupsKey  = "groups"
+	unevalWhenKey    = "when"
+	unevalWhenNotKey = "whenNot"
+	unevalWhenKeyKey = "whenKey"
+	unevalAllKey     = "all"
 )
 
 // lateBoundNamePrefix is how tsgo spells a property whose key is a `unique
@@ -327,7 +340,8 @@ func IsFormatSentinelPropName(name string) bool {
 // and it must never become a real member or an id contribution.
 func IsContainsSentinelPropName(name string) bool {
 	return isSentinelProp(name, containsChildProp) || isSentinelProp(name, patternPropsProp) ||
-		isSentinelProp(name, propNamesProp) || isSentinelProp(name, oneOfProp)
+		isSentinelProp(name, propNamesProp) || isSentinelProp(name, oneOfProp) ||
+		isSentinelProp(name, unevaluatedProp)
 }
 
 // oneOfCarrierTuple inspects one intersection CONSTITUENT for the oneOf
@@ -574,6 +588,121 @@ func ContainsSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 		return nil, 0, 0, false
 	}
 	return child, minCount, maxCount, true
+}
+
+// UnevalSpec is the RAW payload read off an `__rtUnevaluated` sentinel: the
+// literal key/source lists plus the guard and value CHECKER types, which each
+// collapse half turns into its own thing (a serialized node, or an id).
+type UnevalSpec struct {
+	Value   *checker.Type
+	Keys    []string
+	Sources []string
+	Groups  []UnevalSpecGroup
+}
+
+// UnevalSpecGroup is one guarded contribution; exactly one of When / WhenNot /
+// WhenKey is set.
+type UnevalSpecGroup struct {
+	When    *checker.Type
+	WhenNot *checker.Type
+	WhenKey string
+	Keys    []string
+	Sources []string
+	All     bool
+}
+
+// UnevalSpecFromMember reads an `__rtUnevaluated` sentinel member. Returns
+// ok=false for anything that is not one, so callers route those through the
+// normal member path.
+func UnevalSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) (UnevalSpec, bool) {
+	if tsType == nil || typeChecker == nil {
+		return UnevalSpec{}, false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, unevaluatedProp) {
+		return UnevalSpec{}, false
+	}
+	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if specType == nil {
+		return UnevalSpec{}, false
+	}
+	spec := UnevalSpec{}
+	for _, specProp := range typeChecker.GetPropertiesOfType(specType) {
+		switch specProp.Name {
+		case unevalValueKey:
+			// Read RAW: GetNonNullableType would degrade an `unknown` value
+			// to `{}` and lose the accept-everything reading.
+			spec.Value = typeChecker.GetTypeOfSymbol(specProp)
+		case unevalKeysKey:
+			spec.Keys = stringTupleOf(typeChecker, specProp)
+		case unevalSourcesKey:
+			spec.Sources = stringTupleOf(typeChecker, specProp)
+		case unevalGroupsKey:
+			spec.Groups = unevalGroupsOf(typeChecker, specProp)
+		}
+	}
+	return spec, true
+}
+
+func unevalGroupsOf(typeChecker *checker.Checker, symbol *ast.Symbol) []UnevalSpecGroup {
+	tupleType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+	if tupleType == nil || !checker.IsTupleType(tupleType) {
+		return nil
+	}
+	var groups []UnevalSpecGroup
+	for _, element := range typeChecker.GetTypeArguments(tupleType) {
+		if element == nil {
+			continue
+		}
+		group := UnevalSpecGroup{}
+		for _, groupProp := range typeChecker.GetPropertiesOfType(element) {
+			switch groupProp.Name {
+			case unevalWhenKey:
+				group.When = typeChecker.GetTypeOfSymbol(groupProp)
+			case unevalWhenNotKey:
+				group.WhenNot = typeChecker.GetTypeOfSymbol(groupProp)
+			case unevalWhenKeyKey:
+				group.WhenKey = unevalKeyLiteralOf(typeChecker, groupProp)
+			case unevalKeysKey:
+				group.Keys = stringTupleOf(typeChecker, groupProp)
+			case unevalSourcesKey:
+				group.Sources = stringTupleOf(typeChecker, groupProp)
+			case unevalAllKey:
+				group.All = true
+			}
+		}
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+// stringTupleOf reads a `readonly string[]` literal tuple property.
+func stringTupleOf(typeChecker *checker.Checker, symbol *ast.Symbol) []string {
+	tupleType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+	if tupleType == nil || !checker.IsTupleType(tupleType) {
+		return nil
+	}
+	var out []string
+	for _, element := range typeChecker.GetTypeArguments(tupleType) {
+		if element == nil || element.Flags()&checker.TypeFlagsStringLiteral == 0 {
+			continue
+		}
+		if value, ok := element.AsLiteralType().Value().(string); ok {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func unevalKeyLiteralOf(typeChecker *checker.Checker, symbol *ast.Symbol) string {
+	literal := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
+	if literal == nil || literal.Flags()&checker.TypeFlagsStringLiteral == 0 {
+		return ""
+	}
+	if value, ok := literal.AsLiteralType().Value().(string); ok {
+		return value
+	}
+	return ""
 }
 
 // literalNumberOf reads a number-literal property's value via the canonical

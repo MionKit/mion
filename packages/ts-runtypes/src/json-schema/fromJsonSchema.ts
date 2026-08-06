@@ -425,7 +425,7 @@ type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Ro
 // `properties` EVERY key is additional, so the list is empty and only `{}`
 // validates — including under `required`, which then contradicts to an
 // always-false validator, exactly per 2020-12).
-type ObjectKeywordParams<S, Root> = Flatten<
+type ObjectKeywordParams<S, Root, F extends [unknown]> = Flatten<
   // A SCHEMA-valued `additionalProperties` names its OWN exemption set, so a
   // key contributed by an `allOf` member cannot escape the value check —
   // 2020-12 has the keyword look at its own siblings only.
@@ -455,11 +455,13 @@ type ObjectKeywordParams<S, Root> = Flatten<
         // is not "unevaluated". additionalProperties: false is stricter
         // (it never sees allOf keywords) and wins when both are present.
         S extends {unevaluatedProperties: unknown}
-        ? UnevalPropsMode<S, Root> extends 'closed'
-          ? {readonly closed: MergedClosedKeys<S, Root>} & ([MergedPatternSources<S, Root>] extends [readonly []]
-              ? unknown
-              : {readonly closedPatterns: MergedPatternSources<S, Root>})
-          : unknown
+        ? UnevalPropsMode<S, Root> extends 'sweep'
+          ? UnevalSweepParams<S, Root, F>
+          : UnevalPropsMode<S, Root> extends 'closed'
+            ? {readonly closed: MergedClosedKeys<S, Root>} & ([MergedPatternSources<S, Root>] extends [readonly []]
+                ? unknown
+                : {readonly closedPatterns: MergedPatternSources<S, Root>})
+            : unknown
         : unknown)
 >;
 // ── unevaluated* — document-consulted lowering ────────────────────────────
@@ -492,12 +494,12 @@ type UnevalPropsMode<S, Root> = S extends {unevaluatedProperties: infer U}
       ? 'noop'
       : [U] extends [false]
         ? UnevalScopeIndeterminate<S> extends true
-          ? 'poison'
+          ? 'sweep'
           : 'closed'
         : PropsEvaluatedSoFar<S, Root> extends true
-          ? 'poison'
+          ? 'sweep'
           : UnevalScopeIndeterminate<S> extends true
-            ? 'poison'
+            ? 'sweep'
             : 'leftover'
   : 'noop';
 type UnevalItemsMode<S, Root> = S extends {unevaluatedItems: infer U}
@@ -527,16 +529,87 @@ type PropsEvaluatedSoFar<S, Root> = [MergedClosedKeys<S, Root>] extends [readonl
 // Every mode consumer probes for the KEYWORD before asking for the mode, so a
 // schema that never mentions `unevaluated*` (all but a handful) pays a single
 // `extends` and no scope walk at all.
-type UnevalPropsPoison<S, Root> = S extends {unevaluatedProperties: unknown}
-  ? UnevalPropsMode<S, Root> extends 'poison'
-    ? true
-    : false
-  : false;
+// The properties side no longer poisons: an evaluated set the document cannot
+// decide rides the run-time sweep instead. The ITEMS side still does, pending
+// the same treatment.
+type UnevalPropsPoison<S, Root> = [S, Root] extends [never, never] ? true : false;
 type UnevalItemsPoison<S, Root> = S extends {unevaluatedItems: unknown}
   ? UnevalItemsMode<S, Root> extends 'poison'
     ? true
     : false
   : false;
+// ── the run-time sweep payload ────────────────────────────────────────────
+// What the document cannot decide, the VALUE does. The sentinel carries the
+// unconditionally evaluated members (own + allOf + $ref, which all have to pass
+// anyway) plus one GROUP per conditional contributor, each with the guard that
+// fires it. `all` marks an arm that evaluates every key when it fires — one
+// carrying `additionalProperties` or its own `unevaluated*`.
+type UnevalSweepParams<S, Root, F extends [unknown]> = {
+  readonly unevaluated: Flatten<
+    {
+      readonly keys: MergedClosedKeys<S, Root>;
+      readonly sources: MergedPatternSources<S, Root>;
+      readonly groups: UnevalGroupsOf<S, Root, F>;
+    } & (S extends {unevaluatedProperties: infer U}
+      ? [U] extends [false]
+        ? unknown
+        : {readonly value: FromJsonSchemaIn<U, Root, F>}
+      : unknown)
+  >;
+};
+type UnevalGroupsOf<S, Root, F extends [unknown]> = readonly [
+  ...ArmGroups<S extends {anyOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
+  ...ArmGroups<S extends {oneOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
+  ...IfGroups<S, Root, F>,
+  ...DepSchemaGroups<S extends {dependentSchemas: infer D} ? D : never, Root, F>,
+];
+type ArmGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
+  ? readonly [GuardedGroup<{readonly when: FromJsonSchemaIn<Head, Root, F>}, Head, Root>, ...ArmGroups<Rest, Root, F>]
+  : readonly [];
+// `if` fires its OWN keys plus `then`'s (a failing `then` already failed the
+// schema, so the guard collapses to "if passed"); `else` is the complement.
+type IfGroups<S, Root, F extends [unknown]> = S extends {if: infer If}
+  ? readonly [
+      Flatten<
+        {readonly when: FromJsonSchemaIn<If, Root, F>} & {
+          readonly keys: readonly [...MergedClosedKeys<If, Root>, ...BranchKeys<S, 'then', Root>];
+          readonly sources: readonly [...MergedPatternSources<If, Root>, ...BranchSources<S, 'then', Root>];
+        }
+      >,
+      ...(S extends {else: unknown}
+        ? readonly [
+            Flatten<
+              {readonly whenNot: FromJsonSchemaIn<If, Root, F>} & {
+                readonly keys: BranchKeys<S, 'else', Root>;
+                readonly sources: BranchSources<S, 'else', Root>;
+              }
+            >,
+          ]
+        : readonly []),
+    ]
+  : readonly [];
+type BranchKeys<S, K extends 'then' | 'else', Root> = S extends {[P in K]: infer B} ? MergedClosedKeys<B, Root> : readonly [];
+type BranchSources<S, K extends 'then' | 'else', Root> = S extends {[P in K]: infer B}
+  ? MergedPatternSources<B, Root>
+  : readonly [];
+// A dependent subschema fires on the TRIGGER KEY's presence: a failing
+// subschema already failed the schema, so presence alone is the guard.
+type DepSchemaGroups<D, Root, F extends [unknown]> = [D] extends [never]
+  ? readonly []
+  : DepSchemaGroupsFold<D, KeysToTuple<D>, Root, F>;
+type DepSchemaGroupsFold<D, Ks, Root, F extends [unknown]> = Ks extends readonly [infer K extends string, ...infer Rest]
+  ? readonly [
+      ...(K extends keyof D ? readonly [GuardedGroup<{readonly whenKey: K}, D[K], Root>] : readonly []),
+      ...DepSchemaGroupsFold<D, Rest, Root, F>,
+    ]
+  : readonly [];
+type GuardedGroup<Guard, Arm, Root> = Flatten<
+  Guard & {
+    readonly keys: MergedClosedKeys<Arm, Root>;
+    readonly sources: MergedPatternSources<Arm, Root>;
+  } & (ScopeEvaluatesAllProps<Arm> extends true ? {readonly all: true} : unknown)
+>;
+
 // An `additionalProperties` / `items` anywhere in an always-passing scope
 // evaluates every member its siblings did not, and an `unevaluated*: true` says
 // the same thing outright. Either way the outer keyword has nothing left to
@@ -755,7 +828,7 @@ type PropNamesParam<S, Root, F extends [unknown]> = S extends {propertyNames: in
     : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
   : unknown;
 type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
-  ObjectKeywordParams<S, Root> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
+  ObjectKeywordParams<S, Root, F> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
 >;
 // Fast path: an object with none of the structural keywords is just its shape
 // (no brand, no sentinels), so it never pays the FormattedObject wrapper. Only

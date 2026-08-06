@@ -6,7 +6,7 @@
 //   leftover — a schema value with nothing else evaluating members
 //   poison   — still `never`, and only when a branch decides it at run time
 import {describe, expect, it} from 'vitest';
-import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
+import {createValidateFn} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 describe('a schema value covers whatever is left', () => {
@@ -121,18 +121,23 @@ describe('the closed reading still holds', () => {
   });
 });
 
-describe('a run-time decided scope is still refused loudly', () => {
-  it('resolves never rather than checking less than the schema says', () => {
-    // Which keys `anyOf` evaluated depends on which branch matched THIS value,
-    // so there is no honest static answer yet.
-    expect(
-      getRunTypeId(runTypeFromJsonSchema({type: 'object', anyOf: [{minProperties: 1}], unevaluatedProperties: false} as const))
-    ).toBe(getRunTypeId<never>());
-    expect(
-      getRunTypeId(
-        runTypeFromJsonSchema({type: 'object', if: {type: 'object'}, then: true, unevaluatedProperties: false} as const)
-      )
-    ).toBe(getRunTypeId<never>());
+describe('a run-time decided scope sweeps instead of resolving never', () => {
+  it('lets a matching branch contribute its keys', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        properties: {foo: {type: 'string'}},
+        anyOf: [{properties: {bar: {const: 'bar'}}, required: ['bar']}],
+        unevaluatedProperties: false,
+      } as const)
+    );
+    // `bar` counts as evaluated only because the arm that declares it PASSED.
+    expect(isType({foo: 'a', bar: 'bar'})).toBe(true);
+    expect(isType({foo: 'a', bar: 'bar', baz: 1})).toBe(false);
+  });
+
+  it('keeps `true` a no-op', () => {
+    const open = createValidateFn(runTypeFromJsonSchema({type: 'object', unevaluatedProperties: true} as const));
+    expect(open({anything: 1})).toBe(true);
   });
 });
 

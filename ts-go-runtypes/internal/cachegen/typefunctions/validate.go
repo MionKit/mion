@@ -265,12 +265,12 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 	}
 	// patternProperties / propertyNames: per-key checks over the object's
 	// own keys — same statement-base hoist discipline as every splice above.
-	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil) {
+	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil || rt.Unevaluated != nil) {
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
 		if base.Type != CodeE {
-			panic("validate: patternProperties/propertyNames on a base that did not reduce to a boolean expression (kind " +
+			panic("validate: patternProperties/propertyNames/unevaluated on a base that did not reduce to a boolean expression (kind " +
 				strconv.Itoa(int(rt.Kind)) + ") — dropping them would silently weaken validation")
 		}
 		code := base.Code
@@ -285,6 +285,18 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 		if rt.PropNames != nil {
 			check := emitPropNamesCheck(ctx, rt.PropNames)
 			if check != "" {
+				if code == "" || code == "true" {
+					code = check
+				} else {
+					code = "(" + code + " && " + check + ")"
+				}
+			}
+		}
+		// The evaluated-key sweep runs LAST, so a value already rejected by the
+		// shape never pays for it.
+		if rt.Unevaluated != nil {
+			check := emitUnevaluatedCheck(ctx, rt.Unevaluated)
+			if check != "" && check != "true" {
 				if code == "" || code == "true" {
 					code = check
 				} else {
@@ -427,6 +439,135 @@ func emitPatternPropCheck(ctx *EmitContext, patternProp *protocol.PatternPropChe
 	return "((() => {for (const " + kVar + " in " + ctx.Vλl + ") {if (" + reVar + ".test(" + kVar + ") && !(" +
 		childRT.Code + ")) return false;}return true;})())"
 }
+
+// emitUnevaluatedCheck: the run-time evaluated-key sweep behind
+// unevaluatedProperties. Every key the schema did NOT evaluate must satisfy the
+// leftover value (or, for the `false` reading, must not exist).
+//
+// The unconditional key list hoists into the factory prologue; each guarded
+// group contributes one `continue` line whose flag is the guard subschema's own
+// check. Groups marked `all` end the sweep outright — the arm evaluates every
+// key when it fires.
+//
+// Guards are compiled here rather than reused from the applicator emit, so an
+// arm's check runs twice at run time (once for the applicator, once for the
+// sweep). Correct, and the shape a later pass can hoist into a shared flag; see
+// docs/todos/unevaluated-runtime-evaluated-set.md.
+func emitUnevaluatedCheck(ctx *EmitContext, check *protocol.UnevaluatedCheck) string {
+	kVar := ctx.NextLocalVar("uk")
+	v := ctx.Vλl
+	var body strings.Builder
+	body.WriteString("((() => {for (const " + kVar + " in " + v + ") {")
+	for _, group := range check.Groups {
+		if !group.All {
+			continue
+		}
+		if guard := unevalGuardExpr(ctx, group, v); guard != "" {
+			body.WriteString("if (" + guard + ") break; ")
+		}
+	}
+	if test := unevalMemberTest(ctx, check.Keys, check.Sources, kVar); test != "" {
+		body.WriteString("if (" + test + ") continue; ")
+	}
+	for _, group := range check.Groups {
+		if group.All {
+			continue
+		}
+		test := unevalMemberTest(ctx, group.Keys, group.Sources, kVar)
+		if test == "" {
+			continue
+		}
+		guard := unevalGuardExpr(ctx, group, v)
+		if guard == "" {
+			continue
+		}
+		body.WriteString("if (" + guard + " && (" + test + ")) continue; ")
+	}
+	// The leftover: `false` rejects outright, a schema value checks the member.
+	if check.Value == nil {
+		body.WriteString("return false;")
+	} else {
+		ctx.SetChildAccessor(v + "[" + kVar + "]")
+		childRT := ctx.CompileChild(check.Value, CodeE)
+		ctx.SetChildAccessor("")
+		if childRT.Type != CodeE || childRT.Code == "" {
+			// A leftover nothing can check accepts every key — the sweep has
+			// nothing left to assert.
+			return "true"
+		}
+		body.WriteString("if (!(" + childRT.Code + ")) return false;")
+	}
+	body.WriteString("}return true;})())")
+	return body.String()
+}
+
+// unevalGuardExpr renders the condition that fires one group: a subschema
+// validating, that subschema failing, or a key simply being present.
+func unevalGuardExpr(ctx *EmitContext, group *protocol.UnevalGroup, v string) string {
+	if group.WhenKey != "" {
+		return "(" + quoteJS(group.WhenKey) + " in " + v + ")"
+	}
+	child := group.When
+	negate := false
+	if child == nil {
+		child = group.WhenNot
+		negate = true
+	}
+	if child == nil || ctx.ResolveRef(child) == nil {
+		return ""
+	}
+	ctx.SetChildAccessor(v)
+	childRT := ctx.CompileChild(child, CodeE)
+	ctx.SetChildAccessor("")
+	if childRT.Type != CodeE || childRT.Code == "" {
+		// An always-true guard fires unconditionally; an unrenderable one is
+		// dropped, which only ever leaves MORE keys unevaluated (over-rejects).
+		if negate {
+			return ""
+		}
+		return "true"
+	}
+	if negate {
+		return "!(" + childRT.Code + ")"
+	}
+	return "(" + childRT.Code + ")"
+}
+
+// unevalMemberTest renders "this key is in that contribution": an identity
+// chain below the house threshold, a hoisted Set above it, plus one hoisted
+// RegExp per pattern source.
+func unevalMemberTest(ctx *EmitContext, keys []string, sources []string, kVar string) string {
+	var tests []string
+	if len(keys) > 0 {
+		if len(keys) <= unevalIdentityChainMaxKeys {
+			for _, key := range keys {
+				tests = append(tests, kVar+" === "+quoteJS(key))
+			}
+		} else {
+			setVar := ctx.NextLocalVar("uks")
+			if !ctx.HasContextItem(setVar) {
+				ctx.SetContextItem(setVar, "const "+setVar+" = new Set("+arrayToJSLiteral(keys)+")")
+			}
+			tests = append(tests, setVar+".has("+kVar+")")
+		}
+	}
+	for _, source := range sources {
+		reVar := ctx.NextLocalVar("ure")
+		if !ctx.HasContextItem(reVar) {
+			ctx.SetContextItem(reVar, "const "+reVar+" = new RegExp("+jsquote.Double(source)+")")
+		}
+		tests = append(tests, reVar+".test("+kVar+")")
+	}
+	if len(tests) == 0 {
+		return ""
+	}
+	return strings.Join(tests, " || ")
+}
+
+// Mirrors identityChainMaxKeys in formats/structural/objectformat.go: at or
+// below this many keys an `===` chain beats a Set (pointer compares against
+// internalized strings, no hash, nothing hoisted).
+const unevalIdentityChainMaxKeys = 8
 
 // emitPropNamesCheck: every key validates (as a string) against the child.
 // The child compiles against the KEY, never against `v[key]`, so the whole
