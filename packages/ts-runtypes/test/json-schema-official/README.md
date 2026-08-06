@@ -41,13 +41,23 @@ check:builds` (the `suite-modules` target in scripts/core/build.mjs).
 - **divergent (byDesign)** — deliberate policy: the required-set `format.json`
   and `content.json` test annotation-only semantics while RunTypes enforces
   formats and content keywords (same stance the bench spec corpus documents).
+  WHY, and why there is no opt-out: the door recovers a BRAND for each format
+  keyword, and a brand that is not checked is a brand that lies; the dialect's
+  own opt-in (a custom meta-schema declaring the format-assertion vocabulary,
+  reached through `$schema`) lives in a second document we would have to fetch
+  and is effectively unused, so nothing in the schema says which reading the
+  author meant. Written up for users in
+  container/website/content/2.guide/02.json-schema.md § "Two deliberate limits".
 - **divergent (open)** — a real conformance gap, recorded, not yet fixed.
 - **unsupported-input** — the door's typed input contract rejects the document
   (unknown keyword, cross-document `$ref`, …); no call site is generated.
 - **proto-literal** — the group contains a `__proto__` key, which cannot be
   emitted as an object literal (it would set the prototype).
 - **remote** — needs the suite's `localhost:1234` remotes server (out of
-  scope, as is all of refRemote.json).
+  scope, as is all of refRemote.json). Cross-document refs stay out of scope by
+  DESIGN, not by omission: the schema is read at build time, so following one
+  would put a network fetch inside type-checking and let one source produce
+  different types on different machines. Same section of the guide.
 - **transform-halt** — hand-quarantined in [quarantine.json](quarantine.json):
   a group that kills a whole module's transform. Currently none.
 - **build-rejected** — runtime outcome: the resolver marked the entry
