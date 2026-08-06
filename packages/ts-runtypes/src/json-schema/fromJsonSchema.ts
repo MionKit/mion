@@ -425,7 +425,7 @@ type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Ro
 // `properties` EVERY key is additional, so the list is empty and only `{}`
 // validates — including under `required`, which then contradicts to an
 // always-false validator, exactly per 2020-12).
-type ObjectKeywordParams<S> = Flatten<
+type ObjectKeywordParams<S, Root> = Flatten<
   (S extends {minProperties: infer N extends number} ? {readonly minProperties: N} : unknown) &
     (S extends {maxProperties: infer N extends number} ? {readonly maxProperties: N} : unknown) &
     // additionalProperties: false closes over the declared keys PLUS any
@@ -440,10 +440,10 @@ type ObjectKeywordParams<S> = Flatten<
         // is not "unevaluated". additionalProperties: false is stricter
         // (it never sees allOf keywords) and wins when both are present.
         S extends {unevaluatedProperties: unknown}
-        ? UnevalPropsMode<S> extends 'closed'
-          ? {readonly closed: MergedClosedKeys<S>} & ([MergedPatternSources<S>] extends [readonly []]
+        ? UnevalPropsMode<S, Root> extends 'closed'
+          ? {readonly closed: MergedClosedKeys<S, Root>} & ([MergedPatternSources<S, Root>] extends [readonly []]
               ? unknown
-              : {readonly closedPatterns: MergedPatternSources<S>})
+              : {readonly closedPatterns: MergedPatternSources<S, Root>})
           : unknown
         : unknown)
 >;
@@ -455,7 +455,10 @@ type ObjectKeywordParams<S> = Flatten<
 // exactly like an undecidable negation verdict. Schema-valued unevaluated*
 // has no honest static story either and poisons the same way; `true` is a
 // no-op per 2020-12.
-type UnevalIndeterminateKeys = 'if' | 'dependentSchemas' | 'anyOf' | 'oneOf' | '$ref' | '$dynamicRef';
+// A `$ref` is NOT indeterminate: its target has to pass for the schema to pass,
+// so whatever it evaluates is evaluated unconditionally and MergedClosedKeys
+// follows it. `$dynamicRef` stays out — it resolves by dynamic scope.
+type UnevalIndeterminateKeys = 'if' | 'dependentSchemas' | 'anyOf' | 'oneOf' | '$dynamicRef';
 // What the keyword lowers to, decided from the document:
 //   'noop'     — something in scope already evaluates EVERY member, so the
 //                keyword asserts nothing. Two ways that happens: an
@@ -467,7 +470,7 @@ type UnevalIndeterminateKeys = 'if' | 'dependentSchemas' | 'anyOf' | 'oneOf' | '
 //                exactly what `additionalProperties` / `items` already mean.
 //   'poison'   — the evaluated set depends on which branch matched at run time,
 //                so no static answer is honest: resolve never, loud over lossy.
-type UnevalPropsMode<S> = S extends {unevaluatedProperties: infer U}
+type UnevalPropsMode<S, Root> = S extends {unevaluatedProperties: infer U}
   ? [U] extends [true]
     ? 'noop'
     : ScopeEvaluatesAllProps<S> extends true
@@ -476,22 +479,22 @@ type UnevalPropsMode<S> = S extends {unevaluatedProperties: infer U}
         ? UnevalScopeIndeterminate<S> extends true
           ? 'poison'
           : 'closed'
-        : PropsEvaluatedSoFar<S> extends true
+        : PropsEvaluatedSoFar<S, Root> extends true
           ? 'poison'
           : UnevalScopeIndeterminate<S> extends true
             ? 'poison'
             : 'leftover'
   : 'noop';
-type UnevalItemsMode<S> = S extends {unevaluatedItems: infer U}
+type UnevalItemsMode<S, Root> = S extends {unevaluatedItems: infer U}
   ? [U] extends [true]
     ? 'noop'
-    : ScopeEvaluatesAllItems<S> extends true
+    : ScopeEvaluatesAllItems<S, Root> extends true
       ? 'noop'
       : [U] extends [false]
         ? UnevalItemsIndeterminate<S> extends true
           ? 'poison'
           : 'closed'
-        : [LongestPrefixOf<S>] extends [readonly []]
+        : [LongestPrefixOf<S, Root>] extends [readonly []]
           ? UnevalItemsIndeterminate<S> extends true
             ? 'poison'
             : 'leftover'
@@ -501,20 +504,24 @@ type UnevalItemsMode<S> = S extends {unevaluatedItems: infer U}
 // signature / element type that covers every member. Anything already evaluated
 // (own or allOf-member properties, a pattern source) would be wrongly re-checked
 // against it, so those stay poison until the run-time set lands.
-type PropsEvaluatedSoFar<S> = [MergedClosedKeys<S>] extends [readonly []]
-  ? [MergedPatternSources<S>] extends [readonly []]
+type PropsEvaluatedSoFar<S, Root> = [MergedClosedKeys<S, Root>] extends [readonly []]
+  ? [MergedPatternSources<S, Root>] extends [readonly []]
     ? false
     : true
   : true;
 // Every mode consumer probes for the KEYWORD before asking for the mode, so a
 // schema that never mentions `unevaluated*` (all but a handful) pays a single
 // `extends` and no scope walk at all.
-type UnevalPropsPoison<S> = S extends {unevaluatedProperties: unknown}
-  ? UnevalPropsMode<S> extends 'poison'
+type UnevalPropsPoison<S, Root> = S extends {unevaluatedProperties: unknown}
+  ? UnevalPropsMode<S, Root> extends 'poison'
     ? true
     : false
   : false;
-type UnevalItemsPoison<S> = S extends {unevaluatedItems: unknown} ? (UnevalItemsMode<S> extends 'poison' ? true : false) : false;
+type UnevalItemsPoison<S, Root> = S extends {unevaluatedItems: unknown}
+  ? UnevalItemsMode<S, Root> extends 'poison'
+    ? true
+    : false
+  : false;
 // An `additionalProperties` / `items` anywhere in an always-passing scope
 // evaluates every member its siblings did not, and an `unevaluated*: true` says
 // the same thing outright. Either way the outer keyword has nothing left to
@@ -523,7 +530,7 @@ type UnevalItemsPoison<S> = S extends {unevaluatedItems: unknown} ? (UnevalItems
 // it evaluates is evaluated unconditionally.
 type ScopeEvaluatesAllProps<S> =
   ScopeCarries<S, 'additionalProperties'> extends true ? true : ScopeCarriesTrue<S, 'unevaluatedProperties'>;
-type ScopeEvaluatesAllItems<S> = HasAnyItems<S> extends true ? true : ScopeCarriesTrue<S, 'unevaluatedItems'>;
+type ScopeEvaluatesAllItems<S, Root> = HasAnyItems<S, Root> extends true ? true : ScopeCarriesTrue<S, 'unevaluatedItems'>;
 type ScopeCarries<S, K extends string> = S extends {[P in K]: unknown} ? true : MembersCarry<AllOfMembersOf<S>, K>;
 type MembersCarry<M, K extends string> = M extends readonly [infer H, ...infer R]
   ? H extends {[P in K]: unknown}
@@ -565,39 +572,130 @@ type AllOfAnyContains<M> = M extends readonly [infer H, ...infer R]
       : AllOfAnyContains<R>
     : true
   : false;
-type MergedClosedKeys<S> = readonly [...AllowedKeysOf<S>, ...AllOfClosedKeys<AllOfMembersOf<S>>];
-type AllOfClosedKeys<M> = M extends readonly [infer H, ...infer R]
-  ? readonly [...AllowedKeysOf<H>, ...AllOfClosedKeys<AllOfMembersOf<H>>, ...AllOfClosedKeys<R>]
+// The UNCONDITIONALLY evaluated key set: a schema's own `properties`, every
+// `allOf` member's, and every `$ref` target's. All three must pass for the
+// schema to pass, so whatever they evaluate is evaluated for every value that
+// reaches the keyword — no run-time condition needed. Reference following is
+// FUEL-bounded, since `$ref: '#'` is a legal cycle.
+type RefFuel = readonly [0, 0, 0, 0];
+type MergedClosedKeys<S, Root, Fuel extends readonly unknown[] = RefFuel> = readonly [
+  ...AllowedKeysOf<S>,
+  ...AllOfClosedKeys<AllOfMembersOf<S>, Root, Fuel>,
+  ...RefEvaluated<S, Root, Fuel, 'keys'>,
+];
+type AllOfClosedKeys<M, Root, Fuel extends readonly unknown[]> = M extends readonly [infer H, ...infer R]
+  ? readonly [
+      ...AllowedKeysOf<H>,
+      ...AllOfClosedKeys<AllOfMembersOf<H>, Root, Fuel>,
+      ...RefEvaluated<H, Root, Fuel, 'keys'>,
+      ...AllOfClosedKeys<R, Root, Fuel>,
+    ]
   : readonly [];
+// One step through a `$ref`, spending a unit of fuel. Out of fuel (or no ref)
+// contributes nothing, which only ever UNDER-counts the evaluated set — and
+// under-counting closes the object too tightly, never too loosely.
+type RefEvaluated<S, Root, Fuel extends readonly unknown[], Want extends 'keys' | 'patterns'> = Fuel extends readonly [
+  unknown,
+  ...infer Rest,
+]
+  ? S extends {$ref: unknown}
+    ? RefNodeOf<S, Root> extends infer Target
+      ? [Target] extends [never]
+        ? readonly []
+        : Want extends 'keys'
+          ? MergedClosedKeys<Target, Root, Rest>
+          : MergedPatternSources<Target, Root, Rest>
+      : readonly []
+    : readonly []
+  : readonly [];
+// The RAW target node a `$ref` names (the schema, not its translation) — the
+// same resolution RefPart runs, stopping one step short of lowering.
+type RefNodeOf<S, Root> = S extends {$ref: '#'}
+  ? Root
+  : S extends {$ref: `#/$defs/${infer Name}`}
+    ? Root extends {$defs: infer Defs}
+      ? Name extends keyof Defs
+        ? Defs[Name]
+        : never
+      : never
+    : S extends {$ref: `#/${infer Pointer}`}
+      ? PointerNode<Pointer, Root>
+      : never;
 type PatternSourcesOf<S> = S extends {patternProperties: infer P} ? KeysToTuple<P> : readonly [];
-type MergedPatternSources<S> = readonly [...PatternSourcesOf<S>, ...AllOfPatternSources<AllOfMembersOf<S>>];
-type AllOfPatternSources<M> = M extends readonly [infer H, ...infer R]
-  ? readonly [...PatternSourcesOf<H>, ...AllOfPatternSources<AllOfMembersOf<H>>, ...AllOfPatternSources<R>]
+type MergedPatternSources<S, Root, Fuel extends readonly unknown[] = RefFuel> = readonly [
+  ...PatternSourcesOf<S>,
+  ...AllOfPatternSources<AllOfMembersOf<S>, Root, Fuel>,
+  ...RefEvaluated<S, Root, Fuel, 'patterns'>,
+];
+type AllOfPatternSources<M, Root, Fuel extends readonly unknown[]> = M extends readonly [infer H, ...infer R]
+  ? readonly [
+      ...PatternSourcesOf<H>,
+      ...AllOfPatternSources<AllOfMembersOf<H>, Root, Fuel>,
+      ...RefEvaluated<H, Root, Fuel, 'patterns'>,
+      ...AllOfPatternSources<R, Root, Fuel>,
+    ]
   : readonly [];
 // unevaluatedItems: false over prefix-only shapes closes the array at the
 // LONGEST merged prefix (evaluated indexes are the union of the prefixes);
 // any `items` in scope evaluates every index, making it a no-op. An
 // explicit sibling maxItems keeps its own bound (skip the contribution).
-type UnevalItemsParams<S> = S extends {unevaluatedItems: unknown}
-  ? UnevalItemsMode<S> extends 'closed'
+type UnevalItemsParams<S, Root> = S extends {unevaluatedItems: unknown}
+  ? UnevalItemsMode<S, Root> extends 'closed'
     ? S extends {maxItems: number}
       ? unknown
-      : {readonly maxItems: LongestPrefixOf<S>['length'] & number}
+      : {readonly maxItems: LongestPrefixOf<S, Root>['length'] & number}
     : unknown
   : unknown;
-type HasAnyItems<S> = S extends {items: unknown} ? true : AllOfAnyItems<AllOfMembersOf<S>>;
-type AllOfAnyItems<M> = M extends readonly [infer H, ...infer R]
+// `items` behind a `$ref` evaluates every index just the same, so the walk
+// follows references on the same fuel the key merge does.
+type HasAnyItems<S, Root, Fuel extends readonly unknown[] = RefFuel> = S extends {items: unknown}
+  ? true
+  : AllOfAnyItems<AllOfMembersOf<S>, Root, Fuel> extends true
+    ? true
+    : RefHasItems<S, Root, Fuel>;
+type RefHasItems<S, Root, Fuel extends readonly unknown[]> = Fuel extends readonly [unknown, ...infer Rest]
+  ? S extends {$ref: unknown}
+    ? RefNodeOf<S, Root> extends infer Target
+      ? [Target] extends [never]
+        ? false
+        : HasAnyItems<Target, Root, Rest>
+      : false
+    : false
+  : false;
+type AllOfAnyItems<M, Root, Fuel extends readonly unknown[]> = M extends readonly [infer H, ...infer R]
   ? H extends {items: unknown}
     ? true
-    : AllOfAnyItems<AllOfMembersOf<H>> extends true
+    : AllOfAnyItems<AllOfMembersOf<H>, Root, Fuel> extends true
       ? true
-      : AllOfAnyItems<R>
+      : RefHasItems<H, Root, Fuel> extends true
+        ? true
+        : AllOfAnyItems<R, Root, Fuel>
   : false;
 type PrefixTupleOf<S> = S extends {prefixItems: infer P extends readonly unknown[]} ? P : readonly [];
-type LongestPrefixOf<S> = LongestFold<AllOfMembersOf<S>, PrefixTupleOf<S>>;
-type LongestFold<M, Acc extends readonly unknown[]> = M extends readonly [infer H, ...infer R]
-  ? LongestFold<R, Longest2<LongestFold<AllOfMembersOf<H>, PrefixTupleOf<H>>, Acc>>
+type LongestPrefixOf<S, Root, Fuel extends readonly unknown[] = RefFuel> = Longest2<
+  LongestFold<AllOfMembersOf<S>, PrefixTupleOf<S>, Root, Fuel>,
+  RefPrefixOf<S, Root, Fuel>
+>;
+type LongestFold<M, Acc extends readonly unknown[], Root, Fuel extends readonly unknown[]> = M extends readonly [
+  infer H,
+  ...infer R,
+]
+  ? LongestFold<
+      R,
+      Longest2<Longest2<LongestFold<AllOfMembersOf<H>, PrefixTupleOf<H>, Root, Fuel>, RefPrefixOf<H, Root, Fuel>>, Acc>,
+      Root,
+      Fuel
+    >
   : Acc;
+type RefPrefixOf<S, Root, Fuel extends readonly unknown[]> = Fuel extends readonly [unknown, ...infer Rest]
+  ? S extends {$ref: unknown}
+    ? RefNodeOf<S, Root> extends infer Target
+      ? [Target] extends [never]
+        ? readonly []
+        : LongestPrefixOf<Target, Root, Rest>
+      : readonly []
+    : readonly []
+  : readonly [];
 type Longest2<A extends readonly unknown[], B extends readonly unknown[]> = A extends readonly [unknown, ...infer TailA]
   ? B extends readonly [unknown, ...infer TailB]
     ? readonly [unknown, ...Longest2<TailA, TailB>]
@@ -642,7 +740,7 @@ type PropNamesParam<S, Root, F extends [unknown]> = S extends {propertyNames: in
     : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
   : unknown;
 type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
-  ObjectKeywordParams<S> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
+  ObjectKeywordParams<S, Root> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
 >;
 // Fast path: an object with none of the structural keywords is just its shape
 // (no brand, no sentinels), so it never pays the FormattedObject wrapper. Only
@@ -656,7 +754,7 @@ type ObjectHasKeywords<S> = [Extract<keyof S, ObjectKeywordKeys>] extends [never
     : false
   : true;
 type ObjectFrom<S, Root, F extends [unknown]> =
-  UnevalPropsPoison<S> extends true
+  UnevalPropsPoison<S, Root> extends true
     ? never
     : ObjectHasKeywords<S> extends true
       ? FormattedObject<Extract<ObjectShapeFrom<S, Root, F>, object>, ObjectAllParams<S, Root, F>>
@@ -682,7 +780,7 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       : S extends {unevaluatedProperties: infer U extends JsonSchemaInput}
         ? // Nothing else evaluates a key here, so `unevaluatedProperties` covers
           // every one of them — which is what `additionalProperties` spells.
-          UnevalPropsMode<S> extends 'leftover'
+          UnevalPropsMode<S, Root> extends 'leftover'
           ? Record<string, FromJsonSchemaIn<U, Root, F>>
           : Record<string, unknown>
         : // Keyword-less object gate: Record<string, unknown>, NOT the TS
@@ -758,7 +856,7 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additional
 type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
   (S extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown) &
     (S extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
-    UnevalItemsParams<S> &
+    UnevalItemsParams<S, Root> &
     (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
     (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
     (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown)
@@ -768,7 +866,7 @@ type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
 // wrapper, keeping the common `{type: 'array', items: …}` case cheap.
 type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems';
 type ArrayFrom<S, Root, F extends [unknown]> =
-  UnevalItemsPoison<S> extends true
+  UnevalItemsPoison<S, Root> extends true
     ? never
     : [Extract<keyof S, ArrayKeywordKeys>] extends [never]
       ? ArrayShapeFrom<S, Root, F>
@@ -785,7 +883,7 @@ type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
       : S extends {unevaluatedItems: infer U extends JsonSchemaInput}
         ? // Same reading as the properties side: with no prefix evaluating an
           // index, `unevaluatedItems` covers every one, which is `items`.
-          UnevalItemsMode<S> extends 'leftover'
+          UnevalItemsMode<S, Root> extends 'leftover'
           ? FromJsonSchemaIn<U, Root, F>[]
           : unknown[]
         : unknown[]

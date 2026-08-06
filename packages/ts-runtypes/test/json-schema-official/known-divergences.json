@@ -281,15 +281,6 @@
     },
     {
       "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems before $ref",
-      "case": "with unevaluated items",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
       "group": "unevaluatedItems can see annotations from if without then and else",
       "case": "valid in case if is evaluated",
       "expected": true,
@@ -312,15 +303,6 @@
       "case": "5 not evaluated, passes unevaluatedItems",
       "expected": true,
       "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems with $ref",
-      "case": "with unevaluated items",
-      "expected": false,
-      "observed": true,
       "byDesign": false,
       "note": ""
     },
@@ -434,28 +416,10 @@
     },
     {
       "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties before $ref",
-      "case": "with unevaluated properties",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
       "group": "unevaluatedProperties can see annotations from if without then and else",
       "case": "valid in case if is evaluated",
       "expected": true,
       "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with $ref",
-      "case": "with unevaluated properties",
-      "expected": false,
-      "observed": true,
       "byDesign": false,
       "note": ""
     },

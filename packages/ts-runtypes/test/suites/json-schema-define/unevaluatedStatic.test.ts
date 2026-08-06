@@ -135,3 +135,41 @@ describe('a run-time decided scope is still refused loudly', () => {
     ).toBe(getRunTypeId<never>());
   });
 });
+
+describe('a $ref target evaluates unconditionally', () => {
+  it('counts the referenced keys, whichever side the keyword is written', () => {
+    const after = createValidateFn(
+      runTypeFromJsonSchema({
+        $ref: '#/$defs/bar',
+        properties: {foo: {type: 'string'}},
+        unevaluatedProperties: false,
+        $defs: {bar: {properties: {bar: {type: 'string'}}}},
+      } as const)
+    );
+    const before = createValidateFn(
+      runTypeFromJsonSchema({
+        unevaluatedProperties: false,
+        properties: {foo: {type: 'string'}},
+        $ref: '#/$defs/bar',
+        $defs: {bar: {properties: {bar: {type: 'string'}}}},
+      } as const)
+    );
+    for (const isType of [after, before]) {
+      expect(isType({foo: 'foo', bar: 'bar'})).toBe(true);
+      expect(isType({foo: 'foo', bar: 'bar', baz: 'baz'})).toBe(false);
+    }
+  });
+
+  it('counts the referenced prefix on the array side', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        $ref: '#/$defs/bar',
+        prefixItems: [{type: 'string'}],
+        unevaluatedItems: false,
+        $defs: {bar: {prefixItems: [true, {type: 'string'}]}},
+      } as const)
+    );
+    expect(isType(['foo', 'bar'])).toBe(true);
+    expect(isType(['foo', 'bar', 'baz'])).toBe(false);
+  });
+});

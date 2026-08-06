@@ -39,3 +39,4 @@ export declare const __rtContains: unique symbol;
 export declare const __rtPatternProps: unique symbol;
 export declare const __rtPropNames: unique symbol;
 export declare const __rtOneOf: unique symbol;
+export declare const __rtUnevaluated: unique symbol;
