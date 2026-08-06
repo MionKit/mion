@@ -52,7 +52,14 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  JSON Pointer walk (percent-decoding, `~1`/`~0`, empty tokens, targets outside
  *  `$defs`, absolute/URN bases). `#` and a plain `#/$defs/<name>` still resolve on
  *  the two probes they always did, so the 9 is what an UNRESOLVABLE name now pays
- *  to rule out an escape before giving up. **/
+ *  to rule out an escape before giving up.
+ *
+ *  `unevaluated*` gained a mode classifier (noop / closed / leftover / poison)
+ *  so the keyword stops resolving `never` wherever the document actually pins
+ *  the evaluated set down. Every consumer probes for the KEYWORD before asking
+ *  for the mode, so seven branches came DOWN and only two moved: `not` 4681→4689
+ *  and structural keywords 2751→2753, both the extra keyword probe on the object
+ *  and array gates. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -190,7 +197,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      2682
+      2680
     );
   });
 
@@ -204,7 +211,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      969
+      968
     );
   });
 
@@ -248,7 +255,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2347
+      2341
     );
   });
 
@@ -299,7 +306,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
       // ReadonlyPropKeys check on the common path) — a priced feature cost, not
       // a regression; the ratchet stays one-way from here.
-      2696
+      2693
     );
   });
 
@@ -324,7 +331,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4681
+      4689
     );
   });
 
@@ -359,7 +366,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         string
       >>;
       `,
-      1549
+      1547
     );
   });
 
@@ -399,7 +406,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2751
+      2753
     );
   });
 
@@ -431,7 +438,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2005
+      2002
     );
   });
 
@@ -462,7 +469,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2127
+      2123
     );
   });
 

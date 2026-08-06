@@ -281,24 +281,6 @@
     },
     {
       "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems as schema",
-      "case": "with no unevaluated items",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems as schema",
-      "case": "with valid unevaluated items",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
       "group": "unevaluatedItems before $ref",
       "case": "with unevaluated items",
       "expected": false,
@@ -380,15 +362,6 @@
     },
     {
       "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems with items",
-      "case": "valid under items",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
       "group": "unevaluatedItems with minContains = 0",
       "case": "all items evaluated by contains",
       "expected": true,
@@ -443,15 +416,6 @@
     },
     {
       "file": "unevaluatedItems.json",
-      "group": "unevaluatedItems with null instance elements",
-      "case": "allows null elements",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedItems.json",
       "group": "unevaluatedItems with oneOf",
       "case": "with no unevaluated items",
       "expected": true,
@@ -463,24 +427,6 @@
       "file": "unevaluatedProperties.json",
       "group": "dependentSchemas with unevaluatedProperties",
       "case": "unevaluatedProperties sees bar when foo2 is present",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "nested unevaluatedProperties, outer false, inner true, properties inside",
-      "case": "with nested unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "nested unevaluatedProperties, outer false, inner true, properties outside",
-      "case": "with nested unevaluated properties",
       "expected": true,
       "observed": false,
       "byDesign": false,
@@ -506,55 +452,10 @@
     },
     {
       "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties not affected by propertyNames",
-      "case": "allows only number properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties schema",
-      "case": "with no unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties schema",
-      "case": "with valid unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
       "group": "unevaluatedProperties with $ref",
       "case": "with unevaluated properties",
       "expected": false,
       "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with adjacent bool additionalProperties",
-      "case": "with additional properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with adjacent non-bool additionalProperties",
-      "case": "with additional properties",
-      "expected": true,
-      "observed": false,
       "byDesign": false,
       "note": ""
     },
@@ -625,42 +526,6 @@
       "file": "unevaluatedProperties.json",
       "group": "unevaluatedProperties with if/then/else, then not defined",
       "case": "when if is true and has no unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with nested additionalProperties",
-      "case": "with additional properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with nested unevaluatedProperties",
-      "case": "with nested unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with nested unevaluatedProperties",
-      "case": "with no nested unevaluated properties",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "unevaluatedProperties.json",
-      "group": "unevaluatedProperties with null valued instance properties",
-      "case": "allows null valued properties",
       "expected": true,
       "observed": false,
       "byDesign": false,
