@@ -45,31 +45,33 @@ them. What is missing is the conditional half.
 So a group is guarded either by "this subschema validates" or by "this key is
 present". Both are expressions the emitter can already produce.
 
-## The emitted shape
+## What the emitted code must satisfy
 
-Settled with the repo owner, and the point is that it costs NOTHING when the
-keyword is absent — the sentinel is not on the node, so the object/array emit
-branches past it exactly as it does for `__rtContains` today.
+Deliberately stated as CONSTRAINTS rather than a code sketch: the exact form is
+the implementer's call against the real emitter, where it can be measured. Three
+attempts at sketching it here were all worse than what the constraints imply.
 
-```js
-// prologue, hoisted once per factory
-const uAlw_<id> = ['foo'], u0_<id> = ['bar'], u1_<id> = ['baz'];
-// body
-const result = uAlw_<id>.slice();     // a plain hoisted const when nothing is conditional
-if (b0) result.push(...u0_<id>);
-if (b1) result.push(...u1_<id>);
-for (const k in v) if (!result.includes(k)) return false;
-```
+1. **Nothing at all when the keyword is absent.** The sentinel is not on the
+   node, so the object / array emit branches past it exactly as it does for
+   `__rtContains` today. A schema without `unevaluated*` must produce
+   byte-identical code to now. This is the hard one.
+2. **Cost scales with the number of BRANCHES, not the number of properties.**
+   No per-property comparison chain in the loop body.
+3. **Everything knowable at build time is hoisted into the factory prologue**,
+   the way `addObjectPropsToContext` already hoists `const k_<hash> = [...]` and
+   the pattern regexes. A group of ONE key is that key, not a one-element array.
+4. **No allocation on the common path.** When nothing is conditional the whole
+   evaluated set is a compile-time constant and the body is a single traversal.
+5. **Traverse with `Object.keys(v)`**, which is what the value's own keys are,
+   and gives the count for free if a length comparison beats membership tests.
+6. **Reuse the branch results the applicator emit already computes** — `anyOf` /
+   `oneOf` / `if` have each evaluated their subschemas by the time the sweep
+   runs; nothing may be validated twice.
 
-One array, built once per call, then a single pass. `b0` / `b1` are the branch
-checks the applicator emit ALREADY computes, so they are reused, not re-run. NOT
-a Set, and NOT a per-key chain of comparisons: with nothing conditional the
-array is a compile-time constant and the body is the loop alone.
-
-Items are the same idea with a watermark rather than a list — `result` is the
-highest evaluated index, `Math.max`'d over the passing branches — except when
-`contains` is in scope, which is the one keyword that evaluates scattered
-indexes and therefore needs per-index marks.
+Items follow the same constraints with a watermark (the highest evaluated index,
+`Math.max`'d over the passing branches) instead of a key list, except when
+`contains` is in scope: that is the one keyword evaluating scattered indexes, so
+it needs per-index marks.
 
 For a SCHEMA-valued keyword the sweep validates the leftovers against it instead
 of rejecting them; `false` is just the value nothing satisfies.
