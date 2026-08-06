@@ -1410,17 +1410,156 @@ type NonRefParts<S, Root, F extends [unknown]> = S extends {oneOf: unknown}
   : Conj<AnyOfPart<S, Root, F>, CombinatorTail<S, Root, F>>;
 type CombinatorTail<S, Root, F extends [unknown]> = Conj<AllOfPart<S, Root, F>, LiteralTail<S, Root, F>>;
 type LiteralTail<S, Root, F extends [unknown]> = Conj<ConstPart<S>, Conj<EnumPart<S>, KindPart<S, Root, F>>>;
+// A `$ref` is a URI-reference, resolved in three steps:
+//   1. BASE — a ref that repeats the root's own `$id` names the SAME document
+//      (`urn:uuid:…` and `urn:uuid:…#/$defs/bar` both land back here), so the
+//      base is stripped and whatever follows `#` is an ordinary fragment;
+//   2. FRAGMENT — empty (the root itself), `#name` (an anchor), or `#/…` (a
+//      JSON Pointer);
+//   3. POINTER — split on `/` FIRST, then decode each token (RFC 3986
+//      percent-decoding, then RFC 6901's `~1`/`~0`), then walk the document.
+//      Splitting before decoding is what makes a `%2F` inside a member name a
+//      literal slash instead of a separator.
+// The walk is over the document, so `#/properties/foo` and `#/prefixItems/0`
+// reach exactly as `#/$defs/<name>` does; an unresolvable same-document target
+// lands on `never` (an impossible type at the call site, never a silent
+// widening). A ref naming ANOTHER document stays `unknown` — cross-document
+// resolution is out of scope by design, since the fetch would sit inside
+// type-checking.
+// The two shapes that carry real-world traffic (`#` and a plain
+// `#/$defs/<name>`) resolve on the same two probes they always did; only a ref
+// those miss pays for the general walk (an escaped or empty token, a pointer
+// outside `$defs`, an absolute base).
 type RefPart<S, Root, F extends [unknown]> = S extends {$ref: '#'}
   ? F[0]
   : S extends {$ref: `#/$defs/${infer Name}`}
-    ? Root extends {$defs: infer D}
-      ? Name extends keyof D
-        ? FromJsonSchemaIn<D[Name], Root, F>
-        : never
+    ? Root extends {$defs: infer Defs}
+      ? Name extends keyof Defs
+        ? FromJsonSchemaIn<Defs[Name], Root, F>
+        : // Not a key as written: only an ESCAPE or an extra separator can still
+          // make it one, and a plain missing name stays `never` for the price of
+          // one probe.
+          Name extends `${string}${'~' | '%' | '/'}${string}`
+          ? PointerTargetFrom<`$defs/${Name}`, Root, F>
+          : never
       : never
-    : S extends {$ref: `#${infer Name}`}
-      ? AnchorFrom<Name, Root, F>
-      : unknown;
+    : S extends {$ref: `#/${infer Pointer}`}
+      ? PointerTargetFrom<Pointer, Root, F>
+      : S extends {$ref: `#${infer Anchor}`}
+        ? AnchorFrom<Anchor, Root, F>
+        : RebasedRefFrom<S, Root, F>;
+// An absolute base (`urn:uuid:…`, or any other `$id` spelling) naming the
+// document we are already in: strip it and treat the rest as an ordinary
+// fragment. Anything else names ANOTHER document and stays `unknown` —
+// cross-document resolution is out of scope by design, since the fetch would
+// sit inside type-checking.
+type RebasedRefFrom<S, Root, F extends [unknown]> = S extends {$ref: infer Ref extends string}
+  ? Root extends {$id: infer Id extends string}
+    ? // Both sides must be LITERAL before the base can be compared. tsc forces
+      // this alias with deferred parameters (the builder's overload
+      // compatibility check), and there `Ref extends Id` is `string extends
+      // string` — true, which would reach for the root fixpoint and blow the
+      // instantiation depth (TS2589, the hazard the RECURSION note opens with).
+      string extends Id
+      ? unknown
+      : string extends Ref
+        ? unknown
+        : Ref extends Id
+          ? F[0]
+          : Ref extends `${Id}#${infer Fragment}`
+            ? FragmentTargetFrom<Fragment, Root, F>
+            : unknown
+    : unknown
+  : unknown;
+type FragmentTargetFrom<Fragment extends string, Root, F extends [unknown]> = Fragment extends ''
+  ? F[0]
+  : Fragment extends `/${infer Pointer}`
+    ? PointerTargetFrom<Pointer, Root, F>
+    : AnchorFrom<Fragment, Root, F>;
+// The pointer target keeps the ORIGINAL Root for its own translation — a `$ref`
+// inside the target still resolves against the whole document, not against the
+// node the walk stopped on. An unresolved step yields `never`, which
+// FromJsonSchemaIn distributes straight through, so no probe is needed.
+type PointerTargetFrom<Pointer extends string, Root, F extends [unknown]> = FromJsonSchemaIn<PointerNode<Pointer, Root>, Root, F>;
+// One probe decides whether ANY token can need decoding, so the ordinary
+// `#/$defs/<name>` pointer walks raw and never pays the decoder.
+// The LITERAL guard is load-bearing, not defensive. tsc forces this ladder with
+// DEFERRED parameters while checking the builder's overload against its
+// implementation, and there every `extends` on a string keeps BOTH branches, so
+// the token walk would recurse on fresh `infer` variables until the
+// instantiation wall (TS2589 — the hazard the RECURSION note at the top of this
+// file opens with). A non-literal pointer resolves nothing, so `never` is also
+// the honest answer.
+type PointerNode<Pointer extends string, Cursor> = string extends Pointer
+  ? never
+  : Pointer extends `${string}${'~' | '%'}${string}`
+    ? DecodedPointerNode<Pointer, Cursor>
+    : RawPointerNode<Pointer, Cursor>;
+type RawPointerNode<Pointer extends string, Cursor> = Pointer extends `${infer Token}/${infer Rest}`
+  ? RawPointerNode<Rest, StepInto<Token, Cursor>>
+  : StepInto<Pointer, Cursor>;
+type DecodedPointerNode<Pointer extends string, Cursor> = Pointer extends `${infer Token}/${infer Rest}`
+  ? DecodedPointerNode<Rest, StepInto<DecodePointerToken<Token>, Cursor>>
+  : StepInto<DecodePointerToken<Pointer>, Cursor>;
+type StepInto<Token extends string, Cursor> = [Cursor] extends [never]
+  ? never
+  : Token extends keyof Cursor
+    ? Cursor[Token]
+    : never;
+// `~1` before `~0`, or `~01` would decode to `/` instead of the `~1` RFC 6901
+// says it must become.
+type DecodePointerToken<Token extends string> = ReplaceAll<ReplaceAll<PercentDecode<Token>, '~1', '/'>, '~0', '~'>;
+type ReplaceAll<S extends string, From extends string, To extends string> = S extends `${infer Head}${From}${infer Tail}`
+  ? `${Head}${To}${ReplaceAll<Tail, From, To>}`
+  : S;
+// A token with no `%` exits on the first conditional, so an ordinary ref pays
+// two probes and no walk. An escape outside the table (a multi-byte UTF-8
+// sequence, which no type-level decoder can reassemble) is left verbatim, so
+// the ref simply fails to resolve rather than resolving to the wrong node.
+type PercentDecode<S extends string> = S extends `${infer Head}%${infer Rest}`
+  ? Rest extends `${infer High}${infer Low}${infer Tail}`
+    ? Uppercase<`${High}${Low}`> extends infer Hex extends keyof PercentEscapes
+      ? `${Head}${PercentEscapes[Hex]}${PercentDecode<Tail>}`
+      : `${Head}%${PercentDecode<Rest>}`
+    : S
+  : S;
+// The ASCII characters a fragment has to percent-encode, plus the reserved ones
+// a member name may legitimately carry.
+interface PercentEscapes {
+  '20': ' ';
+  '21': '!';
+  '22': '"';
+  '23': '#';
+  '24': '$';
+  '25': '%';
+  '26': '&';
+  '27': "'";
+  '28': '(';
+  '29': ')';
+  '2A': '*';
+  '2B': '+';
+  '2C': ',';
+  '2D': '-';
+  '2E': '.';
+  '2F': '/';
+  '3A': ':';
+  '3B': ';';
+  '3C': '<';
+  '3D': '=';
+  '3E': '>';
+  '3F': '?';
+  '40': '@';
+  '5B': '[';
+  '5C': '\\';
+  '5D': ']';
+  '5E': '^';
+  '5F': '_';
+  '60': '`';
+  '7B': '{';
+  '7C': '|';
+  '7D': '}';
+  '7E': '~';
+}
 // `$ref: '#name'` resolves a same-document `$anchor` (a `$dynamicAnchor`
 // also registers as a plain anchor per 2020-12). `$dynamicRef` resolves the
 // same table statically — in a single schema resource the dynamic scope has

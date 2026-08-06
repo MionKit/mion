@@ -46,7 +46,13 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  of a bare `&`, which is what makes a type-LESS arm's six-kind union merge
  *  kind-by-kind (`allOf: [{maximum: 30}, {minimum: 20}]` used to drop BOTH
  *  bounds and accept 35). Distribution costs the conditionals; correctness is
- *  worth 27 instantiations, and the ratchet stays one-way from here. **/
+ *  worth 27 instantiations, and the ratchet stays one-way from here.
+ *
+ *  A second REVIEWED EXCEPTION, `$defs + $ref` 2118->2127: `$ref` became a real
+ *  JSON Pointer walk (percent-decoding, `~1`/`~0`, empty tokens, targets outside
+ *  `$defs`, absolute/URN bases). `#` and a plain `#/$defs/<name>` still resolve on
+ *  the two probes they always did, so the 9 is what an UNRESOLVABLE name now pays
+ *  to rule out an escape before giving up. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -456,7 +462,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2118
+      2127
     );
   });
 

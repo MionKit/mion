@@ -51,8 +51,8 @@
       "case": "invalid definition schema",
       "expected": false,
       "observed": true,
-      "byDesign": false,
-      "note": ""
+      "byDesign": true,
+      "note": "$ref to the official 2020-12 metaschema is a REMOTE document; fetching one at build time is out of scope by design (same stance as refRemote.json and every other remote) - see container/website/content/2.guide/02.json-schema.md \"Two deliberate limits\""
     },
     {
       "file": "format.json",
@@ -236,102 +236,12 @@
     },
     {
       "file": "ref.json",
-      "group": "empty tokens in $ref json-pointer",
-      "case": "number is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "escaped pointer ref",
-      "case": "percent valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "escaped pointer ref",
-      "case": "slash valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "escaped pointer ref",
-      "case": "tilde valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "refs with quote",
-      "case": "object with numbers is valid",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "relative pointer ref to array",
-      "case": "match array",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "relative pointer ref to object",
-      "case": "match",
-      "expected": true,
-      "observed": false,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
       "group": "remote ref, containing refs itself",
       "case": "remote ref invalid",
       "expected": false,
       "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "simple URN base URI with $ref via the URN",
-      "case": "invalid under the URN IDed schema",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "URN base URI with URN and anchor ref",
-      "case": "a non-string is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
-      "file": "ref.json",
-      "group": "URN base URI with URN and JSON pointer ref",
-      "case": "a non-string is invalid",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
+      "byDesign": true,
+      "note": "$ref to the official 2020-12 metaschema is a REMOTE document; fetching one at build time is out of scope by design (same stance as refRemote.json and every other remote) - see container/website/content/2.guide/02.json-schema.md \"Two deliberate limits\""
     },
     {
       "file": "unevaluatedItems.json",
