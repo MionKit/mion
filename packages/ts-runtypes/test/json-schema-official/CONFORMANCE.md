@@ -7,7 +7,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 
 | File                                       |    Cases | Conforming | By-design div. | Open div. | Build-rejected | Unsupported input | Skipped |
 | ------------------------------------------ | -------: | ---------: | -------------: | --------: | -------------: | ----------------: | ------: |
-| additionalProperties.json                  |       21 |         20 |              0 |         1 |              0 |                 0 |       0 |
+| additionalProperties.json                  |       21 |         21 |              0 |         0 |              0 |                 0 |       0 |
 | allOf.json                                 |       30 |         27 |              0 |         0 |              0 |                 3 |       0 |
 | anchor.json                                |        8 |          2 |              0 |         0 |              0 |                 0 |       6 |
 | anyOf.json                                 |       18 |         15 |              0 |         0 |              0 |                 3 |       0 |
@@ -73,4 +73,4 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 | unevaluatedProperties.json                 |      129 |         77 |              0 |        11 |              0 |                41 |       0 |
 | uniqueItems.json                           |       69 |         69 |              0 |         0 |              0 |                 0 |       0 |
 | vocabulary.json                            |        5 |          0 |              0 |         0 |              0 |                 0 |       5 |
-| **total**                                  | **1988** |   **1721** |         **25** |    **31** |          **0** |           **171** |  **40** |
+| **total**                                  | **1988** |   **1722** |         **25** |    **30** |          **0** |           **171** |  **40** |

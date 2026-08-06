@@ -200,3 +200,27 @@ describe('patternProperties keys are not additional', () => {
     for (let i = 0; i < 16; i++) expect(isType(mock())).toBe(true);
   });
 });
+
+describe('additionalProperties looks at its OWN siblings only', () => {
+  it('does not exempt a property an allOf member declares', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({allOf: [{properties: {foo: {}}}], additionalProperties: {type: 'boolean'}} as const)
+    );
+    // `additionalProperties` has no sibling `properties`, so EVERY key must be
+    // boolean — `foo` living in the allOf arm does not exempt it.
+    expect(isType({foo: 1, bar: true})).toBe(false);
+    expect(isType({foo: true, bar: true})).toBe(true);
+  });
+
+  it('still exempts the schema own declared keys', () => {
+    const isType = createValidateFn(
+      runTypeFromJsonSchema({
+        properties: {foo: {type: 'integer'}},
+        allOf: [{properties: {bar: {}}}],
+        additionalProperties: {type: 'boolean'},
+      } as const)
+    );
+    expect(isType({foo: 1, baz: true})).toBe(true);
+    expect(isType({foo: 1, bar: 'not boolean'})).toBe(false);
+  });
+});

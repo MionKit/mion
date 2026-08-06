@@ -1,15 +1,6 @@
 {
   "entries": [
     {
-      "file": "additionalProperties.json",
-      "group": "additionalProperties does not look in applicators",
-      "case": "properties defined in allOf are not examined",
-      "expected": false,
-      "observed": true,
-      "byDesign": false,
-      "note": ""
-    },
-    {
       "file": "content.json",
       "group": "validation of binary string-encoding",
       "case": "an invalid base64 string (% is not a valid character); validates true",

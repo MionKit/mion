@@ -123,9 +123,15 @@ export interface FormattedObjectParams<Value = unknown, Key = string> {
   readonly propertyNames?: Key;
   readonly closed?: readonly string[];
   readonly closedPatterns?: readonly string[];
+  /** The keys a SCHEMA-valued `additionalProperties` exempts: the schema's OWN
+   *  `properties`, and nothing else. Without it the emitted index-signature
+   *  sweep exempts every key the merged object happens to declare, so a
+   *  property contributed by an `allOf` member wrongly escapes the check —
+   *  2020-12 has `additionalProperties` look at its own siblings only. **/
+  readonly additionalOwn?: readonly string[];
 }
 
-type ObjectLiteralKeys = 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns';
+type ObjectLiteralKeys = 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns' | 'additionalOwn';
 type ObjectLiteralPart<P> = {readonly [K in Extract<keyof P, ObjectLiteralKeys>]: P[K]};
 
 // The `patternProperties` slot — matches the door's PatternPropsPart: each

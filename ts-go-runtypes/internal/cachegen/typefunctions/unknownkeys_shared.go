@@ -376,7 +376,7 @@ func siblingNamedKeysCtxKey(idxSig *protocol.RunType) string {
 // own context items, so the same key can be re-published per family
 // without collision.
 func publishSiblingNamedKeysForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
-	siblingNames := collectSiblingNamedKeys(rt, ctx)
+	siblingNames := indexSigExemptKeys(rt, ctx)
 	if len(siblingNames) == 0 {
 		return
 	}
@@ -391,6 +391,48 @@ func publishSiblingNamedKeysForIndexSig(rt *protocol.RunType, ctx *EmitContext) 
 		}
 		ctx.SetContextItem(ctxKey, "const "+ctxKey+" = new Set("+arrayToJSLiteral(siblingNames)+")")
 	}
+}
+
+// indexSigExemptKeys is the key set an index signature's sweep may SKIP.
+//
+// By default that is every declared sibling (collectSiblingNamedKeys): TypeScript
+// rejects a declared member incompatible with its own index signature, so within
+// ONE declaration skipping them cannot lose a check. An INTERSECTION breaks that
+// argument — a member contributed by one constituent faces another's index
+// signature — which is exactly what JSON Schema's `additionalProperties` means
+// when an `allOf` member declares a property.
+//
+// So when the node carries the `additionalOwn` param (the schema's OWN
+// `properties` keys, written by the door for a schema-valued
+// `additionalProperties`), that list wins: keys from anywhere else stay in the
+// sweep and face the value check. Types without the param are unaffected.
+func indexSigExemptKeys(rt *protocol.RunType, ctx *EmitContext) []string {
+	if rt.FormatAnnotation != nil && rt.FormatAnnotation.Name == "formattedObject" {
+		if own, ok := rt.FormatAnnotation.Params["additionalOwn"]; ok {
+			return stringListParam(own)
+		}
+	}
+	return collectSiblingNamedKeys(rt, ctx)
+}
+
+// stringListParam reads a `readonly string[]` param off a format annotation.
+// The wire carries it as []any of strings (the literal tuple walk), so the
+// conversion is a filter rather than a cast.
+func stringListParam(raw any) []string {
+	entries, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if name, isString := entry.(string); isString {
+			out = append(out, name)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return dedupSortStrings(out)
 }
 
 // collectSiblingNamedKeys returns the deduped, sorted names of every declared

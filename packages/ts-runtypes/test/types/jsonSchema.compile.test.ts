@@ -65,7 +65,14 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  evaluated-key and prefix merges now follow `$ref` targets, since a ref has to
  *  pass for the schema to pass and whatever it evaluates is evaluated
  *  unconditionally. The walk is fuel-bounded (a `$ref: '#'` cycle is legal), and
- *  the probe is one `S extends {$ref: unknown}` for every schema without one. **/
+ *  the probe is one `S extends {$ref: unknown}` for every schema without one.
+ *
+ *  A fourth REVIEWED EXCEPTION, ~+88 across seven branches (objects +45): a
+ *  SCHEMA-valued `additionalProperties` beside a merging keyword now carries its
+ *  own exemption list, so a property an `allOf` member declares can no longer
+ *  escape the value check. That case was the suite's ONLY under-validation, and
+ *  the probe is gated behind `additionalProperties` being present, so an
+ *  ordinary object pays nothing. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -203,7 +210,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      2682
+      2687
     );
   });
 
@@ -312,7 +319,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
       // ReadonlyPropKeys check on the common path) — a priced feature cost, not
       // a regression; the ratchet stays one-way from here.
-      2700
+      2745
     );
   });
 
@@ -337,7 +344,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4679
+      4684
     );
   });
 
@@ -372,7 +379,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         string
       >>;
       `,
-      1549
+      1554
     );
   });
 
@@ -412,7 +419,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2758
+      2774
     );
   });
 
@@ -444,7 +451,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2005
+      2010
     );
   });
 
@@ -475,7 +482,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2127
+      2134
     );
   });
 

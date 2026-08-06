@@ -426,7 +426,22 @@ type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Ro
 // validates — including under `required`, which then contradicts to an
 // always-false validator, exactly per 2020-12).
 type ObjectKeywordParams<S, Root> = Flatten<
-  (S extends {minProperties: infer N extends number} ? {readonly minProperties: N} : unknown) &
+  // A SCHEMA-valued `additionalProperties` names its OWN exemption set, so a
+  // key contributed by an `allOf` member cannot escape the value check —
+  // 2020-12 has the keyword look at its own siblings only.
+  //
+  // Emitted ONLY beside a keyword that merges a foreign object in. Without one
+  // the merged key set IS the own key set, the param would say nothing, and the
+  // plain `Record<string, V>` form has to keep converging on one id with its
+  // type-first twin.
+  (S extends {additionalProperties: infer A}
+    ? A extends boolean
+      ? unknown
+      : HasMergingKeyword<S> extends true
+        ? {readonly additionalOwn: AllowedKeysOf<S>}
+        : unknown
+    : unknown) &
+    (S extends {minProperties: infer N extends number} ? {readonly minProperties: N} : unknown) &
     (S extends {maxProperties: infer N extends number} ? {readonly maxProperties: N} : unknown) &
     // additionalProperties: false closes over the declared keys PLUS any
     // patternProperties sources — per 2020-12 a key matching a pattern is
@@ -748,11 +763,20 @@ type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
 // `additionalProperties` (the common Record form) rides ObjectShapeFrom, so it
 // is value-checked here rather than lumped in by key presence.
 type ObjectKeywordKeys = 'minProperties' | 'maxProperties' | 'unevaluatedProperties' | 'patternProperties' | 'propertyNames';
+// `additionalProperties: false` is keyword-bearing (closedness); a SCHEMA-valued
+// one only becomes so beside a merging keyword, where it carries the exemption
+// list — everywhere else it rides ObjectShapeFrom as the plain Record it is.
 type ObjectHasKeywords<S> = [Extract<keyof S, ObjectKeywordKeys>] extends [never]
   ? S extends {additionalProperties: false}
     ? true
-    : false
+    : S extends {additionalProperties: unknown}
+      ? HasMergingKeyword<S>
+      : false
   : true;
+// The keywords that merge a FOREIGN object into this one, so a key the schema
+// never declared can end up among its members. Probed only after
+// `additionalProperties` is known present, so an ordinary object never pays it.
+type HasMergingKeyword<S> = Extract<keyof S, 'allOf' | '$ref' | '$dynamicRef'> extends never ? false : true;
 type ObjectFrom<S, Root, F extends [unknown]> =
   UnevalPropsPoison<S, Root> extends true
     ? never
