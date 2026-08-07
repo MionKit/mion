@@ -15,6 +15,15 @@
 // the Go catalog default, and the host's per-rule level is what applies. The
 // full set is the RULE_SPECS table.
 //
+// ONE documented exception to the router doctrine: the `gate: 'local'` lane
+// (today only `json-schema-dropped-intent`, droppedIntent.ts). The resolver
+// never sees a JSON Schema document — the door is type-level only — so a
+// spec-legal annotation whose intent the pipeline cannot honor has no wire
+// diagnostic to route, and the TYPE level has only errors. A local rule walks
+// the `runTypeFromJsonSchema({…})` literal in the linted file itself (both
+// hosts hand rules the same ESTree AST) and warns without any resolver pass.
+// The lane exists for schema-literal hygiene ONLY; engine facts stay Go-side.
+//
 // The plugin needs no RunTypes-specific configuration: it resolves the host
 // resolver binary itself (@ts-runtypes/bin, which honours RT_BIN) and runs in
 // process.cwd(), like any other linter. The optional knobs are
@@ -23,6 +32,7 @@
 
 import {createRequire} from 'node:module';
 import {routeDiagnostic, RULE_SPECS, type RuleName} from './diagnosticRouting.ts';
+import {droppedIntentFindings, type AstNode} from './droppedIntent.ts';
 import {looksLikeEnrichmentFile, needsResolverPass} from './prefilter.ts';
 import {LINT_SETTING_KEYS} from './session-protocol.ts';
 import {prewarmSession, sharedSession, type LintSessionOptions} from './session.ts';
@@ -130,6 +140,24 @@ function diagnosticRule(ruleName: RuleName, description: string, gate: (text: st
   };
 }
 
+// localAstRule builds the one non-router lane (see the header exception): a
+// plain node-visitor rule over the host-provided ESTree AST, gated on the
+// same cheap text pre-filter discipline as the transport rules — a file that
+// never names runTypeFromJsonSchema pays nothing, not even a visitor.
+function localAstRule(description: string): RuleModule {
+  return {
+    meta: {type: 'problem', docs: {description}},
+    create(context: RuleContext) {
+      if (!context.sourceCode.text.includes('runTypeFromJsonSchema')) return {};
+      return {
+        CallExpression: (node: AstNode) => {
+          for (const finding of droppedIntentFindings(node)) context.report(finding);
+        },
+      };
+    },
+  };
+}
+
 const packageVersion = (createRequire(import.meta.url)('../../package.json') as {version: string}).version;
 
 export const meta = {name: 'runtypes', version: packageVersion};
@@ -142,7 +170,9 @@ export const meta = {name: 'runtypes', version: packageVersion};
 export const rules: Record<RuleName, RuleModule> = Object.fromEntries(
   RULE_SPECS.map((spec) => [
     spec.name,
-    diagnosticRule(spec.name, spec.description, spec.gate === 'enrichment' ? looksLikeEnrichmentFile : needsResolverPass),
+    spec.gate === 'local'
+      ? localAstRule(spec.description)
+      : diagnosticRule(spec.name, spec.description, spec.gate === 'enrichment' ? looksLikeEnrichmentFile : needsResolverPass),
   ])
 ) as Record<RuleName, RuleModule>;
 

@@ -41,18 +41,21 @@ export type RuleName =
   | 'enrichment-field'
   | 'enrichment-message'
   | 'enrichment-broken-source'
-  | 'enrichment-misplaced-file';
+  | 'enrichment-misplaced-file'
+  | 'json-schema-dropped-intent';
 
 // RuleSpec is the single source of truth for a rule: its default level (mirrors
 // the Go catalog severity of the codes it carries), which cheap text pre-filter
 // admits a file to the resolver pass (`compiler` scans any marker/RT file,
-// `enrichment` only generated mirror files), and the one-line description lint
-// hosts show. index.ts builds its `rules` record and `recommended` config from
-// this table; nothing hand-lists the rules twice.
+// `enrichment` only generated mirror files, `local` files naming
+// runTypeFromJsonSchema — the one lane that never pays a resolver pass), and
+// the one-line description lint hosts show. index.ts builds its `rules`
+// record and `recommended` config from this table; nothing hand-lists the
+// rules twice.
 export interface RuleSpec {
   readonly name: RuleName;
   readonly default: 'error' | 'warn';
-  readonly gate: 'compiler' | 'enrichment';
+  readonly gate: 'compiler' | 'enrichment' | 'local';
   readonly description: string;
 }
 
@@ -231,6 +234,13 @@ export const RULE_SPECS: readonly RuleSpec[] = [
     gate: 'enrichment',
     description:
       'A generated mirror that is no longer where the generator would write it, usually after its source file moved — re-run the generator to relocate it',
+  },
+  {
+    name: 'json-schema-dropped-intent',
+    default: 'warn',
+    gate: 'local',
+    description:
+      'A JSON Schema keyword whose intent the pipeline cannot honor: readOnly/writeOnly are read-and-ignored annotations, and then/else without if (or minContains/maxContains without contains) constrain nothing per 2020-12 — the schema builds, but nothing enforces what was written',
   },
 ];
 

@@ -39,6 +39,22 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
         "import {createValidateFn} from '@ts-runtypes/core';\n\n" +
         'interface Widget {\n  label: string;\n  onClick: () => void;\n}\n\n' +
         'export const isWidget = createValidateFn<Widget>();\n',
+      // The local-AST lane: dropped-intent warnings need no resolver pass at
+      // all — the rule walks the schema literal in this very file. `readOnly`
+      // at both positions, an orphaned `then`, and a lifted `if/then` pair
+      // that must stay QUIET.
+      'schema.ts':
+        'declare function runTypeFromJsonSchema(s: unknown): unknown;\n' +
+        'export const rt = runTypeFromJsonSchema({\n' +
+        "  type: 'object',\n" +
+        '  readOnly: true,\n' +
+        "  properties: {draft: {type: 'string', writeOnly: true}},\n" +
+        '  then: {minLength: 1},\n' +
+        '} as const);\n' +
+        'export const quiet = runTypeFromJsonSchema({\n' +
+        "  if: {type: 'string'}, then: {minLength: 1},\n" +
+        "  contains: {type: 'number'}, minContains: 2,\n" +
+        '} as const);\n',
     });
     project.write(
       '.oxlintrc.json',
@@ -58,6 +74,7 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
             'runtypes/no-orphan-carcass': 'error',
             'runtypes/enrichment-field': 'error',
             'runtypes/enrichment-broken-source': 'error',
+            'runtypes/json-schema-dropped-intent': 'warn',
           },
           ignorePatterns: ['node_modules/**'],
         },
@@ -93,6 +110,14 @@ describe.runIf(ready)('oxlint end to end (jsPlugins)', () => {
     // file lands under the validate family's skipped-member rule.
     expect(stdout).toContain('runtypes(validate-skipped-member)');
     expect(stdout).toContain('[VL011]');
+    // The local-AST lane: schema.ts carries three dropped-intent spellings
+    // (readOnly at the root, writeOnly on a property, an orphaned then) and
+    // one lifted pair that must stay quiet.
+    expect(stdout).toContain('runtypes(json-schema-dropped-intent)');
+    expect(stdout).toContain("'readOnly: true' is an annotation");
+    expect(stdout).toContain("'writeOnly: true' is an annotation");
+    expect(stdout).toContain("'then' without a sibling 'if'");
+    expect(stdout).not.toContain("'minContains' without");
     // The engine itself must not have failed.
     expect(stdout).not.toContain('resolver failed');
     expect(stdout).not.toContain('resolver unavailable');
