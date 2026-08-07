@@ -314,6 +314,22 @@ a value-first + type-first spelling: they ride a single params bag on the collec
 builders — `RT.array(item, {uniqueItems, contains, …})` / `RT.object(config, {minProperties,
 patternProperties, propertyNames, …})` / `RT.record(…, {…})` — and the `FormattedArray<Base, P>`
 / `FormattedObject<Base, P>` wrapper types (formats/structural.ts), the door's exact twins.
+Every sentinel slot is a LIST with append semantics end to end: allOf-stacked
+`propertyNames` (or `unevaluated*`) arrive as one sentinel member per arm, the id fold
+appends them into a sorted tag and the serialize collapse appends the same children, so
+every arm is enforced and the id is order-free — id = behavior, never last-wins. Bare
+`minItems` (no `prefixItems` in scope) rides `FormattedArrayParams.minItems`, the same
+encoding `RT.array({minItems})` carries, so the three modes share one id; beside
+`prefixItems` the tuple keeps carrying it as required slots. Boolean subschemas are
+accepted at every schema position (2020-12 core §4.3.2), and the combinator probes admit
+them — an all-boolean `allOf` really is `never`. One arm of a multi-arm `allOf` may carry
+`oneOf`: the other arms push into each branch (the base holds uniformly, so the
+exactly-one count is unchanged), never-branches filter out of the carrier, and a second
+exclusivity carrier still resolves `never` (loud). The mixed
+`properties` + schema-valued `additionalProperties` form keeps its EXACT index type on
+purpose — the recovered type is the validator's source, and TypeScript cannot spell
+"every key except the declared ones" — so the admitting projection lives in the clean
+types below, never in the reflected type.
 Closedness is derived from the shape rather than hand-authored. Two emit-side rules keep the translation honest where the recovered type alone would not: a key matched by a sibling `__rtPatternProps` entry is EXEMPT from the index signature a schema-valued `additionalProperties` lowers to (2020-12: a matched key is not "additional"), the pattern twin of the long-standing sibling-named-key skip; and a REQUIRED member whose type imposes no value check (`unknown` / `any`) still emits a PRESENCE check, since `{}` is not assignable to `{foo: unknown}` — without it the slot leaves the AND chain and the member silently turns optional, which also breaks the weak-type gate's "one required prop already enforces presence" shortcut. The collapse also merges TUPLE ∩
 TUPLE intersections slot-wise (the shape allOf-over-prefixItems produces; boolean slot
 schemas ride along — `true` pads, `false` forbids the position): unknown sides defer,
@@ -377,10 +393,20 @@ schema group against the door's input contract (committed `triage.json`), genera
 `as const` call-site modules (gitignored, rebuilt by `check:builds`), and the lane pins
 every verdict against a committed two-way divergence ledger — a regression AND a silently
 fixed divergence both turn it red. The scoreboard is that directory's `CONFORMANCE.md`.
+The lane also runs the TYPE gate: every spec-valid sample of every accepted group is
+emitted as an assignment into `JsonSchemaType<typeof schema>` and compiled through the
+real TypeScript compiler (only the fresh-literal excess-property check is filtered —
+open-world samples carry undeclared keys by design), with its own two-way ledger
+(`type-gate-divergences.json`) under the same stale-entry-fails discipline.
 
 `DataOnly<T>` lives here too. It is the type level statement of the data only contract: it
 projects a type down to what can actually survive a JSON round trip, which is why decoders
-return it. The return type cannot claim a method survived when it did not.
+return it. The return type cannot claim a method survived when it did not. Its
+annotation-grade twin is `StripRunTypeMeta<T>` (and the door's `JsonSchemaType<S>` on the
+json-schema subpath): every sentinel stripped, format brands collapsed to their base —
+and NEVER reflected, because the stripped metadata IS the validation contract; a factory
+built from the clean type would enforce nothing. DataOnly keeps the sentinels for exactly
+that reason and stays the reflection-safe projection.
 
 One quirk worth knowing: the package's own tests import it by its public name, so its
 `package.json` declares a `source` export condition to make that resolve to `src/` rather
@@ -421,7 +447,12 @@ compiler's diagnostics into your editor, named after what they catch rather than
 severity; the other keeps the hand edited enrichment files honest by refusing unfilled
 `@todo` markers and leftover `@rtOrphan` blocks. The rules do not analyse anything
 themselves. They ask the Go program and route the answers, caching per file so all the
-rules share one round trip.
+rules share one round trip. ONE documented exception: `json-schema-dropped-intent` is a
+local rule that walks `runTypeFromJsonSchema({…})` literals in the linted file itself
+(both hosts hand rules the same ESTree AST) and warns where declared intent is read and
+ignored — readOnly/writeOnly, orphaned then/else, orphaned contains bounds. The resolver
+never sees a JSON Schema document, so there is no wire diagnostic to route; the local
+lane exists for schema-literal hygiene only and pays no resolver pass.
 
 Because there is no `source` condition here, and because the lint entry points are literal
 paths into the built output, **this package must be rebuilt after every source edit.** It
