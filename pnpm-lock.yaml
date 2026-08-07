@@ -31,7 +31,7 @@ importers:
         version: 9.1.7
       json-schema-test-suite:
         specifier: github:json-schema-org/JSON-Schema-Test-Suite#cc73f5fa64c3b0d11f6c277db4edc22938994b54
-        version: git+ssh://git@github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54
+        version: git+https://github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54
       lint-staged:
         specifier: 16.4.0
         version: 16.4.0
@@ -1065,8 +1065,8 @@ packages:
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
 
-  json-schema-test-suite@git+ssh://git@github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54:
-    resolution: {commit: cc73f5fa64c3b0d11f6c277db4edc22938994b54, repo: git@github.com:json-schema-org/JSON-Schema-Test-Suite.git, type: git}
+  json-schema-test-suite@git+https://github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54:
+    resolution: {commit: cc73f5fa64c3b0d11f6c277db4edc22938994b54, repo: https://github.com/json-schema-org/JSON-Schema-Test-Suite.git, type: git}
     version: 0.1.0
 
   json-schema-traverse@1.0.0:
@@ -2496,7 +2496,7 @@ snapshots:
 
   json-parse-even-better-errors@2.3.1: {}
 
-  json-schema-test-suite@git+ssh://git@github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54: {}
+  json-schema-test-suite@git+https://github.com/json-schema-org/JSON-Schema-Test-Suite.git#cc73f5fa64c3b0d11f6c277db4edc22938994b54: {}
 
   json-schema-traverse@1.0.0: {}
 
