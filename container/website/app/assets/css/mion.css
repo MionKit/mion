@@ -290,7 +290,7 @@ h2[data-slot='title'] {
   color: var(--ui-text-dimmed);
 }
 
-/* Home "Two ways to describe a shape" — type-first vs schema-first, side by side.
+/* Home "Two ways to describe a shape" — type-first vs builder, side by side.
    Two single-tab code-groups in a 2-col grid; min-width:0 lets each code block
    wrap inside its column instead of forcing the grid wider. Stacks when narrow. */
 .rt-define-cols {
@@ -623,7 +623,7 @@ h2[data-slot='title'] {
 }
 
 /* Home "Formats baked into your types" — three columns: the pitch (card with a
-   Temporal tile pinned to its bottom), the type-first example, the schema-first
+   Temporal tile pinned to its bottom), the type-first example, the builder
    example. Equal height; code panels flex-fill. */
 .rt-formats-cols {
   display: grid;

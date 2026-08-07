@@ -37,7 +37,7 @@ import {
   nonNullable,
   readonly,
   returnType,
-} from '@ts-runtypes/core/schema';
+} from '@ts-runtypes/core/builders';
 import '@ts-runtypes/core/formats';
 
 describe('compose builders — array', () => {

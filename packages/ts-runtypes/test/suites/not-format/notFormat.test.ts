@@ -7,7 +7,7 @@ import {describe, expect, it} from 'vitest';
 import {createValidateFn, createMockDataFn, createGetValidationErrorsFn, getRunTypeId} from '@ts-runtypes/core';
 import type {Email, Integer, UUIDv4, Not} from '@ts-runtypes/core/formats';
 import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
 describe('Not<F> — format negation', () => {
   it('validates the complement of a named format (static form)', () => {

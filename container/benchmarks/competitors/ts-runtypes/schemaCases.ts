@@ -1,8 +1,8 @@
-// ts-runtypes validators keyed by suite case key ("GROUP.case"), SCHEMA form
-// (value-first). Each entry is the case's own `validateSchema` thunk copied
-// VERBATIM from the shared suites (container/benchmarks/src/suites/**) — a
-// `() => createValidateFn(RT.…)` arrow built from the `ts-runtypes/schema`
-// builders instead of a literal type argument. Consumed by typecost ONLY (it is
+// ts-runtypes validators keyed by suite case key ("GROUP.case"), BUILDER form.
+// Each entry is the case's own `validateSchema` thunk copied VERBATIM from the
+// shared suites (container/benchmarks/src/suites/**) — a
+// `() => createValidateFn(RT.…)` arrow built from the `ts-runtypes/builders`
+// surface instead of a literal type argument. Consumed by typecost ONLY (it is
 // NOT imported by main.ts). Cases whose value-first form can't be authored
 // (`validateSchema: 'not-supported'`) or that render an alwaysThrow factory
 // (`factoryThrows`) opt out with NOT_SUPPORTED. TOTAL over every key.
@@ -10,7 +10,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import * as TFT from '@ts-runtypes/core/formats/temporal';
 import {createValidateFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 export const schemaCases: CompetitorCases = {

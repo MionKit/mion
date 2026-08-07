@@ -48,9 +48,9 @@ describe('surrounding-code templating', () => {
     );
   });
 
-  it('factoryCall renders the value-first (schema) call, injecting after the schema', () => {
-    expect(factoryCall('createValidateFn', 'validate', 'schema')).toBe('const validate = createValidateFn(MyType);');
-    expect(factoryCall('createValidateFn', 'validate', 'schema', '__rt_a1b_Xk7')).toBe(
+  it('factoryCall renders the builder call, injecting after the run-type', () => {
+    expect(factoryCall('createValidateFn', 'validate', 'builder')).toBe('const validate = createValidateFn(MyType);');
+    expect(factoryCall('createValidateFn', 'validate', 'builder', '__rt_a1b_Xk7')).toBe(
       'const validate = createValidateFn(MyType, __rt_a1b_Xk7);'
     );
   });
@@ -258,7 +258,7 @@ type MyType = { code: TF.String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'; flags:
   });
 
   it('mockInvalid works in the value-first schema form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/schema';
+    const schema = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 
 const MyType = RT.object({
@@ -267,8 +267,8 @@ const MyType = RT.object({
       tags: RT.array(TF.string()),
       active: RT.boolean(),
     });`;
-    const m = await mockInvalid(schema, undefined, 'schema');
-    const res = await run('validate', schema, m.value, undefined, 'schema');
+    const m = await mockInvalid(schema, undefined, 'builder');
+    const res = await run('validate', schema, m.value, undefined, 'builder');
     if (res.kind !== 'predicate') throw new Error('expected predicate result');
     expect(res.value).toBe(false);
   });
@@ -346,17 +346,17 @@ type MyType = { outer: Inner };`;
   });
 
   it('transformedSource injects the id after the schema in the value-first form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/schema';
+    const schema = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 const MyType = RT.object({id: TF.number(), name: TF.string()});`;
-    const code = await transformedSource('createJsonEncoderFn', 'toJson', schema, undefined, 'schema');
+    const code = await transformedSource('createJsonEncoderFn', 'toJson', schema, undefined, 'builder');
     expect(code).toMatch(/^import \{__rt_[A-Za-z0-9_]+} from 'rtmod:\/.+';/m);
     expect(code).toMatch(/const toJson = createJsonEncoderFn\(MyType, __rt_[A-Za-z0-9_]+\);/);
   });
 
   it('handles a circular (recursive) type in both type and schema forms', async () => {
     const typeForm = `type MyType = { id: number; name: string; children: MyType[] };`;
-    const schemaForm = `import * as RT from '@ts-runtypes/core/schema';
+    const builderForm = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), children: RT.array(RT.self()) }));`;
     const tree = {id: 1, name: 'root', children: [{id: 2, name: 'leaf', children: []}]};
@@ -364,7 +364,7 @@ const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), child
 
     for (const [code, mode] of [
       [typeForm, 'type'],
-      [schemaForm, 'schema'],
+      [builderForm, 'builder'],
     ] as const) {
       const graph = await run('graph', code, undefined, undefined, mode);
       if (graph.kind !== 'graph') throw new Error('expected graph result');
@@ -379,7 +379,7 @@ const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), child
   });
 
   it('runs the value-first schema form (mode: schema)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/schema';
+    const schema = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 
 const MyType = RT.object({
@@ -388,10 +388,10 @@ const MyType = RT.object({
       tags: RT.array(TF.string()),
       active: RT.boolean(),
     });`;
-    const ok = await run('validate', schema, VALID, undefined, 'schema');
+    const ok = await run('validate', schema, VALID, undefined, 'builder');
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
-    const bad = await run('validate', schema, INVALID, undefined, 'schema');
+    const bad = await run('validate', schema, INVALID, undefined, 'builder');
     if (bad.kind !== 'predicate') throw new Error('expected predicate result');
     expect(bad.value).toBe(false);
   });

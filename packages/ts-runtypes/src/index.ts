@@ -45,7 +45,7 @@ export {type RunType} from './runtypes/types.ts';
 export {getRunType} from './getRunType.ts';
 export {type DataOnly} from './runtypes/dataOnly.ts';
 export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
-export {type InferType, type OneOf, type AnyOf} from './schema/static.ts';
+export {type InferType, type OneOf, type AnyOf} from './builders/static.ts';
 
 // AI enrichment — type-keyed, committed maps validated against `T` at scan time
 // (see docs/AI_ENRICHMENT.md). `FriendlyText<T>` combines labels + error

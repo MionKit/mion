@@ -18,7 +18,7 @@
 //     constructed from a plain literal, so the value is cast — discarded at
 //     runtime, only its static type drives `T` inference).
 //
-// The bare `import '@ts-runtypes/core/schema'` is type-only here; the
+// The bare `import '@ts-runtypes/core/builders'` is type-only here; the
 // `import '@ts-runtypes/core/formats'` side-effect import is load-bearing
 // (registers the format mock fns + pure-fns the emitted validators reach).
 
@@ -31,7 +31,7 @@ import {
   type InferType,
   type GetValidationErrorsFn,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {deserializeValidate} from '../../util/deserializeRTFunctions.ts';
 import '@ts-runtypes/core/formats';
 

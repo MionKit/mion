@@ -41,15 +41,26 @@
         "default": "./dist/cjs/formats/datetime/temporalFormats.js"
       }
     },
-    "./schema": {
-      "source": "./src/schema/index.ts",
+    "./builders": {
+      "source": "./src/builders/index.ts",
       "import": {
-        "types": "./dist/schema/index.d.ts",
-        "default": "./dist/schema/index.js"
+        "types": "./dist/builders/index.d.ts",
+        "default": "./dist/builders/index.js"
       },
       "require": {
-        "types": "./dist/cjs/schema/index.d.ts",
-        "default": "./dist/cjs/schema/index.js"
+        "types": "./dist/cjs/builders/index.d.ts",
+        "default": "./dist/cjs/builders/index.js"
+      }
+    },
+    "./schema": {
+      "source": "./src/builders/index.ts",
+      "import": {
+        "types": "./dist/builders/index.d.ts",
+        "default": "./dist/builders/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/builders/index.d.ts",
+        "default": "./dist/cjs/builders/index.js"
       }
     },
     "./json-schema": {

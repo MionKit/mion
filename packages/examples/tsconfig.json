@@ -20,7 +20,7 @@
     "paths": {
       "@ts-runtypes/core": ["./../ts-runtypes/dist/index.d.ts"],
       "@ts-runtypes/core/formats": ["./../ts-runtypes/dist/formats/index.d.ts"],
-      "@ts-runtypes/core/schema": ["./../ts-runtypes/dist/schema/index.d.ts"],
+      "@ts-runtypes/core/builders": ["./../ts-runtypes/dist/builders/index.d.ts"],
       "@ts-runtypes/core/json-schema": ["./../ts-runtypes/dist/json-schema/index.d.ts"],
       "@ts-runtypes/devtools/vite": ["./../ts-runtypes-devtools/dist/vite.d.ts"],
       "@ts-runtypes/devtools/rollup": ["./../ts-runtypes-devtools/dist/rollup.d.ts"]

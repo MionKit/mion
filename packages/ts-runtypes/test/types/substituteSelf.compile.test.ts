@@ -1,5 +1,5 @@
 // Correctness + instantiation-budget test for `SubstituteSelf` / `Recursive`
-// (src/schema/static.ts) — the value-first `circular(…self()…)` type channel.
+// (src/builders/static.ts) — the value-first `circular(…self()…)` type channel.
 //
 // Lighter than the DataOnly suite (per request): it covers the recursive /
 // circular shapes that matter rather than an exhaustive per-branch matrix. Each

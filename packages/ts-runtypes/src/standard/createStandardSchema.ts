@@ -13,7 +13,7 @@
 // `message`/`path`. So generic consumers see a plain Standard Schema while
 // RunTypes-aware consumers get the structured data with no extra call.
 
-import {isRunTypeSchema} from '../runtypes/rtUtils.ts';
+import {isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {resolveEntryTupleFn} from '../runtypes/entryTuple.ts';
 import type {EntryTuple} from '../runtypes/entryTuple.ts';
 import type {RunType} from '../runtypes/types.ts';
@@ -58,7 +58,7 @@ const errorsFallback: GetValidationErrorsFn = () => [];
  *  `vendor: 'ts-runtypes'`. Accepts either a value-first `RunType` schema or the
  *  type/value reflection form, mirroring `createValidateFn`. **/
 export function createStandardSchema<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
   ids?: InjectTypeFnArgs<T, 'val', 'verr'>
 ): RTStandardSchemaV1<DataOnly<T>>;
@@ -74,7 +74,7 @@ export function createStandardSchema<T>(
 ): RTStandardSchemaV1<DataOnly<T>> {
   // A value-first schema's runtime `.id` overrides the injected type id for both
   // lookups (correct even for recursive schemas).
-  const schemaId = isRunTypeSchema(valOrSchema) ? valOrSchema.id : undefined;
+  const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
   // The marker injects `[valTuple, verrTuple]` in the Fn-arg order 'val','verr'.
   const injected = ids as unknown as readonly EntryTuple[] | undefined;
   const valInjected = injected ? injected[0] : undefined;
@@ -86,13 +86,13 @@ export function createStandardSchema<T>(
   const validate = resolveEntryTupleFn<ValidateFn<T>>(
     'createValidateFn',
     validateFallback as ValidateFn<T>,
-    schemaId,
+    runTypeId,
     valInjected
   );
   const getErrors = resolveEntryTupleFn<GetValidationErrorsFn>(
     'createGetValidationErrorsFn',
     errorsFallback,
-    schemaId,
+    runTypeId,
     verrInjected
   );
   const props: RTStandardSchemaV1<DataOnly<T>>['~standard'] = {

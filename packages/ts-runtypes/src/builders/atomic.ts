@@ -5,7 +5,7 @@
 // `RunType<T>` (the runtime run-type node, typed with the source type `T`);
 // `InferType<typeof X>` recovers `T`:
 //
-//   import {boolean, literal, enumType} from '@ts-runtypes/core/schema';
+//   import {boolean, literal, enumType} from '@ts-runtypes/core/builders';
 //   import {createValidateFn, type InferType} from '@ts-runtypes/core';
 //
 //   const Flag = boolean();              // RunType<boolean>

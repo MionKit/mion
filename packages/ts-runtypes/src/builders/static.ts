@@ -12,7 +12,7 @@ import type {RunType} from '../runtypes/types.ts';
 import type {InferType} from '../runtypes/builderTypes.ts';
 
 // Format-builder type helpers — moved to runtypes/builderTypes.ts; re-exported so
-// the schema barrel and the sibling builder files keep their `./static.ts` import
+// the builders barrel and the sibling builder files keep their `./static.ts` import
 // paths through the formats split.
 export type {
   InferType,

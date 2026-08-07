@@ -31,14 +31,14 @@ const RunTypeName = "RunType"
 // carrier, not a RunType, so they need their own recognition in the leaf check.
 const PropModSentinel = "__propMod"
 
-// IsSchemaLeafCall reports whether call is a static schema-construction call
-// valid as a CompTimeArgs leaf: a value-first builder (returns RunType<…>, incl.
+// IsBuilderLeafCall reports whether call is a static builder-construction call
+// valid as a CompTimeArgs leaf: a builder (returns RunType<…>, incl.
 // the temporal.* family and composers) OR a property modifier (optional() /
 // propMod(), returning a {__propMod,…} carrier). A user-module call is neither,
 // so dynamic construction is still rejected. Each accepted call self-validates
 // its own CompTimeArgs args on its own scan visit, so the leaf check STOPS here
 // without recursing.
-func IsSchemaLeafCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
 	}

@@ -291,8 +291,9 @@ small, because the specialised code is generated. What ships here is:
   formats, mock functions, and helper functions.
 
 There are three ways to describe a type, and they all meet in the same place. Type first
-uses plain TypeScript (`createValidateFn<User>()`). Value first uses builders from the
-`/schema` subpath (`RT.object({...})`) with `InferType` to get the type back out. JSON
+uses plain TypeScript (`createValidateFn<User>()`). Type builders come from the
+`/builders` subpath (`RT.object({...})`, aliased as `/schema` until 1.0) and return a
+run-type, with `InferType` to get the type back out. JSON
 Schema first passes a draft 2020-12 literal from the `/json-schema` subpath
 (`createValidateFn(runTypeFromJsonSchema({...}))`) with `FromJsonSchema` to get the type back out.
 All three converge on the same structural id, so equivalent shapes resolve to the same

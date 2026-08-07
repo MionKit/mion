@@ -9,7 +9,7 @@
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, createMockDataFn, getRunTypeId, type CompTimeArgs} from '@ts-runtypes/core';
 import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {
   runTypeFromJsonSchema,
   type ExactJsonSchema,

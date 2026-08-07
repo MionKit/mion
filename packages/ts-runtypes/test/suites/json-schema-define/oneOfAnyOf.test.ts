@@ -21,7 +21,7 @@ import {
   type AnyOf,
   type DataOnly,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
 

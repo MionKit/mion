@@ -7,7 +7,7 @@ import {
   createStandardSchema,
   type DataOnly,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const TEMPLATE_LITERAL = {

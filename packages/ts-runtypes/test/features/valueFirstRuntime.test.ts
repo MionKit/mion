@@ -17,7 +17,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId, getRTUtils, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import '@ts-runtypes/core/formats';
 
 describe('value-first / builders return the live RunType (Tier 2)', () => {

@@ -15,12 +15,12 @@ import (
 // not reduce the `ObjectOptionalOnly<C>` mapped/conditional type, so `FieldOf<C[K]>`
 // is left unapplied and the raw field carriers get reflected.
 //
-// The overlay mirrors the REAL schema types (packages/ts-runtypes/src/schema/
+// The overlay mirrors the REAL schema types (packages/ts-runtypes/src/builders/
 // static.ts + compose.ts): PropModCarrier / FieldOf / ObjectType / ObjectOptionalOnly
 // (each modifier tier `Flatten`ed into one literal, as in static.ts — so the
 // cold-scan resolver must see through that extra homomorphic map too), plus
 // `object` / `optional` / `string` builders and the two `getRunType` overloads.
-const schemaOptionalDTS = `declare module '@ts-runtypes/core' {
+const builderOptionalDTS = `declare module '@ts-runtypes/core' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T;
   export interface RunType<T = unknown> { readonly id: string; }
@@ -68,25 +68,25 @@ const schemaOptionalDTS = `declare module '@ts-runtypes/core' {
 }
 `
 
-// leakedSchemaTypeNames are the schema-internal names that must NEVER surface in
+// leakedBuilderTypeNames are the schema-internal names that must NEVER surface in
 // reflection (the cold-scan leak dumped these into the bundle as dead entries).
-var leakedSchemaTypeNames = map[string]bool{
+var leakedBuilderTypeNames = map[string]bool{
 	"RunType": true, "PropModCarrier": true, "ObjectOptionalOnly": true,
 	"ObjectType": true, "ObjectReadonlyOnly": true, "ObjectMixed": true,
 	"FormatAnnotation": true, "PropModifiers": true, "Flatten": true,
 }
 
-// TestSchemaOptionalReflect_ColdModeledType is the regression guard: on a COLD
+// TestBuilderOptionalReflect_ColdModeledType is the regression guard: on a COLD
 // scan (fresh resolver, so tsgo hasn't yet instantiated the schema builder types)
 // reflecting a value-first schema that uses `optional(...)` must resolve the
 // MODELED type ({ note?: string }) — an anonymous object literal — and must NOT
 // leak the schema's internal `ObjectOptionalOnly<C>` / `PropModCarrier` / `RunType`
 // wrapper types into the cache or the emitted bundle.
-func TestSchemaOptionalReflect_ColdModeledType(t *testing.T) {
+func TestBuilderOptionalReflect_ColdModeledType(t *testing.T) {
 	const code = `import {getRunType, object, optional, string} from '@ts-runtypes/core';
 getRunType(object({ note: optional(string()) }));
 `
-	r := setupInline(t, map[string]string{"runtypes.d.ts": schemaOptionalDTS, "test.ts": code})
+	r := setupInline(t, map[string]string{"runtypes.d.ts": builderOptionalDTS, "test.ts": code})
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"test.ts"}})
 	if resp.Error != "" {
 		t.Fatalf("scan: %s", resp.Error)
@@ -96,7 +96,7 @@ getRunType(object({ note: optional(string()) }));
 	byID := map[string]*protocol.RunType{}
 	for _, rt := range types {
 		byID[rt.ID] = rt
-		if leakedSchemaTypeNames[rt.TypeName] {
+		if leakedBuilderTypeNames[rt.TypeName] {
 			t.Errorf("schema-internal type leaked into the runtype cache: %q (id %s)", rt.TypeName, rt.ID)
 		}
 	}

@@ -4,7 +4,7 @@
 // so it does NOT converge with the type-first `createValidateFn<Enum>()` — by design
 // (a value-first builder can't reconstruct the nominal enum's member-name
 // metadata; the enum id-integrity cases are flagged `idDivergent`). See the
-// builder doc in src/schema/atomic.ts.
+// builder doc in src/builders/atomic.ts.
 //
 // `createValidateFn` returns the cached factory for a structural id, so `toBe`
 // (reference identity) is a same-id assertion and `not.toBe` is a different-id
@@ -12,7 +12,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
 enum Mixed {
   Red,

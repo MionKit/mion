@@ -17,7 +17,7 @@ const TYPE_FORM = `type MyType = {
   active?: boolean;
 };`;
 
-const SCHEMA_FORM = `import * as RT from '@ts-runtypes/core/schema';
+const BUILDER_FORM = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 
 const MyType = RT.object({
@@ -35,20 +35,20 @@ describe('playground / optional-union schema↔type convergence (regression)', (
     if (assetsBuilt()) setResolver(await loadNodeResolver());
   });
 
-  it('optional boolean: schema form converges with type-first and emits no union envelope', async () => {
+  it('optional boolean: builder form converges with type-first and emits no union envelope', async () => {
     if (!assetsBuilt()) return;
     const typeMods = await generatedCache('createJsonEncoderFn', TYPE_FORM, undefined, 'type');
-    const schemaMods = await generatedCache('createJsonEncoderFn', SCHEMA_FORM, undefined, 'schema');
+    const builderMods = await generatedCache('createJsonEncoderFn', BUILDER_FORM, undefined, 'builder');
 
     const pjs = (mods: Array<{name: string; code: string}>) => mods.find((m) => m.name.includes('pjs'))?.code ?? '';
     const typePjs = pjs(typeMods);
-    const schemaPjs = pjs(schemaMods);
+    const builderPjs = pjs(builderMods);
 
     // Both forms build the same prepareForJsonSafe clone with an optional
     // presence check — no discriminated-union dispatch.
     for (const [label, code] of [
       ['type-first', typePjs],
-      ['schema', schemaPjs],
+      ['builder', builderPjs],
     ] as const) {
       expect(code, `${label} pjs should exist`).toMatch(/export const __rt_/);
       expect(code, `${label} pjs must not carry a union envelope`).not.toMatch(UNION_ENVELOPE);
@@ -58,6 +58,6 @@ describe('playground / optional-union schema↔type convergence (regression)', (
 
     // Convergence: identical structural id (the `pjs.js` module's __rt_<fnHash>_<id>).
     const idOf = (code: string) => code.match(/__rt_[A-Za-z0-9]+_([A-Za-z0-9]+)\s*=/)?.[1];
-    expect(idOf(schemaPjs), 'schema and type-first must resolve the same structural id').toBe(idOf(typePjs));
+    expect(idOf(builderPjs), 'schema and type-first must resolve the same structural id').toBe(idOf(typePjs));
   });
 });

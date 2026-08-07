@@ -8,7 +8,7 @@ import {
   createStandardSchema,
   type DataOnly,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 // Real-world DTO scenarios — the SAME relational / CMS / API / form shapes the

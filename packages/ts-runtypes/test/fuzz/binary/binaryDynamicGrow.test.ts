@@ -9,7 +9,7 @@
 
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
 import {setSerializationOptions} from '../../../src/runtypes/dataView.ts';
 

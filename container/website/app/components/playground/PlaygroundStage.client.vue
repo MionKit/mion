@@ -2,13 +2,13 @@
 // PlaygroundStage - the interactive playground UI (client-only: it lazy-loads
 // Monaco + the resolver WASM, both browser-only). A Vue port of the former
 // <runtypes-playground> web component. Three columns:
-//   1. Source     - the TypeScript type (or value-first schema) editor, its
+//   1. Source     - the TypeScript type (or builder) editor, its
 //                   read-only import header + call footer, and the "Transformed
 //                   Src" view of what the build plugin injects.
 //   2. Generated  - the code RunTypes generates for the selected function + type.
 //   3. Function   - a build-function picker, a JS-expression input pane with
 //                   Random valid / Random invalid, a Run button, and the result.
-// Above: real-world presets + a TS-type / Schema mode switch.
+// Above: real-world presets + a TS-type / Builder mode switch.
 //
 // The engine (../../playground) is framework-agnostic; this component owns the
 // Monaco wiring, the debounced codegen, and the highlighted output. Colors follow
@@ -101,7 +101,7 @@ const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
 const runLabel = computed(() => (currentOp.value.kind === 'graph' ? 'Unpack RunTypes' : 'Run'));
 const typeHintHtml = computed(() =>
-  mode.value === 'schema'
+  mode.value === 'builder'
     ? `define <code>${ROOT_TYPE}</code> with RT/TF builders`
     : mode.value === 'jsonSchema'
       ? `define <code>${ROOT_TYPE}</code> from a 2020-12 document`
@@ -417,7 +417,7 @@ function currentPreset(): Preset {
 }
 
 function presetSource(preset: Preset, form: Mode): string {
-  if (form === 'schema') return preset.schema;
+  if (form === 'builder') return preset.builder;
   if (form === 'jsonSchema') return preset.jsonSchema;
   return preset.ts;
 }
@@ -778,9 +778,9 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="rtpg-mode"
-            :class="{'is-active': mode === 'schema'}"
-            title="ts-runtypes schema (value-first)"
-            @click="setMode('schema')"
+            :class="{'is-active': mode === 'builder'}"
+            title="ts-runtypes builder (run-type)"
+            @click="setMode('builder')"
           >
             <svg viewBox="0 0 32 32" aria-hidden="true">
               <path
@@ -788,7 +788,7 @@ onBeforeUnmount(() => {
                 d="M18.774 19.7a3.73 3.73 0 0 0 3.376 2.078c1.418 0 2.324-.709 2.324-1.688c0-1.173-.931-1.589-2.491-2.272l-.856-.367c-2.469-1.052-4.11-2.37-4.11-5.156c0-2.567 1.956-4.52 5.012-4.52A5.06 5.06 0 0 1 26.9 10.52l-2.665 1.711a2.33 2.33 0 0 0-2.2-1.467a1.49 1.49 0 0 0-1.638 1.467c0 1.027.636 1.442 2.1 2.078l.856.366c2.908 1.247 4.549 2.518 4.549 5.376c0 3.081-2.42 4.769-5.671 4.769a6.58 6.58 0 0 1-6.236-3.5ZM6.686 20c.538.954 1.027 1.76 2.2 1.76c1.124 0 1.834-.44 1.834-2.15V7.975h3.422v11.683c0 3.543-2.078 5.156-5.11 5.156A5.31 5.31 0 0 1 3.9 21.688Z"
               />
             </svg>
-            <span>Schema</span>
+            <span>Builder</span>
           </button>
           <button
             type="button"

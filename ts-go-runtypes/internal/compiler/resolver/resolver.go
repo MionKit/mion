@@ -580,7 +580,7 @@ func (sess *Session) Sites() []protocol.Site {
 
 // markerModule returns the package the marker brands are declared in (the
 // first configured spec's Module, defaulting to marker.DefaultModule). Passed
-// to builders.IsSchemaLeafCall as the module gate.
+// to builders.IsBuilderLeafCall as the module gate.
 func (sess *Session) markerModule() string {
 	for _, spec := range sess.marker.Specs {
 		if spec.Module != "" {

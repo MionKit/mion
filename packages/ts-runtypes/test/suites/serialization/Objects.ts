@@ -7,7 +7,7 @@ import {
   createJsonEncoderFn,
   registerClassSerializer,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import type {SerializationCase} from './types.ts';
 
 export const OBJECTS = {

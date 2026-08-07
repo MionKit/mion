@@ -24,7 +24,7 @@
 
 import * as TF from '@ts-runtypes/core/formats';
 import {expect, test} from 'vitest';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import type {InferType} from '@ts-runtypes/core';
 
 /** Asserts `S` and `T` are mutually assignable (the helper form of cross-assigning

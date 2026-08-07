@@ -3,7 +3,7 @@
 // bundles that don't reference `createMockDataFn`. Mock has no per-type RT
 // cache; the walker reads `runTypesCache` and generates values at runtime.
 
-import {getRTUtils, isRunTypeSchema} from '../runtypes/rtUtils.ts';
+import {getRTUtils, isRunTypeValue} from '../runtypes/rtUtils.ts';
 import {entryTupleKey, initFromTuple, isEntryTuple} from '../runtypes/entryTuple.ts';
 // Side-effect imports: register the per-kind format mock fns. They must ride
 // the mock subtree itself — a consumer whose only ts-runtypes/formats imports
@@ -32,7 +32,7 @@ import type {MockDataNode, MockOptions, MockTypeFn, RunTypeMockOptions, DeepPart
  *  reproducible across builds) but never validates it — a dynamic options
  *  bag stays legal and simply keeps the build-time knobs invisible. **/
 export function createMockDataFn<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeHints<RunTypeMockOptions<T>>,
   id?: InjectRunTypeId<T>
 ): MockTypeFn<T>;
@@ -53,7 +53,7 @@ export function createMockDataFn<T>(
     initFromTuple(id);
     injectedId = entryTupleKey(id);
   }
-  const effectiveId = isRunTypeSchema(valOrSchema) ? valOrSchema.id : injectedId;
+  const effectiveId = isRunTypeValue(valOrSchema) ? valOrSchema.id : injectedId;
   if (effectiveId === undefined) {
     throw new Error(
       'createMockDataFn(): no id injected. ts-runtypes-devtools must be active for createMockDataFn to resolve the runtype graph.'

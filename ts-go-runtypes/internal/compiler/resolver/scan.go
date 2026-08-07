@@ -711,11 +711,11 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		// recommended replacement is the static form using `ReturnType<
 		// typeof fn>`. Emit a build warning to nudge the user toward it.
 		//
-		// EXCEPT a value-first schema-builder call (`object({…})`, `circular(…)`,
+		// EXCEPT a builder call (`object({…})`, `circular(…)`,
 		// `array(…)`, …) IS the intended reflect-form value — it's pure
 		// construction, not a side-effectful user function — so it must not warn.
 		if argZero != nil && argZero.Kind == ast.KindCallExpression &&
-			!builders.IsSchemaLeafCall(state.scanChecker, state.sess.markerModule(), argZero, state.sess.marker.FS) {
+			!builders.IsBuilderLeafCall(state.scanChecker, state.sess.markerModule(), argZero, state.sess.marker.FS) {
 			if diagnostic, ok := state.sess.markerDiagFunctionCallArg(file, argZero); ok {
 				diags = append(diags, diagnostic)
 			}
@@ -733,13 +733,13 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		// reflect-form args (property access, function calls, element
 		// access) don't go through const-binding CFA and don't exhibit
 		// the trap, so they fall through to the apparent-type path.
-		// Skip annotation honoring for the SCHEMA overload: when argZero is a
-		// RunType-typed const (`createValidateFn(schemaConst)` where
-		// `const schemaConst: RunType<T> = …`), the declared type is `RunType<T>`,
+		// Skip annotation honoring for the RUN-TYPE overload: when argZero is a
+		// RunType-typed const (`createValidateFn(runTypeConst)` where
+		// `const runTypeConst: RunType<T> = …`), the declared type is `RunType<T>`,
 		// but the injection's typeArgument is already the UNWRAPPED `T` (inferred
-		// from the schema overload's `RunType<T>` param). Overriding it with
+		// from the run-type overload's `RunType<T>` param). Overriding it with
 		// `RunType<T>` would validate against RunType's own shape, not `T` — and
-		// break recursive schemas bound to an annotated const.
+		// break recursive run-types bound to an annotated const.
 		if annotated, ok := state.declaredTypeFromIdentifier(argZero); ok && !builders.IsRunType(annotated, state.sess.markerModule(), state.sess.marker.FS) {
 			typeArgument = annotated
 		}
@@ -1518,14 +1518,14 @@ func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastInd
 }
 
 // isBuilderCallPredicate returns the closure comptimeargs.CheckLiteral uses to
-// recognize a static schema-construction call (a value-first builder OR an
+// recognize a static builder-construction call (a builder OR an
 // optional()/propMod() carrier) as a valid CompTimeArgs leaf — so a nested
 // `string({…})` or `optional(number())` inside `object({…})` passes without
 // recursing into it (each self-validates on its own scan visit).
 func (state scanState) isBuilderCallPredicate() func(*ast.Node) bool {
 	module := state.sess.markerModule()
 	return func(node *ast.Node) bool {
-		return builders.IsSchemaLeafCall(state.scanChecker, module, node, state.sess.marker.FS)
+		return builders.IsBuilderLeafCall(state.scanChecker, module, node, state.sess.marker.FS)
 	}
 }
 

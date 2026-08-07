@@ -1,7 +1,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import type {SerializationCase} from './types.ts';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import '@ts-runtypes/core/formats';
 import {
   createBinaryDecoderFn,

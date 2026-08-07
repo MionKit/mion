@@ -50,7 +50,7 @@ import type {
   String as StringFormat,
   Number as NumberFormat,
 } from '../../src/formats/index.ts';
-import type {OneOf} from '../../src/schema/static.ts';
+import type {OneOf} from '../../src/builders/static.ts';
 `;
 
 // Type-level assertion helpers used by the snippets.

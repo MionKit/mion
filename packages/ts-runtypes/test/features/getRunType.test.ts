@@ -7,7 +7,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {getRunType, getRunTypeId, getRTUtils, RunTypeKind, type InjectRunTypeId, type RunType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 
 describe('getRunType — reflected RunType node accessor', () => {

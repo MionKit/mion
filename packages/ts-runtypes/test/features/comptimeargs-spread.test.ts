@@ -14,7 +14,7 @@
 // asserts hash equivalence between them.
 import {describe, expect, test} from 'vitest';
 import {createValidateFn, createJsonEncoderFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import '@ts-runtypes/core/formats';
 

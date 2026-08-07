@@ -1,6 +1,11 @@
 // Family 8 — Type formats. Mirrors guide/type-formats-*.ts +
 // custom-format-pattern.ts. Named formats, the custom-param escape hatch, a
-// registered reusable pattern, and schema-first format builders.
+// registered reusable pattern, and the format builders.
+//
+// ⚠️ This ONE import deliberately stays on the deprecated `/schema` alias
+// (every other site in the repo moved to `/builders`): it is what proves the
+// alias still resolves to the same module against the PUBLISHED package, and
+// it is removed when the alias goes at 1.0.
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, registerFormatPattern, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';

@@ -21,7 +21,7 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
 export const REALWORLD = {
   user: {

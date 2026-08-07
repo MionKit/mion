@@ -1,15 +1,15 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
-// Build a schema as a value you can pass around, store, or compose.
+// Build a run-type as a value you can pass around, store, or compose.
 const address = RT.object({
   street: TF.string(),
   city: TF.string(),
   zip: TF.string(),
 });
 
-// InferType<typeof schema> hands you the TypeScript type back.
+// InferType<typeof runType> hands you the TypeScript type back.
 type Address = InferType<typeof address>;
 
 // Now `Address` is a normal type — use it anywhere.

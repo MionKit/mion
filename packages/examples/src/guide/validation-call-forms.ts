@@ -1,6 +1,6 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 type Point = {x: number; y: number};
@@ -13,7 +13,7 @@ const isPointA = createValidateFn<Point>();
 const origin: Point = {x: 0, y: 0};
 const isPointB = createValidateFn(origin);
 
-// 3. Schema-first — pass an RT.* schema; T is inferred from the schema.
+// 3. Run-type — pass the run-type an RT.* builder returned; T is inferred from it.
 const pointSchema = RT.object({x: TF.number(), y: TF.number()});
 const isPointC = createValidateFn(pointSchema);
 

@@ -1,4 +1,4 @@
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';

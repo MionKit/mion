@@ -59,7 +59,7 @@ import type {
   FormattedArray,
   FormattedObject,
 } from '../formats/index.ts';
-import type {OneOf} from '../schema/static.ts';
+import type {OneOf} from '../builders/static.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 
 // #region jsonschema-extract — sliced verbatim by test/types/jsonSchemaHarness.ts

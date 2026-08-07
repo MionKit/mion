@@ -9,7 +9,7 @@ import {run, setResolver} from '../../../../container/website/app/playground/ind
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
 const TYPE_FORM = `type MyType = { id: number; name: string; children: MyType[] };`;
-const SCHEMA_FORM = `import * as RT from '@ts-runtypes/core/schema';
+const BUILDER_FORM = `import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 const MyType = RT.circular(RT.object({ id: TF.number(), name: TF.string(), children: RT.array(RT.self()) }));`;
 
@@ -21,7 +21,7 @@ describe('playground / getRunType schema↔type convergence (regression)', () =>
   it('schema getRunType reflects the modeled type, not the RunType wrapper', async () => {
     if (!assetsBuilt()) return;
     const t = await run('graph', TYPE_FORM);
-    const s = await run('graph', SCHEMA_FORM, undefined, undefined, 'schema');
+    const s = await run('graph', BUILDER_FORM, undefined, undefined, 'builder');
     if (t.kind !== 'graph' || s.kind !== 'graph') throw new Error('expected graph result');
 
     const named = (rts: typeof s.runTypes) =>

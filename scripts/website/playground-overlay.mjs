@@ -27,7 +27,10 @@ const VIRTUAL_PACKAGE_JSON = JSON.stringify(
     version: '0.0.0',
     exports: {
       '.': './src/index.ts',
-      './schema': './src/schema/index.ts',
+      './builders': './src/builders/index.ts',
+      // Deprecated alias, same module — mirrors the real package's exports so a
+      // playground snippet on the old subpath still resolves until 1.0.
+      './schema': './src/builders/index.ts',
       './json-schema': './src/json-schema/index.ts',
       './formats': './src/formats/index.ts',
       './formats/temporal': './src/formats/datetime/temporalFormats.ts',

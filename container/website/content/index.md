@@ -104,7 +104,7 @@ blur: 140px
 :::
 
 #body
-Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` schema builders if you like the Zod / TypeBox feel. Both compile to the exact same validator — pick whichever you fancy, mix them in the same file.
+Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator — pick whichever you fancy, mix them in the same file.
 
 :::div{class="rt-define-cols"}
 ::::code-group
@@ -112,7 +112,7 @@ Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.
 ::::
 
 ::::code-group
-<code-import path="packages/examples/src/_homepage/define-schema.ts" lang="ts [Schema]" />
+<code-import path="packages/examples/src/_homepage/define-builder.ts" lang="ts [Builder]" />
 ::::
 :::
 ::
@@ -141,7 +141,7 @@ Full TC39 Temporal — `PlainDate`, `ZonedDateTime`, `Duration`… validated and
 ::::
 
 ::::code-group
-<code-import path="packages/examples/src/_homepage/formats-schema.ts" lang="ts [Schema]" />
+<code-import path="packages/examples/src/_homepage/formats-builder.ts" lang="ts [Builder]" />
 ::::
 :::
 ::

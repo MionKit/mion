@@ -139,11 +139,11 @@ export type InjectTypeFnArgs<
  *   - REFLECTION — let `T` be inferred from a runtime value:
  *     `getRunTypeId(user)`. The value is read only for its type; at runtime it
  *     is ignored, so nothing leaks into the output.
- *   - SCHEMA (value-first) — pass a `RunType` schema, get the id of the type it
- *     MODELS: `getRunTypeId(object({…}))`. `T` is the UNWRAPPED modeled type;
- *     without this overload a value-first `getRunTypeId(schema)` infers
+ *   - RUN-TYPE — pass the run-type a builder returned, get the id of the type
+ *     it MODELS: `getRunTypeId(object({…}))`. `T` is the UNWRAPPED modeled
+ *     type; without this overload `getRunTypeId(runType)` infers
  *     `T = RunType<…>` and returns the id of the `RunType` wrapper interface
- *     instead of the type the schema describes. Mirrors `createMockDataFn`.
+ *     instead of the type the run-type describes. Mirrors `createMockDataFn`.
  *
  * Throws if the transformer is not active — the id can only be computed at
  * build time. The plugin injects the runtype's entry-module tuple at the
@@ -156,9 +156,9 @@ export type InjectTypeFnArgs<
  * whose runtime fn is a noop validator / best-effort serializer (with a
  * build-time diagnostic).
  */
-// Schema overload first so a value-first `getRunTypeId(schema)` binds `T` from
+// Run-type overload first so `getRunTypeId(runType)` binds `T` from
 // `RunType<T>` rather than matching `(_value?: T)` with `T = RunType<T>`.
-export function getRunTypeId<T>(schema: RunType<T>, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
+export function getRunTypeId<T>(runType: RunType<T>, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 export function getRunTypeId<T>(_value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
 export function getRunTypeId<T>(_valueOrSchema?: T | RunType<T>, id?: InjectRunTypeId<T>): InjectRunTypeId<T> {
   if (isEntryTuple(id)) {

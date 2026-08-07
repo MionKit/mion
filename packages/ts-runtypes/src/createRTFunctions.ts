@@ -4,7 +4,7 @@
 // rtUtils singleton is the only cache; entries arrive as per-entry virtual
 // module tuples injected at each call site (see runtypes/entryTuple.ts).
 
-import {isRunTypeSchema} from './runtypes/rtUtils.ts';
+import {isRunTypeValue} from './runtypes/rtUtils.ts';
 import {resolveEntryTupleFn} from './runtypes/entryTuple.ts';
 import type {AnyFn, RunType} from './runtypes/types.ts';
 import type {DataOnly} from './runtypes/dataOnly.ts';
@@ -247,8 +247,8 @@ export type JsonDecoderOptions = {strategy?: JsonDecoderStrategy};
  *  `.id` overrides the injected typeId (correct even for recursive schemas);
  *  the family fnHash still comes from the injected tuple's key. **/
 function resolveTupleEntry<F extends AnyFn>(fnName: string, identityFn: F, val: unknown, args: unknown): F {
-  const schemaId = isRunTypeSchema(val) ? val.id : undefined;
-  return resolveEntryTupleFn(fnName, identityFn, schemaId, args);
+  const runTypeId = isRunTypeValue(val) ? val.id : undefined;
+  return resolveEntryTupleFn(fnName, identityFn, runTypeId, args);
 }
 
 /** Returns the compiled closure for an option-carrying createX factory
@@ -285,15 +285,15 @@ const identityValueFn = (v: unknown) => v;
 const getValidationErrorsIdentity: GetValidationErrorsFn = () => [];
 const unknownKeyErrorsIdentity: UnknownKeyErrorsFn = () => [];
 
-// Two overloads, schema form FIRST (TS resolves intersected call signatures
+// Two overloads, run-type form FIRST (TS resolves intersected call signatures
 // top-to-bottom, and a `RunType<T>` arg must be tried before the `val?: T`
 // reflection form, which would otherwise absorb it as `T = RunType<…>`):
-//   - SCHEMA form `createValidateFn(rt)` — a value-first builder schema. `T` is
-//     inferred from `rt: RunType<T>` and reflected off the trailing
-//     `InjectRunTypeId<T>`, exactly like the type/value forms. No `schema.id`
+//   - RUN-TYPE form `createValidateFn(rt)` — the value a builder returned. `T`
+//     is inferred from `rt: RunType<T>` and reflected off the trailing
+//     `InjectRunTypeId<T>`, exactly like the type/value forms. No `runType.id`
 //     read, no ref-tracing — the call IS the injection site.
 //   - VALUE / static form `createValidateFn<T>()` / `createValidateFn(value)`.
-// Both share the runtime impl (`val`/`schema` @slot0 ignored, options @slot1,
+// Both share the runtime impl (`val`/`runType` @slot0 ignored, options @slot1,
 // injected id @slot2).
 export const createValidateFn = createTypeFnArgsFunction<ValidateFn>(
   'createValidateFn',
@@ -302,7 +302,7 @@ export const createValidateFn = createTypeFnArgsFunction<ValidateFn>(
   // doesn't structurally overlap a type predicate).
   (() => true) as unknown as ValidateFn
 ) as unknown as (<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
   id?: InjectTypeFnArgs<T, 'val'>
 ) => ValidateFn<T>) &
@@ -312,7 +312,7 @@ export const createGetValidationErrorsFn = createTypeFnArgsFunction<GetValidatio
   'createGetValidationErrorsFn',
   getValidationErrorsIdentity
 ) as unknown as (<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
   id?: InjectTypeFnArgs<T, 'verr'>
 ) => GetValidationErrorsFn) &
@@ -329,7 +329,7 @@ export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>
   'createHasUnknownKeysFn',
   () => false
 ) as unknown as (<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<HasUnknownKeysCompileOptions>,
   id?: InjectTypeFnArgs<T, 'huk'>
 ) => HasUnknownKeysFn) &
@@ -338,13 +338,13 @@ export const createHasUnknownKeysFn = createTypeFnArgsFunction<HasUnknownKeysFn>
 export const createCloneExactShapeFn = createRTFunction<CloneExactShapeFn>(
   'createCloneExactShapeFn',
   identityValueFn
-) as unknown as (<T>(schema: RunType<T>, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn<T>) &
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn<T>) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'ces'>) => CloneExactShapeFn<T>);
 
 export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
   'createUnknownKeyErrorsFn',
   unknownKeyErrorsIdentity
-) as unknown as (<T>(schema: RunType<T>, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn) &
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'uke'>) => UnknownKeyErrorsFn);
 
 // The VALUE-level JSON transforms — `prepareForJson` (maps a typed value to a
@@ -365,7 +365,7 @@ export const createUnknownKeyErrorsFn = createRTFunction<UnknownKeyErrorsFn>(
 export const createFormatTransformFn = createRTFunction<FormatTransformFn<unknown>>(
   'createFormatTransformFn',
   identityValueFn
-) as unknown as (<T>(schema: RunType<T>, id?: InjectTypeFnArgs<T, 'fmt'>) => FormatTransformFn<T>) &
+) as unknown as (<T>(runType: RunType<T>, id?: InjectTypeFnArgs<T, 'fmt'>) => FormatTransformFn<T>) &
   (<T>(val?: T, id?: InjectTypeFnArgs<T, 'fmt'>) => FormatTransformFn<T>);
 
 // =============================================================================
@@ -394,7 +394,7 @@ const jsonParseFallback: JsonDecoderFn = (s) => JSON.parse(s);
  *  composite entry directly; the fallback (`JSON.stringify`) covers the
  *  no-plugin case. **/
 export function createJsonEncoderFn<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<JsonEncoderOptions>,
   id?: InjectTypeFnArgs<T, 'jsonEncoder'>
 ): JsonEncoderFn;
@@ -423,7 +423,7 @@ export function createJsonEncoderFn<T>(
  *  resolves that entry directly. The fallback (`JSON.parse`) covers the
  *  no-plugin case. **/
 export function createJsonDecoderFn<T>(
-  schema: RunType<T>,
+  runType: RunType<T>,
   options?: CompTimeFnArgs<JsonDecoderOptions>,
   id?: InjectTypeFnArgs<T, 'jsonDecoder'>
 ): JsonDecoderFn<DataOnly<T>>;

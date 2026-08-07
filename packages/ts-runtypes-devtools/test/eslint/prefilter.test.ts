@@ -55,6 +55,9 @@ describe('constant sync with internal/enrichment/mirror/tags.go', () => {
 describe('referencesMarkerModule', () => {
   it('matches quoted import specifiers only, not path mentions in comments', () => {
     expect(referencesMarkerModule(`import {createValidateFn} from '@ts-runtypes/core';`)).toBe(true);
+    expect(referencesMarkerModule(`import {x} from "@ts-runtypes/core/builders";`)).toBe(true);
+    // The deprecated `/schema` alias still resolves until 1.0, so a file
+    // importing it must still reach the diagnostics pass.
     expect(referencesMarkerModule(`import {x} from "@ts-runtypes/core/schema";`)).toBe(true);
     expect(referencesMarkerModule('// see packages/ts-runtypes/src for details')).toBe(false);
   });

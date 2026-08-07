@@ -116,13 +116,13 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 }
 
 // How the editor's snippet defines the type: a TS type `MyType` (the call site
-// is `<factory><MyType>()`), a value-first `const MyType = ...` schema built
-// from ts-runtypes/schema + ts-runtypes/formats, or a JSON Schema 2020-12
+// is `<factory><MyType>()`), a `const MyType = ...` run-type built from
+// ts-runtypes/builders + ts-runtypes/formats, or a JSON Schema 2020-12
 // document through `const MyType = runTypeFromJsonSchema({…} as const)`. The
-// last two share the value-first call shape (`<factory>(MyType)`), so the
-// engine treats every non-'type' mode identically — the difference is only
-// which preset source the editor shows.
-export type Mode = 'type' | 'schema' | 'jsonSchema';
+// last two share the run-type call shape (`<factory>(MyType)`), so the engine
+// treats every non-'type' mode identically — the difference is only which
+// preset source the editor shows.
+export type Mode = 'type' | 'builder' | 'jsonSchema';
 
 // factoryImport renders the import line the playground shows around a snippet —
 // the same `import { <factory> } from '@ts-runtypes/core'` the engine prepends before
@@ -133,14 +133,14 @@ export function factoryImport(factory: string): string {
 }
 
 // factoryCall renders the call line: `const <varName> = <factory><MyType>()` in
-// type mode, `const <varName> = <factory>(MyType)` in schema mode. When
+// type mode, `const <varName> = <factory>(MyType)` in builder mode. When
 // `injectedArg` is given (a `__rt_<…>` binding), it is appended as the trailing
 // argument — exactly how the build plugin rewrites the call site (a 0-arg
 // `createValidateFn<T>()` becomes `createValidateFn<T>(__rt_…)`; the value-first
 // `createValidateFn(MyType)` becomes `createValidateFn(MyType, __rt_…)`).
 //
 // `options` is the comptime `{strategy: '…'}` literal a JSON en/decoder call
-// carries. It rides the options slot: in schema mode after the schema
+// carries. It rides the options slot: in builder mode after the run-type
 // (`createJsonEncoderFn(MyType, {strategy: 'mutate'})`); in type mode after an
 // explicit `undefined` for the value slot (`createJsonEncoderFn<MyType>(undefined,
 // {strategy: 'mutate'})`), matching the canonical call shape.
@@ -159,7 +159,7 @@ export function factoryCall(factory: string, varName: string, mode: Mode, inject
 
 // pickFactorySite returns the site for the engine's appended factory call — the
 // one with the highest source position. See the `site:` note in scan(): a
-// value-first schema snippet emits an extra reflection site for its own
+// builder snippet emits an extra reflection site for its own
 // `const MyType = RT.object(...)` builder that must not be mistaken for the
 // factory call site.
 function pickFactorySite(sites: ScanResult['site'][]): ScanResult['site'] {
@@ -179,7 +179,7 @@ function scan(
   options?: string
 ): ScanResult {
   // Only the factory import is injected; the user snippet writes its own
-  // `import * as RT from '@ts-runtypes/core/schema'` / `import type { … } from
+  // `import * as RT from '@ts-runtypes/core/builders'` / `import type { … } from
   // '@ts-runtypes/core/formats'`, so the imports read like real code (and aren't
   // duplicated). `options` (a JSON strategy literal) rides the options slot so
   // its comptime value is folded into the injected fn hash — see factoryCall.
@@ -192,7 +192,7 @@ function scan(
   const sites = (result.sites as ScanResult['site'][]) ?? [];
   return {
     // The factory call is appended LAST, so its site has the highest source
-    // position. Pick it, not sites[0]: in schema mode a value-first snippet's
+    // position. Pick it, not sites[0]: in builder mode a builder snippet's
     // own `const MyType = RT.object(...)` carries its OWN reflection marker
     // (the builder's InjectRunTypeId `id` param) and emits an earlier site — the
     // one we must NOT link against (it's the runtype facade, not the factory).
@@ -292,7 +292,7 @@ export async function transformedSource(
   // The rewrite slot-fills the factory's optional parameters with `undefined`
   // before the injected `__rt_…` id. Type-first passes no value/options so the
   // padding is leading — `createValidateFn<MyType>(undefined, __rt_…)`; value-first
-  // passes the schema so the padding is the `options` slot between it and the id
+  // passes the run-type so the padding is the `options` slot between it and the id
   // — `createJsonEncoderFn(MyType, undefined, __rt_…)`. Drop that padding either
   // way so the call reads like the code a user writes (`…(__rt_…)` /
   // `…(MyType, __rt_…)`). Scope the cleanup to the factory call itself (the last
@@ -445,7 +445,7 @@ function asBytes(value: unknown): Uint8Array {
 }
 
 // run executes the chosen operation. `input` is the parsed JS value (may be
-// undefined for ops that take no input). `mode` selects the TS-type vs schema form.
+// undefined for ops that take no input). `mode` selects the TS-type vs builder form.
 export async function run(
   opKey: string,
   userCode: string,
@@ -466,7 +466,7 @@ export async function run(
       // `{id, kind: -1}` sentinels only because JSON cannot carry references,
       // which is exactly what the runtime re-knots on registration.
       // `getRunType` covers both modes: type-first via `getRunType<MyType>()`,
-      // value-first via the `(schema: RunType<T>)` overload.
+      // via the `(runType: RunType<T>)` overload.
       const {site, entryModules, runTypes, diagnostics} = scan(dispatch, 'getRunType', userCode, mode);
       if (!site) {
         throw new Error(

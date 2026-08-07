@@ -8,7 +8,7 @@
 // pair on the raw-sentinel spelling.
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, createMockDataFn, getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
 

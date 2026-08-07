@@ -24,7 +24,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, getRunTypeId} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
 describe('ValidateOptions — type-id stays structural across option combinations', () => {
   it('static and reflect forms of the same T share the same id', () => {

@@ -11,6 +11,6 @@
 // app/playground/packageSources.ts (the resolver-side injection).
 
 // The root type the user's snippet must define: a TS type `MyType` in type mode,
-// or a schema `const MyType = ...` in schema mode. The engine resolves
-// `<factory><MyType>()` (type) or `<factory>(MyType)` (schema).
+// or a run-type `const MyType = ...` in builder mode. The engine resolves
+// `<factory><MyType>()` (type) or `<factory>(MyType)` (builder).
 export const ROOT_TYPE = 'MyType';

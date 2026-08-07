@@ -1,4 +1,4 @@
-// Public entry for the `ts-runtypes/schema` subpath — the value-first authoring
+// Public entry for the `ts-runtypes/builders` subpath — the TYPE BUILDERS authoring
 // surface: the atomic NON-format builders (`boolean` / `literal` / `regexp` /
 // `symbol` / `any` / `unknown` / `never` / `void` / `enum` / `class`), the
 // composers (`object` / `array` / `tuple` / `union` / …) and the standard-library
@@ -11,8 +11,11 @@
 // and the `temporal.*` builders to `ts-runtypes/formats/temporal` (`TFT`); none of
 // them are exported here — a format's TYPE and its BUILDER now live together.
 // ONE deliberate exception: `not` (format negation) is re-exported below so the
-// schema surface can spell `RT.not(TF.email())` — negation reads as composition,
-// and the schema namespace is where composition lives.
+// builder surface can spell `RT.not(TF.email())` — negation reads as composition,
+// and the builder namespace is where composition lives.
+//
+// The older `ts-runtypes/schema` subpath still resolves to THIS module as a
+// deprecated alias; it is removed at 1.0 (see docs/ROADMAP.md).
 export {not} from '../formats/not.ts';
 
 // The STRUCTURAL array/object keywords are no longer separate builders: every

@@ -41,7 +41,7 @@ import {
   type RestoreFromJsonFn,
   type StringifyJsonFn,
 } from '@ts-runtypes/core';
-import {getRTUtils, isRunTypeSchema, buildFactoryFromCode, entryCode} from '../../src/runtypes/rtUtils.ts';
+import {getRTUtils, isRunTypeValue, buildFactoryFromCode, entryCode} from '../../src/runtypes/rtUtils.ts';
 import {
   entryTupleKey,
   initFromTuple,
@@ -61,20 +61,20 @@ import type {AnyFn, CompiledTypeFn} from '../../src/runtypes/types.ts';
  *  pre-populated `entry.fn`. **/
 function resolveDeserializedEntry<F extends AnyFn>(fnName: string, identityFn: F, val: unknown, args: unknown): F {
   const utils = getRTUtils();
-  const schemaId = isRunTypeSchema(val) ? val.id : undefined;
+  const runTypeId = isRunTypeValue(val) ? val.id : undefined;
   if (isMissingTuple(args)) return identityFn;
   if (!isEntryTuple(args)) {
-    if (schemaId === undefined) {
+    if (runTypeId === undefined) {
       throw new Error(
         `${fnName}(): no id injected. ts-runtypes-devtools must be active for ${fnName} to dispatch to a precompiled factory.`
       );
     }
-    if (utils.hasRunType(schemaId)) return identityFn;
-    throw new Error(`${fnName}(): no RTCompiledFn entry for schema id "${schemaId}" in rtUtils.`);
+    if (utils.hasRunType(runTypeId)) return identityFn;
+    throw new Error(`${fnName}(): no RTCompiledFn entry for schema id "${runTypeId}" in rtUtils.`);
   }
   initFromTuple(args as EntryTuple);
   let key = entryTupleKey(args as EntryTuple);
-  if (schemaId !== undefined) key = key.slice(0, FN_HASH_LEN) + '_' + schemaId;
+  if (runTypeId !== undefined) key = key.slice(0, FN_HASH_LEN) + '_' + runTypeId;
   const entry = utils.getRT(key) as CompiledTypeFn | undefined;
   if (!entry) {
     if (utils.hasRunType(key.slice(FN_HASH_LEN + 1))) return identityFn;

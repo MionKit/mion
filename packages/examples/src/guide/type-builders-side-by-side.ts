@@ -1,6 +1,6 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {runTypeFromJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-type
@@ -15,7 +15,7 @@ type Product = {
 const isProductA = createValidateFn<Product>();
 // end-type
 
-// start-schema
+// start-builder
 // Option B — the RT.* builders, if you like the Zod / TypeBox feel.
 const productSchema = RT.object({
   id: TF.number(),
@@ -24,11 +24,11 @@ const productSchema = RT.object({
   status: RT.union([RT.literal('draft'), RT.literal('live')]),
 });
 
-// Recover the TypeScript type from the schema whenever you need it.
+// Recover the TypeScript type from the run-type whenever you need it.
 type ProductFromSchema = InferType<typeof productSchema>;
 
 const isProductB = createValidateFn(productSchema);
-// end-schema
+// end-builder
 
 // start-json-schema
 // Option C — a draft 2020-12 JSON Schema, handed over as-is.
@@ -43,7 +43,7 @@ const productJsonSchema = {
   required: ['id', 'name', 'tags', 'status'],
 } as const satisfies JsonSchemaInput;
 
-// The TypeScript type is recovered from the schema, so nothing drifts.
+// The TypeScript type is recovered from the document, so nothing drifts.
 type ProductFromJsonSchema = FromJsonSchema<typeof productJsonSchema>;
 
 const isProductC = createValidateFn(runTypeFromJsonSchema(productJsonSchema));

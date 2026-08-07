@@ -7,7 +7,7 @@ import {
   createStandardSchema,
   type DataOnly,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 

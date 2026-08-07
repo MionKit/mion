@@ -403,7 +403,7 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // there is no type cost to measure.
 const TYPECOST_FORMS = [
   {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: 'ts-runtypes/cases.ts', srcVar: 'cases'},
-  {id: 'ts-runtypes-schema', label: 'ts-runtypes (schema)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
+  {id: 'ts-runtypes-schema', label: 'ts-runtypes (builder)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
   {
     id: 'ts-runtypes-json-schema',
     label: 'ts-runtypes (jsonSchema)',

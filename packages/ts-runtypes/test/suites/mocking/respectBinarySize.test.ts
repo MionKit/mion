@@ -6,7 +6,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {createMockDataFn, createValidateFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 
 const utf8 = (s: string): number => Buffer.byteLength(s, 'utf8');

@@ -1,5 +1,5 @@
 import * as TF from '@ts-runtypes/core/formats';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
@@ -13,9 +13,9 @@ interface Point {
 
 const typeFirst = createValidateFn<Point>();
 
-const valueFirst = createValidateFn(RT.object({name: TF.string(), x: TF.number(), y: TF.number()}));
+const builderForm = createValidateFn(RT.object({name: TF.string(), x: TF.number(), y: TF.number()}));
 
-const schemaFirst = createValidateFn(
+const jsonSchemaForm = createValidateFn(
   runTypeFromJsonSchema({
     type: 'object',
     properties: {name: {type: 'string'}, x: {type: 'number'}, y: {type: 'number'}},
@@ -25,8 +25,8 @@ const schemaFirst = createValidateFn(
 
 // Not three similar validators. The very same one: all three forms describe the
 // same shape, so they land on the same generated function.
-typeFirst === valueFirst; // true
-typeFirst === schemaFirst; // true
+typeFirst === builderForm; // true
+typeFirst === jsonSchemaForm; // true
 // end-convergence
 
 // start-ids
@@ -44,5 +44,5 @@ const idFromSchema = getRunTypeId(
 idFromType === idFromSchema; // true
 // end-ids
 
-export {typeFirst, valueFirst, schemaFirst, idFromType, idFromSchema};
+export {typeFirst, builderForm, jsonSchemaForm, idFromType, idFromSchema};
 export type {Point};

@@ -26,7 +26,7 @@ import * as TFT from '../../src/formats/datetime/temporalFormats.ts';
 import {describe, expect, test} from 'vitest';
 import {getRunTypeId} from '../../src/index.ts';
 import type {RunType, InferType} from '../../src/index.ts';
-import * as RT from '../../src/schema/index.ts';
+import * as RT from '../../src/builders/index.ts';
 
 // Reference the assertion bodies from a real test so they don't get
 // flagged as dead code by lint. The body is never invoked.

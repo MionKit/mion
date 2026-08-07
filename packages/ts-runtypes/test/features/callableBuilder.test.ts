@@ -4,7 +4,7 @@
 // `{(a: number, b: boolean): string; extra: string}`. The mix is an intersection
 // (TS can't express a single object literal with a call signature + mapped props),
 // but the Go scanner projects it as an object literal carrying the call signature
-// + members. See src/schema/compose.ts.
+// + members. See src/builders/compose.ts.
 //
 // Signature param NAMES are id-relevant (`parameters[].name` must be per-site
 // reliable), and TS call-signature syntax REQUIRES param names while `RT.func` brands an
@@ -18,7 +18,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
 type CallableIface = {(a: number, b: boolean): string; extra: string};
 

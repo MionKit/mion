@@ -13,7 +13,7 @@
     "baseUrl": "..",
     "paths": {
       "@ts-runtypes/core": ["competitors/ts-runtypes/node_modules/@ts-runtypes/core/dist/index.d.ts"],
-      "@ts-runtypes/core/schema": ["competitors/ts-runtypes/node_modules/@ts-runtypes/core/dist/schema/index.d.ts"],
+      "@ts-runtypes/core/builders": ["competitors/ts-runtypes/node_modules/@ts-runtypes/core/dist/builders/index.d.ts"],
       "@ts-runtypes/core/formats": ["competitors/ts-runtypes/node_modules/@ts-runtypes/core/dist/formats/index.d.ts"],
       "@ts-runtypes/core/formats/temporal": ["competitors/ts-runtypes/node_modules/@ts-runtypes/core/dist/formats/datetime/temporalFormats.d.ts"]
     }

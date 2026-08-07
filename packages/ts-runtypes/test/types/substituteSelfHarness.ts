@@ -1,6 +1,6 @@
 // Harness for the recursive-schema (`Self` / `SubstituteSelf` / `Recursive`)
 // instantiation-budget test (substituteSelf.compile.test.ts). Slices that
-// machinery VERBATIM out of src/schema/static.ts between the
+// machinery VERBATIM out of src/builders/static.ts between the
 // `#region substituteself-extract` markers (so it can't drift from the shipped
 // type) and binds it — plus assertion helpers — to the shared compiler measurer
 // in compileHarness.ts. Self-contained: the region names only es2023 lib types.
@@ -11,7 +11,7 @@ import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
 
 export type {MeasureResult};
 
-const STATIC_TS = fileURLToPath(new URL('../../src/schema/static.ts', import.meta.url));
+const STATIC_TS = fileURLToPath(new URL('../../src/builders/static.ts', import.meta.url));
 
 /** Slice the `Self` / `SubstituteSelf` / `Recursive` machinery out of static.ts
  *  between the region markers and drop `export` so it lives in a script snippet. **/
@@ -20,7 +20,7 @@ function extractRegion(): string {
   const start = source.indexOf('// #region substituteself-extract');
   const end = source.indexOf('// #endregion substituteself-extract');
   if (start === -1 || end === -1) {
-    throw new Error('substituteself-extract region markers not found in src/schema/static.ts');
+    throw new Error('substituteself-extract region markers not found in src/builders/static.ts');
   }
   return source.slice(start, end).replace(/^export (type|interface) /gm, '$1 ');
 }

@@ -3,7 +3,7 @@
 // the bundler's RunTypes plugin rewrites the BUILDER call form (a trailing
 // injected argument, not a stripped type argument), and that a schema-authored
 // type converges on the same generated function as its hand-written twin.
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {createValidateFn, createMockDataFn, getRunTypeId} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {type CheckResult, eq, ok} from './check';

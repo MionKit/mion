@@ -10,7 +10,7 @@
 
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, it, expect} from 'vitest';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {
   createBinaryEncoderFn,
   createBinaryDecoderFn,

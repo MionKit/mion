@@ -12,7 +12,8 @@ describe('playground presets', () => {
     for (const preset of PRESETS) {
       expect(preset.name).toBeTruthy();
       expect(preset.ts).toContain('MyType');
-      expect(preset.schema).toContain('MyType');
+      expect(preset.builder).toContain('MyType');
+      expect(preset.builder).toContain("from '@ts-runtypes/core/builders'");
       // The third selector option: every preset renders a real 2020-12
       // document binding MyType through the json-schema subpath (no preset
       // opts out — none of the six uses a type without a schema spelling).

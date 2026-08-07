@@ -747,25 +747,25 @@ function registerPureFnTuple(utils: RTUtils, tuple: PureFnTuple): boolean {
 export function resolveEntryTupleFn<F extends AnyFn>(
   fnName: string,
   identityFn: F,
-  schemaId: string | undefined,
+  runTypeId: string | undefined,
   injected: unknown
 ): F {
   const utils = getRTUtils();
   if (isMissingTuple(injected)) return identityFn;
   if (!isEntryTuple(injected)) {
-    if (schemaId === undefined) {
+    if (runTypeId === undefined) {
       throw new Error(
         `${fnName}(): no id injected. ts-runtypes-devtools must be active for ${fnName} to dispatch to a precompiled factory.`
       );
     }
     // Schema-form without an injected tuple (plugin inactive): the schema
     // still names a runtype; degrade to the identity fallback if registered.
-    if (utils.hasRunType(schemaId)) return identityFn;
-    throw new Error(`${fnName}(): no RTCompiledFn entry for schema id "${schemaId}" in rtUtils.`);
+    if (utils.hasRunType(runTypeId)) return identityFn;
+    throw new Error(`${fnName}(): no RTCompiledFn entry for run-type id "${runTypeId}" in rtUtils.`);
   }
   initFromTuple(injected);
   let key = entryTupleKey(injected);
-  if (schemaId !== undefined) key = key.slice(0, FN_HASH_LEN) + '_' + schemaId;
+  if (runTypeId !== undefined) key = key.slice(0, FN_HASH_LEN) + '_' + runTypeId;
   const typeId = key.slice(FN_HASH_LEN + 1);
   const entry = utils.getRT(key);
   // The circular-reference guard is now a COMPILE-TIME option: `{rejectCircularRefs:

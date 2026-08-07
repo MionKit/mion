@@ -4,9 +4,9 @@
 // The overlay is a `{ virtualPath -> content }` map that stages the REAL
 // ts-runtypes package sources onto the resolver's virtual disk as a
 // `node_modules/ts-runtypes/` tree, so a snippet resolves against the ACTUAL
-// public API (the markers, every `createX` overload, the value-first schema
+// public API (the markers, every `createX` overload, the builder
 // machinery) instead of a hand-maintained approximation. Feeding the real types
-// is what makes a value-first schema snippet resolve to the SAME structural id
+// is what makes a builder snippet resolve to the SAME structural id
 // as its type-first equivalent (e.g. `optional(boolean())` projects an OPTIONAL
 // property, not a required `boolean | undefined`).
 //

@@ -1,7 +1,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {createBinaryDecoderFn, createBinaryEncoderFn, createJsonDecoderFn, createJsonEncoderFn} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import type {SerializationCase} from './types.ts';
 
 // Real-world DTO scenarios — the SAME relational / CMS / API / form shapes the

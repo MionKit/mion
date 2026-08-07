@@ -74,16 +74,16 @@ describeIf('playground engine — JSON Schema form (WASM, live execution)', () =
   });
 
   it('validates through the runTypeFromJsonSchema builder in schema mode', async () => {
-    const ok = await run('validate', PLAIN_SCHEMA, VALID, undefined, 'schema');
+    const ok = await run('validate', PLAIN_SCHEMA, VALID, undefined, 'jsonSchema');
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
-    const bad = await run('validate', PLAIN_SCHEMA, INVALID, undefined, 'schema');
+    const bad = await run('validate', PLAIN_SCHEMA, INVALID, undefined, 'jsonSchema');
     if (bad.kind !== 'predicate') throw new Error('expected predicate result');
     expect(bad.value).toBe(false);
   });
 
   it('injects the id as a trailing argument on the builder call', async () => {
-    const code = await transformedSource('createValidateFn', 'validate', PLAIN_SCHEMA, undefined, 'schema');
+    const code = await transformedSource('createValidateFn', 'validate', PLAIN_SCHEMA, undefined, 'jsonSchema');
     expect(code).toMatch(/^import \{__rt_[A-Za-z0-9_]+} from 'rtmod:\/.+';/m);
     expect(code).toMatch(/const validate = createValidateFn\(MyType, __rt_[A-Za-z0-9_]+\);/);
   });
@@ -95,7 +95,7 @@ describeIf('playground engine — JSON Schema form (WASM, live execution)', () =
       return match[1]!;
     };
     const fromType = bindingOf(await transformedSource('createValidateFn', 'validate', PLAIN_TYPE));
-    const fromSchema = bindingOf(await transformedSource('createValidateFn', 'validate', PLAIN_SCHEMA, undefined, 'schema'));
+    const fromSchema = bindingOf(await transformedSource('createValidateFn', 'validate', PLAIN_SCHEMA, undefined, 'jsonSchema'));
     // The binding encodes the structural type id, so equality IS convergence.
     expect(fromSchema).toBe(fromType);
   });
@@ -123,10 +123,10 @@ const MyType = runTypeFromJsonSchema({
       age: 36,
       tags: ['math', 'code'],
     };
-    const ok = await run('validate', source, value, undefined, 'schema');
+    const ok = await run('validate', source, value, undefined, 'jsonSchema');
     if (ok.kind !== 'predicate') throw new Error('expected predicate result');
     expect(ok.value).toBe(true);
-    const bad = await run('validate', source, {...value, email: 'not-an-email'}, undefined, 'schema');
+    const bad = await run('validate', source, {...value, email: 'not-an-email'}, undefined, 'jsonSchema');
     if (bad.kind !== 'predicate') throw new Error('expected predicate result');
     expect(bad.value).toBe(false);
   });

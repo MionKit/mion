@@ -14,19 +14,19 @@ import (
 // package never triggers the special path.
 const dataOnlyAliasName = "DataOnly"
 
-// schemaInternalAliasNames are the ts-runtypes/schema helper aliases that model
+// builderInternalAliasNames are the ts-runtypes/builders helper aliases that model
 // an object's shape from a value-first `object({...})` builder — `ObjectType<C>`,
 // its optional/readonly/mixed conditional branches, and the `Flatten` those
 // branches wrap their group-intersection in (so `InferType` reads a single object
 // literal, not `{req} & {opt}`). They are compiler-internal and must never surface
-// in reflection. On a COLD scan (before tsgo has instantiated the schema builder
+// in reflection. On a COLD scan (before tsgo has instantiated the builder
 // types) the modeled type can be left as one of these un-reduced aliases;
 // serializing its name + type arguments (the raw builder config
 // `PropModCarrier<…, RunType<…>>`) then leaks the whole RunType wrapper into the
 // runtype bundle as dead, unreachable entries. Treating the alias as anonymous
 // drops the name AND the type-argument reflection, while the structural walk still
 // projects the modeled object shape.
-var schemaInternalAliasNames = map[string]bool{
+var builderInternalAliasNames = map[string]bool{
 	"ObjectType":         true,
 	"ObjectOptionalOnly": true,
 	"ObjectReadonlyOnly": true,
@@ -34,11 +34,11 @@ var schemaInternalAliasNames = map[string]bool{
 	"Flatten":            true,
 }
 
-// isSchemaInternalAlias reports whether aliasSymbol names one of the
-// ts-runtypes/schema object-shape helper aliases (schemaInternalAliasNames),
+// isBuilderInternalAlias reports whether aliasSymbol names one of the
+// ts-runtypes/builders object-shape helper aliases (builderInternalAliasNames),
 // gated on the marker package so a user type of the same name never triggers it.
-func isSchemaInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
-	if aliasSymbol == nil || !schemaInternalAliasNames[aliasSymbol.Name] {
+func isBuilderInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
+	if aliasSymbol == nil || !builderInternalAliasNames[aliasSymbol.Name] {
 		return false
 	}
 	return marker.DeclaredInModule(aliasSymbol, marker.DefaultModule, fs)

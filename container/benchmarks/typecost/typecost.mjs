@@ -8,7 +8,7 @@
 // marginal cost of resolving THAT case's type, not the import scaffold):
 //
 //   ts-go (type)    type T = <the TS type>;             const x: T = <sample>;
-//   ts-go (schema)  const s = RT.…; type T = InferType<typeof s>;  const x: T = …;
+//   ts-go (builder)  const s = RT.…; type T = InferType<typeof s>;  const x: T = …;
 //   zod             const s = z.…;  type T = z.infer<typeof s>;  const x: T = …;
 //   typebox         const s = Type.…; type T = Static<typeof s>; const x: T = …;
 //   typia           type T = <the TS type, incl. `& tags.*`>;  const x: T = <sample>;
@@ -26,7 +26,7 @@
 //                     competitors/ts-runtypes/cases.ts.
 //   - typia:          the `typia.createIs<TYPE>()` type argument per case in
 //                     competitors/typia/cases.ts.
-//   - ts-go (schema): the `createValidateFn(EXPR)` argument per case in
+//   - ts-go (builder): the `createValidateFn(EXPR)` argument per case in
 //                     competitors/ts-runtypes/schemaCases.ts.
 //   - zod / typebox:  the `const schema = EXPR` declared inside each case's
 //                     build / buildErrors thunk in competitors/{zod,typebox}/cases.ts.
@@ -120,7 +120,7 @@ const OPTIONS = {
   // too — these just make it bulletproof regardless of probe location).
   paths: {
     '@ts-runtypes/core': [path.join(MARKER, 'index.d.ts')],
-    '@ts-runtypes/core/schema': [path.join(MARKER, 'schema', 'index.d.ts')],
+    '@ts-runtypes/core/builders': [path.join(MARKER, 'builders', 'index.d.ts')],
     '@ts-runtypes/core/formats': [path.join(MARKER, 'formats', 'index.d.ts')],
     '@ts-runtypes/core/json-schema': [path.join(MARKER, 'json-schema', 'index.d.ts')],
     '@ts-runtypes/core/formats/temporal': [path.join(MARKER, 'formats', 'datetime', 'temporalFormats.d.ts')],
@@ -327,7 +327,7 @@ async function main() {
       const s = tsSchema.entries[key];
       const tp = typia.entries[key];
       if (t) console.log(`\n===== ts-go(type) =====\n${probeTsType(tsType.preamble, t.locals, t.typeText, value)}`);
-      if (s) console.log(`\n===== ts-go(schema) =====\n${probeTsSchema(tsSchema.preamble, s.locals, s.arg.text, value)}`);
+      if (s) console.log(`\n===== ts-go(builder) =====\n${probeTsSchema(tsSchema.preamble, s.locals, s.arg.text, value)}`);
       if (zod.entries[key]) console.log(`\n===== zod =====\n${probeZod(zod.preamble, zod.entries[key].locals, zod.entries[key].exprText, value)}`);
       if (typebox.entries[key]) console.log(`\n===== typebox =====\n${probeTypebox(typebox.preamble, typebox.entries[key].locals, typebox.entries[key].exprText, value)}`);
       if (tp) console.log(`\n===== typia =====\n${probeTsType(typia.preamble, tp.locals, tp.typeText, value)}`);
@@ -383,7 +383,7 @@ async function main() {
 
 const LIBS = [
   ['ts-go(type)', 'tsType', 'ts-runtypes-type'],
-  ['ts-go(schema)', 'tsSchema', 'ts-runtypes-schema'],
+  ['ts-go(builder)', 'tsBuilder', 'ts-runtypes-schema'],
   ['ts-go(jsonSchema)', 'tsJsonSchema', 'ts-runtypes-json-schema'],
   ['zod', 'zod', 'zod'],
   ['typebox', 'typebox', 'typebox'],
@@ -456,7 +456,7 @@ function report(rows) {
       'first valid sample, serialized), forcing TypeScript to fully resolve the\n' +
       'type AND structurally check the value against it — the cost users pay on\n' +
       'every `const x: T = {…}`. ts-go(type) and typia are pure-type forms (the cost\n' +
-      'of resolving the literal T); ts-go(schema) is the value-first builder + InferType<>.\n' +
+      'of resolving the literal T); ts-go(builder) is the type-builder form + InferType<>.\n' +
       'ajv has no static type inference.'
   );
 }

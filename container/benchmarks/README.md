@@ -216,7 +216,7 @@ per-competitor from each competitor's own files:
 
 - **ts-go (type)** — `competitors/ts-runtypes/cases.ts` `createValidateFn<TYPE>()` type arg.
 - **typia** — `competitors/typia/cases.ts` `typia.createIs<TYPE>()` type arg (format suites use typia tag intersections, e.g. `string & tags.MaxLength<5>`).
-- **ts-go (schema)** — `competitors/ts-runtypes/schemaCases.ts` `createValidateFn(EXPR)` arg.
+- **ts-go (builder)** — `competitors/ts-runtypes/schemaCases.ts` `createValidateFn(EXPR)` arg.
 - **zod / typebox** — `competitors/<name>/cases.ts` schema expressions.
 - **ajv** — none (JSON Schema has no static type inference).
 
@@ -229,7 +229,7 @@ subset of cases each supports.
 ```
 ts-go(type)      ~4 instantiations/case     # writing the type is ~free
 typebox        ~219 /case
-ts-go(schema)  ~546 /case
+ts-go(builder) ~546 /case
 zod            ~619 /case
 ```
 (apples-to-apples averages over the cases all forms support; run `bench:typecost`

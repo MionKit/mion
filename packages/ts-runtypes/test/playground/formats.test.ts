@@ -15,7 +15,7 @@ const describeIf = ready ? describe : describe.skip;
 // The graph is a flat node list (children/child are id refs, kind -1). Each test
 // type carries exactly one format-typed field, so the format node is the single
 // node with a formatAnnotation; return its name.
-async function annotationName(userCode: string, mode: 'type' | 'schema' = 'type'): Promise<unknown> {
+async function annotationName(userCode: string, mode: 'type' | 'builder' = 'type'): Promise<unknown> {
   const res = await run('graph', userCode, undefined, undefined, mode);
   if (res.kind !== 'graph') throw new Error('expected graph');
   const node = (res.runTypes as Array<Record<string, unknown>>).find((n) => n.formatAnnotation);
@@ -82,9 +82,9 @@ describeIf('playground type formats (WASM, live execution)', () => {
   });
 
   it('runs a format in the value-first schema form (TF.email)', async () => {
-    const schema = `import * as RT from '@ts-runtypes/core/schema';\nimport * as TF from '@ts-runtypes/core/formats';\nconst MyType = RT.object({ email: TF.email() });`;
-    expect(await annotationName(schema, 'schema')).toBe('email');
-    const bad = await run('validate', schema, {email: 'nope'}, undefined, 'schema');
+    const schema = `import * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\nconst MyType = RT.object({ email: TF.email() });`;
+    expect(await annotationName(schema, 'builder')).toBe('email');
+    const bad = await run('validate', schema, {email: 'nope'}, undefined, 'builder');
     if (bad.kind !== 'predicate') throw new Error('expected predicate');
     expect(bad.value).toBe(false);
   });

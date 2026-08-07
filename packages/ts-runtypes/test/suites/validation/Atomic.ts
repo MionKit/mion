@@ -7,7 +7,7 @@ import {
   createStandardSchema,
   type DataOnly,
 } from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
@@ -239,7 +239,7 @@ export const ATOMIC = {
     // while the type-first `createValidateFn<Color>()` is the named `KindEnum`: they
     // validate identically but are structurally distinct by design (a value-first
     // builder can't reconstruct the nominal enum's member-name metadata). See the
-    // enum builder doc in src/schema/atomic.ts.
+    // enum builder doc in src/builders/atomic.ts.
     idDivergent: true,
     jsonSchemaIdDivergent: true,
     validate: () => {

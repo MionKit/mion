@@ -1,8 +1,8 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, type InferType} from '@ts-runtypes/core';
-import * as RT from '@ts-runtypes/core/schema';
+import * as RT from '@ts-runtypes/core/builders';
 
-// Schema-first formats: the same constraints as builders. TF.email(),
+// Builder formats: the same constraints as builders. TF.email(),
 // TF.uuidv4(), TF.int32(), TF.positive() — pick the style you like.
 const account = RT.object({
   id: TF.uuidv4(),
@@ -11,7 +11,7 @@ const account = RT.object({
   credits: TF.positive(),
 });
 
-// InferType<typeof schema> hands the TypeScript type back.
+// InferType<typeof runType> hands the TypeScript type back.
 type Account = InferType<typeof account>;
 
 const isAccount = createValidateFn(account);

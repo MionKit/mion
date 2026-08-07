@@ -7,7 +7,7 @@
 import * as TF from '@ts-runtypes/core/formats';
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, type InferType} from '@ts-runtypes/core';
-import {circular, self, object, optional, array, union, record, literal} from '@ts-runtypes/core/schema';
+import {circular, self, object, optional, array, union, record, literal} from '@ts-runtypes/core/builders';
 import '@ts-runtypes/core/formats';
 
 describe('circular() — recursive schemas without types', () => {

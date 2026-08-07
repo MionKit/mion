@@ -671,12 +671,12 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 	flags := tsType.Flags()
 
 	// typeName from a user-declared type alias ("User" in `type User = {...}`).
-	// A ts-runtypes/schema object-shape helper alias (ObjectType<C> / … — see
-	// isSchemaInternalAlias) is skipped: it's compiler-internal, never a user type
+	// A ts-runtypes/builders object-shape helper alias (ObjectType<C> / … — see
+	// isBuilderInternalAlias) is skipped: it's compiler-internal, never a user type
 	// name, and its type arguments are the raw builder config, so reflecting them
 	// leaks the RunType wrapper into the bundle. Left anonymous, the switch below
 	// still projects the modeled object shape from the (merged) properties.
-	if alias := checker.Type_alias(tsType); alias != nil && alias.Symbol() != nil && !isSchemaInternalAlias(alias.Symbol(), cache.fs) {
+	if alias := checker.Type_alias(tsType); alias != nil && alias.Symbol() != nil && !isBuilderInternalAlias(alias.Symbol(), cache.fs) {
 		node.TypeName = alias.Symbol().Name
 		if typeArguments := alias.TypeArguments(); len(typeArguments) > 0 {
 			node.TypeArguments = make([]*protocol.RunType, 0, len(typeArguments))
