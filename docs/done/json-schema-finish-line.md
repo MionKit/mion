@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-07
 ---
 
@@ -275,3 +275,41 @@ The append-semantics fix plus every real defect the re-verification found:
 - Both lint surfaces warn on dropped schema intent; the playground offers
   type / builder / JSON Schema globally with per-preset convergence pins.
 - The PR-readiness gate is green end to end.
+
+## Shipped record (2026-08-07, feature/json-schema-finish)
+
+Every phase landed as one commit each on the branch. Deviations and findings
+beyond the plan, so this doc matches what actually shipped:
+
+- **Verdict 5(c) reversed itself under the official suite.** The mixed
+  properties + schema-valued additionalProperties widening was applied and
+  then REVERTED the same day: the recovered type is the VALIDATOR's source,
+  and the widened index weakened the emitted index sweep (caught by
+  "an additional invalid property is invalid"). The over-narrowing stays by
+  design in the reflected type; the admitting story lives in the clean types,
+  and the five mixed-form samples ride the type gate's ledger with the
+  narrowing note.
+- **Boolean acceptance surfaced four latent lowering bugs the plan did not
+  list**, all fixed in Phase 2: the combinator member probes still required
+  object-only lists (an all-boolean `allOf: [false, false]` silently lowered
+  to unknown), a `oneOf` never-branch poisoned the carrier instead of
+  filtering (`oneOf: [true, false]` rejected everything), a pointer-shaped
+  `$dynamicRef` fell into the anchor scan, and a `oneOf`-bearing arm inside a
+  multi-arm `allOf` resolved its DESIGNED never — replaced by the push-in
+  lowering (`OneOf<[Rest∧C…]>`; the pushed base holds uniformly so the count
+  is unchanged), which closed the official suite's whole
+  "unevaluatedProperties + ref inside allOf / oneOf" group.
+- **One deliberate limit recorded instead of fixed:** an outer `oneOf` cannot
+  count exclusivity through a `$ref` whose target is itself a `oneOf` (the
+  carrier encoding counts one level); the six suite cases are byDesign
+  entries and the guide documents the corner.
+- **Pattern flags:** the stale lowering row was corrected to `'u'`; the
+  patternProperties key brand STAYS flagless on purpose (the runtime key
+  sweeps compile flagless regexes, and flipping them would throw on legal
+  legacy patterns) — documented beside the brand.
+- **Corner 1 of the sugar todo needed no docs work either**: the guide's
+  Strings table already documents the content-encoding presets in both
+  spellings.
+- Conformance moved 1752 → 1817 conforming cases (of 1988), unsupported
+  input 171 → 102, open divergences 0 → 0; the new type gate asserts 1030
+  spec-valid samples with 5 ledgered (documented) divergences.
