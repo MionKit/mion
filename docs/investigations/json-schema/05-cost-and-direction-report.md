@@ -177,5 +177,5 @@ of the tree at `0a7317c` and are left as measured.
 
 - Benchmarks ran on a 4-core cloud container. Absolute throughput is not comparable to the published numbers; only the BASE/HEAD ratios measured in the same environment are meaningful, and only the 300 ms / 1,000 ms figures are quoted as findings.
 - `typia` was excluded from both runs (its native plugin could not pre-compile in this environment). It is a competitor column, so it does not affect the BASE/HEAD comparison.
-- The `zod` lane reports failures in both trees; that is the pre-existing issue tracked in [zod-bench-lane-permanently-reports-failed.md](../../todos/zod-bench-lane-permanently-reports-failed.md), unrelated to this window.
+- The `zod` lane reports failures in both trees; that is the pre-existing issue tracked in [bench-website-e2e-followups.md](../../todos/bench-website-e2e-followups.md), unrelated to this window.
 - Bucket attribution is per-file, by dominant contributing commit. Files touched by several buckets land wholly in one. The totals reconcile exactly, but individual file placement is a judgement call.

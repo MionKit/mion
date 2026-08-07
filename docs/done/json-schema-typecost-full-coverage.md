@@ -176,9 +176,9 @@ is the cheap oracle: every document accepted by the real
 ## Out of scope
 
 - The `(schema)` → "Type Builders" naming
-  ([rename-value-first-schema-to-type-builders.md](rename-value-first-schema-to-type-builders.md)).
+  ([json-schema-followups.md](../todos/json-schema-followups.md)).
 - A CI `tsc` gate over all competitor maps
-  ([benchmark-competitor-maps-never-typechecked.md](benchmark-competitor-maps-never-typechecked.md))
+  ([bench-website-e2e-followups.md](../todos/bench-website-e2e-followups.md))
   — the new contract test pins only the JSON-Schema mirror, not general
   totality.
 - Runtime json-schema validation suite changes (its 10 cases stay).

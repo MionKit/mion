@@ -2,12 +2,20 @@
 type: chore
 spec: guidelines
 status: ready
-created: 2026-08-05
+created: 2026-08-07
 ---
 
-# Audit the fuzz suites: are the oracles generic, and what types are we duplicating?
+# Fuzz follow-ups: the oracle/duplication audit, and the soak timeout
 
-## Intent
+Two fuzz-harness items, consolidated 2026-08-07 from the standalone specs
+`fuzz-oracle-and-type-duplication-audit.md` and
+`fuzz-soak-timeout-underscoped.md`. Item 1 is investigate-only; item 2 is a
+small independent fix that can ship any time.
+
+## Item 1 — Audit the fuzz suites: are the oracles generic, and what types are we duplicating? (chore, guidelines, 2026-08-05)
+
+
+### Intent
 
 The fuzz lanes look like they carry per-Format / per-Type assertions that belong
 in ordinary tests, and they sustain a hand-written parallel type hierarchy that
@@ -31,7 +39,7 @@ The principles to measure against:
   `FzUri` pinning the output of the `PresetFormat` / `FormatDefaults` merge is a
   fixed unit assertion in a fuzz costume.
 
-## Direction
+### Direction
 
 Investigate and recommend; do not fix. The implementer plans the changes.
 
@@ -75,7 +83,7 @@ explicitly carved out `FUZZ_FORMAT_PREAMBLE` as "the ONE deliberate exception".
 This audit asks whether that carve-out was right; the nine aliases added on
 2026-08-05 grew it rather than shrank it.
 
-## A worked example: the id-convergence check
+### A worked example: the id-convergence check
 
 The clearest case, and the one that motivated this todo. The json-schema fuzz
 lane asserts, per generated fixture:
@@ -112,7 +120,7 @@ recognised as already living outside), the per-format `Fz*` aliases lose their
 reason to exist and the generator can draw its format leaves from the shipped
 brands — which is the duplication this todo is chasing.
 
-## Done when
+### Done when
 
 Every lane's oracles are classified generic vs fixed-assertion, each with a
 recommendation (keep / move to a unit test / delete / fold into the generator);
@@ -121,3 +129,31 @@ is recorded on the `srcOverlay.ts` no-import rule and on whether
 [FUZZING.md](../FUZZING.md) and the root [CLAUDE.md](../../CLAUDE.md) need
 correcting; and anything larger than a tidy-up is split out into its own todo
 rather than done here.
+## Item 2 — Fuzz soak vitest timeouts under-account compile time (clean soaks report as failures) (bug, rough-idea, 2026-08-02)
+
+
+### Symptom
+
+The opt-in soak tests size their vitest timeout as `soakMs + 60_000`
+(e.g. [nonDataTypeFuzz.integration.test.ts](../../packages/ts-runtypes/test/fuzz/type/nonDataTypeFuzz.integration.test.ts)),
+but `runTypeFuzzForDuration`'s wall clock overshoots its budget by roughly
+2.4x (a 180s budget ran 429s over 742 types; a 60s budget also ran ~429s), so
+vitest marks the soak timed-out even though it completes and prints
+`soak finished: N types, 0 violation(s)`. Every soak longer than about a
+minute therefore reports as a FAILURE while being clean, which cost a
+diagnosis round during the binary-union-desync verification (2026-08-02) —
+the "failure" perfectly mimics a real finding until the log is read.
+
+### Fix sketch
+
+Either make the duration runner respect wall-clock (check the deadline before
+STARTING an iteration and count compile time against the budget), or size the
+test timeout from the observed per-iteration cost (`soakMs * 3 + 60_000` is
+the cheap fix). Apply to every soak lane that follows this pattern (nondata,
+wild type sweep, roundtrip, binary-size). The fixed-iteration batch tests are
+unaffected.
+
+### Provenance
+
+Observed 2026-08-02 while verifying the binary-union-function-member-arm fix;
+same artifact on 60s and 180s nondata soaks, both with zero violations.

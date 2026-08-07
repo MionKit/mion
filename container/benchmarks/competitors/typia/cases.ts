@@ -2721,7 +2721,7 @@ export const cases: CompetitorCases = {
   // NOTE: these use `typia.createValidate` — the real export. The rest of this
   // file calls `typia.createValidateFn`, which typia does not export (a stray
   // hit from our own createX->createXFn rename); that break is tracked in
-  // docs/todos/typia-validationerrors-column-calls-a-removed-api.md and is not
+  // docs/todos/bench-website-e2e-followups.md (item 2) and is not
   // widened into here.
   'JSON_SCHEMA.closed_object': {
     build: () => {

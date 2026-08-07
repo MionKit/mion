@@ -1626,7 +1626,7 @@ type NonObjectDomain = null | boolean | number | string | unknown[];
 // The dependent* arms and folds are EXPORTED (types-in form) so the value-first
 // builders RT.dependentRequired / RT.dependentSchemas can return the exact
 // same lowering — one implementation, two entrances, id-convergence by
-// construction (docs/todos/schema-builder-gaps.md).
+// construction (docs/done/schema-builder-gaps.md).
 export type DepRequiredArm<K extends PropertyKey, Reqs> =
   | NonObjectDomain
   | (Record<string, unknown> & {[P in K]: PresentValue} & {

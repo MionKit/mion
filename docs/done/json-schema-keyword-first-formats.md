@@ -430,7 +430,7 @@ twins); TF-side type re-exports;
 ROADMAP updates.
 
 **Sequencing**: land
-[rename-value-first-schema-to-type-builders.md](rename-value-first-schema-to-type-builders.md)
+[json-schema-followups.md](../todos/json-schema-followups.md)
 BEFORE Tier 3 if possible (write Tier 3 against `src/builders/`; if not yet
 landed, the same edits apply at `src/schema/` and rebase mechanically).
 Tiers 1-2 touch zero Go; Tier 3's only Go edits are the two structural

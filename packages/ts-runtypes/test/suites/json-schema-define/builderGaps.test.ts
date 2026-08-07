@@ -1,4 +1,4 @@
-// The four builder gaps (docs/todos/schema-builder-gaps.md): dependentRequired,
+// The four builder gaps (docs/done/schema-builder-gaps.md): dependentRequired,
 // dependentSchemas and conditional now have first-class value-first builders
 // that return the schema door's EXACT lowering, so a schema → builder
 // translation keeps the intent instead of expanding it. Every convergence pin

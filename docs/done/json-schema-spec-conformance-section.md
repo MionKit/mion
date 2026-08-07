@@ -36,7 +36,7 @@ show a non-zero cell, which is the whole point.
 - **Competitors**: ts-runtypes (`runTypeFromJsonSchema`) and ajv, the only two
   that consume a document. TypeBox's compiler refuses a plain document (its
   `Schema.Compile` is unreleased, see
-  [typebox-json-schema-document-column.md](../todos/typebox-json-schema-document-column.md));
+  [bench-website-e2e-followups.md](../todos/bench-website-e2e-followups.md));
   zod and typia have no document input at all.
 - **Runner**: `container/benchmarks/shared/harness/spec.ts`, gated by
   `RT_SPEC_CONFORMANCE=1`, same per-competitor process model as `audit.ts`.

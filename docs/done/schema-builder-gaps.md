@@ -35,9 +35,18 @@ builders; the fourth (unevaluated) was split out, see "Cut" below.
   the guide keyword table's dependent* and if/then/else rows now show the
   real builder calls (02.json-schema.md).
 
-## Cut from this spec (split, not parked)
+## Cut from this spec (dropped, to be re-filed when scheduled)
 
 The unevaluated option on the composition builders and the broader
 translation matrix (toJsonSchema emitter, round-trip lane, zod-interface
-builder) did not ship here. They stand on their own in
-[docs/todos/schema-builder-unevaluated-and-translation-matrix.md](../todos/schema-builder-unevaluated-and-translation-matrix.md).
+builder) did not ship here, and on 2026-08-07 were deliberately dropped
+from the backlog rather than kept as an open spec — neither is planned
+near-term, and a fresh spec will be filed when the work is scheduled. The
+essence to carry into that spec: the builder spelling for unevaluated is an
+options bag on the composition builders (`RT.intersection(arms,
+{unevaluatedProperties: false})` and an array twin) that must reuse the
+door's `__rtUnevaluated` slot-building leaf exported type-only from
+fromJsonSchema.ts, exactly the way the dependent* leaves were shared — one
+lowering, two entrances, id-convergence by construction. The guide's
+Unevaluated table rows (02.json-schema.md) still show placeholder builder
+cells and become the real calls when it lands.

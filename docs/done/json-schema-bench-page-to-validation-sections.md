@@ -145,7 +145,7 @@ new keyword is supported by the door.
   `schemaCases.ts` — new keys land there as `NOT_SUPPORTED` per the
   one-door rule — plus `jsonSchemaCases.ts` and
   `json-schema-to-ts/cases.ts` for typecost, since removed). Totality is declared but
-  unenforced ([benchmark-competitor-maps-never-typechecked.md](benchmark-competitor-maps-never-typechecked.md)).
+  unenforced ([bench-website-e2e-followups.md](../todos/bench-website-e2e-followups.md)).
 
 ## Tests
 
@@ -184,7 +184,7 @@ every competitor against shared samples as the correctness oracle.
   that todo's case counts (ajv NOT_SUPPORTED tally, the 10-case references).
   Whichever lands second updates the other's numbers.
 - The competitor-map totality CI gate
-  ([benchmark-competitor-maps-never-typechecked.md](benchmark-competitor-maps-never-typechecked.md)).
+  ([bench-website-e2e-followups.md](../todos/bench-website-e2e-followups.md)).
 - Playground JSON Schema mode, the (schema) rename, and any change to the
   guide's keyword semantics.
 

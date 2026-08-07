@@ -9,7 +9,7 @@
 // states the same constraint in its own dialect.
 //
 // Nothing else in CI checks any of this: `container/benchmarks` is never
-// type-checked (see docs/todos/benchmark-competitor-maps-never-typechecked.md)
+// type-checked (see docs/todos/bench-website-e2e-followups.md (item 1))
 // and the suites only run inside the podman image. A key that silently vanishes
 // from a competitor map reads as an absent column on the website, not an error,
 // which is exactly the failure these tests exist to catch.

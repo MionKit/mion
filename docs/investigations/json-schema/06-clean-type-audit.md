@@ -85,7 +85,7 @@ positions read `JsonValue`, zero read the raw union.
   `string`. Boolean literals DO survive (two extends-tests recover them).
   Recovering `"yes" | "other"` would need FromJsonSchema to stop branding the
   literal arms — an id-affecting change filed as
-  [json-schema-ifthenelse-const-brands-hide-literals.md](../../todos/json-schema-ifthenelse-const-brands-hide-literals.md),
+  [json-schema-followups.md](../../todos/json-schema-followups.md),
   not smuggled in here.
 - **Branded tuples keep verbatim** (`FormattedArray<[boolean?, boolean?],
   {uniqueItems: true}>`): variadic inference over the intersection collapses

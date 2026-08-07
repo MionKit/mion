@@ -553,7 +553,7 @@ export function object(
 // ───────────────── JSON Schema dependency + conditional builders ─────────────────
 //
 // The value-first twins of the schema door's dependent* / if-then-else
-// lowerings (docs/todos/schema-builder-gaps.md). Each returns the EXACT type
+// lowerings (docs/done/schema-builder-gaps.md). Each returns the EXACT type
 // the door computes for the matching keyword — the arm and fold types are
 // imported from fromJsonSchema.ts, so the two entrances share one lowering and
 // converge on one structural id by construction. Without these, a schema →
