@@ -12,6 +12,21 @@
 
 export {runTypeFromJsonSchema} from './runTypeFromJsonSchema.ts';
 export type {FromJsonSchema, JsonSchemaInput, RootJsonSchemaInput, ExactJsonSchema} from './fromJsonSchema.ts';
+export type {StripRunTypeMeta} from '../runtypes/stripRunTypeMeta.ts';
+
+import type {StripRunTypeMeta} from '../runtypes/stripRunTypeMeta.ts';
+import type {FromJsonSchema} from './fromJsonSchema.ts';
+
+/** `JsonSchemaType<typeof schema>` — the CLEAN TypeScript type a schema
+ *  denotes: `FromJsonSchema` with every RunTypes sentinel stripped, so format
+ *  brands collapse to their base and the slot machinery disappears from
+ *  hovers and generated docs. Every spec-valid value assigns to it.
+ *
+ *  ⚠️ NEVER REFLECT this type: the stripped metadata IS the validation
+ *  contract, so `createValidateFn<JsonSchemaType<…>>()` would validate with
+ *  every constraint silently deleted. Pass the schema (or `FromJsonSchema`)
+ *  to the factories; use this type for annotations only. **/
+export type JsonSchemaType<S> = StripRunTypeMeta<FromJsonSchema<S>>;
 
 // Side-effect import: schema-recovered types carry format brands (email / uuid /
 // bounded numbers / …), whose emitted validators reach the `rtFormats::` pure

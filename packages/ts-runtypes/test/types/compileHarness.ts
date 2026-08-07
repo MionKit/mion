@@ -36,6 +36,7 @@ declare const __rtContains: unique symbol;
 declare const __rtPatternProps: unique symbol;
 declare const __rtPropNames: unique symbol;
 declare const __rtOneOf: unique symbol;
+declare const __rtUnevaluated: unique symbol;
 `;
 
 export interface MeasureResult {

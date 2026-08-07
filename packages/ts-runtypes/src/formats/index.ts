@@ -44,6 +44,7 @@ export type {
   FormattedObjectParams,
   FormattedArrayParamsValueFirst,
   FormattedObjectParamsValueFirst,
+  StructuralBrand,
 } from './structural.ts';
 
 // Re-export the value-first BUILDER surface — the scalar leaves (`TF.string()` /

@@ -13,7 +13,7 @@
 // suites/json-schema-define runtime convergence suites; this file trades
 // their rigor for a surface you can read top to bottom.
 
-import type {FromJsonSchema} from '@ts-runtypes/core/json-schema';
+import type {FromJsonSchema, JsonSchemaType} from '@ts-runtypes/core/json-schema';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 // ---------------------------------------------------------------------------
@@ -542,3 +542,31 @@ export const sUnknownFormat = {type: 'string', format: 'iri'} as const;
 export type TUnknownFormat = FromJsonSchema<typeof sUnknownFormat>;
 export const vUnknownFormat: TUnknownFormat = 'https://example.com/x';
 export const rtUnknownFormat = () => runTypeFromJsonSchema(sUnknownFormat);
+
+// ---------------------------------------------------------------------------
+// JsonSchemaType — the CLEAN annotation-grade projection (never reflected)
+// ---------------------------------------------------------------------------
+// Format brands collapse to their base, the slot machinery disappears, and
+// every spec-valid value assigns. The metadata IS the validation contract, so
+// these types must never reach a factory type argument — pass the schema (or
+// FromJsonSchema) to the factories instead.
+
+export type CString = JsonSchemaType<typeof sEmail>;
+export const cString: CString = 'anything, the format brand is gone';
+export type CObject = JsonSchemaType<typeof sObject>;
+export const cObject: CObject = {id: 1, name: 'ada', note: 'x'};
+// @ts-expect-error the structural shape still holds — required members stay required
+export const cObjectBad: CObject = {name: 'ada'};
+
+// The array brands strip to plain arrays (uniqueItems / maxItems / minItems
+// are the validator's job, not the annotation's).
+export type CArrayBounds = JsonSchemaType<typeof sArrayBounds>;
+export const cArrayBounds: CArrayBounds = [1, 1, 1, 1, 1, 1];
+export type CMinItems = JsonSchemaType<typeof sMinItems>;
+export const cMinItems: CMinItems = []; // the length bound is runtime-only
+
+// Slot-bearing objects lose their sentinels: no symbol key survives.
+export type CPropNames = JsonSchemaType<typeof sPropNames>;
+export const cPropNamesProbe: Extract<keyof CPropNames, symbol> extends never ? true : false = true;
+export type CUneval = JsonSchemaType<typeof sUnevaluated>;
+export const cUneval: CUneval = {id: 'a'};

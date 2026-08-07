@@ -59,8 +59,10 @@ export const FORMATTED_OBJECT_NAME = 'formattedObject';
 
 /** The two structural-brand sentinels, spelled raw (TypeFormat's base is
  *  primitive-constrained, so array / object brands carry the sentinels as a
- *  plain intersection member — same encoding the schema door emits). **/
-type StructuralBrand<Name extends string, P extends object> = {
+ *  plain intersection member — same encoding the schema door emits).
+ *  Exported ONCE from here — this is the wide-brand shape every metadata
+ *  walker (DataOnly's keep probes, StripRunTypeMeta's collapse) matches. **/
+export type StructuralBrand<Name extends string, P extends object> = {
   readonly [__rtFormatName]?: Name;
   readonly [__rtFormatParams]?: P;
 };
