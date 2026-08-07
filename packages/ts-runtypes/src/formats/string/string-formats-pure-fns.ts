@@ -55,18 +55,23 @@ registerPureFnFactory('rtFormats::isUUID', function () {
 // characters": `'💩💩'` is two code points but `.length === 4`, so a plain
 // `.length` check calls it too long under `maxLength: 2`. Only the ambiguous
 // side of each bound routes through here (see lengthConditions in
-// internal/cachegen/typefunctions/formats/string/stringformat.go), and the
-// surrogate pre-test keeps the all-BMP case a single native scan with no
-// per-character loop.
+// internal/cachegen/typefunctions/formats/string/stringformat.go — bounds a
+// plain `.length` already decides never reach this fn). Two regimes: a short
+// string counts faster in a plain charCode loop than the fixed cost of a
+// regex call, a long all-BMP one is a single native regex scan (measured
+// crossover sits well above the 24 cutoff either way).
 registerPureFnFactory('rtFormats::codePointLength', function () {
   const highSurrogateRegexp = /[\uD800-\uDBFF]/;
   return function _code_point_length(value: string): number {
-    if (!highSurrogateRegexp.test(value)) return value.length;
-    let count = 0;
-    for (let i = 0; i < value.length; i++) {
+    const len = value.length;
+    if (len > 24 && !highSurrogateRegexp.test(value)) return len;
+    let count = len;
+    for (let i = 0; i < len; i++) {
       const code = value.charCodeAt(i);
-      if (code >= 0xd800 && code <= 0xdbff && i + 1 < value.length) i++;
-      count++;
+      if (code >= 0xd800 && code <= 0xdbff && i + 1 < len) {
+        i++;
+        count--;
+      }
     }
     return count;
   };
@@ -465,9 +470,11 @@ type IsLocalHostFn = (ip: string) => boolean;
 // parsers accept on their own — gating those behind the flag would reject a
 // perfectly good `::1` from anyone who turned it off.
 registerPureFnFactory('rtFormats::isLocalHost', function () {
-  const localHostRegexp = /^localhost$/i;
+  // Length gate first: this runs on EVERY ip validation, and a case-blind
+  // regex call costs more than the answer is worth when the length already
+  // says no.
   return function _is_local_host(ip: string): boolean {
-    return localHostRegexp.test(ip);
+    return ip.length === 9 && ip.toLowerCase() === 'localhost';
   };
 });
 
@@ -499,8 +506,6 @@ registerPureFnFactory('rtFormats::isIPV4', function (utl: RTUtils) {
 registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
   const isLocalHost = utl.getPureFn('rtFormats::isLocalHost') as IsLocalHostFn;
   const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
-  const hexGroupRegexp = /^[0-9a-fA-F]{1,4}$/;
-  const ipv4TailRegexp = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
   function getAddress(ip: string, params: IPParams): false | string {
     if (!params.allowPort) return ip;
     const match = ip.match(ipv6PortRegexp);
@@ -511,20 +516,58 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     if (Number(port) > 65535) return false;
     return address;
   }
-  // Counts the 16-bit groups written in one `:`-separated run, or -1 when any
-  // group is malformed. A dotted quad is accepted in the LAST position only
-  // (the ipv4-mapped form) and counts as the two groups it encodes.
-  function countGroups(run: string, allowIPv4Tail: boolean): number {
-    if (run === '') return 0;
-    const groups = run.split(':');
-    let count = 0;
-    for (let i = 0; i < groups.length; i++) {
-      if (allowIPv4Tail && i === groups.length - 1 && ipv4TailRegexp.test(groups[i])) {
-        count += 2;
+  // The group walkers work on index RANGES of the one address string — a
+  // split-and-regex version of the same rules measured ~2x slower, all of it
+  // allocation and per-group regex overhead.
+  //
+  // isIPv4Quad: dotted quad over [start, end) with the octet rules of the
+  // ipv4 pattern — 1-3 ASCII digits, value ≤ 255, leading zeros tolerated.
+  function isIPv4Quad(s: string, start: number, end: number): boolean {
+    let octets = 0;
+    let val = 0;
+    let digits = 0;
+    for (let i = start; i <= end; i++) {
+      if (i === end || s.charCodeAt(i) === 46) {
+        if (digits === 0) return false;
+        octets++;
+        if (octets > 4) return false;
+        if (i === end) return octets === 4;
+        val = 0;
+        digits = 0;
         continue;
       }
-      if (!hexGroupRegexp.test(groups[i])) return -1;
-      count++;
+      const code = s.charCodeAt(i);
+      if (code < 48 || code > 57) return false;
+      if (digits === 3 || (val = val * 10 + (code - 48)) > 255) return false;
+      digits++;
+    }
+    return false;
+  }
+  // isHexGroup: one 16-bit group over [start, end) — 1-4 hex digits.
+  function isHexGroup(s: string, start: number, end: number): boolean {
+    const n = end - start;
+    if (n < 1 || n > 4) return false;
+    for (let i = start; i < end; i++) {
+      const code = s.charCodeAt(i);
+      if (!((code >= 48 && code <= 57) || (code >= 97 && code <= 102) || (code >= 65 && code <= 70))) return false;
+    }
+    return true;
+  }
+  // Counts the 16-bit groups written in one `:`-separated run [start, end),
+  // or -1 when any group is malformed. A dotted quad is accepted in the LAST
+  // position only (the ipv4-mapped form) and counts as the two groups it
+  // encodes.
+  function countGroups(s: string, start: number, end: number, allowIPv4Tail: boolean): number {
+    if (start >= end) return 0;
+    let count = 0;
+    let groupStart = start;
+    for (let i = start; i <= end; i++) {
+      if (i === end || s.charCodeAt(i) === 58) {
+        if (allowIPv4Tail && i === end && isIPv4Quad(s, groupStart, i)) count += 2;
+        else if (isHexGroup(s, groupStart, i)) count += 1;
+        else return -1;
+        groupStart = i + 1;
+      }
     }
     return count;
   }
@@ -536,10 +579,10 @@ registerPureFnFactory('rtFormats::isIPV6', function (utl: RTUtils) {
     // lone leading / trailing `:` is not an elision, so those runs come back
     // with an empty group and are rejected.
     const elision = address.indexOf('::');
-    if (elision !== address.lastIndexOf('::')) return false;
-    if (elision === -1) return countGroups(address, true) === 8;
-    const head = countGroups(address.slice(0, elision), false);
-    const tail = countGroups(address.slice(elision + 2), true);
+    if (elision === -1) return countGroups(address, 0, address.length, true) === 8;
+    if (address.indexOf('::', elision + 1) !== -1) return false;
+    const head = countGroups(address, 0, elision, false);
+    const tail = countGroups(address, elision + 2, address.length, true);
     if (head === -1 || tail === -1) return false;
     // The elision stands for at least one group, so the written ones must leave
     // room for it.

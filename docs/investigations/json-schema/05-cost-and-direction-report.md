@@ -154,6 +154,25 @@ Reading them together:
 
 What this does *not* say: the work is not low quality, and none of the above argues the feature is broken. Conformance genuinely improved, the fuzz and official-suite lanes are real assets, and the formats core (13% of the window) is reusable regardless of what happens next. The question this report supports is narrower and worth stating plainly: whether **83% of a 40,000-line window, a permanent conformance obligation, measurable slowdowns on shared paths, and pressure on the compiler's type-identity machinery** is a price worth paying for adoption — and whether the standard should be allowed to keep reaching inward, or be held behind a boundary that the core cannot feel.
 
+## Addendum — follow-up fixes (same day)
+
+The two actionable findings were addressed on the `feature/json-schema-finish`
+branch immediately after this report merged; the numbers above are the record
+of the tree at `0a7317c` and are left as measured.
+
+- **`format: email`** now requires the dotted TLD, converging with the native
+  `Email` brand and AJV full mode. Decision and rationale recorded in
+  [json-schema-email-format-accepts-tldless-domain.md](../../done/json-schema-email-format-accepts-tldless-domain.md).
+- **The string-format regressions** were re-engineered: the fixed-shape time
+  layouts and the IPv6 parser dropped their split/regex-per-segment engines
+  for single-pass character-code walks (measured 4-5x and ~2x faster than the
+  regressed engines, and faster than BASE for the time layouts and the IPv6
+  accept path), and the code-point length bounds gained conclusive `.length`
+  shortcuts on both sides of the ambiguous band plus a cheaper short-string
+  count. `string_minLength` on a value inside the band keeps a small honest
+  cost over BASE — that is the price of counting code points correctly — but
+  values a plain `.length` can decide now pay arithmetic only.
+
 ## Caveats
 
 - Benchmarks ran on a 4-core cloud container. Absolute throughput is not comparable to the published numbers; only the BASE/HEAD ratios measured in the same environment are meaningful, and only the 300 ms / 1,000 ms figures are quoted as findings.

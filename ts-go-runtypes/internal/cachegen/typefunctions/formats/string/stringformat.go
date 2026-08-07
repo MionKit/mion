@@ -136,27 +136,32 @@ func stringConditions(ctx formats.EmitContext, params map[string]any, vλl strin
 // emitter and the named-pattern (domain/email/url) emitters.
 //
 // The bounds count CODE POINTS (JSON Schema's rule, and what a reader means by
-// "two characters"): '💩💩' is two code points with a `.length` of 4. Since the
-// code-point count is never GREATER than `.length`, each bound keeps `.length`
-// as a short-circuit and only pays for the exact count on the ambiguous side:
+// "two characters"): '💩💩' is two code points with a `.length` of 4. The count
+// is bracketed by `.length` on both sides — never greater (a code point is one
+// or two units), never less than half (a pair is at most two units) — so a
+// plain `.length` decides everything outside the band [N, 2N] and only a value
+// whose `.length` lands inside it pays for the exact count:
 //
-//	maxLength → `.length <= N` already proves it fits
-//	minLength → `.length >= N` is necessary, so the exact count decides
-//	length    → `.length >= N` is necessary, so the exact count decides
+//	maxLength → `.length <= N` proves it fits, `.length > 2N` proves it doesn't
+//	minLength → `.length < N` proves it misses, `.length >= 2N` proves it doesn't
+//	length    → `.length` outside [N, 2N] can't count to exactly N
 func lengthConditions(params map[string]any, vλl string, ctx formats.EmitContext) []string {
 	var conditions []string
 	codePointLength := func() string { return pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")" }
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
-		conditions = append(conditions, "("+vλl+".length <= "+bound+" || "+codePointLength()+" <= "+bound+")")
+		doubled := formats.FormatNumber(2 * value)
+		conditions = append(conditions, "("+vλl+".length <= "+bound+" || ("+vλl+".length <= "+doubled+" && "+codePointLength()+" <= "+bound+"))")
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		bound := formats.FormatNumber(value)
-		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+codePointLength()+" >= "+bound+")")
+		doubled := formats.FormatNumber(2 * value)
+		conditions = append(conditions, "("+vλl+".length >= "+bound+" && ("+vλl+".length >= "+doubled+" || "+codePointLength()+" >= "+bound+"))")
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		bound := formats.FormatNumber(value)
-		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+codePointLength()+" === "+bound+")")
+		doubled := formats.FormatNumber(2 * value)
+		conditions = append(conditions, "("+vλl+".length >= "+bound+" && "+vλl+".length <= "+doubled+" && "+codePointLength()+" === "+bound+")")
 	}
 	return conditions
 }
@@ -250,18 +255,21 @@ func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 	codePointLength := pureFnAlias(ctx, "codePointLength") + "(" + vλl + ")"
 	if value, ok := formats.ReadNumberParam(params, "maxLength"); ok {
 		bound := formats.FormatNumber(value)
+		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length > "+bound+" && "+codePointLength+" > "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "maxLength", bound))
+			"if ("+vλl+".length > "+bound+" && ("+vλl+".length > "+doubled+" || "+codePointLength+" > "+bound+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "maxLength", bound))
 	}
 	if value, ok := formats.ReadNumberParam(params, "minLength"); ok {
 		bound := formats.FormatNumber(value)
+		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || "+codePointLength+" < "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "minLength", bound))
+			"if ("+vλl+".length < "+bound+" || ("+vλl+".length < "+doubled+" && "+codePointLength+" < "+bound+")) "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "minLength", bound))
 	}
 	if value, ok := formats.ReadNumberParam(params, "length"); ok {
 		bound := formats.FormatNumber(value)
+		doubled := formats.FormatNumber(2 * value)
 		statements = append(statements,
-			"if ("+vλl+".length < "+bound+" || "+codePointLength+" !== "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "length", bound))
+			"if ("+vλl+".length < "+bound+" || "+vλl+".length > "+doubled+" || "+codePointLength+" !== "+bound+") "+formats.FormatErrCall(pathExpr, errorsArr, "string", fmtName, "length", bound))
 	}
 	return statements
 }
