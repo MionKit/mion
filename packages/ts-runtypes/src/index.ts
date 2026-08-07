@@ -44,7 +44,7 @@ export {type RunType} from './runtypes/types.ts';
 // Exported after getRTUtils so the registry is initialised first.
 export {getRunType} from './getRunType.ts';
 export {type DataOnly} from './runtypes/dataOnly.ts';
-export {type StripRunTypeMeta} from './runtypes/stripRunTypeMeta.ts';
+export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
 export {type InferType, type OneOf, type AnyOf} from './schema/static.ts';
 
 // AI enrichment — type-keyed, committed maps validated against `T` at scan time

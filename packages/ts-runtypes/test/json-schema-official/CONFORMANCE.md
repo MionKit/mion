@@ -78,5 +78,7 @@ see README.md for the taxonomy and the upgrade procedure. Do not edit by hand.
 ## Type gate
 
 1030 spec-valid samples additionally assert ASSIGNABILITY into `JsonSchemaType<typeof schema>`
-(typeGate.test.ts, fresh-literal excess-property checks filtered); 5 divergences are
+(typeGate.test.ts, fresh-literal excess-property checks filtered); 0 divergences are
 recorded in type-gate-divergences.json, held in both directions like the runtime ledger.
+(The five mixed-form entries cleared when the clean types began widening an index
+signature beside named properties — the exact index stays only in the reflected type.)

@@ -31,16 +31,27 @@ import type {
  *  projection (it KEEPS the sentinels for exactly this reason); this type is
  *  its never-reflected annotation twin. The same applies to `JsonSchemaType`.
  *
- *  Documented residuals (kept VERBATIM rather than guessed at):
- *   - branded LITERALS (`'a' & Format…`) and branded TUPLES — TypeScript has
- *     no generic intersection subtraction, and element inference on a branded
- *     tuple loses the slot structure, so both keep their brand;
+ *  Documented residuals and lossy edges:
+ *   - branded TUPLES keep their brand verbatim (element inference on a
+ *     branded tuple loses the slot structure; a mapped type would mangle it);
+ *   - branded STRING / NUMERIC literals WIDEN to their base primitive:
+ *     TypeScript has no intersection subtraction (template construction,
+ *     template inference and mapped-key normalisation were all tried and do
+ *     not reduce over an intersection), and a clean `string` beats leaked
+ *     brand internals in a hover. Branded BOOLEAN literals survive — two
+ *     extends-tests recover them;
+ *   - an index signature beside named properties widens its value to
+ *     `unknown` (see StripMetaObject) so every valid value assigns;
  *   - a REQUIRED nominal brand (`__rtFormatBrand`) collapses with its format,
  *     so the stripped type is assignable FROM the branded one but not back —
  *     wide (optional-sentinel) brands stay mutually assignable;
  *   - Temporal formats (their base classes live behind the opt-in temporal
  *     subpath, which this core module cannot name), `Map`/`Set`/`RegExp` and
  *     function shapes pass through untouched.
+ *
+ *  The any-JSON domain — what an unconstrained schema position denotes — is
+ *  canonicalised to the exported `JsonValue` alias wherever it appears, so a
+ *  hover reads one name instead of the six-arm union it stands for.
  *
  *  The `#region stripmeta-extract` block is sliced VERBATIM by
  *  test/types/stripMetaHarness.ts into the per-branch budget test — keep it
@@ -67,39 +78,91 @@ type StripMetaSentinelKeys =
  *  sub-tree verbatim (best effort) instead of tripping TS2589. **/
 type _StripMetaDepth = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8];
 
+/** Any JSON value — the domain of a schema that constrains no type. The array
+ *  and object arms are deliberately LOOSE (`unknown[]`, not `JsonValue[]`):
+ *  this alias exists so the many places that recover "any JSON value" (a bare
+ *  `pattern`, a lone `minimum`, an unconstrained `contains`) display one
+ *  readable name instead of a six-arm anonymous union, and the loose arms are
+ *  exactly the shape those recoveries produce, which is what lets the
+ *  canonicalisation below recognise them. **/
+export type JsonValue = string | number | boolean | unknown[] | {[key: string]: unknown} | null;
+
+/** True when some union arm of T is an OBJECT with declared literal keys — a
+ *  structured alternative (a dependent-schema case split, an anyOf branch).
+ *  Such a union may be VALUE-equivalent to the any-JSON domain and still be
+ *  worth displaying: the arms are the documentation. Primitives are excluded
+ *  FIRST — a branded string arm is `string & {…}`, which `extends object`,
+ *  and its apparent keys (`length`, …) would read as structure. Arrays are
+ *  not structured either (same apparent-key reason). **/
+type StripMetaHasStructuredArm<T> = true extends (
+  T extends string | number | bigint | boolean | null | undefined
+    ? false
+    : T extends readonly unknown[]
+      ? false
+      : T extends object
+        ? StripMetaNoNamedKeys<T> extends true
+          ? false
+          : true
+        : false
+)
+  ? true
+  : false;
+
 export type StripRunTypeMeta<T, Depth extends number = 8> = Depth extends 0
-  ? T // budget exhausted — keep the remaining sub-tree as-is (best effort)
+  ? unknown // budget exhausted — widen: an annotation admits everything rather than leak metadata
   : unknown extends T
     ? T // any / unknown — keep the broad kinds
-    : T extends string
-      ? string extends T
-        ? string // wide brand (Email, StringFormat<…>) — collapse to the base
+    : [JsonValue] extends [T]
+      ? [T] extends [JsonValue]
+        ? StripMetaHasStructuredArm<T> extends true
+          ? StripMetaNode<T, Depth> // equivalent to any-JSON, but the arms carry structure — keep them
+          : JsonValue // the any-JSON domain, in any arm order / brand dressing — one name
+        : StripMetaNode<T, Depth>
+      : StripMetaNode<T, Depth>;
+
+type StripMetaNode<T, Depth extends number> = T extends string
+  ? string extends T
+    ? string // wide brand (Email, StringFormat<…>) — collapse to the base
+    : T extends {readonly [__rtFormatBrand]: string}
+      ? string // required nominal brand — collapse one-way to the base
+      : Extract<keyof T, StripMetaSentinelKeys> extends never
+        ? T // plain literal — keep verbatim
+        : string // branded literal / residue — no intersection subtraction exists, widen to the base
+  : T extends number
+    ? number extends T
+      ? number
+      : T extends {readonly [__rtFormatBrand]: string}
+        ? number
+        : Extract<keyof T, StripMetaSentinelKeys> extends never
+          ? T
+          : number // branded numeric residue (impossible-arm junk included) — widen to the base
+    : T extends bigint
+      ? bigint extends T
+        ? bigint
         : T extends {readonly [__rtFormatBrand]: string}
-          ? string // required nominal brand — collapse one-way to the base
-          : T // plain literal, or a branded literal residual — keep verbatim
-      : T extends number
-        ? number extends T
-          ? number
-          : T extends {readonly [__rtFormatBrand]: string}
-            ? number
-            : T
-        : T extends bigint
-          ? bigint extends T
-            ? bigint
-            : T extends {readonly [__rtFormatBrand]: string}
-              ? bigint
-              : T
-          : T extends boolean | null | undefined
+          ? bigint
+          : Extract<keyof T, StripMetaSentinelKeys> extends never
             ? T
-            : T extends Date
-              ? Date // FormatDate<…> — collapse to the bare class
-              : T extends (...args: never[]) => unknown
-                ? T // functions stay functions — this is not DataOnly
-                : T extends readonly unknown[]
-                  ? StripMetaArray<T, Depth>
-                  : T extends object
-                    ? StripMetaObject<T, Depth>
-                    : T;
+            : bigint
+      : T extends boolean
+        ? Extract<keyof T, StripMetaSentinelKeys> extends never
+          ? T
+          : T extends true
+            ? true // a boolean literal survives its brand — extends-testing recovers it
+            : T extends false
+              ? false
+              : boolean
+        : T extends null | undefined
+          ? T
+          : T extends Date
+            ? Date // FormatDate<…> — collapse to the bare class
+            : T extends (...args: never[]) => unknown
+              ? T // functions stay functions — this is not DataOnly
+              : T extends readonly unknown[]
+                ? StripMetaArray<T, Depth>
+                : T extends object
+                  ? StripMetaObject<T, Depth>
+                  : T;
 
 /** Arrays + tuples. An UNBRANDED array-like recurses homomorphically (tuple
  *  slots, rest tails and modifiers all survive the mapped type). A BRANDED
@@ -118,27 +181,71 @@ type StripMetaArray<T extends readonly unknown[], Depth extends number> =
         : T
       : T; // branded tuple — keep-verbatim residual
 
+/** The declared literal-key surface of an object — index-signature slots
+ *  filtered out, `-?` so an all-optional surface still registers. `{} extends
+ *  this` says "no named properties", which is what decides whether an index
+ *  signature's value may stay exact (below). The homomorphic shape matters: a
+ *  bare `keyof` NORMALIZES `'foo' | string` down to `string` and loses the
+ *  named keys, while a `[K in keyof T as …]` map sees them per-constituent
+ *  even through the `Props & Record<…>` intersections the schema door
+ *  produces. **/
+type StripMetaLiteralKeys<T> = {
+  [K in keyof T as string extends K ? never : number extends K ? never : K extends symbol ? never : K]-?: 0;
+};
+
+/** "T declares no named properties" — the empty-object probe over the literal
+ *  key surface (`Record<never, never>` spelling, which is the same test the
+ *  bare `{}` would run without reading as "anything non-nullish"). **/
+type StripMetaNoNamedKeys<T> = Record<never, never> extends StripMetaLiteralKeys<T> ? true : false;
+
 /** Objects: drop every symbol key (the sentinels are symbol-keyed; symbol
  *  members are never data anyway) and recurse the values, preserving the
  *  `readonly` / `?` modifiers via the homomorphic `as` filter. `Map` / `Set` /
- *  `RegExp` and the broad `object` pass through verbatim.
+ *  `RegExp` and the truly broad `object` (no keys at all) pass through
+ *  verbatim — probed via `keyof`, NOT `object extends T`, because the latter
+ *  is also true of every all-optional object and silently kept weak types
+ *  (and the metadata inside them) verbatim.
  *
  *  Sentinel presence is probed FIRST: a bare carrier (`unknown & {__rtOneOf?:
- *  …}`, a bare `{__rtNot?: …}`) is an all-optional object, so the broad
- *  `object extends T` escape would keep it VERBATIM — and once every key is a
- *  sentinel, the honest clean type is the `unknown` the base was. **/
+ *  …}`, a bare `{__rtNot?: …}`) is an all-optional object, and once every key
+ *  is a sentinel, the honest clean type is the `unknown` the base was.
+ *
+ *  Index signatures beside NAMED properties widen their value to `unknown`:
+ *  TypeScript cannot spell "this value type for every key except the named
+ *  ones", so an exact index would reject valid data that mixes named-key and
+ *  additional-key value types — and the clean type's contract is that every
+ *  valid value assigns. An index signature standing ALONE keeps its exact
+ *  value type (nothing is excepted from it, so nothing valid is rejected). **/
 type StripMetaObject<T extends object, Depth extends number> =
   Extract<keyof T, StripMetaSentinelKeys> extends never
-    ? object extends T
-      ? T
+    ? keyof T extends never
+      ? T // the broad `object` — nothing to map
       : T extends ReadonlyMap<any, any> | ReadonlySet<any> | RegExp
         ? T
         : {
-            [K in keyof T as K extends symbol ? never : K]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+            // Inline on purpose: an ANONYMOUS mapped type is displayed expanded,
+            // while a named helper defers behind its own name in hovers.
+            [K in keyof T as K extends symbol ? never : K]: string extends K
+              ? StripMetaNoNamedKeys<T> extends true
+                ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+                : unknown // index beside named properties — widen so mixed valid data assigns
+              : number extends K
+                ? StripMetaNoNamedKeys<T> extends true
+                  ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+                  : unknown
+                : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
           }
     : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
       ? unknown // every key was metadata — the base was the broad kind
       : {
-          [K in keyof T as K extends symbol ? never : K]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+          [K in keyof T as K extends symbol ? never : K]: string extends K
+            ? StripMetaNoNamedKeys<T> extends true
+              ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+              : unknown
+            : number extends K
+              ? StripMetaNoNamedKeys<T> extends true
+                ? StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>
+                : unknown
+              : StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
         };
 // #endregion stripmeta-extract

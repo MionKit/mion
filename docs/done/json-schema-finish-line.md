@@ -286,9 +286,11 @@ beyond the plan, so this doc matches what actually shipped:
   then REVERTED the same day: the recovered type is the VALIDATOR's source,
   and the widened index weakened the emitted index sweep (caught by
   "an additional invalid property is invalid"). The over-narrowing stays by
-  design in the reflected type; the admitting story lives in the clean types,
-  and the five mixed-form samples ride the type gate's ledger with the
-  narrowing note.
+  design in the reflected type; the admitting story lives in the clean types.
+  (Follow-up, same PR: the clean-type audit made StripRunTypeMeta widen an
+  index signature beside named properties, so the five mixed-form samples now
+  assign and their type-gate ledger entries are cleared — the exact index
+  survives only where it must, in the reflected validator source.)
 - **Boolean acceptance surfaced four latent lowering bugs the plan did not
   list**, all fixed in Phase 2: the combinator member probes still required
   object-only lists (an all-boolean `allOf: [false, false]` silently lowered
@@ -312,4 +314,5 @@ beyond the plan, so this doc matches what actually shipped:
   spellings.
 - Conformance moved 1752 → 1817 conforming cases (of 1988), unsupported
   input 171 → 102, open divergences 0 → 0; the new type gate asserts 1030
-  spec-valid samples with 5 ledgered (documented) divergences.
+  spec-valid samples, and after the clean-type audit (below) its ledger is
+  empty — every spec-valid sample assigns.

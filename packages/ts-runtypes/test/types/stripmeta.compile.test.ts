@@ -51,7 +51,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _07 = Expect<Equal<StripRunTypeMeta<unknown>, unknown>>;
       type _08 = Expect<Equal<StripRunTypeMeta<string | number | null>, string | number | null>>;
       `,
-      358
+      546
     );
   });
 
@@ -73,7 +73,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _08 = Expect<Assignable<Nominal, StripRunTypeMeta<Nominal>>>;
       type _09 = ExpectFalse<Assignable<StripRunTypeMeta<Nominal>, Nominal>>;
       `,
-      224
+      265
     );
   });
 
@@ -91,7 +91,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type WithContains = unknown[] & {readonly [__rtContains]?: {readonly rt$child: Email; readonly rt$min: 1}};
       type _06 = Expect<Equal<StripRunTypeMeta<WithContains>, unknown[]>>;
       `,
-      1944
+      2042
     );
   });
 
@@ -108,26 +108,84 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type Carrier = {a: string} & {readonly [__rtOneOf]?: [unknown, unknown]};
       type _04 = Expect<Equal<StripRunTypeMeta<Carrier | number>, {a: string} | number>>;
       `,
-      586
+      724
     );
   });
 
-  it('documented residuals keep verbatim: branded literals, branded tuples, functions', () => {
+  it('residual policy: branded literals widen, branded booleans and tuples have their own rules', () => {
     check(
       BRAND_PREAMBLE +
         `
+      // No intersection subtraction exists, so a branded string/number literal
+      // WIDENS to its base — a clean primitive beats leaked brand internals.
       type BrandedLit = 'active' & {readonly [__rtFormatName]?: 'stringFormat'};
-      type _01 = Expect<Equal<StripRunTypeMeta<BrandedLit>, BrandedLit>>;
+      type _01 = Expect<Equal<StripRunTypeMeta<BrandedLit>, string>>;
+      type BrandedNum = 5 & {readonly [__rtFormatName]?: 'numberFormat'};
+      type _02 = Expect<Equal<StripRunTypeMeta<BrandedNum>, number>>;
+      // Boolean literals survive their brand — two extends-tests recover them.
+      type BrandedTrue = true & {readonly [__rtFormatName]?: 'boolFormat'};
+      type _03 = Expect<Equal<StripRunTypeMeta<BrandedTrue>, true>>;
+      // Branded TUPLES keep verbatim (slot structure cannot be recovered).
       type BrandedTuple = [string, number] & {readonly [__rtFormatName]?: 'formattedArray'};
-      type _02 = Expect<Equal<StripRunTypeMeta<BrandedTuple>, BrandedTuple>>;
-      type _03 = Expect<Equal<StripRunTypeMeta<() => Email>, () => Email>>;
-      type _04 = Expect<Equal<StripRunTypeMeta<Map<string, Email>>, Map<string, Email>>>;
+      type _04 = Expect<Equal<StripRunTypeMeta<BrandedTuple>, BrandedTuple>>;
+      type _05 = Expect<Equal<StripRunTypeMeta<() => Email>, () => Email>>;
+      type _06 = Expect<Equal<StripRunTypeMeta<Map<string, Email>>, Map<string, Email>>>;
       `,
-      730
+      1006
     );
   });
 
-  it('depth discipline: circular types resolve finitely, floor keeps verbatim', () => {
+  it('all-optional objects strip their members too (no weak-type escape)', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      // 'object extends T' is true of every all-optional object, so a naive
+      // broad-object escape kept weak types (and the metadata inside them)
+      // verbatim. The keyof probe strips them like any other object.
+      type Weak = {alpha?: Bounded; beta?: Email};
+      type _01 = Expect<Equal<StripRunTypeMeta<Weak>, {alpha?: number; beta?: string}>>;
+      `,
+      280
+    );
+  });
+
+  it('an index signature beside named properties widens so mixed valid data assigns', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      // The mixed form (properties + schema-valued additionalProperties):
+      // TypeScript cannot spell "boolean for every key EXCEPT foo", so the
+      // exact index would reject valid data mixing the two value families.
+      type Mixed = {foo?: Email; bar?: Email} & Record<string, boolean>;
+      type _01 = Expect<Assignable<{foo: 'x'; quux: true}, StripRunTypeMeta<Mixed>>>;
+      // An index signature standing ALONE keeps its exact value type.
+      type Alone = Record<string, boolean>;
+      type _02 = Expect<Equal<StripRunTypeMeta<Alone>, {[x: string]: boolean}>>;
+      type _03 = ExpectFalse<Assignable<{k: 'nope'}, StripRunTypeMeta<Alone>>>;
+      `,
+      620
+    );
+  });
+
+  it('the any-JSON domain canonicalises to JsonValue; structured unions keep their arms', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      type RawAny = string | number | boolean | unknown[] | {[key: string]: unknown} | null;
+      type _01 = Expect<Equal<StripRunTypeMeta<RawAny>, JsonValue>>;
+      // Brand dressing / arm order do not matter — value-equivalence decides.
+      type Dressed = Email | number | boolean | {[key: string]: unknown} | unknown[] | null;
+      type _02 = Expect<Equal<StripRunTypeMeta<Dressed>, JsonValue>>;
+      // A union that is value-equivalent but carries STRUCTURED object arms
+      // (a dependent-schema case split) keeps them — the arms document.
+      type Split = string | number | boolean | unknown[] | {bar: string; [key: string]: unknown} | {bar?: undefined; [key: string]: unknown} | null;
+      type _03 = ExpectFalse<Equal<StripRunTypeMeta<Split>, JsonValue>>;
+      `,
+      589
+    );
+  });
+
+  it('depth discipline: circular types resolve finitely, floor widens to unknown', () => {
     check(
       BRAND_PREAMBLE +
         `
@@ -136,7 +194,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _01 = Expect<Equal<Stripped['value'], string>>;
       type _02 = Expect<Assignable<{value: 'a'; next: {value: 'b'}}, Stripped>>;
       `,
-      215
+      258
     );
   });
 });

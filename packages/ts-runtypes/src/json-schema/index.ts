@@ -12,7 +12,7 @@
 
 export {runTypeFromJsonSchema} from './runTypeFromJsonSchema.ts';
 export type {FromJsonSchema, JsonSchemaInput, RootJsonSchemaInput, ExactJsonSchema} from './fromJsonSchema.ts';
-export type {StripRunTypeMeta} from '../runtypes/stripRunTypeMeta.ts';
+export type {StripRunTypeMeta, JsonValue} from '../runtypes/stripRunTypeMeta.ts';
 
 import type {StripRunTypeMeta} from '../runtypes/stripRunTypeMeta.ts';
 import type {FromJsonSchema} from './fromJsonSchema.ts';
