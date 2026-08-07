@@ -11,7 +11,7 @@ Found when the json-schema rollout made `2.guide/` the first content dir with te
 
 ## Problem
 
-The failure mode is invisible in review: adding a 10th file looks fine in the diff, nothing errors, and only the rendered nav order is wrong. Current counts under [container/website/content/](../../container/website/content/): `1.introduction/` 4 pages, `3.ai-integration/` 4, `7.benchmarks/` **9** — the very next benchmarks page added trips it. The top level (4 dirs plus `8.diagnostics.md` and `index.md`) is safe for the foreseeable future.
+The failure mode is invisible in review: adding a 10th file looks fine in the diff, nothing errors, and only the rendered nav order is wrong. Current counts under [container/website/content/](../../container/website/content/) as of 2026-08-07: `1.introduction/` 4 pages, `3.ai-integration/` 4, `7.benchmarks/` **8** (was 9 before the json-schema bench page folded into the validation sections) — two more benchmarks pages trip it. The top level (4 dirs plus `8.diagnostics.md` and `index.md`) is safe for the foreseeable future.
 
 ## Fix
 

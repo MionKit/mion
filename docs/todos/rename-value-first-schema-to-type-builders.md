@@ -8,8 +8,8 @@ created: 2026-08-02
 # Rename the value-first surface from "schema" to Type Builders
 
 Investigated 2026-08-02 (full sweep of content/, playground, exports, tests,
-benchmarks, e2e, Go internals). One PR, after feature/json-schema-rollout
-merges.
+benchmarks, e2e, Go internals); references refreshed 2026-08-07 after the
+JSON Schema finish work merged. One PR, unblocked now.
 
 ## Problem
 
@@ -24,9 +24,11 @@ own is the feature — the one contradicting all three. Since JSON Schema
 shipped it stopped being cosmetic:
 [06.validation.md](../../container/website/content/2.guide/06.validation.md)
 enumerates the call forms as "type-first, value-first, schema-first, JSON
-Schema" (two unrelated schemas in one list), and the filed
-[playground-json-schema-selector-mode.md](playground-json-schema-selector-mode.md)
-would make the playground selector read Type | Schema | JSON Schema.
+Schema" (two unrelated schemas in one list), and the playground selector
+(the JSON Schema mode shipped with
+[json-schema-finish-line.md](../done/json-schema-finish-line.md) Phase 6)
+now reads Type | Schema | JSON Schema — two unrelated schemas side by side
+in the UI.
 
 Precedent and timing: TypeBox officially calls the equivalent surface its
 Type Builder (the home page already sells "the Zod / TypeBox feel"), the
@@ -83,8 +85,9 @@ again.
   paths key.
 - Playground: toggle label/tooltip/hint in
   [PlaygroundStage.client.vue](../../container/website/app/components/playground/PlaygroundStage.client.vue),
-  `Mode = 'type' | 'schema'` → `'builder'` in
-  [engine.ts](../../container/website/app/playground/engine.ts), the per-preset
+  `'schema'` → `'builder'` inside `Mode = 'type' | 'schema' | 'jsonSchema'`
+  in [engine.ts](../../container/website/app/playground/engine.ts) (the
+  jsonSchema arm stays), the per-preset
   `schema:` field + imports in
   [presets.ts](../../container/website/app/playground/presets.ts). Mode is
   ephemeral component state (verified: no localStorage / query persistence),
@@ -161,7 +164,6 @@ dashes introduced and MDC/fence counts match baseline
 
 ## Out of scope
 
-- Implementing before feature/json-schema-rollout merges (follow-up PR only).
 - Removing the `./schema` alias (1.0, tracked by the ROADMAP note).
 - Renaming the `value-first-define` suite directory (already correct) and
   rewriting historical `docs/done/` records (never rewritten).
