@@ -34,12 +34,14 @@ import type {
  *  Documented residuals and lossy edges:
  *   - branded TUPLES keep their brand verbatim (element inference on a
  *     branded tuple loses the slot structure; a mapped type would mangle it);
- *   - branded STRING / NUMERIC literals WIDEN to their base primitive:
- *     TypeScript has no intersection subtraction (template construction,
- *     template inference and mapped-key normalisation were all tried and do
- *     not reduce over an intersection), and a clean `string` beats leaked
- *     brand internals in a hover. Branded BOOLEAN literals survive — two
- *     extends-tests recover them;
+ *   - branded STRING / NUMERIC literals are RECOVERED (`'yes' & Brand` strips
+ *     to `'yes'`) through the inference-based subtraction in
+ *     StripMetaUnbrandLit below, and widen to their base primitive only when
+ *     that subtraction cannot clear the sentinels. No type OPERATOR subtracts
+ *     an intersection — template construction, template inference and
+ *     mapped-key normalisation were all tried and none reduces over one — but
+ *     inference does, which is what the helper exploits. Branded BOOLEAN
+ *     literals take the older route: two extends-tests recover them;
  *   - an index signature beside named properties widens its value to
  *     `unknown` (see StripMetaObject) so every valid value assigns;
  *   - a REQUIRED nominal brand (`__rtFormatBrand`) collapses with its format,
@@ -108,6 +110,50 @@ type StripMetaHasStructuredArm<T> = true extends (
   ? true
   : false;
 
+/** The sentinel-carrying constituents of `T`, rebuilt ONE PER CONSTITUENT.
+ *  TypeScript's intersection subtraction lives in INFERENCE, not in any type
+ *  operator: when an inference target is an intersection, the checker matches
+ *  its constituents pairwise against the SOURCE's under type IDENTITY, deletes
+ *  the matched pairs from both sides, and infers what remains into the naked
+ *  `infer U` (checker `inferFromMatchingTypes`; tsgo ports it verbatim in
+ *  internal/checker/inference.go, so both compilers agree).
+ *
+ *  Identity is why the residual must be spelled the way the ENCODINGS spell
+ *  it — TypeFormat's two keys as ONE object (adaptively, so a one-key
+ *  hand-written brand matches too), and every slot sentinel as its own.
+ *  Merging them into a single object is identical to none of them and
+ *  silently subtracts nothing.
+ *
+ *  ⚠️ Adding a new sentinel that can ride a PRIMITIVE base means adding its
+ *  part here, or its literals quietly start widening again. **/
+type StripMetaFmtPart<T> = typeof __rtFormatName extends keyof T
+  ? typeof __rtFormatParams extends keyof T
+    ? {
+        readonly [__rtFormatName]?: T[typeof __rtFormatName & keyof T];
+        readonly [__rtFormatParams]?: T[typeof __rtFormatParams & keyof T];
+      }
+    : {readonly [__rtFormatName]?: T[typeof __rtFormatName & keyof T]}
+  : unknown;
+type StripMetaNotPart<T> = typeof __rtNot extends keyof T ? {readonly [__rtNot]?: T[typeof __rtNot & keyof T]} : unknown;
+type StripMetaOneOfPart<T> = typeof __rtOneOf extends keyof T ? {readonly [__rtOneOf]?: T[typeof __rtOneOf & keyof T]} : unknown;
+
+/** A branded literal → its bare literal, or `Base` when the subtraction did
+ *  not fully clear. The `keyof U` re-check is the safety net: an unmatched
+ *  constituent leaves `U` as `T` verbatim, which still carries its sentinels
+ *  and so widens exactly as it did before this helper existed — degradation,
+ *  never a wrong answer.
+ *
+ *  `__rtContains` / `__rtPatternProps` / `__rtPropNames` / `__rtUnevaluated`
+ *  are deliberately not modelled: they ride array / object bases only, so a
+ *  literal never carries one, and anything that somehow does trips the
+ *  re-check. `__rtFormatBrand` never reaches here — the required-nominal-brand
+ *  arm returns `Base` before this is consulted. **/
+type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T> & StripMetaNotPart<T> & StripMetaOneOfPart<T>
+  ? [Extract<keyof U, StripMetaSentinelKeys>] extends [never]
+    ? U
+    : Base
+  : Base;
+
 export type StripRunTypeMeta<T, Depth extends number = 8> = Depth extends 0
   ? unknown // budget exhausted — widen: an annotation admits everything rather than leak metadata
   : unknown extends T
@@ -127,7 +173,7 @@ type StripMetaNode<T, Depth extends number> = T extends string
       ? string // required nominal brand — collapse one-way to the base
       : Extract<keyof T, StripMetaSentinelKeys> extends never
         ? T // plain literal — keep verbatim
-        : string // branded literal / residue — no intersection subtraction exists, widen to the base
+        : StripMetaUnbrandLit<T, string> // branded literal — subtract the brand, else widen to the base
   : T extends number
     ? number extends T
       ? number
@@ -135,7 +181,7 @@ type StripMetaNode<T, Depth extends number> = T extends string
         ? number
         : Extract<keyof T, StripMetaSentinelKeys> extends never
           ? T
-          : number // branded numeric residue (impossible-arm junk included) — widen to the base
+          : StripMetaUnbrandLit<T, number> // branded numeric (impossible-arm junk included)
     : T extends bigint
       ? bigint extends T
         ? bigint
@@ -143,7 +189,7 @@ type StripMetaNode<T, Depth extends number> = T extends string
           ? bigint
           : Extract<keyof T, StripMetaSentinelKeys> extends never
             ? T
-            : bigint
+            : StripMetaUnbrandLit<T, bigint>
       : T extends boolean
         ? Extract<keyof T, StripMetaSentinelKeys> extends never
           ? T

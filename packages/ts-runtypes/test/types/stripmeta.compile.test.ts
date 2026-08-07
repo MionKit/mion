@@ -112,16 +112,16 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
-  it('residual policy: branded literals widen, branded booleans and tuples have their own rules', () => {
+  it('residual policy: branded literals are recovered, branded booleans and tuples have their own rules', () => {
     check(
       BRAND_PREAMBLE +
         `
-      // No intersection subtraction exists, so a branded string/number literal
-      // WIDENS to its base — a clean primitive beats leaked brand internals.
+      // A branded string/number literal RECOVERS its bare literal — the brand
+      // is subtracted by inference (StripMetaUnbrandLit), not by an operator.
       type BrandedLit = 'active' & {readonly [__rtFormatName]?: 'stringFormat'};
-      type _01 = Expect<Equal<StripRunTypeMeta<BrandedLit>, string>>;
+      type _01 = Expect<Equal<StripRunTypeMeta<BrandedLit>, 'active'>>;
       type BrandedNum = 5 & {readonly [__rtFormatName]?: 'numberFormat'};
-      type _02 = Expect<Equal<StripRunTypeMeta<BrandedNum>, number>>;
+      type _02 = Expect<Equal<StripRunTypeMeta<BrandedNum>, 5>>;
       // Boolean literals survive their brand — two extends-tests recover them.
       type BrandedTrue = true & {readonly [__rtFormatName]?: 'boolFormat'};
       type _03 = Expect<Equal<StripRunTypeMeta<BrandedTrue>, true>>;
@@ -131,7 +131,43 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _05 = Expect<Equal<StripRunTypeMeta<() => Email>, () => Email>>;
       type _06 = Expect<Equal<StripRunTypeMeta<Map<string, Email>>, Map<string, Email>>>;
       `,
-      1006
+      1190
+    );
+  });
+
+  it('brand subtraction: the if/then/else-over-consts arms keep their literals', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      // The shipped lowering of {if: {maxLength: 4}, then: {const: 'yes'},
+      // else: {const: 'other'}} — (If ∧ Then) ∨ (¬If ∧ Else), where the
+      // condition rides each arm as an ordinary intersection brand.
+      type IfBrand = {readonly [__rtFormatName]?: 'stringFormat'; readonly [__rtFormatParams]?: {maxLength: 4}};
+      type Ite = ('yes' & IfBrand) | ('other' & {readonly [__rtNot]?: string & IfBrand});
+      type _01 = Expect<Equal<StripRunTypeMeta<Ite>, 'yes' | 'other'>>;
+      // The numeric twin.
+      type IteNum = (1 & {readonly [__rtFormatName]?: 'numberFormat'}) | (2 & {readonly [__rtNot]?: number});
+      type _02 = Expect<Equal<StripRunTypeMeta<IteNum>, 1 | 2>>;
+      // A oneOf carrier over literal arms recovers too (same mechanism).
+      type OneOfLits = ('a' & {readonly [__rtOneOf]?: ['a', 1]}) | (1 & {readonly [__rtOneOf]?: ['a', 1]});
+      type _03 = Expect<Equal<StripRunTypeMeta<OneOfLits>, 'a' | 1>>;
+      // Nested in an object, and across a wider union.
+      type _04 = Expect<Equal<StripRunTypeMeta<{a: Ite; b: {c: Ite}}>, {a: 'yes' | 'other'; b: {c: 'yes' | 'other'}}>>;
+      type Five = ('a' | 'b' | 'c' | 'd' | 'e') & IfBrand;
+      type _05 = Expect<Equal<StripRunTypeMeta<Five>, 'a' | 'b' | 'c' | 'd' | 'e'>>;
+      // A multi-constituent stack subtracts every part, one per constituent.
+      type Stacked = 'x' & IfBrand & {readonly [__rtNot]?: string} & {readonly [__rtOneOf]?: ['x', 'y']};
+      type _06 = Expect<Equal<StripRunTypeMeta<Stacked>, 'x'>>;
+      // Degradation, not regression: a sentinel the residual does not model
+      // leaves the arm branded, so it widens exactly as it did before.
+      type Unmodelled = 'x' & {readonly [__rtPropNames]?: string};
+      type _07 = Expect<Equal<StripRunTypeMeta<Unmodelled>, string>>;
+      // WIDE brands still collapse to the base — nothing to recover there.
+      type _08 = Expect<Equal<StripRunTypeMeta<Email>, string>>;
+      type _09 = Expect<Equal<StripRunTypeMeta<Nominal>, string>>;
+      type _10 = Expect<Equal<StripRunTypeMeta<never>, never>>;
+      `,
+      2152
     );
   });
 

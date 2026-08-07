@@ -325,6 +325,14 @@ export type TIfThenElse = FromJsonSchema<typeof sIfThenElse>;
 export const vIfThen: TIfThenElse = {kind: 'circle', radius: 2};
 export const vIfElse: TIfThenElse = {kind: 'square', side: 2};
 
+// The condition rides each branch as an intersection brand, so a `const` arm
+// reflects as a BRANDED literal. Both spellings still assign.
+export const sIteConsts = {if: {maxLength: 4}, then: {const: 'yes'}, else: {const: 'other'}} as const;
+export type TIteConsts = FromJsonSchema<typeof sIteConsts>;
+export const vIteThen: TIteConsts = 'yes';
+export const vIteElse: TIteConsts = 'other';
+export const rtIteConsts = () => runTypeFromJsonSchema(sIteConsts);
+
 // ---------------------------------------------------------------------------
 // References — $defs / $ref, root recursion, $anchor
 // ---------------------------------------------------------------------------
@@ -570,3 +578,13 @@ export type CPropNames = JsonSchemaType<typeof sPropNames>;
 export const cPropNamesProbe: Extract<keyof CPropNames, symbol> extends never ? true : false = true;
 export type CUneval = JsonSchemaType<typeof sUnevaluated>;
 export const cUneval: CUneval = {id: 'a'};
+
+// if/then/else over `const` arms: the condition brand is subtracted, so the
+// clean type keeps BOTH literals instead of widening them to `string`. The
+// negative row is what pins the narrowness — it would stop erroring the moment
+// the arms widened again.
+export type CIteConsts = JsonSchemaType<typeof sIteConsts>;
+export const cIteThen: CIteConsts = 'yes';
+export const cIteElse: CIteConsts = 'other';
+// @ts-expect-error the arms stay literal — an arbitrary string does not assign
+export const cIteBad: CIteConsts = 'maybe';

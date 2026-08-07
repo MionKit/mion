@@ -76,21 +76,32 @@ positions read `JsonValue`, zero read the raw union.
 
 ## Residuals, each with its reason
 
-- **Branded string/number literals widen to their base.** A `then/else` over
-  `const` arms with a format-carrying `if` produced
-  `(Brand & "yes") | (NotSlot<…> & "other")`. TypeScript has no intersection
-  subtraction — template construction, template inference and mapped-key
-  normalisation were all probed and none reduces over an intersection — so
-  the choice is leaked brand internals or a clean `string`. The strip picks
-  `string`. Boolean literals DO survive (two extends-tests recover them).
-  Recovering `"yes" | "other"` would need FromJsonSchema to stop branding the
-  literal arms — an id-affecting change filed as
-  [json-schema-followups.md](../../todos/json-schema-followups.md),
-  not smuggled in here.
+- ~~**Branded string/number literals widen to their base.**~~ **FIXED** (see
+  [json-schema-followups.md](../../done/json-schema-followups.md)). A
+  `then/else` over `const` arms with a format-carrying `if` produced
+  `(Brand & "yes") | (NotSlot<…> & "other")` and the strip widened each arm to
+  `string`. The three tricks probed here genuinely do fail — template
+  construction, template inference and mapped-key normalisation none of them
+  reduce over an intersection, and neither do `Extract`, `T & string`,
+  `Exclude` or the string intrinsics. But no type OPERATOR was ever the right
+  tool: TypeScript's intersection subtraction lives in INFERENCE. When an
+  inference target is an intersection, the checker matches its constituents
+  pairwise against the source's under type identity, deletes the matched pairs
+  from both sides, and infers the remainder into a naked `infer U`, so
+  `T extends infer U & Brand ? U : never` hands back the bare literal.
+  `StripRunTypeMeta` now does exactly that, and this schema's clean type is
+  `"yes" | "other"`. The fix was annotation-only: FromJsonSchema's output is
+  byte-identical, so no structural id moved and nothing on the Go side
+  changed. An unmatched constituent falls back to the old widening, which is
+  what keeps it a graceful degradation rather than a wrong answer.
 - **Branded tuples keep verbatim** (`FormattedArray<[boolean?, boolean?],
   {uniqueItems: true}>`): variadic inference over the intersection collapses
   the slots to `unknown[]`, so stripping would destroy the tuple structure the
-  hover is there to show. One corpus row.
+  hover is there to show. One corpus row. The inference-based subtraction that
+  fixed the bullet above also reaches this one, but it needs the four
+  structural sentinels modelled and it lands in a different strip branch with
+  its own budget, so it is filed separately as
+  [strip-branded-tuple-residual.md](../../todos/strip-branded-tuple-residual.md).
 - **One pathological unevaluatedProperties row** (nested unevaluated carrier
   distributed over an anyOf base) still displays junk intersections; the arms
   are impossible sets from the same distribution as fix 3 but sit on array
@@ -107,7 +118,7 @@ positions read `JsonValue`, zero read the raw union.
 | | before | after |
 | --- | ---: | ---: |
 | raw six-arm union hovers | 115 | 0 |
-| hovers naming internals (`Flatten`, `Number<…>`, `NotSlot`, sentinels) | dozens | 2 documented rows |
+| hovers naming internals (`Flatten`, `Number<…>`, `NotSlot`, sentinels) | dozens | 1 documented row |
 | type-gate divergences (of 1,030 samples) | 5 ledgered | **0** |
 | `JsonValue` named positions | 0 | 150 |
 
