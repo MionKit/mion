@@ -43,6 +43,8 @@ import type {
   FormattedArrayFrom,
   FormattedObjectFrom,
 } from '../formats/structural.ts';
+import type {Conj, DepRequiredFold, DepSchemasFoldOf, KeysToTuple} from '../json-schema/fromJsonSchema.ts';
+import type {NotSlot, NotableFormat, ValidNotOperand} from '../formats/not.ts';
 
 // A trailing structural-format-params bag is a PLAIN object with none of the
 // runtime RunType markers (`kind` on a reflected node, `type` on a builder
@@ -546,4 +548,81 @@ export function object(
     return builderResult(arg3, config);
   }
   return builderResult(arg2 as InjectRunTypeId<unknown> | undefined, config);
+}
+
+// ───────────────── JSON Schema dependency + conditional builders ─────────────────
+//
+// The value-first twins of the schema door's dependent* / if-then-else
+// lowerings (docs/todos/schema-builder-gaps.md). Each returns the EXACT type
+// the door computes for the matching keyword — the arm and fold types are
+// imported from fromJsonSchema.ts, so the two entrances share one lowering and
+// converge on one structural id by construction. Without these, a schema →
+// builder translation had to hand-expand the case-split union, losing the
+// intent the reverse translation needs.
+
+/** The consequence types of a dependentSchemas map — each value's RunType
+ *  unwrapped to the type it carries. **/
+type DepConsequences<D> = {[K in keyof D]: D[K] extends RunType<infer T> ? T : never};
+
+/** JSON Schema `dependentRequired` as a builder: when a key is present, the
+ *  listed keys must be present too. `dependentRequired({card: ['cvv']})`
+ *  accepts any non-object, any object without `card`, and an object carrying
+ *  `card` only when `cvv` rides along. Compose beside a shape with the array
+ *  form of `intersection` when the schema also declares properties. **/
+export function dependentRequired<const D extends {readonly [key: string]: readonly string[]}>(
+  dependencies: CompTimeArgs<D>,
+  id?: InjectRunTypeId<DepRequiredFold<D, KeysToTuple<D>>>
+): RunType<DepRequiredFold<D, KeysToTuple<D>>>;
+export function dependentRequired(
+  dependencies: {readonly [key: string]: readonly string[]},
+  id?: InjectRunTypeId<unknown>
+): RunType {
+  return builderResult(id, {type: 'dependentRequired', dependencies});
+}
+
+/** JSON Schema `dependentSchemas` as a builder: when a key is present, the
+ *  whole value must additionally satisfy that key's schema.
+ *  `dependentSchemas({card: object({cvv: string()})})` accepts any
+ *  non-object, any object without `card`, and an object carrying `card` only
+ *  when the object also matches the consequence. **/
+export function dependentSchemas<const D extends {readonly [key: string]: RunType}>(
+  dependencies: CompTimeArgs<D>,
+  id?: InjectRunTypeId<DepSchemasFoldOf<DepConsequences<D>, KeysToTuple<D>>>
+): RunType<DepSchemasFoldOf<DepConsequences<D>, KeysToTuple<D>>>;
+export function dependentSchemas(dependencies: {readonly [key: string]: RunType}, id?: InjectRunTypeId<unknown>): RunType {
+  return builderResult(id, {type: 'dependentSchemas', dependencies});
+}
+
+/** The lowered type of a conditional: (if ∧ then) ∨ (¬if ∧ else) — the same
+ *  desugaring the schema door applies to if/then/else. A missing branch is
+ *  `unknown` (no assertion for that side), which `Conj` absorbs. The ¬if arm
+ *  is `Not<C>` spelled inline (base kind + NotSlot) — the builder's own
+ *  constraint already vetted C, so re-proving it inside `Not`'s generic
+ *  bound would only fight the checker. **/
+type ConditionalOf<C extends NotableFormat, T, E> =
+  | Conj<C, T>
+  | Conj<([C] extends [string] ? string : [C] extends [number] ? number : bigint) & NotSlot<C>, E>;
+
+/** JSON Schema `if`/`then`/`else` as a builder — named `conditional` because
+ *  a bare `if` is a reserved word and `ifThenElse` reads like control flow.
+ *  One object argument keeps the schema's vocabulary:
+ *
+ *    conditional({if: string({maxLength: 4}), then: literal('yes'), else: literal('other')})
+ *
+ *  The `if` arm is constrained to the SAME family `Not` accepts — a
+ *  primitive-based format — because the else branch needs ¬if, and negation
+ *  is only offered where it is crisp (see formats/not.ts). This covers the
+ *  translatable conditionals; a schema whose `if` gates on object shape stays
+ *  door-only or expands by hand. Convergence with the door's lowering holds
+ *  when the branches share the condition's base kind (the door's negation
+ *  spans every kind; same-base branches collapse the others identically). **/
+export function conditional<const C extends NotableFormat & ValidNotOperand<C>, T = unknown, E = unknown>(
+  parts: CompTimeArgs<{readonly if: RunType<C>; readonly then?: RunType<T>; readonly else?: RunType<E>}>,
+  id?: InjectRunTypeId<ConditionalOf<C, T, E>>
+): RunType<ConditionalOf<C, T, E>>;
+export function conditional(
+  parts: {readonly if: RunType; readonly then?: RunType; readonly else?: RunType},
+  id?: InjectRunTypeId<unknown>
+): RunType {
+  return builderResult(id, {type: 'conditional', ...parts});
 }

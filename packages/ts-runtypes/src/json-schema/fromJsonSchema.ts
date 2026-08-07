@@ -1545,7 +1545,7 @@ type Not3<A> = A extends 'y' ? 'n' : A extends 'n' ? 'y' : 'u';
 // translation, which may be a lazily-tied recursive type — any `extends`
 // probe of it (even `[unknown] extends [B]`) forces the fixpoint and blows
 // the instantiation depth (TS2589).
-type Conj<A, B> = [unknown] extends [A]
+export type Conj<A, B> = [unknown] extends [A]
   ? B
   : [unknown] extends [B]
     ? A
@@ -1623,26 +1623,37 @@ type IteFrom<If, S, Root, F extends [unknown]> = If extends boolean
 // they are union arms, and the trigger-absent arm in particular must not
 // reject an object merely for holding unrelated keys.
 type NonObjectDomain = null | boolean | number | string | unknown[];
-type DepRequiredArm<K extends PropertyKey, Reqs> =
+// The dependent* arms and folds are EXPORTED (types-in form) so the value-first
+// builders RT.dependentRequired / RT.dependentSchemas can return the exact
+// same lowering — one implementation, two entrances, id-convergence by
+// construction (docs/todos/schema-builder-gaps.md).
+export type DepRequiredArm<K extends PropertyKey, Reqs> =
   | NonObjectDomain
   | (Record<string, unknown> & {[P in K]: PresentValue} & {
       [R in Extract<Reqs extends readonly unknown[] ? Reqs[number] : never, PropertyKey>]: PresentValue;
     })
   | (Record<string, unknown> & {[P in K]?: never});
-type DepSchemaArm<K extends PropertyKey, B, Root, F extends [unknown]> =
+// The consequence arrives as an ALREADY-lowered type; the door's schema-in arm
+// below is a thin wrapper, so the two spellings cannot drift.
+export type DepSchemaArmOf<K extends PropertyKey, T> =
   | NonObjectDomain
-  | Conj<Record<string, unknown> & {[P in K]: PresentValue}, FromJsonSchemaIn<B, Root, F>>
+  | Conj<Record<string, unknown> & {[P in K]: PresentValue}, T>
   | (Record<string, unknown> & {[P in K]?: never});
-type DepRequiredFold<D, Ks, Root, F extends [unknown]> = Ks extends readonly [infer K extends PropertyKey, ...infer Rest]
-  ? Conj<K extends keyof D ? DepRequiredArm<K, D[K]> : unknown, DepRequiredFold<D, Rest, Root, F>>
+type DepSchemaArm<K extends PropertyKey, B, Root, F extends [unknown]> = DepSchemaArmOf<K, FromJsonSchemaIn<B, Root, F>>;
+export type DepRequiredFold<D, Ks> = Ks extends readonly [infer K extends PropertyKey, ...infer Rest]
+  ? Conj<K extends keyof D ? DepRequiredArm<K, D[K]> : unknown, DepRequiredFold<D, Rest>>
   : unknown;
 type DepSchemasFold<D, Ks, Root, F extends [unknown]> = Ks extends readonly [infer K extends PropertyKey, ...infer Rest]
   ? Conj<K extends keyof D ? DepSchemaArm<K, D[K], Root, F> : unknown, DepSchemasFold<D, Rest, Root, F>>
   : unknown;
+// The builder-facing fold: a map of already-lowered consequence types.
+export type DepSchemasFoldOf<TM, Ks> = Ks extends readonly [infer K extends PropertyKey, ...infer Rest]
+  ? Conj<K extends keyof TM ? DepSchemaArmOf<K, TM[K]> : unknown, DepSchemasFoldOf<TM, Rest>>
+  : unknown;
 // Literal map keys as a tuple, via the same arm-by-arm recursion style the
 // engine already uses (bounded by the map's size, deterministic order not
 // required — Conj is commutative).
-type KeysToTuple<D, Acc extends readonly PropertyKey[] = []> = [keyof D] extends [never] ? Acc : KeysToTupleStep<D, Acc>;
+export type KeysToTuple<D, Acc extends readonly PropertyKey[] = []> = [keyof D] extends [never] ? Acc : KeysToTupleStep<D, Acc>;
 type KeysToTupleStep<D, Acc extends readonly PropertyKey[]> =
   PickOneKey<D> extends infer K extends PropertyKey ? KeysToTuple<Omit<D, K>, readonly [...Acc, K]> : Acc;
 type PickOneKey<D> = LastOfUnion<keyof D>;
@@ -1661,7 +1672,7 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> = S extends {if: infer If}
   ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
   : DepLayer<S, Root, F>;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
-  ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>, Root, F>>
+  ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>
   : DepSchemasLayer<S, Root, F>;
 type DepSchemasLayer<S, Root, F extends [unknown]> = S extends {dependentSchemas: infer D}
   ? Conj<NotLayer<S, Root, F>, DepSchemasFold<D, KeysToTuple<D>, Root, F>>

@@ -66,6 +66,9 @@ export {
   templateLiteral,
   propMod,
   optional,
+  dependentRequired,
+  dependentSchemas,
+  conditional,
 } from './compose.ts';
 
 // Utility-type builders — Partial / Required / Pick / Omit / Exclude / Extract /
