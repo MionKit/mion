@@ -389,10 +389,23 @@ registerPureFnFactory('rtFormats::isIdnHostname', function (utl: RTUtils) {
 // Composed from the engines already registered above — the IP checks for the
 // literals, the host-name engine for the ordinary domain — so the rules live in
 // one place each.
+//
+// ONE deliberate departure from the RFC's letter: a NAMED domain must be
+// dotted. RFC 5321 permits `joe@tld`, but the practical default everywhere
+// else — our own `Email` pattern, AJV with `mode: 'full'` — requires the
+// dotted TLD, and the two doors to one concept must agree (the decision is
+// recorded in docs/done/json-schema-email-format-accepts-tldless-domain.md:
+// when a spec's letter and the practical default disagree, the practical
+// default wins). Address literals are untouched — brackets, not dots, are
+// their shape.
 registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
   const isIPV4 = utl.getPureFn('rtFormats::isIPV4') as (ip: string, params: object) => boolean;
   const isIPV6 = utl.getPureFn('rtFormats::isIPV6') as (ip: string, params: object) => boolean;
   const isIdnHostname = utl.getPureFn('rtFormats::isIdnHostname') as (value: string, params: object) => boolean;
+  // Same label separators the host-name engine splits on: '.' for ASCII, plus
+  // the wide stops for an internationalized name. (Redeclared here — each
+  // factory keeps its own tables, the extractor lifts the body alone.)
+  const idnDotRegexp = /[.。．｡]/;
   const asciiAtextRegexp = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+$/;
   // The internationalized local part widens the repertoire rather than listing
   // it: anything that is not a separator, a space, or a bracket.
@@ -425,6 +438,9 @@ registerPureFnFactory('rtFormats::isEmailAddress', function (utl: RTUtils) {
       }
       return isIPV4(literal, {version: 4, allowLocalHost: false});
     }
+    // The dotted-TLD rule (see the factory comment): a bare one-label domain
+    // is a valid HOST NAME but not an address's domain.
+    if (params.idn === true ? !idnDotRegexp.test(domain) : domain.indexOf('.') === -1) return false;
     return isIdnHostname(domain, {idn: params.idn === true});
   };
 });

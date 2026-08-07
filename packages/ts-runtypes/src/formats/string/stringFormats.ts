@@ -466,7 +466,8 @@ type DEFAULT_EMAIL_PUNYCODE_PARAMS = {pattern: typeof EMAIL_PUNYCODE_PATTERN; ma
 export type Email<P extends Override<EmailParams> = {}> = PresetFormat<'email', DEFAULT_EMAIL_PARAMS, P>;
 /** A full RFC 5321 address — what `format: 'email'` means. Wider than `Email`:
  *  a quoted local part (`"joe bloggs"@example.com`) and an address literal
- *  (`joe@[127.0.0.1]`) both pass. **/
+ *  (`joe@[127.0.0.1]`) both pass. One practical narrowing shared with `Email`:
+ *  a NAMED domain must be dotted (`joe@tld` is RFC-legal but rejected). **/
 export type EmailAddress<P extends Override<EmailParams, 'pattern'> = {}> = PresetFormat<
   'email',
   DEFAULT_EMAIL_ADDRESS_PARAMS,

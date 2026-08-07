@@ -1,8 +1,9 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-07
+completed: 2026-08-07
 ---
 
 # `format: email` accepts a TLD-less domain, diverging from `Email` and AJV
@@ -76,3 +77,35 @@ not be the last format where they do.
 - The JSON Schema correctness lane is back to 0 failures.
 - A test pins the chosen semantics for `'missing@tld'` on **both** doors, so
   they cannot drift apart again silently.
+
+## Shipped record
+
+**Decision: converge on the strict default.** A named domain must be dotted —
+`format: email` / `format: idn-email` (EmailAddress / IdnEmail) now reject
+`'missing@tld'` exactly as the native `Email` pattern and AJV full mode do.
+RFC 5321's bare-domain allowance is out of scope on purpose; address literals
+(`joe@[127.0.0.1]`) are untouched, and `format: hostname` still accepts a
+single label, because a HOST NAME legitimately is one.
+
+**The general rule, recorded:** when a spec's letter and the practical default
+disagree, the practical default wins. A format exists to validate real-world
+values, not to certify RFC grammar; the letter-of-the-spec reading is adopted
+only where the official JSON Schema Test Suite pins it. (The suite is silent
+on the TLD-less domain — every valid email sample it carries is dotted or a
+bracketed literal — which is exactly why this one slipped through the
+conformance lane and surfaced only in the benchmark correctness pass, whose
+case data checks `'missing@tld'` against AJV full mode by running it.)
+
+**Where it landed:**
+
+- The engine: `rtFormats::isEmailAddress` in
+  [string-formats-pure-fns.ts](../../packages/ts-runtypes/src/formats/string/string-formats-pure-fns.ts)
+  gains the dotted-domain gate on the named-domain branch (the ASCII door
+  checks `'.'`, the idn door any of the wide label separators), with the
+  decision cross-referenced in the factory comment.
+- The pin: `rfcFormats.test.ts` asserts `'missing@tld'` rejected on the schema
+  door, the idn door, and the native `Email` brand in one test, plus the
+  trailing-dot and address-literal edges.
+- The official suite stays green (no ledger entry needed — the suite never
+  asserts the bare-domain case either way), and the benchmark correctness
+  lane's `JSON_SCHEMA.string_email` case now passes as written.

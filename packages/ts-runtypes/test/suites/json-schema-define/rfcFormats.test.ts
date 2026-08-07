@@ -64,6 +64,24 @@ describe('email — the full RFC 5321 grammar', () => {
     expect(isEmail('user1@oceania.org, user2@oceania.org')).toBe(false);
   });
 
+  it('requires a dotted domain on every door — the practical default, not the RFC letter', () => {
+    // RFC 5321 permits a bare `joe@tld`, but the practical default everywhere
+    // else (the native Email pattern, AJV in full mode) requires the dotted
+    // TLD, and two doors to one concept must agree. The decision is recorded
+    // in docs/done/json-schema-email-format-accepts-tldless-domain.md.
+    expect(isEmail('missing@tld')).toBe(false);
+    expect(isIdnEmail('missing@tld')).toBe(false);
+    expect(isIdnEmail('실례@실례')).toBe(false);
+    // A trailing dot is an empty label, not a TLD.
+    expect(isEmail('missing@tld.')).toBe(false);
+    // The native brand, same value, same answer.
+    const isNativeEmail = createValidateFn<TF.Email>();
+    expect(isNativeEmail('missing@tld')).toBe(false);
+    expect(isNativeEmail('present@example.com')).toBe(true);
+    // The address literal keeps its bracket shape — dots are not its rule.
+    expect(isEmail('joe.bloggs@[127.0.0.1]')).toBe(true);
+  });
+
   it('idn-email widens the repertoire, not the grammar', () => {
     expect(isIdnEmail('실례@실례.테스트')).toBe(true);
     expect(isIdnEmail('δοκιμή@example.com')).toBe(true);
