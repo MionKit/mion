@@ -116,9 +116,13 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 }
 
 // How the editor's snippet defines the type: a TS type `MyType` (the call site
-// is `<factory><MyType>()`), or a value-first `const MyType = ...` schema built
-// from ts-runtypes/schema + ts-runtypes/formats (the call site is `<factory>(MyType)`).
-export type Mode = 'type' | 'schema';
+// is `<factory><MyType>()`), a value-first `const MyType = ...` schema built
+// from ts-runtypes/schema + ts-runtypes/formats, or a JSON Schema 2020-12
+// document through `const MyType = runTypeFromJsonSchema({…} as const)`. The
+// last two share the value-first call shape (`<factory>(MyType)`), so the
+// engine treats every non-'type' mode identically — the difference is only
+// which preset source the editor shows.
+export type Mode = 'type' | 'schema' | 'jsonSchema';
 
 // factoryImport renders the import line the playground shows around a snippet —
 // the same `import { <factory> } from '@ts-runtypes/core'` the engine prepends before
@@ -142,7 +146,7 @@ export function factoryImport(factory: string): string {
 // {strategy: 'mutate'})`), matching the canonical call shape.
 export function factoryCall(factory: string, varName: string, mode: Mode, injectedArg?: string | null, options?: string): string {
   const args: string[] = [];
-  if (mode === 'schema') {
+  if (mode !== 'type') {
     args.push(ROOT_TYPE);
     if (options) args.push(options);
     if (injectedArg) args.push(injectedArg);
@@ -179,9 +183,9 @@ function scan(
   // '@ts-runtypes/core/formats'`, so the imports read like real code (and aren't
   // duplicated). `options` (a JSON strategy literal) rides the options slot so
   // its comptime value is folded into the injected fn hash — see factoryCall.
-  const args = mode === 'schema' ? [ROOT_TYPE] : [];
-  if (options) args.push(mode === 'schema' ? options : `undefined, ${options}`);
-  const call = mode === 'schema' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
+  const args = mode !== 'type' ? [ROOT_TYPE] : [];
+  if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
+  const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
   const source = [`import { ${factory} } from '@ts-runtypes/core';`, userCode, call, ''].join('\n');
   dispatch({op: 'setSources', sources: {...runtypesPackageSources(), [FILE]: source}});
   const result = dispatch({op: 'scanFiles', files: [FILE], includeRunTypes: true, includeEntryModules: true});

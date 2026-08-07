@@ -1,4 +1,4 @@
-// Predefined example types for the playground, each available in TWO forms:
+// Predefined example types for the playground, each available in THREE forms:
 //   - `ts`: a plain TypeScript type (resolved via `createX<MyType>()`). Where it
 //     helps, fields use type formats via a namespace import from
 //     `ts-runtypes/formats` (TF.Email, TF.UUIDv4, TF.Positive, …) so typing `TF.`
@@ -8,7 +8,14 @@
 //     just like the type form, so both read like real code. Each closes with
 //     `type <Name> = InferType<typeof MyType>` to show recovering the plain TS type
 //     from the schema (the value-first counterpart to the `ts` form's `MyType`).
-// The TS/Schema switch toggles which form the editor shows. The shapes mirror the
+//   - `jsonSchema`: a real draft 2020-12 document through
+//     `runTypeFromJsonSchema({…} as const)` — the same value-first call shape.
+//     Where a `ts` field uses a format with no exact 2020-12 spelling the
+//     document writes the CLOSEST keyword twin (`format: 'uuid'` is
+//     version-agnostic where TF.UUIDv4 pins v4; `format: 'uri'` accepts any
+//     scheme where TF.Url is the narrow web form), so the document stays honest
+//     spec 2020-12 rather than pretending an exact equivalence.
+// The mode switch toggles which form the editor shows. The shapes mirror the
 // real-world DTO scenarios in the validation suite
 // (packages/ts-runtypes/test/suites/validation/Realworld.ts).
 
@@ -16,6 +23,7 @@ export interface Preset {
   name: string;
   ts: string;
   schema: string;
+  jsonSchema: string;
   // A matching sample value (JSON) for the input pane.
   input: string;
 }
@@ -39,6 +47,21 @@ const MyType = RT.object({
   tags: RT.array(TF.string()),
   active: RT.optional(RT.boolean()),
 });
+
+type Simple = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    name: { type: 'string' },
+    tags: { type: 'array', items: { type: 'string' } },
+    active: { type: 'boolean' },
+  },
+  required: ['id', 'name', 'tags'],
+} as const);
 
 type Simple = InferType<typeof MyType>;`,
     input: `{
@@ -74,6 +97,24 @@ const MyType = RT.object({
   active: RT.boolean(),
   createdAt: TF.string(),
 });
+
+type User = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    email: { type: 'string', format: 'email' },
+    name: { type: 'string' },
+    age: { type: 'integer', exclusiveMinimum: 0 },
+    roles: { type: 'array', items: { enum: ['admin', 'editor', 'user'] } },
+    active: { type: 'boolean' },
+    createdAt: { type: 'string' },
+  },
+  required: ['id', 'email', 'name', 'roles', 'active', 'createdAt'],
+} as const);
 
 type User = InferType<typeof MyType>;`,
     input: `{
@@ -120,6 +161,39 @@ const MyType = RT.object({
 });
 
 type Order = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    customer: {
+      type: 'object',
+      properties: { id: { type: 'number' }, email: { type: 'string', format: 'email' } },
+      required: ['id', 'email'],
+    },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          sku: { type: 'string' },
+          name: { type: 'string' },
+          qty: { type: 'number' },
+          price: { type: 'number', exclusiveMinimum: 0 },
+        },
+        required: ['sku', 'name', 'qty', 'price'],
+      },
+    },
+    status: { enum: ['pending', 'paid', 'shipped', 'delivered', 'cancelled'] },
+    total: { type: 'number', exclusiveMinimum: 0 },
+    note: { type: 'string' },
+  },
+  required: ['id', 'customer', 'items', 'status', 'total'],
+} as const);
+
+type Order = InferType<typeof MyType>;`,
     input: `{
   "id": "ord_1001",
   "customer": { "id": 7, "email": "ann@example.com" },
@@ -154,6 +228,32 @@ const MyType = RT.object({
   published: RT.boolean(),
   meta: RT.object({ views: TF.integer(), likes: TF.integer() }),
 });
+
+type BlogPost = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    title: { type: 'string' },
+    slug: { type: 'string' },
+    tags: { type: 'array', items: { type: 'string' } },
+    author: {
+      type: 'object',
+      properties: { name: { type: 'string' }, email: { type: 'string', format: 'email' } },
+      required: ['name', 'email'],
+    },
+    published: { type: 'boolean' },
+    meta: {
+      type: 'object',
+      properties: { views: { type: 'integer' }, likes: { type: 'integer' } },
+      required: ['views', 'likes'],
+    },
+  },
+  required: ['id', 'title', 'slug', 'tags', 'author', 'published', 'meta'],
+} as const);
 
 type BlogPost = InferType<typeof MyType>;`,
     input: `{
@@ -194,6 +294,24 @@ const MyType = RT.object({
 });
 
 type Product = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    name: { type: 'string' },
+    price: { type: 'number', exclusiveMinimum: 0 },
+    url: { type: 'string', format: 'uri' },
+    currency: { enum: ['USD', 'EUR', 'GBP'] },
+    inStock: { type: 'boolean' },
+    categories: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['id', 'name', 'price', 'url', 'currency', 'inStock', 'categories'],
+} as const);
+
+type Product = InferType<typeof MyType>;`,
     input: `{
   "id": "prod_55",
   "name": "Mechanical Keyboard",
@@ -224,6 +342,20 @@ const MyType = RT.circular(
     children: RT.array(RT.self()),
   })
 );
+
+type Tree = InferType<typeof MyType>;`,
+    jsonSchema: `import { runTypeFromJsonSchema } from '@ts-runtypes/core/json-schema';
+import { InferType } from '@ts-runtypes/core';
+
+const MyType = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    name: { type: 'string' },
+    children: { type: 'array', items: { $ref: '#' } },
+  },
+  required: ['id', 'name', 'children'],
+} as const);
 
 type Tree = InferType<typeof MyType>;`,
     input: `{

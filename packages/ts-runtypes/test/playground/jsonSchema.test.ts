@@ -2,13 +2,15 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {run, setResolver, transformedSource} from '../../../../container/website/app/playground/index.ts';
+import {PRESETS} from '../../../../container/website/app/playground/presets.ts';
 import {buildRuntypesOverlay} from '../../../../scripts/website/playground-overlay.mjs';
 import {assetsBuilt, loadNodeResolver} from './nodeResolver.ts';
 
 // The JSON Schema authoring form in the playground: the overlay's exports-map
-// contract check plus the live WASM lane. The dedicated preset was removed
-// pending the selector-mode rework (docs/todos/playground-json-schema-selector-mode.md);
-// the ENGINE capability stays and is what these tests pin.
+// contract check, the live WASM lane, and — since JSON Schema became the
+// THIRD global authoring-mode selector — one engine assertion per preset
+// (each jsonSchema variant binds MyType and validates its own input),
+// superseding the removed single-preset example.
 
 const REPO = new URL('../../../../', import.meta.url);
 const RUNTYPES_PKG = fileURLToPath(new URL('packages/ts-runtypes/package.json', REPO));
@@ -127,5 +129,44 @@ const MyType = runTypeFromJsonSchema({
     const bad = await run('validate', source, {...value, email: 'not-an-email'}, undefined, 'schema');
     if (bad.kind !== 'predicate') throw new Error('expected predicate result');
     expect(bad.value).toBe(false);
+  });
+});
+
+describeIf('playground presets — every jsonSchema variant runs end to end', () => {
+  beforeAll(async () => {
+    setResolver(await loadNodeResolver());
+  });
+
+  // The input pane samples are JSON5-ish (the Tree preset uses bare keys), so
+  // evaluate rather than JSON.parse — same as the playground's input pane.
+  const parseInput = (text: string): unknown => new Function(`return (${text});`)();
+
+  for (const preset of PRESETS) {
+    it(`${preset.name}: parses, binds MyType and validates its own input`, async () => {
+      const value = parseInput(preset.input);
+      const ok = await run('validate', preset.jsonSchema, value, undefined, 'jsonSchema');
+      if (ok.kind !== 'predicate') throw new Error('expected predicate result');
+      expect(ok.value).toBe(true);
+      // A wrong-shaped value must fail through the same document.
+      const bad = await run('validate', preset.jsonSchema, {totally: 'wrong'}, undefined, 'jsonSchema');
+      if (bad.kind !== 'predicate') throw new Error('expected predicate result');
+      expect(bad.value).toBe(false);
+    });
+  }
+
+  it('the Simple preset converges with its ts variant on one generated entry', async () => {
+    const bindingOf = (code: string): string => {
+      const match = code.match(/createValidateFn(?:<MyType>)?\((?:MyType, )?(__rt_[A-Za-z0-9_]+)\)/);
+      if (!match) throw new Error(`no injected binding found in:\n${code}`);
+      return match[1]!;
+    };
+    const simple = PRESETS[0]!;
+    const fromType = bindingOf(await transformedSource('createValidateFn', 'validate', simple.ts));
+    const fromDocument = bindingOf(
+      await transformedSource('createValidateFn', 'validate', simple.jsonSchema, undefined, 'jsonSchema')
+    );
+    // Optional `active` and the plain shapes line up exactly, so the document
+    // lands on the SAME cache entry as the hand-written type.
+    expect(fromDocument).toBe(fromType);
   });
 });

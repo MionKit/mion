@@ -101,7 +101,11 @@ const currentOp = computed<Operation>(() => operationByKey(operationKey.value));
 const needsInput = computed(() => currentOp.value.needsInput);
 const runLabel = computed(() => (currentOp.value.kind === 'graph' ? 'Unpack RunTypes' : 'Run'));
 const typeHintHtml = computed(() =>
-  mode.value === 'schema' ? `define <code>${ROOT_TYPE}</code> with RT/TF builders` : `define <code>${ROOT_TYPE}</code>`,
+  mode.value === 'schema'
+    ? `define <code>${ROOT_TYPE}</code> with RT/TF builders`
+    : mode.value === 'jsonSchema'
+      ? `define <code>${ROOT_TYPE}</code> from a 2020-12 document`
+      : `define <code>${ROOT_TYPE}</code>`,
 );
 
 // The operation picker, grouped by family (Validation / JSON encode / ...) so the
@@ -412,10 +416,16 @@ function currentPreset(): Preset {
   return PRESETS[presetIndex.value] ?? PRESETS[0];
 }
 
+function presetSource(preset: Preset, form: Mode): string {
+  if (form === 'schema') return preset.schema;
+  if (form === 'jsonSchema') return preset.jsonSchema;
+  return preset.ts;
+}
+
 function loadPreset(index: number): void {
   presetIndex.value = index;
   const preset = currentPreset();
-  setTypeSource(mode.value === 'schema' ? preset.schema : preset.ts);
+  setTypeSource(presetSource(preset, mode.value));
   inputEditor?.setValue(preset.input);
   // The preset ships a valid value for its own type, so that is the intent a
   // later type edit should reproduce.
@@ -432,7 +442,7 @@ function setMode(next: Mode): void {
   // Re-show the current preset in the new form so switching always yields a valid
   // snippet (custom edits in the other form are replaced).
   const preset = currentPreset();
-  setTypeSource(next === 'schema' ? preset.schema : preset.ts);
+  setTypeSource(presetSource(preset, next));
   // Both forms model the same type, so the input on screen still fits.
   // The call shape differs by mode (`createX<MyType>()` vs `createX(MyType)`).
   updateSurrounding();
@@ -779,6 +789,18 @@ onBeforeUnmount(() => {
               />
             </svg>
             <span>Schema</span>
+          </button>
+          <button
+            type="button"
+            class="rtpg-mode"
+            :class="{'is-active': mode === 'jsonSchema'}"
+            title="JSON Schema 2020-12 document"
+            @click="setMode('jsonSchema')"
+          >
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <text x="3" y="24" font-size="22" font-weight="700" fill="#8bc34a">{}</text>
+            </svg>
+            <span>JSON Schema</span>
           </button>
         </div>
         <span class="rtpg-typegroup-sep" />

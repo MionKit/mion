@@ -12,7 +12,7 @@
 definePageMeta({ layout: 'fullscreen' });
 useSeoMeta({
   title: 'Playground',
-  description: 'Write a TypeScript type and run its generated functions live in your browser.',
+  description: 'Write a TypeScript type, a builder schema or a JSON Schema document and run its generated functions live in your browser.',
 });
 </script>
 
