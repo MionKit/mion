@@ -64,6 +64,26 @@ check:builds` (the `suite-modules` target in scripts/core/build.mjs).
   Error-severity, so building/calling the validator throws (the lane boots
   anyway via `failOnError: false`). Currently none.
 
+## The type gate
+
+Runtime conformance is one half; the other is ASSIGNABILITY. The generate
+verb also emits, per suite file, a `generated/type-gate/` module in which
+every spec-VALID sample of every `ok` group is written as
+`export const c: JsonSchemaType<typeof s> = <sample>;` — the clean
+annotation-grade projection must ADMIT every value the spec calls valid.
+[typeGate.test.ts](typeGate.test.ts) compiles those modules through the real
+TypeScript compiler (the lane tsconfig excludes them on purpose), filtering
+only the fresh-literal excess-property check (TS2353/TS2561 — JSON Schema
+objects are open-world, so valid samples routinely carry undeclared keys; the
+`suppressExcessPropertyErrors` flag left TypeScript in 5.5). Negative samples
+are never asserted.
+
+Failures are held against
+[type-gate-divergences.json](type-gate-divergences.json) with the same
+two-way discipline as the runtime ledger: a new divergence reds the lane, and
+so does an entry that stopped reproducing. Every entry carries a note naming
+the deliberate limitation it records.
+
 ## Upgrading the suite
 
 1. Bump the SHA in the root package.json specifier, then

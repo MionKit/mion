@@ -1,0 +1,34 @@
+{
+  "entries": [
+    {
+      "file": "additionalProperties.json",
+      "group": "additionalProperties with schema",
+      "case": "no additional properties is valid",
+      "note": "the deliberate mixed-form narrowing: a schema-valued additionalProperties (or patternProperties) beside declared properties keeps its EXACT index type because the recovered type is the validator's source, and TypeScript cannot spell 'every key except the declared ones' - so a sample mixing declared and additional value types does not assign even to the clean type. See WithAdditional in src/json-schema/fromJsonSchema.ts"
+    },
+    {
+      "file": "additionalProperties.json",
+      "group": "additionalProperties with schema",
+      "case": "an additional valid property is valid",
+      "note": "the deliberate mixed-form narrowing: a schema-valued additionalProperties (or patternProperties) beside declared properties keeps its EXACT index type because the recovered type is the validator's source, and TypeScript cannot spell 'every key except the declared ones' - so a sample mixing declared and additional value types does not assign even to the clean type. See WithAdditional in src/json-schema/fromJsonSchema.ts"
+    },
+    {
+      "file": "properties.json",
+      "group": "properties, patternProperties, additionalProperties interaction",
+      "case": "property validates property",
+      "note": "the deliberate mixed-form narrowing: a schema-valued additionalProperties (or patternProperties) beside declared properties keeps its EXACT index type because the recovered type is the validator's source, and TypeScript cannot spell 'every key except the declared ones' - so a sample mixing declared and additional value types does not assign even to the clean type. See WithAdditional in src/json-schema/fromJsonSchema.ts"
+    },
+    {
+      "file": "properties.json",
+      "group": "properties, patternProperties, additionalProperties interaction",
+      "case": "patternProperty validates nonproperty",
+      "note": "the deliberate mixed-form narrowing: a schema-valued additionalProperties (or patternProperties) beside declared properties keeps its EXACT index type because the recovered type is the validator's source, and TypeScript cannot spell 'every key except the declared ones' - so a sample mixing declared and additional value types does not assign even to the clean type. See WithAdditional in src/json-schema/fromJsonSchema.ts"
+    },
+    {
+      "file": "properties.json",
+      "group": "properties, patternProperties, additionalProperties interaction",
+      "case": "additionalProperty ignores property",
+      "note": "the deliberate mixed-form narrowing: a schema-valued additionalProperties (or patternProperties) beside declared properties keeps its EXACT index type because the recovered type is the validator's source, and TypeScript cannot spell 'every key except the declared ones' - so a sample mixing declared and additional value types does not assign even to the clean type. See WithAdditional in src/json-schema/fromJsonSchema.ts"
+    }
+  ]
+}

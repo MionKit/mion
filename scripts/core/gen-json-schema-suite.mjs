@@ -263,6 +263,59 @@ export function emitModule(label, groups, triageGroups, quarantineGroups, suiteC
 /** Module file path (relative to generated/) for a suite file label. **/
 export const moduleRelPath = (label) => `draft2020-12/${label.replace('optional/format/', 'optional-format/').replace(/\.json$/, '.ts')}`;
 
+// ── the TYPE gate ────────────────────────────────────────────────────────────
+// The assignability half of conformance: every spec-VALID sample of every `ok`
+// group must assign to `JsonSchemaType<typeof schema>` — the clean
+// annotation-grade projection — with zero TS errors (the fresh-literal
+// excess-property check aside; open-world samples carry undeclared keys by
+// design). Negative samples are never asserted. The emitted modules are
+// compiled ONLY by typeGate.test.ts (the lane tsconfig excludes them), which
+// filters TS2353/TS2561 and holds the observed failures against
+// type-gate-divergences.json in BOTH directions — a fixed divergence reds the
+// lane exactly like a new one.
+
+/** Type-gate module path (relative to generated/) for a suite file label. **/
+export const typeGateRelPath = (label) => `type-gate/${label.replace('optional/format/', 'optional-format-').replace(/\.json$/, '.ts')}`;
+
+// generated/type-gate/<name>.ts → packages/ts-runtypes/src/json-schema.
+const TYPE_GATE_IMPORT = `import type {JsonSchemaType} from '../../../../src/json-schema/index.ts';`;
+
+/** Emit the type-gate TS module for one suite file plus its case map (module
+ *  line ranges → suite case identity). Exported for generator.test.ts. **/
+export function emitTypeGateModule(label, groups, triageGroups, quarantineGroups, suiteCommit) {
+  const lines = [MODULE_HEADER(label, suiteCommit), TYPE_GATE_IMPORT, ''];
+  const pending = []; // [{marker, file, group, case}] in emission order
+  groups.forEach((group, i) => {
+    const verdict = quarantineGroups[group.key] ? {verdict: 'transform-halt'} : triageGroups[group.key];
+    if (!verdict) die(`generate: '${group.key}' missing from triage.json — re-run triage.`);
+    if (verdict.verdict !== 'ok') return;
+    lines.push('');
+    lines.push(`const s_${i} = ${printTsValue(group.schema)} as const;`);
+    lines.push(`void s_${i};`);
+    group.tests.forEach((t, j) => {
+      if (!t.valid) return; // negative samples are never asserted
+      lines.push(`export const c_${i}_${j}: JsonSchemaType<typeof s_${i}> = ${printTsValue(t.data)};`);
+      pending.push({marker: `export const c_${i}_${j}:`, file: label, group: group.description, case: t.description});
+    });
+  });
+  lines.push('');
+  const text = lines.join('\n');
+  // Line ranges are derived from the ASSEMBLED text (immune to header /
+  // multi-line-value drift): a case spans its declaration line up to the line
+  // before the next statement (or EOF), so a diagnostic anywhere inside a
+  // folded literal still maps to its case.
+  const textLines = text.split('\n');
+  const isStatement = (line) => line.startsWith('export const c_') || line.startsWith('const s_') || line.startsWith('void s_');
+  const cases = pending.map((entry) => {
+    const start = textLines.findIndex((line) => line.startsWith(entry.marker)) + 1; // 1-based
+    if (start === 0) die(`type-gate: marker not found for '${entry.file} :: ${entry.group} :: ${entry.case}'`);
+    let end = start + 1; // scan to the line before the next statement (or EOF)
+    while (end <= textLines.length && !isStatement(textLines[end - 1])) end += 1;
+    return {file: entry.file, group: entry.group, case: entry.case, startLine: start, endLine: end - 1};
+  });
+  return {text, cases};
+}
+
 export function runGenerate({testsDir = SUITE_TESTS_DIR, outDir = GENERATED_DIR, triage = readTriage(), quarantine = readQuarantine(), suiteCommit = suiteCommitFromLockfile(), write = true} = {}) {
   if (triage.suiteCommit !== suiteCommit)
     die(`triage.json was derived from suite commit ${triage.suiteCommit} but the lockfile pins ${suiteCommit} — re-run triage.`);
@@ -270,6 +323,7 @@ export function runGenerate({testsDir = SUITE_TESTS_DIR, outDir = GENERATED_DIR,
   const barrel = [MODULE_HEADER('index (all files)', suiteCommit), `import type {SuiteGroup} from '../harness.ts';`, ''];
   const imports = [];
   const entries = [];
+  const typeGateMap = [];
   for (const {label, path} of listSuiteFiles(testsDir)) {
     const rel = moduleRelPath(label);
     const depth = rel.split('/').length; // modules sit under generated/<rel>
@@ -279,9 +333,16 @@ export function runGenerate({testsDir = SUITE_TESTS_DIR, outDir = GENERATED_DIR,
     const id = `m${imports.length}`;
     imports.push(`import {groups as ${id}} from './${rel}';`);
     entries.push(`  {file: ${JSON.stringify(label)}, groups: ${id}},`);
+    const gate = emitTypeGateModule(label, groups, triage.groups, quarantine.groups ?? {}, suiteCommit);
+    if (gate.cases.length > 0) {
+      const gateRel = typeGateRelPath(label);
+      emitted.set(gateRel, gate.text);
+      typeGateMap.push({module: gateRel, cases: gate.cases});
+    }
   }
   barrel.push(...imports, '', 'export const allModules: {file: string; groups: SuiteGroup[]}[] = [', ...entries, '];', '');
   emitted.set('index.ts', barrel.join('\n'));
+  emitted.set('type-gate/map.json', `${JSON.stringify({suiteCommit, modules: typeGateMap}, null, 2)}\n`);
   if (write) {
     rmSync(outDir, {recursive: true, force: true});
     for (const [rel, text] of emitted) {
@@ -392,6 +453,18 @@ function renderConformance(results) {
   }
   lines.push(`| **total** | **${total.cases}** | **${total.conforming}** | **${total.byDesign}** | **${total.open}** | **${total.buildRejected}** | **${total.unsupported}** | **${total.skipped}** |`);
   lines.push('');
+  const typeGateMapFile = join(GENERATED_DIR, 'type-gate', 'map.json');
+  if (existsSync(typeGateMapFile)) {
+    const gateCases = JSON.parse(readFileSync(typeGateMapFile, 'utf8')).modules.reduce((n, m) => n + m.cases.length, 0);
+    const gateLedgerFile = join(LANE_DIR, 'type-gate-divergences.json');
+    const gateLedger = existsSync(gateLedgerFile) ? JSON.parse(readFileSync(gateLedgerFile, 'utf8')).entries.length : 0;
+    lines.push('## Type gate');
+    lines.push('');
+    lines.push(`${gateCases} spec-valid samples additionally assert ASSIGNABILITY into \`JsonSchemaType<typeof schema>\``);
+    lines.push(`(typeGate.test.ts, fresh-literal excess-property checks filtered); ${gateLedger} divergences are`);
+    lines.push('recorded in type-gate-divergences.json, held in both directions like the runtime ledger.');
+    lines.push('');
+  }
   return lines.join('\n');
 }
 

@@ -108,7 +108,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type Carrier = {a: string} & {readonly [__rtOneOf]?: [unknown, unknown]};
       type _04 = Expect<Equal<StripRunTypeMeta<Carrier | number>, {a: string} | number>>;
       `,
-      518
+      586
     );
   });
 
@@ -123,7 +123,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _03 = Expect<Equal<StripRunTypeMeta<() => Email>, () => Email>>;
       type _04 = Expect<Equal<StripRunTypeMeta<Map<string, Email>>, Map<string, Email>>>;
       `,
-      703
+      730
     );
   });
 
@@ -136,7 +136,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _01 = Expect<Equal<Stripped['value'], string>>;
       type _02 = Expect<Assignable<{value: 'a'; next: {value: 'b'}}, Stripped>>;
       `,
-      210
+      215
     );
   });
 });

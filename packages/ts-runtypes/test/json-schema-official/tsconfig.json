@@ -10,5 +10,11 @@
   // package test config excludes this very directory.
   "extends": "../../tsconfig.test.json",
   "include": ["./**/*"],
-  "exclude": ["__runtypes"]
+  // generated/type-gate is compiled ONLY by typeGate.test.ts's in-process
+  // program, which filters the fresh-literal excess-property check (TS2353 —
+  // open-world samples carry keys the recovered type never declares) and
+  // enforces the type-gate ledger in both directions. A plain tsc pass over
+  // those files would red on exactly the diagnostics the gate is designed to
+  // arbitrate.
+  "exclude": ["__runtypes", "generated/type-gate"]
 }

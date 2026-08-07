@@ -121,12 +121,24 @@ type StripMetaArray<T extends readonly unknown[], Depth extends number> =
 /** Objects: drop every symbol key (the sentinels are symbol-keyed; symbol
  *  members are never data anyway) and recurse the values, preserving the
  *  `readonly` / `?` modifiers via the homomorphic `as` filter. `Map` / `Set` /
- *  `RegExp` and the broad `object` pass through verbatim. **/
-type StripMetaObject<T extends object, Depth extends number> = object extends T
-  ? T
-  : T extends ReadonlyMap<any, any> | ReadonlySet<any> | RegExp
-    ? T
-    : {
-        [K in keyof T as K extends symbol ? never : K]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
-      };
+ *  `RegExp` and the broad `object` pass through verbatim.
+ *
+ *  Sentinel presence is probed FIRST: a bare carrier (`unknown & {__rtOneOf?:
+ *  …}`, a bare `{__rtNot?: …}`) is an all-optional object, so the broad
+ *  `object extends T` escape would keep it VERBATIM — and once every key is a
+ *  sentinel, the honest clean type is the `unknown` the base was. **/
+type StripMetaObject<T extends object, Depth extends number> =
+  Extract<keyof T, StripMetaSentinelKeys> extends never
+    ? object extends T
+      ? T
+      : T extends ReadonlyMap<any, any> | ReadonlySet<any> | RegExp
+        ? T
+        : {
+            [K in keyof T as K extends symbol ? never : K]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+          }
+    : Exclude<keyof T, StripMetaSentinelKeys | symbol> extends never
+      ? unknown // every key was metadata — the base was the broad kind
+      : {
+          [K in keyof T as K extends symbol ? never : K]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>;
+        };
 // #endregion stripmeta-extract
