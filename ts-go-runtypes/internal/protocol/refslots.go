@@ -65,13 +65,38 @@ func (runType *RunType) EachRefSlot(visit func(*RunType)) {
 			visit(patternProp.Value)
 		}
 	}
-	if runType.PropNames != nil {
-		visit(runType.PropNames)
+	for _, propNames := range runType.PropNames {
+		if propNames != nil {
+			visit(propNames)
+		}
 	}
 	// OneOf — the `__rtOneOf` branch children (the OneOf<[…]> combinator).
 	for _, branch := range runType.OneOf {
 		if branch != nil {
 			visit(branch)
+		}
+	}
+	// Unevaluated — the `__rtUnevaluated` sweep's child slots: the leftover
+	// value plus each guarded group's subschema. These are full nodes exactly
+	// like a negation child; omitting them starved the family populator, the
+	// bundle dep collector and the per-file scope walk of the guard children.
+	for _, unevaluated := range runType.Unevaluated {
+		if unevaluated == nil {
+			continue
+		}
+		if unevaluated.Value != nil {
+			visit(unevaluated.Value)
+		}
+		for _, group := range unevaluated.Groups {
+			if group == nil {
+				continue
+			}
+			if group.When != nil {
+				visit(group.When)
+			}
+			if group.WhenNot != nil {
+				visit(group.WhenNot)
+			}
 		}
 	}
 }

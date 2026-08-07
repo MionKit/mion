@@ -285,10 +285,12 @@ type RunType struct {
 	// key mocking). Sorted by source; validate/validationErrors-only.
 	PatternProps []*PatternPropCheck `json:"patternProps,omitempty"`
 
-	// PropNames — populated when the type carries a `__rtPropNames`
-	// sentinel member (JSON Schema propertyNames): every KEY of the object
-	// validates as a string against this child. validate/verr-only.
-	PropNames *RunType `json:"propNames,omitempty"`
+	// PropNames — populated when the type carries one or more `__rtPropNames`
+	// sentinel members (JSON Schema propertyNames): every KEY of the object
+	// validates as a string against EVERY child (allOf-stacked propertyNames
+	// conjoin, mirroring the sorted `pn{…}` id fold — id = behavior).
+	// validate/verr-only.
+	PropNames []*RunType `json:"propNames,omitempty"`
 
 	// OneOf — populated on a union node when the type carries a `__rtOneOf`
 	// sentinel member (the OneOf<[…]> combinator / JSON Schema oneOf):
@@ -299,13 +301,15 @@ type RunType struct {
 	// and every other positive pathway stay untouched. validate/verr-only.
 	OneOf []*RunType `json:"oneOf,omitempty"`
 
-	// Unevaluated — populated when the type carries an `__rtUnevaluated`
-	// sentinel member (JSON Schema unevaluatedProperties, for the scopes the
-	// document alone cannot decide). Keys/Sources are evaluated
-	// unconditionally; Groups carry the contributions a guard decides at run
-	// time. Lifted off the property walks and folded into the structural id
-	// like Negations, and equally validate/verr-only.
-	Unevaluated *UnevaluatedCheck `json:"unevaluated,omitempty"`
+	// Unevaluated — populated when the type carries one or more
+	// `__rtUnevaluated` sentinel members (JSON Schema unevaluatedProperties,
+	// for the scopes the document alone cannot decide). Keys/Sources are
+	// evaluated unconditionally; Groups carry the contributions a guard
+	// decides at run time. Stacked sweeps (allOf arms each carrying the
+	// keyword) each enforce, mirroring the sorted `u{…}` id fold
+	// (id = behavior). Lifted off the property walks and folded into the
+	// structural id like Negations, and equally validate/verr-only.
+	Unevaluated []*UnevaluatedCheck `json:"unevaluated,omitempty"`
 
 	// Overrides — populated when a user registers a custom function for this
 	// type via `overrideX<T>(pureFn)`. Maps a public family op key ("val",

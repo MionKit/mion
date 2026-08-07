@@ -263,12 +263,17 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 				}
 				continue
 			}
+			// APPEND, never assign: allOf-stacked propertyNames / unevaluated*
+			// arrive as one sentinel member each, and the id fold appends them
+			// all (`pn{…}` / `u{…}`, sorted). A bare assignment here enforced
+			// only the LAST lifted child while the id folded every arm —
+			// id ≠ behavior, the one thing the pipeline promises never to do.
 			if childType := typeid.PropNamesChildFromMember(cache.typeChecker, objectMember); childType != nil {
-				node.PropNames = cache.Serialize(childType)
+				node.PropNames = append(node.PropNames, cache.Serialize(childType))
 				continue
 			}
 			if spec, isUneval := typeid.UnevalSpecFromMember(cache.typeChecker, objectMember); isUneval {
-				node.Unevaluated = cache.serializeUnevaluated(spec)
+				node.Unevaluated = append(node.Unevaluated, cache.serializeUnevaluated(spec))
 				continue
 			}
 			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
@@ -305,7 +310,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 		}
 		if restCount == 1 &&
 			(len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
-				len(node.PatternProps) > 0 || node.PropNames != nil || node.Unevaluated != nil) {
+				len(node.PatternProps) > 0 || len(node.PropNames) > 0 || len(node.Unevaluated) > 0) {
 			// Single base ∧ sentinel(s) — `unknown[] & {__rtNot?: …}`,
 			// `Record<string, unknown> & {…}`: project the BASE as itself
 			// (array / record / class / tuple), negations attached. Routing

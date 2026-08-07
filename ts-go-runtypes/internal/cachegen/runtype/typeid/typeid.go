@@ -652,7 +652,12 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 		// property walk, the sentinel props must stay out of the member list
 		// (the collapse folds them as a `!{…}` tag / format key instead).
 		// Mirrors the serialize-side projectMembersInto skip.
-		if propertySymbol.Name == notChildProp || IsFormatSentinelPropName(propertySymbol.Name) ||
+		// Symbol-aware on purpose: the serialize twin (projectMembersInto)
+		// skips via IsNotSentinelPropName, which also matches the late-bound
+		// `unique symbol` spelling — a literal == compare here would fold a
+		// symbol-keyed `__rtNot` as a real member while the projection skips
+		// it, splitting id from behavior.
+		if IsNotSentinelPropName(propertySymbol.Name) || IsFormatSentinelPropName(propertySymbol.Name) ||
 			IsContainsSentinelPropName(propertySymbol.Name) {
 			continue
 		}

@@ -267,7 +267,7 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 	// own keys — same statement-base hoist discipline as every splice above.
 	// `rt.Unevaluated` is shared by both kinds — the KEY sweep here, the index
 	// sweep below — so each side must claim only its own.
-	if rt != nil && (len(rt.PatternProps) > 0 || rt.PropNames != nil || (rt.Unevaluated != nil && !isArrayNodeKind(rt.Kind))) {
+	if rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 || (len(rt.Unevaluated) > 0 && !isArrayNodeKind(rt.Kind))) {
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
@@ -284,8 +284,8 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 				code = "(" + code + " && " + check + ")"
 			}
 		}
-		if rt.PropNames != nil {
-			check := emitPropNamesCheck(ctx, rt.PropNames)
+		for _, propNames := range rt.PropNames {
+			check := emitPropNamesCheck(ctx, propNames)
 			if check != "" {
 				if code == "" || code == "true" {
 					code = check
@@ -294,32 +294,37 @@ func (e ValidateEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, expectedCT
 				}
 			}
 		}
-		// The evaluated-key sweep runs LAST, so a value already rejected by the
-		// shape never pays for it.
-		if rt.Unevaluated != nil && !isArrayNodeKind(rt.Kind) {
-			check := emitUnevaluatedCheck(ctx, rt.Unevaluated)
-			if check != "" && check != "true" {
-				if code == "" || code == "true" {
-					code = check
-				} else {
-					code = "(" + code + " && " + check + ")"
+		// The evaluated-key sweeps run LAST, so a value already rejected by the
+		// shape never pays for them. Stacked sweeps AND-chain — every arm's
+		// sweep enforces, mirroring the sorted `u{…}` id fold.
+		if !isArrayNodeKind(rt.Kind) {
+			for _, unevaluated := range rt.Unevaluated {
+				check := emitUnevaluatedCheck(ctx, unevaluated)
+				if check != "" && check != "true" {
+					if code == "" || code == "true" {
+						code = check
+					} else {
+						code = "(" + code + " && " + check + ")"
+					}
 				}
 			}
 		}
 		base.Code = code
 	}
 	// The array twin of the key sweep, spliced the same way and equally last.
-	if rt != nil && rt.Unevaluated != nil && isArrayNodeKind(rt.Kind) {
+	if rt != nil && len(rt.Unevaluated) > 0 && isArrayNodeKind(rt.Kind) {
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
 		if base.Type == CodeE {
-			check := emitUnevaluatedItemsCheck(ctx, rt, rt.Unevaluated)
-			if check != "" && check != "true" {
-				if base.Code == "" || base.Code == "true" {
-					base.Code = check
-				} else {
-					base.Code = "(" + base.Code + " && " + check + ")"
+			for _, unevaluated := range rt.Unevaluated {
+				check := emitUnevaluatedItemsCheck(ctx, rt, unevaluated)
+				if check != "" && check != "true" {
+					if base.Code == "" || base.Code == "true" {
+						base.Code = check
+					} else {
+						base.Code = "(" + base.Code + " && " + check + ")"
+					}
 				}
 			}
 		}

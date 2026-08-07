@@ -483,6 +483,79 @@ describe('propertyNames — every key validates against the subschema', () => {
   });
 });
 
+describe('allOf-stacked propertyNames — every arm enforces (id = behavior)', () => {
+  // The serialize collapse historically OVERWROTE the propNames slot per
+  // lifted arm while the id fold appended them all (`pn{…}`, sorted): two
+  // allOf-stacked propertyNames shared one cache entry whose validator
+  // enforced only the last arm. The slot is a list now — both sides append.
+  const doorAB = {
+    allOf: [
+      {type: 'object', propertyNames: {type: 'string', pattern: '^[a-z]'}},
+      {type: 'object', propertyNames: {type: 'string', maxLength: 3}},
+    ],
+  } as const;
+  const doorBA = {
+    allOf: [
+      {type: 'object', propertyNames: {type: 'string', maxLength: 3}},
+      {type: 'object', propertyNames: {type: 'string', pattern: '^[a-z]'}},
+    ],
+  } as const;
+
+  it('each arm has its own witness (last-wins dropped one of these)', () => {
+    const fn = createValidateFn(runTypeFromJsonSchema(doorAB));
+    expect(fn({abc: 1})).toBe(true);
+    expect(fn({})).toBe(true);
+    expect(fn({Abc: 1})).toBe(false); // pattern arm only
+    expect(fn({abcd: 1})).toBe(false); // maxLength arm only
+  });
+
+  it('arm order changes neither the id nor the behavior', () => {
+    expect(getRunTypeId(runTypeFromJsonSchema(doorAB))).toBe(getRunTypeId(runTypeFromJsonSchema(doorBA)));
+    const fn = createValidateFn(runTypeFromJsonSchema(doorBA));
+    expect(fn({Abc: 1})).toBe(false);
+    expect(fn({abcd: 1})).toBe(false);
+  });
+
+  it('verr reports each violated arm', () => {
+    const errs = createGetValidationErrorsFn(runTypeFromJsonSchema(doorAB));
+    expect(errs({Abc: 1}).length).toBeGreaterThan(0);
+    expect(errs({abcd: 1}).length).toBeGreaterThan(0);
+    expect(errs({abc: 1})).toEqual([]);
+  });
+
+  it('mocks re-key into the conjunction of all arms', () => {
+    // Compatible arms (the second admits a superset of the first) so the
+    // re-key draw from the first child converges without rejection churn.
+    const schema = runTypeFromJsonSchema({
+      allOf: [
+        {type: 'object', propertyNames: {type: 'string', maxLength: 3}},
+        {type: 'object', propertyNames: {type: 'string', maxLength: 8}},
+      ],
+    } as const);
+    const mock = createMockDataFn(schema);
+    const check = createValidateFn(schema);
+    for (let i = 0; i < 16; i++) expect(check(mock())).toBe(true);
+  });
+
+  it('both marker shapes resolve one entry (hash equivalence)', () => {
+    type Stacked = TF.FormattedObject<Record<string, unknown>, {propertyNames: TF.String<{maxLength: 3}>}> &
+      TF.FormattedObject<Record<string, unknown>, {propertyNames: TF.String<{minLength: 2}>}>;
+    const statically = getRunTypeId<Stacked>();
+    const value = {ab: 1} as Stacked;
+    expect(getRunTypeId(value)).toBe(statically);
+    expect(statically).toBe(
+      getRunTypeId(
+        runTypeFromJsonSchema({
+          allOf: [
+            {type: 'object', propertyNames: {type: 'string', maxLength: 3}},
+            {type: 'object', propertyNames: {type: 'string', minLength: 2}},
+          ],
+        } as const)
+      )
+    );
+  });
+});
+
 describe('allOf over prefixItems — tuple ∩ tuple merges slot-wise', () => {
   // docs/done/allof-tuple-intersection-collapse-gap.md: this exact shape used
   // to surface two tuples as a junk objectLiteral whose validator passed

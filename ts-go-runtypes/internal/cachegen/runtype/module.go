@@ -220,7 +220,7 @@ func writeFooter(buffer *strings.Builder, runType *protocol.RunType) {
 	if len(runType.PatternProps) > 0 {
 		writePatternProps(buffer, name, runType)
 	}
-	if runType.PropNames != nil {
+	if len(runType.PropNames) > 0 {
 		writePropNames(buffer, name, runType)
 	}
 	if len(runType.OneOf) > 0 {
@@ -241,7 +241,10 @@ func writeFooter(buffer *strings.Builder, runType *protocol.RunType) {
 	if len(runType.Extends) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.extends = [%s];\n", name, joinRefs(runType.Extends)))
 	}
-	writeBundleSpecials(buffer, runType)
+	// Only the narrow half — this footer already wrote the slot specials
+	// (formatAnnotation / contains / patternProps / propNames / oneOf) above;
+	// the historical full writeBundleSpecials call emitted them twice.
+	writeExpressionSpecials(buffer, name, runType)
 }
 
 // relationSlots is the wire order of the ref-bearing RunType fields inside a
@@ -342,9 +345,9 @@ func hasBundleSpecials(runType *protocol.RunType) bool {
 		isFooterLiteral(runType) ||
 		len(runType.Contains) > 0 ||
 		len(runType.PatternProps) > 0 ||
-		runType.PropNames != nil ||
+		len(runType.PropNames) > 0 ||
 		len(runType.OneOf) > 0 ||
-		runType.Unevaluated != nil
+		len(runType.Unevaluated) > 0
 }
 
 // writeBundleSpecials writes the residual footer lines for the runtime-special
@@ -359,15 +362,6 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 	if runType.FormatAnnotation != nil {
 		writeFormatAnnotation(buffer, name, runType)
 	}
-	// classType — built-in constructors looked up on globalThis so the
-	// generated module needs zero runtime imports.
-	if runType.ClassRef != nil && runType.ClassRef.Builtin != "" {
-		buffer.WriteString(fmt.Sprintf("%s.classType = globalThis.%s;\n", name, runType.ClassRef.Builtin))
-	}
-	// Footer-only literals (bigint / symbol).
-	if isFooterLiteral(runType) {
-		buffer.WriteString(fmt.Sprintf("%s.literal = %s;\n", name, footerLiteralExpr(runType)))
-	}
 	// contains / patternProps / propNames — structured entries, not bare
 	// refs, so they ride the residual footer in the bundle layout too. The
 	// child derefs go through the registry (`c('<id>')`), which resolves
@@ -378,11 +372,28 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 	if len(runType.PatternProps) > 0 {
 		writePatternProps(buffer, name, runType)
 	}
-	if runType.PropNames != nil {
+	if len(runType.PropNames) > 0 {
 		writePropNames(buffer, name, runType)
 	}
 	if len(runType.OneOf) > 0 {
 		writeOneOf(buffer, name, runType)
+	}
+	writeExpressionSpecials(buffer, name, runType)
+}
+
+// writeExpressionSpecials writes the residual lines BOTH layouts need exactly
+// once: the builtin classType, the footer-only bigint/symbol literal and the
+// flattened unevaluated key set. writeFooter (per-node layout) emits the slot
+// specials itself and calls only this narrow half.
+func writeExpressionSpecials(buffer *strings.Builder, name string, runType *protocol.RunType) {
+	// classType — built-in constructors looked up on globalThis so the
+	// generated module needs zero runtime imports.
+	if runType.ClassRef != nil && runType.ClassRef.Builtin != "" {
+		buffer.WriteString(fmt.Sprintf("%s.classType = globalThis.%s;\n", name, runType.ClassRef.Builtin))
+	}
+	// Footer-only literals (bigint / symbol).
+	if isFooterLiteral(runType) {
+		buffer.WriteString(fmt.Sprintf("%s.literal = %s;\n", name, footerLiteralExpr(runType)))
 	}
 	writeUnevaluatedKeys(buffer, name, runType)
 }
@@ -396,18 +407,25 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 // is the `unevaluatedProperties: false` on a bare object case — there the mock
 // has nothing to trim TO and an empty list would read as "no constraint".
 func writeUnevaluatedKeys(buffer *strings.Builder, name string, runType *protocol.RunType) {
-	check := runType.Unevaluated
-	if check == nil {
+	if len(runType.Unevaluated) == 0 {
 		return
 	}
-	keys := append([]string{}, check.Keys...)
-	sources := append([]string{}, check.Sources...)
-	for _, group := range check.Groups {
-		if group == nil {
+	// Stacked sweeps flatten together: the mock walker only needs the union of
+	// admissible keys, and a key every sweep rejects stays out of every list.
+	var keys, sources []string
+	for _, check := range runType.Unevaluated {
+		if check == nil {
 			continue
 		}
-		keys = append(keys, group.Keys...)
-		sources = append(sources, group.Sources...)
+		keys = append(keys, check.Keys...)
+		sources = append(sources, check.Sources...)
+		for _, group := range check.Groups {
+			if group == nil {
+				continue
+			}
+			keys = append(keys, group.Keys...)
+			sources = append(sources, group.Sources...)
+		}
 	}
 	buffer.WriteString(fmt.Sprintf("%s.unevaluatedKeys = [%s];\n", name, joinQuoted(keys)))
 	if len(sources) > 0 {
@@ -450,7 +468,11 @@ func writePatternProps(buffer *strings.Builder, name string, runType *protocol.R
 }
 
 func writePropNames(buffer *strings.Builder, name string, runType *protocol.RunType) {
-	buffer.WriteString(fmt.Sprintf("%s.propNames = %s;\n", name, derefExpr(runType.PropNames)))
+	entries := make([]string, 0, len(runType.PropNames))
+	for _, propNames := range runType.PropNames {
+		entries = append(entries, derefExpr(propNames))
+	}
+	buffer.WriteString(fmt.Sprintf("%s.propNames = [%s];\n", name, strings.Join(entries, ", ")))
 }
 
 // writeOneOf emits the `<ref>.oneOf = [branch, …];` line — the exactly-one

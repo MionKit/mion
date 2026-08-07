@@ -129,8 +129,9 @@ export interface RunType<T = unknown> {
    *  valid against `value`; `key` is the pattern-branded string child whose
    *  build-time sample pool powers key mocking. */
   patternProps?: {source: string; key?: RunType; value: RunType}[];
-  /** propertyNames child: every key validates (as a string) against it. */
-  propNames?: RunType;
+  /** propertyNames children: every key validates (as a string) against EVERY
+   *  entry (allOf-stacked propertyNames conjoin, matching the id fold). */
+  propNames?: RunType[];
   /** The FLATTENED admissible key set behind an `unevaluated*` sweep (JSON
    *  Schema unevaluatedProperties): the unconditionally evaluated keys plus
    *  every guarded group's. The guards stay compile-time — the emitted

@@ -161,9 +161,11 @@ function patternKeysSatisfied(record: Record<string, unknown>, node: RunType, de
     }
   }
   const propNames = node.propNames;
-  if (propNames) {
-    for (const key of Object.keys(record)) {
-      if (!matches(key, propNames, depth + 1)) return false;
+  if (propNames && propNames.length > 0) {
+    for (const entry of propNames) {
+      for (const key of Object.keys(record)) {
+        if (!matches(key, entry, depth + 1)) return false;
+      }
     }
   }
   return true;

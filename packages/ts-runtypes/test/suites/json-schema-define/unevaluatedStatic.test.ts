@@ -6,7 +6,7 @@
 //   leftover — a schema value with nothing else evaluating members
 //   sweep    — the value decides, so the check runs over the members instead
 import {describe, expect, it} from 'vitest';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 describe('a schema value covers whatever is left', () => {
@@ -232,5 +232,42 @@ describe('a $ref target evaluates unconditionally', () => {
     );
     expect(isType(['foo', 'bar'])).toBe(true);
     expect(isType(['foo', 'bar', 'baz'])).toBe(false);
+  });
+});
+
+describe('allOf arms each carrying their own sweep — every arm enforces', () => {
+  // Same append-semantics fix as stacked propertyNames: the serialize collapse
+  // used to keep only the LAST lifted `__rtUnevaluated` spec while the id fold
+  // appended them all (`u{…}`, sorted). Per 2020-12 each arm's keyword sees
+  // only its own arm's evaluation, so sibling arms conjoin.
+  const doorAB = {
+    allOf: [
+      {type: 'object', properties: {a: {type: 'number'}}, unevaluatedProperties: false},
+      {type: 'object', properties: {a: {type: 'number'}, b: {type: 'number'}}, unevaluatedProperties: false},
+    ],
+  } as const;
+  const doorBA = {
+    allOf: [
+      {type: 'object', properties: {a: {type: 'number'}, b: {type: 'number'}}, unevaluatedProperties: false},
+      {type: 'object', properties: {a: {type: 'number'}}, unevaluatedProperties: false},
+    ],
+  } as const;
+
+  it('the narrower arm still closes the wider one out', () => {
+    const isType = createValidateFn(runTypeFromJsonSchema(doorAB));
+    expect(isType({})).toBe(true);
+    expect(isType({a: 1})).toBe(true);
+    // b is evaluated by the second arm but UNevaluated by the first — the
+    // historical last-wins kept only one sweep and let it through.
+    expect(isType({b: 1})).toBe(false);
+    expect(isType({a: 1, b: 1})).toBe(false);
+    expect(isType({c: 1})).toBe(false);
+  });
+
+  it('arm order changes neither the id nor the behavior', () => {
+    expect(getRunTypeId(runTypeFromJsonSchema(doorAB))).toBe(getRunTypeId(runTypeFromJsonSchema(doorBA)));
+    const isType = createValidateFn(runTypeFromJsonSchema(doorBA));
+    expect(isType({b: 1})).toBe(false);
+    expect(isType({a: 1})).toBe(true);
   });
 });

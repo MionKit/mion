@@ -445,3 +445,53 @@ func containsAll[T comparable](haystack []T, needles ...T) bool {
 	}
 	return true
 }
+
+// ---- stacked propertyNames sentinels — append semantics ----------------------
+// Two `__rtPropNames` constituents must BOTH survive the collapse (the id fold
+// always appended them into the sorted `pn{…}` key; the serialize side used to
+// overwrite, enforcing only the last-lifted arm — id ≠ behavior).
+
+func TestIntersection_StackedPropNames_AppendsBoth_Static(t *testing.T) {
+	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+type T = Record<string, unknown> & {readonly __rtPropNames?: 'a' | 'b'} & {readonly __rtPropNames?: 'a' | 'c'};
+getRunTypeId<T>();
+`
+	_, tn := resolveInline(t, code)
+	if len(tn.PropNames) != 2 {
+		t.Fatalf("expected 2 propNames children appended, got %d", len(tn.PropNames))
+	}
+}
+
+func TestIntersection_StackedPropNames_AppendsBoth_Reflect(t *testing.T) {
+	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+type T = Record<string, unknown> & {readonly __rtPropNames?: 'a' | 'b'} & {readonly __rtPropNames?: 'a' | 'c'};
+const v = null as unknown as T;
+getRunTypeId(v);
+`
+	_, tn := resolveInline(t, code)
+	if len(tn.PropNames) != 2 {
+		t.Fatalf("expected 2 propNames children appended, got %d", len(tn.PropNames))
+	}
+}
+
+func TestIntersection_StackedPropNames_Commutes(t *testing.T) {
+	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+type PN1 = {readonly __rtPropNames?: 'a' | 'b'};
+type PN2 = {readonly __rtPropNames?: 'a' | 'c'};
+type AB = Record<string, unknown> & PN1 & PN2;
+type BA = Record<string, unknown> & PN2 & PN1;
+getRunTypeId<AB>();
+getRunTypeId<BA>();
+`
+	r := setupInline(t, map[string]string{"test.ts": code})
+	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"test.ts"}})
+	if resp.Error != "" {
+		t.Fatalf("scanFiles: %s", resp.Error)
+	}
+	if len(resp.Sites) != 2 {
+		t.Fatalf("expected 2 call sites, got %d", len(resp.Sites))
+	}
+	if resp.Sites[0].ID != resp.Sites[1].ID {
+		t.Fatalf("stacked propNames must fold order-free; got %q vs %q", resp.Sites[0].ID, resp.Sites[1].ID)
+	}
+}

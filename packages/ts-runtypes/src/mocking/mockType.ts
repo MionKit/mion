@@ -806,28 +806,31 @@ function buildObjectLiteral(
       }
     });
   }
-  const propNames = runType.propNames as RunType | undefined;
-  if (propNames) {
+  const propNames = runType.propNames as RunType[] | undefined;
+  if (propNames && propNames.length > 0) {
     const declaredNames = new Set<string | number>();
     for (const member of children) {
       const name = member.name as string | number | undefined;
       if (name !== undefined) declaredNames.add(name);
     }
-    // Undeclared keys re-key unconditionally from the child's own mock —
+    // Undeclared keys re-key unconditionally from a child's own mock —
     // it satisfies the real validator by the soundness invariant, while
-    // keeping a random key would lean on the loose matcher. Declared keys
-    // stay (a schema whose declared names fail propertyNames is
-    // contradictory and surfaces through the rejection loop).
+    // keeping a random key would lean on the loose matcher. Stacked
+    // propertyNames conjoin: the draw comes from the first child and the
+    // remaining children accept it via the loose matcher (over-matching
+    // only costs retries). Declared keys stay (a schema whose declared
+    // names fail propertyNames is contradictory and surfaces through the
+    // rejection loop).
     for (const key of Object.keys(parent)) {
       if (declaredNames.has(key)) continue;
       const entryValue = parent[key];
       delete parent[key];
       for (let attempt = 0; attempt < 8; attempt++) {
-        const renamed = mockRunType(propNames, options, stack);
-        if (typeof renamed === 'string' && !(renamed in parent)) {
-          parent[renamed] = entryValue;
-          break;
-        }
+        const renamed = mockRunType(propNames[0], options, stack);
+        if (typeof renamed !== 'string' || renamed in parent) continue;
+        if (!propNames.every((entry) => negationChildMatches(renamed, entry))) continue;
+        parent[renamed] = entryValue;
+        break;
       }
     }
   }
