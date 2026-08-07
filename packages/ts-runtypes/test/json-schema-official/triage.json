@@ -41,16 +41,13 @@
       "verdict": "ok"
     },
     "allOf.json :: allOf with boolean schemas, all false": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "allOf.json :: allOf with boolean schemas, all true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "allOf.json :: allOf with boolean schemas, some false": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "allOf.json :: allOf with one empty schema": {
       "verdict": "ok"
@@ -89,16 +86,13 @@
       "verdict": "ok"
     },
     "anyOf.json :: anyOf with boolean schemas, all false": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "anyOf.json :: anyOf with boolean schemas, all true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "anyOf.json :: anyOf with boolean schemas, some true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "anyOf.json :: anyOf with one empty schema": {
       "verdict": "ok"
@@ -213,7 +207,8 @@
       "verdict": "ok"
     },
     "defs.json :: validate definition against metaschema": {
-      "verdict": "ok"
+      "verdict": "unsupported-input",
+      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
     },
     "dependentRequired.json :: dependencies with escaped characters": {
       "verdict": "ok"
@@ -244,8 +239,7 @@
       "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
     },
     "dynamicRef.json :: $dynamicRef points to a boolean schema": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "dynamicRef.json :: $dynamicRef skips over intermediate resources - direct reference": {
       "verdict": "unsupported-input",
@@ -606,8 +600,7 @@
       "verdict": "ok"
     },
     "not.json :: collect annotations inside a 'not', even if collection is disabled": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "not.json :: double negation": {
       "verdict": "ok"
@@ -643,27 +636,22 @@
       "verdict": "ok"
     },
     "oneOf.json :: oneOf with boolean schemas, all false": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "oneOf.json :: oneOf with boolean schemas, all true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "oneOf.json :: oneOf with boolean schemas, more than one true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "oneOf.json :: oneOf with boolean schemas, one true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "oneOf.json :: oneOf with empty schema": {
       "verdict": "ok"
     },
     "oneOf.json :: oneOf with missing optional property": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "oneOf.json :: oneOf with required": {
       "verdict": "ok"
@@ -771,8 +759,7 @@
       "verdict": "ok"
     },
     "patternProperties.json :: patternProperties with boolean schemas": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "patternProperties.json :: patternProperties with null valued instance properties": {
       "verdict": "ok"
@@ -799,8 +786,7 @@
       "verdict": "proto-literal"
     },
     "properties.json :: properties with boolean schema": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "properties.json :: properties with escaped characters": {
       "verdict": "ok"
@@ -840,12 +826,10 @@
       "verdict": "ok"
     },
     "ref.json :: $ref to boolean schema false": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "ref.json :: $ref to boolean schema true": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "ref.json :: Recursive references between schemas": {
       "verdict": "remote"
@@ -940,7 +924,8 @@
       "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
     },
     "ref.json :: remote ref, containing refs itself": {
-      "verdict": "ok"
+      "verdict": "unsupported-input",
+      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
     },
     "ref.json :: root pointer ref": {
       "verdict": "ok"
@@ -1046,8 +1031,7 @@
       "verdict": "ok"
     },
     "unevaluatedItems.json :: unevaluatedItems with boolean schemas": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedItems.json :: unevaluatedItems with if/then/else": {
       "verdict": "ok"
@@ -1062,8 +1046,7 @@
       "verdict": "ok"
     },
     "unevaluatedItems.json :: unevaluatedItems with nested items": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedItems.json :: unevaluatedItems with nested prefixItems and items": {
       "verdict": "ok"
@@ -1108,16 +1091,13 @@
       "verdict": "ok"
     },
     "unevaluatedProperties.json :: dynamic evalation inside nested refs": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: in-place applicator siblings, allOf has unevaluated": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: in-place applicator siblings, anyOf has unevaluated": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: nested unevaluatedProperties, outer false, inner true, properties inside": {
       "verdict": "ok"
@@ -1138,8 +1118,7 @@
       "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties + ref inside allOf / oneOf": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties + single cyclic ref": {
       "verdict": "ok"
@@ -1151,12 +1130,10 @@
       "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties can't see inside cousins": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties can't see inside cousins (reverse order)": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties false": {
       "verdict": "ok"
@@ -1193,8 +1170,7 @@
       "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties with boolean schemas": {
-      "verdict": "unsupported-input",
-      "reason": "TS2769: No overload matches this call.   Overload 1 of 2, '(schema: boolean, id?: InjectRunTypeId<unknown> | undefined): RunType<unknown>', gave the following error.     Argument of type '{ readonly $schema: "
+      "verdict": "ok"
     },
     "unevaluatedProperties.json :: unevaluatedProperties with dependentSchemas": {
       "verdict": "ok"

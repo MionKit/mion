@@ -114,12 +114,16 @@ describe('an absolute $id names this document', () => {
     expect(isType({foo: 12})).toBe(false);
   });
 
-  it('leaves a ref naming ANOTHER document unresolved rather than guessing', () => {
+  it('rejects a ref naming ANOTHER document at the key, never silently widening', () => {
     // Out of scope by design: the fetch would sit inside type-checking. The
-    // ref contributes no constraint instead of a wrong one.
-    const isType = createValidateFn(runTypeFromJsonSchema({$ref: 'https://example.com/other#/$defs/thing'} as const));
-    expect(isType('anything')).toBe(true);
-    expect(isType(12)).toBe(true);
+    // historical behavior resolved it to `unknown` — every constraint the
+    // target declares silently dropped, exactly what the disposition doctrine
+    // forbids. Now the key errors (the guide's promise made true); the
+    // type-level rejection pins live in jsonSchemaRecovered.typecheck.ts.
+    const schema = {$ref: 'https://example.com/other#/$defs/thing'} as const;
+    // @ts-expect-error a cross-document $ref is rejected at the key
+    const build = () => runTypeFromJsonSchema(schema);
+    expect(typeof build).toBe('function'); // type-level rejection only — never executed
   });
 });
 

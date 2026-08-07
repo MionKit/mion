@@ -96,6 +96,42 @@ export const sMixedObject = {
 export type TMixedObject = FromJsonSchema<typeof sMixedObject>;
 export const vMixedObject: TMixedObject = {id: 'a', extra: 'b'};
 
+// The mixed form with DIFFERING types over-narrows for ASSIGNABILITY on
+// purpose: the recovered type is the validator's source, so its index stays
+// exactly the additionalProperties schema (the emitted index sweep checks
+// undeclared keys against it). Valid data that mixes declared and additional
+// value types therefore does not assign HERE; JsonSchemaType is the
+// admitting, never-reflected projection.
+export const sMixedDiffering = {
+  type: 'object',
+  properties: {id: {type: 'string'}},
+  required: ['id'],
+  additionalProperties: {type: 'number'},
+} as const;
+export type TMixedDiffering = FromJsonSchema<typeof sMixedDiffering>;
+// @ts-expect-error the declared member does not satisfy the narrow index
+export const vMixedDiffering: TMixedDiffering = {id: 'a', count: 2};
+
+// Boolean subschemas at EVERY position (2020-12 core §4.3.2): map values,
+// combinator arms and $defs entries. `true` ≡ {} (unknown), `false` ≡ never
+// (a false property value means the key may not be present).
+export const sBoolEverywhere = {
+  type: 'object',
+  properties: {free: true, banned: false, named: {$ref: '#/$defs/always'}},
+  patternProperties: {'^x_': true},
+  $defs: {always: true},
+} as const;
+export type TBoolEverywhere = FromJsonSchema<typeof sBoolEverywhere>;
+export const vBoolEverywhere: TBoolEverywhere = {free: 42};
+// @ts-expect-error a false property value forbids the key
+export const vBoolEverywhereBad: TBoolEverywhere = {banned: 1};
+export const sBoolArms = {anyOf: [{type: 'string'}, false]} as const;
+export type TBoolArms = FromJsonSchema<typeof sBoolArms>;
+export const vBoolArms: TBoolArms = 's';
+export const sBoolAllOf = {allOf: [{type: 'number'}, true]} as const;
+export type TBoolAllOf = FromJsonSchema<typeof sBoolAllOf>;
+export const vBoolAllOf: TBoolAllOf = 3;
+
 // additionalProperties: false closes the shape in the VALIDATOR; the recovered
 // type is the declared members (closedness has no extra type-level footprint).
 export const sClosed = {
@@ -179,13 +215,26 @@ export const sTupleRest = {type: 'array', prefixItems: [{type: 'string'}], items
 export type TTupleRest = FromJsonSchema<typeof sTupleRest>;
 export const vTupleRest: TTupleRest = ['head', 1, 2, 3];
 
-// minItems beyond the prefix keeps REQUIRING members of the rest type.
+// minItems without a tuple in scope rides the formattedArray brand — the SAME
+// encoding RT.array({minItems}) carries, so the door and the builder converge
+// on one structural id. The recovered type stays assignable from any
+// correctly-typed array; the length bound is the validator's exact check.
 export const sMinItems = {type: 'array', items: {type: 'number'}, minItems: 2} as const;
 export type TMinItems = FromJsonSchema<typeof sMinItems>;
 export const vMinItems: TMinItems = [1, 2];
 export const vMinItemsMore: TMinItems = [1, 2, 3];
+
+// minItems BESIDE prefixItems keeps REQUIRING slots — arity stays in the type.
+export const sMinItemsTuple = {
+  type: 'array',
+  prefixItems: [{type: 'number'}],
+  items: {type: 'number'},
+  minItems: 2,
+} as const;
+export type TMinItemsTuple = FromJsonSchema<typeof sMinItemsTuple>;
+export const vMinItemsTuple: TMinItemsTuple = [1, 2];
 // @ts-expect-error two members are required
-export const vMinItemsBad: TMinItems = [1];
+export const vMinItemsTupleBad: TMinItemsTuple = [1];
 
 // Boolean slots: true leaves a position unconstrained, false forbids it.
 export const sBoolSlots = {type: 'array', prefixItems: [{type: 'string'}, true, false], items: false} as const;
@@ -383,12 +432,10 @@ export const sUnevaluated = {
 export type TUnevaluated = FromJsonSchema<typeof sUnevaluated>;
 export const vUnevaluated: TUnevaluated = {id: 'a'};
 
-// Annotations describe the schema, never the data — with ONE lift: a property
-// whose schema carries readOnly: true recovers a `readonly` member and
-// converges with the readonly-membered hand-written twin (the modifier is
-// part of the type's identity, exactly as in TypeScript). writeOnly and every
-// other annotation are read and ignored; readOnly at NON-property positions
-// stays an annotation too.
+// Annotations describe the schema, never the data — readOnly included, at
+// EVERY position. (A brief property-position lift to the `readonly` modifier
+// existed and was removed: zero validation, and an annotation must never move
+// the structural id. The dropped-intent lint rule warns instead.)
 export const sAnnotated = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://example.com/user.json',
@@ -405,7 +452,7 @@ export const sAnnotated = {
 } as const;
 export type TAnnotated = FromJsonSchema<typeof sAnnotated>;
 export const vAnnotated: TAnnotated = {id: 'u_1', name: 'ada'};
-// @ts-expect-error readOnly: true lifts to a readonly member
+// Both members stay mutable — the annotation never reshapes the type.
 export const vAnnotatedMutation = (u: TAnnotated): void => void (u.id = 'other');
 export const vAnnotatedWritable = (u: TAnnotated): void => void (u.name = 'ok');
 
@@ -422,6 +469,11 @@ export const accepted = () => [
   runTypeFromJsonSchema(sObject),
   runTypeFromJsonSchema(sRecord),
   runTypeFromJsonSchema(sMixedObject),
+  runTypeFromJsonSchema(sMixedDiffering),
+  runTypeFromJsonSchema(sBoolEverywhere),
+  runTypeFromJsonSchema(sBoolArms),
+  runTypeFromJsonSchema(sBoolAllOf),
+  runTypeFromJsonSchema(sMinItemsTuple),
   runTypeFromJsonSchema(sClosed),
   runTypeFromJsonSchema(sPatternProps),
   runTypeFromJsonSchema(sPropNames),
@@ -466,7 +518,23 @@ export const rejected = () => [
   runTypeFromJsonSchema({type: 'string', contentMediaType: 'application/json', contentSchema: {type: 'object'}} as const),
   // @ts-expect-error only draft 2020-12 is accepted
   runTypeFromJsonSchema({$schema: 'http://json-schema.org/draft-07/schema#', type: 'string'} as const),
+  // @ts-expect-error a $ref naming ANOTHER document is rejected at the key
+  runTypeFromJsonSchema({$ref: 'https://example.com/other.json#/$defs/x'} as const),
+  // @ts-expect-error a nested cross-document $ref rejects the same way
+  runTypeFromJsonSchema({type: 'object', properties: {a: {$ref: 'https://example.com/other.json'}}} as const),
+  // @ts-expect-error a cross-document $dynamicRef rejects at the key too
+  runTypeFromJsonSchema({$dynamicRef: 'https://example.com/other.json#node'} as const),
 ];
+
+// The root's OWN $id base stays a same-document spelling — accepted, both the
+// bare base and a base-qualified fragment.
+export const sOwnIdRef = {
+  $id: 'urn:example:user',
+  type: 'object',
+  properties: {self: {$ref: 'urn:example:user'}, name: {$ref: 'urn:example:user#/$defs/name'}},
+  $defs: {name: {type: 'string'}},
+} as const;
+export const rtOwnIdRef = () => runTypeFromJsonSchema(sOwnIdRef);
 
 // An unknown format value is the annotation the spec defaults it to: accepted,
 // the type stays a plain string, and nothing is silently half-checked.

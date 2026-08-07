@@ -282,14 +282,28 @@ describe('oneOf — exactly-one across the three authoring modes', () => {
     }>;
     const notPin: [WithNot] extends [never] ? true : false = true;
     expect(notPin).toBe(true);
+  });
+
+  it('a oneOf arm inside allOf rides the push-in lowering, never-arms filtered', () => {
+    // allOf: [{oneOf: [string, number]}, string] → OneOf<[string∧string,
+    // string∧number]> → the never branch filters → plain string. The pushed
+    // base holds uniformly, so the exactly-one count is unchanged — a string
+    // matches exactly the string arm.
     type InAllOf = FromJsonSchema<{
       readonly allOf: readonly [
         {readonly oneOf: readonly [{readonly type: 'string'}, {readonly type: 'number'}]},
         {readonly type: 'string'},
       ];
     }>;
-    const allOfPin: [InAllOf] extends [never] ? true : false = true;
+    const allOfPin: [InAllOf] extends [string] ? ([string] extends [InAllOf] ? true : false) : false = true;
     expect(allOfPin).toBe(true);
+    const fn = createValidateFn(
+      runTypeFromJsonSchema({
+        allOf: [{oneOf: [{type: 'string'}, {type: 'number'}]}, {type: 'string'}],
+      } as const)
+    );
+    expect(fn('s')).toBe(true);
+    expect(fn(12)).toBe(false);
   });
 
   it('DataOnly keeps the value space and the exclusivity survives the projection', () => {

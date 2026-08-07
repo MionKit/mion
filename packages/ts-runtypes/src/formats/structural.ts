@@ -178,6 +178,13 @@ type ObjectLiteralPart<P> = {readonly [K in Extract<keyof P, ObjectLiteralKeys>]
 // The `patternProperties` slot — matches the door's PatternPropsPart: each
 // key's `rt$key` is a stringFormat pattern brand over the source, `rt$value`
 // is the pattern's value type.
+//
+// `flags: ''` here is DELIBERATE and matches the runtime: the emitted key
+// sweeps compile `new RegExp(source)` with no flags, so the brand (which only
+// powers the mock sample pools) says the same. The door's `pattern` keyword
+// compiles with `'u'` instead — a documented divergence, kept because
+// flipping the key sweeps to unicode mode would throw at factory time on
+// legal legacy patterns that are invalid under `u`.
 type PatternPropsSlot<P> = P extends {patternProperties: infer M}
   ? {
       readonly [__rtPatternProps]?: {

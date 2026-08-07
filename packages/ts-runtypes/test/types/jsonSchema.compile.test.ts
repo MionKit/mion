@@ -96,7 +96,23 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  whole indeterminacy machinery (UnevalScopeIndeterminate, the contains walk,
  *  PropsEvaluatedSoFar, both poison stubs) is gone and the mode is a two-way
  *  choice. Biggest wins where those walks ran hottest: arrays 991→949, tuples
- *  2370→2317, `not` 4689→4640, objects 2828→2768. **/
+ *  2370→2317, `not` 4689→4640, objects 2828→2768.
+ *
+ *  A seventh REVIEWED EXCEPTION, +10 to +87 on four branches (arrays +20,
+ *  tuples +72, `not` +10, ExactJsonSchema +87), REPAID with room to spare by
+ *  two removals (objects 2730→2657, the annotations branch 1544→1300): three
+ *  features and one deletion landed together. minItems rides the
+ *  FormattedArray brand when no tuple can carry it (the BrandedMinItems
+ *  probes), boolean subschemas are accepted at every schema position (the
+ *  map/list boolean bypasses), cross-document `$ref`/`$dynamicRef` reject at
+ *  the key (the SameDocumentRef guard + RootId threading through every
+ *  ExactJsonSchema leg), and the readOnly→readonly property lift is GONE —
+ *  the ReadonlyPropKeys gate every object paid is deleted, which is where the
+ *  net total across all sixteen branches comes out LOWER than before.
+ *  Combinators rode +18 in the same landing (2677→2695): the boolean-arm
+ *  probes plus the allOf push-in — ONE oneOf-bearing arm now rides a
+ *  multi-arm allOf as `OneOf<[Rest∧C…]>` instead of resolving never, which
+ *  closed the official suite's whole "+ ref inside allOf / oneOf" group. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -234,7 +250,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      2677
+      2695
     );
   });
 
@@ -248,7 +264,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      949
+      969
     );
   });
 
@@ -292,7 +308,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2317
+      2389
     );
   });
 
@@ -318,6 +334,11 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Keyword-less object gate is Record<string, unknown>, not TS \`object\`
       // — the record check excludes arrays, matching JSON Schema's object kind.
       type _04 = Expect<Equal<FromJsonSchema<{readonly type: 'object'}>, Record<string, unknown>>>;
+      // The narrow index is load-bearing: this type is the validator's
+      // source (the emitted index sweep checks undeclared keys against
+      // exactly this value type). The differing-type mixed form over-narrows
+      // for ASSIGNABILITY on purpose; JsonSchemaType is the admitting
+      // projection.
       type _05 = Expect<Equal<
         FromJsonSchema<{
           readonly type: 'object';
@@ -340,10 +361,10 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         {a: string} & {readonly [__rtFormatName]?: 'formattedObject'; readonly [__rtFormatParams]?: {readonly closed: readonly ['a']}}
       >>;
       `,
-      // Raised 2697 → 2780 when the readOnly-lift gate landed (the per-object
-      // ReadonlyPropKeys check on the common path) — a priced feature cost, not
-      // a regression; the ratchet stays one-way from here.
-      2730
+      // Came back DOWN 2730 → 2657 when the readOnly-lift gate was removed
+      // (the per-object ReadonlyPropKeys check is gone); the widened mixed
+      // additionalProperties index rides inside the same figure.
+      2657
     );
   });
 
@@ -368,11 +389,14 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4640
+      4650
     );
   });
 
-  it('readOnly lift — a property schema with readOnly: true recovers a readonly member', () => {
+  it('readOnly / writeOnly — annotations at EVERY position, property schemas included', () => {
+    // The brief property-position readonly lift was dropped: zero validation,
+    // and it moved the structural id for a keyword 2020-12 declares
+    // non-constraining. The dropped-intent lint rule warns instead.
     check(
       `
       type _01 = Expect<Equal<
@@ -384,10 +408,8 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
           };
           readonly required: readonly ['id', 'name'];
         }>,
-        {readonly id: string; name: string}
+        {id: string; name: string}
       >>;
-      // Optional + readonly compose; writeOnly stays a read-and-ignored
-      // annotation; readOnly at a NON-property position is an annotation too.
       type _02 = Expect<Equal<
         FromJsonSchema<{
           readonly type: 'object';
@@ -396,14 +418,14 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
             readonly draft: {readonly type: 'string'; readonly writeOnly: true};
           };
         }>,
-        {readonly note?: string; draft?: string}
+        {note?: string; draft?: string}
       >>;
       type _03 = Expect<Equal<
         FromJsonSchema<{readonly type: 'string'; readonly readOnly: true}>,
         string
       >>;
       `,
-      1544
+      1300
     );
   });
 
@@ -530,7 +552,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       };
       type _04 = ExpectFalse<Assignable<NestedTypo, ExactJsonSchema<NestedTypo>>>;
       `,
-      791
+      878
     );
   });
 });

@@ -7,12 +7,12 @@
 // type-first convergence by construction. The value-first twins are real
 // across the board since M9-P6: RT.oneOf / RT.anyOf plus RT.formattedArray /
 // RT.formattedObject / RT.contains / RT.patternProperties / RT.propertyNames
-// (formats/structural.ts — the door's exact sentinel twins). The two
-// remaining 'not-supported' schema thunks are deliberate: bounded_items
-// (the door lowers minItems to a required tuple prefix, a different
-// encoding than the brand's minItems param) and closed_object (the
+// (formats/structural.ts — the door's exact sentinel twins). The one
+// remaining 'not-supported' schema thunk is deliberate: closed_object (the
 // closedness param is door-owned — its allowed-key list derives from the
-// schema's own properties and is never hand-authored).
+// schema's own properties and is never hand-authored). bounded_items became
+// a real value-first twin when bare minItems moved onto the brand param —
+// the door and RT.array({minItems}) now share one encoding and one id.
 import * as TF from '@ts-runtypes/core/formats';
 import type {FormatValidationCase} from './types.ts';
 import '@ts-runtypes/core/formats';
@@ -117,7 +117,7 @@ export const STRUCTURAL_FORMAT = {
     title: 'minItems / maxItems',
     description: 'JSON Schema `minItems: 1` + `maxItems: 2` — exact length bounds on a typed array.',
     validateNotes: [
-      'JSON Schema: the door lowers minItems to a required tuple prefix; RT.array(..., {minItems}) carries minItems as a brand param instead — same checks, different encoding (and id), so the columns stay door-authored.',
+      'JSON Schema: bare minItems rides the formattedArray brand — the same encoding RT.array(..., {minItems}) carries, one structural id across all three modes. Beside prefixItems the tuple still pads required slots.',
     ],
     validate: () => createValidateFn<BoundedStrings>(),
     standardSchema: () => createStandardSchema<BoundedStrings>(),
@@ -144,20 +144,24 @@ export const STRUCTURAL_FORMAT = {
       return createMockDataFn(v);
     },
     validateDataOnly: () => createValidateFn<DataOnly<BoundedStrings>>(),
-    validateSchema: 'not-supported',
+    validateSchema: () => createValidateFn(RT.array(TF.string(), {minItems: 1, maxItems: 2})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}, minItems: 1, maxItems: 2})),
     getValidationErrors: () => createGetValidationErrorsFn<BoundedStrings>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<BoundedStrings>>(),
-    getValidationErrorsSchema: 'not-supported',
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(TF.string(), {minItems: 1, maxItems: 2})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}, minItems: 1, maxItems: 2})),
     mockType: () => createMockDataFn<BoundedStrings>(),
     getSamples: () => ({valid: [['a'], ['a', 'b']], invalid: [[], ['a', 'b', 'c'], 'x']}),
-    // minItems lowers to a REQUIRED TUPLE PREFIX (an under-length array
-    // fails as a missing element, no format payload); only maxItems rides
-    // the formattedArray brand.
-    expectedFormatErrors: () => [null, {name: 'formattedArray', val: 2, formatPathTail: 'maxItems'}, null],
+    // Both bounds ride the formattedArray brand now — an under-length array
+    // fails with the minItems format payload, exactly like the over-length
+    // one fails with maxItems.
+    expectedFormatErrors: () => [
+      {name: 'formattedArray', val: 1, formatPathTail: 'minItems'},
+      {name: 'formattedArray', val: 2, formatPathTail: 'maxItems'},
+      null,
+    ],
   },
 
   key_counts: {

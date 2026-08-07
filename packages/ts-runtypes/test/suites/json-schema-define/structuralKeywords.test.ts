@@ -10,7 +10,7 @@ import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, createMockDataFn, getRunTypeId} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/schema';
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema, type FromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 describe('uniqueItems — 2020-12 deep equality', () => {
   it('rejects duplicates by JSON value, not identity', () => {
@@ -66,7 +66,7 @@ describe('maxItems — length bound via the formattedArray brand', () => {
     expect(fn([1, 2, 3])).toBe(true);
     expect(fn([1, 2, 3, 4])).toBe(false);
     const both = createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, minItems: 1, maxItems: 2}));
-    expect(both([])).toBe(false); // minItems via the padded tuple
+    expect(both([])).toBe(false); // minItems via the brand param
     expect(both([1])).toBe(true);
     expect(both([1, 2])).toBe(true);
     expect(both([1, 2, 3])).toBe(false);
@@ -660,6 +660,73 @@ describe('boolean subschemas in array positions (2020-12 core §4.3.2)', () => {
     expect(getRunTypeId(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'number'}], items: true}))).toBe(
       getRunTypeId(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'number'}]}))
     );
+  });
+});
+
+describe('boolean subschemas in combinator + map positions (2020-12 core §4.3.2)', () => {
+  it('allOf with a false arm accepts nothing; a true arm is the identity', () => {
+    const allFalse = createValidateFn(runTypeFromJsonSchema({allOf: [false, false]} as const));
+    expect(allFalse(1)).toBe(false);
+    expect(allFalse({})).toBe(false);
+    const someFalse = createValidateFn(runTypeFromJsonSchema({allOf: [{type: 'number'}, false]} as const));
+    expect(someFalse(1)).toBe(false);
+    expect(getRunTypeId(runTypeFromJsonSchema({allOf: [{type: 'number'}, true]} as const))).toBe(
+      getRunTypeId(runTypeFromJsonSchema({type: 'number'}))
+    );
+  });
+
+  it('anyOf boolean arms: any true arm opens the union, all-false closes it', () => {
+    const allFalse = createValidateFn(runTypeFromJsonSchema({anyOf: [false, false]} as const));
+    expect(allFalse(1)).toBe(false);
+    const withTrue = createValidateFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, true]} as const));
+    expect(withTrue(12)).toBe(true);
+  });
+
+  it('oneOf boolean arms count per the spec', () => {
+    // One true arm among falses: exactly-one always holds (the false arms
+    // can never be the matching one — they filter out of the carrier).
+    const oneTrue = createValidateFn(runTypeFromJsonSchema({oneOf: [true, false, false]} as const));
+    expect(oneTrue('anything')).toBe(true);
+    expect(oneTrue(null)).toBe(true);
+    // All true: every value matches every arm — never exactly one.
+    const allTrue = createValidateFn(runTypeFromJsonSchema({oneOf: [true, true, true]} as const));
+    expect(allTrue('x')).toBe(false);
+    // Mixed: a true arm turns a matching typed arm into a double match.
+    const mixed = createValidateFn(runTypeFromJsonSchema({oneOf: [{type: 'string'}, true]} as const));
+    expect(mixed(12)).toBe(true); // only the true arm matches
+    expect(mixed('s')).toBe(false); // both arms match
+  });
+
+  it('a false property value forbids the key; $defs booleans are referenceable', () => {
+    const banned = createValidateFn(runTypeFromJsonSchema({type: 'object', properties: {free: true, banned: false}} as const));
+    expect(banned({free: 42})).toBe(true);
+    expect(banned({banned: 1})).toBe(false);
+    expect(banned({})).toBe(true);
+    const refd = createValidateFn(
+      runTypeFromJsonSchema({type: 'object', properties: {a: {$ref: '#/$defs/always'}}, $defs: {always: true}} as const)
+    );
+    expect(refd({a: 'anything'})).toBe(true);
+  });
+
+  it('a oneOf-bearing arm rides a multi-arm allOf (the push-in lowering)', () => {
+    // allOf: [A, {oneOf: [C, D]}] → OneOf<[A∧C, A∧D]> — the pushed base
+    // holds uniformly, so the match count is unchanged.
+    const fn = createValidateFn(
+      runTypeFromJsonSchema({
+        allOf: [{type: 'object', properties: {a: {type: 'number'}}}, {oneOf: [{required: ['x']}, {required: ['y']}]}],
+      } as const)
+    );
+    expect(fn({a: 1, x: 1})).toBe(true);
+    expect(fn({a: 1, y: 1})).toBe(true);
+    expect(fn({a: 1})).toBe(false); // no arm matches
+    expect(fn({a: 1, x: 1, y: 1})).toBe(false); // both arms match
+  });
+
+  it('both marker shapes agree on a boolean-arm schema (hash equivalence)', () => {
+    const statically = getRunTypeId(runTypeFromJsonSchema({allOf: [{type: 'number'}, true]} as const));
+    const value = 3 as FromJsonSchema<{readonly allOf: readonly [{readonly type: 'number'}, true]}>;
+    expect(getRunTypeId(value)).toBe(statically);
+    expect(getRunTypeId<FromJsonSchema<{readonly allOf: readonly [{readonly type: 'number'}, true]}>>()).toBe(statically);
   });
 });
 

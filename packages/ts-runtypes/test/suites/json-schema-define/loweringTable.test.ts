@@ -8,8 +8,10 @@
 // changes the recovered type from being filed under `ignored`.
 //
 // That gap is not hypothetical. It is what this file was written to catch:
-// `readOnly` was filed as `ignored: annotation` when it actually lifts a
-// property to a `readonly` member.
+// `readOnly` was once filed as `ignored: annotation` while a property-position
+// lift moved the id. (The lift itself was later removed on purpose — an
+// id-moving annotation was the deeper wrong — and this file now holds the row
+// to its `ignored` claim in the other direction.)
 //
 // Each group is checked against the behaviour its channel claims, with the
 // structural id as the arbiter — the id is the whole point of the mapping, and
@@ -36,16 +38,17 @@ import type {SchemaLoweringByKeyword} from '../../../src/json-schema/fromJsonSch
 
 // Tie the behaviour below to the ROW TEXT, so the two cannot drift apart. The
 // behavioural cases prove what a keyword does; these pin what its row CLAIMS it
-// does. Re-filing `readOnly` back under `ignored` — the exact mistake this file
-// exists for — stops compiling here, instead of leaving a test that quietly
-// proves the opposite of what the table says.
+// does. Quietly re-introducing a readOnly lift while the row says `ignored` —
+// the mirror image of the mistake this file exists for — stops compiling here,
+// instead of leaving a test that quietly proves the opposite of the table.
 type ChannelOf<K extends keyof SchemaLoweringByKeyword> = SchemaLoweringByKeyword[K] extends `${infer Channel}:${string}`
   ? Channel
   : never;
 type ExpectChannel<K extends keyof SchemaLoweringByKeyword, Channel extends ChannelOf<K>> = Channel;
 
-type _readOnlyIsShape = ExpectChannel<'readOnly', 'shape'>;
+type _readOnlyIsIgnored = ExpectChannel<'readOnly', 'ignored'>;
 type _writeOnlyIsIgnored = ExpectChannel<'writeOnly', 'ignored'>;
+type _minItemsIsShapeAndParams = ExpectChannel<'minItems', 'shape+params'>;
 type _titleIsIgnored = ExpectChannel<'title', 'ignored'>;
 type _defaultIsIgnored = ExpectChannel<'default', 'ignored'>;
 type _typeIsShape = ExpectChannel<'type', 'shape'>;
@@ -97,19 +100,35 @@ describe('SchemaLoweringByKeyword — rows filed as `ignored` really are ignored
 });
 
 describe('SchemaLoweringByKeyword — rows that claim to lower really do', () => {
-  it('readOnly is NOT an annotation: it lifts the member to readonly', () => {
-    // The row this file was written for. `readOnly` sits in the `shape`
-    // channel, so it must move the id at a property position…
+  it('readOnly is an annotation again — at property positions too', () => {
+    // The row this file was written FOR once claimed `ignored` while a
+    // property-position lift moved the id. The lift is deliberately gone
+    // (zero validation; an id-moving annotation), so now the row claims
+    // `ignored` and the id must hold still — at every position.
     const plain = getRunTypeId(runTypeFromJsonSchema({type: 'object', properties: {id: {type: 'string'}}, required: ['id']}));
-    const lifted = getRunTypeId(
+    const annotated = getRunTypeId(
       runTypeFromJsonSchema({type: 'object', properties: {id: {type: 'string', readOnly: true}}, required: ['id']})
     );
-    expect(lifted).not.toBe(plain);
-    // …while its `writeOnly` sibling, filed as an annotation, must not.
+    expect(annotated).toBe(plain);
     const written = getRunTypeId(
       runTypeFromJsonSchema({type: 'object', properties: {id: {type: 'string', writeOnly: true}}, required: ['id']})
     );
     expect(written).toBe(plain);
+    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', readOnly: true}))).toBe(
+      getRunTypeId(runTypeFromJsonSchema({type: 'string'}))
+    );
+  });
+
+  it('minItems converges with the value-first brand encoding (no tuple in scope)', () => {
+    // The dual-channel row: bare minItems rides FormattedArrayParams.minItems
+    // — the SAME encoding RT.array carries — so it moves the id off the bare
+    // array and lands exactly where the builder does.
+    const bare = getRunTypeId(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}}));
+    const bounded = getRunTypeId(runTypeFromJsonSchema({type: 'array', items: {type: 'string'}, minItems: 1}));
+    expect(bounded).not.toBe(bare);
+    // Beside prefixItems the tuple keeps carrying it (required slots).
+    const tuple = getRunTypeId(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}], minItems: 1}));
+    expect(tuple).toBe(getRunTypeId<[string, ...unknown[]]>());
   });
 
   it('shape keywords move the id', () => {

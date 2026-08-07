@@ -35,7 +35,10 @@ export function runTypeFromJsonSchema<const S extends boolean>(
   id?: InjectRunTypeId<FromJsonSchema<S>>
 ): RunType<FromJsonSchema<S>>;
 export function runTypeFromJsonSchema<const S extends RootJsonSchemaInput>(
-  schema: CompTimeArgs<ExactJsonSchema<S, RootJsonSchemaInput>>,
+  // The third argument threads the root's own `$id` into the deep guard so a
+  // `$ref` spelling the same document through its `$id` base stays accepted
+  // while every OTHER document's URI rejects at the key.
+  schema: CompTimeArgs<ExactJsonSchema<S, RootJsonSchemaInput, S extends {$id: infer Id extends string} ? Id : never>>,
   id?: InjectRunTypeId<FromJsonSchema<S>>
 ): RunType<FromJsonSchema<S>>;
 export function runTypeFromJsonSchema(schema: JsonSchemaInput | boolean, id?: InjectRunTypeId<unknown>): RunType<unknown> {

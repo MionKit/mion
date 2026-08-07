@@ -88,7 +88,12 @@ export type SchemaTypeName = 'string' | 'number' | 'integer' | 'boolean' | 'null
  *  scope. **/
 export interface JsonSchemaInput {
   readonly type?: SchemaTypeName | readonly SchemaTypeName[];
-  readonly properties?: {readonly [key: string]: JsonSchemaInput};
+  // Boolean subschemas are legal at EVERY schema position (2020-12 core
+  // §4.3.2): `true` ≡ `{}` (accepts everything), `false` ≡ accepts nothing.
+  // A `false` property value means the key may not be present; a `false`
+  // combinator arm contributes never; a boolean `$defs` entry is a real
+  // referenceable target.
+  readonly properties?: {readonly [key: string]: JsonSchemaInput | boolean};
   readonly required?: readonly string[];
   readonly additionalProperties?: JsonSchemaInput | boolean;
   // Boolean SCHEMAS are legal wherever a schema is (2020-12 core §4.3.2):
@@ -120,7 +125,7 @@ export interface JsonSchemaInput {
   readonly contentMediaType?: 'application/json';
   // Keys matching each pattern must have values valid against its schema;
   // propertyNames validates every KEY (as a string) against a subschema.
-  readonly patternProperties?: {readonly [pattern: string]: JsonSchemaInput};
+  readonly patternProperties?: {readonly [pattern: string]: JsonSchemaInput | boolean};
   readonly propertyNames?: JsonSchemaInput | boolean;
   // Same-document anchors: `$anchor` (and `$dynamicAnchor`, which also
   // registers as a plain anchor) declare `#name` targets; `$ref: '#name'`
@@ -136,10 +141,15 @@ export interface JsonSchemaInput {
   readonly unevaluatedItems?: JsonSchemaInput | boolean;
   readonly enum?: readonly (string | number | boolean | null)[];
   readonly const?: string | number | boolean | null;
-  readonly anyOf?: readonly JsonSchemaInput[];
-  readonly oneOf?: readonly JsonSchemaInput[];
-  readonly allOf?: readonly JsonSchemaInput[];
-  readonly $defs?: {readonly [name: string]: JsonSchemaInput};
+  readonly anyOf?: readonly (JsonSchemaInput | boolean)[];
+  readonly oneOf?: readonly (JsonSchemaInput | boolean)[];
+  readonly allOf?: readonly (JsonSchemaInput | boolean)[];
+  readonly $defs?: {readonly [name: string]: JsonSchemaInput | boolean};
+  // Same-document references only: `#`, `#/…` pointers and `#name` anchors,
+  // plus the root's own `$id` spellings of the same. A ref naming ANOTHER
+  // document is rejected at the key by ExactJsonSchema — resolving it would
+  // put a network fetch inside type-checking, and accepting it silently
+  // would drop every constraint the target declares.
   readonly $ref?: string;
   // format: the 9 enforced keywords stay autocompleted; any OTHER value is
   // accepted as the annotation 2020-12 defaults it to (the type falls back to
@@ -203,46 +213,110 @@ export interface RootJsonSchemaInput extends JsonSchemaInput {
  *  unchanged. Wrapped INSIDE the builder's `CompTimeArgs<…>` type argument, same
  *  as `ExactParams`, so the annotation stays a single `CompTimeArgs<…>`
  *  reference the Go scanner detects syntactically. **/
-export type ExactJsonSchema<S, Vocab = JsonSchemaInput> = S & {
+export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> = S & {
   readonly [K in Exclude<keyof S, keyof Vocab>]: never;
 } & (S extends {
     properties: infer P;
   }
-    ? {readonly properties: ExactJsonSchemaMap<P>}
+    ? {readonly properties: ExactJsonSchemaMap<P, RootId>}
     : unknown) &
-  (S extends {items: infer I} ? (I extends boolean ? unknown : {readonly items: ExactJsonSchema<I>}) : unknown) &
-  (S extends {prefixItems: infer P} ? {readonly prefixItems: ExactJsonSchemaList<P>} : unknown) &
+  (S extends {items: infer I}
+    ? I extends boolean
+      ? unknown
+      : {readonly items: ExactJsonSchema<I, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {prefixItems: infer P} ? {readonly prefixItems: ExactJsonSchemaList<P, RootId>} : unknown) &
   (S extends {additionalProperties: infer A}
     ? A extends boolean
       ? unknown
-      : {readonly additionalProperties: ExactJsonSchema<A>}
+      : {readonly additionalProperties: ExactJsonSchema<A, JsonSchemaInput, RootId>}
     : unknown) &
-  (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M>} : unknown) &
-  (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M>} : unknown) &
-  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M>} : unknown) &
-  (S extends {not: infer N} ? (N extends boolean ? unknown : {readonly not: ExactJsonSchema<N>}) : unknown) &
-  (S extends {contains: infer N} ? (N extends boolean ? unknown : {readonly contains: ExactJsonSchema<N>}) : unknown) &
-  (S extends {patternProperties: infer P} ? {readonly patternProperties: ExactJsonSchemaMap<P>} : unknown) &
-  (S extends {propertyNames: infer N} ? (N extends boolean ? unknown : {readonly propertyNames: ExactJsonSchema<N>}) : unknown) &
-  (S extends {if: infer N} ? (N extends boolean ? unknown : {readonly if: ExactJsonSchema<N>}) : unknown) &
-  (S extends {then: infer N} ? (N extends boolean ? unknown : {readonly then: ExactJsonSchema<N>}) : unknown) &
-  (S extends {else: infer N} ? (N extends boolean ? unknown : {readonly else: ExactJsonSchema<N>}) : unknown) &
-  (S extends {dependentSchemas: infer D} ? {readonly dependentSchemas: ExactJsonSchemaBoolMap<D>} : unknown) &
-  (S extends {$defs: infer D} ? {readonly $defs: ExactJsonSchemaMap<D>} : unknown);
+  (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+  (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+  (S extends {not: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly not: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {contains: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly contains: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {patternProperties: infer P} ? {readonly patternProperties: ExactJsonSchemaMap<P, RootId>} : unknown) &
+  (S extends {propertyNames: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly propertyNames: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {if: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly if: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {then: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly then: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {else: infer N}
+    ? N extends boolean
+      ? unknown
+      : {readonly else: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+    : unknown) &
+  (S extends {dependentSchemas: infer D} ? {readonly dependentSchemas: ExactJsonSchemaMap<D, RootId>} : unknown) &
+  (S extends {$defs: infer D} ? {readonly $defs: ExactJsonSchemaMap<D, RootId>} : unknown) &
+  // Cross-document references reject AT THE KEY — the guide's promise made
+  // true. Same-document spellings (`#…`, or the root's own `$id` base) pass.
+  (S extends {$ref: infer R extends string}
+    ? SameDocumentRef<R, RootId> extends true
+      ? unknown
+      : {readonly $ref: never}
+    : unknown) &
+  (S extends {$dynamicRef: infer R extends string}
+    ? R extends `#${string}`
+      ? unknown
+      : string extends R
+        ? unknown
+        : {readonly $dynamicRef: never}
+    : unknown);
 
-/** `properties` / `$defs` map recursion for {@link ExactJsonSchema}
- *  (homomorphic, so the literal's readonly/optional modifiers flow through
- *  unchanged). **/
-type ExactJsonSchemaMap<P> = {[K in keyof P]: ExactJsonSchema<P[K]>};
+/** Same-document test for a `$ref` value: fragments (`#…`) always are; an
+ *  absolute base qualifies only when it repeats the root's own `$id`. The
+ *  `string extends R` guard keeps the check inert while tsc probes the
+ *  builder's overload with DEFERRED parameters (non-literal R must never
+ *  reject — the literal call site re-checks with the real value). **/
+type SameDocumentRef<R extends string, RootId> = string extends R
+  ? true
+  : R extends '#' | `#${string}`
+    ? true
+    : // Tuple-wrapped on purpose: a naked `RootId extends string` DISTRIBUTES,
+      // and the no-$id case (RootId = never) would collapse the whole check to
+      // never — which `extends true` then accepts. `[never]` stays put.
+      [RootId] extends [string]
+      ? [string] extends [RootId]
+        ? true
+        : [R] extends [RootId | `${RootId}#${string}`]
+          ? true
+          : false
+      : false;
 
-/** `dependentSchemas` map recursion — values may be boolean schemas. **/
-type ExactJsonSchemaBoolMap<P> = {[K in keyof P]: P[K] extends boolean ? P[K] : ExactJsonSchema<P[K]>};
+/** `properties` / `patternProperties` / `dependentSchemas` / `$defs` map
+ *  recursion for {@link ExactJsonSchema} (homomorphic, so the literal's
+ *  readonly/optional modifiers flow through unchanged). Boolean values pass
+ *  through unwrapped — `ExactJsonSchema<true>` would fold boolean's own
+ *  method keys into the excess-key guard. **/
+type ExactJsonSchemaMap<P, RootId> = {
+  [K in keyof P]: P[K] extends boolean ? P[K] : ExactJsonSchema<P[K], JsonSchemaInput, RootId>;
+};
 
 /** `anyOf` / `prefixItems` member recursion for {@link ExactJsonSchema}
  *  (homomorphic over the `const`-inferred readonly tuple, preserving its
- *  shape). Boolean members pass through unwrapped — `ExactJsonSchema<true>`
- *  would fold boolean's own method keys into the excess-key guard. **/
-type ExactJsonSchemaList<M> = {[I in keyof M]: M[I] extends boolean ? M[I] : ExactJsonSchema<M[I]>};
+ *  shape). Boolean members pass through unwrapped, same as the map. **/
+type ExactJsonSchemaList<M, RootId> = {
+  [I in keyof M]: M[I] extends boolean ? M[I] : ExactJsonSchema<M[I], JsonSchemaInput, RootId>;
+};
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
@@ -386,36 +460,19 @@ type IntegerFrom<S> = NumberFormat<Flatten<NumberParamsFrom<S> & {integer: true}
 // optionality inversion (quirk §5.1 of the phase-1 mapping). Two homomorphic
 // groups (required / optional), flattened into one literal.
 //
-// `readOnly: true` on a PROPERTY schema lifts to the `readonly` modifier —
-// the one annotation with a faithful TS spelling. A readonly member is part
-// of the type's identity (as in TypeScript itself), so the lifted type
-// converges with the hand-written READONLY-membered twin; the generated
-// function bodies are unchanged (the modifier never alters emitted checks).
-// Gated on
-// ReadonlyPropKeys so the common no-readOnly object keeps the two-group cost;
-// a readOnly-bearing object splits each group by modifier (four groups, one
-// Flatten — Flatten is homomorphic, so the modifiers survive it). At every
-// NON-property position (root, items, combinator members) readOnly stays the
-// read-and-ignored annotation the spec defaults it to.
-type ReadonlyPropKeys<P> = {[K in keyof P]: P[K] extends {readOnly: true} ? K : never}[keyof P];
-type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = [ReadonlyPropKeys<P>] extends [never]
-  ? Flatten<
-      {
-        -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
-      } & {
-        -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
-      }
-    >
-  : ObjectFromPropsSplit<P, Req, ReadonlyPropKeys<P>, Root, F>;
-type ObjectFromPropsSplit<P, Req extends PropertyKey, RO extends PropertyKey, Root, F extends [unknown]> = Flatten<
+// `readOnly` is an ANNOTATION at every position, property schemas included.
+// It briefly lifted to the `readonly` modifier at property positions; the
+// lift was dropped on purpose: it validated nothing, it moved the structural
+// id for a keyword 2020-12 declares non-constraining, and it fired at
+// property positions only while the same intent everywhere else (root,
+// items, combinator members) stayed silently ignored. Value-first authors
+// who want the modifier spell it directly (`RT.propMod({readonly: true},
+// …)`); schema authors get the dropped-intent lint warning instead.
+type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = Flatten<
   {
-    -readonly [K in keyof P as K extends Req ? (K extends RO ? never : K) : never]: FromJsonSchemaIn<P[K], Root, F>;
+    -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
   } & {
-    readonly [K in keyof P as K extends Req ? (K extends RO ? K : never) : never]: FromJsonSchemaIn<P[K], Root, F>;
-  } & {
-    -readonly [K in keyof P as K extends Req ? never : K extends RO ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
-  } & {
-    readonly [K in keyof P as K extends Req ? never : K extends RO ? K : never]?: FromJsonSchemaIn<P[K], Root, F>;
+    -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
   }
 >;
 // The object-family keywords with no TS spelling ride the formattedObject
@@ -513,7 +570,13 @@ type UnevalItemGroupsOf<S, Root, F extends [unknown]> = readonly [
   ...ItemArmGroups<S extends {anyOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
   ...ItemArmGroups<S extends {oneOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
   ...ItemIfGroups<S, Root, F>,
+  // Same recursion as the key side: an allOf member's conditional
+  // contributors fire under their own guards at this level.
+  ...AllOfMemberItemGroups<AllOfMembersOf<S>, Root, F>,
 ];
+type AllOfMemberItemGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
+  ? readonly [...UnevalItemGroupsOf<Head, Root, F>, ...AllOfMemberItemGroups<Rest, Root, F>]
+  : readonly [];
 type ItemArmGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
   ? readonly [GuardedItemGroup<{readonly when: FromJsonSchemaIn<Head, Root, F>}, Head, Root>, ...ItemArmGroups<Rest, Root, F>]
   : readonly [];
@@ -566,7 +629,16 @@ type UnevalGroupsOf<S, Root, F extends [unknown]> = readonly [
   ...ArmGroups<S extends {oneOf: infer M extends readonly unknown[]} ? M : readonly [], Root, F>,
   ...IfGroups<S, Root, F>,
   ...DepSchemaGroups<S extends {dependentSchemas: infer D} ? D : never, Root, F>,
+  // An allOf member must pass anyway, so ITS conditional contributors fire
+  // under the same guards at this level — without this recursion a `oneOf`
+  // nested inside an allOf arm admitted no keys at all and the sweep
+  // over-rejected (the official suite's "unevaluatedProperties + ref inside
+  // allOf / oneOf").
+  ...AllOfMemberGroups<AllOfMembersOf<S>, Root, F>,
 ];
+type AllOfMemberGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
+  ? readonly [...UnevalGroupsOf<Head, Root, F>, ...AllOfMemberGroups<Rest, Root, F>]
+  : readonly [];
 type ArmGroups<M, Root, F extends [unknown]> = M extends readonly [infer Head, ...infer Rest]
   ? readonly [GuardedGroup<{readonly when: FromJsonSchemaIn<Head, Root, F>}, Head, Root>, ...ArmGroups<Rest, Root, F>]
   : readonly [];
@@ -886,9 +958,19 @@ type ObjectArmFrom<S, Root, F extends [unknown]> =
 
 // `additionalProperties: <schema>` ALONGSIDE `properties` intersects the
 // declared props with the index-signature record (01-phase1-mapping §3.2 — the
-// mixed form). The boolean forms contribute nothing HERE: `true`/omitted stay
-// open, and `false` is enforced by the formattedObject closedness brand that
-// ObjectFrom layers on top (the type level cannot subtract keys).
+// mixed form). The narrow index is DELIBERATE and load-bearing: this type is
+// the validator's source, and the emitted index-signature sweep checks
+// undeclared keys against exactly this value type — widening it here weakens
+// the validator (proven by the official suite's "an additional invalid
+// property is invalid"). The price is a known TYPE-level over-narrowing for
+// the differing-type mixed form ({a: 'x', b: 1} does not ASSIGN, though it
+// validates): TS cannot say "every key except the declared ones". The
+// admitting projection is JsonSchemaType's job — the annotation-grade clean
+// type is never reflected, so IT can widen the index over the declared
+// members without touching any validator. The boolean forms contribute
+// nothing HERE: `true`/omitted stay open, and `false` is enforced by the
+// formattedObject closedness brand that ObjectFrom layers on top (the type
+// level cannot subtract keys).
 type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additionalProperties: infer A}
   ? A extends boolean
     ? Props
@@ -907,45 +989,63 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additional
 // `minItems` beyond the prefix length keeps REQUIRING: the tuple is padded
 // with members drawn from the `items` type (unknown when open, never when
 // `items: false` — a closed prefix shorter than minItems is a provably empty
-// schema) until the required count is met, so a minItems without prefixItems
-// expands to `[T, T, ...T[]]` instead of silently dropping the bound.
-// uniqueItems and maxItems have no tuple spelling (uniqueItems is a value
-// relation; a maxItems tuple truncation cannot compose with the required
-// pad), so they ride the formattedArray brand — the shape stays the tightest
-// tuple the OTHER keywords produce and the validator gains the exact length
-// / deep-equality checks.
+// schema) until the required count is met.
+// WITHOUT prefixItems (and with `items` not `false`) minItems rides
+// `FormattedArrayParams.minItems` instead of padding a tuple — the same
+// encoding RT.array({minItems}) always carried, so the door, the value-first
+// builder and the branded type-first spelling converge on ONE structural id
+// (the padded-tuple era gave the door a private second encoding for the same
+// constraint). uniqueItems and maxItems have no tuple spelling either
+// (uniqueItems is a value relation; a maxItems tuple truncation cannot
+// compose with the required pad), so they ride the brand the same way.
 // The array keyword bag handed to the imported `FormattedArray`: the literal
-// bounds (uniqueItems / maxItems, incl. the unevaluatedItems-derived maxItems)
-// plus the `contains` element type (already lowered) and its occurrence bounds.
-// `minItems` stays in the tuple shape, never the brand. `FormattedArray` splits
-// this bag into the formattedArray brand + the `__rtContains` child sentinel,
+// bounds (minItems when brand-borne, uniqueItems / maxItems, incl. the
+// unevaluatedItems-derived maxItems) plus the `contains` element type
+// (already lowered) and its occurrence bounds. `FormattedArray` splits this
+// bag into the formattedArray brand + the `__rtContains` child sentinel,
 // exactly the two members the door used to spell by hand.
 type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
-  (S extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown) &
+  ([BrandedMinItems<S>] extends [never] ? unknown : {readonly minItems: BrandedMinItems<S>}) &
+    (S extends {uniqueItems: true} ? {readonly uniqueItems: true} : unknown) &
     (S extends {maxItems: infer N extends number} ? {readonly maxItems: N} : unknown) &
     UnevalItemsParams<S, Root, F> &
     (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
     (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
     (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown)
 >;
+// minItems rides the brand exactly when no tuple shape can carry it: no
+// prefixItems (those keep the required-slot pad) and `items` not `false` (a
+// closed tuple below its minItems is the provably-empty pad). 0 is the
+// keyword's no-op spelling and stays off the brand like an absent keyword.
+type BrandedMinItems<S> = S extends {minItems: infer N extends number}
+  ? S extends {prefixItems: unknown}
+    ? never
+    : S extends {items: false}
+      ? never
+      : N extends 0
+        ? never
+        : N
+  : never;
 // Fast path: an array with none of the structural keywords is just its tuple/
 // array shape (no brand, no contains slot) — so it never pays the FormattedArray
 // wrapper, keeping the common `{type: 'array', items: …}` case cheap.
 type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems';
 type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKeys>] extends [never]
-  ? ArrayShapeFrom<S, Root, F>
+  ? [BrandedMinItems<S>] extends [never]
+    ? ArrayShapeFrom<S, Root, F>
+    : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, {readonly minItems: BrandedMinItems<S>}>
   : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, ArrayAllParams<S, Root, F>>;
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
   prefixItems: infer P extends readonly (JsonSchemaInput | boolean)[];
 }
   ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, [], Root, F>
-  : MinItemsOf<S> extends 0
-    ? S extends {items: infer I}
-      ? I extends false
+  : S extends {items: infer I}
+    ? I extends false
+      ? MinItemsOf<S> extends 0
         ? []
-        : FromJsonSchemaIn<I, Root, F>[]
-      : unknown[]
-    : BuildTupleRequired<[], MinItemsOf<S>, RestOf<S>, [], Root, F>;
+        : BuildTupleRequired<[], MinItemsOf<S>, false, [], Root, F>
+      : FromJsonSchemaIn<I, Root, F>[]
+    : unknown[];
 type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
 type RestOf<S> = S extends {items: infer I} ? I : 'rt$open';
 type BuildTupleRequired<
@@ -998,14 +1098,17 @@ type FromAnyOf<M, Root, F extends [unknown]> = M extends readonly [infer Head, .
   ? FromJsonSchemaIn<Head, Root, F> | FromAnyOf<Tail, Root, F>
   : never;
 
-// allOf: arm-by-arm intersection (unknown is the & identity). A oneOf-bearing
-// arm cannot ride a multi-arm conjunction — its sentinel'd union only
-// classifies standalone, and intersecting it with a second constraining arm
-// would silently drop the exclusivity — so that shape resolves never (loud);
-// a single-arm allOf wrap stays fine.
+// allOf: arm-by-arm intersection (unknown is the & identity). ONE
+// oneOf-bearing arm rides a multi-arm conjunction by the same push-in
+// argument the sibling base uses: the other arms' conjunction holds for
+// every branch or for none, so pushing it INTO each branch never changes
+// the match COUNT — `allOf: [A, B, {oneOf: [C, D]}]` lowers to
+// `OneOf<[A∧B∧C, A∧B∧D]>`. TWO exclusivity carriers still resolve never
+// (their counts cannot merge — loud over silently dropping one), as does an
+// arm mixing oneOf with its own constraining siblings.
 type FromAllOf<M, Root, F extends [unknown]> = M extends readonly [unknown, unknown, ...unknown[]]
   ? HasOneOfArm<M> extends true
-    ? never
+    ? FromAllOfWithOneOf<M, Root, F>
     : FromAllOfRec<M, Root, F>
   : FromAllOfRec<M, Root, F>;
 type HasOneOfArm<M> = M extends readonly [infer Head, ...infer Tail]
@@ -1013,6 +1116,34 @@ type HasOneOfArm<M> = M extends readonly [infer Head, ...infer Tail]
     ? true
     : HasOneOfArm<Tail>
   : false;
+// Split the FIRST oneOf-bearing arm from its siblings, preserving order.
+type OneOfArmSplit<M, Before extends readonly unknown[] = readonly []> = M extends readonly [infer Head, ...infer Rest]
+  ? Head extends {oneOf: unknown}
+    ? readonly [readonly [...Before, ...Rest], Head]
+    : OneOfArmSplit<Rest, readonly [...Before, Head]>
+  : never;
+type FromAllOfWithOneOf<M, Root, F extends [unknown]> =
+  OneOfArmSplit<M> extends readonly [infer Rest extends readonly unknown[], infer Arm]
+    ? HasOneOfArm<Rest> extends true
+      ? never
+      : Arm extends {oneOf: infer Branches extends readonly (JsonSchemaInput | boolean)[]}
+        ? Exclude<keyof Arm, 'oneOf' | NonKindKeys> extends never
+          ? AllOfOneOfLowered<Branches, Rest, Root, F>
+          : never
+        : never
+    : never;
+// The push itself. A lazy ($ref-bearing) sibling set rides the bare `&` so
+// the fixpoint is never probed (the FromAllOfRaw discipline); a lazy-free one
+// gets Conj's cross-kind pruning, same as the sibling-base push.
+type AllOfOneOfLowered<Branches, Rest extends readonly unknown[], Root, F extends [unknown]> = Branches extends readonly []
+  ? never
+  : Branches extends readonly [infer Only extends JsonSchemaInput | boolean]
+    ? AllOfPushOne<Only, Rest, Root, F>
+    : OneOfLive<FilterNeverBranches<{-readonly [K in keyof Branches]: AllOfPushOne<Branches[K], Rest, Root, F>}>>;
+type AllOfPushOne<Branch, Rest extends readonly unknown[], Root, F extends [unknown]> =
+  HasLazyArm<Rest> extends true
+    ? FromAllOfRaw<Rest, Root, F> & FromJsonSchemaIn<Branch, Root, F>
+    : Conj<FromAllOfConj<Rest, Root, F>, FromJsonSchemaIn<Branch, Root, F>>;
 // Arms combine through Conj, not a bare `&`: a type-LESS arm lowers to the
 // six-kind union, and `(string | Number<max> | …) & (string | Number<min> | …)`
 // stays unreduced — a shape the collapse cannot classify, so both bounds are
@@ -1825,13 +1956,21 @@ type AnchorScan<Name extends string, D, Ks, Root, F extends [unknown]> = Ks exte
         : AnchorScan<Name, D, Rest, Root, F>
     : AnchorScan<Name, D, Rest, Root, F>
   : never;
-// $dynamicRef rides the same lazy discipline as $ref (never probed).
+// $dynamicRef rides the same lazy discipline as $ref (never probed). A
+// POINTER fragment (`#/…`) names a target with no dynamic anchor, where the
+// spec says the keyword behaves exactly like $ref — so it walks the document
+// the same way instead of failing an anchor scan.
 type DynRefPart<S, Root, F extends [unknown]> = S extends {$dynamicRef: '#'}
   ? F[0]
-  : S extends {$dynamicRef: `#${infer Name}`}
-    ? AnchorFrom<Name, Root, F>
-    : unknown;
-type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends readonly JsonSchemaInput[]}
+  : S extends {$dynamicRef: `#/${infer Pointer}`}
+    ? PointerTargetFrom<Pointer, Root, F>
+    : S extends {$dynamicRef: `#${infer Name}`}
+      ? AnchorFrom<Name, Root, F>
+      : unknown;
+// The member probes accept `boolean` alongside the schema objects (2020-12
+// core §4.3.2) — an all-boolean list failing the probe would silently
+// contribute NOTHING, turning `allOf: [false, false]` into unknown.
+type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
   ? FromAnyOf<M, Root, F>
   : unknown;
 // oneOf — EXACTLY-ONE. The branch tuple rides the `__rtOneOf` sentinel so
@@ -1853,7 +1992,7 @@ type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends
 // must never probe. Everything the Core itself asserts — the kind gate, the
 // literals, and the other two combinators — is pushable.
 type OneOfHardKeys = 'not' | 'if' | 'then' | 'else' | 'dependentSchemas' | 'dependentRequired' | '$ref' | '$dynamicRef';
-type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly JsonSchemaInput[]}
+type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
   ? Extract<keyof S, OneOfHardKeys> extends never
     ? OneOfLowered<M, OneOfBase<S, Root, F>, Root, F>
     : never
@@ -1879,10 +2018,25 @@ type OneOfBase<S, Root, F extends [unknown]> =
 // has always had.
 type OneOfLowered<M, Base, Root, F extends [unknown]> = M extends readonly []
   ? never
-  : M extends readonly [infer Only extends JsonSchemaInput]
+  : M extends readonly [infer Only extends JsonSchemaInput | boolean]
     ? Conj<Base, FromJsonSchemaIn<Only, Root, F>>
-    : FromOneOfBranches<M, Base, Root, F> extends infer Branches extends readonly [unknown, unknown, ...unknown[]]
-      ? OneOf<Branches>
+    : OneOfLive<FilterNeverBranches<FromOneOfBranches<M, Base, Root, F>>>;
+// A `false` branch (never) can NEVER be the matching one — its count
+// contribution is always zero — so it drops from the tuple before the
+// combinator sees it: `oneOf: [true, false, false]` is exactly-one-of-one,
+// i.e. the true branch alone. Without the filter a never branch poisons the
+// carrier and the whole schema rejects values the spec accepts.
+type FilterNeverBranches<B> = B extends readonly [infer Head, ...infer Rest]
+  ? [Head] extends [never]
+    ? FilterNeverBranches<Rest>
+    : readonly [Head, ...FilterNeverBranches<Rest>]
+  : readonly [];
+type OneOfLive<Live> = Live extends readonly []
+  ? never
+  : Live extends readonly [infer Only]
+    ? Only
+    : [Live] extends [readonly [unknown, unknown, ...unknown[]]]
+      ? OneOf<{-readonly [K in keyof Live]: Live[K]}>
       : never;
 // -readonly: the lowered branch tuple must be TYPE-IDENTICAL to the public
 // `OneOf<[…]>` spelling (whose tuple parameter is mutable), so the door hands
@@ -1891,7 +2045,7 @@ type OneOfLowered<M, Base, Root, F extends [unknown]> = M extends readonly []
 type FromOneOfBranches<M, Base, Root, F extends [unknown]> = {
   -readonly [K in keyof M]: Conj<Base, FromJsonSchemaIn<M[K], Root, F>>;
 };
-type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly JsonSchemaInput[]}
+type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
   ? FromAllOf<M, Root, F>
   : unknown;
 type ConstPart<S> = S extends {const: infer C} ? C : unknown;
@@ -2039,7 +2193,7 @@ export type SchemaLoweringByKeyword = {
   additionalProperties: 'shape+params: index signature (schema form) / FormattedObjectParams.closed (false)';
   items: 'shape: array element or tuple rest';
   prefixItems: 'shape: tuple slots (boolean slots pad or forbid a position)';
-  minItems: 'shape: required tuple slots — the padded tuple, never the brand';
+  minItems: 'shape+params: required tuple slots beside prefixItems / items:false; FormattedArrayParams.minItems otherwise';
   maxItems: 'params: FormattedArrayParams.maxItems';
   uniqueItems: 'params: FormattedArrayParams.uniqueItems';
   minProperties: 'params: FormattedObjectParams.minProperties';
@@ -2066,7 +2220,7 @@ export type SchemaLoweringByKeyword = {
   format: 'format: the BrandBySchemaFormat row — unrecognised values stay annotations';
   minLength: 'params: StringParams.minLength';
   maxLength: 'params: StringParams.maxLength';
-  pattern: 'params: StringParams.pattern — {source, flags: ""}';
+  pattern: 'params: StringParams.pattern — {source, flags: "u"}';
   minimum: 'params: NumberParams.minimum, canonicalised to min by the scanner';
   maximum: 'params: NumberParams.maximum, canonicalised to max by the scanner';
   exclusiveMinimum: 'params: NumberParams.exclusiveMinimum, canonicalised to gt by the scanner';
@@ -2085,7 +2239,7 @@ export type SchemaLoweringByKeyword = {
   default: 'ignored: annotation';
   $comment: 'ignored: annotation';
   deprecated: 'ignored: annotation';
-  readOnly: 'shape: lifts the member to `readonly` at a property position; a bare annotation anywhere else';
+  readOnly: 'ignored: annotation — the brief property-position readonly lift was dropped (zero validation, id-moving)';
   writeOnly: 'ignored: annotation';
   $id: 'ignored: root-only identity metadata — an EMBEDDED $id is rejected at the key';
   $vocabulary: 'ignored: root-only meta-schema declaration';
