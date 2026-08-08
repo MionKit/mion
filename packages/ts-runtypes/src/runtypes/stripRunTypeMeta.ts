@@ -32,8 +32,11 @@ import type {
  *  its never-reflected annotation twin. The same applies to `JsonSchemaType`.
  *
  *  Documented residuals and lossy edges:
- *   - branded TUPLES keep their brand verbatim (element inference on a
- *     branded tuple loses the slot structure; a mapped type would mangle it);
+ *   - branded TUPLES are RECOVERED (`FormattedArray<[boolean?, boolean?], …>`
+ *     strips to `[boolean?, boolean?]`, elements included) by the same
+ *     inference-based subtraction the literals use — element inference, which
+ *     the plain-array arm can rely on, would collapse the slot structure, so
+ *     the tuple path subtracts the brand and then recurses normally;
  *   - branded STRING / NUMERIC literals are RECOVERED (`'yes' & Brand` strips
  *     to `'yes'`) through the inference-based subtraction in
  *     StripMetaUnbrandLit below, and widen to their base primitive only when
@@ -136,6 +139,21 @@ type StripMetaFmtPart<T> = typeof __rtFormatName extends keyof T
   : unknown;
 type StripMetaNotPart<T> = typeof __rtNot extends keyof T ? {readonly [__rtNot]?: T[typeof __rtNot & keyof T]} : unknown;
 type StripMetaOneOfPart<T> = typeof __rtOneOf extends keyof T ? {readonly [__rtOneOf]?: T[typeof __rtOneOf & keyof T]} : unknown;
+// The STRUCTURAL slots (formats/structural.ts). They ride array / object bases
+// only, so the literal path never pays for them — only the branded-tuple path
+// below models them.
+type StripMetaContainsPart<T> = typeof __rtContains extends keyof T
+  ? {readonly [__rtContains]?: T[typeof __rtContains & keyof T]}
+  : unknown;
+type StripMetaPatternPropsPart<T> = typeof __rtPatternProps extends keyof T
+  ? {readonly [__rtPatternProps]?: T[typeof __rtPatternProps & keyof T]}
+  : unknown;
+type StripMetaPropNamesPart<T> = typeof __rtPropNames extends keyof T
+  ? {readonly [__rtPropNames]?: T[typeof __rtPropNames & keyof T]}
+  : unknown;
+type StripMetaUnevaluatedPart<T> = typeof __rtUnevaluated extends keyof T
+  ? {readonly [__rtUnevaluated]?: T[typeof __rtUnevaluated & keyof T]}
+  : unknown;
 
 /** A branded literal → its bare literal, or `Base` when the subtraction did
  *  not fully clear. The `keyof U` re-check is the safety net: an unmatched
@@ -153,6 +171,33 @@ type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T> & 
     ? U
     : Base
   : Base;
+
+/** A branded TUPLE → the bare tuple, elements stripped; `T` verbatim when the
+ *  subtraction did not fully clear. Same mechanism as StripMetaUnbrandLit, with
+ *  the four STRUCTURAL slots modelled too: an array brand is
+ *  `Base & StructuralBrand<'formattedArray', …> & ContainsSlot & UnevaluatedSlot`
+ *  (formats/structural.ts), so leaving any of them out would match nothing and
+ *  subtract nothing.
+ *
+ *  This is why a tuple gets its own path instead of the element-inference the
+ *  plain-array arm uses: `T extends readonly (infer E)[]` collapses the slots to
+ *  a single element type and destroys the very structure the hover exists to
+ *  show. Once the brand is off, the ordinary homomorphic map recurses the
+ *  elements, so a tuple OF branded elements strips all the way down. **/
+type StripMetaUnbrandTuple<T, Depth extends number> = T extends (infer U) &
+  StripMetaFmtPart<T> &
+  StripMetaNotPart<T> &
+  StripMetaOneOfPart<T> &
+  StripMetaContainsPart<T> &
+  StripMetaPatternPropsPart<T> &
+  StripMetaPropNamesPart<T> &
+  StripMetaUnevaluatedPart<T>
+  ? [Extract<keyof U, StripMetaSentinelKeys>] extends [never]
+    ? U extends readonly unknown[]
+      ? {[K in keyof U]: StripRunTypeMeta<U[K], _StripMetaDepth[Depth]>}
+      : T
+    : T
+  : T;
 
 export type StripRunTypeMeta<T, Depth extends number = 8> = Depth extends 0
   ? unknown // budget exhausted — widen: an annotation admits everything rather than leak metadata
@@ -214,8 +259,8 @@ type StripMetaNode<T, Depth extends number> = T extends string
  *  slots, rest tails and modifiers all survive the mapped type). A BRANDED
  *  plain array recovers its element by inference — `FormattedArray<number[],…>
  *  extends readonly (infer E)[]` infers `number`, dropping every slot the
- *  brand rode — while a branded TUPLE keeps verbatim (element inference would
- *  erase the slot structure; a mapped type would mangle the brand). **/
+ *  brand rode. A branded TUPLE cannot use that inference (it would collapse the
+ *  slots), so it subtracts the brand instead and then recurses normally. **/
 type StripMetaArray<T extends readonly unknown[], Depth extends number> =
   Extract<keyof T, StripMetaSentinelKeys> extends never
     ? {[K in keyof T]: StripRunTypeMeta<T[K], _StripMetaDepth[Depth]>}
@@ -225,7 +270,7 @@ type StripMetaArray<T extends readonly unknown[], Depth extends number> =
           ? StripRunTypeMeta<E, _StripMetaDepth[Depth]>[]
           : readonly StripRunTypeMeta<E, _StripMetaDepth[Depth]>[]
         : T
-      : T; // branded tuple — keep-verbatim residual
+      : StripMetaUnbrandTuple<T, Depth>;
 
 /** The declared literal-key surface of an object — index-signature slots
  *  filtered out, `-?` so an all-optional surface still registers. `{} extends

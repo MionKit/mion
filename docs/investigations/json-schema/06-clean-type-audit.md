@@ -94,14 +94,19 @@ positions read `JsonValue`, zero read the raw union.
   byte-identical, so no structural id moved and nothing on the Go side
   changed. An unmatched constituent falls back to the old widening, which is
   what keeps it a graceful degradation rather than a wrong answer.
-- **Branded tuples keep verbatim** (`FormattedArray<[boolean?, boolean?],
-  {uniqueItems: true}>`): variadic inference over the intersection collapses
-  the slots to `unknown[]`, so stripping would destroy the tuple structure the
-  hover is there to show. One corpus row. The inference-based subtraction that
-  fixed the bullet above also reaches this one, but it needs the four
-  structural sentinels modelled and it lands in a different strip branch with
-  its own budget, so it is filed separately as
-  [strip-branded-tuple-residual.md](../../todos/strip-branded-tuple-residual.md).
+- ~~**Branded tuples keep verbatim**~~ **FIXED** (see
+  [strip-branded-tuple-residual.md](../../done/strip-branded-tuple-residual.md)).
+  `FormattedArray<[boolean?, boolean?], {uniqueItems: true}>` used to keep its
+  brand, because the element inference the plain-array arm relies on collapses
+  a tuple's slots to `unknown[]` and would destroy the structure the hover
+  exists to show. The same inference-based subtraction that fixed the bullet
+  above solves it without inference over the elements: the brand is subtracted
+  first (with the four STRUCTURAL sentinels modelled alongside the format one,
+  since an array brand is
+  `Base & StructuralBrand & ContainsSlot & UnevaluatedSlot`), and the bare
+  tuple then recurses through the ordinary homomorphic map, so elements strip
+  too. One boundary remains by design: a VARIADIC branded tuple has a
+  number-typed length, so it still takes the plain-array arm and flattens.
 - **One pathological unevaluatedProperties row** (nested unevaluated carrier
   distributed over an anyOf base) still displays junk intersections; the arms
   are impossible sets from the same distribution as fix 3 but sit on array
@@ -118,7 +123,7 @@ positions read `JsonValue`, zero read the raw union.
 | | before | after |
 | --- | ---: | ---: |
 | raw six-arm union hovers | 115 | 0 |
-| hovers naming internals (`Flatten`, `Number<…>`, `NotSlot`, sentinels) | dozens | 1 documented row |
+| hovers naming internals (`Flatten`, `Number<…>`, `NotSlot`, sentinels) | dozens | 0 |
 | type-gate divergences (of 1,030 samples) | 5 ledgered | **0** |
 | `JsonValue` named positions | 0 | 150 |
 

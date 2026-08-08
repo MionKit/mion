@@ -115,12 +115,14 @@ increase for "a deliberate new capability in the mapping" if it is called out
 explicitly — this is that call-out. The file's other seven budgets are
 unchanged: the new branch costs nothing unless a branded literal is met.
 
-### Split out, not shipped
+### Split out, then shipped in the same PR
 
 The same mechanism also recovers the audit's SECOND residual (branded tuples
-keeping verbatim; verified it subtracts). It needs the four structural sentinels
-modelled and lands in `StripMetaArray`, a different branch with its own budget,
-so it became [strip-branded-tuple-residual.md](../todos/strip-branded-tuple-residual.md).
+keeping verbatim). It needs the four structural sentinels modelled and lands in
+`StripMetaArray`, a different branch with its own budget, so it was written up
+separately as [strip-branded-tuple-residual.md](strip-branded-tuple-residual.md)
+— then implemented in this same PR, in its own commit, so the two strip branches
+stay reviewable apart. Both specs are now in `docs/done/`.
 
 ## Item 2 — Rename the value-first surface from "schema" to Type Builders
 

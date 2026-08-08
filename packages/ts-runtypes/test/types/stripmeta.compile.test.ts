@@ -95,6 +95,44 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
+  it('branded TUPLES subtract their brand and keep their slot structure', () => {
+    check(
+      BRAND_PREAMBLE +
+        `
+      // The shipped FormattedArray encoding: the literal bounds ride the
+      // structural brand, contains / unevaluated ride their own slots. Element
+      // inference would collapse the slots, so the tuple path subtracts instead.
+      type ArrBrand<P> = {readonly [__rtFormatName]?: 'formattedArray'; readonly [__rtFormatParams]?: P};
+      type UniqPair = [boolean?, boolean?] & ArrBrand<{uniqueItems: true}>;
+      type _01 = Expect<Equal<StripRunTypeMeta<UniqPair>, [boolean?, boolean?]>>;
+      // Elements strip too, which is what proves the recursion was wired and
+      // not just the outer subtraction.
+      type BrandedElems = [Email, Bounded] & ArrBrand<{minItems: 2}>;
+      type _02 = Expect<Equal<StripRunTypeMeta<BrandedElems>, [string, number]>>;
+      // Nested one level down.
+      type _03 = Expect<Equal<StripRunTypeMeta<{pair: UniqPair}>, {pair: [boolean?, boolean?]}>>;
+      // BOUNDARY, unchanged by the subtraction: a VARIADIC branded tuple has a
+      // number-typed length, so it takes the plain-array element-inference arm
+      // and still flattens. Only fixed-length tuples reach the subtraction.
+      // Pinned so the split is deliberate rather than discovered later.
+      type WithRest = [Email, ...Bounded[]] & ArrBrand<{minItems: 1}>;
+      type _04 = Expect<Equal<StripRunTypeMeta<WithRest>, (string | number)[]>>;
+      // Every structural slot subtracts, stacked on one tuple.
+      type Stacked = [string, number] &
+        ArrBrand<{minItems: 2}> &
+        {readonly [__rtContains]?: {readonly rt$child: Email; readonly rt$min: 1}} &
+        {readonly [__rtUnevaluated]?: {value: unknown}};
+      type _05 = Expect<Equal<StripRunTypeMeta<Stacked>, [string, number]>>;
+      // A readonly tuple keeps its modifier.
+      type RoPair = readonly [Email, Email] & ArrBrand<{minItems: 2}>;
+      type _06 = Expect<Equal<StripRunTypeMeta<RoPair>, readonly [string, string]>>;
+      // Plain arrays still take the element-inference arm, unchanged.
+      type _07 = Expect<Equal<StripRunTypeMeta<number[] & ArrBrand<{minItems: 1}>>, number[]>>;
+      `,
+      5586
+    );
+  });
+
   it('objects drop sentinel keys and recurse members, modifiers preserved', () => {
     check(
       BRAND_PREAMBLE +
@@ -112,7 +150,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
-  it('residual policy: branded literals are recovered, branded booleans and tuples have their own rules', () => {
+  it('residual policy: branded literals and tuples are recovered, branded booleans have their own rule', () => {
     check(
       BRAND_PREAMBLE +
         `
@@ -125,13 +163,13 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       // Boolean literals survive their brand — two extends-tests recover them.
       type BrandedTrue = true & {readonly [__rtFormatName]?: 'boolFormat'};
       type _03 = Expect<Equal<StripRunTypeMeta<BrandedTrue>, true>>;
-      // Branded TUPLES keep verbatim (slot structure cannot be recovered).
+      // Branded TUPLES subtract their brand too (see the dedicated case below).
       type BrandedTuple = [string, number] & {readonly [__rtFormatName]?: 'formattedArray'};
-      type _04 = Expect<Equal<StripRunTypeMeta<BrandedTuple>, BrandedTuple>>;
+      type _04 = Expect<Equal<StripRunTypeMeta<BrandedTuple>, [string, number]>>;
       type _05 = Expect<Equal<StripRunTypeMeta<() => Email>, () => Email>>;
       type _06 = Expect<Equal<StripRunTypeMeta<Map<string, Email>>, Map<string, Email>>>;
       `,
-      1190
+      2061
     );
   });
 
