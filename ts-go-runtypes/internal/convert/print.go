@@ -739,7 +739,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			digits, _ := node.Literal.(string)
 			ctx.needs.useEmbedType = true
-			return fmt.Sprintf("%s(%sn)", ctx.names.EmbedType, strings.TrimSuffix(digits, "n")), nil
+			// Type-argument shape: value-shape const inference is not reliable
+			// for negative bigint literal expressions.
+			return fmt.Sprintf("%s<%sn>()", ctx.names.EmbedType, strings.TrimSuffix(digits, "n")), nil
 		}
 		literalText, ok := literalValueText(node)
 		if !ok {

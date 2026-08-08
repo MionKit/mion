@@ -980,7 +980,7 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       // six-kind JSON domain (see PresentValue) — every JSON value, with
       // undefined excluded so presence stays enforced.
       WithAdditional<S, {-readonly [K in R[number]]: PresentValue}, Root, F>
-    : S extends {additionalProperties: infer A extends JsonSchemaInput}
+    : S extends {additionalProperties: infer A extends JsonSchemaInput | EmbedSchema<unknown>}
       ? Record<string, FromJsonSchemaIn<A, Root, F>>
       : // Keyword-less object gate: Record<string, unknown>, NOT the TS
         // `object` keyword — `object` admits arrays (and its emitted check
