@@ -3,7 +3,7 @@ import {createValidateFn, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
 
 // start-type
-// Option A — a plain TypeScript type. Fastest, zero ceremony.
+// Option A: a plain TypeScript type. Fastest, zero ceremony.
 type UserFromType = {
   id: number;
   name: string;
@@ -14,7 +14,7 @@ const isUserA = createValidateFn<UserFromType>();
 // end-type
 
 // start-builder
-// Option B — the RT.* builders, if you like the Zod / TypeBox feel.
+// Option B: the RT.* builders, if you like the Zod / TypeBox feel.
 const userRunType = RT.object({
   id: TF.number(),
   name: TF.string(),

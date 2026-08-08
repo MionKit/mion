@@ -12,7 +12,7 @@ const address = RT.object({
 // InferType<typeof runType> hands you the TypeScript type back.
 type Address = InferType<typeof address>;
 
-// Now `Address` is a normal type — use it anywhere.
+// Now `Address` is a normal type. Use it anywhere.
 const home: Address = {street: '1 Infinite Loop', city: 'Cupertino', zip: '95014'};
 
 export {address, home};

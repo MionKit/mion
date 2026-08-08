@@ -1,7 +1,7 @@
 import type {FriendlyText} from '@ts-runtypes/core';
 import type {User} from './user';
 
-// src/__runtypes/enriched/i18n/es/models/user.ts — partially filled; blanks fall
+// src/__runtypes/enriched/i18n/es/models/user.ts: partially filled; blanks fall
 // back to the source language at render time.
 export const es_friendlyUser: FriendlyText<User> = {
   rt$label: 'Cuenta de usuario',

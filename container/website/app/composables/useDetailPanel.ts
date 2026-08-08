@@ -13,7 +13,7 @@ export function useDetailPanel<T>(onShow: (item: T) => void) {
   const pinned = ref(false);
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
   let showTimer: ReturnType<typeof setTimeout> | null = null;
-  /** "hover intent" debounce — a preview opens only after the cursor rests this long */
+  /** "hover intent" debounce: a preview opens only after the cursor rests this long */
   const HOVER_DELAY = 150;
   const HIDE_DELAY = 220;
 
@@ -46,13 +46,13 @@ export function useDetailPanel<T>(onShow: (item: T) => void) {
   }
 
   // The detail panel is a desktop-only feature: below the website's `lg` breakpoint
-  // (1024px) there isn't room for a docked side panel, so the WHOLE thing is off —
+  // (1024px) there isn't room for a docked side panel, so the WHOLE thing is off,
   // no preview, no pin. Evaluated per call so a resize toggles it without a listener.
   function featureDisabled() {
     return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
   }
 
-  /** Hover / focus a row — debounced transient preview (ignored while pinned or below
+  /** Hover / focus a row: debounced transient preview (ignored while pinned or below
    *  the desktop breakpoint). The open waits out HOVER_DELAY, so a cursor merely
    *  passing across rows never triggers a load for each one. */
   function preview(item: T) {
@@ -68,14 +68,14 @@ export function useDetailPanel<T>(onShow: (item: T) => void) {
     }, HOVER_DELAY);
   }
 
-  /** Mouse / focus left a row — drop a pending open, hide unless pinned. */
+  /** Mouse / focus left a row: drop a pending open, hide unless pinned. */
   function leave() {
     if (featureDisabled()) return;
     cancelShow();
     if (!pinned.value) scheduleHide();
   }
 
-  /** Click / tap / Enter a row — pin the panel open immediately (no-op below desktop). */
+  /** Click / tap / Enter a row, pin the panel open immediately (no-op below desktop). */
   function pin(item: T) {
     if (featureDisabled()) return;
     cancelHide();
@@ -85,12 +85,12 @@ export function useDetailPanel<T>(onShow: (item: T) => void) {
     onShow(item);
   }
 
-  /** Cursor entered the panel itself — keep it open while it's read / scrolled. */
+  /** Cursor entered the panel itself: keep it open while it's read / scrolled. */
   function panelEnter() {
     cancelHide();
   }
 
-  /** Cursor left the panel — hide unless pinned. */
+  /** Cursor left the panel: hide unless pinned. */
   function panelLeave() {
     if (!pinned.value) scheduleHide();
   }

@@ -1,8 +1,8 @@
 // Package diagnostics is the centralised catalog of every non-fatal diagnostic the
 // Go binary can emit. Every diagnostic the resolver, pure-fn extractor, and
 // RT compiler surface flows through one of the typed constructors in this
-// package, so the full set of user-visible messages — codes, severities,
-// templates — is auditable in one place.
+// package, so the full set of user-visible messages (codes, severities,
+// templates) is auditable in one place.
 //
 // Wire format: severity and family are encoded as small unsigned integers
 // (uint8) to minimise payload size; the TS side mirrors the same numeric
@@ -19,7 +19,7 @@ import (
 // Severity classifies a Diagnostic's impact. Numeric so the wire form stays
 // compact (single digit) and the TS side maps trivially to a literal union.
 //
-// Severity is purely informational — it does not control runtime behavior.
+// Severity is purely informational: it does not control runtime behavior.
 // An Error-severity diagnostic still lets the build proceed; the runtime
 // factory is still rendered (it may throw on first call, but that's the
 // emitter's job, not the diagnostic's).
@@ -64,7 +64,7 @@ const (
 
 // Site is a 1-based source location. Start/End spans are populated by the
 // scanner; runtype-family diagnostics (where the source location is the
-// marker call site, not the type declaration) leave EndLine/EndCol zero —
+// marker call site, not the type declaration) leave EndLine/EndCol zero,
 // the wire shape preserves the fields for forward compatibility with
 // range-aware diagnostics.
 type Site struct {
@@ -92,7 +92,7 @@ type Related struct {
 // The user-facing message is NOT carried on the wire. Per-code message
 // templates live in the JS-side catalog (packages/ts-runtypes/src/
 // runtypes/diagnosticCatalog.ts); the Go side only ships positional substitution
-// values via Args (typically 0–2 strings: a property name, a type
+// values via Args (typically 0-2 strings: a property name, a type
 // argument label, etc.). The Vite plugin resolves Code+Args → final
 // rendered message at format time. This mirrors the runtime alwaysThrow
 // pattern that already resolves error text JS-side from the diag code.
@@ -112,7 +112,7 @@ type Diagnostic struct {
 // reference doc.
 //
 // Headline and Detail are the USER-FACING wording: Headline is the
-// single-line message (mandatory for every code — `{0}`, `{1}` placeholders
+// single-line message (mandatory for every code; `{0}`, `{1}` placeholders
 // substitute against Diagnostic.Args), Detail the optional multi-line
 // explanation + example fix. They are authored in messages.go and folded
 // onto the Definition at init; `gen:diag-catalog` exports them into the
@@ -138,11 +138,11 @@ type Definition struct {
 	Family   Family
 	Severity Severity
 	// Completeness marks a code as INCOMPLETE (not-yet-authored) enrichment rather
-	// than WRONG content — the unfilled @todo scaffolds (FT020/MD020). It is a
+	// than WRONG content: the unfilled @todo scaffolds (FT020/MD020). It is a
 	// gating-policy bit, ORTHOGONAL to Severity: these stay Severity-Error so the
 	// editor still flags them, but the default `enrich <file> --no-emit` health
 	// check ignores them (a freshly scaffolded mirror is expected to carry @todo
-	// blanks). Only the completeness gate — `enrich --require-complete` — fails on
+	// blanks). Only the completeness gate (`enrich --require-complete`) fails on
 	// them.
 	Completeness bool
 	Title        string
@@ -168,7 +168,7 @@ func register(definition Definition) {
 }
 
 // IsCompleteness reports whether a code marks INCOMPLETE (not-yet-authored)
-// enrichment — an unfilled @todo scaffold (FT020/MD020) — rather than wrong or
+// enrichment (an unfilled @todo scaffold, FT020/MD020) rather than wrong or
 // stale content. The default enrichment health check excludes these from its
 // exit-code gate; only the completeness gate (`enrich --require-complete`) fails
 // on them. An unregistered code is not a completeness code (a zero-value
@@ -178,11 +178,11 @@ func IsCompleteness(code string) bool {
 }
 
 // New builds a Diagnostic by looking up the code's Family/Severity from
-// the catalog. Panics if the code is unknown — every code MUST be
+// the catalog. Panics if the code is unknown: every code MUST be
 // registered before use, so an unknown code is a programmer error.
 //
 // `args` are positional substitution values for the JS-side catalog
-// template — `{0}`, `{1}`, … in headline/detail resolve to args[0], etc.
+// template: `{0}`, `{1}`, … in headline/detail resolve to args[0], etc.
 // Pass 0 args when the catalog entry has no placeholders.
 func New(code string, site Site, args ...string) Diagnostic {
 	definition, ok := Definitions[code]
@@ -226,7 +226,7 @@ func NewWithRelated(code string, site Site, args []string, related ...Related) D
 
 // FormatDebug renders a Diagnostic in a compact code+args+location form
 // suitable for Go-side debug logs and test assertions. NOT the user-
-// facing message — the JS-side catalog
+// facing message: the JS-side catalog
 // (packages/ts-runtypes/src/runtypes/diagnosticCatalog.ts) owns user
 // wording; the Vite plugin renders the final tsc-style line.
 //

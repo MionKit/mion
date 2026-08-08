@@ -1,4 +1,4 @@
-// engine.ts — the framework-agnostic playground engine.
+// engine.ts: the framework-agnostic playground engine.
 //
 // Given a TypeScript snippet that defines `MyType` and a chosen build function,
 // it drives the WASM resolver to RESOLVE the type, links the emitted
@@ -62,7 +62,7 @@ export type RunResult =
       op: Operation;
       kind: 'graph';
       rootId: string | null;
-      /** The LIVE reflected node `getRunType<MyType>()` returns — a knotted,
+      /** The LIVE reflected node `getRunType<MyType>()` returns: a knotted,
        *  possibly cyclic object graph. Not JSON-safe; project it with `tree`. */
       root: RunTypeNode | null;
       /** JSON-safe projection of `root`, descending from it (see runTypeTree). */
@@ -105,7 +105,7 @@ export async function versions(options?: ResolverOptions): Promise<ResolverVersi
 // link the emitted entry modules into the root tuple. Each module is
 // `export const __rt_X = [...]` possibly preceded by `import { __rt_dep } …`;
 // deps ride lazy thunks (slot 1) so concatenating every const into one scope
-// and returning the root binding is enough — no TDZ on the lazy references.
+// and returning the root binding is enough, no TDZ on the lazy references.
 function linkRootTuple(entryModules: Record<string, string>, binding: string): unknown {
   const parts: string[] = [];
   for (const src of Object.values(entryModules)) {
@@ -120,11 +120,11 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 // ts-runtypes/builders + ts-runtypes/formats, or a JSON Schema 2020-12
 // document through `const MyType = runTypeFromJsonSchema({…} as const)`. The
 // last two share the run-type call shape (`<factory>(MyType)`), so the engine
-// treats every non-'type' mode identically — the difference is only which
+// treats every non-'type' mode identically: the difference is only which
 // preset source the editor shows.
 export type Mode = 'type' | 'builder' | 'jsonSchema';
 
-// factoryImport renders the import line the playground shows around a snippet —
+// factoryImport renders the import line the playground shows around a snippet,
 // the same `import { <factory> } from '@ts-runtypes/core'` the engine prepends before
 // resolving (see `scan` below), surfaced verbatim so the type column can display
 // the real surrounding code the user would write.
@@ -135,7 +135,7 @@ export function factoryImport(factory: string): string {
 // factoryCall renders the call line: `const <varName> = <factory><MyType>()` in
 // type mode, `const <varName> = <factory>(MyType)` in builder mode. When
 // `injectedArg` is given (a `__rt_<…>` binding), it is appended as the trailing
-// argument — exactly how the build plugin rewrites the call site (a 0-arg
+// argument: exactly how the build plugin rewrites the call site (a 0-arg
 // `createValidateFn<T>()` becomes `createValidateFn<T>(__rt_…)`; the value-first
 // `createValidateFn(MyType)` becomes `createValidateFn(MyType, __rt_…)`).
 //
@@ -157,7 +157,7 @@ export function factoryCall(factory: string, varName: string, mode: Mode, inject
   return `const ${varName} = ${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
 }
 
-// pickFactorySite returns the site for the engine's appended factory call — the
+// pickFactorySite returns the site for the engine's appended factory call, the
 // one with the highest source position. See the `site:` note in scan(): a
 // builder snippet emits an extra reflection site for its own
 // `const MyType = RT.object(...)` builder that must not be mistaken for the
@@ -182,7 +182,7 @@ function scan(
   // `import * as RT from '@ts-runtypes/core/builders'` / `import type { … } from
   // '@ts-runtypes/core/formats'`, so the imports read like real code (and aren't
   // duplicated). `options` (a JSON strategy literal) rides the options slot so
-  // its comptime value is folded into the injected fn hash — see factoryCall.
+  // its comptime value is folded into the injected fn hash, see factoryCall.
   const args = mode !== 'type' ? [ROOT_TYPE] : [];
   if (options) args.push(mode !== 'type' ? options : `undefined, ${options}`);
   const call = mode !== 'type' ? `${factory}(${args.join(', ')});` : `${factory}<${ROOT_TYPE}>(${args.join(', ')});`;
@@ -194,7 +194,7 @@ function scan(
     // The factory call is appended LAST, so its site has the highest source
     // position. Pick it, not sites[0]: in builder mode a builder snippet's
     // own `const MyType = RT.object(...)` carries its OWN reflection marker
-    // (the builder's InjectRunTypeId `id` param) and emits an earlier site — the
+    // (the builder's InjectRunTypeId `id` param) and emits an earlier site, the
     // one we must NOT link against (it's the runtype facade, not the factory).
     site: pickFactorySite(sites),
     entryModules: (result.entryModules as Record<string, string>) ?? {},
@@ -247,7 +247,7 @@ interface Materialized {
 
 // materialize a live function by handing the linked root tuple to the public
 // ts-runtypes factory. validate/encoders/mock all take the injected tuple in the
-// trailing (3rd) arg slot — the runtime signature is (value, options, id). The
+// trailing (3rd) arg slot: the runtime signature is (value, options, id). The
 // JSON strategy is already baked into the tuple's fnId at scan time, so the
 // runtime options slot stays undefined.
 function materialize(
@@ -265,7 +265,7 @@ function materialize(
 // transformedSource returns the file the build plugin actually produces for the
 // selected factory: the resolver's real transform of `import … / <type> / const
 // … = <factory>…()`. That is the injected `import { __rt_… } from 'rtmod:/…'`
-// block plus the call rewritten with its trailing `__rt_…` argument — shown
+// block plus the call rewritten with its trailing `__rt_…` argument, shown
 // verbatim in the type column's "after build" view so the edits the plugin makes
 // on top of the generated code are visible. Falls back to the untransformed
 // source when nothing resolves (e.g. the snippet does not compile yet).
@@ -291,7 +291,7 @@ export async function transformedSource(
   if (typeof code !== 'string') return source;
   // The rewrite slot-fills the factory's optional parameters with `undefined`
   // before the injected `__rt_…` id. Type-first passes no value/options so the
-  // padding is leading — `createValidateFn<MyType>(undefined, __rt_…)`; value-first
+  // padding is leading: `createValidateFn<MyType>(undefined, __rt_…)`; value-first
   // passes the run-type so the padding is the `options` slot between it and the id
   // — `createJsonEncoderFn(MyType, undefined, __rt_…)`. Drop that padding either
   // way so the call reads like the code a user writes (`…(__rt_…)` /
@@ -316,11 +316,11 @@ export interface CacheModule {
   code: string;
 }
 
-// generatedCache returns the generated cache modules for this factory + type —
+// generatedCache returns the generated cache modules for this factory + type,
 // one entry per family module the resolver emits (ModuleMode allSingle = one per
 // family tag). A single-function type is one module; a JSON/binary codec is a few
 // (the composite + the primitives it looks up at runtime), which import each
-// other — the UI labels each with its module name and keeps the imports so the
+// other: the UI labels each with its module name and keeps the imports so the
 // cross-module structure is visible. For reflection (getRunType) it is the single
 // runtype data bundle.
 export async function generatedCache(
@@ -377,7 +377,7 @@ export async function mockInvalid(
 // snippet from hanging the browser; a normal type never comes close.
 const MAX_TREE_NODES = 5000;
 
-// A live RunType node — an object carrying a string id and a kind. Distinguishes
+// A live RunType node: an object carrying a string id and a kind. Distinguishes
 // child slots (which must be walked) from plain data fields on a node.
 function isRunTypeLike(value: unknown): value is RunTypeNode {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -394,7 +394,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 // descending from `node`: every child slot holds the ACTUAL child node, inlined,
 // mirroring what the graph looks like in memory. Structural sharing therefore
 // prints more than once (`name: string` and `tags: string[]`'s element are the
-// same node object) — that is faithful, not a duplicate.
+// same node object): that is faithful, not a duplicate.
 //
 // The single exception is a back-edge: a node already on the current ancestor
 // path is a real reference cycle (`type Node = {children: Node[]}`) and inlining
@@ -462,7 +462,7 @@ export async function run(
       // scan output: link the emitted entry module and call getRunType, so the
       // playground shows the live, knotted node a user gets from
       // `getRunType<MyType>()` in their own app. The scan's `runTypes` is the
-      // flat build-time wire dump feeding that link — its child slots are
+      // flat build-time wire dump feeding that link, its child slots are
       // `{id, kind: -1}` sentinels only because JSON cannot carry references,
       // which is exactly what the runtime re-knots on registration.
       // `getRunType` covers both modes: type-first via `getRunType<MyType>()`,
@@ -494,7 +494,7 @@ export async function run(
     }
     case 'jsonRoundtrip': {
       // The intermediate encoder uses `encodeOptions` (e.g. mutate, so undeclared
-      // keys reach the wire); the decoder uses `options` (preserve vs strip) — the
+      // keys reach the wire); the decoder uses `options` (preserve vs strip), the
       // pair is what the two decode entries demonstrate against the same input.
       const enc = materialize(dispatch, 'createJsonEncoderFn', userCode, mode, op.encodeOptions);
       const dec = materialize(dispatch, 'createJsonDecoderFn', userCode, mode, op.options);

@@ -14,6 +14,6 @@ const isBirthDate = createValidateFn<BirthDate>();
 const startsSoon = createValidateFn<StartsSoon>();
 
 isBirthDate('1990-05-20'); // true
-isBirthDate('1850-01-01'); // false — more than 120 years ago
+isBirthDate('1850-01-01'); // false, more than 120 years ago
 
 export {isBirthDate, startsSoon};

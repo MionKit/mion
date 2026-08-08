@@ -1,7 +1,7 @@
 // Server-side Shiki highlighter for the small code snippets shown in the
 // benchmark hover panels. Mirrors the setup in server/api/twoslash.post.ts
 // (github-dark + github-light dual theme, ts/js grammars) but without the twoslash
-// type pass — these panels just need syntax colors. A singleton highlighter + cache
+// type pass: these panels just need syntax colors. A singleton highlighter + cache
 // cache keep repeat requests cheap. Rendering happens on the server, so the
 // browser receives already-highlighted HTML and ships no Shiki bundle.
 
@@ -22,7 +22,7 @@ function getHighlighter() {
 const cache = new Map<string, string>()
 
 // Pretty-print the snippet before highlighting so the hover panels show
-// readable, consistently-formatted code — the generated JIT functions arrive as
+// readable, consistently-formatted code: the generated JIT functions arrive as
 // dense single-line bodies and competitor sources use varied house styles.
 // Prettier (a website devDependency) runs on the server; any parse failure (a
 // bare expression fragment, exotic syntax) falls back to the original text so a
@@ -53,7 +53,7 @@ export async function highlightCode(code: string, lang: 'ts' | 'js'): Promise<st
   const highlighter = await getHighlighter()
   // Dual theme so one render serves both color modes: the dark theme is inlined
   // (the site defaults to dark) and the light theme rides CSS variables that a
-  // `:root.light` rule swaps in — no per-request theme, no re-highlight on toggle.
+  // `:root.light` rule swaps in: no per-request theme, no re-highlight on toggle.
   const html = highlighter.codeToHtml(pretty, {
     lang: langId,
     themes: {dark: 'github-dark', light: 'github-light'},

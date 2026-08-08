@@ -7,8 +7,8 @@ package diagnostics
 // otherwise identical.
 //
 // Numeric suffix convention within each family:
-//   001-009 — root-position errors (the rendered factory throws on call)
-//   010+    — child-position warnings (silent skips made visible)
+//   001-009: root-position errors (the rendered factory throws on call)
+//   010+: child-position warnings (silent skips made visible)
 
 // validate family.
 const (
@@ -35,7 +35,7 @@ const (
 	CodeVERootAnyUnknown          = "VE020"
 )
 
-// CodeCompositeMissingPrimitive — a JSON composite (jeCL/jeMU/jeDI/jdST/jdPR)
+// CodeCompositeMissingPrimitive: a JSON composite (jeCL/jeMU/jeDI/jdST/jdPR)
 // entry's soft-dep primitive has no rendered entry in the graph. Always an
 // internal invariant breach, never a user error.
 const CodeCompositeMissingPrimitive = "JCP001"
@@ -132,15 +132,15 @@ const (
 	CodeFBNonSerializablePropDrop = "FB015"
 )
 
-// Format family — TypeFormat (pattern / mockSample) build-time checks.
+// Format family: TypeFormat (pattern / mockSample) build-time checks.
 const (
-	// CodeFMTSampleMismatch — a declared mockSample does not match the
+	// CodeFMTSampleMismatch: a declared mockSample does not match the
 	// format's own pattern. Error severity: the sample is supposed to be
 	// a canonical valid value, so a mismatch is always a type-definition
 	// bug. Args: [sample, pattern-source].
 	CodeFMTSampleMismatch = "FMT001"
 
-	// CodeFMTInvalidParams — a format's params violate an invariant
+	// CodeFMTInvalidParams: a format's params violate an invariant
 	// (mutually-exclusive options, out-of-range bound, missing required
 	// mockSamples, unknown enum value, …). Error severity: the type
 	// definition is malformed and the emitted validator would be
@@ -149,7 +149,7 @@ const (
 	// run it AOT in Go and surface it as a diagnostic).
 	CodeFMTInvalidParams = "FMT002"
 
-	// CodeFMTSampleBounds — a declared mockSample violates a statically
+	// CodeFMTSampleBounds: a declared mockSample violates a statically
 	// checkable sibling constraint (length / minLength / maxLength, or one
 	// of the plain-string char/value ops allowedChars / disallowedChars /
 	// disallowedValues). Error severity, same doctrine as FMT001: a sample
@@ -157,11 +157,11 @@ const (
 	// type-definition bug (it would feed createMockDataFn an invalid value,
 	// or be filtered out at mock time). Args: [comma-joined offending
 	// samples, constraint name, bound/description]. One diagnostic per
-	// violated constraint — the pipeline dedups per code per walk, so every
+	// violated constraint: the pipeline dedups per code per walk, so every
 	// offender for a constraint rides one message.
 	CodeFMTSampleBounds = "FMT003"
 
-	// CodeFMTMissingJsRuntime — a pattern needs the JS engine (compile
+	// CodeFMTMissingJsRuntime: a pattern needs the JS engine (compile
 	// check + sample-vs-pattern check run on the real `new RegExp`) but no
 	// engine could run: no node/bun found, or the sidecar died. Error
 	// severity, fail-closed: the build refuses what it can't verify.
@@ -169,7 +169,7 @@ const (
 	// never need a JS runtime. Args: [pattern source, reason].
 	CodeFMTMissingJsRuntime = "FMT004"
 
-	// CodeFMTSampleGenFailed — a pattern declares no mockSamples and the
+	// CodeFMTSampleGenFailed: a pattern declares no mockSamples and the
 	// build could not auto-generate any: generation is disabled
 	// (patternSampleCount 0), randexp cannot handle the construct, or the
 	// whole retry budget yielded nothing that survives the pattern and its
@@ -178,20 +178,20 @@ const (
 	// reason].
 	CodeFMTSampleGenFailed = "FMT005"
 
-	// CodeFMTSampleConflict — two sites resolve to ONE cache entry (their
+	// CodeFMTSampleConflict: two sites resolve to ONE cache entry (their
 	// formats are identical apart from the sample pools, which are not
 	// id-relevant) but each DECLARES a different mockSamples pool. The shared
-	// entry can only carry one, so it mocks from whichever interned first —
+	// entry can only carry one, so it mocks from whichever interned first,
 	// deterministic for a fixed input, but adding or reordering unrelated code
 	// can silently change which pool wins. Error severity: the build fails
 	// rather than pick for you. Declared-vs-absent is NOT a conflict (absence is
-	// not an opinion — the declared pool is adopted), and auto-generated pools
+	// not an opinion, the declared pool is adopted), and auto-generated pools
 	// are deterministic per pattern so they cannot disagree. Args: [format name,
 	// the pool in use, the conflicting pool, the site that interned first].
 	CodeFMTSampleConflict = "FMT006"
 )
 
-// Unknown-keys family — no root throws today; only child drops.
+// Unknown-keys family: no root throws today; only child drops.
 const (
 	CodeHUKFunctionPropDropped = "HUK010"
 	CodeUKEFunctionPropDropped = "UKE010"
@@ -199,7 +199,7 @@ const (
 	CodeUKWFunctionPropDropped = "UKW010"
 )
 
-// cloneExactShape family — the clone-based strip. Object-bearing unions and
+// cloneExactShape family: the clone-based strip. Object-bearing unions and
 // callable roots FAIL the build (a strip that silently doesn't strip is a
 // security bug, not a fallback). Declared members are never dropped: values
 // the emitter cannot rebuild (functions, symbols, promises, non-serialisable
@@ -215,7 +215,7 @@ const (
 	CodeCESNonSerializablePropDrop = "CES015"
 )
 
-// Class-serializer family (CLS) — advisory, Warning severity. Emitted once
+// Class-serializer family (CLS): advisory, Warning severity. Emitted once
 // per named plain user class (KindClass + SubKindNone) reached by a
 // serialization family (pj / pjs / rj / sj / tb / fb) when NO custom
 // serializer is registered for the class name: the class is serialized
@@ -229,7 +229,7 @@ const (
 )
 
 func init() {
-	// Root-position errors — render a throwing factory.
+	// Root-position errors: render a throwing factory.
 	for _, code := range []string{
 		CodeVLNonSerializableRoot, CodeVLSymbolRoot,
 		CodeVENonSerializableRoot, CodeVESymbolRoot,
@@ -244,24 +244,24 @@ func init() {
 		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityError, Title: "RunType root-position error"})
 	}
 
-	// Composite invariant breach — a JSON composite entry references a
+	// Composite invariant breach: a JSON composite entry references a
 	// primitive that never rendered. Internal bug: the site demand should
 	// have rendered it (real, noop short-form, or alwaysThrow); the emitted
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Title: "JSON composite references an unrendered primitive entry"})
 
-	// Child-position warnings — the factory still emits, just drops the member.
+	// Child-position warnings: the factory still emits, just drops the member.
 	// The *UnionMemberDropped codes (…014) are the DataOnly union-member drop:
 	// `Date | symbol` serializes/validates as `Date`. validationErrors (VE) has
-	// none — its union arm delegates to validate, so the user sees VL014.
+	// none: its union arm delegates to validate, so the user sees VL014.
 	// The *NonSerializablePropDrop codes (…015) are the DataOnly PROPERTY drop:
 	// a property whose VALUE is directly non-data (symbol / Promise / never /
-	// non-serializable built-in — function-valued props keep using …010) is
+	// non-serializable built-in; function-valued props keep using …010) is
 	// dropped so `{a: symbol}` serializes/validates as `{}`, matching
 	// `DataOnly<{a: symbol}>` = `{}`. A property whose value is only
-	// STRUCTURALLY unserializable (symbol[], Map<string, symbol>) is NOT dropped
-	// — DataOnly keeps it (`never[]`), so the family throws at root instead.
+	// STRUCTURALLY unserializable (symbol[], Map<string, symbol>) is NOT dropped:
+	// DataOnly keeps it (`never[]`), so the family throws at root instead.
 	for _, code := range []string{
 		CodeVLFunctionPropDropped, CodeVLMethodDropped, CodeVLStaticDropped, CodeVLSymbolKeyedDropped, CodeVLUnionMemberDropped, CodeVLNonSerializablePropDrop,
 		CodeVEFunctionPropDropped, CodeVEMethodDropped, CodeVEStaticDropped, CodeVESymbolKeyedDropped, CodeVENonSerializablePropDrop,
@@ -277,13 +277,13 @@ func init() {
 		register(Definition{Code: code, Family: FamilyRunType, Severity: SeverityWarning, Title: "RunType child-position member dropped"})
 	}
 
-	// Root any/unknown — noop validators that accept every value. Warning
+	// Root any/unknown: noop validators that accept every value. Warning
 	// severity (not Info): the user opted into a permissive type, often
 	// without realising the runtime is no longer enforcing the schema.
-	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validationErrors root any/unknown — identity fallback"})
-	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validate root any/unknown — identity fallback"})
+	register(Definition{Code: CodeVERootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validationErrors root any/unknown: identity fallback"})
+	register(Definition{Code: CodeVLRootAnyUnknown, Family: FamilyRunType, Severity: SeverityWarning, Title: "validate root any/unknown: identity fallback"})
 
-	// Format-family — a mockSample that contradicts its own pattern is a
+	// Format-family: a mockSample that contradicts its own pattern is a
 	// type-definition bug; surface it as an error.
 	register(Definition{Code: CodeFMTSampleMismatch, Family: FamilyRunType, Severity: SeverityError, Title: "format mockSample does not match pattern"})
 	register(Definition{Code: CodeFMTInvalidParams, Family: FamilyRunType, Severity: SeverityError, Title: "invalid type-format params"})
@@ -292,10 +292,10 @@ func init() {
 	register(Definition{Code: CodeFMTSampleGenFailed, Family: FamilyRunType, Severity: SeverityError, Title: "format pattern mockSamples could not be auto-generated"})
 	register(Definition{Code: CodeFMTSampleConflict, Family: FamilyRunType, Severity: SeverityError, Title: "two sites declare different mockSamples for one shared format entry"})
 
-	// Class-serializer family — a named plain user class is serialized
+	// Class-serializer family: a named plain user class is serialized
 	// structurally because no custom serializer is registered. Advisory,
 	// not a failure: the structural fallback round-trips data fine; the
 	// warning just tells the user they CAN register a serializer for full
 	// instance reconstruction.
-	register(Definition{Code: CodeCLSStructuralFallback, Family: FamilyRunType, Severity: SeverityWarning, Title: "user class serialized structurally — register a serializer for custom (de)serialization"})
+	register(Definition{Code: CodeCLSStructuralFallback, Family: FamilyRunType, Severity: SeverityWarning, Title: "user class serialized structurally, register a serializer for custom (de)serialization"})
 }

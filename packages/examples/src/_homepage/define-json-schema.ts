@@ -13,7 +13,7 @@ const userSchema = {
   required: ['id', 'name', 'email', 'roles'],
 } as const satisfies JsonSchemaInput;
 
-// Same validator, same result — your call.
+// Same validator, same result. Your call.
 const isUser = createValidateFn(runTypeFromJsonSchema(userSchema));
 
 // The TypeScript type comes back out of the schema, so nothing drifts.

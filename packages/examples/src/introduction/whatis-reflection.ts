@@ -1,6 +1,6 @@
 import {getRunTypeId} from '@ts-runtypes/core';
 
-// A stable id for any type — the reflection TypeScript refused to ship.
+// A stable id for any type, the reflection TypeScript refused to ship.
 const userId = getRunTypeId<{id: number; name: string}>(); // e.g. "Ab3Xy7"
 
 // Or let it be inferred from a runtime value.

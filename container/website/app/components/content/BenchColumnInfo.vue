@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The "what is this column" hint for the benchmark tables: a small info glyph
 // beside a column name in the table header, plus the explanation it reveals.
-// The glyph is only the visual cue — BenchTable makes the WHOLE header cell the
+// The glyph is only the visual cue, BenchTable makes the WHOLE header cell the
 // hover target, so the reader does not have to find a 13px icon.
 //
 // Presentational only. BenchTable passes the note straight through from the bench

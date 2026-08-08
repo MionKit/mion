@@ -11,9 +11,9 @@ export default defineAppConfig({
     branch: 'main',
   },
   seo: {
-    title: 'RunTypes — TypeScript types that show up at runtime',
+    title: 'RunTypes: TypeScript types that show up at runtime',
     description:
-      'Validation, JSON + binary serialization, mock data and reflection — generated straight from your TypeScript types. No schemas, no drift.',
+      'Validation, JSON + binary serialization, mock data and reflection, generated straight from your TypeScript types. No schemas, no drift.',
     image: '/banners/runtypes-banner.png',
   },
   docus: {
@@ -65,7 +65,7 @@ export default defineAppConfig({
   },
   ui: {
     // Map the "Type Definition" / "Type Builder" code-group tab labels to
-    // file-type icons. The code is TypeScript in both — the JS icon on
+    // file-type icons. The code is TypeScript in both: the JS icon on
     // "Type Builder" is just a visual cue for the builder/runtime form, without
     // the misleading `.js` text. CodeIcon.vue keys this map by the LOWERCASED
     // TAB LABEL, so renaming a tab means renaming the key here in the same

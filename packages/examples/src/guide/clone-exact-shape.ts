@@ -4,11 +4,11 @@ type User = {id: number; name: string};
 
 // createCloneExactShapeFn -> a NEW value of exactly the declared shape.
 // Undeclared keys are dropped by construction (the clone is built FROM the
-// type, never `{...v}`); the input is never mutated — frozen inputs work.
+// type, never `{...v}`); the input is never mutated: frozen inputs work.
 const cloneUser = createCloneExactShapeFn<User>();
 
 const dirty = {id: 1, name: 'Ada', admin: true, token: 'secret'};
-const clean = cloneUser(dirty as User); // {id: 1, name: 'Ada'} — fresh object
+const clean = cloneUser(dirty as User); // {id: 1, name: 'Ada'}, fresh object
 // `dirty` still has admin/token; `clean` never did.
 
 // The intended pipeline: validate untrusted data, then clone to the exact

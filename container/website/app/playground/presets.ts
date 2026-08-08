@@ -9,7 +9,7 @@
 //     `type <Name> = InferType<typeof MyType>` to show recovering the plain TS type
 //     from the run-type (the builder counterpart to the `ts` form's `MyType`).
 //   - `jsonSchema`: a real draft 2020-12 document through
-//     `runTypeFromJsonSchema({…} as const)` — the same run-type call shape.
+//     `runTypeFromJsonSchema({…} as const)`: the same run-type call shape.
 //     Where a `ts` field uses a format with no exact 2020-12 spelling the
 //     document writes the CLOSEST keyword twin (`format: 'uuid'` is
 //     version-agnostic where TF.UUIDv4 pins v4; `format: 'uri'` accepts any

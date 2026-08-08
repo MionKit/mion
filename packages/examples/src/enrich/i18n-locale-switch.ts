@@ -3,7 +3,7 @@ import type {User} from './user';
 import {friendlyUser} from './friendly-user';
 import {pl_friendlyUser} from './i18n-pl';
 
-// any {value} ref works — a plain object here, a Vue ref in a Vue app
+// any {value} ref works: a plain object here, a Vue ref in a Vue app
 const locale = {value: 'en'};
 
 export const friendly = createFriendlyTextI18n<User>(friendlyUser, {

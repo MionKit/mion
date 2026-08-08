@@ -1,6 +1,6 @@
 import {createValidateFn} from '@ts-runtypes/core';
 
-// Your TypeScript type. The single source of truth — nothing else to write.
+// Your TypeScript type. The single source of truth. Nothing else to write.
 type User = {
   id: number;
   name: string;
@@ -11,6 +11,6 @@ type User = {
 const isUser = createValidateFn<User>();
 
 isUser({id: 1, name: 'Ada', roles: ['admin']}); // true
-isUser({id: '1', name: 'Ada'}); // false — id is not a number
+isUser({id: '1', name: 'Ada'}); // false, id is not a number
 
 export {isUser};

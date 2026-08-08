@@ -135,7 +135,7 @@ let headerEditor: Editor | null = null;
 let footerEditor: Editor | null = null;
 // Explicit file:/// models for the three TypeScript editors. Monaco resolves the
 // real `@ts-runtypes/core` overlay (staged under a virtual node_modules) only for a
-// `file://` model — an auto `inmemory://` model can't walk up to node_modules — so
+// `file://` model (an auto `inmemory://` model can't walk up to node_modules)so
 // each editor gets a per-instance file URI. Disposed on unmount (editor.dispose()
 // leaves externally-created models alive).
 let headerModel: TextModel | null = null;
@@ -307,7 +307,7 @@ async function loadRuntypesSources(): Promise<Record<string, string>> {
 // registerRuntypesLibs feeds the real overlay to Monaco's TS language service ONCE
 // (global state, shared by every editor + playground instance): each virtual file is
 // added at its file:/// path so a snippet's `@ts-runtypes/core[/…]` import resolves
-// against the ACTUAL published types — the same sources the resolver uses — rather
+// against the ACTUAL published types (the same sources the resolver uses)rather
 // than a hand-maintained stub. Idempotent across instances via a global flag.
 function registerRuntypesLibs(mon: Monaco, overlay: Record<string, string>): void {
   const flag = globalThis as unknown as {__rtCoreLibsRegistered?: boolean};
@@ -497,7 +497,7 @@ function generateInvalid(): Promise<void> {
 }
 
 // scheduleInputResync refreshes the sample value after a type edit settles, so a
-// value left over from the PREVIOUS type can never be run against the new one —
+// value left over from the PREVIOUS type can never be run against the new one,
 // the "I changed MyType, hit Run, and validate says false" trap. Deferred when
 // the selected function reads no input; the flag makes the next one that does
 // pick the refresh up.
@@ -512,7 +512,7 @@ function scheduleInputResync(delay: number): void {
 }
 
 // Silent by design: mid-edit the snippet often does not resolve yet, and that is
-// not a failure worth showing — the current value simply stays until the type
+// not a failure worth showing: the current value simply stays until the type
 // compiles again, and the next keystroke reschedules.
 async function resyncInput(): Promise<void> {
   if (!ready.value) return;
@@ -525,7 +525,7 @@ async function resyncInput(): Promise<void> {
     inputEditor?.setValue(jsValue(value));
     resetResult();
   } catch {
-    /* type does not resolve yet — keep what is on screen */
+    /* type does not resolve yet: keep what is on screen */
   }
 }
 
@@ -569,7 +569,7 @@ async function renderResult(result: RunResult): Promise<string> {
       return `<div class="rtpg-badge ${result.value ? 'ok' : 'bad'}">${result.value ? 'true ✓' : 'false ✗'}</div>${diag}`;
     case 'errors': {
       const ok = result.value.length === 0;
-      const badge = `<div class="rtpg-badge ${ok ? 'ok' : 'bad'}">${ok ? 'valid — no errors' : `${result.value.length} error(s)`}</div>`;
+      const badge = `<div class="rtpg-badge ${ok ? 'ok' : 'bad'}">${ok ? 'valid, no errors' : `${result.value.length} error(s)`}</div>`;
       return `${badge}${ok ? '' : await block(result.value)}${diag}`;
     }
     case 'encode':
@@ -583,7 +583,7 @@ async function renderResult(result: RunResult): Promise<string> {
     case 'graph':
       // The live graph, descending from the root: children are the actual child
       // nodes, so the output reads as the type's structure. Only a cycle shows
-      // up as a reference (`circular: true`) — nothing else to look up by id.
+      // up as a reference (`circular: true`): nothing else to look up by id.
       return `<div class="rtpg-badge ok">RunType resolved (${result.runTypes.length} node(s))</div>${label('Resolved RunType')}<pre class="rtpg-code">${await highlight(stringify(result.tree), 'json')}</pre>${diag}`;
   }
 }
@@ -718,7 +718,7 @@ onMounted(async () => {
     updateSurrounding();
 
     // Pre-warm the TS language service against the real overlay so the first
-    // hover/completion isn't blocked on a cold program build — runs in the
+    // hover/completion isn't blocked on a cold program build, runs in the
     // background, overlapping the WASM load below (best-effort).
     void (async () => {
       try {
@@ -747,7 +747,7 @@ onBeforeUnmount(() => {
   typeEditor?.dispose();
   inputEditor?.dispose();
   headerEditor = footerEditor = typeEditor = inputEditor = null;
-  // Editors don't own externally-created models — dispose the file:/// models here.
+  // Editors don't own externally-created models: dispose the file:/// models here.
   headerModel?.dispose();
   bodyModel?.dispose();
   footerModel?.dispose();

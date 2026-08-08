@@ -6,7 +6,7 @@ package diagnostics
 // PFE9001 (namespace not literal), PFE9002 (fnId not literal), PFE9003
 // (factory not inline) were retired in favour of the marker-layer
 // emitters CTA001 (CompTimeArgs<T> non-literal) and PFN001
-// (PureFunction<F> not inline) — those flow through resolver.scanCall
+// (PureFunction<F> not inline), those flow through resolver.scanCall
 // now that registerPureFnFactory is discovered by marker shape rather
 // than by callee name. See plan D6.
 const (

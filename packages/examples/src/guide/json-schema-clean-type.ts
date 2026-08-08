@@ -16,7 +16,7 @@ const schema = {
   required: ['email', 'tags'],
 } as const;
 
-// {email: string; tags: string[]} — plain members, no internal metadata.
+// {email: string; tags: string[]}: plain members, no internal metadata.
 type Contact = JsonSchemaType<typeof schema>;
 
 // Annotate data that arrives from elsewhere; validate through the schema.

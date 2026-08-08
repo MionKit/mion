@@ -1,6 +1,6 @@
 import {getRunType} from '@ts-runtypes/core';
 
-// The same Order type as above — declared here so the example compiles on its own.
+// The same Order type as above, declared here so the example compiles on its own.
 type Order = {
   id: string;
   total: number;

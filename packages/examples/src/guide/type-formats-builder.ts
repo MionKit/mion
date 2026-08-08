@@ -3,7 +3,7 @@ import {createValidateFn, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
 
 // Builder formats: the same constraints as builders. TF.email(),
-// TF.uuidv4(), TF.int32(), TF.positive() — pick the style you like.
+// TF.uuidv4(), TF.int32(), TF.positive(). Pick the style you like.
 const account = RT.object({
   id: TF.uuidv4(),
   email: TF.email(),

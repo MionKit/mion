@@ -6,7 +6,7 @@ interface Node {
   next?: Node;
 }
 
-// A value that points at itself — encoding this without a guard recurses
+// A value that points at itself. Encoding this without a guard recurses
 // until the stack overflows.
 const cyclic: {name: string; next?: unknown} = {name: 'a'};
 cyclic.next = cyclic;
@@ -20,7 +20,7 @@ try {
   encode(cyclic as Node);
 } catch (err) {
   err instanceof CircularReferenceError; // true
-  (err as CircularReferenceError).path; // ['next'] — where the back-edge was found
+  (err as CircularReferenceError).path; // ['next']: where the back-edge was found
 }
 // end-per-call
 
@@ -37,7 +37,7 @@ try {
 // end-binary
 
 // start-dag
-// Shared-but-acyclic values pass — `shared` is reached twice, but never
+// Shared-but-acyclic values pass: `shared` is reached twice, but never
 // through itself, so the guard stays quiet.
 const shared: Node = {name: 'shared'};
 const dag: Node[] = [
@@ -46,7 +46,7 @@ const dag: Node[] = [
 ];
 
 const encodeList = createJsonEncoderFn<Node[]>(undefined, {rejectCircularRefs: true});
-encodeList(dag); // encodes normally — no cycle
+encodeList(dag); // encodes normally, no cycle
 // end-dag
 
 export {encode, encodeBin, encodeList};

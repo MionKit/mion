@@ -60,12 +60,12 @@ const leadingParts = computed(() => {
 const initialText = computed(() => props.titles[0] ?? '');
 
 const rootEl = ref(null);
-const text = ref(''); // currently displayed substring — starts empty so the first title types in on load
+const text = ref(''); // currently displayed substring: starts empty so the first title types in on load
 const isTyping = ref(false); // caret stays solid while actively typing/erasing
 const isPaused = ref(false); // off-screen → park the CSS gradient + caret blink
 
-// Animation state — plain locals so the loop mutates without reactivity cost.
-let sequence = props.titles; // play order — a shuffled copy replaces it on mount when `randomize` is set
+// Animation state: plain locals so the loop mutates without reactivity cost.
+let sequence = props.titles; // play order: a shuffled copy replaces it on mount when `randomize` is set
 let titleIndex = 0;
 let charIndex = 0;
 let phase = 'typing'; // typing → holding → erasing → waiting → typing … (first load types title 0 from empty)
@@ -77,7 +77,7 @@ let running = false;
 let observer = null;
 let reduceMotion = null;
 
-// Fisher-Yates shuffle over a copy — never mutate the prop array.
+// Fisher-Yates shuffle over a copy: never mutate the prop array.
 function shuffled(items) {
   const copy = items.slice();
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
   display: inline;
 }
 
-/* Style for both SSR fallback and the caret — a vertical typing bar.
+/* Style for both SSR fallback and the caret, a vertical typing bar.
    (Swapped the underscore's width/height so it stands upright, rather than a
    rotate() which would leave a wide, mis-aligned layout box.) */
 :deep(.is-typed span.underscore),

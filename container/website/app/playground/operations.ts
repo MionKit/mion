@@ -3,7 +3,7 @@
 // invokes it and how the result is shaped.
 //
 // Several JSON entries share the same `createJsonEncoderFn` / `createJsonDecoderFn`
-// factory but differ by `options` — the comptime `{strategy: '…'}` literal the
+// factory but differ by `options`: the comptime `{strategy: '…'}` literal the
 // engine appends at the call site. That literal is folded into the injected fn
 // hash (never read at runtime), so each strategy resolves to its own cache entry,
 // exactly as it does in the serialization benchmarks.
@@ -28,7 +28,7 @@ export interface Operation {
   // `const <varName> = <factory><MyType>();` in the type column's header/footer
   // and the "after build" transformed view.
   varName: string;
-  // The comptime options literal appended at the call site — e.g.
+  // The comptime options literal appended at the call site, e.g.
   // `{strategy: 'mutate'}`. Baked into the injected fn hash at build time, so it
   // selects the strategy without any runtime branching. Absent = no options.
   options?: string;

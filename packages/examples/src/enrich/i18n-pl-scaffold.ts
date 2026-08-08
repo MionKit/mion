@@ -1,7 +1,7 @@
 import type {FriendlyText} from '@ts-runtypes/core';
 import type {User} from './user';
 
-// src/__runtypes/enriched/i18n/pl/models/user.ts — scaffolded by `enrich --i18n pl`:
+// src/__runtypes/enriched/i18n/pl/models/user.ts: scaffolded by `enrich --i18n pl`:
 // the same tree as the source map, every leaf blank, plural arms in POLISH form.
 export const pl_friendlyUser: FriendlyText<User> = {
   rt$label: '', // @todo

@@ -1,7 +1,7 @@
 ---
 seo:
-  title: RunTypes — TypeScript types that show up at runtime
-  description: Validation, JSON + binary serialization, mock data and reflection — generated straight from your TypeScript types. No schemas, no drift.
+  title: 'RunTypes: TypeScript types that show up at runtime'
+  description: Validation, JSON + binary serialization, mock data and reflection, generated straight from your TypeScript types. No schemas, no drift.
 pageClass: home-page
 ---
 
@@ -104,7 +104,7 @@ blur: 140px
 :::
 
 #body
-Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator — pick whichever you fancy, mix them in the same file.
+Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file.
 
 :::div{class="rt-define-cols"}
 ::::code-group
@@ -132,7 +132,7 @@ The validator checks its exact shape, not just its kind. No regex to wire up, no
 
 :::::div{class="rt-formats-tile"}
 #### Temporal Support
-Full TC39 Temporal — `PlainDate`, `ZonedDateTime`, `Duration`… validated and serialized like any built-in.
+Full TC39 Temporal (`PlainDate`, `ZonedDateTime`, `Duration` and the rest), validated and serialized like any built-in.
 :::::
 ::::
 
@@ -211,7 +211,7 @@ The reflection TypeScript never shipped
 
 ::::card{class="rt-feature-card"}
 ### Recover the type graph
-Get back a traversable RunType node — the same graph the library walks internally: kind, property names, nested children, format annotations and more. Bring a type or infer it from a runtime value, then read it however you need — to drive codegen, build forms, or power your own tooling.
+Get back a traversable RunType node, the same graph the library walks internally: kind, property names, nested children, format annotations and more. Bring a type or infer it from a runtime value, then read it however you need, to drive codegen, build forms, or power your own tooling.
 
 <br>
 
@@ -249,7 +249,7 @@ class: sm:grid-cols-2 ai-artifacts
   icon: i-lucide-message-square-text
   to: /ai-integration/friendly-type
   ---
-  Friendly field labels and error messages for your forms and UI — written for people, kept in sync with your type.
+  Friendly field labels and error messages for your forms and UI, written for people, kept in sync with your type.
   ::::
 
   ::::card
@@ -258,20 +258,20 @@ class: sm:grid-cols-2 ai-artifacts
   icon: i-lucide-dices
   to: /ai-integration/mock-data
   ---
-  Believable sample data — real names, emails, addresses — for your tests and demos, with every value valid for its field.
+  Believable sample data (real names, emails, addresses) for your tests and demos, with every value valid for its field.
   ::::
 :::
 
 :::div{class="ai-steps-head"}
 ### The compiler writes the code, your agent fills the blanks
-Some values the compiler can't invent — a clear field label, a friendly error message, a believable sample name. So it does the hard part: it scaffolds a real, type-accurate source file, your agent fills in the blanks, and the compiler keeps it all in sync.
+Some values the compiler can't invent: a clear field label, a friendly error message, a believable sample name. So it does the hard part: it scaffolds a real, type-accurate source file, your agent fills in the blanks, and the compiler keeps it all in sync.
 :::
 
 :::div{class="ai-steps"}
 ::::div{class="ai-step"}
 [1]{.ai-step-num}[The compiler scaffolds]{.ai-step-title}
 
-From your type it writes a real source file — every field in place, correctly typed, with each blank marked.
+From your type it writes a real source file, every field in place, correctly typed, with each blank marked.
 ::::
 
 ::::div{class="ai-step"}
@@ -283,7 +283,7 @@ Guided by the type, the agent writes the labels, messages and sample values into
 ::::div{class="ai-step"}
 [3]{.ai-step-num}[The compiler checks & keeps in sync]{.ai-step-title}
 
-It checks every value against the type and updates the file as your type changes — your edits kept.
+It checks every value against the type and updates the file as your type changes, keeping your edits.
 ::::
 :::
 
@@ -441,8 +441,8 @@ Even in their faster JIT mode, but without any JIT compilation cost.
 
 :::::perf-bars
 ---
-caption: Validation throughput — is-valid check (ops/sec, higher is better)
-footnote: Zod has no fast is-valid path — it validates by parsing to errors, so its bar is the error-reporting result.
+caption: Validation throughput, is-valid check (ops/sec, higher is better)
+footnote: Zod has no fast is-valid path. It validates by parsing to errors, so its bar is the error-reporting result.
 bars:
   - name: ts-runtypes
     score: 40.6
@@ -476,7 +476,7 @@ bars:
 tiles:
   - source: frontEndTests
     label: front-end tests
-    sub: Vitest — marker + plugin
+    sub: Vitest (marker + plugin)
     hue: 145
   - source: goTests
     label: Go tests
@@ -484,13 +484,13 @@ tiles:
     hue: 198
   - value: "∞"
     label: Fuzzy Testing
-    sub: Random inputs and randomly-generated types, checked against invariants — every finding replayable from a seed.
+    sub: Random inputs and randomly-generated types, checked against invariants, with every finding replayable from a seed.
     hue: 280
     wide: true
 ---
 :::::
 
-Every transform, cache shape and generated function is covered — on top of an extensive structured suite spanning validation, JSON, binary, mocks and reflection.
+Every transform, cache shape and generated function is covered, on top of an extensive structured suite spanning validation, JSON, binary, mocks and reflection.
 ::::
 :::
 ::
@@ -503,7 +503,7 @@ Tree-shaken to the bone
 :::div{class="rt-treeshake-cols"}
 ::::card{class="rt-feature-card"}
 ### Ship only what you call
-Caches are demand-driven and every entry is its own module, so bundlers split and tree-shake natively. A file that only reflects an id ships zero validation code — and the Vite plugin adds zero runtime dependencies.
+Caches are demand-driven and every entry is its own module, so bundlers split and tree-shake natively. A file that only reflects an id ships zero validation code, and the Vite plugin adds zero runtime dependencies.
 
 <br>
 
@@ -538,7 +538,7 @@ const isUser = createValidateFn<User>(__rt_a1b_Xk7);
 
 ::::code-group
 ```js [__runtypes/types/a1b_Xk7.js]
-// shown as a function for clarity — the real emit is a positional
+// shown as a function for clarity, the real emit is a positional
 // tuple: faster to initialise, fewer bytes on the wire
 export function __rt_a1b_Xk7(value) {
   return typeof value === "object" && value !== null &&

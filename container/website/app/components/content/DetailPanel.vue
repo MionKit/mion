@@ -16,7 +16,7 @@ interface PanelColumn {
   notes?: string[];
   /** Render this column narrower (e.g. the Notes column). */
   narrow?: boolean;
-  /** Optional metric shown beside the label — the same result as the table row
+  /** Optional metric shown beside the label: the same result as the table row
    *  (bench tables only). `valid` is the headline, `invalid` the smaller annotation. */
   metric?: {valid: string; invalid: string; status: 'ok' | 'fail' | 'na'};
 }
@@ -44,7 +44,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
     >
       <header class="detail-panel-head">
         <span class="detail-panel-title"><span class="detail-prompt">$</span> {{ title }}</span>
-        <span class="detail-panel-hint">{{ pinned ? 'pinned — click a row or ✕ to change' : 'hover preview — click to pin' }}</span>
+        <span class="detail-panel-hint">{{ pinned ? 'pinned (click a row or ✕ to change)' : 'hover preview, click to pin' }}</span>
         <button type="button" class="detail-panel-close" aria-label="Close" @click="$emit('close')">✕</button>
       </header>
 
@@ -152,7 +152,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 /* Sections stacked top-to-bottom; the whole stack scrolls vertically. `contain`
-   keeps wheel/touch scroll inside the panel — it never chains to the page behind. */
+   keeps wheel/touch scroll inside the panel: it never chains to the page behind. */
 .detail-panel-cols {
   display: flex;
   flex-direction: column;
@@ -216,7 +216,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 /* Each section flows at its natural height (the stack scrolls); long code lines
-   scroll horizontally within their own block. No overscroll-behavior here — these
+   scroll horizontally within their own block. No overscroll-behavior here: these
    are overflow-y:hidden, so a vertical wheel must chain up to .detail-panel-cols
    (containing it here would swallow the scroll whenever the cursor is over code). */
 .detail-panel-code,
@@ -299,7 +299,7 @@ defineEmits<{close: []; panelenter: []; panelleave: []}>();
 }
 
 /* Below the desktop breakpoint the panel feature is off entirely (the rows also
-   stop responding — see useDetailPanel). This is a belt-and-suspenders guard. */
+   stop responding: see useDetailPanel). This is a belt-and-suspenders guard. */
 @media (max-width: 1023px) {
   .detail-panel {
     display: none;

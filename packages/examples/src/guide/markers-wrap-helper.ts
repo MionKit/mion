@@ -2,7 +2,7 @@ import {getRunType, type InjectRunTypeId} from '@ts-runtypes/core';
 
 // Wrap ts-runtypes into your OWN helper. Declare a trailing
 // `id?: InjectRunTypeId<T>` parameter and the build fills it in at every
-// call site — you never pass the id yourself.
+// call site: you never pass the id yourself.
 function describe<T>(id?: InjectRunTypeId<T>): string {
   // The injected `id` is an OPAQUE handle, not a plain string. Resolve it by
   // forwarding it to a public resolver as the trailing argument: getRunType
@@ -12,7 +12,7 @@ function describe<T>(id?: InjectRunTypeId<T>): string {
   return `type #${runType.id} (kind ${runType.kind})`;
 }
 
-// Call it like any generic function — no id argument in sight.
+// Call it like any generic function, no id argument in sight.
 describe<{id: number; name: string}>();
 describe<string[]>();
 

@@ -1,6 +1,6 @@
 import {getRunTypeId} from '@ts-runtypes/core';
 
-// Two interfaces, different names — but the exact same shape.
+// Two interfaces, different names, but the exact same shape.
 interface User {
   id: number;
   name: string;
@@ -11,5 +11,5 @@ interface Account {
   name: string;
 }
 
-// Same structure resolves to the same structural id — one shared cache entry.
+// Same structure resolves to the same structural id: one shared cache entry.
 console.log(getRunTypeId<User>() === getRunTypeId<Account>()); // true

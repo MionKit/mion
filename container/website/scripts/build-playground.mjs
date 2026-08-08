@@ -1,4 +1,4 @@
-// build-playground.mjs — host-side prebuild of the static assets the docs site's
+// build-playground.mjs: host-side prebuild of the static assets the docs site's
 // <RuntypesPlayground> Vue component fetches from /playground-app/:
 //
 //   public/playground-app/ts-runtypes.wasm.gz   the resolver compiled to wasm (gz)
@@ -71,8 +71,8 @@ function findWasmExecSrc() {
 
 // Tier 1 (~60ms): missing wasm, or the digest recorded beside it no longer
 // matches the Go tree. Content rather than mtimes, because a stale cache copied
-// into a worktree can carry a stamp NEWER than the checkout it no longer matches
-// — an mtime compare calls that fresh and hands the tests dead code.
+// into a worktree can carry a stamp NEWER than the checkout it no longer matches;
+// an mtime compare calls that fresh and hands the tests dead code.
 const stampWasm = () => writeFileSync(STAMP, `${wasmInputsDigest(REPO_ROOT)}\n`);
 const wasmMaybeStale = () => !existsSync(RAW_WASM) || readWasmStamp(STAMP) !== wasmInputsDigest(REPO_ROOT);
 
@@ -137,7 +137,7 @@ function ensureWasmDerived() {
     return false;
   }
   if (!existsSync(RAW_GZ) || mtime(RAW_WASM) > mtime(RAW_GZ)) {
-    // zlib gzip (browser inflates via DecompressionStream) — no external `gzip`.
+    // zlib gzip (browser inflates via DecompressionStream): no external `gzip`.
     note('gzip the wasm (browser inflates via DecompressionStream) ...');
     writeFileSync(RAW_GZ, gzipSync(readFileSync(RAW_WASM), {level: 9}));
     changed = true;
@@ -191,7 +191,7 @@ function buildSidecarHookIfStale() {
   }
   note('building the sidecar hook (playground JS engine) ...');
   // gen-sidecar-js runs the package build (both vite configs) AND refreshes
-  // the committed Go bundle — one command, no way for the two to drift.
+  // the committed Go bundle: one command, no way for the two to drift.
   if (run('node', [join(REPO_ROOT, 'scripts/core/gen-sidecar-js.mjs')]) !== 0) {
     warn('sidecar hook build failed - playground pattern generation will degrade');
     return false;
@@ -218,7 +218,7 @@ function vendorRuntimeIfStale() {
     return false;
   }
   // Re-sync only when a dist file is newer than the vendor dir's stamp (cp preserves
-  // mtimes, so the DIR mtime — set by touch after each sync — is the anchor).
+  // mtimes, so the DIR mtime (set by touch after each sync)is the anchor).
   if (existsSync(VENDOR_DIR) && !anyNewerAbs(distSrc, mtime(VENDOR_DIR))) {
     note('ts-runtypes runtime vendor up to date');
     return false;

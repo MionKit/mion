@@ -140,7 +140,7 @@ describe('location conversion', () => {
 describe('message rendering', () => {
   it('substitutes positional args through the catalog headline', () => {
     const message = renderMessage(diagnostic({code: 'FT002', family: Family.Enrich, args: ['nope']}));
-    expect(message).toBe('[FT002] Unknown field `nope` — the type does not declare it, so this FriendlyText entry is dead.');
+    expect(message).toBe('[FT002] Unknown field `nope`: the type does not declare it, so this FriendlyText entry is dead.');
   });
 
   it('appends related locations inline (no first-class field in lint reports)', () => {

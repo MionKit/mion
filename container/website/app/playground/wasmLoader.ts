@@ -60,7 +60,7 @@ let loaderPromise: Promise<Resolver> | null = null;
 // Fetch the wasm and inflate it when it is gzip-compressed. Detect by the gzip
 // magic (0x1f 0x8b) rather than the URL, so it is robust to a host that
 // transparently decodes a .gz response via Content-Encoding (the browser then
-// hands us the already-inflated bytes) AND to a plain .wasm URL override — both
+// hands us the already-inflated bytes) AND to a plain .wasm URL override, both
 // pass through untouched.
 async function fetchWasmBytes(url: string): Promise<BufferSource> {
   const response = await fetch(url);
@@ -126,7 +126,7 @@ export function loadResolver(options: ResolverOptions = {}): Promise<Resolver> {
     const bytes = await fetchWasmBytes(wasmUrl);
     const {instance} = await WebAssembly.instantiate(bytes, go.importObject);
 
-    // Do not await — go.run resolves only when the Go side exits, and ours
+    // Do not await: go.run resolves only when the Go side exits, and ours
     // blocks forever to keep the callback alive.
     void go.run(instance);
     const versions = await ready;

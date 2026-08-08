@@ -1,6 +1,6 @@
 // Fetches server-rendered Shiki HTML for the small code snippets shown in the
 // suite / benchmark hover panels. Highlighting runs on the server (POST
-// /api/highlight) — plain syntax colors, no twoslash type hovers — so the
+// /api/highlight) (plain syntax colors, no twoslash type hovers)so the
 // browser ships no Shiki bundle and just injects the returned HTML. Results are
 // memoized per (lang, code); '' signals the caller to render plain text.
 

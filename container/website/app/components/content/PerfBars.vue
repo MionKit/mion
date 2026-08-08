@@ -2,7 +2,7 @@
 // Small horizontal bar chart for the homepage "Performance with control" section.
 // Bar width = score / max; fill hue is rank-tinted (chartreuse → green), the same
 // data-driven HSL idea the benchmark heatmap uses. A `muted` bar is drawn neutral
-// and excluded from the scale — for a competitor measured on a different basis
+// and excluded from the scale: for a competitor measured on a different basis
 // (e.g. Zod, which only validates by producing errors). Static snapshot, not live.
 interface Bar {
   name: string
@@ -24,7 +24,7 @@ const max = Math.max(...scored, 1)
 const min = Math.min(...scored)
 const rank = (score: number) => (max === min ? 1 : (score - min) / (max - min))
 // green-dominant: a tight field stays green (best green, worst chartreuse), never
-// red — they're all fast. The muted row gets a neutral fill instead.
+// red: they're all fast. The muted row gets a neutral fill instead.
 const hue = (score: number) => 50 + rank(score) * 90
 const width = (score: number) => Math.min(100, (score / max) * 100)
 const fill = (bar: Bar) =>

@@ -32,7 +32,7 @@ func TestDefinitions_AllRegisteredCodesHaveFamilyAndSeverity(t *testing.T) {
 func TestEveryCodeHasHeadline(t *testing.T) {
 	for code, def := range Definitions {
 		if def.Headline == "" {
-			t.Errorf("code %q: no Headline — add it to messagesByCode in messages.go", code)
+			t.Errorf("code %q: no Headline, add it to messagesByCode in messages.go", code)
 		}
 	}
 }
@@ -78,7 +78,7 @@ func TestDiagnostic_MarshalJSON_NumericSeverityAndFamily(t *testing.T) {
 	if strings.Contains(s, `"severity":"warning"`) {
 		t.Errorf("severity must be numeric, not string: %s", s)
 	}
-	// Args present, message absent — wire shape sanity.
+	// Args present, message absent: wire shape sanity.
 	if !strings.Contains(s, `"args":["fn"]`) {
 		t.Errorf("expected args array in JSON: %s", s)
 	}
@@ -121,7 +121,7 @@ func TestFormatDebug_AppendsRelatedLines(t *testing.T) {
 
 // TestIsCompleteness pins the completeness tier: only the unfilled-@todo scaffold
 // codes are completeness (they fail solely under the CLI completeness gate); every
-// wrong/stale code — malformed content, orphan carcasses — is not, so it fails
+// wrong/stale code (malformed content, orphan carcasses) is not, so it fails
 // every check lane. Flipping FT020/MD020's Completeness bit, or arming it on a
 // wrong/stale code, breaks the exit-code contract and this test.
 func TestIsCompleteness(t *testing.T) {
@@ -138,7 +138,7 @@ func TestIsCompleteness(t *testing.T) {
 		CodeMockUnknownField, CodeMockOrphanConst, CodeMarkerFunctionCallArg,
 	} {
 		if IsCompleteness(code) {
-			t.Errorf("%s is wrong/stale, not completeness — it must fail every check lane", code)
+			t.Errorf("%s is wrong/stale, not completeness, it must fail every check lane", code)
 		}
 	}
 	if IsCompleteness("ZZZZ999") {

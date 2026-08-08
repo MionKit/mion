@@ -1,6 +1,6 @@
 package diagnostics
 
-// MockData mirror-file codes (MDxxx) — the MockData twin of codes_friendly.go
+// MockData mirror-file codes (MDxxx): the MockData twin of codes_friendly.go
 // under the per-family mirror split. Content validity from the paired checker
 // in internal/enrichment/validate.go; the MD02x hygiene codes from the dirty-tag
 // scan, attributed to this family by the file's const annotations / DSL

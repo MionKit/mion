@@ -40,7 +40,7 @@ export function readCodeFile(
   commentStart: string,
   commentEnd: string
 ): string {
-  // Security: code-import may only read code under packages/ — never arbitrary
+  // Security: code-import may only read code under packages/, never arbitrary
   // repo files. Throws if filePath escapes <root>/packages (incl. `..` / absolute).
   const absolutePath = resolveInPackages(MONOREPO_ROOT, filePath)
 

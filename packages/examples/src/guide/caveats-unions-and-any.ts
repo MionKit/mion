@@ -1,11 +1,11 @@
 import {createValidateFn} from '@ts-runtypes/core';
 
-// Unions are read precisely — each member is validated.
+// Unions are read precisely: each member is validated.
 type Shape = {kind: 'circle'; radius: number} | {kind: 'square'; side: number};
 
 const isShape = createValidateFn<Shape>();
 isShape({kind: 'circle', radius: 5}); // true
-isShape({kind: 'circle', side: 5} as never); // false — wrong member shape
+isShape({kind: 'circle', side: 5} as never); // false, wrong member shape
 
 // `any` is the opposite of a constraint. createValidateFn<any>() accepts
 // EVERYTHING (a noop validator) and emits a build-time diagnostic. If you

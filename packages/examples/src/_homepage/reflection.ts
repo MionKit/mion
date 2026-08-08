@@ -1,13 +1,13 @@
 import {getRunType, RunTypeKind} from '@ts-runtypes/core';
 
-// One real type — the single source of truth.
+// One real type, the single source of truth.
 type Order = {
   id: string;
   total: number;
   items: {sku: string; qty: number}[];
 };
 
-// Recover the actual RunType node — the traversable type graph TypeScript erased.
+// Recover the actual RunType node, the traversable type graph TypeScript erased.
 const orderRT = getRunType<Order>();
 
 // Walk it like any tree: its kind, property names, nested children…

@@ -1,7 +1,7 @@
 import type {FriendlyText} from '@ts-runtypes/core';
 import type {User} from './user';
 
-// Fill what you can, leave the rest blank — a blank leaf keeps rendering in
+// Fill what you can, leave the rest blank: a blank leaf keeps rendering in
 // the source language.
 export const pl_friendlyUser: FriendlyText<User> = {
   rt$label: 'Konto użytkownika',

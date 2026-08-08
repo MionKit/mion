@@ -13,7 +13,7 @@ function parseChecked<T>(raw: string, isValid: ValidateFn<T>): T {
 
 type User = {id: number; name: string};
 
-// createValidateFn<User>() runs at a concrete call site — the build injects here.
+// createValidateFn<User>() runs at a concrete call site: the build injects here.
 const user = parseChecked('{"id":1,"name":"Ada"}', createValidateFn<User>());
 
 export {parseChecked, user};

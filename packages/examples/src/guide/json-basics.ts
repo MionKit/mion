@@ -17,7 +17,7 @@ const session: Session = {
 const encode = createJsonEncoderFn<Session>();
 const decode = createJsonDecoderFn<Session>();
 
-const wire = encode(session)!; // a JSON string — Date and Map survive
+const wire = encode(session)!; // a JSON string: Date and Map survive
 const back = decode(wire); // Date is a Date again, Map is a Map again
 
 back.startedAt instanceof Date; // true
@@ -25,7 +25,7 @@ back.flags instanceof Map; // true
 // end-roundtrip
 
 // start-why
-// Plain JSON.stringify can't do this — your Date turns into a string and
+// Plain JSON.stringify can't do this: your Date turns into a string and
 // your Map turns into {} on the way out, and never comes back.
 JSON.stringify(session); // {"id":"s-1","startedAt":"2026-01-01T...","flags":{}}
 // end-why

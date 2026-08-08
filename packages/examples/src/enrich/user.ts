@@ -1,6 +1,6 @@
 import type * as TF from '@ts-runtypes/core/formats';
 
-// models/user.ts — the source type every enrichment example derives from.
+// models/user.ts: the source type every enrichment example derives from.
 export interface User {
   name: TF.String<{minLength: 2; maxLength: 60}>;
   age: TF.Number<{min: 0; max: 120}>;

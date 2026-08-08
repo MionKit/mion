@@ -11,7 +11,7 @@ type User = {
 const isUser = createValidateFn<User>();
 
 isUser({id: 1, name: 'Ada', roles: ['admin']}); // true
-isUser({id: '1', name: 'Ada', roles: ['admin']}); // false — id is not a number
+isUser({id: '1', name: 'Ada', roles: ['admin']}); // false, id is not a number
 
 // It narrows too: inside the `if`, `data` is typed.
 function handle(data: unknown) {
@@ -23,7 +23,7 @@ function handle(data: unknown) {
 // createGetValidationErrorsFn -> the same checks, but it tells you what broke.
 const userErrors = createGetValidationErrorsFn<User>();
 
-userErrors({id: 1, name: 'Ada', roles: ['admin']}); // [] — all good
+userErrors({id: 1, name: 'Ada', roles: ['admin']}); // [], all good
 userErrors({id: '1', name: 42, roles: ['boss']});
 // [
 //   {path: ['id'], expected: 'number'},

@@ -101,7 +101,7 @@ let highlighterPromise: ReturnType<typeof createHighlighter> | null = null
 // Cache for fsMap (loaded once at startup)
 let fsMapCache: Map<string, string> | null = null
 
-// Cache for the twoslasher instance — fsMap is read only at create-time,
+// Cache for the twoslasher instance: fsMap is read only at create-time,
 // so the VFS of package d.ts files must be baked in here, not passed per-call.
 let twoslasherInstance: ReturnType<typeof createTwoslasher> | null = null
 
@@ -148,10 +148,10 @@ function loadPackageTypes(): Map<string, string> {
 
   const fsMap = new Map<string, string>()
 
-  // TypeScript lib files (lib.es5.d.ts, lib.dom.d.ts, etc.) — required for built-in
+  // TypeScript lib files (lib.es5.d.ts, lib.dom.d.ts, etc.): required for built-in
   // globals like Date, Set, console. The VFS-backed env has no real filesystem
   // access, so we have to load them ourselves at `/lib.<name>.d.ts`.
-  // (Avoid ts.getDefaultLibFilePath — under Nitro's ESM bundle it touches __filename
+  // (Avoid ts.getDefaultLibFilePath: under Nitro's ESM bundle it touches __filename
   // and crashes; resolve typescript via createRequire instead.)
   const tsLibDir = dirname(nodeRequire.resolve('typescript'))
   for (const f of readdirSync(tsLibDir)) {
@@ -168,7 +168,7 @@ function loadPackageTypes(): Map<string, string> {
   const packagesDir = join(repoRoot, 'packages')
 
   // Packages to load. `dir` is the directory under packages/, `name` is the npm
-  // package name — the specifier examples actually import, which is what the
+  // package name: the specifier examples actually import, which is what the
   // virtual node_modules path must use. The two differ on BOTH rows (the
   // directory kept its pre-scope name when the packages moved onto the
   // @ts-runtypes scope), and getting `name` wrong is silent: the VFS mounts a
@@ -183,7 +183,7 @@ function loadPackageTypes(): Map<string, string> {
 
   for (const pkg of packageConfigs) {
     const pkgDistDir = join(packagesDir, pkg.dir, pkg.distPath)
-    // dist/cjs/ is the CommonJS twin of the same declarations — mounting it would
+    // dist/cjs/ is the CommonJS twin of the same declarations, mounting it would
     // double the VFS for no added resolution, so keep only the ESM tree.
     const dtsFiles = findFiles(pkgDistDir, /\.d\.ts$/).filter(
       (file) => !relative(pkgDistDir, file).startsWith('cjs' + sep),

@@ -6,11 +6,11 @@
 // in internal/diagnostics/prose.go). `go run ./cmd/gen-diag-catalog` dumps it all
 // as JSON; this script fans that dump out into the two generated artifacts:
 //
-//   1. packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts — the
+//   1. packages/ts-runtypes-devtools/src/go-generated/diagnosticCatalog.generated.ts, the
 //      front-end message dictionary (code → headline/detail templates) the
 //      bundler plugin, the lint plugin, and the runtime alwaysThrow factory
 //      render from. The binary ships only code + args over the wire.
-//   2. container/website/app/components/content/go-generated/diagnostics-catalog.json —
+//   2. container/website/app/components/content/go-generated/diagnostics-catalog.json,
 //      the website diagnostics page data.
 //
 // Both outputs are committed so consumers build without the Go toolchain.
@@ -98,7 +98,7 @@ function codePrefix(code) {
   return match ? match[0] : code;
 }
 
-// The authoritative dump: codes, severities, wording, prose — all from Go.
+// The authoritative dump: codes, severities, wording, prose, all from Go.
 const goDump = execFileSync('go', ['run', './cmd/gen-diag-catalog'], {
   cwd: goRoot,
   encoding: 'utf8',
@@ -137,7 +137,7 @@ const entries = goRecords
   })
   .join('\n');
 
-const generatedTs = `// GENERATED FILE — DO NOT EDIT. Run \`pnpm rtx core codegen diag\` to refresh.
+const generatedTs = `// GENERATED FILE. DO NOT EDIT. Run \`pnpm rtx core codegen diag\` to refresh.
 //
 // The message dictionary for every diagnostic code the Go binary can emit,
 // exported from the authoritative catalog in internal/diagnostics (wording lives in
@@ -148,7 +148,7 @@ const generatedTs = `// GENERATED FILE — DO NOT EDIT. Run \`pnpm rtx core code
 export interface DiagnosticEntry {
   /** Single-line headline. Mandatory. */
   readonly headline: string;
-  /** Catalog severity — the default lint-rule tier this code routes to. */
+  /** Catalog severity: the default lint-rule tier this code routes to. */
   readonly severity: 'error' | 'warning' | 'info';
   /** Optional multi-line detail block (explanation + code-example fix). */
   readonly detail?: string;

@@ -2,7 +2,7 @@ import type * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn} from '@ts-runtypes/core';
 
 // Type-first formats: import a Format* alias and annotate. The constraint
-// lives in the type — the build reads it and validates accordingly.
+// lives in the type. The build reads it and validates accordingly.
 type Account = {
   id: TF.UUIDv4;
   email: TF.Email;

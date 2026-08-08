@@ -4,7 +4,7 @@ import * as RT from '@ts-runtypes/core/builders';
 import {runTypeFromJsonSchema, type FromJsonSchema, type JsonSchemaInput} from '@ts-runtypes/core/json-schema';
 
 // start-type
-// Option A — a plain TypeScript type. Fastest path, nothing extra to write.
+// Option A: a plain TypeScript type. Fastest path, nothing extra to write.
 type Product = {
   id: number;
   name: string;
@@ -16,7 +16,7 @@ const isProductA = createValidateFn<Product>();
 // end-type
 
 // start-builder
-// Option B — the RT.* builders, if you like the Zod / TypeBox feel.
+// Option B: the RT.* builders, if you like the Zod / TypeBox feel.
 const productRunType = RT.object({
   id: TF.number(),
   name: TF.string(),
@@ -31,7 +31,7 @@ const isProductB = createValidateFn(productRunType);
 // end-builder
 
 // start-json-schema
-// Option C — a draft 2020-12 JSON Schema, handed over as-is.
+// Option C: a draft 2020-12 JSON Schema, handed over as-is.
 const productJsonSchema = {
   type: 'object',
   properties: {

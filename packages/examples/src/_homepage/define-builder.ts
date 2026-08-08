@@ -10,7 +10,7 @@ const userRunType = RT.object({
   roles: RT.array(RT.union([RT.literal('admin'), RT.literal('user')])),
 });
 
-// Same validator, same result — your call.
+// Same validator, same result. Your call.
 const isUser = createValidateFn(userRunType);
 
 // Recover the TypeScript type from the run-type whenever you need it.

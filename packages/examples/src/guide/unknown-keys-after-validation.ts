@@ -7,7 +7,7 @@ type User = {id: number; name: string};
 // type. The emitter then swaps the key-array scan for a key-count compare on
 // all-required shapes (~3x on small objects, ~44x at 30 props) and drops the
 // per-object typeof guards. Calling it on non-validated input is undefined
-// behavior — keep it behind a validate like the strict guard below.
+// behavior: keep it behind a validate like the strict guard below.
 const isUser = createValidateFn<User>();
 const hasExtraFast = createHasUnknownKeysFn<User>(undefined, {runsAfterValidation: true});
 
@@ -16,4 +16,4 @@ export function isUserStrict(data: unknown): data is User {
 }
 
 isUserStrict({id: 1, name: 'Ada'}); // true
-isUserStrict({id: 1, name: 'Ada', admin: true}); // false — `admin` isn't in User
+isUserStrict({id: 1, name: 'Ada', admin: true}); // false, `admin` isn't in User

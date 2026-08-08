@@ -9,7 +9,7 @@ import {
   createMockDataFn,
 } from '@ts-runtypes/core';
 
-// One real-world type — the single source of truth every suite + benchmark
+// One real-world type, the single source of truth every suite + benchmark
 // below is generated from. A handful of formats (uuid, email), a Date, a
 // string-literal union and a nested array, exactly the shape you'd put on a
 // wire in a real app.
@@ -44,28 +44,28 @@ const order: Order = {
   status: 'paid',
 };
 
-// Validate — fast yes/no, plus a detailed error report when you need it.
+// Validate: fast yes/no, plus a detailed error report when you need it.
 const isOrder = createValidateFn<Order>();
 isOrder(order); // true
 
 const orderErrors = createGetValidationErrorsFn<Order>();
 orderErrors({...order, total: 'free'}); // [{path: ['total'], expected: 'number'}]
 
-// JSON that round-trips — Date survives the trip, typed as DataOnly<Order>.
+// JSON that round-trips: Date survives the trip, typed as DataOnly<Order>.
 const toJson = createJsonEncoderFn<Order>();
 const fromJson = createJsonDecoderFn<Order>();
 
 const wire = toJson(order)!; // Date -> string, ready for the network
 const back = fromJson(wire); // string -> Date again
 
-// Binary — the same type, a compact buffer instead of JSON.
+// Binary: the same type, a compact buffer instead of JSON.
 const toBytes = createBinaryEncoderFn<Order>();
 const fromBytes = createBinaryDecoderFn<Order>();
 
 const bytes = toBytes(order); // a Uint8Array; smaller than JSON
 const order2 = fromBytes(bytes); // back to a typed object
 
-// Mock — believable, valid, randomized data for your tests and fixtures.
+// Mock: believable, valid, randomized data for your tests and fixtures.
 const mockOrder = createMockDataFn<Order>();
 const fake = mockOrder(); // a valid, randomized Order
 

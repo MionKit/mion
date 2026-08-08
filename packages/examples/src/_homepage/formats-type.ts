@@ -1,7 +1,7 @@
 import type * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn} from '@ts-runtypes/core';
 
-// A format brands a string or number — the validator checks its exact
+// A format brands a string or number. The validator checks its exact
 // shape, not just "is it a string".
 type Account = {
   id: TF.UUIDv4;
@@ -11,4 +11,4 @@ type Account = {
 };
 
 const isAccount = createValidateFn<Account>();
-isAccount({id: 'nope', email: 'ada@x.com', ip: '10.0.0.1', logins: 3}); // false — id isn't a uuid
+isAccount({id: 'nope', email: 'ada@x.com', ip: '10.0.0.1', logins: 3}); // false, id isn't a uuid

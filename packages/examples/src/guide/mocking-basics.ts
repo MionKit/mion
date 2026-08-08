@@ -14,7 +14,7 @@ const mockUser = createMockDataFn<User>();
 const a = mockUser(); // {id: 91, name: 'qZ...', roles: ['user'], active: true}
 const b = mockUser(); // a different one each time
 
-// Whatever it produces passes the validator for the same type — by construction.
+// Whatever it produces passes the validator for the same type, by construction.
 const isUser = createValidateFn<User>();
 isUser(mockUser()); // true
 // end-basics
