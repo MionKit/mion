@@ -225,11 +225,21 @@ const NAMED_STRING_FORMATS: Record<string, (value: string) => boolean> = {
 function formatMatches(value: string, annotation: FormatAnnotation | undefined): boolean {
   if (!annotation) return true;
   const name = annotation.name;
-  if (name === 'stringFormat') return stringParamsMatch(value, annotation.params ?? {});
+  const params = annotation.params ?? {};
+  if (name === 'stringFormat') return stringParamsMatch(value, params);
+  // A registered `pattern` makes the params the ORACLE, not a narrowing extra:
+  // every pattern-bearing named family (url / domain / email) compiles to
+  // `namedPatternValidate` over exactly these params, so testing them is exact.
+  // The loose name test below would then be a DIFFERENT, stricter question and
+  // could under-match — `new URL()` rejects the relative references
+  // UriReference / IriReference deliberately accept, and the loose `domain`
+  // test demands a dot that the single-label HOSTNAME_PATTERN does not.
+  if (params.pattern) return stringParamsMatch(value, params);
   const named = NAMED_STRING_FORMATS[name];
   if (!named) throw negationMatchError(`no runtime test for string format '${name}'`);
-  // A named format may still carry narrowing params; the loose name test is
-  // enough for rejection sampling (params only narrow further).
+  // Pattern-less named formats (ip / uuid / idn-hostname / the RFC email pair)
+  // carry their check in the emitter, not in params; the loose test over-matches
+  // them, which is the safe direction.
   return named(value);
 }
 
@@ -274,6 +284,13 @@ function stringParamsMatch(value: string, params: Record<string, unknown>): bool
         break;
       case 'disallowedValues':
         if (Array.isArray(param) && param.includes(value)) return false;
+        break;
+      // `idna: 'ascii'` adds nothing over the ASCII pattern that rides with it
+      // (domain.go only emits an idna check when the params allow unicode), so
+      // the pattern arm has already tested it. Any other setting is a check
+      // this walker cannot reproduce.
+      case 'idna':
+        if (param !== 'ascii') throw negationMatchError(`no runtime test for idna '${String(param)}'`);
         break;
       case 'mockSamples':
       case 'not':
