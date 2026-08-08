@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
 import runtypesVite from '../../../ts-runtypes-devtools/src/vite.ts';
 import type {PureFnSite} from '../../../ts-runtypes-devtools/src/protocol.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 
@@ -43,23 +43,6 @@ const TOOLKIT_PKG_JSON = JSON.stringify({
   types: 'index.d.ts',
   main: 'index.js',
 });
-
-const CORE_PKG_JSON = JSON.stringify({
-  name: '@ts-runtypes/core',
-  version: '0.0.0',
-  type: 'module',
-  types: 'index.d.ts',
-  main: 'index.js',
-});
-
-// The marker types as a REAL node_modules package (top-level exports, not an
-// ambient `declare module`). Unlike the ambient overlay used by build-only
-// tests, this survives the resolver's setSources rebuild: the HMR path
-// (handleHotUpdate → setSources → scanFiles) constructs a fresh program rooted
-// at the changed file, and only a node_modules-resolvable '@ts-runtypes/core'
-// keeps the markers resolvable — exactly the production shape.
-const CORE_INDEX_DTS = RUNTYPES_DTS.replace(/^declare module '@ts-runtypes\/core' \{/, '').replace(/\}\s*$/, '');
-const CORE_INDEX_JS = `export const __rtMarkers = true;\n`;
 
 const TOOLKIT_DTS = `import type {PureFunction, InjectPureFnHash} from '@ts-runtypes/core';
 export {registerAnonymousPureFn} from '@ts-runtypes/core';
@@ -99,18 +82,19 @@ const callHook = (hook: any, thisArg: unknown, ...args: unknown[]): unknown =>
 function writeFixture() {
   FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-tp-pf-report-'));
   const toolkitDir = path.join(FIXTURE_DIR, 'node_modules', '@acme', 'toolkit');
-  const coreDir = path.join(FIXTURE_DIR, 'node_modules', '@ts-runtypes', 'core');
   fs.mkdirSync(toolkitDir, {recursive: true});
-  fs.mkdirSync(coreDir, {recursive: true});
+  // The REAL @ts-runtypes/core as an on-disk node_modules package. Unlike an
+  // ambient overlay, this survives the resolver's setSources rebuild: the HMR
+  // path (handleHotUpdate → setSources → scanFiles) constructs a fresh program
+  // rooted at the changed file, and only a node_modules-resolvable
+  // '@ts-runtypes/core' keeps the markers resolvable — the production shape.
+  writeMarkerPackage(FIXTURE_DIR);
   fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG_SRC);
   fs.writeFileSync(path.join(FIXTURE_DIR, 'consumer.ts'), CONSUMER_SRC);
   fs.writeFileSync(path.join(FIXTURE_DIR, 'wrapper-only.ts'), WRAPPER_ONLY_SRC);
   fs.writeFileSync(path.join(toolkitDir, 'package.json'), TOOLKIT_PKG_JSON);
   fs.writeFileSync(path.join(toolkitDir, 'index.d.ts'), TOOLKIT_DTS);
   fs.writeFileSync(path.join(toolkitDir, 'index.js'), TOOLKIT_JS);
-  fs.writeFileSync(path.join(coreDir, 'package.json'), CORE_PKG_JSON);
-  fs.writeFileSync(path.join(coreDir, 'index.d.ts'), CORE_INDEX_DTS);
-  fs.writeFileSync(path.join(coreDir, 'index.js'), CORE_INDEX_JS);
 }
 
 const REPORT_PATH = (): string => path.join(FIXTURE_DIR, '__runtypes', 'types', 'pure-fns-report.json');

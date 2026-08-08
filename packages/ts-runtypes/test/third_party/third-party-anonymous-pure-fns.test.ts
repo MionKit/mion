@@ -28,7 +28,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 
@@ -141,7 +141,7 @@ describe('third-party anonymous pure fns: renamed re-export + branded wrapper (n
     const toolkitDir = path.join(FIXTURE_DIR, 'node_modules', '@acme', 'toolkit');
     fs.mkdirSync(toolkitDir, {recursive: true});
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG_SRC);
-    fs.writeFileSync(path.join(FIXTURE_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(path.join(FIXTURE_DIR, 'consumer.ts'), CONSUMER_SRC);
     fs.writeFileSync(path.join(FIXTURE_DIR, 'wrapper-only.ts'), WRAPPER_ONLY_SRC);
     fs.writeFileSync(path.join(toolkitDir, 'package.json'), TOOLKIT_PKG_JSON);

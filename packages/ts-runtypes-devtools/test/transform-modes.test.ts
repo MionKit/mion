@@ -11,7 +11,7 @@ import {fileURLToPath} from 'node:url';
 import {ResolverClient} from '../src/resolver-client.ts';
 import {applyEdits, sourceHash} from '../src/apply-edits.ts';
 import type {SourceMap} from '../src/protocol.ts';
-import {BARE_CWD, BIN, hasBinary, RUNTYPES_DTS, runTest, withInlineSources} from './helpers/inline.ts';
+import {BARE_CWD, BIN, hasBinary, MARKER_PACKAGE_OVERLAY, runTest, withInlineSources} from './helpers/inline.ts';
 import {MODULE_MODE_ALL_SINGLE} from '../src/go-generated/runtypes-constants.generated.ts';
 
 const register = hasBinary() ? it : it.skip;
@@ -227,7 +227,7 @@ export const staticId = getRunTypeId<User>();
 `;
     const client = new ResolverClient(BIN, BARE_CWD, '', {serverMode: true, moduleMode: MODULE_MODE_ALL_SINGLE});
     try {
-      await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, 'user.ts': source});
+      await client.setSources({...MARKER_PACKAGE_OVERLAY, 'user.ts': source});
       const {sites, applied} = await assertModeParity(client, 'user.ts', source);
       // The bundle-stamped site imports from the runtypes bundle, not its own module.
       expect(sites[0].module).toBeTruthy();
@@ -264,7 +264,7 @@ getRunTypeId<Guard>();
         // Recovery (what the plugin does on mismatch): re-upload the source and
         // re-request. Now the resolver's hash matches the drifted code, and the
         // fresh edits land correctly when applied to the drifted source.
-        await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, 'guard.ts': drifted});
+        await client.setSources({...MARKER_PACKAGE_OVERLAY, 'guard.ts': drifted});
         const ed2 = await client.transform(['guard.ts'], {emitEdits: true});
         const second = ed2.transformed['guard.ts'];
         expect(second.sourceHash).toBe(sourceHash(drifted));
@@ -328,7 +328,7 @@ getRunTypeId<SC>();
         });
         let withoutContent;
         try {
-          await trimmed.setSources(augmented);
+          await trimmed.setSources({...MARKER_PACKAGE_OVERLAY, ...augmented});
           withoutContent = (await trimmed.transform(['sc.ts'])).transformed['sc.ts'];
         } finally {
           trimmed.close();

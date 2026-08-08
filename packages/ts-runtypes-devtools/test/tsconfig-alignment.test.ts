@@ -22,7 +22,7 @@ import {rules} from '../src/eslint/index.ts';
 import {resetSharedSession} from '../src/eslint/session.ts';
 import {ResolverClient} from '../src/resolver-client.ts';
 import {hasBinary, makeFixtureProject, runRule, type FixtureProject} from './eslint/fixture.ts';
-import {BIN, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
 const TEMPORAL_CONSUMER_SRC = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
 
@@ -70,8 +70,8 @@ describe.runIf(hasBinary())('daemon surface — setSources honors the full tscon
     try {
       // First install a marker-less program, then EDIT the Temporal marker in —
       // the HMR shape: the frozen config must govern the per-edit rebuild too.
-      await resolver.setSources({'rt-overlay.d.ts': RUNTYPES_DTS, 'consumer.ts': 'export const before = 1;\n'});
-      await resolver.setSources({'rt-overlay.d.ts': RUNTYPES_DTS, 'consumer.ts': TEMPORAL_CONSUMER_SRC});
+      await resolver.setSources({...MARKER_PACKAGE_OVERLAY, 'consumer.ts': 'export const before = 1;\n'});
+      await resolver.setSources({...MARKER_PACKAGE_OVERLAY, 'consumer.ts': TEMPORAL_CONSUMER_SRC});
       return await resolver.scanFiles(['consumer.ts'], {includeRunTypes: true, includeRtDiagnostics: true});
     } finally {
       resolver.close();

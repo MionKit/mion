@@ -1,4 +1,3 @@
-/// <reference path="./runtypes.d.ts" />
 import {getRunTypeId, type InjectRunTypeId} from '@ts-runtypes/core';
 
 export {};

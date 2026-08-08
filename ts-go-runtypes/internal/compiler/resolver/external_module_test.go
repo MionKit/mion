@@ -14,11 +14,12 @@ import (
 // and that the new hardening diagnostics (CTA004 widened const, PFN002 external
 // pure-fn handle) fire where intended.
 
-// scanExternal scans `call.ts` (the consumer) against a marker `.d.ts` overlay,
-// following its imports into the other source files in the overlay.
-func scanExternal(t *testing.T, dts string, files map[string]string) protocol.Response {
+// scanExternal scans `call.ts` (the consumer) against the real marker package
+// (injected by setupInline), following its imports into the other source
+// files in the overlay.
+func scanExternal(t *testing.T, files map[string]string) protocol.Response {
 	t.Helper()
-	overlay := map[string]string{"runtypes.d.ts": dts}
+	overlay := map[string]string{}
 	for name, source := range files {
 		overlay[name] = source
 	}
@@ -57,7 +58,7 @@ export const reflectId = getRunTypeId(u);
 export const staticId = getRunTypeId<User>();
 export const inlineId = getRunTypeId<{name: string; age: number}>();
 `
-	resp := scanExternal(t, runtypesDTS, map[string]string{"types.ts": types, "call.ts": code})
+	resp := scanExternal(t, map[string]string{"types.ts": types, "call.ts": code})
 	if len(resp.Sites) != 3 {
 		t.Fatalf("expected 3 getRunTypeId sites, got %d", len(resp.Sites))
 	}
@@ -83,7 +84,7 @@ export const inlineVal = createValidateFn<{name: string; age: number}>();
 export const importedJson = createJsonEncoderFn<User>();
 export const inlineJson = createJsonEncoderFn<{name: string; age: number}>();
 `
-	resp := scanExternal(t, runtypesDTS, map[string]string{"types.ts": types, "call.ts": code})
+	resp := scanExternal(t, map[string]string{"types.ts": types, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
 		t.Fatalf("expected no CTA/PFN gate diagnostics, got %v", codes)
 	}
@@ -110,7 +111,7 @@ export const spread = createValidateFn<string>(undefined, {...strict});
 export const inline = createValidateFn<string>(undefined, {noLiterals: true, noIsArrayCheck: true});
 export const none = createValidateFn<string>();
 `
-	resp := scanExternal(t, runtypesDTS, map[string]string{"opts.ts": opts, "call.ts": code})
+	resp := scanExternal(t, map[string]string{"opts.ts": opts, "call.ts": code})
 	if codes := gateCodes(resp); len(codes) != 0 {
 		t.Fatalf("expected no CTA/PFN gate diagnostics for an `as const` whole-const preset, got %v", codes)
 	}
@@ -147,7 +148,7 @@ export const bad = createValidateFn<string>(undefined, loose);
 	}
 	for name, files := range cases {
 		t.Run(name, func(t *testing.T) {
-			resp := scanExternal(t, runtypesDTS, files)
+			resp := scanExternal(t, files)
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodeCompTimeArgsWidenedConst {
 				t.Fatalf("expected exactly one CTA004 gate, got %v", codes)
@@ -183,7 +184,11 @@ withValidator<string>(isString);
 	}
 	for name, files := range cases {
 		t.Run(name, func(t *testing.T) {
-			resp := scanExternal(t, pureFunctionDts, files)
+			// This matrix keeps the pureFunctionDts shape-probe ambient (a
+			// wrapper declaring its own PureFunction param) instead of the
+			// real package — the probe IS the subject.
+			files["runtypes.d.ts"] = pureFunctionDts
+			resp := scanExternal(t, files)
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodePureFunctionExternalHandle {
 				t.Fatalf("expected exactly one PFN002, got %v", codes)
@@ -202,7 +207,7 @@ func TestExternalModule_PureFnInlineAccepted(t *testing.T) {
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
 			code := "import {withValidator} from '@ts-runtypes/core';\n" + body + "\n"
-			resp := scanExternal(t, pureFunctionDts, map[string]string{"call.ts": code})
+			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			if codes := gateCodes(resp); len(codes) != 0 {
 				t.Fatalf("expected no PFN/CTA gate for an inline pure-fn, got %v", codes)
 			}
@@ -221,7 +226,7 @@ func TestExternalModule_PureFnNamedLocalRejected(t *testing.T) {
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
 			code := "import {withValidator} from '@ts-runtypes/core';\n" + body + "\n"
-			resp := scanExternal(t, pureFunctionDts, map[string]string{"call.ts": code})
+			resp := scanExternal(t, map[string]string{"runtypes.d.ts": pureFunctionDts, "call.ts": code})
 			codes := gateCodes(resp)
 			if len(codes) != 1 || codes[0] != diagnostics.CodePureFunctionNotLiteral {
 				t.Fatalf("expected exactly one PFN001, got %v", codes)

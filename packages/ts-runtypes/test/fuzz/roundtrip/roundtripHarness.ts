@@ -24,7 +24,11 @@ import {
   createBinaryDecoderFn,
 } from '@ts-runtypes/core';
 import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
-import {RUNTYPES_DTS, evalEntryModules, instantiateRunTypes} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {
+  MARKER_PACKAGE_OVERLAY,
+  evalEntryModules,
+  instantiateRunTypes,
+} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
 import {openClient, hasBinary, BIN, SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
@@ -127,7 +131,7 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
   try {
     // src/ rides along for the fixture preamble's shipped-brand imports (see
     // typeFuzzHarness.compileType).
-    await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
+    await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
     return {...base, resolverError: errMsg(err)};

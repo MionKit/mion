@@ -150,7 +150,7 @@ getRunTypeId<{a: number}>();
 	r.Reset()
 	if resp := r.Dispatch(protocol.Request{
 		Op:      protocol.OpSetSources,
-		Sources: map[string]string{"runtypes.d.ts": runtypesDTS, "a.ts": aSrc},
+		Sources: withRealMarker(t, map[string]string{"a.ts": aSrc}),
 	}); resp.Error != "" {
 		t.Fatalf("setSources after reset: %s", resp.Error)
 	}
@@ -193,7 +193,7 @@ getRunTypeId<{a: number}>();
 
 	if resp := r.Dispatch(protocol.Request{
 		Op:      protocol.OpSetSources,
-		Sources: map[string]string{"runtypes.d.ts": runtypesDTS, "a.ts": aSrc},
+		Sources: withRealMarker(t, map[string]string{"a.ts": aSrc}),
 	}); resp.Error != "" {
 		t.Fatalf("setSources: %s", resp.Error)
 	}

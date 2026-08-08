@@ -498,7 +498,7 @@ export const _ = createValidateFn<User>();
     const ROOT = path.resolve(__dirname, '../../..');
     const oneShot = new ResolverClient(`${ROOT}/bin/ts-runtypes`, ROOT, '', {serverMode: true});
     try {
-      await oneShot.setSources({'runtypes.d.ts': RUNTYPES_DTS, ...sources});
+      await oneShot.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
       const response = await oneShot.scanFiles(Object.keys(sources), {
         includeEntryModules: true,
       });
@@ -535,7 +535,7 @@ export const _ = createValidateFn<User>();
   });
 });
 
-// RUNTYPES_DTS overlay is borrowed via the helper; re-import the
+// The marker-package overlay is borrowed via the helper; re-import the
 // constant for the one-shot probe above so the inline `setSources`
 // call doesn't have to re-declare the marker module.
-import {RUNTYPES_DTS} from './helpers/inline.ts';
+import {MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';

@@ -8,47 +8,22 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/testfixtures"
 )
 
-// runtypesDts is the ambient marker declaration injected into every
-// purefns test overlay. It declares the marker types and a brand-branded
-// registerPureFnFactory signature so the marker-driven discovery in
-// walker.go recognises calls in test fixtures the same way it recognises
-// them in real consumer code.
-const runtypesDts = `declare module '@ts-runtypes/core' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
-  export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
-  export type InjectPureFnHash<F> = string & {readonly __rtInjectPureFnHashBrand?: F};
-  export type PureFnId = string & {readonly __rtPureFnIdBrand?: never};
-  export interface RTUtils {
-    usePureFn(key: CompTimeArgs<string>): any;
-    getPureFn(key: CompTimeArgs<string>): any;
-    getCompiledPureFn(key: CompTimeArgs<string>): any;
-    hasPureFn(key: CompTimeArgs<string>): boolean;
-    findCompiledPureFn(fnName: CompTimeArgs<string>): any;
-    getPureFnByKey(key: string): any;
-    hasPureFnByKey(key: string): boolean;
-  }
-  export function registerPureFnFactory(
-    pureFnId: CompTimeArgs<PureFnId>,
-    createPureFn: PureFunctionFactory<(utl: RTUtils) => any> | null
-  ): any;
-  export function registerPureFn(
-    pureFnId: CompTimeArgs<PureFnId>,
-    fn: PureFunction<(...args: any[]) => any> | null
-  ): any;
-  export function registerAnonymousPureFn<F extends (...args: any[]) => any>(
-    fn: PureFunction<F> | null,
-    hash?: InjectPureFnHash<F>
-  ): any;
-  export function registerAnonymousPureFnFactory<F extends (utl: RTUtils) => any>(
-    createPureFn: PureFunctionFactory<F> | null,
-    hash?: InjectPureFnHash<F>
-  ): any;
+// realMarkerFiles returns the REAL `@ts-runtypes/core` package (package.json +
+// built dist .d.ts tree) as node_modules-relative overlay entries, so the
+// marker-driven discovery in walker.go recognises register* calls in test
+// fixtures exactly the way it recognises them in real consumer code — no
+// hand-written stand-in to drift.
+func realMarkerFiles(t *testing.T) map[string]string {
+	t.Helper()
+	files, err := testfixtures.RealMarkerPackage()
+	if err != nil {
+		t.Fatalf("real marker package unavailable: %v", err)
+	}
+	return files
 }
-`
 
 func extractFromOverlay(t *testing.T, files map[string]string) ([]Entry, []Diagnostic) {
 	t.Helper()
@@ -60,11 +35,11 @@ func extractFromOverlay(t *testing.T, files map[string]string) ([]Entry, []Diagn
 		overlay[path] = source
 		abs = append(abs, path)
 	}
-	// Inject the marker ambient declaration AFTER user files so the
-	// caller's first file stays at abs[0] (some tests index in).
-	runtypesPath := tspath.ResolvePath(cwd, "runtypes.d.ts")
-	overlay[runtypesPath] = runtypesDts
-	abs = append(abs, runtypesPath)
+	// Overlay the real marker package; never a root (module resolution pulls
+	// it in), so the caller's first file stays at abs[0] (some tests index in).
+	for rel, content := range realMarkerFiles(t) {
+		overlay[tspath.ResolvePath(cwd, rel)] = content
+	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
 		SingleThreaded: true,
@@ -82,7 +57,7 @@ func extractFromOverlay(t *testing.T, files map[string]string) ([]Entry, []Diagn
 			releaseLease()
 		}
 	})
-	return ExtractFromProgramCached(typeChecker, marker.WithDefaults(marker.Options{}), prog, abs, nil)
+	return ExtractFromProgramCached(typeChecker, marker.WithDefaults(marker.Options{FS: prog.FS}), prog, abs, nil)
 }
 
 func TestExtract_HappyPath_FunctionExpression(t *testing.T) {

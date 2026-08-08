@@ -20,7 +20,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/rollup.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = path.resolve(__dirname, 'tmp-fail-on-error');
 const OUT_DIR = path.join(FIXTURE_DIR, '__runtypes');
@@ -114,7 +114,7 @@ function writeFixture(dir: string, entrySrc: string, tsconfigSrc: string = TSCON
   fs.rmSync(dir, {recursive: true, force: true});
   fs.mkdirSync(dir, {recursive: true});
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), tsconfigSrc);
-  fs.writeFileSync(path.join(dir, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+  writeMarkerPackage(dir);
   fs.writeFileSync(path.join(dir, 'entry.ts'), entrySrc);
 }
 

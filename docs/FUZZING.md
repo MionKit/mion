@@ -296,8 +296,10 @@ ground truth O10 / O14 are checked against.
 The harness ([`typeFuzzHarness.ts`](../packages/ts-runtypes/test/fuzz/type/typeFuzzHarness.ts))
 reuses the vite-plugin test helpers
 ([`helpers/inline.ts`](../packages/ts-runtypes-devtools/test/helpers/inline.ts)):
-render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop the
-`RUNTYPES_DTS` ambient overlay — a tiny inferred Program, no node_modules) →
+render the fixture → `serve --sources ops` `ResolverClient.setSources` (atop
+`MARKER_PACKAGE_OVERLAY` — the REAL `@ts-runtypes/core` package.json + dist
+.d.ts tree served as virtual node_modules, so the marker module resolves the
+way a consumer install does) →
 `scanFiles` → `evalEntryModules` executes the emitted virtual modules into their
 tuples → each fn tuple is passed as the injected id to the REAL factory
 (`createValidateFn(undefined, undefined, tuple)` → `initFromTuple` links the whole

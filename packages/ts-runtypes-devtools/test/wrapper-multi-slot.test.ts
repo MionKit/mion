@@ -11,7 +11,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/rollup.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = path.resolve(__dirname, 'tmp-wrapper-multi-slot');
 const WRAPPER = path.join(FIXTURE_DIR, 'wrapper.ts');
@@ -72,7 +72,7 @@ describe('multi-slot injection (several marker params on one call)', () => {
     fs.rmSync(FIXTURE_DIR, {recursive: true, force: true});
     fs.mkdirSync(FIXTURE_DIR, {recursive: true});
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG_SRC);
-    fs.writeFileSync(path.join(FIXTURE_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(WRAPPER, WRAPPER_SRC);
     fs.writeFileSync(CONSUMER, CONSUMER_SRC);
   });

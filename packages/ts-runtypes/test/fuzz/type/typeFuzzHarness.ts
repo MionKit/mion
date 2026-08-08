@@ -33,7 +33,7 @@ import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {ResolverClient, type ResolverClientOptions} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import {
-  RUNTYPES_DTS,
+  MARKER_PACKAGE_OVERLAY,
   evalEntryModules,
   instantiateRunTypes,
   BIN,
@@ -188,7 +188,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
     // The whole src/ tree rides along so the fixture preamble's `./src/...`
     // imports (the SHIPPED format brands) resolve inside the resolver's
     // virtual filesystem — no hand-written brand stand-ins (SRC_OVERLAY above).
-    await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
+    await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
     return {...base, resolverError: errMsg(err)};

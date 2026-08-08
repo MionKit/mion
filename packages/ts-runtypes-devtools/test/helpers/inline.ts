@@ -31,91 +31,51 @@ export const hasBinary = (): boolean => fs.existsSync(BIN);
 // tsconfig.json above it (nothing sits above the system temp root).
 export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 
-// Mirror of internal/testfixtures/runtypes.d.ts. Always overlaid by
-// `withInlineSources` so per-test fixtures don't have to redeclare the
-// fake `ts-runtypes` module.
-//
-// ⚠️ EXCEPTION, NOT THE RULE. This is a hand-written restatement of the
-// public marker surface — the largest one in the test infrastructure, and it
-// has already drifted from its Go twin. The rule everywhere else is to use
-// the REAL shipped types: the fuzz harnesses import the actual `src/` tree
-// ("Real types, never copies" in ts-runtypes/test/fuzz/README.md). Do not
-// grow this casually, and never copy this pattern for new fixtures.
-// Consolidating or generating it is docs/todos/generate-runtypes-dts.md.
-export const RUNTYPES_DTS = `declare module '@ts-runtypes/core' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
-  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never, F4 extends string = never, F5 extends string = never, F6 extends string = never, F7 extends string = never, F8 extends string = never, F9 extends string = never, F10 extends string = never, F11 extends string = never, F12 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12]};
-  export type PureFunction<F> = F & {readonly __rtPureFunctionBrand?: never};
-  export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};
-  export type InjectPureFnHash<F> = string & {readonly __rtInjectPureFnHashBrand?: F};
-  export type PureFnId = string & {readonly __rtPureFnIdBrand?: never};
-  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-  export interface ValidateOptions {
-    noLiterals?: boolean;
-    noIsArrayCheck?: boolean;
-    numberMode?: 'isFinite' | 'typeof' | 'notNaN';
-  }
-  export type ValidateFn = (value: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): ValidateFn;
-  export function createGetValidationErrorsFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'verr'>): (value: unknown, path?: unknown[], errors?: unknown[]) => unknown[];
-  export function deserializeValidate<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): ValidateFn;
-  export function createBinaryEncoderFn<T>(val?: T, options?: any, id?: InjectTypeFnArgs<T, 'tb'>): (value: unknown) => unknown;
-  export function createBinaryDecoderFn<T>(val?: T, options?: any, id?: InjectTypeFnArgs<T, 'fb'>): (input: unknown) => unknown;
-  export type JsonEncoderOptions = {strategy?: 'clone' | 'mutate' | 'direct' | 'compact'};
-  export type JsonDecoderOptions = {strategy?: 'strip' | 'preserve' | 'compact'};
-  export function createJsonEncoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonEncoderOptions>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): (value: unknown) => string | undefined;
-  export function createJsonDecoderFn<T>(val?: T, options?: CompTimeFnArgs<JsonDecoderOptions>, id?: InjectTypeFnArgs<T, 'jsonDecoder'>): (serialized: string) => unknown;
-  export function overrideValidate<T>(fn: PureFunction<(v: unknown) => boolean>, id?: InjectTypeFnArgs<T, 'val'>): void;
-  export function overrideGetValidationErrors<T>(fn: PureFunction<(value: unknown, path?: unknown[], errors?: unknown[]) => unknown[]>, id?: InjectTypeFnArgs<T, 'verr'>): void;
-  export function overrideJsonEncoder<T>(fn: PureFunction<(value: unknown) => string | undefined>, id?: InjectTypeFnArgs<T, 'jsonEncoder'>): void;
-  export function overrideJsonDecoder<T>(fn: PureFunction<(serialized: string) => unknown>, id?: InjectTypeFnArgs<T, 'jsonDecoder'>): void;
-  export function overrideBinaryEncoder<T>(fn: PureFunction<(value: unknown, Ser: any) => any>, id?: InjectTypeFnArgs<T, 'tb'>): void;
-  export function overrideBinaryDecoder<T>(fn: PureFunction<(ret: unknown, Des: any) => unknown>, id?: InjectTypeFnArgs<T, 'fb'>): void;
-  export function overrideHasUnknownKeys<T>(fn: PureFunction<(value: unknown, options?: any) => boolean>, id?: InjectTypeFnArgs<T, 'huk'>): void;
-  export function overrideStripUnknownKeys<T>(fn: PureFunction<(value: unknown) => unknown>, id?: InjectTypeFnArgs<T, 'suk'>): void;
-  export function overrideUnknownKeyErrors<T>(fn: PureFunction<(value: unknown, path?: unknown[], errors?: unknown[]) => unknown[]>, id?: InjectTypeFnArgs<T, 'uke'>): void;
-  export function overrideUnknownKeysToUndefined<T>(fn: PureFunction<(value: unknown) => unknown>, id?: InjectTypeFnArgs<T, 'uku'>): void;
-  export function overrideFormatTransform<T>(fn: PureFunction<(value: unknown) => unknown>, id?: InjectTypeFnArgs<T, 'fmt'>): void;
-  export type StandardSchemaResult = {value: unknown; issues?: undefined} | {issues: ReadonlyArray<{message: string; path?: ReadonlyArray<PropertyKey | {key: PropertyKey}>}>};
-  export type StandardSchemaV1 = {'~standard': {version: 1; vendor: string; validate: (value: unknown) => StandardSchemaResult}};
-  export function createStandardSchema<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, ids?: InjectTypeFnArgs<T, 'val', 'verr'>): StandardSchemaV1;
-  export interface RTUtils {
-    usePureFn(key: CompTimeArgs<string>): any;
-    getPureFn(key: CompTimeArgs<string>): any;
-    getCompiledPureFn(key: CompTimeArgs<string>): any;
-    hasPureFn(key: CompTimeArgs<string>): boolean;
-    findCompiledPureFn(fnName: CompTimeArgs<string>): any;
-    getPureFnByKey(key: string): any;
-    hasPureFnByKey(key: string): boolean;
-  }
-  export function registerPureFnFactory(
-    pureFnId: CompTimeArgs<PureFnId>,
-    createPureFn: PureFunctionFactory<(utl: RTUtils) => any> | null
-  ): any;
-  export function registerPureFn(
-    pureFnId: CompTimeArgs<PureFnId>,
-    fn: PureFunction<(...args: any[]) => any> | null
-  ): any;
-  export function registerAnonymousPureFn<F extends (...args: any[]) => any>(
-    fn: PureFunction<F> | null,
-    hash?: InjectPureFnHash<F>
-  ): any;
-  export function registerAnonymousPureFnFactory<F extends (utl: RTUtils) => any>(
-    createPureFn: PureFunctionFactory<F> | null,
-    hash?: InjectPureFnHash<F>
-  ): any;
-  // Minimal DataOnly stand-in — preserves the alias-clearing key-filtering
-  // mapped-type shape that the real DataOnly uses in dataOnly.ts, just
-  // enough to exercise the serializer's mapped-type recognition path.
-  export type DataOnly<T> = T extends object
-    ? {[K in keyof T as K extends symbol ? never : K]: DataOnly<T[K]>}
-    : T;
-}
-`;
-
 export type InlineSources = Record<string, string>;
+
+// The REAL `@ts-runtypes/core` package — its package.json plus the built
+// dist/**/*.d.ts declaration tree (esm AND dist/cjs/, since a node16-style
+// CommonJS importer resolves the `require` export condition) — keyed as
+// virtual node_modules paths for setSources. `withInlineSources` always
+// injects it, so test snippets resolve the marker module exactly the way a
+// consumer install does; there is no hand-written module stand-in to drift
+// ("Real types, never copies" in ts-runtypes/test/fuzz/README.md). Read once
+// per worker; the dist is guaranteed fresh by `pretest` → `check:builds`.
+const MARKER_PKG_DIR = path.resolve(ROOT, 'packages/ts-runtypes');
+export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
+  const files: InlineSources = {};
+  files['node_modules/@ts-runtypes/core/package.json'] = fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8');
+  const walk = (dir: string, rel: string): void => {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.d.ts')) {
+        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      }
+    }
+  };
+  walk(path.join(MARKER_PKG_DIR, 'dist'), '');
+  return files;
+})();
+
+// The canonical minimal `Temporal` ambient (ts-go-runtypes/internal/
+// testfixtures/temporal.d.ts, the same file the Go suites embed). The marker
+// package's declaration graph references the global Temporal (formats/
+// datetime), so inline programs overlay this alongside the package — without
+// it the checker degrades Temporal-adjacent declarations (observed: the
+// DataOnly<T> mapped-type label reduces to the inner name). Kept OUT of
+// MARKER_PACKAGE_OVERLAY itself so tsconfig-lib-sensitive suites can mount
+// the package without a Temporal ambient.
+export const TEMPORAL_DTS = fs.readFileSync(path.resolve(ROOT, 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'), 'utf8');
+
+/** Writes MARKER_PACKAGE_OVERLAY to REAL disk under `dir` — for suites whose
+ *  fixtures live in a scratch directory the daemon resolves from disk. **/
+export function writeMarkerPackage(dir: string): void {
+  for (const [rel, content] of Object.entries(MARKER_PACKAGE_OVERLAY)) {
+    const abs = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(abs), {recursive: true});
+    fs.writeFileSync(abs, content);
+  }
+}
 
 // Shape of the daemon-response capture attached to `task.meta.mionRunTypes`.
 // Read by `scripts/runtypes-logs-reporter.mjs` when `pnpm test:logs` runs.
@@ -210,11 +170,16 @@ export async function withInlineSources<T>(
 ): Promise<T> {
   const client = getClient();
   if (opts.reset) await client.reset();
-  // runtypes.d.ts is always present so caller's fixtures stay terse. The
-  // caller can override by including their own "runtypes.d.ts" key.
-  const augmented: InlineSources = {'runtypes.d.ts': RUNTYPES_DTS, ...sources};
+  // The real marker package rides along as virtual node_modules so caller
+  // fixtures stay terse. A caller-supplied "runtypes.d.ts" ambient (the
+  // deliberate shape-probe suites) replaces it entirely — same guard as the
+  // Go twin (setupInlineWith) so the two lanes keep one contract.
+  const augmented: InlineSources =
+    'runtypes.d.ts' in sources ? {...sources} : {...MARKER_PACKAGE_OVERLAY, 'temporal.d.ts': TEMPORAL_DTS, ...sources};
   await client.setSources(augmented);
-  return fn({client, sources: augmented});
+  // The callback sees only the caller's own files: the node_modules overlay
+  // is resolution input for the daemon, never something a test should scan.
+  return fn({client, sources});
 }
 
 // rewrite drives the compiler-driven transform (OpTransform) for a single

@@ -6,7 +6,7 @@
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {ResolverClient} from '../src/resolver-client.ts';
-import {BARE_CWD, BIN, RUNTYPES_DTS, hasBinary} from './helpers/inline.ts';
+import {BARE_CWD, BIN, MARKER_PACKAGE_OVERLAY, hasBinary} from './helpers/inline.ts';
 
 const SOURCE = `import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 export interface User {id: number; name: string}
@@ -24,7 +24,7 @@ describe.skipIf(!hasBinary())('parallelism opt-outs', () => {
       parallelRender: false,
     });
     try {
-      await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, 'optout.ts': SOURCE});
+      await client.setSources({...MARKER_PACKAGE_OVERLAY, 'optout.ts': SOURCE});
       const response = await client.scanFiles(['optout.ts'], {includeEntryModules: true});
       // One site per marker call: createValidateFn + static + reflect forms.
       expect(response.sites).toHaveLength(3);

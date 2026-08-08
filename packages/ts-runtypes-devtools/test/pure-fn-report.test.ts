@@ -17,7 +17,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import runtypesRollup from '../src/rollup.ts';
 import type {PureFnSite} from '../src/protocol.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 
@@ -66,7 +66,7 @@ describe('pure-fn build report', () => {
   beforeEach(() => {
     FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-pf-report-'));
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG);
-    fs.writeFileSync(path.join(FIXTURE_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(path.join(FIXTURE_DIR, 'consumer.ts'), CONSUMER);
   });
   afterEach(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));

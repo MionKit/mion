@@ -6,7 +6,8 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": []
+    "types": [],
+    "paths": {"@ts-runtypes/core": ["../../../packages/ts-runtypes/dist/index.d.ts"]}
   },
   "include": ["*.ts"]
 }

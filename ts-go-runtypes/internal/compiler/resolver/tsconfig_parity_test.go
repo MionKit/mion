@@ -72,10 +72,9 @@ func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[
 	t.Helper()
 	dir := tspath.NormalizePath(t.TempDir())
 
-	overlay := map[string]string{
-		"consumer.ts":   consumerSrc,
-		"runtypes.d.ts": runtypesDTS,
-	}
+	// The real marker package rides the same map both lanes consume: written
+	// to disk for the build lane, sent as sources for the daemon lane.
+	overlay := withRealMarker(t, map[string]string{"consumer.ts": consumerSrc})
 	for name, content := range extraFiles {
 		overlay[name] = content
 	}
@@ -211,7 +210,7 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 // falls back, and a fixed config heals on the next setSources without a
 // respawn (the parse error is never cached).
 func TestSetSources_TsconfigErrors(t *testing.T) {
-	sources := map[string]string{"runtypes.d.ts": runtypesDTS, "consumer.ts": "export const answer = 42;\n"}
+	sources := withRealMarker(t, map[string]string{"consumer.ts": "export const answer = 42;\n"})
 
 	t.Run("named but broken fails the op, then heals once fixed", func(t *testing.T) {
 		dir := tspath.NormalizePath(t.TempDir())

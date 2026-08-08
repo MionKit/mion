@@ -15,7 +15,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import runtypesRollup from '../src/rollup.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 const FIXTURE_DIR = path.resolve(__dirname, 'tmp-references-unbuilt');
 const LIB_DIR = path.join(FIXTURE_DIR, 'lib');
@@ -105,7 +105,10 @@ describe('project references with unbuilt outputs', () => {
     fs.writeFileSync(path.join(LIB_DIR, 'tsconfig.json'), LIB_TSCONFIG);
     fs.writeFileSync(path.join(LIB_DIR, 'src', 'wrapper.ts'), WRAPPER_SRC);
     fs.writeFileSync(path.join(MAIN_DIR, 'tsconfig.json'), MAIN_TSCONFIG);
-    fs.writeFileSync(path.join(MAIN_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    // At the COMMON parent: the wrapper in lib/ and the consumer in main/ both
+    // walk up to FIXTURE_DIR/node_modules (an ambient was global; a package
+    // resolves per-file).
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(CONSUMER, CONSUMER_SRC);
   });
   afterAll(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));

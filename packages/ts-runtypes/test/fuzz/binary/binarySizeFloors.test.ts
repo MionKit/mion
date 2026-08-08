@@ -20,7 +20,7 @@ import {createBinaryEncoderFn, createBinaryDecoderFn, createBinarySizerFn, creat
 import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import type {BinarySizingOptions} from '../../../src/mocking/mockTypes.ts';
 import {
-  RUNTYPES_DTS,
+  MARKER_PACKAGE_OVERLAY,
   evalEntryModules,
   instantiateRunTypes,
   BIN,
@@ -55,7 +55,7 @@ createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
 getRunTypeId<T>();
 `;
-  await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, 'g.ts': source});
+  await client.setSources({...SRC_OVERLAY, ...MARKER_PACKAGE_OVERLAY, 'g.ts': source});
   const resp = await client.scanFiles(['g.ts'], {includeEntryModules: true});
   const errors = (resp.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
   expect(errors, `errors for ${title}: ${JSON.stringify(errors)}`).toEqual([]);

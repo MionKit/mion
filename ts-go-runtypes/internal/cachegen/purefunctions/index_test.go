@@ -62,11 +62,11 @@ func programForSources(t *testing.T, files map[string]string) (*program.Program,
 		overlay[path] = source
 		abs = append(abs, path)
 	}
-	// Inject the marker ambient declaration AFTER user files so the
-	// caller's first file stays at abs[0] (some tests index in).
-	runtypesPath := tspath.ResolvePath(cwd, "runtypes.d.ts")
-	overlay[runtypesPath] = runtypesDts
-	abs = append(abs, runtypesPath)
+	// Overlay the real marker package; never a root (module resolution pulls
+	// it in), so the caller's first file stays at abs[0] (some tests index in).
+	for rel, content := range realMarkerFiles(t) {
+		overlay[tspath.ResolvePath(cwd, rel)] = content
+	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
 		SingleThreaded: true,
@@ -115,13 +115,13 @@ func TestValidatePureFnDependencies_AllSatisfied(t *testing.T) {
 export const a = registerPureFnFactory('app::slugify', function () { return function () { return 1; }; });
 `,
 	})
-	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{}), prog, files, nil)
+	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), prog, files, nil)
 	idx := NewIndex(entries, files)
 
 	deps := []protocol.PureFnDep{
 		{Namespace: "app", FunctionName: "slugify", FilePath: files[0]},
 	}
-	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, prog)
+	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, prog)
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics, got %+v", diags)
 	}
@@ -132,13 +132,13 @@ func TestValidatePureFnDependencies_MissingKey_PFE9012(t *testing.T) {
 	prog, files := programForSources(t, map[string]string{
 		"empty.ts": `export const x = 1;`,
 	})
-	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{}), prog, files, nil)
+	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), prog, files, nil)
 	idx := NewIndex(entries, files)
 
 	deps := []protocol.PureFnDep{
 		{Namespace: "app", FunctionName: "doesNotExist", FilePath: ""},
 	}
-	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, prog)
+	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, prog)
 	if len(diags) != 1 {
 		t.Fatalf("expected exactly 1 diagnostic, got %d (%+v)", len(diags), diags)
 	}
@@ -217,7 +217,7 @@ export const r = registerPureFnFactory('app::slugify', function () { return func
 	}
 
 	// Initial scan covers ONLY b.ts.
-	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{}), prog, []string{bPath}, nil)
+	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), prog, []string{bPath}, nil)
 	idx := NewIndex(entries, []string{bPath})
 	if _, ok := idx.Get("app::slugify"); ok {
 		t.Fatal("setup: key should NOT yet be in the index — it lives in unscanned a.ts")
@@ -227,7 +227,7 @@ export const r = registerPureFnFactory('app::slugify', function () { return func
 	deps := []protocol.PureFnDep{
 		{Namespace: "app", FunctionName: "slugify", FilePath: aPath},
 	}
-	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, prog)
+	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, prog)
 	if len(diags) != 0 {
 		t.Fatalf("lazy expansion should satisfy the dep, got %+v", diags)
 	}
@@ -254,7 +254,7 @@ export const x = registerPureFnFactory('app::somethingElse', function () { retur
 	deps := []protocol.PureFnDep{
 		{Namespace: "app", FunctionName: "slugify", FilePath: files[0]},
 	}
-	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, prog)
+	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, prog)
 	if len(diags) != 1 || diags[0].Code != CodeMissingPureFnDep {
 		t.Fatalf("expected one PFE9012 diagnostic, got %+v", diags)
 	}
@@ -270,7 +270,7 @@ func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 	prog, files := programForSources(t, map[string]string{
 		"empty.ts": `export const x = 1;`,
 	})
-	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{}), prog, files, nil)
+	entries, _ := ExtractFromProgramCached(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), prog, files, nil)
 	idx := NewIndex(entries, files)
 
 	// Same missing key referenced four times — should produce only one diagnostic.
@@ -280,7 +280,7 @@ func TestValidatePureFnDependencies_DedupesRepeatedMisses(t *testing.T) {
 		{Namespace: "app", FunctionName: "missing", FilePath: ""},
 		{Namespace: "app", FunctionName: "missing", FilePath: ""},
 	}
-	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, prog)
+	diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, prog)
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 dedupe-collapsed diagnostic, got %d (%+v)", len(diags), diags)
 	}
@@ -303,7 +303,7 @@ export const r = registerPureFnFactory('app::slugify', function () { return func
 	}
 
 	// First pass — should trigger one lookup on files[0].
-	if diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, counter); len(diags) != 0 {
+	if diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, counter); len(diags) != 0 {
 		t.Fatalf("first pass should satisfy via lazy expand, got %+v", diags)
 	}
 	firstCallCount := counter.calls[files[0]]
@@ -314,7 +314,7 @@ export const r = registerPureFnFactory('app::slugify', function () { return func
 	// Second pass with the same deps — must NOT re-parse, since the
 	// file is already in idx.scanned. Lookup call count for files[0]
 	// stays unchanged.
-	if diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{}), deps, idx, counter); len(diags) != 0 {
+	if diags := ValidatePureFnDependencies(programChecker(t, prog), marker.WithDefaults(marker.Options{FS: prog.FS}), deps, idx, counter); len(diags) != 0 {
 		t.Fatalf("second pass should be satisfied without re-parse, got %+v", diags)
 	}
 	if counter.calls[files[0]] != firstCallCount {

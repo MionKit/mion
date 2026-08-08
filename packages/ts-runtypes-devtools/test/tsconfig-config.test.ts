@@ -17,7 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import {ResolverClient} from '../src/resolver-client.ts';
-import {BIN, runIfBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, runIfBinary, writeMarkerPackage} from './helpers/inline.ts';
 import {MODULE_MODE_ALL_SINGLE, RUNTYPES_BUNDLE_BASENAME} from '../src/go-generated/runtypes-constants.generated.ts';
 
 const register = runIfBinary(it);
@@ -52,7 +52,7 @@ function tsconfig(pluginEntry: string): string {
 // source + a tsconfig carrying pluginEntry) into a fresh temp dir.
 function makeFixture(pluginEntry: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-tsconfig-'));
-  fs.writeFileSync(path.join(dir, 'runtypes.d.ts'), RUNTYPES_DTS);
+  writeMarkerPackage(dir);
   fs.writeFileSync(path.join(dir, 'entry.ts'), ENTRY);
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), tsconfig(pluginEntry));
   return dir;
@@ -176,7 +176,7 @@ export const isNum = createValidateFn<number>();
 
 function makeValFixture(pluginEntry: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-numbermode-'));
-  fs.writeFileSync(path.join(dir, 'runtypes.d.ts'), RUNTYPES_DTS);
+  writeMarkerPackage(dir);
   fs.writeFileSync(path.join(dir, 'entry.ts'), VAL_ENTRY);
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), tsconfig(pluginEntry));
   return dir;

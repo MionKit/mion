@@ -38,27 +38,35 @@ if (!fs.existsSync(path.join(PLUGIN_DIST, 'resolver-client.js'))) {
   fail(`missing ${path.relative(REPO_ROOT, PLUGIN_DIST)} - run 'pnpm --filter @ts-runtypes/devtools run build'`);
 }
 
-// Minimal ambient declaration so the resolver's marker scanner recognises
-// `ts-runtypes` without us shipping the real marker package
-// (the smoke runs against repo-root, not against packages/ts-runtypes).
-const RUNTYPES_DTS = `declare module '@ts-runtypes/core' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export type InjectTypeFnArgs<T, Fn extends string> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFn?: Fn};
-  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-  export interface ValidateOptions { noLiterals?: boolean; noIsArrayCheck?: boolean; }
-  export type ValidateFn = (value: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<ValidateOptions>, id?: InjectTypeFnArgs<T, 'val'>): ValidateFn;
-}
-`;
+// The REAL marker package (package.json + built dist .d.ts tree) as virtual
+// node_modules sources, so the smoke resolves `@ts-runtypes/core` exactly the
+// way a consumer install does — no hand-written stand-in to drift. The dist
+// is guaranteed present: this script already gates on the built plugin dist,
+// and `check:builds` covers the marker dist.
+const MARKER_PKG_DIR = path.join(REPO_ROOT, 'packages/ts-runtypes');
+const MARKER_OVERLAY = (() => {
+  const files = {
+    'node_modules/@ts-runtypes/core/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
+  };
+  const walk = (dir, rel) => {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.d.ts')) {
+        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      }
+    }
+  };
+  walk(path.join(MARKER_PKG_DIR, 'dist'), '');
+  return files;
+})();
 
 const SOURCES = {
-  'runtypes.d.ts': RUNTYPES_DTS,
+  ...MARKER_OVERLAY,
   'static.ts': `import {getRunTypeId} from '@ts-runtypes/core';\ngetRunTypeId<string>();\n`,
   'reflect.ts': `import {getRunTypeId} from '@ts-runtypes/core';\nconst v: string = 'hi';\ngetRunTypeId(v);\n`,
   'validate.ts': `import {createValidateFn} from '@ts-runtypes/core';\nconst isUser = createValidateFn<{name: string}>();\nisUser({name: 'x'});\n`,
 };
-const FILES = Object.keys(SOURCES).filter((file) => file !== 'runtypes.d.ts');
+const FILES = ['static.ts', 'reflect.ts', 'validate.ts'];
 
 const started = Date.now();
 console.log(`==> smoke: spawning ${path.relative(REPO_ROOT, BIN)} (--inline-server)`);

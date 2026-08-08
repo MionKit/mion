@@ -27,7 +27,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import runtypesRollup from '../../../ts-runtypes-devtools/src/rollup.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
 let FIXTURE_DIR = '';
 let CONSUMER = '';
@@ -103,7 +103,7 @@ describe('third-party markers resolved through node_modules (zero config)', () =
     const routerDir = path.join(FIXTURE_DIR, 'node_modules', '@acme', 'router');
     fs.mkdirSync(routerDir, {recursive: true});
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG_SRC);
-    fs.writeFileSync(path.join(FIXTURE_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(CONSUMER, CONSUMER_SRC);
     fs.writeFileSync(path.join(routerDir, 'package.json'), ROUTER_PKG_JSON);
     fs.writeFileSync(path.join(routerDir, 'index.d.ts'), ROUTER_DTS);

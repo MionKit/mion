@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {ResolverClient} from '../src/resolver-client.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
 // Fresh ResolverClient forcing the cache on at the supplied scratch directory
 // (via the internal cacheDir override → child RT_CACHE_DIR env). Each test owns
@@ -27,9 +27,8 @@ function spawnWithCache(cacheDir: string): ResolverClient {
 }
 
 async function renderValidateFor(client: ResolverClient, files: Record<string, string>): Promise<string> {
-  const augmented = {'runtypes.d.ts': RUNTYPES_DTS, ...files};
-  await client.setSources(augmented);
-  const fileNames = Object.keys(augmented).filter((file) => file !== 'runtypes.d.ts');
+  await client.setSources({...MARKER_PACKAGE_OVERLAY, ...files});
+  const fileNames = Object.keys(files);
   const response = await client.scanFiles(fileNames, {includeEntryModules: true});
   const entryModules = response.entryModules ?? {};
   // Concatenate the validate-family entry modules (sorted by key) — the

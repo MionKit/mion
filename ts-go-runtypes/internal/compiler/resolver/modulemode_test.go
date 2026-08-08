@@ -222,22 +222,14 @@ export const _ = createBinaryEncoderFn<{a: {n: number}} | {a: {s: string}}>();
 }
 
 func TestModuleMode_AllSingle_PureFnBundleAndNamedReplacement(t *testing.T) {
-	// The inline DTS doesn't declare registerPureFnFactory — extend it with
-	// the brand-branded signature the walker's marker check requires (same
-	// shape as the purefns extraction tests' overlay).
-	dts := strings.Replace(runtypesDTS,
-		"export function createJsonDecoderFn",
-		"export type PureFunctionFactory<F> = F & {readonly __rtPureFunctionFactoryBrand?: never};\n"+
-			"  export type PureFnId = string & {readonly __rtPureFnIdBrand?: never};\n"+
-			"  export function registerPureFnFactory(pureFnId: CompTimeArgs<PureFnId>, createPureFn: PureFunctionFactory<(utl: unknown) => unknown> | null): unknown;\n"+
-			"  export function createJsonDecoderFn",
-		1)
+	// The real package declares registerPureFnFactory with the brand-branded
+	// signature the walker's marker check requires — no extension needed.
 	source := `import {registerPureFnFactory} from '@ts-runtypes/core';
 export const _ = registerPureFnFactory('test::double', function (utl) {
   return function double(x: number): number { return x * 2; };
 });
 `
-	r := setupInlineMode(t, map[string]string{"a.ts": source, "runtypes.d.ts": dts}, constants.ModuleModeAllSingle)
+	r := setupInlineMode(t, map[string]string{"a.ts": source}, constants.ModuleModeAllSingle)
 	resp := scanWithModules(t, r, []string{"a.ts"})
 	if len(resp.Replacements) == 0 {
 		t.Fatalf("expected a pure-fn replacement")

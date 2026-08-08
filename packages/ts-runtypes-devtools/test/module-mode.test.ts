@@ -8,7 +8,7 @@ import {describe, expect, it} from 'vitest';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ResolverClient} from '../src/resolver-client.ts';
-import {BARE_CWD, BIN, hasBinary, RUNTYPES_DTS, rewrite} from './helpers/inline.ts';
+import {BARE_CWD, BIN, hasBinary, MARKER_PACKAGE_OVERLAY, rewrite} from './helpers/inline.ts';
 import {
   ENTRY_BINDING_PREFIX,
   FNS_BUNDLE_DIR,
@@ -27,7 +27,7 @@ async function withModeClient<T>(
 ): Promise<T> {
   const client = new ResolverClient(BIN, BARE_CWD, '', {serverMode: true, moduleMode: mode});
   try {
-    await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, ...sources});
+    await client.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
     return await fn(client);
   } finally {
     client.close();

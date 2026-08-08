@@ -104,7 +104,7 @@ func scanConsumerOverSourceCondition(t *testing.T, tsconfig string) protocol.Res
 
 	if resp := r.Dispatch(protocol.Request{
 		Op:      protocol.OpSetSources,
-		Sources: map[string]string{"runtypes.d.ts": runtypesDTS, "consumer.ts": consumerSrc},
+		Sources: withRealMarker(t, map[string]string{"consumer.ts": consumerSrc}),
 	}); resp.Error != "" {
 		t.Fatalf("setSources: %s", resp.Error)
 	}

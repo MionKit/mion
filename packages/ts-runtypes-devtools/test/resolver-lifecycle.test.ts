@@ -15,7 +15,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import {ResolverClient} from '../src/resolver-client.ts';
 import runtypesRollup from '../src/rollup.ts';
-import {BARE_CWD, BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BARE_CWD, BIN, hasBinary, MARKER_PACKAGE_OVERLAY, writeMarkerPackage} from './helpers/inline.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -30,7 +30,7 @@ export const valueId = getRunTypeId(aUser);
 
 function inlineClient(): ResolverClient {
   return new ResolverClient(BIN, BARE_CWD, '', {
-    inlineSources: {'runtypes.d.ts': RUNTYPES_DTS, 'user.ts': USER_SRC},
+    inlineSources: {...MARKER_PACKAGE_OVERLAY, 'user.ts': USER_SRC},
   });
 }
 
@@ -124,7 +124,7 @@ describe('resolver lifecycle: plugin refcounts containers', () => {
   beforeEach(() => {
     FIXTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-lifecycle-'));
     fs.writeFileSync(path.join(FIXTURE_DIR, 'tsconfig.json'), TSCONFIG);
-    fs.writeFileSync(path.join(FIXTURE_DIR, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+    writeMarkerPackage(FIXTURE_DIR);
     fs.writeFileSync(path.join(FIXTURE_DIR, 'user.ts'), USER_SRC);
   });
   afterEach(() => fs.rmSync(FIXTURE_DIR, {recursive: true, force: true}));

@@ -3,7 +3,15 @@ import path from 'node:path';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {ReflectionKind, type RunType} from '../src/protocol.ts';
-import {BIN, runTest, withInlineSources, RUNTYPES_DTS, evalEntryModules, instantiateRunTypes, rewrite} from './helpers/inline.ts';
+import {
+  BIN,
+  runTest,
+  withInlineSources,
+  MARKER_PACKAGE_OVERLAY,
+  evalEntryModules,
+  instantiateRunTypes,
+  rewrite,
+} from './helpers/inline.ts';
 import {decodeMappings} from './helpers/sourcemap.ts';
 
 function findMember(types: RunType[], root: RunType, name: string): RunType | undefined {
@@ -354,7 +362,7 @@ const myAPI = getRunTypeId(routes);
     },
     async (sources) => {
       const tmpDir = path.join(__dirname, '.tmp-modules');
-      const handshake = JSON.stringify({sources: {'runtypes.d.ts': RUNTYPES_DTS, 'router.ts': sources['router.ts']}}) + '\n';
+      const handshake = JSON.stringify({sources: {...MARKER_PACKAGE_OVERLAY, 'router.ts': sources['router.ts']}}) + '\n';
       const request = JSON.stringify({op: 'scanFiles', files: ['router.ts']}) + '\n';
       const out = spawnSync(
         BIN,

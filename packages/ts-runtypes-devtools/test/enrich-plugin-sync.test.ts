@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import runtypesVite from '../src/vite.ts';
-import {BIN, hasBinary, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
 
 type FieldType = 'string' | 'number' | 'boolean';
 interface Field {
@@ -36,7 +36,7 @@ const TSCONFIG = JSON.stringify({
     skipLibCheck: true,
     types: [],
   },
-  include: ['src', 'rt-overlay.d.ts'],
+  include: ['src'],
 });
 
 // A plugin "context" — buildStart / handleHotUpdate call ctx.warn / ctx.error via
@@ -73,7 +73,7 @@ function setupProject(fields: Field[], typeName = 'User'): Project {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-plugin-sync-'));
   fs.mkdirSync(path.join(dir, 'src'));
   fs.writeFileSync(path.join(dir, 'tsconfig.json'), TSCONFIG);
-  fs.writeFileSync(path.join(dir, 'rt-overlay.d.ts'), RUNTYPES_DTS);
+  writeMarkerPackage(dir);
   const models = path.join(dir, 'src', 'models.ts');
   const main = path.join(dir, 'src', 'main.ts');
   fs.writeFileSync(models, renderModels(fields, typeName));

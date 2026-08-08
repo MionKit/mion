@@ -28,11 +28,14 @@ physically cannot resolve (fixtures written into scratch temp dirs with no
 ts-runtypes install), and every such exception MUST carry a pin test that
 compares the restated spelling against the shipped type by structural id, so
 drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
-(typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`), `i18nModel.ts`'s
-inline spellings (pinned by `enrich/i18nInlineSpelling.test.ts`), and the
-`RUNTYPES_DTS` marker-module stand-in (ts-runtypes-devtools helpers — its
-consolidation is `docs/todos/generate-runtypes-dts.md`). Before adding a
-fourth, exhaust every way to import the real thing first.
+(typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`) and
+`i18nModel.ts`'s inline spellings (pinned by
+`enrich/i18nInlineSpelling.test.ts`). The marker module itself needs no
+stand-in at all: `MARKER_PACKAGE_OVERLAY` (ts-runtypes-devtools helpers)
+serves the REAL package's package.json + built dist .d.ts tree as virtual
+node_modules, so `@ts-runtypes/core` resolves the way a consumer install
+does. Before adding a third restatement, exhaust every way to import the
+real thing first.
 
 ## Why oracles, not examples
 

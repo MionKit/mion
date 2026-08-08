@@ -26,7 +26,7 @@
 
 import {describe, expect, it} from 'vitest';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
-import {RUNTYPES_DTS} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {MARKER_PACKAGE_OVERLAY} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {hasBinary, openClient, SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
@@ -139,7 +139,7 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
     const scan = (async () => {
       await client.setSources({
         ...SRC_OVERLAY,
-        'runtypes.d.ts': RUNTYPES_DTS,
+        ...MARKER_PACKAGE_OVERLAY,
         'jsonschema.ts': JSONSCHEMA_MODULE,
         [FIXTURE]: fixture,
       });

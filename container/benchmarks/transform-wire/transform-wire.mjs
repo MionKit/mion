@@ -54,17 +54,36 @@ const {applyEdits, sourceHash} = await distImport('apply-edits.js');
 
 const RT_BINARY = process.env.RT_BINARY ?? argOf('--binary') ?? path.join(COMPETITOR_DIR, 'bin', 'ts-runtypes');
 
-// Ambient marker declaration so the corpus resolves 'ts-runtypes' without any
-// node_modules — keeps the harness self-contained on host and in-container.
-const RUNTYPES_DTS = `declare module '@ts-runtypes/core' {
-  export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
-  export type CompTimeFnArgs<T> = T & {readonly __rtCompTimeFnArgsBrand?: never};
-  export type InjectTypeFnArgs<T, F1 extends string, F2 extends string = never, F3 extends string = never> = string & {readonly __rtInjectTypeFnArgsBrand?: T; readonly __rtInjectTypeFnArgsFns?: [F1, F2, F3]};
-  export function getRunTypeId<T>(value?: T, id?: InjectRunTypeId<T>): InjectRunTypeId<T>;
-  export type ValidateFn = (value: unknown) => boolean;
-  export function createValidateFn<T>(val?: T, options?: CompTimeFnArgs<{noLiterals?: boolean}>, id?: InjectTypeFnArgs<T, 'val'>): ValidateFn;
+// The REAL marker package (package.json + built dist .d.ts tree) as virtual
+// node_modules sources, so the corpus resolves '@ts-runtypes/core' exactly the
+// way a consumer install does — no hand-written stand-in to drift. Candidates
+// cover both postures: in the container the bench mounts the package at
+// COMPETITOR_DIR/node_modules/@ts-runtypes/core; on the host --pkg points at
+// packages/ts-runtypes-devtools, whose sibling directory is the package.
+const MARKER_PKG_DIR = [
+  path.join(COMPETITOR_DIR, 'node_modules', '@ts-runtypes', 'core'),
+  path.resolve(PKG_ROOT, '..', 'core'),
+  path.resolve(PKG_ROOT, '..', 'ts-runtypes'),
+].find((dir) => fs.existsSync(path.join(dir, 'package.json')));
+if (!MARKER_PKG_DIR) {
+  console.error('transform-wire: cannot locate the @ts-runtypes/core package (looked next to COMPETITOR_DIR and --pkg)');
+  process.exit(1);
 }
-`;
+const MARKER_OVERLAY = (() => {
+  const files = {
+    'node_modules/@ts-runtypes/core/package.json': fs.readFileSync(path.join(MARKER_PKG_DIR, 'package.json'), 'utf8'),
+  };
+  const walk = (dir, rel) => {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name), `${rel}${entry.name}/`);
+      else if (entry.name.endsWith('.d.ts')) {
+        files[`node_modules/@ts-runtypes/core/dist/${rel}${entry.name}`] = fs.readFileSync(path.join(dir, entry.name), 'utf8');
+      }
+    }
+  };
+  walk(path.join(MARKER_PKG_DIR, 'dist'), '');
+  return files;
+})();
 
 // ── corpus ───────────────────────────────────────────────────────────────────
 // One file = `filler` comment lines (to grow file size independently of site
@@ -86,7 +105,7 @@ function genFile(fileIndex, sites, filler) {
 }
 
 function genCorpus({files, sites, filler}) {
-  const sources = {'runtypes.d.ts': RUNTYPES_DTS};
+  const sources = {...MARKER_OVERLAY};
   const names = [];
   for (let f = 0; f < files; f++) {
     const name = `corpus/file_${f}.ts`;

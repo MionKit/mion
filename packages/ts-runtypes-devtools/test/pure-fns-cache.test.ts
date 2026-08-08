@@ -18,7 +18,7 @@ import {describe, expect, it} from 'vitest';
 import {formatTscDiagnostic} from '../src/index.ts';
 import {Family, Severity, type Diagnostic} from '../src/protocol.ts';
 import {ResolverClient} from '../src/resolver-client.ts';
-import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, RUNTYPES_DTS} from './helpers/inline.ts';
+import {BARE_CWD, BIN, hasBinary, withInlineSources, evalEntryModules, MARKER_PACKAGE_OVERLAY} from './helpers/inline.ts';
 
 function pureFnDiagsOf(response: {diagnostics?: Diagnostic[]}): Diagnostic[] {
   return (response.diagnostics ?? []).filter((d) => d.family === Family.PureFn);
@@ -335,7 +335,7 @@ export const x = registerPureFnFactory('rt::rounder', function () {
   ): Promise<T> {
     const client = new ResolverClient(BIN, BARE_CWD, '', {serverMode: true, emitMode});
     try {
-      await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, ...sources});
+      await client.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
       return await fn(client);
     } finally {
       client.close();
