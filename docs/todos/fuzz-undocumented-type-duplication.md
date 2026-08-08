@@ -98,3 +98,20 @@ actually has.
 Each of the three has a recorded decision (import / generate / keep-with-pin),
 the ones that can be de-duplicated are, and the carve-out comment matches
 reality.
+
+---
+
+## Note (2026-08-08)
+
+Sequencing: this shares its blocker with
+[fuzz-retire-per-format-aliases](fuzz-retire-per-format-aliases.md) — the type
+lanes do not carry the `src/` overlay and `type/tsValidate.ts` cannot resolve a
+relative `./src/...` import, so nothing here can be replaced by a real import
+until that is fixed. See that todo's blocker section; do it once, for both.
+
+`RUNTYPES_DTS` is the exception: it is a `declare module` stand-in rather than a
+relative import, so it is blocked on nothing here — only on deciding whether it
+can be GENERATED from `src/` (or from the same source as
+`internal/testfixtures/runtypes.d.ts`). That question is worth splitting into its
+own spec before anyone starts; it is the largest single duplication in the
+harness and the only one whose fix is a codegen design.

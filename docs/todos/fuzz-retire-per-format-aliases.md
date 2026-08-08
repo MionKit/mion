@@ -85,3 +85,54 @@ The json-schema fuzz lane still checks composed convergence and no longer checks
 per-format convergence; tier (b) is gone; `email` / `idn-email` / `regex` have
 enumerated id-convergence cases; `pnpm rtx core fuzz jsonschema` and the full
 suite are green.
+
+---
+
+## Progress (2026-08-08) — step 1 shipped, steps 2-4 still open
+
+Landed with the [fuzz-followups](../done/fuzz-followups.md) work:
+
+- **Step 1 is done.** `test/features/schemaFormatKeywordConvergence.test.ts` now
+  pins all **19** `BrandBySchemaFormat` rows, including the three that had no
+  id-convergence case anywhere (`email`, `idn-email`, `regex`), plus negative
+  cases for the two rows whose brand name deliberately differs from the keyword
+  (`hostname` is not `Domain`, `uri` is not `Url`). The enumerated coverage the
+  fuzz lane would lean on therefore exists now.
+- **The email leaf was not just duplicated, it was WRONG.** The json-schema soak
+  reported 7 id mismatches in 845 types, every one carrying that leaf: it
+  claimed `format: 'email'` on the schema side while the type-first side was a
+  hand-rolled pattern brand, and the door lowers that keyword to `EmailAddress`.
+  It is now spelled as the `pattern` keyword it actually is (leaf renamed
+  `emailish`, `FzEmail` retyped to `stringFormat` with `flags: 'u'` to match the
+  door's unicode-mode pattern compile). A 90s soak at `RT_FUZZ_SEED=1` is clean.
+
+  This is the concrete proof the todo was arguing for in the abstract: a
+  hand-copy that drifts does not fail loudly, it fails as a mystery id mismatch
+  845 types deep.
+
+## Blocker found while scoping steps 2-4
+
+Deleting the aliases means the leaves must come from the shipped brands, and
+that needs the real `src/` reachable from BOTH consumers of the preamble. Only
+one of them has it today:
+
+- The **json-schema lane** already puts the whole `src/` tree in its resolver
+  overlay (`SRC_OVERLAY`), so it could import `./src/formats/string/stringFormats.ts`
+  right now.
+- The **type lanes** do not: `type/typeFuzzHarness.ts:158` calls `setSources`
+  with `{'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source}` only. Adding the
+  overlay there puts 71 extra files through every compile in the lane that is
+  already the slowest, so it needs measuring before it is assumed cheap.
+- **`type/tsValidate.ts` is the harder half.** Its virtual file is `/__fuzz_typecheck__.ts`
+  at the filesystem ROOT, so a relative `./src/...` import would resolve to
+  `/src/...` and fail. Every format-bearing type would then typecheck as invalid,
+  and the TS-validity gate would silently suppress its violations — the exact
+  failure mode [fuzz-frozen-seeds-and-silent-gates](../done/fuzz-frozen-seeds-and-silent-gates.md)
+  just put a ceiling on (so it would now fail loudly rather than hide, but it
+  would still fail). The fix is to anchor that virtual file at the real package
+  root so relative imports resolve to the files on disk — small, but it must
+  land first.
+
+So the remaining order is: anchor `tsValidate`'s virtual file → measure the
+overlay cost in the type lanes → thin `FORMAT_LEAVES` → delete tier (b) → rewrite
+the `srcOverlay.ts` carve-out paragraph.
