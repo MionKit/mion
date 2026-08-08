@@ -91,3 +91,28 @@ Two corrections already landed with the audit and are NOT repeated here: the
 All six are corrected, the layout table matches the tree, and every oracle id the
 code emits appears in the catalogue (or is deliberately excluded with a stated
 reason).
+
+---
+
+## What shipped (2026-08-08)
+
+All six corrections applied, plus the three extras:
+
+1. The `Layout` table was rewritten from scratch against the real tree — every
+   path now carries its subdirectory, and the `jsonschema/`, `roundtrip/`,
+   `binary/size*`, `enrich/` and `core/` entries were added (28 rows, up from 17).
+2. The `fuzzOracle.ts` row now says what it actually holds (O1–O7 / O12) and
+   points at `type/typeFuzzRunner.ts` for TR1–TR4.
+3. The oracle table gained **O10, O12, O14**, plus a second table for the four
+   lane-local catalogues (`RT-*`, `O-SIZE-*`, `R*`, `T*` / `NL RC CB P`) and a
+   note that those ride a `rule:` field, not `oracle:`.
+4. The two-tier table gained the non-data row, and the `createMockDataFn` /
+   encoder-behaviour truth is spelled out under it.
+5. The "no dependency on createMockDataFn" claim is now scoped to the `shape`
+   value source, with the `mock` source described next to it.
+6. The "Not yet generated" list dropped branded `TypeFormat` primitives and says
+   where they are gated.
+
+Extras: the `Findings` section gained the negated-format mock finding and a
+pointer to `docs/todos/`, `Adding a target` now covers the type-argument
+spelling, and the recursive-types limitation cross-references the cloning lane.
