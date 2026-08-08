@@ -1,11 +1,65 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-08
 ---
 
 # Format conversion layer: type ⇄ builders ⇄ JSON Schema (`convert` CLI)
+
+## Shipped — phases 0 + 1 (2026-08-08)
+
+The scaffolding + atomic slice landed; phases 2–8 continue as
+[todos/format-conversion-completion.md](../todos/format-conversion-completion.md).
+What shipped:
+
+- **`ts-runtypes convert --to type|builders|json-schema [--check] [--portable] [--out-dir DIR] <files|dir>`**
+  (`cmd/ts-runtypes/convert_cli.go`), over the new shared leaf
+  `ts-go-runtypes/internal/convert/` (recognize / resolve / names / three
+  printers / import management / span edits). Atomic kinds + literals convert
+  in all six directions; declarations beyond the phase report `CNV001` and stay
+  untouched. In-place by default, `--out-dir` copies the tree first, `--check`
+  writes nothing, idempotent by construction.
+- **The `embedType` escape** (`packages/ts-runtypes/src/json-schema/embedType.ts`)
+  with both call shapes, accepted at every schema position, plus the first
+  **`jsType` dialect rows** (`bigint` / `symbol` / `undefined` / `void` /
+  `any`) — all pinned to converge with their type-first ids
+  (`test/suites/json-schema-define/embedType.test.ts`).
+- **Oracles**: Go-side chain tests + a seeded randomized atomic sweep
+  (`internal/convert/roundtrip_test.go`, `fuzz_atoms_test.go`) assert C1
+  (total, compiles), C2 (id per leg), C4 (full chain `type → builders →
+  json-schema → type`), C5 (stability). The sweep found a real edit-ordering
+  bug on its first iteration.
+- **Audit result (typeid fold vs RunType)**: folds — member names,
+  optionality, readonly, `@nonEnumerable` (also forces optional), tuple-slot
+  optionality, class NAMES (nominal suffix), native discriminators; does NOT
+  fold — `DefaultVal`, `Description`, alias `TypeName`s. Matches the
+  no-info-loss inventory below; C6 remains the completion todo's oracle.
+
+Divergences from the plan below, decided during implementation:
+
+- **bigint literals ride `embedType(123n)`, not a `jsType`+`const` row** — no
+  type-level operation lifts a digit string back to a bigint literal type, so
+  pure data cannot carry them. The dialect table's `const`-beside-`jsType` row
+  is dropped.
+- **Printed schema literals carry `as const`** (belt against contextual
+  widening of keyword slots typed as broad unions, e.g. `const: 'ana'`).
+- **`ExactJsonSchema`'s embed pass-through rides INSIDE the `S & (…)`
+  intersection** — a top-level conditional made `S` non-inferable and widened
+  every inline schema literal in the suite (caught by 116 failing door tests;
+  the shape is now commented in the source).
+- **CNV diagnostics are CLI-local** for now; catalog + wire registration moves
+  to the completion todo with the lint surfacing.
+- **Format brands, the JS fuzz lane (`rtx core fuzz convert`), the CLI e2e via
+  the JS harness, and marker-call-site rewriting on `--to type`** (today a
+  referenced const is a loud `CNV003` skip) all move to the completion todo.
+- Recognition reuses the by-return-type rule (`builders.IsRunType`), the
+  projection enters via `runtype.Cache.SerializeTopLevel`, and span edits are
+  applied by a small sorted-splice (`applyReplacements`) rather than the
+  sourcerewrite `EditBuffer` (which is marker-insertion-shaped).
+
+The plan as approved follows; its per-feature mapping tables remain the
+authoritative action list for the remaining phases.
 
 ## Problem / intent
 
