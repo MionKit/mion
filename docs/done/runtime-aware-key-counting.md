@@ -374,8 +374,10 @@ and reports the failing seed, so it replays like a harness finding.
 - Real Bun 1.3.11 confirmed to take the `Object.keys` branch and to agree with the V8
   counter on plain, null-prototype, and inherited-enumerable inputs.
 
-### Follow-up filed
+### Follow-up
 
-- `docs/todos/runtime-aware-unknown-keys-scan.md` — the out-of-scope
-  `rt::hasUnknownKeysFromArray` / `rt::getUnknownKeysFromArray` sibling, now that the
-  pattern is proven.
+- [runtime-aware-unknown-keys-scan](runtime-aware-unknown-keys-scan.md) — the out-of-scope
+  `rt::hasUnknownKeysFromArray` / `rt::getUnknownKeysFromArray` sibling was filed and then
+  **measured and rejected**: `for-in` wins or ties there on both engines, because the
+  inner key-comparison loop dwarfs the enumeration. This primitive stays the only place
+  the engine branch pays.
