@@ -81,6 +81,25 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	}
 }
 
+func TestChain_GenericFormatFamilies(t *testing.T) {
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Short = TF.String<{minLength: 2; maxLength: 5}>;\n" +
+		"type Port = TF.Number<{min: 1; max: 65535}>;\n" +
+		"type Whole = TF.Number<{integer: true}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "TF.string({maxLength: 5, minLength: 2})") {
+		t.Errorf("string format should print the value-first family builder:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{jsFormat: {name: 'stringFormat', params: {maxLength: 5, minLength: 2}}} as const") {
+		t.Errorf("format brands should ride jsFormat verbatim:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Short = TF.String<{maxLength: 5, minLength: 2}>;") {
+		t.Errorf("type target should print the brand alias:\n%s", typeForm)
+	}
+}
+
 func TestPortable_DialectRefused(t *testing.T) {
 	source := "type Big = bigint;\ntype BigLit = 123n;\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})

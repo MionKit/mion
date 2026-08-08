@@ -171,7 +171,9 @@ func inferTypeAliasTarget(statement *ast.Node) (string, bool) {
 		return "", false
 	}
 	reference := alias.Type.AsTypeReferenceNode()
-	if reference == nil || reference.TypeName == nil || reference.TypeName.Text() != "InferType" {
+	// A qualified TypeName (`TF.String`) panics in Node.Text — only a bare
+	// identifier can be the InferType alias head.
+	if reference == nil || reference.TypeName == nil || !ast.IsIdentifier(reference.TypeName) || reference.TypeName.Text() != "InferType" {
 		return "", false
 	}
 	if reference.TypeArguments == nil || len(reference.TypeArguments.Nodes) != 1 {

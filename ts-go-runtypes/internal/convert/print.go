@@ -6,6 +6,7 @@ package convert
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -36,11 +37,11 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable) (*printed
 			return nil, &Diagnostic{Code: CodeNameCollision, Severity: SeverityError, Decl: declLabel(decl),
 				Message: fmt.Sprintf("no free type name derivable from %q", decl.ConstName)}
 		}
-		typeExpr, diag := printTypeExpr(resolved.Node, decl)
+		typeExpr, typeNeeds, diag := printTypeExpr(resolved.Node, names, decl)
 		if diag != nil {
 			return nil, diag
 		}
-		return &printedDecl{text: fmt.Sprintf("%stype %s = %s;", exportPrefix, typeName, typeExpr)}, nil
+		return &printedDecl{text: fmt.Sprintf("%stype %s = %s;", exportPrefix, typeName, typeExpr), needs: typeNeeds}, nil
 
 	case TargetBuilders:
 		builderExpr, needs, diag := printBuilderExpr(resolved.Node, names, decl)
@@ -88,39 +89,136 @@ func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr s
 	return &printedDecl{text: text, needs: needs}, nil
 }
 
-// printTypeExpr renders the type-first spelling of an atomic node.
-func printTypeExpr(node *reflection.RunType, decl *declaration) (string, *Diagnostic) {
+// formatFamily describes one generic param-bag format family: the reflected
+// annotation name, its `TF` value-first builder and type-first brand alias.
+// The named preset families (email / uuid / …) convert once the preset-params
+// mirror lands (docs/todos/format-conversion-completion.md).
+type formatFamily struct {
+	builderFn string
+	typeAlias string
+	// bigintParams marks a family whose param VALUES are bigints: they print
+	// as `485n` literals, and the family can never ride `jsFormat` (JSON
+	// cannot carry a bigint) — the schema target embeds the brand instead.
+	bigintParams bool
+}
+
+var formatFamilies = map[string]formatFamily{
+	"stringFormat": {builderFn: "string", typeAlias: "String"},
+	"numberFormat": {builderFn: "number", typeAlias: "Number"},
+	"bigintFormat": {builderFn: "bigInt", typeAlias: "BigInt", bigintParams: true},
+}
+
+// unsupportedFormatDiag reports a format family this phase cannot print.
+func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
+		Message: fmt.Sprintf("format family %q is not convertible yet (generic string/number/bigint families only)", name)}
+}
+
+// printFormatParams renders a FormatAnnotation params map as TS source with
+// sorted keys, so printed output is deterministic. False for a params value
+// this phase cannot render.
+func printFormatParams(params map[string]any, bigintValues bool) (string, bool) {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var parts []string
+	for _, key := range keys {
+		valueText, ok := paramValueText(params[key], bigintValues)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", key, valueText))
+	}
+	return "{" + strings.Join(parts, ", ") + "}", true
+}
+
+func paramValueText(value any, bigintValues bool) (string, bool) {
+	switch typed := value.(type) {
+	case string:
+		// A bigint-family param value arrives as its bigint-literal string
+		// (`485n`); it prints back verbatim as the literal the authoring
+		// surface requires (the suffix is appended only if absent).
+		if bigintValues {
+			if strings.HasSuffix(typed, "n") {
+				return typed, true
+			}
+			return typed + "n", true
+		}
+		return quoteSingle(typed), true
+	case float64:
+		return strconv.FormatFloat(typed, 'g', -1, 64), true
+	case int:
+		return strconv.Itoa(typed), true
+	case bool:
+		return strconv.FormatBool(typed), true
+	case nil:
+		return "null", true
+	case map[string]any:
+		return printFormatParams(typed, bigintValues)
+	case []any:
+		var parts []string
+		for _, element := range typed {
+			elementText, ok := paramValueText(element, bigintValues)
+			if !ok {
+				return "", false
+			}
+			parts = append(parts, elementText)
+		}
+		return "[" + strings.Join(parts, ", ") + "]", true
+	}
+	return "", false
+}
+
+// printTypeExpr renders the type-first spelling of an atomic node. The needs
+// matter here too: a format brand spells as `TF.String<{…}>`, so even the
+// type target can require the formats namespace import.
+func printTypeExpr(node *reflection.RunType, names *nameTable, decl *declaration) (string, importNeeds, *Diagnostic) {
+	needs := importNeeds{}
+	if annotation := node.FormatAnnotation; annotation != nil {
+		family, known := formatFamilies[annotation.Name]
+		if !known {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+		if !ok {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		needs.useTF = true
+		return fmt.Sprintf("%s.%s<%s>", names.TF, family.typeAlias, paramsText), needs, nil
+	}
 	switch node.Kind {
 	case reflection.KindString:
-		return "string", nil
+		return "string", needs, nil
 	case reflection.KindNumber:
-		return "number", nil
+		return "number", needs, nil
 	case reflection.KindBoolean:
-		return "boolean", nil
+		return "boolean", needs, nil
 	case reflection.KindBigInt:
-		return "bigint", nil
+		return "bigint", needs, nil
 	case reflection.KindSymbol:
-		return "symbol", nil
+		return "symbol", needs, nil
 	case reflection.KindNull:
-		return "null", nil
+		return "null", needs, nil
 	case reflection.KindUndefined:
-		return "undefined", nil
+		return "undefined", needs, nil
 	case reflection.KindVoid:
-		return "void", nil
+		return "void", needs, nil
 	case reflection.KindAny:
-		return "any", nil
+		return "any", needs, nil
 	case reflection.KindUnknown:
-		return "unknown", nil
+		return "unknown", needs, nil
 	case reflection.KindNever:
-		return "never", nil
+		return "never", needs, nil
 	case reflection.KindLiteral:
 		literalText, ok := literalValueText(node)
 		if !ok {
-			return "", unsupportedDiag(node, decl)
+			return "", needs, unsupportedDiag(node, decl)
 		}
-		return literalText, nil
+		return literalText, needs, nil
 	}
-	return "", unsupportedDiag(node, decl)
+	return "", needs, unsupportedDiag(node, decl)
 }
 
 // printBuilderExpr renders the value-first builder spelling of an atomic node.
@@ -133,6 +231,17 @@ func printBuilderExpr(node *reflection.RunType, names *nameTable, decl *declarat
 	tf := func(call string) (string, importNeeds, *Diagnostic) {
 		needs.useTF = true
 		return names.TF + "." + call, needs, nil
+	}
+	if annotation := node.FormatAnnotation; annotation != nil {
+		family, known := formatFamilies[annotation.Name]
+		if !known {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+		if !ok {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		return tf(fmt.Sprintf("%s(%s)", family.builderFn, paramsText))
 	}
 	switch node.Kind {
 	case reflection.KindString:
@@ -179,6 +288,34 @@ func printSchemaExpr(node *reflection.RunType, opts Options, names *nameTable, d
 				Message: fmt.Sprintf("%s has no standard 2020-12 spelling; drop --portable to use the RunTypes dialect", kindLabel(node.Kind))}
 		}
 		return literal, needs, nil
+	}
+	// Format annotations ride jsFormat verbatim for now — the standard-keyword
+	// rows (minLength / minimum / format:'email' / …) land with the preset
+	// mirror (docs/todos/format-conversion-completion.md), which is also what
+	// will widen --portable coverage to standard-expressible brands.
+	if annotation := node.FormatAnnotation; annotation != nil {
+		family, known := formatFamilies[annotation.Name]
+		if !known {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+		if !ok {
+			return "", needs, unsupportedFormatDiag(annotation.Name, decl)
+		}
+		// Bigint param values cannot ride JSON — the brand embeds instead.
+		if family.bigintParams {
+			if opts.Portable {
+				return dialect("")
+			}
+			needs.useEmbedType = true
+			needs.useTF = true
+			return fmt.Sprintf("%s<%s.%s<%s>>()", names.EmbedType, names.TF, family.typeAlias, paramsText), needs, nil
+		}
+		entry := fmt.Sprintf("{jsFormat: {name: %s, params: %s}}", quoteSingle(annotation.Name), paramsText)
+		if len(annotation.Params) == 0 {
+			entry = fmt.Sprintf("{jsFormat: {name: %s}}", quoteSingle(annotation.Name))
+		}
+		return dialect(entry)
 	}
 	switch node.Kind {
 	case reflection.KindString:
