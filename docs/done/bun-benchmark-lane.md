@@ -76,10 +76,10 @@ This is meaningfully cross-library, not a RunTypes-only vanity group: TypeBox ha
 The `CaseKey` union is derived from the suite objects, so TypeScript forces every
 competitor to supply an entry or an explicit `NOT_SUPPORTED`.
 
-(That forcing is a TYPE-LEVEL guarantee only. Nothing in CI runs `tsc` over
-`container/benchmarks` — see item 1 of
-[bench-website-e2e-followups](../todos/bench-website-e2e-followups.md) — so it holds for
-whoever runs `tsc` by hand, and not otherwise.)
+(When this shipped, that forcing was a TYPE-LEVEL guarantee only — nothing ran `tsc`
+over `container/benchmarks`, so it held for whoever ran `tsc` by hand and not otherwise.
+It is now a real gate: `pnpm rtx bench typecheck` runs in CI, landed by
+[bench-website-e2e-followups](../done/bench-website-e2e-followups.md) item 1.)
 
 RunTypes entries use `createHasUnknownKeysFn<T>(undefined, {runsAfterValidation: true})`
 composed with `createValidateFn<T>()`, which is the only combination that reaches
@@ -363,18 +363,15 @@ who ran the benchmarks. Pre-existing and unrelated to this change; one line in
 - **The typia competitor's typecheck.** The image pins `typia@13.0.0-dev`; only 9.x is
   installable here. The new entries use `createEquals` / `createValidateEquals` /
   `createValidate` — all confirmed real exports of the pinned version, per the evidence
-  recorded in [bench-website-e2e-followups](../todos/bench-website-e2e-followups.md)
-  item 2.
+  in [bench-website-e2e-followups](../done/bench-website-e2e-followups.md) item 2.
 
-  ⚠️ And nothing catches a mistake there automatically. That doc's item 1 records that
-  **no CI step runs `tsc` over `container/benchmarks` at all** — the competitors build
-  through vite/esbuild, which strip types without checking them. So the `CaseKey`
-  totality guarantee is real as a type annotation and unenforced as a gate: adding a
-  shared case without filling in every competitor compiles fine and simply produces
-  not-supported columns. The STRICT group's totality was verified BY HAND here (host
-  `tsc` per competitor, with the missing key deliberately removed to confirm the check
-  bites), which is not the same as CI enforcing it. Item 1 is the fix, and it is
-  unchanged by this work.
+  This was the weakest spot when the work shipped, because nothing typechecked
+  `container/benchmarks` at all and the STRICT group's totality had been verified only
+  BY HAND (host `tsc` per competitor, with a key deliberately removed to confirm the
+  check bites). That gap has since closed: item 1 landed `pnpm rtx bench typecheck`,
+  wired into CI, which compiles every competitor map inside the image — so the totality
+  claim and the typia export names are both machine-checked now, including in the
+  runtime the host cannot install.
 
 Everything else was run: ts-runtypes / typebox / ajv / zod competitors typecheck with the
 new group, `pnpm test` green, `pnpm run lint` green, `pnpm run check:env` green.

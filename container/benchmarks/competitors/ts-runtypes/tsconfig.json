@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
   "//": "Every first-party file is listed EXPLICITLY, not left to be pulled in transitively by main.ts: `pnpm rtx bench typecheck` is what enforces the total CompetitorCases maps, and a map no entry point imports (jsonSchemaCases.ts) would otherwise never be compiled.",
-  "include": ["cases.ts", "schemaCases.ts", "jsonSchemaCases.ts", "specCases.ts", "setup.ts", "main.ts", "../../shared"]
+  "include": ["cases.ts", "schemaCases.ts", "jsonSchemaCases.ts", "specCases.ts", "setup.ts", "engineBranch.ts", "main.ts", "../../shared"]
 }

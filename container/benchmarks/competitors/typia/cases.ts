@@ -2738,10 +2738,6 @@ export const cases: CompetitorCases = {
         boolean: boolean;
         deeplyNested: {foo: string; num: number; bool: boolean};
       }
-      // `createValidate` is the real export; most of this file calls the
-      // nonexistent `createValidateFn` (tracked in
-      // docs/todos/bench-website-e2e-followups.md item 2). Same choice the
-      // JSON_SCHEMA group made: use the real name, do not widen the break.
       const val = typia.createValidate<ToBeChecked>();
       return (v) => val(v).success;
     },

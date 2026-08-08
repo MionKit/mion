@@ -90,8 +90,12 @@ describe('a competitor lane exits non-zero only when it did not really run', () 
     const source = read('scripts/website/bench-data/bench.mjs');
     expect(source).toContain('DID NOT RUN');
     expect(source).toContain('errored case(s)');
-    // The distinguishing signal: a lane that never ran wrote no results file.
-    expect(source).toMatch(/existsSync\(join\(RESULTS_DIR, `\$\{competitor}\.json`\)\)/);
+    // The distinguishing signal: a lane that never ran wrote no results file. The
+    // directory is resolved per RUNTIME (`runtimeResultsDir`) because the same built
+    // bundle now runs under node and bun, and bun's results live in their own subdir
+    // — so accept either the plain RESULTS_DIR or that resolver, but still require
+    // the existence check itself.
+    expect(source).toMatch(/existsSync\(join\((?:RESULTS_DIR|runtimeResultsDir\(runtime\)), `\$\{competitor}\.json`\)\)/);
   });
 });
 
