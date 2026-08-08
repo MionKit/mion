@@ -292,11 +292,28 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		}
 		return literalText, nil
 	case reflection.KindArray:
-		childText, diag := ctx.typeExpr(node.Child)
+		childNode := ctx.deref(node.Child)
+		childText, diag := ctx.typeExpr(childNode)
 		if diag != nil {
 			return "", diag
 		}
+		if childNode != nil && childNode.Kind == reflection.KindUnion {
+			childText = "(" + childText + ")"
+		}
 		return childText + "[]", nil
+	case reflection.KindUnion:
+		if len(node.OneOf) > 0 {
+			return "", ctx.oneOfPendingDiag()
+		}
+		var parts []string
+		for _, armRef := range node.Children {
+			armText, diag := ctx.typeExpr(armRef)
+			if diag != nil {
+				return "", diag
+			}
+			parts = append(parts, armText)
+		}
+		return strings.Join(parts, " | "), nil
 	case reflection.KindObjectLiteral:
 		members, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -427,6 +444,19 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		return rt(fmt.Sprintf("array(%s)", childText))
+	case reflection.KindUnion:
+		if len(node.OneOf) > 0 {
+			return "", ctx.oneOfPendingDiag()
+		}
+		var arms []string
+		for _, armRef := range node.Children {
+			armText, diag := ctx.builderExpr(armRef)
+			if diag != nil {
+				return "", diag
+			}
+			arms = append(arms, armText)
+		}
+		return rt(fmt.Sprintf("union([%s])", strings.Join(arms, ", ")))
 	case reflection.KindObjectLiteral:
 		members, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -583,6 +613,47 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return "", diag
 		}
 		return fmt.Sprintf("{type: 'array', items: %s}", childText), nil
+	case reflection.KindUnion:
+		if len(node.OneOf) > 0 {
+			return "", ctx.oneOfPendingDiag()
+		}
+		allPlainLiterals := true
+		var literalParts []string
+		for _, armRef := range node.Children {
+			arm := ctx.deref(armRef)
+			if arm == nil || arm.FormatAnnotation != nil || isBigIntLiteral(arm) {
+				allPlainLiterals = false
+				break
+			}
+			switch arm.Kind {
+			case reflection.KindLiteral:
+				literalText, ok := literalValueText(arm)
+				if !ok {
+					allPlainLiterals = false
+				} else {
+					literalParts = append(literalParts, literalText)
+				}
+			case reflection.KindNull:
+				literalParts = append(literalParts, "null")
+			default:
+				allPlainLiterals = false
+			}
+			if !allPlainLiterals {
+				break
+			}
+		}
+		if allPlainLiterals {
+			return fmt.Sprintf("{enum: [%s]}", strings.Join(literalParts, ", ")), nil
+		}
+		var arms []string
+		for _, armRef := range node.Children {
+			armText, diag := ctx.schemaExpr(armRef)
+			if diag != nil {
+				return "", diag
+			}
+			arms = append(arms, armText)
+		}
+		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(arms, ", ")), nil
 	case reflection.KindObjectLiteral:
 		members, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -649,6 +720,13 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return out + "}", nil
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// oneOfPendingDiag reports a union carrying the exactly-one combinator, which
+// awaits its RT.oneOf / oneOf printing rows.
+func (ctx *printContext) oneOfPendingDiag() *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: "oneOf unions are not convertible yet (see docs/todos/format-conversion-completion.md)"}
 }
 
 // objectMember is one printable property: its source key spelling (quoted
