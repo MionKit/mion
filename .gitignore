@@ -88,6 +88,8 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 # Same artifact tree for the isolated mock-format-registry vitest project
 # (its plugin roots the genDir next to its own minimal tsconfig).
 /packages/ts-runtypes/test/mock-format-isolation/__runtypes/
+# And for the enrich fuzz dir, whose marker-bearing tests root a genDir there.
+/packages/ts-runtypes/test/fuzz/enrich/__runtypes/
 # Cross-bundler real-build test fixtures (created + cleaned per run).
 /packages/ts-runtypes/test/tmp-build-*/
 
