@@ -1,16 +1,15 @@
----
-type: feature
-spec: guidelines
-status: blocked
-created: 2026-08-03
----
-
 # Add TypeBox as a third document reader once Schema.Compile ships
 
-Split out of [bench-website-e2e-followups.md](../done/bench-website-e2e-followups.md)
-(it was item 6) on 2026-08-08: the other five items shipped, this one cannot,
-because it is blocked on an upstream release that has not happened. Nothing about
-it changed in the split.
+**Status:** maybe — parked 2026-08-08, no commitment to implement. It needs a
+TypeBox release that does not exist yet, and there is no announced date for it, so
+this is not schedulable work. Revisit if TypeBox 1.x ships and a third column in
+the conformance table still looks worth having.
+**Created:** 2026-08-03 (as item 6 of
+[bench-website-e2e-followups.md](../done/bench-website-e2e-followups.md); the
+other five items shipped and that spec is done).
+**Type:** feature. **Spec depth:** guidelines — the direction below is sound, but
+anyone picking it up should re-verify the API against whatever TypeBox has
+published by then rather than trusting these notes.
 
 Raised while building the JSON Schema spec-conformance section
 ([json-schema-spec-conformance-section.md](../done/json-schema-spec-conformance-section.md)),
@@ -36,10 +35,25 @@ That is exactly the door the conformance section needs. It is **not published**:
   exports no `Schema` at all (verified by enumerating the ~200 exports).
 - Latest on npm: **0.34.52** (published 2026-07-11; re-checked 2026-08-08). No
   1.x, and the only prerelease line is `0.32.0-dev-*`.
-- Empirically, on the pinned build: `TypeCompiler.Compile({type: 'string'})`
-  fails with `Preflight validation check failed to guard for the given schema`,
-  and `Type.Unsafe({type: 'string'})` compiles to `Unknown type`. The compiler
-  dispatches on TypeBox's own `Kind` symbol, which a plain document lacks.
+- Empirically, re-verified 2026-08-08 against the build actually installed in the
+  bench image (`0.34.50` — the manifest's `^0.34.0` had floated up from the
+  `0.34.49` the original spec named). Every door a plain document could go
+  through is shut:
+
+  | call | result |
+  | --- | --- |
+  | `Value.Check({type: 'string'}, 's')` | throws `Unknown type` |
+  | `Value.Check({type: 'object', …}, {x: 1})` | throws `Unknown type` |
+  | `TypeCompiler.Compile({type: 'object', …})` | throws `Preflight validation check failed to guard for the given schema` |
+
+  Both the dynamic checker and the compiler dispatch on TypeBox's own `Kind`
+  symbol, which a plain document lacks. Note this is not merely "no fast path":
+  TypeBox cannot read the document at all.
+
+  Attaching `Kind` ourselves would make it work, and that is exactly what must
+  NOT happen — the column would then measure a RunTypes-authored adapter wearing
+  TypeBox's name, and the conformance table's whole claim is that every reader
+  compiles the same bytes.
 
 **Correction (2026-08-08):** the original spec said a git dependency "is not an
 option" because the bench `_deps` policy is registry-only with exact pins. That is

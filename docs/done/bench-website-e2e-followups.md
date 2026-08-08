@@ -15,9 +15,11 @@ rest are independent. Item 6 is blocked on an upstream TypeBox release.
 ## Outcome (2026-08-08)
 
 **Items 1 to 5 shipped. Item 6 did not, and was SPLIT OUT** into
-[typebox-json-schema-document-column.md](../todos/typebox-json-schema-document-column.md)
+[typebox-json-schema-document-column.md](../maybe/typebox-json-schema-document-column.md)
 rather than parked here: it is blocked on a TypeBox release that has not
-happened, so no amount of work on this branch could land it. Each item below
+happened, so no amount of work on this branch could land it. It has since moved
+to `docs/maybe/` (2026-08-08) — with no release date upstream it is not
+schedulable work, so it does not belong in the ready backlog. Each item below
 carries a "What shipped" note where the result differs from the plan as written.
 
 **Everything was verified against a real image**, not just by the host-side
@@ -382,7 +384,7 @@ the padding: `check-static.mjs` strips `^\d+\.` and finds the section with
 ## Item 6 — Add TypeBox as a third document reader once Schema.Compile ships (feature, guidelines, BLOCKED upstream, 2026-08-03, was typebox-json-schema-document-column.md)
 
 **Not shipped — split back out into its own spec:
-[typebox-json-schema-document-column.md](../todos/typebox-json-schema-document-column.md).**
+[typebox-json-schema-document-column.md](../maybe/typebox-json-schema-document-column.md).**
 
 It is blocked on a TypeBox 1.x release that has not happened, so it could not
 land with the other five and there is no half-done lane to park it in. The full
