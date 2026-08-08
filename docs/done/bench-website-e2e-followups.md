@@ -20,13 +20,30 @@ rather than parked here: it is blocked on a TypeBox release that has not
 happened, so no amount of work on this branch could land it. Each item below
 carries a "What shipped" note where the result differs from the plan as written.
 
-One thing could not be verified from this environment: the benchmark lanes only
-run inside the podman image, which needs GHCR credentials this session did not
-have, so the container-side behaviour (the typecheck verb, the typia column, the
-per-competitor messages) is verified by the host-side contract tests in
-`packages/ts-runtypes-devtools/test/bench-lane-contracts.test.ts` plus the CI
-smoke lane, not by a local run. The first CI run on this branch is the real
-end-to-end proof.
+**Everything was verified against a real image**, not just by the host-side
+contract tests in `packages/ts-runtypes-devtools/test/bench-lane-contracts.test.ts`.
+The published image could not be pulled (the environment's GitHub token carries no
+package scopes and GHCR denies the pull-token exchange), so the image was built
+locally from the same `Containerfile`. Observed:
+
+| clause | result |
+| --- | --- |
+| `pnpm rtx bench typecheck` gates every competitor map | passes for all five, after fixing the drift it found on its first run (below) |
+| typia `errored: 0` | `total 277, fail 0, errored 0`; `validationErrors` went from 195 errored to `ok=203` |
+| a healthy zod run exits 0, prints no failure line | exit 0, no failure line, `fail: 3` (the three known divergences) intact |
+| a broken lane still fails loudly | `DID NOT RUN (build or startup failed) - no results/<name>.json` + exit 1 |
+| `--one` after an audit completes, aggregate included | exit 0, aggregate table rendered, six alignment artifacts skipped by name |
+
+### The drift the gate found on its first run
+
+`shared/harness/runner.ts:28` uses the type `NotSupported` in `asFn`'s signature
+but never imported it — only the `NOT_SUPPORTED` value was in the import list. All
+five projects failed with `TS2304: Cannot find name 'NotSupported'`. The file had
+therefore never compiled, in the shared harness every competitor runs through.
+Nothing caught it because nothing compiled it, which is the exact failure this
+item exists to close; fixed here by adding the missing type import. The todo said
+to expect the first run to surface more drift and to treat it as part of this
+work, so it is fixed in the same change rather than filed.
 
 ## Item 1 — Benchmark competitor-map totality is declared but never enforced (chore, full-plan, 2026-07-30, was benchmark-competitor-maps-never-typechecked.md)
 
@@ -170,9 +187,10 @@ the image: the file header now states which typia export backs each metric, and
 `bench-lane-contracts.test.ts` checks every `typia.<name>` in the file against the
 pinned 13.x export list, so an invented name fails `pnpm test` on the host too.
 
-`results/typia.json` reporting `errored: 0` is the one Done-when clause that
-needs the image to confirm; the CI smoke lane and the next `--website` run are
-where that lands.
+Confirmed on a real run: `results/typia.json` reports
+`total 277, fail 0, errored 0`, and the `validationErrors` metric went from 195
+errored cases to `ok=203, fail=0, notSupported=74`. The two
+`getvalidationerrors` pages get a populated typia column from that data.
 ## Item 3 — The zod benchmark lane prints "FAILED" on every run, so a real break is invisible (fix, guidelines, 2026-07-30, was zod-bench-lane-permanently-reports-failed.md)
 
 
@@ -353,13 +371,14 @@ No content file needed editing: every internal link in the tree is a route
 alone deliberately: that directory is an archive of what was true when each spec
 landed, and rewriting history there buys nothing.
 
-Rendered nav order is the clause this environment could not verify (the website
-needs the image). In its place the invariant is now **pinned by a test** rather
-than by a one-time check: `website-content-prefixes` in `repo-contracts.test.ts`
-fails on any single-digit prefix anywhere under `content/`, and
-`container/website/CLAUDE.md` states the rule for new pages. That is a better
-outcome than a rendered check, since the failure mode is a trap for the NEXT
-person, not a state of the tree today.
+Rendered nav order is the one clause not checked in a browser here. It is now
+**pinned by a test** instead of by a one-time look: `website-content-prefixes` in
+`repo-contracts.test.ts` fails on any single-digit prefix anywhere under
+`content/`, and `container/website/CLAUDE.md` states the rule for new pages. That
+is the better guarantee anyway, since the failure mode is a trap for the NEXT
+person rather than a state of the tree today. Route stability is independent of
+the padding: `check-static.mjs` strips `^\d+\.` and finds the section with
+`/^\d+\.benchmarks$/`, both of which match either form.
 ## Item 6 — Add TypeBox as a third document reader once Schema.Compile ships (feature, guidelines, BLOCKED upstream, 2026-08-03, was typebox-json-schema-document-column.md)
 
 **Not shipped — split back out into its own spec:

@@ -13,7 +13,7 @@
 // REPLACES the shared samples for that path (correctness AND timing).
 
 import {iterateCases} from '../cases/index.ts';
-import {NOT_SUPPORTED, type CaseEntry, type SampleOverride, type CompetitorModule, type Validator} from './types.ts';
+import {NOT_SUPPORTED, type CaseEntry, type NotSupported, type SampleOverride, type CompetitorModule, type Validator} from './types.ts';
 import {check, benchOps} from './measure.ts';
 import type {CaseResult, MetricResult, MetricSummary, CompetitorResult} from './result.ts';
 
