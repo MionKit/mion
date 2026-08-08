@@ -77,6 +77,18 @@ interface RegistrationForm {
   acceptedTerms: true;
   profile: {firstName: string; lastName: string; age?: number};
 }
+// The DTO from moltar/typescript-runtime-type-benchmarks, verbatim, so this
+// suite covers the exact shape that published comparison measures. Matches
+// ToBeChecked in container/benchmarks/shared/cases/realworld.
+interface ToBeChecked {
+  number: number;
+  negNumber: number;
+  maxNumber: number;
+  string: string;
+  longString: string;
+  boolean: boolean;
+  deeplyNested: {foo: string; num: number; bool: boolean};
+}
 
 const userSchema = () =>
   RT.object({
@@ -141,6 +153,16 @@ const registrationFormSchema = () =>
     password: TF.string(),
     acceptedTerms: RT.literal(true),
     profile: RT.object({firstName: TF.string(), lastName: TF.string(), age: RT.optional(TF.number())}),
+  });
+const toBeCheckedSchema = () =>
+  RT.object({
+    number: TF.number(),
+    negNumber: TF.number(),
+    maxNumber: TF.number(),
+    string: TF.string(),
+    longString: TF.string(),
+    boolean: RT.boolean(),
+    deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
   });
 
 export const REALWORLD = {
@@ -1007,6 +1029,131 @@ export const REALWORLD = {
       return {values: [ok, {...ok, profile: {...ok.profile, age: 30}}]};
     },
   },
+
+  toBeChecked: {
+    title: 'Moltar benchmark DTO',
+    description:
+      'The flat scalar record with one nested object used by the published typescript-runtime-type-benchmarks comparison, carried here unchanged so its numbers line up with ours.',
+    cloneEncoder: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      return createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'clone'});
+    },
+    mutateEncoder: () => createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'mutate'}),
+    directEncoder: () => createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'direct'}),
+    compactEncoder: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      return createJsonEncoderFn<ToBeChecked>(undefined, {strategy: 'compact'});
+    },
+    stripDecoder: () => createJsonDecoderFn<ToBeChecked>(),
+    preserveDecoder: () => createJsonDecoderFn<ToBeChecked>(undefined, {strategy: 'preserve'}),
+    compactDecoder: () => createJsonDecoderFn<ToBeChecked>(undefined, {strategy: 'compact'}),
+    binaryEncoder: () => createBinaryEncoderFn<ToBeChecked>(),
+    binaryDecoder: () => createBinaryDecoderFn<ToBeChecked>(),
+    schemaEncoder: () => createJsonEncoderFn(toBeCheckedSchema()),
+    schemaDecoder: () => createJsonDecoderFn(toBeCheckedSchema()),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(toBeCheckedSchema()),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(toBeCheckedSchema()),
+    jsonSchemaEncoder: () =>
+      createJsonEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            number: {type: 'number'},
+            negNumber: {type: 'number'},
+            maxNumber: {type: 'number'},
+            string: {type: 'string'},
+            longString: {type: 'string'},
+            boolean: {type: 'boolean'},
+            deeplyNested: {
+              type: 'object',
+              properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+              required: ['foo', 'num', 'bool'],
+            },
+          },
+          required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        })
+      ),
+    jsonSchemaDecoder: () =>
+      createJsonDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            number: {type: 'number'},
+            negNumber: {type: 'number'},
+            maxNumber: {type: 'number'},
+            string: {type: 'string'},
+            longString: {type: 'string'},
+            boolean: {type: 'boolean'},
+            deeplyNested: {
+              type: 'object',
+              properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+              required: ['foo', 'num', 'bool'],
+            },
+          },
+          required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        })
+      ),
+    jsonSchemaBinaryEncoder: () =>
+      createBinaryEncoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            number: {type: 'number'},
+            negNumber: {type: 'number'},
+            maxNumber: {type: 'number'},
+            string: {type: 'string'},
+            longString: {type: 'string'},
+            boolean: {type: 'boolean'},
+            deeplyNested: {
+              type: 'object',
+              properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+              required: ['foo', 'num', 'bool'],
+            },
+          },
+          required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        })
+      ),
+    jsonSchemaBinaryDecoder: () =>
+      createBinaryDecoderFn(
+        runTypeFromJsonSchema({
+          type: 'object',
+          properties: {
+            number: {type: 'number'},
+            negNumber: {type: 'number'},
+            maxNumber: {type: 'number'},
+            string: {type: 'string'},
+            longString: {type: 'string'},
+            boolean: {type: 'boolean'},
+            deeplyNested: {
+              type: 'object',
+              properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+              required: ['foo', 'num', 'bool'],
+            },
+          },
+          required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        })
+      ),
+    getTestData: () => {
+      const ok = makeToBeChecked();
+      return {values: [ok, {...ok, number: 0, boolean: false, deeplyNested: {foo: '', num: -0.5, bool: true}}]};
+    },
+  },
 } as const satisfies Record<string, SerializationCase>;
 
 const sampleUser = (over: Partial<User> = {}): User => ({
@@ -1018,6 +1165,20 @@ const sampleUser = (over: Partial<User> = {}): User => ({
   createdAt: '2024-01-02',
   ...over,
 });
+function makeToBeChecked(): ToBeChecked {
+  return {
+    number: 1,
+    negNumber: -1,
+    maxNumber: Number.MAX_VALUE,
+    string: 'string',
+    longString:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vulputate elit, ' +
+      'sed sagittis metus. Nullam consequat, ex ac dignissim commodo, eros nulla ' +
+      'consequat lacus, nec facilisis nisi lorem sed ligula.',
+    boolean: true,
+    deeplyNested: {foo: 'bar', num: 1, bool: false},
+  };
+}
 function makeOrder(): Order {
   return {
     id: 'ord_1',

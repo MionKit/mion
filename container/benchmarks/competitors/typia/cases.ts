@@ -2714,6 +2714,34 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+  'REALWORLD.toBeChecked': {
+    build: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const check = typia.createIs<ToBeChecked>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const val = typia.createValidateFn<ToBeChecked>();
+      return (v) => val(v).success;
+    },
+  },
 
   // ── JSON_SCHEMA ──
   // typia has no JSON Schema INPUT door (json.application<[T]>() is the OUTPUT

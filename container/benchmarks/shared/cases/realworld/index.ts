@@ -80,6 +80,25 @@ export interface RegistrationForm {
   profile: {firstName: string; lastName: string; age?: number};
 }
 
+// The DTO from moltar/typescript-runtime-type-benchmarks, verbatim. Carried here
+// so our own suite covers the exact shape that published comparison measures,
+// which is what makes its numbers reproducible against ours instead of only
+// comparable in spirit. Deliberately unchanged: no formats, no optionals, no
+// unions — a flat scalar record with one nested object.
+export interface ToBeChecked {
+  number: number;
+  negNumber: number;
+  maxNumber: number;
+  string: string;
+  longString: string;
+  boolean: boolean;
+  deeplyNested: {
+    foo: string;
+    num: number;
+    bool: boolean;
+  };
+}
+
 // ── Cases ────────────────────────────────────────────────────────────────────
 
 const sampleUser = (over: Partial<User> = {}): User => ({
@@ -195,6 +214,38 @@ export const REALWORLD = {
       return {
         valid: [ok, {...ok, profile: {...ok.profile, age: 30}}],
         invalid: [{...ok, acceptedTerms: false}, {...ok, profile: {firstName: 'Ann'}}, {...ok, password: 123456}, null, 'not-an-object', 42], // last two: root type mismatch (fails at root)
+      };
+    },
+  },
+  toBeChecked: {
+    getSamples: () => {
+      // The sample payload from moltar/typescript-runtime-type-benchmarks, kept
+      // as-is (including the long string, which is what makes the string checks
+      // non-trivial for validators that inspect content).
+      const ok: ToBeChecked = {
+        number: 1,
+        negNumber: -1,
+        maxNumber: Number.MAX_VALUE,
+        string: 'string',
+        longString:
+          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vulputate elit, ' +
+          'sed sagittis metus. Nullam consequat, ex ac dignissim commodo, eros nulla ' +
+          'consequat lacus, nec facilisis nisi lorem sed ligula.',
+        boolean: true,
+        deeplyNested: {foo: 'bar', num: 1, bool: false},
+      };
+      return {
+        valid: [ok, {...ok, number: 0, negNumber: -1e9, boolean: false, deeplyNested: {foo: '', num: -0.5, bool: true}}],
+        invalid: [
+          {...ok, number: '1'},
+          {...ok, boolean: 'true'},
+          {...ok, deeplyNested: {foo: 'bar', num: 1}},
+          {...ok, deeplyNested: {foo: 'bar', num: 1, bool: 'false'}},
+          {...ok, longString: 42},
+          null,
+          'not-an-object', // root type mismatch — string where object expected (fails at root)
+          42, // root type mismatch — number where object expected (fails at root)
+        ],
       };
     },
   },

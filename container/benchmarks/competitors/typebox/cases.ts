@@ -3645,6 +3645,37 @@ export const cases: CompetitorCases = {
       };
     },
   },
+  'REALWORLD.toBeChecked': {
+    build: () => {
+      const schema = Type.Object({
+        number: Type.Number(),
+        negNumber: Type.Number(),
+        maxNumber: Type.Number(),
+        string: Type.String(),
+        longString: Type.String(),
+        boolean: Type.Boolean(),
+        deeplyNested: Type.Object({foo: Type.String(), num: Type.Number(), bool: Type.Boolean()}),
+      });
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({
+        number: Type.Number(),
+        negNumber: Type.Number(),
+        maxNumber: Type.Number(),
+        string: Type.String(),
+        longString: Type.String(),
+        boolean: Type.Boolean(),
+        deeplyNested: Type.Object({foo: Type.String(), num: Type.Number(), bool: Type.Boolean()}),
+      });
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
 
   // ── JSON_SCHEMA ──
   // TypeBox has no runtime JSON Schema INPUT door (TypeCompiler dispatches on

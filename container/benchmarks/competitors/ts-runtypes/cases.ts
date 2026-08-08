@@ -2688,6 +2688,33 @@ export const cases: CompetitorCases = {
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
+  'REALWORLD.toBeChecked': {
+    build: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      return createValidateFn<ToBeChecked>();
+    },
+    buildErrors: () => {
+      interface ToBeChecked {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const getErrors = createGetValidationErrorsFn<ToBeChecked>();
+      return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
 
   // ── JSON_SCHEMA ──
   // The schema document is re-authored inline on purpose: `runTypeFromJsonSchema(…)` reads

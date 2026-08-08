@@ -1908,6 +1908,20 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+  'REALWORLD.toBeChecked': {
+    buildErrors: () => {
+      const schema = z.object({
+        number: z.number(),
+        negNumber: z.number(),
+        maxNumber: z.number(),
+        string: z.string(),
+        longString: z.string(),
+        boolean: z.boolean(),
+        deeplyNested: z.object({foo: z.string(), num: z.number(), bool: z.boolean()}),
+      });
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
 
   // ── JSON_SCHEMA ──
   // zod has no JSON Schema INPUT door (it emits with z.toJSONSchema but cannot

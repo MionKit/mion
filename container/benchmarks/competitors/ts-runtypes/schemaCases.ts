@@ -719,6 +719,22 @@ export const schemaCases: CompetitorCases = {
         }),
       })
     ),
+  'REALWORLD.toBeChecked': () =>
+    createValidateFn(
+      RT.object({
+        number: TF.number(),
+        negNumber: TF.number(),
+        maxNumber: TF.number(),
+        string: TF.string(),
+        longString: TF.string(),
+        boolean: RT.boolean(),
+        deeplyNested: RT.object({
+          foo: TF.string(),
+          num: TF.number(),
+          bool: RT.boolean(),
+        }),
+      })
+    ),
 
   // ── JSON_SCHEMA ──
   // The whole group opts out, on purpose. These cases exist to measure the JSON
