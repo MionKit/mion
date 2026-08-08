@@ -333,6 +333,42 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 			childText = "(" + childText + ")"
 		}
 		return childText + "[]", nil
+	case reflection.KindPromise:
+		childText, diag := ctx.typeExpr(node.Child)
+		if diag != nil {
+			return "", diag
+		}
+		return fmt.Sprintf("Promise<%s>", childText), nil
+	case reflection.KindClass:
+		switch node.SubKind {
+		case reflection.SubKindDate:
+			return "Date", nil
+		case reflection.SubKindMap:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 2 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			keyText, keyDiag := ctx.typeExpr(arguments[0])
+			if keyDiag != nil {
+				return "", keyDiag
+			}
+			valueText, valueDiag := ctx.typeExpr(arguments[1])
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return fmt.Sprintf("Map<%s, %s>", keyText, valueText), nil
+		case reflection.SubKindSet:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 1 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			itemText, itemDiag := ctx.typeExpr(arguments[0])
+			if itemDiag != nil {
+				return "", itemDiag
+			}
+			return fmt.Sprintf("Set<%s>", itemText), nil
+		}
+		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			return "", ctx.oneOfPendingDiag()
@@ -389,6 +425,11 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 				if flag == "rest" {
 					isRest = true
 				}
+			}
+			// A union member binds looser than the `?` suffix and the rest
+			// `[]` — parenthesize so the printed member keeps its meaning.
+			if inner != nil && inner.Kind == reflection.KindUnion && (isRest || member.Optional) {
+				innerText = "(" + innerText + ")"
 			}
 			switch {
 			case isRest && label != "":
@@ -481,6 +522,42 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		return rt(fmt.Sprintf("array(%s)", childText))
+	case reflection.KindPromise:
+		childText, diag := ctx.builderExpr(node.Child)
+		if diag != nil {
+			return "", diag
+		}
+		return rt(fmt.Sprintf("promise(%s)", childText))
+	case reflection.KindClass:
+		switch node.SubKind {
+		case reflection.SubKindDate:
+			return tf("date()")
+		case reflection.SubKindMap:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 2 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			keyText, keyDiag := ctx.builderExpr(arguments[0])
+			if keyDiag != nil {
+				return "", keyDiag
+			}
+			valueText, valueDiag := ctx.builderExpr(arguments[1])
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return rt(fmt.Sprintf("map(%s, %s)", keyText, valueText))
+		case reflection.SubKindSet:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 1 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			itemText, itemDiag := ctx.builderExpr(arguments[0])
+			if itemDiag != nil {
+				return "", itemDiag
+			}
+			return rt(fmt.Sprintf("set(%s)", itemText))
+		}
+		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			return "", ctx.oneOfPendingDiag()
@@ -655,6 +732,42 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return "", diag
 		}
 		return fmt.Sprintf("{type: 'array', items: %s}", childText), nil
+	case reflection.KindPromise:
+		childText, diag := ctx.schemaExpr(node.Child)
+		if diag != nil {
+			return "", diag
+		}
+		return dialect(fmt.Sprintf("{jsType: 'Promise', typeArguments: [%s]}", childText))
+	case reflection.KindClass:
+		switch node.SubKind {
+		case reflection.SubKindDate:
+			return dialect("{jsType: 'Date'}")
+		case reflection.SubKindMap:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 2 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			keyText, keyDiag := ctx.schemaExpr(arguments[0])
+			if keyDiag != nil {
+				return "", keyDiag
+			}
+			valueText, valueDiag := ctx.schemaExpr(arguments[1])
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return dialect(fmt.Sprintf("{jsType: 'Map', typeArguments: [%s, %s]}", keyText, valueText))
+		case reflection.SubKindSet:
+			arguments := ctx.nativeArguments(node)
+			if len(arguments) != 1 {
+				return "", unsupportedDiag(node, ctx.decl)
+			}
+			itemText, itemDiag := ctx.schemaExpr(arguments[0])
+			if itemDiag != nil {
+				return "", itemDiag
+			}
+			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
+		}
+		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			return "", ctx.oneOfPendingDiag()
@@ -762,6 +875,24 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return out + "}", nil
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// nativeArguments derefs the KindParameter wrappers a Map/Set node carries in
+// its Arguments slot, returning the parameter child types in order.
+func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection.RunType {
+	var out []*reflection.RunType
+	for _, argumentRef := range node.Arguments {
+		argument := ctx.deref(argumentRef)
+		if argument == nil {
+			return nil
+		}
+		child := ctx.deref(argument.Child)
+		if child == nil {
+			return nil
+		}
+		out = append(out, child)
+	}
+	return out
 }
 
 // oneOfPendingDiag reports a union carrying the exactly-one combinator, which

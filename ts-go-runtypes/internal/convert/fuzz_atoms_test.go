@@ -71,7 +71,18 @@ func randomAtomFile(rng *rand.Rand) string {
 // tuples above it.
 func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) string {
 	if depth > 0 {
-		switch rng.Intn(6) {
+		switch rng.Intn(8) {
+		case 6:
+			return fmt.Sprintf("Map<%s, %s>", randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
+		case 7:
+			switch rng.Intn(3) {
+			case 0:
+				return "Date"
+			case 1:
+				return fmt.Sprintf("Set<%s>", randomTypeText(rng, atoms, stringPool, depth-1))
+			default:
+				return fmt.Sprintf("Promise<%s>", randomTypeText(rng, atoms, stringPool, depth-1))
+			}
 		case 0:
 			return randomTypeText(rng, atoms, stringPool, depth-1) + "[]"
 		case 3:

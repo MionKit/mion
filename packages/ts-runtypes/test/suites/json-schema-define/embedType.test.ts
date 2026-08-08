@@ -59,6 +59,19 @@ describe('json-schema / jsType dialect atoms', () => {
   it('void converges', () => {
     expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'void'} as const))).toBe(getRunTypeId<void>());
   });
+  it('native containers converge (Date / Map / Set / Promise)', () => {
+    expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'Date'} as const))).toBe(getRunTypeId<Date>());
+    const lookup = runTypeFromJsonSchema({
+      jsType: 'Map',
+      typeArguments: [{type: 'string'}, {type: 'number'}],
+    } as const);
+    expect(getRunTypeId(lookup)).toBe(getRunTypeId<Map<string, number>>());
+    const bag = runTypeFromJsonSchema({jsType: 'Set', typeArguments: [{type: 'boolean'}]} as const);
+    expect(getRunTypeId(bag)).toBe(getRunTypeId<Set<boolean>>());
+    const later = runTypeFromJsonSchema({jsType: 'Promise', typeArguments: [{type: 'string'}]} as const);
+    expect(getRunTypeId(later)).toBe(getRunTypeId<Promise<string>>());
+  });
+
   it('any converges (and stays distinct from unknown)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'any'} as const))).toBe(getRunTypeId<any>());
