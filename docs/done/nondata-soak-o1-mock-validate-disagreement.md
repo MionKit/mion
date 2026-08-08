@@ -66,3 +66,49 @@ hit there points at the validator and a miss points at `createMockDataFn`.
 
 Every O1 shape above is diagnosed, fixed at its real cause, and pinned by an
 enumerated regression test; a 60s `nondata` soak reports zero violations.
+
+---
+
+## What shipped (2026-08-08)
+
+All three violations were **one bug**, not two shapes. The intersection cases
+were a red herring: their error paths (`["m0_1","key6","p1","m1_2"]` and
+`[0,"m1_2"]`) both point at a `FzNot<FzUriReference>` / `FzNot<FzIriReference>`
+member buried inside the intersection, exactly like the standalone
+`¬F:iriReference` case. The intersection was just where the negated leaf landed.
+
+**Root cause.** `src/mocking/negationMatch.ts` is a runtime mirror of the
+question the compiled validators answer by compilation ("does this candidate
+match the negated child?"), used for rejection sampling. Its documented bias is
+to OVER-match, because an under-match ships a value `validate` rejects. It
+under-matched for every pattern-bearing named format:
+
+- `url` compiles to `namedPatternValidate` over its params — there is no
+  `new URL()` check anywhere in the emitter — but the walker tested it with
+  `new URL()`, which rejects the relative references `UriReference` and
+  `IriReference` exist to accept.
+- `domain` had the same shape of bug, latent: the loose test demanded a dot,
+  while `HOSTNAME_PATTERN` accepts a single label (`"2U8"`, `"hostname"`).
+
+The comment justifying it — "the loose name test is enough for rejection
+sampling (params only narrow further)" — was the wrong model: for these brands
+the params are WIDER than the stand-in, not narrower.
+
+**Fix.** A registered `pattern` param makes the params the oracle, so
+`formatMatches` tests them directly and skips the loose name test. Pattern-less
+named formats (`ip`, `uuid`, `idn-hostname`, the RFC email pair) keep the loose
+test, where it genuinely over-matches. `idna: 'ascii'` became a no-op arm since
+the ASCII pattern riding with it already tests it.
+
+**Pinned by** `packages/ts-runtypes/test/features/negatedFormatMockSoundness.test.ts`
+— 8 cases over 200 draws each, covering both fixed shapes, the latent `Hostname`
+one, and the pattern-less fallback. Three of them fail against the pre-fix
+walker and pass after.
+
+**Verified:** a 90s `nondata` soak at `RT_FUZZ_SEED=1` now reports
+`742 types, 0 violation(s)` (was 3).
+
+One thing this did NOT fix: that same soak still reports as a vitest TIMEOUT,
+because a single iteration in ~740 takes 340 seconds. Unrelated cause, filed
+separately as
+[soak-single-iteration-pathology](../todos/soak-single-iteration-pathology.md).

@@ -18,10 +18,17 @@
 // vitest headroom is decided.
 
 /** Headroom over the soak's own budget, covering what the budget cannot see:
- *  module setup, the resolver spawn, the FIRST iteration (whose cost is unknown
- *  until it has run once, so it alone may overrun the deadline), and teardown.
- *  Deliberately generous — a soak is opt-in and long-running, so a late honest
- *  failure costs far less than an early false one. **/
+ *  module setup, the resolver spawn, teardown, and the tail of whichever
+ *  iteration was running when the deadline passed. Deliberately generous — a
+ *  soak is opt-in and long-running, so a late honest failure costs far less than
+ *  an early false one.
+ *
+ *  This bounds the SYSTEMATIC overshoot, not every possible one. `canStart()`
+ *  decides when an iteration may begin; nothing can preempt one already running,
+ *  because the work is synchronous JavaScript. A single pathological iteration
+ *  therefore still blows through any headroom — one was measured at 340s among
+ *  ~740 iterations averaging 35ms (docs/todos/soak-single-iteration-pathology.md).
+ *  Raising this number does not fix that; bounding the per-iteration cost does. **/
 export const SOAK_HEADROOM_MS = 180_000;
 
 /** Vitest timeout for an opt-in soak test sized from its wall-clock budget. **/
