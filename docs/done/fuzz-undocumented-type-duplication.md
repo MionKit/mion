@@ -1,13 +1,14 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-08
+completed: 2026-08-08
 ---
 
 # Three type duplications the `srcOverlay.ts` carve-out does not admit to
 
-Split out of the [fuzz-followups audit](../done/fuzz-followups.md) (2026-08-08).
+Split out of the [fuzz-followups audit](fuzz-followups.md) (2026-08-08).
 
 ## Problem
 
@@ -115,3 +116,28 @@ can be GENERATED from `src/` (or from the same source as
 `internal/testfixtures/runtypes.d.ts`). That question is worth splitting into its
 own spec before anyone starts; it is the largest single duplication in the
 harness and the only one whose fix is a codegen design.
+
+---
+
+## Shipped (2026-08-08) — recorded decisions
+
+(The shared blocker above became moot: the alias retirement kept only
+tier-(a)-spelled leaves, so no real imports were needed anywhere. See the
+Shipped section of
+[fuzz-retire-per-format-aliases](fuzz-retire-per-format-aliases.md).)
+
+1. **Structural brands — KEEP, now declared.** They are the same raw
+   sentinel-encoding oracle as the tier-(a) preamble (content-free, nothing to
+   drift). A comment block on `structuralParamsText` in `typeGen.ts` declares
+   the exception and its rationale, and `srcOverlay.ts` lists it.
+2. **`i18nModel.ts` — KEEP the inline spelling (the temp-dir constraint is
+   real), PIN it.** `MINLENGTH_FMT` / `patternFmt` are now exported, and the
+   new `test/fuzz/enrich/i18nInlineSpelling.test.ts` pins them in two hops:
+   the test's type literals resolve to the same structural id as the shipped
+   `TF.String<P>` (both `getRunTypeId` call shapes), and the strings the model
+   writes are byte-equal to those literals. Encoding drift now fails loudly.
+3. **`RUNTYPES_DTS` — SPLIT into its own spec**, as anticipated:
+   [generate-runtypes-dts](../todos/generate-runtypes-dts.md). Scoping found
+   the two "mirrors" (JS 71 lines, Go 53 lines) have ALREADY drifted in
+   declaration set and ordering, which sharpens the case and is recorded there.
+4. **The `srcOverlay.ts` carve-out paragraph now names all four exceptions.**

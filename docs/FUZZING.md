@@ -40,7 +40,7 @@ All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/
 | `type/nonDataTypeFuzz.integration.test.ts` | The DataOnly non-data lane: same driver, values from the REAL `createMockDataFn`, serialize-or-fail contract. |
 | `type/mockSeedFuzz.ts`, `type/tsValidate.ts` | The mock-determinism driver, and the in-process TypeScript validity gate that filters false positives on non-compilable generated types. |
 | `type/*.smoke.test.ts`, `type/bugReprosValidTs.test.ts` | Pinned minimal repros for findings already fixed. |
-| `jsonschema/schemaRender.ts` + `jsonSchemaFuzz.integration.test.ts` | The json-schema lane: normalize a generated type to the expressible subset, render it as draft 2020-12, and assert the type-first spelling and `FromJsonSchema<S>` resolve to ONE structural id. |
+| `jsonschema/schemaRender.ts` + `jsonSchemaFuzz.integration.test.ts` | The json-schema lane: normalize a generated type to the expressible subset, render it as draft 2020-12, and assert the type-first spelling and `FromJsonSchema<S>` resolve to ONE structural id. The lane checks COMPOSITION only — a format leaf is admitted to `FormatLeafName` only when its two spellings are mechanically the same document (see the ADMISSION RULE in `core/typeGen.ts`); per-keyword convergence (named formats, content keywords) is a finite lookup table and lives in the enumerated suites (`schemaFormatKeywordConvergence.test.ts`, the id-integrity catalog driver). |
 | `roundtrip/roundtripOracle.ts` + `roundtripRunner.ts` | The all-strategy round-trip lane (`RT-*` oracles): every codec strategy for one generated serialisable type. |
 | `binary/sizeOracle.ts` + `sizeFuzzRunner.ts` | The binary size-estimate lane (`O-SIZE-*`): in-bounds values must not resize the cold buffer, oversized ones must. |
 | `binary/binaryEncoderResize.test.ts` | Pinned regression for the first finding. |
@@ -326,5 +326,6 @@ reported violation replays exactly.
   type registers its closure once); fine for time-bounded runs.
 - Not yet generated: generics / conditional / mapped types, template-literal
   types. Each is a natural new arm of `typeGen.ts`. (Branded `TypeFormat`
-  primitives ARE generated now, behind `GenOptions.structuralFormats`, which the
-  json-schema lane turns on.)
+  primitives ARE generated now — the `FormatLeafName` roster in every lane's
+  leaf pool, plus the structural decorations behind
+  `GenOptions.structuralFormats`, which only the json-schema lane turns on.)

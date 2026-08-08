@@ -11,11 +11,32 @@
 // type does not fail when the shipped type changes — it silently keeps testing
 // the old shape, which is the one failure mode a fuzz suite cannot afford.
 //
-// The ONE deliberate exception is `FUZZ_FORMAT_PREAMBLE` (typeGen.ts): those
-// `Fz*` aliases are the INDEPENDENT type-first oracle the translation is checked
-// against. Importing the shipped types there would compare a type with itself
-// and the convergence check would pass by construction. Independence is the
-// point; everywhere else, use the original.
+// The deliberate exceptions, all declared so the next reader can tell them
+// from an accident:
+//
+// 1. `FUZZ_FORMAT_PREAMBLE` (typeGen.ts) — four aliases restating the raw
+//    SENTINEL ENCODING the Go scanner reads. They are the independent
+//    type-first oracle the translation is checked against; importing the
+//    shipped brands there would compare a type with itself and the convergence
+//    check would pass by construction. The encoding is content-free (no
+//    per-format grammar), so there is nothing to drift — per-format leaves are
+//    barred by the ADMISSION RULE on `FormatLeafName`.
+// 2. The structural sentinel spellings inline in typeGen's `renderType`
+//    (`__rtFormatName: 'formattedArray' / 'formattedObject'`, `__rtContains`,
+//    `__rtPatternProps`, `__rtPropNames`) — the same raw-encoding oracle as
+//    (1), for the structural keyword brands (structural.ts). Same rationale,
+//    same content-free shape.
+// 3. `i18nModel.ts`'s inline `TypeFormat` spelling — its fixtures are scratch
+//    temp dirs with no ts-runtypes install, so a relative import cannot
+//    resolve. Pinned against the shipped encoding by
+//    i18nInlineSpelling.test.ts so drift fails loudly instead of silently
+//    testing a plain string.
+// 4. `RUNTYPES_DTS` (ts-runtypes-devtools/test/helpers/inline.ts) — the
+//    hand-written `declare module '@ts-runtypes/core'` every harness loads.
+//    The largest copy of all; generating it from source is its own design
+//    problem (docs/todos/generate-runtypes-dts.md).
+//
+// Everywhere else, use the original.
 
 import {readFileSync, readdirSync} from 'node:fs';
 import {join} from 'node:path';

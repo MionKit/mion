@@ -70,27 +70,24 @@ export type TypeShape =
  *  preamble aliases below) and the sibling-typed JSON Schema document — so
  *  the jsonschema lane's id-convergence oracle covers formats and negation.
  *  `valid` values satisfy the format; `counter` values satisfy the BASE kind
- *  but fail the format (the valid values of `Not<F>`). **/
-export type FormatLeafName =
-  | 'emailish'
-  | 'uuid'
-  | 'minLen50'
-  | 'maxLen8'
-  | 'patternA'
-  | 'integer'
-  | 'min0max100'
-  | 'base64'
-  | 'jsonContent'
-  // The JSON Schema named formats.
-  | 'jsonPointer'
-  | 'relativeJsonPointer'
-  | 'stringDuration'
-  | 'hostname'
-  | 'uriTemplate'
-  | 'uri'
-  | 'uriReference'
-  | 'iri'
-  | 'iriReference';
+ *  but fail the format (the valid values of `Not<F>`).
+ *
+ *  ADMISSION RULE — a leaf is admitted only when its two spellings are
+ *  MECHANICALLY the same document: the keyword name equals the param name
+ *  (minLength / maxLength / pattern / integer, modulo the pinned min↔minimum
+ *  renames) or both sides read one shared constant (FUZZ_EMAIL_PATTERN). A
+ *  leaf whose correspondence needs a hand-maintained mapping (the named
+ *  formats `uuid` / `hostname` / `uri` / …, the content keywords) is a
+ *  19-row-lookup-table fact, not a fuzz property: sampling only beats
+ *  enumeration when the space is too big to enumerate, and a transcribed
+ *  grammar drifts silently instead of failing (docs/done/fuzz-followups.md
+ *  recorded exactly that on the retired `email` leaf). Those rows live in the
+ *  enumerated suites — schemaFormatKeywordConvergence.test.ts (all 19
+ *  BrandBySchemaFormat rows) and the id-integrity catalog driver (every
+ *  validation / serialization case with a runTypeFromJsonSchema thunk) — and
+ *  the fuzz lanes keep what only they can check: that a format leaf still
+ *  converges / validates / mocks when COMPOSED at arbitrary depth. **/
+export type FormatLeafName = 'emailish' | 'minLen50' | 'maxLen8' | 'patternA' | 'integer' | 'min0max100';
 
 /** Structural constraint params the jsonschema lane can attach to an array /
  *  record shape (the formattedArray / formattedObject brands). Rendered as RAW
@@ -139,19 +136,13 @@ export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
   // id-integrity suite, where it belongs (see docs/done/fuzz-followups.md).
   emailish: {
     family: 'string',
-    tsText: 'FzEmail',
+    // flags 'u' because the schema twin spells the `pattern` keyword, which
+    // the door compiles in unicode mode (see the patternA leaf).
+    tsText: `FzString<{pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: 'u'}}>`,
     schema: {type: 'string', pattern: FUZZ_EMAIL_PATTERN},
     valid: ['ada@example.com', 'bob.builder@test.org'],
     counter: ['plain words', 'missing-at.example.com'],
     test: (value) => typeof value === 'string' && new RegExp(FUZZ_EMAIL_PATTERN).test(value),
-  },
-  uuid: {
-    family: 'string',
-    tsText: 'FzUUID',
-    schema: {type: 'string', format: 'uuid'},
-    valid: ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'f47ac10b-58cc-4372-a567-0e02b2c3d479'],
-    counter: ['not-a-uuid', '12345'],
-    test: (value) => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
   },
   // minLength 50, NOT a small bound: the negation mock rejection-samples
   // plain random strings (length uniform over [1, 100]), so the complement
@@ -185,92 +176,9 @@ export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
     counter: ['b-side', 'zzz'],
     test: (value) => typeof value === 'string' && /^a/.test(value),
   },
-  jsonPointer: {
-    family: 'string',
-    tsText: 'FzJsonPointer',
-    schema: {type: 'string', format: 'json-pointer'},
-    valid: ['/store/book/0', '/a~1b'],
-    counter: ['no-leading-slash', '/a~2b'],
-    test: (value) => typeof value === 'string' && /^(?:\/(?:[^~\/]|~[01])*)*$/.test(value),
-  },
-  relativeJsonPointer: {
-    family: 'string',
-    tsText: 'FzRelativeJsonPointer',
-    schema: {type: 'string', format: 'relative-json-pointer'},
-    valid: ['1/foo', '2#'],
-    counter: ['01', '/foo'],
-    test: (value) => typeof value === 'string' && /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~\/]|~[01])*)*)$/.test(value),
-  },
-  stringDuration: {
-    family: 'string',
-    tsText: 'FzStringDuration',
-    schema: {type: 'string', format: 'duration'},
-    valid: ['P4DT12H30M5S', 'P2W'],
-    counter: ['P1Y2D', 'PT0.5S'],
-    test: (value) =>
-      typeof value === 'string' &&
-      /^P(?:\d+W|(?:\d+Y(?:\d+M(?:\d+D)?)?|\d+M(?:\d+D)?|\d+D)(?:T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))?|T(?:\d+H(?:\d+M(?:\d+S)?)?|\d+M(?:\d+S)?|\d+S))$/.test(
-        value
-      ),
-  },
-  hostname: {
-    family: 'string',
-    tsText: 'FzHostname',
-    schema: {type: 'string', format: 'hostname'},
-    valid: ['example.com', 'localhost'],
-    counter: ['-bad', 'under_score'],
-    test: (value) =>
-      typeof value === 'string' &&
-      /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/.test(value) &&
-      value.length <= 253,
-  },
-  uriTemplate: {
-    family: 'string',
-    tsText: 'FzUriTemplate',
-    schema: {type: 'string', format: 'uri-template'},
-    valid: ['http://example.com/{id}', '{/path*}'],
-    counter: ['http://example.com/{id', 'a b'],
-    test: (value) =>
-      typeof value === 'string' &&
-      /^(?:[^\x00-\x20"'<>\\^\x60{|}\x7F]|\{[+#./;?&=,!@|]?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\*)?(?:,(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\*)?)*\})*$/.test(
-        value
-      ),
-  },
-  uri: {
-    family: 'string',
-    tsText: 'FzUri',
-    schema: {type: 'string', format: 'uri'},
-    valid: ['https://example.com/a', 'mailto:ada@example.com'],
-    counter: ['../relative', 'a b'],
-    test: (value) => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9+\-.]*:\S*$/.test(value) && !/[^\x00-\x7F]/.test(value),
-  },
-  uriReference: {
-    family: 'string',
-    tsText: 'FzUriReference',
-    schema: {type: 'string', format: 'uri-reference'},
-    valid: ['/abs/path', '#frag'],
-    counter: ['a b', 'http://example.com/\u00e4'],
-    test: (value) => typeof value === 'string' && !/[\s]/.test(value) && !/[^\x00-\x7F]/.test(value),
-  },
-  iri: {
-    family: 'string',
-    tsText: 'FzIri',
-    schema: {type: 'string', format: 'iri'},
-    valid: ['https://example.com/p\u00e4th', 'mailto:ada@example.com'],
-    counter: ['../p\u00e4th', 'a b'],
-    test: (value) => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9+\-.]*:\S*$/.test(value),
-  },
-  iriReference: {
-    family: 'string',
-    tsText: 'FzIriReference',
-    schema: {type: 'string', format: 'iri-reference'},
-    valid: ['/relative/p\u00e4th', '#\u30d5\u30e9\u30b0'],
-    counter: ['a b'],
-    test: (value) => typeof value === 'string' && !/[\s]/.test(value),
-  },
   integer: {
     family: 'number',
-    tsText: 'FzInteger',
+    tsText: 'FzNumber<{integer: true}>',
     schema: {type: 'integer'},
     valid: [0, 42, -3],
     counter: [1.5, -0.25],
@@ -284,85 +192,27 @@ export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
     counter: [-1, 101.5],
     test: (value) => typeof value === 'number' && value >= 0 && value <= 100,
   },
-  // Content keywords (M6): contentEncoding lowers to the anchored RFC 4648
-  // pattern with the door's baked mock pool; contentMediaType is the
-  // jsonContent parse-check family. Both complements stay dense under the
-  // random-string draw (most strings are neither padded base64 nor JSON),
-  // so the negation lanes' rejection sampling never starves.
-  base64: {
-    family: 'string',
-    tsText: 'FzBase64',
-    schema: {type: 'string', contentEncoding: 'base64'},
-    valid: ['', 'QQ==', 'SGVsbG8='],
-    counter: ['QQ=', 'not base64!'],
-    test: (value) => typeof value === 'string' && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value),
-  },
-  jsonContent: {
-    family: 'string',
-    tsText: 'FzJson',
-    schema: {type: 'string', contentMediaType: 'application/json'},
-    valid: ['{}', '7', 'true'],
-    counter: ['not json', '{'],
-    test: (value) => {
-      if (typeof value !== 'string') return false;
-      try {
-        JSON.parse(value);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-  },
 };
 export const FORMAT_LEAF_NAMES = Object.keys(FORMAT_LEAVES) as readonly FormatLeafName[];
 
 /** Fixture preamble every renderer prepends when a generated type carries
- *  format/not shapes. Structural twins of the public brand ENCODINGS
- *  (typeFormat.ts / not.ts), spelled locally instead of importing
- *  '@ts-runtypes/core/formats': the fixtures must compile under tsValidate's
- *  bare host and the harnesses' virtual filesystems (runtypes.d.ts declares
- *  no formats subpath), and the resolver reads the sentinels structurally,
- *  so the raw spellings converge with the schema door exactly like the real
- *  brands do. FzEmail carries pattern params like the real Email brand — a
- *  param-less named string brand emits an EMPTY runtime check, which would
- *  make its negation unsatisfiable in the value lanes. The pattern is kept
- *  backslash-free on purpose (the text nests through template literals
- *  before reaching tsgo). **/
+ *  format/not shapes. These four aliases restate the raw SENTINEL ENCODING the
+ *  Go scanner reads (typeFormat.ts / not.ts) — deliberately NOT imports of the
+ *  shipped brands: the fixtures must compile under tsValidate's bare host and
+ *  the harnesses' virtual filesystems (runtypes.d.ts declares no formats
+ *  subpath), and restating the encoding is itself the independent oracle that
+ *  the door and the sentinel spelling still converge. The encoding is four
+ *  lines with no per-format content, so there is no grammar to drift — the
+ *  retired per-format aliases (14 declarations, four of them multi-kilobyte
+ *  transcribed RFC grammars) are exactly what the ADMISSION RULE on
+ *  FormatLeafName exists to keep out. Leaf patterns are kept backslash-free
+ *  on purpose (the text nests through template literals before reaching
+ *  tsgo). **/
 export const FUZZ_FORMAT_PREAMBLE = [
   'type FzTF<Base, Name extends string, Params extends object> = Base & {readonly __rtFormatName?: Name; readonly __rtFormatParams?: Params};',
   'type FzNot<F extends string | number | bigint> = ([F] extends [string] ? string : [F] extends [number] ? number : bigint) & {readonly __rtNot?: F};',
-  // A plain pattern brand, and flags 'u' because the schema twin spells it as
-  // the `pattern` keyword, which the door compiles in unicode mode (see the
-  // patternA leaf). NOT the `email` format keyword — see the leaf's note.
-  `type FzEmail = FzTF<string, 'stringFormat', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: 'u'}}>;`,
-  "type FzUUID = FzTF<string, 'uuid', {version: 'any'}>;",
-  "type FzInteger = FzTF<number, 'numberFormat', {integer: true}>;",
   "type FzString<P extends object> = FzTF<string, 'stringFormat', P>;",
   "type FzNumber<P extends object> = FzTF<number, 'numberFormat', P>;",
-  // Content leaves — the ID-BEARING params must match the translation's
-  // lowering exactly (the anchored RFC 4648 pattern for base64, the
-  // contentMediaType keyword for JSON content), or the ids diverge on the very
-  // first draw. `mockSamples` are NOT id-relevant (stringFormats.ts:220, and
-  // resolver/sample_conflict_test.go) — they only feed createMockDataFn, so a
-  // pool that drifts from the shipped one changes what the value lanes draw,
-  // never whether the ids converge. Both leaves are plain `stringFormat`: the
-  // content keywords are string PARAMS, not formats of their own.
-  "type FzBase64 = FzTF<string, 'stringFormat', {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;",
-  "type FzJson = FzTF<string, 'stringFormat', {contentMediaType: 'application/json'; mockSamples: ['{}', '[]', '\"text\"', '7', 'true', 'null']}>;",
-  // The JSON Schema named formats. Transcribed, like every alias here, so the
-  // oracle stays independent of the shipped brands — the id-bearing params must
-  // match what the door lowers each keyword to, pattern source included, or the
-  // ids diverge on the first draw. The mock pools ride along for the value
-  // lanes only (see the note on the content leaves above).
-  "type FzStringDuration = FzTF<string, 'stringFormat', {pattern: {source: '^P(?:\\\\d+W|(?:\\\\d+Y(?:\\\\d+M(?:\\\\d+D)?)?|\\\\d+M(?:\\\\d+D)?|\\\\d+D)(?:T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))?|T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))$'; flags: ''; mockSamples: ['P4DT12H30M5S', 'P1Y2M3D', 'PT1H30M', 'P2W', 'PT0S']}}>;",
-  "type FzJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:\\\\/(?:[^~\\\\/]|~[01])*)*$'; flags: ''; mockSamples: ['', '/foo', '/foo/0', '/a~1b', '/c~0d']}}>;",
-  "type FzRelativeJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:0|[1-9][0-9]*)(?:#|(?:\\\\/(?:[^~\\\\/]|~[01])*)*)$'; flags: ''; mockSamples: ['0', '1/foo', '2#', '0/a~1b']}}>;",
-  "type FzUriTemplate = FzTF<string, 'url', {pattern: {source: '^(?:[^\\\\x00-\\\\x20\"\\'<>\\\\\\\\^\\\\x60{|}\\\\x7F]|\\\\{[+#./;?&=,!@|]?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\\\*)?(?:,(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2})(?:\\\\.?(?:[A-Za-z0-9_]|%[0-9A-Fa-f]{2}))*(?::[1-9][0-9]{0,3}|\\\\*)?)*\\\\})*$'; flags: ''; mockSamples: ['http://example.com/{id}', 'http://example.com/~{username}/', 'http://example.com/search{?q,lang}', '{/path*}']}}>;",
-  "type FzHostname = FzTF<string, 'domain', {pattern: {source: '^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'; flags: ''; mockSamples: ['example.com', 'hostname', 'sub.example.co.uk', 'h0stn4me', 'a--b.com']}; maxLength: 253; idna: \'ascii\'}>;",
-  "type FzUri = FzTF<string, 'url', {pattern: {source: '^[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['https://example.com/path', 'mailto:ada@example.com', 'urn:isbn:0451450523', 'ftp://files.example.org/pub']}}>;",
-  "type FzUriReference = FzTF<string, 'url', {pattern: {source: '^(?:[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|)|(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=@]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@]|%[0-9A-Fa-f]{2})*)*|))(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['/relative/path', '../up', '#fragment', 'https://example.com']}}>;",
-  "type FzIri = FzTF<string, 'url', {pattern: {source: '^[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['https://example.com/päth', 'https://例え.テスト/ページ', 'mailto:ada@example.com']}}>;",
-  "type FzIriReference = FzTF<string, 'url', {pattern: {source: '^(?:[A-Za-z][A-Za-z0-9+\\\\-.]*:(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|)|(?:\\\\/\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*@)?(?:\\\\[[0-9A-Fa-f:.]+\\\\]|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)(?::[0-9]*)?(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|\\\\/(?:(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*)?|(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})+(?:\\\\/(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)*|))(?:\\\\?(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?(?:#(?:[A-Za-z0-9\\\\-._~!$&\\'()*+,;=:@\\\\/?\\\\u{A0}-\\\\u{D7FF}\\\\u{F900}-\\\\u{FDCF}\\\\u{FDF0}-\\\\u{FFEF}\\\\u{10000}-\\\\u{EFFFD}]|%[0-9A-Fa-f]{2})*)?$'; flags: 'u'; mockSamples: ['/relative/päth', '#フラグ', 'https://例え.テスト']}}>;",
 ].join('\n');
 
 /** True when any shape in the generated type is a format/not leaf — the
@@ -946,7 +796,15 @@ function renderKey(name: string): string {
 }
 
 /** The __rtFormatParams type-literal text for a structural decoration —
- *  key order fixed so a seed replays byte-identically. **/
+ *  key order fixed so a seed replays byte-identically.
+ *
+ *  This and the `__rtContains` / `__rtPatternProps` / `__rtPropNames`
+ *  spellings inline in `renderType` below restate the raw sentinel encoding of
+ *  the structural brands (src/formats/structural.ts) — a DECLARED exception to
+ *  the no-hand-copies rule, same tier as FUZZ_FORMAT_PREAMBLE: the restated
+ *  encoding is the independent type-first oracle the schema door's structural
+ *  keywords are checked against, and it carries no per-format grammar that
+ *  could drift. See srcOverlay.ts for the full exception list. **/
 function structuralParamsText(structural: ArrayStructural | ObjectStructural): string {
   const parts: string[] = [];
   for (const key of ['uniqueItems', 'maxItems', 'minProperties', 'maxProperties'] as const) {

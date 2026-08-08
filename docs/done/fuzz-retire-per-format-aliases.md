@@ -1,13 +1,14 @@
 ---
 type: chore
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-08
+completed: 2026-08-08
 ---
 
 # Retire the per-format `Fz*` aliases by moving the id-convergence leg out of the fuzz lane
 
-Split out of the [fuzz-followups audit](../done/fuzz-followups.md) (2026-08-08).
+Split out of the [fuzz-followups audit](fuzz-followups.md) (2026-08-08).
 
 ## Problem
 
@@ -90,7 +91,7 @@ suite are green.
 
 ## Progress (2026-08-08) — step 1 shipped, steps 2-4 still open
 
-Landed with the [fuzz-followups](../done/fuzz-followups.md) work:
+Landed with the [fuzz-followups](fuzz-followups.md) work:
 
 - **Step 1 is done.** `test/features/schemaFormatKeywordConvergence.test.ts` now
   pins all **19** `BrandBySchemaFormat` rows, including the three that had no
@@ -127,7 +128,7 @@ one of them has it today:
   at the filesystem ROOT, so a relative `./src/...` import would resolve to
   `/src/...` and fail. Every format-bearing type would then typecheck as invalid,
   and the TS-validity gate would silently suppress its violations — the exact
-  failure mode [fuzz-frozen-seeds-and-silent-gates](../done/fuzz-frozen-seeds-and-silent-gates.md)
+  failure mode [fuzz-frozen-seeds-and-silent-gates](fuzz-frozen-seeds-and-silent-gates.md)
   just put a ceiling on (so it would now fail loudly rather than hide, but it
   would still fail). The fix is to anchor that virtual file at the real package
   root so relative imports resolve to the files on disk — small, but it must
@@ -136,3 +137,37 @@ one of them has it today:
 So the remaining order is: anchor `tsValidate`'s virtual file → measure the
 overlay cost in the type lanes → thin `FORMAT_LEAVES` → delete tier (b) → rewrite
 the `srcOverlay.ts` carve-out paragraph.
+
+---
+
+## Shipped (2026-08-08) — steps 2-4 done, by a simpler route than planned
+
+The blocker above assumed the surviving leaves would need the SHIPPED brands
+imported into the fixtures. They do not: every survivor is spelled through the
+four tier-(a) aliases, so no `src/` overlay in the type lanes and no
+`tsValidate` re-anchoring was ever required. The blocker section stands as the
+analysis of the road not taken.
+
+What landed:
+
+- **`FORMAT_LEAVES` is thinned to six leaves** (`emailish`, `minLen50`,
+  `maxLen8`, `patternA`, `integer`, `min0max100`), all admitted under a new
+  ADMISSION RULE documented on `FormatLeafName`: a leaf is admitted only when
+  its two spellings are mechanically the same document (keyword name = param
+  name, or both sides read one shared constant). Anything needing a
+  hand-maintained mapping — the named formats, the content keywords — is
+  enumerable and lives in the enumerated suites.
+- **Tier (b) is gone**: all 14 per-format aliases deleted, the four
+  multi-kilobyte RFC 3986/3987 transcriptions with them. The preamble is now
+  four content-free sentinel-encoding lines (`FzTF` / `FzNot` / `FzString` /
+  `FzNumber`) — nothing left that can drift.
+- **The enumerated side was completed first** (step 1 earlier, plus in this
+  change): `negatedFormatMockSoundness.test.ts` now pins the `date` / `time` /
+  `dateTime` fallback arms too, so EVERY runtime named-format test in
+  `negationMatch.ts` has an enumerated soundness pin — the named-format
+  coverage the fuzz roster used to sample is now enumerated in full.
+- **The `srcOverlay.ts` carve-out paragraph is rewritten** to list all four
+  actual exceptions (tier-(a) preamble, the structural sentinel spellings in
+  `renderType`, `i18nModel`'s inline spelling, `RUNTYPES_DTS`) — see
+  [fuzz-undocumented-type-duplication](fuzz-undocumented-type-duplication.md)
+  for the other three.

@@ -115,8 +115,13 @@ function runTranslateCli(fixture: ReconcileFixture, args: string[]): CliResult {
 }
 
 // The inline format-brand intersections the .ts source declares per field kind.
-const MINLENGTH_FMT = "string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {minLength: 2}}";
-function patternFmt(name: string): string {
+// Inline (not imported) because the fixtures are scratch temp dirs with no
+// ts-runtypes install — a declared exception in srcOverlay.ts. Exported so
+// i18nInlineSpelling.test.ts can pin them against the SHIPPED TF.String<P>
+// encoding by structural id: if the sentinel encoding ever changes, that test
+// fails loudly instead of this fuzzer silently exercising a plain string.
+export const MINLENGTH_FMT = "string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {minLength: 2}}";
+export function patternFmt(name: string): string {
   return `string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {pattern: {source: '${name}'; flags: ''}}}`;
 }
 
