@@ -115,8 +115,9 @@ function runTranslateCli(fixture: ReconcileFixture, args: string[]): CliResult {
 }
 
 // The inline format-brand intersections the .ts source declares per field kind.
-// Inline (not imported) because the fixtures are scratch temp dirs with no
-// ts-runtypes install — a declared exception in srcOverlay.ts. Exported so
+// Inline (not imported) ONLY because the fixtures are scratch temp dirs with no
+// ts-runtypes install, so a relative import cannot resolve — everywhere a
+// fixture CAN import, the shipped brands are imported instead. Exported so
 // i18nInlineSpelling.test.ts can pin them against the SHIPPED TF.String<P>
 // encoding by structural id: if the sentinel encoding ever changes, that test
 // fails loudly instead of this fuzzer silently exercising a plain string.

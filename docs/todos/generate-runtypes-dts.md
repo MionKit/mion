@@ -62,4 +62,4 @@ touching the mechanism.
 Exactly one hand-written (or zero, if generated) copy of the fake marker module
 exists; JS and Go tests consume the same bytes; drift against `src/` either
 fails CI (option 2) or is at least confined to one file (option 1); the
-`srcOverlay.ts` exception list is updated to match.
+warning note on `RUNTYPES_DTS` in `inline.ts` is updated to match.

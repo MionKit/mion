@@ -143,7 +143,13 @@ Shipped section of
    [generate-runtypes-dts](../todos/generate-runtypes-dts.md). Scoping found
    the two "mirrors" (JS 71 lines, Go 53 lines) have ALREADY drifted in
    declaration set and ordering, which sharpens the case and is recorded there.
-4. **The `srcOverlay.ts` carve-out paragraph now names every actual
-   exception** — after the import route landed, that is three: the scratch-dir
-   preamble (`FUZZ_FORMAT_SCRATCH_PREAMBLE`, pinned), `i18nModel`'s inline
-   spelling (pinned), and `RUNTYPES_DTS` (its own spec).
+4. **The central carve-out list is GONE, together with `srcOverlay.ts`
+   itself.** A named overlay module with an exceptions registry read as a
+   mechanism inviting more exceptions, so it was dissolved: the `src/`-tree
+   overlay now lives as `SRC_OVERLAY` inside `type/typeFuzzHarness.ts`,
+   explicitly framed as a workaround for the resolver's virtual filesystem,
+   and each surviving restatement is documented AT ITS OWN SITE — the
+   scratch-dir preamble in `typeGen.ts` (pinned by
+   `scratchFormatPreamble.test.ts`), `i18nModel`'s inline spelling (pinned by
+   `i18nInlineSpelling.test.ts`), and `RUNTYPES_DTS` via a warning note in
+   `inline.ts` (its own spec: generate-runtypes-dts).

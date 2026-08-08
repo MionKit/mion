@@ -444,7 +444,8 @@ export const FORMAT_LEAF_NAMES = Object.keys(FORMAT_LEAVES) as readonly FormatLe
  *  type carries format / not / structural / oneOf shapes: the SHIPPED brands,
  *  imported for real. Nothing is restated, so nothing can drift — the
  *  harnesses put the actual `src/` tree in the resolver's virtual filesystem
- *  (srcOverlay.ts) and tsValidate anchors its virtual file at the package
+ *  (SRC_OVERLAY in typeFuzzHarness.ts) and tsValidate anchors its virtual
+ *  file at the package
  *  root, so both resolve these relative imports to the same shipped
  *  sources. **/
 export const FUZZ_FORMAT_PREAMBLE = [

@@ -27,7 +27,7 @@
 import {describe, expect, it} from 'vitest';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 import {RUNTYPES_DTS} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
-import {hasBinary, openClient} from '../type/typeFuzzHarness.ts';
+import {hasBinary, openClient, SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {startSoakBudget, soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
@@ -43,7 +43,6 @@ import {
   type GeneratedType,
 } from '../core/typeGen.ts';
 import {renderSchemaLiteral, toSchemaExpressible, type SchemaExpressible} from './schemaRender.ts';
-import {SRC_OVERLAY} from '../core/srcOverlay.ts';
 
 /** The translation module the fixture imports — a RE-EXPORT of the real one.
  *  No stand-ins, no sliced regions: `FromJsonSchema` and every format brand it

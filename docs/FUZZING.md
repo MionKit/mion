@@ -27,14 +27,13 @@ All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/
 | `core/seededRng.ts` | Deterministic PRNG (`mulberry32`) + `withSeededRandom(seed, fn)` — scopes a seeded `Math.random` so a whole run replays from one number. |
 | `core/typeGen.ts` | The THIRD giant switch — a seeded generator of random types across the WIDEST space (classes, functions, symbols, index sigs, native builtins, intersections, circular interfaces, any/unknown/never/void, format leaves) + named decls + a renderer to `.ts`. |
 | `core/runTypeGen.ts` | Seeded generator of `RunType` graphs directly, for the offline lanes that need a schema without compiling a type. |
-| `core/srcOverlay.ts` | The REAL `src/` tree as a resolver overlay, so a fixture imports the shipped declarations instead of a stand-in. |
 | `core/soakBudget.ts` | The soak wall clock: refuses to start an iteration the remaining budget cannot pay for, and sizes each soak test's vitest timeout. |
 | `value/invalidValue.ts` | The metamorphic **giant switch** — the inverse of `mockType.ts`. Per-kind wrong-value generation + the tandem tree walk that corrupts one provably-invalid position. |
 | `value/shapeValue.ts` | Type→value: a conforming value for the serialisable subset, a strict `valueOracleSafe` gate, and a sound one-position corruption (mirrors invalidValue.ts's contract). |
 | `value/fuzzOracle.ts` | The value oracle layer: the `FuzzTarget` shape and the O1–O7 / O12 checks. (The TR1–TR4 resolver/emit checks live in `type/typeFuzzRunner.ts`; this file only declares their ids.) |
 | `value/fuzzRunner.ts` | The Phase-1 driver: `runFuzz` (fixed iterations) and `runFuzzForDuration` (autonomous soak). Type-blind junk generator. |
 | `value/fuzz.integration.test.ts` | Phase-1 end-to-end sweep over REAL compiled functions (needs the plugin + binary). |
-| `type/typeFuzzHarness.ts` | Drives generated source through the resolver (`serve --sources ops`) → entry modules → REAL runtime factories; records diagnostics + per-factory wire outcome. |
+| `type/typeFuzzHarness.ts` | Drives generated source through the resolver (`serve --sources ops`) → entry modules → REAL runtime factories; records diagnostics + per-factory wire outcome. Owns `SRC_OVERLAY` — the real `src/` tree handed to the resolver's virtual filesystem so fixtures import the shipped declarations instead of stand-ins (a workaround for the virtual FS, not a mechanism). |
 | `type/typeFuzzRunner.ts` | The Phase-2 driver: `runTypeFuzz` / `runTypeFuzzForDuration` — owns the resolver (restarts it on a hang), Tier-A (resolver/emit) on every type + Tier-B (value/robustness) per type. Hosts TR1–TR4 and the non-data O10 / O12 / O14 checks. |
 | `type/typeFuzz.integration.test.ts` | Phase-2 end-to-end sweep over generated TYPES, values from `shapeValue.ts` (needs the binary). |
 | `type/nonDataTypeFuzz.integration.test.ts` | The DataOnly non-data lane: same driver, values from the REAL `createMockDataFn`, serialize-or-fail contract. |

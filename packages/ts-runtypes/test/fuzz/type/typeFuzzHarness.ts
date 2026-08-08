@@ -40,13 +40,38 @@ import {
   hasBinary,
 } from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
+import {readFileSync, readdirSync} from 'node:fs';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
-import {SRC_OVERLAY} from '../core/srcOverlay.ts';
 
 export {hasBinary, BIN};
 
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const FIXTURE = 'g.ts';
+
+// The resolver's serve/ops mode builds its program from the setSources keys
+// alone — a pure virtual filesystem — so a fixture cannot import the shipped
+// sources off disk. This is a WORKAROUND for that, not a mechanism to build
+// on: read the real `src/` tree once and hand it over whole, so fixture
+// imports like `./src/formats/index.ts` resolve to the shipped sources.
+// Never hand-write a stand-in for a shipped type instead — a hand copy does
+// not fail when the shipped type changes; it silently keeps testing the old
+// shape, which is the one failure mode a fuzz suite cannot afford. (`src/`
+// imports nothing non-relative, so the graph closes with no further stubs.)
+const SRC_ROOT = path.resolve(__dirname, '../../../src');
+function readSrcTree(dir: string, prefix: string, into: Record<string, string>): void {
+  for (const entry of readdirSync(dir, {withFileTypes: true})) {
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) readSrcTree(abs, `${prefix}${entry.name}/`, into);
+    else if (entry.name.endsWith('.ts')) into[`src/${prefix}${entry.name}`] = readFileSync(abs, 'utf8');
+  }
+}
+/** Every `src/**` file keyed by its path under `src/`, for `setSources`. Read
+ *  once per process — the tree does not change mid-run. **/
+export const SRC_OVERLAY: Readonly<Record<string, string>> = (() => {
+  const overlay: Record<string, string> = {};
+  readSrcTree(SRC_ROOT, '', overlay);
+  return overlay;
+})();
 
 const ENCODER_TAGS = new Set(['jeCL', 'jeMU', 'jeDI']);
 const DECODER_TAGS = new Set(['jdST', 'jdPR']);
@@ -158,7 +183,7 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
   try {
     // The whole src/ tree rides along so the fixture preamble's `./src/...`
     // imports (the SHIPPED format brands) resolve inside the resolver's
-    // virtual filesystem — no hand-written brand stand-ins (srcOverlay.ts).
+    // virtual filesystem — no hand-written brand stand-ins (SRC_OVERLAY above).
     await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {

@@ -27,8 +27,7 @@ import {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-clie
 import {RUNTYPES_DTS, evalEntryModules, instantiateRunTypes} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
-import {openClient, hasBinary, BIN} from '../type/typeFuzzHarness.ts';
-import {SRC_OVERLAY} from '../core/srcOverlay.ts';
+import {openClient, hasBinary, BIN, SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
 
 export {hasBinary, BIN, openClient};
 

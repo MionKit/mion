@@ -30,12 +30,12 @@ import {Severity} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import {setSerializationOptions} from '../../../src/runtypes/dataView.ts';
 import {binarySizeEstimateFromTuple} from '../../../src/runtypes/entryTuple.ts';
 import {withSeededRandom} from '../core/seededRng.ts';
-import {TYPE_FORMAT_IMPORT, TYPE_FORMAT_OVERLAY} from '../core/srcOverlay.ts';
+import {SRC_OVERLAY} from '../type/typeFuzzHarness.ts';
 
 const REPO_ROOT = path.resolve(__dirname, '../../../../..');
 // The SHIPPED TypeFormat, not a copy of its shape: a local copy keeps compiling
 // after the real one changes, so it would silently measure the old encoding.
-const BRAND = TYPE_FORMAT_IMPORT;
+const BRAND = `import type {TypeFormat} from './src/runtypes/typeFormat.ts';`;
 
 interface Compiled {
   tb: readonly unknown[];
@@ -55,7 +55,7 @@ createBinaryEncoderFn<T>();
 createBinaryDecoderFn<T>();
 getRunTypeId<T>();
 `;
-  await client.setSources({...TYPE_FORMAT_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, 'g.ts': source});
+  await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, 'g.ts': source});
   const resp = await client.scanFiles(['g.ts'], {includeEntryModules: true});
   const errors = (resp.diagnostics ?? []).filter((d) => d.severity === Severity.Error);
   expect(errors, `errors for ${title}: ${JSON.stringify(errors)}`).toEqual([]);

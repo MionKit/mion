@@ -34,6 +34,12 @@ export const BARE_CWD = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-bare-'));
 // Mirror of internal/testfixtures/runtypes.d.ts. Always overlaid by
 // `withInlineSources` so per-test fixtures don't have to redeclare the
 // fake `ts-runtypes` module.
+//
+// ⚠️ This is a hand-written restatement of the public marker surface — the
+// largest one in the test infrastructure, and it has already drifted from its
+// Go twin. Do not grow it casually, and never copy this pattern for new
+// fixtures (the fuzz harnesses import the real `src/` instead). Consolidating
+// or generating it is docs/todos/generate-runtypes-dts.md.
 export const RUNTYPES_DTS = `declare module '@ts-runtypes/core' {
   export type InjectRunTypeId<T> = string & {readonly __rtInjectRunTypeIdBrand?: T};
   export type CompTimeArgs<T> = T & {readonly __rtCompTimeArgsBrand?: never};
