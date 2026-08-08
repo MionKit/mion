@@ -61,26 +61,52 @@ func randomAtomFile(rng *rand.Rand) string {
 			exportPrefix = "export "
 		}
 		name := fmt.Sprintf("Fz%c%d", 'A'+rune(index), rng.Intn(100))
-		var typeText string
-		switch rng.Intn(7) {
-		case 0:
-			typeText = atoms[rng.Intn(len(atoms))]
-		case 1:
-			typeText = quoteTS(stringPool[rng.Intn(len(stringPool))])
-		case 2:
-			typeText = strconv.FormatFloat(randomNumber(rng), 'g', -1, 64)
-		case 3:
-			typeText = strconv.FormatBool(rng.Intn(2) == 0)
-		case 4:
-			typeText = strconv.FormatInt(rng.Int63n(1<<62)-(1<<61), 10) + "n"
-		case 5:
-			typeText = randomFormatLeaf(rng)
-		default:
-			typeText = atoms[rng.Intn(len(atoms))]
-		}
+		typeText := randomTypeText(rng, atoms, stringPool, 2)
 		fmt.Fprintf(&out, "%stype %s = %s;\n", exportPrefix, name, typeText)
 	}
 	return out.String()
+}
+
+// randomTypeText draws a type expression: leaves at depth 0, arrays and
+// tuples above it.
+func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) string {
+	if depth > 0 {
+		switch rng.Intn(6) {
+		case 0:
+			return randomTypeText(rng, atoms, stringPool, depth-1) + "[]"
+		case 1:
+			requiredCount := rng.Intn(3)
+			optionalCount := rng.Intn(3)
+			if requiredCount+optionalCount == 0 {
+				requiredCount = 1
+			}
+			var parts []string
+			for range requiredCount {
+				parts = append(parts, randomTypeText(rng, atoms, stringPool, depth-1))
+			}
+			for range optionalCount {
+				parts = append(parts, randomTypeText(rng, atoms, stringPool, depth-1)+"?")
+			}
+			if rng.Intn(3) == 0 {
+				parts = append(parts, "..."+randomTypeText(rng, atoms, stringPool, 0)+"[]")
+			}
+			return "[" + strings.Join(parts, ", ") + "]"
+		}
+	}
+	switch rng.Intn(6) {
+	case 0:
+		return quoteTS(stringPool[rng.Intn(len(stringPool))])
+	case 1:
+		return strconv.FormatFloat(randomNumber(rng), 'g', -1, 64)
+	case 2:
+		return strconv.FormatBool(rng.Intn(2) == 0)
+	case 3:
+		return strconv.FormatInt(rng.Int63n(1<<62)-(1<<61), 10) + "n"
+	case 4:
+		return randomFormatLeaf(rng)
+	default:
+		return atoms[rng.Intn(len(atoms))]
+	}
 }
 
 // randomFormatLeaf draws a generic-family format brand with random params.

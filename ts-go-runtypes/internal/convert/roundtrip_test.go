@@ -100,6 +100,55 @@ func TestChain_GenericFormatFamilies(t *testing.T) {
 	}
 }
 
+func TestChain_ArraysAndTuples(t *testing.T) {
+	source := "export type Tags = string[];\n" +
+		"type Grid = number[][];\n" +
+		"type Pair = [string, number];\n" +
+		"type WithOpt = [string, number?];\n" +
+		"type WithRest = [boolean, ...string[]];\n" +
+		"type Lits = ['a', 2, true][];\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"RT.array(TF.string())",
+		"RT.array(RT.array(TF.number()))",
+		"RT.tuple([TF.string(), TF.number()])",
+		"RT.tuple([TF.string()], [TF.number()])",
+		"RT.tuple([RT.boolean()], [], TF.string())",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"{type: 'array', items: {type: 'string'}}",
+		"{type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false}",
+		"{type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 1, items: false}",
+		"{type: 'array', prefixItems: [{type: 'boolean'}], minItems: 1, items: {type: 'string'}}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{"type Grid = number[][];", "type WithOpt = [string, number?];", "type WithRest = [boolean, ...string[]];"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
+func TestLabeledTuple_RefusedForNow(t *testing.T) {
+	source := "type Point = [x: number, y: number];\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
+		t.Fatalf("expected one CNV001 for the labeled tuple, got %+v", diags)
+	}
+	if !strings.Contains(output, "type Point = [x: number, y: number];") {
+		t.Errorf("labeled tuple must stay untouched:\n%s", output)
+	}
+}
+
 func TestPortable_DialectRefused(t *testing.T) {
 	source := "type Big = bigint;\ntype BigLit = 123n;\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
