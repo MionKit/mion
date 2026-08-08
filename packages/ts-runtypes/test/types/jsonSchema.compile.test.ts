@@ -137,7 +137,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'null'}>, null>>;
       type _07 = Expect<Equal<FromJsonSchema<{}>, unknown>>;
       `,
-      855
+      876
     );
   });
 
@@ -149,7 +149,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _03 = Expect<Equal<FromJsonSchema<{readonly enum: readonly ['admin', 'user', 3]}>, 'admin' | 'user' | 3>>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly enum: readonly [true, null]}>, true | null>>;
       `,
-      660
+      672
     );
   });
 
@@ -171,7 +171,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Uri>>;
       `,
-      2100
+      2133
     );
   });
 
@@ -187,7 +187,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: 'u'}}>
       >>;
       `,
-      661
+      667
     );
   });
 
@@ -212,7 +212,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         NumberFormat<{readonly minimum: 0; readonly maximum: 130; integer: true}>
       >>;
       `,
-      1363
+      1378
     );
   });
 
@@ -226,7 +226,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         'a' | 'b' | boolean
       >>;
       `,
-      1557
+      1587
     );
   });
 
@@ -250,7 +250,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      2783
+      2816
     );
   });
 
@@ -264,7 +264,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      1017
+      1035
     );
   });
 
@@ -308,7 +308,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2501
+      2543
     );
   });
 
@@ -364,7 +364,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Came back DOWN 2730 → 2657 when the readOnly-lift gate was removed
       // (the per-object ReadonlyPropKeys check is gone); the widened mixed
       // additionalProperties index rides inside the same figure.
-      2751
+      2790
     );
   });
 
@@ -389,7 +389,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4687
+      4702
     );
   });
 
@@ -425,7 +425,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         string
       >>;
       `,
-      1356
+      1377
     );
   });
 
@@ -465,7 +465,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2814
+      2832
     );
   });
 
@@ -497,7 +497,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2005
+      2035
     );
   });
 
@@ -528,7 +528,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2169
+      2214
     );
   });
 
