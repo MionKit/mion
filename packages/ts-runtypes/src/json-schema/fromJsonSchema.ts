@@ -103,7 +103,7 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
 /** The `jsType` dialect values accepted so far — the JS/TS atoms 2020-12
  *  cannot spell. The roster grows with the conversion phases
  *  (docs/todos/format-conversion-completion.md). **/
-export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any';
+export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'Map' | 'Set' | 'Promise';
 
 /** The `jsFormat` dialect families accepted so far — the generic param-bag
  *  format families whose params are JSON-carriable. The bigint family is
@@ -189,6 +189,9 @@ export interface JsonSchemaInput {
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
   readonly jsType?: JsTypeName;
+  // RunTypes dialect: the parameterized jsType natives' type arguments
+  // (Map<K, V> / Set<T> / Promise<T>), each slot a nested schema.
+  readonly typeArguments?: readonly NestedSchema[];
   // RunTypes dialect: a format brand carried verbatim — the exact
   // (name, params) pair a reflected FormatAnnotation holds, for annotations
   // with no exact standard-keyword spelling. Read as the brand wholesale.
@@ -1730,7 +1733,21 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
     ? Embedded
     : S extends {jsType: infer Name}
-      ? FromJsTypeName<Name>
+      ? Name extends 'Map'
+        ? S extends {typeArguments: readonly [infer MapKey, infer MapValue]}
+          ? Map<FromJsonSchemaIn<MapKey, Root, F>, FromJsonSchemaIn<MapValue, Root, F>>
+          : never
+        : Name extends 'Set'
+          ? S extends {typeArguments: readonly [infer Item]}
+            ? Set<FromJsonSchemaIn<Item, Root, F>>
+            : never
+          : Name extends 'Promise'
+            ? S extends {typeArguments: readonly [infer Value]}
+              ? Promise<FromJsonSchemaIn<Value, Root, F>>
+              : never
+            : Name extends 'Date'
+              ? Date
+              : FromJsTypeName<Name>
       : S extends {jsFormat: {name: infer Name}}
         ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
         : S extends {if: infer If}
@@ -2305,6 +2322,7 @@ export type SchemaLoweringByKeyword = {
   const: 'shape: single literal';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
+  typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';
   anyOf: 'shape: plain union (at least one branch)';
   oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
   allOf: 'shape: intersection, merged by the collapse';

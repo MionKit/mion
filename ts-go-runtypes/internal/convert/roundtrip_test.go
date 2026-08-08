@@ -200,6 +200,41 @@ func TestChain_Unions(t *testing.T) {
 	}
 }
 
+func TestChain_Natives(t *testing.T) {
+	source := "export type Stamp = Date;\n" +
+		"type Lookup = Map<string, number[]>;\n" +
+		"type Bag = Set<'a' | 'b'>;\n" +
+		"type Later = Promise<{ok: boolean}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"TF.date()",
+		"RT.map(TF.string(), RT.array(TF.number()))",
+		"RT.set(RT.union([RT.literal('a'), RT.literal('b')]))",
+		"RT.promise(RT.object({ok: RT.boolean()}))",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"runTypeFromJsonSchema({jsType: 'Date'} as const)",
+		"{jsType: 'Map', typeArguments: [{type: 'string'}, {type: 'array', items: {type: 'number'}}]}",
+		"{jsType: 'Set', typeArguments: [{enum: ['a', 'b']}]}",
+		"{jsType: 'Promise', typeArguments: [{type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok']}]}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{"export type Stamp = Date;", "type Lookup = Map<string, number[]>;", "type Bag = Set<'a' | 'b'>;", "type Later = Promise<{ok: boolean}>;"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestReadonlyMember_TypeBuilderOnly(t *testing.T) {
 	source := "type WithRO = {readonly id: string; count: number};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
