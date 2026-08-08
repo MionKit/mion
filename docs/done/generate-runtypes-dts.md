@@ -108,7 +108,7 @@ the package's declaration graph reaches `formats/datetime/temporalFormats`,
 whose `DataOnlyNativeExtra` augmentation references `Temporal`, and without it
 the checker reduces the mapped type early. Cosmetic (the label stays non-empty
 either way, so inlining behaviour is unaffected) — recorded as
-[dataonly-label-temporal-dependency](../todos/dataonly-label-temporal-dependency.md).
+[dataonly-label-temporal-dependency](dataonly-label-temporal-dependency.md).
 The test lanes pin the precise label by mounting the canonical temporal
 ambient, matching the Go suite's long-standing posture.
 

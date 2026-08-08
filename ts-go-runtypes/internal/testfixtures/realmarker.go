@@ -17,10 +17,10 @@ import (
 )
 
 // TemporalDTS is the canonical minimal `Temporal` ambient namespace
-// (temporal.d.ts in this directory) — the marker package's declaration graph
-// references the global Temporal (formats/datetime), so programs that mount
-// RealMarkerPackage overlay this alongside it. Kept as ONE file, embedded,
-// so no test carries its own hand-written mirror.
+// (temporal.d.ts in this directory), for fixtures that USE Temporal types.
+// The marker package itself degrades gracefully without it (guarded
+// fallbacks in formats/datetime/temporalFormats.ts). Kept as ONE file,
+// embedded, so no test carries its own hand-written mirror.
 //
 //go:embed temporal.d.ts
 var TemporalDTS string

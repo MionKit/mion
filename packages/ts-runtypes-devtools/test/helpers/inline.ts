@@ -58,13 +58,12 @@ export const MARKER_PACKAGE_OVERLAY: Readonly<InlineSources> = (() => {
 })();
 
 // The canonical minimal `Temporal` ambient (ts-go-runtypes/internal/
-// testfixtures/temporal.d.ts, the same file the Go suites embed). The marker
-// package's declaration graph references the global Temporal (formats/
-// datetime), so inline programs overlay this alongside the package — without
-// it the checker degrades Temporal-adjacent declarations (observed: the
-// DataOnly<T> mapped-type label reduces to the inner name). Kept OUT of
-// MARKER_PACKAGE_OVERLAY itself so tsconfig-lib-sensitive suites can mount
-// the package without a Temporal ambient.
+// testfixtures/temporal.d.ts, the same file the Go suites embed), for
+// fixtures that USE Temporal types. Kept OUT of MARKER_PACKAGE_OVERLAY
+// itself so tsconfig-lib-sensitive suites can mount the package without a
+// Temporal ambient — the package's own declaration graph degrades gracefully
+// without it (the guarded fallbacks in formats/datetime/temporalFormats.ts,
+// pinned by test/types/dataonlyTemporalPosture.test.ts).
 export const TEMPORAL_DTS = fs.readFileSync(path.resolve(ROOT, 'ts-go-runtypes/internal/testfixtures/temporal.d.ts'), 'utf8');
 
 /** Writes MARKER_PACKAGE_OVERLAY to REAL disk under `dir` — for suites whose
