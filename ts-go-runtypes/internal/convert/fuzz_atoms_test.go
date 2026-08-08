@@ -53,6 +53,7 @@ func randomAtomFile(rng *rand.Rand) string {
 	atoms := []string{"string", "number", "boolean", "bigint", "symbol", "null", "undefined", "any", "unknown", "never", "void"}
 	stringPool := []string{"ana", "with 'quote'", `back\slash`, "new\nline", "tab\there", "ünïcode", ""}
 	var out strings.Builder
+	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
 	declCount := 3 + rng.Intn(6)
 	for index := 0; index < declCount; index++ {
 		exportPrefix := ""
@@ -61,7 +62,7 @@ func randomAtomFile(rng *rand.Rand) string {
 		}
 		name := fmt.Sprintf("Fz%c%d", 'A'+rune(index), rng.Intn(100))
 		var typeText string
-		switch rng.Intn(6) {
+		switch rng.Intn(7) {
 		case 0:
 			typeText = atoms[rng.Intn(len(atoms))]
 		case 1:
@@ -72,12 +73,41 @@ func randomAtomFile(rng *rand.Rand) string {
 			typeText = strconv.FormatBool(rng.Intn(2) == 0)
 		case 4:
 			typeText = strconv.FormatInt(rng.Int63n(1<<62)-(1<<61), 10) + "n"
+		case 5:
+			typeText = randomFormatLeaf(rng)
 		default:
 			typeText = atoms[rng.Intn(len(atoms))]
 		}
 		fmt.Fprintf(&out, "%stype %s = %s;\n", exportPrefix, name, typeText)
 	}
 	return out.String()
+}
+
+// randomFormatLeaf draws a generic-family format brand with random params.
+func randomFormatLeaf(rng *rand.Rand) string {
+	switch rng.Intn(3) {
+	case 0:
+		switch rng.Intn(3) {
+		case 0:
+			return fmt.Sprintf("TF.String<{minLength: %d}>", rng.Intn(20))
+		case 1:
+			return fmt.Sprintf("TF.String<{maxLength: %d}>", 1+rng.Intn(200))
+		default:
+			minLength := rng.Intn(10)
+			return fmt.Sprintf("TF.String<{minLength: %d; maxLength: %d}>", minLength, minLength+1+rng.Intn(50))
+		}
+	case 1:
+		switch rng.Intn(3) {
+		case 0:
+			return fmt.Sprintf("TF.Number<{min: %d; max: %d}>", rng.Intn(100)-50, 100+rng.Intn(1000))
+		case 1:
+			return "TF.Number<{integer: true}>"
+		default:
+			return fmt.Sprintf("TF.Number<{multipleOf: %d}>", 1+rng.Intn(9))
+		}
+	default:
+		return fmt.Sprintf("TF.BigInt<{min: %dn}>", rng.Intn(1000))
+	}
 }
 
 // randomNumber draws integers, decimals, negatives and large magnitudes.

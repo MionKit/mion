@@ -4,6 +4,7 @@
 // hatch, and plain TS are one engine.
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId} from '@ts-runtypes/core';
+import * as TF from '@ts-runtypes/core/formats';
 import {embedType, runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 describe('json-schema / embedType escape', () => {
@@ -27,6 +28,21 @@ describe('json-schema / embedType escape', () => {
     } as const);
     type Twin = {big: bigint};
     expect(getRunTypeId(nested)).toBe(getRunTypeId<Twin>());
+  });
+});
+
+describe('json-schema / jsFormat dialect', () => {
+  it('stringFormat params converge with the TF brand', () => {
+    const viaSchema = runTypeFromJsonSchema({jsFormat: {name: 'stringFormat', params: {maxLength: 5, minLength: 2}}} as const);
+    expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.String<{minLength: 2; maxLength: 5}>>());
+  });
+  it('numberFormat params converge with the TF brand', () => {
+    const viaSchema = runTypeFromJsonSchema({jsFormat: {name: 'numberFormat', params: {integer: true}}} as const);
+    expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.Number<{integer: true}>>());
+  });
+  it('a bigint-family brand rides embedType (no JSON spelling for bigint params)', () => {
+    const viaSchema = runTypeFromJsonSchema(embedType<TF.BigInt<{min: 5n}>>());
+    expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.BigInt<{min: 5n}>>());
   });
 });
 

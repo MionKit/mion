@@ -28,6 +28,7 @@
 // walks with its back-ref token (maxWalkDepth guarded).
 
 import type {NotSlot} from '../formats/not.ts';
+import type {TypeFormat} from '../runtypes/typeFormat.ts';
 
 import type {
   EmailAddress,
@@ -104,6 +105,23 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
  *  (docs/todos/format-conversion-completion.md). **/
 export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any';
 
+/** The `jsFormat` dialect families accepted so far — the generic param-bag
+ *  format families whose params are JSON-carriable. The bigint family is
+ *  deliberately absent (a bigint param value cannot ride JSON — those brands
+ *  travel through `embedType` instead), and the named preset families
+ *  (email / uuid / …) join once the preset-params mirror lands
+ *  (docs/todos/format-conversion-completion.md). **/
+export type JsFormatName = 'stringFormat' | 'numberFormat';
+
+/** `jsFormat: {name, params}` → the exact TypeFormat brand, verbatim. **/
+type FromJsFormat<Name, Params> = Params extends object
+  ? Name extends 'stringFormat'
+    ? TypeFormat<string, 'stringFormat', Params, never>
+    : Name extends 'numberFormat'
+      ? TypeFormat<number, 'numberFormat', Params, never>
+      : never
+  : never;
+
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
  *  Deliberately permissive on VALUE shapes (it guides authoring without fighting
  *  `const` literal inference; recursive so nested schemas keep their literal
@@ -171,6 +189,10 @@ export interface JsonSchemaInput {
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
   readonly jsType?: JsTypeName;
+  // RunTypes dialect: a format brand carried verbatim — the exact
+  // (name, params) pair a reflected FormatAnnotation holds, for annotations
+  // with no exact standard-keyword spelling. Read as the brand wholesale.
+  readonly jsFormat?: {readonly name: JsFormatName; readonly params?: Record<string, unknown>};
   readonly anyOf?: readonly NestedSchema[];
   readonly oneOf?: readonly NestedSchema[];
   readonly allOf?: readonly NestedSchema[];
@@ -1709,9 +1731,11 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
     ? Embedded
     : S extends {jsType: infer Name}
       ? FromJsTypeName<Name>
-      : S extends {if: infer If}
-        ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-        : DepLayer<S, Root, F>;
+      : S extends {jsFormat: {name: infer Name}}
+        ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
+        : S extends {if: infer If}
+          ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+          : DepLayer<S, Root, F>;
 
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
 // `{}` / `true` cannot spell, since those recover `unknown`).
@@ -2280,6 +2304,7 @@ export type SchemaLoweringByKeyword = {
   enum: 'shape: literal union';
   const: 'shape: single literal';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
+  jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   anyOf: 'shape: plain union (at least one branch)';
   oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
   allOf: 'shape: intersection, merged by the collapse';
