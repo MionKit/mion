@@ -74,6 +74,17 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 		switch rng.Intn(6) {
 		case 0:
 			return randomTypeText(rng, atoms, stringPool, depth-1) + "[]"
+		case 2:
+			memberCount := 1 + rng.Intn(4)
+			var parts []string
+			for memberIndex := range memberCount {
+				optionalMark := ""
+				if rng.Intn(3) == 0 {
+					optionalMark = "?"
+				}
+				parts = append(parts, fmt.Sprintf("k%d%s: %s", memberIndex, optionalMark, randomTypeText(rng, atoms, stringPool, depth-1)))
+			}
+			return "{" + strings.Join(parts, "; ") + "}"
 		case 1:
 			requiredCount := rng.Intn(3)
 			optionalCount := rng.Intn(3)

@@ -297,6 +297,28 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 			return "", diag
 		}
 		return childText + "[]", nil
+	case reflection.KindObjectLiteral:
+		members, diag := ctx.objectMembers(node)
+		if diag != nil {
+			return "", diag
+		}
+		var parts []string
+		for _, member := range members {
+			innerText, innerDiag := ctx.typeExpr(member.child)
+			if innerDiag != nil {
+				return "", innerDiag
+			}
+			prefix := ""
+			if member.readonly {
+				prefix = "readonly "
+			}
+			suffix := ""
+			if member.optional {
+				suffix = "?"
+			}
+			parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+		}
+		return "{" + strings.Join(parts, "; ") + "}", nil
 	case reflection.KindTuple:
 		if _, ok := ctx.tupleMembers(node); !ok {
 			return "", unsupportedDiag(node, ctx.decl)
@@ -405,6 +427,28 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		return rt(fmt.Sprintf("array(%s)", childText))
+	case reflection.KindObjectLiteral:
+		members, diag := ctx.objectMembers(node)
+		if diag != nil {
+			return "", diag
+		}
+		var parts []string
+		for _, member := range members {
+			innerText, innerDiag := ctx.builderExpr(member.child)
+			if innerDiag != nil {
+				return "", innerDiag
+			}
+			switch {
+			case member.optional && member.readonly:
+				innerText = fmt.Sprintf("%s.propMod({optional: true, readonly: true}, %s)", ctx.names.RT, innerText)
+			case member.readonly:
+				innerText = fmt.Sprintf("%s.propMod({readonly: true}, %s)", ctx.names.RT, innerText)
+			case member.optional:
+				innerText = fmt.Sprintf("%s.optional(%s)", ctx.names.RT, innerText)
+			}
+			parts = append(parts, fmt.Sprintf("%s: %s", member.key, innerText))
+		}
+		return rt(fmt.Sprintf("object({%s})", strings.Join(parts, ", ")))
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {
@@ -539,6 +583,35 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return "", diag
 		}
 		return fmt.Sprintf("{type: 'array', items: %s}", childText), nil
+	case reflection.KindObjectLiteral:
+		members, diag := ctx.objectMembers(node)
+		if diag != nil {
+			return "", diag
+		}
+		var propertyParts []string
+		var requiredParts []string
+		for _, member := range members {
+			if member.readonly {
+				// The exact readonly carrier (jsReadonly) is pending — standard
+				// readOnly is annotation-only by design, so emitting it would
+				// silently drop an id-relevant modifier.
+				return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+					Message: "readonly members are not convertible to json-schema yet (jsReadonly pending)"}
+			}
+			innerText, innerDiag := ctx.schemaExpr(member.child)
+			if innerDiag != nil {
+				return "", innerDiag
+			}
+			propertyParts = append(propertyParts, fmt.Sprintf("%s: %s", member.key, innerText))
+			if !member.optional {
+				requiredParts = append(requiredParts, quoteSingle(member.name))
+			}
+		}
+		out := fmt.Sprintf("{type: 'object', properties: {%s}", strings.Join(propertyParts, ", "))
+		if len(requiredParts) > 0 {
+			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
+		}
+		return out + "}", nil
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {
@@ -576,6 +649,53 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return out + "}", nil
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// objectMember is one printable property: its source key spelling (quoted
+// when not a safe identifier), flags, and the dereferenced value node.
+type objectMember struct {
+	name     string
+	key      string
+	optional bool
+	readonly bool
+	child    *reflection.RunType
+}
+
+// objectMembers collects a plain object shape's property members. Members the
+// current phase cannot print (methods, symbol keys, index signatures, call
+// signatures) report CNV001.
+func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, *Diagnostic) {
+	var members []*objectMember
+	for _, memberRef := range node.Children {
+		member := ctx.deref(memberRef)
+		if member == nil {
+			return nil, unsupportedDiag(node, ctx.decl)
+		}
+		if member.Kind != reflection.KindPropertySignature && member.Kind != reflection.KindProperty {
+			return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/todos/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
+		}
+		if strings.HasPrefix(member.Name, "@@") {
+			return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
+		}
+		key := member.Name
+		if !member.IsSafeName {
+			key = quoteSingle(member.Name)
+		}
+		child := ctx.deref(member.Child)
+		if child == nil {
+			return nil, unsupportedDiag(node, ctx.decl)
+		}
+		members = append(members, &objectMember{
+			name:     member.Name,
+			key:      key,
+			optional: member.Optional,
+			readonly: member.Readonly,
+			child:    child,
+		})
+	}
+	return members, nil
 }
 
 // literalValueText renders a literal node's VALUE as TS source (`'a'`, `42`,
