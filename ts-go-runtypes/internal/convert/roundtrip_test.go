@@ -138,6 +138,52 @@ func TestChain_ArraysAndTuples(t *testing.T) {
 	}
 }
 
+func TestChain_Objects(t *testing.T) {
+	// The spec's own motivating example: docs/done/format-conversion-layer.md.
+	source := "export type MyType = {\n" +
+		"  id: number;\n" +
+		"  name: string;\n" +
+		"  tags: string[];\n" +
+		"  active?: boolean;\n" +
+		"};\n" +
+		"type Nested = {meta: {'a b': string; flags: boolean[]}};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"RT.object({id: TF.number(), name: TF.string(), tags: RT.array(TF.string()), active: RT.optional(RT.boolean())})",
+		"RT.object({meta: RT.object({'a b': TF.string(), flags: RT.array(RT.boolean())})})",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	expectedSchema := "{type: 'object', properties: {id: {type: 'number'}, name: {type: 'string'}, " +
+		"tags: {type: 'array', items: {type: 'string'}}, active: {type: 'boolean'}}, required: ['id', 'name', 'tags']}"
+	if !strings.Contains(schemaForm, expectedSchema) {
+		t.Errorf("schema form missing %q:\n%s", expectedSchema, schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type MyType = {id: number; name: string; tags: string[]; active?: boolean};") {
+		t.Errorf("type form missing the object shape:\n%s", typeForm)
+	}
+}
+
+func TestReadonlyMember_TypeBuilderOnly(t *testing.T) {
+	source := "type WithRO = {readonly id: string; count: number};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.object({id: RT.propMod({readonly: true}, TF.string()), count: TF.number()})") {
+		t.Errorf("readonly member should ride propMod:\n%s", builderForm)
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	if !strings.Contains(typeForm, "type WithRO = {readonly id: string; count: number};") {
+		t.Errorf("readonly modifier must survive the builder leg:\n%s", typeForm)
+	}
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
+		t.Fatalf("expected the jsReadonly-pending refusal, got %+v", diags)
+	}
+}
+
 func TestLabeledTuple_RefusedForNow(t *testing.T) {
 	source := "type Point = [x: number, y: number];\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
