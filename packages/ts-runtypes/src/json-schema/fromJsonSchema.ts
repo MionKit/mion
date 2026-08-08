@@ -243,16 +243,19 @@ export interface RootJsonSchemaInput extends JsonSchemaInput {
  *  unchanged. Wrapped INSIDE the builder's `CompTimeArgs<…>` type argument, same
  *  as `ExactParams`, so the annotation stays a single `CompTimeArgs<…>`
  *  reference the Go scanner detects syntactically. **/
-export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> =
-  S extends EmbedSchema<unknown>
-    ? S
-    : S & {
+export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> = S &
+  // The embed pass-through rides INSIDE the intersection: `S` must stay
+  // inferable from the first member (a top-level conditional would make the
+  // whole alias opaque to inference and widen every inline literal).
+  (S extends EmbedSchema<unknown>
+    ? unknown
+    : {
         readonly [K in Exclude<keyof S, keyof Vocab>]: never;
       } & (S extends {
-          properties: infer P;
-        }
-          ? {readonly properties: ExactJsonSchemaMap<P, RootId>}
-          : unknown) &
+        properties: infer P;
+      }
+        ? {readonly properties: ExactJsonSchemaMap<P, RootId>}
+        : unknown) &
         (S extends {items: infer I}
           ? I extends boolean
             ? unknown
@@ -313,7 +316,7 @@ export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> =
             : string extends R
               ? unknown
               : {readonly $dynamicRef: never}
-          : unknown);
+          : unknown));
 
 /** Same-document test for a `$ref` value: fragments (`#…`) always are; an
  *  absolute base qualifies only when it repeats the root's own `$id`. The
