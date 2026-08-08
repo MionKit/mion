@@ -161,3 +161,34 @@ Adding a benchmark page: write the dataset to
 `container/website/public/bench-data/<slug>/index.json` (plus a `<case>.json` per row) and drop
 a `::bench-table{bench="<slug>"}` page under `container/website/content/07.benchmarks/`. The
 component handles the rest, and `check-static.mjs` picks the new page up automatically.
+
+## The homepage's test counts
+
+Not a benchmark, but the same idea and the same failure mode if it drifts: the
+homepage's "Tested to the highest standard" tiles used to carry hand-typed numbers
+(they had gone stale by thousands of tests). They are generated now.
+
+- **Producer** — [gen-test-counts.mjs](../scripts/website/gen-test-counts.mjs),
+  run as `pnpm rtx website test-counts`. It counts without running anything:
+  `vitest list --json` collects every test the config would run, and
+  `go test -list '.*' ./internal/...` prints the declared test functions. Because
+  collection still compiles the sources, it needs the resolver binary and the
+  marker/plugin dists, which is why the website build runs it after the stage that
+  builds them.
+- **Data** — `container/website/app/data/test-counts.json`, **committed** (unlike
+  `bench-data/`). It is imported by the component at build time rather than fetched
+  at runtime, so the number is in the prerendered HTML instead of appearing after
+  hydration. Committing it also means a host that cannot recount (no Go toolchain,
+  a docs-only lane) ships the last known-good numbers with a warning instead of
+  failing the build, and a change in the count shows up in a diff.
+- **Consumer** — [StatTiles.vue](../container/website/app/components/content/StatTiles.vue).
+  A tile names a `source` (`frontEndTests`, `frontEndFiles`, `goTests`) instead of a
+  literal `value`; unknown sources fall back to `value`, so a renamed count degrades
+  to a literal rather than rendering `undefined`.
+
+The file carries no timestamp, so regenerating with unchanged counts leaves it
+byte-identical and the tree stays clean. `pnpm rtx website test-counts --check`
+reports staleness instead of writing. It is deliberately **not** wired into CI:
+every PR that adds a test moves the count, so a gate there would fail honest PRs
+for a number the build regenerates anyway. The committed value is a fallback, not
+a claim about `main` at this instant.

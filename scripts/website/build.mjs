@@ -6,6 +6,7 @@
 //   2. Go resolver binary + marker/plugin dist  (bench prep)
 //   3. all benchmark data -> bench-data/        (bench website-bench)
 //   4. playground assets -> public/playground-app/ (build-playground.mjs, host)
+//      + homepage test counts -> app/data/test-counts.json (gen-test-counts.mjs)
 //   5. static Nuxt build -> .output/public      (site.mjs generate)
 //   6. check the built site renders every benchmark (check-static.mjs, generate only)
 //
@@ -26,6 +27,7 @@ import {die, note, reportCliError, run, warn, which} from '../lib/proc.mjs';
 import {main as benchMain} from './bench-data/bench.mjs';
 import {main as checkStaticMain} from './check-static.mjs';
 import {main as siteMain} from './site.mjs';
+import {main as testCountsMain} from './gen-test-counts.mjs';
 
 const WEBSITE_DIR = join(REPO_ROOT, 'container/website');
 const OUTPUT_DIR = join(WEBSITE_DIR, '.output');
@@ -93,6 +95,13 @@ export async function main(args) {
   // --no-bench) but needs the stage-2 Go binary for its WASM.
   step('4/6  playground assets -> container/website/public/playground-app/');
   node('container/website/scripts/build-playground.mjs');
+
+  // Refresh the homepage's test-count tiles. Placed after stage 2 because
+  // collecting the Vitest suite needs the resolver binary + dists that stage
+  // builds. NOT fatal: the counts are committed, so a host that cannot recount
+  // ships the last known-good numbers rather than failing the whole site build.
+  step('     homepage test counts -> container/website/app/data/test-counts.json');
+  testCountsMain([]);
 
   step(`5/6  Nuxt ${target} -> container/website/.output`);
   await siteMain([target]);

@@ -208,11 +208,17 @@ async function runWebsite(args) {
     const {main} = await import('./website/site.mjs');
     return main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']);
   }
+  // Recount the homepage's test tiles. `--check` fails instead of writing, so CI
+  // can gate the committed file the same way the codegen checks do.
+  if (sub === 'test-counts') {
+    const {main} = await import('./website/gen-test-counts.mjs');
+    return main(rest);
+  }
   if (sub === 'shell') {
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
-  die('usage: rtx website <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|container-build|shell>');
+  die('usage: rtx website <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>');
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
@@ -337,6 +343,7 @@ website
   rtx website preview [--no-build] serve the static site locally; regenerates it first unless --no-build
   rtx website check [--docs]       serves-a-page smoke (code-import + twoslash with --docs)
   rtx website check --static       serve the BUILT site + assert every benchmark page renders
+  rtx website test-counts [--check]  recount the homepage's test tiles (vitest list + go test -list)
   rtx website container-build      container-only prod build (not the full pipeline)
   rtx website shell                debug shell inside the website container
 

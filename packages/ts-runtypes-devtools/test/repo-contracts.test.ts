@@ -405,3 +405,40 @@ describe('website-content-prefixes', () => {
     for (const section of sections) expect(entriesIn(join(CONTENT_DIR, section)).some((name) => PREFIXED.test(name))).toBe(true);
   });
 });
+
+// The homepage's test-count tiles are generated (scripts/website/gen-test-counts.mjs)
+// because the hand-typed ones drifted by thousands of tests before anyone noticed.
+// Nothing else checks the seam between the generated file, the component that reads
+// it, and the content that names a count — and each end is in a different language.
+describe('website-test-counts', () => {
+  const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
+  const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
+  const HOME = join(REPO_ROOT, 'container/website/content/index.md');
+
+  it('ships a committed count the component can import', () => {
+    expect(existsSync(COUNTS_FILE)).toBe(true);
+    const counts = JSON.parse(readFileSync(COUNTS_FILE, 'utf8'));
+    // Sanity, not exactness: the numbers move on every PR. A zero or a missing
+    // branch means the generator fell back to nothing and the tile would read "0".
+    expect(counts.frontEnd.tests).toBeGreaterThan(1000);
+    expect(counts.frontEnd.files).toBeGreaterThan(100);
+    expect(counts.go.tests).toBeGreaterThan(100);
+  });
+
+  it('every `source` the homepage names is one the component can resolve', () => {
+    const known = [...readFileSync(STAT_TILES, 'utf8').matchAll(/^\s{2}(\w+): testCounts\./gm)].map((match) => match[1]);
+    expect(known.length).toBeGreaterThan(0);
+    const used = [...readFileSync(HOME, 'utf8').matchAll(/^\s*-?\s*source: (\w+)$/gm)].map((match) => match[1]);
+    expect(used.length).toBeGreaterThan(0);
+    expect(used.filter((source) => !known.includes(source))).toEqual([]);
+  });
+
+  it('the test-count tiles carry no hand-typed number', () => {
+    // Guards the regression this replaced: a literal `value:` next to the generated
+    // tiles is a number nothing updates. The non-numeric tiles (the "∞" fuzzing one)
+    // are still allowed to be literal.
+    const tiles = /tiles:\n([\s\S]*?)\n---/.exec(readFileSync(HOME, 'utf8'))?.[1] ?? '';
+    const numericLiterals = [...tiles.matchAll(/value: "([\d,]+)"/g)].map((match) => match[1]);
+    expect(numericLiterals).toEqual([]);
+  });
+});

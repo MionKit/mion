@@ -474,11 +474,11 @@ bars:
 :::::stat-tiles
 ---
 tiles:
-  - value: "7,073"
+  - source: frontEndTests
     label: front-end tests
     sub: Vitest — marker + plugin
     hue: 145
-  - value: "1,007"
+  - source: goTests
     label: Go tests
     sub: go test ./internal
     hue: 198
