@@ -2,8 +2,9 @@
 //
 // Those fixtures are scratch temp dirs with no ts-runtypes install, so the
 // model writes the raw sentinel intersection instead of importing TF.String<P>
-// — one of the few spellings that cannot be an import. Duplication without an
-// oracle is
+// — one of the few tolerated exceptions to the rule that fixtures import the
+// real shipped types ("Real types, never copies" in test/fuzz/README.md).
+// Duplication without an oracle is
 // the one thing the harness cannot afford: if the shipped encoding changed,
 // the model would keep generating the old spelling and the i18n fuzzer would
 // silently exercise a plain string instead of a formatted one.

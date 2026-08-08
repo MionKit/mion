@@ -457,9 +457,14 @@ export const FUZZ_FORMAT_PREAMBLE = [
  *  relative './src/...' import cannot resolve, so they carry a local `TF`
  *  namespace restating ONLY the param brands' raw sentinel encoding (four
  *  content-free lines — the only spellings SCRATCH_FORMAT_LEAVES can render).
- *  This is a declared exception to the no-restatement rule, pinned against
- *  the shipped brands by scratchFormatPreamble.test.ts so encoding drift
- *  fails loudly. **/
+ *
+ *  ⚠️ EXCEPTION, NOT THE RULE. Fuzz fixtures use the real shipped types,
+ *  imported (FUZZ_FORMAT_PREAMBLE above) — restating one is allowed ONLY
+ *  where an import physically cannot resolve, and must be pinned against the
+ *  shipped encoding so drift fails loudly (here:
+ *  scratchFormatPreamble.test.ts). Do not add spellings here to make a new
+ *  leaf reach the scratch lanes; see "Real types, never copies" in
+ *  test/fuzz/README.md. **/
 export const FUZZ_FORMAT_SCRATCH_PREAMBLE = [
   'namespace TF {',
   '  type Fmt<Base, Name extends string, Params extends object> = Base & {readonly __rtFormatName?: Name; readonly __rtFormatParams?: Params};',

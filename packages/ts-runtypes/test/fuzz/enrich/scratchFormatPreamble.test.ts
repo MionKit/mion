@@ -3,12 +3,14 @@
 // temp-dir fixtures cannot resolve a relative './src/...' import.
 //
 // It restates the param brands' raw sentinel encoding, so it is duplication —
-// tolerable ONLY under an oracle: this test pins each namespace spelling
-// against the SHIPPED brand by structural id (both getRunTypeId call shapes,
-// per the marker coverage rule), plus byte-equality between the pinned
-// literals and the constant the renderers actually emit. If the sentinel
-// encoding ever changes, this fails loudly instead of the enrich fuzzers
-// silently exercising plain strings.
+// an EXCEPTION to the rule that fuzz fixtures import the real shipped types
+// ("Real types, never copies" in test/fuzz/README.md), tolerable ONLY where an
+// import cannot resolve and ONLY under an oracle: this test pins each
+// namespace spelling against the SHIPPED brand by structural id (both
+// getRunTypeId call shapes, per the marker coverage rule), plus byte-equality
+// between the pinned literals and the constant the renderers actually emit.
+// If the sentinel encoding ever changes, this fails loudly instead of the
+// enrich fuzzers silently exercising plain strings.
 import {describe, expect, it} from 'vitest';
 import * as TF from '@ts-runtypes/core/formats';
 import {getRunTypeId} from '@ts-runtypes/core';

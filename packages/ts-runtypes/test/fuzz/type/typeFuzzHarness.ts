@@ -53,10 +53,14 @@ const FIXTURE = 'g.ts';
 // sources off disk. This is a WORKAROUND for that, not a mechanism to build
 // on: read the real `src/` tree once and hand it over whole, so fixture
 // imports like `./src/formats/index.ts` resolve to the shipped sources.
-// Never hand-write a stand-in for a shipped type instead — a hand copy does
-// not fail when the shipped type changes; it silently keeps testing the old
-// shape, which is the one failure mode a fuzz suite cannot afford. (`src/`
-// imports nothing non-relative, so the graph closes with no further stubs.)
+//
+// ⚠️ THE RULE: fixtures always use the real shipped types, imported — never
+// hand-write a stand-in. A hand copy does not fail when the shipped type
+// changes; it silently keeps testing the old shape, which is the one failure
+// mode a fuzz suite cannot afford. The few tolerated, pinned exceptions
+// (fixtures in scratch temp dirs where no import can resolve) are listed in
+// "Real types, never copies" in test/fuzz/README.md. (`src/` imports nothing
+// non-relative, so the graph closes with no further stubs.)
 const SRC_ROOT = path.resolve(__dirname, '../../../src');
 function readSrcTree(dir: string, prefix: string, into: Record<string, string>): void {
   for (const entry of readdirSync(dir, {withFileTypes: true})) {

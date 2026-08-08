@@ -115,12 +115,15 @@ function runTranslateCli(fixture: ReconcileFixture, args: string[]): CliResult {
 }
 
 // The inline format-brand intersections the .ts source declares per field kind.
-// Inline (not imported) ONLY because the fixtures are scratch temp dirs with no
-// ts-runtypes install, so a relative import cannot resolve — everywhere a
-// fixture CAN import, the shipped brands are imported instead. Exported so
-// i18nInlineSpelling.test.ts can pin them against the SHIPPED TF.String<P>
-// encoding by structural id: if the sentinel encoding ever changes, that test
-// fails loudly instead of this fuzzer silently exercising a plain string.
+//
+// ⚠️ EXCEPTION, NOT THE RULE: fuzz fixtures use the real shipped types,
+// imported, wherever an import can resolve ("Real types, never copies" in
+// test/fuzz/README.md). These are inline ONLY because the fixtures are scratch
+// temp dirs with no ts-runtypes install, so a relative import cannot resolve.
+// Exported so i18nInlineSpelling.test.ts can pin them against the SHIPPED
+// TF.String<P> encoding by structural id: if the sentinel encoding ever
+// changes, that test fails loudly instead of this fuzzer silently exercising a
+// plain string. Do not copy this pattern for new fixtures.
 export const MINLENGTH_FMT = "string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {minLength: 2}}";
 export function patternFmt(name: string): string {
   return `string & {readonly __rtFormatName?: 'stringFormat'; readonly __rtFormatParams?: {pattern: {source: '${name}'; flags: ''}}}`;

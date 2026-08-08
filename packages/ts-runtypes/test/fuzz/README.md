@@ -11,6 +11,29 @@ expected answer.
 This README is the developer map: what each oracle promises, what's in each
 directory, how a run is wired, and how to reproduce a finding.
 
+## ⚠️ Real types, never copies
+
+**Fuzz fixtures always use the REAL shipped types — imported — wherever an
+import can resolve.** The resolver harnesses hand the whole `src/` tree to the
+resolver's virtual filesystem (`SRC_OVERLAY` in `type/typeFuzzHarness.ts`)
+precisely so that fixtures can write `import type * as TF from
+'./src/formats/index.ts'` and reference `TF.UUID`, `TF.Not<…>`,
+`TF.FormattedArray<…>` etc. directly. A hand-written copy of a shipped type
+does not fail when the shipped type changes — it silently keeps testing the
+old shape, which is the one failure mode a fuzz suite cannot afford (a copied
+`email` leaf once drifted into 7 false soak findings before anyone noticed).
+
+Restating a type is a RARE, documented exception, allowed only where an import
+physically cannot resolve (fixtures written into scratch temp dirs with no
+ts-runtypes install), and every such exception MUST carry a pin test that
+compares the restated spelling against the shipped type by structural id, so
+drift fails loudly. The full list today: `FUZZ_FORMAT_SCRATCH_PREAMBLE`
+(typeGen.ts, pinned by `enrich/scratchFormatPreamble.test.ts`), `i18nModel.ts`'s
+inline spellings (pinned by `enrich/i18nInlineSpelling.test.ts`), and the
+`RUNTYPES_DTS` marker-module stand-in (ts-runtypes-devtools helpers — its
+consolidation is `docs/todos/generate-runtypes-dts.md`). Before adding a
+fourth, exhaust every way to import the real thing first.
+
 ## Why oracles, not examples
 
 A unit test asserts `validate(x) === true` for one hand-chosen `x`. A fuzz
