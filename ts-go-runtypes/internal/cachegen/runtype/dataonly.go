@@ -14,6 +14,14 @@ import (
 // package never triggers the special path.
 const dataOnlyAliasName = "DataOnly"
 
+// dataOnlyLadderAliasName is the internal helper alias the SHIPPED DataOnly
+// delegates its branch ladder to (dataOnly.ts): the object branch's mapped
+// type is declared inside `DataOnlyLadder<T, Depth>`, not inside `DataOnly`
+// itself, so walking a production-instantiated mapped type up to its
+// enclosing alias lands here. Recognised alongside dataOnlyAliasName under
+// the same module gate.
+const dataOnlyLadderAliasName = "DataOnlyLadder"
+
 // builderInternalAliasNames are the ts-runtypes/builders helper aliases that model
 // an object's shape from a value-first `object({...})` builder — `ObjectType<C>`,
 // its optional/readonly/mixed conditional branches, and the `Flatten` those
@@ -48,25 +56,26 @@ func isBuilderInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
 // instantiating the `DataOnly<T>` utility from `ts-runtypes`
 // and composes a stable label `"DataOnly<<innerName>>"` for it.
 //
-// Background — the real DataOnly definition combines a conditional type
-// with a key-filtering homomorphic mapped type:
-//
-//	type DataOnly<T> = T extends object
-//	  ? { [K in keyof T as K extends symbol ? never : K]: DataOnly<T[K]> }
-//	  : T;
-//
-// When TS resolves `DataOnly<RootCircular>`, the conditional + the `as K
-// extends symbol ? never : K` filter strip the alias from the result type
-// (`Type_alias` returns nil). Without intervention the serializer leaves
-// TypeName empty, which makes DefaultIsRTInlined treat the root as an
-// anonymous compound and inline its entire body into every consumer —
-// hurting cache reuse on a type the user explicitly named.
+// Background — DataOnly resolves a plain object through a conditional
+// branch ladder that ends in a key-filtering homomorphic mapped type
+// (`{[K in keyof T as K extends symbol ? never : …]: …}`). The conditional
+// + key-remapping strip the alias from the result type (`Type_alias`
+// returns nil). Without intervention the serializer leaves TypeName empty,
+// which makes DefaultIsRTInlined treat the root as an anonymous compound
+// and inline its entire body into every consumer — hurting cache reuse on
+// a type the user explicitly named.
 //
 // The recognition walks `MappedType.declaration` up the AST to its
 // enclosing TypeAliasDeclaration and matches on (a) the alias's symbol
-// name being `DataOnly` and (b) marker.DeclaredInModule placing the
-// declaration inside ts-runtypes — the same module gate the
-// marker scanner uses. The inner name is composed from the mapped type's
+// name and (b) marker.DeclaredInModule placing the declaration inside
+// ts-runtypes — the same module gate the marker scanner uses. TWO alias
+// names match: `DataOnly` itself (the shape minimal stand-ins and older
+// spellings declare the mapped type in), and `DataOnlyLadder` — the
+// helper alias the SHIPPED dataOnly.ts hosts the object branch in, which
+// is where every production instantiation lands. Matching only `DataOnly`
+// left this path dead against the real package (caught when the test
+// suites moved off the hand-written marker stand-in onto the shipped
+// declarations). The inner name is composed from the mapped type's
 // modifiersType (the bound T): we try its alias name first (matches
 // `type X = …` argument), falling back to its symbol name (matches
 // `interface X` argument). Returns ok=false for any non-matching case so
@@ -91,7 +100,7 @@ func dataOnlyTypeName(tsType *checker.Type, fs vfspkg.FS) (string, bool) {
 		return "", false
 	}
 	aliasSymbol := aliasDecl.Symbol()
-	if aliasSymbol == nil || aliasSymbol.Name != dataOnlyAliasName {
+	if aliasSymbol == nil || (aliasSymbol.Name != dataOnlyAliasName && aliasSymbol.Name != dataOnlyLadderAliasName) {
 		return "", false
 	}
 	if !marker.DeclaredInModule(aliasSymbol, marker.DefaultModule, fs) {
