@@ -29,6 +29,33 @@ type printContext struct {
 	decl    *declaration
 	resolve func(id string) *reflection.RunType
 	needs   importNeeds
+	// walking guards the recursive printers against circular graphs: a node
+	// already on the walk path reports CNV001 (circular conversion is a later
+	// phase) instead of recursing forever.
+	walking map[string]bool
+}
+
+// enter marks a node as on-path; the returned func unmarks it. The second
+// result is false when the node is already on the path (a cycle).
+func (ctx *printContext) enter(node *reflection.RunType) (func(), bool) {
+	if node == nil || node.ID == "" {
+		return func() {}, true
+	}
+	if ctx.walking == nil {
+		ctx.walking = map[string]bool{}
+	}
+	if ctx.walking[node.ID] {
+		return nil, false
+	}
+	ctx.walking[node.ID] = true
+	return func() { delete(ctx.walking, node.ID) }, true
+}
+
+// circularPendingDiag reports a circular type, whose conversion (RT.circular /
+// $defs) is a later phase.
+func (ctx *printContext) circularPendingDiag() *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: "circular types are not convertible yet (see docs/todos/format-conversion-completion.md)"}
 }
 
 // deref follows a `{kind:-1, id}` ref sentinel to its canonical node.
@@ -250,6 +277,11 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	leave, entered := ctx.enter(node)
+	if !entered {
+		return "", ctx.circularPendingDiag()
+	}
+	defer leave()
 	if annotation := node.FormatAnnotation; annotation != nil {
 		family, known := formatFamilies[annotation.Name]
 		if !known {
@@ -390,6 +422,11 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	leave, entered := ctx.enter(node)
+	if !entered {
+		return "", ctx.circularPendingDiag()
+	}
+	defer leave()
 	rt := func(call string) (string, *Diagnostic) {
 		ctx.needs.useRT = true
 		return ctx.names.RT + "." + call, nil
@@ -533,6 +570,11 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	leave, entered := ctx.enter(node)
+	if !entered {
+		return "", ctx.circularPendingDiag()
+	}
+	defer leave()
 	dialect := func(literal string) (string, *Diagnostic) {
 		if ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
