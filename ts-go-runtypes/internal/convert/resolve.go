@@ -12,9 +12,12 @@ import (
 )
 
 // resolvedDecl pairs a declaration with its projected reflection node.
+// Resolve dereferences the `{kind:-1, id}` sentinels child slots carry
+// (cache.NodeByID), so printers can recurse into composite kinds.
 type resolvedDecl struct {
-	Decl *declaration
-	Node *reflection.RunType
+	Decl    *declaration
+	Node    *reflection.RunType
+	Resolve func(id string) *reflection.RunType
 }
 
 // resolveDecl projects the declaration's type. For a type alias / interface
@@ -48,7 +51,7 @@ func resolveDecl(typeChecker *checker.Checker, cache *runtype.Cache, decl *decla
 	if node == nil {
 		return nil, fmt.Errorf("convert: projection produced no node for %q", declLabel(decl))
 	}
-	return &resolvedDecl{Decl: decl, Node: node}, nil
+	return &resolvedDecl{Decl: decl, Node: node, Resolve: cache.NodeByID}, nil
 }
 
 // declLabel names a declaration for error messages, whichever name it has.
