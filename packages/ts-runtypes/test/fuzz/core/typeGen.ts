@@ -328,17 +328,21 @@ export const FUZZ_FORMAT_PREAMBLE = [
   "type FzInteger = FzTF<number, 'numberFormat', {integer: true}>;",
   "type FzString<P extends object> = FzTF<string, 'stringFormat', P>;",
   "type FzNumber<P extends object> = FzTF<number, 'numberFormat', P>;",
-  // Content leaves — the params must match the translation's lowering EXACTLY
-  // (anchored RFC 4648 pattern + baked mock pool for base64; the
-  // contentMediaType keyword + pool for JSON content), or the ids diverge on
-  // the very first draw. Both are plain `stringFormat`: the content keywords
-  // are string PARAMS, not formats of their own.
+  // Content leaves — the ID-BEARING params must match the translation's
+  // lowering exactly (the anchored RFC 4648 pattern for base64, the
+  // contentMediaType keyword for JSON content), or the ids diverge on the very
+  // first draw. `mockSamples` are NOT id-relevant (stringFormats.ts:220, and
+  // resolver/sample_conflict_test.go) — they only feed createMockDataFn, so a
+  // pool that drifts from the shipped one changes what the value lanes draw,
+  // never whether the ids converge. Both leaves are plain `stringFormat`: the
+  // content keywords are string PARAMS, not formats of their own.
   "type FzBase64 = FzTF<string, 'stringFormat', {pattern: {source: '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'; flags: ''; mockSamples: ['', 'QQ==', 'QUJD', 'SGVsbG8=']}}>;",
   "type FzJson = FzTF<string, 'stringFormat', {contentMediaType: 'application/json'; mockSamples: ['{}', '[]', '\"text\"', '7', 'true', 'null']}>;",
   // The JSON Schema named formats. Transcribed, like every alias here, so the
-  // oracle stays independent of the shipped brands — the params must match what
-  // the door lowers each keyword to, pattern source and mock pool included, or
-  // the ids diverge on the first draw.
+  // oracle stays independent of the shipped brands — the id-bearing params must
+  // match what the door lowers each keyword to, pattern source included, or the
+  // ids diverge on the first draw. The mock pools ride along for the value
+  // lanes only (see the note on the content leaves above).
   "type FzStringDuration = FzTF<string, 'stringFormat', {pattern: {source: '^P(?:\\\\d+W|(?:\\\\d+Y(?:\\\\d+M(?:\\\\d+D)?)?|\\\\d+M(?:\\\\d+D)?|\\\\d+D)(?:T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))?|T(?:\\\\d+H(?:\\\\d+M(?:\\\\d+S)?)?|\\\\d+M(?:\\\\d+S)?|\\\\d+S))$'; flags: ''; mockSamples: ['P4DT12H30M5S', 'P1Y2M3D', 'PT1H30M', 'P2W', 'PT0S']}}>;",
   "type FzJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:\\\\/(?:[^~\\\\/]|~[01])*)*$'; flags: ''; mockSamples: ['', '/foo', '/foo/0', '/a~1b', '/c~0d']}}>;",
   "type FzRelativeJsonPointer = FzTF<string, 'stringFormat', {pattern: {source: '^(?:0|[1-9][0-9]*)(?:#|(?:\\\\/(?:[^~\\\\/]|~[01])*)*)$'; flags: ''; mockSamples: ['0', '1/foo', '2#', '0/a~1b']}}>;",
