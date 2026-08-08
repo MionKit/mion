@@ -66,6 +66,19 @@ pnpm --filter @ts-runtypes/devtools run build         # the other
 
 Outputs land in `packages/*/dist/`. The plugin's dist must be present for marker-package typecheck (no `source` condition in its exports map) — rebuild after every plugin src edit.
 
+### Clean
+
+```bash
+pnpm run clean                   # hard clean (see below)
+pnpm run clean --keep-deps       # same, but leave node_modules installed
+pnpm run clean --dry-run         # list what would go, delete nothing
+pnpm run fresh-start             # hard clean + `pnpm install --frozen-lockfile`
+```
+
+`pnpm run clean` ([scripts/core/clean.mjs](scripts/core/clean.mjs)) is a **hard** clean: package dists + `.tsbuildinfo` + `.coverage`, `bin/`, the website's `.output` / `.nuxt` / playground bundle, tool caches (vite, vitest, nuxt, playwright, the host-built playground WASM under `.cache/`), run artifacts (`logs/`, `.docdata/`, bench results, `dist-binaries/`, `tarballs/`, the test suites' `__runtypes/` genDirs) and finally **every `node_modules` in the workspace**. Everything it removes is gitignored build output; it never touches `.env`, the vendored [ts-go-runtypes/third_party/](ts-go-runtypes/third_party/) tree, or the global pnpm store (`pnpm store prune` is a separate, deliberate call).
+
+Some of what it drops is expensive to regenerate (the playground WASM needs a container build; `.docdata/` + `public/bench-data/` need a full benchmark run) — use `--dry-run` first if you are unsure, and `pnpm --filter <pkg> run clean` when you only want one package's dist gone.
+
 ---
 
 ## Test
@@ -492,6 +505,7 @@ pnpm rtx website check --static  # serve the built site + assert the benchmark p
 pnpm rtx bench [--one <name>|--full|--website] [--quick]   # benchmarks
 pnpm rtx verify                  # lint + typecheck + format check
 pnpm rtx fmt [--check]           # format (oxfmt + prettier + gofmt)
+pnpm rtx clean [--keep-deps|--dry-run|--deep]   # hard clean; --deep reinstalls after
 pnpm rtx codegen all --check     # regenerate Go→TS mirrors, fail on drift
 pnpm rtx publish [--dry-run]     # preflight -> npm -> website (interactive)
 ```

@@ -359,7 +359,8 @@ env        rtx env [push-image|publish-npm|deploy-website|--create-env]
 
 verify     build if stale, then lint + typecheck + format check
 fmt        format (oxfmt + prettier + gofmt); --check is read-only
-clean      clean build outputs; --deep also wipes node_modules
+clean      hard clean: dists, caches, run artifacts + node_modules
+           (--keep-deps keeps node_modules, --dry-run lists, --deep reinstalls after)
 `;
 
 async function dispatch(argv) {
@@ -380,7 +381,9 @@ async function dispatch(argv) {
     case 'env': return runEnv(rest);
     case 'verify': return (coreBuild(['all']), steps([['pnpm', ['run', 'lint']], ['pnpm', ['run', 'check-format']]]));
     case 'fmt': return proxy('pnpm', ['run', hasFlag(rest, '--check') ? 'check-format' : 'format']);
-    case 'clean': return proxy('pnpm', ['run', hasFlag(rest, '--deep') ? 'fresh-start' : 'clean']);
+    // Hard clean by default (dists, caches, run artifacts, node_modules); --deep
+    // reinstalls afterwards. --keep-deps / --dry-run pass through to clean.mjs.
+    case 'clean': return hasFlag(rest, '--deep') ? proxy('pnpm', ['run', 'fresh-start']) : proxy('pnpm', ['run', 'clean', ...rest]);
     case undefined:
     case 'help':
     case '-h':

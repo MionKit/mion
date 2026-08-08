@@ -92,7 +92,7 @@ Use **AskUserQuestion** to ask whether the user wants to compact the conversatio
 - Do NOT run `pnpm install` — `node_modules/` is already in place and the policy file ([pnpm-workspace.yaml](../../../pnpm-workspace.yaml)) makes fresh resolves slow and fragile.
 - Do NOT rebuild `bin/ts-runtypes` — it's already built; the old branch produced it and the file is gitignored.
 - Do NOT touch `ts-go-runtypes/third_party/` — submodules and their patches stay exactly as they are. `.gitmodules` has `ignore = dirty` for `ts-go-runtypes/third_party/tsgolint`, so changes there are invisible to `git status` and easy to lose.
-- Do NOT run `pnpm run clean` — it defeats the point of the skill.
+- Do NOT run `pnpm run clean` — it is a HARD clean (node_modules, `bin/`, dists, caches, bench data) and defeats the point of the skill.
 - Do NOT force-push, force-reset, or `git clean -fd` without explicit user confirmation.
 
 ## Gotchas
