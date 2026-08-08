@@ -194,7 +194,15 @@ type replacement struct {
 func applyReplacements(source string, replacements []replacement) (string, error) {
 	sorted := make([]replacement, len(replacements))
 	copy(sorted, replacements)
-	sort.Slice(sorted, func(a, b int) bool { return sorted[a].start < sorted[b].start })
+	// Zero-width insertions sort BEFORE a replacement starting at the same
+	// offset (an import block prepended at a declaration's exact start), and
+	// the sort is stable so equal edits keep their plan order.
+	sort.SliceStable(sorted, func(a, b int) bool {
+		if sorted[a].start != sorted[b].start {
+			return sorted[a].start < sorted[b].start
+		}
+		return sorted[a].end < sorted[b].end
+	})
 	var out strings.Builder
 	cursor := 0
 	for _, rep := range sorted {
