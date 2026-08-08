@@ -17,7 +17,7 @@
 import {builderResult} from '../runtypes/builderCore.ts';
 import type {CompTimeArgs, InjectRunTypeId} from '../markers.ts';
 import type {RunType} from '../runtypes/types.ts';
-import type {ExactJsonSchema, FromJsonSchema, JsonSchemaInput, RootJsonSchemaInput} from './fromJsonSchema.ts';
+import type {EmbedSchema, ExactJsonSchema, FromJsonSchema, JsonSchemaInput, RootJsonSchemaInput} from './fromJsonSchema.ts';
 
 /** A JSON Schema (draft 2020-12 subset) as a first-class RunTypes input:
  *  `runTypeFromJsonSchema({type: 'object', …})` → `RunType<FromJsonSchema<S>>`,
@@ -34,6 +34,10 @@ export function runTypeFromJsonSchema<const S extends boolean>(
   schema: CompTimeArgs<S>,
   id?: InjectRunTypeId<FromJsonSchema<S>>
 ): RunType<FromJsonSchema<S>>;
+// Root-position `embedType` escape: the embedded type is the whole document
+// (`runTypeFromJsonSchema(embedType(123n))` — how the convert CLI spells
+// atoms pure data cannot carry, bigint literals first among them).
+export function runTypeFromJsonSchema<const T>(schema: EmbedSchema<T>, id?: InjectRunTypeId<T>): RunType<T>;
 export function runTypeFromJsonSchema<const S extends RootJsonSchemaInput>(
   // The third argument threads the root's own `$id` into the deep guard so a
   // `$ref` spelling the same document through its `$id` base stays accepted
@@ -41,6 +45,9 @@ export function runTypeFromJsonSchema<const S extends RootJsonSchemaInput>(
   schema: CompTimeArgs<ExactJsonSchema<S, RootJsonSchemaInput, S extends {$id: infer Id extends string} ? Id : never>>,
   id?: InjectRunTypeId<FromJsonSchema<S>>
 ): RunType<FromJsonSchema<S>>;
-export function runTypeFromJsonSchema(schema: JsonSchemaInput | boolean, id?: InjectRunTypeId<unknown>): RunType<unknown> {
+export function runTypeFromJsonSchema(
+  schema: JsonSchemaInput | boolean | EmbedSchema<unknown>,
+  id?: InjectRunTypeId<unknown>
+): RunType<unknown> {
   return builderResult(id, {type: 'jsonSchema', schema});
 }

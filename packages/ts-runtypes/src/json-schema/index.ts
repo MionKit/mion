@@ -11,7 +11,16 @@
 // NOT the `/schema` subpath: that name is the value-first surface.
 
 export {runTypeFromJsonSchema} from './runTypeFromJsonSchema.ts';
-export type {FromJsonSchema, JsonSchemaInput, RootJsonSchemaInput, ExactJsonSchema} from './fromJsonSchema.ts';
+export {embedType} from './embedType.ts';
+export type {
+  FromJsonSchema,
+  JsonSchemaInput,
+  RootJsonSchemaInput,
+  ExactJsonSchema,
+  EmbedSchema,
+  NestedSchema,
+  JsTypeName,
+} from './fromJsonSchema.ts';
 export type {StripRunTypeMeta, JsonValue} from '../runtypes/stripRunTypeMeta.ts';
 
 import type {StripRunTypeMeta} from '../runtypes/stripRunTypeMeta.ts';

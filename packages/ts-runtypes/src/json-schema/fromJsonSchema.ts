@@ -78,6 +78,32 @@ import type {FormatName} from '../go-generated/typeFormats.generated.ts';
  *  keywords by relevance). **/
 export type SchemaTypeName = 'string' | 'number' | 'integer' | 'boolean' | 'null' | 'object' | 'array';
 
+// The unforgeable EmbedSchema phantom key. The brand property is REQUIRED so
+// an ordinary schema object can never accidentally match `extends
+// EmbedSchema<infer T>` (an optional phantom would make EVERY object match by
+// absence); only `embedType` can construct the type, via a cast.
+declare const embedBrand: unique symbol;
+
+/** The `embedType` escape hatch's carrier: a schema-position value whose TYPE
+ *  carries an arbitrary TS type `T` verbatim. `FromJsonSchema` substitutes `T`
+ *  at the node — the typed door for everything pure schema data cannot spell
+ *  (nominal class/enum references, bigint literals, named-type references).
+ *  The runtime value is inert (`{__rtEmbed: true}`); the optional `__rtEmbed`
+ *  marker is what the Go scanner's CompTimeArgs leaf check recognizes. **/
+export interface EmbedSchema<T> {
+  readonly [embedBrand]: T;
+  readonly __rtEmbed?: true;
+}
+
+/** Any nested schema position: a schema object, a 2020-12 boolean schema, or
+ *  an `embedType` escape. **/
+export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
+
+/** The `jsType` dialect values accepted so far — the JS/TS atoms 2020-12
+ *  cannot spell. The roster grows with the conversion phases
+ *  (docs/todos/format-conversion-completion.md). **/
+export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any';
+
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
  *  Deliberately permissive on VALUE shapes (it guides authoring without fighting
  *  `const` literal inference; recursive so nested schemas keep their literal
@@ -93,16 +119,16 @@ export interface JsonSchemaInput {
   // A `false` property value means the key may not be present; a `false`
   // combinator arm contributes never; a boolean `$defs` entry is a real
   // referenceable target.
-  readonly properties?: {readonly [key: string]: JsonSchemaInput | boolean};
+  readonly properties?: {readonly [key: string]: NestedSchema};
   readonly required?: readonly string[];
-  readonly additionalProperties?: JsonSchemaInput | boolean;
+  readonly additionalProperties?: NestedSchema;
   // Boolean SCHEMAS are legal wherever a schema is (2020-12 core §4.3.2):
   // `items: true` keeps the tail open (same as absent), `items: false`
   // closes it; a `true` prefixItems slot is the spec's "no constraint at
   // this position" padding (`[true, {type: 'number'}]` constrains only the
   // second item), `false` forbids the position outright.
-  readonly items?: JsonSchemaInput | boolean;
-  readonly prefixItems?: readonly (JsonSchemaInput | boolean)[];
+  readonly items?: NestedSchema;
+  readonly prefixItems?: readonly NestedSchema[];
   readonly minItems?: number;
   readonly maxItems?: number;
   // uniqueItems / key-count bounds ride the structural format brands
@@ -114,7 +140,7 @@ export interface JsonSchemaInput {
   // items validate against the subschema — carried by the `__rtContains`
   // sentinel (a child slot, like `not`); min/maxContains WITHOUT contains
   // are annotations per 2020-12.
-  readonly contains?: JsonSchemaInput | boolean;
+  readonly contains?: NestedSchema;
   readonly minContains?: number;
   readonly maxContains?: number;
   // Content keywords: encodings are enforced as anchored patterns and
@@ -125,8 +151,8 @@ export interface JsonSchemaInput {
   readonly contentMediaType?: 'application/json';
   // Keys matching each pattern must have values valid against its schema;
   // propertyNames validates every KEY (as a string) against a subschema.
-  readonly patternProperties?: {readonly [pattern: string]: JsonSchemaInput | boolean};
-  readonly propertyNames?: JsonSchemaInput | boolean;
+  readonly patternProperties?: {readonly [pattern: string]: NestedSchema};
+  readonly propertyNames?: NestedSchema;
   // Same-document anchors: `$anchor` (and `$dynamicAnchor`, which also
   // registers as a plain anchor) declare `#name` targets; `$ref: '#name'`
   // and `$dynamicRef: '#name'` resolve them. In a single schema resource
@@ -137,14 +163,18 @@ export interface JsonSchemaInput {
   // unevaluated*: metadata only. The recovered type is the same object / array
   // it would be without the keyword; what it asserts rides the
   // `__rtUnevaluated` sentinel the emitters read.
-  readonly unevaluatedProperties?: JsonSchemaInput | boolean;
-  readonly unevaluatedItems?: JsonSchemaInput | boolean;
+  readonly unevaluatedProperties?: NestedSchema;
+  readonly unevaluatedItems?: NestedSchema;
   readonly enum?: readonly (string | number | boolean | null)[];
   readonly const?: string | number | boolean | null;
-  readonly anyOf?: readonly (JsonSchemaInput | boolean)[];
-  readonly oneOf?: readonly (JsonSchemaInput | boolean)[];
-  readonly allOf?: readonly (JsonSchemaInput | boolean)[];
-  readonly $defs?: {readonly [name: string]: JsonSchemaInput | boolean};
+  // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
+  // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
+  // it reads as that atom wholesale. `--portable` conversions never emit it.
+  readonly jsType?: JsTypeName;
+  readonly anyOf?: readonly NestedSchema[];
+  readonly oneOf?: readonly NestedSchema[];
+  readonly allOf?: readonly NestedSchema[];
+  readonly $defs?: {readonly [name: string]: NestedSchema};
   // Same-document references only: `#`, `#/…` pointers and `#name` anchors,
   // plus the root's own `$id` spellings of the same. A ref naming ANOTHER
   // document is rejected at the key by ExactJsonSchema — resolving it would
@@ -168,18 +198,18 @@ export interface JsonSchemaInput {
   // via the kind-complement algebra (KindComplement below); the exact check
   // rides the `__rtNot` sentinel into the generated validator. Boolean forms
   // per 2020-12: `not: true` accepts nothing, `not: false` accepts everything.
-  readonly not?: JsonSchemaInput | boolean;
+  readonly not?: NestedSchema;
   // Conditional applicators: valid(if) ? valid(then) : valid(else). Desugared
   // through the same negation machinery ((If ∧ Then) ∨ (¬If ∧ Else)); `then`/
   // `else` without `if` are annotations per 2020-12 and are ignored.
-  readonly if?: JsonSchemaInput | boolean;
-  readonly then?: JsonSchemaInput | boolean;
-  readonly else?: JsonSchemaInput | boolean;
+  readonly if?: NestedSchema;
+  readonly then?: NestedSchema;
+  readonly else?: NestedSchema;
   // Property dependencies: when the named key is present, the listed keys
   // must also be present (dependentRequired) / the schema must also hold
   // (dependentSchemas). Desugared to (has-key ∧ extra) ∨ ¬has-key per entry.
   readonly dependentRequired?: {readonly [key: string]: readonly string[]};
-  readonly dependentSchemas?: {readonly [key: string]: JsonSchemaInput | boolean};
+  readonly dependentSchemas?: {readonly [key: string]: NestedSchema};
   // Annotations accepted and ignored by inference (schema authors always have them).
   readonly $schema?: 'https://json-schema.org/draft/2020-12/schema';
   readonly title?: string;
@@ -213,74 +243,77 @@ export interface RootJsonSchemaInput extends JsonSchemaInput {
  *  unchanged. Wrapped INSIDE the builder's `CompTimeArgs<…>` type argument, same
  *  as `ExactParams`, so the annotation stays a single `CompTimeArgs<…>`
  *  reference the Go scanner detects syntactically. **/
-export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> = S & {
-  readonly [K in Exclude<keyof S, keyof Vocab>]: never;
-} & (S extends {
-    properties: infer P;
-  }
-    ? {readonly properties: ExactJsonSchemaMap<P, RootId>}
-    : unknown) &
-  (S extends {items: infer I}
-    ? I extends boolean
-      ? unknown
-      : {readonly items: ExactJsonSchema<I, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {prefixItems: infer P} ? {readonly prefixItems: ExactJsonSchemaList<P, RootId>} : unknown) &
-  (S extends {additionalProperties: infer A}
-    ? A extends boolean
-      ? unknown
-      : {readonly additionalProperties: ExactJsonSchema<A, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M, RootId>} : unknown) &
-  (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M, RootId>} : unknown) &
-  (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M, RootId>} : unknown) &
-  (S extends {not: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly not: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {contains: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly contains: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {patternProperties: infer P} ? {readonly patternProperties: ExactJsonSchemaMap<P, RootId>} : unknown) &
-  (S extends {propertyNames: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly propertyNames: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {if: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly if: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {then: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly then: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {else: infer N}
-    ? N extends boolean
-      ? unknown
-      : {readonly else: ExactJsonSchema<N, JsonSchemaInput, RootId>}
-    : unknown) &
-  (S extends {dependentSchemas: infer D} ? {readonly dependentSchemas: ExactJsonSchemaMap<D, RootId>} : unknown) &
-  (S extends {$defs: infer D} ? {readonly $defs: ExactJsonSchemaMap<D, RootId>} : unknown) &
-  // Cross-document references reject AT THE KEY — the guide's promise made
-  // true. Same-document spellings (`#…`, or the root's own `$id` base) pass.
-  (S extends {$ref: infer R extends string}
-    ? SameDocumentRef<R, RootId> extends true
-      ? unknown
-      : {readonly $ref: never}
-    : unknown) &
-  (S extends {$dynamicRef: infer R extends string}
-    ? R extends `#${string}`
-      ? unknown
-      : string extends R
-        ? unknown
-        : {readonly $dynamicRef: never}
-    : unknown);
+export type ExactJsonSchema<S, Vocab = JsonSchemaInput, RootId = never> =
+  S extends EmbedSchema<unknown>
+    ? S
+    : S & {
+        readonly [K in Exclude<keyof S, keyof Vocab>]: never;
+      } & (S extends {
+          properties: infer P;
+        }
+          ? {readonly properties: ExactJsonSchemaMap<P, RootId>}
+          : unknown) &
+        (S extends {items: infer I}
+          ? I extends boolean
+            ? unknown
+            : {readonly items: ExactJsonSchema<I, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {prefixItems: infer P} ? {readonly prefixItems: ExactJsonSchemaList<P, RootId>} : unknown) &
+        (S extends {additionalProperties: infer A}
+          ? A extends boolean
+            ? unknown
+            : {readonly additionalProperties: ExactJsonSchema<A, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {anyOf: infer M} ? {readonly anyOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+        (S extends {oneOf: infer M} ? {readonly oneOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+        (S extends {allOf: infer M} ? {readonly allOf: ExactJsonSchemaList<M, RootId>} : unknown) &
+        (S extends {not: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly not: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {contains: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly contains: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {patternProperties: infer P} ? {readonly patternProperties: ExactJsonSchemaMap<P, RootId>} : unknown) &
+        (S extends {propertyNames: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly propertyNames: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {if: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly if: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {then: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly then: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {else: infer N}
+          ? N extends boolean
+            ? unknown
+            : {readonly else: ExactJsonSchema<N, JsonSchemaInput, RootId>}
+          : unknown) &
+        (S extends {dependentSchemas: infer D} ? {readonly dependentSchemas: ExactJsonSchemaMap<D, RootId>} : unknown) &
+        (S extends {$defs: infer D} ? {readonly $defs: ExactJsonSchemaMap<D, RootId>} : unknown) &
+        // Cross-document references reject AT THE KEY — the guide's promise made
+        // true. Same-document spellings (`#…`, or the root's own `$id` base) pass.
+        (S extends {$ref: infer R extends string}
+          ? SameDocumentRef<R, RootId> extends true
+            ? unknown
+            : {readonly $ref: never}
+          : unknown) &
+        (S extends {$dynamicRef: infer R extends string}
+          ? R extends `#${string}`
+            ? unknown
+            : string extends R
+              ? unknown
+              : {readonly $dynamicRef: never}
+          : unknown);
 
 /** Same-document test for a `$ref` value: fragments (`#…`) always are; an
  *  absolute base qualifies only when it repeats the root's own `$id`. The
@@ -1036,7 +1069,7 @@ type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKey
     : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, {readonly minItems: BrandedMinItems<S>}>
   : FormattedArray<Extract<ArrayShapeFrom<S, Root, F>, readonly unknown[]>, ArrayAllParams<S, Root, F>>;
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
-  prefixItems: infer P extends readonly (JsonSchemaInput | boolean)[];
+  prefixItems: infer P extends readonly NestedSchema[];
 }
   ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, [], Root, F>
   : S extends {items: infer I}
@@ -1126,7 +1159,7 @@ type FromAllOfWithOneOf<M, Root, F extends [unknown]> =
   OneOfArmSplit<M> extends readonly [infer Rest extends readonly unknown[], infer Arm]
     ? HasOneOfArm<Rest> extends true
       ? never
-      : Arm extends {oneOf: infer Branches extends readonly (JsonSchemaInput | boolean)[]}
+      : Arm extends {oneOf: infer Branches extends readonly NestedSchema[]}
         ? Exclude<keyof Arm, 'oneOf' | NonKindKeys> extends never
           ? AllOfOneOfLowered<Branches, Rest, Root, F>
           : never
@@ -1137,7 +1170,7 @@ type FromAllOfWithOneOf<M, Root, F extends [unknown]> =
 // gets Conj's cross-kind pruning, same as the sibling-base push.
 type AllOfOneOfLowered<Branches, Rest extends readonly unknown[], Root, F extends [unknown]> = Branches extends readonly []
   ? never
-  : Branches extends readonly [infer Only extends JsonSchemaInput | boolean]
+  : Branches extends readonly [infer Only extends NestedSchema]
     ? AllOfPushOne<Only, Rest, Root, F>
     : OneOfLive<FilterNeverBranches<{-readonly [K in keyof Branches]: AllOfPushOne<Branches[K], Rest, Root, F>}>>;
 type AllOfPushOne<Branch, Rest extends readonly unknown[], Root, F extends [unknown]> =
@@ -1668,9 +1701,29 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // recurse through the same entry. An outer schema carrying value-scoped
 // keywords keeps its CORE translation and takes the sentinel directly (its
 // arms are literal / combinator shapes, not kind gates).
-type FromJsonSchemaIn<S, Root, F extends [unknown]> = S extends {if: infer If}
-  ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-  : DepLayer<S, Root, F>;
+type FromJsonSchemaIn<S, Root, F extends [unknown]> =
+  S extends EmbedSchema<infer Embedded>
+    ? Embedded
+    : S extends {jsType: infer Name}
+      ? FromJsTypeName<Name>
+      : S extends {if: infer If}
+        ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+        : DepLayer<S, Root, F>;
+
+// The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
+// `{}` / `true` cannot spell, since those recover `unknown`).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FromJsTypeName<Name> = Name extends 'bigint'
+  ? bigint
+  : Name extends 'symbol'
+    ? symbol
+    : Name extends 'undefined'
+      ? undefined
+      : Name extends 'void'
+        ? void
+        : Name extends 'any'
+          ? any
+          : never;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
   ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>
   : DepSchemasLayer<S, Root, F>;
@@ -1981,7 +2034,7 @@ type DynRefPart<S, Root, F extends [unknown]> = S extends {$dynamicRef: '#'}
 // The member probes accept `boolean` alongside the schema objects (2020-12
 // core §4.3.2) — an all-boolean list failing the probe would silently
 // contribute NOTHING, turning `allOf: [false, false]` into unknown.
-type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
+type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends readonly NestedSchema[]}
   ? FromAnyOf<M, Root, F>
   : unknown;
 // oneOf — EXACTLY-ONE. The branch tuple rides the `__rtOneOf` sentinel so
@@ -2003,7 +2056,7 @@ type AnyOfPart<S, Root, F extends [unknown]> = S extends {anyOf: infer M extends
 // must never probe. Everything the Core itself asserts — the kind gate, the
 // literals, and the other two combinators — is pushable.
 type OneOfHardKeys = 'not' | 'if' | 'then' | 'else' | 'dependentSchemas' | 'dependentRequired' | '$ref' | '$dynamicRef';
-type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
+type OneOfPart<S, Root, F extends [unknown]> = S extends {oneOf: infer M extends readonly NestedSchema[]}
   ? Extract<keyof S, OneOfHardKeys> extends never
     ? OneOfLowered<M, OneOfBase<S, Root, F>, Root, F>
     : never
@@ -2029,7 +2082,7 @@ type OneOfBase<S, Root, F extends [unknown]> =
 // has always had.
 type OneOfLowered<M, Base, Root, F extends [unknown]> = M extends readonly []
   ? never
-  : M extends readonly [infer Only extends JsonSchemaInput | boolean]
+  : M extends readonly [infer Only extends NestedSchema]
     ? Conj<Base, FromJsonSchemaIn<Only, Root, F>>
     : OneOfLive<FilterNeverBranches<FromOneOfBranches<M, Base, Root, F>>>;
 // A `false` branch (never) can NEVER be the matching one — its count
@@ -2056,7 +2109,7 @@ type OneOfLive<Live> = Live extends readonly []
 type FromOneOfBranches<M, Base, Root, F extends [unknown]> = {
   -readonly [K in keyof M]: Conj<Base, FromJsonSchemaIn<M[K], Root, F>>;
 };
-type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly (JsonSchemaInput | boolean)[]}
+type AllOfPart<S, Root, F extends [unknown]> = S extends {allOf: infer M extends readonly NestedSchema[]}
   ? FromAllOf<M, Root, F>
   : unknown;
 type ConstPart<S> = S extends {const: infer C} ? C : unknown;
@@ -2223,6 +2276,7 @@ export type SchemaLoweringByKeyword = {
   unevaluatedItems: 'slot: __rtUnevaluated — metadata only, the array type is unchanged';
   enum: 'shape: literal union';
   const: 'shape: single literal';
+  jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   anyOf: 'shape: plain union (at least one branch)';
   oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
   allOf: 'shape: intersection, merged by the collapse';
