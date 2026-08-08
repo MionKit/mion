@@ -364,6 +364,9 @@ var valueFlags = map[string]bool{
 	"--gen-dir": true, "-gen-dir": true,
 	"--i18n": true, "-i18n": true,
 	"--tsconfig": true, "-tsconfig": true,
+	// convert verb value flags (splitArgs is shared across verbs).
+	"--to": true, "-to": true,
+	"--out-dir": true, "-out-dir": true,
 }
 
 // splitArgs separates positional arguments from flag tokens so flags may appear

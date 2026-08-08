@@ -1,0 +1,201 @@
+// convert_cli.go — the `ts-runtypes convert` verb: rewrite files between the
+// three authoring forms (type-first / builders / JSON Schema) over the shared
+// reflection graph. CLI-only by design (docs/todos/format-conversion-layer.md):
+// a one-shot migration tool, in place by default, `--out-dir` for a converted
+// copy, `--check` for a write-nothing report.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/ts-runtypes/internal/convert"
+)
+
+func runConvert(args []string) {
+	flagSet := flag.NewFlagSet("convert", flag.ExitOnError)
+	toFlag := flagSet.String("to", "", "target form: type | builders | json-schema (required)")
+	checkFlag := flagSet.Bool("check", false, "report the files that would change without writing; exit 1 when changes are pending")
+	portableFlag := flagSet.Bool("portable", false, "json-schema target only: forbid the RunTypes dialect (jsType rows, embedType); declarations needing it become errors")
+	outDirFlag := flagSet.String("out-dir", "", "copy the input directory here and convert the copy, leaving sources untouched (requires a single directory argument)")
+	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
+	flagSet.Usage = func() {
+		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the three authoring forms (EXPERIMENTAL: atomic types and literals so far)
+
+Usage:
+    ts-runtypes convert --to builders src/models.ts src/api.ts
+    ts-runtypes convert --to json-schema src/models/
+    ts-runtypes convert --to type --check src/models/
+    ts-runtypes convert --to builders src/models/ --out-dir converted/
+
+Declarations already in the target form are left byte-identical. A declaration
+the converter cannot express reports a CNV diagnostic and stays untouched;
+any error makes the exit code non-zero.
+`)
+	}
+	positional, flags := splitArgs(args)
+	if parseErr := flagSet.Parse(flags); parseErr != nil {
+		fatal("convert: %v", parseErr)
+	}
+	target, targetErr := convert.ParseTarget(*toFlag)
+	if targetErr != nil {
+		fatal("convert: %v", targetErr)
+	}
+	if len(positional) == 0 {
+		flagSet.Usage()
+		os.Exit(2)
+	}
+
+	rootDir, files := expandConvertArgs(positional, *outDirFlag)
+	if *outDirFlag != "" {
+		copied, copyErr := copyIntoOutDir(rootDir, *outDirFlag, files)
+		if copyErr != nil {
+			fatal("convert: %v", copyErr)
+		}
+		files = copied
+	}
+
+	absFiles := make([]string, 0, len(files))
+	for _, file := range files {
+		absFiles = append(absFiles, tspath.NormalizePath(mustAbs(file)))
+	}
+	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	cwd := filepath.Dir(absFiles[0])
+	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, absFiles)
+	if progErr != nil {
+		fatal("convert: build program: %v", progErr)
+	}
+	session, resolverErr := resolver.New(prog, resolver.Options{Cwd: cwd})
+	if resolverErr != nil {
+		fatal("convert: build resolver: %v", resolverErr)
+	}
+	defer session.Close()
+
+	options := convert.Options{Target: target, Portable: *portableFlag}
+	errorCount := 0
+	pendingChanges := 0
+	for _, absPath := range absFiles {
+		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, options)
+		if convertErr != nil {
+			fatal("convert: %v", convertErr)
+		}
+		for _, diagnostic := range result.Diags {
+			severity := "warning"
+			if diagnostic.Severity == convert.SeverityError {
+				severity = "error"
+				errorCount++
+			}
+			fmt.Fprintf(os.Stderr, "%s: %s %s [%s]: %s\n", relPath(absPath), diagnostic.Code, severity, diagnostic.Decl, diagnostic.Message)
+		}
+		if !result.Changed {
+			continue
+		}
+		pendingChanges++
+		if *checkFlag {
+			fmt.Printf("would rewrite %s\n", relPath(absPath))
+			continue
+		}
+		if writeErr := os.WriteFile(absPath, []byte(result.Output), 0o644); writeErr != nil {
+			fatal("convert: write %s: %v", absPath, writeErr)
+		}
+		fmt.Printf("rewrote %s\n", relPath(absPath))
+	}
+	if errorCount > 0 {
+		os.Exit(1)
+	}
+	if *checkFlag && pendingChanges > 0 {
+		os.Exit(1)
+	}
+}
+
+// expandConvertArgs resolves the positional arguments to the file set. A
+// single directory argument expands to every .ts/.tsx under it (node_modules
+// and .d.ts excluded) and becomes the --out-dir copy root.
+func expandConvertArgs(positional []string, outDir string) (string, []string) {
+	if len(positional) == 1 && isDirArg(positional[0]) {
+		rootDir := positional[0]
+		var files []string
+		walkErr := filepath.WalkDir(rootDir, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if isConvertibleSource(path) {
+				files = append(files, path)
+			}
+			return nil
+		})
+		if walkErr != nil {
+			fatal("convert: %v", walkErr)
+		}
+		if len(files) == 0 {
+			fatal("convert: no .ts/.tsx files under %s", rootDir)
+		}
+		return rootDir, files
+	}
+	if outDir != "" {
+		fatal("convert: --out-dir requires a single directory argument")
+	}
+	for _, file := range positional {
+		if isDirArg(file) {
+			fatal("convert: pass either one directory or a list of files, not both (%s is a directory)", file)
+		}
+		if !isConvertibleSource(file) {
+			fatal("convert: %s is not a .ts/.tsx source file", file)
+		}
+	}
+	return "", positional
+}
+
+// isConvertibleSource accepts .ts/.tsx sources, excluding declaration files.
+func isConvertibleSource(path string) bool {
+	if strings.HasSuffix(path, ".d.ts") {
+		return false
+	}
+	return strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")
+}
+
+// copyIntoOutDir copies the whole input tree into outDir (assets and
+// non-converted files ride along so relative imports keep resolving) and
+// returns the file list re-rooted into the copy.
+func copyIntoOutDir(rootDir, outDir string, files []string) ([]string, error) {
+	if mkdirErr := os.MkdirAll(outDir, 0o755); mkdirErr != nil {
+		return nil, mkdirErr
+	}
+	if copyErr := os.CopyFS(outDir, os.DirFS(rootDir)); copyErr != nil {
+		return nil, fmt.Errorf("copy %s into %s: %w", rootDir, outDir, copyErr)
+	}
+	rerooted := make([]string, 0, len(files))
+	for _, file := range files {
+		relative, relErr := filepath.Rel(rootDir, file)
+		if relErr != nil {
+			return nil, relErr
+		}
+		rerooted = append(rerooted, filepath.Join(outDir, relative))
+	}
+	return rerooted, nil
+}
+
+// relPath renders a path relative to the working directory when possible.
+func relPath(absPath string) string {
+	cwd, cwdErr := os.Getwd()
+	if cwdErr != nil {
+		return absPath
+	}
+	if relative, relErr := filepath.Rel(cwd, absPath); relErr == nil && !strings.HasPrefix(relative, "..") {
+		return relative
+	}
+	return absPath
+}

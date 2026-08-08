@@ -49,6 +49,7 @@ Commands:
     serve       serve the resolver protocol on stdio (the bundler-plugin path)
     compile     tsc-like batch compile: emit .js + generated cache modules to disk (--no-emit: diagnostics only)
     enrich      scaffold / reconcile / check the enrichment mirror files (--no-emit: diagnostics only)
+    convert     rewrite type declarations between the three authoring forms (EXPERIMENTAL)
 
 Run  ts-runtypes <command> -h  for a command's own options.
 
@@ -88,6 +89,7 @@ var commands = map[string]func(args []string){
 	"serve":   runServe,
 	"compile": runCompile,
 	"enrich":  runEnrich,
+	"convert": runConvert,
 }
 
 func main() {
