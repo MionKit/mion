@@ -70,7 +70,7 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({jsType: 'bigint'} as const)") {
 		t.Errorf("bigint atom should ride the jsType dialect:\n%s", schemaForm)
 	}
-	if !strings.Contains(schemaForm, "runTypeFromJsonSchema(embedType(123n))") {
+	if !strings.Contains(schemaForm, "runTypeFromJsonSchema(embedType<123n>())") {
 		t.Errorf("bigint literal should ride embedType:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
