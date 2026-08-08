@@ -73,6 +73,9 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 	if depth > 0 {
 		switch rng.Intn(8) {
 		case 6:
+			if rng.Intn(2) == 0 {
+				return fmt.Sprintf("Record<string, %s>", randomTypeText(rng, atoms, stringPool, depth-1))
+			}
 			return fmt.Sprintf("Map<%s, %s>", randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
 		case 7:
 			switch rng.Intn(3) {

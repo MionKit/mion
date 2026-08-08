@@ -235,6 +235,26 @@ func TestChain_Natives(t *testing.T) {
 	}
 }
 
+func TestChain_Records(t *testing.T) {
+	source := "export type Env = Record<string, string>;\n" +
+		"type Counts = {[key: string]: number};\n" +
+		"type Deep = Record<string, {ok: boolean} | null>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.record(TF.string())") || !strings.Contains(builderForm, "RT.record(TF.number())") {
+		t.Errorf("records should print RT.record:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{type: 'object', additionalProperties: {type: 'string'}}") {
+		t.Errorf("records should print additionalProperties:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{"export type Env = Record<string, string>;", "type Counts = Record<string, number>;"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestReadonlyMember_TypeBuilderOnly(t *testing.T) {
 	source := "type WithRO = {readonly id: string; count: number};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
