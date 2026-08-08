@@ -180,6 +180,42 @@ func TestPurity_BinaryEncodingGlobals_Allowed(t *testing.T) {
 	}
 }
 
+func TestPurity_BunEngineProbe_Allowed(t *testing.T) {
+	// `Bun` is in allowedGlobals ("Console + runtime hints"), which is what
+	// lets a factory specialise its returned closure per engine — rt::countEnumKeys
+	// picks a for-in counter on V8 and an Object.keys counter on JavaScriptCore.
+	// The probe MUST be `typeof Bun !== 'undefined'`: `process`, `globalThis` and
+	// `global` are all in forbiddenIdentifiers, so no other engine test is legal.
+	// Dropping "Bun" from allowedGlobals re-introduces a PFE9011 closure violation
+	// right here.
+	diags := withFactoryBody(t, `
+  if (typeof Bun !== 'undefined') {
+    return function inner(obj: Record<string, unknown>) {
+      return Object.keys(obj).length;
+    };
+  }
+  return function inner(obj: Record<string, unknown>) {
+    let count = 0;
+    for (const _key in obj) count++;
+    return count;
+  };`)
+	if got := purityCodes(diags); len(got) != 0 {
+		t.Fatalf("the Bun engine probe must be allowed, got %v\n(all diags: %+v)", got, diags)
+	}
+}
+
+func TestPurity_ProcessEngineProbe_NotAllowed(t *testing.T) {
+	// The counterpart to the test above: the OTHER obvious way to detect the
+	// runtime stays forbidden, so nobody swaps the Bun probe for a process one.
+	diags := withFactoryBody(t, `
+  return function inner() {
+    return typeof process !== 'undefined';
+  };`)
+	if _, ok := firstDiagWithCode(diags, CodePurityForbidden); !ok {
+		t.Fatalf("expected %s for a process-based engine probe, got %v", CodePurityForbidden, purityCodes(diags))
+	}
+}
+
 func TestPurity_Crypto_Allowed(t *testing.T) {
 	// `crypto` is allowed like Math / Date: a computation namespace that reads a
 	// benign host VALUE, not a side-effect channel. Its SYNC members

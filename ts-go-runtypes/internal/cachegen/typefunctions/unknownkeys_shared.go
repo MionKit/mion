@@ -267,9 +267,16 @@ func countFastPathN(rt *protocol.RunType, ctx *EmitContext) (int, bool) {
 }
 
 // emitCountKeysCheck emits the fast-path expression `cntEK(v) !== N` and
-// registers the rt::countEnumKeys pure-fn dependency + closure alias. A
-// for-in counter beats `Object.keys(v).length` ~1.4x on V8 (no array
-// allocation) and preserves the for-in enumeration semantics hUKFA had.
+// registers the rt::countEnumKeys pure-fn dependency + closure alias.
+//
+// Which counter `cntEK` actually is depends on the runtime, and the emitter
+// deliberately does NOT care: rt::countEnumKeys is a factory that picks a
+// for-in counter on V8 and an Object.keys counter on JavaScriptCore (Bun),
+// once at materialisation, because the two engines invert on which is faster.
+// Both forms are pinned to answer identically for every input (see
+// pf_countEnumKeys in packages/ts-runtypes/src/runtypes/pure-fns-utils.ts), so
+// the emitted expression is unchanged and keeps the enumeration semantics
+// hUKFA had.
 func emitCountKeysCheck(ctx *EmitContext, v string, n int) string {
 	fnVar := ctx.UsePureFn(corePureFnNamespace, "countEnumKeys", unknownKeysPureFnFilePath)
 	return fnVar + "(" + v + ") !== " + strconv.Itoa(n)

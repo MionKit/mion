@@ -1,7 +1,10 @@
 package purefunctions
 
-// Source of truth for the allow/forbid sets:
-// (ref: packages/devtools/src/eslint/rules/purityRules.ts)
+// Source of truth for the allow/forbid sets. These maps ARE the source of
+// truth — purity is enforced Go-side only, and the JS lint side merely routes
+// the diagnostics this checker produces (see
+// packages/ts-runtypes-devtools/src/eslint/diagnosticRouting.ts). There is no
+// JS twin of these sets to keep in sync.
 //
 // Three project-specific deltas applied per user instruction:
 //   - globalThis MOVED from allowedGlobals to forbiddenIdentifiers

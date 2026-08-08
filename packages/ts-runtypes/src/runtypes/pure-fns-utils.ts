@@ -21,6 +21,12 @@ interface RTValidationError {
   format?: TypeFormatError;
 }
 
+// Ambient declaration — the package's tsconfig sets `types: []`, so Bun's
+// globals aren't visible. Only ever read through `typeof Bun !== 'undefined'`
+// (see pf_countEnumKeys); `Bun` is the one runtime probe the pure-fn purity
+// checker allows (`process` / `globalThis` / `global` are forbidden).
+declare const Bun: unknown;
+
 export const pf_getUnknownKeysFromArray = registerPureFnFactory('rt::getUnknownKeysFromArray', function () {
   const MAX_UNKNOWN_KEYS = 10;
   return function _getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
@@ -43,11 +49,43 @@ export const pf_getUnknownKeysFromArray = registerPureFnFactory('rt::getUnknownK
 });
 
 export const pf_countEnumKeys = registerPureFnFactory('rt::countEnumKeys', function () {
-  // Counts enumerable keys via for-in: no array allocation (beats
-  // `Object.keys(obj).length` ~1.4x on V8) and the same enumeration semantics
-  // the hasUnknownKeysFromArray scan uses. Backs the `runsAfterValidation`
-  // key-count fast path — after validation an all-required object is clean
-  // iff its key count equals the declared prop count.
+  // Counts enumerable keys. Backs the `runsAfterValidation` key-count fast
+  // path — after validation an all-required object is clean iff its key count
+  // equals the declared prop count.
+  //
+  // WHICH counter is fastest depends on the engine, and the two invert:
+  //   - V8 (Node, Deno): for-in rides an enum cache and `Object.keys`
+  //     allocates an array, so for-in wins (~19 vs ~25 ns/op on the full
+  //     strict path over a 10-field shape).
+  //   - JavaScriptCore (Bun): `Object.keys` is served from the cached
+  //     structure property table and for-in is comparatively slow, so keys
+  //     wins (~16 vs ~25 ns/op on the same bench).
+  // The factory runs ONCE at materialisation inside the target runtime, so the
+  // engine test is paid once and the returned counter stays branch-free.
+  //
+  // The counters are NOT interchangeable in general: for-in also counts
+  // INHERITED enumerable properties, `Object.keys` does not. They agree exactly
+  // when the prototype chain contributes nothing enumerable, so the JSC counter
+  // tests for that per call (plain object literal, or null prototype) and falls
+  // back to for-in otherwise; the "is Object.prototype itself clean" half can
+  // never vary per input, so it is hoisted up here. The `!= null` half is there
+  // for the same equivalence reason rather than for safety: the fast path only
+  // ever sees validated objects, but `for-in` over null/undefined counts 0
+  // where `Object.getPrototypeOf` would throw. Together those make both
+  // branches answer identically for EVERY input — no program can validate
+  // differently on Bun than on Node — and the per-call guard measured free on
+  // JSC (~16 ns/op either way).
+  if (typeof Bun !== 'undefined' && Object.keys(Object.prototype).length === 0) {
+    const objectProto = Object.prototype;
+    return function _countEnumKeys(obj: Record<StrNumber, any>): number {
+      const proto = obj != null ? Object.getPrototypeOf(obj) : undefined;
+      if (proto === objectProto || proto === null) return Object.keys(obj).length;
+      let count = 0;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for (const _key in obj) count++;
+      return count;
+    };
+  }
   return function _countEnumKeys(obj: Record<StrNumber, any>): number {
     let count = 0;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

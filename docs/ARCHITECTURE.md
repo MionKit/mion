@@ -182,7 +182,14 @@ This is the largest part of the Go program.
   package's own. Their bodies are extracted at build time, hashed, and shipped as their
   own modules so shared logic is not duplicated into every generated body. A purity check
   rejects anything that reaches outside itself, because these bodies are rebuilt from
-  source text at run time.
+  source text at run time. A helper can be written as a factory, which runs once when the
+  helper is first materialised and returns the function that actually gets called. That
+  one time slot is where a helper does its setup, and it is also where it may pick a
+  different implementation for the engine it finds itself in: the key counter behind the
+  strict unknown keys check uses a `for-in` loop on V8 and `Object.keys` on
+  JavaScriptCore, because the two engines invert on which is faster. Any such variants
+  have to return identical answers for every input, so the choice can never change what a
+  program validates, only how fast it does it.
 - **`operations`** is the single registry of every operation the build can be asked for,
   and the one place their short hashes are computed. Both the call site scanner and the
   code generator read it, which is what guarantees they agree on names.
