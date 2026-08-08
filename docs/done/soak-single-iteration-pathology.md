@@ -1,14 +1,15 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-08
+completed: 2026-08-08
 ---
 
 # One soak iteration in ~740 takes 340 seconds, and nothing can preempt it
 
 Found 2026-08-08 while verifying the soak wall-clock fix in
-[fuzz-followups](../done/fuzz-followups.md). That fix is necessary but **not
+[fuzz-followups](fuzz-followups.md). That fix is necessary but **not
 sufficient**: it bounds when an iteration may START, and this is a single
 iteration that runs 340 seconds once started.
 
@@ -72,7 +73,7 @@ shape performs a great many of.
 ## Why it matters
 
 The user-visible symptom is exactly the one
-[fuzz-followups](../done/fuzz-followups.md) item 2 set out to kill: a soak that
+[fuzz-followups](fuzz-followups.md) item 2 set out to kill: a soak that
 finds NOTHING reports as a vitest timeout failure. The wall-clock budget fixed
 the systematic version of that; this is the residual, and no timeout value fixes
 it because the overshoot is unbounded. Synchronous JavaScript cannot be
@@ -124,3 +125,55 @@ instead of as a timeout.
 A 60s `nondata` soak at `RT_FUZZ_SEED=1` finishes within its budget plus the
 normal headroom, the per-iteration tail is flat, and a future single-iteration
 pathology surfaces as a reported finding rather than a vitest timeout.
+
+---
+
+## Root cause found and FIXED (2026-08-08)
+
+Per-phase instrumentation inside `checkMockBehaviour` closed the case in one
+line of output:
+
+```
+seed=2786721472 valueNodes=775125 mock=303257ms probeJson=107ms probeBin=150ms
+O1=98ms O3=64ms O4=161ms O5=131ms O6=592ms O12=564ms
+```
+
+Two facts compose into the pathology:
+
+1. **The drawn value is legitimately huge.** The type nests four container
+   levels (`Set` × number-index-signature × `Map` × `Record`) and the mock's
+   size draws multiply (`maxRandomItemsLength` default 60, decayed per depth):
+   this seed draws a ~775k-node value. That alone is fine — the value costs
+   about a second to build and the oracle checks handle it in ~1.7s.
+2. **`rtUtils.findRTForType` was a linear scan, called once per
+   format-annotated NODE.** `mockRunType` resolves the compiled
+   formatTransform for every format-annotated node via a suffix + familyTag
+   scan over `Object.keys(rtFnsCache)` — allocating the full key array each
+   call. The `Record<string, <pattern brand>>` leaves put a format annotation
+   on hundreds of thousands of nodes, so one mock ran ~10^5 scans of a
+   registry holding ~740 accumulated types. Isolation vs soak is exactly the
+   registry-size ratio: ~1µs/lookup fresh (mock 843ms) vs ~0.4ms/lookup deep
+   into the soak (mock 303s).
+
+This also explains why the cost did NOT creep across rounds: it only shows on
+a value with MANY format-annotated nodes, and round 741 was the first such
+draw at seed 1. And it explains why the tail "spiked" rather than grew — the
+multiplier is a property of the drawn value, not the round number.
+
+**Fix:** `findRTForType` is memoized per (familyTag, typeId), negative results
+included (most formats declare no transform), and the memo is cleared by both
+cache mutations (`addToRTCache` / `removeFromRTCache`) so a hit is always as
+fresh as a scan. Pinned by three cases in `test/features/rtUtils.test.ts`
+(negative-then-add invalidation, positive stability + removal, familyTag
+gating).
+
+**Verified:** the same 60s `RT_FUZZ_SEED=1` nondata soak went from **365s wall
+(vitest-timeout failure)** to **63.4s, passing**, same 0 violations.
+
+**Residual guard:** every soak now reports its slowest iteration and round and
+fails past `SOAK_ITERATION_CEILING_MS` (30s) with a replay-ready message — so
+the next pathology of this class surfaces as a finding, not a timeout. A
+profiling gotcha for the next hunt is recorded above: `--cpu-prof` only sees
+main threads, and vitest runs tests on worker threads, so a stall that looks
+"idle" in every profile can still be synchronous JS — `/proc`-level per-process
+CPU sampling is what actually attributed it.

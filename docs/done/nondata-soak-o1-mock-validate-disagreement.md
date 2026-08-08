@@ -111,4 +111,4 @@ walker and pass after.
 One thing this did NOT fix: that same soak still reports as a vitest TIMEOUT,
 because a single iteration in ~740 takes 340 seconds. Unrelated cause, filed
 separately as
-[soak-single-iteration-pathology](../todos/soak-single-iteration-pathology.md).
+[soak-single-iteration-pathology](soak-single-iteration-pathology.md).

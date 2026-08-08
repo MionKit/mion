@@ -27,7 +27,7 @@
  *  decides when an iteration may begin; nothing can preempt one already running,
  *  because the work is synchronous JavaScript. A single pathological iteration
  *  therefore still blows through any headroom — one was measured at 340s among
- *  ~740 iterations averaging 35ms (docs/todos/soak-single-iteration-pathology.md).
+ *  ~740 iterations averaging 35ms (docs/done/soak-single-iteration-pathology.md).
  *  Raising this number does not fix that; bounding the per-iteration cost does. **/
 export const SOAK_HEADROOM_MS = 180_000;
 
@@ -42,7 +42,7 @@ export function soakTestTimeout(soakMs: number, headroomMs: number = SOAK_HEADRO
  *  it. When one iteration exceeds this, the soak FAILS naming the round and
  *  its cost — an actionable finding with a replayable seed — instead of
  *  blowing the vitest timeout and mimicking a harness failure
- *  (docs/todos/soak-single-iteration-pathology.md is the incident that
+ *  (docs/done/soak-single-iteration-pathology.md is the incident that
  *  motivated it: one 340s iteration among ~740 averaging 35ms). **/
 export const SOAK_ITERATION_CEILING_MS = 30_000;
 
@@ -58,7 +58,7 @@ export function pathologyReport(
     `single-iteration pathology: round ${slowestIterationRound} took ${slowestIterationMs}ms ` +
     `(ceiling ${SOAK_ITERATION_CEILING_MS}ms). This is a FINDING — a state-dependent slow iteration, ` +
     `not a harness failure. Replay with this run's seed and the named round ` +
-    `(docs/todos/soak-single-iteration-pathology.md has the playbook).`
+    `(docs/done/soak-single-iteration-pathology.md has the playbook).`
   );
 }
 

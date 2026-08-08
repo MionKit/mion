@@ -243,3 +243,46 @@ describe('entryCode (emitMode functions lazy code derivation)', () => {
     expect(entryCode(entry)).toBe(first);
   });
 });
+
+describe('rtUtils.findRTForType — memoized suffix scan', () => {
+  // The scan is memoized (including negative results) because mock generation
+  // calls it once per format-annotated NODE of a generated value; the memo must
+  // be invalidated by BOTH cache mutations, or a stale hit would outlive the
+  // entry it points at.
+  const utils = getRTUtils();
+  const fmtEntry = (rtFnHash: string): CompiledTypeFn =>
+    ({
+      typeName: 'MemoProbe',
+      fnID: 'fmt',
+      familyTag: 'fmt',
+      rtFnHash,
+      args: {vλl: 'v'},
+      defaultParamValues: {vλl: ''},
+      rtDependencies: [],
+      pureFnDependencies: [],
+      fn: (v: unknown) => v,
+      createRTFn: () => (v: unknown) => v,
+    }) as unknown as CompiledTypeFn;
+
+  it('a negative result is invalidated when a matching entry is added', () => {
+    expect(utils.findRTForType('fmt', 'memoProbeTypeA')).toBeUndefined();
+    utils.addToRTCache(fmtEntry('abc_memoProbeTypeA'));
+    expect(utils.findRTForType('fmt', 'memoProbeTypeA')?.typeName).toBe('MemoProbe');
+  });
+
+  it('a positive result is stable across repeat lookups and dies with its entry', () => {
+    const entry = fmtEntry('abc_memoProbeTypeB');
+    utils.addToRTCache(entry);
+    const first = utils.findRTForType('fmt', 'memoProbeTypeB');
+    expect(first?.rtFnHash).toBe('abc_memoProbeTypeB');
+    expect(utils.findRTForType('fmt', 'memoProbeTypeB')).toBe(first);
+    utils.removeFromRTCache(entry);
+    expect(utils.findRTForType('fmt', 'memoProbeTypeB')).toBeUndefined();
+  });
+
+  it('the family tag still gates the match', () => {
+    utils.addToRTCache(fmtEntry('abc_memoProbeTypeC'));
+    expect(utils.findRTForType('val', 'memoProbeTypeC')).toBeUndefined();
+    expect(utils.findRTForType('fmt', 'memoProbeTypeC')).toBeDefined();
+  });
+});
