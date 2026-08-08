@@ -32,18 +32,34 @@ const VectorB = Schema.Compile({
 
 That is exactly the door the conformance section needs. It is **not published**:
 
-- Pinned in the bench image: `@sinclair/typebox@0.34.49`. Its main entry exports
-  no `Schema` at all (verified by enumerating the ~200 exports).
-- Latest on npm at the time of writing: **0.34.52**. No 1.x, and the only
-  prereleases are `0.32.0-dev-*`.
+- Installed in the bench image: `@sinclair/typebox@0.34.49`. Its main entry
+  exports no `Schema` at all (verified by enumerating the ~200 exports).
+- Latest on npm: **0.34.52** (published 2026-07-11; re-checked 2026-08-08). No
+  1.x, and the only prerelease line is `0.32.0-dev-*`.
 - Empirically, on the pinned build: `TypeCompiler.Compile({type: 'string'})`
   fails with `Preflight validation check failed to guard for the given schema`,
   and `Type.Unsafe({type: 'string'})` compiles to `Unknown type`. The compiler
   dispatches on TypeBox's own `Kind` symbol, which a plain document lacks.
 
-A git dependency is not an option: the bench `_deps` policy is registry-only
-(`allowNonRegistryProtocols: false`) with exact pins and a 30-day
-`minimumReleaseAge`.
+**Correction (2026-08-08):** the original spec said a git dependency "is not an
+option" because the bench `_deps` policy is registry-only with exact pins. That is
+wrong on both counts, and the real policy is worth knowing before anyone plans
+around it. `allowNonRegistryProtocols: false` is the **root** workspace's setting
+([pnpm-workspace.yaml:119](../../pnpm-workspace.yaml)); the bench workspace
+([container/benchmarks/_deps/pnpm-workspace.yaml](../../container/benchmarks/_deps/pnpm-workspace.yaml))
+does not set it. What that file sets is `blockExoticSubdeps: true`, which blocks
+exotic **transitive** sources while its own comment says "direct deps may declare
+any source", plus a 30-day `minimumReleaseAge` that a git ref would simply
+bypass. Nor are the bench pins exact: `savePrefix: ''` only governs `pnpm add`,
+and the manifest declares `^0.34.0`.
+
+So a git dependency is technically possible. It is still the wrong move: it would
+make the one library being measured the only unaged, non-registry input in the
+image every benchmark number comes from. Wait for the release.
+
+The caret range matters for step 1 below: because the manifest says `^0.34.0`, a
+plain image rebuild will **not** pick up a 1.x on its own. The bump has to be
+explicit.
 
 ## Direction
 
