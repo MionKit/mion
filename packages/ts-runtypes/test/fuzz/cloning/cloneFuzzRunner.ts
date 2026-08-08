@@ -37,6 +37,10 @@ export interface CloneFuzzReport {
   iterations: number;
   seed: number;
   violations: CloneViolation[];
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 const DEFAULT_ITERATIONS = 200;
@@ -88,7 +92,14 @@ export function runCloneFuzzForDuration(
     round++;
     budget.mark();
   }
-  return {runs, iterations: round, seed, violations};
+  return {
+    runs,
+    iterations: round,
+    seed,
+    violations,
+    slowestIterationMs: budget.slowestIterationMs(),
+    slowestIterationRound: budget.slowestIterationRound(),
+  };
 }
 
 /** One target × one seed: valid, extras, and junk passes. Runs INSIDE a

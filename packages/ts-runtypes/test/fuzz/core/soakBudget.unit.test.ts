@@ -1,7 +1,7 @@
 // Unit tests for the soak wall-clock budget. Pure logic over an injected clock —
 // no Go binary, no real waiting.
 import {describe, it, expect} from 'vitest';
-import {startSoakBudget, soakTestTimeout, SOAK_HEADROOM_MS} from './soakBudget.ts';
+import {pathologyReport, soakTestTimeout, startSoakBudget, SOAK_HEADROOM_MS, SOAK_ITERATION_CEILING_MS} from './soakBudget.ts';
 
 /** A fake clock: `tick(ms)` is the only thing that moves time. **/
 function fakeClock(): {now: () => number; tick: (ms: number) => void} {
@@ -81,18 +81,35 @@ describe('fuzz / soakBudget — the soak owns its wall clock', () => {
     expect(simulate(-5_000, 100).runs).toBe(0);
   });
 
-  it('reports iteration bookkeeping', () => {
+  it('reports iteration bookkeeping, naming the slowest round', () => {
     const clock = fakeClock();
     const budget = startSoakBudget(10_000, clock.now);
     expect(budget.markedIterations()).toBe(0);
     expect(budget.slowestIterationMs()).toBe(0);
+    expect(budget.slowestIterationRound()).toBe(-1);
     clock.tick(1_500);
     budget.mark();
     clock.tick(400);
     budget.mark();
     expect(budget.markedIterations()).toBe(2);
     expect(budget.slowestIterationMs()).toBe(1_500);
+    expect(budget.slowestIterationRound()).toBe(0);
     expect(budget.elapsedMs()).toBe(1_900);
+    // A later, slower iteration takes over the slot.
+    clock.tick(2_500);
+    budget.mark();
+    expect(budget.slowestIterationRound()).toBe(2);
+  });
+
+  it('pathology tripwire: silent under the ceiling, a named finding above it', () => {
+    expect(pathologyReport(undefined, undefined)).toBeNull();
+    expect(pathologyReport(SOAK_ITERATION_CEILING_MS, 3)).toBeNull();
+    const finding = pathologyReport(SOAK_ITERATION_CEILING_MS + 1, 741);
+    expect(finding).toContain('round 741');
+    expect(finding).toContain(`${SOAK_ITERATION_CEILING_MS + 1}ms`);
+    // Above both in-lane timeouts (compile 10s, jsonschema scan 20s), so those
+    // paths keep reporting through their own oracles, not this tripwire.
+    expect(SOAK_ITERATION_CEILING_MS).toBeGreaterThan(20_000);
   });
 
   it('charges fixed setup to the budget without counting it as iteration cost', () => {

@@ -36,6 +36,32 @@ export function soakTestTimeout(soakMs: number, headroomMs: number = SOAK_HEADRO
   return Math.max(0, soakMs) + headroomMs;
 }
 
+/** Per-iteration cost ceiling for the soak lanes' pathology tripwire. Above
+ *  both in-lane timeouts (compile 10s, jsonschema scan 20s — those already
+ *  surface as violations), so only genuinely unbounded synchronous work trips
+ *  it. When one iteration exceeds this, the soak FAILS naming the round and
+ *  its cost — an actionable finding with a replayable seed — instead of
+ *  blowing the vitest timeout and mimicking a harness failure
+ *  (docs/todos/soak-single-iteration-pathology.md is the incident that
+ *  motivated it: one 340s iteration among ~740 averaging 35ms). **/
+export const SOAK_ITERATION_CEILING_MS = 30_000;
+
+/** The soak tests' tripwire assertion, shared so the message stays uniform:
+ *  `expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull()`.
+ *  Returns null when every iteration stayed under the ceiling. **/
+export function pathologyReport(
+  slowestIterationMs: number | undefined,
+  slowestIterationRound: number | undefined
+): string | null {
+  if (slowestIterationMs === undefined || slowestIterationMs <= SOAK_ITERATION_CEILING_MS) return null;
+  return (
+    `single-iteration pathology: round ${slowestIterationRound} took ${slowestIterationMs}ms ` +
+    `(ceiling ${SOAK_ITERATION_CEILING_MS}ms). This is a FINDING — a state-dependent slow iteration, ` +
+    `not a harness failure. Replay with this run's seed and the named round ` +
+    `(docs/todos/soak-single-iteration-pathology.md has the playbook).`
+  );
+}
+
 export interface SoakBudget {
   /** True when another iteration fits in what is left of the budget. A `true`
    *  answer also starts the clock for that iteration, so any fixed setup done
@@ -49,6 +75,9 @@ export interface SoakBudget {
   markedIterations(): number;
   /** Longest iteration observed so far, in ms (0 before the first `mark()`). **/
   slowestIterationMs(): number;
+  /** Zero-based index (mark order) of the slowest iteration so far, -1 before
+   *  the first `mark()` — names the round to replay when the tripwire fires. **/
+  slowestIterationRound(): number;
   /** Wall clock since the budget started, in ms. **/
   elapsedMs(): number;
 }
@@ -68,6 +97,7 @@ export function startSoakBudget(durationMs: number, now: () => number = () => Da
   const deadline = start + durationMs;
   let iterationStartedAt = start;
   let slowestIterationMs = 0;
+  let slowestIterationRound = -1;
   let markedIterations = 0;
 
   return {
@@ -88,12 +118,16 @@ export function startSoakBudget(durationMs: number, now: () => number = () => Da
     mark(): void {
       const at = now();
       const cost = at - iterationStartedAt;
-      if (cost > slowestIterationMs) slowestIterationMs = cost;
+      if (cost > slowestIterationMs) {
+        slowestIterationMs = cost;
+        slowestIterationRound = markedIterations;
+      }
       iterationStartedAt = at;
       markedIterations++;
     },
     markedIterations: () => markedIterations,
     slowestIterationMs: () => slowestIterationMs,
+    slowestIterationRound: () => slowestIterationRound,
     elapsedMs: () => now() - start,
   };
 }

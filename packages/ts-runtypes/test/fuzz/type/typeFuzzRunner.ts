@@ -85,6 +85,10 @@ export interface TypeFuzzReport {
    *  produces a RunType for non-compilable input, so a violation there is a
    *  false positive, not a pipeline bug. See the TS-validity gate in fuzzOneType. **/
   skippedInvalidTypes: number;
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 /** Mutable counter threaded into fuzzOneType so the report can surface how many
@@ -172,7 +176,15 @@ export async function runTypeFuzzForDuration(
   } finally {
     holder.close();
   }
-  return {runs, iterations: round, seed, violations, ...stats};
+  return {
+    runs,
+    iterations: round,
+    seed,
+    violations,
+    ...stats,
+    slowestIterationMs: budget.slowestIterationMs(),
+    slowestIterationRound: budget.slowestIterationRound(),
+  };
 }
 
 async function fuzzOneType(

@@ -11,7 +11,7 @@
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './roundtripHarness.ts';
 import {runRoundtripFuzz, runRoundtripFuzzForDuration} from './roundtripRunner.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / all-strategy round-trip — every codec agrees over generated types', () => {
@@ -52,6 +52,7 @@ describe('fuzz / all-strategy round-trip — every codec agrees over generated t
         `[roundtrip-fuzz] soak finished: ${report.runs} types, ${report.checked} checked, ` +
           `${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

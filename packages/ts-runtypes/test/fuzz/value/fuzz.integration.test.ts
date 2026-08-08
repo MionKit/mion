@@ -22,7 +22,7 @@ import {
 } from '@ts-runtypes/core';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
 import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import type {FuzzTarget} from './fuzzOracle.ts';
 
 const targets: FuzzTarget[] = [];
@@ -150,6 +150,7 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
         console.error(`[fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    value=${v.value}`);
       });
       console.error(`[fuzz] soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

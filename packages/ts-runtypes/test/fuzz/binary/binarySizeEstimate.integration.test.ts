@@ -14,7 +14,7 @@
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './sizeFuzzRunner.ts';
 import {runSizeFuzz, runSizeFuzzForDuration} from './sizeFuzzRunner.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / binary size estimate — sound for in-bounds data', () => {
@@ -58,6 +58,7 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
         `[size-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ` +
           `${report.stats.noGrowChecked} no-resize checks, ${report.stats.negativesExercised} grows, ${report.stats.skipped} skipped`
       );
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

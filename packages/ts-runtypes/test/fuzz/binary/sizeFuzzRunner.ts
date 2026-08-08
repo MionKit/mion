@@ -86,6 +86,10 @@ export interface SizeFuzzReport {
   seed: number;
   violations: SizeViolation[];
   stats: SizeFuzzStats;
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 const DEFAULT_SEED = 0xc0ffee;
@@ -347,5 +351,13 @@ export async function runSizeFuzzForDuration(
     }
     round++;
   }
-  return {runs, iterations: runs, seed, violations, stats};
+  return {
+    runs,
+    iterations: runs,
+    seed,
+    violations,
+    stats,
+    slowestIterationMs: budget.slowestIterationMs(),
+    slowestIterationRound: budget.slowestIterationRound(),
+  };
 }

@@ -22,7 +22,7 @@ import {describe, it, expect} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
 import {NONDATA_GEN_OPTIONS} from '../core/typeGen.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {laneSeed, soakSeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / DataOnly non-data lane — serialize-or-fail contract over non-data types', () => {
@@ -83,6 +83,7 @@ describe('fuzz / DataOnly non-data lane — serialize-or-fail contract over non-
       console.error(
         `[nondata-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

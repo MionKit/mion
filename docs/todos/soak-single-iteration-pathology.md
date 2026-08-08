@@ -79,6 +79,26 @@ it because the overshoot is unbounded. Synchronous JavaScript cannot be
 preempted, so the runner cannot cap it the way `COMPILE_TIMEOUT_MS` caps the
 resolver.
 
+## Findings (2026-08-08, second pass)
+
+Instrumentation narrowed it considerably:
+
+- **It is synchronous JS in the vitest worker thread.** During the stall the
+  worker burns 100% CPU with flat RSS (~260MB); every other process (resolver,
+  sidecar, vitest main) is idle. (`--cpu-prof` cannot see it — it profiles
+  main threads only, which is why the first profiling attempt showed
+  everything idle.)
+- **It is the behaviour tier, not the compile.** Phase timing on the
+  pathological round: `gen+compile=40ms`, `behaviour=302993ms` — all inside
+  `checkMockBehaviour`.
+- **It is independent of the format leaf.** The per-format alias retirement
+  changed round 741's leaf from `FzUriTemplate` (multi-KB regex) to a plain
+  `^a` pattern brand; the stall reproduced identically. The structure is what
+  matters: `Set<{…binary members…; [k: number]: Map<number, Record<string,
+  <string format>>>}>`.
+- **It is deterministic** for `RT_FUZZ_SEED=1`: three consecutive runs stalled
+  at the same round with 303-340s.
+
 ## Direction
 
 Profile first, fix second — do not guess.

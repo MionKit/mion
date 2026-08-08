@@ -39,6 +39,10 @@ export interface RoundtripFuzzReport {
   /** Violations dropped because the generated type isn't valid TypeScript
    *  (tsgo is lenient; a violation there is a false positive). **/
   skippedInvalidTypes: number;
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 interface FuzzStats {
@@ -121,7 +125,15 @@ export async function runRoundtripFuzzForDuration(
   } finally {
     holder.close();
   }
-  return {runs, iterations: round, seed, violations, ...stats};
+  return {
+    runs,
+    iterations: round,
+    seed,
+    violations,
+    ...stats,
+    slowestIterationMs: budget.slowestIterationMs(),
+    slowestIterationRound: budget.slowestIterationRound(),
+  };
 }
 
 async function fuzzOne(

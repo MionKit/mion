@@ -29,7 +29,7 @@
 import {describe, it, expect} from 'vitest';
 import {createCloneExactShapeFn, createHasUnknownKeysFn, createMockDataFn, createValidateFn, getRunType} from '@ts-runtypes/core';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
-import {soakTestTimeout} from '../core/soakBudget.ts';
+import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 import type {CloneFuzzTarget} from './cloneOracle.ts';
 
@@ -548,6 +548,7 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
         console.error(`[fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    value=${v.value}`);
       });
       console.error(`[fuzz] clone soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

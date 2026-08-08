@@ -30,7 +30,7 @@ import {RUNTYPES_DTS} from '../../../../ts-runtypes-devtools/test/helpers/inline
 import {hasBinary, openClient} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
-import {startSoakBudget, soakTestTimeout} from '../core/soakBudget.ts';
+import {startSoakBudget, soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {laneSeed, soakSeed, SUPPRESSION_CEILING, COMPARISON_FLOOR} from '../core/fuzzPolicy.ts';
 import {
   FUZZ_EMAIL_PATTERN,
@@ -95,6 +95,10 @@ interface Report {
    *  the loop; this counts the oracle, so a regression that stopped emitting the
    *  second site (or timed every scan out) cannot pass as green. **/
   compared: number;
+  /** Duration runs only: the slowest single iteration and its zero-based round,
+   *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
+  slowestIterationMs?: number;
+  slowestIterationRound?: number;
 }
 
 const SCAN_TIMEOUT_MS = 20_000;
@@ -207,6 +211,8 @@ async function runForDuration(baseSeed: number, ms: number, onViolation: (v: Vio
   } finally {
     holder.close();
   }
+  report.slowestIterationMs = budget.slowestIterationMs();
+  report.slowestIterationRound = budget.slowestIterationRound();
   return report;
 }
 
@@ -259,6 +265,7 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
       console.error(
         `[jsonschema-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
+      expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)
