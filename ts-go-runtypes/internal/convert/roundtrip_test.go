@@ -245,6 +245,17 @@ func TestPortable_DialectRefused(t *testing.T) {
 	}
 }
 
+func TestCircular_RefusedForNow(t *testing.T) {
+	source := "type Tree = {value: number; kids: Tree[]};\ntype Plain = string;\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
+		t.Fatalf("expected one CNV001 for the circular type, got %+v", diags)
+	}
+	if !strings.Contains(output, "type Tree = {value: number; kids: Tree[]};") || !strings.Contains(output, "const plainRT = TF.string();") {
+		t.Errorf("circular declaration stays untouched while the rest converts:\n%s", output)
+	}
+}
+
 func TestGenericDecl_Refused(t *testing.T) {
 	source := "type Box<T> = T;\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
