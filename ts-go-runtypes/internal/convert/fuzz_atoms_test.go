@@ -74,6 +74,13 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 		switch rng.Intn(6) {
 		case 0:
 			return randomTypeText(rng, atoms, stringPool, depth-1) + "[]"
+		case 3:
+			armCount := 2 + rng.Intn(3)
+			var arms []string
+			for range armCount {
+				arms = append(arms, randomTypeText(rng, atoms, stringPool, depth-1))
+			}
+			return "(" + strings.Join(arms, " | ") + ")"
 		case 2:
 			memberCount := 1 + rng.Intn(4)
 			var parts []string

@@ -168,6 +168,38 @@ func TestChain_Objects(t *testing.T) {
 	}
 }
 
+func TestChain_Unions(t *testing.T) {
+	source := "export type Status = 'draft' | 'live';\n" +
+		"type MaybeName = string | null;\n" +
+		"type Mixed = number | boolean[] | {kind: 'a'; size: number};\n" +
+		"type OptionalIsh = string | undefined;\n" +
+		"type Items = ('a' | 'b')[];\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{
+		"RT.union([RT.literal('draft'), RT.literal('live')])",
+		"RT.union([RT.literal(null), TF.string()])",
+	} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"{enum: ['draft', 'live']}",
+		"{enum: ['a', 'b']}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{"type Items = ('a' | 'b')[];", "export type Status = 'draft' | 'live';"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+}
+
 func TestReadonlyMember_TypeBuilderOnly(t *testing.T) {
 	source := "type WithRO = {readonly id: string; count: number};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
