@@ -3452,4 +3452,122 @@ export const cases: CompetitorCases = {
     build: () => compile2020('multiple_of', false),
     buildErrors: () => compile2020('multiple_of', true),
   },
+
+  // ── STRICT ──
+  // additionalProperties:false at every level — ajv's closedness, the direct
+  // counterpart to the count check the RunTypes column runs.
+  'STRICT.flat_required': {
+    build: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {id: {type: 'number'}, name: {type: 'string'}, active: {type: 'boolean'}},
+        required: ['id', 'name', 'active'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {id: {type: 'number'}, name: {type: 'string'}, active: {type: 'boolean'}},
+        required: ['id', 'name', 'active'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+  },
+  'STRICT.nested_required': {
+    build: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          name: {type: 'string'},
+          inner: {
+            type: 'object',
+            properties: {x: {type: 'number'}, y: {type: 'string'}},
+            required: ['x', 'y'],
+            additionalProperties: false,
+          },
+        },
+        required: ['name', 'inner'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          name: {type: 'string'},
+          inner: {
+            type: 'object',
+            properties: {x: {type: 'number'}, y: {type: 'string'}},
+            required: ['x', 'y'],
+            additionalProperties: false,
+          },
+        },
+        required: ['name', 'inner'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+  },
+  'STRICT.moltar_dto': {
+    build: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          number: {type: 'number'},
+          negNumber: {type: 'number'},
+          maxNumber: {type: 'number'},
+          string: {type: 'string'},
+          longString: {type: 'string'},
+          boolean: {type: 'boolean'},
+          deeplyNested: {
+            type: 'object',
+            properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+            required: ['foo', 'num', 'bool'],
+            additionalProperties: false,
+          },
+        },
+        required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+    buildErrors: () => {
+      const ajv = new Ajv({strict: false, allowUnionTypes: true, allErrors: true});
+      addFormats(ajv, {mode: 'full'});
+      const validate = ajv.compile({
+        type: 'object',
+        properties: {
+          number: {type: 'number'},
+          negNumber: {type: 'number'},
+          maxNumber: {type: 'number'},
+          string: {type: 'string'},
+          longString: {type: 'string'},
+          boolean: {type: 'boolean'},
+          deeplyNested: {
+            type: 'object',
+            properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+            required: ['foo', 'num', 'bool'],
+            additionalProperties: false,
+          },
+        },
+        required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        additionalProperties: false,
+      });
+      return (value: unknown) => validate(value) === true;
+    },
+  },
 };

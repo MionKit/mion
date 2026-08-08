@@ -15,7 +15,7 @@
 // compiletime | transform-wire | capture-env | shell | login | push | pull | clean.
 // A `--quick` flag anywhere maps onto every stage's native fast lever.
 
-import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, rmSync} from 'node:fs';
+import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import {cpus} from 'node:os';
 import {join} from 'node:path';
 import {main as coreBuild} from '../../core/build.mjs';
@@ -166,6 +166,10 @@ function envArgs() {
   pass('RT_BENCH_TIME_MS');
   pass('RT_BENCH_CASE');
   pass('RT_BENCH_DUMP');
+  pass('RT_BENCH_BUN');
+  pass('RT_BENCH_ENGINE_ASSERT');
+  pass('RT_BENCH_ENGINE_MARGIN');
+  pass('RT_BENCH_ENGINE_ITERS');
   pass('RT_COMPILETIME_N');
   pass('RT_TRANSFORM_WIRE_N');
   if (process.env.RT_BENCH_QUICK === '1') args.push('-e', 'RT_BENCH_QUICK=1');
@@ -180,8 +184,26 @@ function runInContainer(cfg, cmd) {
   return run(cfg.engine, ['run', '--rm', '--init', ...common], {stdio: ['ignore', 'inherit', 'inherit']});
 }
 
+// Bun (1.3.x) implements no `Temporal` global, so the DATETIME groups cannot build
+// their samples there at all. The runner records them as not-supported (and lists them
+// in the result's skippedGroups) rather than erroring the whole lane. A runtime
+// capability gap, NOT a coverage choice - and it is logged on every bun run, so a
+// bounded lane can never read as a complete one.
+const BUN_SKIP_GROUPS = 'DATETIME';
+
+// The bun lane is opt-OUT (RT_BENCH_BUN=0), never opt-in, so a release lane cannot
+// quietly lose it by forgetting a flag. Needs bun on PATH in the image.
+function benchBun() {
+  return process.env.RT_BENCH_BUN !== '0';
+}
+
+// Where a given runtime's results land (result.ts: node keeps the canonical path,
+// every other runtime gets a subdir so the published node table is untouched).
+const runtimeResultsDir = (runtime) => (runtime === 'node' ? RESULTS_DIR : join(RESULTS_DIR, runtime));
+
 // Build + run one competitor; a failure is reported but never aborts the loop, so
-// every other lane still gets to write its results. Returns true when the lane ran.
+// every other lane still gets to write its results. Returns true when EVERY runtime
+// lane ran.
 //
 // The message names WHICH of the two things went wrong, because they need opposite
 // reactions and used to read identically. A lane that wrote no results/<name>.json
@@ -190,15 +212,61 @@ function runInContainer(cfg, cmd) {
 // case(s). A correctness divergence never reaches here: each competitor's main.ts
 // exits 0 on `fail`, because disagreeing with RunTypes on a sample is data for the
 // Correctness page, not a broken lane (see shared/harness/result.ts).
-function buildAndRunOne(cfg, competitor) {
+//
+// The build happens ONCE and every runtime then executes that same emitted bundle:
+// bun is never asked to transpile TypeScript, it runs the identical dist/run.mjs node
+// ran. That also makes this the only check in the repo that the emitted bundle is
+// runtime-portable.
+function buildAndRunOne(cfg, competitor, withBun = benchBun()) {
   console.log(`-------- competitor: ${competitor} --------`);
-  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build && node dist/run.mjs`]) === 0) return true;
-  // An RT_BENCH_CASE inspection run writes no results file by design, so the
-  // "did it write results?" signal does not apply to it.
-  if (process.env.RT_BENCH_CASE) console.log(`==> competitor '${competitor}' FAILED - see output above`);
-  else if (existsSync(join(RESULTS_DIR, `${competitor}.json`))) console.log(`==> competitor '${competitor}': errored case(s) - results/${competitor}.json WAS written, see the errors above`);
-  else console.log(`==> competitor '${competitor}' DID NOT RUN (build or startup failed) - no results/${competitor}.json, its column will be missing from the tables`);
-  return false;
+  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build`]) !== 0) {
+    console.log(`==> competitor '${competitor}' DID NOT RUN (build failed) - no results written, its column will be missing from the tables`);
+    return false;
+  }
+  const runs = [['node', 'node dist/run.mjs']];
+  if (withBun) runs.push(['bun', `RT_BENCH_SKIP_GROUPS=${BUN_SKIP_GROUPS} bun dist/run.mjs`]);
+  let allRan = true;
+  for (const [runtime, cmd] of runs) {
+    if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && ${cmd}`]) === 0) continue;
+    const label = `competitor '${competitor}' (${runtime})`;
+    // An RT_BENCH_CASE inspection run writes no results file by design, so the
+    // "did it write results?" signal does not apply to it.
+    if (process.env.RT_BENCH_CASE) console.log(`==> ${label} FAILED - see output above`);
+    else if (existsSync(join(runtimeResultsDir(runtime), `${competitor}.json`)))
+      console.log(`==> ${label}: errored case(s) - its results JSON WAS written, see the errors above`);
+    else console.log(`==> ${label} DID NOT RUN (startup failed) - no results JSON, its column will be missing from the tables`);
+    allRan = false;
+  }
+  return allRan;
+}
+
+// The engine-branch tripwire. rt::countEnumKeys picks a different counter per JS
+// engine, and both counters are pinned to answer identically, so a WRONG pick costs
+// throughput and never correctness - which is exactly why it can rot unnoticed. Each
+// ts-runtypes result records which counter was live; this asserts the recorded value
+// matches the runtime that produced it. HARD failure by design: unlike throughput this
+// is a discrete fact with no measurement noise, so it cannot flake.
+function checkEngineBranch(withBun = benchBun()) {
+  const expectations = [{dir: RESULTS_DIR, runtime: 'node', branch: 'v8'}];
+  if (withBun) expectations.push({dir: join(RESULTS_DIR, 'bun'), runtime: 'bun', branch: 'jsc'});
+  for (const {dir, runtime, branch} of expectations) {
+    const file = join(dir, 'ts-runtypes.json');
+    if (!existsSync(file)) die(`bench: ${file} missing - the ${runtime} lane produced no ts-runtypes result.`);
+    const result = JSON.parse(readFileSync(file, 'utf8'));
+    if (result.runtime !== runtime) {
+      die(`bench: ${file} reports runtime '${result.runtime}' but must be '${runtime}' - that lane ran the wrong runtime.`);
+    }
+    if (result.engineBranch !== branch) {
+      die(
+        `bench: ${file} reports engineBranch '${result.engineBranch}' but ${runtime} must select '${branch}'. ` +
+          `The rt::countEnumKeys per-engine branch is not doing its job (packages/ts-runtypes/src/runtypes/pure-fns-utils.ts).`
+      );
+    }
+    if (result.skippedGroups?.length) {
+      note(`${runtime} lane skipped group(s): ${result.skippedGroups.join(', ')} - runtime capability gap, recorded in the result`);
+    }
+    note(`${runtime} lane OK - rt::countEnumKeys selected the '${branch}' counter`);
+  }
 }
 
 // Loud, single-line verdict for a set of lanes that did not run. Kept separate so
@@ -217,6 +285,26 @@ function publishDocdata(cfg) {
 function clearResults(pred) {
   mkdirSync(RESULTS_DIR, {recursive: true});
   for (const f of globSync('*.json', {cwd: RESULTS_DIR})) if (pred(f)) rmSync(join(RESULTS_DIR, f), {force: true});
+  // The per-runtime subdirs too: a stale bun result surviving a failed bun run would
+  // let checkEngineBranch pass on last week's numbers.
+  const bunDir = join(RESULTS_DIR, 'bun');
+  if (existsSync(bunDir)) for (const f of globSync('*.json', {cwd: bunDir})) if (pred(f)) rmSync(join(bunDir, f), {force: true});
+}
+
+// The counter-inversion tripwire, run INSIDE the image — bun is installed there, not
+// on the CI runner host, and the check needs BOTH runtimes to compare per-engine. The
+// script is dependency-free, so mounting the single file is enough.
+//
+// Report-only unless RT_BENCH_ENGINE_ASSERT=1 is passed through; see the script header
+// for why that default is deliberate (arm64 is unmeasured).
+function cmdEngineCheck(cfg) {
+  ensurePrereqs(cfg);
+  const mo = cfg.mountOpts;
+  const extra = ['-v', `${join(SCRIPT_DIR, 'engine-perf-check.mjs')}:/bench/engine-perf-check.mjs:ro${mo}`];
+  const cmd = ['node', 'engine-perf-check.mjs'];
+  const common = [...netArgs(cfg), ...mountArgs(cfg), ...envArgs(), ...extra, '-w', '/bench', cfg.image, ...cmd];
+  const code = run(cfg.engine, ['run', '--rm', '--init', ...common], {stdio: ['ignore', 'inherit', 'inherit']});
+  if (code !== 0) die('bench: engine-perf-check FAILED - see output above.');
 }
 
 function cmdBench(cfg) {
@@ -225,6 +313,8 @@ function cmdBench(cfg) {
   if (!process.env.RT_BENCH_CASE) clearResults((f) => f !== 'env.json');
   const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
   if (process.env.RT_BENCH_CASE) return note(`RT_BENCH_CASE='${process.env.RT_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
+  console.log('-------- engine branch --------');
+  checkEngineBranch();
   console.log('-------- aggregate --------');
   runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
@@ -526,13 +616,14 @@ function dispatch(cfg, args) {
     case 'typecost': return (requireEngine(cfg), cmdTypecost(cfg));
     case 'compiletime': return (requireEngine(cfg), cmdCompiletime(cfg));
     case 'transform-wire': return (requireEngine(cfg), cmdTransformWire(cfg));
+    case 'engine-check': return (requireEngine(cfg), cmdEngineCheck(cfg));
     case 'capture-env': return (requireEngine(cfg), ensurePrereqs(cfg), runInContainer(cfg, ['node', 'capture-env.mjs']));
     case 'shell': return (requireEngine(cfg), cmdShell(cfg));
     case 'login': return image.cmdLogin({env: benchImageEnv(cfg)});
     case 'push': return image.cmdPush({env: benchImageEnv(cfg)});
     case 'pull': return image.cmdPull({env: benchImageEnv(cfg)});
     case 'clean': return (requireEngine(cfg), cmdClean(cfg));
-    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | spec | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull | clean`);
+    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | engine-check | spec | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull | clean`);
   }
 }
 

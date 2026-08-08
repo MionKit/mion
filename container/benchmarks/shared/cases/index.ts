@@ -9,13 +9,14 @@
 import {VALIDATION_SUITE} from './validation/index.ts';
 import {FORMAT_VALIDATION_SUITE} from './format-validation/index.ts';
 import {REALWORLD} from './realworld/index.ts';
+import {STRICT} from './strict/index.ts';
 import type {SharedCase} from './types.ts';
 
 // The JSON Schema cases are NOT a suite of their own: each half lives in the
 // suite that benches it, as the group `JSON_SCHEMA` (the same way DATETIME is a
 // group in both validation and format-validation). ./json-schema/index.ts keeps
 // the merged document map for ajv and the typecost document columns.
-export type SuiteName = 'validation' | 'format-validation' | 'realworld';
+export type SuiteName = 'validation' | 'format-validation' | 'realworld' | 'strict';
 
 // `${GROUP}.${case}` over every group in a suite object (`{ATOMIC: {...}, ...}`).
 type GroupKeys<S> = {[G in keyof S]: `${G & string}.${keyof S[G] & string}`}[keyof S];
@@ -23,7 +24,8 @@ type GroupKeys<S> = {[G in keyof S]: `${G & string}.${keyof S[G] & string}`}[key
 export type CaseKey =
   | GroupKeys<typeof VALIDATION_SUITE>
   | GroupKeys<typeof FORMAT_VALIDATION_SUITE>
-  | `REALWORLD.${keyof typeof REALWORLD & string}`;
+  | `REALWORLD.${keyof typeof REALWORLD & string}`
+  | `STRICT.${keyof typeof STRICT & string}`;
 
 export interface IteratedCase {
   key: CaseKey;
@@ -47,6 +49,7 @@ const ALL: IteratedCase[] = [];
 collect('validation', VALIDATION_SUITE as unknown as Groups, ALL);
 collect('format-validation', FORMAT_VALIDATION_SUITE as unknown as Groups, ALL);
 collect('realworld', {REALWORLD} as unknown as Groups, ALL);
+collect('strict', {STRICT} as unknown as Groups, ALL);
 
 export function iterateCases(): readonly IteratedCase[] {
   return ALL;

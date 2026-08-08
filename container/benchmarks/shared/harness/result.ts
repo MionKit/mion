@@ -7,6 +7,14 @@ import path from 'node:path';
 
 export type CaseStatus = 'ok' | 'fail' | 'errored' | 'not-supported';
 
+export type Runtime = 'node' | 'bun';
+
+/** The runtime executing this process. Bun exposes a `Bun` global; nothing else
+ *  we run on does. */
+export function currentRuntime(): Runtime {
+  return typeof (globalThis as {Bun?: unknown}).Bun !== 'undefined' ? 'bun' : 'node';
+}
+
 /** Per-metric result for one case (one of `validate` / `validationErrors`). */
 export interface MetricResult {
   status: CaseStatus;
@@ -48,6 +56,18 @@ export interface MetricSummary {
 export interface CompetitorResult {
   competitor: string;
   generatedAt: string;
+  /** Which JavaScript runtime produced these numbers. The SAME built bundle runs
+   *  under both, so this is the only thing separating two result files. */
+  runtime: Runtime;
+  /** Which per-engine counter rt::countEnumKeys selected, for the competitors that
+   *  have one (ts-runtypes). Absent for every other competitor — they have no
+   *  engine-specialised code, so there is nothing to record. A MISSING value on the
+   *  ts-runtypes result is itself a failure (see checkEngineBranch in bench.mjs). */
+  engineBranch?: 'jsc' | 'v8';
+  /** Groups recorded as not-supported without running, because the RUNTIME cannot
+   *  host them (Bun has no `Temporal`). Empty on the node lane. Present so a
+   *  partial run is legible as partial in the artifact itself. */
+  skippedGroups: string[];
   env: {node: string; timeMs: number; noTiming: boolean};
   cases: CaseResult[];
   summary: {
@@ -96,6 +116,13 @@ export function writeResult(result: CompetitorResult): void {
     printFiltered(result);
     return;
   }
-  mkdirSync(RESULTS_DIR, {recursive: true});
-  writeFileSync(path.join(RESULTS_DIR, `${result.competitor}.json`), JSON.stringify(result, null, 2) + '\n');
+  // Node keeps the canonical `results/<name>.json` path so aggregate.mjs, the
+  // website data and every other existing consumer are unaffected. Bun results go
+  // in a SUBDIR rather than a suffixed sibling: aggregate.mjs globs `*.json` in
+  // RESULTS_DIR, so a suffixed file would be silently absorbed as a sixth
+  // competitor and corrupt the published table.
+  const runtime = result.runtime ?? currentRuntime();
+  const outDir = runtime === 'node' ? RESULTS_DIR : path.join(RESULTS_DIR, runtime);
+  mkdirSync(outDir, {recursive: true});
+  writeFileSync(path.join(outDir, `${result.competitor}.json`), JSON.stringify(result, null, 2) + '\n');
 }

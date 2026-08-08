@@ -10,7 +10,7 @@
 
 import type * as TF from '@ts-runtypes/core/formats';
 import type * as TFT from '@ts-runtypes/core/formats/temporal';
-import {createValidateFn, createGetValidationErrorsFn, registerFormatPattern} from '@ts-runtypes/core';
+import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
@@ -2851,6 +2851,85 @@ export const cases: CompetitorCases = {
     buildErrors: () => {
       const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'number', multipleOf: 5}));
       return (value: unknown) => getErrors(value).length === 0;
+    },
+  },
+
+  // ── STRICT ──
+  // The strict path: validate THEN reject undeclared keys. `runsAfterValidation`
+  // is what makes the emitter swap the key-array scan for the `cntEK(v) !== N`
+  // count check, so these are the only cases in the suite that reach
+  // rt::countEnumKeys — the per-engine counter. The `&&` short-circuit is what
+  // makes the option sound: hasUnknownKeys only ever sees values validate accepted.
+  'STRICT.flat_required': {
+    build: () => {
+      interface StrictFlat {
+        id: number;
+        name: string;
+        active: boolean;
+      }
+      const validate = createValidateFn<StrictFlat>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+    },
+    buildErrors: () => {
+      interface StrictFlat {
+        id: number;
+        name: string;
+        active: boolean;
+      }
+      const getErrors = createGetValidationErrorsFn<StrictFlat>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictFlat>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+    },
+  },
+  'STRICT.nested_required': {
+    build: () => {
+      interface StrictNested {
+        name: string;
+        inner: {x: number; y: string};
+      }
+      const validate = createValidateFn<StrictNested>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+    },
+    buildErrors: () => {
+      interface StrictNested {
+        name: string;
+        inner: {x: number; y: string};
+      }
+      const getErrors = createGetValidationErrorsFn<StrictNested>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictNested>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
+    },
+  },
+  'STRICT.moltar_dto': {
+    build: () => {
+      interface StrictMoltarDto {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const validate = createValidateFn<StrictMoltarDto>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+    },
+    buildErrors: () => {
+      interface StrictMoltarDto {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const getErrors = createGetValidationErrorsFn<StrictMoltarDto>();
+      const hasUnknownKeys = createHasUnknownKeysFn<StrictMoltarDto>(undefined, {runsAfterValidation: true});
+      return (value: unknown) => getErrors(value).length === 0 && !hasUnknownKeys(value);
     },
   },
 };

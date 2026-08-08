@@ -1986,4 +1986,26 @@ export const cases: CompetitorCases = {
       return (value: unknown) => schema.safeParse(value).success;
     },
   },
+
+  // ── STRICT ──
+  // z.strictObject is zod's closedness; nested objects are strict too. zod has no
+  // cheap boolean validator, so (as everywhere here) only buildErrors is supplied.
+  'STRICT.flat_required': {
+    buildErrors: () => {
+      const schema = z.strictObject({id: z.number(), name: z.string(), active: z.boolean()});
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  'STRICT.nested_required': {
+    buildErrors: () => {
+      const schema = z.strictObject({name: z.string(), inner: z.strictObject({x: z.number(), y: z.string()})});
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
+  'STRICT.moltar_dto': {
+    buildErrors: () => {
+      const schema = z.strictObject({number: z.number(), negNumber: z.number(), maxNumber: z.number(), string: z.string(), longString: z.string(), boolean: z.boolean(), deeplyNested: z.strictObject({foo: z.string(), num: z.number(), bool: z.boolean()})});
+      return (value: unknown) => schema.safeParse(value).success;
+    },
+  },
 };

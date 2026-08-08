@@ -15,6 +15,7 @@
 import {iterateCases} from '../cases/index.ts';
 import {NOT_SUPPORTED, type CaseEntry, type NotSupported, type SampleOverride, type CompetitorModule, type Validator} from './types.ts';
 import {check, benchOps} from './measure.ts';
+import {currentRuntime} from './result.ts';
 import type {CaseResult, MetricResult, MetricSummary, CompetitorResult} from './result.ts';
 
 const NO_TIMING = process.env.RT_BENCH_NO_TIMING === '1';
@@ -24,6 +25,19 @@ const TIME_MS = Number(process.env.RT_BENCH_TIME_MS ?? 100);
 // A filtered run prints to the console and does NOT write <name>.json (see
 // writeResult in result.ts), so it never clobbers the full-suite results.
 const CASE_FILTER = (process.env.RT_BENCH_CASE ?? '').toLowerCase();
+// RT_BENCH_SKIP_GROUPS=<GROUP,GROUP>: record every case in these groups as
+// not-supported instead of running it. This exists for RUNTIME CAPABILITY gaps, not
+// convenience: Bun (1.3.x) ships no `Temporal` global, so the DATETIME groups cannot
+// build their samples there at all. Without this they would come back `errored` and
+// fail the whole lane, which would say "Bun is broken" when the truth is "Bun lacks
+// one API". The skipped groups are recorded on the result and printed, so a bounded
+// run can never read as a complete one.
+const SKIP_GROUPS = new Set(
+  (process.env.RT_BENCH_SKIP_GROUPS ?? '')
+    .split(',')
+    .map((g) => g.trim().toUpperCase())
+    .filter((g) => g.length > 0)
+);
 
 const asFn = (x: (() => Validator) | NotSupported | undefined): (() => Validator) | null => (typeof x === 'function' ? x : null);
 
@@ -94,6 +108,21 @@ export function runCompetitor(competitorModule: CompetitorModule): CompetitorRes
     if (CASE_FILTER && !iterated.key.toLowerCase().includes(CASE_FILTER)) continue;
     total++;
     const base = {key: iterated.key, suite: iterated.suite, group: iterated.group, name: iterated.name};
+    if (SKIP_GROUPS.has(iterated.group.toUpperCase())) {
+      const skipped = (): MetricResult => ({
+        status: 'not-supported',
+        validOpsSec: 0,
+        invalidOpsSec: 0,
+        mixedOpsSec: 0,
+        detail: `group ${iterated.group} skipped on this runtime (RT_BENCH_SKIP_GROUPS)`,
+      });
+      const validateSkip = skipped();
+      const errorsSkip = skipped();
+      bump(validate, validateSkip.status);
+      bump(validationErrors, errorsSkip.status);
+      cases.push({...base, samplesOverridden: false, validate: validateSkip, validationErrors: errorsSkip});
+      continue;
+    }
     const norm = normalize(competitorModule.cases[iterated.key]);
     const overridden = norm.override.valid !== undefined || norm.override.invalid !== undefined;
 
@@ -119,6 +148,8 @@ export function runCompetitor(competitorModule: CompetitorModule): CompetitorRes
   return {
     competitor: competitorModule.name,
     generatedAt: new Date().toISOString(),
+    runtime: currentRuntime(),
+    skippedGroups: [...SKIP_GROUPS].sort(),
     env: {node: process.version, timeMs: TIME_MS, noTiming: NO_TIMING},
     cases,
     summary: {

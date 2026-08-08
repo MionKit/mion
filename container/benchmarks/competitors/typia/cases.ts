@@ -2838,4 +2838,75 @@ export const cases: CompetitorCases = {
       return (v) => val(v).success;
     },
   },
+
+  // ── STRICT ──
+  // createIs is structural and ACCEPTS excess keys, so the closed forms
+  // (createEquals / createValidateEquals) are the correct pair here — same choice
+  // the JSON_SCHEMA closedness cases make.
+  'STRICT.flat_required': {
+    build: () => {
+      interface StrictFlat {
+        id: number;
+        name: string;
+        active: boolean;
+      }
+      const check = typia.createEquals<StrictFlat>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface StrictFlat {
+        id: number;
+        name: string;
+        active: boolean;
+      }
+      const val = typia.createValidateEquals<StrictFlat>();
+      return (v) => val(v).success;
+    },
+  },
+  'STRICT.nested_required': {
+    build: () => {
+      interface StrictNested {
+        name: string;
+        inner: {x: number; y: string};
+      }
+      const check = typia.createEquals<StrictNested>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface StrictNested {
+        name: string;
+        inner: {x: number; y: string};
+      }
+      const val = typia.createValidateEquals<StrictNested>();
+      return (v) => val(v).success;
+    },
+  },
+  'STRICT.moltar_dto': {
+    build: () => {
+      interface StrictMoltarDto {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const check = typia.createEquals<StrictMoltarDto>();
+      return (v) => check(v);
+    },
+    buildErrors: () => {
+      interface StrictMoltarDto {
+        number: number;
+        negNumber: number;
+        maxNumber: number;
+        string: string;
+        longString: string;
+        boolean: boolean;
+        deeplyNested: {foo: string; num: number; bool: boolean};
+      }
+      const val = typia.createValidateEquals<StrictMoltarDto>();
+      return (v) => val(v).success;
+    },
+  },
 };

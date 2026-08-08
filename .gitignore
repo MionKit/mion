@@ -102,5 +102,12 @@ packages/ts-runtypes/test/suites/enrich/.tmp/
 /packages/ts-runtypes/test/json-schema-official/results.json
 /packages/ts-runtypes/test/json-schema-official/__runtypes/
 
+# The benchmark competitors' resolver genDir. The bench bind-mounts
+# container/benchmarks/ into the image, so the tree the ts-runtypes competitor's
+# build writes lands HERE on the host, on every `pnpm rtx bench` run. Pure build
+# output; it was never ignored, so it showed up as untracked for anyone who ran the
+# benchmarks.
+/container/benchmarks/__runtypes/
+
 # playwright-cli session artifacts (snapshots, traces, screenshots)
 .playwright-cli/

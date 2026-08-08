@@ -1,9 +1,15 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-08
+completed: 2026-08-08
 ---
+
+> **Shipped**, with two corrections to the plan below and one piece consciously split
+> out. See [What actually shipped](#what-actually-shipped) at the bottom: the
+> throughput tripwire as specced was measuring the wrong thing, Bun turned out to lack
+> `Temporal` entirely, and the perf assertion is wired but left report-only.
 
 # Run the benchmarks under Bun in the release lanes, and prove the engine branch fired
 
@@ -225,3 +231,135 @@ mention of counters, enum caches, or structure property tables. What a reader ne
   deploy step), or this doc records why it was not and what arm64 actually showed.
 - The website shows the Node-vs-Bun comparison for the strict group only, in the house
   voice.
+
+## What actually shipped
+
+All five stages landed, on `feature/runtime-aware-key-counting`. Two things in the plan
+above were wrong and were corrected while building; one piece was split out on purpose.
+
+### 1. Bun has no `Temporal`, which the plan did not anticipate
+
+The first real Bun run died immediately:
+
+```
+error: Temporal global missing — the benchmarks require Node >= 26 (native Temporal, no polyfill).
+```
+
+Bun 1.3.11 implements no `Temporal` global at all (`bun -e "typeof Temporal"` → `undefined`),
+and the DATETIME groups in both the validation and format-validation suites build
+`Temporal.*` samples. The existing assertion in
+[setup.ts](../../container/benchmarks/competitors/ts-runtypes/setup.ts) is a hard throw,
+because on node a missing Temporal means a pre-26 runtime producing NaN-laden samples.
+
+Simply removing the assertion was not an option either: a throwing `getSamples()` is
+recorded as `errored`, which makes the process exit non-zero, so the Bun lane would have
+failed forever.
+
+So the runner gained `RT_BENCH_SKIP_GROUPS` — groups recorded as **not-supported**
+without running, for RUNTIME CAPABILITY gaps only. The Bun lane sets `DATETIME`, the
+Temporal assertion became conditional on DATETIME being in scope, and the skipped groups
+are written into every result as `skippedGroups` and logged on each run. That keeps the
+repo's no-silent-caps rule: a bounded lane is legible as bounded in its own artifact,
+rather than a green lane that quietly covered less than the table implies.
+
+**"All the benchmarks under Bun" is therefore not literally true, and cannot be** — the
+DATETIME groups are unreachable on a runtime without Temporal. Everything else runs.
+
+### 2. The throughput tripwire as specced measured the wrong thing
+
+The plan said to compare Node and Bun throughput and fail on a margin. Built that way,
+run once, and it immediately flagged all three strict cases:
+
+```
+flat_required     node 63,343,119/s   bun 21,927,271/s   bun/node 0.35
+nested_required   node 53,345,126/s   bun 22,234,762/s   bun/node 0.42
+moltar_dto        node 46,508,754/s   bun 19,910,393/s   bun/node 0.43
+```
+
+Bun is ~2.4x slower than node on the strict path. That is real, but it says **nothing**
+about whether the branch chose the right counter for Bun — the branch is still a clear
+win there (~1.4x over `for-in`). Bun simply is not as fast as node on this workload, and
+does not have to be. A Node-vs-Bun margin check would have been permanently red for a
+reason unrelated to the thing it claims to guard.
+
+The claim is per-engine, so the comparison has to be per-engine: both counters, one
+engine, one variant per child process. That is what
+[engine-perf-check.mjs](../../scripts/website/bench-data/engine-perf-check.mjs) does now,
+and it reproduces the inversion cleanly:
+
+```
+node  for-in 17.31 ns/op   keys 62.95 ns/op   expected 'forin'  ratio 0.27  OK
+bun   for-in 18.30 ns/op   keys 10.20 ns/op   expected 'keys'   ratio 0.56  OK
+```
+
+Because the benchmark bundles bake in exactly one counter body at build time, the two
+counters are re-stated in that script; the vitest suite remains what guards their
+behaviour. Verified it fails when it should, by inverting the expectations:
+`FAILED — node: expected 'keys' to win but it is 3.87x slower than 'forin'; bun: expected 'forin' to win but it is 1.42x slower than 'keys'`.
+
+Second correction that followed: the check needs BOTH runtimes, and Bun lives in the
+**image**, not on the CI runner host. So it runs in-container via a new
+`pnpm rtx bench engine-check`, not as a bare `node script.mjs` step.
+
+### 3. The perf assertion is wired but report-only
+
+Exactly as the plan required, and for the reason it gave: `website-deploy` runs on
+`linux-arm64` and every measurement behind the inversion is x64. The step is in place
+**after** the Cloudflare Pages deploy, so enabling it fails the job while the site still
+ships; `RT_BENCH_ENGINE_ASSERT` is `'0'` with a comment saying to flip it once the arm64
+numbers have been read. `release-gate` runs the same check report-only permanently — a
+shared runner cannot support a ratio assertion.
+
+The hard, noise-free half is asserted in both lanes today: `checkEngineBranch` in
+[bench.mjs](../../scripts/website/bench-data/bench.mjs) dies unless each lane's
+`ts-runtypes` result records the counter that lane's runtime must select. Verified
+negatively by patching the per-engine branch out of a built bundle and running it under
+Bun:
+`rt::countEnumKeys selected the 'v8' counter but this runtime (bun) must select 'jsc'` → exit 1.
+
+### 4. The strict group reaches the fast path — confirmed, not assumed
+
+The plan's exit criterion was `cntEK(` appearing in the built bundle. It does, for every
+case including the nested objects:
+
+```
+2 cntEK(v) !== 2      1 cntEK(v) !== 3       1 cntEK(v) !== 7
+1 cntEK(v.inner) !== 2                       1 cntEK(v.deeplyNested) !== 3
+```
+
+Both lanes then ran clean end to end: node `engineBranch=v8 skipped=[]`, bun
+`engineBranch=jsc skipped=["DATETIME"]`, all three STRICT cases `ok` on both, zero
+failures.
+
+### 5. Website — dataset shipped, no component changes needed
+
+The existing table dataset treats "competitor" as a column NAME, so the strict page ships
+as a generated `strict` bench whose columns are `ts-runtypes` and `ts-runtypes · bun`
+(and the same per library once the full bench runs). No Vue component knows anything
+about runtimes. The STRICT suite is excluded from the validation pages so the numbers have
+one home — the page where the runtime is a column.
+
+### Also fixed here (out-of-scope finding)
+
+`container/benchmarks/__runtypes/` — the competitors' resolver genDir — was never
+gitignored, so every `pnpm rtx bench` run left an untracked build tree behind for anyone
+who ran the benchmarks. Pre-existing and unrelated to this change; one line in
+`.gitignore`.
+
+### Not verified here, and why
+
+- **The image build and push.** Bun is added to the Containerfile (pinned 1.3.11, official
+  tarball rather than the npm downloader shim, which `ignoreScripts` would block), but the
+  image needs `pnpm rtx container push website` from an environment with GHCR credentials.
+  This container has none, so the Bun-in-image layer has never been built.
+- **Both CI lanes.** YAML parses and the commands exist, but `release-gate` needs the
+  pulled image and `website-deploy` needs the self-hosted arm64 runner.
+- **The website rendering.** The dataset generates and was inspected, but
+  `pnpm rtx website check --static` needs the image, so the page has not been rendered.
+- **The typia competitor's typecheck.** The image pins `typia@13.0.0-dev`; only 9.x is
+  installable here, and the mismatch errors on pre-existing lines. The new entries use
+  `createEquals` / `createValidateEquals`, already used 15 times in that same file, and the
+  case-key totality check will catch any mistake at image-build time.
+
+Everything else was run: ts-runtypes / typebox / ajv / zod competitors typecheck with the
+new group, `pnpm test` green, `pnpm run lint` green, `pnpm run check:env` green.

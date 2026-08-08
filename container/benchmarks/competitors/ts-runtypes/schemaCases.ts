@@ -9,7 +9,7 @@
 
 import * as TF from '@ts-runtypes/core/formats';
 import * as TFT from '@ts-runtypes/core/formats/temporal';
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn, createHasUnknownKeysFn} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
@@ -754,4 +754,69 @@ export const schemaCases: CompetitorCases = {
   'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
   'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
   'JSON_SCHEMA.multiple_of': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+
+  // ── STRICT ──
+  // The builder door's strict pair. The run-type is built TWICE on purpose: each
+  // factory reads its own call site at build time, so a shared local would have
+  // nothing for the second one to read.
+  'STRICT.flat_required': () => {
+    const validate = createValidateFn(
+      RT.object({
+        id: TF.number(),
+        name: TF.string(),
+        active: RT.boolean(),
+      })
+    );
+    const hasUnknownKeys = createHasUnknownKeysFn(
+      RT.object({
+        id: TF.number(),
+        name: TF.string(),
+        active: RT.boolean(),
+      }),
+      {runsAfterValidation: true}
+    );
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
+  'STRICT.nested_required': () => {
+    const validate = createValidateFn(
+      RT.object({
+        name: TF.string(),
+        inner: RT.object({x: TF.number(), y: TF.string()}),
+      })
+    );
+    const hasUnknownKeys = createHasUnknownKeysFn(
+      RT.object({
+        name: TF.string(),
+        inner: RT.object({x: TF.number(), y: TF.string()}),
+      }),
+      {runsAfterValidation: true}
+    );
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
+  'STRICT.moltar_dto': () => {
+    const validate = createValidateFn(
+      RT.object({
+        number: TF.number(),
+        negNumber: TF.number(),
+        maxNumber: TF.number(),
+        string: TF.string(),
+        longString: TF.string(),
+        boolean: RT.boolean(),
+        deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
+      })
+    );
+    const hasUnknownKeys = createHasUnknownKeysFn(
+      RT.object({
+        number: TF.number(),
+        negNumber: TF.number(),
+        maxNumber: TF.number(),
+        string: TF.string(),
+        longString: TF.string(),
+        boolean: RT.boolean(),
+        deeplyNested: RT.object({foo: TF.string(), num: TF.number(), bool: RT.boolean()}),
+      }),
+      {runsAfterValidation: true}
+    );
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
 };

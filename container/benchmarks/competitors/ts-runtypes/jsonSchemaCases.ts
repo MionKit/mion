@@ -19,7 +19,7 @@
 // same tuple is `prefixItems` plus `items`, so the nine tuple documents are
 // translated to that spelling. Same constraint, current dialect.
 
-import {createValidateFn} from '@ts-runtypes/core';
+import {createValidateFn, createHasUnknownKeysFn} from '@ts-runtypes/core';
 import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
@@ -934,4 +934,95 @@ export const jsonSchemaCases: CompetitorCases = {
         "type": "number",
         "multipleOf": 5
       })),
+
+  // ── STRICT ──
+  // The JSON Schema door's strict pair: `unevaluatedProperties: false` is what
+  // runTypeFromJsonSchema reads as closedness, then the count check runs as usual.
+  'STRICT.flat_required': () => {
+    const validate = createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'number'}, name: {type: 'string'}, active: {type: 'boolean'}},
+        required: ['id', 'name', 'active'],
+        additionalProperties: false,
+      }));
+    const hasUnknownKeys = createHasUnknownKeysFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {id: {type: 'number'}, name: {type: 'string'}, active: {type: 'boolean'}},
+        required: ['id', 'name', 'active'],
+        additionalProperties: false,
+      }), {runsAfterValidation: true});
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
+  'STRICT.nested_required': () => {
+    const validate = createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          name: {type: 'string'},
+          inner: {
+            type: 'object',
+            properties: {x: {type: 'number'}, y: {type: 'string'}},
+            required: ['x', 'y'],
+            additionalProperties: false,
+          },
+        },
+        required: ['name', 'inner'],
+        additionalProperties: false,
+      }));
+    const hasUnknownKeys = createHasUnknownKeysFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          name: {type: 'string'},
+          inner: {
+            type: 'object',
+            properties: {x: {type: 'number'}, y: {type: 'string'}},
+            required: ['x', 'y'],
+            additionalProperties: false,
+          },
+        },
+        required: ['name', 'inner'],
+        additionalProperties: false,
+      }), {runsAfterValidation: true});
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
+  'STRICT.moltar_dto': () => {
+    const validate = createValidateFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          number: {type: 'number'},
+          negNumber: {type: 'number'},
+          maxNumber: {type: 'number'},
+          string: {type: 'string'},
+          longString: {type: 'string'},
+          boolean: {type: 'boolean'},
+          deeplyNested: {
+            type: 'object',
+            properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+            required: ['foo', 'num', 'bool'],
+            additionalProperties: false,
+          },
+        },
+        required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        additionalProperties: false,
+      }));
+    const hasUnknownKeys = createHasUnknownKeysFn(runTypeFromJsonSchema({
+        type: 'object',
+        properties: {
+          number: {type: 'number'},
+          negNumber: {type: 'number'},
+          maxNumber: {type: 'number'},
+          string: {type: 'string'},
+          longString: {type: 'string'},
+          boolean: {type: 'boolean'},
+          deeplyNested: {
+            type: 'object',
+            properties: {foo: {type: 'string'}, num: {type: 'number'}, bool: {type: 'boolean'}},
+            required: ['foo', 'num', 'bool'],
+            additionalProperties: false,
+          },
+        },
+        required: ['number', 'negNumber', 'maxNumber', 'string', 'longString', 'boolean', 'deeplyNested'],
+        additionalProperties: false,
+      }), {runsAfterValidation: true});
+    return (value: unknown) => validate(value) && !hasUnknownKeys(value);
+  },
 };

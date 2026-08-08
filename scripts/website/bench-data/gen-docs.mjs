@@ -327,9 +327,110 @@ function buildValidationBench() {
   // ajv reading not-supported; each competitor now states the same constraint in
   // its own dialect, which is the question the rest of the table already asks.
   const isFormat = (row) => row.suite === 'format-validation';
-  const core = emitValidationBench('validation', 'Validation', rows.filter((row) => !isFormat(row)), competitors, byComp, sources);
+  // The `strict` suite is deliberately NOT part of these two pages: it is the only
+  // suite measured under more than one JavaScript runtime, so it gets its own page
+  // where the runtime is a column. Leaving it here as well would publish the same
+  // numbers twice, once without the dimension that makes them interesting.
+  const isStrict = (row) => row.suite === 'strict';
+  const core = emitValidationBench(
+    'validation',
+    'Validation',
+    rows.filter((row) => !isFormat(row) && !isStrict(row)),
+    competitors,
+    byComp,
+    sources
+  );
   const formats = emitValidationBench('validation-formats', 'Validation Formats', rows.filter(isFormat), competitors, byComp, sources);
-  return core + formats;
+  const strict = emitStrictBench(rows.filter(isStrict), competitors, sources);
+  return core + formats + strict;
+}
+
+// ── strict bench: the one page with a RUNTIME dimension ───────────────────────
+// Every other page has one column per library. Here each library can appear twice,
+// once per JavaScript runtime, because the strict path is the only measured code that
+// specialises per engine (rt::countEnumKeys picks `for-in` on V8 and `Object.keys` on
+// JavaScriptCore). The extra column is what makes that visible to a reader.
+//
+// This reuses the existing table dataset shape verbatim — a "competitor" is just a
+// column name — so no website component knows anything about runtimes.
+function emitStrictBench(rows, competitors, sources) {
+  if (rows.length === 0) return 0;
+  const BUN_DIR = path.join(RESULTS_DIR, 'bun');
+  const readLane = (dir) => {
+    if (!fs.existsSync(dir)) return new Map();
+    const files = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.json') && f !== 'env.json' && !f.endsWith('.typecost.json') && !f.endsWith('.compiletime.json') && !f.endsWith('.spec.json') && f !== 'alignment-misalignments.json');
+    return new Map(
+      files.map((f) => {
+        const parsed = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        return [parsed.competitor, new Map(parsed.cases.map((c) => [c.key, c]))];
+      })
+    );
+  };
+  const lanes = [
+    {suffix: '', byComp: readLane(RESULTS_DIR)},
+    {suffix: ' · bun', byComp: readLane(BUN_DIR)},
+  ];
+
+  const outDir = path.join(OUT_ROOT, 'strict');
+  fs.rmSync(outDir, {recursive: true, force: true});
+  fs.mkdirSync(outDir, {recursive: true});
+
+  const columns = [];
+  for (const comp of competitors) {
+    for (const lane of lanes) {
+      if (lane.byComp.has(comp)) columns.push({name: `${comp}${lane.suffix}`, comp, byComp: lane.byComp});
+    }
+  }
+
+  const cases = [];
+  for (const row of rows) {
+    const resultsForCase = {};
+    const detailComps = [];
+    const seenSource = new Set();
+    for (const column of columns) {
+      const c = column.byComp.get(column.comp)?.get(row.key);
+      const metricResult = {};
+      if (c?.validate) metricResult.validate = toMetric(c.validate);
+      if (c?.validationErrors) metricResult.validationErrors = toMetric(c.validationErrors);
+      if (Object.keys(metricResult).length > 0) resultsForCase[column.name] = metricResult;
+      // The source is per LIBRARY, not per runtime — the same bundle runs on both — so
+      // emit it once, under the library's own name.
+      if (seenSource.has(column.comp)) continue;
+      seenSource.add(column.comp);
+      const caseSources = sources.get(column.comp)?.get(row.key);
+      if (caseSources) detailComps.push({name: column.comp, sources: caseSources});
+    }
+    cases.push({key: safeKey(row.key), title: row.name, results: resultsForCase});
+    fs.writeFileSync(path.join(outDir, `${safeKey(row.key)}.json`), JSON.stringify({competitors: detailComps, samplesCode: samplesCodeFor(row.key)}));
+  }
+
+  const index = {
+    bench: 'strict',
+    label: 'Strict validation',
+    unit: 'ops',
+    showInvalid: true,
+    hasSamples: true,
+    metrics: [
+      {
+        key: 'validate',
+        label: 'Is-valid (strict)',
+        metricLabel: 'validate plus an unknown-key check (ops/sec, higher is better)',
+      },
+      {
+        key: 'validationErrors',
+        label: 'Validation errors (strict)',
+        metricLabel: 'getValidationErrors plus an unknown-key check (ops/sec, higher is better)',
+      },
+    ],
+    competitors: columns.map((c) => c.name),
+    versions: ENV?.versions,
+    meta: metaBlock(),
+    sections: [{key: 'STRICT', label: sectionLabel('STRICT'), cases}],
+  };
+  fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(index));
+  return rows.length;
 }
 
 // Emit one validation bench (index.json + per-case source JSON) for a filtered set of

@@ -3832,4 +3832,53 @@ export const cases: CompetitorCases = {
       };
     },
   },
+
+  // ── STRICT ──
+  // additionalProperties:false at EVERY level — the nested object must be closed
+  // too, or the nested-extra-key sample would be accepted.
+  'STRICT.flat_required': {
+    build: () => {
+      const schema = Type.Object({id: Type.Number(), name: Type.String(), active: Type.Boolean()}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({id: Type.Number(), name: Type.String(), active: Type.Boolean()}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'STRICT.nested_required': {
+    build: () => {
+      const schema = Type.Object({name: Type.String(), inner: Type.Object({x: Type.Number(), y: Type.String()}, {additionalProperties: false})}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({name: Type.String(), inner: Type.Object({x: Type.Number(), y: Type.String()}, {additionalProperties: false})}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
+  'STRICT.moltar_dto': {
+    build: () => {
+      const schema = Type.Object({number: Type.Number(), negNumber: Type.Number(), maxNumber: Type.Number(), string: Type.String(), longString: Type.String(), boolean: Type.Boolean(), deeplyNested: Type.Object({foo: Type.String(), num: Type.Number(), bool: Type.Boolean()}, {additionalProperties: false})}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => check.Check(value);
+    },
+    buildErrors: () => {
+      const schema = Type.Object({number: Type.Number(), negNumber: Type.Number(), maxNumber: Type.Number(), string: Type.String(), longString: Type.String(), boolean: Type.Boolean(), deeplyNested: Type.Object({foo: Type.String(), num: Type.Number(), bool: Type.Boolean()}, {additionalProperties: false})}, {additionalProperties: false});
+      const check = TypeCompiler.Compile(schema);
+      return (value: unknown) => {
+        for (const _ of check.Errors(value)) return false;
+        return true;
+      };
+    },
+  },
 };
