@@ -26,8 +26,16 @@ func negationDump() protocol.Dump {
 		FormatAnnotation: &protocol.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"minLength": float64(3)}},
 	}
 	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	notMinLen := &protocol.RunType{ID: "nml", Kind: protocol.KindString, Negations: []*protocol.RunType{makeRef("ml3")}}
-	bareNotString := &protocol.RunType{ID: "bns", Kind: protocol.KindUnknown, Negations: []*protocol.RunType{makeRef("str")}}
+	notMinLen := &protocol.RunType{
+		ID:           "nml",
+		Kind:         protocol.KindString,
+		SchemaChecks: protocol.SchemaChecks{Negations: []*protocol.RunType{makeRef("ml3")}},
+	}
+	bareNotString := &protocol.RunType{
+		ID:           "bns",
+		Kind:         protocol.KindUnknown,
+		SchemaChecks: protocol.SchemaChecks{Negations: []*protocol.RunType{makeRef("str")}},
+	}
 	return protocol.Dump{
 		RunTypes: []*protocol.RunType{minLen3, str, notMinLen, bareNotString},
 		Sites: []protocol.Site{

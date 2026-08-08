@@ -255,61 +255,14 @@ type RunType struct {
 	// decorator-array scan.
 	FormatAnnotation *FormatAnnotation `json:"formatAnnotation,omitempty"`
 
-	// Negations — populated when the type carries one or more `__rtNot`
-	// sentinel members (`Base & {readonly __rtNot?: Child}`), the internal
-	// encoding of JSON Schema `not` and the format-scoped `Not<F>`. Each
-	// entry is the fully serialized CHILD node whose validator the emit
-	// inverts: validate = base && !(childValidate). Like FormatAnnotation
-	// the sentinel is lifted OFF the property walk (it must never surface
-	// as a real object property) and folds into the structural id, so
-	// `string` and `string ∧ ¬Email` can never share a cache entry. The
-	// negation is validate/validationErrors-only by design: JSON codecs,
-	// DataOnly and binary all key off the positive base node.
-	Negations []*RunType `json:"negations,omitempty"`
-
-	// Contains — populated when the type carries one or more `__rtContains`
-	// sentinel members, the internal encoding of JSON Schema contains /
-	// minContains / maxContains. Each entry pairs a fully serialized child
-	// with its occurrence bounds: validate counts the array items matching
-	// the child and asserts Min ≤ count (and count ≤ Max when Max ≥ 0).
-	// Lifted off the property walks and folded into the structural id like
-	// Negations, and equally validate/validationErrors-only: JSON codecs,
-	// DataOnly and binary key off the positive base node.
-	Contains []*ContainsCheck `json:"contains,omitempty"`
-
-	// PatternProps — populated when the type carries a `__rtPatternProps`
-	// sentinel member (JSON Schema patternProperties): each entry pairs a
-	// key regex SOURCE with the value child every matching key must
-	// validate against (plus a pattern-branded key child that exists so
-	// the build-time pattern-sample pools ride into the runtime cache for
-	// key mocking). Sorted by source; validate/validationErrors-only.
-	PatternProps []*PatternPropCheck `json:"patternProps,omitempty"`
-
-	// PropNames — populated when the type carries one or more `__rtPropNames`
-	// sentinel members (JSON Schema propertyNames): every KEY of the object
-	// validates as a string against EVERY child (allOf-stacked propertyNames
-	// conjoin, mirroring the sorted `pn{…}` id fold — id = behavior).
-	// validate/verr-only.
-	PropNames []*RunType `json:"propNames,omitempty"`
-
-	// OneOf — populated on a union node when the type carries a `__rtOneOf`
-	// sentinel member (the OneOf<[…]> combinator / JSON Schema oneOf):
-	// the BRANCH list as written, preserving the grouping the flattened
-	// union erases (a branch may itself be a union). validate counts the
-	// branches the value matches and asserts the count is exactly one;
-	// Children still hold the flattened members so serialization, DataOnly
-	// and every other positive pathway stay untouched. validate/verr-only.
-	OneOf []*RunType `json:"oneOf,omitempty"`
-
-	// Unevaluated — populated when the type carries one or more
-	// `__rtUnevaluated` sentinel members (JSON Schema unevaluatedProperties,
-	// for the scopes the document alone cannot decide). Keys/Sources are
-	// evaluated unconditionally; Groups carry the contributions a guard
-	// decides at run time. Stacked sweeps (allOf arms each carrying the
-	// keyword) each enforce, mirroring the sorted `u{…}` id fold
-	// (id = behavior). Lifted off the property walks and folded into the
-	// structural id like Negations, and equally validate/verr-only.
-	Unevaluated []*UnevaluatedCheck `json:"unevaluated,omitempty"`
+	// SchemaChecks — the sentinel-lifted JSON Schema constraint checks
+	// (Negations / Contains / PatternProps / PropNames / OneOf /
+	// Unevaluated). Embedded WITHOUT a field name so encoding/json promotes
+	// the fields flat onto the wire and Go call sites keep reading
+	// `node.Negations` etc. — the grouping is declaration-level only, the
+	// JSON bytes are unchanged. Shared contract + per-field docs live on
+	// the SchemaChecks type below.
+	SchemaChecks
 
 	// Overrides — populated when a user registers a custom function for this
 	// type via `overrideX<T>(pureFn)`. Maps a public family op key ("val",
@@ -356,6 +309,73 @@ type RunType struct {
 
 	// Description — JSDoc-style per-member comment. v2.
 	Description string `json:"description,omitempty"`
+}
+
+// SchemaChecks groups the sentinel-lifted JSON Schema constraint checks a
+// RunType can carry. Every field follows the same three-part contract:
+//
+//   - it is populated from a `__rt…` sentinel member (`__rtNot` /
+//     `__rtContains` / `__rtPatternProps` / `__rtPropNames` / `__rtOneOf` /
+//     `__rtUnevaluated`) lifted OFF the property walk — a sentinel must never
+//     surface as a real object property;
+//   - it folds into the structural id, so a checked type can never share a
+//     cache entry with its unchecked twin (id = behavior);
+//   - it is consumed by validate/validationErrors ONLY — the JSON codecs,
+//     DataOnly and binary all key off the positive base node.
+//
+// Embedded (unnamed) in RunType so encoding/json serialises the fields flat
+// and Go code reads them promoted (`node.Negations`). Two promotion caveats:
+// a promoted field cannot be set in a RunType composite literal (set it after
+// construction, or via `SchemaChecks: SchemaChecks{…}`), and a future RunType
+// field must never reuse one of these JSON keys — encoding/json silently
+// drops a same-depth key conflict from the output. Child-bearing slots are
+// enumerated by eachRefSlot (refslots.go); a slot added here must be wired
+// into that method.
+type SchemaChecks struct {
+	// Negations — one entry per `__rtNot` sentinel member
+	// (`Base & {readonly __rtNot?: Child}`), the internal encoding of JSON
+	// Schema `not` and the format-scoped `Not<F>`. Each entry is the fully
+	// serialized CHILD node whose validator the emit inverts:
+	// validate = base && !(childValidate).
+	Negations []*RunType `json:"negations,omitempty"`
+
+	// Contains — one entry per `__rtContains` sentinel member, the internal
+	// encoding of JSON Schema contains / minContains / maxContains. Each
+	// entry pairs a fully serialized child with its occurrence bounds:
+	// validate counts the array items matching the child and asserts
+	// Min ≤ count (and count ≤ Max when Max ≥ 0).
+	Contains []*ContainsCheck `json:"contains,omitempty"`
+
+	// PatternProps — from the `__rtPatternProps` sentinel member (JSON
+	// Schema patternProperties): each entry pairs a key regex SOURCE with
+	// the value child every matching key must validate against (plus a
+	// pattern-branded key child that exists so the build-time
+	// pattern-sample pools ride into the runtime cache for key mocking).
+	// Sorted by source.
+	PatternProps []*PatternPropCheck `json:"patternProps,omitempty"`
+
+	// PropNames — one entry per `__rtPropNames` sentinel member (JSON
+	// Schema propertyNames): every KEY of the object validates as a string
+	// against EVERY child (allOf-stacked propertyNames conjoin, mirroring
+	// the sorted `pn{…}` id fold).
+	PropNames []*RunType `json:"propNames,omitempty"`
+
+	// OneOf — on a union node carrying a `__rtOneOf` sentinel member (the
+	// OneOf<[…]> combinator / JSON Schema oneOf): the BRANCH list as
+	// written, preserving the grouping the flattened union erases (a branch
+	// may itself be a union). validate counts the branches the value
+	// matches and asserts the count is exactly one; Children still hold the
+	// flattened members so serialization, DataOnly and every other positive
+	// pathway stay untouched.
+	OneOf []*RunType `json:"oneOf,omitempty"`
+
+	// Unevaluated — one entry per `__rtUnevaluated` sentinel member (JSON
+	// Schema unevaluatedProperties, for the scopes the document alone
+	// cannot decide). Keys/Sources are evaluated unconditionally; Groups
+	// carry the contributions a guard decides at run time. Stacked sweeps
+	// (allOf arms each carrying the keyword) each enforce, mirroring the
+	// sorted `u{…}` id fold.
+	Unevaluated []*UnevaluatedCheck `json:"unevaluated,omitempty"`
 }
 
 // ClassRef captures enough provenance for a v2 footer to wire up
