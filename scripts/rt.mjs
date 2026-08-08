@@ -59,9 +59,12 @@ const FUZZ = {
   types: {patterns: ['typeFuzz.integration'], soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
   jsonschema: {patterns: ['jsonSchemaFuzz.integration'], soak: {RT_FUZZ_JSONSCHEMA_SOAK_MS: '60000'}},
   cloning: {patterns: ['cloneFuzz.integration'], soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
-  // The three compile-bound lanes whose RT_FUZZ_*_SOAK_MS vars were registered
-  // (scripts/lib/env.mjs) but had no entry here, so the documented front door
-  // could not reach them at all — `types` does NOT match nonDataTypeFuzz.
+  // Three compile-bound lanes whose RT_FUZZ_*_SOAK_MS vars were registered
+  // (scripts/lib/env.mjs) but had no entry here, so nothing could ever set them.
+  // `roundtrip` / `size` had no lane matching their files at all; `nondata` DID
+  // run under `types` (vitest's positional filter is case-INSENSITIVE, so
+  // `typeFuzz.integration` matches nonDataTypeFuzz too) but only ever at its
+  // 100-iteration default, because `types --soak` sets the TYPES var.
   nondata: {patterns: ['nonDataTypeFuzz.integration'], soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
   roundtrip: {patterns: ['allStrategyRoundtrip.integration'], soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
   size: {patterns: ['binarySizeEstimate.integration'], soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
