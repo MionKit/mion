@@ -1110,7 +1110,15 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	for relativePath, content := range sources {
 		absolutePath := tspath.ResolvePath(cwd, relativePath)
 		overlay[absolutePath] = content
-		fileNames = append(fileNames, absolutePath)
+		// A source under node_modules/ is a virtual PACKAGE file (an in-memory
+		// dependency the overlay serves to module resolution) — never a program
+		// root. tsc does not root node_modules either, and rooting a package's
+		// whole declaration tree changes the checker's instantiation order
+		// against the build lane (observed: the DataOnly<T> alias-recovery
+		// path stops matching when the marker package's dist rides the roots).
+		if !strings.Contains(relativePath, "node_modules/") {
+			fileNames = append(fileNames, absolutePath)
+		}
 	}
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
