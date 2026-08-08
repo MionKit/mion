@@ -13,6 +13,7 @@ import {describe, it, expect} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
 import {soakTestTimeout} from '../core/soakBudget.ts';
+import {laneSeed, soakSeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / type-generation — oracle sweep over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -20,7 +21,7 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
   register(
     'finds no oracle violations across a batch of generated types',
     async () => {
-      const report = await runTypeFuzz({seed: 0xc0ffee, iterations: 100});
+      const report = await runTypeFuzz({seed: laneSeed('type', 0xc0ffee), iterations: 100});
       if (report.violations.length > 0) {
         const summary = report.violations
           .slice(0, 25)
@@ -32,6 +33,22 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
         );
       }
       expect(report.runs).toBe(100);
+      // The TS-validity gate discards violations for a generated type that does
+      // not compile. Sound in principle, but it must never be able to swallow
+      // the whole lane: a generator regression emitting mostly-invalid
+      // TypeScript would turn this test green and silent. Observed rate is 0.
+      expect(
+        report.skippedInvalidTypes,
+        `the TS-validity gate suppressed ${report.skippedInvalidTypes}/${report.runs} runs — a generator regression can hide every violation behind it`
+      ).toBeLessThanOrEqual(Math.ceil(report.runs * SUPPRESSION_CEILING));
+      // Anti-vacuity: `runs` only proves the loop turned. A lane whose generator
+      // regressed into producing only robustness-probed types would still hit
+      // 100 runs while asserting almost nothing, so require that a real share of
+      // them reached the STRONG oracles.
+      expect(
+        report.strongOracleRuns,
+        `only ${report.strongOracleRuns}/${report.runs} generated types reached the strong oracles — the lane is close to vacuous`
+      ).toBeGreaterThanOrEqual(Math.ceil(report.runs * STRONG_ORACLE_FLOOR));
     },
     120_000
   );
@@ -41,7 +58,7 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
   it.runIf(soakMs > 0)(
     'soak — generate types continuously and log all findings',
     async () => {
-      const report = await runTypeFuzzForDuration(soakMs, {seed: Number(process.env.RT_FUZZ_SEED ?? 1)}, (v) => {
+      const report = await runTypeFuzzForDuration(soakMs, {seed: soakSeed()}, (v) => {
         console.error(`[type-fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    ${v.value}`);
       });
       console.error(

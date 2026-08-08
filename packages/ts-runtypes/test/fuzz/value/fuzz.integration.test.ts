@@ -21,6 +21,7 @@ import {
   createBinaryDecoderFn,
 } from '@ts-runtypes/core';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
+import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 import {soakTestTimeout} from '../core/soakBudget.ts';
 import type {FuzzTarget} from './fuzzOracle.ts';
 
@@ -124,7 +125,7 @@ const targets: FuzzTarget[] = [];
 
 describe('fuzz / integration — oracle sweep over compiled functions', () => {
   it('finds no oracle violations across all targets', () => {
-    const report = runFuzz(targets, {seed: 0xc0ffee, iterations: 100});
+    const report = runFuzz(targets, {seed: laneSeed('value', 0xc0ffee), iterations: 100});
     if (report.violations.length > 0) {
       const summary = report.violations
         .slice(0, 25)
@@ -145,7 +146,7 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
   it.runIf(soakMs > 0)(
     'soak — fuzz continuously and log all findings',
     () => {
-      const report = runFuzzForDuration(targets, soakMs, {seed: Number(process.env.RT_FUZZ_SEED ?? 1)}, (v) => {
+      const report = runFuzzForDuration(targets, soakMs, {seed: soakSeed()}, (v) => {
         console.error(`[fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    value=${v.value}`);
       });
       console.error(`[fuzz] soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);

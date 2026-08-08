@@ -32,16 +32,14 @@ import {describe, it, expect, afterAll} from 'vitest';
 import {cleanupReconcileLane} from '../../util/enrichReconcile.ts';
 import {BIN} from './enrichCli.ts';
 import {runTypeModFuzz, runOneModSequence, shrinkModFailure, formatModReport} from './typeModFuzzRunner.ts';
+import {parseSeed, FLAKE_CEILING} from '../core/fuzzPolicy.ts';
 
 afterAll(cleanupReconcileLane);
 
-function parseSeed(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback >>> 0;
-  return (raw.startsWith('0x') ? parseInt(raw, 16) : Number(raw)) >>> 0;
-}
-
 const HAS_BIN = existsSync(BIN);
 const SEED = parseSeed(process.env.RT_FUZZ_SEED, 0x7b9e4d11);
+// Sequences that failed but did not reproduce on shrink (see the ceiling below).
+let flakes = 0;
 const SEQUENCES = Number(process.env.RT_FUZZ_TYPEMOD_SEQUENCES ?? 6);
 const MAX_STEPS = Number(process.env.RT_FUZZ_TYPEMOD_MAXSTEPS ?? 8);
 const REPLAY = process.env.RT_FUZZ_TYPEMOD_REPLAY ? parseSeed(process.env.RT_FUZZ_TYPEMOD_REPLAY, 0) : null;
@@ -90,12 +88,21 @@ describe('enrichment type-modification fuzz', () => {
           console.error(
             `[typemod] a violation at seed 0x${report.firstFailureSeed!.toString(16)} did not reproduce on shrink — treated as a flake`
           );
+          flakes++;
         }
       }
       // Guard against a silently-degenerate run: if EVERY sequence skipped (no
       // usable scaffold), the fuzzer asserted nothing — fail loudly so a broken
       // generator can't masquerade as green.
       expect(report.skipped).toBeLessThan(report.runs);
+      // The flake filter above is deliberate, but it is also the one way a
+      // genuinely NONDETERMINISTIC reconciler bug stays unreportable: it never
+      // reproduces on shrink, so it is written off every time. Fail once the
+      // rate stops looking like spawn noise.
+      expect(
+        flakes,
+        `${flakes}/${report.runs} sequences failed but did not reproduce on shrink — a nondeterministic reconciler bug looks exactly like this`
+      ).toBeLessThanOrEqual(Math.floor(report.runs * FLAKE_CEILING));
     },
     // Scales with the sequence knob (soak runs; ~7s/sequence observed) — a
     // fixed timeout flags a finished sync body and discards its verdict.

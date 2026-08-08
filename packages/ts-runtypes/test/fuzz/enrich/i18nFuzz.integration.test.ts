@@ -17,13 +17,9 @@ import {describe, it, expect, afterAll} from 'vitest';
 import {cleanupReconcileLane} from '../../util/enrichReconcile.ts';
 import {BIN} from './enrichCli.ts';
 import {runI18nFuzz, runOneI18nSequence, shrinkI18nFailure, formatI18nReport} from './i18nFuzzRunner.ts';
+import {parseSeed} from '../core/fuzzPolicy.ts';
 
 afterAll(cleanupReconcileLane);
-
-function parseSeed(raw: string | undefined, fallback: number): number {
-  if (!raw) return fallback >>> 0;
-  return (raw.startsWith('0x') ? parseInt(raw, 16) : Number(raw)) >>> 0;
-}
 
 const HAS_BIN = existsSync(BIN);
 const SEED = parseSeed(process.env.RT_FUZZ_SEED, 0x118a10ca);

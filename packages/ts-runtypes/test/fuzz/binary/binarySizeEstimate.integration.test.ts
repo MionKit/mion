@@ -15,6 +15,7 @@ import {describe, it, expect} from 'vitest';
 import {hasBinary} from './sizeFuzzRunner.ts';
 import {runSizeFuzz, runSizeFuzzForDuration} from './sizeFuzzRunner.ts';
 import {soakTestTimeout} from '../core/soakBudget.ts';
+import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / binary size estimate — sound for in-bounds data', () => {
   const register = hasBinary() ? it : it.skip;
@@ -22,7 +23,7 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
   register(
     'no under-allocation for in-bounds data; oversized data grows and round-trips',
     async () => {
-      const report = await runSizeFuzz({seed: 0xc0ffee, iterations: 80});
+      const report = await runSizeFuzz({seed: laneSeed('size', 0xc0ffee), iterations: 80});
       if (report.violations.length > 0) {
         const summary = report.violations
           .slice(0, 25)
@@ -50,7 +51,7 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
   it.runIf(soakMs > 0)(
     'soak — generate sized types continuously and log all findings',
     async () => {
-      const report = await runSizeFuzzForDuration(soakMs, {seed: Number(process.env.RT_FUZZ_SEED ?? 1)}, (v) => {
+      const report = await runSizeFuzzForDuration(soakMs, {seed: soakSeed()}, (v) => {
         console.error(`[size-fuzz][${v.oracle}] ${v.type} (seed=${v.seed}): ${v.message}\n    ${v.value}`);
       });
       console.error(

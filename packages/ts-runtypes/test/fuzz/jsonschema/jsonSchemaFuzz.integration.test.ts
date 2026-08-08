@@ -31,6 +31,7 @@ import {hasBinary, openClient} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {startSoakBudget, soakTestTimeout} from '../core/soakBudget.ts';
+import {laneSeed, soakSeed, SUPPRESSION_CEILING, COMPARISON_FLOOR} from '../core/fuzzPolicy.ts';
 import {
   FUZZ_EMAIL_PATTERN,
   FUZZ_FORMAT_PREAMBLE,
@@ -90,6 +91,10 @@ interface Report {
   runs: number;
   violations: Violation[];
   skippedInvalidTypes: number;
+  /** Fixtures whose two reflection sites were actually COMPARED. `runs` counts
+   *  the loop; this counts the oracle, so a regression that stopped emitting the
+   *  second site (or timed every scan out) cannot pass as green. **/
+  compared: number;
 }
 
 const SCAN_TIMEOUT_MS = 20_000;
@@ -149,6 +154,7 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
         message = `expected 2 reflection sites (type-first + schema), got ${reflectionSites.length}`;
       } else {
         const [typeFirst, schema] = reflectionSites;
+        report.compared++;
         if (typeFirst.id !== schema.id) {
           message = `id mismatch: type-first '${typeFirst.id}' vs runTypeFromJsonSchema '${schema.id}'`;
         }
@@ -175,7 +181,7 @@ async function runOne(holder: ClientHolder, seed: number, report: Report): Promi
 }
 
 async function runBatch(baseSeed: number, iterations: number): Promise<Report> {
-  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0};
+  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0, compared: 0};
   const holder = new ClientHolder();
   try {
     for (let i = 0; i < iterations; i++) {
@@ -188,7 +194,7 @@ async function runBatch(baseSeed: number, iterations: number): Promise<Report> {
 }
 
 async function runForDuration(baseSeed: number, ms: number, onViolation: (v: Violation) => void): Promise<Report> {
-  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0};
+  const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0, compared: 0};
   const holder = new ClientHolder();
   const budget = startSoakBudget(ms);
   try {
@@ -221,9 +227,23 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
   register(
     'finds no id divergence across a batch of normalized generated types',
     async () => {
-      const report = await runBatch(0x5eeded, 100);
+      const report = await runBatch(laneSeed('jsonschema', 0x5eeded), 100);
       if (report.violations.length > 0) throw new Error(formatViolations(report));
       expect(report.runs).toBe(100);
+      // Anti-vacuity: the oracle is the id comparison, so count the comparisons,
+      // not the loop turns.
+      expect(
+        report.compared,
+        `only ${report.compared}/${report.runs} fixtures reached the id comparison — the lane is close to vacuous`
+      ).toBeGreaterThanOrEqual(Math.ceil(report.runs * COMPARISON_FLOOR));
+      // The TS-validity gate discards violations for a generated type that does
+      // not compile. Sound in principle, but it must never be able to swallow
+      // the whole lane: a generator regression emitting mostly-invalid
+      // TypeScript would turn this test green and silent. Observed rate is 0.
+      expect(
+        report.skippedInvalidTypes,
+        `the TS-validity gate suppressed ${report.skippedInvalidTypes}/${report.runs} runs — a generator regression can hide every violation behind it`
+      ).toBeLessThanOrEqual(Math.ceil(report.runs * SUPPRESSION_CEILING));
     },
     240_000
   );
@@ -233,7 +253,7 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
   it.runIf(soakMs > 0)(
     'soak — translate generated types continuously and log all findings',
     async () => {
-      const report = await runForDuration(Number(process.env.RT_FUZZ_SEED ?? 1), soakMs, (v) => {
+      const report = await runForDuration(soakSeed(), soakMs, (v) => {
         console.error(`[jsonschema-fuzz] seed=${v.seed}: ${v.message}`);
       });
       console.error(

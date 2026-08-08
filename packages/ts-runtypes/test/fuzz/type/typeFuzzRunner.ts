@@ -71,6 +71,12 @@ export interface TypeFuzzOptions {
 
 export interface TypeFuzzReport {
   runs: number;
+  /** How many generated types actually reached the STRONG oracles (the value
+   *  tier, or the mock lane's serialize tier) rather than the robustness probe.
+   *  `runs` alone only proves the loop turned; this proves the lane asserted
+   *  something non-trivial, so a generator regression that produced only
+   *  robustness-probed types cannot pass as green. **/
+  strongOracleRuns: number;
   iterations: number;
   seed: number;
   violations: Violation[];
@@ -85,6 +91,7 @@ export interface TypeFuzzReport {
  *  false positives the TS-validity gate filtered. **/
 interface FuzzStats {
   skippedInvalidTypes: number;
+  strongOracleRuns: number;
 }
 
 const DEFAULT_ITERATIONS = 60;
@@ -125,7 +132,7 @@ export async function runTypeFuzz(options: TypeFuzzOptions = {}): Promise<TypeFu
   const gen: GenOptions = {...DEFAULT_GEN_OPTIONS, ...options.gen};
   const valueSource = options.valueSource ?? 'shape';
   const violations: Violation[] = [];
-  const stats: FuzzStats = {skippedInvalidTypes: 0};
+  const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
   let runs = 0;
   try {
@@ -136,7 +143,7 @@ export async function runTypeFuzz(options: TypeFuzzOptions = {}): Promise<TypeFu
   } finally {
     holder.close();
   }
-  return {runs, iterations, seed, violations, skippedInvalidTypes: stats.skippedInvalidTypes};
+  return {runs, iterations, seed, violations, ...stats};
 }
 
 export async function runTypeFuzzForDuration(
@@ -148,7 +155,7 @@ export async function runTypeFuzzForDuration(
   const gen: GenOptions = {...DEFAULT_GEN_OPTIONS, ...options.gen};
   const valueSource = options.valueSource ?? 'shape';
   const violations: Violation[] = [];
-  const stats: FuzzStats = {skippedInvalidTypes: 0};
+  const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
   let runs = 0;
   let round = 0;
@@ -165,7 +172,7 @@ export async function runTypeFuzzForDuration(
   } finally {
     holder.close();
   }
-  return {runs, iterations: round, seed, violations, skippedInvalidTypes: stats.skippedInvalidTypes};
+  return {runs, iterations: round, seed, violations, ...stats};
 }
 
 async function fuzzOneType(
@@ -181,7 +188,7 @@ async function fuzzOneType(
   const compiled = await compileWithTimeout(holder, generated, seed, out);
   if (compiled) {
     checkResolverTier(compiled, seed, out);
-    withSeededRandom(mixSeed(seed, 'value', 0), () => checkBehaviourTier(compiled, seed, out, valueSource));
+    withSeededRandom(mixSeed(seed, 'value', 0), () => checkBehaviourTier(compiled, seed, out, valueSource, stats));
   }
   // TS-validity gate. A violation recorded for this type (compile hang, resolver/
   // emit, or behaviour) is a FALSE POSITIVE when the generated type does not
@@ -286,7 +293,13 @@ function isControlledThrow(message: string): boolean {
 }
 
 // --- Tier B: behaviour ---
-function checkBehaviourTier(compiled: CompiledType, seed: number, out: Violation[], valueSource: ValueSource): void {
+function checkBehaviourTier(
+  compiled: CompiledType,
+  seed: number,
+  out: Violation[],
+  valueSource: ValueSource,
+  stats: FuzzStats
+): void {
   if (compiled.resolverError || compiled.evalError) return;
   // Recursive types: resolve/emit/reflection were already policed (TR1–TR3);
   // their runtime is covered by the real CircularRefs suite. The in-process
@@ -295,7 +308,7 @@ function checkBehaviourTier(compiled: CompiledType, seed: number, out: Violation
   // DataOnly non-data lane: values come from the REAL product mock and the
   // serialize/fail tier is read off the resolver's own diagnostics.
   if (valueSource === 'mock') {
-    checkMockBehaviour(compiled, seed, out);
+    checkMockBehaviour(compiled, seed, out, stats);
     return;
   }
   const serialisable = valueOracleSafe(compiled.gen);
@@ -306,7 +319,10 @@ function checkBehaviourTier(compiled: CompiledType, seed: number, out: Violation
     // the robustness probe rather than risk a false O1.
     const {value, floored} = genValidValue(compiled.gen);
     if (floored) runRobustnessProbe(compiled, seed, out);
-    else runValueOracles(compiled, target, value, seed, out);
+    else {
+      stats.strongOracleRuns++;
+      runValueOracles(compiled, target, value, seed, out);
+    }
   } else {
     runRobustnessProbe(compiled, seed, out);
   }
@@ -397,7 +413,7 @@ function runRobustnessProbe(compiled: CompiledType, seed: number, out: Violation
 // for non-serialisable positions inside DROPPED subtrees (e.g. a dropped
 // `Promise<Set<Float64Array>>` property), so a type can carry an Error and still
 // serialize. The encoder either works or `alwaysThrow`s — that's the ground truth.
-function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation[]): void {
+function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation[], stats: FuzzStats): void {
   const target = asFuzzTarget(compiled);
   const mock = compiled.wired.mock;
   if (!target || !mock) {
@@ -446,6 +462,7 @@ function checkMockBehaviour(compiled: CompiledType, seed: number, out: Violation
   // Serialize tier — the stripped members are dropped; the round-trips must be
   // wire-stable and the two wires must agree on the decoded value.
   const ctx = {seed, phase: 'valid' as const};
+  stats.strongOracleRuns++;
   push(out, checkValidAccepted(target, value, ctx)); // O1 — mock conforms
   push(out, checkValidateTotal(target, value, ctx)); // O3
   push(out, checkErrorsAgree(target, value, ctx)); // O4

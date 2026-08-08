@@ -72,7 +72,7 @@ export type TypeShape =
  *  `valid` values satisfy the format; `counter` values satisfy the BASE kind
  *  but fail the format (the valid values of `Not<F>`). **/
 export type FormatLeafName =
-  | 'email'
+  | 'emailish'
   | 'uuid'
   | 'minLen50'
   | 'maxLen8'
@@ -129,10 +129,18 @@ export interface FormatLeafSpec {
   test: (value: unknown) => boolean;
 }
 export const FORMAT_LEAVES: Record<FormatLeafName, FormatLeafSpec> = {
-  email: {
+  // NOT the `email` KEYWORD: the schema door lowers `format: 'email'` to the
+  // shipped `EmailAddress` (the full RFC 5321 grammar), not to a pattern brand,
+  // so a hand-rolled pattern claiming that keyword could never converge on one
+  // id — the json-schema soak reported exactly that, on every fixture carrying
+  // this leaf. Spelled as the `pattern` keyword instead, which is what it
+  // actually is, and kept because its complement is dense enough for the
+  // negation lanes. Per-keyword `email` convergence is covered by the enumerated
+  // id-integrity suite, where it belongs (see docs/done/fuzz-followups.md).
+  emailish: {
     family: 'string',
     tsText: 'FzEmail',
-    schema: {type: 'string', format: 'email'},
+    schema: {type: 'string', pattern: FUZZ_EMAIL_PATTERN},
     valid: ['ada@example.com', 'bob.builder@test.org'],
     counter: ['plain words', 'missing-at.example.com'],
     test: (value) => typeof value === 'string' && new RegExp(FUZZ_EMAIL_PATTERN).test(value),
@@ -323,7 +331,10 @@ export const FORMAT_LEAF_NAMES = Object.keys(FORMAT_LEAVES) as readonly FormatLe
 export const FUZZ_FORMAT_PREAMBLE = [
   'type FzTF<Base, Name extends string, Params extends object> = Base & {readonly __rtFormatName?: Name; readonly __rtFormatParams?: Params};',
   'type FzNot<F extends string | number | bigint> = ([F] extends [string] ? string : [F] extends [number] ? number : bigint) & {readonly __rtNot?: F};',
-  `type FzEmail = FzTF<string, 'email', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: ''}}>;`,
+  // A plain pattern brand, and flags 'u' because the schema twin spells it as
+  // the `pattern` keyword, which the door compiles in unicode mode (see the
+  // patternA leaf). NOT the `email` format keyword — see the leaf's note.
+  `type FzEmail = FzTF<string, 'stringFormat', {pattern: {source: '${FUZZ_EMAIL_PATTERN}'; flags: 'u'}}>;`,
   "type FzUUID = FzTF<string, 'uuid', {version: 'any'}>;",
   "type FzInteger = FzTF<number, 'numberFormat', {integer: true}>;",
   "type FzString<P extends object> = FzTF<string, 'stringFormat', P>;",

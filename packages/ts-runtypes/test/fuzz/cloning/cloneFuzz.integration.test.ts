@@ -30,6 +30,7 @@ import {describe, it, expect} from 'vitest';
 import {createCloneExactShapeFn, createHasUnknownKeysFn, createMockDataFn, createValidateFn, getRunType} from '@ts-runtypes/core';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
 import {soakTestTimeout} from '../core/soakBudget.ts';
+import {laneSeed, soakSeed} from '../core/fuzzPolicy.ts';
 import type {CloneFuzzTarget} from './cloneOracle.ts';
 
 // Class corpus members need a single module-scope identity shared by every
@@ -505,7 +506,7 @@ const throwTargets: Array<{title: string; createClone: () => unknown}> = [
 
 describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn', () => {
   it('finds no oracle violations across all targets', () => {
-    const report = runCloneFuzz(targets, {seed: 0xc10e5eed, iterations: 100});
+    const report = runCloneFuzz(targets, {seed: laneSeed('clone', 0xc10e5eed), iterations: 100});
     if (report.violations.length > 0) {
       const summary = report.violations
         .slice(0, 25)
@@ -543,7 +544,7 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
   it.runIf(soakMs > 0)(
     'soak — clone-fuzz continuously and log all findings',
     () => {
-      const report = runCloneFuzzForDuration(targets, soakMs, {seed: Number(process.env.RT_FUZZ_SEED ?? 1)}, (v) => {
+      const report = runCloneFuzzForDuration(targets, soakMs, {seed: soakSeed()}, (v) => {
         console.error(`[fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    value=${v.value}`);
       });
       console.error(`[fuzz] clone soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);
