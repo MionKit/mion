@@ -1,4 +1,4 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["cases.ts", "main.ts", "../../shared"]
+  "include": ["cases.ts", "specCases.ts", "main.ts", "../../shared"]
 }

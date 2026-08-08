@@ -216,7 +216,7 @@ async function runWebsite(args) {
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
-const BENCH_SUB = new Set(['audit', 'spec', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
+const BENCH_SUB = new Set(['audit', 'spec', 'typecheck', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
 // Translate the rtx-level flags (--one/--full/--website/--build-only) to bench.mjs's
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
@@ -343,6 +343,7 @@ website
 bench
   rtx bench [--one <name>|--full|--website|--build-only] [--quick]
   rtx bench <audit|spec|typecost|compiletime|serialization|smoke>
+  rtx bench typecheck              compile every competitor map in the image (totality gate)
 
 ${RELEASE_HELP}
 container  rtx container <build-image|ensure|login|push|pull|lock|clean> [website|e2e]

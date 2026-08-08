@@ -1,5 +1,11 @@
 // typia validators keyed by suite case key ("GROUP.case"), TYPE form.
 //
+// The two metrics map onto typia's two real exports: `validate` uses
+// `typia.createIs<T>()` (cheap boolean) and `validationErrors` uses
+// `typia.createValidate<T>()` (returns `IValidation<T>`, so `.success` is the
+// verdict). Both names are pinned by `pnpm rtx bench typecheck`, which compiles
+// this file against the installed typia typings.
+//
 // typia validates the FULL TypeScript type via `typia.createIs<T>()`, transformed
 // at build time by typia's tsgo transform (driven through `@ttsc/unplugin` in
 // esbuild.config.mjs). Like ts-go's `createValidateFn<T>()` it needs the per-case
@@ -37,7 +43,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<any>();
+      const val = typia.createValidate<any>();
       return (v) => val(v).success;
     },
   },
@@ -47,7 +53,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint>();
+      const val = typia.createValidate<bigint>();
       return (v) => val(v).success;
     },
   },
@@ -57,7 +63,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<boolean>();
+      const val = typia.createValidate<boolean>();
       return (v) => val(v).success;
     },
   },
@@ -67,7 +73,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Date>();
+      const val = typia.createValidate<Date>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['hello', null, undefined, 42]},
@@ -84,7 +90,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Color>();
+        const val = typia.createValidate<Color>();
         return (v) => val(v).success;
       },
     };
@@ -95,7 +101,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<2>();
+      const val = typia.createValidate<2>();
       return (v) => val(v).success;
     },
   },
@@ -105,7 +111,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<'a'>();
+      const val = typia.createValidate<'a'>();
       return (v) => val(v).success;
     },
   },
@@ -115,7 +121,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<true>();
+      const val = typia.createValidate<true>();
       return (v) => val(v).success;
     },
   },
@@ -128,7 +134,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<null>();
+      const val = typia.createValidate<null>();
       return (v) => val(v).success;
     },
   },
@@ -138,7 +144,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number>();
+      const val = typia.createValidate<number>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['hello', null, undefined]},
@@ -150,7 +156,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<RegExp>();
+      const val = typia.createValidate<RegExp>();
       return (v) => val(v).success;
     },
   },
@@ -160,7 +166,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string>();
+      const val = typia.createValidate<string>();
       return (v) => val(v).success;
     },
   },
@@ -170,7 +176,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<symbol>();
+      const val = typia.createValidate<symbol>();
       return (v) => val(v).success;
     },
   },
@@ -180,7 +186,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<undefined>();
+      const val = typia.createValidate<undefined>();
       return (v) => val(v).success;
     },
   },
@@ -192,7 +198,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number>();
+      const val = typia.createValidate<number>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['4', null]},
@@ -203,7 +209,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string>();
+      const val = typia.createValidate<string>();
       return (v) => val(v).success;
     },
   },
@@ -213,7 +219,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<RegExp>();
+      const val = typia.createValidate<RegExp>();
       return (v) => val(v).success;
     },
   },
@@ -223,7 +229,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<boolean>();
+      const val = typia.createValidate<boolean>();
       return (v) => val(v).success;
     },
   },
@@ -233,7 +239,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint>();
+      const val = typia.createValidate<bigint>();
       return (v) => val(v).success;
     },
   },
@@ -243,7 +249,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<symbol>();
+      const val = typia.createValidate<symbol>();
       return (v) => val(v).success;
     },
   },
@@ -253,7 +259,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<unknown>();
+      const val = typia.createValidate<unknown>();
       return (v) => val(v).success;
     },
   },
@@ -265,7 +271,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string[]>();
+      const val = typia.createValidate<string[]>();
       return (v) => val(v).success;
     },
   },
@@ -275,7 +281,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number[]>();
+      const val = typia.createValidate<number[]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[1, '2'], 'not-array', null, undefined, [null], [BigInt(1)]]},
@@ -286,7 +292,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<boolean[]>();
+      const val = typia.createValidate<boolean[]>();
       return (v) => val(v).success;
     },
   },
@@ -296,7 +302,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint[]>();
+      const val = typia.createValidate<bigint[]>();
       return (v) => val(v).success;
     },
   },
@@ -306,7 +312,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Date[]>();
+      const val = typia.createValidate<Date[]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [['2024'], [42], null, undefined]},
@@ -317,7 +323,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<RegExp[]>();
+      const val = typia.createValidate<RegExp[]>();
       return (v) => val(v).success;
     },
   },
@@ -327,7 +333,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<undefined[]>();
+      const val = typia.createValidate<undefined[]>();
       return (v) => val(v).success;
     },
   },
@@ -337,7 +343,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<null[]>();
+      const val = typia.createValidate<null[]>();
       return (v) => val(v).success;
     },
   },
@@ -347,7 +353,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Array<string>>();
+      const val = typia.createValidate<Array<string>>();
       return (v) => val(v).success;
     },
   },
@@ -357,7 +363,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string[][]>();
+      const val = typia.createValidate<string[][]>();
       return (v) => val(v).success;
     },
   },
@@ -367,7 +373,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string[][][]>();
+      const val = typia.createValidate<string[][][]>();
       return (v) => val(v).success;
     },
   },
@@ -377,7 +383,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string[]>();
+      const val = typia.createValidate<string[]>();
       return (v) => val(v).success;
     },
   },
@@ -387,7 +393,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string}[]>();
+      const val = typia.createValidate<{a: string}[]>();
       return (v) => val(v).success;
     },
   },
@@ -397,7 +403,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<(string | number)[]>();
+      const val = typia.createValidate<(string | number)[]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[true], 'a', [null], ['a', true], null, undefined, [BigInt(1)]]},
@@ -408,7 +414,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[string, number][]>();
+      const val = typia.createValidate<[string, number][]>();
       return (v) => val(v).success;
     },
   },
@@ -421,7 +427,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<ObjectType>();
+        const val = typia.createValidate<ObjectType>();
         return (v) => val(v).success;
       },
     };
@@ -432,7 +438,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<symbol[]>();
+      const val = typia.createValidate<symbol[]>();
       return (v) => val(v).success;
     },
   },
@@ -442,7 +448,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<ReadonlyArray<string>>();
+      const val = typia.createValidate<ReadonlyArray<string>>();
       return (v) => val(v).success;
     },
   },
@@ -454,7 +460,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; b: number}>();
+      const val = typia.createValidate<{a: string; b: number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['hello', null, undefined, {a: 'x'}, {a: 1, b: 1}, {a: 'x', b: 'not number'}, {b: 1}, true]},
@@ -465,7 +471,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{readonly name: 'john'; readonly age: 30}>();
+      const val = typia.createValidate<{readonly name: 'john'; readonly age: 30}>();
       return (v) => val(v).success;
     },
   },
@@ -479,7 +485,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<ReturnType<typeof makeUser>>();
+        const val = typia.createValidate<ReturnType<typeof makeUser>>();
         return (v) => val(v).success;
       },
     };
@@ -490,7 +496,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{id: number; name: string}>();
+      const val = typia.createValidate<{id: number; name: string}>();
       return (v) => val(v).success;
     },
   },
@@ -500,7 +506,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{id: number; name: string}>();
+      const val = typia.createValidate<{id: number; name: string}>();
       return (v) => val(v).success;
     },
   },
@@ -510,7 +516,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; b?: number}>();
+      const val = typia.createValidate<{a: string; b?: number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 'x', b: 'not number'}, {a: 1}, null, undefined, {}, {b: 1}]},
@@ -521,7 +527,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{date: Date; name: string}>();
+      const val = typia.createValidate<{date: Date; name: string}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{date: 'not date', name: 'x'}, {date: new Date(), name: 1}, {name: 'x'}, null, undefined]},
@@ -533,7 +539,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; deep: {b: string; c: number}}>();
+      const val = typia.createValidate<{a: string; deep: {b: string; c: number}}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 'x'}, {a: 'x', deep: {b: 1, c: 1}}, {a: 'x', deep: null}, null, undefined, {a: 'x', deep: {b: 'y'}}]},
@@ -544,7 +550,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{tags: string[]}>();
+      const val = typia.createValidate<{tags: string[]}>();
       return (v) => val(v).success;
     },
   },
@@ -556,7 +562,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<ICircular>();
+        const val = typia.createValidate<ICircular>();
         return (v) => val(v).success;
       },
     };
@@ -569,7 +575,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<ICircularArray>();
+        const val = typia.createValidate<ICircularArray>();
         return (v) => val(v).success;
       },
     };
@@ -582,7 +588,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<ICircularDeep>();
+        const val = typia.createValidate<ICircularDeep>();
         return (v) => val(v).success;
       },
     };
@@ -600,7 +606,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; b: number; [key: string]: string | number}>();
+      const val = typia.createValidate<{a: string; b: number; [key: string]: string | number}>();
       return (v) => val(v).success;
     },
   },
@@ -610,7 +616,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{[key: string]: {[key: string]: number}}>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: number}}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 1}, {a: {x: 'not number'}}, null, undefined, {a: {x: null}}]},
@@ -621,7 +627,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{[key: string]: {[key: string]: Date}}>();
+      const val = typia.createValidate<{[key: string]: {[key: string]: Date}}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: {x: 'not date'}}, {a: 'not object'}, null, undefined]},
@@ -641,7 +647,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Obj2>();
+        const val = typia.createValidate<Obj2>();
         return (v) => val(v).success;
       },
     };
@@ -677,7 +683,7 @@ export const cases: CompetitorCases = {
           return 'unused';
         }
       }
-      const val = typia.createValidateFn<MySerializableClass>();
+      const val = typia.createValidate<MySerializableClass>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{date: 'not date', name: 'x'}, {date: new Date()}, {name: 'x'}, null, 'not object', undefined]},
@@ -700,7 +706,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<RpcError<'test-error'>>();
+        const val = typia.createValidate<RpcError<'test-error'>>();
         return (v) => val(v).success;
       },
     };
@@ -713,7 +719,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type CallSig = (a: number, b: boolean) => string;
-      const val = typia.createValidateFn<Parameters<CallSig>>();
+      const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[1, 'not boolean'], [1], [1, true, 'extra'], ['not number', true], 'not array', null, undefined, []]},
@@ -726,7 +732,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
-      const val = typia.createValidateFn<Parameters<CallSig>>();
+      const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[3, 3, 3], [3, true, 'hello', 7], [3], 'not array', null, undefined]},
@@ -739,7 +745,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
-      const val = typia.createValidateFn<Parameters<CallSig>>();
+      const val = typia.createValidate<Parameters<CallSig>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[3, 3, 3], [3, true, new Date(), 7], [3, true, new Date(), 7, true], 'not array', null, undefined]},
@@ -750,7 +756,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Record<'a' | 'b', number>>();
+      const val = typia.createValidate<Record<'a' | 'b', number>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 1}, {b: 1}, {}, {a: 'x', b: 1}, null, 'not object', undefined]},
@@ -761,7 +767,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{[key: string]: string | number}>();
+      const val = typia.createValidate<{[key: string]: string | number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: true}, {a: 'x', b: null}, 'not object', null, undefined, {a: BigInt(1)}]},
@@ -772,7 +778,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{kind: 'a' | 'b'; n: number}>();
+      const val = typia.createValidate<{kind: 'a' | 'b'; n: number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{kind: 'c', n: 1}, {n: 1}, {kind: 'a', n: 'not number'}, null, undefined, {kind: 'a'}]},
@@ -790,7 +796,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Child>();
+        const val = typia.createValidate<Child>();
         return (v) => val(v).success;
       },
     };
@@ -808,7 +814,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Sub>();
+        const val = typia.createValidate<Sub>();
         return (v) => val(v).success;
       },
     };
@@ -819,7 +825,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{[k: number]: string}>();
+      const val = typia.createValidate<{[k: number]: string}>();
       return (v) => val(v).success;
     },
   },
@@ -831,7 +837,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[string, number]>();
+      const val = typia.createValidate<[string, number]>();
       return (v) => val(v).success;
     },
     samples: {
@@ -844,7 +850,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[Date, number, string, null, string[], bigint]>();
+      const val = typia.createValidate<[Date, number, string, null, string[], bigint]>();
       return (v) => val(v).success;
     },
     samples: {
@@ -864,7 +870,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[number, bigint?, boolean?, number?]>();
+      const val = typia.createValidate<[number, bigint?, boolean?, number?]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[], [3, 'not bigint'], [3, 1n, false, 4, 'extra'], 'not array', null, undefined, ['not number']]},
@@ -875,7 +881,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[string, number][]>();
+      const val = typia.createValidate<[string, number][]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[['a', 'b']], [['a']], ['not tuple'], null, undefined, [[null, 1]]]},
@@ -886,7 +892,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[number, ...string[]]>();
+      const val = typia.createValidate<[number, ...string[]]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[3, 'a', 4], ['not number'], [], 'not array', [3, 1], null, undefined, [3, null]]},
@@ -898,7 +904,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[number, bigint?, boolean?, number?]>();
+      const val = typia.createValidate<[number, bigint?, boolean?, number?]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[], [3, 'not bigint'], [3, 1n, true, 4, 'extra'], 'not array', null, undefined, [3, 1n, 'not boolean']]},
@@ -909,7 +915,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[name: string, age: number]>();
+      const val = typia.createValidate<[name: string, age: number]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [[], ['Alice'], ['Alice', '30'], [30, 'Alice'], null, 'not array', undefined, [null, 30]]},
@@ -921,7 +927,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[]>();
+      const val = typia.createValidate<[]>();
       return (v) => val(v).success;
     },
   },
@@ -931,7 +937,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<[string]>();
+      const val = typia.createValidate<[string]>();
       return (v) => val(v).success;
     },
   },
@@ -941,7 +947,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<readonly [string, number]>();
+      const val = typia.createValidate<readonly [string, number]>();
       return (v) => val(v).success;
     },
   },
@@ -953,7 +959,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Date | number | string | null | bigint>();
+      const val = typia.createValidate<Date | number | string | null | bigint>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{}, [], true, undefined, Symbol(), () => null]},
@@ -964,7 +970,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<'UNO' | 'DOS' | 'TRES'>();
+      const val = typia.createValidate<'UNO' | 'DOS' | 'TRES'>();
       return (v) => val(v).success;
     },
   },
@@ -974,7 +980,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         'a' | 'b' | number | boolean | null | {a: string} | {a: string; b: number} | {c: bigint}
       >();
       return (v) => val(v).success;
@@ -986,7 +992,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string | number>();
+      const val = typia.createValidate<string | number>();
       return (v) => val(v).success;
     },
     samples: {invalid: [null, undefined, true, [], {}, BigInt(1)]},
@@ -997,7 +1003,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string[] | number[] | boolean[]>();
+      const val = typia.createValidate<string[] | number[] | boolean[]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [['a', 1], [1, 'a'], 'not array', null, undefined, [null], [BigInt(1)]]},
@@ -1008,7 +1014,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<(string | bigint | boolean | Date)[]>();
+      const val = typia.createValidate<(string | bigint | boolean | Date)[]>();
       return (v) => val(v).success;
     },
     samples: {invalid: [['a', false, 2], null, undefined, [null], [{}]]},
@@ -1019,7 +1025,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; aa: boolean} | {b: number} | {c: bigint}>();
+      const val = typia.createValidate<{a: string; aa: boolean} | {b: number} | {c: bigint}>();
       return (v) => val(v).success;
     },
   },
@@ -1029,7 +1035,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{kind: 'a'; n: number} | {kind: 'b'; s: string}>();
+      const val = typia.createValidate<{kind: 'a'; n: number} | {kind: 'b'; s: string}>();
       return (v) => val(v).success;
     },
     samples: {
@@ -1044,7 +1050,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
-      const val = typia.createValidateFn<UnionC>();
+      const val = typia.createValidate<UnionC>();
       return (v) => val(v).success;
     },
     samples: {invalid: [true, null, undefined, {a: true}, [true], Symbol()]},
@@ -1056,7 +1062,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string} & {b: number}>();
+      const val = typia.createValidate<{a: string} & {b: number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 'x'}, {b: 1}, null, {a: 1, b: 1}, {a: 'x', b: 'not number'}, undefined, {}]},
@@ -1067,7 +1073,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
+      const val = typia.createValidate<{a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 'hello'}, {b: 'hello'}, {a: 'hello', d: 'extra'}, {c: 1n, d: 'hello'}, null, undefined, {}]},
@@ -1078,7 +1084,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>();
+      const val = typia.createValidate<{type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string}>();
       return (v) => val(v).success;
     },
   },
@@ -1090,7 +1096,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'}
       >();
       return (v) => val(v).success;
@@ -1102,7 +1108,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{a: boolean} | {a: number}>();
+      const val = typia.createValidate<{a: boolean} | {a: number}>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{a: 'hello'}, {}, null, undefined, {a: 'string not boolean or number'}, {a: null}]},
@@ -1119,7 +1125,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         | string[]
         | {a: string; aa: boolean}
         | {b: number}
@@ -1135,7 +1141,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string | any>();
+      const val = typia.createValidate<string | any>();
       return (v) => val(v).success;
     },
   },
@@ -1145,7 +1151,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string | unknown>();
+      const val = typia.createValidate<string | unknown>();
       return (v) => val(v).success;
     },
   },
@@ -1163,7 +1169,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<SmallObj | LargeObj>();
+        const val = typia.createValidate<SmallObj | LargeObj>();
         return (v) => val(v).success;
       },
     };
@@ -1187,7 +1193,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Tiny | Medium | Large>();
+        const val = typia.createValidate<Tiny | Medium | Large>();
         return (v) => val(v).success;
       },
     };
@@ -1218,7 +1224,7 @@ export const cases: CompetitorCases = {
       interface Unrelated {
         value: number;
       }
-      const val = typia.createValidateFn<Base | Extended | Unrelated>();
+      const val = typia.createValidate<Base | Extended | Unrelated>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{}, {name: 'test'}, {id: 123}, {value: 'not number'}, null, undefined]},
@@ -1231,7 +1237,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<`api/user/${number}`>();
+      const val = typia.createValidate<`api/user/${number}`>();
       return (v) => val(v).success;
     },
   },
@@ -1241,7 +1247,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<`/api/v${number}/user/${string}/posts/${number}`>();
+      const val = typia.createValidate<`/api/v${number}/user/${string}/posts/${number}`>();
       return (v) => val(v).success;
     },
   },
@@ -1251,7 +1257,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<`${string}/${number}`>();
+      const val = typia.createValidate<`${string}/${number}`>();
       return (v) => val(v).success;
     },
   },
@@ -1261,7 +1267,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<`(${number})`>();
+      const val = typia.createValidate<`(${number})`>();
       return (v) => val(v).success;
     },
   },
@@ -1271,7 +1277,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<{url: `api/user/${number}`; method: string}>();
+      const val = typia.createValidate<{url: `api/user/${number}`; method: string}>();
       return (v) => val(v).success;
     },
   },
@@ -1282,7 +1288,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<`${'a' | 'b'}-${number}`>();
+      const val = typia.createValidate<`${'a' | 'b'}-${number}`>();
       return (v) => val(v).success;
     },
   },
@@ -1294,7 +1300,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Map<string, number>>();
+      const val = typia.createValidate<Map<string, number>>();
       return (v) => val(v).success;
     },
     samples: {
@@ -1317,7 +1323,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Set<string>>();
+      const val = typia.createValidate<Set<string>>();
       return (v) => val(v).success;
     },
   },
@@ -1328,7 +1334,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Awaited<Promise<string>>>();
+      const val = typia.createValidate<Awaited<Promise<string>>>();
       return (v) => val(v).success;
     },
   },
@@ -1352,7 +1358,7 @@ export const cases: CompetitorCases = {
         c?: Circular;
         d?: Date;
       }
-      const val = typia.createValidateFn<Circular>();
+      const val = typia.createValidate<Circular>();
       return (v) => val(v).success;
     },
     samples: {
@@ -1377,7 +1383,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<CircularTuple>();
+        const val = typia.createValidate<CircularTuple>();
         return (v) => val(v).success;
       },
     };
@@ -1392,7 +1398,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<CircularIndex>();
+        const val = typia.createValidate<CircularIndex>();
         return (v) => val(v).success;
       },
     };
@@ -1407,7 +1413,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<CircularDeep>();
+        const val = typia.createValidate<CircularDeep>();
         return (v) => val(v).success;
       },
     };
@@ -1428,7 +1434,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<RootNotCircular>();
+        const val = typia.createValidate<RootNotCircular>();
         return (v) => val(v).success;
       },
     };
@@ -1458,7 +1464,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<RootCircular>();
+        const val = typia.createValidate<RootCircular>();
         return (v) => val(v).success;
       },
     };
@@ -1487,7 +1493,7 @@ export const cases: CompetitorCases = {
         age?: number;
         createdAt?: Date;
       }
-      const val = typia.createValidateFn<Required<MaybePerson>>();
+      const val = typia.createValidate<Required<MaybePerson>>();
       return (v) => val(v).success;
     },
     samples: {
@@ -1510,7 +1516,7 @@ export const cases: CompetitorCases = {
         age: number;
         createdAt: Date;
       }
-      const val = typia.createValidateFn<Pick<Person, 'name' | 'createdAt'>>();
+      const val = typia.createValidate<Pick<Person, 'name' | 'createdAt'>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{name: 'John'}, {createdAt: new Date()}, {name: 42, createdAt: new Date()}, null, undefined]},
@@ -1531,7 +1537,7 @@ export const cases: CompetitorCases = {
         age: number;
         createdAt: Date;
       }
-      const val = typia.createValidateFn<Omit<Person, 'age'>>();
+      const val = typia.createValidate<Omit<Person, 'age'>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{name: 'John'}, {createdAt: new Date()}, null, undefined]},
@@ -1542,7 +1548,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Exclude<'name' | 'age' | 'createdAt', 'age'>>();
+      const val = typia.createValidate<Exclude<'name' | 'age' | 'createdAt', 'age'>>();
       return (v) => val(v).success;
     },
   },
@@ -1552,7 +1558,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>();
+      const val = typia.createValidate<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>();
       return (v) => val(v).success;
     },
   },
@@ -1570,7 +1576,7 @@ export const cases: CompetitorCases = {
         | {kind: 'circle'; radius: number}
         | {kind: 'square'; x: number}
         | {kind: 'triangle'; base: number; height: number};
-      const val = typia.createValidateFn<Exclude<Shape, {kind: 'circle'}>>();
+      const val = typia.createValidate<Exclude<Shape, {kind: 'circle'}>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{kind: 'circle', radius: 3}, {}, null, undefined, {kind: 'square'}, {kind: 'triangle', base: 4}]},
@@ -1581,7 +1587,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<NonNullable<string | number | null | undefined>>();
+      const val = typia.createValidate<NonNullable<string | number | null | undefined>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [null, undefined, true, {}, []]},
@@ -1594,7 +1600,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type Fn = (a: number, b: boolean) => Date;
-      const val = typia.createValidateFn<ReturnType<Fn>>();
+      const val = typia.createValidate<ReturnType<Fn>>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['not date', 42, null, undefined, {}, []]},
@@ -1613,7 +1619,7 @@ export const cases: CompetitorCases = {
         name: string;
         age: number;
       }
-      const val = typia.createValidateFn<Readonly<Person>>();
+      const val = typia.createValidate<Readonly<Person>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{name: 'John'}, {age: 30}, null, undefined, {name: 1, age: 30}]},
@@ -1634,7 +1640,7 @@ export const cases: CompetitorCases = {
         age: number;
         createdAt: Date;
       }
-      const val = typia.createValidateFn<Partial<Person> & Required<Pick<Person, 'name'>>>();
+      const val = typia.createValidate<Partial<Person> & Required<Pick<Person, 'name'>>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{}, {age: 30}, {name: 42}, {name: 'John', age: '30'}, null, undefined]},
@@ -1645,7 +1651,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Omit<{a: string; b?: number; c: boolean}, 'a'>>();
+      const val = typia.createValidate<Omit<{a: string; b?: number; c: boolean}, 'a'>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{}, {b: 1}, {c: 'not boolean'}, null, undefined, {c: 0}, {b: 1, c: 1}]},
@@ -1662,7 +1668,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<keyof Person>();
+        const val = typia.createValidate<keyof Person>();
         return (v) => val(v).success;
       },
     };
@@ -1675,7 +1681,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<typeof config>();
+        const val = typia.createValidate<typeof config>();
         return (v) => val(v).success;
       },
     };
@@ -1691,7 +1697,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Person['name']>();
+        const val = typia.createValidate<Person['name']>();
         return (v) => val(v).success;
       },
     };
@@ -1704,7 +1710,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type IsString<T> = T extends string ? boolean : number;
-      const val = typia.createValidateFn<IsString<'hello'>>();
+      const val = typia.createValidate<IsString<'hello'>>();
       return (v) => val(v).success;
     },
   },
@@ -1720,7 +1726,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Nullable<Source>>();
+        const val = typia.createValidate<Nullable<Source>>();
         return (v) => val(v).success;
       },
     };
@@ -1745,7 +1751,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<UserForm>();
+        const val = typia.createValidate<UserForm>();
         return (v) => val(v).success;
       },
     };
@@ -1758,7 +1764,7 @@ export const cases: CompetitorCases = {
     },
     buildErrors: () => {
       type Wrap<T> = T extends any ? {w: T} : never;
-      const val = typia.createValidateFn<Wrap<string | number>>();
+      const val = typia.createValidate<Wrap<string | number>>();
       return (v) => val(v).success;
     },
     samples: {invalid: [{w: true}, {w: null}, {}, null, undefined]},
@@ -1778,7 +1784,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Prefixed<Source>>();
+        const val = typia.createValidate<Prefixed<Source>>();
         return (v) => val(v).success;
       },
     };
@@ -1796,7 +1802,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<MongoForm<Source>>();
+        const val = typia.createValidate<MongoForm<Source>>();
         return (v) => val(v).success;
       },
     };
@@ -1814,7 +1820,7 @@ export const cases: CompetitorCases = {
         return (v) => check(v);
       },
       buildErrors: () => {
-        const val = typia.createValidateFn<Public<Source>>();
+        const val = typia.createValidate<Public<Source>>();
         return (v) => val(v).success;
       },
     };
@@ -1829,7 +1835,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<Date>();
+      const val = typia.createValidate<Date>();
       return (v) => val(v).success;
     },
     samples: {invalid: ['hello', null, undefined, 42]},
@@ -1850,7 +1856,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.MaxLength<5>>();
+      const val = typia.createValidate<string & tags.MaxLength<5>>();
       return (v) => val(v).success;
     },
   },
@@ -1860,7 +1866,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.MinLength<3>>();
+      const val = typia.createValidate<string & tags.MinLength<3>>();
       return (v) => val(v).success;
     },
   },
@@ -1870,7 +1876,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.MinLength<4> & tags.MaxLength<4>>();
+      const val = typia.createValidate<string & tags.MinLength<4> & tags.MaxLength<4>>();
       return (v) => val(v).success;
     },
   },
@@ -1880,7 +1886,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.MinLength<2> & tags.MaxLength<4>>();
+      const val = typia.createValidate<string & tags.MinLength<2> & tags.MaxLength<4>>();
       return (v) => val(v).success;
     },
   },
@@ -1890,7 +1896,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[0-9a-f]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[0-9a-f]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1900,7 +1906,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[abcABC]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[abcABC]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1910,7 +1916,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[.\\-]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[.\\-]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1920,7 +1926,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[^!@#]*$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[^!@#]*$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1930,7 +1936,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<'red' | 'green' | 'blue'>();
+      const val = typia.createValidate<'red' | 'green' | 'blue'>();
       return (v) => val(v).success;
     },
   },
@@ -1940,7 +1946,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^(?:[Rr][Ee][Dd]|[Gg][Rr][Ee][Ee][Nn])$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^(?:[Rr][Ee][Dd]|[Gg][Rr][Ee][Ee][Nn])$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1950,7 +1956,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<'a.b' | 'c+d'>();
+      const val = typia.createValidate<'a.b' | 'c+d'>();
       return (v) => val(v).success;
     },
   },
@@ -1960,7 +1966,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^(?!(?:admin|root)$).*$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^(?!(?:admin|root)$).*$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1970,7 +1976,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<'a' | 'b'>();
+      const val = typia.createValidate<'a' | 'b'>();
       return (v) => val(v).success;
     },
   },
@@ -1980,7 +1986,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[a-zA-Z]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -1990,7 +1996,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[a-zA-Z0-9]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z0-9]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2000,7 +2006,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[0-9]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[0-9]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2010,7 +2016,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[a-zA-Z]+$'> & tags.MaxLength<3>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[a-zA-Z]+$'> & tags.MaxLength<3>>();
       return (v) => val(v).success;
     },
   },
@@ -2020,7 +2026,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string>();
+      const val = typia.createValidate<string>();
       return (v) => val(v).success;
     },
   },
@@ -2032,7 +2038,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'>
       >();
       return (v) => val(v).success;
@@ -2046,7 +2052,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'>
       >();
       return (v) => val(v).success;
@@ -2060,7 +2066,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[0-9]{4}-(0[1-9]|1[0-2])$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[0-9]{4}-(0[1-9]|1[0-2])$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2070,7 +2076,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2083,7 +2089,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$'>
       >();
       return (v) => val(v).success;
@@ -2095,7 +2101,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2105,7 +2111,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,3})?$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]{1,3})?$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2119,7 +2125,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[0-2])-[0-9]{4} ([01][0-9]|2[0-3]):[0-5][0-9]$'>
       >();
       return (v) => val(v).success;
@@ -2132,7 +2138,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Format<'ipv4'>>();
+      const val = typia.createValidate<string & tags.Format<'ipv4'>>();
       return (v) => val(v).success;
     },
   },
@@ -2142,7 +2148,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Format<'ipv6'>>();
+      const val = typia.createValidate<string & tags.Format<'ipv6'>>();
       return (v) => val(v).success;
     },
   },
@@ -2152,7 +2158,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<(string & tags.Format<'ipv4'>) | (string & tags.Format<'ipv6'>)>();
+      const val = typia.createValidate<(string & tags.Format<'ipv4'>) | (string & tags.Format<'ipv6'>)>();
       return (v) => val(v).success;
     },
   },
@@ -2165,7 +2171,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string &
           tags.Pattern<'^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]):(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
       >();
@@ -2181,7 +2187,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string &
           tags.Pattern<'^\\[[0-9a-fA-F:]+\\]:(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[1-9][0-9]{0,3}|0)$'>
       >();
@@ -2194,7 +2200,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2204,7 +2210,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.){1,5}[a-zA-Z]{2,}$'>
       >();
       return (v) => val(v).success;
@@ -2216,7 +2222,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.Format<'email'>>();
       return (v) => val(v).success;
     },
     samples: {
@@ -2230,7 +2236,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Format<'email'>>();
+      const val = typia.createValidate<string & tags.Format<'email'>>();
       return (v) => val(v).success;
     },
   },
@@ -2242,7 +2248,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^[a-zA-Z0-9._-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$'>
       >();
       return (v) => val(v).success;
@@ -2256,7 +2262,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<
+      const val = typia.createValidate<
         string & tags.Pattern<'^(?:https?|ftp|wss?):\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>
       >();
       return (v) => val(v).success;
@@ -2268,7 +2274,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^https?:\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^https?:\\/\\/[^\\s.]+(?:\\.[^\\s.]+)+(?:[\\/?][^\\s]*)?$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2278,7 +2284,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^file:\\/\\/\\/[^\\s]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^file:\\/\\/\\/[^\\s]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2288,7 +2294,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[a-z0-9-]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[a-z0-9-]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2298,7 +2304,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<string & tags.Pattern<'^[0-9a-fA-F]+$'>>();
+      const val = typia.createValidate<string & tags.Pattern<'^[0-9a-fA-F]+$'>>();
       return (v) => val(v).success;
     },
   },
@@ -2310,7 +2316,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Maximum<100>>();
+      const val = typia.createValidate<number & tags.Maximum<100>>();
       return (v) => val(v).success;
     },
   },
@@ -2320,7 +2326,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Minimum<0>>();
+      const val = typia.createValidate<number & tags.Minimum<0>>();
       return (v) => val(v).success;
     },
   },
@@ -2330,7 +2336,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.ExclusiveMaximum<10>>();
+      const val = typia.createValidate<number & tags.ExclusiveMaximum<10>>();
       return (v) => val(v).success;
     },
   },
@@ -2340,7 +2346,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.ExclusiveMinimum<0>>();
+      const val = typia.createValidate<number & tags.ExclusiveMinimum<0>>();
       return (v) => val(v).success;
     },
   },
@@ -2350,7 +2356,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Type<'int32'>>();
+      const val = typia.createValidate<number & tags.Type<'int32'>>();
       return (v) => val(v).success;
     },
   },
@@ -2361,7 +2367,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.MultipleOf<5>>();
+      const val = typia.createValidate<number & tags.MultipleOf<5>>();
       return (v) => val(v).success;
     },
   },
@@ -2371,7 +2377,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<100> & tags.MultipleOf<5>>();
+      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<0> & tags.Maximum<100> & tags.MultipleOf<5>>();
       return (v) => val(v).success;
     },
   },
@@ -2381,7 +2387,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Type<'int32'> & tags.Minimum<-128> & tags.Maximum<127>>();
+      const val = typia.createValidate<number & tags.Type<'int32'> & tags.Minimum<-128> & tags.Maximum<127>>();
       return (v) => val(v).success;
     },
   },
@@ -2391,7 +2397,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<number & tags.Type<'uint32'> & tags.Maximum<255>>();
+      const val = typia.createValidate<number & tags.Type<'uint32'> & tags.Maximum<255>>();
       return (v) => val(v).success;
     },
   },
@@ -2403,7 +2409,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.Maximum<100n>>();
+      const val = typia.createValidate<bigint & tags.Maximum<100n>>();
       return (v) => val(v).success;
     },
   },
@@ -2413,7 +2419,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.Minimum<0n>>();
+      const val = typia.createValidate<bigint & tags.Minimum<0n>>();
       return (v) => val(v).success;
     },
   },
@@ -2423,7 +2429,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.ExclusiveMaximum<10n>>();
+      const val = typia.createValidate<bigint & tags.ExclusiveMaximum<10n>>();
       return (v) => val(v).success;
     },
   },
@@ -2433,7 +2439,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.ExclusiveMinimum<0n>>();
+      const val = typia.createValidate<bigint & tags.ExclusiveMinimum<0n>>();
       return (v) => val(v).success;
     },
   },
@@ -2443,7 +2449,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.MultipleOf<5n>>();
+      const val = typia.createValidate<bigint & tags.MultipleOf<5n>>();
       return (v) => val(v).success;
     },
   },
@@ -2453,7 +2459,7 @@ export const cases: CompetitorCases = {
       return (v) => check(v);
     },
     buildErrors: () => {
-      const val = typia.createValidateFn<bigint & tags.Minimum<0n> & tags.Maximum<1000n> & tags.MultipleOf<10n>>();
+      const val = typia.createValidate<bigint & tags.Minimum<0n> & tags.Maximum<1000n> & tags.MultipleOf<10n>>();
       return (v) => val(v).success;
     },
   },
@@ -2522,7 +2528,7 @@ export const cases: CompetitorCases = {
         active: boolean;
         createdAt: string;
       }
-      const val = typia.createValidateFn<User>();
+      const val = typia.createValidate<User>();
       return (v) => val(v).success;
     },
   },
@@ -2576,7 +2582,7 @@ export const cases: CompetitorCases = {
         total: number;
         note?: string;
       }
-      const val = typia.createValidateFn<Order>();
+      const val = typia.createValidate<Order>();
       return (v) => val(v).success;
     },
   },
@@ -2608,7 +2614,7 @@ export const cases: CompetitorCases = {
         publishedAt?: string;
         meta: {views: number; likes: number};
       }
-      const val = typia.createValidateFn<BlogPost>();
+      const val = typia.createValidate<BlogPost>();
       return (v) => val(v).success;
     },
   },
@@ -2638,7 +2644,7 @@ export const cases: CompetitorCases = {
         categories: string[];
         dimensions?: {width: number; height: number; depth: number};
       }
-      const val = typia.createValidateFn<Product>();
+      const val = typia.createValidate<Product>();
       return (v) => val(v).success;
     },
   },
@@ -2682,7 +2688,7 @@ export const cases: CompetitorCases = {
         total: number;
         hasMore: boolean;
       }
-      const val = typia.createValidateFn<ProductPage>();
+      const val = typia.createValidate<ProductPage>();
       return (v) => val(v).success;
     },
   },
@@ -2704,7 +2710,7 @@ export const cases: CompetitorCases = {
         acceptedTerms: true;
         profile: {firstName: string; lastName: string; age?: number};
       }
-      const val = typia.createValidateFn<RegistrationForm>();
+      const val = typia.createValidate<RegistrationForm>();
       return (v) => val(v).success;
     },
   },
@@ -2717,12 +2723,6 @@ export const cases: CompetitorCases = {
   // is exactly what these cases must reject. Every entry below was verified
   // against this group's EXACT shared samples by building it through the real
   // ttsc transform, not inferred from the tag names.
-  //
-  // NOTE: these use `typia.createValidate` — the real export. The rest of this
-  // file calls `typia.createValidateFn`, which typia does not export (a stray
-  // hit from our own createX->createXFn rename); that break is tracked in
-  // docs/todos/bench-website-e2e-followups.md (item 2) and is not
-  // widened into here.
   'JSON_SCHEMA.closed_object': {
     build: () => {
       const check = typia.createEquals<{id: number & tags.Type<'int32'>; name: string}>();

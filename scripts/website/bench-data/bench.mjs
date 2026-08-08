@@ -11,9 +11,9 @@
 // blocks stay shell.
 //
 // Commands: prep | build-image | bench | bench-one <name> | fullbench | serialization
-// | website-bench | build [<name>] | smoke | audit | spec | typecost | compiletime |
-// transform-wire | capture-env | shell | login | push | pull | clean. A `--quick`
-// flag anywhere maps onto every stage's native fast lever.
+// | website-bench | build [<name>] | typecheck | smoke | audit | spec | typecost |
+// compiletime | transform-wire | capture-env | shell | login | push | pull | clean.
+// A `--quick` flag anywhere maps onto every stage's native fast lever.
 
 import {accessSync, constants, copyFileSync, existsSync, globSync, mkdirSync, readdirSync, rmSync} from 'node:fs';
 import {cpus} from 'node:os';
@@ -180,13 +180,30 @@ function runInContainer(cfg, cmd) {
   return run(cfg.engine, ['run', '--rm', '--init', ...common], {stdio: ['ignore', 'inherit', 'inherit']});
 }
 
-// Build + run one competitor; failure is reported but never aborts the loop.
+// Build + run one competitor; a failure is reported but never aborts the loop, so
+// every other lane still gets to write its results. Returns true when the lane ran.
+//
+// The message names WHICH of the two things went wrong, because they need opposite
+// reactions and used to read identically. A lane that wrote no results/<name>.json
+// did not run at all (its build broke) and its column will be missing from every
+// page; a non-zero exit WITH a results file means the run finished and hit errored
+// case(s). A correctness divergence never reaches here: each competitor's main.ts
+// exits 0 on `fail`, because disagreeing with RunTypes on a sample is data for the
+// Correctness page, not a broken lane (see shared/harness/result.ts).
 function buildAndRunOne(cfg, competitor) {
   console.log(`-------- competitor: ${competitor} --------`);
-  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build && node dist/run.mjs`]) !== 0) {
-    console.log(`==> competitor '${competitor}' FAILED (build or run) - see output above`);
-  }
+  if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && pnpm run build && node dist/run.mjs`]) === 0) return true;
+  // An RT_BENCH_CASE inspection run writes no results file by design, so the
+  // "did it write results?" signal does not apply to it.
+  if (process.env.RT_BENCH_CASE) console.log(`==> competitor '${competitor}' FAILED - see output above`);
+  else if (existsSync(join(RESULTS_DIR, `${competitor}.json`))) console.log(`==> competitor '${competitor}': errored case(s) - results/${competitor}.json WAS written, see the errors above`);
+  else console.log(`==> competitor '${competitor}' DID NOT RUN (build or startup failed) - no results/${competitor}.json, its column will be missing from the tables`);
+  return false;
 }
+
+// Loud, single-line verdict for a set of lanes that did not run. Kept separate so
+// every caller words it the same way.
+const brokenLanesMessage = (broken) => `bench: ${broken.length} competitor lane(s) failed: ${broken.join(', ')} - see the per-competitor output above`;
 
 // Copy the per-competitor result JSON into .docdata/benchmarks (what the docs read).
 function publishDocdata(cfg) {
@@ -206,28 +223,38 @@ function cmdBench(cfg) {
   ensurePrereqs(cfg);
   // RT_BENCH_CASE inspection run: leave the canonical results JSON untouched.
   if (!process.env.RT_BENCH_CASE) clearResults((f) => f !== 'env.json');
-  for (const competitor of competitorList()) buildAndRunOne(cfg, competitor);
+  const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
   if (process.env.RT_BENCH_CASE) return note(`RT_BENCH_CASE='${process.env.RT_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   console.log('-------- aggregate --------');
   runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
+  // Aggregate + docdata first: the lanes that DID run still publish their results.
+  if (broken.length > 0) die(brokenLanesMessage(broken));
 }
 
 function cmdBenchOne(cfg, name) {
   if (!name) die('bench: usage: bench-one <competitor> (ts-runtypes|zod|typebox|ajv|typia)');
   ensurePrereqs(cfg);
   if (!process.env.RT_BENCH_CASE) clearResults((f) => f === `${name}.json`);
-  buildAndRunOne(cfg, name);
+  const ok = buildAndRunOne(cfg, name);
   if (process.env.RT_BENCH_CASE) return note(`RT_BENCH_CASE='${process.env.RT_BENCH_CASE}': per-case console output above; results JSON, aggregate and docdata left untouched.`);
   console.log('-------- aggregate --------');
   runInContainer(cfg, ['node', 'aggregate.mjs']);
   publishDocdata(cfg);
+  // Re-running one competitor has to refresh the SITE's data too, not just
+  // .docdata/ — otherwise the pages keep rendering the previous run's numbers.
+  // Non-fatal here (unlike the publish path): this is the single-competitor dev
+  // loop, and gen-docs legitimately has nothing to transform on a results dir
+  // that only ever held one lane.
+  note('gen-bench-docs (host transform -> container/website/public/bench-data)');
+  if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) note('gen-docs failed - .docdata/ is up to date, the site data is not; re-run `pnpm rtx bench --website` before building the site');
+  if (!ok) die(brokenLanesMessage([name]));
 }
 
 function cmdFullbench(cfg) {
   ensurePrereqs(cfg);
   clearResults((f) => f !== 'env.json');
-  for (const competitor of competitorList()) buildAndRunOne(cfg, competitor);
+  const broken = competitorList().filter((competitor) => !buildAndRunOne(cfg, competitor));
   note('aggregate');
   // aggregate.mjs exits non-zero on an EXPECTED cross-library divergence (the
   // Correctness page is built from them); every competitor already wrote its
@@ -239,6 +266,9 @@ function cmdFullbench(cfg) {
   runInContainer(cfg, ['node', 'capture-env.mjs']);
   publishDocdata(cfg);
   note(`fullbench: done. Published runtime + typecost results to ${cfg.docdataDir}/benchmarks`);
+  // Returned rather than fatal here: cmdWebsiteBench has more stages to run and a
+  // site to regenerate, so the broken lanes are its LAST word, not its first.
+  return broken;
 }
 
 // The in-container serialization run (native Temporal). Stays `sh -c`.
@@ -309,7 +339,7 @@ function cmdSerialization(cfg) {
 }
 
 function cmdWebsiteBench(cfg) {
-  cmdFullbench(cfg);
+  const broken = cmdFullbench(cfg);
   cmdSerialization(cfg);
   cmdCompiletime(cfg);
   cmdAudit(cfg); // correctness/alignment data for the "Correctness" page
@@ -317,6 +347,9 @@ function cmdWebsiteBench(cfg) {
   note('gen-bench-docs (host transform -> container/website/public/bench-data)');
   if (run('node', [join(SCRIPT_DIR, 'gen-docs.mjs')]) !== 0) die('bench: gen-docs failed');
   note('website-bench: done. container/website/public/bench-data/ regenerated (Node 26 / native Temporal).');
+  // The site is regenerated either way; a lane that never ran shipped an EMPTY
+  // column, so say so with a non-zero exit instead of a line lost in the log.
+  if (broken.length > 0) die(brokenLanesMessage(broken));
 }
 
 function cmdBuild(cfg, name) {
@@ -336,6 +369,46 @@ function cmdBuild(cfg, name) {
     }
   }
   if (failures !== 0) die(`bench: ${failures} competitor build(s) failed`);
+}
+
+// Type-check every competitor project (and, through each one's `include`, the
+// shared cases + harness) inside the image.
+//
+// This is what makes the totality claim real. Each competitor's `cases.ts` is
+// annotated `CompetitorCases` = `Record<CaseKey, CaseEntry>`, so a missing or
+// misspelled case key is a compile error — but NOTHING used to compile these
+// files: `vite build` and esbuild strip types without checking them, and the tree
+// is outside every tsconfig on the host (its deps only exist in the image). So a
+// dropped key was not a build failure, it was a silently absent column.
+//
+// The compiler comes from the competitor's OWN baked node_modules, so this needs
+// no image rebuild. tsgo (the TypeScript 7 preview this project is built on) is
+// preferred where it is installed and is the only option for typia, whose
+// manifest carries no `typescript`; the ts-runtypes lane's tsgo is the fallback
+// for the competitors pinned to plain tsc, so every lane is checked by the same
+// compiler the benchmarks are actually built with.
+const TYPECHECK_SCRIPT = [
+  'for candidate in node_modules/.bin/tsgo ../ts-runtypes/node_modules/.bin/tsgo node_modules/.bin/tsc; do',
+  '  [ -x "$candidate" ] && { compiler="$candidate"; break; }',
+  'done',
+  '[ -n "${compiler:-}" ] || { echo "no tsgo/tsc in this competitor\'s node_modules - rebuild the image"; exit 1; }',
+  'echo "typecheck: $compiler -p tsconfig.json"',
+  '"$compiler" -p tsconfig.json --noEmit',
+].join('\n');
+
+function cmdTypecheck(cfg) {
+  ensurePrereqs(cfg);
+  let failures = 0;
+  for (const competitor of competitorList()) {
+    console.log(`-------- typecheck: ${competitor} --------`);
+    // Check every competitor before failing, so one drifted map does not hide the rest.
+    if (runInContainer(cfg, ['sh', '-c', `cd competitors/${competitor} && ${TYPECHECK_SCRIPT}`]) !== 0) {
+      console.log(`==> typecheck '${competitor}' FAILED - a case key is missing, excess or mistyped, or an API it calls no longer exists`);
+      failures++;
+    }
+  }
+  if (failures !== 0) die(`bench: ${failures} competitor project(s) failed to type-check`);
+  note('typecheck: every competitor map is total over CaseKey (shared cases + harness checked with them)');
 }
 
 function cmdTypecost(cfg) {
@@ -446,6 +519,7 @@ function dispatch(cfg, args) {
     case 'serialization': return (requireEngine(cfg), cmdSerialization(cfg));
     case 'website-bench': return (requireEngine(cfg), cmdWebsiteBench(cfg));
     case 'build': return (requireEngine(cfg), cmdBuild(cfg, rest[0]));
+    case 'typecheck': return (requireEngine(cfg), cmdTypecheck(cfg));
     case 'smoke': return (requireEngine(cfg), cmdSmoke(cfg));
     case 'audit': return (requireEngine(cfg), cmdAudit(cfg));
     case 'spec': return (requireEngine(cfg), cmdSpec(cfg));
@@ -458,7 +532,7 @@ function dispatch(cfg, args) {
     case 'push': return image.cmdPush({env: benchImageEnv(cfg)});
     case 'pull': return image.cmdPull({env: benchImageEnv(cfg)});
     case 'clean': return (requireEngine(cfg), cmdClean(cfg));
-    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | smoke | audit | typecost | compiletime | transform-wire | shell | login | push | pull | clean`);
+    default: die(`bench: unknown command '${cmd}'. Try: prep | build-image | bench | bench-one <name> | fullbench | serialization | website-bench | build [<name>] | typecheck | smoke | audit | spec | typecost | compiletime | transform-wire | capture-env | shell | login | push | pull | clean`);
   }
 }
 

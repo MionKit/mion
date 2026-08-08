@@ -33,8 +33,8 @@ const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
 
 // ── page discovery ───────────────────────────────────────────────────────────
 
-// The benchmarks section dir, found by name so renumbering it (7.benchmarks ->
-// 9.benchmarks) doesn't silently disable the whole check.
+// The benchmarks section dir, found by name so renumbering it (07.benchmarks ->
+// 09.benchmarks) doesn't silently disable the whole check.
 function benchmarksDir() {
   const match = readdirSync(CONTENT_DIR, {withFileTypes: true}).find((entry) => entry.isDirectory() && /^\d+\.benchmarks$/.test(entry.name));
   if (!match) die(`check-static: no '<N>.benchmarks' directory under ${CONTENT_DIR} - has the section moved?`);
@@ -42,7 +42,7 @@ function benchmarksDir() {
 }
 
 // Nuxt Content drops the numeric ordering prefix from every path segment:
-// content/7.benchmarks/5.serialization.md -> /benchmarks/serialization.
+// content/07.benchmarks/05.serialization.md -> /benchmarks/serialization.
 const routeSegment = (name) => name.replace(/^\d+\./, '').replace(/\.md$/, '');
 
 // The `::bench-table{bench="x" metric="y"}` components on one page, in order.

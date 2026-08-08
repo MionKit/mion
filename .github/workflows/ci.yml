@@ -234,6 +234,14 @@ jobs:
         uses: ./.github/actions/cache-playground-wasm
       - name: Website serves-a-page smoke
         run: pnpm rtx website check
+      # The competitor maps declare themselves TOTAL over the shared case keys, and
+      # nothing used to compile them (vite/esbuild strip types without checking), so a
+      # dropped key read as an absent column instead of a build failure. This is the
+      # gate. It runs BEFORE the build smoke because it is much cheaper and fails on
+      # the same drift, and it includes typia — no .ttsc plugin is needed to
+      # type-check, only to build, so RT_BENCH_NO_TYPIA is deliberately NOT set here.
+      - name: Benchmark competitor-map typecheck
+        run: pnpm rtx bench typecheck
       # RT_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
       # local image change + republish); a no-.ttsc image would otherwise recompile
       # it ~200s here. Drop this once that image is live.

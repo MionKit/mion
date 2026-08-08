@@ -61,8 +61,15 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 
 - Content lives in `content/` as `.md` files using MDC syntax.
 - Sections use numbered prefix directories for ordering. The current tree:
-  `1.introduction/`, `2.guide/`, `3.ai-integration/`, `7.benchmarks/`, plus
-  `8.diagnostics.md` and `index.md` (the home page).
+  `01.introduction/`, `02.guide/`, `03.ai-integration/`, `07.benchmarks/`, plus
+  `08.diagnostics.md` and `index.md` (the home page).
+- **Every prefix is TWO digits, including new ones.** Nuxt Content sorts them as
+  text, so a single-digit set silently reorders the moment a 10th entry appears
+  (`1 < 10 < 2`, which is how `10.linting.md` once rendered second in the guide).
+  Nothing errors and the diff looks fine; only the rendered nav is wrong. The
+  prefix is stripped from the URL, so `1.` and `01.` route identically and padding
+  is free. Pinned by `website-content-prefixes` in
+  `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
 - Frontmatter supports `title`, `description`, `toc`.
 - `index.md` is hand-tuned: the densest custom-MDC usage in the tree, and off

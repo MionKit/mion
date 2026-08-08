@@ -47,7 +47,7 @@ check:builds` (the `suite-modules` target in scripts/core/build.mjs).
   reached through `$schema`) lives in a second document we would have to fetch
   and is effectively unused, so nothing in the schema says which reading the
   author meant. Written up for users in
-  container/website/content/2.guide/02.json-schema.md § "Two deliberate limits".
+  container/website/content/02.guide/02.json-schema.md § "Two deliberate limits".
 - **divergent (open)** — a real conformance gap, recorded, not yet fixed.
 - **unsupported-input** — the door's typed input contract rejects the document
   (unknown keyword, cross-document `$ref`, …); no call site is generated.

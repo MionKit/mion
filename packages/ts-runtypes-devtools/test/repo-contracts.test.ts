@@ -371,3 +371,37 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
     expect(call![1]).toMatch(/failOnError:\s*false/);
   });
 });
+
+// Nuxt Content orders pages by their numeric filename prefix, and it sorts them
+// as TEXT: with single-digit prefixes a 10th entry lands second (1 < 10 < 2).
+// That is how `10.linting.md` once rendered as the guide's second nav item —
+// nothing errors, the diff looks fine, and only the rendered nav is wrong, so
+// review cannot catch it. Two digits everywhere makes the trap unreachable, and
+// the prefix is stripped from the URL, so padding costs no route changes.
+describe('website-content-prefixes', () => {
+  const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
+  const PREFIXED = /^(\d+)\./;
+
+  const entriesIn = (dir: string): string[] => readdirSync(dir);
+
+  it('every numbered content entry uses a two-digit prefix', () => {
+    const offenders: string[] = [];
+    const visit = (dir: string, relative: string): void => {
+      for (const name of entriesIn(dir)) {
+        const prefix = PREFIXED.exec(name)?.[1];
+        if (prefix !== undefined && prefix.length !== 2) offenders.push(posix.join(relative, name));
+        if (statSync(join(dir, name)).isDirectory()) visit(join(dir, name), posix.join(relative, name));
+      }
+    };
+    visit(CONTENT_DIR, '');
+    expect(offenders).toEqual([]);
+  });
+
+  it('finds the numbered pages it claims to be checking', () => {
+    const sections = entriesIn(CONTENT_DIR).filter(
+      (name) => PREFIXED.test(name) && statSync(join(CONTENT_DIR, name)).isDirectory()
+    );
+    expect(sections.length).toBeGreaterThan(2);
+    for (const section of sections) expect(entriesIn(join(CONTENT_DIR, section)).some((name) => PREFIXED.test(name))).toBe(true);
+  });
+});

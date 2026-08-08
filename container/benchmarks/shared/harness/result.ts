@@ -54,7 +54,16 @@ export interface CompetitorResult {
     total: number;
     validate: MetricSummary;
     validationErrors: MetricSummary;
-    // Totals across BOTH metrics — drive the per-competitor process exit code.
+    // Totals across BOTH metrics.
+    //
+    // `fail` = this competitor disagreed with a shared sample. Several do, by
+    // design (an all-optional zod object accepts a value RunTypes rejects), so it
+    // is DATA for the alignment audit and the Correctness page, never a broken
+    // lane: it does NOT colour the process exit code.
+    //
+    // `errored` = a builder threw, so the metric produced no measurement at all.
+    // That is a real break, and it is the ONLY thing each main.ts exits non-zero
+    // on — which is what lets `bench.mjs` tell "did not run" from "disagreed".
     fail: number;
     errored: number;
   };

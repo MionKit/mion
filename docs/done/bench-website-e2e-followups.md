@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: full-plan
-status: open
+status: done
 created: 2026-08-07
 ---
 
@@ -11,6 +11,22 @@ Six container-lane items, consolidated 2026-08-07 from six standalone specs
 (original names in each item header). Items 1 and 2 share a root cause
 (nothing typechecks `container/benchmarks`) and are best done together; the
 rest are independent. Item 6 is blocked on an upstream TypeBox release.
+
+## Outcome (2026-08-08)
+
+**Items 1 to 5 shipped. Item 6 did not, and was SPLIT OUT** into
+[typebox-json-schema-document-column.md](../todos/typebox-json-schema-document-column.md)
+rather than parked here: it is blocked on a TypeBox release that has not
+happened, so no amount of work on this branch could land it. Each item below
+carries a "What shipped" note where the result differs from the plan as written.
+
+One thing could not be verified from this environment: the benchmark lanes only
+run inside the podman image, which needs GHCR credentials this session did not
+have, so the container-side behaviour (the typecheck verb, the typia column, the
+per-competitor messages) is verified by the host-side contract tests in
+`packages/ts-runtypes-devtools/test/bench-lane-contracts.test.ts` plus the CI
+smoke lane, not by a local run. The first CI run on this branch is the real
+end-to-end proof.
 
 ## Item 1 — Benchmark competitor-map totality is declared but never enforced (chore, full-plan, 2026-07-30, was benchmark-competitor-maps-never-typechecked.md)
 
@@ -59,6 +75,31 @@ Expect the first run to surface more drift than the three keys above — treat w
 
 - `pnpm rtx bench typecheck` typechecks every competitor map plus `shared/` inside the container and exits non-zero on a missing or excess key.
 - CI runs it, and deleting a key from any competitor map makes CI fail.
+
+### What shipped
+
+Step 1 was **dropped**, and the plan is better for it. Adding a `typecheck` script
+to each `_deps/competitors/<name>/package.json` would have meant rebuilding and
+republishing the `tsrt-website` image before CI could use the verb, and CI pulls
+the published image rather than building one. Instead `cmdTypecheck` runs the
+compiler straight out of the competitor's already-baked `node_modules`, so the
+gate works against the image as published today. It prefers `tsgo` (TypeScript 7,
+the compiler this project is built on) and falls back to the ts-runtypes lane's
+`tsgo` and then to the local `tsc`, which is also what lets typia be covered: its
+manifest carries no `typescript` at all.
+
+`shared/` gets no project of its own either. Every competitor `tsconfig.json`
+already `include`s `../../shared`, so it is compiled with each of them; a
+standalone project would have had no `node_modules` to resolve `@types/node`
+from. Two competitor `include` lists were widened, because the gate only proves
+what the project compiles: `ts-runtypes/jsonSchemaCases.ts` is a full
+`CompetitorCases` map that no entry point imports (typecost reads it as text), so
+it would have stayed unchecked, and `specCases.ts` was reaching the graph only
+transitively through `main.ts`.
+
+The CI step deliberately does NOT set `RT_BENCH_NO_TYPIA`: type-checking typia
+needs no `.ttsc` plugin, only building it does, so typia's map is gated even
+though the build smoke still skips it.
 ## Item 2 — typia's validationErrors benchmark column is entirely broken: 195 errored cases (fix, full-plan, 2026-07-30, was typia-validationerrors-column-calls-a-removed-api.md)
 
 
@@ -113,6 +154,25 @@ The visible consequence is that the two `getvalidationerrors` benchmark pages ha
 - `results/typia.json` reports `errored: 0`.
 - The `getvalidationerrors` and `getvalidationerrors-formats` pages render a populated typia column.
 - The name is pinned so a future typia bump that renames it fails loudly (the typecheck gate in item 1 is the natural mechanism).
+
+### What shipped
+
+All 195 call sites renamed to `typia.createValidate`. Step 2's return-shape check
+was done against typia 13.0.0-dev.20260511's own `lib/module.d.ts` rather than by
+running a case: `createValidate<T>()` is declared as
+`(input: unknown) => IValidation<T>`, so the existing `(v) => val(v).success`
+reading was already correct and no thunk body changed.
+
+A stale comment above the `JSON_SCHEMA` group was removed: that group had always
+used the real export and carried a note explaining that the rest of the file did
+not. Two pins were added on top of the item 1 gate, because the gate only runs in
+the image: the file header now states which typia export backs each metric, and
+`bench-lane-contracts.test.ts` checks every `typia.<name>` in the file against the
+pinned 13.x export list, so an invented name fails `pnpm test` on the host too.
+
+`results/typia.json` reporting `errored: 0` is the one Done-when clause that
+needs the image to confirm; the CI smoke lane and the next `--website` run are
+where that lands.
 ## Item 3 — The zod benchmark lane prints "FAILED" on every run, so a real break is invisible (fix, guidelines, 2026-07-30, was zod-bench-lane-permanently-reports-failed.md)
 
 
@@ -171,6 +231,26 @@ Worth confirming against [serialization-bench-swallows-container-exit.md](../don
 - A healthy zod run exits 0 and prints no failure line.
 - A genuinely broken competitor lane (build error, errored case) still fails loudly.
 - The three known divergences remain visible on the correctness page.
+
+### What shipped
+
+The first option: exit on `errored` only. The other four competitors did not need
+checking after all, because the exit line was **byte-identical in all five**
+`main.ts` files, which makes it a harness-wide decision by construction rather
+than a zod one. No allowlist was added; a standing `fail` is already recorded by
+the alignment audit and rendered on the Correctness page, and `aggregate.mjs`
+still lists every one of them by name and still exits non-zero, so the
+divergences stayed exactly as visible as before.
+
+`buildAndRunOne` now distinguishes the two cases by asking whether the lane wrote
+its `results/<name>.json`: no file means the build broke and the column will be
+missing, a file plus a non-zero exit means errored cases. Beyond the message, the
+broken lanes are now **accumulated and reported as a non-zero exit** at the end of
+`bench`, `bench-one` and `website-bench`, after aggregate and after the site data
+is regenerated. That ordering is deliberate, and it is what keeps the
+[serialization-bench-swallows-container-exit.md](serialization-bench-swallows-container-exit.md)
+fix intact from the other direction: the lanes that did run still publish, and the
+exit code still tells the truth.
 ## Item 4 — rtx bench --one crashes in aggregate if an audit ran first (fix, full-plan, 2026-07-30, was bench-one-aggregate-chokes-on-audit-results.md)
 
 
@@ -220,6 +300,22 @@ Filter in `aggregate.mjs` rather than in the caller, so the guard holds no matte
 
 - `pnpm rtx bench --one ajv` immediately after `pnpm rtx bench --website` completes cleanly, aggregate table included.
 - A competitor results file that is genuinely malformed still surfaces rather than being skipped quietly.
+
+### What shipped
+
+All three steps, including the optional step 3: `cmdBenchOne` now finishes with
+the same `gen-docs.mjs` step `cmdWebsiteBench` runs, so a single-competitor re-run
+refreshes the site's data instead of only `.docdata/`. Unreadable JSON is reported
+separately from wrong-shape JSON, so a truncated competitor file reads as
+"unreadable JSON", not as "some other artifact". `results[0].env.noTiming` was
+also made optional-safe, since it was the next unguarded assumption on the same
+line of reasoning.
+
+This is the one item verified directly: `aggregate.mjs` is plain Node with a
+`RT_BENCH_RESULTS_DIR` override, so the crash and the fix are both reproduced on
+the host by `bench-lane-contracts.test.ts`, which runs it over a directory holding
+a competitor result plus `env.json`, an alignment file, a misalignments file, a
+typecost file, a compiletime file and a malformed file.
 ## Item 5 — Zero-pad the remaining website content dirs before a 10th page silently reorders them (chore, guidelines, 2026-07-31, was website-content-zero-pad-numeric-prefixes.md)
 
 
@@ -238,68 +334,40 @@ Alternative considered: pad only `7.benchmarks/` now and the others on touch. On
 ### Done when
 
 - Every content page uses a two-digit prefix; nav order verified rendered (`pnpm rtx website dev --agent` or `pnpm rtx website check`); no stale references to the old filenames anywhere in the repo.
+
+### What shipped
+
+The full sweep, and one step further than the spec described: the **directories
+and the top-level page were padded too** (`01.introduction/` … `07.benchmarks/`,
+`08.diagnostics.md`). Padding only the pages inside the dirs would have left the
+top level in the same trap, and padding `08.diagnostics.md` alone would have
+actively reordered it against the unpadded dirs, since text sort puts `08.` before
+`1.`. Either pad a whole level or none of it.
+
+No content file needed editing: every internal link in the tree is a route
+(`/guide/linting`), never a file path. The stale references were all outside
+`content/`: `docs/WEBSITE-DOCGEN.md`, `docs/investigations/json-schema/README.md`,
+`packages/ts-runtypes/test/json-schema-official/README.md`,
+`container/website/CLAUDE.md`, and two example paths in comments in
+`scripts/website/check-static.mjs`. The relative links in `docs/done/` were left
+alone deliberately: that directory is an archive of what was true when each spec
+landed, and rewriting history there buys nothing.
+
+Rendered nav order is the clause this environment could not verify (the website
+needs the image). In its place the invariant is now **pinned by a test** rather
+than by a one-time check: `website-content-prefixes` in `repo-contracts.test.ts`
+fails on any single-digit prefix anywhere under `content/`, and
+`container/website/CLAUDE.md` states the rule for new pages. That is a better
+outcome than a rendered check, since the failure mode is a trap for the NEXT
+person, not a state of the tree today.
 ## Item 6 — Add TypeBox as a third document reader once Schema.Compile ships (feature, guidelines, BLOCKED upstream, 2026-08-03, was typebox-json-schema-document-column.md)
 
+**Not shipped — split back out into its own spec:
+[typebox-json-schema-document-column.md](../todos/typebox-json-schema-document-column.md).**
 
-Blocked on an upstream release. Raised while building the JSON Schema
-spec-conformance section
-([json-schema-spec-conformance-section.md](../done/json-schema-spec-conformance-section.md)),
-which today compares only ts-runtypes and ajv because they are the only two
-libraries that can take a schema document as input.
-
-### Why it is blocked
-
-TypeBox's next major adds a `Schema.Compile` entry point that consumes a plain
-JSON Schema document:
-
-```ts
-const VectorB = Schema.Compile({
-  type: 'object',
-  required: ['x', 'y', 'z'],
-  properties: {x: {type: 'number'}, y: {type: 'number'}, z: {type: 'number'}},
-})
-```
-
-That is exactly the door the conformance section needs. It is **not published**:
-
-- Pinned in the bench image: `@sinclair/typebox@0.34.49`. Its main entry exports
-  no `Schema` at all (verified by enumerating the ~200 exports).
-- Latest on npm at the time of writing: **0.34.52**. No 1.x, and the only
-  prereleases are `0.32.0-dev-*`.
-- Empirically, on the pinned build: `TypeCompiler.Compile({type: 'string'})`
-  fails with `Preflight validation check failed to guard for the given schema`,
-  and `Type.Unsafe({type: 'string'})` compiles to `Unknown type`. The compiler
-  dispatches on TypeBox's own `Kind` symbol, which a plain document lacks.
-
-A git dependency is not an option: the bench `_deps` policy is registry-only
-(`allowNonRegistryProtocols: false`) with exact pins and a 30-day
-`minimumReleaseAge`.
-
-### Direction
-
-When TypeBox 1.x publishes:
-
-1. Bump `container/benchmarks/_deps/competitors/typebox/package.json` and
-   rebuild + republish the website image (`pnpm rtx container push website`).
-2. Add `container/benchmarks/competitors/typebox/specCases.ts`, importing the
-   shared documents exactly the way `competitors/ajv/specCases.ts` does. It must
-   NOT re-author them; the point is that all readers compile the same bytes.
-3. Add `'typebox'` to `SPEC_COMPETITORS` in
-   [scripts/website/bench-data/bench.mjs](../../scripts/website/bench-data/bench.mjs)
-   and in `buildSpecBench` in
-   [scripts/website/bench-data/gen-docs.mjs](../../scripts/website/bench-data/gen-docs.mjs).
-   Both lists are deliberately one line each so this stays a small change.
-4. Update the Correctness page prose, which currently states that only two
-   libraries can read a document.
-
-Expect divergences rather than a clean column, and treat them as findings about
-TypeBox rather than about us. Two are already proven on 0.34.x: it accepts
-`propertyNames` and `dependentRequired` into a schema object and never compiles
-either into a check. Also note TypeBox targets **Draft 7** while the corpus is
-2020-12, so tuple-shaped cases (`prefixItems` versus `items: [...]`) may need a
-per-case note.
-
-### Done when
-
-The conformance table shows a third column, populated from the same shared
-documents, and any TypeBox divergence is either explained on the page or filed.
+It is blocked on a TypeBox 1.x release that has not happened, so it could not
+land with the other five and there is no half-done lane to park it in. The full
+text (why it is blocked, the evidence gathered on 0.34.x, and the four-step
+direction for when the release lands) moved to that spec unchanged, plus one
+addition: the new competitor file has to be added to `competitors/typebox/
+tsconfig.json`'s `include` so the typecheck gate from item 1 covers it.

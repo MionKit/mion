@@ -97,6 +97,7 @@ The package-manager files (`package.json`, lockfile, `pnpm-workspace.yaml`, `.np
 | Benchmarks  | `pnpm rtx bench`         | Build + run EVERY competitor in its own isolated container, then aggregate.         |
 | Benchmarks  | `pnpm rtx bench --one <n>` | Build + run a SINGLE competitor + aggregate (fastest verification loop).            |
 | Benchmarks  | `pnpm rtx bench smoke`   | Build every competitor's dist (no run) — minutes shorter.                           |
+| Benchmarks  | `pnpm rtx bench typecheck` | Compile every competitor project in the image — the gate that keeps each `cases.ts` total over the shared case keys. |
 | Benchmarks  | `pnpm rtx bench typecost`| Per-competitor type-instantiation-cost benchmark.                                  |
 | Benchmarks  | `pnpm rtx bench serialization` | ts-runtypes round-trip serialization bench (+ formats), IN-CONTAINER on Node 26 (native Temporal). |
 | Benchmarks  | `pnpm rtx bench --website` | **One command** for ALL website benchmark data: validation + typecost + capture-env + serialization (+ formats), every measurement taken inside the Node 26 container, then the `gen-docs` host transform. |

@@ -29,6 +29,14 @@ function cell(c, metric, field) {
   return (fmt(m[field]) || 'ok') + (c.samplesOverridden ? '*' : '');
 }
 
+// results/ collects more than competitor results: env.json, *.alignment.json,
+// alignment-misalignments.json, *.typecost.json, *.compiletime.json, … The full
+// bench path wipes the directory first so aggregate only ever saw competitor
+// files; `bench-one` deliberately clears only <name>.json, which used to leave
+// the other artifacts in place and crash aggregate on the first one. So filter on
+// SHAPE rather than on the filename, which stays correct when a new artifact kind
+// is added — and name what was skipped, so a genuinely malformed competitor file
+// surfaces instead of disappearing.
 function load() {
   let files;
   try {
@@ -36,9 +44,24 @@ function load() {
   } catch {
     return [];
   }
-  return files
-    .filter((f) => f.endsWith('.json') && f !== 'env.json' && !f.endsWith('.typecost.json') && !f.endsWith('.compiletime.json'))
-    .map((f) => JSON.parse(readFileSync(path.join(RESULTS_DIR, f), 'utf8')));
+  const results = [];
+  const skipped = [];
+  for (const file of files.filter((f) => f.endsWith('.json'))) {
+    let parsed;
+    try {
+      parsed = JSON.parse(readFileSync(path.join(RESULTS_DIR, file), 'utf8'));
+    } catch (err) {
+      skipped.push(`${file} (unreadable JSON: ${err.message})`);
+      continue;
+    }
+    if (typeof parsed?.competitor !== 'string' || !Array.isArray(parsed.cases)) {
+      skipped.push(`${file} (not a competitor result: no competitor/cases)`);
+      continue;
+    }
+    results.push(parsed);
+  }
+  if (skipped.length > 0) console.log(`note: aggregate skipped ${skipped.length} non-competitor file(s): ${skipped.join(', ')}`);
+  return results;
 }
 
 function renderSection(title, metric, field, competitors, byKey, rows) {
@@ -74,7 +97,7 @@ function main() {
   const byKey = new Map(results.map((r) => [r.competitor, new Map(r.cases.map((c) => [c.key, c]))]));
   const rows = results.reduce((longest, r) => (r.cases.length > longest.length ? r.cases : longest), []);
 
-  const noTiming = results[0].env.noTiming;
+  const noTiming = results[0].env?.noTiming;
   console.log(`\nFull validation benchmark${noTiming ? ' (correctness only)' : ' — validate vs validationErrors, accept vs reject'}`);
   console.log('cells are validations/sec; "*" = competitor used its own samples (overrode shared data).');
   console.log('validate = cheap boolean; validationErrors = error-returning fn (runs only after validate fails).');

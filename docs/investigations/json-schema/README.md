@@ -2,7 +2,7 @@
 
 **Status: shipped.** These four documents are the design record that preceded the feature, kept for the reasoning behind the decisions. They are **not** the current API reference. For what actually shipped, read:
 
-- User docs: [runtypes.pages.dev/guide/json-schema](https://runtypes.pages.dev/guide/json-schema) (source: [container/website/content/2.guide/02.json-schema.md](../../../container/website/content/2.guide/02.json-schema.md))
+- User docs: [runtypes.pages.dev/guide/json-schema](https://runtypes.pages.dev/guide/json-schema) (source: [container/website/content/02.guide/02.json-schema.md](../../../container/website/content/02.guide/02.json-schema.md))
 - Source of truth: [packages/ts-runtypes/src/json-schema/](../../../packages/ts-runtypes/src/json-schema/) — `runTypeFromJsonSchema` (the builder), `FromJsonSchema` / `JsonSchemaInput` / `ExactJsonSchema` (the type-level core)
 - Implementation reconciliation: [docs/done/json-schema-first-class-implementation.md](../../done/json-schema-first-class-implementation.md) (M0–M7, with the deviations)
 - Rollout reconciliation: [docs/done/json-schema-first-class-rollout.md](../../done/json-schema-first-class-rollout.md) (docs, playground, benchmarks, e2e)
