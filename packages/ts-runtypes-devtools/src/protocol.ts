@@ -116,8 +116,11 @@ export interface RunType {
   // to materialise the full per-member struct in one pass.
   unionDiscriminators?: (RunType | null | undefined)[];
 
-  // surviving object-literal types from an intersection-collapse of a
-  // primitive with one or more brand objects (e.g. `string & {__brand}`).
+  // The OPEN metadata extension point: object-literal members surviving an
+  // intersection-collapse of a primitive with metadata objects (e.g.
+  // `string & {__brand}`, `number & {dbIndex: true}`). Carried untouched for
+  // consumers to read back via reflection; the engine never interprets it —
+  // formatAnnotation (below) is the CLOSED, engine-executed counterpart.
   // Each entry is a ref to an objectLiteral RunType. Mirrors deepkit's
   // TypeAnnotations.decorators.
   typeMeta?: RunType[];
@@ -129,7 +132,8 @@ export interface RunType {
   // structural id folds name + canonicalised params in, so two
   // distinct param sets produce two distinct cache entries while
   // equivalent param sets (regardless of object-literal key order)
-  // collapse to one.
+  // collapse to one. Recognition rides the unforgeable unique-symbol
+  // sentinels, so hand-written typeMeta objects can never trigger it.
   formatAnnotation?: FormatAnnotation;
 
   // enum

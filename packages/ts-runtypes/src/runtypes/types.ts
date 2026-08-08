@@ -152,9 +152,18 @@ export interface RunType<T = unknown> extends SchemaChecks {
   children?: RunType[];
   safeUnionChildren?: RunType[];
   unionDiscriminators?: unknown;
+  /** The OPEN metadata extension point: user-space annotation objects from an
+   *  `atomic & { obj }` intersection (e.g. `number & {dbIndex: true}`), carried
+   *  through reflection untouched so consumers can read their own metadata
+   *  back at runtime. The engine NEVER acts on its contents — engine-recognised
+   *  behavior lives only behind the symbol-keyed sentinels (`formatAnnotation`
+   *  below, the SchemaChecks members above). */
   typeMeta?: unknown;
-  // Populated for a TypeFormat-branded primitive. Drives mock
-  // generation (mockSamples) + format-formatter lookup at runtime.
+  /** Populated for a TypeFormat-branded primitive. Drives mock generation
+   *  (mockSamples) + format-formatter lookup at runtime. The CLOSED
+   *  counterpart of `typeMeta`: only a real TypeFormat brand (the
+   *  `__rtFormatName` / `__rtFormatParams` unique-symbol sentinels) produces
+   *  it, and the engine acts on it. */
   formatAnnotation?: FormatAnnotation;
   // The schema-check members (negations / contains / patternProps /
   // propNames / unevaluatedKeys / unevaluatedSources / oneOf) are inherited

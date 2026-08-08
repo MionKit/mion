@@ -229,17 +229,25 @@ type RunType struct {
 	// materialise the full per-member struct.
 	UnionDiscriminators []*RunType `json:"unionDiscriminators,omitempty"`
 
-	// TypeMeta — opaque type-level metadata: the object-literal members
-	// that survive a collapsed intersection of a primitive with one or
-	// more metadata objects (e.g. `string & {__brand: "Email"}` or
-	// `number & {currency: "USD"}`). Any `atomic & { obj }` qualifies —
-	// no brand marker is required. Each entry is a ref to an objectLiteral
-	// RunType, passed through untouched for consumers to read. This is the
-	// generic form of deepkit's "type decorators" (TypeAnnotations.decorators),
-	// renamed from `decorators` to avoid confusion with JS `@decorator`s and
-	// to subsume the former number `brand` field. Order is the declaration
-	// order of the members in the original intersection. FormatAnnotation
-	// (below) is the validating specialisation, lifted out of TypeMeta.
+	// TypeMeta — the OPEN metadata extension point: user-space (or
+	// third-party) type-level metadata the engine carries but MUST NEVER
+	// interpret. Any object-literal member of an `atomic & { obj }`
+	// intersection that is not a recognised sentinel lands here (e.g.
+	// `string & {__brand: "Email"}`, `number & {dbIndex: true}`) — no
+	// marker or registration required. Each entry is a ref to an
+	// objectLiteral RunType, passed through untouched: it folds into the
+	// structural id (so differently-annotated types never share a cache
+	// entry) and rides the runtime cache so reflection consumers can read
+	// their own annotations back — but no emitter may key behavior off its
+	// contents. Engine-recognised behavior lives ONLY behind the
+	// symbol-keyed sentinels: FormatAnnotation (below, the CLOSED format
+	// vocabulary produced by TypeFormat brands) and the SchemaChecks
+	// group — that unforgeable-key split is what keeps arbitrary user
+	// metadata safe to carry. This is the generic form of deepkit's "type
+	// decorators" (TypeAnnotations.decorators), renamed from `decorators`
+	// to avoid confusion with JS `@decorator`s and to subsume the former
+	// number `brand` field. Order is the declaration order of the members
+	// in the original intersection.
 	TypeMeta []*RunType `json:"typeMeta,omitempty"`
 
 	// FormatAnnotation — populated when a primitive is branded with a
@@ -253,6 +261,12 @@ type RunType struct {
 	// Lifted into a dedicated field rather than living in TypeMeta
 	// so the emit hook is a single pointer check, not a per-emit
 	// decorator-array scan.
+	//
+	// The CLOSED counterpart of TypeMeta above: recognition rides the
+	// unforgeable `__rtFormatName` / `__rtFormatParams` unique-symbol
+	// sentinels, so only a real TypeFormat brand can ever trigger engine
+	// behavior (format-aware validate/verr emit, formatters, mock pools) —
+	// a hand-written metadata object cannot, no matter its shape.
 	FormatAnnotation *FormatAnnotation `json:"formatAnnotation,omitempty"`
 
 	// SchemaChecks — the sentinel-lifted JSON Schema constraint checks
