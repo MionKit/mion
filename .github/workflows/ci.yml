@@ -86,14 +86,17 @@ jobs:
         if: needs.changes.outputs.go == 'true'
         working-directory: ts-go-runtypes
         run: go vet ./cmd/... ./internal/...
+      # Build BEFORE the Go suite: since the real-package migration the Go
+      # tests read packages/ts-runtypes/dist (testfixtures.RealMarkerPackage +
+      # the on-disk fixture tsconfigs' paths), and the fuzz half below spawns
+      # the binary and reads the dists. One build feeds both; the Go compile
+      # is cache-warm from vet.
+      - name: Build the resolver + dists (marker dist read by the Go suite; binary spawned by fuzz)
+        run: pnpm run check:builds
       - name: Go test suite
         if: needs.changes.outputs.go == 'true'
         working-directory: ts-go-runtypes
         run: go test ./internal/...
-      # The fuzz tests spawn the binary and read the dists — build first
-      # (cache-warm from go test/vet, so ~fast).
-      - name: Build the resolver + dists (spawned/read by the fuzz suite)
-        run: pnpm run check:builds
       - name: JS fuzz suite (test/fuzz/**)
         run: pnpm exec vitest run test/fuzz
       # enrichRace self-skips unless RT_FUZZ_RACE=1 (scripts audit §3.4); the

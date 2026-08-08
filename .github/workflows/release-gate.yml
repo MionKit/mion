@@ -53,6 +53,12 @@ jobs:
       - id: version
         shell: bash
         run: echo "version=$(node -p "require('./version.json').version")" >> "$GITHUB_OUTPUT"
+      # The Go suites read the built marker dist (real-package overlay +
+      # fixture tsconfig paths); pnpm test's pretest builds everything too,
+      # but the Go suite runs first — check:builds is staleness-safe and makes
+      # the later pretest a no-op.
+      - name: Build the resolver + dists (marker dist read by the Go suite)
+        run: pnpm run check:builds
       - name: Go test suite
         working-directory: ts-go-runtypes
         run: go test ./internal/...
