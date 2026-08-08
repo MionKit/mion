@@ -31,6 +31,12 @@ const RunTypeName = "RunType"
 // carrier, not a RunType, so they need their own recognition in the leaf check.
 const PropModSentinel = "__propMod"
 
+// EmbedSentinel is the marker property on the json-schema `embedType` escape's
+// EmbedSchema<T> carrier — a schema-position leaf whose TYPE carries an
+// embedded TS type. Like propMod it returns a carrier, not a RunType, so the
+// leaf check recognizes it structurally.
+const EmbedSentinel = "__rtEmbed"
+
 // IsBuilderLeafCall reports whether call is a static builder-construction call
 // valid as a CompTimeArgs leaf: a builder (returns RunType<…>, incl.
 // the temporal.* family and composers) OR a property modifier (optional() /
@@ -53,10 +59,13 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *
 	if IsRunType(returnType, markerModule, fs) {
 		return true
 	}
-	// propMod / optional carrier — recognised structurally by the sentinel
-	// property (the carrier interface is internal, so there's no symbol to gate
-	// on; the property is unique to the marker module's modifiers).
-	return checker.Checker_getPropertyOfType(typeChecker, returnType, PropModSentinel) != nil
+	// propMod / optional / embedType carriers — recognised structurally by
+	// their sentinel properties (the carrier interfaces are internal, so there
+	// is no symbol to gate on; the properties are unique to the marker module).
+	if checker.Checker_getPropertyOfType(typeChecker, returnType, PropModSentinel) != nil {
+		return true
+	}
+	return checker.Checker_getPropertyOfType(typeChecker, returnType, EmbedSentinel) != nil
 }
 
 // IsRunType reports whether tsType is the marker module's `RunType<…>` —
