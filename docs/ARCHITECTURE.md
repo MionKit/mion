@@ -88,6 +88,11 @@ The program has three subcommands:
 - **`enrich`** serves the enrichment workflow described below: it scaffolds the hand
   edited files, re-syncs them when a type changes, and checks them. One shot, and off the
   build path.
+- **`convert`** (experimental) rewrites a file's type declarations between the three
+  authoring forms — plain types, builders, JSON Schema — over the same reflection
+  graph, so a conversion can never change a type's id. Atomic types and literals so
+  far; the rest of the type space lands phase by phase. One shot, and off the build
+  path.
 
 `compile` and `enrich` are both code generation from the same source of truth, the type the
 checker resolves. What separates them is who owns the result. `compile` emits the caches and
