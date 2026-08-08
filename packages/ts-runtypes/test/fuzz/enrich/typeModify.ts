@@ -19,7 +19,7 @@
 // Everything draws from a passed `rng` so a seed replays the whole edit sequence.
 
 import {
-  FUZZ_FORMAT_PREAMBLE,
+  FUZZ_FORMAT_SCRATCH_PREAMBLE,
   renderDecl,
   usesFormatLeaves,
   type Decl,
@@ -70,12 +70,14 @@ export interface ModifyResult {
 // Render a rooted type to a source module: every decl exported so the resolver
 // can target any of them by name. `renderDecl` already emits `interface` /
 // `type` / `declare class` / `enum`; prefixing `export ` keeps all valid.
-// Format/not leaves reference the Fz* aliases, so the module carries the
-// (import-free) preamble exactly when a decl uses one.
+// Format/not leaves reference `TF.*` names, carried by the IMPORT-FREE scratch
+// preamble (a local namespace): these fixtures live in temp dirs where a
+// relative `./src/...` import cannot resolve, which is also why the generator
+// runs on SCRATCH_FORMAT_LEAVES — the only leaves that preamble can spell.
 export function renderRootedSource(rooted: RootedType): string {
   const decls = rooted.decls.map((decl) => `export ${renderDecl(decl)}`).join('\n') + '\n';
   const usesFormats = usesFormatLeaves({decls: rooted.decls, root: {kind: 'null'}});
-  return usesFormats ? `${FUZZ_FORMAT_PREAMBLE}\n${decls}` : decls;
+  return usesFormats ? `${FUZZ_FORMAT_SCRATCH_PREAMBLE}\n${decls}` : decls;
 }
 
 // --- seeded helpers ------------------------------------------------------------

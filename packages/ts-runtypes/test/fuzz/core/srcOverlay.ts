@@ -11,27 +11,20 @@
 // type does not fail when the shipped type changes — it silently keeps testing
 // the old shape, which is the one failure mode a fuzz suite cannot afford.
 //
+// The resolver-lane fixtures follow the rule fully: their format / not /
+// structural / oneOf spellings IMPORT the shipped brands (typeGen's
+// FUZZ_FORMAT_PREAMBLE + FORMATS_OVERLAY below), so nothing is restated.
 // The deliberate exceptions, all declared so the next reader can tell them
-// from an accident:
+// from an accident, are the fixtures that physically cannot import:
 //
-// 1. `FUZZ_FORMAT_PREAMBLE` (typeGen.ts) — four aliases restating the raw
-//    SENTINEL ENCODING the Go scanner reads. They are the independent
-//    type-first oracle the translation is checked against; importing the
-//    shipped brands there would compare a type with itself and the convergence
-//    check would pass by construction. The encoding is content-free (no
-//    per-format grammar), so there is nothing to drift — per-format leaves are
-//    barred by the ADMISSION RULE on `FormatLeafName`.
-// 2. The structural sentinel spellings inline in typeGen's `renderType`
-//    (`__rtFormatName: 'formattedArray' / 'formattedObject'`, `__rtContains`,
-//    `__rtPatternProps`, `__rtPropNames`) — the same raw-encoding oracle as
-//    (1), for the structural keyword brands (structural.ts). Same rationale,
-//    same content-free shape.
-// 3. `i18nModel.ts`'s inline `TypeFormat` spelling — its fixtures are scratch
-//    temp dirs with no ts-runtypes install, so a relative import cannot
-//    resolve. Pinned against the shipped encoding by
-//    i18nInlineSpelling.test.ts so drift fails loudly instead of silently
-//    testing a plain string.
-// 4. `RUNTYPES_DTS` (ts-runtypes-devtools/test/helpers/inline.ts) — the
+// 1. `FUZZ_FORMAT_SCRATCH_PREAMBLE` (typeGen.ts) — the enrich / typemod
+//    fixtures are scratch temp dirs with no ts-runtypes install, so they
+//    carry a local `TF` namespace restating the param brands' raw sentinel
+//    encoding (content-free, no per-format grammar). Pinned against the
+//    shipped brands by scratchFormatPreamble.test.ts.
+// 2. `i18nModel.ts`'s inline `TypeFormat` spelling — same temp-dir
+//    constraint. Pinned by i18nInlineSpelling.test.ts.
+// 3. `RUNTYPES_DTS` (ts-runtypes-devtools/test/helpers/inline.ts) — the
 //    hand-written `declare module '@ts-runtypes/core'` every harness loads.
 //    The largest copy of all; generating it from source is its own design
 //    problem (docs/todos/generate-runtypes-dts.md).

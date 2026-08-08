@@ -126,10 +126,13 @@ tier-(a)-spelled leaves, so no real imports were needed anywhere. See the
 Shipped section of
 [fuzz-retire-per-format-aliases](fuzz-retire-per-format-aliases.md).)
 
-1. **Structural brands — KEEP, now declared.** They are the same raw
-   sentinel-encoding oracle as the tier-(a) preamble (content-free, nothing to
-   drift). A comment block on `structuralParamsText` in `typeGen.ts` declares
-   the exception and its rationale, and `srcOverlay.ts` lists it.
+1. **Structural brands — first declared, then ELIMINATED the same day.** The
+   import route (see the Superseded section of
+   [fuzz-retire-per-format-aliases](fuzz-retire-per-format-aliases.md))
+   replaced the inline sentinel spellings with the SHIPPED
+   `TF.FormattedArray` / `TF.FormattedObject` wrappers and the shipped
+   `OneOf` combinator, so `renderType` no longer restates any structural
+   encoding at all.
 2. **`i18nModel.ts` — KEEP the inline spelling (the temp-dir constraint is
    real), PIN it.** `MINLENGTH_FMT` / `patternFmt` are now exported, and the
    new `test/fuzz/enrich/i18nInlineSpelling.test.ts` pins them in two hops:
@@ -140,4 +143,7 @@ Shipped section of
    [generate-runtypes-dts](../todos/generate-runtypes-dts.md). Scoping found
    the two "mirrors" (JS 71 lines, Go 53 lines) have ALREADY drifted in
    declaration set and ordering, which sharpens the case and is recorded there.
-4. **The `srcOverlay.ts` carve-out paragraph now names all four exceptions.**
+4. **The `srcOverlay.ts` carve-out paragraph now names every actual
+   exception** — after the import route landed, that is three: the scratch-dir
+   preamble (`FUZZ_FORMAT_SCRATCH_PREAMBLE`, pinned), `i18nModel`'s inline
+   spelling (pinned), and `RUNTYPES_DTS` (its own spec).

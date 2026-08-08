@@ -28,6 +28,7 @@ import {RUNTYPES_DTS, evalEntryModules, instantiateRunTypes} from '../../../../t
 import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
 import {openClient, hasBinary, BIN} from '../type/typeFuzzHarness.ts';
+import {SRC_OVERLAY} from '../core/srcOverlay.ts';
 
 export {hasBinary, BIN, openClient};
 
@@ -125,7 +126,9 @@ export async function compileCodecs(client: ResolverClient, gen: GeneratedType):
 
   let resp;
   try {
-    await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
+    // src/ rides along for the fixture preamble's shipped-brand imports (see
+    // typeFuzzHarness.compileType).
+    await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
     return {...base, resolverError: errMsg(err)};

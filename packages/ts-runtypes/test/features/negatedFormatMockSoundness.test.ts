@@ -82,9 +82,8 @@ describe('negated format mocks are accepted by the compiled validator', () => {
   it('Not<StringDate> / Not<StringTime> / Not<StringDateTime> keep the date-family fallback sound', () => {
     // The last NAMED_STRING_FORMATS arms without a pinned case ('date' / 'time'
     // / 'dateTime') — with these, every runtime named-format test in
-    // negationMatch.ts has an enumerated soundness pin, which is what lets the
-    // fuzz lanes keep only mechanically-1:1 format leaves (typeGen ADMISSION
-    // RULE) without losing named-format coverage.
+    // negationMatch.ts has an enumerated soundness pin alongside the fuzz
+    // lanes' random-composition coverage of the same brands.
     const mockDate = createMockDataFn<TF.Not<TF.StringDate>>();
     const validateDate = createValidateFn<TF.Not<TF.StringDate>>();
     const mockTime = createMockDataFn<TF.Not<TF.StringTime>>();

@@ -41,6 +41,7 @@ import {
 } from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity, type Diagnostic, type Site} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import {renderGenerated, describeType, type GeneratedType} from '../core/typeGen.ts';
+import {SRC_OVERLAY} from '../core/srcOverlay.ts';
 
 export {hasBinary, BIN};
 
@@ -155,7 +156,10 @@ export async function compileType(client: ResolverClient, gen: GeneratedType): P
 
   let resp;
   try {
-    await client.setSources({'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
+    // The whole src/ tree rides along so the fixture preamble's `./src/...`
+    // imports (the SHIPPED format brands) resolve inside the resolver's
+    // virtual filesystem — no hand-written brand stand-ins (srcOverlay.ts).
+    await client.setSources({...SRC_OVERLAY, 'runtypes.d.ts': RUNTYPES_DTS, [FIXTURE]: source});
     resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   } catch (err) {
     return {...base, resolverError: errMsg(err)};

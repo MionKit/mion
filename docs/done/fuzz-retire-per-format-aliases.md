@@ -171,3 +171,33 @@ What landed:
   `renderType`, `i18nModel`'s inline spelling, `RUNTYPES_DTS`) — see
   [fuzz-undocumented-type-duplication](fuzz-undocumented-type-duplication.md)
   for the other three.
+
+---
+
+## Superseded (2026-08-08, same day) — imports instead of thinning
+
+On review, the thinning was rejected: generation must COVER every format
+feature (each feature maps to a type, and the random generator must be able to
+reach all of them), and the way to avoid duplication is not to shrink the
+roster but to IMPORT the shipped brands. So the original plan's road not taken
+was taken after all:
+
+- `type/tsValidate.ts` anchors its virtual file at the real package root, and
+  the type / roundtrip / binary harnesses put the whole `src/` tree in the
+  resolver overlay — both halves of the blocker above, implemented. Measured
+  cost: no meaningful lane slowdown (both type-lane batches finish in ~22s of
+  test time).
+- The roster is BIGGER than it ever was: all 19 `BrandBySchemaFormat` keyword
+  rows (adding `email` — now correctly spelled as `TF.EmailAddress` —
+  `idn-email`, `date`, `time`, `date-time`, `idn-hostname`, `ipv4`, `ipv6`,
+  `regex`), both content keywords, and the six param leaves.
+- Every `tsText` is a `TF.*` reference imported from
+  `./src/formats/index.ts` (plus the shipped `OneOf` combinator, and the
+  shipped `FormattedArray` / `FormattedObject` wrappers for the structural
+  decorations). ZERO restated brand encodings remain in the resolver-lane
+  fixtures — the per-format aliases stay retired, which is what this todo
+  asked for; only the delivery route changed.
+- The scratch-dir lanes (enrich / typemod), whose temp-dir fixtures cannot
+  import, draw only `SCRATCH_FORMAT_LEAVES` (param brands) spelled by a local
+  import-free `TF` namespace, pinned against the shipped encodings by
+  `scratchFormatPreamble.test.ts`.
