@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // numberFormatEmitter implements the format with name "numberFormat" —
@@ -38,15 +38,15 @@ func (numberFormatEmitter) Name() string {
 	return numberFormatName
 }
 
-func (numberFormatEmitter) Kind() protocol.ReflectionKind {
-	return protocol.KindNumber
+func (numberFormatEmitter) Kind() reflection.ReflectionKind {
+	return reflection.KindNumber
 }
 
 // EmitValidateCheck returns the AND of every active number predicate, in
 // emitIsType order (numberFormat.runtype.ts:40-81): integer/float,
 // max, min, lt, gt, multipleOf. Returns "" when no params constrain the
 // value — the host keeps its base Number.isFinite check.
-func (numberFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (numberFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -85,7 +85,7 @@ func numberConditions(params map[string]any, vλl string) []string {
 // (numberFormat.runtype.ts:83-125). integer/float tag the error `val`
 // with the literal `true`; the range/multipleOf params tag it with the
 // bound.
-func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
+func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -129,7 +129,7 @@ func (numberFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.Format
 // (numberFormat.runtype.ts:133-161). Returns "" (→ base float64 arm) for
 // floats, unconstrained integers, and integer ranges wider than int32;
 // otherwise the narrowest setUint8/16/32 / setInt8/16/32 the range fits.
-func (numberFormatEmitter) EmitToBinary(annotation *protocol.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
+func (numberFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -162,7 +162,7 @@ func (numberFormatEmitter) EmitToBinary(annotation *protocol.FormatAnnotation, v
 // (numberFormat.runtype.ts:163-191). Byte-symmetric with EmitToBinary;
 // returns the RHS expression the host assigns to `ret`, or "" for the
 // float64 fallback cases.
-func (numberFormatEmitter) EmitFromBinary(annotation *protocol.FormatAnnotation, des string, _ formats.EmitContext) string {
+func (numberFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -195,7 +195,7 @@ func (numberFormatEmitter) EmitFromBinary(annotation *protocol.FormatAnnotation,
 // packed integer occupies, from the SAME integerType ladder EmitToBinary
 // uses. Floats, non-integers, unconstrained integers and ranges wider than
 // int32 all ride the base float64 arm — 8 bytes.
-func (numberFormatEmitter) BinarySize(annotation *protocol.FormatAnnotation) formats.BinarySizeHint {
+func (numberFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
 	if annotation == nil {
 		return formats.BinarySizeHint{Fixed: 8}
 	}
@@ -270,7 +270,7 @@ func integerType(params map[string]any) integerKind {
 // `[x, y].filter(Boolean)` mutual-exclusivity / range checks are kept
 // spec-faithful: a `0` bound is falsy per the reference and so escapes these
 // checks — replicated here via numberTruthy for byte-for-byte parity.
-func (numberFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (numberFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	const label = "NumberFormat"
 	if annotation == nil {
 		return nil

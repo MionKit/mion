@@ -7,6 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Regression: the marker module-of-origin gate must read package.json through
@@ -65,9 +66,9 @@ createValidateFn<{a: string}>();
 			kind = int(rt.Kind)
 		}
 	}
-	if kind != int(protocol.KindObjectLiteral) {
+	if kind != int(reflection.KindObjectLiteral) {
 		t.Errorf("call T resolved to kind %d, want %d (ObjectLiteral) — the marker gate did not read the overlay package.json",
-			kind, protocol.KindObjectLiteral)
+			kind, reflection.KindObjectLiteral)
 	}
 }
 
@@ -118,7 +119,7 @@ createValidateFn(s);
 		t.Fatalf("no site produced")
 	}
 	rootID := resp.Sites[0].ID
-	var rootKind protocol.ReflectionKind = -1
+	var rootKind reflection.ReflectionKind = -1
 	propNames := map[string]bool{}
 	for _, rt := range resp.RunTypes {
 		if rt.ID == rootID {
@@ -129,8 +130,8 @@ createValidateFn(s);
 		}
 	}
 	// The modeled type `{a: string}` — an object whose only property is `a`.
-	if rootKind != protocol.KindObjectLiteral {
-		t.Errorf("root resolved to kind %d, want %d (ObjectLiteral) — the annotation was not recognised as RunType via the overlay", rootKind, protocol.KindObjectLiteral)
+	if rootKind != reflection.KindObjectLiteral {
+		t.Errorf("root resolved to kind %d, want %d (ObjectLiteral) — the annotation was not recognised as RunType via the overlay", rootKind, reflection.KindObjectLiteral)
 	}
 	if !propNames["a"] {
 		t.Errorf("reflected properties %v do not include 'a' — the modeled type was not resolved", keysOf(propNames))

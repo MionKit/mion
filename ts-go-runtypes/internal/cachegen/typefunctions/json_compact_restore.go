@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // CompactFromJsonEmitter — the decode walk of the `compact` JSON strategy, the
@@ -29,7 +29,7 @@ func (CompactFromJsonEmitter) Args() []ArgSpec {
 }
 
 // Supports mirrors the restoreFromJson supported surface.
-func (CompactFromJsonEmitter) Supports(rt *protocol.RunType) bool {
+func (CompactFromJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
@@ -39,7 +39,7 @@ func (CompactFromJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 
 // EmitDependencyCall captures the child's return into the accessor (`v = <hash>.fn(v)`)
 // so a rebound object propagates — same as restoreFromJson.
-func (CompactFromJsonEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (CompactFromJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 
@@ -58,7 +58,7 @@ func (CompactFromJsonEmitter) ReturnName() string { return "v" }
 // isNoopForCompactFromJson. Delegating rj's predicate wholesale would be
 // UNSOUND — the gate would skip the rebuild and decoded objects would stay
 // positional arrays.
-func (CompactFromJsonEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (CompactFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForCompactFromJson(rt, ctx)
 }
 
@@ -68,96 +68,96 @@ func (CompactFromJsonEmitter) NoopChildComposesAround() {}
 
 // Emit mirrors RestoreFromJsonEmitter.Emit; only the object-literal and
 // plain-class (SubKindNone) arms diverge to the positional rebuild.
-func (CompactFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (CompactFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUndefined:
+	case reflection.KindUndefined:
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		params := ctx.CtxFnParams(v)
 		call := ctx.CreateFnInContext(
 			"const parts = "+v+".match(/\\/(.*)\\/(.*)?/);return new RegExp(parts[1], parts[2] || '');",
 			CodeRB, params, params)
 		return RTCode{Code: v + " = " + call, Type: CodeE}
 
-	case protocol.KindClass:
-		if info, ok := protocol.TemporalInfoBySubKind(rt.SubKind); ok {
+	case reflection.KindClass:
+		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			return RTCode{Code: v + " = " + info.Builtin + ".from(" + v + ")", Type: CodeE}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return RTCode{Code: v + " = new Date(" + v + ")", Type: CodeE}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectCompactFromJson(rt, ctx, v)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableRestoreFromJson(rt, ctx, v)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectCompactFromJson(rt, ctx, v)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// Reuse the keyed flat-union decode — symmetric with the compact encode,
 		// which reuses the keyed flat-union encode (object members merge into a
 		// keyed `[-1, object]` envelope; only nested objects go positional).
 		return emitUnionRestoreFromJsonFlat(rt, ctx, v)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return emitLiteralRestoreFromJson(rt, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return RTCode{Code: "", Type: CodeS}
 		}
@@ -172,7 +172,7 @@ func (CompactFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 // object and REBINDS the value accessor to it. An object carrying an index
 // signature arrived keyed (the encode kept it keyed), so it restores in place
 // via the shared keyed restore walk — symmetric with emitObjectCompactForJson.
-func emitObjectCompactFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitObjectCompactFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}

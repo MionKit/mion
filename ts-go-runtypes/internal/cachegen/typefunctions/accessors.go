@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // JS accessor / string-literal helpers shared across the emitters. Relocated
@@ -27,9 +27,9 @@ func propertyAccessor(parent, name string, safe bool) string {
 // must be gated by a runtime own-enumerability check — the single source of
 // truth read by BOTH the serializer emitters and the noop predicates (per the
 // noop-soundness anti-drift rule). Set on lib-global-inherited members and
-// `@nonEnumerable`-tagged ones (see protocol.RunType.NonEnumerable /
+// `@nonEnumerable`-tagged ones (see reflection.RunType.NonEnumerable /
 // typeid.IsNonEnumerable).
-func isEnumerabilityGuarded(rt *protocol.RunType) bool {
+func isEnumerabilityGuarded(rt *reflection.RunType) bool {
 	return rt != nil && rt.NonEnumerable
 }
 
@@ -50,7 +50,7 @@ func quoteJSDouble(s string) string { return jsquote.Double(s) }
 // positionStr returns the tuple element's index as a JS literal.
 // Falls back to "0" when Position is nil (defensive — shouldn't
 // happen for well-formed cache entries).
-func positionStr(rt *protocol.RunType) string {
+func positionStr(rt *reflection.RunType) string {
 	if rt.Position == nil {
 		return "0"
 	}

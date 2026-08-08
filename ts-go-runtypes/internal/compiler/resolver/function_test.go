@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Function-family tests. The serializer already produces KindFunction /
@@ -43,17 +43,17 @@ getRunTypeId(fn);
 	assertF35RestOnlyFunction(t, r, root)
 }
 
-func assertF35RestOnlyFunction(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF35RestOnlyFunction(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindFunction {
+	if root.Kind != reflection.KindFunction {
 		t.Fatalf("expected KindFunction, got %+v", root)
 	}
 	if len(root.Parameters) != 1 {
 		t.Fatalf("expected 1 parameter, got %d", len(root.Parameters))
 	}
 	param := deref(types, root.Parameters[0])
-	if param == nil || param.Kind != protocol.KindParameter {
+	if param == nil || param.Kind != reflection.KindParameter {
 		t.Fatalf("parameter expected KindParameter, got %+v", param)
 	}
 	if param.Name != "args" {
@@ -67,15 +67,15 @@ func assertF35RestOnlyFunction(t *testing.T, r *resolver.Session, root *protocol
 	}
 	// Rest preserves the array shape; consumers infer the element via array.child.
 	child := deref(types, param.Child)
-	if child == nil || child.Kind != protocol.KindArray {
+	if child == nil || child.Kind != reflection.KindArray {
 		t.Fatalf("expected param.Child=KindArray, got %+v", child)
 	}
-	if elem := deref(types, child.Child); elem == nil || elem.Kind != protocol.KindString {
+	if elem := deref(types, child.Child); elem == nil || elem.Kind != reflection.KindString {
 		t.Fatalf("expected array element=KindString, got %+v", elem)
 	}
 	// Void return.
 	ret := deref(types, root.Return)
-	if ret == nil || ret.Kind != protocol.KindVoid {
+	if ret == nil || ret.Kind != reflection.KindVoid {
 		t.Fatalf("expected Return=KindVoid, got %+v", ret)
 	}
 }
@@ -102,10 +102,10 @@ getRunTypeId(fn);
 	assertF36MixedFunction(t, r, root)
 }
 
-func assertF36MixedFunction(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF36MixedFunction(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindFunction {
+	if root.Kind != reflection.KindFunction {
 		t.Fatalf("expected KindFunction, got %+v", root)
 	}
 	if len(root.Parameters) != 3 {
@@ -122,7 +122,7 @@ func assertF36MixedFunction(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if containsFlag(a.Flags, "rest") {
 		t.Fatalf("param[0] should not be rest, got flags=%+v", a.Flags)
 	}
-	if at := deref(types, a.Child); at == nil || at.Kind != protocol.KindNumber {
+	if at := deref(types, a.Child); at == nil || at.Kind != reflection.KindNumber {
 		t.Fatalf("param[0].Child expected KindNumber, got %+v", at)
 	}
 
@@ -133,7 +133,7 @@ func assertF36MixedFunction(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if !b.Optional {
 		t.Fatalf("param[1] expected Optional=true, got %+v", b)
 	}
-	if bt := deref(types, b.Child); bt == nil || bt.Kind != protocol.KindString {
+	if bt := deref(types, b.Child); bt == nil || bt.Kind != reflection.KindString {
 		t.Fatalf("param[1].Child expected KindString, got %+v", bt)
 	}
 
@@ -145,15 +145,15 @@ func assertF36MixedFunction(t *testing.T, r *resolver.Session, root *protocol.Ru
 		t.Fatalf("param[2] expected flags to contain 'rest', got %+v", rest.Flags)
 	}
 	restArr := deref(types, rest.Child)
-	if restArr == nil || restArr.Kind != protocol.KindArray {
+	if restArr == nil || restArr.Kind != reflection.KindArray {
 		t.Fatalf("param[2].Child expected KindArray, got %+v", restArr)
 	}
-	if elem := deref(types, restArr.Child); elem == nil || elem.Kind != protocol.KindBoolean {
+	if elem := deref(types, restArr.Child); elem == nil || elem.Kind != reflection.KindBoolean {
 		t.Fatalf("rest element expected KindBoolean, got %+v", elem)
 	}
 
 	ret := deref(types, root.Return)
-	if ret == nil || ret.Kind != protocol.KindString {
+	if ret == nil || ret.Kind != reflection.KindString {
 		t.Fatalf("Return expected KindString, got %+v", ret)
 	}
 }
@@ -180,10 +180,10 @@ getRunTypeId(fn);
 	assertF37PromiseReturn(t, r, root)
 }
 
-func assertF37PromiseReturn(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF37PromiseReturn(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindFunction {
+	if root.Kind != reflection.KindFunction {
 		t.Fatalf("expected KindFunction, got %+v", root)
 	}
 	if len(root.Parameters) != 1 {
@@ -193,18 +193,18 @@ func assertF37PromiseReturn(t *testing.T, r *resolver.Session, root *protocol.Ru
 		t.Fatalf("param[0] expected name=x, got %+v", x)
 	}
 	ret := deref(types, root.Return)
-	if ret == nil || ret.Kind != protocol.KindPromise {
+	if ret == nil || ret.Kind != reflection.KindPromise {
 		t.Fatalf("Return expected KindPromise, got %+v", ret)
 	}
 	resolved := deref(types, ret.Child)
-	if resolved == nil || resolved.Kind != protocol.KindObjectLiteral {
+	if resolved == nil || resolved.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("Promise resolved type expected KindObjectLiteral, got %+v", resolved)
 	}
 	ok := findMember(types, resolved, "ok")
 	if ok == nil {
 		t.Fatalf("missing 'ok' property; children=%+v", resolved.Children)
 	}
-	if okChild := deref(types, ok.Child); okChild == nil || okChild.Kind != protocol.KindBoolean {
+	if okChild := deref(types, ok.Child); okChild == nil || okChild.Kind != reflection.KindBoolean {
 		t.Fatalf("ok.child expected KindBoolean, got %+v", okChild)
 	}
 }
@@ -236,17 +236,17 @@ getRunTypeId(value);
 	assertF38ClassMethodFullShape(t, r, root)
 }
 
-func assertF38ClassMethodFullShape(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF38ClassMethodFullShape(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindClass {
+	if root.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %+v", root)
 	}
 	greet := findMember(types, root, "greet")
 	if greet == nil {
 		t.Fatalf("missing 'greet' method; children=%+v", root.Children)
 	}
-	if greet.Kind != protocol.KindMethod {
+	if greet.Kind != reflection.KindMethod {
 		t.Fatalf("greet expected KindMethod, got kind=%d", greet.Kind)
 	}
 	if len(greet.Parameters) != 2 {
@@ -256,7 +256,7 @@ func assertF38ClassMethodFullShape(t *testing.T, r *resolver.Session, root *prot
 	if name.Name != "name" || name.Position == nil || *name.Position != 0 {
 		t.Fatalf("greet.param[0] expected name=name position=0, got %+v", name)
 	}
-	if nt := deref(types, name.Child); nt == nil || nt.Kind != protocol.KindString {
+	if nt := deref(types, name.Child); nt == nil || nt.Kind != reflection.KindString {
 		t.Fatalf("greet.param[0].Child expected KindString, got %+v", nt)
 	}
 	opts := deref(types, greet.Parameters[1])
@@ -264,18 +264,18 @@ func assertF38ClassMethodFullShape(t *testing.T, r *resolver.Session, root *prot
 		t.Fatalf("greet.param[1] expected name=opts optional position=1, got %+v", opts)
 	}
 	optsObj := deref(types, opts.Child)
-	if optsObj == nil || optsObj.Kind != protocol.KindObjectLiteral {
+	if optsObj == nil || optsObj.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("greet.param[1].Child expected KindObjectLiteral, got %+v", optsObj)
 	}
 	tag := findMember(types, optsObj, "tag")
 	if tag == nil {
 		t.Fatalf("missing 'tag' on opts; children=%+v", optsObj.Children)
 	}
-	if tagChild := deref(types, tag.Child); tagChild == nil || tagChild.Kind != protocol.KindString {
+	if tagChild := deref(types, tag.Child); tagChild == nil || tagChild.Kind != reflection.KindString {
 		t.Fatalf("opts.tag.child expected KindString, got %+v", tagChild)
 	}
 	ret := deref(types, greet.Return)
-	if ret == nil || ret.Kind != protocol.KindString {
+	if ret == nil || ret.Kind != reflection.KindString {
 		t.Fatalf("greet.Return expected KindString, got %+v", ret)
 	}
 }
@@ -303,17 +303,17 @@ getRunTypeId(value);
 	assertF39MethodSignatureFullShape(t, r, root)
 }
 
-func assertF39MethodSignatureFullShape(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF39MethodSignatureFullShape(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 	greet := findMember(types, root, "greet")
 	if greet == nil {
 		t.Fatalf("missing 'greet'; children=%+v", root.Children)
 	}
-	if greet.Kind != protocol.KindMethodSignature {
+	if greet.Kind != reflection.KindMethodSignature {
 		t.Fatalf("greet expected KindMethodSignature, got kind=%d", greet.Kind)
 	}
 	if len(greet.Parameters) != 1 {
@@ -323,11 +323,11 @@ func assertF39MethodSignatureFullShape(t *testing.T, r *resolver.Session, root *
 	if name.Name != "name" || name.Position == nil || *name.Position != 0 {
 		t.Fatalf("greet.param[0] expected name=name position=0, got %+v", name)
 	}
-	if nt := deref(types, name.Child); nt == nil || nt.Kind != protocol.KindString {
+	if nt := deref(types, name.Child); nt == nil || nt.Kind != reflection.KindString {
 		t.Fatalf("greet.param[0].Child expected KindString, got %+v", nt)
 	}
 	ret := deref(types, greet.Return)
-	if ret == nil || ret.Kind != protocol.KindString {
+	if ret == nil || ret.Kind != reflection.KindString {
 		t.Fatalf("greet.Return expected KindString, got %+v", ret)
 	}
 }
@@ -356,16 +356,16 @@ getRunTypeId<Tagged>();
 // canonical interface shape; the marker-coverage parity is preserved by
 // F35–F39 reflect tests already exercising the marker.DetectAny path.
 
-func assertF40CallSignature(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF40CallSignature(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
-	var callSig *protocol.RunType
+	var callSig *reflection.RunType
 	for _, ref := range root.Children {
 		member := deref(types, ref)
-		if member != nil && member.Kind == protocol.KindCallSignature {
+		if member != nil && member.Kind == reflection.KindCallSignature {
 			callSig = member
 			break
 		}
@@ -379,7 +379,7 @@ func assertF40CallSignature(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if x := deref(types, callSig.Parameters[0]); x == nil || x.Name != "x" || x.Position == nil || *x.Position != 0 {
 		t.Fatalf("callSig.param[0] expected name=x position=0, got %+v", x)
 	}
-	if ret := deref(types, callSig.Return); ret == nil || ret.Kind != protocol.KindString {
+	if ret := deref(types, callSig.Return); ret == nil || ret.Kind != reflection.KindString {
 		t.Fatalf("callSig.Return expected KindString, got %+v", ret)
 	}
 
@@ -388,7 +388,7 @@ func assertF40CallSignature(t *testing.T, r *resolver.Session, root *protocol.Ru
 		t.Fatalf("missing 'tag' property; children=%+v", root.Children)
 	}
 	tagChild := deref(types, tag.Child)
-	if tagChild == nil || tagChild.Kind != protocol.KindLiteral {
+	if tagChild == nil || tagChild.Kind != reflection.KindLiteral {
 		t.Fatalf("tag.child expected KindLiteral, got %+v", tagChild)
 	}
 	if v, ok := tagChild.Literal.(string); !ok || v != "tagged" {

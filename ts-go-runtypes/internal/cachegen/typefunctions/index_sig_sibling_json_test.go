@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // G1: an object that mixes a named property with an index signature whose VALUE
@@ -18,13 +19,13 @@ import (
 // round-trip (a `number` becoming a `bigint`).
 
 func mixedIndexSigObject() protocol.Dump {
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	idxKey := &protocol.RunType{ID: "ik", Kind: protocol.KindNumber}
-	p0 := &protocol.RunType{ID: "p0", Kind: protocol.KindPropertySignature, Name: "p0", IsSafeName: true, Child: makeRef("num")}
-	idx := &protocol.RunType{ID: "idx", Kind: protocol.KindIndexSignature, Index: makeRef("ik"), Child: makeRef("big")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("p0"), makeRef("idx")}}
-	return protocol.Dump{RunTypes: []*protocol.RunType{num, big, idxKey, p0, idx, obj}}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	idxKey := &reflection.RunType{ID: "ik", Kind: reflection.KindNumber}
+	p0 := &reflection.RunType{ID: "p0", Kind: reflection.KindPropertySignature, Name: "p0", IsSafeName: true, Child: makeRef("num")}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Index: makeRef("ik"), Child: makeRef("big")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("p0"), makeRef("idx")}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{num, big, idxKey, p0, idx, obj}}
 }
 
 func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
@@ -49,15 +50,15 @@ func TestG1_JsonIndexSigSkipsSiblingNamedProp(t *testing.T) {
 // back into the result (G6: the clone encoder kept `p0`, disagreeing with binary
 // which dropped it).
 func droppedPropIndexSigObject() protocol.Dump {
-	sym := &protocol.RunType{ID: "sym", Kind: protocol.KindSymbol}
-	boolean := &protocol.RunType{ID: "bool", Kind: protocol.KindBoolean}
-	litRed := &protocol.RunType{ID: "red", Kind: protocol.KindLiteral, Literal: "red"}
-	idxKey := &protocol.RunType{ID: "ik", Kind: protocol.KindNumber}
-	p0 := &protocol.RunType{ID: "p0", Kind: protocol.KindPropertySignature, Name: "p0", IsSafeName: true, Optional: true, Child: makeRef("sym")}
-	p1 := &protocol.RunType{ID: "p1", Kind: protocol.KindPropertySignature, Name: "p1", IsSafeName: true, Child: makeRef("bool")}
-	idx := &protocol.RunType{ID: "idx", Kind: protocol.KindIndexSignature, Index: makeRef("ik"), Child: makeRef("red")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("p0"), makeRef("p1"), makeRef("idx")}}
-	return protocol.Dump{RunTypes: []*protocol.RunType{sym, boolean, litRed, idxKey, p0, p1, idx, obj}}
+	sym := &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}
+	boolean := &reflection.RunType{ID: "bool", Kind: reflection.KindBoolean}
+	litRed := &reflection.RunType{ID: "red", Kind: reflection.KindLiteral, Literal: "red"}
+	idxKey := &reflection.RunType{ID: "ik", Kind: reflection.KindNumber}
+	p0 := &reflection.RunType{ID: "p0", Kind: reflection.KindPropertySignature, Name: "p0", IsSafeName: true, Optional: true, Child: makeRef("sym")}
+	p1 := &reflection.RunType{ID: "p1", Kind: reflection.KindPropertySignature, Name: "p1", IsSafeName: true, Child: makeRef("bool")}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Index: makeRef("ik"), Child: makeRef("red")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("p0"), makeRef("p1"), makeRef("idx")}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{sym, boolean, litRed, idxKey, p0, p1, idx, obj}}
 }
 
 // TestG6_CloneIndexSigSkipsDroppedSiblingProp — the clone encoder

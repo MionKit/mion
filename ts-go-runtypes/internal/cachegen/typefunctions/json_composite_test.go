@@ -8,7 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // compositeBodyFor renders one composite entry's factory body for the given
@@ -20,7 +20,7 @@ func compositeBodyFor(t *testing.T, tag string) string {
 	if !ok {
 		t.Fatalf("unknown composite tag %q", tag)
 	}
-	runType := &protocol.RunType{ID: "obj1", Kind: protocol.KindObjectLiteral}
+	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
 	entry := collectJsonCompositeEntry(runType, tag, composite, RenderOpts{EmitMode: constants.EmitBoth}, nil, nil, false)
 	if entry == nil {
 		t.Fatalf("no composite entry rendered for %q", tag)

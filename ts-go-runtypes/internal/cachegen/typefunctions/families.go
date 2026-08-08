@@ -4,6 +4,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // FamilySpec bundles everything one type-walking cache family needs to
@@ -96,7 +97,7 @@ func (spec FamilySpec) Collect(dump protocol.Dump, opts RenderOpts, extraRoots [
 // AnySupported reports whether at least one runtype in the slice has a
 // supported emit arm in this family (one shallow pass per family — the
 // per-dispatch profile the perf pass measured and kept).
-func (spec FamilySpec) AnySupported(runTypes []*protocol.RunType) bool {
+func (spec FamilySpec) AnySupported(runTypes []*reflection.RunType) bool {
 	for _, runType := range runTypes {
 		if spec.Emitter.Supports(runType) {
 			return true

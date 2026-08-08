@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // CompactForJsonEmitter — the encode walk of the `compact` JSON strategy.
@@ -44,7 +44,7 @@ func (CompactForJsonEmitter) Args() []ArgSpec {
 
 // Supports mirrors the prepareForJson supported surface — compact handles the
 // same kinds, only the object wire shape differs.
-func (CompactForJsonEmitter) Supports(rt *protocol.RunType) bool {
+func (CompactForJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
@@ -56,7 +56,7 @@ func (CompactForJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 // compact encode never mutates the input). The walker namespaces childID into
 // the `cj` family, so a nested object's dep call resolves the child's compact
 // entry, not its clone entry.
-func (CompactForJsonEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (CompactForJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
@@ -84,7 +84,7 @@ func (CompactForJsonEmitter) ReturnName() string { return "v" }
 // emit for every arm except objects, and BOTH treat objects as never-noop
 // (pjs always clones, cj always builds the positional array) — so the
 // delegation is exact.
-func (CompactForJsonEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (CompactForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForPrepareJsonSafe(rt, ctx)
 }
 
@@ -95,90 +95,90 @@ func (CompactForJsonEmitter) NoopChildComposesAround() {}
 // Emit mirrors PrepareForJsonSafeEmitter.Emit; only the object-literal and
 // plain-class (SubKindNone) arms diverge to the positional form. Everything else
 // delegates to the shared prepareForJsonSafe helpers.
-func (CompactForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (CompactForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		return RTCode{Code: "undefined", Type: CodeE}
 
-	case protocol.KindClass:
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+	case reflection.KindClass:
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			return RTCode{Code: v + ".toJSON()", Type: CodeE}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return RTCode{Code: v + ".toISOString()", Type: CodeE}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectCompactForJson(rt, ctx, v)
 			return wrapSafeWithClassSerializer(rt, ctx, v, structural)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableCompactForJson(rt, ctx, v)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectCompactForJson(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignaturePrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTuplePrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// Reuse the keyed flat-union encode: atomic members ride
 		// `[memberIndex, value]`, object members merge into `[-1, keyedObject]`.
 		// The merged object stays keyed (a union has no single positional shape);
 		// nested objects inside members still become positional via CompileChild.
 		return emitUnionPrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return emitLiteralPrepareForJsonSafe(rt, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayPrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return RTCode{Code: "", Type: CodeS}
 	}
 	return RTCode{Code: "", Type: CodeNS}
@@ -190,8 +190,8 @@ type compactDeclaredSlot struct {
 	name          string
 	isSafeName    bool
 	optional      bool
-	nonEnumerable bool              // guarded: null-placeholder driven by own-enumerability
-	childRef      *protocol.RunType // the property's value-type ref (.Child)
+	nonEnumerable bool                // guarded: null-placeholder driven by own-enumerability
+	childRef      *reflection.RunType // the property's value-type ref (.Child)
 }
 
 // objectHasIndexSignature reports whether the object carries any index
@@ -200,9 +200,9 @@ type compactDeclaredSlot struct {
 // index-signature object would only save the declared-prop NAMES, a small and
 // unpredictable fraction of a payload dominated by dynamic keys. So the
 // positional form applies ONLY to fixed-shape objects with no index signature.
-func objectHasIndexSignature(rt *protocol.RunType, ctx *EmitContext) bool {
+func objectHasIndexSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 	for _, child := range rt.Children {
-		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == protocol.KindIndexSignature {
+		if resolved := ctx.ResolveRef(child); resolved != nil && resolved.Kind == reflection.KindIndexSignature {
 			return true
 		}
 	}
@@ -217,7 +217,7 @@ func objectHasIndexSignature(rt *protocol.RunType, ctx *EmitContext) bool {
 // order. Only ever called for objects WITHOUT an index signature (the caller
 // pre-routes index-sig objects to the keyed path), so an index-signature child
 // is skipped defensively. Emits the same drop diagnostics the keyed emitters do.
-func collectCompactDeclaredSlots(rt *protocol.RunType, ctx *EmitContext) []compactDeclaredSlot {
+func collectCompactDeclaredSlots(rt *reflection.RunType, ctx *EmitContext) []compactDeclaredSlot {
 	var slots []compactDeclaredSlot
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -232,10 +232,10 @@ func collectCompactDeclaredSlots(rt *protocol.RunType, ctx *EmitContext) []compa
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
-		if resolved.Kind != protocol.KindProperty && resolved.Kind != protocol.KindPropertySignature {
+		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if resolved.Child == nil {
@@ -265,7 +265,7 @@ func collectCompactDeclaredSlots(rt *protocol.RunType, ctx *EmitContext) []compa
 // carries ANY index signature (a record, or a declared-props-plus-extras shape)
 // is NOT tupled — it serializes as a keyed object via the shared clone emit, so
 // records and dynamic-key maps stay keyed exactly like every other strategy.
-func emitObjectCompactForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitObjectCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -318,8 +318,8 @@ func emitObjectCompactForJson(rt *protocol.RunType, ctx *EmitContext, v string) 
 // `allIdentity` gate keeps the cheap `Array.from(v)` only when compact changes
 // nothing — symmetric with emitNativeIterableRestoreFromJson, which already
 // gates its loop on the per-element restore code being non-empty.
-func emitNativeIterableCompactForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableCompactForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("e")
 	entryParts := make([]string, 0, len(innerTypes))

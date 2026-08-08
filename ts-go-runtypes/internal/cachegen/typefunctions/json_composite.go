@@ -10,6 +10,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // JSON composite codegen.
@@ -75,7 +76,7 @@ func CollectJsonCompositeEntries(dump protocol.Dump, opts RenderOpts, rendered e
 	graph := entrymodules.Graph{}
 	refTable := opts.RefTable
 	if refTable == nil {
-		refTable = make(map[string]*protocol.RunType, len(dump.RunTypes))
+		refTable = make(map[string]*reflection.RunType, len(dump.RunTypes))
 		for _, runType := range dump.RunTypes {
 			if runType == nil || runType.ID == "" {
 				continue
@@ -146,7 +147,7 @@ func primitiveIsLive(rendered entrymodules.Graph, primOp string, id string) bool
 // structural id (+ family), so the liveness set is identical on every build
 // that hits the same structural header — recomputing deps from the current
 // graph on a cache hit always agrees with the baked body.
-func collectJsonCompositeEntry(runType *protocol.RunType, tag string, composite constants.JsonComposite, opts RenderOpts, rendered entrymodules.Graph, refTable map[string]*protocol.RunType, rejectCircular bool) *entrymodules.Entry {
+func collectJsonCompositeEntry(runType *reflection.RunType, tag string, composite constants.JsonComposite, opts RenderOpts, rendered entrymodules.Graph, refTable map[string]*reflection.RunType, rejectCircular bool) *entrymodules.Entry {
 	op, ok := operations.ByName(composite.OpName)
 	if !ok {
 		return nil
@@ -284,12 +285,12 @@ func jsonCompositeDeps(composite constants.JsonComposite, id string, isLive func
 // so a naive decode(encode(v)) throws on JSON.parse(undefined). Every other
 // DataOnly-valid root either serializes natively (null/number/string/bigint/
 // Date/Map/Set/…) or is uninhabitable and already alwaysThrows.
-func rootNeedsDataOnlyWrap(runType *protocol.RunType) bool {
+func rootNeedsDataOnlyWrap(runType *reflection.RunType) bool {
 	if runType == nil {
 		return false
 	}
 	switch runType.Kind {
-	case protocol.KindUndefined, protocol.KindVoid:
+	case reflection.KindUndefined, reflection.KindVoid:
 		return true
 	}
 	return false
@@ -400,7 +401,7 @@ func jsonCompositeBody(composite constants.JsonComposite, id string, entryKey st
 // from the disk store. The composite references only entries sharing
 // runType.ID, so the header structural-id check alone proves the baked
 // fnHashes are still valid — no child/cross-family ref bookkeeping is needed.
-func tryReadCachedCompositeEntry(runType *protocol.RunType, tag string, opts RenderOpts) (string, bool) {
+func tryReadCachedCompositeEntry(runType *reflection.RunType, tag string, opts RenderOpts) (string, bool) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return "", false
 	}
@@ -422,7 +423,7 @@ func tryReadCachedCompositeEntry(runType *protocol.RunType, tag string, opts Ren
 // per-strategy tag so repeat builds skip re-rendering. Best-effort — failures
 // are swallowed (the shared writeCachedEntry already logs FS
 // misconfigurations on the primitive path).
-func writeCachedCompositeEntry(runType *protocol.RunType, tag string, argsText string, opts RenderOpts) {
+func writeCachedCompositeEntry(runType *reflection.RunType, tag string, argsText string, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
 	}

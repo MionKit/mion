@@ -12,6 +12,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
@@ -64,7 +65,7 @@ func (sess *Session) rtRenderOpts(sink *[]diagnostics.Diagnostic, provenance map
 // reference children interned while scanning a different file. This is the
 // cache's own live table (read-only contract — see Cache.NodesView), so no
 // per-dispatch rebuild/sort/re-stamp happens anymore.
-func (sess *Session) fullRefTable() map[string]*protocol.RunType {
+func (sess *Session) fullRefTable() map[string]*reflection.RunType {
 	if sess == nil || sess.cache == nil {
 		return nil
 	}

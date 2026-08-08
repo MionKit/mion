@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // dateEmitter implements the format named "date" — FormatStringDate<P>.
@@ -20,8 +20,8 @@ func init() {
 	formats.Register(dateEmitter{})
 }
 
-func (dateEmitter) Name() string                  { return "date" }
-func (dateEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (dateEmitter) Name() string                    { return "date" }
+func (dateEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // dateFormatPureFn maps a `format` param value to the validating pure-fn
 // name. Returns ("", false) for an unrecognised format.
@@ -60,7 +60,7 @@ func readFormat(params map[string]any) (string, bool) {
 // the optional min/max bounds (absolute literal in the layout, or a
 // relative `now±P…` using only date components; min<=max when both
 // absolute). Surfaced as CodeFMTInvalidParams.
-func (dateEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (dateEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -74,7 +74,7 @@ func (dateEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []strin
 	return validateMinMax(annotation.Params, dateKind, format)
 }
 
-func (dateEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (dateEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -94,7 +94,7 @@ func (dateEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl
 	return check
 }
 
-func (dateEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (dateEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}

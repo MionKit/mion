@@ -27,7 +27,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/mirror"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 const vitePluginConstantsPath = "packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts"
@@ -111,7 +111,7 @@ func buildVitePluginConstants() string {
 	out.WriteString("\n")
 	// REFLECTION_SUB_KIND / ReflectionSubKind moved to cmd/gen-run-type-kind's
 	// devtools mirror (reflectionKind.generated.ts), generated from the FULL
-	// internal/protocol/subkind.go parse so it can't drift (the old hand-list here
+	// internal/reflection/subkind.go parse so it can't drift (the old hand-list here
 	// was a partial subset that silently omitted the Temporal sub-kinds).
 	writeNonSerializableGlobals(out)
 	out.WriteString("\n")
@@ -145,7 +145,7 @@ func writeEntryModuleConstants(out *strings.Builder) {
 // `nonSerializableGlobals` in (ref: packages/run-types/src/constants.ts).
 func writeNonSerializableGlobals(out *strings.Builder) {
 	out.WriteString("export const NON_SERIALIZABLE_GLOBALS = [\n")
-	for _, name := range protocol.NonSerializableGlobals {
+	for _, name := range reflection.NonSerializableGlobals {
 		out.WriteString(fmt.Sprintf("  %q,\n", name))
 	}
 	out.WriteString("] as const;\n")

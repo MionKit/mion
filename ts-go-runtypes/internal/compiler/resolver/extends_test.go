@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -22,7 +22,7 @@ class B extends A { b = 0; }
 getRunTypeId<B>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if len(tn.ExtendsArguments) != 1 {
@@ -59,7 +59,7 @@ getRunTypeId<B>();
 		t.Fatalf("expected name prop on B")
 	}
 	childType := deref(dump(r), nameProp.Child)
-	if childType == nil || childType.Kind != protocol.KindLiteral {
+	if childType == nil || childType.Kind != reflection.KindLiteral {
 		t.Fatalf("expected B's name to be the literal 'fixed', got %+v", childType)
 	}
 }
@@ -105,7 +105,7 @@ getRunTypeId<B>();
 		t.Fatalf("expected 1 type argument on parent (A<string>), got %d", len(parent.Arguments))
 	}
 	arg := deref(dump(r), parent.Arguments[0])
-	if arg == nil || arg.Kind != protocol.KindString {
+	if arg == nil || arg.Kind != reflection.KindString {
 		t.Fatalf("expected A's T=string, got %+v", arg)
 	}
 }
@@ -132,14 +132,14 @@ interface B extends A { b: number; }
 getRunTypeId<B>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral (interface), got %d", tn.Kind)
 	}
 	if len(tn.Extends) != 1 {
 		t.Fatalf("expected 1 Extends entry, got %d", len(tn.Extends))
 	}
 	parent := deref(dump(r), tn.Extends[0])
-	if parent == nil || parent.Kind != protocol.KindObjectLiteral {
+	if parent == nil || parent.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected parent to be an objectLiteral (interface form), got %+v", parent)
 	}
 	parentProps := propertyNames(dump(r), parent)
@@ -173,7 +173,7 @@ getRunTypeId<B>();
 		t.Fatalf("expected x prop on B")
 	}
 	childType := deref(dump(r), xProp.Child)
-	if childType == nil || childType.Kind != protocol.KindUnion {
+	if childType == nil || childType.Kind != reflection.KindUnion {
 		t.Fatalf("expected B's x to be a union (overridden), got %+v", childType)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // timeEmitter implements the format named "time" — FormatStringTime<P>.
@@ -16,8 +16,8 @@ func init() {
 	formats.Register(timeEmitter{})
 }
 
-func (timeEmitter) Name() string                  { return "time" }
-func (timeEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (timeEmitter) Name() string                    { return "time" }
+func (timeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // timeFormatPureFn maps a `format` param value to its validating pure fn.
 func timeFormatPureFn(format string) (string, bool) {
@@ -45,7 +45,7 @@ func timeFormatPureFn(format string) (string, bool) {
 // ValidateParams checks the `format` layout is supported and validates
 // the optional min/max bounds (absolute literal in the layout, or a
 // relative `now±P…` using only time components).
-func (timeEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (timeEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -59,7 +59,7 @@ func (timeEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []strin
 	return validateMinMax(annotation.Params, timeKind, format)
 }
 
-func (timeEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (timeEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -79,7 +79,7 @@ func (timeEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl
 	return check
 }
 
-func (timeEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (timeEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}

@@ -5,16 +5,16 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-func compositeBodyForKind(t *testing.T, kind protocol.ReflectionKind, tag string) string {
+func compositeBodyForKind(t *testing.T, kind reflection.ReflectionKind, tag string) string {
 	t.Helper()
 	composite, ok := constants.JsonCompositeByTag(tag)
 	if !ok {
 		t.Fatalf("unknown composite tag %q", tag)
 	}
-	rt := &protocol.RunType{ID: "r1", Kind: kind}
+	rt := &reflection.RunType{ID: "r1", Kind: kind}
 	entry := collectJsonCompositeEntry(rt, tag, composite, RenderOpts{EmitMode: constants.EmitBoth}, nil, nil, false)
 	if entry == nil {
 		t.Fatalf("no composite entry for kind=%d tag=%s", kind, tag)
@@ -26,7 +26,7 @@ func compositeBodyForKind(t *testing.T, kind protocol.ReflectionKind, tag string
 // wrap the value in a one-element array so encode yields the valid document
 // "[null]" instead of the bare JS value `undefined` (which JSON.parse rejects).
 func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
-	for _, kind := range []protocol.ReflectionKind{protocol.KindUndefined, protocol.KindVoid} {
+	for _, kind := range []reflection.ReflectionKind{reflection.KindUndefined, reflection.KindVoid} {
 		for _, tag := range []string{"jeCL", "jeMU", "jeDI"} {
 			body := compositeBodyForKind(t, kind, tag)
 			if !strings.Contains(body, "JSON.stringify([") {
@@ -41,7 +41,7 @@ func TestRootWrap_UndefinedVoidEncodersWrap(t *testing.T) {
 // wrapped document round-trips with no decode-side unwrap.
 func TestRootWrap_UndefinedDecodersUnchanged(t *testing.T) {
 	for _, tag := range []string{"jdST", "jdPR"} {
-		body := compositeBodyForKind(t, protocol.KindUndefined, tag)
+		body := compositeBodyForKind(t, reflection.KindUndefined, tag)
 		if !strings.Contains(body, "rjFn(") {
 			t.Errorf("%s decoder should still call restoreFromJson; got:\n%s", tag, body)
 		}
@@ -55,7 +55,7 @@ func TestRootWrap_UndefinedDecodersUnchanged(t *testing.T) {
 // produces a valid JSON document.
 func TestRootWrap_NonWrapTypeUnchanged(t *testing.T) {
 	for _, tag := range []string{"jeCL", "jeMU"} {
-		body := compositeBodyForKind(t, protocol.KindObjectLiteral, tag)
+		body := compositeBodyForKind(t, reflection.KindObjectLiteral, tag)
 		if strings.Contains(body, "JSON.stringify([") {
 			t.Errorf("%s for a plain object must not array-wrap; got:\n%s", tag, body)
 		}

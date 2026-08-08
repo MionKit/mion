@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // UnknownKeyErrorsEmitter implements the `unknownKeyErrors` rt
@@ -21,7 +21,7 @@ func (UnknownKeyErrorsEmitter) Args() []ArgSpec {
 	}
 }
 
-func (UnknownKeyErrorsEmitter) Supports(rt *protocol.RunType) bool {
+func (UnknownKeyErrorsEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
@@ -30,7 +30,7 @@ func (UnknownKeyErrorsEmitter) IsRTInlined(ctx *InlineContext) bool {
 }
 
 // IsNoopType — see isNoopForUnknownKeys (shared five-family mirror).
-func (UnknownKeyErrorsEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (UnknownKeyErrorsEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, unknownKeyErrorsNoopSpec)
 }
 
@@ -42,40 +42,40 @@ func (UnknownKeyErrorsEmitter) ReturnName() string {
 	return "er"
 }
 
-func (UnknownKeyErrorsEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (UnknownKeyErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	switch rt.Kind {
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectUnknownKeyErrors(rt, ctx)
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			return emitObjectUnknownKeyErrors(rt, ctx)
-		case protocol.SubKindMap:
+		case reflection.SubKindMap:
 			return emitMapUnknownKeyErrors(rt, ctx, ctx.Vλl)
-		case protocol.SubKindSet:
+		case reflection.SubKindSet:
 			return emitSetUnknownKeyErrors(rt, ctx, ctx.Vλl)
 		}
 		return RTCode{Code: "", Type: CodeS}
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyUnknownKeys(rt, ctx, true)
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayUnknownKeys(rt, ctx, true)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleUnknownKeysRecurse(rt, ctx)
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberUnknownKeys(rt, ctx, true)
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureUnknownKeyErrors(rt, ctx)
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionUnknownKeyErrors(rt, ctx)
 	}
 	return RTCode{Code: "", Type: CodeS}
 }
 
-func (UnknownKeyErrorsEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (UnknownKeyErrorsEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitPathTrackedDepCall(childID)
 }
 
@@ -104,7 +104,7 @@ func callUnknownKeyErr(ctx *EmitContext, extra string) string {
 
 // emitObjectUnknownKeyErrors ports
 // InterfaceRunType.emitUnknownKeyErrors (interface.ts:157-172).
-func emitObjectUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitObjectUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	hasIndex := objectHasIndexSignatureChild(rt, ctx)
 	var parentCode string
 	if !hasIndex {
@@ -126,7 +126,7 @@ func emitObjectUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) RTCode {
 
 // emitIndexSignatureUnknownKeyErrors ports
 // IndexSignatureRunType.emitUnknownKeyErrors (indexProperty.ts:122-132).
-func emitIndexSignatureUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitIndexSignatureUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -143,7 +143,7 @@ func emitIndexSignatureUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) 
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -152,7 +152,7 @@ func emitIndexSignatureUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) 
 			}
 		}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic && keyRegexVar == "" {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic && keyRegexVar == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
@@ -186,7 +186,7 @@ func emitIndexSignatureUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) 
 //
 // When every wrapped child compiles to a noop (atomic Map<string,
 // number>), the loop body is empty so we elide the iteration entirely.
-func emitMapUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitMapUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	keyType, valueType := mapKeyValueTypes(rt, ctx)
 	entryVar := ctx.NextLocalVar("entry")
 	idxVar := ctx.NextLocalVar("i")
@@ -246,7 +246,7 @@ func emitMapUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext, v string) R
 // side. Path segment is {key:i0, failed:'setKey'} — `key` is the loop
 // index (the item value is data, not a serialisable address), so the
 // failing item is still locatable for an unordered Set.
-func emitSetUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitSetUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	itemType := setItemType(rt, ctx)
 	if itemType == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -274,7 +274,7 @@ func emitSetUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext, v string) R
 	return RTCode{Code: body, Type: CodeS}
 }
 
-func emitUnionUnknownKeyErrors(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitUnionUnknownKeyErrors(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 		Snippet: func(emitCtx *EmitContext, _ string, keyVar string) string {
 			return callUnknownKeyErr(emitCtx, keyVar)

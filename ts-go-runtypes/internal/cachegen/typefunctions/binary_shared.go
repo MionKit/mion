@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // partitionBinaryObjectProps splits an object's children into required
@@ -23,10 +23,10 @@ import (
 //   - The index signature is returned separately: each side emits it
 //     AFTER the named props (see the per-side comments at the call
 //     sites for the F1 ordering rationale).
-func partitionBinaryObjectProps(rt *protocol.RunType, ctx *EmitContext) (required, optional []*protocol.RunType, indexSig *protocol.RunType) {
+func partitionBinaryObjectProps(rt *reflection.RunType, ctx *EmitContext) (required, optional []*reflection.RunType, indexSig *reflection.RunType) {
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved != nil && resolved.Kind == protocol.KindIndexSignature {
+		if resolved != nil && resolved.Kind == reflection.KindIndexSignature {
 			indexSig = resolved
 			break
 		}
@@ -40,7 +40,7 @@ func partitionBinaryObjectProps(rt *protocol.RunType, ctx *EmitContext) (require
 			ctx.EmitDiagnosticSlot(SlotStaticDropped, memberLabel(resolved))
 			continue
 		}
-		if resolved.Kind != protocol.KindProperty && resolved.Kind != protocol.KindPropertySignature {
+		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if resolved.Child == nil {

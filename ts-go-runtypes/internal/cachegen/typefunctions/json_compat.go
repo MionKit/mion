@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // isJsonCompatible reports whether values of type `rt` round-trip
@@ -37,7 +37,7 @@ import (
 // re-entry as compatible. Cycle-back doesn't disqualify the type — if
 // any non-cycle leaf elsewhere in the graph is non-compatible the
 // outer call returns false on that path anyway.
-func isJsonCompatible(rt *protocol.RunType, ctx *EmitContext) bool {
+func isJsonCompatible(rt *reflection.RunType, ctx *EmitContext) bool {
 	// Resolve a raw KindRef before doing anything else. jsonCompatRecursive has
 	// no KindRef arm, so an unresolved ref would fall through to its default
 	// `return false` AND get memoized under the ref's id (= the target type's
@@ -62,7 +62,7 @@ func isJsonCompatible(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func jsonCompatRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	if rt == nil {
 		return false
 	}
@@ -79,18 +79,18 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 	}
 	switch rt.Kind {
 
-	case protocol.KindString,
-		protocol.KindNumber,
-		protocol.KindBoolean,
-		protocol.KindNull,
-		protocol.KindAny,
-		protocol.KindUnknown,
-		protocol.KindObject,
-		protocol.KindEnum,
-		protocol.KindTemplateLiteral:
+	case reflection.KindString,
+		reflection.KindNumber,
+		reflection.KindBoolean,
+		reflection.KindNull,
+		reflection.KindAny,
+		reflection.KindUnknown,
+		reflection.KindObject,
+		reflection.KindEnum,
+		reflection.KindTemplateLiteral:
 		return true
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// bigint / symbol literals carry a flag and have a transform on
 		// the encode side (toString / description / etc.); primitive
 		// literals (string / number / boolean / null) are noop.
@@ -101,26 +101,26 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return true
 
-	case protocol.KindBigInt,
-		protocol.KindSymbol,
-		protocol.KindUndefined,
-		protocol.KindVoid,
-		protocol.KindRegexp,
-		protocol.KindNever,
-		protocol.KindPromise,
-		protocol.KindFunction,
-		protocol.KindMethod,
-		protocol.KindMethodSignature,
-		protocol.KindCallSignature:
+	case reflection.KindBigInt,
+		reflection.KindSymbol,
+		reflection.KindUndefined,
+		reflection.KindVoid,
+		reflection.KindRegexp,
+		reflection.KindNever,
+		reflection.KindPromise,
+		reflection.KindFunction,
+		reflection.KindMethod,
+		reflection.KindMethodSignature,
+		reflection.KindCallSignature:
 		return false
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, child := range rt.Children {
 			if !jsonCompatRecursive(ctx.ResolveRef(child), ctx, visited) {
 				return false
@@ -128,13 +128,13 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if rt.Child == nil {
 			return true
 		}
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -148,16 +148,16 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return jsonCompatRecursive(resolved, ctx, visited)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		if rt.Child == nil {
 			return true
 		}
 		return jsonCompatRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return objectChildrenCompat(rt.Children, ctx, visited)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		// Defensive: the type checker usually pre-resolves intersections.
 		// When one slips through, treat as compatible iff every part is.
 		for _, child := range rt.Children {
@@ -167,7 +167,7 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return true
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		children := rt.SafeUnionChildren
 		if len(children) == 0 {
 			children = rt.Children
@@ -191,19 +191,19 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return true
 
-	case protocol.KindClass:
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+	case reflection.KindClass:
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			// Temporal types serialize via toJSON() (a string), like Date —
 			// not raw-JSON-compatible, so a union containing one wraps.
 			return false
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate,
-			protocol.SubKindMap,
-			protocol.SubKindSet,
-			protocol.SubKindNonSerializable:
+		case reflection.SubKindDate,
+			reflection.SubKindMap,
+			reflection.SubKindSet,
+			reflection.SubKindNonSerializable:
 			return false
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			return objectChildrenCompat(rt.Children, ctx, visited)
 		}
 		return false
@@ -220,24 +220,24 @@ func jsonCompatRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 // envelope when non-JSON-compatible, already caught by the per-member compat
 // check); class-with-non-default-SubKind members (Date / Map / Set / …) are
 // non-JSON-compatible and caught there too.
-func unionMemberEnvelopes(resolved *protocol.RunType, ctx *EmitContext) bool {
+func unionMemberEnvelopes(resolved *reflection.RunType, ctx *EmitContext) bool {
 	if resolved == nil {
 		return false
 	}
 	if isObjectLikeKind(resolved.Kind) && objectHasIndexSignatureChild(resolved, ctx) {
 		return false
 	}
-	if resolved.Kind == protocol.KindObjectLiteral {
+	if resolved.Kind == reflection.KindObjectLiteral {
 		return true
 	}
-	return resolved.Kind == protocol.KindClass && resolved.SubKind == protocol.SubKindNone
+	return resolved.Kind == reflection.KindClass && resolved.SubKind == reflection.SubKindNone
 }
 
 // objectChildrenCompat — shared body for ObjectLiteral and plain Class.
 // Skips static and function-like members the same way the per-emitter
 // per-kind dispatch does, then defers to every surviving property's
 // child type.
-func objectChildrenCompat(children []*protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func objectChildrenCompat(children []*reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	for _, childRef := range children {
 		resolved := ctx.ResolveRef(childRef)
 		if resolved == nil {
@@ -273,7 +273,7 @@ const (
 // takes priority over symbol (matching the set-membership order the emitters
 // used), then a regexp-shaped Literal map, else primitive. Linear scan —
 // Flags holds at most a couple of entries, a map per call was pure churn.
-func literalFlavour(rt *protocol.RunType) litFlavour {
+func literalFlavour(rt *reflection.RunType) litFlavour {
 	hasSymbol := false
 	for _, flag := range rt.Flags {
 		if flag == "bigint" {

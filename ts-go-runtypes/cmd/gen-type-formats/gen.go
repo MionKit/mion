@@ -11,7 +11,7 @@ import (
 	// Blank-import the aggregator so every concrete format emitter registers
 	// with formats.Registry via its init() before Generate() enumerates it.
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // monorepoRoot is the repository root — three dirs up from this file (cmd/
@@ -51,23 +51,23 @@ func jsStr(s string) string {
 // of a bare wire integer. A kind outside this map panics so the generator (and
 // TestTypeFormatsFileInSync) fail loudly until it is extended, rather than
 // emitting a broken RunTypeKind.undefined reference.
-func kindJsName(kind protocol.ReflectionKind) string {
+func kindJsName(kind reflection.ReflectionKind) string {
 	switch kind {
-	case protocol.KindString:
+	case reflection.KindString:
 		return "string"
-	case protocol.KindNumber:
+	case reflection.KindNumber:
 		return "number"
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return "bigint"
-	case protocol.KindClass:
+	case reflection.KindClass:
 		return "class"
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return "array"
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return "tuple"
-	case protocol.KindObject:
+	case reflection.KindObject:
 		return "object"
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return "objectLiteral"
 	default:
 		panic(fmt.Sprintf("gen-type-formats: format refines unmapped ReflectionKind %d — extend kindJsName", int(kind)))

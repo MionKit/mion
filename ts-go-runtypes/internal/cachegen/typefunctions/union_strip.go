@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // union_strip.go projects a union's member list to its DataOnly view for the
@@ -26,7 +26,7 @@ import (
 // projects to `never` (so the serializer / validator cannot represent it as
 // data). Mirrors the DataOnlyStripped set in
 // packages/ts-runtypes/src/runtypes/dataOnly.ts.
-func isStrippedUnionMember(resolved *protocol.RunType) bool {
+func isStrippedUnionMember(resolved *reflection.RunType) bool {
 	if resolved == nil {
 		return false
 	}
@@ -34,10 +34,10 @@ func isStrippedUnionMember(resolved *protocol.RunType) bool {
 		return true
 	}
 	switch resolved.Kind {
-	case protocol.KindSymbol, protocol.KindNever, protocol.KindPromise:
+	case reflection.KindSymbol, reflection.KindNever, reflection.KindPromise:
 		return true
-	case protocol.KindClass:
-		return resolved.SubKind == protocol.SubKindNonSerializable
+	case reflection.KindClass:
+		return resolved.SubKind == reflection.SubKindNonSerializable
 	}
 	return false
 }
@@ -57,7 +57,7 @@ func isStrippedUnionMember(resolved *protocol.RunType) bool {
 // `{a: never[]}`), so the caller must compile the value, observe the CodeNS it
 // returns from the propagating slot, and propagate that failure — the object
 // then alwaysThrows, which is the "can't be safely dropped" contract.
-func strippedPropertyDrop(resolved *protocol.RunType, name string, ctx *EmitContext) bool {
+func strippedPropertyDrop(resolved *reflection.RunType, name string, ctx *EmitContext) bool {
 	if !isStrippedUnionMember(resolved) {
 		return false
 	}
@@ -97,7 +97,7 @@ func propertyChildFailed(ctx *EmitContext) (propagate bool) {
 // member — the value the build-time Warning substitutes for {0}. Uses the
 // user's own type vocabulary (the class name for a built-in, the lowercase
 // kind otherwise), never compiler-internal jargon.
-func strippedMemberLabel(resolved *protocol.RunType) string {
+func strippedMemberLabel(resolved *reflection.RunType) string {
 	if resolved == nil {
 		return "value"
 	}
@@ -105,13 +105,13 @@ func strippedMemberLabel(resolved *protocol.RunType) string {
 		return "function"
 	}
 	switch resolved.Kind {
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return "symbol"
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return "never"
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return "Promise"
-	case protocol.KindClass:
+	case reflection.KindClass:
 		if resolved.Name != "" {
 			return resolved.Name
 		}
@@ -134,7 +134,7 @@ func strippedMemberLabel(resolved *protocol.RunType) string {
 // warnings (VL010 etc.) so the silent projection is visible. Dedup-by-code in
 // the walker collapses it to one diagnostic per family per walk; unknown-keys
 // emitters register no code, so the slot is a no-op there.
-func dataOnlyUnionMembers(rt *protocol.RunType, ctx *EmitContext) []*protocol.RunType {
+func dataOnlyUnionMembers(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
@@ -153,7 +153,7 @@ func dataOnlyUnionMembers(rt *protocol.RunType, ctx *EmitContext) []*protocol.Ru
 	if strippedCount == 0 || strippedCount == len(children) {
 		return children
 	}
-	survivors := make([]*protocol.RunType, 0, len(children)-strippedCount)
+	survivors := make([]*reflection.RunType, 0, len(children)-strippedCount)
 	droppedLabels := make([]string, 0, strippedCount)
 	for _, ref := range children {
 		resolved := ctx.ResolveRef(ref)

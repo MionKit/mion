@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // buildStrippedMergedPropUnionFixture builds a discriminated union whose
@@ -19,33 +20,33 @@ import (
 // value (`f2.toISOString()` crashes — G4); the binary side sets the bitmap
 // bit while writing nothing, desyncing the decoder (G3). The emit must guard
 // the surviving codec and DROP the key for a non-matching value.
-func buildStrippedMergedPropUnionFixture(strippedKind protocol.ReflectionKind) []*protocol.RunType {
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	stripped := &protocol.RunType{ID: "str", Kind: strippedKind}
-	litT1 := &protocol.RunType{ID: "lt1", Kind: protocol.KindLiteral, Literal: "t1"}
-	litT2 := &protocol.RunType{ID: "lt2", Kind: protocol.KindLiteral, Literal: "t2"}
+func buildStrippedMergedPropUnionFixture(strippedKind reflection.ReflectionKind) []*reflection.RunType {
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	stripped := &reflection.RunType{ID: "str", Kind: strippedKind}
+	litT1 := &reflection.RunType{ID: "lt1", Kind: reflection.KindLiteral, Literal: "t1"}
+	litT2 := &reflection.RunType{ID: "lt2", Kind: reflection.KindLiteral, Literal: "t2"}
 
-	kindT1 := &protocol.RunType{ID: "k1", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt1")}
-	kindT2 := &protocol.RunType{ID: "k2", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt2")}
-	f2Date := &protocol.RunType{ID: "f2d", Kind: protocol.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("dat")}
-	f2Stripped := &protocol.RunType{ID: "f2s", Kind: protocol.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("str")}
+	kindT1 := &reflection.RunType{ID: "k1", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt1")}
+	kindT2 := &reflection.RunType{ID: "k2", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt2")}
+	f2Date := &reflection.RunType{ID: "f2d", Kind: reflection.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("dat")}
+	f2Stripped := &reflection.RunType{ID: "f2s", Kind: reflection.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("str")}
 
-	obj1 := &protocol.RunType{ID: "ob1", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("k1"), makeRef("f2d")}}
-	obj2 := &protocol.RunType{ID: "ob2", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("k2"), makeRef("f2s")}}
+	obj1 := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("k1"), makeRef("f2d")}}
+	obj2 := &reflection.RunType{ID: "ob2", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("k2"), makeRef("f2s")}}
 
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
-	return []*protocol.RunType{date, stripped, litT1, litT2, kindT1, kindT2, f2Date, f2Stripped, obj1, obj2, union}
+	return []*reflection.RunType{date, stripped, litT1, litT2, kindT1, kindT2, f2Date, f2Stripped, obj1, obj2, union}
 }
 
 // TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue — the mutate
 // encoder MUST guard the surviving Date codec on `v.f2` and `delete v.f2`
 // when the value does not match (it belongs to the stripped member). (G4)
 func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(protocol.KindSymbol)}
+	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
 	out := renderModule(t, dump, "prepareForJson")
 
 	if !strings.Contains(out, "else { delete v.f2 }") {
@@ -66,7 +67,7 @@ func TestPrepareForJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) 
 // (default) encoder MUST fold a value check into the `f2 !== undefined`
 // presence test so the surviving codec runs only for a matching value. (G4)
 func TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(protocol.KindSymbol)}
+	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
 	out := renderModule(t, dump, "prepareForJsonSafe")
 
 	if !strings.Contains(out, "v.f2 !== undefined && (") {
@@ -78,7 +79,7 @@ func TestPrepareForJsonSafeModule_StrippedMergedPropGuardsPresence(t *testing.T)
 // (single-pass) encoder MUST extend the drop condition so a foreign-typed
 // value emits no fragment for the merged prop. (G4)
 func TestStringifyJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(protocol.KindSymbol)}
+	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindSymbol)}
 	out := renderModule(t, dump, "stringifyJson")
 
 	if !strings.Contains(out, "|| !(") {
@@ -92,7 +93,7 @@ func TestStringifyJsonModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
 // while the codec writes nothing and desyncs the decoder. (G3) Binary lane
 // gates on the binary build; the emit is rendered unconditionally here.
 func TestToBinaryModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
-	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(protocol.KindPromise)}
+	dump := protocol.Dump{RunTypes: buildStrippedMergedPropUnionFixture(reflection.KindPromise)}
 	out := renderModule(t, dump, "toBinary")
 
 	if !strings.Contains(out, "v.f2 !== undefined && (") {
@@ -105,22 +106,22 @@ func TestToBinaryModule_StrippedMergedPropDropsForeignValue(t *testing.T) {
 // keeps the existing multi-candidate sub-dispatch and never emits a `delete`
 // drop (the optimisation's common path is unchanged — perf guard).
 func TestMergedProp_CleanSiblingHasNoDrop(t *testing.T) {
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	number := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	litT1 := &protocol.RunType{ID: "lt1", Kind: protocol.KindLiteral, Literal: "t1"}
-	litT2 := &protocol.RunType{ID: "lt2", Kind: protocol.KindLiteral, Literal: "t2"}
-	kindT1 := &protocol.RunType{ID: "k1", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt1")}
-	kindT2 := &protocol.RunType{ID: "k2", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt2")}
-	f2Date := &protocol.RunType{ID: "f2d", Kind: protocol.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("dat")}
-	f2Num := &protocol.RunType{ID: "f2n", Kind: protocol.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("num")}
-	obj1 := &protocol.RunType{ID: "ob1", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("k1"), makeRef("f2d")}}
-	obj2 := &protocol.RunType{ID: "ob2", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("k2"), makeRef("f2n")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	number := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	litT1 := &reflection.RunType{ID: "lt1", Kind: reflection.KindLiteral, Literal: "t1"}
+	litT2 := &reflection.RunType{ID: "lt2", Kind: reflection.KindLiteral, Literal: "t2"}
+	kindT1 := &reflection.RunType{ID: "k1", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt1")}
+	kindT2 := &reflection.RunType{ID: "k2", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("lt2")}
+	f2Date := &reflection.RunType{ID: "f2d", Kind: reflection.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("dat")}
+	f2Num := &reflection.RunType{ID: "f2n", Kind: reflection.KindProperty, Name: "f2", IsSafeName: true, Child: makeRef("num")}
+	obj1 := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("k1"), makeRef("f2d")}}
+	obj2 := &reflection.RunType{ID: "ob2", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("k2"), makeRef("f2n")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{date, number, litT1, litT2, kindT1, kindT2, f2Date, f2Num, obj1, obj2, union}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, number, litT1, litT2, kindT1, kindT2, f2Date, f2Num, obj1, obj2, union}}
 	out := renderModule(t, dump, "prepareForJson")
 
 	if strings.Contains(out, "delete v.f2") {

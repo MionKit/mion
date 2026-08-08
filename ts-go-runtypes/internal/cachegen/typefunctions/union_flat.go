@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // union_flat.go owns the three KindUnion emits used by the JSON-
@@ -130,7 +130,7 @@ func mergedPropSurvivingGuard(mp FlatMergedProp, accessor string, ctx *EmitConte
 // Wrap is all-or-nothing across atomic members AND mandatory when an
 // object branch exists (the [-1, …] envelope coexists with the atomic
 // envelope, so the decoder must unconditionally unwrap).
-func emitUnionPrepareForJsonFlat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitUnionPrepareForJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -309,7 +309,7 @@ func mergedPropPrepareBody(mp FlatMergedProp, accessor, discAccessor string, ctx
 // union round-trips raw and the decoder is identity. No shape gate —
 // the compile-time decision tells the decoder exactly which shape to
 // expect.
-func emitUnionRestoreFromJsonFlat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitUnionRestoreFromJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -442,7 +442,7 @@ func emitMergedPropRestore(mp FlatMergedProp, accessor string, ctx *EmitContext)
 // mutating `v`. The wrap-or-not decision is all-or-nothing across the
 // atomic branch (see FlatLayout.AtomicNeedsTuple) so the decoder always
 // knows whether to unwrap.
-func emitUnionStringifyJsonFlat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitUnionStringifyJsonFlat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -636,7 +636,7 @@ func emitMergedPropStringify(mp FlatMergedProp, accessor, discAccessor string, c
 	// Compile every candidate up front.
 	type compiled struct {
 		code       string
-		resolved   *protocol.RunType
+		resolved   *reflection.RunType
 		discValues []string
 	}
 	candidates := make([]compiled, 0, len(mp.Candidates))

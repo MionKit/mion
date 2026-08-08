@@ -12,7 +12,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/comptimeargs"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Sentinel property names that mark a brand-shaped object literal as a
@@ -35,7 +35,7 @@ const (
 	// Schema `not` and the format-scoped `Not<F>`. The prop carries the
 	// TRANSLATED CHILD TYPE (not schema data), so both collapse passes lift
 	// it the same way they lift format sentinels: the serialize side turns
-	// the child into a protocol.RunType under node.Negations, the id side
+	// the child into a reflection.RunType under node.Negations, the id side
 	// folds the child's structural id under a `!` tag. Deliberately NOT
 	// spelled `not` — real-world schemas contain properties named `not`.
 	notChildProp = "__rtNot"
@@ -157,7 +157,7 @@ func IsFormatBrandMember(typeChecker *checker.Checker, tsType *checker.Type) boo
 // the canonical FormatAnnotation if both are present and well-formed.
 // Returns nil when the input is not a format brand — callers route those
 // through the normal TypeMeta path.
-func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type) *protocol.FormatAnnotation {
+func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type) *reflection.FormatAnnotation {
 	if tsType == nil || typeChecker == nil {
 		return nil
 	}
@@ -192,7 +192,7 @@ func FormatAnnotationFromType(typeChecker *checker.Checker, tsType *checker.Type
 	paramsType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(paramsSymbol))
 	params := literalParamsFromType(typeChecker, paramsType)
 	canonicalizeBoundAliases(params)
-	return &protocol.FormatAnnotation{Name: name, Params: params}
+	return &reflection.FormatAnnotation{Name: name, Params: params}
 }
 
 // boundAliasCanonical maps the JSON Schema bound keyword spellings to the
@@ -233,11 +233,11 @@ func canonicalizeBoundAliases(params map[string]any) {
 // that cannot be conjoined (a genuine contradiction the caller must surface
 // LOUDLY — the historical behavior silently kept the LAST annotation, dropping
 // a constraint the schema declared).
-func MergeFormatAnnotations(annotations []*protocol.FormatAnnotation) (*protocol.FormatAnnotation, bool) {
+func MergeFormatAnnotations(annotations []*reflection.FormatAnnotation) (*reflection.FormatAnnotation, bool) {
 	if len(annotations) == 0 {
 		return nil, true
 	}
-	merged := &protocol.FormatAnnotation{Name: annotations[0].Name, Params: map[string]any{}}
+	merged := &reflection.FormatAnnotation{Name: annotations[0].Name, Params: map[string]any{}}
 	for key, value := range annotations[0].Params {
 		merged.Params[key] = value
 	}
@@ -1036,8 +1036,8 @@ func formatPatternFromObjectLiteral(typeChecker *checker.Checker, argument *ast.
 // string representation of a FormatAnnotation for inclusion in a parent
 // type's structural id. Sorting keys at every nesting level guarantees
 // `{a:1, b:2}` and `{b:2, a:1}` produce the same key — the idempotency
-// contract documented in the FormatAnnotation field on protocol.RunType.
-func FormatAnnotationStructuralKey(annotation *protocol.FormatAnnotation) string {
+// contract documented in the FormatAnnotation field on reflection.RunType.
+func FormatAnnotationStructuralKey(annotation *reflection.FormatAnnotation) string {
 	if annotation == nil {
 		return ""
 	}

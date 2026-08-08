@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // OverrideStructuralKey returns a canonical, family-order-independent suffix
@@ -80,7 +80,7 @@ func (computer *Computer) OverridesForBaseKey(baseKey string) map[string]string 
 // byte-identical to the pre-canonicalization spelling.
 func (computer *Computer) BaseStructuralKey(tsType *checker.Type) string {
 	if tsType == nil {
-		return strconv.Itoa(int(protocol.KindNever))
+		return strconv.Itoa(int(reflection.KindNever))
 	}
 	if index := computer.stackIndex(tsType); index >= 0 {
 		return computer.cycleRef(tsType, index)

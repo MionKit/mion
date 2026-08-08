@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // DataOnly union-member drop: a union with non-serializable members must
@@ -13,15 +14,15 @@ import (
 // non-serializable / never dropped), matching DataOnly<T>. An all-stripped
 // union (DataOnly = never) still renders an alwaysThrow factory.
 
-func unionDump(members ...*protocol.RunType) protocol.Dump {
-	refs := make([]*protocol.RunType, 0, len(members))
-	all := make([]*protocol.RunType, 0, len(members)+1)
+func unionDump(members ...*reflection.RunType) protocol.Dump {
+	refs := make([]*reflection.RunType, 0, len(members))
+	all := make([]*reflection.RunType, 0, len(members)+1)
 	for _, member := range members {
 		refs = append(refs, makeRef(member.ID))
 		all = append(all, member)
 	}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
 		Children:          refs,
 		SafeUnionChildren: refs,
 	}
@@ -29,12 +30,12 @@ func unionDump(members ...*protocol.RunType) protocol.Dump {
 	return protocol.Dump{RunTypes: all}
 }
 
-func mkDate() *protocol.RunType {
-	return &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
+func mkDate() *reflection.RunType {
+	return &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
 }
-func mkSym() *protocol.RunType { return &protocol.RunType{ID: "sym", Kind: protocol.KindSymbol} }
-func mkStr() *protocol.RunType { return &protocol.RunType{ID: "str", Kind: protocol.KindString} }
-func mkFn() *protocol.RunType  { return &protocol.RunType{ID: "fn", Kind: protocol.KindFunction} }
+func mkSym() *reflection.RunType { return &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol} }
+func mkStr() *reflection.RunType { return &reflection.RunType{ID: "str", Kind: reflection.KindString} }
+func mkFn() *reflection.RunType  { return &reflection.RunType{ID: "fn", Kind: reflection.KindFunction} }
 
 // unionEntryWorks reports whether the rendered module contains a real union
 // factory body (`<hash>_uni(v){…}`). An alwaysThrow union has no such body —
@@ -173,13 +174,13 @@ func TestDataOnlyUnion_NoDropNoWarning(t *testing.T) {
 func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 	date := mkDate()
 	sym := mkSym()
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("dat"), makeRef("sym")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("dat"), makeRef("sym")},
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("dat"), makeRef("sym")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("sym")},
 	}
-	arr := &protocol.RunType{ID: "arr", Kind: protocol.KindArray, Child: makeRef("uni")}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{date, sym, union, arr}}
+	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("uni")}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, union, arr}}
 
 	out := renderModule(t, dump, "stringifyJson")
 	// The array entry must be a real factory (arr inner fn), not alwaysThrow.
@@ -197,14 +198,14 @@ func TestDataOnlyUnion_NestedInArray(t *testing.T) {
 func TestDataOnlyUnion_ObjectMemberStrippedProp(t *testing.T) {
 	date := mkDate()
 	sym := mkSym()
-	propB := &protocol.RunType{ID: "pb", Kind: protocol.KindPropertySignature, Name: "b", Child: makeRef("sym")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("dat"), makeRef("obj")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("dat"), makeRef("obj")},
+	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "b", Child: makeRef("sym")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{date, sym, propB, obj, union}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{date, sym, propB, obj, union}}
 
 	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)

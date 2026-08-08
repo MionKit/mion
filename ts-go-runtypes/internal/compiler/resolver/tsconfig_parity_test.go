@@ -10,6 +10,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // The parity oracle — the architectural verification of "one tsconfig, one
@@ -65,7 +66,7 @@ export const validatePlain = createValidateFn<Temporal.PlainDate>();
 
 type parityLane struct {
 	sites    []protocol.Site
-	kindByID map[string]protocol.ReflectionKind
+	kindByID map[string]reflection.ReflectionKind
 }
 
 func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[string]string) (build, daemon parityLane) {

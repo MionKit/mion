@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // buildLeafAtomicUnionFixture builds a top-level union of two SIMPLE leaf
@@ -18,15 +19,15 @@ import (
 // vars and no CompileChild recursion, so the union dispatch splices the
 // check inline instead of importing the cross-family `val_<member>` cache
 // entry. Returns the run-types and the union root id.
-func buildLeafAtomicUnionFixture() ([]*protocol.RunType, string) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	und := &protocol.RunType{ID: "und", Kind: protocol.KindUndefined}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("und")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("und")},
+func buildLeafAtomicUnionFixture() ([]*reflection.RunType, string) {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	und := &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("und")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("und")},
 	}
-	return []*protocol.RunType{str, und, union}, "uni"
+	return []*reflection.RunType{str, und, union}, "uni"
 }
 
 // buildBigIntDateLeafUnionFixture builds a top-level union of a bigint and a
@@ -35,15 +36,15 @@ func buildLeafAtomicUnionFixture() ([]*protocol.RunType, string) {
 // which is emitted inside the union's `typeof v === 'object'` object guard.
 //
 //	bigint | Date
-func buildBigIntDateLeafUnionFixture() ([]*protocol.RunType, string) {
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	dat := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	union := &protocol.RunType{
-		ID: "un2", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("big"), makeRef("dat")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("big"), makeRef("dat")},
+func buildBigIntDateLeafUnionFixture() ([]*reflection.RunType, string) {
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	dat := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	union := &reflection.RunType{
+		ID: "un2", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("big"), makeRef("dat")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("big"), makeRef("dat")},
 	}
-	return []*protocol.RunType{big, dat, union}, "un2"
+	return []*reflection.RunType{big, dat, union}, "un2"
 }
 
 // assertLeafUnionInlined renders the given union fixture for one encoder
@@ -54,7 +55,7 @@ func buildBigIntDateLeafUnionFixture() ([]*protocol.RunType, string) {
 //     prologue, nor a CrossFamilyDeps edge.
 func assertLeafUnionInlined(
 	t *testing.T,
-	fixture func() ([]*protocol.RunType, string),
+	fixture func() ([]*reflection.RunType, string),
 	familyKey string,
 	emitter Emitter,
 	settings constants.CacheModuleSettings,
@@ -202,14 +203,14 @@ func TestUnionInlineLeaf_ObjectMembersStayCrossFamily(t *testing.T) {
 // JSON encoder collapses this union (both members are prepareForJson-noop, so
 // the root is elided), so the binary family is the natural place to pin it.
 func TestUnionInlineLeaf_FormatMemberStaysCrossFamily(t *testing.T) {
-	uuid := &protocol.RunType{ID: "uid", Kind: protocol.KindString, TypeName: "UUID", FormatAnnotation: &protocol.FormatAnnotation{Name: "uuid"}}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	union := &protocol.RunType{
-		ID: "unf", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("uid"), makeRef("num")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("uid"), makeRef("num")},
+	uuid := &reflection.RunType{ID: "uid", Kind: reflection.KindString, TypeName: "UUID", FormatAnnotation: &reflection.FormatAnnotation{Name: "uuid"}}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	union := &reflection.RunType{
+		ID: "unf", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("uid"), makeRef("num")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("uid"), makeRef("num")},
 	}
-	runTypes := []*protocol.RunType{uuid, num, union}
+	runTypes := []*reflection.RunType{uuid, num, union}
 	dump := protocol.Dump{RunTypes: runTypes}
 	settings := constants.CacheModules["toBinary"]
 

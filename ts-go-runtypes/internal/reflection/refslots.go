@@ -1,4 +1,4 @@
-package protocol
+package reflection
 
 // EachRefSlot calls visit for every non-nil ref-carrying child slot of
 // runType, single slots first, then the slice slots in canonical order,

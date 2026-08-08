@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // valNumberSites returns a dump for a single number RunType demanded three ways
@@ -13,7 +14,7 @@ import (
 // and the numberNotNaN variant — so one render carries all three factories.
 func valNumberSites(id string) protocol.Dump {
 	return protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: id, Kind: protocol.KindNumber}},
+		RunTypes: []*reflection.RunType{{ID: id, Kind: reflection.KindNumber}},
 		Sites: []protocol.Site{
 			{File: "call.ts", Pos: 0, ID: id, Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},
 			{File: "call.ts", Pos: 10, ID: id, Demand: []protocol.SiteDemand{{FamilyTag: "val", VariantSuffix: "NT", Options: []string{"numberTypeof"}}}},
@@ -28,7 +29,7 @@ func valNumberSites(id string) protocol.Dump {
 func renderVerrVariant(t *testing.T, options []string) string {
 	t.Helper()
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "num", Kind: protocol.KindNumber}},
+		RunTypes: []*reflection.RunType{{ID: "num", Kind: reflection.KindNumber}},
 		Sites: []protocol.Site{{
 			File: "call.ts", Pos: 0, ID: "num",
 			Demand: []protocol.SiteDemand{{FamilyTag: "verr", VariantSuffix: constants.ValidateVariantSuffix(options), Options: options}},
@@ -95,21 +96,21 @@ func TestValidateModule_NumberMode(t *testing.T) {
 // INLINED number property of a variant-root object — the common case (validating
 // {amount: number} with numberMode:'typeof' must accept NaN at `amount`).
 func TestValidateModule_NumberModeObjectProperty(t *testing.T) {
-	numberRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	propB := &protocol.RunType{
+	numberRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	propB := &reflection.RunType{
 		ID:         "pB",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "b",
 		IsSafeName: true,
-		Child:      &protocol.RunType{ID: "num", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "num", Kind: reflection.KindRef},
 	}
-	iface := &protocol.RunType{
+	iface := &reflection.RunType{
 		ID:       "if1",
-		Kind:     protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{{ID: "pB", Kind: protocol.KindRef}},
+		Kind:     reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{{ID: "pB", Kind: reflection.KindRef}},
 	}
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{iface, propB, numberRT},
+		RunTypes: []*reflection.RunType{iface, propB, numberRT},
 		Sites: []protocol.Site{
 			{File: "call.ts", Pos: 0, ID: "if1", Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},
 			{File: "call.ts", Pos: 10, ID: "if1", Demand: []protocol.SiteDemand{{FamilyTag: "val", VariantSuffix: "NT", Options: []string{"numberTypeof"}}}},

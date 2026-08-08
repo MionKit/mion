@@ -10,7 +10,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Resolved is the result of resolving a named type in a file: the canonical
@@ -18,10 +18,10 @@ import (
 // follow KindRef sentinels (child slots ride as `{kind:-1, id}` refs).
 type Resolved struct {
 	// Node is the canonical full RunType for the named type (not a ref).
-	Node *protocol.RunType
+	Node *reflection.RunType
 	// Resolve looks up a KindRef's canonical node by id — pass this as the
 	// skeleton / closure emitters' resolve arg.
-	Resolve func(id string) *protocol.RunType
+	Resolve func(id string) *reflection.RunType
 	// DeclFiles maps a named type's RunType.ID to the absolute path of its
 	// declaration source file (followed through re-exports/aliases to the
 	// original). Populated by ResolveTypeRaw (the closure path needs it to split
@@ -34,7 +34,7 @@ type Resolved struct {
 // Program plus the resolver's checker + runtype cache and an absolute source
 // path, it finds the type alias / interface / class declaration named
 // typeName, asks the checker for its declared type, and projects it through
-// the cache to a canonical *protocol.RunType. The returned Resolve closure
+// the cache to a canonical *reflection.RunType. The returned Resolve closure
 // (cache.NodeByID) lets the emit walkers follow ref sentinels in the
 // child slots.
 //
@@ -257,11 +257,11 @@ func ProjectType(cache *runtype.Cache, tsType *checker.Type) *Resolved {
 // enrichment walkers were authored against. seen guards genuine cycles: a node
 // already on the current path keeps its ref form (Kind == KindRef), which the
 // walkers' own deref re-follows at emit time.
-func inlineNode(rt *protocol.RunType, resolve func(id string) *protocol.RunType, seen map[string]bool) *protocol.RunType {
+func inlineNode(rt *reflection.RunType, resolve func(id string) *reflection.RunType, seen map[string]bool) *reflection.RunType {
 	if rt == nil {
 		return nil
 	}
-	if rt.Kind == protocol.KindRef {
+	if rt.Kind == reflection.KindRef {
 		canonical := resolve(rt.ID)
 		if canonical == nil || seen[rt.ID] {
 			return rt
@@ -270,7 +270,7 @@ func inlineNode(rt *protocol.RunType, resolve func(id string) *protocol.RunType,
 	}
 	if rt.ID != "" {
 		if seen[rt.ID] {
-			return protocol.NewRef(rt.ID)
+			return reflection.NewRef(rt.ID)
 		}
 		seen[rt.ID] = true
 		defer delete(seen, rt.ID)
@@ -291,11 +291,11 @@ func inlineNode(rt *protocol.RunType, resolve func(id string) *protocol.RunType,
 	return &clone
 }
 
-func inlineSlice(in []*protocol.RunType, resolve func(id string) *protocol.RunType, seen map[string]bool) []*protocol.RunType {
+func inlineSlice(in []*reflection.RunType, resolve func(id string) *reflection.RunType, seen map[string]bool) []*reflection.RunType {
 	if in == nil {
 		return nil
 	}
-	out := make([]*protocol.RunType, len(in))
+	out := make([]*reflection.RunType, len(in))
 	for i, child := range in {
 		out[i] = inlineNode(child, resolve, seen)
 	}

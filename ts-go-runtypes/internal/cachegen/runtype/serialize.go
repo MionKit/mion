@@ -1,5 +1,5 @@
 // Serializer: projects tsgo's *checker.Type into a reflection-shape
-// protocol.RunType graph. Every resolved type gets a structural id
+// reflection.RunType graph. Every resolved type gets a structural id
 // (mirroring the reference `_createTypeId`) which is hashed (the reference
 // quickHash, ported in `internal/cachegen/hashid`) into a short alphanumeric wire id.
 // Two structurally-equal types share the same wire id — that's what makes
@@ -30,7 +30,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
 	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Options configures the serializer's hash budget. Zero value uses the
@@ -66,7 +66,7 @@ type Cache struct {
 	byID map[string]string
 
 	// Type table keyed by wire id. nodes[id] is the canonical entry.
-	nodes map[string]*protocol.RunType
+	nodes map[string]*reflection.RunType
 
 	// Insertion order so Dump() returns nodes deterministically (sorted by id
 	// at dump time for cross-build determinism).
@@ -143,7 +143,7 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 		byPtr:        make(map[*checker.Type]string),
 		byStructural: make(map[string]string),
 		byID:         make(map[string]string),
-		nodes:        make(map[string]*protocol.RunType),
+		nodes:        make(map[string]*reflection.RunType),
 		fileTypeIDs:  make(map[string]map[string]struct{}),
 		dict:         hashid.New(),
 		typeChecker:  typeChecker,
@@ -165,8 +165,8 @@ func (cache *Cache) Size() int { return len(cache.nodes) }
 // NotSupported fields once (entries are immutable after intern, so the
 // old per-Dump re-stamp was pure recompute) and registers the node in
 // the type table + insertion order.
-func (cache *Cache) putNode(id string, node *protocol.RunType) {
-	protocol.PopulateFamily(node)
+func (cache *Cache) putNode(id string, node *reflection.RunType) {
+	reflection.PopulateFamily(node)
 	cache.nodes[id] = node
 	cache.insertOrder = append(cache.insertOrder, id)
 }
@@ -176,7 +176,7 @@ func (cache *Cache) putNode(id string, node *protocol.RunType) {
 // the nodes — the cache keeps ownership and keeps inserting on later
 // scans. Family/NotSupported are stamped at intern time (putNode), so
 // entries are render-ready without a per-dispatch PopulateFamily pass.
-func (cache *Cache) NodesView() map[string]*protocol.RunType { return cache.nodes }
+func (cache *Cache) NodesView() map[string]*reflection.RunType { return cache.nodes }
 
 // Clear drops every interned type and resets the hash dictionary. Used by
 // the resolver when a `resetCache` op arrives, or implicitly when a fresh
@@ -186,7 +186,7 @@ func (cache *Cache) Clear() {
 	cache.byPtr = make(map[*checker.Type]string)
 	cache.byStructural = make(map[string]string)
 	cache.byID = make(map[string]string)
-	cache.nodes = make(map[string]*protocol.RunType)
+	cache.nodes = make(map[string]*reflection.RunType)
 	cache.insertOrder = cache.insertOrder[:0]
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
 	cache.dict = hashid.New()
@@ -241,13 +241,13 @@ func (cache *Cache) Rebind(typeChecker *checker.Checker) {
 
 // Dump returns every interned Type sorted by wire id (deterministic across
 // builds — given identical inputs, dump bytes are identical).
-func (cache *Cache) Dump() []*protocol.RunType {
+func (cache *Cache) Dump() []*reflection.RunType {
 	ids := make([]string, 0, len(cache.nodes))
 	for id := range cache.nodes {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	out := make([]*protocol.RunType, 0, len(ids))
+	out := make([]*reflection.RunType, 0, len(ids))
 	for _, id := range ids {
 		out = append(out, cache.nodes[id])
 	}
@@ -256,11 +256,11 @@ func (cache *Cache) Dump() []*protocol.RunType {
 
 // Added returns the slice of nodes inserted since `before`. Used by the
 // resolver to stream incremental updates back to clients.
-func (cache *Cache) Added(before int) []*protocol.RunType {
+func (cache *Cache) Added(before int) []*reflection.RunType {
 	if before >= len(cache.insertOrder) {
 		return nil
 	}
-	out := make([]*protocol.RunType, 0, len(cache.insertOrder)-before)
+	out := make([]*reflection.RunType, 0, len(cache.insertOrder)-before)
 	for _, id := range cache.insertOrder[before:] {
 		if node, ok := cache.nodes[id]; ok {
 			out = append(out, node)
@@ -272,9 +272,9 @@ func (cache *Cache) Added(before int) []*protocol.RunType {
 // Serialize projects tsType into the cache and returns a ref to the canonical
 // entry. Callers receive a `KindRef` sentinel; the actual full Type lives in
 // `cache.nodes[id]`.
-func (cache *Cache) Serialize(tsType *checker.Type) *protocol.RunType {
+func (cache *Cache) Serialize(tsType *checker.Type) *reflection.RunType {
 	id := cache.assignID(tsType)
-	return protocol.NewRef(id)
+	return reflection.NewRef(id)
 }
 
 // serializeOptionalChild projects an optional member's child (property / tuple
@@ -282,7 +282,7 @@ func (cache *Cache) Serialize(tsType *checker.Type) *protocol.RunType {
 // typeid.ResolveOptionalChild. Kept in lockstep with the id computer's
 // optionalChildID so the structural id and the projected node agree on the
 // child's shape (the recursion-safety contract).
-func (cache *Cache) serializeOptionalChild(childType *checker.Type) *protocol.RunType {
+func (cache *Cache) serializeOptionalChild(childType *checker.Type) *reflection.RunType {
 	child := typeid.ResolveOptionalChild(cache.typeChecker, childType)
 	if child.Members == nil {
 		return cache.Serialize(child.Type)
@@ -294,17 +294,17 @@ func (cache *Cache) serializeOptionalChild(childType *checker.Type) *protocol.Ru
 // used for an optional child that keeps `null` after `undefined` is stripped
 // (e.g. `x?: string | null`). The structural id matches
 // typeid.SyntheticUnionStructural so it dedups against an equivalent real union.
-func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *protocol.RunType {
+func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *reflection.RunType {
 	structural := typeid.SyntheticUnionStructural(cache.idComputer, members)
 	if id, ok := cache.byStructural[structural]; ok {
-		return protocol.NewRef(id)
+		return reflection.NewRef(id)
 	}
 	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
 	if err != nil {
 		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
 	}
 	cache.intern(structural, id)
-	node := &protocol.RunType{ID: id, Kind: protocol.KindUnion}
+	node := &reflection.RunType{ID: id, Kind: reflection.KindUnion}
 	// Reserve the slot before projecting members so a member that cycles back sees
 	// the id.
 	cache.putNode(id, node)
@@ -314,9 +314,9 @@ func (cache *Cache) serializeSyntheticUnion(members []*checker.Type) *protocol.R
 	cache.finalizeUnion(node)
 	// Re-stamp Family/NotSupported now that the children are populated (the reserve
 	// above stamped a childless node).
-	protocol.PopulateFamily(node)
+	reflection.PopulateFamily(node)
 	cache.nodes[id] = node
-	return protocol.NewRef(id)
+	return reflection.NewRef(id)
 }
 
 // DepthExceeded reports whether the most recent walk hit the structural-id
@@ -412,7 +412,7 @@ func (cache *Cache) computerFor(typeChecker *checker.Checker) *typeid.Computer {
 // Today only `KindSymbol` is needed; if other atomic kinds ever
 // require the same escape hatch, the switch grows in lockstep with
 // the RT emit switch in internal/cachegen/typefunctions/istype.go.
-func (cache *Cache) SerializeAtomicKind(kind protocol.ReflectionKind) string {
+func (cache *Cache) SerializeAtomicKind(kind reflection.ReflectionKind) string {
 	structural := strconv.Itoa(int(kind)) + ":atomic"
 	if id, ok := cache.byStructural[structural]; ok {
 		return id
@@ -422,14 +422,14 @@ func (cache *Cache) SerializeAtomicKind(kind protocol.ReflectionKind) string {
 		id = "x_at_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
 	}
 	cache.intern(structural, id)
-	cache.putNode(id, &protocol.RunType{ID: id, Kind: kind})
+	cache.putNode(id, &reflection.RunType{ID: id, Kind: kind})
 	return id
 }
 
 // SerializeTopLevel returns the canonical RunType entry (not a ref). Used by
 // the resolver to record the top of a query result so callers see the full
 // shape rather than a sentinel.
-func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *protocol.RunType {
+func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *reflection.RunType {
 	id := cache.assignID(tsType)
 	return cache.nodes[id]
 }
@@ -438,7 +438,7 @@ func (cache *Cache) SerializeTopLevel(tsType *checker.Type) *protocol.RunType {
 // been interned. Backs the enrichment bridge/closure walkers and the
 // demand-scope pass, which follow a member type's child KindRef slots by
 // re-looking-up each referenced id.
-func (cache *Cache) NodeByID(id string) *protocol.RunType {
+func (cache *Cache) NodeByID(id string) *reflection.RunType {
 	return cache.nodes[id]
 }
 
@@ -531,11 +531,11 @@ func (cache *Cache) uniqueDict(structural string, length int) (string, error) {
 // NodesForIDs returns the canonical *RunType entries for the given ids, in
 // the order supplied. Ids missing from the table are skipped. Used by the
 // resolver to materialise a "scanned files" scoped slice into a Dump.
-func (cache *Cache) NodesForIDs(ids []string) []*protocol.RunType {
+func (cache *Cache) NodesForIDs(ids []string) []*reflection.RunType {
 	if len(ids) == 0 {
 		return nil
 	}
-	out := make([]*protocol.RunType, 0, len(ids))
+	out := make([]*reflection.RunType, 0, len(ids))
 	for _, id := range ids {
 		if node := cache.nodes[id]; node != nil {
 			out = append(out, node)
@@ -547,7 +547,7 @@ func (cache *Cache) NodesForIDs(ids []string) []*protocol.RunType {
 // assignID computes/looks-up the wire id for tsType, projecting it on first sight.
 func (cache *Cache) assignID(tsType *checker.Type) string {
 	if tsType == nil {
-		return cache.internEmpty(protocol.KindUnknown, "nilType")
+		return cache.internEmpty(reflection.KindUnknown, "nilType")
 	}
 	if id, ok := cache.byPtr[tsType]; ok {
 		if cache.inProgress[id] {
@@ -566,7 +566,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 		// on the Error diagnostic anyway.
 		cache.depthExceeded = true
 		cache.depthCulprit = cache.idComputer.DepthCulprit()
-		id := cache.internEmpty(protocol.KindUnknown, "depthExceeded")
+		id := cache.internEmpty(reflection.KindUnknown, "depthExceeded")
 		cache.byPtr[tsType] = id
 		return id
 	}
@@ -595,7 +595,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	cache.intern(structural, id)
 
 	// Reserve the slot before projecting so cycles see the id.
-	cache.putNode(id, &protocol.RunType{ID: id, Kind: typeid.KindOf(cache.typeChecker, tsType)})
+	cache.putNode(id, &reflection.RunType{ID: id, Kind: typeid.KindOf(cache.typeChecker, tsType)})
 
 	// Mark this id in-progress so a back-edge during projection (a child that
 	// resolves back to this same id) flags it circular. Applied to the final
@@ -611,7 +611,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 	}
 	// Replace the placeholder in place (insertOrder already holds id) and
 	// stamp the final node's Family/NotSupported fields.
-	protocol.PopulateFamily(node)
+	reflection.PopulateFamily(node)
 	cache.nodes[id] = node
 	return id
 }
@@ -621,7 +621,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 // Looked up by the node's BASE structural key (the override map's key); a copy
 // is taken so the node never shares the override table's map. No-op when the
 // type is not overridden or no override table is installed.
-func (cache *Cache) stampOverrides(node *protocol.RunType, tsType *checker.Type) {
+func (cache *Cache) stampOverrides(node *reflection.RunType, tsType *checker.Type) {
 	if cache.idComputer == nil || len(cache.overrides) == 0 {
 		return
 	}
@@ -647,7 +647,7 @@ func (cache *Cache) stampOverrides(node *protocol.RunType, tsType *checker.Type)
 
 // internEmpty creates a placeholder entry for nil/unknown types so consumers
 // always see *something* rather than a dangling ref.
-func (cache *Cache) internEmpty(kind protocol.ReflectionKind, markerName string) string {
+func (cache *Cache) internEmpty(kind reflection.ReflectionKind, markerName string) string {
 	structural := "_empty_" + markerName
 	if id, ok := cache.byStructural[structural]; ok {
 		return id
@@ -657,7 +657,7 @@ func (cache *Cache) internEmpty(kind protocol.ReflectionKind, markerName string)
 		id = "x_" + markerName
 	}
 	cache.intern(structural, id)
-	cache.putNode(id, &protocol.RunType{ID: id, Kind: kind, Flags: []string{markerName}})
+	cache.putNode(id, &reflection.RunType{ID: id, Kind: kind, Flags: []string{markerName}})
 	return id
 }
 
@@ -666,8 +666,8 @@ func (cache *Cache) internEmpty(kind protocol.ReflectionKind, markerName string)
 // assignID; we only populate kind-specific contents here.
 // ---------------------------------------------------------------------------
 
-func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunType {
-	node := &protocol.RunType{ID: id}
+func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.RunType {
+	node := &reflection.RunType{ID: id}
 	flags := tsType.Flags()
 
 	// typeName from a user-declared type alias ("User" in `type User = {...}`).
@@ -679,7 +679,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 	if alias := checker.Type_alias(tsType); alias != nil && alias.Symbol() != nil && !isBuilderInternalAlias(alias.Symbol(), cache.fs) {
 		node.TypeName = alias.Symbol().Name
 		if typeArguments := alias.TypeArguments(); len(typeArguments) > 0 {
-			node.TypeArguments = make([]*protocol.RunType, 0, len(typeArguments))
+			node.TypeArguments = make([]*reflection.RunType, 0, len(typeArguments))
 			for _, typeArgument := range typeArguments {
 				node.TypeArguments = append(node.TypeArguments, cache.Serialize(typeArgument))
 			}
@@ -696,29 +696,29 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 
 	switch {
 	case flags&checker.TypeFlagsAny != 0:
-		node.Kind = protocol.KindAny
+		node.Kind = reflection.KindAny
 
 	case flags&checker.TypeFlagsUnknown != 0:
-		node.Kind = protocol.KindUnknown
+		node.Kind = reflection.KindUnknown
 
 	case flags&checker.TypeFlagsNever != 0:
-		node.Kind = protocol.KindNever
+		node.Kind = reflection.KindNever
 
 	case flags&checker.TypeFlagsVoid != 0:
-		node.Kind = protocol.KindVoid
+		node.Kind = reflection.KindVoid
 
 	case flags&checker.TypeFlagsUndefined != 0:
-		node.Kind = protocol.KindUndefined
+		node.Kind = reflection.KindUndefined
 
 	case flags&checker.TypeFlagsNull != 0:
-		node.Kind = protocol.KindNull
+		node.Kind = reflection.KindNull
 
 	case flags&checker.TypeFlagsStringLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = tsType.AsLiteralType().Value()
 
 	case flags&checker.TypeFlagsNumberLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		// A numeric ENUM member (`Color.Red = 0`) is a NumberLiteral whose
 		// TypeToString is the member NAME ("Color.Red"), not the value — so the
 		// emitted validator would check `=== "Color.Red"` and never match the
@@ -732,18 +732,18 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 		}
 
 	case flags&checker.TypeFlagsBooleanLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = cache.typeChecker.TypeToString(tsType) == "true"
 
 	case flags&checker.TypeFlagsBigIntLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		// JSON numbers can't carry arbitrary-precision bigint — emit as a
 		// decimal string + flag so the renderer wraps with `BigInt(...)`.
 		node.Literal = fmt.Sprintf("%v", tsType.AsLiteralType().Value())
 		node.Flags = append(node.Flags, "bigint")
 
 	case flags&checker.TypeFlagsUniqueESSymbol != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		// per the reference semantics: literal-symbol validation compares against the
 		// symbol's `.description` at runtime (literal.ts:103), which is the
 		// string argument the value was constructed with — `Symbol(<desc>)`.
@@ -757,19 +757,19 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 		node.Flags = append(node.Flags, "symbol")
 
 	case flags&checker.TypeFlagsString != 0:
-		node.Kind = protocol.KindString
+		node.Kind = reflection.KindString
 
 	case flags&checker.TypeFlagsNumber != 0:
-		node.Kind = protocol.KindNumber
+		node.Kind = reflection.KindNumber
 
 	case flags&checker.TypeFlagsBoolean != 0:
-		node.Kind = protocol.KindBoolean
+		node.Kind = reflection.KindBoolean
 
 	case flags&checker.TypeFlagsBigInt != 0:
-		node.Kind = protocol.KindBigInt
+		node.Kind = reflection.KindBigInt
 
 	case flags&checker.TypeFlagsESSymbol != 0:
-		node.Kind = protocol.KindSymbol
+		node.Kind = reflection.KindSymbol
 
 	case flags&checker.TypeFlagsEnum != 0 || flags&checker.TypeFlagsEnumLike != 0:
 		cache.projectEnum(tsType, node)
@@ -789,11 +789,11 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 		// time. The reference stores the spans inline on the type — tsgo
 		// splits them into `texts` (one more than types) + `types`
 		// arrays; we serialize the same separation onto the wire.
-		node.Kind = protocol.KindTemplateLiteral
+		node.Kind = reflection.KindTemplateLiteral
 		cache.projectTemplateLiteral(tsType, node)
 
 	case flags&checker.TypeFlagsUnion != 0:
-		node.Kind = protocol.KindUnion
+		node.Kind = reflection.KindUnion
 		members := tsType.Distributed()
 		// OneOf carriers (the exactly-one combinator / JSON Schema oneOf):
 		// land the level branch tuple on node.OneOf so validate counts
@@ -820,13 +820,13 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 
 	case flags&checker.TypeFlagsNonPrimitive != 0:
 		// The bare `object` primitive (`const x: object`).
-		node.Kind = protocol.KindObject
+		node.Kind = reflection.KindObject
 
 	case flags&checker.TypeFlagsObject != 0:
 		cache.projectObjectType(tsType, node)
 
 	default:
-		node.Kind = protocol.KindUnknown
+		node.Kind = reflection.KindUnknown
 		node.TypeName = cache.typeChecker.TypeToString(tsType)
 	}
 
@@ -853,7 +853,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *protocol.RunTy
 // literal-typed spans (the latter would be a `'a' | 'b'` union as a
 // span). v1 supports atomic placeholders (number / string / any /
 // infer / literal); other shapes panic so we hear about them.
-func (cache *Cache) projectTemplateLiteral(tsType *checker.Type, node *protocol.RunType) {
+func (cache *Cache) projectTemplateLiteral(tsType *checker.Type, node *reflection.RunType) {
 	tplType := tsType.AsTemplateLiteralType()
 	if tplType == nil {
 		return
@@ -885,41 +885,41 @@ func (cache *Cache) projectTemplateLiteral(tsType *checker.Type, node *protocol.
 // missing-arm shows up clearly in the wire data.
 func templateSpanWireShape(cache *Cache, spanType *checker.Type) map[string]any {
 	if spanType == nil {
-		return map[string]any{"kind": int(protocol.KindAny)}
+		return map[string]any{"kind": int(reflection.KindAny)}
 	}
 	spanFlags := spanType.Flags()
 	switch {
 	case spanFlags&checker.TypeFlagsStringLiteral != 0:
 		return map[string]any{
-			"kind":    int(protocol.KindLiteral),
+			"kind":    int(reflection.KindLiteral),
 			"literal": spanType.AsLiteralType().Value(),
 		}
 	case spanFlags&checker.TypeFlagsNumberLiteral != 0:
 		return map[string]any{
-			"kind":    int(protocol.KindLiteral),
+			"kind":    int(reflection.KindLiteral),
 			"literal": parseNumberLiteral(cache.typeChecker.TypeToString(spanType)),
 		}
 	case spanFlags&checker.TypeFlagsBooleanLiteral != 0:
 		return map[string]any{
-			"kind":    int(protocol.KindLiteral),
+			"kind":    int(reflection.KindLiteral),
 			"literal": cache.typeChecker.TypeToString(spanType) == "true",
 		}
 	case spanFlags&checker.TypeFlagsString != 0:
-		return map[string]any{"kind": int(protocol.KindString)}
+		return map[string]any{"kind": int(reflection.KindString)}
 	case spanFlags&checker.TypeFlagsNumber != 0:
-		return map[string]any{"kind": int(protocol.KindNumber)}
+		return map[string]any{"kind": int(reflection.KindNumber)}
 	case spanFlags&checker.TypeFlagsBigInt != 0:
-		return map[string]any{"kind": int(protocol.KindBigInt)}
+		return map[string]any{"kind": int(reflection.KindBigInt)}
 	case spanFlags&checker.TypeFlagsAny != 0:
-		return map[string]any{"kind": int(protocol.KindAny)}
+		return map[string]any{"kind": int(reflection.KindAny)}
 	case spanFlags&checker.TypeFlagsUnknown != 0:
-		return map[string]any{"kind": int(protocol.KindUnknown)}
+		return map[string]any{"kind": int(reflection.KindUnknown)}
 	}
 	// Fallback — treat as `string`-shaped span so the regex is still
 	// permissive. Unknown spans are rare (Infer outside conditional
 	// contexts, etc.) and this keeps the validator open-ended rather
 	// than rejecting all inputs.
-	return map[string]any{"kind": int(protocol.KindString)}
+	return map[string]any{"kind": int(reflection.KindString)}
 }
 
 func toAnySlice(strs []string) []any {
@@ -935,13 +935,13 @@ func toAnySlice(strs []string) []any {
 // objectLiteral / regexp / Date
 // ---------------------------------------------------------------------------
 
-func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunType) {
+func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.RunType) {
 	// A bare negation sentinel (`{__rtNot?: Child}` alone — how
 	// `unknown & {__rtNot?: …}` arrives after TS collapses the identity
 	// intersection): an unknown base carrying the negation, never an
 	// object literal with a property. Twin of the objectID early return.
 	if childType := typeid.NotChildTypeFromMember(cache.typeChecker, tsType); childType != nil {
-		node.Kind = protocol.KindUnknown
+		node.Kind = reflection.KindUnknown
 		node.Negations = append(node.Negations, cache.Serialize(childType))
 		return
 	}
@@ -957,7 +957,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunTy
 	if cache.typeChecker.IsArrayLikeType(tsType) && tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 		typeArguments := cache.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
-			node.Kind = protocol.KindArray
+			node.Kind = reflection.KindArray
 			node.Child = cache.Serialize(typeArguments[0])
 			return
 		}
@@ -976,13 +976,13 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunTy
 		case "Promise":
 			typeArguments := cache.typeChecker.GetTypeArguments(tsType)
 			if len(typeArguments) > 0 {
-				node.Kind = protocol.KindPromise
+				node.Kind = reflection.KindPromise
 				node.Child = cache.Serialize(typeArguments[0])
 				return
 			}
 		case "RegExp":
-			node.Kind = protocol.KindRegexp
-			node.ClassRef = &protocol.ClassRef{Builtin: "RegExp"}
+			node.Kind = reflection.KindRegexp
+			node.ClassRef = &reflection.ClassRef{Builtin: "RegExp"}
 			return
 		case "Date", "Map", "Set":
 			// tsgo declares these as interfaces in lib.d.ts (no
@@ -997,7 +997,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunTy
 		// also lib.d.ts interfaces from tsgo's perspective, but the reference
 		// treats them as classes tagged with SubKindNonSerializable. Promote the
 		// same way Date/Map/Set are promoted above.
-		if protocol.IsNonSerializableSymbol(symbol.Name) {
+		if reflection.IsNonSerializableSymbol(symbol.Name) {
 			cache.projectClass(tsType, node)
 			return
 		}
@@ -1011,8 +1011,8 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *protocol.RunTy
 	cache.projectObjectLiteral(tsType, node)
 }
 
-func (cache *Cache) projectTuple(tsType *checker.Type, node *protocol.RunType) {
-	node.Kind = protocol.KindTuple
+func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType) {
+	node.Kind = reflection.KindTuple
 	tupleType := tsType.TargetTupleType()
 	elementInfos := tupleType.ElementInfos()
 	typeArguments := cache.typeChecker.GetTypeArguments(tsType)
@@ -1026,14 +1026,14 @@ func (cache *Cache) projectTuple(tsType *checker.Type, node *protocol.RunType) {
 		// shape keeps the optional bit on the TupleMember and the inner type
 		// stays `T` — strip undefined when the element is optional.
 		position := i
-		var elementChild *protocol.RunType
+		var elementChild *reflection.RunType
 		if elementFlags&checker.ElementFlagsOptional != 0 && elementType != nil {
 			elementChild = cache.serializeOptionalChild(elementType)
 		} else {
 			elementChild = cache.Serialize(elementType)
 		}
-		member := &protocol.RunType{
-			Kind:     protocol.KindTupleMember,
+		member := &reflection.RunType{
+			Kind:     reflection.KindTupleMember,
 			Child:    elementChild,
 			Position: &position,
 		}
@@ -1066,19 +1066,19 @@ func (cache *Cache) projectTuple(tsType *checker.Type, node *protocol.RunType) {
 		member.ID = memberID
 		cache.intern(structural, memberID)
 		cache.putNode(memberID, member)
-		node.Children = append(node.Children, protocol.NewRef(memberID))
+		node.Children = append(node.Children, reflection.NewRef(memberID))
 	}
 }
 
-func (cache *Cache) projectObjectLiteral(tsType *checker.Type, node *protocol.RunType) {
+func (cache *Cache) projectObjectLiteral(tsType *checker.Type, node *reflection.RunType) {
 	callSignatures := cache.typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall)
 	properties := cache.typeChecker.GetPropertiesOfType(tsType)
 	if len(callSignatures) > 0 && len(properties) == 0 {
-		node.Kind = protocol.KindFunction
+		node.Kind = reflection.KindFunction
 		cache.projectSignatureInto(callSignatures[0], node)
 		return
 	}
-	node.Kind = protocol.KindObjectLiteral
+	node.Kind = reflection.KindObjectLiteral
 	cache.projectMembersInto(tsType, node, properties, callSignatures, false)
 	// If this is a named interface, stamp its name as TypeName and capture
 	// extends-clause parent refs. `type X = {…}` aliases get their name from
@@ -1100,8 +1100,8 @@ func (cache *Cache) projectObjectLiteral(tsType *checker.Type, node *protocol.Ru
 	}
 }
 
-func (cache *Cache) projectClass(tsType *checker.Type, node *protocol.RunType) {
-	node.Kind = protocol.KindClass
+func (cache *Cache) projectClass(tsType *checker.Type, node *reflection.RunType) {
+	node.Kind = reflection.KindClass
 	// Builtin Temporal types: stamp the registry SubKind + qualified
 	// ClassRef.Builtin ("Temporal.PlainDate" → globalThis.Temporal.PlainDate).
 	// Done before the symbol-name switch since the bare name ("PlainDate")
@@ -1109,7 +1109,7 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *protocol.RunType) {
 	if info, ok := typeid.TemporalInfoForType(tsType); ok {
 		node.TypeName = info.Name
 		node.SubKind = info.SubKind
-		node.ClassRef = &protocol.ClassRef{Builtin: info.Builtin}
+		node.ClassRef = &reflection.ClassRef{Builtin: info.Builtin}
 		return
 	}
 	var symbolName string
@@ -1118,22 +1118,22 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *protocol.RunType) {
 		node.TypeName = symbolName
 		switch symbolName {
 		case "Date":
-			node.ClassRef = &protocol.ClassRef{Builtin: symbolName}
-			node.SubKind = protocol.SubKindDate
+			node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
+			node.SubKind = reflection.SubKindDate
 		case "Map":
-			node.ClassRef = &protocol.ClassRef{Builtin: symbolName}
-			node.SubKind = protocol.SubKindMap
+			node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
+			node.SubKind = reflection.SubKindMap
 		case "Set":
-			node.ClassRef = &protocol.ClassRef{Builtin: symbolName}
-			node.SubKind = protocol.SubKindSet
+			node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
+			node.SubKind = reflection.SubKindSet
 		case "RegExp":
-			node.ClassRef = &protocol.ClassRef{Builtin: symbolName}
+			node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
 		default:
-			if protocol.IsNonSerializableSymbol(symbolName) {
-				node.ClassRef = &protocol.ClassRef{Builtin: symbolName}
-				node.SubKind = protocol.SubKindNonSerializable
+			if reflection.IsNonSerializableSymbol(symbolName) {
+				node.ClassRef = &reflection.ClassRef{Builtin: symbolName}
+				node.SubKind = reflection.SubKindNonSerializable
 			} else {
-				node.ClassRef = &protocol.ClassRef{Name: symbolName}
+				node.ClassRef = &reflection.ClassRef{Name: symbolName}
 			}
 		}
 	}
@@ -1199,7 +1199,7 @@ func (cache *Cache) projectClass(tsType *checker.Type, node *protocol.RunType) {
 // shape so consumers can read the keyed parameter slots the same way on
 // either side. Each wrapper gets its own synthetic id (`_pa_<parentId>_<n>`,
 // same scheme as `projectSignatureInto`) so it participates in the cache.
-func (cache *Cache) appendMapArguments(node *protocol.RunType, typeArguments []*checker.Type) {
+func (cache *Cache) appendMapArguments(node *reflection.RunType, typeArguments []*checker.Type) {
 	if len(typeArguments) != 2 {
 		for _, typeArgument := range typeArguments {
 			node.Arguments = append(node.Arguments, cache.Serialize(typeArgument))
@@ -1208,22 +1208,22 @@ func (cache *Cache) appendMapArguments(node *protocol.RunType, typeArguments []*
 	}
 	keyName := "key"
 	valueName := "value"
-	keyParameter := cache.newNativeParameter(node.ID, 0, keyName, protocol.SubKindMapKey, typeArguments[0])
-	valueParameter := cache.newNativeParameter(node.ID, 1, valueName, protocol.SubKindMapValue, typeArguments[1])
+	keyParameter := cache.newNativeParameter(node.ID, 0, keyName, reflection.SubKindMapKey, typeArguments[0])
+	valueParameter := cache.newNativeParameter(node.ID, 1, valueName, reflection.SubKindMapValue, typeArguments[1])
 	node.Arguments = append(node.Arguments, keyParameter, valueParameter)
 }
 
 // appendSetArguments wraps Set<T>'s single type argument as a synthetic
 // KindParameter tagged with SubKindSetItem and appends it to
 // node.Arguments. Symmetric to appendMapArguments.
-func (cache *Cache) appendSetArguments(node *protocol.RunType, typeArguments []*checker.Type) {
+func (cache *Cache) appendSetArguments(node *reflection.RunType, typeArguments []*checker.Type) {
 	if len(typeArguments) != 1 {
 		for _, typeArgument := range typeArguments {
 			node.Arguments = append(node.Arguments, cache.Serialize(typeArgument))
 		}
 		return
 	}
-	itemParameter := cache.newNativeParameter(node.ID, 0, "item", protocol.SubKindSetItem, typeArguments[0])
+	itemParameter := cache.newNativeParameter(node.ID, 0, "item", reflection.SubKindSetItem, typeArguments[0])
 	node.Arguments = append(node.Arguments, itemParameter)
 }
 
@@ -1231,10 +1231,10 @@ func (cache *Cache) appendSetArguments(node *protocol.RunType, typeArguments []*
 // Set type argument and registers it in the cache under a `_pa_<parent>_<i>`
 // id. Returns a ref to the wrapper so the caller can splice it into
 // node.Arguments.
-func (cache *Cache) newNativeParameter(parentID string, index int, name string, subKind protocol.ReflectionSubKind, childType *checker.Type) *protocol.RunType {
+func (cache *Cache) newNativeParameter(parentID string, index int, name string, subKind reflection.ReflectionSubKind, childType *checker.Type) *reflection.RunType {
 	position := index
-	wrapper := &protocol.RunType{
-		Kind:     protocol.KindParameter,
+	wrapper := &reflection.RunType{
+		Kind:     reflection.KindParameter,
 		SubKind:  subKind,
 		Name:     name,
 		Position: &position,
@@ -1248,7 +1248,7 @@ func (cache *Cache) newNativeParameter(parentID string, index int, name string, 
 	wrapper.ID = wrapperID
 	cache.intern(structural, wrapperID)
 	cache.putNode(wrapperID, wrapper)
-	return protocol.NewRef(wrapperID)
+	return reflection.NewRef(wrapperID)
 }
 
 // appendStaticMembers extends instanceProps with each static member symbol
@@ -1278,7 +1278,7 @@ func appendStaticMembers(instanceProps []*ast.Symbol, classSymbol *ast.Symbol) [
 
 func (cache *Cache) projectMembersInto(
 	tsType *checker.Type,
-	node *protocol.RunType,
+	node *reflection.RunType,
 	properties []*ast.Symbol,
 	callSignatures []*checker.Signature,
 	asClass bool,
@@ -1317,8 +1317,8 @@ func (cache *Cache) projectMembersInto(
 		cache.appendProperty(node, propertySymbol, asClass, i)
 	}
 	for i, indexInfo := range cache.typeChecker.GetIndexInfosOfType(tsType) {
-		indexNode := &protocol.RunType{
-			Kind:  protocol.KindIndexSignature,
+		indexNode := &reflection.RunType{
+			Kind:  reflection.KindIndexSignature,
 			Index: cache.Serialize(indexInfo.KeyType()),
 			Child: cache.Serialize(indexInfo.ValueType()),
 		}
@@ -1333,10 +1333,10 @@ func (cache *Cache) projectMembersInto(
 		indexNode.ID = indexID
 		cache.intern(structural, indexID)
 		cache.putNode(indexID, indexNode)
-		node.Children = append(node.Children, protocol.NewRef(indexID))
+		node.Children = append(node.Children, reflection.NewRef(indexID))
 	}
 	for i, signature := range callSignatures {
-		callNode := &protocol.RunType{Kind: protocol.KindCallSignature}
+		callNode := &reflection.RunType{Kind: reflection.KindCallSignature}
 		cache.projectSignatureInto(signature, callNode)
 		structural := fmt.Sprintf("_cs_%s_%d", node.ID, i)
 		callID, err := cache.uniqueDict(structural, cache.opts.hashLength())
@@ -1346,11 +1346,11 @@ func (cache *Cache) projectMembersInto(
 		callNode.ID = callID
 		cache.intern(structural, callID)
 		cache.putNode(callID, callNode)
-		node.Children = append(node.Children, protocol.NewRef(callID))
+		node.Children = append(node.Children, reflection.NewRef(callID))
 	}
 }
 
-func (cache *Cache) appendProperty(parent *protocol.RunType, symbol *ast.Symbol, asClass bool, index int) {
+func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbol, asClass bool, index int) {
 	propertyType := cache.typeChecker.GetTypeOfSymbol(symbol)
 
 	// Method-vs-property: a property whose type is a single-call-signature
@@ -1365,7 +1365,7 @@ func (cache *Cache) appendProperty(parent *protocol.RunType, symbol *ast.Symbol,
 	}
 
 	memberName := stableMemberName(symbol.Name)
-	member := &protocol.RunType{Name: memberName}
+	member := &reflection.RunType{Name: memberName}
 	// A non-enumerable-guarded member (lib-global-inherited or `@nonEnumerable`)
 	// is projected as OPTIONAL — the wire may omit it — so validators and the
 	// presence path accept its absence. Mirrors typeid.memberID
@@ -1382,17 +1382,17 @@ func (cache *Cache) appendProperty(parent *protocol.RunType, symbol *ast.Symbol,
 
 	if isMethod {
 		if asClass {
-			member.Kind = protocol.KindMethod
+			member.Kind = reflection.KindMethod
 		} else {
-			member.Kind = protocol.KindMethodSignature
+			member.Kind = reflection.KindMethodSignature
 		}
 		signatures := cache.typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)
 		cache.projectSignatureInto(signatures[0], member)
 	} else {
 		if asClass {
-			member.Kind = protocol.KindProperty
+			member.Kind = reflection.KindProperty
 		} else {
-			member.Kind = protocol.KindPropertySignature
+			member.Kind = reflection.KindPropertySignature
 		}
 		// Optional properties carry `T | undefined` at the symbol type
 		// layer; the Optional flag IS the "undefined-permitted" signal so
@@ -1414,15 +1414,15 @@ func (cache *Cache) appendProperty(parent *protocol.RunType, symbol *ast.Symbol,
 	member.ID = memberID
 	cache.intern(structural, memberID)
 	cache.putNode(memberID, member)
-	parent.Children = append(parent.Children, protocol.NewRef(memberID))
+	parent.Children = append(parent.Children, reflection.NewRef(memberID))
 }
 
-func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *protocol.RunType) {
+func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *reflection.RunType) {
 	for i, paramSymbol := range signature.Parameters() {
 		paramType := cache.typeChecker.GetTypeOfSymbol(paramSymbol)
 		position := i
-		parameter := &protocol.RunType{
-			Kind:     protocol.KindParameter,
+		parameter := &reflection.RunType{
+			Kind:     reflection.KindParameter,
 			Name:     paramSymbol.Name,
 			Position: &position,
 		}
@@ -1450,7 +1450,7 @@ func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *pro
 		parameter.ID = paramID
 		cache.intern(structural, paramID)
 		cache.putNode(paramID, parameter)
-		node.Parameters = append(node.Parameters, protocol.NewRef(paramID))
+		node.Parameters = append(node.Parameters, reflection.NewRef(paramID))
 	}
 	node.Return = cache.Serialize(cache.typeChecker.GetReturnTypeOfSignature(signature))
 }
@@ -1459,8 +1459,8 @@ func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *pro
 // enums
 // ---------------------------------------------------------------------------
 
-func (cache *Cache) projectEnum(tsType *checker.Type, node *protocol.RunType) {
-	node.Kind = protocol.KindEnum
+func (cache *Cache) projectEnum(tsType *checker.Type, node *reflection.RunType) {
+	node.Kind = reflection.KindEnum
 	if symbol := tsType.Symbol(); symbol != nil {
 		node.TypeName = symbol.Name
 		// Walk member symbols and read their values.
@@ -1486,11 +1486,11 @@ func (cache *Cache) projectEnum(tsType *checker.Type, node *protocol.RunType) {
 			}
 			switch {
 			case allString:
-				node.IndexT = &protocol.RunType{Kind: protocol.KindString, ID: "_enumIdx_string"}
+				node.IndexT = &reflection.RunType{Kind: reflection.KindString, ID: "_enumIdx_string"}
 			case allNumber:
-				node.IndexT = &protocol.RunType{Kind: protocol.KindNumber, ID: "_enumIdx_number"}
+				node.IndexT = &reflection.RunType{Kind: reflection.KindNumber, ID: "_enumIdx_number"}
 			default:
-				node.IndexT = &protocol.RunType{Kind: protocol.KindUnion, ID: "_enumIdx_mixed"}
+				node.IndexT = &reflection.RunType{Kind: reflection.KindUnion, ID: "_enumIdx_mixed"}
 			}
 		}
 	}

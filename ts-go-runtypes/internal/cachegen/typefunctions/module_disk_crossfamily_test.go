@@ -11,6 +11,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // sortedCopy returns a sorted copy of s — cross-family deps are collected in
@@ -254,7 +255,7 @@ func TestRenderFnModule_DiskCache_FormatV1IsMiss(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{{ID: "abc123", Kind: protocol.KindString}}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "abc123", Kind: reflection.KindString}}}
 	rendered := renderEntryWithDeps(dump.RunTypes[0], constants.CacheModules["validate"], ValidateEmitter{}, "val_", buildRefTable(dump.RunTypes), RenderOpts{Store: store, Lookup: lookup}, "", nil, false)
 	if rendered.argsText == v1["argsText"] {
 		t.Errorf("v1 file should be a miss under FormatVersion %d, but the stale v1 args were returned", diskcache.FormatVersion)

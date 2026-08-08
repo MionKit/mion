@@ -2,7 +2,7 @@ package typefunctions
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Custom class-serializer plumbing shared by the JSON + binary emitter
@@ -49,7 +49,7 @@ import (
 // RunType, or "" when the class is anonymous (no stable name to key the
 // registry on). The empty-string result signals callers to emit the
 // structural shape with no registry branch and no warning.
-func userClassName(rt *protocol.RunType) string {
+func userClassName(rt *reflection.RunType) string {
 	if rt == nil {
 		return ""
 	}
@@ -120,7 +120,7 @@ func emitClassSerializerWarning(className string, ctx *EmitContext) {
 // short-circuits the whole entry — the registry can't rescue a structurally
 // un-encodable shape, matching the locked contract that the fallback is the
 // *existing* structural behaviour).
-func wrapPrepareWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
+func wrapPrepareWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -149,7 +149,7 @@ func wrapPrepareWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v st
 //
 // Anonymous classes return the structural body unchanged (no branch, no
 // warning). CodeNS propagates unchanged.
-func wrapSafeWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
+func wrapSafeWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -183,7 +183,7 @@ func wrapSafeWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v strin
 //	if (cs_<name>) return JSON.stringify(cs_<name>.serialize(v)); <structural>
 //
 // Anonymous classes return the structural body unchanged. CodeNS propagates.
-func wrapStringifyWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
+func wrapStringifyWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -221,7 +221,7 @@ func wrapStringifyWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v 
 // recurse. The default structural path decodes the declared props first, then
 // reconstructs the instance. Anonymous classes return the structural body
 // unchanged. CodeNS propagates.
-func wrapRestoreWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
+func wrapRestoreWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -253,7 +253,7 @@ func wrapRestoreWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v st
 // The string wire shape (uint32 length + utf8 bytes) is exactly what the
 // `fb` side decodes. Anonymous classes return structural unchanged. CodeNS
 // propagates.
-func wrapToBinaryWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v, ser string, structural RTCode) RTCode {
+func wrapToBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, v, ser string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}
@@ -283,7 +283,7 @@ func wrapToBinaryWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, v, 
 //	else { <structural>; if (cs_<name>) ret = utl.deserializeClass(cs_<name>, ret) }
 //
 // Anonymous classes return structural unchanged. CodeNS propagates.
-func wrapFromBinaryWithClassSerializer(rt *protocol.RunType, ctx *EmitContext, ret, des string, structural RTCode) RTCode {
+func wrapFromBinaryWithClassSerializer(rt *reflection.RunType, ctx *EmitContext, ret, des string, structural RTCode) RTCode {
 	if structural.Type == CodeNS {
 		return structural
 	}

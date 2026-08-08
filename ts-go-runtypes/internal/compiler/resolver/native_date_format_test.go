@@ -7,6 +7,7 @@ import (
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // native_date_format_test.go covers the FormatDate (native Date) family:
@@ -18,7 +19,7 @@ import (
 // scanNativeDate builds a getRunTypeId<TypeFormat<Date, 'nativeDate', P>>()
 // snippet and returns the emitted validate source, the scanned RunTypes,
 // and any FMT002 diagnostics.
-func scanNativeDate(t *testing.T, params string) (string, []*protocol.RunType, []diagnostics.Diagnostic) {
+func scanNativeDate(t *testing.T, params string) (string, []*reflection.RunType, []diagnostics.Diagnostic) {
 	t.Helper()
 	code := `import {createValidateFn} from '@ts-runtypes/core';
 ` + typeFormatBrandDecl + `
@@ -44,7 +45,7 @@ export const _ = createValidateFn<TypeFormat<Date, 'nativeDate', ` + params + `>
 }
 
 // findNativeDate returns the RunType carrying the nativeDate annotation.
-func findNativeDate(runTypes []*protocol.RunType) *protocol.RunType {
+func findNativeDate(runTypes []*reflection.RunType) *reflection.RunType {
 	for _, rt := range runTypes {
 		if rt.FormatAnnotation != nil && rt.FormatAnnotation.Name == "nativeDate" {
 			return rt
@@ -62,10 +63,10 @@ func TestNativeDate_BrandLiftedOntoDateNode(t *testing.T) {
 	if node == nil {
 		t.Fatal("no RunType carrying the nativeDate annotation")
 	}
-	if node.Kind != protocol.KindClass {
+	if node.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %v", node.Kind)
 	}
-	if node.SubKind != protocol.SubKindDate {
+	if node.SubKind != reflection.SubKindDate {
 		t.Fatalf("expected SubKindDate, got %v", node.SubKind)
 	}
 }

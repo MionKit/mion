@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TestFamilies_RegistryRoundTrip — every registry row resolves a real
@@ -33,7 +33,7 @@ func TestFamilies_RegistryRoundTrip(t *testing.T) {
 // FormatTransformEmitter.Supports is true for every runtype (identity is
 // a valid transform), which would fire the HMR signal on every scan.
 func TestAddedFormatTransform_GatesOnTransform(t *testing.T) {
-	plainString := []*protocol.RunType{{ID: "x", Kind: protocol.KindString}}
+	plainString := []*reflection.RunType{{ID: "x", Kind: reflection.KindString}}
 	if AnyFormatTransformSupported(plainString) {
 		t.Fatalf("plain string runtype must not trip the formatTransform added-gate")
 	}

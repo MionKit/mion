@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 func newTestWalker() *Walker {
-	rt := &protocol.RunType{Kind: protocol.KindString, ID: "root"}
+	rt := &reflection.RunType{Kind: reflection.KindString, ID: "root"}
 	return NewWalker(rt, "val_root", ValidateEmitter{})
 }
 

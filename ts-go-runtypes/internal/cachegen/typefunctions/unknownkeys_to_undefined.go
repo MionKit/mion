@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // UnknownKeysToUndefinedEmitter — INTERNAL-ONLY since the public
@@ -19,7 +19,7 @@ func (UnknownKeysToUndefinedEmitter) Args() []ArgSpec {
 	return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}}
 }
 
-func (UnknownKeysToUndefinedEmitter) Supports(rt *protocol.RunType) bool {
+func (UnknownKeysToUndefinedEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
@@ -29,7 +29,7 @@ func (UnknownKeysToUndefinedEmitter) IsRTInlined(ctx *InlineContext) bool {
 
 // IsNoopType — see isNoopForUnknownKeys (shared five-family mirror; uku
 // additionally no-ops at tuples by design).
-func (UnknownKeysToUndefinedEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (UnknownKeysToUndefinedEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, unknownKeysToUndefinedNoopSpec)
 }
 
@@ -41,38 +41,38 @@ func (UnknownKeysToUndefinedEmitter) ReturnName() string {
 	return "v"
 }
 
-func (UnknownKeysToUndefinedEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (UnknownKeysToUndefinedEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	switch rt.Kind {
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectUnknownKeysToUndefined(rt, ctx)
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			return emitObjectUnknownKeysToUndefined(rt, ctx)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableUnknownKeys(rt, ctx, ctx.Vλl)
 		}
 		return RTCode{Code: "", Type: CodeS}
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyUnknownKeys(rt, ctx, false)
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayUnknownKeys(rt, ctx, false)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleUnknownKeysToUndefined(rt, ctx)
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberUnknownKeys(rt, ctx, false)
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureUnknownKeysToUndefined(rt, ctx)
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionUnknownKeysToUndefined(rt, ctx)
 	}
 	return RTCode{Code: "", Type: CodeS}
 }
 
-func (UnknownKeysToUndefinedEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (UnknownKeysToUndefinedEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
@@ -89,7 +89,7 @@ func (UnknownKeysToUndefinedEmitter) Finalize(raw string) (string, bool) {
 // InterfaceRunType.emitUnknownKeysToUndefined (interface.ts:188-202).
 // Identical to strip except `v[key] = undefined` instead of
 // `delete v[key]`.
-func emitObjectUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitObjectUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	hasIndex := objectHasIndexSignatureChild(rt, ctx)
 	v := ctx.Vλl
 	var parentCode string
@@ -120,7 +120,7 @@ func emitObjectUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RT
 	return RTCode{Code: combined, Type: CodeS}
 }
 
-func emitTupleUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitTupleUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	// uku at a tuple node is a no-op. The per-position concat pattern
 	// blindly recurses into every child slot, which breaks on circular
 	// tuples (optional self-referential slot → unguarded `v[i].x` reads
@@ -137,7 +137,7 @@ func emitTupleUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RTC
 
 // emitIndexSignatureUnknownKeysToUndefined ports
 // IndexSignatureRunType.emitUnknownKeysToUndefined (indexProperty.ts:144-154).
-func emitIndexSignatureUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitIndexSignatureUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -154,7 +154,7 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitCon
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -163,7 +163,7 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitCon
 			}
 		}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic && keyRegexVar == "" {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic && keyRegexVar == "" {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
@@ -210,7 +210,7 @@ func emitIndexSignatureUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitCon
 // now that the decoder's safe pipeline uses ukuWire (which handles
 // the wire-format wrapper-peel separately) — uku no longer sees
 // wire-shape arrays.
-func emitUnionUnknownKeysToUndefined(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitUnionUnknownKeysToUndefined(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 		Snippet: func(_ *EmitContext, accessor, keyVar string) string {
 			return accessor + "[" + keyVar + "] = undefined"

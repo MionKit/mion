@@ -8,7 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/purefunctions"
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // overrideOpKeyForTag maps a simple (non-composite) family tag to the public
@@ -45,7 +45,7 @@ func primitiveCompositeOpKey(tag string) string {
 // compositeOverriddenForPrimitive reports whether the runtype's JSON composite
 // op that OWNS this primitive family is overridden — in which case the primitive
 // entry must be skipped entirely (the composite redirect names no primitives).
-func compositeOverriddenForPrimitive(runType *protocol.RunType, primitiveTag string) bool {
+func compositeOverriddenForPrimitive(runType *reflection.RunType, primitiveTag string) bool {
 	if runType == nil || len(runType.Overrides) == 0 {
 		return false
 	}
@@ -55,7 +55,7 @@ func compositeOverriddenForPrimitive(runType *protocol.RunType, primitiveTag str
 
 // overrideHashForTag returns the cfn body hash an override registered for this
 // (family tag, type), or "" when the type carries no override for that family.
-func overrideHashForTag(runType *protocol.RunType, tag string) string {
+func overrideHashForTag(runType *reflection.RunType, tag string) string {
 	if runType == nil || len(runType.Overrides) == 0 {
 		return ""
 	}
@@ -76,7 +76,7 @@ func overrideHashForTag(runType *protocol.RunType, tag string) string {
 //
 // Mirrors collectJsonCompositeEntry's arg assembly; the redirect is never
 // disk-cached (it is trivial to re-derive and the cfn key is content-addressed).
-func buildRedirectEntry(entryKey string, tag string, runType *protocol.RunType, cfnHash string, opts RenderOpts) *entrymodules.Entry {
+func buildRedirectEntry(entryKey string, tag string, runType *reflection.RunType, cfnHash string, opts RenderOpts) *entrymodules.Entry {
 	cfnKey := purefunctions.OverrideNamespace + "::" + cfnHash
 	factoryBody := "return utl.usePureFn(" + quoteJS(cfnKey) + ")"
 	codeArg := "undefined"

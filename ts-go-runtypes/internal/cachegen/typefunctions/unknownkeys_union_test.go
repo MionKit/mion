@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // unionUnknownKeysCtx — shim EmitContext for direct helper tests.
 // Mirrors layoutCtx in union_flat_layout_test.go.
-func unionUnknownKeysCtx(t *testing.T, runTypes []*protocol.RunType) *EmitContext {
+func unionUnknownKeysCtx(t *testing.T, runTypes []*reflection.RunType) *EmitContext {
 	t.Helper()
-	refTable := make(map[string]*protocol.RunType, len(runTypes))
+	refTable := make(map[string]*reflection.RunType, len(runTypes))
 	for _, rt := range runTypes {
 		if rt == nil || rt.ID == "" {
 			continue
@@ -46,18 +46,18 @@ var hasSnippet = func(_ *EmitContext, _ string, _ string) string { return "retur
 // TestUnionUnknownKeys_DisjointKeys — `{a: string} | {b: number}`.
 // Allowlist `{a, b}`; the for-loop guard rejects anything else.
 func TestUnionUnknownKeys_DisjointKeys(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pb := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pb := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 
 	// strip
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
@@ -72,7 +72,7 @@ func TestUnionUnknownKeys_DisjointKeys(t *testing.T) {
 	}
 
 	// hasUnknownKeys
-	ctx = unionUnknownKeysCtx(t, []*protocol.RunType{str, num, pa, pb, obA, obB, union})
+	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
 	if !strings.HasPrefix(out.Code, "ctxFn0(") {
 		t.Errorf("has emit should call the hoisted context fn: %s", out.Code)
@@ -89,22 +89,22 @@ func TestUnionUnknownKeys_DisjointKeys(t *testing.T) {
 // TestUnionUnknownKeys_OverlappingKeys — `{a: string, b: number} |
 // {a: bigint, c: boolean}`. Merged allowlist `{a, b, c}`.
 func TestUnionUnknownKeys_OverlappingKeys(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	paA := &protocol.RunType{ID: "paA", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pbA := &protocol.RunType{ID: "pbA", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	paB := &protocol.RunType{ID: "paB", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	pcB := &protocol.RunType{ID: "pcB", Kind: protocol.KindProperty, Name: "c", IsSafeName: true, Child: makeRef("bln")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paA"), makeRef("pbA")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paB"), makeRef("pcB")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	paA := &reflection.RunType{ID: "paA", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pbA := &reflection.RunType{ID: "pbA", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	paB := &reflection.RunType{ID: "paB", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	pcB := &reflection.RunType{ID: "pcB", Kind: reflection.KindProperty, Name: "c", IsSafeName: true, Child: makeRef("bln")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paA"), makeRef("pbA")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paB"), makeRef("pcB")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, big, boolean, paA, pbA, paB, pcB, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, big, boolean, paA, pbA, paB, pcB, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	for _, name := range []string{"'a'", "'b'", "'c'"} {
@@ -117,16 +117,16 @@ func TestUnionUnknownKeys_OverlappingKeys(t *testing.T) {
 // TestUnionUnknownKeys_MixedAtomicAndObject — `string | {a: number}`.
 // Allowlist `{a}`; the atomic branch contributes no keys.
 func TestUnionUnknownKeys_MixedAtomicAndObject(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("num")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("obj")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("obj")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("num")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("obj")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, pa, obj, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, obj, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if !strings.Contains(out.Code, "=== 'a'") {
@@ -137,19 +137,19 @@ func TestUnionUnknownKeys_MixedAtomicAndObject(t *testing.T) {
 // TestUnionUnknownKeys_IndexSigCarveOut — `{[k: string]: number} |
 // {b: boolean}`. Index-sig member → emit is a no-op for the whole union.
 func TestUnionUnknownKeys_IndexSigCarveOut(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	idxSig := &protocol.RunType{ID: "idx", Kind: protocol.KindIndexSignature, IndexT: makeRef("str"), Child: makeRef("num")}
-	pb := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("bln")}
-	objIdx := &protocol.RunType{ID: "obI", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("idx")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obI"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obI"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	idxSig := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, IndexT: makeRef("str"), Child: makeRef("num")}
+	pb := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("bln")}
+	objIdx := &reflection.RunType{ID: "obI", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obI"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obI"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, boolean, idxSig, pb, objIdx, objB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, boolean, idxSig, pb, objIdx, objB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if out.Code != "" {
@@ -160,15 +160,15 @@ func TestUnionUnknownKeys_IndexSigCarveOut(t *testing.T) {
 // TestUnionUnknownKeys_AtomicOnlyUnion — `string | number | boolean`.
 // No object members → emit is empty (atomics have no keys).
 func TestUnionUnknownKeys_AtomicOnlyUnion(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, boolean, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, boolean, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	if out.Code != "" {
@@ -183,18 +183,18 @@ func TestUnionUnknownKeys_AtomicOnlyUnion(t *testing.T) {
 // carries no envelope and is covered by
 // TestUnionUnknownKeys_WireFormatRoundTripsRawStripsBareV.
 func TestUnionUnknownKeys_WireFormatObjectBranch(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pb := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("big")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pb := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("big")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, big, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, big, pa, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if !strings.Contains(out.Code, "Array.isArray(v)") {
@@ -218,18 +218,18 @@ func TestUnionUnknownKeys_WireFormatObjectBranch(t *testing.T) {
 // a plain-object check, no wrapper-peel, no v[1] reach-in — so the decoder-
 // safety strip still fires on the bare wire.
 func TestUnionUnknownKeys_WireFormatRoundTripsRawStripsBareV(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pb := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pb := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, pa, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, pa, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if strings.Contains(out.Code, "v[0] === -1") || strings.Contains(out.Code, "v[1]") {
@@ -255,17 +255,17 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 	// envelopes, so the JsonWireFormat sub-assertion below still sees the
 	// `[-1, merged]` wrapper gate. The non-wire strip/has assertions hold
 	// regardless of compatibility.
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	arr := &protocol.RunType{ID: "arr", Kind: protocol.KindArray, Child: makeRef("str")}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("arr"), makeRef("obj")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("arr"), makeRef("obj")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("str")}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("arr"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("arr"), makeRef("obj")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, big, arr, pa, obj, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
 
 	// strip / uku-style (CodeS)
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS})
@@ -280,7 +280,7 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 	}
 
 	// hasUnknownKeys (CodeE) — IIFE must also gate on plain object.
-	ctx = unionUnknownKeysCtx(t, []*protocol.RunType{str, big, arr, pa, obj, union})
+	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE})
 	hasLines := ctx.walker.ContextLines()
 	if !strings.Contains(hasLines, "typeof v === 'object'") || !strings.Contains(hasLines, "!Array.isArray(v)") {
@@ -290,7 +290,7 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 	// JsonWireFormat path keeps its own wrapper gate and does NOT add
 	// the plain-object gate (v[1] is already the inner merged object
 	// post-wrapper-check).
-	ctx = unionUnknownKeysCtx(t, []*protocol.RunType{str, big, arr, pa, obj, union})
+	ctx = unionUnknownKeysCtx(t, []*reflection.RunType{str, big, arr, pa, obj, union})
 	out = emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: ukuSnippet, CodeShape: CodeS, JsonWireFormat: true})
 	if strings.Contains(out.Code, "typeof v === 'object'") {
 		t.Errorf("wire-format path must not add plain-object gate (wrapper check already gates): %s", out.Code)
@@ -304,18 +304,18 @@ func TestUnionUnknownKeys_NonWireGatesOnPlainObject(t *testing.T) {
 // `{a?: string} | {b: number}`. The optional flag doesn't change the
 // allowlist; still `{a, b}`.
 func TestUnionUnknownKeys_OptionalDoesntChangeAllowlist(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	paOpt := &protocol.RunType{ID: "paO", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Optional: true, Child: makeRef("str")}
-	pb := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paO")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	paOpt := &reflection.RunType{ID: "paO", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	pb := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paO")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{str, num, paOpt, pb, obA, obB, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{str, num, paOpt, pb, obA, obB, union})
 
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: stripSnippet, CodeShape: CodeS})
 	for _, name := range []string{"'a'", "'b'"} {
@@ -333,15 +333,15 @@ func TestUnionUnknownKeys_OptionalDoesntChangeAllowlist(t *testing.T) {
 func TestUnionUnknownKeys_WireCodeEGateNestsScanCtxFn(t *testing.T) {
 	// bigint prop ⇒ non-JSON-compatible member ⇒ the union envelopes, so the
 	// wire-format (`[-1, merged]`) CodeE path is exercised.
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	pa := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA")},
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	pa := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA")},
 	}
-	ctx := unionUnknownKeysCtx(t, []*protocol.RunType{big, pa, obA, union})
+	ctx := unionUnknownKeysCtx(t, []*reflection.RunType{big, pa, obA, union})
 	out := emitUnionUnknownKeysMerged(union, ctx, UnknownKeysOpts{Snippet: hasSnippet, CodeShape: CodeE, JsonWireFormat: true})
 	if !strings.HasPrefix(out.Code, "ctxFn1(") {
 		t.Errorf("wire CodeE emit should call the outer gate fn: %s", out.Code)

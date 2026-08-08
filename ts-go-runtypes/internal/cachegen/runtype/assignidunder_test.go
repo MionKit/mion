@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // The full cross-checker projection path (real types materialized by two
@@ -71,7 +71,7 @@ func TestAssignIDUnder_ForeignSharesStructuralDedup(t *testing.T) {
 	if foreignID != boundID {
 		t.Fatalf("foreign-path id %q != bound-path id %q for the same shape", foreignID, boundID)
 	}
-	if node := cache.NodeByID(foreignID); node == nil || node.Kind != protocol.KindUnknown {
+	if node := cache.NodeByID(foreignID); node == nil || node.Kind != reflection.KindUnknown {
 		t.Fatalf("canonical node missing or wrong kind for %q", foreignID)
 	}
 }

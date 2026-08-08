@@ -5,14 +5,14 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // temporalFormatEmitter implements the FormatTemporalX<{min,max}> family —
 // min/max bound constraints over the orderable builtin Temporal types (every
 // type with a static `compare` except Duration, a length). ONE emitter is
 // registered per orderable type (init below), each carrying its
-// protocol.TemporalInfo so it knows its qualified constructor
+// reflection.TemporalInfo so it knows its qualified constructor
 // (`Temporal.PlainDate`), its `Temporal.Now.*` accessor, and which duration
 // components a relative `now±P` bound may use.
 //
@@ -24,17 +24,17 @@ import (
 // from()) or a relative `now±P…` evaluated against `Temporal.Now.*` +
 // `Temporal.Duration.from`.
 type temporalFormatEmitter struct {
-	info protocol.TemporalInfo
+	info reflection.TemporalInfo
 }
 
 func init() {
-	for _, info := range protocol.OrderableTemporalInfos() {
+	for _, info := range reflection.OrderableTemporalInfos() {
 		formats.Register(temporalFormatEmitter{info: info})
 	}
 }
 
-func (e temporalFormatEmitter) Name() string                  { return e.info.FormatName }
-func (e temporalFormatEmitter) Kind() protocol.ReflectionKind { return protocol.KindClass }
+func (e temporalFormatEmitter) Name() string                    { return e.info.FormatName }
+func (e temporalFormatEmitter) Kind() reflection.ReflectionKind { return reflection.KindClass }
 
 // relBoundKind maps the registry's RelComponentKind string to the shared
 // boundKind so relative bounds reuse the string-date component restriction.
@@ -56,7 +56,7 @@ func (e temporalFormatEmitter) relBoundKind() boundKind {
 // Temporal's grammar is rich (tz + calendar annotations) and
 // `Temporal.X.from(...)` validates them when the cache module loads, throwing
 // loudly on a malformed literal.
-func (e temporalFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (e temporalFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -104,7 +104,7 @@ var temporalBoundOps = []struct {
 
 // temporalTitle renders the user-facing format name for diagnostics, e.g.
 // "TemporalPlainDate".
-func temporalTitle(info protocol.TemporalInfo) string {
+func temporalTitle(info reflection.TemporalInfo) string {
 	return "Temporal" + info.Name
 }
 
@@ -132,7 +132,7 @@ func (e temporalFormatEmitter) boundCompare(vλl, bound, op string) string {
 	return e.info.Builtin + ".compare(" + vλl + ", " + e.temporalBoundExpr(bound) + ") " + op + " 0"
 }
 
-func (e temporalFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (e temporalFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -145,7 +145,7 @@ func (e temporalFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnno
 	return strings.Join(checks, " && ")
 }
 
-func (e temporalFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (e temporalFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}

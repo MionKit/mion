@@ -23,7 +23,7 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Computer is the stateful walker. Memoises results on *checker.Type pointer
@@ -135,7 +135,7 @@ func (computer *Computer) ResetDepthExceeded() {
 // the same Computer — results are cached.
 func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
-		return strconv.Itoa(int(protocol.KindNever))
+		return strconv.Itoa(int(reflection.KindNever))
 	}
 	// Template-extraction re-walk (canonicalize.go): an in-cluster child
 	// resolves to a slot placeholder instead of text, so ONE check here covers
@@ -379,11 +379,11 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 
 	// Atomic primitives — id is just the kind number.
 	switch kind {
-	case protocol.KindAny, protocol.KindUnknown, protocol.KindNever, protocol.KindVoid,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindBigInt, protocol.KindSymbol, protocol.KindObject,
-		protocol.KindRegexp:
+	case reflection.KindAny, reflection.KindUnknown, reflection.KindNever, reflection.KindVoid,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindBigInt, reflection.KindSymbol, reflection.KindObject,
+		reflection.KindRegexp:
 		return strconv.Itoa(int(kind))
 	}
 
@@ -394,7 +394,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 	// with the bare-kind id because each enum is handed a distinct Type object
 	// per declaration at runtime — we have to dedup ourselves.)
 	if flags&checker.TypeFlagsEnum != 0 || flags&checker.TypeFlagsEnumLike != 0 || flags&checker.TypeFlagsEnumLiteral != 0 {
-		return strconv.Itoa(int(protocol.KindEnum)) + ":" + computer.lit(enumDiscriminator(tsType, computer.typeChecker))
+		return strconv.Itoa(int(reflection.KindEnum)) + ":" + computer.lit(enumDiscriminator(tsType, computer.typeChecker))
 	}
 
 	// Template literal — id captures the literal text segments + the
@@ -406,7 +406,7 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 			texts := tpl.Texts()
 			spanIDs := computer.childIDs(tpl.Types())
 			var b strings.Builder
-			b.WriteString(strconv.Itoa(int(protocol.KindTemplateLiteral)))
+			b.WriteString(strconv.Itoa(int(reflection.KindTemplateLiteral)))
 			b.WriteString(":tl:")
 			for i, text := range texts {
 				if i > 0 {
@@ -469,7 +469,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	// identity intersection): the id is an unknown base plus the negation
 	// fold, NOT an object literal carrying a property.
 	if childType := NotChildTypeFromMember(computer.typeChecker, tsType); childType != nil {
-		return strconv.Itoa(int(protocol.KindUnknown)) + "!{" + computer.Compute(childType) + "}"
+		return strconv.Itoa(int(reflection.KindUnknown)) + "!{" + computer.Compute(childType) + "}"
 	}
 	if checker.IsTupleType(tsType) {
 		// Tuple — bracket-delimited child list per the reference algorithm, with
@@ -528,7 +528,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 			}
 			ids = append(ids, child)
 		}
-		return collectionID(int(protocol.KindTuple), ids, true)
+		return collectionID(int(reflection.KindTuple), ids, true)
 	}
 
 	// Array. GetTypeArguments only works on TypeReference targets — an
@@ -540,7 +540,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
-			return memberID(int(protocol.KindArray), "0", false, child)
+			return memberID(int(reflection.KindArray), "0", false, child)
 		}
 	}
 
@@ -549,7 +549,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 		if len(typeArguments) > 0 {
 			child := computer.Compute(typeArguments[0])
-			return memberID(int(protocol.KindPromise), "0", false, child)
+			return memberID(int(reflection.KindPromise), "0", false, child)
 		}
 	}
 
@@ -567,34 +567,34 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	if symbol := tsType.Symbol(); symbol != nil {
 		switch symbol.Name {
 		case "Date":
-			return strconv.Itoa(int(protocol.SubKindDate))
+			return strconv.Itoa(int(reflection.SubKindDate))
 		case "Map":
 			if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 				typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 				if len(typeArguments) == 2 {
-					return strconv.Itoa(int(protocol.SubKindMap)) + "{" +
-						strconv.Itoa(int(protocol.SubKindMapKey)) + ":" + computer.Compute(typeArguments[0]) + "," +
-						strconv.Itoa(int(protocol.SubKindMapValue)) + ":" + computer.Compute(typeArguments[1]) + "}"
+					return strconv.Itoa(int(reflection.SubKindMap)) + "{" +
+						strconv.Itoa(int(reflection.SubKindMapKey)) + ":" + computer.Compute(typeArguments[0]) + "," +
+						strconv.Itoa(int(reflection.SubKindMapValue)) + ":" + computer.Compute(typeArguments[1]) + "}"
 				}
 			}
-			return strconv.Itoa(int(protocol.SubKindMap))
+			return strconv.Itoa(int(reflection.SubKindMap))
 		case "Set":
 			if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 				typeArguments := computer.typeChecker.GetTypeArguments(tsType)
 				if len(typeArguments) == 1 {
-					return strconv.Itoa(int(protocol.SubKindSet)) + "{" +
-						strconv.Itoa(int(protocol.SubKindSetItem)) + ":" + computer.Compute(typeArguments[0]) + "}"
+					return strconv.Itoa(int(reflection.SubKindSet)) + "{" +
+						strconv.Itoa(int(reflection.SubKindSetItem)) + ":" + computer.Compute(typeArguments[0]) + "}"
 				}
 			}
-			return strconv.Itoa(int(protocol.SubKindSet))
+			return strconv.Itoa(int(reflection.SubKindSet))
 		}
 	}
 	// Non-serialisable globals (Error, WeakMap, typed arrays, …) are tagged
 	// with SubKindNonSerializable and use that as their structural prefix —
 	// matches the `subKind || kind` rule.
-	if symbol := tsType.Symbol(); symbol != nil && protocol.IsNonSerializableSymbol(symbol.Name) {
+	if symbol := tsType.Symbol(); symbol != nil && reflection.IsNonSerializableSymbol(symbol.Name) {
 		ids := computer.memberIDs(tsType, true)
-		return collectionJoined(int(protocol.SubKindNonSerializable), computer.sortedJoin(ids), false)
+		return collectionJoined(int(reflection.SubKindNonSerializable), computer.sortedJoin(ids), false)
 	}
 	if isClass(tsType) {
 		// Generic user class — composition of property ids (sorted for
@@ -610,7 +610,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		// (TS internal symbol name, 0xFE prefix — same test as `userClassName`)
 		// are never registered, so they keep the nameless structural id.
 		ids := computer.memberIDs(tsType, true)
-		id := collectionJoined(int(protocol.KindClass), computer.sortedJoin(ids), false)
+		id := collectionJoined(int(reflection.KindClass), computer.sortedJoin(ids), false)
 		// Append the class name as an unambiguous suffix outside the `{…}`
 		// member group (a bare `name:` token inside could collide with a
 		// property literally named `name`). `#` never appears in a member id.
@@ -626,7 +626,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	callSignatures := computer.typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall)
 	properties := computer.typeChecker.GetPropertiesOfType(tsType)
 	if len(callSignatures) > 0 && len(properties) == 0 {
-		return computer.signatureID(callSignatures[0], protocol.KindFunction, "")
+		return computer.signatureID(callSignatures[0], reflection.KindFunction, "")
 	}
 
 	// objectLiteral — composition of property ids, sorted by name for stability.
@@ -634,10 +634,10 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	if len(callSignatures) > 0 {
 		// Embed call signatures alongside members.
 		for _, signature := range callSignatures {
-			ids = append(ids, computer.signatureID(signature, protocol.KindCallSignature, ""))
+			ids = append(ids, computer.signatureID(signature, reflection.KindCallSignature, ""))
 		}
 	}
-	return collectionJoined(int(protocol.KindObjectLiteral), computer.sortedJoin(ids), false)
+	return collectionJoined(int(reflection.KindObjectLiteral), computer.sortedJoin(ids), false)
 }
 
 // memberIDs returns the member id list UNSORTED — callers compose it through
@@ -666,7 +666,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 	for _, indexInfo := range computer.typeChecker.GetIndexInfosOfType(tsType) {
 		keyID := computer.Compute(indexInfo.KeyType())
 		valueID := computer.Compute(indexInfo.ValueType())
-		out = append(out, strconv.Itoa(int(protocol.KindIndexSignature))+":"+keyID+":"+valueID)
+		out = append(out, strconv.Itoa(int(reflection.KindIndexSignature))+":"+keyID+":"+valueID)
 	}
 	return out
 }
@@ -715,17 +715,17 @@ func (computer *Computer) memberID(symbol *ast.Symbol, asClass bool) string {
 	if propertyType != nil {
 		signatures := computer.typeChecker.GetSignaturesOfType(propertyType, checker.SignatureKindCall)
 		if len(signatures) > 0 && len(computer.typeChecker.GetPropertiesOfType(propertyType)) == 0 {
-			kind := protocol.KindMethodSignature
+			kind := reflection.KindMethodSignature
 			if asClass {
-				kind = protocol.KindMethod
+				kind = reflection.KindMethod
 			}
 			return computer.signatureID(signatures[0], kind, memberName) + optBit(optional) + readonlyBit(readonly) + guardedBit(guarded)
 		}
 	}
 
-	kind := protocol.KindPropertySignature
+	kind := reflection.KindPropertySignature
 	if asClass {
-		kind = protocol.KindProperty
+		kind = reflection.KindProperty
 	}
 	// Optional properties carry `T | undefined` at the symbol-type layer; the
 	// `optional` bit IS the "undefined-permitted" signal, so the union wrapper is
@@ -790,7 +790,7 @@ func guardedBit(guarded bool) string {
 	return ""
 }
 
-func (computer *Computer) signatureID(signature *checker.Signature, kind protocol.ReflectionKind, name string) string {
+func (computer *Computer) signatureID(signature *checker.Signature, kind reflection.ReflectionKind, name string) string {
 	params := signature.Parameters()
 	parts := make([]string, 0, len(params)+1)
 	position := 0
@@ -814,7 +814,7 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind protoco
 		if i == len(params)-1 && isRestParam(paramSymbol) && checker.IsTupleType(paramType) {
 			if elements, ok := computer.fixedTupleParamElements(paramType); ok {
 				for _, element := range elements {
-					parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, computer.lit(element.label)), false, element.id))
+					parts = append(parts, memberID(int(reflection.KindParameter), paramNameSlot(position, computer.lit(element.label)), false, element.id))
 					position++
 				}
 				continue
@@ -832,7 +832,7 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind protoco
 		if isRestParam(paramSymbol) {
 			child += "..."
 		}
-		parts = append(parts, memberID(int(protocol.KindParameter), paramNameSlot(position, computer.lit(paramSymbol.Name)), optional, child))
+		parts = append(parts, memberID(int(reflection.KindParameter), paramNameSlot(position, computer.lit(paramSymbol.Name)), optional, child))
 		position++
 	}
 	parts = append(parts, "->"+computer.Compute(computer.typeChecker.GetReturnTypeOfSignature(signature)))
@@ -1140,7 +1140,7 @@ func collapseBooleanPair(typeChecker *checker.Checker, members []*checker.Type) 
 // so a synthesized union and a real one with the same members converge on one id.
 func SyntheticUnionStructural(computer *Computer, members []*checker.Type) string {
 	ids := computer.childIDs(members)
-	return collectionJoined(int(protocol.KindUnion), computer.sortedJoin(ids), false)
+	return collectionJoined(int(reflection.KindUnion), computer.sortedJoin(ids), false)
 }
 
 // optionalChildID returns the structural id of an optional member's child, with
@@ -1161,92 +1161,92 @@ func (computer *Computer) optionalChildID(childType *checker.Type) string {
 
 // KindOf returns the ReflectionKind that best classifies a tsgo type.
 // Exported because the serializer needs the same classification logic to
-// produce the protocol.RunType.
-func KindOf(typeChecker *checker.Checker, tsType *checker.Type) protocol.ReflectionKind {
+// produce the reflection.RunType.
+func KindOf(typeChecker *checker.Checker, tsType *checker.Type) reflection.ReflectionKind {
 	if tsType == nil {
-		return protocol.KindNever
+		return reflection.KindNever
 	}
 	flags := tsType.Flags()
 	switch {
 	case flags&checker.TypeFlagsAny != 0:
-		return protocol.KindAny
+		return reflection.KindAny
 	case flags&checker.TypeFlagsUnknown != 0:
-		return protocol.KindUnknown
+		return reflection.KindUnknown
 	case flags&checker.TypeFlagsNever != 0:
-		return protocol.KindNever
+		return reflection.KindNever
 	case flags&checker.TypeFlagsVoid != 0:
-		return protocol.KindVoid
+		return reflection.KindVoid
 	case flags&checker.TypeFlagsUndefined != 0:
-		return protocol.KindUndefined
+		return reflection.KindUndefined
 	case flags&checker.TypeFlagsNull != 0:
-		return protocol.KindNull
+		return reflection.KindNull
 	case flags&checker.TypeFlagsStringLiteral != 0,
 		flags&checker.TypeFlagsNumberLiteral != 0,
 		flags&checker.TypeFlagsBooleanLiteral != 0,
 		flags&checker.TypeFlagsBigIntLiteral != 0,
 		flags&checker.TypeFlagsUniqueESSymbol != 0:
-		return protocol.KindLiteral
+		return reflection.KindLiteral
 	case flags&checker.TypeFlagsString != 0:
-		return protocol.KindString
+		return reflection.KindString
 	case flags&checker.TypeFlagsNumber != 0:
-		return protocol.KindNumber
+		return reflection.KindNumber
 	case flags&checker.TypeFlagsBoolean != 0:
-		return protocol.KindBoolean
+		return reflection.KindBoolean
 	case flags&checker.TypeFlagsBigInt != 0:
-		return protocol.KindBigInt
+		return reflection.KindBigInt
 	case flags&checker.TypeFlagsESSymbol != 0:
-		return protocol.KindSymbol
+		return reflection.KindSymbol
 	case flags&checker.TypeFlagsEnum != 0,
 		flags&checker.TypeFlagsEnumLike != 0,
 		flags&checker.TypeFlagsEnumLiteral != 0:
-		return protocol.KindEnum
+		return reflection.KindEnum
 	case flags&checker.TypeFlagsTemplateLiteral != 0:
-		return protocol.KindTemplateLiteral
+		return reflection.KindTemplateLiteral
 	case flags&checker.TypeFlagsUnion != 0:
-		return protocol.KindUnion
+		return reflection.KindUnion
 	case flags&checker.TypeFlagsIntersection != 0:
-		return protocol.KindIntersection
+		return reflection.KindIntersection
 	case flags&checker.TypeFlagsNonPrimitive != 0:
-		return protocol.KindObject
+		return reflection.KindObject
 	case flags&checker.TypeFlagsObject != 0:
 		return objectKind(typeChecker, tsType)
 	}
-	return protocol.KindUnknown
+	return reflection.KindUnknown
 }
 
-func objectKind(typeChecker *checker.Checker, tsType *checker.Type) protocol.ReflectionKind {
+func objectKind(typeChecker *checker.Checker, tsType *checker.Type) reflection.ReflectionKind {
 	if checker.IsTupleType(tsType) {
-		return protocol.KindTuple
+		return reflection.KindTuple
 	}
 	if typeChecker.IsArrayLikeType(tsType) {
-		return protocol.KindArray
+		return reflection.KindArray
 	}
 	// Builtin Temporal types are namespace-member interfaces tsgo reports as
 	// object literals; standard, we treat them as classes (atomic builtins).
 	if _, ok := TemporalInfoForType(tsType); ok {
-		return protocol.KindClass
+		return reflection.KindClass
 	}
 	if symbol := tsType.Symbol(); symbol != nil {
 		switch symbol.Name {
 		case "Promise":
-			return protocol.KindPromise
+			return reflection.KindPromise
 		case "RegExp":
-			return protocol.KindRegexp
+			return reflection.KindRegexp
 		case "Date", "Map", "Set":
 			// Built-in interfaces from lib.d.ts that we treat as classes
 			// (dispatched through initClassRunType in createRunType.ts).
-			return protocol.KindClass
+			return reflection.KindClass
 		}
 	}
 	if isClass(tsType) {
-		return protocol.KindClass
+		return reflection.KindClass
 	}
 	// Free callable with no own properties → reflection function kind.
 	if len(typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall)) > 0 &&
 		len(typeChecker.GetPropertiesOfType(tsType)) == 0 {
-		return protocol.KindFunction
+		return reflection.KindFunction
 	}
-	return protocol.KindObjectLiteral
+	return reflection.KindObjectLiteral
 }
 
 func isClass(tsType *checker.Type) bool {
@@ -1365,20 +1365,20 @@ func literalString(tsType *checker.Type, typeChecker *checker.Checker) string {
 	return typeChecker.TypeToString(tsType)
 }
 
-// TemporalInfoForType returns the protocol.TemporalInfo for a *checker.Type
+// TemporalInfoForType returns the reflection.TemporalInfo for a *checker.Type
 // that resolves to a builtin Temporal type (e.g. `Temporal.PlainDate`), or
 // ok=false otherwise. Detection is namespace-qualified: the type's symbol
 // name must match a registry entry AND the symbol's parent must be the
 // `Temporal` namespace — so a user type named `PlainDate` (no Temporal
 // parent) never matches. Shared by the serialize-side projector and the
 // structural-id computer so both agree on what a Temporal type is.
-func TemporalInfoForType(tsType *checker.Type) (protocol.TemporalInfo, bool) {
+func TemporalInfoForType(tsType *checker.Type) (reflection.TemporalInfo, bool) {
 	if tsType == nil {
-		return protocol.TemporalInfo{}, false
+		return reflection.TemporalInfo{}, false
 	}
 	symbol := tsType.Symbol()
-	if symbol == nil || symbol.Parent == nil || symbol.Parent.Name != protocol.TemporalNamespace {
-		return protocol.TemporalInfo{}, false
+	if symbol == nil || symbol.Parent == nil || symbol.Parent.Name != reflection.TemporalNamespace {
+		return reflection.TemporalInfo{}, false
 	}
-	return protocol.TemporalInfoByName(symbol.Name)
+	return reflection.TemporalInfoByName(symbol.Name)
 }

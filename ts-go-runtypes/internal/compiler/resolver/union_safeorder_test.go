@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -21,7 +22,7 @@ type T = {a: string} | {a: string; b: number};
 getRunTypeId<T>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion, got kind=%d", tn.Kind)
 	}
 	if len(tn.SafeUnionChildren) != 2 {
@@ -40,7 +41,7 @@ const v = null as unknown as T;
 getRunTypeId(v);
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion, got kind=%d", tn.Kind)
 	}
 	if len(tn.SafeUnionChildren) != 2 {
@@ -129,14 +130,14 @@ getRunTypeId<T>();
 	r, tn := resolveInline(t, code)
 	// `string | number | any` collapses to `any` at the checker level, so we
 	// may receive just KindAny. Otherwise the safe order must end in any.
-	if tn.Kind == protocol.KindAny {
+	if tn.Kind == reflection.KindAny {
 		return
 	}
 	if len(tn.SafeUnionChildren) == 0 {
 		t.Fatalf("expected safe order entries")
 	}
 	last := deref(dump(r), tn.SafeUnionChildren[len(tn.SafeUnionChildren)-1])
-	if last == nil || last.Kind != protocol.KindAny {
+	if last == nil || last.Kind != reflection.KindAny {
 		t.Fatalf("expected last safe order entry to be any, got %+v", last)
 	}
 }
@@ -148,14 +149,14 @@ getRunTypeId<T>();
 `
 	r, tn := resolveInline(t, code)
 	// `T | unknown` may collapse to `unknown`. Accept either form.
-	if tn.Kind == protocol.KindUnknown {
+	if tn.Kind == reflection.KindUnknown {
 		return
 	}
 	if len(tn.SafeUnionChildren) == 0 {
 		t.Fatalf("expected safe order entries")
 	}
 	last := deref(dump(r), tn.SafeUnionChildren[len(tn.SafeUnionChildren)-1])
-	if last == nil || last.Kind != protocol.KindUnknown {
+	if last == nil || last.Kind != reflection.KindUnknown {
 		t.Fatalf("expected last safe order entry to be unknown, got %+v", last)
 	}
 }
@@ -170,13 +171,13 @@ getRunTypeId<T>();
 	r, tn := resolveInline(t, code)
 	// TS collapses `X | any | any` to `any` — that's fine. Otherwise count
 	// how many any/unknown entries appear in safe order.
-	if tn.Kind == protocol.KindAny {
+	if tn.Kind == reflection.KindAny {
 		return
 	}
 	anyCount := 0
 	for _, ref := range tn.SafeUnionChildren {
 		canonical := deref(dump(r), ref)
-		if canonical != nil && (canonical.Kind == protocol.KindAny || canonical.Kind == protocol.KindUnknown) {
+		if canonical != nil && (canonical.Kind == reflection.KindAny || canonical.Kind == reflection.KindUnknown) {
 			anyCount++
 		}
 	}
@@ -193,14 +194,14 @@ type T = number | {a: string} | {a: string; b: number};
 getRunTypeId<T>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion, got %d", tn.Kind)
 	}
 	if len(tn.SafeUnionChildren) != 3 {
 		t.Fatalf("expected 3 safe order entries, got %d", len(tn.SafeUnionChildren))
 	}
 	first := deref(dump(r), tn.SafeUnionChildren[0])
-	if first == nil || first.Kind != protocol.KindNumber {
+	if first == nil || first.Kind != reflection.KindNumber {
 		t.Fatalf("expected simple-bucket (number) first, got %+v", first)
 	}
 	// Position 1: 2-prop object (more specific). Position 2: 1-prop object.
@@ -223,11 +224,11 @@ type T = string | string;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind == protocol.KindString {
+	if tn.Kind == reflection.KindString {
 		// TS deduplicates trivially-identical members to the bare primitive.
 		return
 	}
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion or KindString, got %d", tn.Kind)
 	}
 	if len(tn.Children) > 1 && len(tn.SafeUnionChildren) != len(tn.Children) {
@@ -244,7 +245,7 @@ type T = AB | 'c';
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion, got kind=%d", tn.Kind)
 	}
 	if len(tn.Children) != 3 {
@@ -424,10 +425,10 @@ getRunTypeId<UB>();
 		t.Fatalf("expected 2 sites, got %d", len(scan.Sites))
 	}
 	types := dump(r)
-	var ua, ub *protocol.RunType
+	var ua, ub *reflection.RunType
 	for _, site := range scan.Sites {
 		root := typeByID(types, site.ID)
-		if root == nil || root.Kind != protocol.KindUnion {
+		if root == nil || root.Kind != reflection.KindUnion {
 			continue
 		}
 		if ua == nil {
@@ -488,7 +489,7 @@ getRunTypeId<T>();
 		if canonical == nil {
 			continue
 		}
-		isObject := canonical.Kind == protocol.KindObjectLiteral || canonical.Kind == protocol.KindClass
+		isObject := canonical.Kind == reflection.KindObjectLiteral || canonical.Kind == reflection.KindClass
 		disc := tn.UnionDiscriminators[i]
 		if isObject && disc == nil {
 			t.Fatalf("slot %d: object member has no discriminator ref", i)

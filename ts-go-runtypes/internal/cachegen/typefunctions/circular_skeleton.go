@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // circular_skeleton.go computes the compile-time "circular skeleton" baked into
@@ -60,7 +60,7 @@ type CircularSkeleton struct {
 // keyed differently; a harmless duplicate, per the rejectCircular design). The
 // walk mirrors rt::findCycle's kind dispatch, but STOPS at each circular node
 // instead of descending, recording the access path to it as an edge.
-func BuildCircularSkeleton(root *protocol.RunType, refTable map[string]*protocol.RunType) *CircularSkeleton {
+func BuildCircularSkeleton(root *reflection.RunType, refTable map[string]*reflection.RunType) *CircularSkeleton {
 	if root == nil {
 		return nil
 	}
@@ -104,7 +104,7 @@ func BuildCircularSkeleton(root *protocol.RunType, refTable map[string]*protocol
 // node indices, and the reachable-circular set + a memo for the leadsToCircular
 // prune.
 type circSkeletonBuilder struct {
-	refTable map[string]*protocol.RunType
+	refTable map[string]*reflection.RunType
 	index    map[string]int
 	circular map[string]bool
 	reaches  map[string]bool
@@ -115,15 +115,15 @@ type circSkeletonBuilder struct {
 // edges). Acyclic intermediates collapse into an edge's path. Non-circular
 // subgraphs are DAGs, so the descent terminates; a path-local visited set is a
 // belt-and-braces guard (a node can never legitimately repeat on one path).
-func (builder *circSkeletonBuilder) computeEdges(node *protocol.RunType) []circEdge {
+func (builder *circSkeletonBuilder) computeEdges(node *reflection.RunType) []circEdge {
 	var edges []circEdge
-	var visit func(current *protocol.RunType, path []circSeg, onPath map[string]bool)
-	visit = func(current *protocol.RunType, path []circSeg, onPath map[string]bool) {
+	var visit func(current *reflection.RunType, path []circSeg, onPath map[string]bool)
+	visit = func(current *reflection.RunType, path []circSeg, onPath map[string]bool) {
 		current = builder.resolve(current)
 		if current == nil {
 			return
 		}
-		builder.eachChildPosition(current, func(seg *circSeg, childType *protocol.RunType) {
+		builder.eachChildPosition(current, func(seg *circSeg, childType *reflection.RunType) {
 			child := builder.resolve(childType)
 			if child == nil {
 				return
@@ -151,36 +151,36 @@ func (builder *circSkeletonBuilder) computeEdges(node *protocol.RunType) []circE
 // eachChildPosition yields (segment, childType) for every navigable child of a
 // node, mirroring rt::findCycle's per-kind dispatch. A nil segment means the step
 // is transparent (a union arm or a wrapper): the same value, no path segment.
-func (builder *circSkeletonBuilder) eachChildPosition(node *protocol.RunType, visit func(seg *circSeg, childType *protocol.RunType)) {
+func (builder *circSkeletonBuilder) eachChildPosition(node *reflection.RunType, visit func(seg *circSeg, childType *reflection.RunType)) {
 	switch node.Kind {
-	case protocol.KindObject, protocol.KindObjectLiteral, protocol.KindIntersection:
+	case reflection.KindObject, reflection.KindObjectLiteral, reflection.KindIntersection:
 		builder.eachObjectMember(node, visit)
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch node.SubKind {
-		case protocol.SubKindMap:
+		case reflection.SubKindMap:
 			key, value := mapElementTypes(node)
 			visit(&circSeg{kind: "mk"}, key)
 			visit(&circSeg{kind: "mv"}, value)
-		case protocol.SubKindSet:
+		case reflection.SubKindSet:
 			visit(&circSeg{kind: "s"}, setElementType(node))
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			// User-defined class — validates structurally, walk like an object.
 			builder.eachObjectMember(node, visit)
 		default:
 			// Date / Temporal / RegExp and other atomic builtins — no walkable children.
 		}
-	case protocol.KindArray:
+	case reflection.KindArray:
 		visit(&circSeg{kind: "a"}, node.Child)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for i, child := range node.Children {
 			visit(&circSeg{kind: "k", keyName: strconv.Itoa(i), keyNum: true}, child)
 		}
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		for _, arm := range node.Children {
 			visit(nil, arm) // transparent — try each arm on the same value
 		}
-	case protocol.KindProperty, protocol.KindPropertySignature, protocol.KindParameter,
-		protocol.KindTupleMember, protocol.KindRest:
+	case reflection.KindProperty, reflection.KindPropertySignature, reflection.KindParameter,
+		reflection.KindTupleMember, reflection.KindRest:
 		visit(nil, node.Child) // wrapper — unwrap, no segment
 	}
 }
@@ -188,7 +188,7 @@ func (builder *circSkeletonBuilder) eachChildPosition(node *protocol.RunType, vi
 // eachObjectMember visits an object/class's declared property members (by name)
 // and its index signature (as an iterate-all-values step), skipping methods and
 // unsupported members — matching rt::findCycle's walkObject.
-func (builder *circSkeletonBuilder) eachObjectMember(node *protocol.RunType, visit func(seg *circSeg, childType *protocol.RunType)) {
+func (builder *circSkeletonBuilder) eachObjectMember(node *reflection.RunType, visit func(seg *circSeg, childType *reflection.RunType)) {
 	for _, raw := range node.Children {
 		// Object members arrive as KindRef slots — resolve before reading their
 		// Kind / Name / Child, or every property looks nameless and is skipped.
@@ -197,9 +197,9 @@ func (builder *circSkeletonBuilder) eachObjectMember(node *protocol.RunType, vis
 			continue
 		}
 		switch member.Kind {
-		case protocol.KindMethod, protocol.KindMethodSignature:
+		case reflection.KindMethod, reflection.KindMethodSignature:
 			continue
-		case protocol.KindIndexSignature:
+		case reflection.KindIndexSignature:
 			visit(&circSeg{kind: "i"}, member.Child)
 			continue
 		}
@@ -211,11 +211,11 @@ func (builder *circSkeletonBuilder) eachObjectMember(node *protocol.RunType, vis
 }
 
 // resolve dereferences a KindRef slot to its real node via the ref table.
-func (builder *circSkeletonBuilder) resolve(node *protocol.RunType) *protocol.RunType {
+func (builder *circSkeletonBuilder) resolve(node *reflection.RunType) *reflection.RunType {
 	if node == nil {
 		return nil
 	}
-	if node.Kind == protocol.KindRef {
+	if node.Kind == reflection.KindRef {
 		return builder.refTable[node.ID]
 	}
 	return node
@@ -223,7 +223,7 @@ func (builder *circSkeletonBuilder) resolve(node *protocol.RunType) *protocol.Ru
 
 // leadsToCircular reports whether node's ref closure contains a circular node —
 // the prune that keeps the skeleton to only the edges that can reach a cycle.
-func (builder *circSkeletonBuilder) leadsToCircular(node *protocol.RunType) bool {
+func (builder *circSkeletonBuilder) leadsToCircular(node *reflection.RunType) bool {
 	if builder.reaches == nil {
 		builder.reaches = map[string]bool{}
 	}
@@ -233,7 +233,7 @@ func (builder *circSkeletonBuilder) leadsToCircular(node *protocol.RunType) bool
 	// Reserve to break the recursion on the (cyclic) type graph.
 	builder.reaches[node.ID] = false
 	found := false
-	node.EachRefSlot(func(slot *protocol.RunType) {
+	node.EachRefSlot(func(slot *reflection.RunType) {
 		if found {
 			return
 		}
@@ -251,19 +251,19 @@ func (builder *circSkeletonBuilder) leadsToCircular(node *protocol.RunType) bool
 
 // reachableCircularIDs collects every node id flagged IsCircular in root's ref
 // closure. BFS over ref slots, memo-free (single pass, small graphs).
-func reachableCircularIDs(root *protocol.RunType, refTable map[string]*protocol.RunType) map[string]bool {
+func reachableCircularIDs(root *reflection.RunType, refTable map[string]*reflection.RunType) map[string]bool {
 	circular := map[string]bool{}
 	visited := map[string]bool{}
-	resolve := func(node *protocol.RunType) *protocol.RunType {
+	resolve := func(node *reflection.RunType) *reflection.RunType {
 		if node == nil {
 			return nil
 		}
-		if node.Kind == protocol.KindRef {
+		if node.Kind == reflection.KindRef {
 			return refTable[node.ID]
 		}
 		return node
 	}
-	queue := []*protocol.RunType{root}
+	queue := []*reflection.RunType{root}
 	for len(queue) > 0 {
 		node := resolve(queue[len(queue)-1])
 		queue = queue[:len(queue)-1]
@@ -274,14 +274,14 @@ func reachableCircularIDs(root *protocol.RunType, refTable map[string]*protocol.
 		if node.IsCircular {
 			circular[node.ID] = true
 		}
-		node.EachRefSlot(func(slot *protocol.RunType) { queue = append(queue, slot) })
+		node.EachRefSlot(func(slot *reflection.RunType) { queue = append(queue, slot) })
 	}
 	return circular
 }
 
 // mapElementTypes returns a Map class's key and value element types (the
 // `.child` of its two type arguments), mirroring rt::findCycle's walkMap.
-func mapElementTypes(node *protocol.RunType) (key, value *protocol.RunType) {
+func mapElementTypes(node *reflection.RunType) (key, value *reflection.RunType) {
 	if len(node.Arguments) > 0 && node.Arguments[0] != nil {
 		key = node.Arguments[0].Child
 	}
@@ -293,7 +293,7 @@ func mapElementTypes(node *protocol.RunType) (key, value *protocol.RunType) {
 
 // setElementType returns a Set class's element type (the `.child` of its first
 // type argument), mirroring rt::findCycle's walkSet.
-func setElementType(node *protocol.RunType) *protocol.RunType {
+func setElementType(node *reflection.RunType) *reflection.RunType {
 	if len(node.Arguments) > 0 && node.Arguments[0] != nil {
 		return node.Arguments[0].Child
 	}

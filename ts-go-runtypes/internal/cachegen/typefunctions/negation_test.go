@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Negation nodes (`node.Negations`, the wire form of the `__rtNot` sentinel)
@@ -20,24 +21,24 @@ import (
 //     {"type": "string"}}` lowering — which must ALSO defeat the unknown
 //     noop collapse (a bare negation is a real check, never `() => true`).
 func negationDump() protocol.Dump {
-	minLen3 := &protocol.RunType{
+	minLen3 := &reflection.RunType{
 		ID:               "ml3",
-		Kind:             protocol.KindString,
-		FormatAnnotation: &protocol.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"minLength": float64(3)}},
+		Kind:             reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"minLength": float64(3)}},
 	}
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	notMinLen := &protocol.RunType{
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	notMinLen := &reflection.RunType{
 		ID:           "nml",
-		Kind:         protocol.KindString,
-		SchemaChecks: protocol.SchemaChecks{Negations: []*protocol.RunType{makeRef("ml3")}},
+		Kind:         reflection.KindString,
+		SchemaChecks: reflection.SchemaChecks{Negations: []*reflection.RunType{makeRef("ml3")}},
 	}
-	bareNotString := &protocol.RunType{
+	bareNotString := &reflection.RunType{
 		ID:           "bns",
-		Kind:         protocol.KindUnknown,
-		SchemaChecks: protocol.SchemaChecks{Negations: []*protocol.RunType{makeRef("str")}},
+		Kind:         reflection.KindUnknown,
+		SchemaChecks: reflection.SchemaChecks{Negations: []*reflection.RunType{makeRef("str")}},
 	}
 	return protocol.Dump{
-		RunTypes: []*protocol.RunType{minLen3, str, notMinLen, bareNotString},
+		RunTypes: []*reflection.RunType{minLen3, str, notMinLen, bareNotString},
 		Sites: []protocol.Site{
 			{File: "call.ts", Pos: 0, ID: "nml", Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},
 			{File: "call.ts", Pos: 10, ID: "bns", Demand: []protocol.SiteDemand{{FamilyTag: "val"}}},

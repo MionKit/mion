@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TestDataOnly_TypeName_NamedInterfaceArg — the headline behavior. When the
@@ -22,7 +23,7 @@ interface RootCircular {
 getRunTypeId<DataOnly<RootCircular>>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %d", tn.Kind)
 	}
 	want := "DataOnly<RootCircular>"
@@ -40,7 +41,7 @@ type User = {id: number; name: string};
 getRunTypeId<DataOnly<User>>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %d", tn.Kind)
 	}
 	want := "DataOnly<User>"
@@ -59,7 +60,7 @@ func TestDataOnly_TypeName_AnonymousArg(t *testing.T) {
 getRunTypeId<DataOnly<{a: number; b: number}>>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %d", tn.Kind)
 	}
 	if tn.TypeName != "" {
@@ -80,7 +81,7 @@ interface User {id: number; name: string}
 getRunTypeId<StripSymbols<User>>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %d", tn.Kind)
 	}
 	// A user-defined StripSymbols mapped type follows the existing rule: no
@@ -110,7 +111,7 @@ getRunTypeId<DataOnly<User>>();
 	// the program has NO Temporal types anywhere, the consumer-default posture.
 	r := setupInline(t, map[string]string{"temporal.d.ts": "", "call.ts": code})
 	tn := resolveFile(t, r, "call.ts")
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral (the projected mapped object, not the identity), got %d", tn.Kind)
 	}
 	if tn.TypeName != "DataOnly<User>" {
@@ -126,7 +127,7 @@ getRunTypeId(u);
 `
 	r := setupInline(t, map[string]string{"temporal.d.ts": "", "call.ts": code})
 	tn := resolveFile(t, r, "call.ts")
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral (the projected mapped object, not the identity), got %d", tn.Kind)
 	}
 	if tn.TypeName != "DataOnly<User>" {

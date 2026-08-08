@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // union_flat_binary.go owns the toBinary / fromBinary emits for KindUnion.
@@ -73,7 +73,7 @@ func readDiscriminator(des, width string) string {
 // the sentinel value (0xFF or 0xFFFF). Note: this means a union with
 // >255 atomic members but no objects still encodes as uint16 if any
 // originalIndex spills past 255 — handled identically here.
-func emitUnionToBinaryFlat(rt *protocol.RunType, ctx *EmitContext, v, ser string) RTCode {
+func emitUnionToBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, ser string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -252,7 +252,7 @@ func emitMergedPropToBinary(mp FlatMergedProp, accessor string, ctx *EmitContext
 // JSON can recover atomics from their natural form
 // (`JSON.parse('42') === 42`); binary bytes are typeless so the decoder
 // must know which arm produced them. We ignore AtomicNeedsTuple here.
-func emitUnionFromBinaryFlat(rt *protocol.RunType, ctx *EmitContext, v, des string) RTCode {
+func emitUnionFromBinaryFlat(rt *reflection.RunType, ctx *EmitContext, v, des string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}

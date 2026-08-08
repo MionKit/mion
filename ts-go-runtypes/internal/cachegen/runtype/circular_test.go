@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // A circular type referenced ONLY by a createX site emits NO reflection module
@@ -12,7 +13,7 @@ import (
 // runtime. (Before, a createX-over-circular site rode the data bundle.)
 func TestCircularCreateXEmitsNoBundle(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "circ", Kind: protocol.KindObject, IsCircular: true}},
+		RunTypes: []*reflection.RunType{{ID: "circ", Kind: reflection.KindObject, IsCircular: true}},
 		Sites:    []protocol.Site{{ID: "circ", FnId: "va1"}},
 	}
 	graph := CollectEntries(dump)
@@ -26,7 +27,7 @@ func TestCircularCreateXEmitsNoBundle(t *testing.T) {
 // reflection payload, the pre-existing contract).
 func TestNonCircularCreateXEmitsNoBundle(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "plain", Kind: protocol.KindObject}},
+		RunTypes: []*reflection.RunType{{ID: "plain", Kind: reflection.KindObject}},
 		Sites:    []protocol.Site{{ID: "plain", FnId: "va1"}},
 	}
 	graph := CollectEntries(dump)
@@ -39,7 +40,7 @@ func TestNonCircularCreateXEmitsNoBundle(t *testing.T) {
 // via a facade + bundle — reflection payload is unchanged by the guard rework.
 func TestCircularReflectionStillEmitsBundle(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "circ", Kind: protocol.KindObject, IsCircular: true}},
+		RunTypes: []*reflection.RunType{{ID: "circ", Kind: reflection.KindObject, IsCircular: true}},
 		Sites:    []protocol.Site{{ID: "circ"}}, // reflection-only (FnId empty)
 	}
 	graph := CollectEntries(dump)

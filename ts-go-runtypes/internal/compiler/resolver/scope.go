@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // recordFileIDs walks every RunType transitively reachable from `sites` and
@@ -30,7 +31,7 @@ func (sess *Session) recordFileIDs(file string, sites []protocol.Site) {
 		// Walk every ref-carrying slot (see protocol.EachRefSlot for the
 		// slot rationale). Inline scalar RunTypes (no .ID) don't reach
 		// further nodes — walk("") returns immediately.
-		node.EachRefSlot(func(ref *protocol.RunType) { walk(ref.ID) })
+		node.EachRefSlot(func(ref *reflection.RunType) { walk(ref.ID) })
 	}
 	for _, site := range sites {
 		walk(site.ID)

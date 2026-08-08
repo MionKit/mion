@@ -2,7 +2,7 @@ package string
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // urlEmitter implements the format named "url" — FormatUrl /
@@ -13,19 +13,19 @@ func init() {
 	formats.Register(urlEmitter{})
 }
 
-func (urlEmitter) Name() string                  { return "url" }
-func (urlEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (urlEmitter) Name() string                    { return "url" }
+func (urlEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-func (urlEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (urlEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	return namedPatternValidate(ctx, annotation, vλl)
 }
 
-func (urlEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (urlEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	return namedPatternErrors(ctx, annotation, vλl, pathExpr, errorsArr, "url")
 }
 
 // EmitFormatTransform lowercases the URL (ref: url.runtype.ts:141 — URLs
 // are canonicalised to lower case by the format pass).
-func (urlEmitter) EmitFormatTransform(_ *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (urlEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	return vλl + ".toLowerCase()"
 }

@@ -2,10 +2,10 @@
 // AI-enrichment artifacts FriendlyText<T> and MockData<T> (see
 // docs/AI_ENRICHMENT.md). It is deliberately SEPARATE from the existing
 // resolver/typefns/emitter pipeline: it consumes the shared data model
-// (protocol.RunType) as a library and adds nothing to the hot scan/render path.
+// (reflection.RunType) as a library and adds nothing to the hot scan/render path.
 //
 // Every walker here follows the repo's emitter convention — a single switch over
-// protocol.ReflectionKind, where the per-node output depends on the current node
+// reflection.ReflectionKind, where the per-node output depends on the current node
 // (the same shape as compiled/runtype/serialize.go and the typefns families):
 //
 //   - emit.go     — walks a RunType to EMIT a `.rt.ts` FriendlyText/MockData
@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/enrichment/cldr"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // maxWalkDepth bounds recursion so a pathological / mis-resolved graph cannot
@@ -36,14 +36,14 @@ const maxWalkDepth = 64
 // table) and a cycle guard keyed by node identity. A nil Resolve means the graph
 // is fully inlined (the unit-test shape); the CLI bridge supplies a table lookup.
 type walkCtx struct {
-	resolve func(id string) *protocol.RunType
-	seen    map[*protocol.RunType]bool
+	resolve func(id string) *reflection.RunType
+	seen    map[*reflection.RunType]bool
 	// namedRef is the named-type-closure hook (set only by EmitClosure). When a
 	// node derefs to a NAMED type that is NOT the body currently being emitted, it
 	// returns the action the emitter should take instead of walking the body: a
 	// const-var reference, or a broken-cycle leaf. nil ⇒ inline everything (the
 	// single-const path and the unit-test shape).
-	namedRef func(rt *protocol.RunType) namedRefAction
+	namedRef func(rt *reflection.RunType) namedRefAction
 	// pluralArms are the CLDR plural categories a COUNT-BEARING `rt$errors`
 	// constraint scaffolds arms for — the source locale's category set (default:
 	// English `one`/`other`). Non-count-bearing constraints stay plain strings.
@@ -65,8 +65,8 @@ const (
 	namedRefBroken                        // a back-edge to an in-progress named type — emit a leaf
 )
 
-func newWalkCtx(resolve func(id string) *protocol.RunType) *walkCtx {
-	return &walkCtx{resolve: resolve, seen: map[*protocol.RunType]bool{}, pluralArms: cldr.Categories("en")}
+func newWalkCtx(resolve func(id string) *reflection.RunType) *walkCtx {
+	return &walkCtx{resolve: resolve, seen: map[*reflection.RunType]bool{}, pluralArms: cldr.Categories("en")}
 }
 
 // bareMeta is the meta skeleton for a node with no format constraints.
@@ -86,8 +86,8 @@ func (ctx *walkCtx) setSourceLocale(locale string) {
 
 // deref follows a KindRef sentinel to its canonical node when a resolver is
 // available; otherwise (or when the id is unknown) it returns the node as-is.
-func (ctx *walkCtx) deref(rt *protocol.RunType) *protocol.RunType {
-	if rt == nil || rt.Kind != protocol.KindRef || ctx.resolve == nil {
+func (ctx *walkCtx) deref(rt *reflection.RunType) *reflection.RunType {
+	if rt == nil || rt.Kind != reflection.KindRef || ctx.resolve == nil {
 		return rt
 	}
 	if resolved := ctx.resolve(rt.ID); resolved != nil {
@@ -107,9 +107,9 @@ func (ctx *walkCtx) deref(rt *protocol.RunType) *protocol.RunType {
 // AND a deep back-edge there deliberately surfaces as a ref child — leaving it a
 // ref makes propertyChildren return empty, which is how that path breaks a cycle
 // to a leaf object. Dereffing on the inlined path would over-expand the cycle.
-func propertyChildren(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
+func propertyChildren(ctx *walkCtx, rt *reflection.RunType) []*reflection.RunType {
 	derefChildren := ctx != nil && ctx.namedRef != nil
-	out := make([]*protocol.RunType, 0, len(rt.Children))
+	out := make([]*reflection.RunType, 0, len(rt.Children))
 	for _, child := range rt.Children {
 		if derefChildren {
 			child = ctx.deref(child)
@@ -118,7 +118,7 @@ func propertyChildren(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
 			continue
 		}
 		switch child.Kind {
-		case protocol.KindProperty, protocol.KindPropertySignature:
+		case reflection.KindProperty, reflection.KindPropertySignature:
 			out = append(out, child)
 		}
 	}
@@ -132,11 +132,11 @@ func propertyChildren(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
 //
 // The KindClass arm reuses propertyChildren, so it derefs ref children only on
 // the closure walk (ctx.namedRef set) — matching the inlined-vs-raw split above.
-func isObjectLike(ctx *walkCtx, rt *protocol.RunType) bool {
+func isObjectLike(ctx *walkCtx, rt *reflection.RunType) bool {
 	switch rt.Kind {
-	case protocol.KindObjectLiteral, protocol.KindIntersection:
+	case reflection.KindObjectLiteral, reflection.KindIntersection:
 		return true
-	case protocol.KindClass:
+	case reflection.KindClass:
 		return len(propertyChildren(ctx, rt)) > 0
 	default:
 		return false
@@ -144,8 +144,8 @@ func isObjectLike(ctx *walkCtx, rt *protocol.RunType) bool {
 }
 
 // arrayElement returns the element node for an array (or nil if absent).
-func arrayElement(rt *protocol.RunType) *protocol.RunType {
-	if rt.Kind == protocol.KindArray {
+func arrayElement(rt *reflection.RunType) *reflection.RunType {
+	if rt.Kind == reflection.KindArray {
 		return rt.Child
 	}
 	return nil
@@ -154,19 +154,19 @@ func arrayElement(rt *protocol.RunType) *protocol.RunType {
 // isMap / isSet report whether rt is a builtin Map / Set class (KindClass +
 // the registry subKind). The structural-node arms run BEFORE isObjectLike so a
 // Map/Set never falls through to the object/leaf arms.
-func isMap(rt *protocol.RunType) bool {
-	return rt.Kind == protocol.KindClass && rt.SubKind == protocol.SubKindMap
+func isMap(rt *reflection.RunType) bool {
+	return rt.Kind == reflection.KindClass && rt.SubKind == reflection.SubKindMap
 }
 
-func isSet(rt *protocol.RunType) bool {
-	return rt.Kind == protocol.KindClass && rt.SubKind == protocol.SubKindSet
+func isSet(rt *reflection.RunType) bool {
+	return rt.Kind == reflection.KindClass && rt.SubKind == reflection.SubKindSet
 }
 
 // tupleSlots returns the per-slot value nodes of a tuple: each KindTupleMember
 // child's `.Child` (the slot type). Non-tuple-member children are skipped.
 // Order is declaration order; an empty tuple yields an empty slice.
-func tupleSlots(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
-	out := make([]*protocol.RunType, 0, len(rt.Children))
+func tupleSlots(ctx *walkCtx, rt *reflection.RunType) []*reflection.RunType {
+	out := make([]*reflection.RunType, 0, len(rt.Children))
 	for _, member := range rt.Children {
 		member = ctx.deref(member)
 		if member == nil {
@@ -184,7 +184,7 @@ func tupleSlots(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
 // mirrors that: a variadic tuple emits the array shape (`rt$items`/`rt$length`) so
 // the skeleton stays assignable to the Phase-A type. A member is flagged "rest"
 // or "variadic" by the serializer (serialize.go projectTuple).
-func isVariadicTuple(ctx *walkCtx, rt *protocol.RunType) bool {
+func isVariadicTuple(ctx *walkCtx, rt *reflection.RunType) bool {
 	for _, member := range rt.Children {
 		member = ctx.deref(member)
 		if member == nil {
@@ -204,7 +204,7 @@ func isVariadicTuple(ctx *walkCtx, rt *protocol.RunType) bool {
 // Arguments[1]=value wrapper); the underlying type rides on each wrapper's
 // `.Child`. Wrappers are ref sentinels (Arguments isn't inlined by the bridge),
 // so deref each before reading its Child. Either may be nil for a malformed node.
-func mapKeyValue(ctx *walkCtx, rt *protocol.RunType) (keyType, valueType *protocol.RunType) {
+func mapKeyValue(ctx *walkCtx, rt *reflection.RunType) (keyType, valueType *reflection.RunType) {
 	keyType = argumentChild(ctx, rt, 0)
 	valueType = argumentChild(ctx, rt, 1)
 	return keyType, valueType
@@ -212,13 +212,13 @@ func mapKeyValue(ctx *walkCtx, rt *protocol.RunType) (keyType, valueType *protoc
 
 // setElement returns the element slot node of a Set<U> — Arguments[0]'s
 // KindParameter wrapper's `.Child`. Nil for a malformed node.
-func setElement(ctx *walkCtx, rt *protocol.RunType) *protocol.RunType {
+func setElement(ctx *walkCtx, rt *reflection.RunType) *reflection.RunType {
 	return argumentChild(ctx, rt, 0)
 }
 
 // argumentChild derefs rt.Arguments[index] (a KindParameter wrapper ref) and
 // returns its `.Child` (the wrapped type). Nil when the slot is absent.
-func argumentChild(ctx *walkCtx, rt *protocol.RunType, index int) *protocol.RunType {
+func argumentChild(ctx *walkCtx, rt *reflection.RunType, index int) *reflection.RunType {
 	if index < 0 || index >= len(rt.Arguments) {
 		return nil
 	}
@@ -236,7 +236,7 @@ func argumentChild(ctx *walkCtx, rt *protocol.RunType, index int) *protocol.RunT
 // formatPath-tail) discriminator). Non-failing params (presentation metadata,
 // mock pools, transformers — see nonFailingParams) are excluded. Always-present
 // base failure `type` is added by the caller.
-func formatConstraintKeys(fa *protocol.FormatAnnotation) []string {
+func formatConstraintKeys(fa *reflection.FormatAnnotation) []string {
 	if fa == nil || len(fa.Params) == 0 {
 		return nil
 	}

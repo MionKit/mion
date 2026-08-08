@@ -1,6 +1,8 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/protocol"
+import (
+	"github.com/mionkit/ts-runtypes/internal/reflection"
+)
 
 // temporal_binary.go maps the Temporal types with a compact numeric binary
 // layout to the dedicated pack/unpack methods on the runtime serializer /
@@ -15,7 +17,7 @@ import "github.com/mionkit/ts-runtypes/internal/protocol"
 // "" for them so the caller keeps the lossless serString(toJSON()) path.
 
 // temporalToBinary returns the binary-encode statement for subKind, or "".
-func temporalToBinary(subKind protocol.ReflectionSubKind, value, ser string) string {
+func temporalToBinary(subKind reflection.ReflectionSubKind, value, ser string) string {
 	if method := temporalSerMethod(subKind); method != "" {
 		return ser + "." + method + "(" + value + ")"
 	}
@@ -24,7 +26,7 @@ func temporalToBinary(subKind protocol.ReflectionSubKind, value, ser string) str
 
 // temporalFromBinary returns the binary-decode statement (assigning to ret)
 // for subKind, or "".
-func temporalFromBinary(subKind protocol.ReflectionSubKind, ret, des string) string {
+func temporalFromBinary(subKind reflection.ReflectionSubKind, ret, des string) string {
 	if method := temporalDesMethod(subKind); method != "" {
 		return ret + " = " + des + "." + method + "()"
 	}
@@ -33,17 +35,17 @@ func temporalFromBinary(subKind protocol.ReflectionSubKind, ret, des string) str
 
 // temporalSerMethod is the serializer method name for the numeric-packed
 // Temporal subKinds, or "" for the string-fallback types.
-func temporalSerMethod(subKind protocol.ReflectionSubKind) string {
+func temporalSerMethod(subKind reflection.ReflectionSubKind) string {
 	switch subKind {
-	case protocol.SubKindTemporalInstant:
+	case reflection.SubKindTemporalInstant:
 		return "serTemporalInstant"
-	case protocol.SubKindTemporalPlainTime:
+	case reflection.SubKindTemporalPlainTime:
 		return "serTemporalPlainTime"
-	case protocol.SubKindTemporalPlainDate:
+	case reflection.SubKindTemporalPlainDate:
 		return "serTemporalPlainDate"
-	case protocol.SubKindTemporalPlainDateTime:
+	case reflection.SubKindTemporalPlainDateTime:
 		return "serTemporalPlainDateTime"
-	case protocol.SubKindTemporalPlainYearMonth:
+	case reflection.SubKindTemporalPlainYearMonth:
 		return "serTemporalPlainYearMonth"
 	}
 	return ""
@@ -51,17 +53,17 @@ func temporalSerMethod(subKind protocol.ReflectionSubKind) string {
 
 // temporalDesMethod is the deserializer method name, byte-symmetric with
 // temporalSerMethod.
-func temporalDesMethod(subKind protocol.ReflectionSubKind) string {
+func temporalDesMethod(subKind reflection.ReflectionSubKind) string {
 	switch subKind {
-	case protocol.SubKindTemporalInstant:
+	case reflection.SubKindTemporalInstant:
 		return "desTemporalInstant"
-	case protocol.SubKindTemporalPlainTime:
+	case reflection.SubKindTemporalPlainTime:
 		return "desTemporalPlainTime"
-	case protocol.SubKindTemporalPlainDate:
+	case reflection.SubKindTemporalPlainDate:
 		return "desTemporalPlainDate"
-	case protocol.SubKindTemporalPlainDateTime:
+	case reflection.SubKindTemporalPlainDateTime:
 		return "desTemporalPlainDateTime"
-	case protocol.SubKindTemporalPlainYearMonth:
+	case reflection.SubKindTemporalPlainYearMonth:
 		return "desTemporalPlainYearMonth"
 	}
 	return ""

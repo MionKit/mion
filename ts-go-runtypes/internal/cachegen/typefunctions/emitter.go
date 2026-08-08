@@ -5,7 +5,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // ArgSpec describes one parameter of the emitted rt function. Mirrors
@@ -40,7 +40,7 @@ type Emitter interface {
 	// of letting Emit panic. Recursive calls from inside Emit are
 	// NOT gated by Supports — child kinds the dispatch doesn't
 	// handle should panic loudly so the bug surfaces at compile time.
-	Supports(rt *protocol.RunType) bool
+	Supports(rt *reflection.RunType) bool
 
 	// IsRTInlined reports whether the walker should inline rt's
 	// emitted code at the call site (true) or emit a dependency call
@@ -65,7 +65,7 @@ type Emitter interface {
 	// (recursion into children, context-item registration).
 	// expectedCType is the parent frame's required CodeType — most
 	// emitters can ignore it; reconciliation happens in the Walker.
-	Emit(rt *protocol.RunType, ctx *EmitContext, expectedCType CodeType) RTCode
+	Emit(rt *reflection.RunType, ctx *EmitContext, expectedCType CodeType) RTCode
 
 	// EmitDependencyCall returns the JS expression that invokes a
 	// pre-rendered child RT entry. Used by the Walker when the
@@ -79,7 +79,7 @@ type Emitter interface {
 	// Self-recursive calls (childID == own hash) emit `<hash>(args)`;
 	// cross-function calls emit `<hash>.fn(args)` — same split as
 	// the `isSelf` branch.
-	EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string
+	EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string
 
 	// Finalize normalises the raw concatenated body produced by the
 	// walk, detects noop bodies (empty / tautology / "just return
@@ -118,7 +118,7 @@ type EmitContext struct {
 // to compose child code into their own snippet. v1's atomic-only
 // scope never reaches this path; the method is here so the first
 // collection emitter that lands can call into it without restructuring.
-func (ctx *EmitContext) CompileChild(rt *protocol.RunType, expectedCType CodeType) RTCode {
+func (ctx *EmitContext) CompileChild(rt *reflection.RunType, expectedCType CodeType) RTCode {
 	return ctx.walker.compileNode(rt, expectedCType)
 }
 
@@ -157,7 +157,7 @@ func (ctx *EmitContext) ParentIsUnion() bool {
 		return false
 	}
 	parent := ctx.walker.Stack[len(ctx.walker.Stack)-2].RT
-	return parent != nil && parent.Kind == protocol.KindUnion
+	return parent != nil && parent.Kind == reflection.KindUnion
 }
 
 // HasVariantOption reports whether the current walker is rendering
@@ -187,7 +187,7 @@ func (ctx *EmitContext) NumberMode() string {
 // need to peek at the resolved kind (e.g. PropertySignature checking
 // whether its wrapped child is a function — which would skip the
 // property from the parent's AND chain).
-func (ctx *EmitContext) ResolveRef(rt *protocol.RunType) *protocol.RunType {
+func (ctx *EmitContext) ResolveRef(rt *reflection.RunType) *reflection.RunType {
 	return ctx.walker.resolveRef(rt)
 }
 
@@ -459,7 +459,7 @@ type DiagCodeProvider interface {
 // used as a safety net for unknown future kinds without a registered
 // code (the unified throw model).
 type LeafDiagCodeProvider interface {
-	DiagCodeForLeaf(leaf *protocol.RunType) string
+	DiagCodeForLeaf(leaf *reflection.RunType) string
 }
 
 // DiagCodeFor returns the per-family diag code the current emitter
@@ -474,7 +474,7 @@ func (ctx *EmitContext) DiagCodeFor(slot DiagSlot) string {
 // DiagCodeForLeaf returns the per-family code the current emitter
 // associates with the given unsupported leaf kind, or "" when the
 // emitter doesn't register one.
-func (ctx *EmitContext) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (ctx *EmitContext) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	if provider, ok := ctx.walker.Emitter.(LeafDiagCodeProvider); ok {
 		return provider.DiagCodeForLeaf(leaf)
 	}

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // A mixed-optionality object safe-clone at ROOT must splice its accumulator
@@ -12,30 +12,30 @@ import (
 // return `return ctxFn0(v)`. The context-fn indirection only earns its keep
 // in an expression slot (a union clause); at a return slot it's dead weight.
 func TestPrepareForJsonSafe_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
-	strRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	numRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolRT := &protocol.RunType{ID: "bool", Kind: protocol.KindBoolean}
-	arrRT := &protocol.RunType{ID: "arr", Kind: protocol.KindArray, Child: &protocol.RunType{ID: "str", Kind: protocol.KindRef}}
+	strRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	numRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolRT := &reflection.RunType{ID: "bool", Kind: reflection.KindBoolean}
+	arrRT := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: &reflection.RunType{ID: "str", Kind: reflection.KindRef}}
 
-	propID := &protocol.RunType{ID: "pId", Kind: protocol.KindPropertySignature, Name: "id", IsSafeName: true, Child: &protocol.RunType{ID: "num", Kind: protocol.KindRef}}
-	propName := &protocol.RunType{ID: "pName", Kind: protocol.KindPropertySignature, Name: "name", IsSafeName: true, Child: &protocol.RunType{ID: "str", Kind: protocol.KindRef}}
-	propTags := &protocol.RunType{ID: "pTags", Kind: protocol.KindPropertySignature, Name: "tags", IsSafeName: true, Child: &protocol.RunType{ID: "arr", Kind: protocol.KindRef}}
-	propActive := &protocol.RunType{ID: "pActive", Kind: protocol.KindPropertySignature, Name: "active", IsSafeName: true, Optional: true, Child: &protocol.RunType{ID: "bool", Kind: protocol.KindRef}}
+	propID := &reflection.RunType{ID: "pId", Kind: reflection.KindPropertySignature, Name: "id", IsSafeName: true, Child: &reflection.RunType{ID: "num", Kind: reflection.KindRef}}
+	propName := &reflection.RunType{ID: "pName", Kind: reflection.KindPropertySignature, Name: "name", IsSafeName: true, Child: &reflection.RunType{ID: "str", Kind: reflection.KindRef}}
+	propTags := &reflection.RunType{ID: "pTags", Kind: reflection.KindPropertySignature, Name: "tags", IsSafeName: true, Child: &reflection.RunType{ID: "arr", Kind: reflection.KindRef}}
+	propActive := &reflection.RunType{ID: "pActive", Kind: reflection.KindPropertySignature, Name: "active", IsSafeName: true, Optional: true, Child: &reflection.RunType{ID: "bool", Kind: reflection.KindRef}}
 
-	obj := &protocol.RunType{
+	obj := &reflection.RunType{
 		ID:   "MyType",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			{ID: "pId", Kind: protocol.KindRef},
-			{ID: "pName", Kind: protocol.KindRef},
-			{ID: "pTags", Kind: protocol.KindRef},
-			{ID: "pActive", Kind: protocol.KindRef},
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			{ID: "pId", Kind: reflection.KindRef},
+			{ID: "pName", Kind: reflection.KindRef},
+			{ID: "pTags", Kind: reflection.KindRef},
+			{ID: "pActive", Kind: reflection.KindRef},
 		},
 	}
 
 	w := NewWalker(obj, "pjs_MyType", PrepareForJsonSafeEmitter{})
 	w.InnerPrefix = "pjs_"
-	w.RefTable = map[string]*protocol.RunType{
+	w.RefTable = map[string]*reflection.RunType{
 		"str": strRT, "num": numRT, "bool": boolRT, "arr": arrRT,
 		"pId": propID, "pName": propName, "pTags": propTags, "pActive": propActive,
 		"MyType": obj,
@@ -63,33 +63,33 @@ func TestPrepareForJsonSafe_RootObjectSplicesBlockNoCtxFn(t *testing.T) {
 // another ctxFn (the old double-hoist: buildSafeObjectLiteral pre-hoisted, then
 // the walker wrapped the resulting `return ctxFn0(v)` again).
 func TestPrepareForJsonSafe_NestedObjectSingleCtxFn(t *testing.T) {
-	strRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	numRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
+	strRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	numRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 
-	innerX := &protocol.RunType{ID: "iX", Kind: protocol.KindPropertySignature, Name: "x", IsSafeName: true, Child: &protocol.RunType{ID: "num", Kind: protocol.KindRef}}
-	innerY := &protocol.RunType{ID: "iY", Kind: protocol.KindPropertySignature, Name: "y", IsSafeName: true, Optional: true, Child: &protocol.RunType{ID: "num", Kind: protocol.KindRef}}
-	inner := &protocol.RunType{ // unnamed inline object → inlines into parent
+	innerX := &reflection.RunType{ID: "iX", Kind: reflection.KindPropertySignature, Name: "x", IsSafeName: true, Child: &reflection.RunType{ID: "num", Kind: reflection.KindRef}}
+	innerY := &reflection.RunType{ID: "iY", Kind: reflection.KindPropertySignature, Name: "y", IsSafeName: true, Optional: true, Child: &reflection.RunType{ID: "num", Kind: reflection.KindRef}}
+	inner := &reflection.RunType{ // unnamed inline object → inlines into parent
 		ID:   "inner",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			{ID: "iX", Kind: protocol.KindRef},
-			{ID: "iY", Kind: protocol.KindRef},
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			{ID: "iX", Kind: reflection.KindRef},
+			{ID: "iY", Kind: reflection.KindRef},
 		},
 	}
-	propA := &protocol.RunType{ID: "pA", Kind: protocol.KindPropertySignature, Name: "a", IsSafeName: true, Child: &protocol.RunType{ID: "str", Kind: protocol.KindRef}}
-	propB := &protocol.RunType{ID: "pB", Kind: protocol.KindPropertySignature, Name: "b", IsSafeName: true, Child: &protocol.RunType{ID: "inner", Kind: protocol.KindRef}}
-	outer := &protocol.RunType{
+	propA := &reflection.RunType{ID: "pA", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: &reflection.RunType{ID: "str", Kind: reflection.KindRef}}
+	propB := &reflection.RunType{ID: "pB", Kind: reflection.KindPropertySignature, Name: "b", IsSafeName: true, Child: &reflection.RunType{ID: "inner", Kind: reflection.KindRef}}
+	outer := &reflection.RunType{
 		ID:   "Outer",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			{ID: "pA", Kind: protocol.KindRef},
-			{ID: "pB", Kind: protocol.KindRef},
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			{ID: "pA", Kind: reflection.KindRef},
+			{ID: "pB", Kind: reflection.KindRef},
 		},
 	}
 
 	w := NewWalker(outer, "pjs_Outer", PrepareForJsonSafeEmitter{})
 	w.InnerPrefix = "pjs_"
-	w.RefTable = map[string]*protocol.RunType{
+	w.RefTable = map[string]*reflection.RunType{
 		"str": strRT, "num": numRT,
 		"iX": innerX, "iY": innerY, "inner": inner,
 		"pA": propA, "pB": propB, "Outer": outer,

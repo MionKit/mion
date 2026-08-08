@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // fakeView is a hand-built enrichment.LiteralView for unit tests — no Program
@@ -52,16 +52,16 @@ func (view *fakeView) StringValue(key string) (string, bool) {
 
 // objectRT builds an object-literal RunType from a set of named property
 // children. Each child is a PropertySignature wrapping the given field node.
-func objectRT(fields map[string]*protocol.RunType) *protocol.RunType {
-	rt := &protocol.RunType{Kind: protocol.KindObjectLiteral}
+func objectRT(fields map[string]*reflection.RunType) *reflection.RunType {
+	rt := &reflection.RunType{Kind: reflection.KindObjectLiteral}
 	names := make([]string, 0, len(fields))
 	for name := range fields {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		rt.Children = append(rt.Children, &protocol.RunType{
-			Kind:       protocol.KindPropertySignature,
+		rt.Children = append(rt.Children, &reflection.RunType{
+			Kind:       reflection.KindPropertySignature,
 			Name:       name,
 			IsSafeName: true,
 			Child:      fields[name],
@@ -70,7 +70,7 @@ func objectRT(fields map[string]*protocol.RunType) *protocol.RunType {
 	return rt
 }
 
-func stringRT() *protocol.RunType { return &protocol.RunType{Kind: protocol.KindString} }
+func stringRT() *reflection.RunType { return &reflection.RunType{Kind: reflection.KindString} }
 
 func findingCodes(findings []enrichment.Finding) []string {
 	codes := make([]string, 0, len(findings))
@@ -81,7 +81,7 @@ func findingCodes(findings []enrichment.Finding) []string {
 }
 
 func TestCheckFriendly_FT002UnknownField(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().
 		obj("name", newFakeView().str("rt$label", "Name")).
 		obj("nope", newFakeView().str("rt$label", "Nope"))
@@ -106,7 +106,7 @@ func TestCheckFriendly_FT002UnknownField(t *testing.T) {
 }
 
 func TestCheckFriendly_FT005BadPlaceholder(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().str("type", "must be a $[nope] for $[label]")))
 
@@ -129,7 +129,7 @@ func TestCheckFriendly_FT005BadPlaceholder(t *testing.T) {
 }
 
 func TestCheckFriendly_Clean(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": stringRT(), "email": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"name": stringRT(), "email": stringRT()})
 	view := newFakeView().
 		str("rt$label", "User").
 		obj("name", newFakeView().
@@ -146,14 +146,14 @@ func TestCheckFriendly_Clean(t *testing.T) {
 func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
 	// A string field branded with a FormatString carrying a minLength param —
 	// `type`, `rt$default`, and `minLength` are the only valid rt$errors keys.
-	formatted := &protocol.RunType{
-		Kind: protocol.KindString,
-		FormatAnnotation: &protocol.FormatAnnotation{
+	formatted := &reflection.RunType{
+		Kind: reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{
 			Name:   "stringFormat",
 			Params: map[string]any{"minLength": 3},
 		},
 	}
-	rt := objectRT(map[string]*protocol.RunType{"code": formatted})
+	rt := objectRT(map[string]*reflection.RunType{"code": formatted})
 	view := newFakeView().obj("code", newFakeView().
 		obj("rt$errors", newFakeView().
 			str("type", "bad type").
@@ -184,14 +184,14 @@ func TestCheckFriendly_FT003UnknownConstraint(t *testing.T) {
 // never becomes a valid `rt$errors` key — authoring one is flagged FT003 exactly
 // like any other undeclared constraint.
 func TestCheckFriendly_FT003PresentationParam(t *testing.T) {
-	formatted := &protocol.RunType{
-		Kind: protocol.KindNumber,
-		FormatAnnotation: &protocol.FormatAnnotation{
+	formatted := &reflection.RunType{
+		Kind: reflection.KindNumber,
+		FormatAnnotation: &reflection.FormatAnnotation{
 			Name:   "numberFormat",
 			Params: map[string]any{"max": 100, "isCurrency": true},
 		},
 	}
-	rt := objectRT(map[string]*protocol.RunType{"price": formatted})
+	rt := objectRT(map[string]*reflection.RunType{"price": formatted})
 	view := newFakeView().obj("price", newFakeView().
 		obj("rt$errors", newFakeView().
 			str("type", "bad type").
@@ -216,7 +216,7 @@ func TestCheckFriendly_FT003PresentationParam(t *testing.T) {
 func TestCheckFriendly_FunctionFormErrorsSkipped(t *testing.T) {
 	// A function-form `rt$errors` is not an object literal, so Child("rt$errors")
 	// returns nil and FT003/FT005 are skipped — no findings for the field.
-	rt := objectRT(map[string]*protocol.RunType{"name": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().obj("name", newFakeView().str("rt$errors", "(failed) => 'x'"))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
@@ -226,7 +226,7 @@ func TestCheckFriendly_FunctionFormErrorsSkipped(t *testing.T) {
 }
 
 func TestCheckMock_MD001UnknownField(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"name": stringRT()})
 	view := newFakeView().
 		obj("name", newFakeView().str("pool", "ignored")).
 		obj("ghost", newFakeView())
@@ -253,7 +253,7 @@ func TestCheckMock_MD001UnknownField(t *testing.T) {
 func TestCheckMock_MetaKeysNotFlagged(t *testing.T) {
 	// `pool`, `min`, `max`, `rt$optional` are reserved mock keys — never flagged
 	// as unknown fields even though they aren't properties of the type.
-	rt := objectRT(map[string]*protocol.RunType{"age": {Kind: protocol.KindNumber}})
+	rt := objectRT(map[string]*reflection.RunType{"age": {Kind: reflection.KindNumber}})
 	view := newFakeView().
 		str("rt$optional", "1").
 		obj("age", newFakeView().str("min", "0").str("max", "120").str("pool", "[]"))
@@ -267,9 +267,9 @@ func TestCheckMock_MetaKeysNotFlagged(t *testing.T) {
 func TestCheckFriendly_NestedAndArray(t *testing.T) {
 	// Nested object + array element: an unknown key at depth flags FT002 with a
 	// dotted path through `rt$items`.
-	inner := objectRT(map[string]*protocol.RunType{"city": stringRT()})
-	addresses := &protocol.RunType{Kind: protocol.KindArray, Child: inner}
-	rt := objectRT(map[string]*protocol.RunType{"addresses": addresses})
+	inner := objectRT(map[string]*reflection.RunType{"city": stringRT()})
+	addresses := &reflection.RunType{Kind: reflection.KindArray, Child: inner}
+	rt := objectRT(map[string]*reflection.RunType{"addresses": addresses})
 
 	view := newFakeView().obj("addresses", newFakeView().
 		obj("rt$items", newFakeView().
@@ -295,8 +295,8 @@ func TestCheckFriendly_NestedObjectErrorsNotDoubled(t *testing.T) {
 	// A nested-OBJECT field's own `rt$errors` must be checked exactly once — not
 	// once by the parent and again when the object node is walked. One bad
 	// placeholder in profile.rt$errors must yield exactly one FT005, never two.
-	inner := objectRT(map[string]*protocol.RunType{"email": stringRT()})
-	rt := objectRT(map[string]*protocol.RunType{"profile": inner})
+	inner := objectRT(map[string]*reflection.RunType{"email": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"profile": inner})
 
 	view := newFakeView().obj("profile", newFakeView().
 		obj("rt$errors", newFakeView().str("type", "bad $[nope]")).
@@ -316,17 +316,17 @@ func TestCheckFriendly_NestedObjectErrorsNotDoubled(t *testing.T) {
 
 // formatStringRT builds a string field branded with a FormatString carrying the
 // given params — its declared constraint keys become valid rt$errors keys.
-func formatStringRT(params map[string]any) *protocol.RunType {
-	return &protocol.RunType{
-		Kind:             protocol.KindString,
-		FormatAnnotation: &protocol.FormatAnnotation{Name: "stringFormat", Params: params},
+func formatStringRT(params map[string]any) *reflection.RunType {
+	return &reflection.RunType{
+		Kind:             reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: params},
 	}
 }
 
 func TestCheckFriendly_PluralLeafClean(t *testing.T) {
 	// A plural object on a count-bearing constraint with valid CLDR arms and a
 	// mandatory `other` is clean; per-arm placeholders are validated.
-	rt := objectRT(map[string]*protocol.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
+	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
 			str("type", "must be text").
@@ -341,7 +341,7 @@ func TestCheckFriendly_PluralLeafClean(t *testing.T) {
 }
 
 func TestCheckFriendly_FT006MissingOther(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
+	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
 			obj("minLength", newFakeView().str("one", "at least $[val]"))))
@@ -365,7 +365,7 @@ func TestCheckFriendly_FT006MissingOther(t *testing.T) {
 }
 
 func TestCheckFriendly_FT007UnknownArm(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
+	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
 			obj("minLength", newFakeView().
@@ -392,7 +392,7 @@ func TestCheckFriendly_FT007UnknownArm(t *testing.T) {
 
 func TestCheckFriendly_FT008PluralOnNonCountBearing(t *testing.T) {
 	// `pattern` carries no count: a plural object there has dead arms.
-	rt := objectRT(map[string]*protocol.RunType{"email": formatStringRT(map[string]any{"pattern": "x"})})
+	rt := objectRT(map[string]*reflection.RunType{"email": formatStringRT(map[string]any{"pattern": "x"})})
 	view := newFakeView().obj("email", newFakeView().
 		obj("rt$errors", newFakeView().
 			obj("pattern", newFakeView().str("one", "x").str("other", "y"))))
@@ -413,7 +413,7 @@ func TestCheckFriendly_FT008PluralOnNonCountBearing(t *testing.T) {
 }
 
 func TestCheckFriendly_FT005InsidePluralArm(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
+	rt := objectRT(map[string]*reflection.RunType{"name": formatStringRT(map[string]any{"minLength": 2})})
 	view := newFakeView().obj("name", newFakeView().
 		obj("rt$errors", newFakeView().
 			obj("minLength", newFakeView().
@@ -441,7 +441,7 @@ func TestCheckFriendly_FT005FormatTokens(t *testing.T) {
 	// `$[val]`): every leftover colon token flags FT005 so migrating templates
 	// get a pointer, while a literal colon in prose (`ratio 3:1`) outside a
 	// token never trips.
-	rt := objectRT(map[string]*protocol.RunType{"price": formatStringRT(map[string]any{"max": 100})})
+	rt := objectRT(map[string]*reflection.RunType{"price": formatStringRT(map[string]any{"max": 100})})
 	view := newFakeView().obj("price", newFakeView().
 		obj("rt$errors", newFakeView().
 			str("type", "removed $[val:number:currency] but ratio 3:1 is prose").
@@ -476,7 +476,7 @@ func contains(haystack []string, needle string) bool {
 func TestCheckFriendly_FT011ReservedProperty(t *testing.T) {
 	// A source-type property named rt$… collides with the reserved enrichment
 	// meta prefix — Error, whatever the authored literal looks like.
-	rt := objectRT(map[string]*protocol.RunType{"rt$label": stringRT(), "name": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"rt$label": stringRT(), "name": stringRT()})
 	view := newFakeView().obj("name", newFakeView().str("rt$label", "Name"))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
@@ -499,7 +499,7 @@ func TestCheckFriendly_FT011ReservedProperty(t *testing.T) {
 }
 
 func TestCheckMock_MD011ReservedProperty(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{"rt$optional": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"rt$optional": stringRT()})
 	view := newFakeView()
 
 	findings := enrichment.CheckMock(rt, view, nil)
@@ -518,7 +518,7 @@ func TestCheckMock_MD011ReservedProperty(t *testing.T) {
 func TestCheckFriendly_PlainDollarPropertyIsOrdinaryField(t *testing.T) {
 	// The bare `$` prefix is NOT reserved: a property named $label is an
 	// ordinary child field — addressable, no FT002/FT011.
-	rt := objectRT(map[string]*protocol.RunType{"$label": stringRT()})
+	rt := objectRT(map[string]*reflection.RunType{"$label": stringRT()})
 	view := newFakeView().obj("$label", newFakeView().str("rt$label", "Dollar label"))
 
 	findings := enrichment.CheckFriendly(rt, view, nil)
@@ -531,8 +531,8 @@ func TestCheckFriendly_PlainDollarPropertyIsOrdinaryField(t *testing.T) {
 }
 
 func TestReservedPropertyCollisions_NestedPaths(t *testing.T) {
-	rt := objectRT(map[string]*protocol.RunType{
-		"profile": objectRT(map[string]*protocol.RunType{"rt$errors": stringRT()}),
+	rt := objectRT(map[string]*reflection.RunType{
+		"profile": objectRT(map[string]*reflection.RunType{"rt$errors": stringRT()}),
 		"name":    stringRT(),
 	})
 
@@ -541,7 +541,7 @@ func TestReservedPropertyCollisions_NestedPaths(t *testing.T) {
 	if len(collisions) != 1 || collisions[0] != "profile.rt$errors" {
 		t.Fatalf("collisions = %v, want [profile.rt$errors]", collisions)
 	}
-	if clean := enrichment.ReservedPropertyCollisions(objectRT(map[string]*protocol.RunType{"name": stringRT()}), nil); len(clean) != 0 {
+	if clean := enrichment.ReservedPropertyCollisions(objectRT(map[string]*reflection.RunType{"name": stringRT()}), nil); len(clean) != 0 {
 		t.Fatalf("clean type reported collisions: %v", clean)
 	}
 }

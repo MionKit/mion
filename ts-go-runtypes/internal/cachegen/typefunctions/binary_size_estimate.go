@@ -8,7 +8,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // maxVarintBytes mirrors dataView.ts MAX_VARINT — the length prefix every
@@ -53,7 +53,7 @@ func init() {
 // binaryColdStartEstimate returns the cold-start buffer estimate to bake into a
 // tb (binary-encoder) entry. It is 0 — meaning "no estimate slot" — for any
 // other family, an option variant, or a nil type.
-func binaryColdStartEstimate(settings constants.CacheModuleSettings, variantSuffix string, runType *protocol.RunType, refTable map[string]*protocol.RunType, cfg SizeEstimateConfig) int {
+func binaryColdStartEstimate(settings constants.CacheModuleSettings, variantSuffix string, runType *reflection.RunType, refTable map[string]*reflection.RunType, cfg SizeEstimateConfig) int {
 	if settings.Tag != binaryToFamilyTag || variantSuffix != "" || runType == nil {
 		return 0
 	}
@@ -93,7 +93,7 @@ func (cfg SizeEstimateConfig) normalized() SizeEstimateConfig {
 // EstimateBinarySize returns the cold-start buffer estimate for rt's binary
 // encoding. refTable resolves KindRef child sentinels (the full session cache,
 // as renderEntryWithDeps holds). The result is clamped to [1, cfg.MaxBytes].
-func EstimateBinarySize(rt *protocol.RunType, refTable map[string]*protocol.RunType, cfg SizeEstimateConfig) int {
+func EstimateBinarySize(rt *reflection.RunType, refTable map[string]*reflection.RunType, cfg SizeEstimateConfig) int {
 	est := &sizeEstimator{
 		refTable: refTable,
 		cfg:      cfg.normalized(),
@@ -108,14 +108,14 @@ func EstimateBinarySize(rt *protocol.RunType, refTable map[string]*protocol.RunT
 }
 
 type sizeEstimator struct {
-	refTable map[string]*protocol.RunType
+	refTable map[string]*reflection.RunType
 	cfg      SizeEstimateConfig
 	memo     map[string]int
 	inflight map[string]bool
 }
 
-func (e *sizeEstimator) deref(rt *protocol.RunType) *protocol.RunType {
-	if rt != nil && rt.Kind == protocol.KindRef {
+func (e *sizeEstimator) deref(rt *reflection.RunType) *reflection.RunType {
+	if rt != nil && rt.Kind == reflection.KindRef {
 		return e.refTable[rt.ID]
 	}
 	return rt
@@ -123,7 +123,7 @@ func (e *sizeEstimator) deref(rt *protocol.RunType) *protocol.RunType {
 
 // estimate resolves refs, memoizes per type id, breaks cycles, clamps each
 // subtree to cfg.MaxBytes, and dispatches to estimateRaw.
-func (e *sizeEstimator) estimate(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) estimate(rt *reflection.RunType, depth int) int {
 	rt = e.deref(rt)
 	if rt == nil || depth > sizeEstimateDepthCap {
 		return e.cfg.StringBytes
@@ -148,33 +148,33 @@ func (e *sizeEstimator) estimate(rt *protocol.RunType, depth int) int {
 	return n
 }
 
-func (e *sizeEstimator) estimateRaw(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) estimateRaw(rt *reflection.RunType, depth int) int {
 	switch rt.Kind {
-	case protocol.KindBoolean, protocol.KindNull, protocol.KindUndefined, protocol.KindVoid:
+	case reflection.KindBoolean, reflection.KindNull, reflection.KindUndefined, reflection.KindVoid:
 		return 1
-	case protocol.KindNumber:
+	case reflection.KindNumber:
 		return e.numberBytes(rt)
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return e.bigintBytes(rt)
-	case protocol.KindString:
+	case reflection.KindString:
 		return e.stringBytes(rt)
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return e.templateLiteralBytes(rt)
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return 0 // value restored from the type — no wire bytes
-	case protocol.KindEnum:
+	case reflection.KindEnum:
 		return e.enumBytes(rt)
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return e.collectionBytes(rt, e.estimate(rt.Child, depth+1))
-	case protocol.KindObjectLiteral, protocol.KindIntersection:
+	case reflection.KindObjectLiteral, reflection.KindIntersection:
 		return e.objectBytes(rt, depth)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return e.tupleBytes(rt, depth)
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return e.unionBytes(rt, depth)
-	case protocol.KindClass:
+	case reflection.KindClass:
 		return e.classBytes(rt, depth)
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		// two strings (source + flags); flags are short. Floor at 8 so even the
 		// minimal `/a/` (serString source reserve 5+3) never grows the buffer.
 		body := e.cfg.StringBytes
@@ -183,10 +183,10 @@ func (e *sizeEstimator) estimateRaw(rt *protocol.RunType, depth int) int {
 			est = 8
 		}
 		return est
-	case protocol.KindAny, protocol.KindUnknown, protocol.KindObject:
+	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
 		body := e.cfg.StringBytes // JSON.stringify fallback
 		return varintByteLen(body) + body
-	case protocol.KindProperty, protocol.KindPropertySignature, protocol.KindTupleMember, protocol.KindRest, protocol.KindParameter:
+	case reflection.KindProperty, reflection.KindPropertySignature, reflection.KindTupleMember, reflection.KindRest, reflection.KindParameter:
 		// KindParameter wraps a Map key/value or Set item (the role is on SubKind;
 		// the element type is the Child) — measure the element it carries.
 		return e.estimate(rt.Child, depth+1)
@@ -196,7 +196,7 @@ func (e *sizeEstimator) estimateRaw(rt *protocol.RunType, depth int) int {
 }
 
 // numberBytes — packed width from the format BinarySizer, else float64 (8).
-func (e *sizeEstimator) numberBytes(rt *protocol.RunType) int {
+func (e *sizeEstimator) numberBytes(rt *reflection.RunType) int {
 	if w := formatFixedWidth(rt); w > 0 {
 		return w
 	}
@@ -207,7 +207,7 @@ func (e *sizeEstimator) numberBytes(rt *protocol.RunType) int {
 // whose reserve is MAX_VARINT + 3*digits. An unbranded bigint is mock-bounded to
 // |value|<=9999 (5 chars); a non-packing BRAND is mocked within its own [min,max]
 // (ignoring that bound), so budget the longest decimal the brand can emit.
-func (e *sizeEstimator) bigintBytes(rt *protocol.RunType) int {
+func (e *sizeEstimator) bigintBytes(rt *reflection.RunType) int {
 	if w := formatFixedWidth(rt); w > 0 {
 		return w
 	}
@@ -252,7 +252,7 @@ func bigintParamDigitLen(value any) int {
 // placeholder adds its mock fragment, so budget the rendered length: static UTF-16
 // units + the per-${string} content budget (>= the mock's bound) + a digit budget
 // for numeric placeholders + literal lengths.
-func (e *sizeEstimator) templateLiteralBytes(rt *protocol.RunType) int {
+func (e *sizeEstimator) templateLiteralBytes(rt *reflection.RunType) int {
 	envelope, ok := rt.Literal.(map[string]any)
 	if !ok {
 		return e.stringBytes(rt) // no layout — fall back to a plain string
@@ -276,11 +276,11 @@ func (e *sizeEstimator) templateLiteralBytes(rt *protocol.RunType) int {
 			continue
 		}
 		switch kind := spanKind(placeholder); {
-		case kind == int(protocol.KindString) || kind == int(protocol.KindAny) || kind == int(protocol.KindUnknown):
+		case kind == int(reflection.KindString) || kind == int(reflection.KindAny) || kind == int(reflection.KindUnknown):
 			total += content
-		case kind == int(protocol.KindNumber) || kind == int(protocol.KindBigInt):
+		case kind == int(reflection.KindNumber) || kind == int(reflection.KindBigInt):
 			total += 20 // robustly covers the <=5-char ±9999 mock output
-		case kind == int(protocol.KindLiteral):
+		case kind == int(reflection.KindLiteral):
 			if literal, ok := placeholder["literal"]; ok {
 				total += utf16Len(fmt.Sprint(literal))
 			}
@@ -310,7 +310,7 @@ func spanKind(span map[string]any) int {
 // or 0 when the type carries no format or the format reports no fixed width. The
 // SAME width EmitToBinary packs to — shared by the estimator (here) and the
 // encoder's per-write reserve (binary_to.go) so the two can't drift.
-func formatFixedWidth(rt *protocol.RunType) int {
+func formatFixedWidth(rt *reflection.RunType) int {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return 0
 	}
@@ -328,7 +328,7 @@ func formatFixedWidth(rt *protocol.RunType) int {
 // stringBytes — varint length prefix + interpolated content bytes. A fixed- or
 // max-length format bound tightens the content estimate; otherwise it anchors
 // on cfg.StringBytes.
-func (e *sizeEstimator) stringBytes(rt *protocol.RunType) int {
+func (e *sizeEstimator) stringBytes(rt *reflection.RunType) int {
 	min, max := e.stringContentBounds(rt)
 	content := e.interpolate(min, max)
 	est := varintByteLen(content) + content
@@ -342,7 +342,7 @@ func (e *sizeEstimator) stringBytes(rt *protocol.RunType) int {
 // 4 + serString(member) for a string member, whose reserve high-water is
 // 4 + (MAX_VARINT + 3*codeUnits). The member is type-constrained (mockData can't
 // shrink it), so budget the largest member; a number-only / empty enum stays 8.
-func (e *sizeEstimator) enumBytes(rt *protocol.RunType) int {
+func (e *sizeEstimator) enumBytes(rt *reflection.RunType) int {
 	estimate := 8
 	for _, value := range rt.Values {
 		str, ok := value.(string)
@@ -362,7 +362,7 @@ func utf16Len(s string) int {
 	return len(utf16.Encode([]rune(s)))
 }
 
-func (e *sizeEstimator) stringContentBounds(rt *protocol.RunType) (int, int) {
+func (e *sizeEstimator) stringContentBounds(rt *reflection.RunType) (int, int) {
 	minLen, maxLen := 0, e.cfg.StringBytes
 	if rt.FormatAnnotation != nil {
 		params := rt.FormatAnnotation.Params
@@ -391,7 +391,7 @@ func (e *sizeEstimator) stringContentBounds(rt *protocol.RunType) (int, int) {
 
 // collectionBytes — varint count prefix + count·element, for arrays (and reused
 // for tuple rest). count is cfg.Items, tightened by a length / maxItems bound.
-func (e *sizeEstimator) collectionBytes(rt *protocol.RunType, elementBytes int) int {
+func (e *sizeEstimator) collectionBytes(rt *reflection.RunType, elementBytes int) int {
 	count := e.cfg.Items
 	if rt != nil && rt.FormatAnnotation != nil {
 		params := rt.FormatAnnotation.Params
@@ -410,7 +410,7 @@ func (e *sizeEstimator) collectionBytes(rt *protocol.RunType, elementBytes int) 
 // objectBytes — required fields in full + optional fields weighted by Bias +
 // the optional-presence bitmap (ceil(N/8) bytes). Index signatures add their
 // own count-prefixed key/value loop.
-func (e *sizeEstimator) objectBytes(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) objectBytes(rt *reflection.RunType, depth int) int {
 	total := 0
 	optionalCount := 0
 	for _, child := range rt.Children {
@@ -418,11 +418,11 @@ func (e *sizeEstimator) objectBytes(rt *protocol.RunType, depth int) int {
 		if member == nil || member.IsStatic {
 			continue
 		}
-		if member.Kind == protocol.KindIndexSignature {
+		if member.Kind == reflection.KindIndexSignature {
 			total += e.indexSigBytes(member, depth)
 			continue
 		}
-		if member.Kind != protocol.KindProperty && member.Kind != protocol.KindPropertySignature {
+		if member.Kind != reflection.KindProperty && member.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if member.Child == nil {
@@ -441,14 +441,14 @@ func (e *sizeEstimator) objectBytes(rt *protocol.RunType, depth int) int {
 }
 
 // indexSigBytes — uint32 count (back-patched, 4 bytes) + count·(key + value).
-func (e *sizeEstimator) indexSigBytes(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) indexSigBytes(rt *reflection.RunType, depth int) int {
 	keyBytes := e.cfg.StringBytes
 	if rt.Index != nil {
 		keyBytes = e.estimate(rt.Index, depth+1)
 		// A string index key is synthesized as `key{i}` (i up to Items-1) — a
 		// length floor mockData can't shrink. Budget its serString reserve so the
 		// seed covers the longest key the encoder writes.
-		if key := e.deref(rt.Index); key != nil && (key.Kind == protocol.KindString || key.Kind == protocol.KindTemplateLiteral) {
+		if key := e.deref(rt.Index); key != nil && (key.Kind == reflection.KindString || key.Kind == reflection.KindTemplateLiteral) {
 			maxKeyLen := 3 + len(strconv.Itoa(max(0, e.cfg.Items-1))) // len("key" + (Items-1))
 			if floor := maxVarintBytes + 3*maxKeyLen; floor > keyBytes {
 				keyBytes = floor
@@ -461,7 +461,7 @@ func (e *sizeEstimator) indexSigBytes(rt *protocol.RunType, depth int) int {
 
 // tupleBytes — required members in full, optional members Bias-weighted plus the
 // optional bitmap, a rest member as a count-prefixed collection.
-func (e *sizeEstimator) tupleBytes(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) tupleBytes(rt *reflection.RunType, depth int) int {
 	total := 0
 	optionalCount := 0
 	for _, child := range rt.Children {
@@ -469,12 +469,12 @@ func (e *sizeEstimator) tupleBytes(rt *protocol.RunType, depth int) int {
 		if member == nil {
 			continue
 		}
-		if member.Kind == protocol.KindRest {
+		if member.Kind == reflection.KindRest {
 			total += e.collectionBytes(member, e.estimate(member.Child, depth+1))
 			continue
 		}
 		memberType := member
-		if member.Kind == protocol.KindTupleMember && member.Child != nil {
+		if member.Kind == reflection.KindTupleMember && member.Child != nil {
 			memberType = member.Child
 		}
 		memberBytes := e.estimate(memberType, depth+1)
@@ -492,7 +492,7 @@ func (e *sizeEstimator) tupleBytes(rt *protocol.RunType, depth int) int {
 // unionBytes — the discriminator (1 byte, 2 above 255 members) plus the LARGEST
 // member's footprint (the mock can pick any member, so the seed must cover the
 // biggest), plus the object-branch framing (see below).
-func (e *sizeEstimator) unionBytes(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) unionBytes(rt *reflection.RunType, depth int) int {
 	members := rt.Children
 	if len(members) == 0 {
 		return 1
@@ -532,29 +532,29 @@ func (e *sizeEstimator) unionBytes(rt *protocol.RunType, depth int) int {
 
 // isUnionObjectMember reports whether a union member is encoded through the flat
 // union's merged object branch (structural objects + intersections).
-func isUnionObjectMember(rt *protocol.RunType) bool {
+func isUnionObjectMember(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
 	}
 	switch rt.Kind {
-	case protocol.KindObjectLiteral, protocol.KindIntersection:
+	case reflection.KindObjectLiteral, reflection.KindIntersection:
 		return true
-	case protocol.KindClass:
-		return rt.SubKind == protocol.SubKindNone
+	case reflection.KindClass:
+		return rt.SubKind == reflection.SubKindNone
 	}
 	return false
 }
 
 // dataPropCount — the object's data properties (any non-static property), the
 // upper bound on how many can land in the merged union bitmap.
-func (e *sizeEstimator) dataPropCount(rt *protocol.RunType) int {
+func (e *sizeEstimator) dataPropCount(rt *reflection.RunType) int {
 	count := 0
 	for _, child := range rt.Children {
 		member := e.deref(child)
 		if member == nil || member.IsStatic {
 			continue
 		}
-		if member.Kind == protocol.KindProperty || member.Kind == protocol.KindPropertySignature {
+		if member.Kind == reflection.KindProperty || member.Kind == reflection.KindPropertySignature {
 			count++
 		}
 	}
@@ -565,30 +565,30 @@ func (e *sizeEstimator) dataPropCount(rt *protocol.RunType) int {
 // Temporal types); Map/Set are count-prefixed element loops; everything else
 // (user classes via a registered serializer, string-fallback Temporal) anchors
 // on a string-ish default.
-func (e *sizeEstimator) classBytes(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) classBytes(rt *reflection.RunType, depth int) int {
 	switch rt.SubKind {
-	case protocol.SubKindDate:
+	case reflection.SubKindDate:
 		return 8
-	case protocol.SubKindMap:
+	case reflection.SubKindMap:
 		key, val := e.mapElement(rt, depth)
 		return varintByteLen(e.cfg.Items) + e.cfg.Items*(key+val)
-	case protocol.SubKindSet:
+	case reflection.SubKindSet:
 		item := e.setElement(rt, depth)
 		return varintByteLen(e.cfg.Items) + e.cfg.Items*item
-	case protocol.SubKindTemporalInstant:
+	case reflection.SubKindTemporalInstant:
 		return 12 // int64 seconds + int32 sub-second nanos
-	case protocol.SubKindTemporalPlainTime:
+	case reflection.SubKindTemporalPlainTime:
 		return 9 // hour/min/sec + ms/us/ns
-	case protocol.SubKindTemporalPlainDate:
+	case reflection.SubKindTemporalPlainDate:
 		return 7 // disc + i32 year + month + day
-	case protocol.SubKindTemporalPlainDateTime:
+	case reflection.SubKindTemporalPlainDateTime:
 		return 16 // disc + date(6) + time(9)
-	case protocol.SubKindTemporalPlainYearMonth:
+	case reflection.SubKindTemporalPlainYearMonth:
 		return 6 // disc + i32 year + month
-	case protocol.SubKindTemporalZonedDateTime, protocol.SubKindTemporalDuration, protocol.SubKindTemporalPlainMonthDay:
+	case reflection.SubKindTemporalZonedDateTime, reflection.SubKindTemporalDuration, reflection.SubKindTemporalPlainMonthDay:
 		body := e.cfg.StringBytes // lossless toJSON() string fallback
 		return varintByteLen(body) + body
-	case protocol.SubKindNonSerializable:
+	case reflection.SubKindNonSerializable:
 		return 0
 	default:
 		body := e.cfg.StringBytes // user class via a registered serializer
@@ -598,7 +598,7 @@ func (e *sizeEstimator) classBytes(rt *protocol.RunType, depth int) int {
 
 // mapElement / setElement resolve the element types a Map / Set carries on its
 // SubKind-tagged children, defaulting to a string-ish estimate when absent.
-func (e *sizeEstimator) mapElement(rt *protocol.RunType, depth int) (key, val int) {
+func (e *sizeEstimator) mapElement(rt *reflection.RunType, depth int) (key, val int) {
 	key, val = e.cfg.StringBytes, e.cfg.StringBytes
 	// Map key/value parameters live on Arguments (appendMapArguments in
 	// serialize.go), NOT Children.
@@ -608,21 +608,21 @@ func (e *sizeEstimator) mapElement(rt *protocol.RunType, depth int) (key, val in
 			continue
 		}
 		switch member.SubKind {
-		case protocol.SubKindMapKey:
+		case reflection.SubKindMapKey:
 			key = e.estimate(member, depth+1)
-		case protocol.SubKindMapValue:
+		case reflection.SubKindMapValue:
 			val = e.estimate(member, depth+1)
 		}
 	}
 	return key, val
 }
 
-func (e *sizeEstimator) setElement(rt *protocol.RunType, depth int) int {
+func (e *sizeEstimator) setElement(rt *reflection.RunType, depth int) int {
 	item := e.cfg.StringBytes
 	// The Set item parameter lives on Arguments (appendSetArguments), NOT Children.
 	for _, child := range rt.Arguments {
 		member := e.deref(child)
-		if member != nil && member.SubKind == protocol.SubKindSetItem {
+		if member != nil && member.SubKind == reflection.SubKindSetItem {
 			item = e.estimate(member, depth+1)
 		}
 	}

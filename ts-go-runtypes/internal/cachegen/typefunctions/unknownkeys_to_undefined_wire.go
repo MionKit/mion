@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // UnknownKeysToUndefinedWireEmitter — decoder-internal sibling of
@@ -26,7 +26,7 @@ func (UnknownKeysToUndefinedWireEmitter) Args() []ArgSpec {
 	return UnknownKeysToUndefinedEmitter{}.Args()
 }
 
-func (UnknownKeysToUndefinedWireEmitter) Supports(rt *protocol.RunType) bool {
+func (UnknownKeysToUndefinedWireEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
@@ -38,7 +38,7 @@ func (UnknownKeysToUndefinedWireEmitter) ReturnName() string {
 	return UnknownKeysToUndefinedEmitter{}.ReturnName()
 }
 
-func (UnknownKeysToUndefinedWireEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (UnknownKeysToUndefinedWireEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return UnknownKeysToUndefinedEmitter{}.EmitDependencyCall(rt, childID, ctx)
 }
 
@@ -65,8 +65,8 @@ func (UnknownKeysToUndefinedWireEmitter) Finalize(raw string) (string, bool) {
 // has no inner-object extras left to strip post-parse — keeping the
 // Map/Set arm noop on the wire side mirrors the pre-fix behaviour
 // (before iterable unknown-keys support landed on the public uku).
-func (UnknownKeysToUndefinedWireEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, ct CodeType) RTCode {
-	if rt != nil && rt.Kind == protocol.KindUnion {
+func (UnknownKeysToUndefinedWireEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, ct CodeType) RTCode {
+	if rt != nil && rt.Kind == reflection.KindUnion {
 		return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 			Snippet: func(_ *EmitContext, accessor, keyVar string) string {
 				return accessor + "[" + keyVar + "] = undefined"
@@ -75,9 +75,9 @@ func (UnknownKeysToUndefinedWireEmitter) Emit(rt *protocol.RunType, ctx *EmitCon
 			JsonWireFormat: true,
 		})
 	}
-	if rt != nil && rt.Kind == protocol.KindClass {
+	if rt != nil && rt.Kind == reflection.KindClass {
 		switch rt.SubKind {
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return RTCode{Code: "", Type: CodeS}
 		}
 	}

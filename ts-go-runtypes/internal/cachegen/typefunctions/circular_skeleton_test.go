@@ -3,12 +3,12 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // refTableOf indexes hand-built nodes by id (the walker/skeleton deref refs).
-func refTableOf(nodes ...*protocol.RunType) map[string]*protocol.RunType {
-	table := make(map[string]*protocol.RunType, len(nodes))
+func refTableOf(nodes ...*reflection.RunType) map[string]*reflection.RunType {
+	table := make(map[string]*reflection.RunType, len(nodes))
 	for _, node := range nodes {
 		table[node.ID] = node
 	}
@@ -19,10 +19,10 @@ func refTableOf(nodes ...*protocol.RunType) map[string]*protocol.RunType {
 // `Node {name; next?: Node}` — one tracked node with a single `.next` edge back
 // to itself.
 func TestBuildCircularSkeleton_SelfReference(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	pName := &protocol.RunType{ID: "pName", Kind: protocol.KindProperty, Name: "name", Child: makeRef("str")}
-	pNext := &protocol.RunType{ID: "pNext", Kind: protocol.KindProperty, Name: "next", Optional: true, Child: makeRef("node")}
-	node := &protocol.RunType{ID: "node", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pName"), makeRef("pNext")}}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	pName := &reflection.RunType{ID: "pName", Kind: reflection.KindProperty, Name: "name", Child: makeRef("str")}
+	pNext := &reflection.RunType{ID: "pNext", Kind: reflection.KindProperty, Name: "next", Optional: true, Child: makeRef("node")}
+	node := &reflection.RunType{ID: "node", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pName"), makeRef("pNext")}}
 	refTable := refTableOf(str, pName, pNext, node)
 
 	skeleton := BuildCircularSkeleton(node, refTable)
@@ -37,9 +37,9 @@ func TestBuildCircularSkeleton_SelfReference(t *testing.T) {
 // TestBuildCircularSkeleton_ArrayElement pins the `Tree {children: Tree[]}` shape:
 // the circular edge iterates array elements (`a`) then returns to node 0.
 func TestBuildCircularSkeleton_ArrayElement(t *testing.T) {
-	arr := &protocol.RunType{ID: "arr", Kind: protocol.KindArray, Child: makeRef("tree")}
-	pKids := &protocol.RunType{ID: "pKids", Kind: protocol.KindProperty, Name: "children", Child: makeRef("arr")}
-	tree := &protocol.RunType{ID: "tree", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pKids")}}
+	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("tree")}
+	pKids := &reflection.RunType{ID: "pKids", Kind: reflection.KindProperty, Name: "children", Child: makeRef("arr")}
+	tree := &reflection.RunType{ID: "tree", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pKids")}}
 	refTable := refTableOf(arr, pKids, tree)
 
 	skeleton := BuildCircularSkeleton(tree, refTable)
@@ -51,10 +51,10 @@ func TestBuildCircularSkeleton_ArrayElement(t *testing.T) {
 // TestBuildCircularSkeleton_Mutual pins the two-type cycle `A{b?:B}` / `B{a?:A}`:
 // node 0 = A, node 1 = B, with cross edges A.b→1 and B.a→0, both tracked.
 func TestBuildCircularSkeleton_Mutual(t *testing.T) {
-	pB := &protocol.RunType{ID: "pB", Kind: protocol.KindProperty, Name: "b", Optional: true, Child: makeRef("b")}
-	pA := &protocol.RunType{ID: "pA", Kind: protocol.KindProperty, Name: "a", Optional: true, Child: makeRef("a")}
-	a := &protocol.RunType{ID: "a", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pB")}}
-	b := &protocol.RunType{ID: "b", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pA")}}
+	pB := &reflection.RunType{ID: "pB", Kind: reflection.KindProperty, Name: "b", Optional: true, Child: makeRef("b")}
+	pA := &reflection.RunType{ID: "pA", Kind: reflection.KindProperty, Name: "a", Optional: true, Child: makeRef("a")}
+	a := &reflection.RunType{ID: "a", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pB")}}
+	b := &reflection.RunType{ID: "b", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pA")}}
 	refTable := refTableOf(pB, pA, a, b)
 
 	skeleton := BuildCircularSkeleton(a, refTable)
@@ -68,10 +68,10 @@ func TestBuildCircularSkeleton_Mutual(t *testing.T) {
 // guarded root is NOT itself circular (`Wrapper{node?: Recursive}`): node 0 = the
 // wrapper (UNtracked, c[0]=0), reaching the circular Recursive at node 1.
 func TestBuildCircularSkeleton_CycleUnderNonCircularRoot(t *testing.T) {
-	pNext := &protocol.RunType{ID: "pNext", Kind: protocol.KindProperty, Name: "next", Optional: true, Child: makeRef("rec")}
-	rec := &protocol.RunType{ID: "rec", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pNext")}}
-	pNode := &protocol.RunType{ID: "pNode", Kind: protocol.KindProperty, Name: "node", Optional: true, Child: makeRef("rec")}
-	wrapper := &protocol.RunType{ID: "wrap", Kind: protocol.KindObject, Children: []*protocol.RunType{makeRef("pNode")}}
+	pNext := &reflection.RunType{ID: "pNext", Kind: reflection.KindProperty, Name: "next", Optional: true, Child: makeRef("rec")}
+	rec := &reflection.RunType{ID: "rec", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pNext")}}
+	pNode := &reflection.RunType{ID: "pNode", Kind: reflection.KindProperty, Name: "node", Optional: true, Child: makeRef("rec")}
+	wrapper := &reflection.RunType{ID: "wrap", Kind: reflection.KindObject, Children: []*reflection.RunType{makeRef("pNode")}}
 	refTable := refTableOf(pNext, rec, pNode, wrapper)
 
 	skeleton := BuildCircularSkeleton(wrapper, refTable)
@@ -85,9 +85,9 @@ func TestBuildCircularSkeleton_CycleUnderNonCircularRoot(t *testing.T) {
 // TestBuildCircularSkeleton_Acyclic returns nil for a type that cannot cycle —
 // the armed factory then emits no guard (a harmless duplicate of the plain body).
 func TestBuildCircularSkeleton_Acyclic(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	pName := &protocol.RunType{ID: "pName", Kind: protocol.KindProperty, Name: "name", Child: makeRef("str")}
-	plain := &protocol.RunType{ID: "plain", Kind: protocol.KindObject, Children: []*protocol.RunType{makeRef("pName")}}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	pName := &reflection.RunType{ID: "pName", Kind: reflection.KindProperty, Name: "name", Child: makeRef("str")}
+	plain := &reflection.RunType{ID: "plain", Kind: reflection.KindObject, Children: []*reflection.RunType{makeRef("pName")}}
 	refTable := refTableOf(str, pName, plain)
 
 	if skeleton := BuildCircularSkeleton(plain, refTable); skeleton != nil {
@@ -98,12 +98,12 @@ func TestBuildCircularSkeleton_Acyclic(t *testing.T) {
 // TestBuildCircularSkeleton_DeeplyNested pins that acyclic intermediate objects
 // collapse into a single multi-segment edge path (`{a: {b: {c?: Node}}}`).
 func TestBuildCircularSkeleton_DeeplyNested(t *testing.T) {
-	pC := &protocol.RunType{ID: "pC", Kind: protocol.KindProperty, Name: "c", Optional: true, Child: makeRef("node")}
-	inner := &protocol.RunType{ID: "inner", Kind: protocol.KindObject, Children: []*protocol.RunType{makeRef("pC")}}
-	pBmid := &protocol.RunType{ID: "pB", Kind: protocol.KindProperty, Name: "b", Child: makeRef("inner")}
-	mid := &protocol.RunType{ID: "mid", Kind: protocol.KindObject, Children: []*protocol.RunType{makeRef("pB")}}
-	pA := &protocol.RunType{ID: "pA", Kind: protocol.KindProperty, Name: "a", Child: makeRef("mid")}
-	node := &protocol.RunType{ID: "node", Kind: protocol.KindObject, IsCircular: true, Children: []*protocol.RunType{makeRef("pA")}}
+	pC := &reflection.RunType{ID: "pC", Kind: reflection.KindProperty, Name: "c", Optional: true, Child: makeRef("node")}
+	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObject, Children: []*reflection.RunType{makeRef("pC")}}
+	pBmid := &reflection.RunType{ID: "pB", Kind: reflection.KindProperty, Name: "b", Child: makeRef("inner")}
+	mid := &reflection.RunType{ID: "mid", Kind: reflection.KindObject, Children: []*reflection.RunType{makeRef("pB")}}
+	pA := &reflection.RunType{ID: "pA", Kind: reflection.KindProperty, Name: "a", Child: makeRef("mid")}
+	node := &reflection.RunType{ID: "node", Kind: reflection.KindObject, IsCircular: true, Children: []*reflection.RunType{makeRef("pA")}}
 	refTable := refTableOf(pC, inner, pBmid, mid, pA, node)
 
 	skeleton := BuildCircularSkeleton(node, refTable)

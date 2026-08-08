@@ -11,6 +11,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // filterDiagsByFamily returns the subset of diags belonging to the given
@@ -57,7 +58,7 @@ func atomicSetup(t *testing.T) *resolver.Session {
 
 // atomicResolve runs scanFiles on a fixture and returns the RunType entry for
 // its first (and only) call site.
-func atomicResolve(t *testing.T, r *resolver.Session, file string) *protocol.RunType {
+func atomicResolve(t *testing.T, r *resolver.Session, file string) *reflection.RunType {
 	t.Helper()
 	resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{file}})
 	if resp.Error != "" {
@@ -103,7 +104,7 @@ func assertHashID(t *testing.T, id string) {
 // a hash because both resolve to the same `string` primitive type.
 func TestAtomic_String_Static(t *testing.T) {
 	tn := atomicResolve(t, atomicSetup(t), "string_static.ts")
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString, got %d", tn.Kind)
 	}
 	assertHashID(t, tn.ID)
@@ -111,7 +112,7 @@ func TestAtomic_String_Static(t *testing.T) {
 
 func TestAtomic_String_Reflect(t *testing.T) {
 	tn := atomicResolve(t, atomicSetup(t), "string.ts")
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString, got %d", tn.Kind)
 	}
 	assertHashID(t, tn.ID)
@@ -122,7 +123,7 @@ func TestAtomic_Number_Static(t *testing.T) {
 getRunTypeId<number>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNumber {
+	if tn.Kind != reflection.KindNumber {
 		t.Fatalf("expected KindNumber, got %d", tn.Kind)
 	}
 }
@@ -133,7 +134,7 @@ const v: number = 42;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNumber {
+	if tn.Kind != reflection.KindNumber {
 		t.Fatalf("expected KindNumber, got %d", tn.Kind)
 	}
 }
@@ -143,7 +144,7 @@ func TestAtomic_Boolean_Static(t *testing.T) {
 getRunTypeId<boolean>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBoolean {
+	if tn.Kind != reflection.KindBoolean {
 		t.Fatalf("expected KindBoolean, got %d", tn.Kind)
 	}
 }
@@ -154,7 +155,7 @@ declare const v: boolean;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBoolean {
+	if tn.Kind != reflection.KindBoolean {
 		t.Fatalf("expected KindBoolean, got %d", tn.Kind)
 	}
 }
@@ -164,7 +165,7 @@ func TestAtomic_BigInt_Static(t *testing.T) {
 getRunTypeId<bigint>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBigInt {
+	if tn.Kind != reflection.KindBigInt {
 		t.Fatalf("expected KindBigInt, got %d", tn.Kind)
 	}
 }
@@ -175,7 +176,7 @@ const v: bigint = 1n;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBigInt {
+	if tn.Kind != reflection.KindBigInt {
 		t.Fatalf("expected KindBigInt, got %d", tn.Kind)
 	}
 }
@@ -185,7 +186,7 @@ func TestAtomic_Symbol_Static(t *testing.T) {
 getRunTypeId<symbol>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindSymbol {
+	if tn.Kind != reflection.KindSymbol {
 		t.Fatalf("expected KindSymbol, got %d", tn.Kind)
 	}
 }
@@ -196,7 +197,7 @@ const v: symbol = Symbol('x');
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindSymbol {
+	if tn.Kind != reflection.KindSymbol {
 		t.Fatalf("expected KindSymbol, got %d", tn.Kind)
 	}
 }
@@ -206,7 +207,7 @@ func TestAtomic_Null_Static(t *testing.T) {
 getRunTypeId<null>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNull {
+	if tn.Kind != reflection.KindNull {
 		t.Fatalf("expected KindNull, got %d", tn.Kind)
 	}
 }
@@ -217,7 +218,7 @@ const v: null = null;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNull {
+	if tn.Kind != reflection.KindNull {
 		t.Fatalf("expected KindNull, got %d", tn.Kind)
 	}
 }
@@ -227,7 +228,7 @@ func TestAtomic_Undefined_Static(t *testing.T) {
 getRunTypeId<undefined>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUndefined {
+	if tn.Kind != reflection.KindUndefined {
 		t.Fatalf("expected KindUndefined, got %d", tn.Kind)
 	}
 }
@@ -238,7 +239,7 @@ const v: undefined = undefined;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUndefined {
+	if tn.Kind != reflection.KindUndefined {
 		t.Fatalf("expected KindUndefined, got %d", tn.Kind)
 	}
 }
@@ -248,7 +249,7 @@ func TestAtomic_Void_Static(t *testing.T) {
 getRunTypeId<void>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindVoid {
+	if tn.Kind != reflection.KindVoid {
 		t.Fatalf("expected KindVoid, got %d", tn.Kind)
 	}
 }
@@ -259,7 +260,7 @@ declare const v: void;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindVoid {
+	if tn.Kind != reflection.KindVoid {
 		t.Fatalf("expected KindVoid, got %d", tn.Kind)
 	}
 }
@@ -269,7 +270,7 @@ func TestAtomic_Any_Static(t *testing.T) {
 getRunTypeId<any>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindAny {
+	if tn.Kind != reflection.KindAny {
 		t.Fatalf("expected KindAny, got %d", tn.Kind)
 	}
 }
@@ -280,7 +281,7 @@ const v: any = 1;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindAny {
+	if tn.Kind != reflection.KindAny {
 		t.Fatalf("expected KindAny, got %d", tn.Kind)
 	}
 }
@@ -290,7 +291,7 @@ func TestAtomic_Unknown_Static(t *testing.T) {
 getRunTypeId<unknown>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnknown {
+	if tn.Kind != reflection.KindUnknown {
 		t.Fatalf("expected KindUnknown, got %d", tn.Kind)
 	}
 }
@@ -301,7 +302,7 @@ const v: unknown = 1;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnknown {
+	if tn.Kind != reflection.KindUnknown {
 		t.Fatalf("expected KindUnknown, got %d", tn.Kind)
 	}
 }
@@ -311,7 +312,7 @@ func TestAtomic_Never_Static(t *testing.T) {
 getRunTypeId<never>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got %d", tn.Kind)
 	}
 }
@@ -322,7 +323,7 @@ declare const v: never;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got %d", tn.Kind)
 	}
 }
@@ -332,7 +333,7 @@ func TestAtomic_Object_Static(t *testing.T) {
 getRunTypeId<object>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObject {
+	if tn.Kind != reflection.KindObject {
 		t.Fatalf("expected KindObject, got %d", tn.Kind)
 	}
 }
@@ -343,7 +344,7 @@ const v: object = {};
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObject {
+	if tn.Kind != reflection.KindObject {
 		t.Fatalf("expected KindObject, got %d", tn.Kind)
 	}
 }
@@ -367,7 +368,7 @@ func TestAtomic_Regexp_Static_RegExpType(t *testing.T) {
 getRunTypeId<RegExp>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindRegexp {
+	if tn.Kind != reflection.KindRegexp {
 		t.Fatalf("expected KindRegexp, got %d", tn.Kind)
 	}
 	if tn.ClassRef == nil || tn.ClassRef.Builtin != "RegExp" {
@@ -381,7 +382,7 @@ declare const re: RegExp;
 getRunTypeId(re);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindRegexp {
+	if tn.Kind != reflection.KindRegexp {
 		t.Fatalf("expected KindRegexp, got %d", tn.Kind)
 	}
 }
@@ -411,7 +412,7 @@ getRunTypeId<RegExp>();
 	staticAbc := resolveFile(t, r, "staticAbc.ts")
 	staticXyz := resolveFile(t, r, "staticXyz.ts")
 	staticRegExp := resolveFile(t, r, "staticRegExp.ts")
-	if reflectAbc.Kind != protocol.KindRegexp {
+	if reflectAbc.Kind != reflection.KindRegexp {
 		t.Fatalf("expected getRunTypeId(/abc/i) → KindRegexp, got %d", reflectAbc.Kind)
 	}
 	if staticAbc.ID != staticRegExp.ID || staticXyz.ID != staticRegExp.ID || reflectAbc.ID != staticRegExp.ID {
@@ -429,7 +430,7 @@ func TestAtomic_LiteralString_Static(t *testing.T) {
 getRunTypeId<'hello'>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	if tn.Literal != "hello" {
@@ -444,7 +445,7 @@ const v = 'hello' as const;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	if tn.Literal != "hello" {
@@ -459,14 +460,14 @@ const v = 'hello';
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString (widened), got %d", tn.Kind)
 	}
 }
 
-func assertLiteralNumber42(t *testing.T, tn *protocol.RunType) {
+func assertLiteralNumber42(t *testing.T, tn *reflection.RunType) {
 	t.Helper()
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	switch v := tn.Literal.(type) {
@@ -506,7 +507,7 @@ const v = 42;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNumber {
+	if tn.Kind != reflection.KindNumber {
 		t.Fatalf("expected KindNumber (widened), got %d", tn.Kind)
 	}
 }
@@ -516,7 +517,7 @@ func TestAtomic_LiteralBoolean_Static(t *testing.T) {
 getRunTypeId<true>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	if v, ok := tn.Literal.(bool); !ok || v != true {
@@ -530,7 +531,7 @@ const v = true as const;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	if v, ok := tn.Literal.(bool); !ok || v != true {
@@ -544,7 +545,7 @@ const v = true;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBoolean {
+	if tn.Kind != reflection.KindBoolean {
 		t.Fatalf("expected KindBoolean (widened), got %d", tn.Kind)
 	}
 }
@@ -572,14 +573,14 @@ const v = 1n;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindBigInt {
+	if tn.Kind != reflection.KindBigInt {
 		t.Fatalf("expected KindBigInt (widened), got %d", tn.Kind)
 	}
 }
 
-func assertBigintLiteral(t *testing.T, tn *protocol.RunType) {
+func assertBigintLiteral(t *testing.T, tn *reflection.RunType) {
 	t.Helper()
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	hasBigintFlag := false
@@ -602,7 +603,7 @@ const sym: unique symbol = Symbol('hello');
 getRunTypeId(sym);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	hasSymbolFlag := false
@@ -638,7 +639,7 @@ const sym: unique symbol = Symbol('hello');
 getRunTypeId<typeof sym>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral, got %d", tn.Kind)
 	}
 	hasSymbolFlag := false
@@ -687,7 +688,7 @@ getRunTypeId(v);
 func assertEnumNumeric(t *testing.T, code string) {
 	t.Helper()
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindEnum {
+	if tn.Kind != reflection.KindEnum {
 		t.Fatalf("expected KindEnum, got %d", tn.Kind)
 	}
 	if tn.TypeName != "Color" {
@@ -696,7 +697,7 @@ func assertEnumNumeric(t *testing.T, code string) {
 	if len(tn.EnumVal) != 3 {
 		t.Fatalf("expected 3 members, got %d (%v)", len(tn.EnumVal), tn.EnumVal)
 	}
-	if tn.IndexT == nil || tn.IndexT.Kind != protocol.KindNumber {
+	if tn.IndexT == nil || tn.IndexT.Kind != reflection.KindNumber {
 		t.Fatalf("expected indexType=number, got %+v", tn.IndexT)
 	}
 }
@@ -730,7 +731,7 @@ getRunTypeId(v);
 func assertEnumString(t *testing.T, code string) {
 	t.Helper()
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindEnum {
+	if tn.Kind != reflection.KindEnum {
 		t.Fatalf("expected KindEnum, got %d", tn.Kind)
 	}
 	if len(tn.EnumVal) != 3 {
@@ -739,7 +740,7 @@ func assertEnumString(t *testing.T, code string) {
 	if v, ok := tn.EnumVal["Red"].(string); !ok || v != "red" {
 		t.Fatalf("expected Red=\"red\", got %v", tn.EnumVal["Red"])
 	}
-	if tn.IndexT == nil || tn.IndexT.Kind != protocol.KindString {
+	if tn.IndexT == nil || tn.IndexT.Kind != reflection.KindString {
 		t.Fatalf("expected indexType=string, got %+v", tn.IndexT)
 	}
 }
@@ -766,7 +767,7 @@ getRunTypeId(v);
 func assertDateType(t *testing.T, code string) {
 	t.Helper()
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if tn.TypeName != "Date" {
@@ -775,8 +776,8 @@ func assertDateType(t *testing.T, code string) {
 	if tn.ClassRef == nil || tn.ClassRef.Builtin != "Date" {
 		t.Fatalf("expected ClassRef.Builtin=Date, got %+v", tn.ClassRef)
 	}
-	if tn.SubKind != protocol.SubKindDate {
-		t.Fatalf("expected SubKind=SubKindDate(%d), got %d", protocol.SubKindDate, tn.SubKind)
+	if tn.SubKind != reflection.SubKindDate {
+		t.Fatalf("expected SubKind=SubKindDate(%d), got %d", reflection.SubKindDate, tn.SubKind)
 	}
 }
 
@@ -803,7 +804,7 @@ getRunTypeId(v);
 func assertMapType(t *testing.T, code string) {
 	t.Helper()
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if tn.TypeName != "Map" {
@@ -812,8 +813,8 @@ func assertMapType(t *testing.T, code string) {
 	if tn.ClassRef == nil || tn.ClassRef.Builtin != "Map" {
 		t.Fatalf("expected ClassRef.Builtin=Map, got %+v", tn.ClassRef)
 	}
-	if tn.SubKind != protocol.SubKindMap {
-		t.Fatalf("expected SubKind=SubKindMap(%d), got %d", protocol.SubKindMap, tn.SubKind)
+	if tn.SubKind != reflection.SubKindMap {
+		t.Fatalf("expected SubKind=SubKindMap(%d), got %d", reflection.SubKindMap, tn.SubKind)
 	}
 	if len(tn.Arguments) != 2 {
 		t.Fatalf("expected 2 Arguments wrappers, got %d", len(tn.Arguments))
@@ -821,10 +822,10 @@ func assertMapType(t *testing.T, code string) {
 	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump}).RunTypes
 	keyWrapper := lookupNode(dump, tn.Arguments[0].ID)
 	valueWrapper := lookupNode(dump, tn.Arguments[1].ID)
-	if keyWrapper == nil || keyWrapper.Kind != protocol.KindParameter || keyWrapper.SubKind != protocol.SubKindMapKey {
+	if keyWrapper == nil || keyWrapper.Kind != reflection.KindParameter || keyWrapper.SubKind != reflection.SubKindMapKey {
 		t.Fatalf("expected key wrapper KindParameter+SubKindMapKey, got %+v", keyWrapper)
 	}
-	if valueWrapper == nil || valueWrapper.Kind != protocol.KindParameter || valueWrapper.SubKind != protocol.SubKindMapValue {
+	if valueWrapper == nil || valueWrapper.Kind != reflection.KindParameter || valueWrapper.SubKind != reflection.SubKindMapValue {
 		t.Fatalf("expected value wrapper KindParameter+SubKindMapValue, got %+v", valueWrapper)
 	}
 }
@@ -852,7 +853,7 @@ getRunTypeId(v);
 func assertSetType(t *testing.T, code string) {
 	t.Helper()
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if tn.TypeName != "Set" {
@@ -861,15 +862,15 @@ func assertSetType(t *testing.T, code string) {
 	if tn.ClassRef == nil || tn.ClassRef.Builtin != "Set" {
 		t.Fatalf("expected ClassRef.Builtin=Set, got %+v", tn.ClassRef)
 	}
-	if tn.SubKind != protocol.SubKindSet {
-		t.Fatalf("expected SubKind=SubKindSet(%d), got %d", protocol.SubKindSet, tn.SubKind)
+	if tn.SubKind != reflection.SubKindSet {
+		t.Fatalf("expected SubKind=SubKindSet(%d), got %d", reflection.SubKindSet, tn.SubKind)
 	}
 	if len(tn.Arguments) != 1 {
 		t.Fatalf("expected 1 Arguments wrapper, got %d", len(tn.Arguments))
 	}
 	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump}).RunTypes
 	itemWrapper := lookupNode(dump, tn.Arguments[0].ID)
-	if itemWrapper == nil || itemWrapper.Kind != protocol.KindParameter || itemWrapper.SubKind != protocol.SubKindSetItem {
+	if itemWrapper == nil || itemWrapper.Kind != reflection.KindParameter || itemWrapper.SubKind != reflection.SubKindSetItem {
 		t.Fatalf("expected item wrapper KindParameter+SubKindSetItem, got %+v", itemWrapper)
 	}
 }
@@ -896,21 +897,21 @@ getRunTypeId(v);
 func assertErrorType(t *testing.T, code string) {
 	t.Helper()
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if tn.TypeName != "Error" {
 		t.Fatalf("expected typeName=Error, got %q", tn.TypeName)
 	}
-	if tn.SubKind != protocol.SubKindNonSerializable {
-		t.Fatalf("expected SubKind=SubKindNonSerializable(%d), got %d", protocol.SubKindNonSerializable, tn.SubKind)
+	if tn.SubKind != reflection.SubKindNonSerializable {
+		t.Fatalf("expected SubKind=SubKindNonSerializable(%d), got %d", reflection.SubKindNonSerializable, tn.SubKind)
 	}
 	if tn.ClassRef == nil || tn.ClassRef.Builtin != "Error" {
 		t.Fatalf("expected ClassRef.Builtin=Error, got %+v", tn.ClassRef)
 	}
 }
 
-func lookupNode(dump []*protocol.RunType, id string) *protocol.RunType {
+func lookupNode(dump []*reflection.RunType, id string) *reflection.RunType {
 	for _, node := range dump {
 		if node.ID == id {
 			return node

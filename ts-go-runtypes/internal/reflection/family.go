@@ -1,4 +1,4 @@
-package protocol
+package reflection
 
 // Family classifies a RunType into one of four buckets: Atomic (A),
 // Collection (C), Member (M), or Function (F). Mirrors the

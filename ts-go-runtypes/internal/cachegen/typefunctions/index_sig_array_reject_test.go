@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Regression for the verr/validate record-vs-array disagreement: the
@@ -24,11 +25,11 @@ import (
 
 // recordOf builds `Record<string, V>` — an objectLiteral whose single child is a
 // string-keyed index signature carrying the supplied value RunType.
-func recordOf(value *protocol.RunType) protocol.Dump {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	idx := &protocol.RunType{ID: "idx", Kind: protocol.KindIndexSignature, Index: makeRef("str"), Child: makeRef(value.ID)}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("idx")}}
-	return protocol.Dump{RunTypes: []*protocol.RunType{str, value, idx, obj}}
+func recordOf(value *reflection.RunType) protocol.Dump {
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	idx := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, Index: makeRef("str"), Child: makeRef(value.ID)}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	return protocol.Dump{RunTypes: []*reflection.RunType{str, value, idx, obj}}
 }
 
 // arrayRejectGuard is the brand check both families splice onto an
@@ -36,9 +37,9 @@ func recordOf(value *protocol.RunType) protocol.Dump {
 const arrayRejectGuard = "!Array.isArray(v) && Object.prototype.toString.call(v) === '[object Object]'"
 
 func TestIndexSig_ValidationErrorsRejectsNonPlainObject(t *testing.T) {
-	cases := map[string]*protocol.RunType{
-		"Record<string, number>": {ID: "num", Kind: protocol.KindNumber},
-		"Record<string, Date>":   {ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate},
+	cases := map[string]*reflection.RunType{
+		"Record<string, number>": {ID: "num", Kind: reflection.KindNumber},
+		"Record<string, Date>":   {ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate},
 	}
 	for name, value := range cases {
 		t.Run(name, func(t *testing.T) {

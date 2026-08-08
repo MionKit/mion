@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-func arrAnnotation(params map[string]any) *protocol.FormatAnnotation {
-	return &protocol.FormatAnnotation{Name: formattedArrayName, Params: params}
+func arrAnnotation(params map[string]any) *reflection.FormatAnnotation {
+	return &reflection.FormatAnnotation{Name: formattedArrayName, Params: params}
 }
 
 // TestFormattedArray_UniqueItemsGoesThroughThePureFn — the canonicalisation
@@ -16,7 +16,7 @@ func arrAnnotation(params map[string]any) *protocol.FormatAnnotation {
 // It now lives in `rt::uniqueItems`, constructed once per module.
 func TestFormattedArray_UniqueItemsGoesThroughThePureFn(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := formattedArrayEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", ctx)
 
 	if got != "uniqueItems(v)" {
@@ -50,7 +50,7 @@ func TestFormattedArray_UniqueItemsPureFnIsCoreNamespace(t *testing.T) {
 // attribution.
 func TestFormattedArray_BothLanesShareOnePureFnAlias(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := formattedArrayEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidationErrorsCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", "pth", "er", ctx)
 
 	if !strings.Contains(got, "uniqueItems(v)") {
@@ -65,7 +65,7 @@ func TestFormattedArray_BothLanesShareOnePureFnAlias(t *testing.T) {
 // (`v.length` is a field read, nothing to hoist); pin that they stayed inline.
 func TestFormattedArray_LengthBoundsUnchanged(t *testing.T) {
 	ctx := newStubCtx()
-	emitter := formattedArrayEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"minItems": 1.0, "maxItems": 4.0}), "v", ctx)
 
 	if got != "v.length >= 1 && v.length <= 4" {
@@ -79,7 +79,7 @@ func TestFormattedArray_LengthBoundsUnchanged(t *testing.T) {
 // TestFormattedArray_NoContextFallsBackInline — direct emitter callers pass no
 // context and must still get a semantically identical check.
 func TestFormattedArray_NoContextFallsBackInline(t *testing.T) {
-	emitter := formattedArrayEmitter{kind: protocol.KindArray}
+	emitter := formattedArrayEmitter{kind: reflection.KindArray}
 	got := emitter.EmitValidateCheck(arrAnnotation(map[string]any{"uniqueItems": true}), "v", nil)
 	if !strings.Contains(got, "const canon") {
 		t.Errorf("context-free emit must inline the canonical form; got %q", got)

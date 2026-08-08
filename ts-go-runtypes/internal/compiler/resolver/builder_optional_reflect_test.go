@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Regression for the cold value-first schema reflection bug: reflecting a
@@ -93,7 +94,7 @@ getRunType(object({ note: optional(string()) }));
 	}
 
 	types := dump(r)
-	byID := map[string]*protocol.RunType{}
+	byID := map[string]*reflection.RunType{}
 	for _, rt := range types {
 		byID[rt.ID] = rt
 		if leakedBuilderTypeNames[rt.TypeName] {
@@ -113,8 +114,8 @@ getRunType(object({ note: optional(string()) }));
 	if root == nil {
 		t.Fatalf("root site %s missing from cache", resp.Sites[0].ID)
 	}
-	if root.Kind != protocol.KindObjectLiteral {
-		t.Errorf("root kind = %d, want KindObjectLiteral (%d)", root.Kind, protocol.KindObjectLiteral)
+	if root.Kind != reflection.KindObjectLiteral {
+		t.Errorf("root kind = %d, want KindObjectLiteral (%d)", root.Kind, reflection.KindObjectLiteral)
 	}
 	if root.TypeName != "" {
 		t.Errorf("root TypeName = %q, want anonymous (the schema alias must not surface)", root.TypeName)
@@ -129,12 +130,12 @@ getRunType(object({ note: optional(string()) }));
 	if note.Child == nil {
 		t.Fatalf("'note' has no child type")
 	}
-	if child := byID[note.Child.ID]; child == nil || child.Kind != protocol.KindString {
-		t.Errorf("'note' child kind = %v, want KindString (%d)", child, protocol.KindString)
+	if child := byID[note.Child.ID]; child == nil || child.Kind != reflection.KindString {
+		t.Errorf("'note' child kind = %v, want KindString (%d)", child, reflection.KindString)
 	}
 }
 
-func dumpTypeNames(types []*protocol.RunType) string {
+func dumpTypeNames(types []*reflection.RunType) string {
 	out := ""
 	for _, rt := range types {
 		out += fmt.Sprintf("  id=%s kind=%d typeName=%q name=%q\n", rt.ID, rt.Kind, rt.TypeName, rt.Name)

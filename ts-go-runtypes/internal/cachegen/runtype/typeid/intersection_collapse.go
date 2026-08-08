@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // collapsedIntersectionID mirrors the serialize-side collapse so two
@@ -77,7 +77,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 	}
 
 	if hasNever || hasIncompat {
-		return strconv.Itoa(int(protocol.KindNever))
+		return strconv.Itoa(int(reflection.KindNever))
 	}
 
 	// Duplicate-branch degenerate — the id twin of the serialize-side arm:
@@ -115,9 +115,9 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 					baseCount += len(objectMembers)
 				}
 				if baseCount != 1 {
-					return strconv.Itoa(int(protocol.KindNever))
+					return strconv.Itoa(int(reflection.KindNever))
 				}
-				return collectionJoined(int(protocol.KindUnion), computer.Compute(base), false) +
+				return collectionJoined(int(reflection.KindUnion), computer.Compute(base), false) +
 					"oo{" + computer.sortedJoin(branchIDs) + "}"
 			}
 		}
@@ -125,7 +125,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 
 	if literalMember != nil && primitiveMember != nil {
 		if !literalExtendsPrimitiveFlags(literalMember.Flags(), primitiveMember.Flags()) {
-			return strconv.Itoa(int(protocol.KindNever))
+			return strconv.Itoa(int(reflection.KindNever))
 		}
 		primitiveMember = nil
 	}
@@ -139,7 +139,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		primaryID := computer.Compute(primary)
 		brandIDs := make([]string, 0, len(objectMembers))
 		var notIDs []string
-		var annotations []*protocol.FormatAnnotation
+		var annotations []*reflection.FormatAnnotation
 		var formatKey string
 		for _, objectMember := range objectMembers {
 			// Negation sentinels (`{__rtNot?: Child}`) fold the CHILD's id
@@ -223,7 +223,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		var patternIDs []string
 		var propNamesIDs []string
 		var unevalIDs []string
-		var annotations []*protocol.FormatAnnotation
+		var annotations []*reflection.FormatAnnotation
 		var restMembers []*checker.Type
 		for _, objectMember := range objectMembers {
 			if childType := NotChildTypeFromMember(computer.typeChecker, objectMember); childType != nil {
@@ -300,7 +300,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		}
 		if restCount == 0 {
 			// Every member was a sentinel — the base is `unknown`.
-			return strconv.Itoa(int(protocol.KindUnknown)) + notKey + containsKey + formatKey
+			return strconv.Itoa(int(reflection.KindUnknown)) + notKey + containsKey + formatKey
 		}
 		if restCount == 1 && (notKey != "" || formatKey != "" || containsKey != "") {
 			// Single base ∧ sentinel(s): hash the base AS ITSELF plus the
@@ -318,7 +318,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 				return computer.Compute(a) == computer.Compute(b)
 			})
 			if !ok {
-				return strconv.Itoa(int(protocol.KindNever))
+				return strconv.Itoa(int(reflection.KindNever))
 			}
 			ids := make([]string, 0, len(picks))
 			for _, pick := range picks {
@@ -345,7 +345,7 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 				}
 				ids = append(ids, child)
 			}
-			return collectionID(int(protocol.KindTuple), ids, true) + notKey + containsKey + formatKey
+			return collectionID(int(reflection.KindTuple), ids, true) + notKey + containsKey + formatKey
 		}
 		// Object × object — the TS checker already merged properties on
 		// the intersection type. Hash the merged members directly rather
@@ -362,13 +362,13 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		// the two forms diverge, even though their projected nodes match.
 		if callSignatures := computer.typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall); len(callSignatures) > 0 {
 			for _, signature := range callSignatures {
-				ids = append(ids, computer.signatureID(signature, protocol.KindCallSignature, ""))
+				ids = append(ids, computer.signatureID(signature, reflection.KindCallSignature, ""))
 			}
 		}
-		return collectionJoined(int(protocol.KindObjectLiteral), computer.sortedJoin(ids), false) + notKey + containsKey + formatKey
+		return collectionJoined(int(reflection.KindObjectLiteral), computer.sortedJoin(ids), false) + notKey + containsKey + formatKey
 	}
 
-	return strconv.Itoa(int(protocol.KindUnknown))
+	return strconv.Itoa(int(reflection.KindUnknown))
 }
 
 // builtinClassNamesID is the id-side mirror of the serialize-side

@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // overrideDTS declares the markers + a single overrideX twin (overrideValidate)
@@ -24,7 +25,7 @@ const overrideDTS = `declare module '@ts-runtypes/core' {
 
 // idByKind scans call.ts, dumps, and returns the wire id of the first node with
 // the given kind (and that node, for further assertions).
-func idByKind(t *testing.T, files map[string]string, kind protocol.ReflectionKind) (string, *protocol.RunType) {
+func idByKind(t *testing.T, files map[string]string, kind reflection.ReflectionKind) (string, *reflection.RunType) {
 	t.Helper()
 	r := setupInline(t, files)
 	if resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}}); resp.Error != "" {
@@ -60,8 +61,8 @@ getRunTypeId<{a: number; b: string}>();
 `,
 	}
 
-	plainString, _ := idByKind(t, without, protocol.KindString)
-	overriddenString, stringNode := idByKind(t, with, protocol.KindString)
+	plainString, _ := idByKind(t, without, reflection.KindString)
+	overriddenString, stringNode := idByKind(t, with, reflection.KindString)
 	if plainString == overriddenString {
 		t.Fatalf("override did not shift string's id: both %q", overriddenString)
 	}
@@ -69,8 +70,8 @@ getRunTypeId<{a: number; b: string}>();
 		t.Fatalf("overridden string node missing Overrides[val]: %+v", stringNode.Overrides)
 	}
 
-	plainStruct, _ := idByKind(t, without, protocol.KindObjectLiteral)
-	overriddenStruct, _ := idByKind(t, with, protocol.KindObjectLiteral)
+	plainStruct, _ := idByKind(t, without, reflection.KindObjectLiteral)
+	overriddenStruct, _ := idByKind(t, with, reflection.KindObjectLiteral)
 	if plainStruct == overriddenStruct {
 		t.Fatalf("override did not propagate to the containing struct: both %q", overriddenStruct)
 	}
@@ -313,14 +314,14 @@ export const isNode = createValidateFn<Node>();
 `,
 	}
 
-	plainNode, _ := idByKind(t, without, protocol.KindObjectLiteral)
-	overriddenNode, _ := idByKind(t, with, protocol.KindObjectLiteral)
+	plainNode, _ := idByKind(t, without, reflection.KindObjectLiteral)
+	overriddenNode, _ := idByKind(t, with, reflection.KindObjectLiteral)
 	if plainNode == overriddenNode {
 		t.Fatalf("override did not propagate through the recursive Node: both ids %q", overriddenNode)
 	}
 
 	// Idempotency: a second scan of the same source yields the same Node id.
-	again, _ := idByKind(t, with, protocol.KindObjectLiteral)
+	again, _ := idByKind(t, with, reflection.KindObjectLiteral)
 	if again != overriddenNode {
 		t.Fatalf("recursive override id not stable across scans: %q vs %q", overriddenNode, again)
 	}
@@ -374,7 +375,7 @@ func TestOverride_AbsentLeavesIDsUnchanged(t *testing.T) {
 getRunTypeId<string>();
 `,
 	}
-	id, node := idByKind(t, files, protocol.KindString)
+	id, node := idByKind(t, files, reflection.KindString)
 	if id == "" {
 		t.Fatalf("string id empty")
 	}

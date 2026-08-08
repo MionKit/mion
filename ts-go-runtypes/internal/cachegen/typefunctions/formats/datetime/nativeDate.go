@@ -2,7 +2,7 @@ package datetime
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // nativeDateEmitter implements the format named "nativeDate" —
@@ -24,13 +24,13 @@ func init() {
 	formats.Register(nativeDateEmitter{})
 }
 
-func (nativeDateEmitter) Name() string                  { return "nativeDate" }
-func (nativeDateEmitter) Kind() protocol.ReflectionKind { return protocol.KindClass }
+func (nativeDateEmitter) Name() string                    { return "nativeDate" }
+func (nativeDateEmitter) Kind() reflection.ReflectionKind { return reflection.KindClass }
 
 // ValidateParams validates the optional min/max bounds with dateTimeKind
 // (both component groups allowed). The layout key is "T" — only used by
 // the best-effort static ordering parse for absolute dateTime literals.
-func (nativeDateEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (nativeDateEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -42,14 +42,14 @@ func (nativeDateEmitter) ValidateParams(annotation *protocol.FormatAnnotation) [
 // class arm; this only adds the min/max guard. The value's comparison key
 // is the Date's epoch ms directly (no string parsing), compared against a
 // baked absolute epoch or pf_relativeNowKey for a relative bound.
-func (nativeDateEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (nativeDateEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
 	return nativeDateBoundChecks(ctx, annotation.Params, vλl)
 }
 
-func (nativeDateEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (nativeDateEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}

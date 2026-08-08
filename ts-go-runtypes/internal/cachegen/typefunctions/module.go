@@ -14,6 +14,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // PureFnDepUse is one pure-fn dependency an entry body reaches, paired with the
@@ -100,7 +101,7 @@ type RenderOpts struct {
 	// is a per-request projection (the scanFiles scope) can always resolve a
 	// root's children, even ones interned while scanning a different file. Nil
 	// falls back to indexing dump.RunTypes (the unit-test shape).
-	RefTable map[string]*protocol.RunType
+	RefTable map[string]*reflection.RunType
 	// Facts, when non-nil, memoizes the canonical-node subtree predicates
 	// (isJsonCompatible / isExtraProof) across every collect of one
 	// dispatch. See FactsTable.
@@ -192,7 +193,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	// dump.RunTypes projection may not contain.
 	refTable := opts.RefTable
 	if refTable == nil {
-		refTable = make(map[string]*protocol.RunType, len(dump.RunTypes))
+		refTable = make(map[string]*reflection.RunType, len(dump.RunTypes))
 		for _, runType := range dump.RunTypes {
 			if runType == nil || runType.ID == "" {
 				continue
@@ -209,7 +210,7 @@ func CollectFamilyEntries(dump protocol.Dump, settings constants.CacheModuleSett
 	// CompileChild; the compile pass returns CodeNS from any leaf with no emit,
 	// compound parents propagate it, and the walker's IsUnsupported flag drops
 	// the factory — see codetype.go's CodeNS contract.
-	renderEntry := func(runType *protocol.RunType, suffix string, options []string, rejectCircular bool) ([]string, bool) {
+	renderEntry := func(runType *reflection.RunType, suffix string, options []string, rejectCircular bool) ([]string, bool) {
 		if runType == nil || !emitter.Supports(runType) {
 			return nil, false
 		}
@@ -449,7 +450,7 @@ type entryRender struct {
 // a miss; we then fall through to the walker as usual and write the
 // fresh result back. Read/write errors are non-fatal — the collector
 // always produces output even when the cache is broken.
-func renderEntryWithDeps(runType *protocol.RunType, settings constants.CacheModuleSettings, emitter Emitter, innerPrefix string, refTable map[string]*protocol.RunType, opts RenderOpts, variantSuffix string, variantOptions []string, rejectCircular bool) entryRender {
+func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheModuleSettings, emitter Emitter, innerPrefix string, refTable map[string]*reflection.RunType, opts RenderOpts, variantSuffix string, variantOptions []string, rejectCircular bool) entryRender {
 	factoryName := variantFactoryName(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 	innerName := variantKey(settings, variantSuffix, variantOptions, runType.ID, rejectCircular)
 
@@ -694,7 +695,7 @@ func pureFnDepKeys(deps []protocol.PureFnDep) []string {
 // currentHash`. Because both read-time hash checks guarantee structural
 // id → hash agreement, these translations are lossless; a cache hit
 // returns the exact entryRender the fresh walk would have produced.
-func tryReadCachedEntry(runType *protocol.RunType, settings constants.CacheModuleSettings, innerPrefix string, opts RenderOpts) (entryRender, bool) {
+func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, opts RenderOpts) (entryRender, bool) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return entryRender{}, false
 	}
@@ -769,7 +770,7 @@ func splitNamespacedHash(namespaced string) (prefix string, bareHash string, ok 
 // structural id, and store the triple as a CrossFamilyRef. As with
 // ChildRefs, an unresolvable ref aborts the write cleanly rather than
 // persisting a record the reader can't verify.
-func writeCachedEntry(runType *protocol.RunType, settings constants.CacheModuleSettings, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, opts RenderOpts) {
+func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
 	}
@@ -838,24 +839,24 @@ func writeCachedEntry(runType *protocol.RunType, settings constants.CacheModuleS
 // catalog template for root-throw diagnostics. The label is family-
 // independent ("Never", "Symbol", "Function", …); per-family wording
 // lives in the catalog entry's headline/detail text.
-func leafKindLabel(leaf *protocol.RunType) string {
+func leafKindLabel(leaf *reflection.RunType) string {
 	if leaf == nil {
 		return "Unsupported"
 	}
 	switch leaf.Kind {
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return "Never"
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return "Symbol"
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return "Promise"
-	case protocol.KindFunction,
-		protocol.KindMethod,
-		protocol.KindMethodSignature,
-		protocol.KindCallSignature:
+	case reflection.KindFunction,
+		reflection.KindMethod,
+		reflection.KindMethodSignature,
+		reflection.KindCallSignature:
 		return "Function"
-	case protocol.KindClass:
-		if leaf.SubKind == protocol.SubKindNonSerializable {
+	case reflection.KindClass:
+		if leaf.SubKind == reflection.SubKindNonSerializable {
 			return "NonSerializableClass"
 		}
 		return "Class"
@@ -883,7 +884,7 @@ func leafKindLabel(leaf *protocol.RunType) string {
 //	'<message>' // alwaysThrowMessage
 //
 // See docs/ARCHITECTURE.md (disk cache format v10).
-func renderAlwaysThrowEntry(runType *protocol.RunType, innerName string, diagCode string, kindLabel string, provenance []diagnostics.Site) string {
+func renderAlwaysThrowEntry(runType *reflection.RunType, innerName string, diagCode string, kindLabel string, provenance []diagnostics.Site) string {
 	args := []string{
 		quoteJS(innerName),
 		quoteJS(rtTypeName(runType)),
@@ -917,82 +918,82 @@ func buildAlwaysThrowMessage(diagCode, kindLabel string, provenance []diagnostic
 // atomics it falls back to a name derived from the kind. Names mirror
 // the ReflectionKindName table at
 // (ref: packages/run-types/src/constants.kind.ts).
-func rtTypeName(runType *protocol.RunType) string {
+func rtTypeName(runType *reflection.RunType) string {
 	if runType.TypeName != "" {
 		return runType.TypeName
 	}
-	if runType.Kind == protocol.KindClass {
+	if runType.Kind == reflection.KindClass {
 		switch runType.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return "date"
-		case protocol.SubKindMap:
+		case reflection.SubKindMap:
 			return "map"
-		case protocol.SubKindSet:
+		case reflection.SubKindSet:
 			return "set"
 		}
 	}
 	switch runType.Kind {
-	case protocol.KindAny:
+	case reflection.KindAny:
 		return "any"
-	case protocol.KindUnknown:
+	case reflection.KindUnknown:
 		return "unknown"
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return "never"
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		return "void"
-	case protocol.KindNull:
+	case reflection.KindNull:
 		return "null"
-	case protocol.KindUndefined:
+	case reflection.KindUndefined:
 		return "undefined"
-	case protocol.KindString:
+	case reflection.KindString:
 		return "string"
-	case protocol.KindNumber:
+	case reflection.KindNumber:
 		return "number"
-	case protocol.KindBoolean:
+	case reflection.KindBoolean:
 		return "boolean"
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return "bigint"
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return "symbol"
-	case protocol.KindObject:
+	case reflection.KindObject:
 		// The ReflectionKindName maps deepkit's KindObject (4) to
 		// 'objectLiteral'; the atomic node lives at nodes/atomic/object.ts.
 		return "objectLiteral"
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		return "regexp"
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return "literal"
-	case protocol.KindEnum:
+	case reflection.KindEnum:
 		return "enum"
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return "array"
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return "objectLiteral"
-	case protocol.KindClass:
+	case reflection.KindClass:
 		return "class"
-	case protocol.KindProperty:
+	case reflection.KindProperty:
 		return "property"
-	case protocol.KindPropertySignature:
+	case reflection.KindPropertySignature:
 		return "propertySignature"
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return "indexSignature"
-	case protocol.KindFunction:
+	case reflection.KindFunction:
 		return "function"
-	case protocol.KindMethod:
+	case reflection.KindMethod:
 		return "method"
-	case protocol.KindMethodSignature:
+	case reflection.KindMethodSignature:
 		return "methodSignature"
-	case protocol.KindCallSignature:
+	case reflection.KindCallSignature:
 		return "callSignature"
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return "tuple"
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return "tupleMember"
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return "union"
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return "templateLiteral"
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return "promise"
 	}
 	return ""

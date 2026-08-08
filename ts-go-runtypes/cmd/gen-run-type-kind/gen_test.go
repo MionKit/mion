@@ -15,7 +15,7 @@ import (
 //   - packages/ts-runtypes-devtools/src/go-generated/reflectionKind.generated.ts — the Vite
 //     plugin's ReflectionKind enum + KIND_REF sentinel (GenerateDevtools).
 //
-// If someone adds a Kind*/SubKind* in internal/protocol/ but forgets to
+// If someone adds a Kind*/SubKind* in internal/reflection/ but forgets to
 // regenerate, this fails with a hint to run the codegen. It also implicitly
 // covers: the AST walker found every const (a silent miss would manifest as a
 // content diff), the JS-side names match the override map, and each file's
@@ -61,14 +61,14 @@ func TestParseConstsFoundEntries(t *testing.T) {
 	}{
 		{
 			label:              "ReflectionKind",
-			file:               moduleRoot() + "/internal/protocol/protocol.go",
+			file:               moduleRoot() + "/internal/reflection/runtype.go",
 			typeName:           "ReflectionKind",
 			prefix:             "Kind",
 			minimumExpectedLen: 30,
 		},
 		{
 			label:              "ReflectionSubKind",
-			file:               moduleRoot() + "/internal/protocol/subkind.go",
+			file:               moduleRoot() + "/internal/reflection/subkind.go",
 			typeName:           "ReflectionSubKind",
 			prefix:             "SubKind",
 			minimumExpectedLen: 5,
@@ -95,11 +95,11 @@ func TestParseConstsFoundEntries(t *testing.T) {
 // divergence introduced in the generator itself (e.g. a filtering bug) that a
 // per-file sync check would miss.
 func TestGenerateDevtoolsMatchesRunTypeKind(t *testing.T) {
-	kinds, err := parseConsts(moduleRoot()+"/internal/protocol/protocol.go", "ReflectionKind", "Kind")
+	kinds, err := parseConsts(moduleRoot()+"/internal/reflection/runtype.go", "ReflectionKind", "Kind")
 	if err != nil {
 		t.Fatalf("parse protocol.go: %v", err)
 	}
-	subKinds, err := parseConsts(moduleRoot()+"/internal/protocol/subkind.go", "ReflectionSubKind", "SubKind")
+	subKinds, err := parseConsts(moduleRoot()+"/internal/reflection/subkind.go", "ReflectionSubKind", "SubKind")
 	if err != nil {
 		t.Fatalf("parse subkind.go: %v", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Circular-type tests adapted from circularRefs.spec.ts
@@ -56,10 +56,10 @@ getRunTypeId(value);
 	assertF29CircularObject(t, r, root)
 }
 
-func assertF29CircularObject(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF29CircularObject(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 	rootID := root.ID
@@ -73,11 +73,11 @@ func assertF29CircularObject(t *testing.T, r *resolver.Session, root *protocol.R
 	}
 
 	nMember := findMember(types, root, "n")
-	if nMember == nil || deref(types, nMember.Child).Kind != protocol.KindNumber {
+	if nMember == nil || deref(types, nMember.Child).Kind != reflection.KindNumber {
 		t.Fatalf("n expected number, got %+v", nMember)
 	}
 	sMember := findMember(types, root, "s")
-	if sMember == nil || deref(types, sMember.Child).Kind != protocol.KindString {
+	if sMember == nil || deref(types, sMember.Child).Kind != reflection.KindString {
 		t.Fatalf("s expected string, got %+v", sMember)
 	}
 
@@ -100,7 +100,7 @@ func assertF29CircularObject(t *testing.T, r *resolver.Session, root *protocol.R
 	if dMember == nil || !dMember.Optional {
 		t.Fatalf("d expected optional, got %+v", dMember)
 	}
-	if dt := deref(types, dMember.Child); dt == nil || dt.Kind != protocol.KindClass || dt.TypeName != "Date" {
+	if dt := deref(types, dMember.Child); dt == nil || dt.Kind != reflection.KindClass || dt.TypeName != "Date" {
 		t.Fatalf("d.child expected KindClass Date, got %+v", dt)
 	}
 }
@@ -134,10 +134,10 @@ getRunTypeId(value);
 	assertF30CircularArrayUnion(t, r, root)
 }
 
-func assertF30CircularArrayUnion(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF30CircularArrayUnion(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindArray {
+	if root.Kind != reflection.KindArray {
 		t.Fatalf("expected outer KindArray, got %+v", root)
 	}
 	rootID := root.ID
@@ -146,15 +146,15 @@ func assertF30CircularArrayUnion(t *testing.T, r *resolver.Session, root *protoc
 	}
 
 	union := deref(types, root.Child)
-	if union == nil || union.Kind != protocol.KindUnion {
+	if union == nil || union.Kind != reflection.KindUnion {
 		t.Fatalf("expected element KindUnion, got %+v", union)
 	}
 
 	// Walk the union; one constituent must close back on rootID, and the
 	// expected scalars / Date must all appear.
-	wantKinds := map[protocol.ReflectionKind]bool{
-		protocol.KindNumber: false,
-		protocol.KindString: false,
+	wantKinds := map[reflection.ReflectionKind]bool{
+		reflection.KindNumber: false,
+		reflection.KindString: false,
 	}
 	var hasDate, hasBackEdge bool
 	for _, ref := range union.Children {
@@ -166,7 +166,7 @@ func assertF30CircularArrayUnion(t *testing.T, r *resolver.Session, root *protoc
 			hasBackEdge = true
 			continue
 		}
-		if member.Kind == protocol.KindClass && member.TypeName == "Date" {
+		if member.Kind == reflection.KindClass && member.TypeName == "Date" {
 			hasDate = true
 			continue
 		}
@@ -216,10 +216,10 @@ getRunTypeId(value);
 	assertF31CircularTuple(t, r, root)
 }
 
-func assertF31CircularTuple(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF31CircularTuple(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 	rootID := root.ID
@@ -232,7 +232,7 @@ func assertF31CircularTuple(t *testing.T, r *resolver.Session, root *protocol.Ru
 		t.Fatalf("missing 'tuple' property; types=%+v", root.Children)
 	}
 	tuple := deref(types, tupleProp.Child)
-	if tuple == nil || tuple.Kind != protocol.KindTuple {
+	if tuple == nil || tuple.Kind != reflection.KindTuple {
 		t.Fatalf("tuple.child expected KindTuple, got %+v", tuple)
 	}
 	if len(tuple.Children) != 2 {
@@ -240,18 +240,18 @@ func assertF31CircularTuple(t *testing.T, r *resolver.Session, root *protocol.Ru
 	}
 
 	first := deref(types, tuple.Children[0])
-	if first == nil || first.Kind != protocol.KindTupleMember {
+	if first == nil || first.Kind != reflection.KindTupleMember {
 		t.Fatalf("first member expected KindTupleMember, got %+v", first)
 	}
 	if first.Position == nil || *first.Position != 0 {
 		t.Fatalf("first member expected Position=0, got %+v", first.Position)
 	}
-	if firstType := deref(types, first.Child); firstType == nil || firstType.Kind != protocol.KindBigInt {
+	if firstType := deref(types, first.Child); firstType == nil || firstType.Kind != reflection.KindBigInt {
 		t.Fatalf("first member.child expected KindBigInt, got %+v", firstType)
 	}
 
 	second := deref(types, tuple.Children[1])
-	if second == nil || second.Kind != protocol.KindTupleMember {
+	if second == nil || second.Kind != reflection.KindTupleMember {
 		t.Fatalf("second member expected KindTupleMember, got %+v", second)
 	}
 	if !second.Optional {
@@ -298,10 +298,10 @@ getRunTypeId(value);
 	assertF32CircularIndex(t, r, root)
 }
 
-func assertF32CircularIndex(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF32CircularIndex(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 	rootID := root.ID
@@ -314,14 +314,14 @@ func assertF32CircularIndex(t *testing.T, r *resolver.Session, root *protocol.Ru
 		t.Fatalf("missing 'index' property; types=%+v", root.Children)
 	}
 	indexObj := deref(types, indexProp.Child)
-	if indexObj == nil || indexObj.Kind != protocol.KindObjectLiteral {
+	if indexObj == nil || indexObj.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("index.child expected KindObjectLiteral, got %+v", indexObj)
 	}
 
-	var indexSig *protocol.RunType
+	var indexSig *reflection.RunType
 	for _, ref := range indexObj.Children {
 		member := deref(types, ref)
-		if member != nil && member.Kind == protocol.KindIndexSignature {
+		if member != nil && member.Kind == reflection.KindIndexSignature {
 			indexSig = member
 			break
 		}
@@ -329,7 +329,7 @@ func assertF32CircularIndex(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if indexSig == nil {
 		t.Fatalf("expected one KindIndexSignature on index object; children=%+v", indexObj.Children)
 	}
-	if idxKey := deref(types, indexSig.Index); idxKey == nil || idxKey.Kind != protocol.KindString {
+	if idxKey := deref(types, indexSig.Index); idxKey == nil || idxKey.Kind != reflection.KindString {
 		t.Fatalf("index signature key expected KindString, got %+v", idxKey)
 	}
 	back := deref(types, indexSig.Child)
@@ -375,10 +375,10 @@ getRunTypeId(value);
 	assertF33CircularDeep(t, r, root)
 }
 
-func assertF33CircularDeep(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF33CircularDeep(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 	rootID := root.ID
@@ -408,7 +408,7 @@ func assertF33CircularDeep(t *testing.T, r *resolver.Session, root *protocol.Run
 // walkProp drills from `parent` into the named property's resolved child
 // object. Fails the test on a missing property or a non-object-literal
 // child. Used by the F33 deep-walk assertion.
-func walkProp(t *testing.T, types []*protocol.RunType, parent *protocol.RunType, name string, expectOptional bool) *protocol.RunType {
+func walkProp(t *testing.T, types []*reflection.RunType, parent *reflection.RunType, name string, expectOptional bool) *reflection.RunType {
 	t.Helper()
 	member := findMember(types, parent, name)
 	if member == nil {
@@ -418,7 +418,7 @@ func walkProp(t *testing.T, types []*protocol.RunType, parent *protocol.RunType,
 		t.Fatalf("%s.%s expected Optional=true, got %+v", parent.ID, name, member)
 	}
 	child := deref(types, member.Child)
-	if child == nil || child.Kind != protocol.KindObjectLiteral {
+	if child == nil || child.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("%s.%s child expected KindObjectLiteral, got %+v", parent.ID, name, child)
 	}
 	return child
@@ -512,10 +512,10 @@ getRunTypeId(value);
 	assertF34NestedAndMultipleCircular(t, r, root)
 }
 
-func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected RootCircular KindObjectLiteral, got %+v", root)
 	}
 	// TypeName is only populated for `type X = ...` aliases, not `interface
@@ -529,7 +529,7 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 		t.Fatalf("missing 'isRoot' on RootCircular; children=%+v", root.Children)
 	}
 	isRootChild := deref(types, isRoot.Child)
-	if isRootChild == nil || isRootChild.Kind != protocol.KindLiteral {
+	if isRootChild == nil || isRootChild.Kind != reflection.KindLiteral {
 		t.Fatalf("isRoot.child expected KindLiteral, got %+v", isRootChild)
 	}
 	if v, ok := isRootChild.Literal.(bool); !ok || !v {
@@ -542,7 +542,7 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 		t.Fatalf("missing 'ciChild'; children=%+v", root.Children)
 	}
 	icDeep := deref(types, ciChild.Child)
-	if icDeep == nil || icDeep.Kind != protocol.KindObjectLiteral {
+	if icDeep == nil || icDeep.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("ciChild.child expected KindObjectLiteral, got %+v", icDeep)
 	}
 	icDeepID := icDeep.ID
@@ -569,7 +569,7 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 		t.Fatalf("missing 'ciDate'; children=%+v", root.Children)
 	}
 	icDate := deref(types, ciDate.Child)
-	if icDate == nil || icDate.Kind != protocol.KindObjectLiteral {
+	if icDate == nil || icDate.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("ciDate.child expected KindObjectLiteral, got %+v", icDate)
 	}
 	icDateID := icDate.ID
@@ -581,10 +581,10 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 	}
 
 	// ----- ICircularDeep internals: name/string, big/bigint, embedded → inline obj -----
-	if name := findMember(types, icDeep, "name"); name == nil || deref(types, name.Child).Kind != protocol.KindString {
+	if name := findMember(types, icDeep, "name"); name == nil || deref(types, name.Child).Kind != reflection.KindString {
 		t.Fatalf("ICircularDeep.name expected string, got %+v", name)
 	}
-	if big := findMember(types, icDeep, "big"); big == nil || deref(types, big.Child).Kind != protocol.KindBigInt {
+	if big := findMember(types, icDeep, "big"); big == nil || deref(types, big.Child).Kind != reflection.KindBigInt {
 		t.Fatalf("ICircularDeep.big expected bigint, got %+v", big)
 	}
 	embedded := findMember(types, icDeep, "embedded")
@@ -592,10 +592,10 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 		t.Fatalf("missing 'embedded' on ICircularDeep; children=%+v", icDeep.Children)
 	}
 	embeddedObj := deref(types, embedded.Child)
-	if embeddedObj == nil || embeddedObj.Kind != protocol.KindObjectLiteral {
+	if embeddedObj == nil || embeddedObj.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("embedded.child expected KindObjectLiteral, got %+v", embeddedObj)
 	}
-	if hello := findMember(types, embeddedObj, "hello"); hello == nil || deref(types, hello.Child).Kind != protocol.KindString {
+	if hello := findMember(types, embeddedObj, "hello"); hello == nil || deref(types, hello.Child).Kind != reflection.KindString {
 		t.Fatalf("embedded.hello expected string, got %+v", hello)
 	}
 	child := findMember(types, embeddedObj, "child")
@@ -614,13 +614,13 @@ func assertF34NestedAndMultipleCircular(t *testing.T, r *resolver.Session, root 
 	//       embedded?/ICircularDate (self back-edge), deep?/ICircularDeep -----
 	if date := findMember(types, icDate, "date"); date == nil {
 		t.Fatalf("missing 'date' on ICircularDate; children=%+v", icDate.Children)
-	} else if dt := deref(types, date.Child); dt == nil || dt.Kind != protocol.KindClass || dt.TypeName != "Date" {
+	} else if dt := deref(types, date.Child); dt == nil || dt.Kind != reflection.KindClass || dt.TypeName != "Date" {
 		t.Fatalf("date.child expected KindClass Date, got %+v", dt)
 	}
-	if month := findMember(types, icDate, "month"); month == nil || deref(types, month.Child).Kind != protocol.KindNumber {
+	if month := findMember(types, icDate, "month"); month == nil || deref(types, month.Child).Kind != reflection.KindNumber {
 		t.Fatalf("month expected number, got %+v", month)
 	}
-	if year := findMember(types, icDate, "year"); year == nil || deref(types, year.Child).Kind != protocol.KindNumber {
+	if year := findMember(types, icDate, "year"); year == nil || deref(types, year.Child).Kind != reflection.KindNumber {
 		t.Fatalf("year expected number, got %+v", year)
 	}
 	dateEmbedded := findMember(types, icDate, "embedded")
