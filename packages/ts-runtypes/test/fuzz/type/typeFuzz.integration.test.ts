@@ -12,6 +12,7 @@
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
+import {soakTestTimeout} from '../core/soakBudget.ts';
 
 describe('fuzz / type-generation — oracle sweep over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -48,6 +49,6 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
       );
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 60_000
+    soakTestTimeout(soakMs)
   );
 });

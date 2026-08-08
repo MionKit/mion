@@ -14,6 +14,7 @@
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './sizeFuzzRunner.ts';
 import {runSizeFuzz, runSizeFuzzForDuration} from './sizeFuzzRunner.ts';
+import {soakTestTimeout} from '../core/soakBudget.ts';
 
 describe('fuzz / binary size estimate — sound for in-bounds data', () => {
   const register = hasBinary() ? it : it.skip;
@@ -58,6 +59,6 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
       );
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 60_000
+    soakTestTimeout(soakMs)
   );
 });

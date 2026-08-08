@@ -11,6 +11,7 @@
 // and as a standalone long-running soak (see runFuzzForDuration).
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startSoakBudget} from '../core/soakBudget.ts';
 import {mutateToInvalid} from './invalidValue.ts';
 import {
   checkBinaryStable,
@@ -71,9 +72,12 @@ export function runFuzzForDuration(
   const violations: Violation[] = [];
   let runs = 0;
   let round = 0;
-  const deadline = Date.now() + durationMs;
+  // One "iteration" is a full round over every target — the budget refuses to
+  // start a round the remaining time cannot pay for, so the soak lands inside
+  // its wall clock instead of overshooting by a whole round.
+  const budget = startSoakBudget(durationMs);
 
-  while (Date.now() < deadline) {
+  while (budget.canStart()) {
     for (const target of targets) {
       const iterSeed = mixSeed(seed, target.title, round);
       withSeededRandom(iterSeed, () => {
@@ -84,6 +88,7 @@ export function runFuzzForDuration(
       });
     }
     round++;
+    budget.mark();
   }
   return {runs, iterations: round, seed, violations};
 }

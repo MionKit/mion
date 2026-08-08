@@ -30,6 +30,7 @@ import {RUNTYPES_DTS} from '../../../../ts-runtypes-devtools/test/helpers/inline
 import {hasBinary, openClient} from '../type/typeFuzzHarness.ts';
 import {typecheckSource} from '../type/tsValidate.ts';
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startSoakBudget, soakTestTimeout} from '../core/soakBudget.ts';
 import {
   FUZZ_EMAIL_PATTERN,
   FUZZ_FORMAT_PREAMBLE,
@@ -189,12 +190,13 @@ async function runBatch(baseSeed: number, iterations: number): Promise<Report> {
 async function runForDuration(baseSeed: number, ms: number, onViolation: (v: Violation) => void): Promise<Report> {
   const report: Report = {runs: 0, violations: [], skippedInvalidTypes: 0};
   const holder = new ClientHolder();
-  const deadline = Date.now() + ms;
+  const budget = startSoakBudget(ms);
   try {
-    for (let i = 0; Date.now() < deadline; i++) {
+    for (let i = 0; budget.canStart(); i++) {
       const before = report.violations.length;
       await runOne(holder, mixSeed(baseSeed, 'jsonschema', i), report);
       for (const v of report.violations.slice(before)) onViolation(v);
+      budget.mark();
     }
   } finally {
     holder.close();
@@ -239,6 +241,6 @@ describe('fuzz / json-schema translation — FromJsonSchema converges with type-
       );
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 60_000
+    soakTestTimeout(soakMs)
   );
 });

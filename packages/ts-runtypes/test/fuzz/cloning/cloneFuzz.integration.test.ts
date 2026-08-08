@@ -29,6 +29,7 @@
 import {describe, it, expect} from 'vitest';
 import {createCloneExactShapeFn, createHasUnknownKeysFn, createMockDataFn, createValidateFn, getRunType} from '@ts-runtypes/core';
 import {runCloneFuzz, runCloneFuzzForDuration} from './cloneFuzzRunner.ts';
+import {soakTestTimeout} from '../core/soakBudget.ts';
 import type {CloneFuzzTarget} from './cloneOracle.ts';
 
 // Class corpus members need a single module-scope identity shared by every
@@ -548,6 +549,6 @@ describe('fuzz / cloning — oracle sweep over compiled createCloneExactShapeFn'
       console.error(`[fuzz] clone soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 30_000
+    soakTestTimeout(soakMs)
   );
 });

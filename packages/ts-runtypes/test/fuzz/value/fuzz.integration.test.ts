@@ -21,6 +21,7 @@ import {
   createBinaryDecoderFn,
 } from '@ts-runtypes/core';
 import {runFuzz, runFuzzForDuration} from './fuzzRunner.ts';
+import {soakTestTimeout} from '../core/soakBudget.ts';
 import type {FuzzTarget} from './fuzzOracle.ts';
 
 const targets: FuzzTarget[] = [];
@@ -150,6 +151,6 @@ describe('fuzz / integration — oracle sweep over compiled functions', () => {
       console.error(`[fuzz] soak finished: ${report.runs} runs, ${report.violations.length} violation(s)`);
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 30_000
+    soakTestTimeout(soakMs)
   );
 });

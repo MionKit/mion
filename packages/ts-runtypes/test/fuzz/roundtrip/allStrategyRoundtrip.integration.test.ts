@@ -11,6 +11,7 @@
 import {describe, it, expect} from 'vitest';
 import {hasBinary} from './roundtripHarness.ts';
 import {runRoundtripFuzz, runRoundtripFuzzForDuration} from './roundtripRunner.ts';
+import {soakTestTimeout} from '../core/soakBudget.ts';
 
 describe('fuzz / all-strategy round-trip — every codec agrees over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -52,6 +53,6 @@ describe('fuzz / all-strategy round-trip — every codec agrees over generated t
       );
       expect(report.violations).toHaveLength(0);
     },
-    soakMs + 60_000
+    soakTestTimeout(soakMs)
   );
 });

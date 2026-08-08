@@ -12,6 +12,7 @@
 // Vitest and as a standalone long-running soak (see runCloneFuzzForDuration).
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startSoakBudget} from '../core/soakBudget.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
 import {deepCopyValue, mutateWithExtras} from './extrasValue.ts';
 import {
@@ -71,9 +72,10 @@ export function runCloneFuzzForDuration(
   const violations: CloneViolation[] = [];
   let runs = 0;
   let round = 0;
-  const deadline = Date.now() + durationMs;
+  // One "iteration" is a full round over every target (see runFuzzForDuration).
+  const budget = startSoakBudget(durationMs);
 
-  while (Date.now() < deadline) {
+  while (budget.canStart()) {
     for (const target of targets) {
       const iterSeed = mixSeed(seed, target.title, round);
       withSeededRandom(iterSeed, () => {
@@ -84,6 +86,7 @@ export function runCloneFuzzForDuration(
       });
     }
     round++;
+    budget.mark();
   }
   return {runs, iterations: round, seed, violations};
 }

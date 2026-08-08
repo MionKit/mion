@@ -59,6 +59,12 @@ const FUZZ = {
   types: {patterns: ['typeFuzz.integration'], soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
   jsonschema: {patterns: ['jsonSchemaFuzz.integration'], soak: {RT_FUZZ_JSONSCHEMA_SOAK_MS: '60000'}},
   cloning: {patterns: ['cloneFuzz.integration'], soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
+  // The three compile-bound lanes whose RT_FUZZ_*_SOAK_MS vars were registered
+  // (scripts/lib/env.mjs) but had no entry here, so the documented front door
+  // could not reach them at all — `types` does NOT match nonDataTypeFuzz.
+  nondata: {patterns: ['nonDataTypeFuzz.integration'], soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
+  roundtrip: {patterns: ['allStrategyRoundtrip.integration'], soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
+  size: {patterns: ['binarySizeEstimate.integration'], soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
   enrich: {patterns: ['enrichFuzz.integration'], soak: {RT_FUZZ_ENRICH_SEQUENCES: '400', RT_FUZZ_ENRICH_MAXCMDS: '24'}},
   i18n: {patterns: ['i18nFuzz.integration'], soak: {RT_FUZZ_I18N_SEQUENCES: '400', RT_FUZZ_I18N_MAXCMDS: '24'}},
   typemod: {patterns: ['typeModFuzz.integration'], soak: {RT_FUZZ_TYPEMOD_REPORT: '1', RT_FUZZ_TYPEMOD_SEQUENCES: '400', RT_FUZZ_TYPEMOD_MAXSTEPS: '20'}},

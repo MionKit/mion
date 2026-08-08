@@ -22,6 +22,7 @@
 // reported violation replays exactly.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startSoakBudget} from '../core/soakBudget.ts';
 import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {compileType, openClient, renderFixture, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
@@ -151,14 +152,15 @@ export async function runTypeFuzzForDuration(
   const holder = new ClientHolder();
   let runs = 0;
   let round = 0;
-  const deadline = Date.now() + durationMs;
+  const budget = startSoakBudget(durationMs);
   try {
-    while (Date.now() < deadline) {
+    while (budget.canStart()) {
       runs++;
       const before = violations.length;
       await fuzzOneType(holder, mixSeed(seed, 'type', round), gen, valueSource, violations, stats);
       if (onViolation) for (let k = before; k < violations.length; k++) onViolation(violations[k]);
       round++;
+      budget.mark();
     }
   } finally {
     holder.close();

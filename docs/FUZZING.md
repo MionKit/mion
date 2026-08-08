@@ -136,8 +136,17 @@ follow-up.
 
 All suites run through the internal CLI: `pnpm rtx core fuzz <suite> [--soak]`. It
 builds the binary + plugin first (except `unit`, which needs neither) and sets the
-suite's `RT_FUZZ_*` env for you. Suites: `unit | value | types | enrich | i18n |
-typemod | race | all`.
+suite's `RT_FUZZ_*` env for you. Suites: `unit | value | types | nondata |
+roundtrip | size | jsonschema | cloning | enrich | i18n | typemod | race |
+sidecar | patterngen | all`.
+
+A `--soak` run is bounded by its own wall clock: the runner refuses to start an
+iteration the remaining budget cannot pay for
+([`core/soakBudget.ts`](../packages/ts-runtypes/test/fuzz/core/soakBudget.ts)),
+and every soak test sizes its vitest timeout with `soakTestTimeout(soakMs)` from
+the same module. Before that, the runners only bounded when an iteration could
+START, so a compile-bound lane overshot its budget and vitest reported a CLEAN
+soak as a timeout failure.
 
 ```bash
 # offline unit tests — pure logic, no Go binary needed
