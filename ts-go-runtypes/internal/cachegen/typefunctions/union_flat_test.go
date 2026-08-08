@@ -6,13 +6,14 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // makeRef returns a KindRef sentinel pointing at the supplied id —
 // children inside a union/object live on the wire as refs (see
-// internal/protocol). Tests build the same shape.
-func makeRef(id string) *protocol.RunType {
-	return &protocol.RunType{Kind: protocol.KindRef, ID: id}
+// internal/reflection). Tests build the same shape.
+func makeRef(id string) *reflection.RunType {
+	return &reflection.RunType{Kind: reflection.KindRef, ID: id}
 }
 
 // buildBigIntDateUnionFixture builds an objectLiteral union with two
@@ -23,33 +24,33 @@ func makeRef(id string) *protocol.RunType {
 // Every property is required. Two disjoint object members with
 // non-overlapping property names exercise the merged-encode path
 // without any conflict resolution.
-func buildBigIntDateUnionFixture() []*protocol.RunType {
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	number := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
+func buildBigIntDateUnionFixture() []*reflection.RunType {
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	number := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	propB := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("dat")}
-	propC := &protocol.RunType{ID: "pc", Kind: protocol.KindProperty, Name: "c", IsSafeName: true, Child: makeRef("num")}
-	propD := &protocol.RunType{ID: "pd", Kind: protocol.KindProperty, Name: "d", IsSafeName: true, Child: makeRef("str")}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("dat")}
+	propC := &reflection.RunType{ID: "pc", Kind: reflection.KindProperty, Name: "c", IsSafeName: true, Child: makeRef("num")}
+	propD := &reflection.RunType{ID: "pd", Kind: reflection.KindProperty, Name: "d", IsSafeName: true, Child: makeRef("str")}
 
-	obj1 := &protocol.RunType{
-		ID: "ob1", Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{makeRef("pa"), makeRef("pb")},
+	obj1 := &reflection.RunType{
+		ID: "ob1", Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{makeRef("pa"), makeRef("pb")},
 	}
-	obj2 := &protocol.RunType{
-		ID: "ob2", Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{makeRef("pc"), makeRef("pd")},
-	}
-
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
+	obj2 := &reflection.RunType{
+		ID: "ob2", Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{makeRef("pc"), makeRef("pd")},
 	}
 
-	return []*protocol.RunType{
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+	}
+
+	return []*reflection.RunType{
 		bigint, date, number, str,
 		propA, propB, propC, propD,
 		obj1, obj2,
@@ -164,30 +165,30 @@ func TestStringifyJsonModule_ObjectUnionEmitsFlatEnvelope(t *testing.T) {
 // should collapse to flat string concat matching the non-flat
 // per-member factory shape.
 func TestStringifyJsonModule_RequiredPropsSkipUndefinedGuard(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	litA := &protocol.RunType{ID: "litA", Kind: protocol.KindLiteral, Literal: "a"}
-	litB := &protocol.RunType{ID: "litB", Kind: protocol.KindLiteral, Literal: "b"}
-	litC := &protocol.RunType{ID: "litC", Kind: protocol.KindLiteral, Literal: "c"}
-	pdA := &protocol.RunType{ID: "pdA", Kind: protocol.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litA")}
-	pdB := &protocol.RunType{ID: "pdB", Kind: protocol.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litB")}
-	pdC := &protocol.RunType{ID: "pdC", Kind: protocol.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litC")}
-	pnA := &protocol.RunType{ID: "pnA", Kind: protocol.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
-	pnB := &protocol.RunType{ID: "pnB", Kind: protocol.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
-	pnC := &protocol.RunType{ID: "pnC", Kind: protocol.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
-	pdaA := &protocol.RunType{ID: "pdaA", Kind: protocol.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
-	pdaB := &protocol.RunType{ID: "pdaB", Kind: protocol.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
-	pdaC := &protocol.RunType{ID: "pdaC", Kind: protocol.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
-	obA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pdA"), makeRef("pnA"), makeRef("pdaA")}}
-	obB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pdB"), makeRef("pnB"), makeRef("pdaB")}}
-	obC := &protocol.RunType{ID: "obC", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pdC"), makeRef("pnC"), makeRef("pdaC")}}
-	union := &protocol.RunType{
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	litA := &reflection.RunType{ID: "litA", Kind: reflection.KindLiteral, Literal: "a"}
+	litB := &reflection.RunType{ID: "litB", Kind: reflection.KindLiteral, Literal: "b"}
+	litC := &reflection.RunType{ID: "litC", Kind: reflection.KindLiteral, Literal: "c"}
+	pdA := &reflection.RunType{ID: "pdA", Kind: reflection.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litA")}
+	pdB := &reflection.RunType{ID: "pdB", Kind: reflection.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litB")}
+	pdC := &reflection.RunType{ID: "pdC", Kind: reflection.KindProperty, Name: "discriminator", IsSafeName: true, Child: makeRef("litC")}
+	pnA := &reflection.RunType{ID: "pnA", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
+	pnB := &reflection.RunType{ID: "pnB", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
+	pnC := &reflection.RunType{ID: "pnC", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("str")}
+	pdaA := &reflection.RunType{ID: "pdaA", Kind: reflection.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
+	pdaB := &reflection.RunType{ID: "pdaB", Kind: reflection.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
+	pdaC := &reflection.RunType{ID: "pdaC", Kind: reflection.KindProperty, Name: "date", IsSafeName: true, Child: makeRef("dat")}
+	obA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pdA"), makeRef("pnA"), makeRef("pdaA")}}
+	obB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pdB"), makeRef("pnB"), makeRef("pdaB")}}
+	obC := &reflection.RunType{ID: "obC", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pdC"), makeRef("pnC"), makeRef("pdaC")}}
+	union := &reflection.RunType{
 		ID:                "uni",
-		Kind:              protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB"), makeRef("obC")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB"), makeRef("obC")},
+		Kind:              reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB"), makeRef("obC")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB"), makeRef("obC")},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{
 		str, date, litA, litB, litC,
 		pdA, pdB, pdC, pnA, pnB, pnC, pdaA, pdaB, pdaC,
 		obA, obB, obC, union,
@@ -221,19 +222,19 @@ func TestStringifyJsonModule_RequiredPropsSkipUndefinedGuard(t *testing.T) {
 // skipped the string wrap, but that left the decoder relying on a
 // fragile shape gate to distinguish wrapped from raw values.
 func TestPrepareForJsonModule_MixedUnionWrapsEveryMember(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	obj := &protocol.RunType{
-		ID: "ob1", Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{makeRef("pa")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	obj := &reflection.RunType{
+		ID: "ob1", Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{makeRef("pa")},
 	}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("ob1")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("ob1")},
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("ob1")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("ob1")},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{str, bigint, propA, obj, union}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{str, bigint, propA, obj, union}}
 	out := renderModuleDefault(t, dump, "prepareForJson")
 
 	// Object branch exists so string member MUST wrap too — every
@@ -257,18 +258,18 @@ func TestPrepareForJsonModule_MixedUnionWrapsEveryMember(t *testing.T) {
 // emit an inline validate dispatch + `[subIdx, value]` wrap on `v.a` so
 // the decoder can distinguish them.
 func TestPrepareForJsonModule_ConflictingPropSynthesizesSubUnion(t *testing.T) {
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	propABig := &protocol.RunType{ID: "pab", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	propADat := &protocol.RunType{ID: "pad", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
-	obj1 := &protocol.RunType{ID: "ob1", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pab")}}
-	obj2 := &protocol.RunType{ID: "ob2", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pad")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	propABig := &reflection.RunType{ID: "pab", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	propADat := &reflection.RunType{ID: "pad", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
+	obj1 := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pab")}}
+	obj2 := &reflection.RunType{ID: "ob2", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pad")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{bigint, date, propABig, propADat, obj1, obj2, union}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{bigint, date, propABig, propADat, obj1, obj2, union}}
 	out := renderModuleDefault(t, dump, "prepareForJson")
 
 	if !strings.Contains(out, "v.a = [0, v.a]") {

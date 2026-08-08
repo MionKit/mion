@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // domainEmitter implements the format named "domain" — FormatDomain /
@@ -27,10 +27,10 @@ func init() {
 	formats.Register(domainEmitter{})
 }
 
-func (domainEmitter) Name() string                  { return "domain" }
-func (domainEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (domainEmitter) Name() string                    { return "domain" }
+func (domainEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-func (domainEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (domainEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation != nil && domainHasNames(annotation.Params) {
 		return domainValidateExprFor(ctx, annotation.Params, vλl)
 	}
@@ -40,7 +40,7 @@ func (domainEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, v�
 	return namedPatternValidate(ctx, annotation, vλl)
 }
 
-func (domainEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (domainEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation != nil && domainHasNames(annotation.Params) {
 		return domainErrorsBlockFor(ctx, annotation.Params, vλl, pathExpr, errorsArr)
 	}
@@ -53,14 +53,14 @@ func (domainEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnota
 
 // EmitFormatTransform lowercases the domain (ref: domain.runtype.ts:229
 // — all domains are case-insensitive, canonicalised to lower case).
-func (domainEmitter) EmitFormatTransform(_ *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (domainEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	return vλl + ".toLowerCase()"
 }
 
 // ValidateParams ports DomainRunTypeFormat.validateParams
 // (ref: domain.runtype.ts:235-248): names/tld travel together, are mutually
 // exclusive with pattern, and the length/part bounds stay in range.
-func (domainEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (domainEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

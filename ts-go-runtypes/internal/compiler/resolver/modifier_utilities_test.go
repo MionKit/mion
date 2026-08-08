@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -19,13 +19,13 @@ import (
 // =========================================================================
 
 // findProp returns a member of an object-like root by name, or nil.
-func findProp(types []*protocol.RunType, root *protocol.RunType, name string) *protocol.RunType {
+func findProp(types []*reflection.RunType, root *reflection.RunType, name string) *reflection.RunType {
 	for _, ref := range root.Children {
 		member := deref(types, ref)
 		if member == nil {
 			continue
 		}
-		if (member.Kind == protocol.KindProperty || member.Kind == protocol.KindPropertySignature) && member.Name == name {
+		if (member.Kind == reflection.KindProperty || member.Kind == reflection.KindPropertySignature) && member.Name == name {
 			return member
 		}
 	}

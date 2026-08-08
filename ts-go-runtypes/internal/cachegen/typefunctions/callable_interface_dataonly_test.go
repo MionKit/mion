@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // F2: a callable interface (an object literal carrying a call signature) is
@@ -15,22 +16,22 @@ import (
 // the serializers walked it as a plain object and serialized its data props,
 // disagreeing with validate (the cross-family inconsistency the fuzzer found).
 
-func callableInterface(id string, withProp bool) []*protocol.RunType {
-	csig := &protocol.RunType{ID: id + "_csig", Kind: protocol.KindCallSignature}
-	children := []*protocol.RunType{makeRef(id + "_csig")}
-	out := []*protocol.RunType{csig}
+func callableInterface(id string, withProp bool) []*reflection.RunType {
+	csig := &reflection.RunType{ID: id + "_csig", Kind: reflection.KindCallSignature}
+	children := []*reflection.RunType{makeRef(id + "_csig")}
+	out := []*reflection.RunType{csig}
 	if withProp {
-		prop := &protocol.RunType{ID: id + "_pp", Kind: protocol.KindPropertySignature, Name: "p", Child: makeRef("str")}
+		prop := &reflection.RunType{ID: id + "_pp", Kind: reflection.KindPropertySignature, Name: "p", Child: makeRef("str")}
 		out = append(out, prop)
 		children = append(children, makeRef(id+"_pp"))
 	}
-	out = append(out, &protocol.RunType{ID: id, Kind: protocol.KindObjectLiteral, Children: children})
+	out = append(out, &reflection.RunType{ID: id, Kind: reflection.KindObjectLiteral, Children: children})
 	return out
 }
 
 func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 	parts := callableInterface("cal", true)
-	dump := protocol.Dump{RunTypes: append([]*protocol.RunType{mkStr()}, parts...)}
+	dump := protocol.Dump{RunTypes: append([]*reflection.RunType{mkStr()}, parts...)}
 
 	// Every serializer treats a root callable interface as function-like →
 	// alwaysThrow (no real `_cal(` factory body).
@@ -53,10 +54,10 @@ func TestCallableInterface_FunctionLikeAtRoot(t *testing.T) {
 // end-to-end by the non-data fuzz lane.)
 func TestCallableInterface_PropertyDoesNotFailObject(t *testing.T) {
 	parts := callableInterface("cal", true)
-	propX := &protocol.RunType{ID: "px", Kind: protocol.KindPropertySignature, Name: "x", Child: makeRef("cal")}
-	propY := &protocol.RunType{ID: "py", Kind: protocol.KindPropertySignature, Name: "y", Child: makeRef("str")}
-	outer := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("px"), makeRef("py")}}
-	dump := protocol.Dump{RunTypes: append(append([]*protocol.RunType{mkStr()}, parts...), propX, propY, outer)}
+	propX := &reflection.RunType{ID: "px", Kind: reflection.KindPropertySignature, Name: "x", Child: makeRef("cal")}
+	propY := &reflection.RunType{ID: "py", Kind: reflection.KindPropertySignature, Name: "y", Child: makeRef("str")}
+	outer := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("px"), makeRef("py")}}
+	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), propX, propY, outer)}
 
 	for _, fam := range []string{"validate", "prepareForJson", "prepareForJsonSafe", "stringifyJson", "restoreFromJson", "toBinary", "fromBinary"} {
 		out := renderModule(t, dump, fam)
@@ -87,8 +88,8 @@ func TestF2b_CallableInArrayElementAlwaysThrows(t *testing.T) {
 		"fromBinary":         "FB003",
 	}
 	parts := callableInterface("cal", true)
-	arr := &protocol.RunType{ID: "arr", Kind: protocol.KindArray, Child: makeRef("cal")}
-	dump := protocol.Dump{RunTypes: append(append([]*protocol.RunType{mkStr()}, parts...), arr)}
+	arr := &reflection.RunType{ID: "arr", Kind: reflection.KindArray, Child: makeRef("cal")}
+	dump := protocol.Dump{RunTypes: append(append([]*reflection.RunType{mkStr()}, parts...), arr)}
 
 	for fam, code := range functionRootCodes {
 		out, sink := renderWithDiag(t, dump, fam, "arr")

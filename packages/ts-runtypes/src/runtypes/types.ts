@@ -61,7 +61,8 @@ export interface CompiledPureFunction extends PureFunctionData {
 // ########################################### Run types ##############################################
 
 /** The sentinel-lifted JSON Schema constraint checks a RunType can carry —
- *  the runtime mirror of the Go-side SchemaChecks group (protocol.go). Every
+ *  the runtime mirror of the Go-side SchemaChecks group
+ *  (internal/reflection/runtype.go). Every
  *  member comes from a `__rt…` sentinel (`__rtNot` / `__rtContains` /
  *  `__rtPatternProps` / `__rtPropNames` / `__rtOneOf` / `__rtUnevaluated`),
  *  folds into the structural id, and drives validate/validationErrors only;

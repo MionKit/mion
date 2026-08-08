@@ -2,7 +2,7 @@ package string
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // ipEmitter implements the format named "ip" — FormatIP / FormatIPv4 /
@@ -17,8 +17,8 @@ func init() {
 	formats.Register(ipEmitter{})
 }
 
-func (ipEmitter) Name() string                  { return "ip" }
-func (ipEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (ipEmitter) Name() string                    { return "ip" }
+func (ipEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // ipVersion reads the `version` param. Accepts 4 / 6 (numeric) and
 // 'any' (string). Defaults to "any" when absent — matches the
@@ -58,14 +58,14 @@ func ipCheckExpr(params map[string]any, vλl string, ctx formats.EmitContext) st
 	}
 }
 
-func (ipEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (ipEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
 	return ipCheckExpr(annotation.Params, vλl, ctx)
 }
 
-func (ipEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (ipEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -81,12 +81,12 @@ func (ipEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation
 
 // EmitFormatTransform lowercases the IP (ref: ip.runtype.ts:44 —
 // canonicalises IPv6 hex digits to lower case; a no-op for IPv4).
-func (ipEmitter) EmitFormatTransform(_ *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (ipEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	return vλl + ".toLowerCase()"
 }
 
 // ValidateParams checks the `version` param is 4, 6, or 'any' when present.
-func (ipEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (ipEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

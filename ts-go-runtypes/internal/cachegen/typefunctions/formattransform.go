@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // FormatTransformEmitter implements the `format` rt function — the value-transform
@@ -35,11 +35,11 @@ func (FormatTransformEmitter) Args() []ArgSpec {
 // transform, so the renderer emits a — usually noop — entry per runtype.
 // That keeps createFormatTransformFn<T> resolving to a real fn and parent dep-calls
 // hitting a live factory, exactly like the JSON-transform families.
-func (FormatTransformEmitter) Supports(rt *protocol.RunType) bool {
+func (FormatTransformEmitter) Supports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
 	}
-	if rt.Kind == protocol.KindArray {
+	if rt.Kind == reflection.KindArray {
 		return rt.Child != nil
 	}
 	return true
@@ -50,7 +50,7 @@ func (FormatTransformEmitter) Supports(rt *protocol.RunType) bool {
 // everything, since identity is valid), this gates the resolver's
 // AddedFormatTransform HMR signal so the format cache is only invalidated for
 // schemas that actually use a transform.
-func AnyFormatTransformSupported(runTypes []*protocol.RunType) bool {
+func AnyFormatTransformSupported(runTypes []*reflection.RunType) bool {
 	for _, rt := range runTypes {
 		if nodeFormatTransform(rt, "v") != "" {
 			return true
@@ -72,7 +72,7 @@ func (FormatTransformEmitter) IsRTInlined(ctx *InlineContext) bool {
 // (noop_types.go isNoopForFormatTransform) proves "no value-transforming
 // format and no fmt override reachable", letting parents compose around such
 // children and collapse to the short form themselves.
-func (FormatTransformEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (FormatTransformEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForFormatTransform(rt, ctx)
 }
 
@@ -88,39 +88,39 @@ func (FormatTransformEmitter) ReturnName() string {
 // Emit dispatches the per-kind switch. Only format-branded strings
 // transform; collections recurse to reach them; everything else is
 // identity (empty CodeS, collapsed to `return v` by Finalize).
-func (FormatTransformEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (FormatTransformEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
-	case protocol.KindString:
+	case reflection.KindString:
 		if expr := nodeFormatTransform(rt, v); expr != "" {
 			return RTCode{Code: v + " = " + expr, Type: CodeE}
 		}
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectFormat(rt, ctx, v)
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		// User classes recurse like objects; Date / Map / Set / native
 		// classes carry no string-format children to transform.
-		if rt.SubKind == protocol.SubKindNone {
+		if rt.SubKind == reflection.SubKindNone {
 			return emitObjectFormat(rt, ctx, v)
 		}
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyFormat(rt, ctx, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayFormat(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleFormat(rt, ctx, v)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberFormat(rt, ctx, v)
 	}
 	// Every other kind (number / boolean / union / intersection / Map /
@@ -133,7 +133,7 @@ func (FormatTransformEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 // carries no format or its format specifies no transform (uuid / date /
 // length-only stringFormat / …). Dispatches through the optional
 // formats.FormatTransformer capability.
-func nodeFormatTransform(rt *protocol.RunType, v string) string {
+func nodeFormatTransform(rt *reflection.RunType, v string) string {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return ""
 	}
@@ -153,7 +153,7 @@ func nodeFormatTransform(rt *protocol.RunType, v string) string {
 
 // emitObjectFormat recurses each non-function, non-static child property
 // and joins the transform statements. Empty when nothing transforms.
-func emitObjectFormat(rt *protocol.RunType, ctx *EmitContext, _ string) RTCode {
+func emitObjectFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode {
 	var parts []string
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -173,7 +173,7 @@ func emitObjectFormat(rt *protocol.RunType, ctx *EmitContext, _ string) RTCode {
 
 // emitPropertyFormat sets the property accessor, recurses, and wraps the
 // undefined-guard for optional properties.
-func emitPropertyFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitPropertyFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -196,7 +196,7 @@ func emitPropertyFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode
 
 // emitArrayFormat loops the element accessor `v[i]` and applies the
 // element transform. Empty child code collapses the loop to a noop.
-func emitArrayFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitArrayFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -212,7 +212,7 @@ func emitArrayFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
 }
 
 // emitTupleFormat recurses each tuple member, joining the transforms.
-func emitTupleFormat(rt *protocol.RunType, ctx *EmitContext, _ string) RTCode {
+func emitTupleFormat(rt *reflection.RunType, ctx *EmitContext, _ string) RTCode {
 	var parts []string
 	for _, child := range rt.Children {
 		childRT := ctx.CompileChild(child, CodeS)
@@ -228,7 +228,7 @@ func emitTupleFormat(rt *protocol.RunType, ctx *EmitContext, _ string) RTCode {
 
 // emitTupleMemberFormat sets the positional accessor `v[i]` (or a rest
 // loop) and applies the member transform.
-func emitTupleMemberFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleMemberFormat(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -262,7 +262,7 @@ func emitTupleMemberFormat(rt *protocol.RunType, ctx *EmitContext, v string) RTC
 // EmitDependencyCall mirrors PrepareForJsonEmitter — the inner factory
 // mutates / rebinds its local `v`, so the caller captures the return:
 // `<vλl> = <childHash>.fn(<vλl>)`. Self-recursive calls drop `.fn`.
-func (FormatTransformEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (FormatTransformEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 

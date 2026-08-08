@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 const formattedArrayName = "formattedArray"
@@ -23,19 +23,19 @@ const formattedArrayName = "formattedArray"
 // BOTH array-shaped base kinds: plain arrays and tuples (a prefixItems
 // schema with uniqueItems brands a tuple base).
 type formattedArrayEmitter struct {
-	kind protocol.ReflectionKind
+	kind reflection.ReflectionKind
 }
 
 func init() {
-	formats.Register(formattedArrayEmitter{kind: protocol.KindArray})
-	formats.Register(formattedArrayEmitter{kind: protocol.KindTuple})
+	formats.Register(formattedArrayEmitter{kind: reflection.KindArray})
+	formats.Register(formattedArrayEmitter{kind: reflection.KindTuple})
 }
 
 func (formattedArrayEmitter) Name() string {
 	return formattedArrayName
 }
 
-func (emitter formattedArrayEmitter) Kind() protocol.ReflectionKind {
+func (emitter formattedArrayEmitter) Kind() reflection.ReflectionKind {
 	return emitter.kind
 }
 
@@ -87,14 +87,14 @@ func arrayConditions(params map[string]any, vλl string, ctx formats.EmitContext
 	return conditions
 }
 
-func (formattedArrayEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (formattedArrayEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
 	return strings.Join(arrayConditions(annotation.Params, vλl, ctx), " && ")
 }
 
-func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
@@ -117,7 +117,7 @@ func (formattedArrayEmitter) EmitValidationErrorsCheck(annotation *protocol.Form
 
 // ValidateParams surfaces bound contradictions at build time (AOT twin of
 // the JS-side validateParams convention).
-func (formattedArrayEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (formattedArrayEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

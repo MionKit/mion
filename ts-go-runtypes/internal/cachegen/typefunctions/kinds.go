@@ -1,6 +1,8 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/protocol"
+import (
+	"github.com/mionkit/ts-runtypes/internal/reflection"
+)
 
 // Kind-classification predicates shared across the emitters. Relocated from
 // istype.go (where they accreted as de-facto package utilities) so the shared
@@ -9,11 +11,11 @@ import "github.com/mionkit/ts-runtypes/internal/protocol"
 // isObjectLikeKind reports whether kind's validate emit needs the
 // shared `typeof === 'object' && !== null` guard before it. Used by
 // the union emit to lift the guard out of the per-child checks.
-func isObjectLikeKind(kind protocol.ReflectionKind) bool {
+func isObjectLikeKind(kind reflection.ReflectionKind) bool {
 	switch kind {
-	case protocol.KindObjectLiteral, protocol.KindClass,
-		protocol.KindIndexSignature, protocol.KindArray,
-		protocol.KindTuple:
+	case reflection.KindObjectLiteral, reflection.KindClass,
+		reflection.KindIndexSignature, reflection.KindArray,
+		reflection.KindTuple:
 		return true
 	}
 	return false
@@ -23,10 +25,10 @@ func isObjectLikeKind(kind protocol.ReflectionKind) bool {
 // check (or be skipped entirely as a property's wrapped child). Used
 // in two places: object-emit to drop method-shaped Children directly,
 // and property-emit to skip when the wrapped value is function-typed.
-func isFunctionLikeKind(kind protocol.ReflectionKind) bool {
+func isFunctionLikeKind(kind reflection.ReflectionKind) bool {
 	switch kind {
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return true
 	}
 	return false
@@ -41,13 +43,13 @@ func isFunctionLikeKind(kind protocol.ReflectionKind) bool {
 // CodeNS for it, rather than walking it as a plain object and serializing its
 // data props — which would disagree with validate. Mirrors the call-signature
 // detection in emitObjectValidate / emitObjectValidationErrors.
-func objectHasCallSignature(rt *protocol.RunType, ctx *EmitContext) bool {
+func objectHasCallSignature(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt == nil {
 		return false
 	}
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved != nil && resolved.Kind == protocol.KindCallSignature {
+		if resolved != nil && resolved.Kind == reflection.KindCallSignature {
 			return true
 		}
 	}
@@ -73,19 +75,19 @@ func objectHasCallSignature(rt *protocol.RunType, ctx *EmitContext) bool {
 // refTable resolves the objectLiteral's KindRef children; a nil table (or an
 // unresolvable ref) falls back to the original leaf — the pre-fix silent-skip,
 // preserving the unknown-future-kind safety net.
-func callableLeafSubstitute(leaf *protocol.RunType, refTable map[string]*protocol.RunType) *protocol.RunType {
-	if leaf == nil || leaf.Kind != protocol.KindObjectLiteral {
+func callableLeafSubstitute(leaf *reflection.RunType, refTable map[string]*reflection.RunType) *reflection.RunType {
+	if leaf == nil || leaf.Kind != reflection.KindObjectLiteral {
 		return leaf
 	}
 	for _, child := range leaf.Children {
 		resolved := child
-		if child != nil && child.Kind == protocol.KindRef {
+		if child != nil && child.Kind == reflection.KindRef {
 			if refTable == nil {
 				continue
 			}
 			resolved = refTable[child.ID]
 		}
-		if resolved != nil && resolved.Kind == protocol.KindCallSignature {
+		if resolved != nil && resolved.Kind == reflection.KindCallSignature {
 			return resolved
 		}
 	}
@@ -95,8 +97,8 @@ func callableLeafSubstitute(leaf *protocol.RunType, refTable map[string]*protoco
 // isRestTupleMember reports whether a resolved tuple-member RunType
 // carries the "rest" flag the projection sets on rest elements
 // (`[A, ...B[]]`). Mirrors TupleMember.isRest() on the wire.
-func isRestTupleMember(rt *protocol.RunType) bool {
-	if rt == nil || rt.Kind != protocol.KindTupleMember {
+func isRestTupleMember(rt *reflection.RunType) bool {
+	if rt == nil || rt.Kind != reflection.KindTupleMember {
 		return false
 	}
 	return hasFlag(rt.Flags, "rest")
@@ -110,12 +112,12 @@ func isRestTupleMember(rt *protocol.RunType) bool {
 // unconditionally for us). The for-in loop in our emits would never
 // enumerate a symbol-keyed property anyway (per JS semantics), so
 // skipping is observable parity with the reference and elides dead emit.
-func isSymbolKeyedIndexSig(rt *protocol.RunType, ctx *EmitContext) bool {
+func isSymbolKeyedIndexSig(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt == nil || rt.Index == nil {
 		return false
 	}
 	indexResolved := ctx.ResolveRef(rt.Index)
-	return indexResolved != nil && indexResolved.Kind == protocol.KindSymbol
+	return indexResolved != nil && indexResolved.Kind == reflection.KindSymbol
 }
 
 // hasFlag is a small membership helper for RunType.Flags.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Optional-property structural-id tests. An optional property carries
@@ -54,7 +55,7 @@ func scanSiteIDs(t *testing.T, r *resolver.Session) []string {
 	return ids
 }
 
-func unionWrap() string { return strconv.Itoa(int(protocol.KindUnion)) + "{" }
+func unionWrap() string { return strconv.Itoa(int(reflection.KindUnion)) + "{" }
 
 // TestOptionalPropertyID_ChildClosesOnBareType — a non-recursive optional
 // property's child id must be the BARE inner type's id, not a `Inner | undefined`

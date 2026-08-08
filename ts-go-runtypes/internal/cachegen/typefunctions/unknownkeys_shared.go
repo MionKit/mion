@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // unknownKeysPureFnFilePath is the source path the resolver reports as the
@@ -36,7 +36,7 @@ type objectKeysContext struct {
 // the reference does the same so the same hash → same key-array literal.
 //
 // Mirrors addObjectPropsToContext (interface.ts:243-269).
-func addObjectPropsToContext(rt *protocol.RunType, ctx *EmitContext) objectKeysContext {
+func addObjectPropsToContext(rt *reflection.RunType, ctx *EmitContext) objectKeysContext {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 
 	rtChildrenNames := dedupSortStrings(rtNames)
@@ -74,13 +74,13 @@ func addObjectPropsToContext(rt *protocol.RunType, ctx *EmitContext) objectKeysC
 //
 // Mirrors getRTChildren + getChildRunTypes filter+name pluck
 // in addObjectPropsToContext.
-func collectObjectChildNames(rt *protocol.RunType, ctx *EmitContext) (rtNames []string, allNames []string) {
+func collectObjectChildNames(rt *reflection.RunType, ctx *EmitContext) (rtNames []string, allNames []string) {
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
 		if resolved.Name == "" {
@@ -98,7 +98,7 @@ func collectObjectChildNames(rt *protocol.RunType, ctx *EmitContext) (rtNames []
 		}
 		// PropertySignature / Property wrapping a function-typed child:
 		// the parent's RT chain drops them too.
-		if (resolved.Kind == protocol.KindProperty || resolved.Kind == protocol.KindPropertySignature) && resolved.Child != nil {
+		if (resolved.Kind == reflection.KindProperty || resolved.Kind == reflection.KindPropertySignature) && resolved.Child != nil {
 			grandchild := ctx.ResolveRef(resolved.Child)
 			if grandchild != nil && isFunctionLikeKind(grandchild.Kind) {
 				continue
@@ -163,13 +163,13 @@ func arrayToJSLiteral(items []string) string {
 // index-signature child that the RT didn't filter out. Index sigs
 // flip the "any unknown key is unknown" semantic: when present, every
 // key matching the index pattern is considered "known".
-func objectHasIndexSignatureChild(rt *protocol.RunType, ctx *EmitContext) bool {
+func objectHasIndexSignatureChild(rt *reflection.RunType, ctx *EmitContext) bool {
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			return true
 		}
 	}
@@ -189,7 +189,7 @@ func objectHasIndexSignatureChild(rt *protocol.RunType, ctx *EmitContext) bool {
 // (standalone hasUnknownKeys may receive garbage); the `runsAfterValidation`
 // variant drops it — validation already proved every object position. The
 // returnKeys form never guards (parity with the reference emit).
-func callCheckUnknownPropertiesForHas(rt *protocol.RunType, ctx *EmitContext, returnKeys bool, keepObjectCheck bool) string {
+func callCheckUnknownPropertiesForHas(rt *reflection.RunType, ctx *EmitContext, returnKeys bool, keepObjectCheck bool) string {
 	keysCtx := addObjectPropsToContext(rt, ctx)
 	if len(keysCtx.rtChildrenNames) == 0 && len(keysCtx.allChildrenNames) == 0 {
 		return ""
@@ -238,7 +238,7 @@ func callCheckUnknownPropertiesForHas(rt *protocol.RunType, ctx *EmitContext, re
 //
 // Unlike addObjectPropsToContext this registers NOTHING in the closure
 // prologue — the fast path needs no key arrays.
-func countFastPathN(rt *protocol.RunType, ctx *EmitContext) (int, bool) {
+func countFastPathN(rt *reflection.RunType, ctx *EmitContext) (int, bool) {
 	rtNames, allNames := collectObjectChildNames(rt, ctx)
 	rtChildren := dedupSortStrings(rtNames)
 	allChildren := dedupSortStrings(allNames)
@@ -253,7 +253,7 @@ func countFastPathN(rt *protocol.RunType, ctx *EmitContext) (int, bool) {
 		if resolved == nil {
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			return 0, false
 		}
 		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
@@ -288,7 +288,7 @@ func emitCountKeysCheck(ctx *EmitContext, v string, n int) string {
 // Mirrors super.emitHasUnknownKeys (the CollectionRunType default) but
 // inlined here so the interface emit can stitch parent+children
 // together with `||`.
-func collectObjectHasUnknownKeysChildren(rt *protocol.RunType, ctx *EmitContext) ([]string, bool) {
+func collectObjectHasUnknownKeysChildren(rt *reflection.RunType, ctx *EmitContext) ([]string, bool) {
 	var parts []string
 	hasIndex := false
 	for _, child := range rt.Children {
@@ -296,7 +296,7 @@ func collectObjectHasUnknownKeysChildren(rt *protocol.RunType, ctx *EmitContext)
 		if resolved == nil {
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			hasIndex = true
 		}
 		if resolved.IsStatic {
@@ -363,7 +363,7 @@ func trimWhitespace(code string) string {
 // has on itself, since we can't store parent-relative data on a shared
 // canonical node (see CLAUDE.md "Never store parent-relative data on a
 // canonical node").
-func siblingNamedKeysCtxKey(idxSig *protocol.RunType) string {
+func siblingNamedKeysCtxKey(idxSig *reflection.RunType) string {
 	return "siblingNamed_" + idxSig.ID
 }
 
@@ -382,14 +382,14 @@ func siblingNamedKeysCtxKey(idxSig *protocol.RunType) string {
 // index signature. Each family compiles into its own walker with its
 // own context items, so the same key can be re-published per family
 // without collision.
-func publishSiblingNamedKeysForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
+func publishSiblingNamedKeysForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
 	siblingNames := indexSigExemptKeys(rt, ctx)
 	if len(siblingNames) == 0 {
 		return
 	}
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.Kind != protocol.KindIndexSignature {
+		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
 			continue
 		}
 		ctxKey := siblingNamedKeysCtxKey(resolved)
@@ -413,7 +413,7 @@ func publishSiblingNamedKeysForIndexSig(rt *protocol.RunType, ctx *EmitContext) 
 // `properties` keys, written by the door for a schema-valued
 // `additionalProperties`), that list wins: keys from anywhere else stay in the
 // sweep and face the value check. Types without the param are unaffected.
-func indexSigExemptKeys(rt *protocol.RunType, ctx *EmitContext) []string {
+func indexSigExemptKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	if rt.FormatAnnotation != nil && rt.FormatAnnotation.Name == "formattedObject" {
 		if own, ok := rt.FormatAnnotation.Params["additionalOwn"]; ok {
 			return stringListParam(own)
@@ -450,11 +450,11 @@ func stringListParam(raw any) []string {
 // but its key must still be skipped so the index loop doesn't copy it back in
 // (G6). Shared by publishSiblingNamedKeysForIndexSig (binary + the JSON mutate /
 // stringify walks) and the clone path's buildSafeIndexSignatureObject.
-func collectSiblingNamedKeys(rt *protocol.RunType, ctx *EmitContext) []string {
+func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	var siblingNames []string
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.Kind == protocol.KindIndexSignature {
+		if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
 		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
@@ -480,7 +480,7 @@ func collectSiblingNamedKeys(rt *protocol.RunType, ctx *EmitContext) []string {
 // Set for O(1) membership; the reference emits `if (a===prop || b===prop) continue;`
 // but Set.has(prop) reads the same at runtime and we already build the
 // set for the unknownKeysToUndefined consumer.
-func siblingNamedSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop string) string {
+func siblingNamedSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
 		return ""
 	}
@@ -495,10 +495,10 @@ func siblingNamedSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop strin
 // items the patternProperties EXEMPTION rides. Keyed by the index signature's
 // canonical id for the same reason siblingNamedKeysCtxKey is (never
 // parent-relative data on a canonical node).
-func siblingPatternsCtxKey(idxSig *protocol.RunType) string {
+func siblingPatternsCtxKey(idxSig *reflection.RunType) string {
 	return "ppSkip_" + idxSig.ID
 }
-func siblingPatternRegexCtxKey(idxSig *protocol.RunType, position int) string {
+func siblingPatternRegexCtxKey(idxSig *reflection.RunType, position int) string {
 	return "rePPSkip_" + idxSig.ID + "_" + strconv.Itoa(position)
 }
 
@@ -514,7 +514,7 @@ func siblingPatternRegexCtxKey(idxSig *protocol.RunType, position int) string {
 // (`const ppSkip_X = (k) => reA.test(k) || reB.test(k)`) so the loop pays one
 // call per key and allocates nothing. No-op for objects with no patternProps or
 // no index signature — i.e. every non-schema-authored type.
-func publishSiblingPatternsForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
+func publishSiblingPatternsForIndexSig(rt *reflection.RunType, ctx *EmitContext) {
 	if len(rt.PatternProps) == 0 {
 		return
 	}
@@ -530,7 +530,7 @@ func publishSiblingPatternsForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
 	sources = dedupSortStrings(sources)
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.Kind != protocol.KindIndexSignature {
+		if resolved == nil || resolved.Kind != reflection.KindIndexSignature {
 			continue
 		}
 		predicateKey := siblingPatternsCtxKey(resolved)
@@ -553,7 +553,7 @@ func publishSiblingPatternsForIndexSig(rt *protocol.RunType, ctx *EmitContext) {
 // the `if (…) continue;` line the index-signature for-in loop opens with so a
 // pattern-matched key never also faces the additionalProperties value check.
 // Returns "" when the parent emit published no predicate for this index sig.
-func siblingPatternSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop string) string {
+func siblingPatternSkipCode(idxSig *reflection.RunType, ctx *EmitContext, prop string) string {
 	if idxSig == nil {
 		return ""
 	}
@@ -568,7 +568,7 @@ func siblingPatternSkipCode(idxSig *protocol.RunType, ctx *EmitContext, prop str
 // emitted code (CodeS) and joins with `;`. Shared by the object emit of the
 // strip / unknownKeyErrors / unknownKeysToUndefined families — the
 // child-filtering + compile loop is identical across all three.
-func unknownKeysChildrenCode(rt *protocol.RunType, ctx *EmitContext) string {
+func unknownKeysChildrenCode(rt *reflection.RunType, ctx *EmitContext) string {
 	var parts []string
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
@@ -599,50 +599,50 @@ func unknownKeysChildrenCode(rt *protocol.RunType, ctx *EmitContext) string {
 // validationErrors emitters in Phase 0 (every kind a real codegen pass
 // will need to either handle or transparently no-op). Atomic kinds emit
 // an empty body and each family's Finalize folds that to its noop shape.
-func unknownKeysSupports(rt *protocol.RunType) bool {
+func unknownKeysSupports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
 	}
 	switch rt.Kind {
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindVoid,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindBigInt, protocol.KindSymbol,
-		protocol.KindObject, protocol.KindRegexp,
-		protocol.KindLiteral, protocol.KindEnum,
-		protocol.KindNever, protocol.KindTemplateLiteral:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindVoid,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindBigInt, reflection.KindSymbol,
+		reflection.KindObject, reflection.KindRegexp,
+		reflection.KindLiteral, reflection.KindEnum,
+		reflection.KindNever, reflection.KindTemplateLiteral:
 		return true
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return true
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindDate, protocol.SubKindNone,
-			protocol.SubKindMap, protocol.SubKindSet,
-			protocol.SubKindNonSerializable:
+		case reflection.SubKindDate, reflection.SubKindNone,
+			reflection.SubKindMap, reflection.SubKindSet,
+			reflection.SubKindNonSerializable:
 			return true
 		}
-		return protocol.IsTemporalSubKind(rt.SubKind)
-	case protocol.KindArray:
+		return reflection.IsTemporalSubKind(rt.SubKind)
+	case reflection.KindArray:
 		return rt.Child != nil
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return true
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return true
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return true
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return true
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return len(rt.Children) > 0
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return true
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		// Promise wraps don't track unknown keys (the value is a
 		// then-able, not a plain object). Same noop stance as atomic.
 		return true
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		// Function values aren't objects with enumerable own keys to
 		// check; the function emit is a noop. Same here.
 		return true
@@ -654,7 +654,7 @@ func unknownKeysSupports(rt *protocol.RunType) bool {
 // strip families: recurse into every slot and join the surviving child
 // statements. (toUndefined deliberately no-ops at tuples instead — see
 // emitTupleUnknownKeysToUndefined.)
-func emitTupleUnknownKeysRecurse(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitTupleUnknownKeysRecurse(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}

@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // unknownkeys_union.go owns the union-arm emit for every member of the
@@ -56,7 +56,7 @@ type UnknownKeysOpts struct {
 // the FlatLayout for the union and produces the per-family for-loop +
 // merged-allowlist guard. Returns empty RTCode when there's no work
 // to do (atomic-only union, all-index-sig union, …).
-func emitUnionUnknownKeysMerged(rt *protocol.RunType, ctx *EmitContext, opts UnknownKeysOpts) RTCode {
+func emitUnionUnknownKeysMerged(rt *reflection.RunType, ctx *EmitContext, opts UnknownKeysOpts) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 
 	// Index-sig carve-out — any indexed member kills the merged-allowlist

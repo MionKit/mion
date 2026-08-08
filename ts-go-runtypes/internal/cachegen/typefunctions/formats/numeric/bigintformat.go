@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // bigintFormatEmitter implements the format with name "bigintFormat" —
@@ -33,15 +33,15 @@ func (bigintFormatEmitter) Name() string {
 	return bigintFormatName
 }
 
-func (bigintFormatEmitter) Kind() protocol.ReflectionKind {
-	return protocol.KindBigInt
+func (bigintFormatEmitter) Kind() reflection.ReflectionKind {
+	return reflection.KindBigInt
 }
 
 // EmitValidateCheck returns the AND of every active bigint predicate, in
 // emitIsType order (bigIntFormat.runtype.ts:46-79): max, min, lt,
 // gt, multipleOf — each with a `…n` literal. Returns "" when no params
 // constrain the value (host keeps its base `typeof v === 'bigint'`).
-func (bigintFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -74,7 +74,7 @@ func bigintConditions(params map[string]any, vλl string) []string {
 // active predicate, in emitIsTypeErrors order
 // (bigIntFormat.runtype.ts:81-115). The error `val` carries the bigint
 // literal (`…n`).
-func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -106,7 +106,7 @@ func (bigintFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.Format
 // EmitToBinary implements formats.BinaryEncoder — emitToBinary
 // (bigIntFormat.runtype.ts:123-137). UInt64 takes precedence over Int64
 // when both fit (the reference ordering); "" otherwise → base string arm.
-func (bigintFormatEmitter) EmitToBinary(annotation *protocol.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitToBinary(annotation *reflection.FormatAnnotation, vλl, ser string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -122,7 +122,7 @@ func (bigintFormatEmitter) EmitToBinary(annotation *protocol.FormatAnnotation, v
 
 // EmitFromBinary implements formats.BinaryDecoder — emitFromBinary
 // (bigIntFormat.runtype.ts:139-153). Byte-symmetric with EmitToBinary.
-func (bigintFormatEmitter) EmitFromBinary(annotation *protocol.FormatAnnotation, des string, _ formats.EmitContext) string {
+func (bigintFormatEmitter) EmitFromBinary(annotation *reflection.FormatAnnotation, des string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -141,7 +141,7 @@ func (bigintFormatEmitter) EmitFromBinary(annotation *protocol.FormatAnnotation,
 // EmitToBinary uses). Otherwise it falls back to the base string arm, whose
 // width is value-dependent — no fixed hint (the estimator uses its
 // unbounded-bigint default).
-func (bigintFormatEmitter) BinarySize(annotation *protocol.FormatAnnotation) formats.BinarySizeHint {
+func (bigintFormatEmitter) BinarySize(annotation *reflection.FormatAnnotation) formats.BinarySizeHint {
 	if annotation == nil {
 		return formats.BinarySizeHint{}
 	}
@@ -173,7 +173,7 @@ func bigIntType(params map[string]any) (isBigInt64, isBigUint64 bool) {
 // `[x,y].filter(Boolean)` / `x && y` checks are kept spec-faithful: a `0n`
 // bound is falsy per the reference and so escapes these checks — replicated via
 // bigTruthy + the explicit non-zero guards.
-func (bigintFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (bigintFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

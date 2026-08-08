@@ -9,7 +9,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 const formattedObjectName = "formattedObject"
@@ -22,19 +22,19 @@ const formattedObjectName = "formattedObject"
 const identityChainMaxKeys = 8
 
 type formattedObjectEmitter struct {
-	kind protocol.ReflectionKind
+	kind reflection.ReflectionKind
 }
 
 func init() {
-	formats.Register(formattedObjectEmitter{kind: protocol.KindObjectLiteral})
-	formats.Register(formattedObjectEmitter{kind: protocol.KindObject})
+	formats.Register(formattedObjectEmitter{kind: reflection.KindObjectLiteral})
+	formats.Register(formattedObjectEmitter{kind: reflection.KindObject})
 }
 
 func (formattedObjectEmitter) Name() string {
 	return formattedObjectName
 }
 
-func (emitter formattedObjectEmitter) Kind() protocol.ReflectionKind {
+func (emitter formattedObjectEmitter) Kind() reflection.ReflectionKind {
 	return emitter.kind
 }
 
@@ -221,14 +221,14 @@ func closedWalkCall(ctx formats.EmitContext, params map[string]any, keys []strin
 	return "((o) => {" + body + "})(" + vλl + ")"
 }
 
-func (formattedObjectEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (formattedObjectEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
 	return objectWalkCall(ctx, annotation.Params, vλl)
 }
 
-func (formattedObjectEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (formattedObjectEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil || len(annotation.Params) == 0 {
 		return ""
 	}
@@ -259,7 +259,7 @@ func (formattedObjectEmitter) EmitValidationErrorsCheck(annotation *protocol.For
 
 // ValidateParams surfaces bound contradictions at build time (AOT twin of
 // the JS-side validateParams convention).
-func (formattedObjectEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (formattedObjectEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

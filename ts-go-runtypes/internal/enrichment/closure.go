@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // NamedConst is one emitted `export const friendly<Name> / mock<Name>` of a
@@ -43,7 +43,7 @@ type ClosureOptions struct {
 	TypeName string
 	// Resolve looks up a KindRef sentinel's canonical node by id (cache.NodeByID);
 	// REQUIRED — the closure walk follows refs to detect named-type targets.
-	Resolve func(id string) *protocol.RunType
+	Resolve func(id string) *reflection.RunType
 	// DeclFiles maps a named type's RunType.ID to the absolute path of its
 	// declaration source file. Optional: when nil (or a type is absent) the
 	// emitted NamedConst's DeclFile is left empty and the caller falls back to the
@@ -75,7 +75,7 @@ const (
 // child rendered as a const-var reference (or a broken-cycle leaf for a back-edge)
 // instead of an inlined body.
 type closureEmitter struct {
-	resolve        func(id string) *protocol.RunType
+	resolve        func(id string) *reflection.RunType
 	declFiles      map[string]string    // ID → absolute declaration source file (optional)
 	state          map[string]emitState // keyed by named type's RunType.ID
 	consts         []NamedConst         // accumulated in topological order
@@ -97,7 +97,7 @@ type closureEmitter struct {
 // A named root whose fields are all anonymous yields exactly ONE NamedConst whose
 // bodies equal FriendlySkeleton/MockSkeleton's — the single-const path is the
 // degenerate case.
-func EmitClosure(root *protocol.RunType, opts ClosureOptions) []NamedConst {
+func EmitClosure(root *reflection.RunType, opts ClosureOptions) []NamedConst {
 	if root == nil {
 		return nil
 	}
@@ -125,7 +125,7 @@ func EmitClosure(root *protocol.RunType, opts ClosureOptions) []NamedConst {
 // emitNamed emits the const for one named type (if not already emitted), having
 // first emitted every named type it references. Returns the type's base name (the
 // `<Name>` in friendly<Name> / mock<Name>).
-func (emitter *closureEmitter) emitNamed(named *protocol.RunType, displayName string) string {
+func (emitter *closureEmitter) emitNamed(named *reflection.RunType, displayName string) string {
 	id := named.ID
 	baseName := emitter.baseNameFor(id, displayName)
 	if id != "" && emitter.state[id] == stateDone {
@@ -160,7 +160,7 @@ func (emitter *closureEmitter) emitNamed(named *protocol.RunType, displayName st
 // a broken-cycle leaf) rather than an inlined body. self is the named node whose
 // body we are emitting — it must walk inline (otherwise the body would be a
 // reference to itself).
-func (emitter *closureEmitter) renderBody(self *protocol.RunType, friendly bool) string {
+func (emitter *closureEmitter) renderBody(self *reflection.RunType, friendly bool) string {
 	ctx := newWalkCtx(emitter.resolve)
 	ctx.setSourceLocale(emitter.sourceLocale)
 	// The body's ROOT node (self, first encounter) must walk inline — otherwise the
@@ -168,7 +168,7 @@ func (emitter *closureEmitter) renderBody(self *protocol.RunType, friendly bool)
 	// encounter; a LATER encounter of self is a genuine back-edge (e.g. a
 	// self-recursive `next: Node`) and breaks the cycle to a leaf.
 	enteredBody := false
-	ctx.namedRef = func(rt *protocol.RunType) namedRefAction {
+	ctx.namedRef = func(rt *reflection.RunType) namedRefAction {
 		// rt is already deref'd by the caller (emitFriendlyNode/emitMockNode call
 		// deref before the hook). Compare by ID, not pointer — a back-edge resolves
 		// through NodeByID and the root may be a distinct SerializeTopLevel pointer.
@@ -221,7 +221,7 @@ func (emitter *closureEmitter) renderBody(self *protocol.RunType, friendly bool)
 //
 // self walks inline (it is the body being emitted); a later encounter of self
 // is a back-edge — recorded as a leaf id, not recursed (matches renderBody).
-func (emitter *closureEmitter) childIDsOf(self *protocol.RunType) map[string]string {
+func (emitter *closureEmitter) childIDsOf(self *reflection.RunType) map[string]string {
 	out := map[string]string{}
 	ctx := newWalkCtx(emitter.resolve)
 	// The closure walks the RAW graph, where a parent's Children/Arguments ride as
@@ -229,7 +229,7 @@ func (emitter *closureEmitter) childIDsOf(self *protocol.RunType) map[string]str
 	// when ctx.namedRef is set, so install a no-op inline hook to enable dereffing
 	// (we never actually want a reference action here — this walk records ids, it
 	// does not emit bodies).
-	ctx.namedRef = func(rt *protocol.RunType) namedRefAction { return namedRefAction{kind: namedRefInline} }
+	ctx.namedRef = func(rt *reflection.RunType) namedRefAction { return namedRefAction{kind: namedRefInline} }
 	emitter.collectChildIDs(out, ctx, self, "", true, 0)
 	if len(out) == 0 {
 		return nil
@@ -240,7 +240,7 @@ func (emitter *closureEmitter) childIDsOf(self *protocol.RunType) map[string]str
 // collectChildIDs is the recursive worker for childIDsOf. isSelfBody is true on
 // the first (root) node so it always descends; a nested encounter of self is a
 // broken back-edge (recorded, not recursed).
-func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkCtx, rt *protocol.RunType, path string, isSelfBody bool, depth int) {
+func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkCtx, rt *reflection.RunType, path string, isSelfBody bool, depth int) {
 	rt = ctx.deref(rt)
 	if rt == nil || depth > maxWalkDepth {
 		return
@@ -254,7 +254,7 @@ func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkC
 	}
 
 	switch {
-	case rt.Kind == protocol.KindTuple:
+	case rt.Kind == reflection.KindTuple:
 		for i, slot := range tupleSlots(ctx, rt) {
 			emitter.recordChild(out, ctx, slot, joinChildPath(path, "rt$slots."+itoa(i)), depth)
 		}
@@ -277,7 +277,7 @@ func (emitter *closureEmitter) collectChildIDs(out map[string]string, ctx *walkC
 
 // recordChild records childPath → childType.ID, then recurses into it (the
 // recursion itself stops at a named-type child via collectChildIDs's guard).
-func (emitter *closureEmitter) recordChild(out map[string]string, ctx *walkCtx, childType *protocol.RunType, childPath string, depth int) {
+func (emitter *closureEmitter) recordChild(out map[string]string, ctx *walkCtx, childType *reflection.RunType, childPath string, depth int) {
 	resolved := ctx.deref(childType)
 	if resolved == nil {
 		return
@@ -298,7 +298,7 @@ func joinChildPath(path, segment string) string {
 
 // isSelf reports whether rt is the named type whose body is currently being
 // emitted: same pointer, or (the robust case) same non-empty structural ID.
-func isSelf(rt, self *protocol.RunType) bool {
+func isSelf(rt, self *reflection.RunType) bool {
 	if rt == self {
 		return true
 	}

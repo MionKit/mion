@@ -3,15 +3,15 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // jsonCompatCtx builds the minimal EmitContext + RefTable that
 // `isJsonCompatible` needs for ResolveRef. The walker is a hollow
 // shell — the predicate only ever calls ResolveRef on it.
-func jsonCompatCtx(t *testing.T, runTypes []*protocol.RunType) *EmitContext {
+func jsonCompatCtx(t *testing.T, runTypes []*reflection.RunType) *EmitContext {
 	t.Helper()
-	refTable := make(map[string]*protocol.RunType, len(runTypes))
+	refTable := make(map[string]*reflection.RunType, len(runTypes))
 	for _, rt := range runTypes {
 		if rt == nil || rt.ID == "" {
 			continue
@@ -26,70 +26,70 @@ func jsonCompatCtx(t *testing.T, runTypes []*protocol.RunType) *EmitContext {
 // including composites, conflict-free unions, mixed unions, and a
 // cycle.
 func TestIsJsonCompatible(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	null := &protocol.RunType{ID: "nul", Kind: protocol.KindNull}
-	undef := &protocol.RunType{ID: "und", Kind: protocol.KindUndefined}
-	voidT := &protocol.RunType{ID: "vd", Kind: protocol.KindVoid}
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	symbol := &protocol.RunType{ID: "sym", Kind: protocol.KindSymbol}
-	regexp := &protocol.RunType{ID: "re", Kind: protocol.KindRegexp}
-	anyT := &protocol.RunType{ID: "any", Kind: protocol.KindAny}
-	unknownT := &protocol.RunType{ID: "ukn", Kind: protocol.KindUnknown}
-	objectT := &protocol.RunType{ID: "obj", Kind: protocol.KindObject}
-	enumT := &protocol.RunType{ID: "enm", Kind: protocol.KindEnum}
-	templateLit := &protocol.RunType{ID: "tmpl", Kind: protocol.KindTemplateLiteral}
-	literalStr := &protocol.RunType{ID: "lstr", Kind: protocol.KindLiteral, Literal: "hello"}
-	literalNum := &protocol.RunType{ID: "lnum", Kind: protocol.KindLiteral, Literal: 42.0}
-	literalBigint := &protocol.RunType{ID: "lbig", Kind: protocol.KindLiteral, Literal: "1", Flags: []string{"bigint"}}
-	literalSym := &protocol.RunType{ID: "lsym", Kind: protocol.KindLiteral, Literal: "x", Flags: []string{"symbol"}}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	mapT := &protocol.RunType{ID: "mp", Kind: protocol.KindClass, SubKind: protocol.SubKindMap}
-	setT := &protocol.RunType{ID: "st", Kind: protocol.KindClass, SubKind: protocol.SubKindSet}
-	never := &protocol.RunType{ID: "nev", Kind: protocol.KindNever}
-	promise := &protocol.RunType{ID: "prm", Kind: protocol.KindPromise}
-	function := &protocol.RunType{ID: "fn", Kind: protocol.KindFunction}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	null := &reflection.RunType{ID: "nul", Kind: reflection.KindNull}
+	undef := &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}
+	voidT := &reflection.RunType{ID: "vd", Kind: reflection.KindVoid}
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	symbol := &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}
+	regexp := &reflection.RunType{ID: "re", Kind: reflection.KindRegexp}
+	anyT := &reflection.RunType{ID: "any", Kind: reflection.KindAny}
+	unknownT := &reflection.RunType{ID: "ukn", Kind: reflection.KindUnknown}
+	objectT := &reflection.RunType{ID: "obj", Kind: reflection.KindObject}
+	enumT := &reflection.RunType{ID: "enm", Kind: reflection.KindEnum}
+	templateLit := &reflection.RunType{ID: "tmpl", Kind: reflection.KindTemplateLiteral}
+	literalStr := &reflection.RunType{ID: "lstr", Kind: reflection.KindLiteral, Literal: "hello"}
+	literalNum := &reflection.RunType{ID: "lnum", Kind: reflection.KindLiteral, Literal: 42.0}
+	literalBigint := &reflection.RunType{ID: "lbig", Kind: reflection.KindLiteral, Literal: "1", Flags: []string{"bigint"}}
+	literalSym := &reflection.RunType{ID: "lsym", Kind: reflection.KindLiteral, Literal: "x", Flags: []string{"symbol"}}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	mapT := &reflection.RunType{ID: "mp", Kind: reflection.KindClass, SubKind: reflection.SubKindMap}
+	setT := &reflection.RunType{ID: "st", Kind: reflection.KindClass, SubKind: reflection.SubKindSet}
+	never := &reflection.RunType{ID: "nev", Kind: reflection.KindNever}
+	promise := &reflection.RunType{ID: "prm", Kind: reflection.KindPromise}
+	function := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
 
 	// Composites.
-	arrStr := &protocol.RunType{ID: "arrStr", Kind: protocol.KindArray, Child: makeRef("str")}
-	arrDate := &protocol.RunType{ID: "arrDat", Kind: protocol.KindArray, Child: makeRef("dat")}
+	arrStr := &reflection.RunType{ID: "arrStr", Kind: reflection.KindArray, Child: makeRef("str")}
+	arrDate := &reflection.RunType{ID: "arrDat", Kind: reflection.KindArray, Child: makeRef("dat")}
 
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	propB := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	propBDate := &protocol.RunType{ID: "pbd", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("dat")}
-	objCompat := &protocol.RunType{ID: "objCompat", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa"), makeRef("pb")}}
-	objMixed := &protocol.RunType{ID: "objMixed", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa"), makeRef("pbd")}}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	propBDate := &reflection.RunType{ID: "pbd", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("dat")}
+	objCompat := &reflection.RunType{ID: "objCompat", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa"), makeRef("pb")}}
+	objMixed := &reflection.RunType{ID: "objMixed", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa"), makeRef("pbd")}}
 
 	// Tuple<string, number>; Tuple<string, Date>.
-	tmA := &protocol.RunType{ID: "tmA", Kind: protocol.KindTupleMember, Child: makeRef("str")}
-	tmB := &protocol.RunType{ID: "tmB", Kind: protocol.KindTupleMember, Child: makeRef("num")}
-	tmDate := &protocol.RunType{ID: "tmD", Kind: protocol.KindTupleMember, Child: makeRef("dat")}
-	tupleCompat := &protocol.RunType{ID: "tCompat", Kind: protocol.KindTuple, Children: []*protocol.RunType{makeRef("tmA"), makeRef("tmB")}}
-	tupleMixed := &protocol.RunType{ID: "tMixed", Kind: protocol.KindTuple, Children: []*protocol.RunType{makeRef("tmA"), makeRef("tmD")}}
+	tmA := &reflection.RunType{ID: "tmA", Kind: reflection.KindTupleMember, Child: makeRef("str")}
+	tmB := &reflection.RunType{ID: "tmB", Kind: reflection.KindTupleMember, Child: makeRef("num")}
+	tmDate := &reflection.RunType{ID: "tmD", Kind: reflection.KindTupleMember, Child: makeRef("dat")}
+	tupleCompat := &reflection.RunType{ID: "tCompat", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmA"), makeRef("tmB")}}
+	tupleMixed := &reflection.RunType{ID: "tMixed", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmA"), makeRef("tmD")}}
 
 	// Union of compatibles; union with one non-compatible.
-	unionCompat := &protocol.RunType{ID: "uOK", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("str"), makeRef("num")}, SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("num")}}
-	unionMixed := &protocol.RunType{ID: "uMix", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("str"), makeRef("dat")}, SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("dat")}}
+	unionCompat := &reflection.RunType{ID: "uOK", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("str"), makeRef("num")}, SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num")}}
+	unionMixed := &reflection.RunType{ID: "uMix", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("str"), makeRef("dat")}, SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("dat")}}
 	// Union of two OBJECT members: each is individually JSON-compatible, but the
 	// flat-union envelopes object members ([-1, …]) so the union does NOT round-
 	// trip raw — a Map/Set value-type containing it must NOT fast-path past the
 	// envelope (G5).
-	unionObjs := &protocol.RunType{ID: "uObj", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("objCompat"), makeRef("cls")}, SafeUnionChildren: []*protocol.RunType{makeRef("objCompat"), makeRef("cls")}}
+	unionObjs := &reflection.RunType{ID: "uObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("cls")}, SafeUnionChildren: []*reflection.RunType{makeRef("objCompat"), makeRef("cls")}}
 
 	// Class with all-compatible properties.
-	classCompat := &protocol.RunType{ID: "cls", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, Children: []*protocol.RunType{makeRef("pa"), makeRef("pb")}}
+	classCompat := &reflection.RunType{ID: "cls", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pa"), makeRef("pb")}}
 
 	// Cycle: object self-references via a property of its own type.
-	propSelf := &protocol.RunType{ID: "psf", Kind: protocol.KindProperty, Name: "child", IsSafeName: true, Optional: true, Child: makeRef("objSelf")}
-	objSelf := &protocol.RunType{ID: "objSelf", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa"), makeRef("psf")}}
+	propSelf := &reflection.RunType{ID: "psf", Kind: reflection.KindProperty, Name: "child", IsSafeName: true, Optional: true, Child: makeRef("objSelf")}
+	objSelf := &reflection.RunType{ID: "objSelf", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa"), makeRef("psf")}}
 
 	// Class with a function-typed property — skipped per
 	// objectChildrenCompat, so the rest of the props decide compatibility.
-	propFn := &protocol.RunType{ID: "pfn", Kind: protocol.KindProperty, Name: "fn", IsSafeName: true, Child: makeRef("fn")}
-	classWithFn := &protocol.RunType{ID: "clsFn", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, Children: []*protocol.RunType{makeRef("pa"), makeRef("pfn")}}
+	propFn := &reflection.RunType{ID: "pfn", Kind: reflection.KindProperty, Name: "fn", IsSafeName: true, Child: makeRef("fn")}
+	classWithFn := &reflection.RunType{ID: "clsFn", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pa"), makeRef("pfn")}}
 
-	all := []*protocol.RunType{
+	all := []*reflection.RunType{
 		str, num, boolean, null, undef, voidT, bigint, symbol, regexp,
 		anyT, unknownT, objectT, enumT, templateLit,
 		literalStr, literalNum, literalBigint, literalSym,
@@ -106,7 +106,7 @@ func TestIsJsonCompatible(t *testing.T) {
 
 	cases := []struct {
 		name string
-		rt   *protocol.RunType
+		rt   *reflection.RunType
 		want bool
 	}{
 		{"string", str, true},

@@ -7,6 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // bundleKeyLength sizes the bundle's content-hash key. The key only has to be
@@ -100,8 +101,8 @@ func CollectEntries(dump protocol.Dump) entrymodules.Graph {
 }
 
 // indexNodes maps every dumped RunType by its id, skipping nil / id-less nodes.
-func indexNodes(runTypes []*protocol.RunType) map[string]*protocol.RunType {
-	nodes := make(map[string]*protocol.RunType, len(runTypes))
+func indexNodes(runTypes []*reflection.RunType) map[string]*reflection.RunType {
+	nodes := make(map[string]*reflection.RunType, len(runTypes))
 	for _, runType := range runTypes {
 		if runType != nil && runType.ID != "" {
 			nodes[runType.ID] = runType
@@ -164,7 +165,7 @@ func reflectionRoots(sites []protocol.Site) []string {
 // deterministic order works). Refs to ids absent from the dump are skipped —
 // the footer still references them and the runtime registry surfaces the
 // miss, matching the pre-bundle behavior for un-dumped nodes.
-func closureRows(roots []string, nodes map[string]*protocol.RunType) []string {
+func closureRows(roots []string, nodes map[string]*reflection.RunType) []string {
 	visited := make(map[string]bool, len(nodes))
 	queue := make([]string, 0, len(roots))
 	for _, root := range roots {
@@ -194,11 +195,11 @@ func closureRows(roots []string, nodes map[string]*protocol.RunType) []string {
 // collectRefDeps gathers the distinct KindRef ids reachable from runType's
 // ref-bearing slots — the same slots writeFooter patches (an inline non-ref
 // child embeds as a JSON literal and contributes no row).
-func collectRefDeps(runType *protocol.RunType) []string {
+func collectRefDeps(runType *reflection.RunType) []string {
 	var deps []string
 	seen := make(map[string]bool)
-	runType.EachRefSlot(func(child *protocol.RunType) {
-		if child.Kind != protocol.KindRef || child.ID == "" || seen[child.ID] {
+	runType.EachRefSlot(func(child *reflection.RunType) {
+		if child.Kind != reflection.KindRef || child.ID == "" || seen[child.ID] {
 			return
 		}
 		seen[child.ID] = true

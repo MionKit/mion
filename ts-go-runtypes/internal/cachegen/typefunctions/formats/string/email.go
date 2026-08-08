@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // emailEmitter implements the format named "email" — FormatEmail /
@@ -24,10 +24,10 @@ func init() {
 	formats.Register(emailEmitter{})
 }
 
-func (emailEmitter) Name() string                  { return "email" }
-func (emailEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (emailEmitter) Name() string                    { return "email" }
+func (emailEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
-func (emailEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (emailEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasParts(annotation.Params) {
 		return emailValidateExprFor(ctx, annotation.Params, vλl)
 	}
@@ -63,7 +63,7 @@ func emailRfcCheckExpr(ctx formats.EmitContext, params map[string]any, vλl stri
 	return strings.Join(conditions, " && ")
 }
 
-func (emailEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (emailEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation != nil && emailHasRfc(annotation.Params) {
 		return "if (!(" + emailRfcCheckExpr(ctx, annotation.Params, vλl) + ")) " +
 			formats.FormatErrCall(pathExpr, errorsArr, "string", "email", "emailRfc", strconv.Quote(annotation.Params["emailRfc"].(string)))
@@ -151,14 +151,14 @@ func emailErrorsBlockFor(ctx formats.EmitContext, params map[string]any, valExpr
 
 // EmitFormatTransform lowercases the email (ref: email.runtype.ts:148 —
 // emails are case-insensitive, so the canonical form is lower case).
-func (emailEmitter) EmitFormatTransform(_ *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (emailEmitter) EmitFormatTransform(_ *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	return vλl + ".toLowerCase()"
 }
 
 // ValidateParams ports EmailRunTypeFormat.validateParams
 // (ref: email.runtype.ts:152-187): pattern is mutually exclusive with the
 // localPart/domain decomposition, and maxLength stays in range.
-func (emailEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (emailEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

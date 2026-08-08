@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // PrepareForJsonSafeEmitter — non-mutating sibling of
@@ -41,7 +41,7 @@ func (PrepareForJsonSafeEmitter) Args() []ArgSpec {
 // Supports mirrors PrepareForJsonEmitter.Supports — same set of kinds
 // the non-safe sibling handles. The wire format is identical so the
 // supported surface stays in lockstep.
-func (PrepareForJsonSafeEmitter) Supports(rt *protocol.RunType) bool {
+func (PrepareForJsonSafeEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
@@ -53,7 +53,7 @@ func (PrepareForJsonSafeEmitter) IsRTInlined(ctx *InlineContext) bool {
 // safe-clone entry is the identity compose as empty code (the parent uses
 // the input accessor directly, matching the inline empty-child rule). See
 // noop_types.go for the soundness contract.
-func (PrepareForJsonSafeEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (PrepareForJsonSafeEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForPrepareJsonSafe(rt, ctx)
 }
 
@@ -75,7 +75,7 @@ func (PrepareForJsonSafeEmitter) ReturnName() string {
 // the dep-call returns just the value-producing expression
 // (`<hash>.fn(v)`). The parent's safe-form composition consumes it
 // as an expression slot (e.g. `{inner: <hash>.fn(v.inner)}`).
-func (PrepareForJsonSafeEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (PrepareForJsonSafeEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
@@ -103,87 +103,87 @@ func (PrepareForJsonSafeEmitter) Finalize(raw string) (string, bool) {
 // uses the input accessor (`v.<name>` / `v[i]` / `_e`) directly — that
 // expression IS the safe-form because no transform is needed. When the
 // child returns CodeE, the parent uses that expression.
-func (PrepareForJsonSafeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (PrepareForJsonSafeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		// Atomic JSON-compatible kinds — Finalize collapses to noop.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
 
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		return RTCode{Code: "undefined", Type: CodeE}
 
-	case protocol.KindClass:
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+	case reflection.KindClass:
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			// Safe (non-mutating) projection: emit the canonical string via
 			// toJSON() — Temporal's analogue of Date's toISOString().
 			return RTCode{Code: v + ".toJSON()", Type: CodeE}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return RTCode{Code: v + ".toISOString()", Type: CodeE}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectPrepareForJsonSafe(rt, ctx, v)
 			return wrapSafeWithClassSerializer(rt, ctx, v, structural)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterablePrepareForJsonSafe(rt, ctx, v)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectPrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignaturePrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTuplePrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionPrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return emitLiteralPrepareForJsonSafe(rt, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayPrepareForJsonSafe(rt, ctx, v)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		// Properties are normally consumed inline by their parent object
 		// (emitObjectPrepareForJsonSafe iterates rt.Children and compiles
 		// each property's .Child directly). This arm catches the rare case
@@ -191,7 +191,7 @@ func (PrepareForJsonSafeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ 
 		// sibling.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		// Same as Property — tuple members are consumed inline by their
 		// parent tuple (emitTuplePrepareForJsonSafe iterates and dispatches
 		// per-member directly).
@@ -203,7 +203,7 @@ func (PrepareForJsonSafeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ 
 // emitLiteralPrepareForJsonSafe — literal-flavoured atomic kinds:
 // bigint / symbol / regexp literals carry a Flags marker and use the
 // same transform as the bare kind. Primitive literals are noops.
-func emitLiteralPrepareForJsonSafe(rt *protocol.RunType, v string) RTCode {
+func emitLiteralPrepareForJsonSafe(rt *reflection.RunType, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
 		return RTCode{Code: v + ".toString()", Type: CodeE}
@@ -217,7 +217,7 @@ func emitLiteralPrepareForJsonSafe(rt *protocol.RunType, v string) RTCode {
 // that evaluates to the safe-form of `accessor`, by compiling the
 // child ref with `accessor` set as the input. Empty child code means
 // the child is noop — the safe-form IS the accessor.
-func safeChildExpr(childRef *protocol.RunType, accessor string, ctx *EmitContext) (string, bool) {
+func safeChildExpr(childRef *reflection.RunType, accessor string, ctx *EmitContext) (string, bool) {
 	ctx.SetChildAccessor(accessor)
 	childRT := ctx.CompileChild(childRef, CodeE)
 	ctx.SetChildAccessor("")
@@ -265,14 +265,14 @@ type safePropEmit struct {
 // child type is JSON-compatible, the body short-circuits to `return v`
 // when `Object.keys(v).length === N`. Mixed-optionality / has-transform
 // shapes always clone.
-func emitObjectPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitObjectPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	// A callable interface is function-like (DataOnly = never); treat it like a
 	// bare function (alwaysThrow at root, dropped at a property), not an object.
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	var props []safePropEmit
-	var indexSigs []*protocol.RunType
+	var indexSigs []*reflection.RunType
 	// `allExtraProof` is the stricter Approach-3 fastpath gate — a
 	// nested object child might be `isJsonCompatible` per the TYPE but
 	// could carry extras at runtime, so the outer's `return v` shortcut
@@ -294,14 +294,14 @@ func emitObjectPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v stri
 			ctx.EmitDiagnosticSlot(SlotMethodDropped, memberLabel(resolved))
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			// Defer; emit a for-in tail below to copy non-declared keys
 			// with the index sig's child transform applied.
 			indexSigs = append(indexSigs, resolved)
 			allExtraProof = false // index sig dynamic keys can't be passed through
 			continue
 		}
-		if resolved.Kind != protocol.KindProperty && resolved.Kind != protocol.KindPropertySignature {
+		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if resolved.Child == nil {
@@ -404,7 +404,7 @@ func emitObjectPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v stri
 // sig's child transform applied. Declared keys are NOT walked by the
 // for-in loop (their assignments come AFTER and would otherwise be
 // overridden by raw index-sig values).
-func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*protocol.RunType, ctx *EmitContext) RTCode {
+func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []string, indexSigs []*reflection.RunType, ctx *EmitContext) RTCode {
 	var b strings.Builder
 	b.WriteString("const _r = {};")
 	// Build the per-index-sig arms inside one for-in over v.
@@ -425,7 +425,7 @@ func buildSafeIndexSignatureObject(v string, props []safePropEmit, skipNames []s
 		keyRegexVar := ""
 		if sig.Index != nil {
 			indexResolved := ctx.ResolveRef(sig.Index)
-			if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+			if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 				if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 					keyRegexVar = ctx.NextLocalVar("reIdx")
 					if !ctx.HasContextItem(keyRegexVar) {
@@ -620,7 +620,7 @@ func jsonObjectKeyLiteral(name string, isSafeName bool) string {
 // Cycle-safe: re-entry on an in-progress ID returns false (a cycle
 // always involves an object/class node so the conservative answer is
 // "not extra-proof" — we'll clone, which is correct).
-func isExtraProof(rt *protocol.RunType, ctx *EmitContext) bool {
+func isExtraProof(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt != nil && rt.ID != "" {
 		if verdict, known := ctx.walker.factsLookup(factExtraProof, rt.ID); known {
 			return verdict
@@ -637,7 +637,7 @@ func isExtraProof(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func extraProofRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func extraProofRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	if rt == nil {
 		return false
 	}
@@ -651,28 +651,28 @@ func extraProofRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		visited[rt.ID] = struct{}{}
 	}
 	switch rt.Kind {
-	case protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindNull, protocol.KindEnum, protocol.KindTemplateLiteral,
-		protocol.KindLiteral:
+	case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindNull, reflection.KindEnum, reflection.KindTemplateLiteral,
+		reflection.KindLiteral:
 		return true
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return extraProofRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, child := range rt.Children {
 			if !extraProofRecursive(ctx.ResolveRef(child), ctx, visited) {
 				return false
 			}
 		}
 		return true
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if rt.Child == nil {
 			return true
 		}
 		return extraProofRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		children := rt.SafeUnionChildren
 		if len(children) == 0 {
 			children = rt.Children
@@ -693,7 +693,7 @@ func extraProofRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 // there are no extras to strip at the array level itself, AND the
 // elements are guaranteed not to carry extras either. Otherwise emit
 // `v.map(function(_e){return <safeExpr>})`.
-func emitArrayPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitArrayPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -712,7 +712,7 @@ func emitArrayPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v strin
 // emitTuplePrepareForJsonSafe — fast noop when every member is
 // extra-proof; otherwise emit a tuple literal with per-position safe
 // expressions. Rest members emit a tail spread of mapped elements.
-func emitTuplePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTuplePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -726,7 +726,7 @@ func emitTuplePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v strin
 		if resolved == nil {
 			continue
 		}
-		if resolved.Kind != protocol.KindTupleMember {
+		if resolved.Kind != reflection.KindTupleMember {
 			continue
 		}
 		if resolved.Child == nil {
@@ -778,7 +778,7 @@ func emitTuplePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v strin
 // keys are filtered by the (optional) template-literal key regex and
 // whose values are the child's safe transform applied to the original
 // value. Symbol-keyed sigs are dropped per the skipRT rule.
-func emitIndexSignaturePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitIndexSignaturePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -792,7 +792,7 @@ func emitIndexSignaturePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -822,7 +822,7 @@ func emitIndexSignaturePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext
 // otherwise) so the result decodes through the existing flat
 // restoreFromJson. Each clause returns a NEW value built from
 // safeChildExpr / buildSafeObjectClone; the input is never touched.
-func emitUnionPrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitUnionPrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.AtomicMembers) == 0 && len(layout.ObjectMembers) == 0 {
 		return RTCode{Code: "", Type: CodeS}
@@ -957,8 +957,8 @@ func emitMergedPropPrepareSafe(mp FlatMergedProp, accessor, discAccessor string,
 
 // emitNativeIterablePrepareForJsonSafe handles Map / Set safely:
 // returns a NEW array of safe-form entries (no mutation of v).
-func emitNativeIterablePrepareForJsonSafe(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterablePrepareForJsonSafe(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
 	// Fast path: every inner type JSON-compatible → just Array.from(v).
 	allCompat := true

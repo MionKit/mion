@@ -1,5 +1,5 @@
 // Package runtype is the runType cache generator: it serializes resolved
-// tsgo types into protocol.RunType records and compiles the per-entry
+// tsgo types into reflection.RunType records and compiles the per-entry
 // virtual-module tuples consumers import (see entries.go and the shared
 // assembler in internal/compiler/entrymodules).
 package runtype
@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // renderFactoryArgs builds the positional-arg slice for one `rt(…)` call.
@@ -20,7 +20,7 @@ import (
 // runtime's index-only access, exactly like the old `u` alias did, but
 // costs zero bytes. Trailing holes are trimmed off. The first two args
 // (`id`, `kind`) are always present.
-func renderFactoryArgs(runType *protocol.RunType) []string {
+func renderFactoryArgs(runType *reflection.RunType) []string {
 	args := []string{
 		quoteJS(runType.ID),             // 0: id
 		strconv.Itoa(int(runType.Kind)), // 1: kind
@@ -49,8 +49,8 @@ func renderFactoryArgs(runType *protocol.RunType) []string {
 
 // subKindArg renders a SubKind value or a hole ("") when zero. Zero is the
 // "not applicable" sentinel — only nodes that need a SubKind get one.
-func subKindArg(value protocol.ReflectionSubKind) string {
-	if value == protocol.SubKindNone {
+func subKindArg(value reflection.ReflectionSubKind) string {
+	if value == reflection.SubKindNone {
 		return ""
 	}
 	return strconv.Itoa(int(value))
@@ -89,7 +89,7 @@ func intPtrArg(value *int) string {
 // literalArg renders the `literal` slot. Footer-special literals (bigint,
 // symbol, regexp) are emitted by writeFooter, so the factory arg stays a hole
 // ("") for those — the footer assignment then patches the literal in place.
-func literalArg(runType *protocol.RunType) string {
+func literalArg(runType *reflection.RunType) string {
 	if runType.Literal == nil {
 		return ""
 	}
@@ -153,7 +153,7 @@ func cacheRef(id string) string {
 
 // isFooterLiteral reports whether runType.Literal needs special construction
 // in the footer (bigint / symbol) rather than inline JSON.
-func isFooterLiteral(runType *protocol.RunType) bool {
+func isFooterLiteral(runType *reflection.RunType) bool {
 	if runType.Literal == nil {
 		return false
 	}
@@ -171,7 +171,7 @@ func isFooterLiteral(runType *protocol.RunType) bool {
 // default data bundle carries ref relations as row INDICES in its parallel
 // `rels` array (renderRelations) and keeps just the expression-specials in a
 // residual footer (writeBundleSpecials).
-func writeFooter(buffer *strings.Builder, runType *protocol.RunType) {
+func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	name := cacheRef(runType.ID)
 	if runType.Child != nil {
 		buffer.WriteString(fmt.Sprintf("%s.child = %s;\n", name, derefExpr(runType.Child)))
@@ -262,7 +262,7 @@ func writeFooter(buffer *strings.Builder, runType *protocol.RunType) {
 // returns "" for a leaf with no relations so the caller emits a bundle-level
 // hole. classType / formatAnnotation / footer literals are NOT here — they are
 // JS expressions handled by the residual footer (writeBundleSpecials).
-func renderRelations(runType *protocol.RunType, indexOf map[string]int) string {
+func renderRelations(runType *reflection.RunType, indexOf map[string]int) string {
 	slots := []string{
 		relRef(runType.Child, indexOf),                // 0 child
 		relRefs(runType.Children, indexOf),            // 1 children
@@ -293,11 +293,11 @@ func renderRelations(runType *protocol.RunType, indexOf map[string]int) string {
 // miss behavior), an inline JS literal for a non-ref child, or "" (a hole) when
 // nil. The inline case round-trips the RunType through JSON exactly as the old
 // derefExpr did.
-func relRef(child *protocol.RunType, indexOf map[string]int) string {
+func relRef(child *reflection.RunType, indexOf map[string]int) string {
 	if child == nil {
 		return ""
 	}
-	if child.Kind == protocol.KindRef {
+	if child.Kind == reflection.KindRef {
 		if index, ok := indexOf[child.ID]; ok {
 			return strconv.Itoa(index)
 		}
@@ -317,7 +317,7 @@ func relRef(child *protocol.RunType, indexOf map[string]int) string {
 // relRefs renders an array relation slot as `[<ref0>,<ref1>,…]`, or "" (a hole)
 // when empty. Each element uses relRef, so a row index, inline literal, or
 // quoted id can mix in the same array.
-func relRefs(children []*protocol.RunType, indexOf map[string]int) string {
+func relRefs(children []*reflection.RunType, indexOf map[string]int) string {
 	if len(children) == 0 {
 		return ""
 	}
@@ -339,7 +339,7 @@ func trimTrailingHoles(slots []string) []string {
 
 // hasBundleSpecials reports whether a node needs any residual footer line — a
 // runtime-special value that is a JS EXPRESSION rather than index-able data.
-func hasBundleSpecials(runType *protocol.RunType) bool {
+func hasBundleSpecials(runType *reflection.RunType) bool {
 	return runType.FormatAnnotation != nil ||
 		(runType.ClassRef != nil && runType.ClassRef.Builtin != "") ||
 		isFooterLiteral(runType) ||
@@ -357,7 +357,7 @@ func hasBundleSpecials(runType *protocol.RunType) bool {
 // literal, and the formatAnnotation object. Emitted through `c('<id>')` (a self
 // lookup only — no cross-row refs), so the bundle's residual ini carries only
 // these rare lines and is a hole for the common object/array/union node.
-func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
+func writeBundleSpecials(buffer *strings.Builder, runType *reflection.RunType) {
 	name := cacheRef(runType.ID)
 	if runType.FormatAnnotation != nil {
 		writeFormatAnnotation(buffer, name, runType)
@@ -385,7 +385,7 @@ func writeBundleSpecials(buffer *strings.Builder, runType *protocol.RunType) {
 // once: the builtin classType, the footer-only bigint/symbol literal and the
 // flattened unevaluated key set. writeFooter (per-node layout) emits the slot
 // specials itself and calls only this narrow half.
-func writeExpressionSpecials(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writeExpressionSpecials(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	// classType — built-in constructors looked up on globalThis so the
 	// generated module needs zero runtime imports.
 	if runType.ClassRef != nil && runType.ClassRef.Builtin != "" {
@@ -406,7 +406,7 @@ func writeExpressionSpecials(buffer *strings.Builder, name string, runType *prot
 // child derefs. Nothing is written when the sweep names no keys at all, which
 // is the `unevaluatedProperties: false` on a bare object case — there the mock
 // has nothing to trim TO and an empty list would read as "no constraint".
-func writeUnevaluatedKeys(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writeUnevaluatedKeys(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	if len(runType.Unevaluated) == 0 {
 		return
 	}
@@ -445,7 +445,7 @@ func joinQuoted(values []string) string {
 // writeContains emits the `<ref>.contains = [{child, min, max}, …];` line.
 // Runtime consumers: the mock walker's contains construction and the
 // negation matcher's occurrence counting.
-func writeContains(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writeContains(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	entries := make([]string, 0, len(runType.Contains))
 	for _, containsCheck := range runType.Contains {
 		entries = append(entries, fmt.Sprintf("{child: %s, min: %s, max: %s}",
@@ -458,7 +458,7 @@ func writeContains(buffer *strings.Builder, name string, runType *protocol.RunTy
 
 // writePatternProps / writePropNames — the patternProperties / propertyNames
 // runtime mirrors (key mocking + negation matching).
-func writePatternProps(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writePatternProps(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	entries := make([]string, 0, len(runType.PatternProps))
 	for _, patternProp := range runType.PatternProps {
 		entries = append(entries, fmt.Sprintf("{source: %s, key: %s, value: %s}",
@@ -467,7 +467,7 @@ func writePatternProps(buffer *strings.Builder, name string, runType *protocol.R
 	buffer.WriteString(fmt.Sprintf("%s.patternProps = [%s];\n", name, strings.Join(entries, ", ")))
 }
 
-func writePropNames(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writePropNames(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	entries := make([]string, 0, len(runType.PropNames))
 	for _, propNames := range runType.PropNames {
 		entries = append(entries, derefExpr(propNames))
@@ -478,7 +478,7 @@ func writePropNames(buffer *strings.Builder, name string, runType *protocol.RunT
 // writeOneOf emits the `<ref>.oneOf = [branch, …];` line — the exactly-one
 // branch list (runtime consumers: the mock walker's exclusive-branch loop
 // and the negation matcher's counting arm).
-func writeOneOf(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writeOneOf(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	branches := make([]string, 0, len(runType.OneOf))
 	for _, branch := range runType.OneOf {
 		branches = append(branches, derefExpr(branch))
@@ -492,14 +492,14 @@ func writeOneOf(buffer *strings.Builder, name string, runType *protocol.RunType)
 // (mockSamples) and format-formatter lookup. Params is already
 // JSON-serialisable (strings / numbers / bools / nested maps / arrays /
 // RegexpParam → {source,flags}).
-func writeFormatAnnotation(buffer *strings.Builder, name string, runType *protocol.RunType) {
+func writeFormatAnnotation(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	if encoded, err := json.Marshal(runType.FormatAnnotation); err == nil {
 		buffer.WriteString(fmt.Sprintf("%s.formatAnnotation = %s;\n", name, string(encoded)))
 	}
 }
 
 // footerLiteralExpr renders a runtime-special literal as a JS expression.
-func footerLiteralExpr(runType *protocol.RunType) string {
+func footerLiteralExpr(runType *reflection.RunType) string {
 	for _, flag := range runType.Flags {
 		if flag == "bigint" {
 			literalString, _ := runType.Literal.(string)
@@ -521,11 +521,11 @@ func footerLiteralExpr(runType *protocol.RunType) string {
 // Refs become `c('<id>')` cache lookups; inline (non-ref) Types are
 // round-tripped through JSON to land in the any-tree shape mustJSLiteral
 // understands. (The data bundle uses renderRelations / relRef instead.)
-func derefExpr(runType *protocol.RunType) string {
+func derefExpr(runType *reflection.RunType) string {
 	if runType == nil {
 		return "undefined"
 	}
-	if runType.Kind == protocol.KindRef {
+	if runType.Kind == reflection.KindRef {
 		return cacheRef(runType.ID)
 	}
 	encoded, err := json.Marshal(runType)
@@ -539,7 +539,7 @@ func derefExpr(runType *protocol.RunType) string {
 	return mustJSLiteral(generic)
 }
 
-func joinRefs(runTypes []*protocol.RunType) string {
+func joinRefs(runTypes []*reflection.RunType) string {
 	parts := make([]string, len(runTypes))
 	for i, runType := range runTypes {
 		parts[i] = derefExpr(runType)

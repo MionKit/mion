@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // recoverPattern extracts a regex source+flags from a format's `pattern`
@@ -66,7 +66,7 @@ func samplesFromValue(raw any) []string {
 // namedPatternValidate is the validate body for a pattern format (domain /
 // email / url): the AND of any length bounds and the regex test, plus
 // build-time mockSample validation. Empty when neither is present.
-func namedPatternValidate(ctx formats.EmitContext, annotation *protocol.FormatAnnotation, vλl string) string {
+func namedPatternValidate(ctx formats.EmitContext, annotation *reflection.FormatAnnotation, vλl string) string {
 	if annotation == nil {
 		return ""
 	}
@@ -82,7 +82,7 @@ func namedPatternValidate(ctx formats.EmitContext, annotation *protocol.FormatAn
 // namedPatternErrors is the validationErrors body for a pattern format. One
 // push per failing length bound, plus one for the pattern, each tagged
 // with the format name.
-func namedPatternErrors(ctx formats.EmitContext, annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr, name string) string {
+func namedPatternErrors(ctx formats.EmitContext, annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr, name string) string {
 	if annotation == nil {
 		return ""
 	}

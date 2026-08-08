@@ -23,6 +23,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // familyAddedFlag wires one family's per-scan added-flag: the pre-flight
@@ -30,7 +31,7 @@ import (
 // their flags come from the extractor / cache delta directly.
 type familyAddedFlag struct {
 	key          string
-	anySupported func(runTypes []*protocol.RunType) bool
+	anySupported func(runTypes []*reflection.RunType) bool
 	setAdded     func(response *protocol.Response, added bool)
 }
 

@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // union_flat_layout.go owns the structural decisions every flat-union
@@ -12,7 +12,7 @@ import (
 // flags via isJsonCompatible. Codegen lives in each emitter family;
 // this file produces the layout the codegen iterates.
 //
-// Layout lives ONLY here, never on protocol.RunType: the merged-prop
+// Layout lives ONLY here, never on reflection.RunType: the merged-prop
 // view is an encoding-side dispatch fiction (no canonical RunType
 // represents the merged shape) and the protocol describes types,
 // not chosen wire formats.
@@ -69,8 +69,8 @@ func (layout FlatLayout) discAccessor(v string) string {
 }
 
 type FlatAtomic struct {
-	Ref           *protocol.RunType
-	Resolved      *protocol.RunType
+	Ref           *reflection.RunType
+	Resolved      *reflection.RunType
 	OriginalIndex int
 	// ClassName is the user-facing class name when this atomic member is a
 	// named plain user class (KindClass + SubKindNone) routed through
@@ -83,8 +83,8 @@ type FlatAtomic struct {
 }
 
 type FlatObject struct {
-	Ref      *protocol.RunType
-	Resolved *protocol.RunType
+	Ref      *reflection.RunType
+	Resolved *reflection.RunType
 }
 
 type FlatMergedProp struct {
@@ -114,8 +114,8 @@ type FlatMergedProp struct {
 }
 
 type FlatPropCandidate struct {
-	ChildRef *protocol.RunType
-	Resolved *protocol.RunType
+	ChildRef *reflection.RunType
+	Resolved *reflection.RunType
 	Optional bool
 	// DiscValues lists the discriminant JS literals (e.g. `"t3"`, `1`) of
 	// the object members that declared THIS candidate for the prop. Only
@@ -151,7 +151,7 @@ func (mp FlatMergedProp) hasDiscDispatch() bool {
 // mergedPropNeedsSubWrap) into one pass. Recomputed on each call —
 // the work is bounded and avoiding shared state keeps the emitter
 // pipeline simple.
-func buildFlatLayout(rt *protocol.RunType, ctx *EmitContext) FlatLayout {
+func buildFlatLayout(rt *reflection.RunType, ctx *EmitContext) FlatLayout {
 	layout := FlatLayout{}
 	// DataOnly-strip members (symbol / function-like / Promise /
 	// non-serializable / never) so a union like `Date | symbol` lays out as
@@ -175,8 +175,8 @@ func buildFlatLayout(rt *protocol.RunType, ctx *EmitContext) FlatLayout {
 		// the merge. Other object-like kinds (Array, Tuple, Date, Map,
 		// Set …) don't expose a stable per-name property surface so
 		// they keep per-member dispatch.
-		if resolved.Kind == protocol.KindObjectLiteral || resolved.Kind == protocol.KindClass {
-			if resolved.Kind == protocol.KindClass && resolved.SubKind != protocol.SubKindNone {
+		if resolved.Kind == reflection.KindObjectLiteral || resolved.Kind == reflection.KindClass {
+			if resolved.Kind == reflection.KindClass && resolved.SubKind != reflection.SubKindNone {
 				layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i})
 				continue
 			}
@@ -187,7 +187,7 @@ func buildFlatLayout(rt *protocol.RunType, ctx *EmitContext) FlatLayout {
 			// the numeric member index discriminates which class. An anonymous
 			// class (never registrable) or a plain object literal stays in the
 			// merge as before.
-			if resolved.Kind == protocol.KindClass {
+			if resolved.Kind == reflection.KindClass {
 				if name := userClassName(resolved); name != "" {
 					layout.AtomicMembers = append(layout.AtomicMembers, FlatAtomic{Ref: ref, Resolved: resolved, OriginalIndex: i, ClassName: name})
 					continue
@@ -268,7 +268,7 @@ func (layout FlatLayout) hasClassAtomic() bool {
 // `val_<member>` check, wrapped in the object-null guard for object-like kinds.
 // This is the guard every non-class atomic member uses, and the fallback guard a
 // class atomic member uses after its instance-identity arm.
-func atomicStructuralGuard(resolved *protocol.RunType, ctx *EmitContext, v string) string {
+func atomicStructuralGuard(resolved *reflection.RunType, ctx *EmitContext, v string) string {
 	validateExpr := unionMemberValidateCheck(resolved, ctx, v)
 	if isObjectLikeKind(resolved.Kind) {
 		return objectGuard(v, validateExpr)
@@ -424,7 +424,7 @@ func buildMergedProps(objectMembers []FlatObject, ctx *EmitContext, discValueByM
 				}
 				continue
 			}
-			if prop.Kind != protocol.KindProperty && prop.Kind != protocol.KindPropertySignature {
+			if prop.Kind != reflection.KindProperty && prop.Kind != reflection.KindPropertySignature {
 				continue
 			}
 			if prop.Child == nil {
@@ -535,14 +535,14 @@ func detectFlatDiscriminant(objectMembers []FlatObject, ctx *EmitContext) (strin
 			if prop == nil || prop.IsStatic || prop.Optional {
 				continue
 			}
-			if prop.Kind != protocol.KindProperty && prop.Kind != protocol.KindPropertySignature {
+			if prop.Kind != reflection.KindProperty && prop.Kind != reflection.KindPropertySignature {
 				continue
 			}
 			if prop.Child == nil {
 				continue
 			}
 			child := ctx.ResolveRef(prop.Child)
-			if child == nil || child.Kind != protocol.KindLiteral {
+			if child == nil || child.Kind != reflection.KindLiteral {
 				continue
 			}
 			literal, ok := plainLiteralJS(child)
@@ -586,7 +586,7 @@ func detectFlatDiscriminant(objectMembers []FlatObject, ctx *EmitContext) (strin
 // equality comparison (`=== "t3"`, `=== 1`, `=== true`). Reports false for
 // bigint / symbol literals, whose Literal payload isn't a directly comparable
 // plain value, so they're never chosen as a flat discriminant.
-func plainLiteralJS(rt *protocol.RunType) (string, bool) {
+func plainLiteralJS(rt *reflection.RunType) (string, bool) {
 	for _, flag := range rt.Flags {
 		if flag == "bigint" || flag == "symbol" {
 			return "", false

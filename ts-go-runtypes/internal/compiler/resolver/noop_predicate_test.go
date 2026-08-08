@@ -5,6 +5,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // noopCorpusSource interns a wide spread of real checker-produced shapes —
@@ -103,11 +104,11 @@ getRunTypeId<DeepNest>();
 // ground-truth comparison: their compile externalizes the re-entry even under
 // allInternal, so the gate-disabled body never collapses — the cycle arm is
 // covered by the typefns unit tests and the JS round-trip suites instead.
-func reachesCycle(rt *protocol.RunType, refTable map[string]*protocol.RunType, onPath map[string]bool) bool {
+func reachesCycle(rt *reflection.RunType, refTable map[string]*reflection.RunType, onPath map[string]bool) bool {
 	if rt == nil {
 		return false
 	}
-	if rt.Kind == protocol.KindRef {
+	if rt.Kind == reflection.KindRef {
 		rt = refTable[rt.ID]
 		if rt == nil {
 			return false
@@ -123,7 +124,7 @@ func reachesCycle(rt *protocol.RunType, refTable map[string]*protocol.RunType, o
 		onPath[rt.ID] = true
 		defer delete(onPath, rt.ID)
 	}
-	children := make([]*protocol.RunType, 0, 4+len(rt.Children)+len(rt.SafeUnionChildren))
+	children := make([]*reflection.RunType, 0, 4+len(rt.Children)+len(rt.SafeUnionChildren))
 	children = append(children, rt.Child, rt.Index, rt.IndexT)
 	children = append(children, rt.Children...)
 	children = append(children, rt.SafeUnionChildren...)
@@ -151,7 +152,7 @@ func TestNoopPredicate_SoundAgainstEmitters(t *testing.T) {
 		t.Fatalf("scanFiles: %s", resp.Error)
 	}
 	allTypes := dump(r)
-	refTable := make(map[string]*protocol.RunType, len(allTypes))
+	refTable := make(map[string]*reflection.RunType, len(allTypes))
 	for _, rt := range allTypes {
 		if rt != nil && rt.ID != "" {
 			refTable[rt.ID] = rt

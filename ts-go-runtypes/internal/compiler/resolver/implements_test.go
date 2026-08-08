@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -20,14 +20,14 @@ class C implements I { a: string = ''; }
 getRunTypeId<C>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %d", tn.Kind)
 	}
 	if len(tn.Implements) != 1 {
 		t.Fatalf("expected 1 Implements entry, got %d", len(tn.Implements))
 	}
 	impl := deref(dump(r), tn.Implements[0])
-	if impl == nil || impl.Kind != protocol.KindObjectLiteral {
+	if impl == nil || impl.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected implemented type to be an interface (objectLiteral), got %+v", impl)
 	}
 }

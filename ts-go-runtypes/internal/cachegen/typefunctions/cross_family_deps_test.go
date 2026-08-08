@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // valKey returns the validate cache key `<validate-fnHash>_<id>` the emitter now
@@ -28,10 +29,10 @@ func itVariantKey(optionNames []string, id string) string {
 
 // buildRefTable indexes every RunType by id so renderEntryWithDeps and the
 // walker can deref the KindRef child slots (the wire form every composite
-// uses — see internal/protocol). Mirrors the per-request table RenderFnModule
+// uses — see internal/reflection). Mirrors the per-request table RenderFnModule
 // builds.
-func buildRefTable(runTypes []*protocol.RunType) map[string]*protocol.RunType {
-	table := make(map[string]*protocol.RunType, len(runTypes))
+func buildRefTable(runTypes []*reflection.RunType) map[string]*reflection.RunType {
+	table := make(map[string]*reflection.RunType, len(runTypes))
 	for _, rt := range runTypes {
 		if rt == nil || rt.ID == "" {
 			continue
@@ -71,29 +72,29 @@ func containsStr(haystack []string, needle string) bool {
 // per-member dispatch on the JSON side). Returns the run-types and the union
 // root id. Ids `big`/`dat` are retained as the two inner-object ids so the
 // dependent structural-lookup seeds stay stable across the fixture change.
-func buildConflictPropUnionFixture() ([]*protocol.RunType, string) {
-	bigint := &protocol.RunType{ID: "bin", Kind: protocol.KindBigInt}
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
+func buildConflictPropUnionFixture() ([]*reflection.RunType, string) {
+	bigint := &reflection.RunType{ID: "bin", Kind: reflection.KindBigInt}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	// Inner-object property signatures (`n: bigint`, `s: string`). The bigint
 	// field makes the first candidate's prepareForJson non-noop, forcing the
 	// merged-prop dispatch to keep its per-candidate validate discrimination.
-	innerPropN := &protocol.RunType{ID: "ipn", Kind: protocol.KindPropertySignature, Name: "n", IsSafeName: true, Child: makeRef("bin")}
-	innerPropS := &protocol.RunType{ID: "ips", Kind: protocol.KindPropertySignature, Name: "s", IsSafeName: true, Child: makeRef("str")}
+	innerPropN := &reflection.RunType{ID: "ipn", Kind: reflection.KindPropertySignature, Name: "n", IsSafeName: true, Child: makeRef("bin")}
+	innerPropS := &reflection.RunType{ID: "ips", Kind: reflection.KindPropertySignature, Name: "s", IsSafeName: true, Child: makeRef("str")}
 	// The two conflicting OBJECT candidates for prop `a` (kept under the ids
 	// `big`/`dat` so the cross-family edges are val_big / val_dat as before).
-	innerN := &protocol.RunType{ID: "big", Kind: protocol.KindObjectLiteral, TypeName: "InnerN", Children: []*protocol.RunType{makeRef("ipn")}}
-	innerS := &protocol.RunType{ID: "dat", Kind: protocol.KindObjectLiteral, TypeName: "InnerS", Children: []*protocol.RunType{makeRef("ips")}}
-	propABig := &protocol.RunType{ID: "pab", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	propADat := &protocol.RunType{ID: "pad", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
-	obj1 := &protocol.RunType{ID: "ob1", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pab")}}
-	obj2 := &protocol.RunType{ID: "ob2", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pad")}}
-	union := &protocol.RunType{
+	innerN := &reflection.RunType{ID: "big", Kind: reflection.KindObjectLiteral, TypeName: "InnerN", Children: []*reflection.RunType{makeRef("ipn")}}
+	innerS := &reflection.RunType{ID: "dat", Kind: reflection.KindObjectLiteral, TypeName: "InnerS", Children: []*reflection.RunType{makeRef("ips")}}
+	propABig := &reflection.RunType{ID: "pab", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	propADat := &reflection.RunType{ID: "pad", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("dat")}
+	obj1 := &reflection.RunType{ID: "ob1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pab")}}
+	obj2 := &reflection.RunType{ID: "ob2", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pad")}}
+	union := &reflection.RunType{
 		ID:                "uni",
-		Kind:              protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("ob1"), makeRef("ob2")},
+		Kind:              reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("ob1"), makeRef("ob2")},
 	}
-	return []*protocol.RunType{bigint, str, innerPropN, innerPropS, innerN, innerS, propABig, propADat, obj1, obj2, union}, "uni"
+	return []*reflection.RunType{bigint, str, innerPropN, innerPropS, innerN, innerS, propABig, propADat, obj1, obj2, union}, "uni"
 }
 
 // assertUnionCrossFamily renders the union root for the given encoder family
@@ -148,17 +149,17 @@ func TestCrossFamilyDeps_UnionToBinary(t *testing.T) {
 // for the same-family path: registerRTLookup's prefix gate keeps same-family
 // edges out of the cross-family list.
 func TestCrossFamilyDeps_ValidateSameFamilyOnly(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	innerProp := &protocol.RunType{ID: "ip", Kind: protocol.KindPropertySignature, Name: "n", IsSafeName: true, Child: makeRef("num")}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	innerProp := &reflection.RunType{ID: "ip", Kind: reflection.KindPropertySignature, Name: "n", IsSafeName: true, Child: makeRef("num")}
 	// Named, so the default name rule keeps it an external same-family dep
 	// (unnamed objects inline since the inlining flip).
-	inner := &protocol.RunType{ID: "inner", Kind: protocol.KindObjectLiteral, TypeName: "Inner", Children: []*protocol.RunType{makeRef("ip")}}
-	outerPropA := &protocol.RunType{ID: "opa", Kind: protocol.KindPropertySignature, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	outerPropB := &protocol.RunType{ID: "opb", Kind: protocol.KindPropertySignature, Name: "b", IsSafeName: true, Child: makeRef("inner")}
-	outer := &protocol.RunType{ID: "outer", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("opa"), makeRef("opb")}}
+	inner := &reflection.RunType{ID: "inner", Kind: reflection.KindObjectLiteral, TypeName: "Inner", Children: []*reflection.RunType{makeRef("ip")}}
+	outerPropA := &reflection.RunType{ID: "opa", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	outerPropB := &reflection.RunType{ID: "opb", Kind: reflection.KindPropertySignature, Name: "b", IsSafeName: true, Child: makeRef("inner")}
+	outer := &reflection.RunType{ID: "outer", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("opa"), makeRef("opb")}}
 
-	runTypes := []*protocol.RunType{str, num, innerProp, inner, outerPropA, outerPropB, outer}
+	runTypes := []*reflection.RunType{str, num, innerProp, inner, outerPropA, outerPropB, outer}
 	refTable := buildRefTable(runTypes)
 	settings := constants.CacheModules["validate"]
 	prefix := innerPrefix(settings)
@@ -226,7 +227,7 @@ func TestCrossFamilyDeps_CaptureIsByteIdentical(t *testing.T) {
 // it dedups, drops same-family (prefix-matching) ids, and no-ops when the
 // walker has no InnerPrefix set (hand-constructed walkers in unit tests).
 func TestRecordCrossFamilyDep_DedupAndPrefixGate(t *testing.T) {
-	rt := &protocol.RunType{Kind: protocol.KindString, ID: "root"}
+	rt := &reflection.RunType{Kind: reflection.KindString, ID: "root"}
 	w := NewWalker(rt, "pj_root", PrepareForJsonEmitter{})
 	w.InnerPrefix = "pj_"
 

@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // joinEntries flattens a collected family graph back into the legacy
@@ -95,7 +96,7 @@ func TestValidateModule_EmptyDump(t *testing.T) {
 
 func TestValidateModule_SingleEntryShape(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "abc123", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{{ID: "abc123", Kind: reflection.KindString}},
 	}
 	// Opt-in (EmitMode 'both'): arg-7 carries the full
 	// `function g_<hash>(utl){…}` declaration. Used by runtimes
@@ -125,7 +126,7 @@ func TestValidateModule_SingleEntryShape(t *testing.T) {
 // code)` on first lookup.
 func TestValidateModule_SingleEntryShape_DefaultEmit(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "abc123", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{{ID: "abc123", Kind: reflection.KindString}},
 	}
 	out := renderToStringDefault(t, dump)
 	key := valKey("abc123")
@@ -147,7 +148,7 @@ func TestValidateModule_SingleEntryShape_DefaultEmit(t *testing.T) {
 // slot carries the live factory — the body ships ONCE, not twice as in 'both'.
 func TestValidateModule_FunctionsMode(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "abc123", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{{ID: "abc123", Kind: reflection.KindString}},
 	}
 	out := joinEntries(t, FamilyByKey("validate").Collect(dump, RenderOpts{EmitMode: "functions"}, nil))
 	key := valKey("abc123")
@@ -179,30 +180,30 @@ func TestValidateModule_FunctionsMode(t *testing.T) {
 func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 	rows := []struct {
 		name string
-		rt   *protocol.RunType
+		rt   *reflection.RunType
 		body string // expected inner-fn body (post-Finalize)
 		noop bool   // true for any/unknown — Finalize collapses to noop, factory is skipped entirely
 	}{
-		{"number", &protocol.RunType{ID: "num", Kind: protocol.KindNumber}, "return Number.isFinite(v)", false},
-		{"boolean", &protocol.RunType{ID: "boo", Kind: protocol.KindBoolean}, "return typeof v === 'boolean'", false},
-		{"bigint", &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}, "return typeof v === 'bigint'", false},
+		{"number", &reflection.RunType{ID: "num", Kind: reflection.KindNumber}, "return Number.isFinite(v)", false},
+		{"boolean", &reflection.RunType{ID: "boo", Kind: reflection.KindBoolean}, "return typeof v === 'boolean'", false},
+		{"bigint", &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}, "return typeof v === 'bigint'", false},
 		// KindSymbol is unsupported at root. Renderer emits an alwaysThrow
 		// factory whose final slot is the VL002 message, rendered here at
 		// build time (not a body-bearing validator).
-		{"symbol", &protocol.RunType{ID: "sym", Kind: protocol.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")", false},
-		{"null", &protocol.RunType{ID: "nul", Kind: protocol.KindNull}, "return v === null", false},
-		{"undefined", &protocol.RunType{ID: "und", Kind: protocol.KindUndefined}, "return typeof v === 'undefined'", false},
-		{"void", &protocol.RunType{ID: "voi", Kind: protocol.KindVoid}, "return v === undefined", false},
-		{"never", &protocol.RunType{ID: "nev", Kind: protocol.KindNever}, "return false", false},
-		{"any", &protocol.RunType{ID: "any", Kind: protocol.KindAny}, "", true},
-		{"unknown", &protocol.RunType{ID: "unk", Kind: protocol.KindUnknown}, "", true},
-		{"object", &protocol.RunType{ID: "obj", Kind: protocol.KindObject}, "return (typeof v === 'object' && v !== null)", false},
-		{"regexp", &protocol.RunType{ID: "reg", Kind: protocol.KindRegexp}, "return (v instanceof RegExp)", false},
-		{"date", &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}, "return (v instanceof Date && !isNaN(v.getTime()))", false},
+		{"symbol", &reflection.RunType{ID: "sym", Kind: reflection.KindSymbol}, "init('" + valKey("sym") + "','symbol',,,,,," + quoteJS(buildAlwaysThrowMessage("VL002", "Symbol", nil)) + ")", false},
+		{"null", &reflection.RunType{ID: "nul", Kind: reflection.KindNull}, "return v === null", false},
+		{"undefined", &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}, "return typeof v === 'undefined'", false},
+		{"void", &reflection.RunType{ID: "voi", Kind: reflection.KindVoid}, "return v === undefined", false},
+		{"never", &reflection.RunType{ID: "nev", Kind: reflection.KindNever}, "return false", false},
+		{"any", &reflection.RunType{ID: "any", Kind: reflection.KindAny}, "", true},
+		{"unknown", &reflection.RunType{ID: "unk", Kind: reflection.KindUnknown}, "", true},
+		{"object", &reflection.RunType{ID: "obj", Kind: reflection.KindObject}, "return (typeof v === 'object' && v !== null)", false},
+		{"regexp", &reflection.RunType{ID: "reg", Kind: reflection.KindRegexp}, "return (v instanceof RegExp)", false},
+		{"date", &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}, "return (v instanceof Date && !isNaN(v.getTime()))", false},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
-			dump := protocol.Dump{RunTypes: []*protocol.RunType{row.rt}}
+			dump := protocol.Dump{RunTypes: []*reflection.RunType{row.rt}}
 			out := renderToString(t, dump)
 			if row.noop {
 				// Noop factories use the short-form init: only rtFnHash,
@@ -234,37 +235,37 @@ func TestValidateModule_AtomicEmitBodies(t *testing.T) {
 func TestValidateModule_LiteralEmitBodies(t *testing.T) {
 	rows := []struct {
 		name string
-		rt   *protocol.RunType
+		rt   *reflection.RunType
 		body string
 	}{
 		{
-			"string", &protocol.RunType{ID: "ls", Kind: protocol.KindLiteral, Literal: "a"},
+			"string", &reflection.RunType{ID: "ls", Kind: reflection.KindLiteral, Literal: "a"},
 			"return v === 'a'",
 		},
 		{
-			"number int", &protocol.RunType{ID: "li", Kind: protocol.KindLiteral, Literal: int64(2)},
+			"number int", &reflection.RunType{ID: "li", Kind: reflection.KindLiteral, Literal: int64(2)},
 			"return v === 2",
 		},
 		{
-			"number float", &protocol.RunType{ID: "lf", Kind: protocol.KindLiteral, Literal: float64(1.5)},
+			"number float", &reflection.RunType{ID: "lf", Kind: reflection.KindLiteral, Literal: float64(1.5)},
 			"return v === 1.5",
 		},
 		{
-			"boolean", &protocol.RunType{ID: "lb", Kind: protocol.KindLiteral, Literal: true},
+			"boolean", &reflection.RunType{ID: "lb", Kind: reflection.KindLiteral, Literal: true},
 			"return v === true",
 		},
 		{
-			"bigint", &protocol.RunType{ID: "lbi", Kind: protocol.KindLiteral, Literal: "1", Flags: []string{"bigint"}},
+			"bigint", &reflection.RunType{ID: "lbi", Kind: reflection.KindLiteral, Literal: "1", Flags: []string{"bigint"}},
 			"return v === 1n",
 		},
 		{
-			"symbol", &protocol.RunType{ID: "lsy", Kind: protocol.KindLiteral, Literal: map[string]any{"symbol": "hello"}, Flags: []string{"symbol"}},
+			"symbol", &reflection.RunType{ID: "lsy", Kind: reflection.KindLiteral, Literal: map[string]any{"symbol": "hello"}, Flags: []string{"symbol"}},
 			"return typeof v === 'symbol' && v.description === 'hello'",
 		},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
-			dump := protocol.Dump{RunTypes: []*protocol.RunType{row.rt}}
+			dump := protocol.Dump{RunTypes: []*reflection.RunType{row.rt}}
 			out := renderToString(t, dump)
 			if !strings.Contains(out, row.body) {
 				t.Errorf("expected body %q for literal %s in:\n%s", row.body, row.name, out)
@@ -279,12 +280,12 @@ func TestValidateModule_LiteralEmitBodies(t *testing.T) {
 // carries the resolved values in declaration order; chain order
 // follows.
 func TestValidateModule_EnumEmitBody(t *testing.T) {
-	rt := &protocol.RunType{
+	rt := &reflection.RunType{
 		ID:     "enm",
-		Kind:   protocol.KindEnum,
+		Kind:   reflection.KindEnum,
 		Values: []any{int64(0), "green", int64(2)},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{rt}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{rt}})
 	want := "return (v === 0 || v === 'green' || v === 2)"
 	if !strings.Contains(out, want) {
 		t.Errorf("expected enum body %q in:\n%s", want, out)
@@ -296,13 +297,13 @@ func TestValidateModule_EnumEmitBody(t *testing.T) {
 // Array.isArray guard, a numbered for-loop, and an inlined child check
 // since the child (string) is atomic — no dependency call needed.
 func TestValidateModule_ArrayEmitBody(t *testing.T) {
-	// emit walks the *protocol.RunType graph as-given (not via cache
+	// emit walks the *reflection.RunType graph as-given (not via cache
 	// resolution) so the Child slot here is inlined as a KindString
 	// rather than a KindRef sentinel — same shape the renderer sees
 	// after the cache materialises children into the parent.
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "ar1", Kind: protocol.KindArray, Child: &protocol.RunType{ID: "str", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{
+			{ID: "ar1", Kind: reflection.KindArray, Child: &reflection.RunType{ID: "str", Kind: reflection.KindString}},
 		},
 	}
 	out := renderToString(t, dump)
@@ -336,21 +337,21 @@ func TestValidateModule_NestedArrayDependencyCall(t *testing.T) {
 	// types stay external (dedupe-worthy), which is what keeps this test
 	// pinning the dependency-call + topo-order machinery. Unnamed arrays
 	// inline since the inlining flip (see the name-rule tests below).
-	inner := &protocol.RunType{
+	inner := &reflection.RunType{
 		ID:       "inn",
-		Kind:     protocol.KindArray,
+		Kind:     reflection.KindArray,
 		TypeName: "Tags",
-		Child:    &protocol.RunType{ID: "str", Kind: protocol.KindString},
+		Child:    &reflection.RunType{ID: "str", Kind: reflection.KindString},
 	}
-	outer := &protocol.RunType{
+	outer := &reflection.RunType{
 		ID:    "out",
-		Kind:  protocol.KindArray,
-		Child: &protocol.RunType{ID: "inn", Kind: protocol.KindArray, TypeName: "Tags", Child: &protocol.RunType{ID: "str", Kind: protocol.KindString}},
+		Kind:  reflection.KindArray,
+		Child: &reflection.RunType{ID: "inn", Kind: reflection.KindArray, TypeName: "Tags", Child: &reflection.RunType{ID: "str", Kind: reflection.KindString}},
 	}
 	// Cache insertion order is parent-first (outer, inner). Renderer
 	// must reorder to inner-before-outer so the outer's closure can
 	// resolve `utl.getRT('inn')` against an already-registered entry.
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{outer, inner}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{outer, inner}}
 	out := renderToString(t, dump)
 
 	innerKey := valKey("inn")
@@ -389,11 +390,11 @@ func TestValidateModule_NestedArrayDependencyCall(t *testing.T) {
 // not the legacy Site.Options back-compat fan-out.)
 func TestValidateModule_ArrayNoIsArrayCheck(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
+		RunTypes: []*reflection.RunType{
 			{
 				ID:    "an1",
-				Kind:  protocol.KindArray,
-				Child: &protocol.RunType{ID: "str", Kind: protocol.KindString},
+				Kind:  reflection.KindArray,
+				Child: &reflection.RunType{ID: "str", Kind: reflection.KindString},
 			},
 		},
 		Sites: []protocol.Site{
@@ -457,31 +458,31 @@ func extractInitLine(out, key string) string {
 // children inline directly; the resolver normally hands child slots
 // as KindRef sentinels which the walker derefs via the RefTable.
 func TestValidateModule_InterfaceEmitBody(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	numberRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	propA := &protocol.RunType{
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	numberRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	propA := &reflection.RunType{
 		ID:         "pA",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "a",
 		IsSafeName: true,
-		Child:      &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	propB := &protocol.RunType{
+	propB := &reflection.RunType{
 		ID:         "pB",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "b",
 		IsSafeName: true,
-		Child:      &protocol.RunType{ID: "num", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "num", Kind: reflection.KindRef},
 	}
-	iface := &protocol.RunType{
+	iface := &reflection.RunType{
 		ID:   "if1",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			{ID: "pA", Kind: protocol.KindRef},
-			{ID: "pB", Kind: protocol.KindRef},
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			{ID: "pA", Kind: reflection.KindRef},
+			{ID: "pB", Kind: reflection.KindRef},
 		},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{iface, propA, propB, stringRT, numberRT}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{iface, propA, propB, stringRT, numberRT}}
 	out := renderToString(t, dump)
 	if !strings.Contains(out, "init('"+valKey("if1")+"',") {
 		t.Fatalf("interface factory missing in:\n%s", out)
@@ -496,21 +497,21 @@ func TestValidateModule_InterfaceEmitBody(t *testing.T) {
 // wrap — `(v.<name> === undefined || <childCheck>)`. Mirrors the
 // PropertyRunType.emitIsType when src.optional is set.
 func TestValidateModule_OptionalPropertyEmitBody(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	propA := &protocol.RunType{
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	propA := &reflection.RunType{
 		ID:         "pA",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "a",
 		IsSafeName: true,
 		Optional:   true,
-		Child:      &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	iface := &protocol.RunType{
+	iface := &reflection.RunType{
 		ID:       "if2",
-		Kind:     protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{{ID: "pA", Kind: protocol.KindRef}},
+		Kind:     reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{{ID: "pA", Kind: reflection.KindRef}},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{iface, propA, stringRT}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{iface, propA, stringRT}})
 	want := "(v.a === undefined || typeof v.a === 'string')"
 	if !strings.Contains(out, want) {
 		t.Errorf("expected optional-property body %q in:\n%s", want, out)
@@ -523,31 +524,31 @@ func TestValidateModule_OptionalPropertyEmitBody(t *testing.T) {
 // methods. The interface body therefore reduces to the basic
 // typeof-object guard + the non-function siblings.
 func TestValidateModule_FunctionPropertyDropped(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	fnRT := &protocol.RunType{ID: "fn", Kind: protocol.KindFunction}
-	propName := &protocol.RunType{
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	fnRT := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
+	propName := &reflection.RunType{
 		ID:         "pN",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "name",
 		IsSafeName: true,
-		Child:      &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	propMethod := &protocol.RunType{
+	propMethod := &reflection.RunType{
 		ID:         "pM",
-		Kind:       protocol.KindPropertySignature,
+		Kind:       reflection.KindPropertySignature,
 		Name:       "method",
 		IsSafeName: true,
-		Child:      &protocol.RunType{ID: "fn", Kind: protocol.KindRef},
+		Child:      &reflection.RunType{ID: "fn", Kind: reflection.KindRef},
 	}
-	iface := &protocol.RunType{
+	iface := &reflection.RunType{
 		ID:   "if3",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			{ID: "pN", Kind: protocol.KindRef},
-			{ID: "pM", Kind: protocol.KindRef},
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			{ID: "pN", Kind: reflection.KindRef},
+			{ID: "pM", Kind: reflection.KindRef},
 		},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{iface, propName, propMethod, stringRT, fnRT}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{iface, propName, propMethod, stringRT, fnRT}})
 	if strings.Contains(out, "v.method") {
 		t.Errorf("function-typed property should be dropped from AND chain, but v.method appears:\n%s", out)
 	}
@@ -560,18 +561,18 @@ func TestValidateModule_FunctionPropertyDropped(t *testing.T) {
 // the for-in iteration over the object's own keys with a value-type
 // check. Mirrors the IndexSignatureRunType.emitIsType.
 func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	idx := &protocol.RunType{
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	idx := &reflection.RunType{
 		ID:    "ix",
-		Kind:  protocol.KindIndexSignature,
-		Child: &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Kind:  reflection.KindIndexSignature,
+		Child: &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	iface := &protocol.RunType{
+	iface := &reflection.RunType{
 		ID:       "if4",
-		Kind:     protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{{ID: "ix", Kind: protocol.KindRef}},
+		Kind:     reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{{ID: "ix", Kind: reflection.KindRef}},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{iface, idx, stringRT}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{iface, idx, stringRT}})
 	for _, fragment := range []string{
 		"for (const k0 in v)",
 		"typeof v[k0] === 'string'",
@@ -586,7 +587,7 @@ func TestValidateModule_IndexSignatureEmitBody(t *testing.T) {
 // TestValidateModule_FunctionTopLevelEmitBody — a free-standing function
 // runtype emits the bare `typeof === 'function'` check.
 func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{{ID: "fn1", Kind: protocol.KindFunction}}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{{ID: "fn1", Kind: reflection.KindFunction}}}
 	out := renderToString(t, dump)
 	if !strings.Contains(out, "return typeof v === 'function'") {
 		t.Errorf("expected function body in:\n%s", out)
@@ -597,31 +598,31 @@ func TestValidateModule_FunctionTopLevelEmitBody(t *testing.T) {
 // is: Array.isArray guard → length-bound guard (when no rest) → per-
 // member check sequence → return true.
 func TestValidateModule_TupleEmitBody(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	numberRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	numberRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
 	pos0 := 0
 	pos1 := 1
-	member0 := &protocol.RunType{
+	member0 := &reflection.RunType{
 		ID:       "m0",
-		Kind:     protocol.KindTupleMember,
+		Kind:     reflection.KindTupleMember,
 		Position: &pos0,
-		Child:    &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Child:    &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	member1 := &protocol.RunType{
+	member1 := &reflection.RunType{
 		ID:       "m1",
-		Kind:     protocol.KindTupleMember,
+		Kind:     reflection.KindTupleMember,
 		Position: &pos1,
-		Child:    &protocol.RunType{ID: "num", Kind: protocol.KindRef},
+		Child:    &reflection.RunType{ID: "num", Kind: reflection.KindRef},
 	}
-	tup := &protocol.RunType{
+	tup := &reflection.RunType{
 		ID:   "tp1",
-		Kind: protocol.KindTuple,
-		Children: []*protocol.RunType{
-			{ID: "m0", Kind: protocol.KindRef},
-			{ID: "m1", Kind: protocol.KindRef},
+		Kind: reflection.KindTuple,
+		Children: []*reflection.RunType{
+			{ID: "m0", Kind: reflection.KindRef},
+			{ID: "m1", Kind: reflection.KindRef},
 		},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{tup, member0, member1, stringRT, numberRT}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{tup, member0, member1, stringRT, numberRT}}
 	out := renderToString(t, dump)
 	for _, fragment := range []string{
 		"if (!Array.isArray(v)) return false;",
@@ -639,21 +640,21 @@ func TestValidateModule_TupleEmitBody(t *testing.T) {
 // TestValidateModule_TupleOptionalMember — optional tuple element wraps
 // with `(v[i] === undefined || (childCheck))`.
 func TestValidateModule_TupleOptionalMember(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	pos0 := 0
-	member0 := &protocol.RunType{
+	member0 := &reflection.RunType{
 		ID:       "m0",
-		Kind:     protocol.KindTupleMember,
+		Kind:     reflection.KindTupleMember,
 		Position: &pos0,
 		Optional: true,
-		Child:    &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+		Child:    &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 	}
-	tup := &protocol.RunType{
+	tup := &reflection.RunType{
 		ID:       "tp2",
-		Kind:     protocol.KindTuple,
-		Children: []*protocol.RunType{{ID: "m0", Kind: protocol.KindRef}},
+		Kind:     reflection.KindTuple,
+		Children: []*reflection.RunType{{ID: "m0", Kind: reflection.KindRef}},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{tup, member0, stringRT}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{tup, member0, stringRT}})
 	want := "(v[0] === undefined || (typeof v[0] === 'string'))"
 	if !strings.Contains(out, want) {
 		t.Errorf("expected optional tuple member %q in:\n%s", want, out)
@@ -663,17 +664,17 @@ func TestValidateModule_TupleOptionalMember(t *testing.T) {
 // TestValidateModule_UnionAtomicEmitBody — union of atomic types
 // produces an OR-chain.
 func TestValidateModule_UnionAtomicEmitBody(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	numberRT := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	un := &protocol.RunType{
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	numberRT := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	un := &reflection.RunType{
 		ID:   "un1",
-		Kind: protocol.KindUnion,
-		Children: []*protocol.RunType{
-			{ID: "str", Kind: protocol.KindRef},
-			{ID: "num", Kind: protocol.KindRef},
+		Kind: reflection.KindUnion,
+		Children: []*reflection.RunType{
+			{ID: "str", Kind: reflection.KindRef},
+			{ID: "num", Kind: reflection.KindRef},
 		},
 	}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{un, stringRT, numberRT}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{un, stringRT, numberRT}}
 	out := renderToString(t, dump)
 	want := "(typeof v === 'string' || Number.isFinite(v))"
 	if !strings.Contains(out, want) {
@@ -682,9 +683,9 @@ func TestValidateModule_UnionAtomicEmitBody(t *testing.T) {
 }
 
 // prop builds an inline (non-ref) property signature wrapping child.
-func prop(id, name string, optional bool, child *protocol.RunType) *protocol.RunType {
-	return &protocol.RunType{
-		ID: id, Kind: protocol.KindPropertySignature, Name: name,
+func prop(id, name string, optional bool, child *reflection.RunType) *reflection.RunType {
+	return &reflection.RunType{
+		ID: id, Kind: reflection.KindPropertySignature, Name: name,
 		IsSafeName: true, Optional: optional, Child: child,
 	}
 }
@@ -695,22 +696,22 @@ func prop(id, name string, optional bool, child *protocol.RunType) *protocol.Run
 // (union-validate-dedup). Inline children + a single union root keep the
 // rendered output to just the union body, so the guard count is exact.
 func TestValidateModule_UnionObjectsShareNullGuard(t *testing.T) {
-	obj := &protocol.RunType{
+	obj := &reflection.RunType{
 		ID:   "ob1",
-		Kind: protocol.KindObjectLiteral,
-		Children: []*protocol.RunType{
-			prop("pA", "a", false, &protocol.RunType{ID: "s", Kind: protocol.KindString}),
+		Kind: reflection.KindObjectLiteral,
+		Children: []*reflection.RunType{
+			prop("pA", "a", false, &reflection.RunType{ID: "s", Kind: reflection.KindString}),
 		},
 	}
-	un := &protocol.RunType{
+	un := &reflection.RunType{
 		ID:   "un2",
-		Kind: protocol.KindUnion,
-		Children: []*protocol.RunType{
-			{ID: "s0", Kind: protocol.KindString},
+		Kind: reflection.KindUnion,
+		Children: []*reflection.RunType{
+			{ID: "s0", Kind: reflection.KindString},
 			obj,
 		},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	if n := strings.Count(out, "typeof v === 'object' && v !== null"); n != 1 {
 		t.Errorf("union object guard must appear exactly once (shared root), got %d in:\n%s", n, out)
 	}
@@ -723,16 +724,16 @@ func TestValidateModule_UnionObjectsShareNullGuard(t *testing.T) {
 // TestValidateModule_UnionMultiObjectShareGuard — several object members
 // share ONE object guard; each arm keeps only its own property checks.
 func TestValidateModule_UnionMultiObjectShareGuard(t *testing.T) {
-	objA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pA", "a", false, &protocol.RunType{ID: "s", Kind: protocol.KindString}),
+	objA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pA", "a", false, &reflection.RunType{ID: "s", Kind: reflection.KindString}),
 	}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pB", "b", false, &protocol.RunType{ID: "n", Kind: protocol.KindNumber}),
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pB", "b", false, &reflection.RunType{ID: "n", Kind: reflection.KindNumber}),
 	}}
-	un := &protocol.RunType{ID: "un3", Kind: protocol.KindUnion, Children: []*protocol.RunType{
-		{ID: "s0", Kind: protocol.KindString}, objA, objB,
+	un := &reflection.RunType{ID: "un3", Kind: reflection.KindUnion, Children: []*reflection.RunType{
+		{ID: "s0", Kind: reflection.KindString}, objA, objB,
 	}}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	if n := strings.Count(out, "typeof v === 'object' && v !== null"); n != 1 {
 		t.Errorf("multi-object union must share ONE object guard, got %d in:\n%s", n, out)
 	}
@@ -747,13 +748,13 @@ func TestValidateModule_UnionMultiObjectShareGuard(t *testing.T) {
 // object member's `[object Object]` brand guard sits AFTER the dropped typeof
 // term, so it must survive as the arm's own leading check.
 func TestValidateModule_UnionAllOptionalObjectKeepsBrandGuard(t *testing.T) {
-	obj := &protocol.RunType{ID: "obO", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pA", "a", true, &protocol.RunType{ID: "s", Kind: protocol.KindString}),
+	obj := &reflection.RunType{ID: "obO", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pA", "a", true, &reflection.RunType{ID: "s", Kind: reflection.KindString}),
 	}}
-	un := &protocol.RunType{ID: "un4", Kind: protocol.KindUnion, Children: []*protocol.RunType{
-		{ID: "s0", Kind: protocol.KindString}, obj,
+	un := &reflection.RunType{ID: "un4", Kind: reflection.KindUnion, Children: []*reflection.RunType{
+		{ID: "s0", Kind: reflection.KindString}, obj,
 	}}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	if n := strings.Count(out, "typeof v === 'object' && v !== null"); n != 1 {
 		t.Errorf("all-optional object union must share ONE object guard, got %d in:\n%s", n, out)
 	}
@@ -767,16 +768,16 @@ func TestValidateModule_UnionAllOptionalObjectKeepsBrandGuard(t *testing.T) {
 // parent frame is the outer object, not the union. The shared `v` guard
 // appears once; the nested `v.x` object keeps its own.
 func TestValidateModule_UnionNestedObjectKeepsGuard(t *testing.T) {
-	inner := &protocol.RunType{ID: "inn", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pA", "a", false, &protocol.RunType{ID: "n", Kind: protocol.KindNumber}),
+	inner := &reflection.RunType{ID: "inn", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pA", "a", false, &reflection.RunType{ID: "n", Kind: reflection.KindNumber}),
 	}}
-	outer := &protocol.RunType{ID: "out", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
+	outer := &reflection.RunType{ID: "out", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
 		prop("pX", "x", false, inner),
 	}}
-	un := &protocol.RunType{ID: "un5", Kind: protocol.KindUnion, Children: []*protocol.RunType{
-		{ID: "s0", Kind: protocol.KindString}, outer,
+	un := &reflection.RunType{ID: "un5", Kind: reflection.KindUnion, Children: []*reflection.RunType{
+		{ID: "s0", Kind: reflection.KindString}, outer,
 	}}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	if n := strings.Count(out, "typeof v === 'object' && v !== null"); n != 1 {
 		t.Errorf("outer object arm's guard must be dropped: want the shared v-guard once, got %d in:\n%s", n, out)
 	}
@@ -789,12 +790,12 @@ func TestValidateModule_UnionNestedObjectKeepsGuard(t *testing.T) {
 // object-like too, but has no strippable typeof prefix (it uses Array.isArray).
 // The object arm is deduped; the array arm is untouched.
 func TestValidateModule_UnionMixedArrayObjectGuardOnce(t *testing.T) {
-	obj := &protocol.RunType{ID: "obM", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pA", "a", false, &protocol.RunType{ID: "s", Kind: protocol.KindString}),
+	obj := &reflection.RunType{ID: "obM", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pA", "a", false, &reflection.RunType{ID: "s", Kind: reflection.KindString}),
 	}}
-	arr := &protocol.RunType{ID: "arrM", Kind: protocol.KindArray, Child: &protocol.RunType{ID: "n", Kind: protocol.KindNumber}}
-	un := &protocol.RunType{ID: "un6", Kind: protocol.KindUnion, Children: []*protocol.RunType{obj, arr}}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	arr := &reflection.RunType{ID: "arrM", Kind: reflection.KindArray, Child: &reflection.RunType{ID: "n", Kind: reflection.KindNumber}}
+	un := &reflection.RunType{ID: "un6", Kind: reflection.KindUnion, Children: []*reflection.RunType{obj, arr}}
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	if n := strings.Count(out, "typeof v === 'object' && v !== null"); n != 1 {
 		t.Errorf("mixed array+object union must share ONE object guard, got %d in:\n%s", n, out)
 	}
@@ -815,16 +816,16 @@ func TestValidateModule_UnionObjectGuard_ParentNotChildren(t *testing.T) {
 	// string | {a: string} | {b: number} — two object members, so the shared
 	// parent guard is genuinely load-bearing (each child would otherwise need
 	// its own).
-	objA := &protocol.RunType{ID: "ogA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pA", "a", false, &protocol.RunType{ID: "s", Kind: protocol.KindString}),
+	objA := &reflection.RunType{ID: "ogA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pA", "a", false, &reflection.RunType{ID: "s", Kind: reflection.KindString}),
 	}}
-	objB := &protocol.RunType{ID: "ogB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{
-		prop("pB", "b", false, &protocol.RunType{ID: "n", Kind: protocol.KindNumber}),
+	objB := &reflection.RunType{ID: "ogB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{
+		prop("pB", "b", false, &reflection.RunType{ID: "n", Kind: reflection.KindNumber}),
 	}}
-	un := &protocol.RunType{ID: "unG", Kind: protocol.KindUnion, Children: []*protocol.RunType{
-		{ID: "s0", Kind: protocol.KindString}, objA, objB,
+	un := &reflection.RunType{ID: "unG", Kind: reflection.KindUnion, Children: []*reflection.RunType{
+		{ID: "s0", Kind: reflection.KindString}, objA, objB,
 	}}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{un}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{un}})
 	guard := "typeof v === 'object' && v !== null"
 
 	// Parent-level: the shared guard wraps the object OR-chain, i.e. it is
@@ -854,10 +855,10 @@ func TestValidateModule_UnsupportedKindSkipped(t *testing.T) {
 	// degenerates to unsupported. The renderer must skip both
 	// silently rather than panic so kind-by-kind rollout is possible.
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "u1", Kind: protocol.KindUnion}, // no children → unsupported
-			{ID: "x1", Kind: protocol.KindIntersection},
-			{ID: "s1", Kind: protocol.KindString},
+		RunTypes: []*reflection.RunType{
+			{ID: "u1", Kind: reflection.KindUnion}, // no children → unsupported
+			{ID: "x1", Kind: reflection.KindIntersection},
+			{ID: "s1", Kind: reflection.KindString},
 		},
 	}
 	out := renderToString(t, dump)
@@ -879,20 +880,20 @@ func TestValidateModule_UnsupportedKindSkipped(t *testing.T) {
 // skipped (no panic, no malformed code), while sibling supported
 // entries in the same dump still render normally.
 func TestValidateModule_CodeNSPropagation(t *testing.T) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
 	// KindIntersection is unsupported at the leaf — used here as a
 	// stand-in for "any future kind without an emit". We could equally
 	// well synthesize a brand-new ReflectionKind value; KindIntersection
 	// has the advantage of being a real cache shape today.
-	unsupportedLeaf := &protocol.RunType{ID: "uns", Kind: protocol.KindIntersection}
+	unsupportedLeaf := &reflection.RunType{ID: "uns", Kind: reflection.KindIntersection}
 
 	t.Run("array_of_unsupported_skipped", func(t *testing.T) {
-		arr := &protocol.RunType{
+		arr := &reflection.RunType{
 			ID:    "ar1",
-			Kind:  protocol.KindArray,
-			Child: &protocol.RunType{ID: "uns", Kind: protocol.KindRef},
+			Kind:  reflection.KindArray,
+			Child: &reflection.RunType{ID: "uns", Kind: reflection.KindRef},
 		}
-		dump := protocol.Dump{RunTypes: []*protocol.RunType{arr, unsupportedLeaf, stringRT}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{arr, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if strings.Contains(out, "init('"+valKey("ar1")+"',") {
 			t.Errorf("array with unsupported child must be skipped, got:\n%s", out)
@@ -907,29 +908,29 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		// propagating CodeNS to root. The object's emit drops the unsupported
 		// property from its AND chain and still renders for the supported
 		// siblings.
-		propUns := &protocol.RunType{
+		propUns := &reflection.RunType{
 			ID:         "pU",
-			Kind:       protocol.KindPropertySignature,
+			Kind:       reflection.KindPropertySignature,
 			Name:       "u",
 			IsSafeName: true,
-			Child:      &protocol.RunType{ID: "uns", Kind: protocol.KindRef},
+			Child:      &reflection.RunType{ID: "uns", Kind: reflection.KindRef},
 		}
-		propOk := &protocol.RunType{
+		propOk := &reflection.RunType{
 			ID:         "pO",
-			Kind:       protocol.KindPropertySignature,
+			Kind:       reflection.KindPropertySignature,
 			Name:       "o",
 			IsSafeName: true,
-			Child:      &protocol.RunType{ID: "str", Kind: protocol.KindRef},
+			Child:      &reflection.RunType{ID: "str", Kind: reflection.KindRef},
 		}
-		iface := &protocol.RunType{
+		iface := &reflection.RunType{
 			ID:   "if1",
-			Kind: protocol.KindObjectLiteral,
-			Children: []*protocol.RunType{
-				{ID: "pU", Kind: protocol.KindRef},
-				{ID: "pO", Kind: protocol.KindRef},
+			Kind: reflection.KindObjectLiteral,
+			Children: []*reflection.RunType{
+				{ID: "pU", Kind: reflection.KindRef},
+				{ID: "pO", Kind: reflection.KindRef},
 			},
 		}
-		dump := protocol.Dump{RunTypes: []*protocol.RunType{iface, propUns, propOk, unsupportedLeaf, stringRT}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{iface, propUns, propOk, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if !strings.Contains(out, "init('"+valKey("if1")+"',") {
 			t.Errorf("object with one unsupported property must still render (absorption), got:\n%s", out)
@@ -945,15 +946,15 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 	})
 
 	t.Run("union_with_one_unsupported_member_skipped", func(t *testing.T) {
-		un := &protocol.RunType{
+		un := &reflection.RunType{
 			ID:   "un1",
-			Kind: protocol.KindUnion,
-			Children: []*protocol.RunType{
-				{ID: "str", Kind: protocol.KindRef},
-				{ID: "uns", Kind: protocol.KindRef},
+			Kind: reflection.KindUnion,
+			Children: []*reflection.RunType{
+				{ID: "str", Kind: reflection.KindRef},
+				{ID: "uns", Kind: reflection.KindRef},
 			},
 		}
-		dump := protocol.Dump{RunTypes: []*protocol.RunType{un, unsupportedLeaf, stringRT}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{un, unsupportedLeaf, stringRT}}
 		out := renderToString(t, dump)
 		if strings.Contains(out, "init('"+valKey("un1")+"',") {
 			t.Errorf("union with one unsupported member must be skipped, got:\n%s", out)
@@ -965,17 +966,17 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		// returns CodeNS; inner array propagates; outer array
 		// propagates. Net effect: both inner and outer factories
 		// silently absent from the rendered module.
-		innerArr := &protocol.RunType{
+		innerArr := &reflection.RunType{
 			ID:    "ai",
-			Kind:  protocol.KindArray,
-			Child: &protocol.RunType{ID: "uns", Kind: protocol.KindRef},
+			Kind:  reflection.KindArray,
+			Child: &reflection.RunType{ID: "uns", Kind: reflection.KindRef},
 		}
-		outerArr := &protocol.RunType{
+		outerArr := &reflection.RunType{
 			ID:    "ao",
-			Kind:  protocol.KindArray,
-			Child: &protocol.RunType{ID: "ai", Kind: protocol.KindRef},
+			Kind:  reflection.KindArray,
+			Child: &reflection.RunType{ID: "ai", Kind: reflection.KindRef},
 		}
-		dump := protocol.Dump{RunTypes: []*protocol.RunType{outerArr, innerArr, unsupportedLeaf}}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{outerArr, innerArr, unsupportedLeaf}}
 		out := renderToString(t, dump)
 		if strings.Contains(out, "init('"+valKey("ao")+"',") {
 			t.Errorf("outer array of unsupported must be skipped, got:\n%s", out)
@@ -989,8 +990,8 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 		// alwaysThrow init() carries the fully rendered VL001 message as its
 		// final slot (rendered here in Go at build time, not resolved
 		// JS-side).
-		ns := &protocol.RunType{ID: "ns1", Kind: protocol.KindClass, SubKind: protocol.SubKindNonSerializable}
-		dump := protocol.Dump{RunTypes: []*protocol.RunType{ns, stringRT}}
+		ns := &reflection.RunType{ID: "ns1", Kind: reflection.KindClass, SubKind: reflection.SubKindNonSerializable}
+		dump := protocol.Dump{RunTypes: []*reflection.RunType{ns, stringRT}}
 		out := renderToString(t, dump)
 		wantThrow := quoteJS(buildAlwaysThrowMessage("VL001", "NonSerializableClass", nil))
 		if !strings.Contains(out, "init('"+valKey("ns1")+"','class',,,,,,"+wantThrow+")") {
@@ -1008,9 +1009,9 @@ func TestValidateModule_CodeNSPropagation(t *testing.T) {
 
 func TestValidateModule_NilRunTypeSkipped(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
+		RunTypes: []*reflection.RunType{
 			nil,
-			{ID: "s1", Kind: protocol.KindString},
+			{ID: "s1", Kind: reflection.KindString},
 			nil,
 		},
 	}
@@ -1022,9 +1023,9 @@ func TestValidateModule_NilRunTypeSkipped(t *testing.T) {
 
 func TestValidateModule_DeterministicOutput(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "a", Kind: protocol.KindString},
-			{ID: "b", Kind: protocol.KindString},
+		RunTypes: []*reflection.RunType{
+			{ID: "a", Kind: reflection.KindString},
+			{ID: "b", Kind: reflection.KindString},
 		},
 	}
 	first := renderToString(t, dump)
@@ -1036,8 +1037,8 @@ func TestValidateModule_DeterministicOutput(t *testing.T) {
 
 func TestValidateModule_TypeNameUsesDeclaredOverride(t *testing.T) {
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "x", Kind: protocol.KindString, TypeName: "MyBrandedString"},
+		RunTypes: []*reflection.RunType{
+			{ID: "x", Kind: reflection.KindString, TypeName: "MyBrandedString"},
 		},
 	}
 	out := renderToString(t, dump)
@@ -1123,12 +1124,12 @@ func renderAllInternal(t *testing.T, dump protocol.Dump) string {
 // DEFAULT mode: an unnamed inner array inlines — the outer body absorbs the
 // element loop as a context fn; no getRT lookup, no dep call.
 func TestValidateModule_Default_UnnamedArrayInlines(t *testing.T) {
-	outer := &protocol.RunType{
+	outer := &reflection.RunType{
 		ID:    "out",
-		Kind:  protocol.KindArray,
-		Child: &protocol.RunType{ID: "inn", Kind: protocol.KindArray, Child: &protocol.RunType{ID: "str", Kind: protocol.KindString}},
+		Kind:  reflection.KindArray,
+		Child: &reflection.RunType{ID: "inn", Kind: reflection.KindArray, Child: &reflection.RunType{ID: "str", Kind: reflection.KindString}},
 	}
-	out := renderToString(t, protocol.Dump{RunTypes: []*protocol.RunType{outer}})
+	out := renderToString(t, protocol.Dump{RunTypes: []*reflection.RunType{outer}})
 	if strings.Contains(out, "utl.getRT('"+valKey("inn")+"')") {
 		t.Errorf("unnamed inner array must inline, not register a getRT lookup:\n%s", out)
 	}
@@ -1145,18 +1146,18 @@ func TestValidateModule_Default_UnnamedArrayInlines(t *testing.T) {
 
 // allInternal is name-BLIND: even a named alias array inlines.
 func TestValidateModule_AllInternal_NamedArrayInlines(t *testing.T) {
-	inner := &protocol.RunType{
+	inner := &reflection.RunType{
 		ID:       "inn",
-		Kind:     protocol.KindArray,
+		Kind:     reflection.KindArray,
 		TypeName: "Tags",
-		Child:    &protocol.RunType{ID: "str", Kind: protocol.KindString},
+		Child:    &reflection.RunType{ID: "str", Kind: reflection.KindString},
 	}
-	outer := &protocol.RunType{
+	outer := &reflection.RunType{
 		ID:    "out",
-		Kind:  protocol.KindArray,
-		Child: &protocol.RunType{ID: "inn", Kind: protocol.KindArray, TypeName: "Tags", Child: &protocol.RunType{ID: "str", Kind: protocol.KindString}},
+		Kind:  reflection.KindArray,
+		Child: &reflection.RunType{ID: "inn", Kind: reflection.KindArray, TypeName: "Tags", Child: &reflection.RunType{ID: "str", Kind: reflection.KindString}},
 	}
-	out := renderAllInternal(t, protocol.Dump{RunTypes: []*protocol.RunType{outer, inner}})
+	out := renderAllInternal(t, protocol.Dump{RunTypes: []*reflection.RunType{outer, inner}})
 	if strings.Contains(out, valKey("inn")+".fn(") {
 		t.Errorf("allInternal must inline even named arrays, got a dep call:\n%s", out)
 	}
@@ -1168,16 +1169,16 @@ func TestValidateModule_AllInternal_NamedArrayInlines(t *testing.T) {
 // A circular compound stays external even when unnamed — IsCircular is
 // checked before the allInternal arm (self-invocation requires an entry).
 func TestValidateModule_AllInternal_CircularStaysExternal(t *testing.T) {
-	node := &protocol.RunType{
+	node := &reflection.RunType{
 		ID:         "nod",
-		Kind:       protocol.KindObjectLiteral,
+		Kind:       reflection.KindObjectLiteral,
 		IsCircular: true,
 	}
-	node.Children = []*protocol.RunType{{
-		ID: "prp", Kind: protocol.KindProperty, Name: "next", IsSafeName: true, Optional: true,
+	node.Children = []*reflection.RunType{{
+		ID: "prp", Kind: reflection.KindProperty, Name: "next", IsSafeName: true, Optional: true,
 		Child: node,
 	}}
-	out := renderAllInternal(t, protocol.Dump{RunTypes: []*protocol.RunType{node}})
+	out := renderAllInternal(t, protocol.Dump{RunTypes: []*reflection.RunType{node}})
 	// The self-reference compiles as a direct self call of the inner fn —
 	// the external-path mechanics for circulars — never an inline expansion.
 	if !strings.Contains(out, valKey("nod")+"(v.next)") {

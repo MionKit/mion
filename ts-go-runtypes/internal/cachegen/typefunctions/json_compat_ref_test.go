@@ -3,7 +3,7 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Regression: isJsonCompatible must resolve a raw KindRef before walking it.
@@ -15,11 +15,11 @@ import (
 // merged-prop union (e.g. {a:string;b:number} | {a:boolean;c:Date}) wrongly
 // sub-wrapping prop `a`.
 func TestIsJsonCompatible_RawRefDoesNotPoison(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	ctx := jsonCompatCtx(t, []*protocol.RunType{str})
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	ctx := jsonCompatCtx(t, []*reflection.RunType{str})
 	ctx.walker.facts = NewFactsTable()
 
-	ref := &protocol.RunType{Kind: protocol.KindRef, ID: "str"}
+	ref := &reflection.RunType{Kind: reflection.KindRef, ID: "str"}
 	if !isJsonCompatible(ref, ctx) {
 		t.Fatalf("isJsonCompatible(ref->string) = false, want true — a raw ref must resolve, not fall through")
 	}

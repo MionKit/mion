@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // PrepareForJsonEmitter implements the `prepareForJson` rt function —
@@ -31,7 +31,7 @@ func (PrepareForJsonEmitter) Args() []ArgSpec {
 
 // Supports gates the renderer's top-level loop on the shared JSON-wire
 // kind set (jsonWireSupports in json_shared.go).
-func (PrepareForJsonEmitter) Supports(rt *protocol.RunType) bool {
+func (PrepareForJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
@@ -45,7 +45,7 @@ func (PrepareForJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 // IsNoopType — the walker's dispatch-time noop gate: external children whose
 // prepare entry is the identity compose as empty code (no dep call, no
 // import). See noop_types.go for the soundness contract.
-func (PrepareForJsonEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (PrepareForJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForPrepareJson(rt, ctx)
 }
 
@@ -79,46 +79,46 @@ func (PrepareForJsonEmitter) ReturnName() string {
 //
 // Unsupported kinds emit CodeNS — the walker latches IsUnsupported
 // and the renderer skips this entry's factory.
-func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (PrepareForJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		// AtomicRunType default `{code: undefined, type: 'S'}`.
 		// Finalize collapses empty bodies to `return v` + noop flag.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		// Unsupported leaf — walker latches, renderer emits alwaysThrow
 		// factory keyed by PJ001.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		// ref: nodes/atomic/bigInt.ts:20 — `v.toString()`.
 		// Reassign so the mutated value is what gets returned.
 		return RTCode{Code: v + " = " + v + ".toString()", Type: CodeE}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		// Unsupported — symbol identity does not survive a JSON
 		// round-trip (Symbol("x") !== Symbol("x")), so the previous
 		// "Symbol:" + description encoding was lossy by construction.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		// ref: nodes/atomic/regexp.ts:20 — `v.toString()` (e.g. "/abc/i").
 		return RTCode{Code: v + " = " + v + ".toString()", Type: CodeE}
 
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		// ref: nodes/atomic/void.ts:20 — `v = undefined`.
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		// Date prepareForJson is a noop (Date has its own toJSON()).
 		// User classes (SubKindNone) flow through the object emit —
 		// class.ts extends InterfaceRunType, same emit body.
@@ -127,44 +127,44 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 		// (Int8Array, WeakMap, …) throws — the
 		// NonSerializableRunType.emitPrepareForJson at
 		// nodes/native/nonSerializable.ts:24 raises the same message.
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			// Like Date: no-op — JSON.stringify invokes the type's toJSON().
 			return RTCode{Code: "", Type: CodeS}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return RTCode{Code: "", Type: CodeS}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapPrepareWithClassSerializer(rt, ctx, v, structural)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterablePrepareForJson(rt, ctx, v)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			return RTCode{Code: "", Type: CodeNS}
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		// Unsupported — async value, can't be sampled synchronously.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectJsonChildren(rt, ctx)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyPrepareForJson(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignaturePrepareForJson(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTuplePrepareForJson(rt, ctx, v)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberPrepareForJson(rt, ctx, v)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		// ref: nodes/function/function.ts:83-85 —
 		// `emitPrepareForJson(): RTCode { throw new Error('Compile
 		// function PrepareForJson not supported, call compileParams
@@ -176,7 +176,7 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 		// isFunctionLikeKind.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// Unions encode via the flat-union wire shape (see union_flat.go) —
 		// object members merge into a `[-1, mergedObject]` envelope so
 		// encode skips the per-member validate walk; atomic members keep
@@ -186,23 +186,23 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 		// members and ties everywhere else.
 		return emitUnionPrepareForJsonFlat(rt, ctx, v)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		// Defensive noop — intersections should be pre-resolved by the
 		// type checker. See Supports's comment for details.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		// String-flavoured at runtime — noop.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// ref: nodes/atomic/literal.ts:77 — defers to the underlying
 		// kind's emit (`getRunTypeForLiteral(comp).emitPrepareForJson(comp)`).
 		// Inline the dispatch here: bigint / symbol / regexp literals
 		// behave like the bare kind; primitive literals are noops.
 		return emitLiteralPrepareForJson(rt, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		// ref: nodes/member/array.ts:emitPrepareForJson. Allocates an
 		// index counter, sets the child accessor (`v[i0]`) so the
 		// element's CompileChild adopts the subscript, then composes:
@@ -228,7 +228,7 @@ func (PrepareForJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 // the base kind. The Go side knows the literal's primitive flavour via
 // Flags ("bigint", "symbol") and Literal shape (regexp envelope vs
 // primitive).
-func emitLiteralPrepareForJson(rt *protocol.RunType, v string) RTCode {
+func emitLiteralPrepareForJson(rt *reflection.RunType, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
 		return RTCode{Code: v + " = " + v + ".toString()", Type: CodeE}
@@ -247,7 +247,7 @@ func emitLiteralPrepareForJson(rt *protocol.RunType, v string) RTCode {
 // short-circuits the whole entry). Shared verbatim by the restore side
 // (emitRestoreFromJson is the same walk — the per-property
 // encode/decode difference lives in the child emits).
-func emitObjectJsonChildren(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitObjectJsonChildren(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	// A callable interface is function-like (DataOnly = never); treat it like a
 	// bare function (alwaysThrow at root, dropped at a property), not an object.
 	if objectHasCallSignature(rt, ctx) {
@@ -285,7 +285,7 @@ func emitObjectJsonChildren(rt *protocol.RunType, ctx *EmitContext) RTCode {
 		// codecs MUTATE in place, so the second pass re-reads an already-
 		// transformed value (double-wrap on encode, "invalid union index" on
 		// decode). One sweep per distinct value type is correct and sufficient.
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			valueID := indexSigValueID(resolved, ctx)
 			if valueID != "" {
 				if seenIndexValueIDs[valueID] {
@@ -312,7 +312,7 @@ func emitObjectJsonChildren(rt *protocol.RunType, ctx *EmitContext) RTCode {
 // indexSigValueID returns the structural id of an index signature's VALUE type,
 // used to dedup split index signatures (`[k: string|number|symbol]: U` → several
 // sigs sharing value type U) so the codec emits one for-in sweep per value type.
-func indexSigValueID(rt *protocol.RunType, ctx *EmitContext) string {
+func indexSigValueID(rt *reflection.RunType, ctx *EmitContext) string {
 	if rt.Child == nil {
 		return ""
 	}
@@ -331,15 +331,15 @@ func indexSigValueID(rt *protocol.RunType, ctx *EmitContext) string {
 // prepareForJson path serializes through the live object, so it must `delete`
 // the leaking kinds to match the data-only projection that clone / direct /
 // binary already produce.
-func jsonStringifyLeaks(resolved *protocol.RunType) bool {
+func jsonStringifyLeaks(resolved *reflection.RunType) bool {
 	if resolved == nil {
 		return false
 	}
 	switch resolved.Kind {
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return true
-	case protocol.KindClass:
-		return resolved.SubKind == protocol.SubKindNonSerializable
+	case reflection.KindClass:
+		return resolved.SubKind == reflection.SubKindNonSerializable
 	}
 	return false
 }
@@ -348,7 +348,7 @@ func jsonStringifyLeaks(resolved *protocol.RunType) bool {
 // nodes/member/property.ts:emitPrepareForJson. Sets the child
 // accessor (`v.<name>` / `v["name"]`), recurses, optionally wraps
 // with the undefined-guard for optional properties.
-func emitPropertyPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitPropertyPrepareForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -399,7 +399,7 @@ func emitPropertyPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string
 // nodes/member/indexProperty.ts:emitPrepareForJson — for-in over keys
 // invoking the child's emit on each. Template-literal key constraints
 // add a per-key regex.test skip; without one, every key is processed.
-func emitIndexSignaturePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitIndexSignaturePrepareForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -423,7 +423,7 @@ func emitIndexSignaturePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v 
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -455,7 +455,7 @@ func emitIndexSignaturePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v 
 // emitTuplePrepareForJson mirrors
 // nodes/collection/tuple.ts:emitPrepareForJson — iterate tuple members,
 // emit each one's code, join with `;`. Empty tuple → noop.
-func emitTuplePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTuplePrepareForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -487,7 +487,7 @@ func emitTuplePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) R
 //     null, 1] in some engines and the inverse round-trip diverges)
 //   - rest: for-loop iterating from position to v.length, applying
 //     child emit on each element
-func emitTupleMemberPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleMemberPrepareForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -542,7 +542,7 @@ func emitTupleMemberPrepareForJson(rt *protocol.RunType, ctx *EmitContext, v str
 // looseCheckGate — TypeScript's actual weak-type semantic requires
 // at least one of the member's own props to be present, or the value
 // to be an empty object.
-func unionMemberValidateCheck(member *protocol.RunType, ctx *EmitContext, v string) string {
+func unionMemberValidateCheck(member *reflection.RunType, ctx *EmitContext, v string) string {
 	// Fast path: inline the check for a SIMPLE leaf-atomic member
 	// (`typeof v === 'string'`, `v === null`, `v instanceof Date`, a literal /
 	// enum `===` chain, …) instead of importing and calling the cross-family
@@ -582,7 +582,7 @@ func unionMemberValidateCheck(member *protocol.RunType, ctx *EmitContext, v stri
 // no registerRTLookup, no EmitDiagnostic. isInlinableLeafValidateKind enforces
 // that set; anything outside it (objects, arrays, tuples, unions, Map/Set,
 // template literals, format-branded leaves) keeps the cache path.
-func tryInlineLeafValidateCheck(member *protocol.RunType, ctx *EmitContext, v string) (string, bool) {
+func tryInlineLeafValidateCheck(member *reflection.RunType, ctx *EmitContext, v string) (string, bool) {
 	if !isInlinableLeafValidateKind(member) {
 		return "", false
 	}
@@ -607,24 +607,24 @@ func tryInlineLeafValidateCheck(member *protocol.RunType, ctx *EmitContext, v st
 // (CompileChild over elements); NonSerializable (CodeNS); template literals
 // (hoist a regex context item); and any / unknown / never / symbol (a constant
 // or diagnostic-emitting arm, no discriminating value).
-func isInlinableLeafValidateKind(member *protocol.RunType) bool {
+func isInlinableLeafValidateKind(member *reflection.RunType) bool {
 	if member == nil || member.FormatAnnotation != nil {
 		return false
 	}
 	switch member.Kind {
-	case protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindBigInt, protocol.KindNull, protocol.KindUndefined,
-		protocol.KindVoid, protocol.KindRegexp, protocol.KindObject,
-		protocol.KindLiteral, protocol.KindEnum, protocol.KindPromise,
-		protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindBigInt, reflection.KindNull, reflection.KindUndefined,
+		reflection.KindVoid, reflection.KindRegexp, reflection.KindObject,
+		reflection.KindLiteral, reflection.KindEnum, reflection.KindPromise,
+		reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return true
-	case protocol.KindClass:
+	case reflection.KindClass:
 		// Only the atomic, leaf-emit class subkinds: Date and the Temporal
 		// builtins emit a bare `instanceof` with no CompileChild. Map / Set
 		// iterate their elements (CompileChild); a plain user class emits the
 		// object AND-chain (CompileChild); NonSerializable emits CodeNS.
-		return member.SubKind == protocol.SubKindDate || protocol.IsTemporalSubKind(member.SubKind)
+		return member.SubKind == reflection.SubKindDate || reflection.IsTemporalSubKind(member.SubKind)
 	}
 	return false
 }
@@ -641,8 +641,8 @@ func isInlinableLeafValidateKind(member *protocol.RunType) bool {
 // which encodes TS's weak-type rule: a value matches an all-optional
 // shape only if at least one of its declared props is present OR the
 // value is the empty object.
-func looseCheckGate(member *protocol.RunType, ctx *EmitContext, v string) string {
-	if member.Kind != protocol.KindObjectLiteral && member.Kind != protocol.KindClass {
+func looseCheckGate(member *reflection.RunType, ctx *EmitContext, v string) string {
+	if member.Kind != reflection.KindObjectLiteral && member.Kind != reflection.KindClass {
 		return ""
 	}
 	var propNames []string
@@ -654,10 +654,10 @@ func looseCheckGate(member *protocol.RunType, ctx *EmitContext, v string) string
 		// Index signatures absorb arbitrary keys — TS doesn't require
 		// any specific prop to be present, so the loose-check doesn't
 		// apply.
-		if child.Kind == protocol.KindIndexSignature {
+		if child.Kind == reflection.KindIndexSignature {
 			return ""
 		}
-		if child.Kind != protocol.KindProperty && child.Kind != protocol.KindPropertySignature {
+		if child.Kind != reflection.KindProperty && child.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		// One required prop means the bare validate already enforces
@@ -706,8 +706,8 @@ func looseCheckGate(member *protocol.RunType, ctx *EmitContext, v string) string
 // like Set<string> / Map<string, number>), fall back to the original
 // shape `v = Array.from(v)` so the no-loop fast path is preserved
 // for already-passing tests.
-func emitNativeIterablePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterablePrepareForJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	innerTypes := iterableInnerTypes(rt, ctx)
 
 	entryVar := ctx.NextLocalVar("e")
@@ -758,7 +758,7 @@ func emitNativeIterablePrepareForJson(rt *protocol.RunType, ctx *EmitContext, v 
 // where the leaf emits `return v = new Date(v)`), which lets the
 // array emit treat dependency-call children identically to inline
 // atomic children. Self-recursive calls drop the `.fn` indirection.
-func (PrepareForJsonEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (PrepareForJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 

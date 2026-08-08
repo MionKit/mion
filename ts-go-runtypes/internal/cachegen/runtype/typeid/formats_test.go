@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // The test overlay extends the standard runtypes.d.ts with a TypeFormat
@@ -48,7 +49,7 @@ const runtypesWithSymbolFormatsDTS = `declare module '@ts-runtypes/core' {
 // overlay, scans the supplied code, and returns the root call site's
 // RunType. Sibling of rootFor in structural_test.go — kept separate so
 // the format-specific .d.ts doesn't leak into the shared overlay.
-func runFormatScan(t *testing.T, code string) *protocol.RunType {
+func runFormatScan(t *testing.T, code string) *reflection.RunType {
 	t.Helper()
 	return runFormatScanWithDTS(t, runtypesWithFormatsDTS, code)
 }
@@ -56,7 +57,7 @@ func runFormatScan(t *testing.T, code string) *protocol.RunType {
 // runFormatScanWithDTS is runFormatScan over a caller-supplied marker .d.ts, so
 // the string-keyed and symbol-keyed spellings of the sentinels can be scanned
 // through the identical pipeline and compared.
-func runFormatScanWithDTS(t *testing.T, markerDTS, code string) *protocol.RunType {
+func runFormatScanWithDTS(t *testing.T, markerDTS, code string) *reflection.RunType {
 	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
 	dtsPath := tspath.ResolvePath(cwd, "runtypes.d.ts")
@@ -102,7 +103,7 @@ import type {TypeFormat} from '@ts-runtypes/core';
 type FixtureFormat = TypeFormat<string, 'fixture', {tag: 1}>;
 getRunTypeId<FixtureFormat>();
 `)
-	if root.Kind != protocol.KindString {
+	if root.Kind != reflection.KindString {
 		t.Fatalf("expected branded primitive to surface as KindString, got %v", root.Kind)
 	}
 	if root.FormatAnnotation == nil {
@@ -241,11 +242,11 @@ getRunTypeId<Other>();
 }
 
 func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
-	a := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	a := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "fixture",
 		Params: map[string]any{"a": 1.0, "b": 2.0},
 	})
-	b := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	b := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "fixture",
 		Params: map[string]any{"b": 2.0, "a": 1.0},
 	})
@@ -262,11 +263,11 @@ func TestFormatAnnotation_StructuralKey_Canonicalises(t *testing.T) {
 // and a pattern's `source`/`flags` still are. Two same-shape formats differing
 // only in samples MUST share one key (and dedup onto one cache entry).
 func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
-	withSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	withSamples := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"a", "b"}},
 	})
-	bare := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	bare := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"maxLength": 10.0},
 	})
@@ -275,7 +276,7 @@ func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 	}
 	// Different declared pools still converge on the same key (the conflict is a
 	// build diagnostic, not an id split).
-	otherSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	otherSamples := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"maxLength": 10.0, "mockSamples": []any{"x", "y", "z"}},
 	})
@@ -283,7 +284,7 @@ func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 		t.Fatalf("a different sample pool must NOT change the key; %q != %q", otherSamples, bare)
 	}
 	// `message` DOES stay id-relevant (it changes the emitted error val).
-	withMessage := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	withMessage := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"maxLength": 10.0, "message": "too long"},
 	})
@@ -292,11 +293,11 @@ func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 	}
 	// Samples are skipped at NESTED depth too (FormatPattern nests them in
 	// `pattern`), but the pattern's source/flags stay.
-	nested := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	nested := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"pattern": map[string]any{"source": "^x$", "flags": "", "mockSamples": []any{"x"}}},
 	})
-	nestedNoSamples := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	nestedNoSamples := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"pattern": map[string]any{"source": "^x$", "flags": ""}},
 	})
@@ -304,7 +305,7 @@ func TestFormatAnnotation_SamplesExcludedFromKey(t *testing.T) {
 		t.Fatalf("nested mockSamples must NOT affect the key; %q != %q", nested, nestedNoSamples)
 	}
 	// A different pattern SOURCE still differentiates.
-	nestedOtherSource := typeid.FormatAnnotationStructuralKey(&protocol.FormatAnnotation{
+	nestedOtherSource := typeid.FormatAnnotationStructuralKey(&reflection.FormatAnnotation{
 		Name:   "stringFormat",
 		Params: map[string]any{"pattern": map[string]any{"source": "^y$", "flags": ""}},
 	})

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/enrichment/cldr"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Severity classifies a Finding's impact. Error fails the `check` command (exit
@@ -104,15 +104,15 @@ const reservedMetaPrefix = "rt$"
 // each CHILD deref'd first — tolerating both node forms: the raw closure shape
 // (children are `{kind: ref, id}` sentinels) and the inlined single-const
 // shape (children are canonical property nodes; deref is a no-op).
-func derefPropertyChildren(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunType {
-	out := make([]*protocol.RunType, 0, len(rt.Children))
+func derefPropertyChildren(ctx *walkCtx, rt *reflection.RunType) []*reflection.RunType {
+	out := make([]*reflection.RunType, 0, len(rt.Children))
 	for _, child := range rt.Children {
 		child = ctx.deref(child)
 		if child == nil || child.NotSupported {
 			continue
 		}
 		switch child.Kind {
-		case protocol.KindProperty, protocol.KindPropertySignature:
+		case reflection.KindProperty, reflection.KindPropertySignature:
 			out = append(out, child)
 		}
 	}
@@ -121,7 +121,7 @@ func derefPropertyChildren(ctx *walkCtx, rt *protocol.RunType) []*protocol.RunTy
 
 // checkReservedProperties emits one Error per rt$-prefixed property the
 // RUNTYPE itself declares at this node (code FT011 or MD011 per family).
-func checkReservedProperties(findings *[]Finding, ctx *walkCtx, rt *protocol.RunType, path, code string) {
+func checkReservedProperties(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, path, code string) {
 	for _, prop := range derefPropertyChildren(ctx, rt) {
 		if strings.HasPrefix(prop.Name, reservedMetaPrefix) {
 			*findings = append(*findings, Finding{
@@ -139,11 +139,11 @@ func checkReservedProperties(findings *[]Finding, ctx *walkCtx, rt *protocol.Run
 // dotted path of every rt$-prefixed property it declares — gen's pre-flight:
 // a non-empty result means the type cannot be scaffolded (the CLI fails with
 // the offending paths; `check` reports the same as FT011/MD011).
-func ReservedPropertyCollisions(rt *protocol.RunType, resolve func(id string) *protocol.RunType) []string {
+func ReservedPropertyCollisions(rt *reflection.RunType, resolve func(id string) *reflection.RunType) []string {
 	ctx := newWalkCtx(resolve)
 	var collisions []string
-	var walk func(rt *protocol.RunType, path string, depth int)
-	walk = func(rt *protocol.RunType, path string, depth int) {
+	var walk func(rt *reflection.RunType, path string, depth int)
+	walk = func(rt *reflection.RunType, path string, depth int) {
 		rt = ctx.deref(rt)
 		if rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 			return
@@ -196,7 +196,7 @@ var placeholderPattern = regexp.MustCompile(`\$\[(\w+)((?::\w+)*)\]`)
 // RunType T resolves to, collecting Findings. resolve follows KindRef sentinels
 // in child slots; pass nil when the graph is fully inlined (the unit-test
 // shape). See validate.go's package doc for the wired checks (FT002/FT003/FT005).
-func CheckFriendly(rt *protocol.RunType, literal LiteralView, resolve func(id string) *protocol.RunType) []Finding {
+func CheckFriendly(rt *reflection.RunType, literal LiteralView, resolve func(id string) *reflection.RunType) []Finding {
 	ctx := newWalkCtx(resolve)
 	var findings []Finding
 	checkFriendlyNode(&findings, ctx, rt, literal, "", 0)
@@ -205,7 +205,7 @@ func CheckFriendly(rt *protocol.RunType, literal LiteralView, resolve func(id st
 
 // CheckMock walks an authored MockData<T> map (literal) paired with the RunType
 // T resolves to, collecting Findings (MD001 today).
-func CheckMock(rt *protocol.RunType, literal LiteralView, resolve func(id string) *protocol.RunType) []Finding {
+func CheckMock(rt *reflection.RunType, literal LiteralView, resolve func(id string) *reflection.RunType) []Finding {
 	ctx := newWalkCtx(resolve)
 	var findings []Finding
 	checkMockNode(&findings, ctx, rt, literal, "", 0)
@@ -222,9 +222,9 @@ func CheckMock(rt *protocol.RunType, literal LiteralView, resolve func(id string
 
 // childByName indexes a RunType's data-bearing property children by field name
 // for O(1) pairing against literal keys.
-func childByName(ctx *walkCtx, rt *protocol.RunType) map[string]*protocol.RunType {
+func childByName(ctx *walkCtx, rt *reflection.RunType) map[string]*reflection.RunType {
 	props := propertyChildren(ctx, rt)
-	byName := make(map[string]*protocol.RunType, len(props))
+	byName := make(map[string]*reflection.RunType, len(props))
 	for _, prop := range props {
 		byName[prop.Name] = prop
 	}
@@ -239,7 +239,7 @@ func joinPath(path, segment string) string {
 	return path + "." + segment
 }
 
-func checkFriendlyNode(findings *[]Finding, ctx *walkCtx, rt *protocol.RunType, literal LiteralView, path string, depth int) {
+func checkFriendlyNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, literal LiteralView, path string, depth int) {
 	rt = ctx.deref(rt)
 	if literal == nil || rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		return
@@ -298,7 +298,7 @@ func checkFriendlyNode(findings *[]Finding, ctx *walkCtx, rt *protocol.RunType, 
 // root, where `rt$errors` only describes the base `type` failure). A nil
 // errorsView means the initializer wasn't an object literal (malformed — the
 // TS checker flags it; nothing for us to walk).
-func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode *protocol.RunType, path string) {
+func checkFriendlyErrors(findings *[]Finding, errorsView LiteralView, fieldNode *reflection.RunType, path string) {
 	if errorsView == nil {
 		return
 	}
@@ -388,7 +388,7 @@ func checkPluralLeaf(findings *[]Finding, plural LiteralView, key, keyPath strin
 
 // allowedErrorKeys returns the set of valid `rt$errors` record keys for a field:
 // the always-valid type/rt$default plus the field's declared format constraints.
-func allowedErrorKeys(fieldNode *protocol.RunType) map[string]bool {
+func allowedErrorKeys(fieldNode *reflection.RunType) map[string]bool {
 	allowed := make(map[string]bool, len(errorRecordReservedKeys)+2)
 	for key := range errorRecordReservedKeys {
 		allowed[key] = true
@@ -429,7 +429,7 @@ func checkPlaceholders(findings *[]Finding, template, path string) {
 	}
 }
 
-func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *protocol.RunType, literal LiteralView, path string, depth int) {
+func checkMockNode(findings *[]Finding, ctx *walkCtx, rt *reflection.RunType, literal LiteralView, path string, depth int) {
 	rt = ctx.deref(rt)
 	if literal == nil || rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		return

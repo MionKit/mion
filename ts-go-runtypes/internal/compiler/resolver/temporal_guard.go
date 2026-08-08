@@ -4,7 +4,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
@@ -81,12 +81,12 @@ func temporalQualifiedName(typeRefNode *ast.Node) (string, bool) {
 		return "", false
 	}
 	// Left must be the bare identifier `Temporal`; Right the type name.
-	if qualified.Left.Kind != ast.KindIdentifier || qualified.Left.Text() != protocol.TemporalNamespace {
+	if qualified.Left.Kind != ast.KindIdentifier || qualified.Left.Text() != reflection.TemporalNamespace {
 		return "", false
 	}
 	typeName := qualified.Right.Text()
-	if _, ok := protocol.TemporalInfoByName(typeName); !ok {
+	if _, ok := reflection.TemporalInfoByName(typeName); !ok {
 		return "", false
 	}
-	return protocol.TemporalNamespace + "." + typeName, true
+	return reflection.TemporalNamespace + "." + typeName, true
 }

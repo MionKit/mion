@@ -5,7 +5,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/constants"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TestVersionEmbedded_HashesDifferAcrossVersions — the same structural
@@ -19,11 +19,11 @@ func TestVersionEmbedded_HashesDifferAcrossVersions(t *testing.T) {
 
 	constants.Version = "v-test-A"
 	cacheA := NewCache(nil, Options{})
-	idA := cacheA.SerializeAtomicKind(protocol.KindString)
+	idA := cacheA.SerializeAtomicKind(reflection.KindString)
 
 	constants.Version = "v-test-B"
 	cacheB := NewCache(nil, Options{})
-	idB := cacheB.SerializeAtomicKind(protocol.KindString)
+	idB := cacheB.SerializeAtomicKind(reflection.KindString)
 
 	if idA == "" || idB == "" {
 		t.Fatalf("expected non-empty ids, got %q / %q", idA, idB)
@@ -46,12 +46,12 @@ func TestCompositeKey_DiffersAcrossVersions(t *testing.T) {
 	constants.Version = "v-composite-A"
 	fnHashA := operations.PlainHash("validate")
 	cacheA := NewCache(nil, Options{})
-	keyA := fnHashA + "_" + cacheA.SerializeAtomicKind(protocol.KindString)
+	keyA := fnHashA + "_" + cacheA.SerializeAtomicKind(reflection.KindString)
 
 	constants.Version = "v-composite-B"
 	fnHashB := operations.PlainHash("validate")
 	cacheB := NewCache(nil, Options{})
-	keyB := fnHashB + "_" + cacheB.SerializeAtomicKind(protocol.KindString)
+	keyB := fnHashB + "_" + cacheB.SerializeAtomicKind(reflection.KindString)
 
 	if fnHashA != fnHashB {
 		t.Errorf("fnHash half leaked the version: %q != %q (fnHash must be version-independent)", fnHashA, fnHashB)
@@ -70,8 +70,8 @@ func TestVersionEmbedded_IdempotentWithinVersion(t *testing.T) {
 
 	constants.Version = "v-idem-fixture"
 	cache := NewCache(nil, Options{})
-	first := cache.SerializeAtomicKind(protocol.KindString)
-	second := cache.SerializeAtomicKind(protocol.KindString)
+	first := cache.SerializeAtomicKind(reflection.KindString)
+	second := cache.SerializeAtomicKind(reflection.KindString)
 	if first == "" {
 		t.Fatal("empty id")
 	}
@@ -90,7 +90,7 @@ func TestStructuralForHash_Roundtrip(t *testing.T) {
 	constants.Version = "v-roundtrip"
 
 	cache := NewCache(nil, Options{})
-	id := cache.SerializeAtomicKind(protocol.KindString)
+	id := cache.SerializeAtomicKind(reflection.KindString)
 	structural := cache.StructuralForHash(id)
 	if structural == "" {
 		t.Fatalf("StructuralForHash(%q) returned empty", id)

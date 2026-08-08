@@ -1,4 +1,6 @@
-// Wire types mirroring internal/protocol/protocol.go. The interfaces below are
+// Wire types mirroring the Go side: the reflection model in
+// internal/reflection/runtype.go (RunType and friends) and the wire envelope
+// in internal/protocol/protocol.go. The interfaces below are
 // hand-maintained (to keep the plugin dep-free); the ReflectionKind enum,
 // KIND_REF sentinel, and REFLECTION_SUB_KIND map are code-generated from the same
 // Go source (reflectionKind.generated.ts) so the kind/sub-kind discriminators can
@@ -11,7 +13,7 @@
 // graph.
 
 // ReflectionKind + KIND_REF + REFLECTION_SUB_KIND are GENERATED from
-// internal/protocol/{protocol,subkind}.go (the same source as @ts-runtypes/core's
+// internal/reflection/{runtype,subkind}.go (the same source as @ts-runtypes/core's
 // RunTypeKind / RunTypeSubKind), re-exported here so existing
 // `import {ReflectionKind} from './protocol.ts'` sites are unchanged.
 import {KIND_REF, ReflectionKind, REFLECTION_SUB_KIND, type ReflectionSubKind} from './go-generated/reflectionKind.generated.ts';

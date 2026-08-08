@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // RestoreFromJsonEmitter implements the `restoreFromJson` rt function —
@@ -29,7 +29,7 @@ func (RestoreFromJsonEmitter) Args() []ArgSpec {
 
 // Supports — the shared JSON-wire kind set; every kind the prepare
 // side handles has a corresponding restore arm.
-func (RestoreFromJsonEmitter) Supports(rt *protocol.RunType) bool {
+func (RestoreFromJsonEmitter) Supports(rt *reflection.RunType) bool {
 	return jsonWireSupports(rt)
 }
 
@@ -41,7 +41,7 @@ func (RestoreFromJsonEmitter) IsRTInlined(ctx *InlineContext) bool {
 // IsNoopType — the walker's dispatch-time noop gate: external children whose
 // restore entry is the identity compose as empty code (no dep call, no
 // import). See noop_types.go for the soundness contract.
-func (RestoreFromJsonEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (RestoreFromJsonEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForRestoreJson(rt, ctx)
 }
 
@@ -66,45 +66,45 @@ func (RestoreFromJsonEmitter) ReturnName() string {
 // The bare expression form (e.g. `BigInt(v)`) becomes `v = BigInt(v)`
 // on our side so the walker's expression-shape handling actually
 // mutates v before the trailing `return v` lands.
-func (RestoreFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (RestoreFromJsonEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		// AtomicRunType default — noop.
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		// (ref: nodes/atomic/never.ts:23-24) —
 		// `emitRestoreFromJson(): RTCode { throw new Error('Never
 		// type cannot be decoded from JSON.'); }`.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUndefined:
+	case reflection.KindUndefined:
 		// (ref: nodes/atomic/undefined.ts:20) — `undefined`.
 		// JSON has no undefined, so the parsed input might be null or
 		// missing; force-rebind to undefined.
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
-	case protocol.KindVoid:
+	case reflection.KindVoid:
 		// (ref: nodes/atomic/void.ts:23) — `v = undefined`.
 		return RTCode{Code: v + " = undefined", Type: CodeE}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		// (ref: nodes/atomic/bigInt.ts:23) — `BigInt(v)`.
 		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		// Unsupported — symmetric with prepareForJson's symbol arm.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		// (ref: nodes/atomic/regexp.ts:23) — split the stringified form back
 		// into source + flags. The parse block hoists to a context fn
 		// (created once per materialization, not per call); the assignment
@@ -115,21 +115,21 @@ func (RestoreFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 			CodeRB, params, params)
 		return RTCode{Code: v + " = " + call, Type: CodeE}
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		// Date is reconstructed from its ISO string via `new Date(v)`.
-		if info, ok := protocol.TemporalInfoBySubKind(rt.SubKind); ok {
+		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Rebuild from the canonical string via Temporal.<T>.from(v).
 			return RTCode{Code: v + " = " + info.Builtin + ".from(" + v + ")", Type: CodeE}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			return RTCode{Code: v + " = new Date(" + v + ")", Type: CodeE}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectJsonChildren(rt, ctx)
 			return wrapRestoreWithClassSerializer(rt, ctx, v, structural)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableRestoreFromJson(rt, ctx, v)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			// (ref: nodes/native/nonSerializable.ts:27-28) —
 			// `emitRestoreFromJson(): RTCode { throw new Error('RT
 			// compilation disabled for Non Serializable types.'); }`.
@@ -137,54 +137,54 @@ func (RestoreFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		// (ref: nodes/native/promise.ts:26-27) — emitRestoreFromJson
 		// throws "RT compilation disabled for Non Serializable
 		// types.". Same throw-factory pattern as the prepare side.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectJsonChildren(rt, ctx)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberRestoreFromJson(rt, ctx, v)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		// (ref: nodes/function/function.ts:86-88) —
 		// `emitRestoreFromJson(): RTCode { throw new Error('Compile
 		// function RestoreFromJson not supported, call compileParams
 		// or compileReturn instead.'); }`.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// Decodes the flat-union wire shape produced by
 		// emitUnionPrepareForJsonFlat / emitUnionStringifyJsonFlat (see
 		// union_flat.go). The non-flat decoder was retired with its
 		// encoder.
 		return emitUnionRestoreFromJsonFlat(rt, ctx, v)
 
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// (ref: nodes/atomic/literal.ts:80) — defers to the underlying
 		// kind's emit.
 		return emitLiteralRestoreFromJson(rt, v)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		// (ref: nodes/member/array.ts:emitRestoreFromJson) — same body
 		// shape as emitPrepareForJson. Each element gets the child's
 		// restoreFromJson applied in place. Empty child code collapses
@@ -200,7 +200,7 @@ func (RestoreFromJsonEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 // emitLiteralRestoreFromJson mirrors literal.ts:80 — defers to
 // the base kind's emit. Same flag-based dispatch as
 // emitLiteralPrepareForJson.
-func emitLiteralRestoreFromJson(rt *protocol.RunType, v string) RTCode {
+func emitLiteralRestoreFromJson(rt *reflection.RunType, v string) RTCode {
 	switch literalFlavour(rt) {
 	case litBigInt:
 		return RTCode{Code: v + " = BigInt(" + v + ")", Type: CodeE}
@@ -212,7 +212,7 @@ func emitLiteralRestoreFromJson(rt *protocol.RunType, v string) RTCode {
 }
 
 // emitPropertyRestoreFromJson — sibling of emitPropertyPrepareForJson.
-func emitPropertyRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitPropertyRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -252,7 +252,7 @@ func emitPropertyRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v strin
 // emitIndexSignaturePrepareForJson. Skips symbol-keyed sigs per
 // the IndexSignatureRunType.skipRT contract (indexProperty.ts:30-36); see
 // the prepareForJson mirror for the full rationale.
-func emitIndexSignatureRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitIndexSignatureRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -269,7 +269,7 @@ func emitIndexSignatureRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -301,7 +301,7 @@ func emitIndexSignatureRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v
 }
 
 // emitTupleRestoreFromJson — sibling of emitTuplePrepareForJson.
-func emitTupleRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -325,7 +325,7 @@ func emitTupleRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) 
 // emitTupleMemberPrepareForJson. The inverse-of-pad-with-null logic
 // restores `null` slots to `undefined` for optional members. Non-rest
 // non-optional members pass child code through.
-func emitTupleMemberRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleMemberRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -385,8 +385,8 @@ func emitTupleMemberRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v st
 //
 // When every wrapped child compiles to empty, fall back to the no-loop
 // `v = new Map(v)` / `v = new Set(v)` shape.
-func emitNativeIterableRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableRestoreFromJson(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
 	if !isMap {
 		ctorName = "Set"
@@ -430,7 +430,7 @@ func emitNativeIterableRestoreFromJson(rt *protocol.RunType, ctx *EmitContext, v
 // `v = new Date(v)` style rebind inside the inner function propagates
 // to the outer caller. See PrepareForJsonEmitter.EmitDependencyCall
 // for the full rationale.
-func (RestoreFromJsonEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (RestoreFromJsonEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, ctx.Vλl)
 }
 

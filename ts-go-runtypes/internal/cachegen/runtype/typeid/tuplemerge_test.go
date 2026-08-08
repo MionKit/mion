@@ -3,7 +3,7 @@ package typeid_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TestTupleMerge_IntersectionConvergesWithHandWrittenTuple — the collapse-level
@@ -19,7 +19,7 @@ getRunTypeId<[string, ...unknown[]] & [unknown?, number?, ...unknown[]]>();
 	_, plainRequired := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[string, number?, ...unknown[]]>();
 `)
-	if twin.Kind != protocol.KindTuple {
+	if twin.Kind != reflection.KindTuple {
 		t.Fatalf("twin: expected KindTuple, got %d", twin.Kind)
 	}
 	if twin.ID != plainRequired.ID {
@@ -61,7 +61,7 @@ func TestTupleMerge_ConflictProjectsNever(t *testing.T) {
 	_, conflict := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[string] & [number]>();
 `)
-	if conflict.Kind != protocol.KindNever {
+	if conflict.Kind != reflection.KindNever {
 		t.Errorf("conflict: expected KindNever, got kind %d (id %s)", conflict.Kind, conflict.ID)
 	}
 
@@ -69,7 +69,7 @@ getRunTypeId<[string] & [number]>();
 	_, window := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[unknown, unknown, ...unknown[]] & [string?]>();
 `)
-	if window.Kind != protocol.KindNever {
+	if window.Kind != reflection.KindNever {
 		t.Errorf("length window: expected KindNever, got kind %d (id %s)", window.Kind, window.ID)
 	}
 }
@@ -88,7 +88,7 @@ getRunTypeId<[unknown?, ...unknown[]] & number[]>();
 	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[number?, ...number[]]>();
 `)
-	if merged.Kind != protocol.KindTuple {
+	if merged.Kind != reflection.KindTuple {
 		t.Fatalf("tuple ∩ array: expected KindTuple, got %d", merged.Kind)
 	}
 	if merged.ID != plain.ID {
@@ -121,7 +121,7 @@ getRunTypeId(value);
 	_, conflict := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[string, ...unknown[]] & number[]>();
 `)
-	if conflict.Kind != protocol.KindNever {
+	if conflict.Kind != reflection.KindNever {
 		t.Errorf("tuple ∩ array conflict: expected KindNever, got kind %d (id %s)", conflict.Kind, conflict.ID)
 	}
 }
@@ -140,7 +140,7 @@ type Min5 = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 5}};
 func TestTupleMerge_ContendedSlotFoldsItsAnnotations(t *testing.T) {
 	_, folded := rootFor(t, foldBrands+`getRunTypeId<[Min3?, ...unknown[]] & Min5[]>();
 `)
-	if folded.Kind != protocol.KindTuple {
+	if folded.Kind != reflection.KindTuple {
 		t.Fatalf("contended slot: expected KindTuple, got %d (id %s)", folded.Kind, folded.ID)
 	}
 	// `min: 3 ∧ min: 5` is `min: 5`, so the merged slot IS the tighter bound.
@@ -162,7 +162,7 @@ type U5 = string | Min5 | boolean | null | unknown[] | Record<string, unknown>;
 `
 	_, folded := rootFor(t, unions+`getRunTypeId<[U3?, ...unknown[]] & U5[]>();
 `)
-	if folded.Kind != protocol.KindTuple {
+	if folded.Kind != reflection.KindTuple {
 		t.Fatalf("union slot: expected KindTuple, got %d (id %s)", folded.Kind, folded.ID)
 	}
 	_, tighter := rootFor(t, unions+`getRunTypeId<[U5?, ...U5[]]>();
@@ -181,7 +181,7 @@ type Numeric = number & {__rtFormatName?: 'number'; __rtFormatParams?: {min: 3}}
 type Texty = string & {__rtFormatName?: 'string'; __rtFormatParams?: {minLength: 3}};
 getRunTypeId<[Numeric?, ...unknown[]] & Texty[]>();
 `)
-	if families.Kind != protocol.KindNever {
+	if families.Kind != reflection.KindNever {
 		t.Errorf("cross-family: expected KindNever, got kind %d (id %s)", families.Kind, families.ID)
 	}
 
@@ -189,7 +189,7 @@ getRunTypeId<[Numeric?, ...unknown[]] & Texty[]>();
 	_, plain := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
 getRunTypeId<[string?, ...unknown[]] & number[]>();
 `)
-	if plain.Kind != protocol.KindNever {
+	if plain.Kind != reflection.KindNever {
 		t.Errorf("plain disagreement: expected KindNever, got kind %d (id %s)", plain.Kind, plain.ID)
 	}
 }

@@ -1,4 +1,4 @@
-package protocol
+package reflection
 
 // ReflectionSubKind is the second discriminator alongside ReflectionKind.
 // Mirrors the numeric values in

@@ -5,7 +5,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // enrichPatternSamples fills auto-generated mockSamples into every
@@ -102,7 +102,7 @@ func (sess *Session) mockSeedBasis() map[string][]string {
 			if node == nil {
 				return
 			}
-			node.EachRefSlot(func(ref *protocol.RunType) { walk(ref.ID) })
+			node.EachRefSlot(func(ref *reflection.RunType) { walk(ref.ID) })
 		}
 		walk(site.ID)
 	}

@@ -2,7 +2,7 @@ package runtype
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Visibility values mirror deepkit's ReflectionVisibility enum so the wire
@@ -18,7 +18,7 @@ const (
 // `asClass` gates class-only modifiers — interface PropertySignatures and
 // MethodSignatures can still be readonly but never carry visibility/static/
 // abstract markers.
-func applyMemberModifiers(member *protocol.RunType, symbol *ast.Symbol, asClass bool) {
+func applyMemberModifiers(member *reflection.RunType, symbol *ast.Symbol, asClass bool) {
 	// Readonly resolution: for symbols where the AST declaration would
 	// lie about the effective readonly state — mapped-type properties
 	// (Readonly<T> / `+readonly` / `-readonly`) and merged synthetic
@@ -81,7 +81,7 @@ func applyMemberModifiers(member *protocol.RunType, symbol *ast.Symbol, asClass 
 // initializer expression. Literal values land in `DefaultVal`; non-literal
 // initializers (function/expression/computed) leave DefaultVal nil and append
 // the "nonLiteralDefault" marker to Flags — mirrors the reference convention.
-func applyParameterDefault(parameter *protocol.RunType, symbol *ast.Symbol) {
+func applyParameterDefault(parameter *reflection.RunType, symbol *ast.Symbol) {
 	paramNode := parameterDeclaration(symbol)
 	if paramNode == nil || paramNode.Initializer == nil {
 		return

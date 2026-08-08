@@ -9,6 +9,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // fakeLookup satisfies diskcache.HashLookup with two in-memory maps. Used by
@@ -55,8 +56,8 @@ func TestRenderFnModule_DiskCache_RoundTrip(t *testing.T) {
 	lookup.set("abc123", "1:atomic")
 
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "abc123", Kind: protocol.KindString},
+		RunTypes: []*reflection.RunType{
+			{ID: "abc123", Kind: reflection.KindString},
 		},
 	}
 	opts := RenderOpts{Store: store, Lookup: lookup}
@@ -134,8 +135,8 @@ func TestRenderFnModule_DiskCache_ChildHashDriftMiss(t *testing.T) {
 	}
 
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{
-			{ID: "abc123", Kind: protocol.KindString},
+		RunTypes: []*reflection.RunType{
+			{ID: "abc123", Kind: reflection.KindString},
 		},
 	}
 	out := joinEntries(t, FamilyByKey("validate").Collect(dump, RenderOpts{Store: store, Lookup: lookup}, nil))
@@ -183,7 +184,7 @@ func TestRenderFnModule_DiskCache_HeaderStructuralMismatch(t *testing.T) {
 	_ = os.WriteFile(cachePath, raw, 0o644)
 
 	dump := protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "abc123", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{{ID: "abc123", Kind: reflection.KindString}},
 	}
 	out := joinEntries(t, FamilyByKey("validate").Collect(dump, RenderOpts{Store: store, Lookup: lookup}, nil))
 	if strings.Contains(out, "STALE_MARKER") {

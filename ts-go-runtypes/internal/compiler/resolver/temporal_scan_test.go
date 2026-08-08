@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats/all"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // temporal_scan_test.go proves the scanner recognises every builtin Temporal
@@ -12,7 +13,7 @@ import (
 // ClassRef.Builtin = "Temporal.<Name>", and distinct structural ids per type.
 
 // scanTemporal returns the root RunType for getRunTypeId<Temporal.<typeName>>().
-func scanTemporal(t *testing.T, typeName string) *protocol.RunType {
+func scanTemporal(t *testing.T, typeName string) *reflection.RunType {
 	t.Helper()
 	code := `import {getRunTypeId} from '@ts-runtypes/core';
 export const _ = getRunTypeId<Temporal.` + typeName + `>();
@@ -23,7 +24,7 @@ export const _ = getRunTypeId<Temporal.` + typeName + `>();
 		t.Fatalf("scan %s: %s", typeName, resp.Error)
 	}
 	for _, rt := range resp.RunTypes {
-		if rt.SubKind != 0 && protocol.IsTemporalSubKind(rt.SubKind) {
+		if rt.SubKind != 0 && reflection.IsTemporalSubKind(rt.SubKind) {
 			return rt
 		}
 	}
@@ -34,23 +35,23 @@ export const _ = getRunTypeId<Temporal.` + typeName + `>();
 func TestTemporal_ScanAllTypes(t *testing.T) {
 	cases := []struct {
 		typeName string
-		subKind  protocol.ReflectionSubKind
+		subKind  reflection.ReflectionSubKind
 		builtin  string
 	}{
-		{"Instant", protocol.SubKindTemporalInstant, "Temporal.Instant"},
-		{"ZonedDateTime", protocol.SubKindTemporalZonedDateTime, "Temporal.ZonedDateTime"},
-		{"PlainDate", protocol.SubKindTemporalPlainDate, "Temporal.PlainDate"},
-		{"PlainTime", protocol.SubKindTemporalPlainTime, "Temporal.PlainTime"},
-		{"PlainDateTime", protocol.SubKindTemporalPlainDateTime, "Temporal.PlainDateTime"},
-		{"PlainYearMonth", protocol.SubKindTemporalPlainYearMonth, "Temporal.PlainYearMonth"},
-		{"PlainMonthDay", protocol.SubKindTemporalPlainMonthDay, "Temporal.PlainMonthDay"},
-		{"Duration", protocol.SubKindTemporalDuration, "Temporal.Duration"},
+		{"Instant", reflection.SubKindTemporalInstant, "Temporal.Instant"},
+		{"ZonedDateTime", reflection.SubKindTemporalZonedDateTime, "Temporal.ZonedDateTime"},
+		{"PlainDate", reflection.SubKindTemporalPlainDate, "Temporal.PlainDate"},
+		{"PlainTime", reflection.SubKindTemporalPlainTime, "Temporal.PlainTime"},
+		{"PlainDateTime", reflection.SubKindTemporalPlainDateTime, "Temporal.PlainDateTime"},
+		{"PlainYearMonth", reflection.SubKindTemporalPlainYearMonth, "Temporal.PlainYearMonth"},
+		{"PlainMonthDay", reflection.SubKindTemporalPlainMonthDay, "Temporal.PlainMonthDay"},
+		{"Duration", reflection.SubKindTemporalDuration, "Temporal.Duration"},
 	}
 	ids := map[string]string{}
 	for _, tc := range cases {
 		t.Run(tc.typeName, func(t *testing.T) {
 			node := scanTemporal(t, tc.typeName)
-			if node.Kind != protocol.KindClass {
+			if node.Kind != reflection.KindClass {
 				t.Fatalf("%s: expected KindClass, got %v", tc.typeName, node.Kind)
 			}
 			if node.SubKind != tc.subKind {
@@ -91,7 +92,7 @@ export const _ = getRunTypeId<PlainDate>();
 		t.Fatalf("scan: %s", resp.Error)
 	}
 	for _, rt := range resp.RunTypes {
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			t.Fatalf("user PlainDate wrongly detected as Temporal builtin (SubKind %d)", rt.SubKind)
 		}
 	}

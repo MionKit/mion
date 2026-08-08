@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // dateTimeEmitter implements the format named "dateTime" —
@@ -19,8 +19,8 @@ func init() {
 	formats.Register(dateTimeEmitter{})
 }
 
-func (dateTimeEmitter) Name() string                  { return "dateTime" }
-func (dateTimeEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (dateTimeEmitter) Name() string                    { return "dateTime" }
+func (dateTimeEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // splitSearch locates the date/time separator. A LETTER separator is matched
 // case-insensitively: RFC 3339 allows `1963-06-19t08:30:06z` as readily as the
@@ -77,7 +77,7 @@ func nestedFormat(params map[string]any, key, fallback string) string {
 // validates the optional top-level min/max bounds (dateTimeKind: both
 // component groups allowed). The splitChar is the layout key for the
 // best-effort static bound parse.
-func (dateTimeEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (dateTimeEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (dateTimeEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []s
 	return validateMinMax(annotation.Params, dateTimeKind, splitChar)
 }
 
-func (dateTimeEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (dateTimeEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -109,7 +109,7 @@ func (dateTimeEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, 
 	return structural
 }
 
-func (dateTimeEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (dateTimeEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}

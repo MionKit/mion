@@ -9,7 +9,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 	"github.com/mionkit/ts-runtypes/internal/testfixtures"
 )
 
@@ -122,7 +122,7 @@ func setupInlineWith(t testing.TB, sources map[string]string, mutate func(*progr
 // and returns the resolver plus the RunType entry for the first call site.
 // Tests that need to dump the full type list after the scan use the
 // returned resolver; tests that only check the root type ignore it.
-func resolveInline(t *testing.T, code string) (*resolver.Session, *protocol.RunType) {
+func resolveInline(t *testing.T, code string) (*resolver.Session, *reflection.RunType) {
 	t.Helper()
 	r := setupInline(t, map[string]string{"test.ts": code})
 	tn := resolveFile(t, r, "test.ts")

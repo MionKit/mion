@@ -8,54 +8,55 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // noopPredicateTypes builds the shared hand-built corpus for the predicate
 // tables — same ref-table style as json_compat_test.go. Returns the ctx plus
 // the types keyed by id for direct case lookups.
-func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunType) {
+func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunType) {
 	t.Helper()
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	undef := &protocol.RunType{ID: "und", Kind: protocol.KindUndefined}
-	voidT := &protocol.RunType{ID: "vd", Kind: protocol.KindVoid}
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	mapT := &protocol.RunType{ID: "mp", Kind: protocol.KindClass, SubKind: protocol.SubKindMap}
-	fn := &protocol.RunType{ID: "fn", Kind: protocol.KindFunction}
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	undef := &reflection.RunType{ID: "und", Kind: reflection.KindUndefined}
+	voidT := &reflection.RunType{ID: "vd", Kind: reflection.KindVoid}
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	mapT := &reflection.RunType{ID: "mp", Kind: reflection.KindClass, SubKind: reflection.SubKindMap}
+	fn := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
 
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	propBig := &protocol.RunType{ID: "pbig", Kind: protocol.KindProperty, Name: "n", IsSafeName: true, Child: makeRef("big")}
-	propDate := &protocol.RunType{ID: "pdat", Kind: protocol.KindProperty, Name: "at", IsSafeName: true, Child: makeRef("dat")}
-	propFn := &protocol.RunType{ID: "pfn", Kind: protocol.KindProperty, Name: "onClick", IsSafeName: true, Child: makeRef("fn")}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	propBig := &reflection.RunType{ID: "pbig", Kind: reflection.KindProperty, Name: "n", IsSafeName: true, Child: makeRef("big")}
+	propDate := &reflection.RunType{ID: "pdat", Kind: reflection.KindProperty, Name: "at", IsSafeName: true, Child: makeRef("dat")}
+	propFn := &reflection.RunType{ID: "pfn", Kind: reflection.KindProperty, Name: "onClick", IsSafeName: true, Child: makeRef("fn")}
 
-	objCompat := &protocol.RunType{ID: "objCompat", Kind: protocol.KindObjectLiteral, TypeName: "Compat", Children: []*protocol.RunType{makeRef("pa")}}
-	objBig := &protocol.RunType{ID: "objBig", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pbig")}}
-	objDate := &protocol.RunType{ID: "objDate", Kind: protocol.KindObjectLiteral, TypeName: "Stamped", Children: []*protocol.RunType{makeRef("pa"), makeRef("pdat")}}
-	objFnOnly := &protocol.RunType{ID: "objFn", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pfn")}}
+	objCompat := &reflection.RunType{ID: "objCompat", Kind: reflection.KindObjectLiteral, TypeName: "Compat", Children: []*reflection.RunType{makeRef("pa")}}
+	objBig := &reflection.RunType{ID: "objBig", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pbig")}}
+	objDate := &reflection.RunType{ID: "objDate", Kind: reflection.KindObjectLiteral, TypeName: "Stamped", Children: []*reflection.RunType{makeRef("pa"), makeRef("pdat")}}
+	objFnOnly := &reflection.RunType{ID: "objFn", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pfn")}}
 
-	arrCompatObj := &protocol.RunType{ID: "arrCO", Kind: protocol.KindArray, Child: makeRef("objCompat")}
-	arrStr := &protocol.RunType{ID: "arrStr", Kind: protocol.KindArray, Child: makeRef("str")}
-	arrDate := &protocol.RunType{ID: "arrDat", Kind: protocol.KindArray, Child: makeRef("dat")}
+	arrCompatObj := &reflection.RunType{ID: "arrCO", Kind: reflection.KindArray, Child: makeRef("objCompat")}
+	arrStr := &reflection.RunType{ID: "arrStr", Kind: reflection.KindArray, Child: makeRef("str")}
+	arrDate := &reflection.RunType{ID: "arrDat", Kind: reflection.KindArray, Child: makeRef("dat")}
 
-	namedClass := &protocol.RunType{ID: "ncls", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, TypeName: "User", Children: []*protocol.RunType{makeRef("pa")}}
-	anonClass := &protocol.RunType{ID: "acls", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, Children: []*protocol.RunType{makeRef("pa")}}
+	namedClass := &reflection.RunType{ID: "ncls", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "User", Children: []*reflection.RunType{makeRef("pa")}}
+	anonClass := &reflection.RunType{ID: "acls", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pa")}}
 
-	unionAtomic := &protocol.RunType{ID: "uAt", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("str"), makeRef("num")}}
-	unionDate := &protocol.RunType{ID: "uDat", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("str"), makeRef("dat")}}
-	unionObjects := &protocol.RunType{ID: "uObj", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("objCompat"), makeRef("objBig")}}
+	unionAtomic := &reflection.RunType{ID: "uAt", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("str"), makeRef("num")}}
+	unionDate := &reflection.RunType{ID: "uDat", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("str"), makeRef("dat")}}
+	unionObjects := &reflection.RunType{ID: "uObj", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("objCompat"), makeRef("objBig")}}
 
 	// The user-reported shape: circular JSON-compatible object —
 	// `{a: string; d?: Self[]}` reached through an optional array prop.
-	circArr := &protocol.RunType{ID: "circArr", Kind: protocol.KindArray, Child: makeRef("circ")}
-	circProp := &protocol.RunType{ID: "circD", Kind: protocol.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circArr")}
-	circ := &protocol.RunType{ID: "circ", Kind: protocol.KindObjectLiteral, TypeName: "ObjCircularArr", IsCircular: true, Children: []*protocol.RunType{makeRef("pa"), makeRef("circD")}}
+	circArr := &reflection.RunType{ID: "circArr", Kind: reflection.KindArray, Child: makeRef("circ")}
+	circProp := &reflection.RunType{ID: "circD", Kind: reflection.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circArr")}
+	circ := &reflection.RunType{ID: "circ", Kind: reflection.KindObjectLiteral, TypeName: "ObjCircularArr", IsCircular: true, Children: []*reflection.RunType{makeRef("pa"), makeRef("circD")}}
 
 	// Circular object that ALSO carries a Date — encode stays noop (Date
 	// rides toJSON), decode must rebuild.
-	circDArr := &protocol.RunType{ID: "circDArr", Kind: protocol.KindArray, Child: makeRef("circDat")}
-	circDProp := &protocol.RunType{ID: "circDD", Kind: protocol.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circDArr")}
-	circDat := &protocol.RunType{ID: "circDat", Kind: protocol.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*protocol.RunType{makeRef("pdat"), makeRef("circDD")}}
+	circDArr := &reflection.RunType{ID: "circDArr", Kind: reflection.KindArray, Child: makeRef("circDat")}
+	circDProp := &reflection.RunType{ID: "circDD", Kind: reflection.KindProperty, Name: "d", IsSafeName: true, Optional: true, Child: makeRef("circDArr")}
+	circDat := &reflection.RunType{ID: "circDat", Kind: reflection.KindObjectLiteral, TypeName: "CircWithDate", IsCircular: true, Children: []*reflection.RunType{makeRef("pdat"), makeRef("circDD")}}
 
 	// Arms for the universal-predicate tables: any/unknown (validate /
 	// validationErrors), a primitive literal (stringifyJson / toBinary), a
@@ -63,33 +64,33 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunTyp
 	// record (unknown-keys index arm), a literal-only object + tuple
 	// (toBinary's write-nothing compositions), and an object-carrying tuple
 	// (the uku/ukuw tuple-noop divergence).
-	anyT := &protocol.RunType{ID: "anyT", Kind: protocol.KindAny}
-	unkT := &protocol.RunType{ID: "unkT", Kind: protocol.KindUnknown}
-	lit := &protocol.RunType{ID: "lit", Kind: protocol.KindLiteral}
-	nev := &protocol.RunType{ID: "nev", Kind: protocol.KindNever}
-	propNever := &protocol.RunType{ID: "pnev", Kind: protocol.KindProperty, Name: "bad", IsSafeName: true, Child: makeRef("nev")}
-	objNever := &protocol.RunType{ID: "objNever", Kind: protocol.KindObjectLiteral, TypeName: "WithNever", Children: []*protocol.RunType{makeRef("pa"), makeRef("pnev")}}
-	idxAtomic := &protocol.RunType{ID: "idxA", Kind: protocol.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
-	recAtomic := &protocol.RunType{ID: "recA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("idxA")}}
-	propLit := &protocol.RunType{ID: "plit", Kind: protocol.KindProperty, Name: "k", IsSafeName: true, Child: makeRef("lit")}
-	objLitOnly := &protocol.RunType{ID: "objLit", Kind: protocol.KindObjectLiteral, TypeName: "LitObj", Children: []*protocol.RunType{makeRef("plit")}}
+	anyT := &reflection.RunType{ID: "anyT", Kind: reflection.KindAny}
+	unkT := &reflection.RunType{ID: "unkT", Kind: reflection.KindUnknown}
+	lit := &reflection.RunType{ID: "lit", Kind: reflection.KindLiteral}
+	nev := &reflection.RunType{ID: "nev", Kind: reflection.KindNever}
+	propNever := &reflection.RunType{ID: "pnev", Kind: reflection.KindProperty, Name: "bad", IsSafeName: true, Child: makeRef("nev")}
+	objNever := &reflection.RunType{ID: "objNever", Kind: reflection.KindObjectLiteral, TypeName: "WithNever", Children: []*reflection.RunType{makeRef("pa"), makeRef("pnev")}}
+	idxAtomic := &reflection.RunType{ID: "idxA", Kind: reflection.KindIndexSignature, Child: makeRef("num"), Index: makeRef("str")}
+	recAtomic := &reflection.RunType{ID: "recA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idxA")}}
+	propLit := &reflection.RunType{ID: "plit", Kind: reflection.KindProperty, Name: "k", IsSafeName: true, Child: makeRef("lit")}
+	objLitOnly := &reflection.RunType{ID: "objLit", Kind: reflection.KindObjectLiteral, TypeName: "LitObj", Children: []*reflection.RunType{makeRef("plit")}}
 	pos0 := 0
-	tmLit := &protocol.RunType{ID: "tmLit", Kind: protocol.KindTupleMember, Position: &pos0, Child: makeRef("lit")}
-	tupLit := &protocol.RunType{ID: "tupLit", Kind: protocol.KindTuple, Children: []*protocol.RunType{makeRef("tmLit")}}
-	tmObj := &protocol.RunType{ID: "tmObj", Kind: protocol.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
-	tupObj := &protocol.RunType{ID: "tupObj", Kind: protocol.KindTuple, Children: []*protocol.RunType{makeRef("tmObj")}}
+	tmLit := &reflection.RunType{ID: "tmLit", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("lit")}
+	tupLit := &reflection.RunType{ID: "tupLit", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmLit")}}
+	tmObj := &reflection.RunType{ID: "tmObj", Kind: reflection.KindTupleMember, Position: &pos0, Child: makeRef("objCompat")}
+	tupObj := &reflection.RunType{ID: "tupObj", Kind: reflection.KindTuple, Children: []*reflection.RunType{makeRef("tmObj")}}
 
 	// Named-class registry-branch rule (the tb tripwire repro): a NAMED plain
 	// user class always compiles wrapToBinaryWithClassSerializer's runtime
 	// registry branch, so it can never claim identity — even when every
 	// member is a dropped (`p0: never`) or write-nothing (literal) slot.
 	// Anonymous classes and interface twins stay structural/noop.
-	clsNever := &protocol.RunType{ID: "clsNever", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, TypeName: "C0", Children: []*protocol.RunType{makeRef("pnev")}}
-	aclsNever := &protocol.RunType{ID: "aclsNever", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, Children: []*protocol.RunType{makeRef("pnev")}}
-	objNeverOnly := &protocol.RunType{ID: "objNeverOnly", Kind: protocol.KindObjectLiteral, TypeName: "I0", Children: []*protocol.RunType{makeRef("pnev")}}
-	clsLit := &protocol.RunType{ID: "clsLit", Kind: protocol.KindClass, SubKind: protocol.SubKindNone, TypeName: "C1", Children: []*protocol.RunType{makeRef("plit")}}
+	clsNever := &reflection.RunType{ID: "clsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C0", Children: []*reflection.RunType{makeRef("pnev")}}
+	aclsNever := &reflection.RunType{ID: "aclsNever", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, Children: []*reflection.RunType{makeRef("pnev")}}
+	objNeverOnly := &reflection.RunType{ID: "objNeverOnly", Kind: reflection.KindObjectLiteral, TypeName: "I0", Children: []*reflection.RunType{makeRef("pnev")}}
+	clsLit := &reflection.RunType{ID: "clsLit", Kind: reflection.KindClass, SubKind: reflection.SubKindNone, TypeName: "C1", Children: []*reflection.RunType{makeRef("plit")}}
 
-	all := []*protocol.RunType{
+	all := []*reflection.RunType{
 		str, num, undef, voidT, bigint, date, mapT, fn,
 		propA, propBig, propDate, propFn,
 		objCompat, objBig, objDate, objFnOnly,
@@ -103,8 +104,8 @@ func noopPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunTyp
 		tmLit, tupLit, tmObj, tupObj,
 		clsNever, aclsNever, objNeverOnly, clsLit,
 	}
-	refTable := make(map[string]*protocol.RunType, len(all))
-	byID := make(map[string]*protocol.RunType, len(all))
+	refTable := make(map[string]*reflection.RunType, len(all))
+	byID := make(map[string]*reflection.RunType, len(all))
 	for _, rt := range all {
 		refTable[rt.ID] = rt
 		byID[rt.ID] = rt
@@ -187,8 +188,8 @@ func TestNoopType_PrepareJsonSafe(t *testing.T) {
 
 // dumpFor wraps hand-built types into the no-sites Dump shape (the
 // render-everything unit-test path of CollectFamilyEntries).
-func dumpFor(types map[string]*protocol.RunType) protocol.Dump {
-	all := make([]*protocol.RunType, 0, len(types))
+func dumpFor(types map[string]*reflection.RunType) protocol.Dump {
+	all := make([]*reflection.RunType, 0, len(types))
 	for _, rt := range types {
 		all = append(all, rt)
 	}
@@ -250,8 +251,8 @@ func TestDispatchGate_KeepsRealTransformDepCalls(t *testing.T) {
 // recorded.
 func TestDispatchGate_ElidesNoopExternalChild(t *testing.T) {
 	_, types := noopPredicateTypes(t)
-	propNamed := &protocol.RunType{ID: "pnc", Kind: protocol.KindProperty, Name: "x", IsSafeName: true, Child: makeRef("objCompat")}
-	parent := &protocol.RunType{ID: "parent", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pnc")}}
+	propNamed := &reflection.RunType{ID: "pnc", Kind: reflection.KindProperty, Name: "x", IsSafeName: true, Child: makeRef("objCompat")}
+	parent := &reflection.RunType{ID: "parent", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pnc")}}
 	types["pnc"] = propNamed
 	types["parent"] = parent
 	dump := dumpFor(types)
@@ -279,7 +280,7 @@ func TestJsonComposite_ElidesNoopPrimitives(t *testing.T) {
 	rjKey := operations.PlainHash("restoreFromJson") + "_obj1"
 	ukuwKey := operations.PlainHash("unknownKeysToUndefinedWire") + "_obj1"
 	pjKey := operations.PlainHash("prepareForJson") + "_obj1"
-	runType := &protocol.RunType{ID: "obj1", Kind: protocol.KindObjectLiteral}
+	runType := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral}
 
 	render := func(tag string, rendered entrymodules.Graph) *entrymodules.Entry {
 		t.Helper()
@@ -556,12 +557,14 @@ func TestNoopType_UnknownKeys(t *testing.T) {
 // exact predicate bug the renderer's tripwire exists to catch.
 type lyingNoopEmitter struct{}
 
-func (lyingNoopEmitter) Args() []ArgSpec                                                   { return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}} }
-func (lyingNoopEmitter) Supports(*protocol.RunType) bool                                   { return true }
-func (lyingNoopEmitter) IsRTInlined(*InlineContext) bool                                   { return true }
-func (lyingNoopEmitter) ReturnName() string                                                { return "v" }
-func (lyingNoopEmitter) EmitDependencyCall(*protocol.RunType, string, *EmitContext) string { return "" }
-func (lyingNoopEmitter) Emit(*protocol.RunType, *EmitContext, CodeType) RTCode {
+func (lyingNoopEmitter) Args() []ArgSpec                   { return []ArgSpec{{Key: "vλl", Name: "v", Default: ""}} }
+func (lyingNoopEmitter) Supports(*reflection.RunType) bool { return true }
+func (lyingNoopEmitter) IsRTInlined(*InlineContext) bool   { return true }
+func (lyingNoopEmitter) ReturnName() string                { return "v" }
+func (lyingNoopEmitter) EmitDependencyCall(*reflection.RunType, string, *EmitContext) string {
+	return ""
+}
+func (lyingNoopEmitter) Emit(*reflection.RunType, *EmitContext, CodeType) RTCode {
 	return RTCode{Code: "v.x = 1", Type: CodeS}
 }
 func (lyingNoopEmitter) Finalize(raw string) (string, bool) {
@@ -571,7 +574,7 @@ func (lyingNoopEmitter) Finalize(raw string) (string, bool) {
 	}
 	return code, false
 }
-func (lyingNoopEmitter) IsNoopType(*protocol.RunType, *EmitContext) bool { return true }
+func (lyingNoopEmitter) IsNoopType(*reflection.RunType, *EmitContext) bool { return true }
 
 // TestNoopVerdict_TripwireDemotesLyingPredicate: the verdict comes from the
 // predicate, but a predicate that claims identity over a body that is not
@@ -579,8 +582,8 @@ func (lyingNoopEmitter) IsNoopType(*protocol.RunType, *EmitContext) bool { retur
 // protective direction of the shape check. Text can only demote noop→live;
 // it never produces a noop verdict.
 func TestNoopVerdict_TripwireDemotesLyingPredicate(t *testing.T) {
-	runType := &protocol.RunType{ID: "lie1", Kind: protocol.KindString}
-	refTable := map[string]*protocol.RunType{"lie1": runType}
+	runType := &reflection.RunType{ID: "lie1", Kind: reflection.KindString}
+	refTable := map[string]*reflection.RunType{"lie1": runType}
 	// A registered tag is required for key derivation; the emitter under test
 	// is still the lying fake — the real fmt emitter is never consulted.
 	settings := constants.CacheModuleSettings{Name: "lying", VarPrefix: "fmt", Tag: "fmt"}
@@ -597,32 +600,32 @@ func TestNoopVerdict_TripwireDemotesLyingPredicate(t *testing.T) {
 // fmt-overridden shapes for the fmt predicate table. Formats registry is
 // populated by the package-wide formats/all blank import
 // (binary_size_estimate_test.go).
-func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*protocol.RunType) {
+func formatPredicateTypes(t *testing.T) (*EmitContext, map[string]*reflection.RunType) {
 	t.Helper()
 	ctx, types := noopPredicateTypes(t)
-	register := func(rt *protocol.RunType) {
+	register := func(rt *reflection.RunType) {
 		types[rt.ID] = rt
 		ctx.walker.RefTable[rt.ID] = rt
 	}
-	register(&protocol.RunType{ID: "strTrim", Kind: protocol.KindString,
-		FormatAnnotation: &protocol.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"trim": true}}})
-	register(&protocol.RunType{ID: "strLenOnly", Kind: protocol.KindString,
-		FormatAnnotation: &protocol.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": float64(8)}}})
-	register(&protocol.RunType{ID: "strOverride", Kind: protocol.KindString,
+	register(&reflection.RunType{ID: "strTrim", Kind: reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"trim": true}}})
+	register(&reflection.RunType{ID: "strLenOnly", Kind: reflection.KindString,
+		FormatAnnotation: &reflection.FormatAnnotation{Name: "stringFormat", Params: map[string]any{"maxLength": float64(8)}}})
+	register(&reflection.RunType{ID: "strOverride", Kind: reflection.KindString,
 		Overrides: map[string]string{"fmt": "cfnabc"}})
-	register(&protocol.RunType{ID: "pTrim", Kind: protocol.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("strTrim")})
-	register(&protocol.RunType{ID: "pOvr", Kind: protocol.KindProperty, Name: "s", IsSafeName: true, Child: makeRef("strOverride")})
-	register(&protocol.RunType{ID: "objTrim", Kind: protocol.KindObjectLiteral, TypeName: "FmtUser", Children: []*protocol.RunType{makeRef("pTrim")}})
-	register(&protocol.RunType{ID: "objOvr", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pOvr")}})
-	register(&protocol.RunType{ID: "arrTrim", Kind: protocol.KindArray, Child: makeRef("strTrim")})
-	register(&protocol.RunType{ID: "uTrim", Kind: protocol.KindUnion, Children: []*protocol.RunType{makeRef("strTrim"), makeRef("num")}})
+	register(&reflection.RunType{ID: "pTrim", Kind: reflection.KindProperty, Name: "name", IsSafeName: true, Child: makeRef("strTrim")})
+	register(&reflection.RunType{ID: "pOvr", Kind: reflection.KindProperty, Name: "s", IsSafeName: true, Child: makeRef("strOverride")})
+	register(&reflection.RunType{ID: "objTrim", Kind: reflection.KindObjectLiteral, TypeName: "FmtUser", Children: []*reflection.RunType{makeRef("pTrim")}})
+	register(&reflection.RunType{ID: "objOvr", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pOvr")}})
+	register(&reflection.RunType{ID: "arrTrim", Kind: reflection.KindArray, Child: makeRef("strTrim")})
+	register(&reflection.RunType{ID: "uTrim", Kind: reflection.KindUnion, Children: []*reflection.RunType{makeRef("strTrim"), makeRef("num")}})
 	// Waste-case shape: Outer{inner: Compat} where the NAMED Compat carries no
 	// format — pre-predicate this dep-called into a noop entry.
-	register(&protocol.RunType{ID: "pInner", Kind: protocol.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("objCompat")})
-	register(&protocol.RunType{ID: "objOuter", Kind: protocol.KindObjectLiteral, TypeName: "Outer", Children: []*protocol.RunType{makeRef("pInner")}})
+	register(&reflection.RunType{ID: "pInner", Kind: reflection.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("objCompat")})
+	register(&reflection.RunType{ID: "objOuter", Kind: reflection.KindObjectLiteral, TypeName: "Outer", Children: []*reflection.RunType{makeRef("pInner")}})
 	// Control: Outer whose NAMED inner carries a transform.
-	register(&protocol.RunType{ID: "pInnerFmt", Kind: protocol.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("objTrim")})
-	register(&protocol.RunType{ID: "objOuterFmt", Kind: protocol.KindObjectLiteral, TypeName: "OuterFmt", Children: []*protocol.RunType{makeRef("pInnerFmt")}})
+	register(&reflection.RunType{ID: "pInnerFmt", Kind: reflection.KindProperty, Name: "inner", IsSafeName: true, Child: makeRef("objTrim")})
+	register(&reflection.RunType{ID: "objOuterFmt", Kind: reflection.KindObjectLiteral, TypeName: "OuterFmt", Children: []*reflection.RunType{makeRef("pInnerFmt")}})
 	return ctx, types
 }
 
@@ -777,7 +780,7 @@ func TestJsonComposite_DirectStrategyTwoLayerCollapse(t *testing.T) {
 // (rootNeedsDataOnlyWrap), and the runtime noop would drop it.
 func TestJsonComposite_WrapRootNeverNoop(t *testing.T) {
 	pjKey := operations.PlainHash("prepareForJson") + "_und1"
-	runType := &protocol.RunType{ID: "und1", Kind: protocol.KindUndefined}
+	runType := &reflection.RunType{ID: "und1", Kind: reflection.KindUndefined}
 	composite, ok := constants.JsonCompositeByTag("jeMU")
 	if !ok {
 		t.Fatal("unknown composite tag jeMU")

@@ -3,15 +3,15 @@ package typefunctions
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // layoutCtx mirrors jsonCompatCtx (jsoncompat_test.go:12) — a hollow
 // walker with just a RefTable so buildFlatLayout's ResolveRef calls
 // succeed.
-func layoutCtx(t *testing.T, runTypes []*protocol.RunType) *EmitContext {
+func layoutCtx(t *testing.T, runTypes []*reflection.RunType) *EmitContext {
 	t.Helper()
-	refTable := make(map[string]*protocol.RunType, len(runTypes))
+	refTable := make(map[string]*reflection.RunType, len(runTypes))
 	for _, rt := range runTypes {
 		if rt == nil || rt.ID == "" {
 			continue
@@ -25,15 +25,15 @@ func layoutCtx(t *testing.T, runTypes []*protocol.RunType) *EmitContext {
 // object members; AtomicNeedsTuple stays false because every member
 // is JSON-natural.
 func TestBuildFlatLayout_AtomicOnly(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("num"), makeRef("bln")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, num, boolean, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, num, boolean, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -63,16 +63,16 @@ func TestBuildFlatLayout_AtomicOnly(t *testing.T) {
 // optimisation. A non-JSON-compatible member (Date, bigint) would flip
 // it back to true; see TestBuildFlatLayout_ClassWithSubKindFallsBackToAtomic.
 func TestBuildFlatLayout_MixedAtomicAndObject(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("num")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("str"), makeRef("obj")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("str"), makeRef("obj")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("num")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("str"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("str"), makeRef("obj")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, num, propA, obj, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, num, propA, obj, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -99,20 +99,20 @@ func TestBuildFlatLayout_MixedAtomicAndObject(t *testing.T) {
 // no declaration is optional → Required=true on every prop. No
 // candidate is bigint/Date so NeedsSubWrap stays false.
 func TestBuildFlatLayout_SharedShapeAllRequired(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	paA := &protocol.RunType{ID: "paA", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pbA := &protocol.RunType{ID: "pbA", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	paB := &protocol.RunType{ID: "paB", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pbB := &protocol.RunType{ID: "pbB", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
-	objA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paA"), makeRef("pbA")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paB"), makeRef("pbB")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	paA := &reflection.RunType{ID: "paA", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pbA := &reflection.RunType{ID: "pbA", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	paB := &reflection.RunType{ID: "paB", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pbB := &reflection.RunType{ID: "pbB", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("num")}
+	objA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paA"), makeRef("pbA")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paB"), makeRef("pbB")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, num, paA, pbA, paB, pbB, objA, objB, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, num, paA, pbA, paB, pbB, objA, objB, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -137,18 +137,18 @@ func TestBuildFlatLayout_SharedShapeAllRequired(t *testing.T) {
 // `{a: string} | {a: bigint}`. Merged prop `a` has two candidates
 // (different child IDs); bigint isn't JSON-natural so NeedsSubWrap=true.
 func TestBuildFlatLayout_MultiCandidateNeedsSubWrap(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	big := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
-	paStr := &protocol.RunType{ID: "paS", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	paBig := &protocol.RunType{ID: "paB", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
-	objS := &protocol.RunType{ID: "obS", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paS")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paB")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obS"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obS"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	big := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
+	paStr := &reflection.RunType{ID: "paS", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	paBig := &reflection.RunType{ID: "paB", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("big")}
+	objS := &reflection.RunType{ID: "obS", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paS")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paB")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obS"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obS"), makeRef("obB")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, big, paStr, paBig, objS, objB, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, big, paStr, paBig, objS, objB, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -171,17 +171,17 @@ func TestBuildFlatLayout_MultiCandidateNeedsSubWrap(t *testing.T) {
 // `{a: string} | {a: string}`. Both members carry the same canonical
 // child ref → candidates collapse to 1.
 func TestBuildFlatLayout_SameTypeIDCandidatesDeduped(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	pa1 := &protocol.RunType{ID: "pa1", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	pa2 := &protocol.RunType{ID: "pa2", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	objA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa1")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa2")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	pa1 := &reflection.RunType{ID: "pa1", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	pa2 := &reflection.RunType{ID: "pa2", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	objA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa1")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa2")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, pa1, pa2, objA, objB, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, pa1, pa2, objA, objB, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -197,17 +197,17 @@ func TestBuildFlatLayout_SameTypeIDCandidatesDeduped(t *testing.T) {
 // `{a: string} | {a?: string}`. The optional declaration drives
 // Required=false even though every member carries the prop.
 func TestBuildFlatLayout_OptionalOnOneMember(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	paReq := &protocol.RunType{ID: "paR", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
-	paOpt := &protocol.RunType{ID: "paO", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Optional: true, Child: makeRef("str")}
-	objR := &protocol.RunType{ID: "obR", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paR")}}
-	objO := &protocol.RunType{ID: "obO", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("paO")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obR"), makeRef("obO")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obR"), makeRef("obO")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	paReq := &reflection.RunType{ID: "paR", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: makeRef("str")}
+	paOpt := &reflection.RunType{ID: "paO", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	objR := &reflection.RunType{ID: "obR", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paR")}}
+	objO := &reflection.RunType{ID: "obO", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("paO")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obR"), makeRef("obO")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obR"), makeRef("obO")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, paReq, paOpt, objR, objO, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, paReq, paOpt, objR, objO, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -225,19 +225,19 @@ func TestBuildFlatLayout_OptionalOnOneMember(t *testing.T) {
 // discriminator) so it lands in AtomicMembers; the second object is
 // the sole ObjectMember.
 func TestBuildFlatLayout_IndexSigFallsBackToAtomic(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	num := &protocol.RunType{ID: "num", Kind: protocol.KindNumber}
-	boolean := &protocol.RunType{ID: "bln", Kind: protocol.KindBoolean}
-	idxSig := &protocol.RunType{ID: "idx", Kind: protocol.KindIndexSignature, IndexT: makeRef("str"), Child: makeRef("num")}
-	propB := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("bln")}
-	objIdx := &protocol.RunType{ID: "obI", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("idx")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obI"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obI"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	num := &reflection.RunType{ID: "num", Kind: reflection.KindNumber}
+	boolean := &reflection.RunType{ID: "bln", Kind: reflection.KindBoolean}
+	idxSig := &reflection.RunType{ID: "idx", Kind: reflection.KindIndexSignature, IndexT: makeRef("str"), Child: makeRef("num")}
+	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("bln")}
+	objIdx := &reflection.RunType{ID: "obI", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("idx")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obI"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obI"), makeRef("obB")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, num, boolean, idxSig, propB, objIdx, objB, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, num, boolean, idxSig, propB, objIdx, objB, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -261,16 +261,16 @@ func TestBuildFlatLayout_IndexSigFallsBackToAtomic(t *testing.T) {
 // Set / etc carry a non-default SubKind and don't expose a stable
 // per-name property surface, so they land in AtomicMembers.
 func TestBuildFlatLayout_ClassWithSubKindFallsBackToAtomic(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	propB := &protocol.RunType{ID: "pb", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("str")}
-	date := &protocol.RunType{ID: "dat", Kind: protocol.KindClass, SubKind: protocol.SubKindDate}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pb")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("dat"), makeRef("obj")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("dat"), makeRef("obj")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	propB := &reflection.RunType{ID: "pb", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: makeRef("str")}
+	date := &reflection.RunType{ID: "dat", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pb")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("dat"), makeRef("obj")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("dat"), makeRef("obj")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, propB, date, obj, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, propB, date, obj, union})
 
 	layout := buildFlatLayout(union, ctx)
 
@@ -295,20 +295,20 @@ func TestBuildFlatLayout_ClassWithSubKindFallsBackToAtomic(t *testing.T) {
 // it. Covers both spellings: the method-signature member AND the
 // property-with-function-child twin.
 func TestBuildFlatLayout_MethodMemberMarksStrippedCandidate(t *testing.T) {
-	str := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	fn := &protocol.RunType{ID: "fn", Kind: protocol.KindFunction}
-	f0Opt := &protocol.RunType{ID: "f0o", Kind: protocol.KindProperty, Name: "f0", IsSafeName: true, Optional: true, Child: makeRef("str")}
-	f0Method := &protocol.RunType{ID: "f0m", Kind: protocol.KindMethodSignature, Name: "f0", IsSafeName: true}
-	f1Opt := &protocol.RunType{ID: "f1o", Kind: protocol.KindProperty, Name: "f1", IsSafeName: true, Optional: true, Child: makeRef("str")}
-	f1FnProp := &protocol.RunType{ID: "f1f", Kind: protocol.KindProperty, Name: "f1", IsSafeName: true, Child: makeRef("fn")}
-	objA := &protocol.RunType{ID: "obA", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("f0o"), makeRef("f1o")}}
-	objB := &protocol.RunType{ID: "obB", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("f0m"), makeRef("f1f")}}
-	union := &protocol.RunType{
-		ID: "uni", Kind: protocol.KindUnion,
-		Children:          []*protocol.RunType{makeRef("obA"), makeRef("obB")},
-		SafeUnionChildren: []*protocol.RunType{makeRef("obA"), makeRef("obB")},
+	str := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	fn := &reflection.RunType{ID: "fn", Kind: reflection.KindFunction}
+	f0Opt := &reflection.RunType{ID: "f0o", Kind: reflection.KindProperty, Name: "f0", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	f0Method := &reflection.RunType{ID: "f0m", Kind: reflection.KindMethodSignature, Name: "f0", IsSafeName: true}
+	f1Opt := &reflection.RunType{ID: "f1o", Kind: reflection.KindProperty, Name: "f1", IsSafeName: true, Optional: true, Child: makeRef("str")}
+	f1FnProp := &reflection.RunType{ID: "f1f", Kind: reflection.KindProperty, Name: "f1", IsSafeName: true, Child: makeRef("fn")}
+	objA := &reflection.RunType{ID: "obA", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("f0o"), makeRef("f1o")}}
+	objB := &reflection.RunType{ID: "obB", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("f0m"), makeRef("f1f")}}
+	union := &reflection.RunType{
+		ID: "uni", Kind: reflection.KindUnion,
+		Children:          []*reflection.RunType{makeRef("obA"), makeRef("obB")},
+		SafeUnionChildren: []*reflection.RunType{makeRef("obA"), makeRef("obB")},
 	}
-	ctx := layoutCtx(t, []*protocol.RunType{str, fn, f0Opt, f0Method, f1Opt, f1FnProp, objA, objB, union})
+	ctx := layoutCtx(t, []*reflection.RunType{str, fn, f0Opt, f0Method, f1Opt, f1FnProp, objA, objB, union})
 
 	layout := buildFlatLayout(union, ctx)
 

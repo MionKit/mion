@@ -13,12 +13,12 @@ code in one file. For example the hand-written render helpers in
 
 ## What's here
 
-| File                                | Generator                                                           | Go source of truth                                               |
-| ----------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `internal/constants/constants.go`                                |
-| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `internal/protocol/protocol.go` + `internal/protocol/subkind.go` |
-| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics/messages.go`                               |
-| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `cmd/ts-runtypes/config.go` (`tsRuntypesPlugin` json tags)       |
+| File                                | Generator                                                           | Go source of truth                                                  |
+| ----------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `runtypes-constants.generated.ts`   | `cmd/gen-ts-constants`                                              | `internal/constants/constants.go`                                   |
+| `reflectionKind.generated.ts`       | `cmd/gen-run-type-kind`                                             | `internal/reflection/runtype.go` + `internal/reflection/subkind.go` |
+| `diagnosticCatalog.generated.ts`    | `cmd/gen-diag-catalog` → `scripts/core/gen-diagnostics-catalog.mjs` | `internal/diagnostics/messages.go`                                  |
+| `tsconfig-plugin-keys.generated.ts` | `cmd/gen-plugin-keys`                                               | `cmd/ts-runtypes/config.go` (`tsRuntypesPlugin` json tags)          |
 
 ## Regenerate
 

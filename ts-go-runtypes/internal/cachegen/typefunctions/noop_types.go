@@ -1,6 +1,8 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/protocol"
+import (
+	"github.com/mionkit/ts-runtypes/internal/reflection"
+)
 
 // Semantic noop predicates — "would this family's entry for T be the family
 // identity fn?" — decided over the TYPE GRAPH, not the emitted code shape.
@@ -51,7 +53,7 @@ import "github.com/mionkit/ts-runtypes/internal/protocol"
 // literalFlavour, …), the predicate calls the SAME helper so that arm cannot
 // drift.
 type NoopTypePredicate interface {
-	IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool
+	IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool
 }
 
 // NoopComposeAround additionally marks the families whose predicate may feed
@@ -94,18 +96,18 @@ func (mode jsonNoopMode) factKind() factKind {
 }
 
 /** isNoopForPrepareJson reports whether the pj (mutate-encode) entry for rt is the identity. **/
-func isNoopForPrepareJson(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForPrepareJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	return jsonNoopTopLevel(rt, ctx, noopModePrepare)
 }
 
 /** isNoopForRestoreJson reports whether the rj (decode) entry for rt is the identity. **/
-func isNoopForRestoreJson(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForRestoreJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	return jsonNoopTopLevel(rt, ctx, noopModeRestore)
 }
 
 // jsonNoopTopLevel is the memo wrapper — same store-completed-walks-only
 // discipline as isJsonCompatible (see the cycle note there).
-func jsonNoopTopLevel(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode) bool {
+func jsonNoopTopLevel(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMode) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -122,7 +124,7 @@ func jsonNoopTopLevel(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode)
 	return result
 }
 
-func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode, visited map[string]struct{}) bool {
+func jsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, mode jsonNoopMode, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		// Mirrors the walker: nil / dangling children contribute no code.
@@ -139,34 +141,34 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 	}
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		// Atomic JSON-compatible kinds — both emitters' "" arms.
 		return true
 
-	case protocol.KindTemplateLiteral, protocol.KindIntersection:
+	case reflection.KindTemplateLiteral, reflection.KindIntersection:
 		// String-flavoured at runtime / defensive-noop arms in both emitters.
 		return true
 
-	case protocol.KindUndefined:
+	case reflection.KindUndefined:
 		// pj: "" (JSON.stringify drops it natively). rj: `v = undefined`
 		// force-rebind — real code.
 		return mode == noopModePrepare
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// Primitive literals are noop in both emitters; bigint / symbol
 		// literals carry value transforms.
 		return literalFlavour(rt) == litPrimitive
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, child := range rt.Children {
 			if !jsonNoopRecursive(child, ctx, mode, visited) {
 				return false
@@ -174,7 +176,7 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		// Optional tuple slots are never identity: emitTupleMember{PrepareFor,RestoreFrom}Json
 		// normalize a present-but-undefined slot to `null` (arrays serialize a present
 		// hole as null) even when the child is noop — unlike object properties, whose
@@ -189,7 +191,7 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 		}
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -217,7 +219,7 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 		}
 		return jsonNoopRecursive(resolved, ctx, mode, visited)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -227,23 +229,23 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 		}
 		return jsonNoopRecursive(rt.Child, ctx, mode, visited)
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return jsonNoopObjectChildren(rt.Children, ctx, mode, visited)
 
-	case protocol.KindClass:
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+	case reflection.KindClass:
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			// Encode rides the builtin toJSON(); decode rebuilds via
 			// Temporal.<T>.from(v).
 			return mode == noopModePrepare
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			// Encode rides Date#toJSON; decode rebuilds via new Date(v).
 			return mode == noopModePrepare
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			// Iterable ↔ array-of-entries transforms on both halves.
 			return false
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			// Named user classes always emit the runtime class-serializer
 			// registry branch (wrapPrepareWithClassSerializer /
 			// wrapRestoreWithClassSerializer) — never identity. Anonymous
@@ -256,7 +258,7 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 		// SubKindNonSerializable and any future subkind: CodeNS arms.
 		return false
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return unionJsonNoop(rt, ctx)
 	}
 	// Void (`v = undefined` on both halves), BigInt / Symbol / Regexp
@@ -268,7 +270,7 @@ func jsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, mode jsonNoopMode
 // jsonNoopObjectChildren mirrors the object emits' member walk — static and
 // function-like members are skipped slots; every surviving property must be
 // noop. Same skip set as objectChildrenCompat (json_compat.go).
-func jsonNoopObjectChildren(children []*protocol.RunType, ctx *EmitContext, mode jsonNoopMode, visited map[string]struct{}) bool {
+func jsonNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, mode jsonNoopMode, visited map[string]struct{}) bool {
 	for _, childRef := range children {
 		resolved := ctx.ResolveRef(childRef)
 		if resolved == nil {
@@ -300,7 +302,7 @@ func jsonNoopObjectChildren(children []*protocol.RunType, ctx *EmitContext, mode
 // union_flat_layout.go's AtomicNeedsTuple = !roundTripsRaw. The degenerate
 // all-dangling / empty layout emits nothing on either half (noop below); the
 // all-stripped case does NOT — see the guard.
-func unionJsonNoop(rt *protocol.RunType, ctx *EmitContext) bool {
+func unionJsonNoop(rt *reflection.RunType, ctx *EmitContext) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
@@ -336,8 +338,8 @@ func unionJsonNoop(rt *protocol.RunType, ctx *EmitContext) bool {
 			}
 			continue
 		}
-		if resolved.Kind == protocol.KindObjectLiteral || resolved.Kind == protocol.KindClass {
-			if resolved.Kind == protocol.KindClass && resolved.SubKind != protocol.SubKindNone {
+		if resolved.Kind == reflection.KindObjectLiteral || resolved.Kind == reflection.KindClass {
+			if resolved.Kind == reflection.KindClass && resolved.SubKind != reflection.SubKindNone {
 				if !isJsonCompatible(resolved, ctx) {
 					return false
 				}
@@ -348,7 +350,7 @@ func unionJsonNoop(rt *protocol.RunType, ctx *EmitContext) bool {
 			// AtomicNeedsTuple) and reconstructs the instance on decode via the
 			// class-serializer restore wrapper — real code on both halves, never
 			// identity, even though its props are JSON-compatible.
-			if resolved.Kind == protocol.KindClass && userClassName(resolved) != "" {
+			if resolved.Kind == reflection.KindClass && userClassName(resolved) != "" {
 				return false
 			}
 			// Object bucket — merges into the [-1, merged] envelope ONLY when it
@@ -378,26 +380,26 @@ func unionJsonNoop(rt *protocol.RunType, ctx *EmitContext) bool {
 // are never noop here even when JSON-compatible; unions keep their
 // guard-chain + throw like pj. No memo: the arms are O(1) except the
 // already-memoized isExtraProof.
-func isNoopForPrepareJsonSafe(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForPrepareJsonSafe(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
 	}
 	switch rt.Kind {
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum,
-		protocol.KindTemplateLiteral, protocol.KindIntersection:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum,
+		reflection.KindTemplateLiteral, reflection.KindIntersection:
 		return true
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return literalFlavour(rt) == litPrimitive
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return isExtraProof(ctx.ResolveRef(rt.Child), ctx)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		if len(rt.Children) == 0 {
 			return true
 		}
@@ -421,7 +423,7 @@ func isNoopForPrepareJsonSafe(rt *protocol.RunType, ctx *EmitContext) bool {
 // The dispatch gate never consults the predicate for the DIRECT override child
 // (overrideChild skips it), but a deeper descendant's override must falsify
 // the walk here or the gate would elide the subtree that reaches the redirect.
-func isNoopForFormatTransform(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForFormatTransform(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -438,7 +440,7 @@ func isNoopForFormatTransform(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func formatNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func formatNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		// Mirrors the walker: nil / dangling children contribute no code.
@@ -460,21 +462,21 @@ func formatNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 	}
 	switch rt.Kind {
 
-	case protocol.KindString:
+	case reflection.KindString:
 		return nodeFormatTransform(rt, "v") == ""
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return formatNoopObjectChildren(rt.Children, ctx, visited)
 
-	case protocol.KindClass:
-		if rt.SubKind == protocol.SubKindNone {
+	case reflection.KindClass:
+		if rt.SubKind == reflection.SubKindNone {
 			// User classes recurse like objects (emitObjectFormat).
 			return formatNoopObjectChildren(rt.Children, ctx, visited)
 		}
 		// Date / Map / Set / Temporal / builtins: identity arm.
 		return true
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -485,13 +487,13 @@ func formatNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return formatNoopRecursive(resolved, ctx, visited)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return formatNoopRecursive(rt.Child, ctx, visited)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, child := range rt.Children {
 			if !formatNoopRecursive(child, ctx, visited) {
 				return false
@@ -499,7 +501,7 @@ func formatNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if rt.Child == nil {
 			return true
 		}
@@ -514,7 +516,7 @@ func formatNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[str
 // formatNoopObjectChildren mirrors emitObjectFormat's member walk — static and
 // function-like members are skipped slots; every surviving property must be
 // noop.
-func formatNoopObjectChildren(children []*protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func formatNoopObjectChildren(children []*reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	for _, childRef := range children {
 		resolved := ctx.ResolveRef(childRef)
 		if resolved == nil {
@@ -538,7 +540,7 @@ func formatNoopObjectChildren(children []*protocol.RunType, ctx *EmitContext, vi
 // (every other kind emits a load-bearing check, and validate variants only
 // reshape bodies that already check something). Applies identically to every
 // ValidateOptions variant — options cannot make any/unknown check more.
-func isNoopForValidate(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForValidate(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -551,13 +553,13 @@ func isNoopForValidate(rt *protocol.RunType, ctx *EmitContext) bool {
 		len(rt.OneOf) > 0 || len(rt.Unevaluated) > 0 {
 		return false
 	}
-	return rt.Kind == protocol.KindAny || rt.Kind == protocol.KindUnknown
+	return rt.Kind == reflection.KindAny || rt.Kind == reflection.KindUnknown
 }
 
 /** isNoopForValidationErrors reports whether the verr entry for rt is the
  *  error-list passthrough. **/
 // Mirrors ValidationErrorsEmitter.Emit: only root any/unknown emit nothing.
-func isNoopForValidationErrors(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForValidationErrors(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -568,7 +570,7 @@ func isNoopForValidationErrors(rt *protocol.RunType, ctx *EmitContext) bool {
 		len(rt.OneOf) > 0 || len(rt.Unevaluated) > 0 {
 		return false
 	}
-	return rt.Kind == protocol.KindAny || rt.Kind == protocol.KindUnknown
+	return rt.Kind == reflection.KindAny || rt.Kind == reflection.KindUnknown
 }
 
 /** isNoopForStringifyJson reports whether the sj entry for rt is native
@@ -582,26 +584,26 @@ func isNoopForValidationErrors(rt *protocol.RunType, ctx *EmitContext) bool {
 // compound sj body builds the JSON text itself (extras stripped, declaration
 // order), which native stringify does not reproduce. sj deliberately does NOT
 // implement NoopComposeAround — see that interface's doc.
-func isNoopForStringifyJson(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForStringifyJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
 	}
 	switch rt.Kind {
-	case protocol.KindAny, protocol.KindUnknown, protocol.KindObject,
-		protocol.KindString, protocol.KindTemplateLiteral:
+	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject,
+		reflection.KindString, reflection.KindTemplateLiteral:
 		return true
-	case protocol.KindEnum:
+	case reflection.KindEnum:
 		// Number-indexed enums emit the bare value; string enums (and enums
 		// with no IndexT) delegate to JSON.stringify.
 		if rt.IndexT != nil {
 			indexResolved := ctx.ResolveRef(rt.IndexT)
-			if indexResolved != nil && indexResolved.Kind == protocol.KindNumber {
+			if indexResolved != nil && indexResolved.Kind == reflection.KindNumber {
 				return false
 			}
 		}
 		return true
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return literalFlavour(rt) == litPrimitive
 	}
 	return false
@@ -615,7 +617,7 @@ func isNoopForStringifyJson(rt *protocol.RunType, ctx *EmitContext) bool {
 // literal arms match rj; undefined/void force-rebind; Date/Temporal/Map/Set/
 // classes rebuild; the union arm IS emitUnionRestoreFromJsonFlat, so its
 // noop condition delegates to the shared restore-side union rule.
-func isNoopForCompactFromJson(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForCompactFromJson(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -632,7 +634,7 @@ func isNoopForCompactFromJson(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func compactFromJsonNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
@@ -648,25 +650,25 @@ func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 	}
 	switch rt.Kind {
 
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindNull,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindObject, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindNull,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindObject, reflection.KindEnum:
 		return true
 
-	case protocol.KindIntersection, protocol.KindTemplateLiteral:
+	case reflection.KindIntersection, reflection.KindTemplateLiteral:
 		return true
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return literalFlavour(rt) == litPrimitive
 
-	case protocol.KindObjectLiteral, protocol.KindClass:
+	case reflection.KindObjectLiteral, reflection.KindClass:
 		// Every object shape (and every class subkind — Date/Temporal/Map/Set
 		// rebuild, plain classes take the positional rebuild + serializer
 		// wrap) does real decode work under compact.
 		return false
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -676,13 +678,13 @@ func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 		}
 		return compactFromJsonNoopRecursive(resolved, ctx, visited)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, child := range rt.Children {
 			if !compactFromJsonNoopRecursive(child, ctx, visited) {
 				return false
@@ -690,7 +692,7 @@ func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		// Same rule as restoreFromJson: optional slots normalize (never
 		// identity), required slots follow their child.
 		if rt.Optional {
@@ -701,13 +703,13 @@ func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 		}
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 			return true
 		}
 		return compactFromJsonNoopRecursive(rt.Child, ctx, visited)
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// The compact union arm IS emitUnionRestoreFromJsonFlat — delegate
 		// to the shared flat-union rule (roundTripsRaw ⇒ identity).
 		return unionJsonNoop(rt, ctx)
@@ -727,7 +729,7 @@ func compactFromJsonNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 // signature / rest slot (dynamic counts always serialize). Everything else —
 // atoms, arrays (varint length prefix), unions (discriminant), enums,
 // Date/Map/Set/classes — writes bytes.
-func isNoopForToBinary(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForToBinary(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -744,7 +746,7 @@ func isNoopForToBinary(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func toBinaryNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
@@ -764,11 +766,11 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 	}
 	switch rt.Kind {
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// emitLiteralToBinary writes nothing for every flavour in v1.
 		return true
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Optional {
 			// Presence rides the parent object's bitmap — real bytes.
 			return false
@@ -782,11 +784,11 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 		}
 		return toBinaryNoopRecursive(resolved, ctx, visited)
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return toBinaryNoopObjectChildren(rt, ctx, visited)
 
-	case protocol.KindClass:
-		if rt.SubKind == protocol.SubKindNone {
+	case reflection.KindClass:
+		if rt.SubKind == reflection.SubKindNone {
 			// Named user classes always emit the runtime class-serializer
 			// registry branch (wrapToBinaryWithClassSerializer) — never
 			// identity, even when every member is a dropped/no-write slot
@@ -799,7 +801,7 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 		}
 		return false
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		for _, childRef := range rt.Children {
 			resolved := ctx.ResolveRef(childRef)
 			if resolved == nil {
@@ -815,7 +817,7 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if rt.Optional || isRestTupleMember(rt) {
 			return false
 		}
@@ -836,7 +838,7 @@ func toBinaryNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[s
 // emit is CodeNS), an index signature writes the dynamic key count, an
 // optional member forces the presence bitmap, static and function-like slots
 // are skipped, and every surviving member must itself write nothing.
-func toBinaryNoopObjectChildren(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func toBinaryNoopObjectChildren(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	if objectHasCallSignature(rt, ctx) {
 		return false
 	}
@@ -848,7 +850,7 @@ func toBinaryNoopObjectChildren(rt *protocol.RunType, ctx *EmitContext, visited 
 		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			return false
 		}
 		if resolved.Optional {
@@ -890,7 +892,7 @@ var (
 // statically-declared names (the parent allowlist probe) or a
 // template-literal-keyed index signature (the pattern sweep); everything
 // else recurses or no-ops. Per-family divergences ride unknownKeysNoopSpec.
-func isNoopForUnknownKeys(rt *protocol.RunType, ctx *EmitContext, spec unknownKeysNoopSpec) bool {
+func isNoopForUnknownKeys(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -907,7 +909,7 @@ func isNoopForUnknownKeys(rt *protocol.RunType, ctx *EmitContext, spec unknownKe
 	return result
 }
 
-func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
+func unknownKeysNoopRecursive(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
@@ -923,14 +925,14 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 	}
 	switch rt.Kind {
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return unknownKeysNoopObject(rt, ctx, spec, visited)
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			return unknownKeysNoopObject(rt, ctx, spec, visited)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			if spec.mapSetAlwaysNoop {
 				return true
 			}
@@ -948,7 +950,7 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 		// manage — every family's arm returns empty there.
 		return true
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -958,17 +960,17 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 		}
 		return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		if rt.Child == nil {
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+		if resolved == nil || reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 			return true
 		}
 		return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		if spec.tupleAlwaysNoop {
 			return true
 		}
@@ -979,7 +981,7 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 		}
 		return true
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if spec.tupleAlwaysNoop {
 			return true
 		}
@@ -987,15 +989,15 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 			return true
 		}
 		resolved := ctx.ResolveRef(rt.Child)
-		if resolved == nil || protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+		if resolved == nil || reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 			return true
 		}
 		return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return unknownKeysNoopIndexSignature(rt, ctx, spec, visited)
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return unknownKeysNoopUnion(rt, ctx)
 	}
 	// Atoms, never, functions, promises, intersections, template literals:
@@ -1007,12 +1009,12 @@ func unknownKeysNoopRecursive(rt *protocol.RunType, ctx *EmitContext, spec unkno
 // signature ANY named child (function-typed and static names included — the
 // allowlist covers them) triggers the parent probe; with one, the parent
 // probe is suppressed and the children decide.
-func unknownKeysNoopObject(rt *protocol.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
+func unknownKeysNoopObject(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	hasIndex := objectHasIndexSignatureChild(rt, ctx)
 	if !hasIndex {
 		for _, childRef := range rt.Children {
 			resolved := ctx.ResolveRef(childRef)
-			if resolved == nil || resolved.Kind == protocol.KindIndexSignature {
+			if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
 				continue
 			}
 			if resolved.Name != "" {
@@ -1039,7 +1041,7 @@ func unknownKeysNoopObject(rt *protocol.RunType, ctx *EmitContext, spec unknownK
 // unknownKeysNoopIndexSignature mirrors the shared index-signature arm: a
 // template-literal key pattern always sweeps (real code); otherwise atomic
 // values have nothing to recurse into and every key is "known".
-func unknownKeysNoopIndexSignature(rt *protocol.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
+func unknownKeysNoopIndexSignature(rt *reflection.RunType, ctx *EmitContext, spec unknownKeysNoopSpec, visited map[string]struct{}) bool {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return true
 	}
@@ -1049,13 +1051,13 @@ func unknownKeysNoopIndexSignature(rt *protocol.RunType, ctx *EmitContext, spec 
 	}
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if _, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				return false
 			}
 		}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return true
 	}
 	return unknownKeysNoopRecursive(resolved, ctx, spec, visited)
@@ -1068,7 +1070,7 @@ func unknownKeysNoopIndexSignature(rt *protocol.RunType, ctx *EmitContext, spec 
 // or object members exposing no named properties to merge — there is
 // nothing to sweep. Member stripping mirrors dataOnlyUnionMembers via the
 // same isStrippedUnionMember helper.
-func unknownKeysNoopUnion(rt *protocol.RunType, ctx *EmitContext) bool {
+func unknownKeysNoopUnion(rt *reflection.RunType, ctx *EmitContext) bool {
 	children := rt.SafeUnionChildren
 	if len(children) == 0 {
 		children = rt.Children
@@ -1084,7 +1086,7 @@ func unknownKeysNoopUnion(rt *protocol.RunType, ctx *EmitContext) bool {
 			// buildFlatLayout's index-sig carve-out — the whole family no-ops.
 			return true
 		}
-		if resolved.Kind != protocol.KindObjectLiteral && (resolved.Kind != protocol.KindClass || resolved.SubKind != protocol.SubKindNone) {
+		if resolved.Kind != reflection.KindObjectLiteral && (resolved.Kind != reflection.KindClass || resolved.SubKind != reflection.SubKindNone) {
 			continue
 		}
 		anyObjectMember = true
@@ -1093,7 +1095,7 @@ func unknownKeysNoopUnion(rt *protocol.RunType, ctx *EmitContext) bool {
 			if prop == nil || prop.IsStatic || isFunctionLikeKind(prop.Kind) {
 				continue
 			}
-			if (prop.Kind == protocol.KindProperty || prop.Kind == protocol.KindPropertySignature) && prop.Name != "" {
+			if (prop.Kind == reflection.KindProperty || prop.Kind == reflection.KindPropertySignature) && prop.Name != "" {
 				anyMergedProp = true
 			}
 		}
@@ -1110,7 +1112,7 @@ func unknownKeysNoopUnion(rt *protocol.RunType, ctx *EmitContext) bool {
 // alwaysThrow entry is not the identity). Callers assert the soundness
 // direction: verdict ⇒ groundTruth. Exported for internal/resolver's
 // noop-predicate corpus test; not part of the render pipeline.
-func NoopPredicateAgreement(emitter Emitter, rt *protocol.RunType, refTable map[string]*protocol.RunType, facts *FactsTable) (verdict bool, groundTruth bool, comparable bool) {
+func NoopPredicateAgreement(emitter Emitter, rt *reflection.RunType, refTable map[string]*reflection.RunType, facts *FactsTable) (verdict bool, groundTruth bool, comparable bool) {
 	predicate, hasPredicate := emitter.(NoopTypePredicate)
 	if !hasPredicate || rt == nil || !emitter.Supports(rt) {
 		return false, false, false

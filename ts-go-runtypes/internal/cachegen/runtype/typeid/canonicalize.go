@@ -59,7 +59,7 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Template control bytes — valid only INSIDE template strings, never in final
@@ -166,7 +166,7 @@ func (computer *Computer) canonicalizeCluster(root *checker.Type, mark int, rawB
 	// query minting a FRESH pointer mid-template just computes normally (and a
 	// pathological fresh spiral hits the existing depth backstop).
 	templates := make([]string, len(members))
-	kinds := make([]protocol.ReflectionKind, len(members))
+	kinds := make([]reflection.ReflectionKind, len(members))
 	saved := computer.templating
 	computer.templating = &clusterState{slotOf: slotOf}
 	for i, member := range members {

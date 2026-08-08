@@ -6,6 +6,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // F3: align property-position DataOnly handling to the oracle (and DataOnly<T>),
@@ -26,17 +27,19 @@ import (
 // behavior wrong — while prepareForJsonSafe instead FAILED the directly-stripped
 // case. Three disagreements the non-data fuzz lane surfaced.
 
-func mkPromise() *protocol.RunType { return &protocol.RunType{ID: "prm", Kind: protocol.KindPromise} }
-func mkNonSerNative() *protocol.RunType {
-	return &protocol.RunType{ID: "nsv", Kind: protocol.KindClass, SubKind: protocol.SubKindNonSerializable}
+func mkPromise() *reflection.RunType {
+	return &reflection.RunType{ID: "prm", Kind: reflection.KindPromise}
+}
+func mkNonSerNative() *reflection.RunType {
+	return &reflection.RunType{ID: "nsv", Kind: reflection.KindClass, SubKind: reflection.SubKindNonSerializable}
 }
 
 // objWithProp builds `{a: <value>}` (id "obj") plus any extra decls the value
 // references. `optional` toggles the property's `?`.
-func objWithProp(value *protocol.RunType, optional bool, extra ...*protocol.RunType) protocol.Dump {
-	propA := &protocol.RunType{ID: "pa", Kind: protocol.KindPropertySignature, Name: "a", Optional: optional, Child: makeRef(value.ID)}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pa")}}
-	return protocol.Dump{RunTypes: append([]*protocol.RunType{value, propA, obj}, extra...)}
+func objWithProp(value *reflection.RunType, optional bool, extra ...*reflection.RunType) protocol.Dump {
+	propA := &reflection.RunType{ID: "pa", Kind: reflection.KindPropertySignature, Name: "a", Optional: optional, Child: makeRef(value.ID)}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pa")}}
+	return protocol.Dump{RunTypes: append([]*reflection.RunType{value, propA, obj}, extra...)}
 }
 
 // objFactoryIsAlwaysThrow reports whether the object entry rendered as an
@@ -99,7 +102,7 @@ var functionPropDropCodes = map[string]string{
 // is DROPPED across every family: the object renders a real factory (never
 // alwaysThrow), the drop is a child-position Warning (…015), and NO Error fires.
 func TestF3_DirectlyStrippedPropertyDrops(t *testing.T) {
-	cases := map[string]func() *protocol.RunType{
+	cases := map[string]func() *reflection.RunType{
 		"symbol":           mkSym,
 		"Promise":          mkPromise,
 		"non-serializable": mkNonSerNative,
@@ -137,12 +140,12 @@ func TestF3_DirectlyStrippedPropertyDrops(t *testing.T) {
 // family — including prepareForJson / restoreFromJson, which no-op a string —
 // emits a real `good` transform.
 func TestF3_DroppedPropertyKeepsSiblings(t *testing.T) {
-	bigint := &protocol.RunType{ID: "big", Kind: protocol.KindBigInt}
+	bigint := &reflection.RunType{ID: "big", Kind: reflection.KindBigInt}
 	sym := mkSym()
-	good := &protocol.RunType{ID: "pg", Kind: protocol.KindPropertySignature, Name: "good", Child: makeRef("big")}
-	bad := &protocol.RunType{ID: "pb", Kind: protocol.KindPropertySignature, Name: "bad", Child: makeRef("sym")}
-	obj := &protocol.RunType{ID: "obj", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{makeRef("pg"), makeRef("pb")}}
-	dump := protocol.Dump{RunTypes: []*protocol.RunType{bigint, sym, good, bad, obj}}
+	good := &reflection.RunType{ID: "pg", Kind: reflection.KindPropertySignature, Name: "good", Child: makeRef("big")}
+	bad := &reflection.RunType{ID: "pb", Kind: reflection.KindPropertySignature, Name: "bad", Child: makeRef("sym")}
+	obj := &reflection.RunType{ID: "obj", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{makeRef("pg"), makeRef("pb")}}
+	dump := protocol.Dump{RunTypes: []*reflection.RunType{bigint, sym, good, bad, obj}}
 
 	for _, fam := range allSerdeFamilies {
 		out := renderModule(t, dump, fam)
@@ -162,7 +165,7 @@ func TestF3_DroppedPropertyKeepsSiblings(t *testing.T) {
 // behave identically — every propagating slot collapses the same way.)
 func TestF3_StructurallyUnserializablePropertyFails(t *testing.T) {
 	for _, fam := range allSerdeFamilies {
-		symArr := &protocol.RunType{ID: "sarr", Kind: protocol.KindArray, Child: makeRef("sym")}
+		symArr := &reflection.RunType{ID: "sarr", Kind: reflection.KindArray, Child: makeRef("sym")}
 		dump := objWithProp(symArr, false, mkSym())
 		out, sink := renderWithDiag(t, dump, fam, "obj")
 		if !objFactoryIsAlwaysThrow(out) {

@@ -4,21 +4,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // prop builds a property-signature member named name with value type child.
-func prop(name string, child *protocol.RunType) *protocol.RunType {
-	return &protocol.RunType{Kind: protocol.KindPropertySignature, Name: name, IsSafeName: true, Child: child}
+func prop(name string, child *reflection.RunType) *reflection.RunType {
+	return &reflection.RunType{Kind: reflection.KindPropertySignature, Name: name, IsSafeName: true, Child: child}
 }
 
-func leaf(kind protocol.ReflectionKind) *protocol.RunType {
-	return &protocol.RunType{Kind: kind}
+func leaf(kind reflection.ReflectionKind) *reflection.RunType {
+	return &reflection.RunType{Kind: kind}
 }
 
 // fmtLeaf builds a format-branded leaf (string/number) with a FormatAnnotation.
-func fmtLeaf(kind protocol.ReflectionKind, name string, params map[string]any) *protocol.RunType {
-	return &protocol.RunType{Kind: kind, FormatAnnotation: &protocol.FormatAnnotation{Name: name, Params: params}}
+func fmtLeaf(kind reflection.ReflectionKind, name string, params map[string]any) *reflection.RunType {
+	return &reflection.RunType{Kind: kind, FormatAnnotation: &reflection.FormatAnnotation{Name: name, Params: params}}
 }
 
 // userFixture mirrors:
@@ -30,19 +30,19 @@ func fmtLeaf(kind protocol.ReflectionKind, name string, params map[string]any) *
 //	  tags: string[];
 //	  profile: { email: FormatEmail; score: FormatNumber<{min:0; max:100}> };
 //	}
-func userFixture() *protocol.RunType {
-	return &protocol.RunType{
-		ID: "user", Kind: protocol.KindObjectLiteral, TypeName: "User",
-		Children: []*protocol.RunType{
-			prop("name", fmtLeaf(protocol.KindString, "stringFormat", map[string]any{"minLength": 2, "maxLength": 60})),
-			prop("age", fmtLeaf(protocol.KindNumber, "numberFormat", map[string]any{"min": 0, "max": 120})),
-			prop("isActive", leaf(protocol.KindBoolean)),
-			prop("tags", &protocol.RunType{ID: "tags", Kind: protocol.KindArray, Child: leaf(protocol.KindString)}),
-			prop("profile", &protocol.RunType{
-				ID: "profile", Kind: protocol.KindObjectLiteral,
-				Children: []*protocol.RunType{
-					prop("email", fmtLeaf(protocol.KindString, "email", nil)),
-					prop("score", fmtLeaf(protocol.KindNumber, "numberFormat", map[string]any{"min": 0, "max": 100})),
+func userFixture() *reflection.RunType {
+	return &reflection.RunType{
+		ID: "user", Kind: reflection.KindObjectLiteral, TypeName: "User",
+		Children: []*reflection.RunType{
+			prop("name", fmtLeaf(reflection.KindString, "stringFormat", map[string]any{"minLength": 2, "maxLength": 60})),
+			prop("age", fmtLeaf(reflection.KindNumber, "numberFormat", map[string]any{"min": 0, "max": 120})),
+			prop("isActive", leaf(reflection.KindBoolean)),
+			prop("tags", &reflection.RunType{ID: "tags", Kind: reflection.KindArray, Child: leaf(reflection.KindString)}),
+			prop("profile", &reflection.RunType{
+				ID: "profile", Kind: reflection.KindObjectLiteral,
+				Children: []*reflection.RunType{
+					prop("email", fmtLeaf(reflection.KindString, "email", nil)),
+					prop("score", fmtLeaf(reflection.KindNumber, "numberFormat", map[string]any{"min": 0, "max": 100})),
 				},
 			}),
 		},
@@ -77,10 +77,10 @@ func TestFriendlySkeleton(t *testing.T) {
 // locale — Polish scaffolds one/few/many/other, Japanese other-only, an
 // unknown locale all six.
 func TestEmitFriendly_SourceLocaleArms(t *testing.T) {
-	fixture := &protocol.RunType{
-		ID: "box", Kind: protocol.KindObjectLiteral, TypeName: "Box",
-		Children: []*protocol.RunType{
-			prop("name", fmtLeaf(protocol.KindString, "stringFormat", map[string]any{"minLength": 2})),
+	fixture := &reflection.RunType{
+		ID: "box", Kind: reflection.KindObjectLiteral, TypeName: "Box",
+		Children: []*reflection.RunType{
+			prop("name", fmtLeaf(reflection.KindString, "stringFormat", map[string]any{"minLength": 2})),
 		},
 	}
 	tests := []struct {
@@ -124,44 +124,44 @@ func TestMockSkeleton(t *testing.T) {
 
 // tupleMember wraps a slot type in a KindTupleMember node (the shape the tuple
 // walker reads via member.Child).
-func tupleMember(child *protocol.RunType) *protocol.RunType {
-	return &protocol.RunType{Kind: protocol.KindTupleMember, Child: child}
+func tupleMember(child *reflection.RunType) *reflection.RunType {
+	return &reflection.RunType{Kind: reflection.KindTupleMember, Child: child}
 }
 
 // mapArg / setArg wrap a type in the synthetic KindParameter slot the Map/Set
 // projection stores in rt.Arguments (the underlying type rides on .Child).
-func mapArg(subKind protocol.ReflectionSubKind, child *protocol.RunType) *protocol.RunType {
-	return &protocol.RunType{Kind: protocol.KindParameter, SubKind: subKind, Child: child}
+func mapArg(subKind reflection.ReflectionSubKind, child *reflection.RunType) *reflection.RunType {
+	return &reflection.RunType{Kind: reflection.KindParameter, SubKind: subKind, Child: child}
 }
 
 // tupleFixture mirrors `[string, number]`.
-func tupleFixture() *protocol.RunType {
-	return &protocol.RunType{
-		ID: "tuple", Kind: protocol.KindTuple,
-		Children: []*protocol.RunType{
-			tupleMember(leaf(protocol.KindString)),
-			tupleMember(leaf(protocol.KindNumber)),
+func tupleFixture() *reflection.RunType {
+	return &reflection.RunType{
+		ID: "tuple", Kind: reflection.KindTuple,
+		Children: []*reflection.RunType{
+			tupleMember(leaf(reflection.KindString)),
+			tupleMember(leaf(reflection.KindNumber)),
 		},
 	}
 }
 
 // mapFixture mirrors `Map<string, number>`.
-func mapFixture() *protocol.RunType {
-	return &protocol.RunType{
-		ID: "map", Kind: protocol.KindClass, SubKind: protocol.SubKindMap, TypeName: "Map",
-		Arguments: []*protocol.RunType{
-			mapArg(protocol.SubKindMapKey, leaf(protocol.KindString)),
-			mapArg(protocol.SubKindMapValue, leaf(protocol.KindNumber)),
+func mapFixture() *reflection.RunType {
+	return &reflection.RunType{
+		ID: "map", Kind: reflection.KindClass, SubKind: reflection.SubKindMap, TypeName: "Map",
+		Arguments: []*reflection.RunType{
+			mapArg(reflection.SubKindMapKey, leaf(reflection.KindString)),
+			mapArg(reflection.SubKindMapValue, leaf(reflection.KindNumber)),
 		},
 	}
 }
 
 // setFixture mirrors `Set<string>`.
-func setFixture() *protocol.RunType {
-	return &protocol.RunType{
-		ID: "set", Kind: protocol.KindClass, SubKind: protocol.SubKindSet, TypeName: "Set",
-		Arguments: []*protocol.RunType{
-			mapArg(protocol.SubKindSetItem, leaf(protocol.KindString)),
+func setFixture() *reflection.RunType {
+	return &reflection.RunType{
+		ID: "set", Kind: reflection.KindClass, SubKind: reflection.SubKindSet, TypeName: "Set",
+		Arguments: []*reflection.RunType{
+			mapArg(reflection.SubKindSetItem, leaf(reflection.KindString)),
 		},
 	}
 }
@@ -186,7 +186,7 @@ func TestEmitMockTuple(t *testing.T) {
 
 // TestEmitMockEmptyTuple confirms an empty tuple yields an empty rt$slots array.
 func TestEmitMockEmptyTuple(t *testing.T) {
-	empty := &protocol.RunType{ID: "empty", Kind: protocol.KindTuple}
+	empty := &reflection.RunType{ID: "empty", Kind: reflection.KindTuple}
 	got := MockSkeleton(empty, nil)
 	if got != "{rt$slots: []}" {
 		t.Errorf("MockSkeleton(empty tuple) = %q, want %q", got, "{rt$slots: []}")
@@ -197,10 +197,10 @@ func TestEmitMockEmptyTuple(t *testing.T) {
 // routes through the ARRAY shape (rt$items/rt$length), matching the Phase-A type's
 // `number extends T['length']` branch — NOT the fixed `rt$slots`.
 func TestEmitVariadicTuple(t *testing.T) {
-	rest := &protocol.RunType{Kind: protocol.KindTupleMember, Flags: []string{"rest"}, Child: leaf(protocol.KindString)}
-	tuple := &protocol.RunType{
-		ID: "vtuple", Kind: protocol.KindTuple,
-		Children: []*protocol.RunType{tupleMember(leaf(protocol.KindNumber)), rest},
+	rest := &reflection.RunType{Kind: reflection.KindTupleMember, Flags: []string{"rest"}, Child: leaf(reflection.KindString)}
+	tuple := &reflection.RunType{
+		ID: "vtuple", Kind: reflection.KindTuple,
+		Children: []*reflection.RunType{tupleMember(leaf(reflection.KindNumber)), rest},
 	}
 	gotFriendly := FriendlySkeleton(tuple, nil)
 	if gotFriendly != "{rt$label: '', rt$errors: {type: ''}, rt$items: {rt$label: '', rt$errors: {type: ''}}}" {
@@ -247,9 +247,9 @@ func TestEmitSet(t *testing.T) {
 // TestEmitFriendlyCyclic confirms the seen-guard breaks a self-referential graph
 // instead of recursing forever.
 func TestEmitFriendlyCyclic(t *testing.T) {
-	node := &protocol.RunType{ID: "node", Kind: protocol.KindObjectLiteral, TypeName: "Node"}
-	node.Children = []*protocol.RunType{
-		prop("value", leaf(protocol.KindString)),
+	node := &reflection.RunType{ID: "node", Kind: reflection.KindObjectLiteral, TypeName: "Node"}
+	node.Children = []*reflection.RunType{
+		prop("value", leaf(reflection.KindString)),
 		prop("next", node), // self-reference
 	}
 	got := FriendlySkeleton(node, nil)

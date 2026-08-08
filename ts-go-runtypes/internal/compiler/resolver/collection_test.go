@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Collection-shape tests. Each scenario has paired *_Static / *_Reflect
@@ -50,10 +50,10 @@ getRunTypeId(value);
 	assertF23ObjectShapes(t, r, root)
 }
 
-func assertF23ObjectShapes(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF23ObjectShapes(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 
@@ -130,15 +130,15 @@ getRunTypeId(value);
 	assertF24ClassPropertyModifiers(t, r, root)
 }
 
-func assertF24ClassPropertyModifiers(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF24ClassPropertyModifiers(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindClass {
+	if root.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %+v", root)
 	}
 
 	idMember := findMember(types, root, "id")
-	if idMember == nil || idMember.Kind != protocol.KindProperty {
+	if idMember == nil || idMember.Kind != reflection.KindProperty {
 		t.Fatalf("id expected KindProperty, got %+v", idMember)
 	}
 	if idMember.Visibility == nil || *idMember.Visibility != 0 {
@@ -195,15 +195,15 @@ getRunTypeId(value);
 	assertF25ClassMethodModifiers(t, r, root)
 }
 
-func assertF25ClassMethodModifiers(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF25ClassMethodModifiers(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindClass {
+	if root.Kind != reflection.KindClass {
 		t.Fatalf("expected KindClass, got %+v", root)
 	}
 
 	greetMember := findMember(types, root, "greet")
-	if greetMember == nil || greetMember.Kind != protocol.KindMethod {
+	if greetMember == nil || greetMember.Kind != reflection.KindMethod {
 		t.Fatalf("greet expected KindMethod, got %+v", greetMember)
 	}
 	if !greetMember.IsAbstract {
@@ -243,10 +243,10 @@ getRunTypeId(value);
 	assertF26TupleLabeled(t, r, root)
 }
 
-func assertF26TupleLabeled(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF26TupleLabeled(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindTuple {
+	if root.Kind != reflection.KindTuple {
 		t.Fatalf("expected KindTuple, got %+v", root)
 	}
 	if len(root.Children) != 3 {
@@ -254,7 +254,7 @@ func assertF26TupleLabeled(t *testing.T, r *resolver.Session, root *protocol.Run
 	}
 
 	first := deref(types, root.Children[0])
-	if first == nil || first.Kind != protocol.KindTupleMember {
+	if first == nil || first.Kind != reflection.KindTupleMember {
 		t.Fatalf("member[0] expected KindTupleMember, got %+v", first)
 	}
 	if first.Name != "a" {
@@ -312,17 +312,17 @@ getRunTypeId(value);
 	assertF27ReadonlyIndexSignature(t, r, root)
 }
 
-func assertF27ReadonlyIndexSignature(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertF27ReadonlyIndexSignature(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got %+v", root)
 	}
 
-	var idx *protocol.RunType
+	var idx *reflection.RunType
 	for _, ref := range root.Children {
 		member := deref(types, ref)
-		if member != nil && member.Kind == protocol.KindIndexSignature {
+		if member != nil && member.Kind == reflection.KindIndexSignature {
 			idx = member
 			break
 		}
@@ -334,11 +334,11 @@ func assertF27ReadonlyIndexSignature(t *testing.T, r *resolver.Session, root *pr
 		t.Fatalf("index signature expected Readonly=true, got %+v", idx)
 	}
 	keyType := deref(types, idx.Index)
-	if keyType == nil || keyType.Kind != protocol.KindString {
+	if keyType == nil || keyType.Kind != reflection.KindString {
 		t.Fatalf("index key expected KindString, got %+v", keyType)
 	}
 	valueType := deref(types, idx.Child)
-	if valueType == nil || valueType.Kind != protocol.KindNumber {
+	if valueType == nil || valueType.Kind != reflection.KindNumber {
 		t.Fatalf("index value expected KindNumber, got %+v", valueType)
 	}
 }
@@ -368,10 +368,10 @@ getRunTypeId(fn);
 	assertF28ParameterDefaults(t, r, root, true)
 }
 
-func assertF28ParameterDefaults(t *testing.T, r *resolver.Session, root *protocol.RunType, expectDefaults bool) {
+func assertF28ParameterDefaults(t *testing.T, r *resolver.Session, root *reflection.RunType, expectDefaults bool) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindFunction {
+	if root.Kind != reflection.KindFunction {
 		t.Fatalf("expected KindFunction, got %+v", root)
 	}
 	if len(root.Parameters) != 4 {
@@ -379,7 +379,7 @@ func assertF28ParameterDefaults(t *testing.T, r *resolver.Session, root *protoco
 	}
 	for i, ref := range root.Parameters {
 		param := deref(types, ref)
-		if param == nil || param.Kind != protocol.KindParameter {
+		if param == nil || param.Kind != reflection.KindParameter {
 			t.Fatalf("parameter[%d] expected KindParameter, got %+v", i, param)
 		}
 		if param.Position == nil || *param.Position != i {

@@ -29,7 +29,7 @@ package typeid
 
 import (
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TupleMergePick is one resolved slot of an intersected tuple set. Type is
@@ -56,7 +56,7 @@ type TupleMergePick struct {
 //	Arms                  — a union, each arm resolved on its own
 type SlotFold struct {
 	Base       *checker.Type
-	Annotation *protocol.FormatAnnotation
+	Annotation *reflection.FormatAnnotation
 	Arms       []*SlotFold
 }
 
@@ -70,7 +70,7 @@ func (fold *SlotFold) Structural(computer *Computer) string {
 		for _, arm := range fold.Arms {
 			ids = append(ids, arm.Structural(computer))
 		}
-		return collectionJoined(int(protocol.KindUnion), computer.sortedJoin(ids), false)
+		return collectionJoined(int(reflection.KindUnion), computer.sortedJoin(ids), false)
 	}
 	if fold.Annotation == nil {
 		return computer.Compute(fold.Base)
@@ -241,7 +241,7 @@ func foldArmPair(
 	if leftBase != rightBase && !equalTypes(leftBase, rightBase) {
 		return nil, false, false
 	}
-	annotations := make([]*protocol.FormatAnnotation, 0, len(leftAnnotations)+len(rightAnnotations)+1)
+	annotations := make([]*reflection.FormatAnnotation, 0, len(leftAnnotations)+len(rightAnnotations)+1)
 	if left.Annotation != nil {
 		annotations = append(annotations, left.Annotation)
 	}
@@ -282,7 +282,7 @@ func containsFold(folds []*SlotFold, candidate *SlotFold, equalTypes func(a, b *
 // format annotations ride on it. Anything else in the intersection (a real
 // object member, another sentinel) makes the slot unfoldable — those carry
 // semantics no annotation merge can express.
-func slotParts(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Type, []*protocol.FormatAnnotation, bool) {
+func slotParts(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Type, []*reflection.FormatAnnotation, bool) {
 	if tsType == nil {
 		return nil, nil, false
 	}
@@ -293,7 +293,7 @@ func slotParts(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Typ
 		return tsType, nil, true
 	}
 	var base *checker.Type
-	var annotations []*protocol.FormatAnnotation
+	var annotations []*reflection.FormatAnnotation
 	for _, member := range tsType.AsUnionOrIntersectionType().Types() {
 		memberFlags := member.Flags()
 		switch {

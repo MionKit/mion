@@ -18,6 +18,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
@@ -753,12 +754,12 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	// literal when present, falling back to the whole call.
 	if options.Any() {
 		resolvedKind := typeid.KindOf(state.scanChecker, typeArgument)
-		if options.Has("noLiterals") && resolvedKind != protocol.KindLiteral {
+		if options.Has("noLiterals") && resolvedKind != reflection.KindLiteral {
 			if diagnostic, ok := state.sess.noopValidateOptionDiag(file, call, lastIndex, argsCount, diagnostics.CodeValidateOptionsNoLiteralsNoop); ok {
 				diags = append(diags, diagnostic)
 			}
 		}
-		if options.Has("noIsArrayCheck") && resolvedKind != protocol.KindArray {
+		if options.Has("noIsArrayCheck") && resolvedKind != reflection.KindArray {
 			if diagnostic, ok := state.sess.noopValidateOptionDiag(file, call, lastIndex, argsCount, diagnostics.CodeValidateOptionsNoArrayNoop); ok {
 				diags = append(diags, diagnostic)
 			}

@@ -2,7 +2,7 @@ package typefunctions
 
 import (
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // leafKindToRootCode maps an unsupported root leaf kind to a per-family
@@ -17,23 +17,23 @@ type rootCodeMap struct {
 	symbol          string // KindSymbol — see docs FAQ for why this is unsupported
 }
 
-func (m rootCodeMap) codeFor(leaf *protocol.RunType) string {
+func (m rootCodeMap) codeFor(leaf *reflection.RunType) string {
 	if leaf == nil {
 		return ""
 	}
 	switch leaf.Kind {
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return m.never
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return m.nonSerializable
-	case protocol.KindFunction,
-		protocol.KindMethod,
-		protocol.KindMethodSignature,
-		protocol.KindCallSignature:
+	case reflection.KindFunction,
+		reflection.KindMethod,
+		reflection.KindMethodSignature,
+		reflection.KindCallSignature:
 		return m.function
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		return m.symbol
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		// A symbol-flavored literal under the `noLiterals` ValidateOptions
 		// variant degrades to the bare-symbol validator — same misleading
 		// shape as plain `createValidateFn<symbol>()`, so we route to the
@@ -44,8 +44,8 @@ func (m rootCodeMap) codeFor(leaf *protocol.RunType) string {
 				return m.symbol
 			}
 		}
-	case protocol.KindClass:
-		if leaf.SubKind == protocol.SubKindNonSerializable {
+	case reflection.KindClass:
+		if leaf.SubKind == reflection.SubKindNonSerializable {
 			return m.nonSerializable
 		}
 	}
@@ -81,7 +81,7 @@ var prepareForJsonRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodePJSymbolRoot,
 }
 
-func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (PrepareForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return prepareForJsonRootCodes.codeFor(leaf)
 }
 
@@ -109,7 +109,7 @@ var prepareForJsonSafeRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodePJSSymbolRoot,
 }
 
-func (PrepareForJsonSafeEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (PrepareForJsonSafeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return prepareForJsonSafeRootCodes.codeFor(leaf)
 }
 
@@ -135,7 +135,7 @@ var restoreFromJsonRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeRJSymbolRoot,
 }
 
-func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (RestoreFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
@@ -156,7 +156,7 @@ func (CompactForJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return prepareForJsonSafeCodes[slot]
 }
 
-func (CompactForJsonEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (CompactForJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return prepareForJsonSafeRootCodes.codeFor(leaf)
 }
 
@@ -164,7 +164,7 @@ func (CompactFromJsonEmitter) DiagCodeFor(slot DiagSlot) string {
 	return restoreFromJsonCodes[slot]
 }
 
-func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (CompactFromJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return restoreFromJsonRootCodes.codeFor(leaf)
 }
 
@@ -190,7 +190,7 @@ var stringifyJsonRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeSJSymbolRoot,
 }
 
-func (StringifyJsonEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (StringifyJsonEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return stringifyJsonRootCodes.codeFor(leaf)
 }
 
@@ -217,7 +217,7 @@ var toBinaryRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeTBSymbolRoot,
 }
 
-func (ToBinaryEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (ToBinaryEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return toBinaryRootCodes.codeFor(leaf)
 }
 
@@ -244,7 +244,7 @@ var fromBinaryRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeFBSymbolRoot,
 }
 
-func (FromBinaryEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (FromBinaryEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return fromBinaryRootCodes.codeFor(leaf)
 }
 
@@ -268,7 +268,7 @@ var validateRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeVLSymbolRoot,
 }
 
-func (ValidateEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (ValidateEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return validateRootCodes.codeFor(leaf)
 }
 
@@ -291,7 +291,7 @@ var validationErrorsRootCodes = rootCodeMap{
 	symbol:          diagnostics.CodeVESymbolRoot,
 }
 
-func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
+func (ValidationErrorsEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
 	return validationErrorsRootCodes.codeFor(leaf)
 }
 
@@ -315,8 +315,8 @@ func (CloneExactShapeEmitter) DiagCodeFor(slot DiagSlot) string { return cloneEx
 // (no runtime arm discrimination in v1 — a clone that silently kept unknown
 // keys would be a security bug, so the build fails instead), and callable
 // interfaces routed through the function code by callableLeafSubstitute.
-func (CloneExactShapeEmitter) DiagCodeForLeaf(leaf *protocol.RunType) string {
-	if leaf != nil && leaf.Kind == protocol.KindUnion {
+func (CloneExactShapeEmitter) DiagCodeForLeaf(leaf *reflection.RunType) string {
+	if leaf != nil && leaf.Kind == reflection.KindUnion {
 		return diagnostics.CodeCESUnionRoot
 	}
 	return cloneExactShapeRootCodes.codeFor(leaf)

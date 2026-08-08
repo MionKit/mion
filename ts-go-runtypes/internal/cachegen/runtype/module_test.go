@@ -8,13 +8,14 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/entrymodules"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // emit collects + renders the runtype modules (the bundle plus one facade per
 // root) demanding every listed node as a reflection root, and returns the
 // concatenated sources in sorted-basename order (deterministic, so the
 // byte-equality tests below stay stable).
-func emit(t *testing.T, runTypes []*protocol.RunType) string {
+func emit(t *testing.T, runTypes []*reflection.RunType) string {
 	t.Helper()
 	modules := emitModules(t, allIDs(runTypes), runTypes)
 	basenames := make([]string, 0, len(modules))
@@ -32,7 +33,7 @@ func emit(t *testing.T, runTypes []*protocol.RunType) string {
 
 // emitModules runs CollectEntries with the given reflection roots (one bare-id
 // site per root) and renders the resulting graph.
-func emitModules(t *testing.T, roots []string, runTypes []*protocol.RunType) map[string]string {
+func emitModules(t *testing.T, roots []string, runTypes []*reflection.RunType) map[string]string {
 	t.Helper()
 	sites := make([]protocol.Site, 0, len(roots))
 	for _, root := range roots {
@@ -56,7 +57,7 @@ func bundleOf(t *testing.T, modules map[string]string) string {
 	return source
 }
 
-func allIDs(runTypes []*protocol.RunType) []string {
+func allIDs(runTypes []*reflection.RunType) []string {
 	ids := make([]string, 0, len(runTypes))
 	for _, runType := range runTypes {
 		ids = append(ids, runType.ID)
@@ -81,7 +82,7 @@ func intPtr(n int) *int { return &n }
 // has no relations, so `rels` is empty), and each root gets a facade module
 // [5,()=>[__rt_runtypes],<hole>,'<rootId>'] whose single dep imports the bundle.
 func TestBundleShape(t *testing.T) {
-	modules := emitModules(t, []string{"x1"}, []*protocol.RunType{{ID: "x1", Kind: protocol.KindString}})
+	modules := emitModules(t, []string{"x1"}, []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}})
 	bundle := bundleOf(t, modules)
 	if !strings.Contains(bundle, "export const __rt_runtypes=[4,,,'rts_") {
 		t.Errorf("expected bundle tuple head [4,,,'rts_…'], got:\n%s", bundle)
@@ -110,15 +111,15 @@ func TestBundleShape(t *testing.T) {
 // own line (readability); a single-row bundle stays on one line. The rows
 // remain comma-joined inside the array, so this is whitespace-only.
 func TestBundleRowsLineSeparated(t *testing.T) {
-	multi := bundleOf(t, emitModules(t, []string{"aaa111", "bbb222"}, []*protocol.RunType{
-		{ID: "aaa111", Kind: protocol.KindString},
-		{ID: "bbb222", Kind: protocol.KindNumber},
+	multi := bundleOf(t, emitModules(t, []string{"aaa111", "bbb222"}, []*reflection.RunType{
+		{ID: "aaa111", Kind: reflection.KindString},
+		{ID: "bbb222", Kind: reflection.KindNumber},
 	}))
 	if !strings.Contains(multi, "],\n[") {
 		t.Errorf("expected one row per line (`],\\n[`), got:\n%s", multi)
 	}
-	single := bundleOf(t, emitModules(t, []string{"aaa111"}, []*protocol.RunType{
-		{ID: "aaa111", Kind: protocol.KindString},
+	single := bundleOf(t, emitModules(t, []string{"aaa111"}, []*reflection.RunType{
+		{ID: "aaa111", Kind: reflection.KindString},
 	}))
 	if strings.Contains(single, "],\n[") {
 		t.Errorf("single-row bundle must not carry a row separator, got:\n%s", single)
@@ -129,7 +130,7 @@ func TestBundleRowsLineSeparated(t *testing.T) {
 // modules at all (createX-only files pay zero reflection payload).
 func TestNoReflectionRoots(t *testing.T) {
 	graph := CollectEntries(protocol.Dump{
-		RunTypes: []*protocol.RunType{{ID: "x1", Kind: protocol.KindString}},
+		RunTypes: []*reflection.RunType{{ID: "x1", Kind: reflection.KindString}},
 		Sites:    []protocol.Site{{ID: "x1", FnId: "Qm3p"}}, // createX site, not reflection
 	})
 	if len(graph) != 0 {
@@ -140,10 +141,10 @@ func TestNoReflectionRoots(t *testing.T) {
 // TestClosureScopedToRoots — only nodes reachable from the demanded roots
 // become rows; unrelated dumped nodes stay out of the bundle.
 func TestClosureScopedToRoots(t *testing.T) {
-	modules := emitModules(t, []string{"root1"}, []*protocol.RunType{
-		{ID: "root1", Kind: protocol.KindProperty, Name: "p", Child: protocol.NewRef("chld1")},
-		{ID: "chld1", Kind: protocol.KindString},
-		{ID: "lone1", Kind: protocol.KindNumber},
+	modules := emitModules(t, []string{"root1"}, []*reflection.RunType{
+		{ID: "root1", Kind: reflection.KindProperty, Name: "p", Child: reflection.NewRef("chld1")},
+		{ID: "chld1", Kind: reflection.KindString},
+		{ID: "lone1", Kind: reflection.KindNumber},
 	})
 	bundle := bundleOf(t, modules)
 	if !strings.Contains(bundle, "['chld1',5]") {
@@ -160,7 +161,7 @@ func TestClosureScopedToRoots(t *testing.T) {
 // TestSimpleAtomic — a single KindString node emits row `['id',5]` with
 // all trailing hole args trimmed.
 func TestSimpleAtomic(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{ID: "LrjxT1", Kind: protocol.KindString}})
+	out := emit(t, []*reflection.RunType{{ID: "LrjxT1", Kind: reflection.KindString}})
 	if !strings.Contains(out, `[['LrjxT1',5]]`) {
 		t.Errorf("expected row `['LrjxT1',5]` (trailing u trimmed), got:\n%s", out)
 	}
@@ -170,14 +171,14 @@ func TestSimpleAtomic(t *testing.T) {
 // is wired through the parallel `rels` array by ROW INDEX (not a c('<id>')
 // footer), and the child is a row of the same bundle.
 func TestStaticForm(t *testing.T) {
-	runTypes := []*protocol.RunType{
-		{ID: "LrjxT1", Kind: protocol.KindString},
+	runTypes := []*reflection.RunType{
+		{ID: "LrjxT1", Kind: reflection.KindString},
 		{
 			ID:         "BxzL39",
-			Kind:       protocol.KindProperty,
+			Kind:       reflection.KindProperty,
 			Name:       "kind",
 			IsSafeName: true,
-			Child:      protocol.NewRef("LrjxT1"),
+			Child:      reflection.NewRef("LrjxT1"),
 		},
 	}
 	modules := emitModules(t, []string{"BxzL39"}, runTypes)
@@ -201,13 +202,13 @@ func TestStaticForm(t *testing.T) {
 // TestReflectionForm — the same Property reached via the reflection-style
 // resolution path must produce byte-equal output to the static form.
 func TestReflectionForm(t *testing.T) {
-	staticRunTypes := []*protocol.RunType{
-		{ID: "LrjxT1", Kind: protocol.KindString},
-		{ID: "BxzL39", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: protocol.NewRef("LrjxT1")},
+	staticRunTypes := []*reflection.RunType{
+		{ID: "LrjxT1", Kind: reflection.KindString},
+		{ID: "BxzL39", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: reflection.NewRef("LrjxT1")},
 	}
-	reflectionRunTypes := []*protocol.RunType{
-		{ID: "LrjxT1", Kind: protocol.KindString},
-		{ID: "BxzL39", Kind: protocol.KindProperty, Name: "kind", IsSafeName: true, Child: protocol.NewRef("LrjxT1")},
+	reflectionRunTypes := []*reflection.RunType{
+		{ID: "LrjxT1", Kind: reflection.KindString},
+		{ID: "BxzL39", Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: reflection.NewRef("LrjxT1")},
 	}
 	if got := emit(t, reflectionRunTypes); got != emit(t, staticRunTypes) {
 		t.Errorf("static and reflection forms emit different bytes:\nstatic:\n%s\nreflection:\n%s", emit(t, staticRunTypes), got)
@@ -218,9 +219,9 @@ func TestReflectionForm(t *testing.T) {
 // round-trip as `0` (not a hole) because the slot is meaningful at
 // position 0.
 func TestPositionZeroIsPreserved(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{
+	out := emit(t, []*reflection.RunType{{
 		ID:       "sCSEqy",
-		Kind:     protocol.KindParameter,
+		Kind:     reflection.KindParameter,
 		Name:     "name",
 		Position: intPtr(0),
 	}})
@@ -232,9 +233,9 @@ func TestPositionZeroIsPreserved(t *testing.T) {
 // TestFooterLiteralPassesHoleForLiteralArg — bigint literal: the `literal`
 // row arg is a hole (the ini body handles the construction).
 func TestFooterLiteralPassesUForLiteralArg(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{
+	out := emit(t, []*reflection.RunType{{
 		ID:      "bigID",
-		Kind:    protocol.KindLiteral,
+		Kind:    reflection.KindLiteral,
 		Literal: "42",
 		Flags:   []string{"bigint"},
 	}})
@@ -249,11 +250,11 @@ func TestFooterLiteralPassesUForLiteralArg(t *testing.T) {
 // TestClassBuiltinUnchanged — a class with ClassRef.Builtin emits the
 // `c('X').classType = globalThis.<Name>;` ini line.
 func TestClassBuiltinUnchanged(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{
+	out := emit(t, []*reflection.RunType{{
 		ID:       "dateID",
-		Kind:     protocol.KindClass,
+		Kind:     reflection.KindClass,
 		TypeName: "Date",
-		ClassRef: &protocol.ClassRef{Builtin: "Date"},
+		ClassRef: &reflection.ClassRef{Builtin: "Date"},
 	}})
 	if !strings.Contains(out, `['dateID',20,,'Date']`) {
 		t.Errorf("expected class row with typeName, got:\n%s", out)
@@ -267,9 +268,9 @@ func TestClassBuiltinUnchanged(t *testing.T) {
 // bundle; the cycle is wired by ROW INDEX in `rels` (index refs have no TDZ, so
 // no back-edge special-casing is needed).
 func TestCycle(t *testing.T) {
-	a := &protocol.RunType{ID: "A1", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: protocol.NewRef("B1")}
-	b := &protocol.RunType{ID: "B1", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: protocol.NewRef("A1")}
-	modules := emitModules(t, []string{"A1"}, []*protocol.RunType{a, b})
+	a := &reflection.RunType{ID: "A1", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: reflection.NewRef("B1")}
+	b := &reflection.RunType{ID: "B1", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: reflection.NewRef("A1")}
+	modules := emitModules(t, []string{"A1"}, []*reflection.RunType{a, b})
 	bundle := bundleOf(t, modules)
 	if !strings.Contains(bundle, "['A1',15,") || !strings.Contains(bundle, "['B1',15,") {
 		t.Errorf("both cycle members must be rows of the bundle:\n%s", bundle)
@@ -285,10 +286,10 @@ func TestCycle(t *testing.T) {
 // several parents is referenced by its single row index from each, and a
 // relation-only bundle emits no residual ini.
 func TestRelationsAreIndexBased(t *testing.T) {
-	runTypes := []*protocol.RunType{
-		{ID: "shrd1", Kind: protocol.KindString},
-		{ID: "p1", Kind: protocol.KindProperty, Name: "a", IsSafeName: true, Child: protocol.NewRef("shrd1")},
-		{ID: "p2", Kind: protocol.KindProperty, Name: "b", IsSafeName: true, Child: protocol.NewRef("shrd1")},
+	runTypes := []*reflection.RunType{
+		{ID: "shrd1", Kind: reflection.KindString},
+		{ID: "p1", Kind: reflection.KindProperty, Name: "a", IsSafeName: true, Child: reflection.NewRef("shrd1")},
+		{ID: "p2", Kind: reflection.KindProperty, Name: "b", IsSafeName: true, Child: reflection.NewRef("shrd1")},
 	}
 	bundle := bundleOf(t, emitModules(t, []string{"p1", "p2"}, runTypes))
 	// Sorted rows: p1(0), p2(1), shrd1(2). Both p1 and p2 point child → index 2;
@@ -319,9 +320,9 @@ func TestBundleKeyTracksContent(t *testing.T) {
 		end := strings.Index(bundle[start+1:], "'")
 		return bundle[start+1 : start+1+end]
 	}
-	one := keyOf(emitModules(t, []string{"a"}, []*protocol.RunType{{ID: "a", Kind: protocol.KindString}}))
-	two := keyOf(emitModules(t, []string{"b"}, []*protocol.RunType{{ID: "b", Kind: protocol.KindNumber}}))
-	same := keyOf(emitModules(t, []string{"a"}, []*protocol.RunType{{ID: "a", Kind: protocol.KindString}}))
+	one := keyOf(emitModules(t, []string{"a"}, []*reflection.RunType{{ID: "a", Kind: reflection.KindString}}))
+	two := keyOf(emitModules(t, []string{"b"}, []*reflection.RunType{{ID: "b", Kind: reflection.KindNumber}}))
+	same := keyOf(emitModules(t, []string{"a"}, []*reflection.RunType{{ID: "a", Kind: reflection.KindString}}))
 	if one == two {
 		t.Errorf("different row sets share bundle key %q", one)
 	}
@@ -332,10 +333,10 @@ func TestBundleKeyTracksContent(t *testing.T) {
 
 // TestDeterministic — same input must produce byte-identical output.
 func TestDeterministic(t *testing.T) {
-	runTypes := []*protocol.RunType{
-		{ID: "a", Kind: protocol.KindString},
-		{ID: "b", Kind: protocol.KindNumber},
-		{ID: "c", Kind: protocol.KindProperty, Name: "x", Child: protocol.NewRef("a")},
+	runTypes := []*reflection.RunType{
+		{ID: "a", Kind: reflection.KindString},
+		{ID: "b", Kind: reflection.KindNumber},
+		{ID: "c", Kind: reflection.KindProperty, Name: "x", Child: reflection.NewRef("a")},
 	}
 	if first, second := emit(t, runTypes), emit(t, runTypes); first != second {
 		t.Errorf("non-deterministic output:\nfirst:\n%s\nsecond:\n%s", first, second)
@@ -345,10 +346,10 @@ func TestDeterministic(t *testing.T) {
 // TestKnownFieldsCovered is the defensive guardrail against forgetting a
 // scalar slot when a new field is added to RunType.
 func TestKnownFieldsCovered(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{
+	out := emit(t, []*reflection.RunType{{
 		ID:           "FULL",
-		Kind:         protocol.KindClass,
-		SubKind:      protocol.SubKindNonSerializable,
+		Kind:         reflection.KindClass,
+		SubKind:      reflection.SubKindNonSerializable,
 		TypeName:     "TN",
 		Name:         "NM",
 		Literal:      "L",
@@ -376,12 +377,12 @@ func TestKnownFieldsCovered(t *testing.T) {
 // TestSubKindRendered — a class node with a non-zero SubKind must place
 // the numeric value at the subKind slot.
 func TestSubKindRendered(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{
+	out := emit(t, []*reflection.RunType{{
 		ID:       "mapID",
-		Kind:     protocol.KindClass,
-		SubKind:  protocol.SubKindMap,
+		Kind:     reflection.KindClass,
+		SubKind:  reflection.SubKindMap,
 		TypeName: "Map",
-		ClassRef: &protocol.ClassRef{Builtin: "Map"},
+		ClassRef: &reflection.ClassRef{Builtin: "Map"},
 	}})
 	if !strings.Contains(out, `['mapID',20,2002,'Map']`) {
 		t.Errorf("expected class row with subKind, got:\n%s", out)
@@ -392,7 +393,7 @@ func TestSubKindRendered(t *testing.T) {
 // `export const t_<hash> = …` / `rt(…)` skeleton calls. Make sure neither
 // pattern survives in the bundle / facade modules.
 func TestNoLegacyTopLevelExports(t *testing.T) {
-	out := emit(t, []*protocol.RunType{{ID: "x", Kind: protocol.KindString}})
+	out := emit(t, []*reflection.RunType{{ID: "x", Kind: reflection.KindString}})
 	if strings.Contains(out, "export const t_") {
 		t.Errorf("legacy `export const t_…` lines must not appear in:\n%s", out)
 	}

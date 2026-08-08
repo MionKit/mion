@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // TestPerRequestScope_FilesOnly verifies that scanFiles responses are
@@ -116,7 +117,7 @@ getRunTypeId<string>();
 	}
 	stringCount := 0
 	for _, runType := range resp.RunTypes {
-		if runType != nil && runType.Kind == protocol.KindString {
+		if runType != nil && runType.Kind == reflection.KindString {
 			stringCount++
 		}
 	}
@@ -258,7 +259,7 @@ getRunTypeId<{a: number}>();
 	}
 }
 
-func containsID(runTypes []*protocol.RunType, id string) bool {
+func containsID(runTypes []*reflection.RunType, id string) bool {
 	for _, runType := range runTypes {
 		if runType != nil && runType.ID == id {
 			return true
@@ -318,12 +319,12 @@ getRunTypeId<Referenced>();
 			continue
 		}
 		switch runType.Kind {
-		case protocol.KindBigInt:
+		case reflection.KindBigInt:
 			t.Errorf("UnusedA leaked: found KindBigInt node id=%q", runType.ID)
-		case protocol.KindArray:
+		case reflection.KindArray:
 			t.Errorf("UnusedC leaked: found KindArray node id=%q", runType.ID)
-		case protocol.KindClass:
-			if runType.SubKind == protocol.SubKindDate {
+		case reflection.KindClass:
+			if runType.SubKind == reflection.SubKindDate {
 				t.Errorf("UnusedB leaked: found KindClass+SubKindDate node id=%q", runType.ID)
 			}
 		}
@@ -383,18 +384,18 @@ getRunTypeId<{b: number}>();
 			continue
 		}
 		switch runType.Kind {
-		case protocol.KindBigInt:
+		case reflection.KindBigInt:
 			t.Errorf("Junk leaked from a.ts: found KindBigInt node id=%q", runType.ID)
-		case protocol.KindClass:
-			if runType.SubKind == protocol.SubKindDate {
+		case reflection.KindClass:
+			if runType.SubKind == reflection.SubKindDate {
 				t.Errorf("Garbage leaked from b.ts: found KindClass+SubKindDate node id=%q", runType.ID)
 			}
-		case protocol.KindBoolean:
+		case reflection.KindBoolean:
 			// OnlyAlias is `boolean[]`; KindBoolean here would mean either
 			// the array's element leaked (with the boolean element) — none of
 			// a.ts/b.ts use booleans, so finding KindBoolean is conclusive.
 			t.Errorf("OnlyAlias leaked from c.ts: found KindBoolean node id=%q", runType.ID)
-		case protocol.KindArray:
+		case reflection.KindArray:
 			// Belt-and-braces — OnlyAlias = boolean[] is the only array
 			// in the test set.
 			t.Errorf("OnlyAlias leaked from c.ts: found KindArray node id=%q", runType.ID)

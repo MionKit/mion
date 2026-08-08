@@ -8,6 +8,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 const runtypesDTS = `declare module '@ts-runtypes/core' {
@@ -45,7 +46,7 @@ func inlineResolver(t *testing.T, code string) *resolver.Session {
 
 // rootFor scans test.ts and returns the RunType node for the first
 // (and only) call site.
-func rootFor(t *testing.T, code string) (*resolver.Session, *protocol.RunType) {
+func rootFor(t *testing.T, code string) (*resolver.Session, *reflection.RunType) {
 	t.Helper()
 	res := inlineResolver(t, code)
 	scanResp := res.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"test.ts"}})
@@ -78,10 +79,10 @@ getRunTypeId<Map<string, number>>();
 	if dateNode.ID == mapNode.ID {
 		t.Fatalf("expected Date and Map to have distinct ids, both got %q", dateNode.ID)
 	}
-	if dateNode.SubKind != protocol.SubKindDate {
+	if dateNode.SubKind != reflection.SubKindDate {
 		t.Fatalf("Date: expected SubKindDate, got %d", dateNode.SubKind)
 	}
-	if mapNode.SubKind != protocol.SubKindMap {
+	if mapNode.SubKind != reflection.SubKindMap {
 		t.Fatalf("Map: expected SubKindMap, got %d", mapNode.SubKind)
 	}
 }
@@ -102,7 +103,7 @@ getRunTypeId<ErrorShape>();
 	if errorNode.ID == plainNode.ID {
 		t.Fatalf("non-serializable Error must not share id with a plain object literal of same shape")
 	}
-	if errorNode.SubKind != protocol.SubKindNonSerializable {
+	if errorNode.SubKind != reflection.SubKindNonSerializable {
 		t.Fatalf("Error: expected SubKindNonSerializable, got %d", errorNode.SubKind)
 	}
 }

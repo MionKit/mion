@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -25,7 +26,7 @@ type AB = {a: string} & {b: number};
 getRunTypeId<AB>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral (object×object merged), got kind=%d", tn.Kind)
 	}
 	if got := propertyNames(dump(r), tn); !containsAll(got, "a", "b") {
@@ -40,7 +41,7 @@ const v = null as unknown as AB;
 getRunTypeId(v);
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral, got kind=%d", tn.Kind)
 	}
 	if got := propertyNames(dump(r), tn); !containsAll(got, "a", "b") {
@@ -58,7 +59,7 @@ getRunTypeId<AB>();
 `
 	r, tn := resolveInline(t, code)
 	// Interfaces with no class flag are object literals per the reference semantics.
-	if tn.Kind != protocol.KindObjectLiteral {
+	if tn.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected object-like, got kind=%d", tn.Kind)
 	}
 	if got := propertyNames(dump(r), tn); !containsAll(got, "a", "b") {
@@ -75,7 +76,7 @@ type T = C & {y: number};
 getRunTypeId<T>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindObjectLiteral && tn.Kind != protocol.KindClass {
+	if tn.Kind != reflection.KindObjectLiteral && tn.Kind != reflection.KindClass {
 		t.Fatalf("expected object-like (literal or class), got kind=%d", tn.Kind)
 	}
 	if got := propertyNames(dump(r), tn); !containsAll(got, "x", "y") {
@@ -91,14 +92,14 @@ type Email = string & {readonly __brand: 'Email'};
 getRunTypeId<Email>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString for branded string, got kind=%d", tn.Kind)
 	}
 	if len(tn.TypeMeta) != 1 {
 		t.Fatalf("expected exactly 1 decorator, got %d", len(tn.TypeMeta))
 	}
 	dec := deref(dump(r), tn.TypeMeta[0])
-	if dec == nil || dec.Kind != protocol.KindObjectLiteral {
+	if dec == nil || dec.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected decorator to be an objectLiteral, got %+v", dec)
 	}
 }
@@ -110,7 +111,7 @@ const v = null as unknown as Email;
 getRunTypeId(v);
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString, got kind=%d", tn.Kind)
 	}
 	if len(tn.TypeMeta) != 1 {
@@ -126,7 +127,7 @@ type Tagged = string & {readonly __a: 1} & {readonly __b: 2};
 getRunTypeId<Tagged>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString, got kind=%d", tn.Kind)
 	}
 	if len(tn.TypeMeta) != 2 {
@@ -142,7 +143,7 @@ type UserId = number & {readonly __nominal: 'Id'};
 getRunTypeId<UserId>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNumber {
+	if tn.Kind != reflection.KindNumber {
 		t.Fatalf("expected KindNumber, got kind=%d", tn.Kind)
 	}
 	if len(tn.TypeMeta) != 1 {
@@ -160,7 +161,7 @@ type T = string & 'hello';
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected KindLiteral (literal narrowed primitive), got kind=%d", tn.Kind)
 	}
 	if value, _ := tn.Literal.(string); value != "hello" {
@@ -177,7 +178,7 @@ type T = string & 1;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever for incompatible primitive & literal, got kind=%d", tn.Kind)
 	}
 }
@@ -190,7 +191,7 @@ type T = string & number;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got kind=%d", tn.Kind)
 	}
 }
@@ -203,7 +204,7 @@ type T = 1 & 2;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got kind=%d", tn.Kind)
 	}
 }
@@ -216,7 +217,7 @@ type T = never & {x: 1};
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got kind=%d", tn.Kind)
 	}
 }
@@ -230,7 +231,7 @@ type T = ('a' | 'b') & string;
 getRunTypeId<T>();
 `
 	r, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindUnion {
+	if tn.Kind != reflection.KindUnion {
 		t.Fatalf("expected KindUnion after distribution, got kind=%d", tn.Kind)
 	}
 	literals := literalValues(dump(r), tn)
@@ -248,7 +249,7 @@ type T = ('a' | 'b') & number;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindNever {
+	if tn.Kind != reflection.KindNever {
 		t.Fatalf("expected KindNever, got kind=%d", tn.Kind)
 	}
 }
@@ -262,7 +263,7 @@ type T = ('a' | 1) & string;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindLiteral {
+	if tn.Kind != reflection.KindLiteral {
 		t.Fatalf("expected single surviving literal, got kind=%d", tn.Kind)
 	}
 	if value, _ := tn.Literal.(string); value != "a" {
@@ -283,9 +284,9 @@ getRunTypeId<T>();
 	// preserves the object side. Accept either: if any, no decorators
 	// (Kind=any); if object literal, x must be present.
 	switch tn.Kind {
-	case protocol.KindAny:
+	case reflection.KindAny:
 		// TS-side collapsed: nothing for us to do.
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		if names := propertyNames(dump(r), tn); !containsAll(names, "x") {
 			t.Fatalf("expected prop x, got %v", names)
 		}
@@ -300,7 +301,7 @@ type T = unknown & string;
 getRunTypeId<T>();
 `
 	_, tn := resolveInline(t, code)
-	if tn.Kind != protocol.KindString {
+	if tn.Kind != reflection.KindString {
 		t.Fatalf("expected KindString (unknown collapses), got kind=%d", tn.Kind)
 	}
 }
@@ -389,7 +390,7 @@ getRunTypeId<D>();
 	r := setupInline(t, map[string]string{"test.ts": code})
 	r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"test.ts"}})
 	for _, node := range dump(r) {
-		if node.Kind == protocol.KindIntersection {
+		if node.Kind == reflection.KindIntersection {
 			t.Fatalf("node %q has KindIntersection — collapse should have removed it", node.ID)
 		}
 	}
@@ -401,14 +402,14 @@ getRunTypeId<D>();
 
 // propertyNames returns the names of the property-like children of an
 // object-like RunType, dereferencing each child ref.
-func propertyNames(types []*protocol.RunType, parent *protocol.RunType) []string {
+func propertyNames(types []*reflection.RunType, parent *reflection.RunType) []string {
 	out := make([]string, 0, len(parent.Children))
 	for _, ref := range parent.Children {
 		member := deref(types, ref)
 		if member == nil {
 			continue
 		}
-		if member.Kind == protocol.KindProperty || member.Kind == protocol.KindPropertySignature {
+		if member.Kind == reflection.KindProperty || member.Kind == reflection.KindPropertySignature {
 			out = append(out, member.Name)
 		}
 	}
@@ -416,14 +417,14 @@ func propertyNames(types []*protocol.RunType, parent *protocol.RunType) []string
 }
 
 // literalValues returns the literal values of a union of literals.
-func literalValues(types []*protocol.RunType, parent *protocol.RunType) []any {
+func literalValues(types []*reflection.RunType, parent *reflection.RunType) []any {
 	out := make([]any, 0, len(parent.Children))
 	for _, ref := range parent.Children {
 		member := deref(types, ref)
 		if member == nil {
 			continue
 		}
-		if member.Kind == protocol.KindLiteral {
+		if member.Kind == reflection.KindLiteral {
 			out = append(out, member.Literal)
 		}
 	}

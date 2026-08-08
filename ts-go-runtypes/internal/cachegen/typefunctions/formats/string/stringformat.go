@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // stringFormatEmitter implements the format with name "stringFormat" —
@@ -40,14 +40,14 @@ func (stringFormatEmitter) Name() string {
 	return formatName
 }
 
-func (stringFormatEmitter) Kind() protocol.ReflectionKind {
-	return protocol.KindString
+func (stringFormatEmitter) Kind() reflection.ReflectionKind {
+	return reflection.KindString
 }
 
 // EmitValidateCheck returns the AND of every active format predicate.
 // Returns "" when no params constrain the value — the host emitter then
 // keeps its base-kind check as the only validator.
-func (stringFormatEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (stringFormatEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -283,7 +283,7 @@ func lengthErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 // Matches the emitIsTypeErrors output (modulo the wrapper-shape
 // param unwrap) so the JS-side runtime sees the same diagnostics
 // regardless of which compiler produced the validator.
-func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (stringFormatEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -342,7 +342,7 @@ func stringErrorStatements(ctx formats.EmitContext, params map[string]any, vλl,
 // operations in order (stringFormat.runtype.ts:44-51): trim,
 // replace, replaceAll, lowercase, uppercase, capitalize. Returns "" when
 // none are set (identity).
-func (stringFormatEmitter) EmitFormatTransform(annotation *protocol.FormatAnnotation, vλl string, _ formats.EmitContext) string {
+func (stringFormatEmitter) EmitFormatTransform(annotation *reflection.FormatAnnotation, vλl string, _ formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -402,7 +402,7 @@ func boolParam(params map[string]any, key string) bool {
 // mutual-exclusivity, bound ordering, value-set caps, single-complex-param,
 // and the disallowed* mockSamples requirement. Returns one message per
 // violation (surfaced as CodeFMTInvalidParams).
-func (stringFormatEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (stringFormatEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

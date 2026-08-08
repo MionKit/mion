@@ -1,7 +1,7 @@
 package typefunctions
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // jsonWireSupports is the ONE supported-kind set for every JSON-wire
@@ -30,51 +30,51 @@ import (
 //   - KindClass: Date is atomic (its own toJSON); user classes
 //     (SubKindNone) use the object emit; Map/Set materialise into
 //     JSON-encodable arrays; Temporal types are atomic leaves.
-func jsonWireSupports(rt *protocol.RunType) bool {
+func jsonWireSupports(rt *reflection.RunType) bool {
 	if rt == nil {
 		return false
 	}
 	switch rt.Kind {
-	case protocol.KindAny, protocol.KindUnknown,
-		protocol.KindVoid,
-		protocol.KindNull, protocol.KindUndefined,
-		protocol.KindString, protocol.KindNumber, protocol.KindBoolean,
-		protocol.KindBigInt, protocol.KindSymbol,
-		protocol.KindObject, protocol.KindRegexp,
-		protocol.KindLiteral, protocol.KindEnum:
+	case reflection.KindAny, reflection.KindUnknown,
+		reflection.KindVoid,
+		reflection.KindNull, reflection.KindUndefined,
+		reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+		reflection.KindBigInt, reflection.KindSymbol,
+		reflection.KindObject, reflection.KindRegexp,
+		reflection.KindLiteral, reflection.KindEnum:
 		return true
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return true
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return rt.Child != nil
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return true
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return true
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return true
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return true
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return true
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return len(rt.Children) > 0
-	case protocol.KindIntersection:
+	case reflection.KindIntersection:
 		return true
-	case protocol.KindTemplateLiteral:
+	case reflection.KindTemplateLiteral:
 		return true
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return true
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindDate, protocol.SubKindNone,
-			protocol.SubKindMap, protocol.SubKindSet,
-			protocol.SubKindNonSerializable:
+		case reflection.SubKindDate, reflection.SubKindNone,
+			reflection.SubKindMap, reflection.SubKindSet,
+			reflection.SubKindNonSerializable:
 			return true
 		}
-		return protocol.IsTemporalSubKind(rt.SubKind)
-	case protocol.KindPromise:
+		return reflection.IsTemporalSubKind(rt.SubKind)
+	case reflection.KindPromise:
 		return true
 	}
 	return false
@@ -87,7 +87,7 @@ func jsonWireSupports(rt *protocol.RunType) bool {
 // tails. Empty child code collapses the loop to a noop; a CodeNS child
 // propagates so the walker latches the unsupported leaf and the
 // renderer emits alwaysThrow keyed off the child's kind.
-func emitElementLoop(child *protocol.RunType, ctx *EmitContext, v, start string) RTCode {
+func emitElementLoop(child *reflection.RunType, ctx *EmitContext, v, start string) RTCode {
 	iVar := ctx.NextLocalVar("i")
 	ctx.SetChildAccessor(v + "[" + iVar + "]")
 	childRT := ctx.CompileChild(child, CodeS)

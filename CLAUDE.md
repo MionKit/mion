@@ -32,7 +32,8 @@ Working subpackages under `internal/`:
 - [cachegen/](ts-go-runtypes/internal/cachegen/) — cache generation (runtype, typefunctions, purefunctions, operations, diskcache, builtinpurefns, hashid).
 - [enrichment/](ts-go-runtypes/internal/enrichment/) — FriendlyText / MockData codegen (astcheck, cldr, mirror, enrichgen — the shared plan/config/check leaf the CLI verb and the daemon op both call, so they can never drift).
 - [diagnostics/](ts-go-runtypes/internal/diagnostics/) — diagnostic catalog + severity messages shared by resolver and lint plugin.
-- [protocol/](ts-go-runtypes/internal/protocol/) — Go ⇄ JS wire shapes (scan sites, family tags, subkinds, Site demand).
+- [reflection/](ts-go-runtypes/internal/reflection/) — the canonical RunType reflection model every pipeline stage shares (kinds, subkinds, families, schema checks, temporal registry, ref-slot walking).
+- [protocol/](ts-go-runtypes/internal/protocol/) — Go ⇄ JS wire envelope (ops, Request/Response, scan sites, Site demand).
 - Auxiliary (kept small, no cross-package state): `constants`, `jsquote`, `testfixtures` (F1–F17 fixtures), `textpos`.
 
 ### JS monorepo (`packages/`)

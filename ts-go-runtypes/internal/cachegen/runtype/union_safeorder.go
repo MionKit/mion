@@ -1,7 +1,7 @@
 package runtype
 
 import (
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // finalizeUnion runs once after a union's children are serialized. It:
@@ -20,7 +20,7 @@ import (
 // Children are ref RunTypes (Kind == KindRef) pointing at canonical
 // entries in cache.nodes. SafeUnionChildren shares the same ref
 // pointers; consumers derive per-member position via indexOf.
-func (cache *Cache) finalizeUnion(node *protocol.RunType) {
+func (cache *Cache) finalizeUnion(node *reflection.RunType) {
 	if len(node.Children) <= 1 {
 		// Degenerate union — nothing to reorder, nothing to discriminate.
 		return
@@ -29,7 +29,7 @@ func (cache *Cache) finalizeUnion(node *protocol.RunType) {
 	simpleItems, objectRefs, anyItem := cache.splitUnionItems(node.Children)
 	sortedObjects := cache.sortUnreachableTypes(objectRefs)
 
-	safeOrder := make([]*protocol.RunType, 0, len(node.Children))
+	safeOrder := make([]*reflection.RunType, 0, len(node.Children))
 	safeOrder = append(safeOrder, simpleItems...)
 	safeOrder = append(safeOrder, sortedObjects...)
 	if anyItem != nil {
@@ -47,7 +47,7 @@ func (cache *Cache) finalizeUnion(node *protocol.RunType) {
 // Subsequent any/unknown members are kept in their bucket (duplicates
 // would already have been deduped by the TS checker, but we don't
 // re-emit a separate any node — the reference algorithm drops them silently).
-func (cache *Cache) splitUnionItems(children []*protocol.RunType) (simpleItems, objectRefs []*protocol.RunType, anyItem *protocol.RunType) {
+func (cache *Cache) splitUnionItems(children []*reflection.RunType) (simpleItems, objectRefs []*reflection.RunType, anyItem *reflection.RunType) {
 	for _, ref := range children {
 		canonical := cache.nodes[ref.ID]
 		if canonical == nil {
@@ -55,12 +55,12 @@ func (cache *Cache) splitUnionItems(children []*protocol.RunType) (simpleItems, 
 			continue
 		}
 		switch canonical.Kind {
-		case protocol.KindAny, protocol.KindUnknown:
+		case reflection.KindAny, reflection.KindUnknown:
 			if anyItem == nil {
 				anyItem = ref
 			}
 			// duplicates dropped per the "Only keep the first" comment
-		case protocol.KindObjectLiteral, protocol.KindClass:
+		case reflection.KindObjectLiteral, reflection.KindClass:
 			objectRefs = append(objectRefs, ref)
 		default:
 			simpleItems = append(simpleItems, ref)
@@ -75,7 +75,7 @@ func (cache *Cache) splitUnionItems(children []*protocol.RunType) (simpleItems, 
 // group is sorted descending by property count so the most-specific
 // shape is validated first. Unrelated members keep their declaration
 // order.
-func (cache *Cache) sortUnreachableTypes(objectRefs []*protocol.RunType) []*protocol.RunType {
+func (cache *Cache) sortUnreachableTypes(objectRefs []*reflection.RunType) []*reflection.RunType {
 	if len(objectRefs) <= 1 {
 		return objectRefs
 	}
@@ -101,7 +101,7 @@ func (cache *Cache) sortUnreachableTypes(objectRefs []*protocol.RunType) []*prot
 	}
 
 	processed := make([]bool, len(objectRefs))
-	result := make([]*protocol.RunType, 0, len(objectRefs))
+	result := make([]*reflection.RunType, 0, len(objectRefs))
 
 	for i := 0; i < len(objectRefs); i++ {
 		if processed[i] {
@@ -143,7 +143,7 @@ func (cache *Cache) sortUnreachableTypes(objectRefs []*protocol.RunType) []*prot
 // object-like canonical node. The "type-id" of a property is the id of
 // its child type — same value PropertyRunType.getTypeID() returns
 // at the runtype layer.
-func (cache *Cache) propertyTypeIDSet(ref *protocol.RunType) map[string]struct{} {
+func (cache *Cache) propertyTypeIDSet(ref *reflection.RunType) map[string]struct{} {
 	out := make(map[string]struct{})
 	canonical := cache.nodes[ref.ID]
 	if canonical == nil {
@@ -154,7 +154,7 @@ func (cache *Cache) propertyTypeIDSet(ref *protocol.RunType) map[string]struct{}
 		if memberNode == nil {
 			continue
 		}
-		if memberNode.Kind != protocol.KindProperty && memberNode.Kind != protocol.KindPropertySignature {
+		if memberNode.Kind != reflection.KindProperty && memberNode.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if memberNode.Child != nil {
@@ -168,8 +168,8 @@ func (cache *Cache) propertyTypeIDSet(ref *protocol.RunType) map[string]struct{}
 // pair selected by a discriminator pass. The object's slot in
 // node.SafeUnionChildren receives propRef.
 type discriminatorAssignment struct {
-	objectRef *protocol.RunType
-	propRef   *protocol.RunType
+	objectRef *reflection.RunType
+	propRef   *reflection.RunType
 	typeID    string
 }
 
@@ -180,7 +180,7 @@ type discriminatorAssignment struct {
 // Tries shared-name first (every member has a property with the same
 // name and distinct type-ids); falls back to unique-prop (each member
 // picks its own property whose type-id is unique across the union).
-func (cache *Cache) markDiscriminators(node *protocol.RunType, objectRefs []*protocol.RunType) {
+func (cache *Cache) markDiscriminators(node *reflection.RunType, objectRefs []*reflection.RunType) {
 	if len(objectRefs) < 2 {
 		return
 	}
@@ -195,7 +195,7 @@ func (cache *Cache) markDiscriminators(node *protocol.RunType, objectRefs []*pro
 // On success, writes one ref per object member into the union's
 // UnionDiscriminators slot (parallel to SafeUnionChildren). Reports
 // true when a qualifying name was found.
-func (cache *Cache) tryMarkSharedNameDiscriminator(node *protocol.RunType, objectRefs []*protocol.RunType) bool {
+func (cache *Cache) tryMarkSharedNameDiscriminator(node *reflection.RunType, objectRefs []*reflection.RunType) bool {
 	byName := make(map[string][]discriminatorAssignment)
 	for _, ref := range objectRefs {
 		canonical := cache.nodes[ref.ID]
@@ -207,7 +207,7 @@ func (cache *Cache) tryMarkSharedNameDiscriminator(node *protocol.RunType, objec
 			if memberNode == nil {
 				continue
 			}
-			if memberNode.Kind != protocol.KindProperty && memberNode.Kind != protocol.KindPropertySignature {
+			if memberNode.Kind != reflection.KindProperty && memberNode.Kind != reflection.KindPropertySignature {
 				continue
 			}
 			childID := ""
@@ -268,9 +268,9 @@ func (cache *Cache) tryMarkSharedNameDiscriminator(node *protocol.RunType, objec
 // complex) type-id wins. Members that have no unique property leave
 // their slot in UnionDiscriminators nil. Reports true when at least
 // one member was assigned.
-func (cache *Cache) tryMarkUniquePropDiscriminator(node *protocol.RunType, objectRefs []*protocol.RunType) bool {
+func (cache *Cache) tryMarkUniquePropDiscriminator(node *reflection.RunType, objectRefs []*reflection.RunType) bool {
 	type propCandidate struct {
-		propRef *protocol.RunType
+		propRef *reflection.RunType
 		typeID  string
 	}
 	memberCandidates := make([][]propCandidate, len(objectRefs))
@@ -287,7 +287,7 @@ func (cache *Cache) tryMarkUniquePropDiscriminator(node *protocol.RunType, objec
 			if memberNode == nil {
 				continue
 			}
-			if memberNode.Kind != protocol.KindProperty && memberNode.Kind != protocol.KindPropertySignature {
+			if memberNode.Kind != reflection.KindProperty && memberNode.Kind != reflection.KindPropertySignature {
 				continue
 			}
 			childID := ""
@@ -346,9 +346,9 @@ func (cache *Cache) tryMarkUniquePropDiscriminator(node *protocol.RunType, objec
 // objectRef within node.SafeUnionChildren. Non-object slots (simple /
 // any) remain nil. The slice is allocated to len(SafeUnionChildren)
 // on first call.
-func (cache *Cache) assignUnionDiscriminators(node *protocol.RunType, entries []discriminatorAssignment) {
+func (cache *Cache) assignUnionDiscriminators(node *reflection.RunType, entries []discriminatorAssignment) {
 	if node.UnionDiscriminators == nil {
-		node.UnionDiscriminators = make([]*protocol.RunType, len(node.SafeUnionChildren))
+		node.UnionDiscriminators = make([]*reflection.RunType, len(node.SafeUnionChildren))
 	}
 	for _, entry := range entries {
 		slot := indexOfRef(node.SafeUnionChildren, entry.objectRef)
@@ -360,7 +360,7 @@ func (cache *Cache) assignUnionDiscriminators(node *protocol.RunType, entries []
 
 // indexOfRef returns the position of ref in refs by pointer identity,
 // or -1 if not present.
-func indexOfRef(refs []*protocol.RunType, ref *protocol.RunType) int {
+func indexOfRef(refs []*reflection.RunType, ref *reflection.RunType) int {
 	for i, candidate := range refs {
 		if candidate == ref {
 			return i

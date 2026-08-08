@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // NotSupported reflection-flag tests. The serializer KEEPS non-data members
@@ -39,10 +39,10 @@ getRunTypeId(value);
 	assertNotSupportedFlag(t, r, root)
 }
 
-func assertNotSupportedFlag(t *testing.T, r *resolver.Session, root *protocol.RunType) {
+func assertNotSupportedFlag(t *testing.T, r *resolver.Session, root *reflection.RunType) {
 	t.Helper()
 	types := dump(r)
-	if root.Kind != protocol.KindObjectLiteral {
+	if root.Kind != reflection.KindObjectLiteral {
 		t.Fatalf("expected KindObjectLiteral root, got %+v", root)
 	}
 	if root.NotSupported {
@@ -57,7 +57,7 @@ func assertNotSupportedFlag(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if a.NotSupported {
 		t.Fatalf("data property 'a' must not be notSupported, got %+v", a)
 	}
-	if at := deref(types, a.Child); at == nil || at.Kind != protocol.KindString || at.NotSupported {
+	if at := deref(types, a.Child); at == nil || at.Kind != reflection.KindString || at.NotSupported {
 		t.Fatalf("a.child expected an unflagged KindString, got %+v", at)
 	}
 
@@ -66,7 +66,7 @@ func assertNotSupportedFlag(t *testing.T, r *resolver.Session, root *protocol.Ru
 	if greet == nil {
 		t.Fatalf("non-data method 'greet' must be KEPT in the reflected tree, not dropped; children=%+v", root.Children)
 	}
-	if greet.Kind != protocol.KindMethodSignature {
+	if greet.Kind != reflection.KindMethodSignature {
 		t.Fatalf("greet expected KindMethodSignature, got kind=%d", greet.Kind)
 	}
 	if !greet.NotSupported {
@@ -84,9 +84,9 @@ func assertNotSupportedFlag(t *testing.T, r *resolver.Session, root *protocol.Ru
 
 	// Symbol member: the symbol leaf is kept in the tree and flagged wherever
 	// it sits (reached via the 'sym' property's child).
-	var symbolNode *protocol.RunType
+	var symbolNode *reflection.RunType
 	for _, node := range types {
-		if node != nil && node.Kind == protocol.KindSymbol {
+		if node != nil && node.Kind == reflection.KindSymbol {
 			symbolNode = node
 			break
 		}

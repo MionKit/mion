@@ -9,6 +9,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // The inline-server (ESLint / lint) path builds an inferred Program per
@@ -115,8 +116,8 @@ func scanConsumerOverSourceCondition(t *testing.T, tsconfig string) protocol.Res
 	return resp
 }
 
-func kindByID(resp protocol.Response) map[string]protocol.ReflectionKind {
-	byID := make(map[string]protocol.ReflectionKind, len(resp.RunTypes))
+func kindByID(resp protocol.Response) map[string]reflection.ReflectionKind {
+	byID := make(map[string]reflection.ReflectionKind, len(resp.RunTypes))
 	for _, rt := range resp.RunTypes {
 		byID[rt.ID] = rt.Kind
 	}
@@ -149,9 +150,9 @@ func TestInlineServer_SourceCondition_ResolvesCrossPackage(t *testing.T) {
 
 	byID := kindByID(resp)
 	for _, site := range resp.Sites {
-		if byID[site.ID] != protocol.KindObjectLiteral {
+		if byID[site.ID] != reflection.KindObjectLiteral {
 			t.Errorf("site %q resolved to kind %d, want %d (ObjectLiteral) — CrossPkgUser did not resolve through the source condition",
-				site.ID, byID[site.ID], protocol.KindObjectLiteral)
+				site.ID, byID[site.ID], reflection.KindObjectLiteral)
 		}
 	}
 
@@ -202,7 +203,7 @@ func TestInlineServer_NoSourceCondition_BestEffortDoesNotResolve(t *testing.T) {
 			}
 			byID := kindByID(resp)
 			for _, site := range resp.Sites {
-				if byID[site.ID] == protocol.KindObjectLiteral {
+				if byID[site.ID] == reflection.KindObjectLiteral {
 					t.Errorf("CrossPkgUser resolved to ObjectLiteral WITHOUT customConditions:[source] — the source entry should be unreachable (fixture/contract wrong)")
 				}
 			}

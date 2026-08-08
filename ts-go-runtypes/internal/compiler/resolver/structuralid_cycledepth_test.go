@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Cycle back-edge DEPTH tests — the shared-recursive-container convergence
@@ -21,13 +21,13 @@ import (
 // convergence itself is pinned by the JS define suite and the fuzz lane's
 // id-equality oracle.
 
-func kindDigits(kind protocol.ReflectionKind) string { return strconv.Itoa(int(kind)) }
+func kindDigits(kind reflection.ReflectionKind) string { return strconv.Itoa(int(kind)) }
 
 // cycleToken renders a back-edge token for a target of `kind` at relative
 // depth `relDepth`, plus the delimiter that must follow it (tokens are bare,
 // so the caller anchors the depth digit with the composition byte that comes
 // next — `,` before a sibling, `}` at the end of a member group).
-func cycleToken(kind protocol.ReflectionKind, relDepth int, delimiter string) string {
+func cycleToken(kind reflection.ReflectionKind, relDepth int, delimiter string) string {
 	return "$" + kindDigits(kind) + "_" + strconv.Itoa(relDepth) + delimiter
 }
 
@@ -79,8 +79,8 @@ getRunTypeId<Rec>();
 	// Canonical emission of Rec: 30{32:x:30{32:b:$30_2},32:y:25:0:30{32:b:$30_3}}
 	// — the direct Box occurrence closes 2 frames below Rec, the array-wrapped
 	// one 3 frames below; both tokens end the `b` member so `}` anchors them.
-	direct := cycleToken(protocol.KindObjectLiteral, 2, "}")
-	throughArray := cycleToken(protocol.KindObjectLiteral, 3, "}")
+	direct := cycleToken(reflection.KindObjectLiteral, 2, "}")
+	throughArray := cycleToken(reflection.KindObjectLiteral, 3, "}")
 	if !strings.Contains(structural, direct) {
 		t.Fatalf("direct container occurrence must close at relative depth 2 (%q): %q", direct, structural)
 	}
@@ -106,9 +106,9 @@ getRunTypeId<N1>();
 	structural := structuralByID(t, r, ids[0])
 	// Canonical emission: 30{32:kids2:25:0:$30_2,32:p1?:25:0:$30_2} — members
 	// sort by name, so kids2's token is followed by `,` and p1's by `}`.
-	arrayOfBackRef := kindDigits(protocol.KindArray) + ":0:"
+	arrayOfBackRef := kindDigits(reflection.KindArray) + ":0:"
 	for member, delimiter := range map[string]string{"kids2:": ",", "p1?:": "}"} {
-		want := member + arrayOfBackRef + cycleToken(protocol.KindObjectLiteral, 2, delimiter)
+		want := member + arrayOfBackRef + cycleToken(reflection.KindObjectLiteral, 2, delimiter)
 		if !strings.Contains(structural, want) {
 			t.Fatalf("member %q must wrap a depth-2 back-edge (%q): %q", member, want, structural)
 		}

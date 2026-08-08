@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Recursion arms shared by the StripUnknownKeys and UnknownKeysToUndefined
@@ -14,7 +14,7 @@ import (
 // UnknownKeyErrors family threads path-literals and keeps its own copies; the
 // uku tuple arm is a documented no-op and stays in its own file.
 
-func emitPropertyUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitPropertyUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -53,7 +53,7 @@ func emitPropertyUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath b
 	return childRT
 }
 
-func emitArrayUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitArrayUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -61,7 +61,7 @@ func emitArrayUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath bool
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
@@ -85,7 +85,7 @@ func emitArrayUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath bool
 	return RTCode{Code: body, Type: CodeS}
 }
 
-func emitTupleMemberUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPath bool) RTCode {
+func emitTupleMemberUnknownKeys(rt *reflection.RunType, ctx *EmitContext, trackPath bool) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -93,7 +93,7 @@ func emitTupleMemberUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPat
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
@@ -140,8 +140,8 @@ func emitTupleMemberUnknownKeys(rt *protocol.RunType, ctx *EmitContext, trackPat
 	return childRT
 }
 
-func emitNativeIterableUnknownKeys(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
 	if !isMap {
 		ctorName = "Set"

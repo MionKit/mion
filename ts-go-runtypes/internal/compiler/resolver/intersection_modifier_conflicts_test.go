@@ -3,7 +3,7 @@ package resolver_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // =========================================================================
@@ -138,7 +138,7 @@ getRunTypeId<T>();
 		t.Fatalf("missing prop a")
 	}
 	child := deref(dump(r), a.Child)
-	if child == nil || child.Kind != protocol.KindLiteral {
+	if child == nil || child.Kind != reflection.KindLiteral {
 		t.Fatalf("expected a's type to narrow to literal 'x', got %+v", child)
 	}
 	if literal, _ := child.Literal.(string); literal != "x" {
@@ -163,7 +163,7 @@ getRunTypeId<T>();
 	// TS resolves `string & number` on a property to `never`, making
 	// the property exist but uninhabitable. The wire form must reflect
 	// this so consumers know the property can never validate.
-	if child.Kind != protocol.KindNever {
+	if child.Kind != reflection.KindNever {
 		t.Fatalf("expected a's type to be never (incompatible primitives), got %+v", child)
 	}
 }
@@ -191,7 +191,7 @@ getRunTypeId<T>();
 		// KindIntersection on the wire.
 	}
 	for _, node := range dump(r) {
-		if node.Kind == protocol.KindIntersection {
+		if node.Kind == reflection.KindIntersection {
 			t.Fatalf("KindIntersection leaked to wire — collapse should have removed it")
 		}
 	}

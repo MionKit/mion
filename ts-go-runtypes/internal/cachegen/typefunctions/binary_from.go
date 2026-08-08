@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // FromBinaryEmitter implements the `fromBinary` rt function —
@@ -33,7 +33,7 @@ func (FromBinaryEmitter) Args() []ArgSpec {
 	}
 }
 
-func (FromBinaryEmitter) Supports(rt *protocol.RunType) bool {
+func (FromBinaryEmitter) Supports(rt *reflection.RunType) bool {
 	// Mirror ToBinaryEmitter.Supports — every kind the encode side
 	// handles has a decode arm.
 	return ToBinaryEmitter{}.Supports(rt)
@@ -53,7 +53,7 @@ func (FromBinaryEmitter) ReturnName() string {
 // implements formats.BinaryDecoder and yields a non-empty body, else "".
 // Empty = keep the host's base-kind arm. Byte-symmetric counterpart to
 // binaryToOverride.
-func binaryFromOverride(rt *protocol.RunType, des string, ctx *EmitContext) string {
+func binaryFromOverride(rt *reflection.RunType, des string, ctx *EmitContext) string {
 	if rt == nil || rt.FormatAnnotation == nil {
 		return ""
 	}
@@ -68,7 +68,7 @@ func binaryFromOverride(rt *protocol.RunType, des string, ctx *EmitContext) stri
 	return decoder.EmitFromBinary(rt.FormatAnnotation, des, ctx)
 }
 
-func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (FromBinaryEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -77,11 +77,11 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 	switch rt.Kind {
 
 	// ###################### ATOMIC TYPES ######################
-	case protocol.KindAny, protocol.KindUnknown, protocol.KindObject:
+	case reflection.KindAny, reflection.KindUnknown, reflection.KindObject:
 		// ref:binary/fromBinary.ts — `ret = JSON.parse(desString())`.
 		return RTCode{Code: ret + " = JSON.parse(" + des + ".desString())", Type: CodeS}
 
-	case protocol.KindNull:
+	case reflection.KindNull:
 		// Encoder wrote a 0 byte sentinel; decoder consumes it and
 		// returns null. Comma-expression folds the `index++` advance
 		// into the assignment RHS — the reference uses the same trick
@@ -90,10 +90,10 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 		// statements.
 		return RTCode{Code: ret + " = (" + des + ".index++, null)", Type: CodeS}
 
-	case protocol.KindBoolean:
+	case reflection.KindBoolean:
 		return RTCode{Code: ret + " = !!" + des + ".view.getUint8(" + des + ".index++)", Type: CodeS}
 
-	case protocol.KindNumber:
+	case reflection.KindNumber:
 		// Comma-expression trick — `getFloat64` is variadic-tolerant; the
 		// 3rd positional slot is ignored at runtime but its side-effect
 		// (`index += 8`) still runs as part of the call's argument
@@ -107,10 +107,10 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 		}
 		return RTCode{Code: ret + " = " + expr, Type: CodeS}
 
-	case protocol.KindString, protocol.KindTemplateLiteral:
+	case reflection.KindString, reflection.KindTemplateLiteral:
 		return RTCode{Code: ret + " = " + des + ".desString()", Type: CodeS}
 
-	case protocol.KindBigInt:
+	case reflection.KindBigInt:
 		// A bigintFormat brand whose min/max fit 64-bit decodes 8 bytes
 		// via getBigInt64/getBigUint64 — byte-symmetric with its encode.
 		// Empty override = keep the string base arm.
@@ -120,54 +120,54 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 		}
 		return RTCode{Code: ret + " = " + expr, Type: CodeS}
 
-	case protocol.KindUndefined, protocol.KindVoid:
+	case reflection.KindUndefined, reflection.KindVoid:
 		// Same comma-expression pattern as KindNull —
 		// binary/fromBinary.ts:69.
 		return RTCode{Code: ret + " = (" + des + ".index++, undefined)", Type: CodeS}
 
-	case protocol.KindSymbol:
+	case reflection.KindSymbol:
 		// Unsupported — symbol identity does not round-trip.
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		// Encoder wrote source then flags as two strings.
 		return RTCode{Code: ret + " = new RegExp(" + des + ".desString(), " + des + ".desString())", Type: CodeS}
 
-	case protocol.KindEnum:
+	case reflection.KindEnum:
 		return RTCode{Code: ret + " = " + des + ".desEnum()", Type: CodeS}
 
-	case protocol.KindNever:
+	case reflection.KindNever:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindPromise:
+	case reflection.KindPromise:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		return emitLiteralFromBinary(rt, ret, des)
 
 	// ###################### MEMBER TYPES ######################
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayFromBinary(rt, ctx, ret, des)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureFromBinary(rt, ctx, ret, des, true)
 
-	case protocol.KindFunction, protocol.KindMethod,
-		protocol.KindMethodSignature, protocol.KindCallSignature:
+	case reflection.KindFunction, reflection.KindMethod,
+		reflection.KindMethodSignature, reflection.KindCallSignature:
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyFromBinary(rt, ctx, ret, des)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberFromBinary(rt, ctx, ret, des)
 
 	// ###################### COLLECTION TYPES ######################
-	case protocol.KindObjectLiteral, protocol.KindIntersection:
+	case reflection.KindObjectLiteral, reflection.KindIntersection:
 		return emitObjectFromBinary(rt, ctx, ret, des)
 
-	case protocol.KindClass:
-		if info, ok := protocol.TemporalInfoBySubKind(rt.SubKind); ok {
+	case reflection.KindClass:
+		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Byte-symmetric with binary_to: numeric-unpack the fixed-layout
 			// types, fall back to Temporal.<T>.from(string) for the rest
 			// (temporalFromBinary returns "" for ZonedDateTime, Duration,
@@ -178,25 +178,25 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 			return RTCode{Code: ret + " = " + info.Builtin + ".from(" + des + ".desString())", Type: CodeS}
 		}
 		switch rt.SubKind {
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			// Same comma-expression trick as KindNumber: the 3rd arg slot
 			// of getFloat64 carries the `index += 8` side-effect while
 			// the read result is wrapped in `new Date(…)`.
 			return RTCode{Code: ret + " = new Date(" + des + ".view.getFloat64(" + des + ".index, 1, (" + des + ".index += 8)))", Type: CodeS}
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableFromBinary(rt, ctx, ret, des)
-		case protocol.SubKindNonSerializable:
+		case reflection.SubKindNonSerializable:
 			return RTCode{Code: "", Type: CodeNS}
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			structural := emitObjectFromBinary(rt, ctx, ret, des)
 			return wrapFromBinaryWithClassSerializer(rt, ctx, ret, des, structural)
 		}
 		return RTCode{Code: "", Type: CodeNS}
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleFromBinary(rt, ctx, ret, des)
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionFromBinaryFlat(rt, ctx, ret, des)
 	}
 	return RTCode{Code: "", Type: CodeNS}
@@ -208,7 +208,7 @@ func (FromBinaryEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType
 //
 // Shape: `<accessor> = <hash>.fn(<accessor>, Des)` so the child's
 // reassignment of `ret` propagates back to the parent's frame.
-func (FromBinaryEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (FromBinaryEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	des := ctx.ArgName("dεs")
 	return ctx.emitDepCall(childID, ctx.Vλl+", "+des, ctx.Vλl)
 }
@@ -227,11 +227,11 @@ func (FromBinaryEmitter) Finalize(raw string) (string, bool) {
 // its sentinel byte, and every atom reads bytes. Also deliberately NOT
 // NoopComposeAround — parents advance positionally through the byte stream,
 // so skipping a child decode would desynchronize every later read.
-func (FromBinaryEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (FromBinaryEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return false
 }
 
-func emitLiteralFromBinary(rt *protocol.RunType, ret, des string) RTCode {
+func emitLiteralFromBinary(rt *reflection.RunType, ret, des string) RTCode {
 	_ = des
 	// The reference binary/fromBinary.ts treats literals as compile-time noops
 	// because the RT body that REFERENCES the literal already has the
@@ -267,7 +267,7 @@ func emitLiteralFromBinary(rt *protocol.RunType, ret, des string) RTCode {
 	return RTCode{Code: ret + " = " + lit, Type: CodeS}
 }
 
-func emitArrayFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
+func emitArrayFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -291,7 +291,7 @@ func emitArrayFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string
 // `resetRet` writes the `ret = {}` initialiser; emitObjectFromBinary passes false
 // because it has already initialised `ret` and populated the named props (so the
 // index sig must NOT wipe them — it reads only the dynamic keys the encoder wrote).
-func emitIndexSignatureFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string, resetRet bool) RTCode {
+func emitIndexSignatureFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string, resetRet bool) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -315,7 +315,7 @@ func emitIndexSignatureFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, d
 	numericKey := false
 	if rt.Index != nil {
 		idxResolved := ctx.ResolveRef(rt.Index)
-		if idxResolved != nil && idxResolved.Kind == protocol.KindNumber {
+		if idxResolved != nil && idxResolved.Kind == reflection.KindNumber {
 			numericKey = true
 		}
 	}
@@ -334,7 +334,7 @@ func emitIndexSignatureFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, d
 	return RTCode{Code: body, Type: CodeS}
 }
 
-func emitPropertyFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
+func emitPropertyFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	_ = des
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -365,7 +365,7 @@ func emitPropertyFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des str
 	return childRT
 }
 
-func emitObjectFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
+func emitObjectFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	// A callable interface is function-like (DataOnly = never); treat it like a
 	// bare function (alwaysThrow at root, dropped at a property), not an object.
 	if objectHasCallSignature(rt, ctx) {
@@ -441,11 +441,11 @@ func emitObjectFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des strin
 	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
 }
 
-func emitTupleFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
+func emitTupleFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	var required, optional, rest []*protocol.RunType
+	var required, optional, rest []*reflection.RunType
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -509,7 +509,7 @@ func emitTupleFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string
 	return RTCode{Code: strings.Join(parts, ";"), Type: CodeS}
 }
 
-func emitTupleMemberFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
+func emitTupleMemberFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
 	_ = des
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeS}
@@ -547,8 +547,8 @@ func emitTupleMemberFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des 
 	return childRT
 }
 
-func emitNativeIterableFromBinary(rt *protocol.RunType, ctx *EmitContext, ret, des string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableFromBinary(rt *reflection.RunType, ctx *EmitContext, ret, des string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
 	if !isMap {
 		ctorName = "Set"

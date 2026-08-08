@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // uuidEmitter implements the format named "uuid" — FormatUUIDv4 /
@@ -29,14 +29,14 @@ func init() {
 	formats.Register(uuidEmitter{})
 }
 
-func (uuidEmitter) Name() string                  { return "uuid" }
-func (uuidEmitter) Kind() protocol.ReflectionKind { return protocol.KindString }
+func (uuidEmitter) Name() string                    { return "uuid" }
+func (uuidEmitter) Kind() reflection.ReflectionKind { return reflection.KindString }
 
 // EmitValidateCheck returns `pf_isUUID(v, {version: '<v>'})`. The
 // `pf_isUUID` const is hoisted into the factory prologue via a
 // context item; the pure-fn dependency is recorded so the JS-side
 // cache wires up the registered factory.
-func (uuidEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
+func (uuidEmitter) EmitValidateCheck(annotation *reflection.FormatAnnotation, vλl string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -56,7 +56,7 @@ func (uuidEmitter) EmitValidateCheck(annotation *protocol.FormatAnnotation, vλl
 // `version` param when the call fails. Path-relative is `pth`; the
 // formatPath array gets a `'version'` trailing segment so consumers
 // see which param drove the failure.
-func (uuidEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
+func (uuidEmitter) EmitValidationErrorsCheck(annotation *reflection.FormatAnnotation, vλl, pathExpr, errorsArr string, ctx formats.EmitContext) string {
 	if annotation == nil {
 		return ""
 	}
@@ -72,7 +72,7 @@ func (uuidEmitter) EmitValidationErrorsCheck(annotation *protocol.FormatAnnotati
 
 // ValidateParams ports the UUID validateParams: the version must be
 // '4', '7' or 'any' (the version-agnostic UUID) when present.
-func (uuidEmitter) ValidateParams(annotation *protocol.FormatAnnotation) []string {
+func (uuidEmitter) ValidateParams(annotation *reflection.FormatAnnotation) []string {
 	if annotation == nil {
 		return nil
 	}

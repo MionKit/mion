@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // annotation is a small helper to build a FormatAnnotation for tests.
-func annotation(name string, params map[string]any) *protocol.FormatAnnotation {
-	return &protocol.FormatAnnotation{Name: name, Params: params}
+func annotation(name string, params map[string]any) *reflection.FormatAnnotation {
+	return &reflection.FormatAnnotation{Name: name, Params: params}
 }
 
 // TestNumberBinary_IntegerWidthLadder pins the int8/16/32 + float64

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // HasUnknownKeysEmitter implements the `hasUnknownKeys` rt function —
@@ -32,7 +32,7 @@ func (HasUnknownKeysEmitter) Args() []ArgSpec {
 	}
 }
 
-func (HasUnknownKeysEmitter) Supports(rt *protocol.RunType) bool {
+func (HasUnknownKeysEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
@@ -41,7 +41,7 @@ func (HasUnknownKeysEmitter) IsRTInlined(ctx *InlineContext) bool {
 }
 
 // IsNoopType — see isNoopForUnknownKeys (shared five-family mirror).
-func (HasUnknownKeysEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (HasUnknownKeysEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForUnknownKeys(rt, ctx, hasUnknownKeysNoopSpec)
 }
 
@@ -64,33 +64,33 @@ func (HasUnknownKeysEmitter) ReturnName() string {
 // Emit is the per-kind switch. Phase 0 returns empty body for every
 // supported kind so the cache module renders end-to-end. Phase 1
 // implements the object/interface logic.
-func (HasUnknownKeysEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (HasUnknownKeysEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	_ = ctx
 	switch rt.Kind {
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectHasUnknownKeys(rt, ctx)
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			return emitObjectHasUnknownKeys(rt, ctx)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableHasUnknownKeys(rt, ctx, ctx.Vλl)
 		}
 		return RTCode{Code: "", Type: CodeS}
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		return emitPropertyHasUnknownKeys(rt, ctx)
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayHasUnknownKeys(rt, ctx)
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleHasUnknownKeys(rt, ctx)
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		return emitTupleMemberHasUnknownKeys(rt, ctx)
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		return emitIndexSignatureHasUnknownKeys(rt, ctx)
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionHasUnknownKeys(rt, ctx)
 	}
 	// All atomic / non-composite kinds — noop.
@@ -100,7 +100,7 @@ func (HasUnknownKeysEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Code
 // EmitDependencyCall — composite parents may need to invoke a child's
 // hasUnknownKeys factory. The call shape mirrors the reference: pass v + opts
 // through unchanged.
-func (HasUnknownKeysEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (HasUnknownKeysEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	optsArg := ctx.ArgName("θpts")
 	return ctx.emitDepCall(childID, ctx.Vλl+","+optsArg, "")
 }
@@ -130,11 +130,11 @@ func (HasUnknownKeysEmitter) Finalize(raw string) (string, bool) {
 //     nothing.
 //
 // Phase 1 placeholder — full implementation follows.
-func emitObjectHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitObjectHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitInterfaceHasUnknownKeys(rt, ctx)
 }
 
-func emitInterfaceHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitInterfaceHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	parts, hasIndex := collectObjectHasUnknownKeysChildren(rt, ctx)
 	parentExpr := ""
 	if !hasIndex {
@@ -169,7 +169,7 @@ func emitInterfaceHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode 
 // emitPropertyHasUnknownKeys handles KindProperty / KindPropertySignature.
 // Sets the child accessor (`v.<name>`) and recurses. Optional properties
 // guard the descent with `<accessor> !== undefined ? <childCode> : false`.
-func emitPropertyHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitPropertyHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -205,7 +205,7 @@ func emitPropertyHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
 // noop. Otherwise iterate elements; if any reports true, return true.
 //
 // Returns CodeRB because the body is a `for + return false` block.
-func emitArrayHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitArrayHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -214,7 +214,7 @@ func emitArrayHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	// Reference: `if (this.getMemberType().getFamily() === 'A') return undefined`
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	v := ctx.Vλl
@@ -240,7 +240,7 @@ func emitArrayHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
 
 // emitTupleHasUnknownKeys mirrors CollectionRunType.emitHasUnknownKeys
 // for tuples — each member's own emit, OR-joined.
-func emitTupleHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitTupleHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -263,7 +263,7 @@ func emitTupleHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
 // emitTupleMemberHasUnknownKeys: descend into the wrapped child. Rest
 // members iterate from the position; regular members use a single
 // element accessor. Atomic-typed wrapped types contribute nothing.
-func emitTupleMemberHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitTupleMemberHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -271,7 +271,7 @@ func emitTupleMemberHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCod
 	if resolved == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	v := ctx.Vλl
@@ -314,7 +314,7 @@ func emitTupleMemberHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCod
 // When the value type is atomic AND there's no key pattern, every key
 // is "known" — emit nothing. Otherwise iterate `for (const k in v)`,
 // checking the pattern (if any) and recursing into the value.
-func emitIndexSignatureHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitIndexSignatureHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: "", Type: CodeE}
 	}
@@ -335,7 +335,7 @@ func emitIndexSignatureHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RT
 	keyRegexVar := ""
 	if rt.Index != nil {
 		indexResolved := ctx.ResolveRef(rt.Index)
-		if indexResolved != nil && indexResolved.Kind == protocol.KindTemplateLiteral {
+		if indexResolved != nil && indexResolved.Kind == reflection.KindTemplateLiteral {
 			if regex, ok := buildTemplateLiteralRegex(indexResolved); ok {
 				keyRegexVar = ctx.NextLocalVar("reIdx")
 				if !ctx.HasContextItem(keyRegexVar) {
@@ -345,7 +345,7 @@ func emitIndexSignatureHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RT
 		}
 	}
 	// Atomic value + no key pattern → every key is "known" already.
-	if protocol.FamilyOf(resolved.Kind) == protocol.FamilyAtomic && keyRegexVar == "" {
+	if reflection.FamilyOf(resolved.Kind) == reflection.FamilyAtomic && keyRegexVar == "" {
 		return RTCode{Code: "", Type: CodeE}
 	}
 	v := ctx.Vλl
@@ -378,7 +378,7 @@ func emitIndexSignatureHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RT
 // per-member dispatch (CompileChild + joinOr) silently mis-reported
 // hits because each member's own emit ran against the entire value
 // regardless of which union arm matched at runtime.
-func emitUnionHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitUnionHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	return emitUnionUnknownKeysMerged(rt, ctx, UnknownKeysOpts{
 		Snippet: func(_ *EmitContext, _, _ string) string {
 			return "return true"
@@ -400,19 +400,19 @@ func emitUnionHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext) RTCode {
 //   - Map: `e0` is the `[key, value]` tuple; `e0[0]` is key, `e0[1]` is
 //     value — matches the prepare/restore-side accessor convention used
 //     elsewhere (MapKeyRunType / MapValueRunType useArrayAccessor).
-func emitNativeIterableHasUnknownKeys(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableHasUnknownKeys(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	ctorName := "Map"
 	if !isMap {
 		ctorName = "Set"
 	}
 
-	var innerTypes []*protocol.RunType
+	var innerTypes []*reflection.RunType
 	if isMap {
 		keyType, valueType := mapKeyValueTypes(rt, ctx)
-		innerTypes = []*protocol.RunType{keyType, valueType}
+		innerTypes = []*reflection.RunType{keyType, valueType}
 	} else {
-		innerTypes = []*protocol.RunType{setItemType(rt, ctx)}
+		innerTypes = []*reflection.RunType{setItemType(rt, ctx)}
 	}
 
 	entryVar := ctx.NextLocalVar("e")

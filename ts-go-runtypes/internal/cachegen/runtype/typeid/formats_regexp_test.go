@@ -3,7 +3,7 @@ package typeid_test
 import (
 	"testing"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // These tests prove the regex VALUE is recoverable from the type system
@@ -16,7 +16,7 @@ import (
 // scanFormatPattern scans `pattern: typeof p` where p is built by a
 // registerFormatPattern({...}) call and returns the resolved pattern
 // object from FormatAnnotation.Params.
-func scanFormatPattern(t *testing.T, constDecl string) (*protocol.RunType, map[string]any) {
+func scanFormatPattern(t *testing.T, constDecl string) (*reflection.RunType, map[string]any) {
 	t.Helper()
 	root := runFormatScan(t, `
 import {getRunTypeId} from '@ts-runtypes/core';

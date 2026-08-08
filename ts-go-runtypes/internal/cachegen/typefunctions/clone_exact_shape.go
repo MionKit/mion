@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // CloneExactShapeEmitter — a PROPER deep clone of the DECLARED shape, and the
@@ -53,7 +53,7 @@ func (CloneExactShapeEmitter) Args() []ArgSpec {
 // family member (the strip replacement), so functions / symbols / promises
 // are supported-as-passthrough (opaque), NOT rejected like the JSON
 // serializers reject them.
-func (CloneExactShapeEmitter) Supports(rt *protocol.RunType) bool {
+func (CloneExactShapeEmitter) Supports(rt *reflection.RunType) bool {
 	return unknownKeysSupports(rt)
 }
 
@@ -66,7 +66,7 @@ func (CloneExactShapeEmitter) IsRTInlined(ctx *InlineContext) bool {
 // observationally equivalent to copying them. Any mutable position anywhere
 // (object, class, array, tuple, Map, Set, Date, RegExp, index signature)
 // forces a live clone body.
-func (CloneExactShapeEmitter) IsNoopType(rt *protocol.RunType, ctx *EmitContext) bool {
+func (CloneExactShapeEmitter) IsNoopType(rt *reflection.RunType, ctx *EmitContext) bool {
 	return isNoopForCloneExactShape(rt, ctx)
 }
 
@@ -81,7 +81,7 @@ func (CloneExactShapeEmitter) ReturnName() string {
 // EmitDependencyCall — expression shape (`<hash>.fn(v)`), never a mutation
 // statement: the child factory RETURNS the cloned value and the parent
 // composes it into an expression slot, mirroring PrepareForJsonSafeEmitter.
-func (CloneExactShapeEmitter) EmitDependencyCall(rt *protocol.RunType, childID string, ctx *EmitContext) string {
+func (CloneExactShapeEmitter) EmitDependencyCall(rt *reflection.RunType, childID string, ctx *EmitContext) string {
 	return ctx.emitDepCall(childID, ctx.Vλl, "")
 }
 
@@ -100,30 +100,30 @@ func (CloneExactShapeEmitter) Finalize(raw string) (string, bool) {
 // (immutable/opaque passthrough). Composition rule identical to
 // prepareForJsonSafe: an empty child emit means the child's clone IS its
 // input accessor.
-func (CloneExactShapeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ CodeType) RTCode {
+func (CloneExactShapeEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
 	if rt == nil {
 		return RTCode{Code: "", Type: CodeS}
 	}
 	v := ctx.Vλl
 	switch rt.Kind {
 
-	case protocol.KindObjectLiteral:
+	case reflection.KindObjectLiteral:
 		return emitObjectCloneExactShape(rt, ctx, v, false)
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone:
+		case reflection.SubKindNone:
 			// Plain user class: prototype-preserving rebuild (see the object
 			// arm) so `instanceof` survives. Custom serializer registrations
 			// are a JSON-wire concern and don't apply to a value-level clone.
 			return emitObjectCloneExactShape(rt, ctx, v, true)
-		case protocol.SubKindMap, protocol.SubKindSet:
+		case reflection.SubKindMap, reflection.SubKindSet:
 			return emitNativeIterableCloneExactShape(rt, ctx, v)
-		case protocol.SubKindDate:
+		case reflection.SubKindDate:
 			// Dates are mutable (setTime & friends) — always re-wrap.
 			return RTCode{Code: "new Date(" + v + ".getTime())", Type: CodeE}
 		}
-		if info, ok := protocol.TemporalInfoBySubKind(rt.SubKind); ok {
+		if info, ok := reflection.TemporalInfoBySubKind(rt.SubKind); ok {
 			// Temporal objects are immutable, but a clone hands back a fresh
 			// instance anyway — `clone(x).field !== x.field` must hold for
 			// every object-typed field (identity-based test assertions rely
@@ -134,23 +134,23 @@ func (CloneExactShapeEmitter) Emit(rt *protocol.RunType, ctx *EmitContext, _ Cod
 		// Non-serializable natives are opaque handles (copying is wrong).
 		return RTCode{Code: "", Type: CodeS}
 
-	case protocol.KindRegexp:
+	case reflection.KindRegexp:
 		// Mutable via lastIndex (sticky/global iteration state) — re-compile
 		// and carry the cursor so the clone is a faithful copy.
 		return RTCode{Code: cloneRegExpCall(ctx, v), Type: CodeE}
 
-	case protocol.KindArray:
+	case reflection.KindArray:
 		return emitArrayCloneExactShape(rt, ctx, v)
 
-	case protocol.KindTuple:
+	case reflection.KindTuple:
 		return emitTupleCloneExactShape(rt, ctx, v)
 
-	case protocol.KindIndexSignature:
+	case reflection.KindIndexSignature:
 		// Bare index-signature dispatch (root reach-in); the object arm
 		// normally consumes sigs via buildSafeIndexSignatureObject.
 		return emitIndexSignatureCloneExactShape(rt, ctx, v)
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		return emitUnionCloneExactShape(rt, ctx)
 
 	// Immutable kinds (primitives, enums, literals, template literals,
@@ -186,14 +186,14 @@ func cloneRegExpCall(ctx *EmitContext, v string) string {
 // so a class instance clone keeps its prototype chain (`instanceof` holds).
 // Plain objects use the object-literal / accumulator forms from
 // buildSafeObjectClone.
-func emitObjectCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
+func emitObjectCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string, asClass bool) RTCode {
 	// A callable interface is function-like (DataOnly = never); same NS
 	// stance as the JSON families — the diag maps it to the function code.
 	if objectHasCallSignature(rt, ctx) {
 		return RTCode{Code: "", Type: CodeNS}
 	}
 	var props []safePropEmit
-	var indexSigs []*protocol.RunType
+	var indexSigs []*reflection.RunType
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
 		if resolved == nil {
@@ -226,7 +226,7 @@ func emitObjectCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string,
 			})
 			continue
 		}
-		if resolved.Kind == protocol.KindIndexSignature {
+		if resolved.Kind == reflection.KindIndexSignature {
 			// EVERY index signature routes to the copy walk — its matching
 			// keys are DECLARED shape and must be copied onto the fresh
 			// object (symbol-keyed / function-valued sigs are skipped inside
@@ -234,7 +234,7 @@ func emitObjectCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string,
 			indexSigs = append(indexSigs, resolved)
 			continue
 		}
-		if resolved.Kind != protocol.KindProperty && resolved.Kind != protocol.KindPropertySignature {
+		if resolved.Kind != reflection.KindProperty && resolved.Kind != reflection.KindPropertySignature {
 			continue
 		}
 		if resolved.Child == nil {
@@ -313,7 +313,7 @@ func emitObjectCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string,
 // reference), symbol / Promise / non-serializable natives →
 // SlotNonSerializablePropDropped (CES015, same sharing). ok=false for every
 // clonable kind — those flow through safeChildExpr as usual.
-func opaqueValueSlot(resolved *protocol.RunType) (DiagSlot, bool) {
+func opaqueValueSlot(resolved *reflection.RunType) (DiagSlot, bool) {
 	if resolved == nil {
 		return "", false
 	}
@@ -321,13 +321,13 @@ func opaqueValueSlot(resolved *protocol.RunType) (DiagSlot, bool) {
 		return SlotFunctionPropDropped, true
 	}
 	switch resolved.Kind {
-	case protocol.KindSymbol, protocol.KindPromise:
+	case reflection.KindSymbol, reflection.KindPromise:
 		return SlotNonSerializablePropDropped, true
-	case protocol.KindClass:
-		if resolved.SubKind == protocol.SubKindNonSerializable {
+	case reflection.KindClass:
+		if resolved.SubKind == reflection.SubKindNonSerializable {
 			return SlotNonSerializablePropDropped, true
 		}
-	case protocol.KindLiteral:
+	case reflection.KindLiteral:
 		for _, flag := range resolved.Flags {
 			if flag == "symbol" {
 				return SlotNonSerializablePropDropped, true
@@ -385,7 +385,7 @@ func buildClassCloneExactShape(v string, props []safePropEmit) RTCode {
 // ALWAYS a fresh array: `.slice()` when the element clones to itself
 // (immutable/opaque elements — a slice IS a deep clone then), `.map(clone)`
 // otherwise.
-func emitArrayCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitArrayCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
@@ -404,7 +404,7 @@ func emitArrayCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) 
 // `.slice()` when every slot clones to itself, positional rebuild otherwise.
 // Optional members preserve `undefined` (a value-level clone has no JSON
 // `null` placeholder concern).
-func emitTupleCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitTupleCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if len(rt.Children) == 0 {
 		return RTCode{Code: v + ".slice()", Type: CodeE}
 	}
@@ -414,7 +414,7 @@ func emitTupleCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) 
 	hasOptional := false
 	for _, child := range rt.Children {
 		resolved := ctx.ResolveRef(child)
-		if resolved == nil || resolved.Kind != protocol.KindTupleMember || resolved.Child == nil {
+		if resolved == nil || resolved.Kind != reflection.KindTupleMember || resolved.Child == nil {
 			continue
 		}
 		if isRestTupleMember(resolved) {
@@ -473,7 +473,7 @@ func emitTupleCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) 
 // position (root reach-in). Symbol-keyed / function-valued sigs are skipRT'd
 // (nothing the RT tracks) and pass through; everything else does the fresh
 // copy walk.
-func emitIndexSignatureCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
+func emitIndexSignatureCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
 	if rt.Child == nil || isSymbolKeyedIndexSig(rt, ctx) {
 		return RTCode{Code: "", Type: CodeS}
 	}
@@ -481,7 +481,7 @@ func emitIndexSignatureCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v
 	if resolved == nil || isFunctionLikeKind(resolved.Kind) {
 		return RTCode{Code: "", Type: CodeS}
 	}
-	return buildSafeIndexSignatureObject(v, nil, nil, []*protocol.RunType{rt}, ctx)
+	return buildSafeIndexSignatureObject(v, nil, nil, []*reflection.RunType{rt}, ctx)
 }
 
 // emitUnionCloneExactShape — unions with OBJECT members stay unsupported
@@ -494,7 +494,7 @@ func emitIndexSignatureCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v
 // <clone>;` arm; fully immutable/opaque members fall through to `return v`.
 // A union of only-immutable members (string | number, Date-less enums, …)
 // is a passthrough.
-func emitUnionCloneExactShape(rt *protocol.RunType, ctx *EmitContext) RTCode {
+func emitUnionCloneExactShape(rt *reflection.RunType, ctx *EmitContext) RTCode {
 	layout := buildFlatLayout(rt, ctx)
 	if len(layout.ObjectMembers) > 0 {
 		return RTCode{Code: "", Type: CodeNS}
@@ -529,8 +529,8 @@ func emitUnionCloneExactShape(rt *protocol.RunType, ctx *EmitContext) RTCode {
 // ALWAYS a fresh instance. When every inner type clones to itself the
 // constructor copy suffices (`new Map(v)` — entries are immutable/opaque);
 // otherwise entries rebuild with per-entry exact-shape clones.
-func emitNativeIterableCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v string) RTCode {
-	isMap := rt.SubKind == protocol.SubKindMap
+func emitNativeIterableCloneExactShape(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	isMap := rt.SubKind == reflection.SubKindMap
 	ctor := "Set"
 	if isMap {
 		ctor = "Map"
@@ -575,7 +575,7 @@ func emitNativeIterableCloneExactShape(rt *protocol.RunType, ctx *EmitContext, v
 // array, tuple, Map/Set, index signature — must produce a live body, or the
 // runtime noop fastpath would hand back a shared mutable value). Memoized on
 // the walker's facts table like the other family predicates.
-func isNoopForCloneExactShape(rt *protocol.RunType, ctx *EmitContext) bool {
+func isNoopForCloneExactShape(rt *reflection.RunType, ctx *EmitContext) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return false
@@ -592,7 +592,7 @@ func isNoopForCloneExactShape(rt *protocol.RunType, ctx *EmitContext) bool {
 	return result
 }
 
-func cloneExactShapeNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
+func cloneExactShapeNoopRecursive(rt *reflection.RunType, ctx *EmitContext, visited map[string]struct{}) bool {
 	rt = ctx.ResolveRef(rt)
 	if rt == nil {
 		return true
@@ -612,16 +612,16 @@ func cloneExactShapeNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 	switch rt.Kind {
 
 	// Mutable positions — always a live clone body.
-	case protocol.KindObjectLiteral, protocol.KindRegexp,
-		protocol.KindArray, protocol.KindTuple, protocol.KindIndexSignature:
+	case reflection.KindObjectLiteral, reflection.KindRegexp,
+		reflection.KindArray, reflection.KindTuple, reflection.KindIndexSignature:
 		return false
 
-	case protocol.KindClass:
+	case reflection.KindClass:
 		switch rt.SubKind {
-		case protocol.SubKindNone, protocol.SubKindMap, protocol.SubKindSet, protocol.SubKindDate:
+		case reflection.SubKindNone, reflection.SubKindMap, reflection.SubKindSet, reflection.SubKindDate:
 			return false
 		}
-		if protocol.IsTemporalSubKind(rt.SubKind) {
+		if reflection.IsTemporalSubKind(rt.SubKind) {
 			// Immutable, but re-materialized anyway — object identity must
 			// be fresh on every object-typed position.
 			return false
@@ -629,7 +629,7 @@ func cloneExactShapeNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 		// Non-serializable (opaque) subkinds pass through.
 		return true
 
-	case protocol.KindProperty, protocol.KindPropertySignature:
+	case reflection.KindProperty, reflection.KindPropertySignature:
 		if rt.Child == nil {
 			return true
 		}
@@ -639,13 +639,13 @@ func cloneExactShapeNoopRecursive(rt *protocol.RunType, ctx *EmitContext, visite
 		}
 		return cloneExactShapeNoopRecursive(resolved, ctx, visited)
 
-	case protocol.KindTupleMember:
+	case reflection.KindTupleMember:
 		if rt.Child == nil {
 			return true
 		}
 		return cloneExactShapeNoopRecursive(ctx.ResolveRef(rt.Child), ctx, visited)
 
-	case protocol.KindUnion:
+	case reflection.KindUnion:
 		// Object-bearing unions are unsupported (never noop — the entry is
 		// an alwaysThrow); atomic unions are identity iff every member is.
 		layout := buildFlatLayout(rt, ctx)

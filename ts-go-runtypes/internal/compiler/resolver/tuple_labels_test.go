@@ -7,6 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // Tuple labels and function param names are ID-RELEVANT: canonical nodes are
@@ -65,7 +66,7 @@ func scanRootID(t *testing.T, r *resolver.Session, file string) string {
 }
 
 // nodeByID fetches a node from the full dump.
-func nodeByID(t *testing.T, r *resolver.Session, id string) *protocol.RunType {
+func nodeByID(t *testing.T, r *resolver.Session, id string) *reflection.RunType {
 	t.Helper()
 	dump := r.Dispatch(protocol.Request{Op: protocol.OpDump}).RunTypes
 	for _, node := range dump {

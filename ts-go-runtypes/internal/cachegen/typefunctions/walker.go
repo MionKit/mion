@@ -9,6 +9,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/jsengine"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // StackItem mirrors the reference StackItem (rtFnCompiler.ts:33). One frame
@@ -38,7 +39,7 @@ import (
 // frame's `getStaticPathLiteral()` or `getChildLiteral()` contributes.
 type StackItem struct {
 	Vλl              string
-	RT               *protocol.RunType
+	RT               *reflection.RunType
 	ChildAccessor    string
 	ChildPathLiteral string
 	PathLiteral      string
@@ -95,7 +96,7 @@ func (o *orderedItems) ordered() []string {
 // new Emitter implementation; the Walker stays untouched.
 type Walker struct {
 	// RootType is the entry-point RunType for this rt function.
-	RootType *protocol.RunType
+	RootType *reflection.RunType
 	// FnName is the inner function name (e.g. "validate_<hash>") that
 	// lands in the emitted `function <FnName>(<args>){…}`.
 	FnName string
@@ -122,7 +123,7 @@ type Walker struct {
 	// hand-constructed unit-test walkers.
 	OverrideOpKey string
 	// RefTable resolves KindRef sentinels to their real RunType.
-	// Per `internal/protocol/protocol.go`, all Child / Children /
+	// Per `internal/reflection/runtype.go`, all Child / Children /
 	// Parameters slots in the JSON wire form carry refs
 	// (`{kind: -1, id: "<hash>"}`); the consumer side re-knots by
 	// indexing into the cache. The walker uses this map at descent
@@ -130,7 +131,7 @@ type Walker struct {
 	// May be nil when the input graph is fully knotted (e.g. unit
 	// tests that hand-construct RunType structs with child Kinds
 	// already inlined).
-	RefTable map[string]*protocol.RunType
+	RefTable map[string]*reflection.RunType
 	// Emitter supplies the per-fn args, dispatch, and finalize logic.
 	Emitter Emitter
 	// VariantOptions carries the `ValidateOptions` set (e.g. {"noLiterals":
@@ -232,7 +233,7 @@ type Walker struct {
 	// alwaysThrow init() call. First-encounter wins; AbsorbUnsupported
 	// clears this slot so a sibling property's own CodeNS can be tracked
 	// independently.
-	UnsupportedLeaf *protocol.RunType
+	UnsupportedLeaf *reflection.RunType
 
 	// DiagSink is the destination for compile-time diagnostics this
 	// walker emits via EmitDiagnostic. Nil when the caller doesn't want
@@ -368,7 +369,7 @@ func (w *Walker) putEmitContext(ctx *EmitContext) {
 // shaped RunType (Property / Method / PropertySignature / …). Falls
 // back to "<anonymous>" when the runtime carries no Name — defensive
 // for the rare anonymous-callable case.
-func memberLabel(rt *protocol.RunType) string {
+func memberLabel(rt *reflection.RunType) string {
 	if rt == nil || rt.Name == "" {
 		return "<anonymous>"
 	}
@@ -417,7 +418,7 @@ func (w *Walker) EmitDiagnostic(code string, args ...string) {
 // NewWalker primes a Walker for the given RunType + Emitter pair.
 // The Vλl starts at the first arg's Name (the base value accessor);
 // pushStack will refresh it on every descent.
-func NewWalker(rt *protocol.RunType, fnName string, emitter Emitter) *Walker {
+func NewWalker(rt *reflection.RunType, fnName string, emitter Emitter) *Walker {
 	args := emitter.Args()
 	if len(args) == 0 {
 		panic("typefns: emitter returned empty Args()")
@@ -656,7 +657,7 @@ func (w *Walker) ContextLines() string {
 // emitting its own code. This is the "don't traverse children of
 // an unsupported node" optimization — once one descendant fails,
 // no further work happens in the subtree.
-func (w *Walker) compileNode(rt *protocol.RunType, expectedCType CodeType) RTCode {
+func (w *Walker) compileNode(rt *reflection.RunType, expectedCType CodeType) RTCode {
 	if w.IsUnsupported {
 		return RTCode{Code: "", Type: CodeNS}
 	}
@@ -694,8 +695,8 @@ func (w *Walker) compileNode(rt *protocol.RunType, expectedCType CodeType) RTCod
 // scenario indicates a dangling cache reference and is treated as a
 // noop here (the caller is responsible for surfacing that as an error
 // at a higher level if needed).
-func (w *Walker) resolveRef(rt *protocol.RunType) *protocol.RunType {
-	if rt == nil || rt.Kind != protocol.KindRef {
+func (w *Walker) resolveRef(rt *reflection.RunType) *reflection.RunType {
+	if rt == nil || rt.Kind != reflection.KindRef {
 		return rt
 	}
 	if w.RefTable == nil {
@@ -730,7 +731,7 @@ func (w *Walker) resolveRef(rt *protocol.RunType) *protocol.RunType {
 // dangling-dep cascade in module.go drops any parent whose
 // recorded deps don't have a matching emitted factory, so this
 // over-recording can't cause runtime breakage.
-func (w *Walker) dispatch(rt *protocol.RunType, expectedCType CodeType) RTCode {
+func (w *Walker) dispatch(rt *reflection.RunType, expectedCType CodeType) RTCode {
 	w.inlineCtx.RT = rt
 	// inlineWouldCycle is the walker's own cycle breaker: a node whose id is
 	// ALREADY on the walk stack must go external no matter what the
@@ -835,7 +836,7 @@ func (w *Walker) inlineWouldCycle(id string) bool {
 // getStackVλl computes the descendant accessor from the (pre-push)
 // stack; for atomic-root that's just the function's first argument.
 // Mirrors rtFnCompiler.ts:148.
-func (w *Walker) pushStack(newChild *protocol.RunType) {
+func (w *Walker) pushStack(newChild *reflection.RunType) {
 	if len(w.Stack) == 0 && newChild != w.RootType {
 		panic("typefns: rootType must be the first item pushed onto the stack")
 	}

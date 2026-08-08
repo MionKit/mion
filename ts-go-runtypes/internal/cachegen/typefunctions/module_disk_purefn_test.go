@@ -9,16 +9,17 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/cachegen/diskcache"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // buildStringPropObjectFixture builds `{a: string}` — a validationErrors body
 // over it reaches rt::newRunTypeErr (the only pure-fn edge), with no same-family
 // child deps (the string prop inlines), so PureFnRefs is the sole persisted edge.
-func buildStringPropObjectFixture() ([]*protocol.RunType, string) {
-	stringRT := &protocol.RunType{ID: "str", Kind: protocol.KindString}
-	propA := &protocol.RunType{ID: "pA", Kind: protocol.KindPropertySignature, Name: "a", IsSafeName: true, Child: &protocol.RunType{ID: "str", Kind: protocol.KindRef}}
-	obj := &protocol.RunType{ID: "obj1", Kind: protocol.KindObjectLiteral, Children: []*protocol.RunType{{ID: "pA", Kind: protocol.KindRef}}}
-	return []*protocol.RunType{obj, propA, stringRT}, "obj1"
+func buildStringPropObjectFixture() ([]*reflection.RunType, string) {
+	stringRT := &reflection.RunType{ID: "str", Kind: reflection.KindString}
+	propA := &reflection.RunType{ID: "pA", Kind: reflection.KindPropertySignature, Name: "a", IsSafeName: true, Child: &reflection.RunType{ID: "str", Kind: reflection.KindRef}}
+	obj := &reflection.RunType{ID: "obj1", Kind: reflection.KindObjectLiteral, Children: []*reflection.RunType{{ID: "pA", Kind: reflection.KindRef}}}
+	return []*reflection.RunType{obj, propA, stringRT}, "obj1"
 }
 
 // TestRenderFnModule_DiskCache_PureFnRefsRoundTrip — the pure-fn twin of the

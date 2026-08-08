@@ -11,10 +11,10 @@ never mix generated and manual code in one file.
 
 ## What's here
 
-| File                       | Generator               | Go source of truth                                               |
-| -------------------------- | ----------------------- | ---------------------------------------------------------------- |
-| `runTypeKind.generated.ts` | `cmd/gen-run-type-kind` | `internal/protocol/protocol.go` + `internal/protocol/subkind.go` |
-| `fnHashes.generated.ts`    | `cmd/gen-fn-hashes`     | `internal/cachegen/operations` (registry + fnhash salt)          |
+| File                       | Generator               | Go source of truth                                                  |
+| -------------------------- | ----------------------- | ------------------------------------------------------------------- |
+| `runTypeKind.generated.ts` | `cmd/gen-run-type-kind` | `internal/reflection/runtype.go` + `internal/reflection/subkind.go` |
+| `fnHashes.generated.ts`    | `cmd/gen-fn-hashes`     | `internal/cachegen/operations` (registry + fnhash salt)             |
 
 ## Regenerate
 

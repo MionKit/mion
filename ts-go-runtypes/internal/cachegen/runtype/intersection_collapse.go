@@ -7,7 +7,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // collapseIntersection projects a TS intersection type into a single
@@ -23,7 +23,7 @@ import (
 //   - primitive×brand object (`string & {__brand: "X"}`) — keep primitive,
 //     attach the object literals as decorators;
 //   - more exotic combinations the checker couldn't reduce.
-func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.RunType) {
+func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.RunType) {
 	members := tsType.AsUnionOrIntersectionType().Types()
 
 	var (
@@ -87,7 +87,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	}
 
 	if hasNever || hasIncompatiblePrimitives {
-		node.Kind = protocol.KindNever
+		node.Kind = reflection.KindNever
 		return
 	}
 
@@ -101,7 +101,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	// single child to project — never, loud over silently under-checking.
 	if carrierMember != nil {
 		branches := typeid.OneOfCarrierBranches(cache.typeChecker, carrierMember)
-		branchNodes := make([]*protocol.RunType, 0, len(branches))
+		branchNodes := make([]*reflection.RunType, 0, len(branches))
 		seenIDs := map[string]bool{}
 		hasDuplicate := false
 		for _, branch := range branches {
@@ -130,10 +130,10 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 				baseCount += len(objectMembers)
 			}
 			if baseCount != 1 {
-				node.Kind = protocol.KindNever
+				node.Kind = reflection.KindNever
 				return
 			}
-			node.Kind = protocol.KindUnion
+			node.Kind = reflection.KindUnion
 			node.Children = append(node.Children, cache.Serialize(base))
 			cache.finalizeUnion(node)
 			node.OneOf = branchNodes
@@ -146,7 +146,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	// only survives the loop above when it's compatible with the primitive.
 	if literalMember != nil && primitiveMember != nil {
 		if !literalExtendsPrimitive(literalMember, primitiveMember) {
-			node.Kind = protocol.KindNever
+			node.Kind = reflection.KindNever
 			return
 		}
 		// Drop the primitive — the literal is the narrowed form.
@@ -165,7 +165,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	}
 	if primary != nil && len(objectMembers) > 0 {
 		cache.projectPrimitiveInto(primary, node)
-		var annotations []*protocol.FormatAnnotation
+		var annotations []*reflection.FormatAnnotation
 		for _, objectMember := range objectMembers {
 			// Negation sentinel (`{__rtNot?: Child}`): serialize the CHILD
 			// onto node.Negations — the validate/verr emit inverts its check
@@ -243,19 +243,19 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 		// never merged properties (projectMembersInto skips the props by
 		// name as well).
 		var restMembers []*checker.Type
-		var annotations []*protocol.FormatAnnotation
+		var annotations []*reflection.FormatAnnotation
 		for _, objectMember := range objectMembers {
 			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
 				node.Negations = append(node.Negations, cache.Serialize(childType))
 				continue
 			}
 			if childType, minCount, maxCount, ok := typeid.ContainsSpecFromMember(cache.typeChecker, objectMember); ok {
-				node.Contains = append(node.Contains, &protocol.ContainsCheck{Child: cache.Serialize(childType), Min: minCount, Max: maxCount})
+				node.Contains = append(node.Contains, &reflection.ContainsCheck{Child: cache.Serialize(childType), Min: minCount, Max: maxCount})
 				continue
 			}
 			if specs, ok := typeid.PatternPropsFromMember(cache.typeChecker, objectMember); ok {
 				for _, spec := range specs {
-					check := &protocol.PatternPropCheck{Source: spec.Source, Value: cache.Serialize(spec.Value)}
+					check := &reflection.PatternPropCheck{Source: spec.Source, Value: cache.Serialize(spec.Value)}
 					if spec.Key != nil {
 						check.Key = cache.Serialize(spec.Key)
 					}
@@ -305,7 +305,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 		if restCount == 0 {
 			// Every member was a sentinel — the base is `unknown` with the
 			// negation(s) attached (bare JSON Schema `not`).
-			node.Kind = protocol.KindUnknown
+			node.Kind = reflection.KindUnknown
 			return
 		}
 		if restCount == 1 &&
@@ -325,7 +325,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 			// type: before that an array carrying it also carried a format
 			// annotation, so the guard passed for the wrong reason.
 			if soleRest.Flags()&checker.TypeFlagsNonPrimitive != 0 {
-				node.Kind = protocol.KindObject
+				node.Kind = reflection.KindObject
 				return
 			}
 			cache.projectObjectType(soleRest, node)
@@ -342,13 +342,13 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 				return cache.Serialize(a).ID == cache.Serialize(b).ID
 			})
 			if !ok {
-				node.Kind = protocol.KindNever
+				node.Kind = reflection.KindNever
 				return
 			}
 			cache.projectMergedTuple(picks, node)
 			return
 		}
-		node.Kind = protocol.KindObjectLiteral
+		node.Kind = reflection.KindObjectLiteral
 		properties := cache.typeChecker.GetPropertiesOfType(tsType)
 		callSignatures := cache.typeChecker.GetSignaturesOfType(tsType, checker.SignatureKindCall)
 		cache.projectMembersInto(tsType, node, properties, callSignatures, false)
@@ -356,22 +356,22 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *protocol.Ru
 	}
 
 	// Fully reduced to any/unknown — pick unknown as a safe fallback.
-	node.Kind = protocol.KindUnknown
+	node.Kind = reflection.KindUnknown
 }
 
 // serializeUnevaluated turns the raw sentinel payload into the protocol shape,
 // serializing each guard subschema (and the leftover value) as a child node.
 // Twin of the id side's unevaluatedKey — the two must read the same fields in
 // the same order or a cache entry and its id part company.
-func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *protocol.UnevaluatedCheck {
-	check := &protocol.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources, Prefix: spec.Prefix}
+func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *reflection.UnevaluatedCheck {
+	check := &reflection.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources, Prefix: spec.Prefix}
 	// A `never` value is the `false` reading — nothing satisfies it, so the
 	// sweep rejects rather than checking, and the node carries no child.
 	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
 		check.Value = cache.Serialize(spec.Value)
 	}
 	for _, group := range spec.Groups {
-		entry := &protocol.UnevalGroup{
+		entry := &reflection.UnevalGroup{
 			WhenKey: group.WhenKey,
 			Keys:    group.Keys,
 			Sources: group.Sources,
@@ -393,13 +393,13 @@ func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *protocol.Uneva
 // merge — the member construction mirrors serialize.go:projectTuple (same
 // TupleMember wrappers, same unique member-id discipline) so the merged
 // node is indistinguishable from the equivalent hand-written tuple's.
-func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *protocol.RunType) {
-	node.Kind = protocol.KindTuple
+func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *reflection.RunType) {
+	node.Kind = reflection.KindTuple
 	for i, pick := range picks {
 		position := i
 		// Optional slots resolve through serializeOptionalChild, exactly as
 		// projectTuple does — picks carry RAW slot types by contract.
-		var elementChild *protocol.RunType
+		var elementChild *reflection.RunType
 		switch {
 		case pick.Fold != nil:
 			// A folded slot is already undefined-stripped, so it skips the
@@ -410,8 +410,8 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *prot
 		default:
 			elementChild = cache.Serialize(pick.Type)
 		}
-		member := &protocol.RunType{
-			Kind:     protocol.KindTupleMember,
+		member := &reflection.RunType{
+			Kind:     reflection.KindTupleMember,
 			Child:    elementChild,
 			Position: &position,
 		}
@@ -429,7 +429,7 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *prot
 		member.ID = memberID
 		cache.intern(structural, memberID)
 		cache.putNode(memberID, member)
-		node.Children = append(node.Children, protocol.NewRef(memberID))
+		node.Children = append(node.Children, reflection.NewRef(memberID))
 	}
 }
 
@@ -441,22 +441,22 @@ func (cache *Cache) projectMergedTuple(picks []typeid.TupleMergePick, node *prot
 // parallel entry. Building a FRESH node is the point — Serialize returns an
 // INTERNED node and attaching the annotation to it would corrupt every other
 // holder of that id.
-func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *protocol.RunType {
+func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *reflection.RunType {
 	if len(fold.Arms) == 0 && fold.Annotation == nil {
 		return cache.Serialize(fold.Base)
 	}
 	structural := fold.Structural(cache.idComputer)
 	if id, ok := cache.byStructural[structural]; ok {
-		return protocol.NewRef(id)
+		return reflection.NewRef(id)
 	}
 	id, err := cache.uniqueDict(structural, cache.opts.hashLength())
 	if err != nil {
 		id = "x_" + hashid.QuickHash(structural, cache.opts.hashLength(), "")
 	}
 	cache.intern(structural, id)
-	node := &protocol.RunType{ID: id}
+	node := &reflection.RunType{ID: id}
 	if len(fold.Arms) > 0 {
-		node.Kind = protocol.KindUnion
+		node.Kind = reflection.KindUnion
 		// Reserve the slot before projecting arms, exactly as
 		// serializeSyntheticUnion does, so an arm that cycles back sees the id.
 		cache.putNode(id, node)
@@ -464,47 +464,47 @@ func (cache *Cache) serializeFoldedSlot(fold *typeid.SlotFold) *protocol.RunType
 			node.Children = append(node.Children, cache.serializeFoldedSlot(arm))
 		}
 		cache.finalizeUnion(node)
-		protocol.PopulateFamily(node)
+		reflection.PopulateFamily(node)
 		cache.nodes[id] = node
-		return protocol.NewRef(id)
+		return reflection.NewRef(id)
 	}
 	cache.projectPrimitiveInto(fold.Base, node)
 	node.FormatAnnotation = fold.Annotation
-	protocol.PopulateFamily(node)
+	reflection.PopulateFamily(node)
 	cache.putNode(id, node)
-	return protocol.NewRef(id)
+	return reflection.NewRef(id)
 }
 
 // projectPrimitiveInto fills `node` with the kind+literal data for a
 // primitive or literal member. Mirrors the relevant arms of projectType's
 // switch, but writes into an already-allocated node so the caller can keep
 // the original id + add decorators on top.
-func (cache *Cache) projectPrimitiveInto(tsType *checker.Type, node *protocol.RunType) {
+func (cache *Cache) projectPrimitiveInto(tsType *checker.Type, node *reflection.RunType) {
 	flags := tsType.Flags()
 	switch {
 	case flags&checker.TypeFlagsStringLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = tsType.AsLiteralType().Value()
 	case flags&checker.TypeFlagsNumberLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = parseNumberLiteral(cache.typeChecker.TypeToString(tsType))
 	case flags&checker.TypeFlagsBooleanLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = cache.typeChecker.TypeToString(tsType) == "true"
 	case flags&checker.TypeFlagsBigIntLiteral != 0:
-		node.Kind = protocol.KindLiteral
+		node.Kind = reflection.KindLiteral
 		node.Literal = fmt.Sprintf("%v", tsType.AsLiteralType().Value())
 		node.Flags = append(node.Flags, "bigint")
 	case flags&checker.TypeFlagsString != 0:
-		node.Kind = protocol.KindString
+		node.Kind = reflection.KindString
 	case flags&checker.TypeFlagsNumber != 0:
-		node.Kind = protocol.KindNumber
+		node.Kind = reflection.KindNumber
 	case flags&checker.TypeFlagsBoolean != 0:
-		node.Kind = protocol.KindBoolean
+		node.Kind = reflection.KindBoolean
 	case flags&checker.TypeFlagsBigInt != 0:
-		node.Kind = protocol.KindBigInt
+		node.Kind = reflection.KindBigInt
 	case flags&checker.TypeFlagsESSymbol != 0:
-		node.Kind = protocol.KindSymbol
+		node.Kind = reflection.KindSymbol
 	default:
 		node.Kind = typeid.KindOf(cache.typeChecker, tsType)
 	}
@@ -522,9 +522,9 @@ var builtinClassNames = map[string]bool{"Date": true, "Map": true, "Set": true, 
 // builtin class (by symbol name) and exactly one carries a TypeFormat
 // brand. Returns (classMember, annotation) when both are present, else
 // (nil, nil) so the caller falls back to the normal object merge.
-func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*checker.Type) (*checker.Type, *protocol.FormatAnnotation) {
+func splitBuiltinClassBrand(typeChecker *checker.Checker, objectMembers []*checker.Type) (*checker.Type, *reflection.FormatAnnotation) {
 	var classMember *checker.Type
-	var annotation *protocol.FormatAnnotation
+	var annotation *reflection.FormatAnnotation
 	for _, member := range objectMembers {
 		if found := typeid.FormatAnnotationFromType(typeChecker, member); found != nil {
 			if annotation != nil {

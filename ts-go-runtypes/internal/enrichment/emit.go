@@ -3,26 +3,26 @@ package enrichment
 import (
 	"strings"
 
-	"github.com/mionkit/ts-runtypes/internal/protocol"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // FriendlySkeleton renders ONLY the FriendlyText object-literal skeleton for rt
 // (no `export const … =` wrapper, no trailing `;`) — the value the batch/stdout
 // `gen` mode returns so the test harness compares against a case's initializer.
-func FriendlySkeleton(rt *protocol.RunType, resolve func(id string) *protocol.RunType) string {
+func FriendlySkeleton(rt *reflection.RunType, resolve func(id string) *reflection.RunType) string {
 	var b strings.Builder
 	emitFriendlyNode(&b, newWalkCtx(resolve), rt, 0)
 	return b.String()
 }
 
 // MockSkeleton renders ONLY the MockData object-literal skeleton for rt.
-func MockSkeleton(rt *protocol.RunType, resolve func(id string) *protocol.RunType) string {
+func MockSkeleton(rt *reflection.RunType, resolve func(id string) *reflection.RunType) string {
 	var b strings.Builder
 	emitMockNode(&b, newWalkCtx(resolve), rt, 0)
 	return b.String()
 }
 
-func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth int) {
+func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, depth int) {
 	rt = ctx.deref(rt)
 	if rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		b.WriteString(ctx.bareMeta())
@@ -46,7 +46,7 @@ func emitFriendlyNode(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, de
 	// arms (most-specific first). Map/Set are KindClass without property
 	// children, so they must be caught here ahead of isObjectLike (false for
 	// them anyway) and the leaf fallthrough.
-	if rt.Kind == protocol.KindTuple {
+	if rt.Kind == reflection.KindTuple {
 		ctx.seen[rt] = true
 		// A variadic tuple (`[A, ...B[]]`) has a broad `length`, so the Phase-A
 		// type treats it as an ARRAY (`rt$items`); a fixed tuple gets `rt$slots`.
@@ -130,7 +130,7 @@ func writeErrorLeafSkeleton(b *strings.Builder, ctx *walkCtx, key string) {
 	b.WriteString("}")
 }
 
-func emitFriendlyObject(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth int) {
+func emitFriendlyObject(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, depth int) {
 	props := propertyChildren(ctx, rt)
 	if len(props) == 0 {
 		b.WriteString(ctx.bareMeta())
@@ -153,7 +153,7 @@ func emitFriendlyObject(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, 
 	b.WriteString("}")
 }
 
-func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth int) {
+func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, depth int) {
 	rt = ctx.deref(rt)
 	if rt == nil || depth > maxWalkDepth || ctx.seen[rt] {
 		b.WriteString("{pool: []}")
@@ -175,7 +175,7 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth 
 	// Structural composite kinds (solution A) — emitted BEFORE the object/leaf
 	// arms. Tuples get a fixed-length `rt$slots` (no `rt$length`); Map/Set get
 	// `rt$keys`/`rt$values` (the optional `rt$size` is left for the author to add).
-	if rt.Kind == protocol.KindTuple {
+	if rt.Kind == reflection.KindTuple {
 		ctx.seen[rt] = true
 		// A variadic tuple (`[A, ...B[]]`) has a broad `length`, so the Phase-A
 		// type treats it as an ARRAY (`rt$items`/`rt$length`); a fixed tuple gets
@@ -229,7 +229,7 @@ func emitMockNode(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth 
 	b.WriteString("{pool: []}")
 }
 
-func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, depth int) {
+func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *reflection.RunType, depth int) {
 	props := propertyChildren(ctx, rt)
 	if len(props) == 0 {
 		b.WriteString("{}")
@@ -250,7 +250,7 @@ func emitMockObject(b *strings.Builder, ctx *walkCtx, rt *protocol.RunType, dept
 
 // propKey renders a property's object-literal key: a bare identifier when the
 // name is dot-access safe, else single-quoted.
-func propKey(prop *protocol.RunType) string {
+func propKey(prop *reflection.RunType) string {
 	if prop.IsSafeName {
 		return prop.Name
 	}

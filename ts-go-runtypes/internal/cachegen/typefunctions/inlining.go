@@ -1,6 +1,8 @@
 package typefunctions
 
-import "github.com/mionkit/ts-runtypes/internal/protocol"
+import (
+	"github.com/mionkit/ts-runtypes/internal/reflection"
+)
 
 // InlineContext is the input to an Emitter.IsRTInlined call. Mirrors
 // the surface the `BaseRunType.isRTInlined` reads from `this`
@@ -16,7 +18,7 @@ import "github.com/mionkit/ts-runtypes/internal/protocol"
 type InlineContext struct {
 	// RT is the RunType under consideration. The predicate inspects
 	// Kind, TypeName, and FamilyOf(Kind) — same triplet the reference uses.
-	RT *protocol.RunType
+	RT *reflection.RunType
 	// InlineAllInternal is RenderOpts.InlineMode == allInternal: EVERY
 	// non-circular node inlines into its parent, names ignored (supersedes
 	// the old DEBUG_RT=INLINED env override). Default mode applies the
@@ -83,17 +85,17 @@ func DefaultIsRTInlined(ctx *InlineContext) bool {
 		return true
 	}
 	switch ctx.RT.Kind {
-	case protocol.KindClass:
-		if ctx.RT.SubKind == protocol.SubKindDate || protocol.IsTemporalSubKind(ctx.RT.SubKind) {
+	case reflection.KindClass:
+		if ctx.RT.SubKind == reflection.SubKindDate || reflection.IsTemporalSubKind(ctx.RT.SubKind) {
 			return true
 		}
 		return ctx.RT.TypeName == ""
-	case protocol.KindArray, protocol.KindObjectLiteral, protocol.KindTuple, protocol.KindUnion:
+	case reflection.KindArray, reflection.KindObjectLiteral, reflection.KindTuple, reflection.KindUnion:
 		// Keyed on TypeName directly — not the FamilyOf guard below —
 		// because KindArray is FamilyMember and would slip past it.
 		return ctx.RT.TypeName == ""
 	}
-	if ctx.RT.TypeName != "" && protocol.FamilyOf(ctx.RT.Kind) == protocol.FamilyCollection {
+	if ctx.RT.TypeName != "" && reflection.FamilyOf(ctx.RT.Kind) == reflection.FamilyCollection {
 		return false
 	}
 	return true
