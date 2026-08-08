@@ -383,9 +383,19 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		}
 		return strings.Join(parts, " | "), nil
 	case reflection.KindObjectLiteral:
-		members, diag := ctx.objectMembers(node)
+		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
+		}
+		if indexValue != nil && len(members) > 0 {
+			return "", ctx.mixedIndexPendingDiag()
+		}
+		if indexValue != nil {
+			valueText, valueDiag := ctx.typeExpr(indexValue)
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return fmt.Sprintf("Record<string, %s>", valueText), nil
 		}
 		var parts []string
 		for _, member := range members {
@@ -572,9 +582,19 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		return rt(fmt.Sprintf("union([%s])", strings.Join(arms, ", ")))
 	case reflection.KindObjectLiteral:
-		members, diag := ctx.objectMembers(node)
+		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
+		}
+		if indexValue != nil && len(members) > 0 {
+			return "", ctx.mixedIndexPendingDiag()
+		}
+		if indexValue != nil {
+			valueText, valueDiag := ctx.builderExpr(indexValue)
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return rt(fmt.Sprintf("record(%s)", valueText))
 		}
 		var parts []string
 		for _, member := range members {
@@ -810,9 +830,19 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		}
 		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(arms, ", ")), nil
 	case reflection.KindObjectLiteral:
-		members, diag := ctx.objectMembers(node)
+		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
+		}
+		if indexValue != nil && len(members) > 0 {
+			return "", ctx.mixedIndexPendingDiag()
+		}
+		if indexValue != nil {
+			valueText, valueDiag := ctx.schemaExpr(indexValue)
+			if valueDiag != nil {
+				return "", valueDiag
+			}
+			return fmt.Sprintf("{type: 'object', additionalProperties: %s}", valueText), nil
 		}
 		var propertyParts []string
 		var requiredParts []string
@@ -895,6 +925,13 @@ func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection
 	return out
 }
 
+// mixedIndexPendingDiag reports the mixed named-props + index-signature form,
+// whose exact-index-type spelling is a later phase.
+func (ctx *printContext) mixedIndexPendingDiag() *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: "mixed named properties + index signature is not convertible yet (see docs/todos/format-conversion-completion.md)"}
+}
+
 // oneOfPendingDiag reports a union carrying the exactly-one combinator, which
 // awaits its RT.oneOf / oneOf printing rows.
 func (ctx *printContext) oneOfPendingDiag() *Diagnostic {
@@ -912,22 +949,36 @@ type objectMember struct {
 	child    *reflection.RunType
 }
 
-// objectMembers collects a plain object shape's property members. Members the
-// current phase cannot print (methods, symbol keys, index signatures, call
-// signatures) report CNV001.
-func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, *Diagnostic) {
+// objectMembers collects a plain object shape's property members plus at most
+// one STRING-keyed index signature (number/symbol keys await jsIndexKeys).
+// Members the current phase cannot print (methods, call signatures) report
+// CNV001.
+func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, *reflection.RunType, *Diagnostic) {
 	var members []*objectMember
+	var indexValue *reflection.RunType
 	for _, memberRef := range node.Children {
 		member := ctx.deref(memberRef)
 		if member == nil {
-			return nil, unsupportedDiag(node, ctx.decl)
+			return nil, nil, unsupportedDiag(node, ctx.decl)
+		}
+		if member.Kind == reflection.KindIndexSignature {
+			indexKey := ctx.deref(member.Index)
+			if indexKey == nil || indexKey.Kind != reflection.KindString || indexValue != nil {
+				return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+					Message: "non-string or multiple index signatures are not convertible yet (jsIndexKeys pending)"}
+			}
+			indexValue = ctx.deref(member.Child)
+			if indexValue == nil {
+				return nil, nil, unsupportedDiag(node, ctx.decl)
+			}
+			continue
 		}
 		if member.Kind != reflection.KindPropertySignature && member.Kind != reflection.KindProperty {
-			return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/todos/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
 		}
 		if strings.HasPrefix(member.Name, "@@") {
-			return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}
 		key := member.Name
@@ -936,7 +987,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
-			return nil, unsupportedDiag(node, ctx.decl)
+			return nil, nil, unsupportedDiag(node, ctx.decl)
 		}
 		members = append(members, &objectMember{
 			name:     member.Name,
@@ -946,7 +997,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			child:    child,
 		})
 	}
-	return members, nil
+	return members, indexValue, nil
 }
 
 // literalValueText renders a literal node's VALUE as TS source (`'a'`, `42`,
