@@ -17,7 +17,7 @@ const isProductA = createValidateFn<Product>();
 
 // start-builder
 // Option B — the RT.* builders, if you like the Zod / TypeBox feel.
-const productSchema = RT.object({
+const productRunType = RT.object({
   id: TF.number(),
   name: TF.string(),
   tags: RT.array(TF.string()),
@@ -25,9 +25,9 @@ const productSchema = RT.object({
 });
 
 // Recover the TypeScript type from the run-type whenever you need it.
-type ProductFromSchema = InferType<typeof productSchema>;
+type ProductFromRunType = InferType<typeof productRunType>;
 
-const isProductB = createValidateFn(productSchema);
+const isProductB = createValidateFn(productRunType);
 // end-builder
 
 // start-json-schema
@@ -50,4 +50,4 @@ const isProductC = createValidateFn(runTypeFromJsonSchema(productJsonSchema));
 // end-json-schema
 
 export {isProductA, isProductB, isProductC};
-export type {Product, ProductFromSchema, ProductFromJsonSchema};
+export type {Product, ProductFromRunType, ProductFromJsonSchema};

@@ -15,17 +15,17 @@ const isUserA = createValidateFn<UserFromType>();
 
 // start-builder
 // Option B — the RT.* builders, if you like the Zod / TypeBox feel.
-const userSchema = RT.object({
+const userRunType = RT.object({
   id: TF.number(),
   name: TF.string(),
   email: TF.email(),
 });
 
 // Recover the type from the run-type whenever you need it.
-type UserFromSchema = InferType<typeof userSchema>;
+type UserFromRunType = InferType<typeof userRunType>;
 
-const isUserB = createValidateFn(userSchema);
+const isUserB = createValidateFn(userRunType);
 // end-builder
 
 export {isUserA, isUserB};
-export type {UserFromSchema};
+export type {UserFromRunType};

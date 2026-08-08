@@ -108,11 +108,11 @@ Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.
 
 :::div{class="rt-define-cols"}
 ::::code-group
-<code-import path="packages/examples/src/_homepage/define-type.ts" lang="ts [Type definition]" />
+<code-import path="packages/examples/src/_homepage/define-type.ts" lang="ts [Type Definition]" />
 ::::
 
 ::::code-group
-<code-import path="packages/examples/src/_homepage/define-builder.ts" lang="ts [Builder]" />
+<code-import path="packages/examples/src/_homepage/define-builder.ts" lang="ts [Type Builder]" />
 ::::
 :::
 ::
@@ -137,11 +137,11 @@ Full TC39 Temporal — `PlainDate`, `ZonedDateTime`, `Duration`… validated and
 ::::
 
 ::::code-group
-<code-import path="packages/examples/src/_homepage/formats-type.ts" lang="ts [Type definition]" />
+<code-import path="packages/examples/src/_homepage/formats-type.ts" lang="ts [Type Definition]" />
 ::::
 
 ::::code-group
-<code-import path="packages/examples/src/_homepage/formats-builder.ts" lang="ts [Builder]" />
+<code-import path="packages/examples/src/_homepage/formats-builder.ts" lang="ts [Type Builder]" />
 ::::
 :::
 ::
@@ -553,4 +553,4 @@ export function __rt_a1b_Xk7(value) {
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1785755370324 -->
+<!-- code-import-timestamp 1786149345416 -->

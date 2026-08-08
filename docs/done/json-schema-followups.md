@@ -143,14 +143,18 @@ Type | Schema | JSON Schema.
 
 ### Vocabulary (as shipped)
 
-- Feature name: **Type Builders**. Tab / toggle label: **Builder**.
+- Feature name: **Type Builders**. Code-group tab and playground toggle label:
+  **Type Builder** (paired with **Type Definition**). The spec originally said
+  just "Builder"; it was lengthened during review so the label names the
+  feature rather than a bare noun.
 - The functions (`RT.object()`, `TF.email()`): **builders**.
 - The value a builder returns: a **run-type**.
 - Call forms: type-first / value-first / **run-type** / JSON Schema.
 - Subpath: `@ts-runtypes/core/builders` canonical; `./schema` a deprecated alias
   to the SAME dist files until 1.0.
-- Guide page: `01.types-vs-schemas.md` → `01.type-builders.md`, title
-  "Type Builders".
+- Guide page: `01.types-vs-schemas.md` → `01.type-builders.md` (URL
+  `/guide/type-builders`), title **"Types vs Type Builders"** — the page is a
+  comparison, so the title keeps both halves while the slug stays short.
 - UNCHANGED, as planned: the tagline, the "your types are the schema" rhetoric,
   everything Standard Schema and JSON Schema, `RunType` / `InferType` / `RT` /
   `TF`.

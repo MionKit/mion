@@ -3,7 +3,7 @@ import {createValidateFn, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
 
 // Prefer builders? Describe the same shape with the RT.* type builders (Zod / TypeBox style).
-const userSchema = RT.object({
+const userRunType = RT.object({
   id: TF.number(),
   name: TF.string(),
   email: TF.email(),
@@ -11,7 +11,7 @@ const userSchema = RT.object({
 });
 
 // Same validator, same result — your call.
-const isUser = createValidateFn(userSchema);
+const isUser = createValidateFn(userRunType);
 
 // Recover the TypeScript type from the run-type whenever you need it.
-type User = InferType<typeof userSchema>;
+type User = InferType<typeof userRunType>;

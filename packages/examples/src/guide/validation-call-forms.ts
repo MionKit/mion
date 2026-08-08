@@ -14,8 +14,8 @@ const origin: Point = {x: 0, y: 0};
 const isPointB = createValidateFn(origin);
 
 // 3. Run-type — pass the run-type an RT.* builder returned; T is inferred from it.
-const pointSchema = RT.object({x: TF.number(), y: TF.number()});
-const isPointC = createValidateFn(pointSchema);
+const pointRunType = RT.object({x: TF.number(), y: TF.number()});
+const isPointC = createValidateFn(pointRunType);
 
 // 4. JSON Schema — pass a draft 2020-12 literal; T is recovered from it.
 const isPointD = createValidateFn(
@@ -24,7 +24,7 @@ const isPointD = createValidateFn(
 // end-forms
 
 // All four resolve to the same generated validator.
-type PointFromSchema = InferType<typeof pointSchema>;
+type PointFromRunType = InferType<typeof pointRunType>;
 
 export {isPointA, isPointB, isPointC, isPointD};
-export type {PointFromSchema};
+export type {PointFromRunType};

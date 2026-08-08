@@ -64,15 +64,16 @@ export default defineAppConfig({
     }
   },
   ui: {
-    // Map the "Type Definition" / "Builder" code-group tab labels to file-type
-    // icons. The code is TypeScript in both — the JS icon on "Builder" is just a
-    // visual cue for the builder/runtime form, without the misleading `.js` text.
-    // CodeIcon.vue keys this map by the LOWERCASED TAB LABEL, so renaming a tab
-    // means renaming the key here in the same change or the icon silently drops.
+    // Map the "Type Definition" / "Type Builder" code-group tab labels to
+    // file-type icons. The code is TypeScript in both — the JS icon on
+    // "Type Builder" is just a visual cue for the builder/runtime form, without
+    // the misleading `.js` text. CodeIcon.vue keys this map by the LOWERCASED
+    // TAB LABEL, so renaming a tab means renaming the key here in the same
+    // change or the icon silently drops.
     prose: {
       codeIcon: {
         'type definition': 'i-vscode-icons:file-type-typescript',
-        builder: 'i-vscode-icons:file-type-js',
+        'type builder': 'i-vscode-icons:file-type-js',
       },
     },
     colors: {
