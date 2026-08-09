@@ -191,6 +191,21 @@ RANDOMIZED chains instead of the fixed one, and the byte-equal type-form
 fixpoint across two independent chains as the convergence oracle. Same knobs:
 `RT_FUZZ_SEED` replays, `RT_FUZZ_ITER` widens.
 
+Every lane already runs under the ordinary test commands — `go test
+./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
+the rest — at its DEFAULT budget. `rtx core fuzz` is the soak / replay front
+door over those same commands, not a gate (`race` is the one lane it gates,
+since nothing else sets `RT_FUZZ_RACE=1`).
+
+The soak budgets run in CI in the `fuzz-soak` job of
+[release-gate.yml](../.github/workflows/release-gate.yml): one runner per lane,
+on release PRs, on the push to `prod`, and on demand with `gh workflow run
+release-gate.yml --ref <branch>`. Each lane is seeded from the run id and the
+seed is echoed, so a CI finding replays verbatim with `RT_FUZZ_SEED=<printed>
+pnpm rtx core fuzz <lane> --soak`. Nothing else runs a soak — the per-PR lanes
+are all at their defaults, which for the randomized sweeps is a handful of
+iterations.
+
 A `--soak` run is bounded by its own wall clock: the runner refuses to start an
 iteration the remaining budget cannot pay for
 ([`core/soakBudget.ts`](../packages/ts-runtypes/test/fuzz/core/soakBudget.ts)),

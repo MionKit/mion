@@ -304,7 +304,8 @@ The `rtx` front door builds the binary first, then runs the suite:
 
 ```bash
 pnpm rtx core fuzz <suite> [--soak]
-#   suite ∈  unit | value | types | jsonschema | cloning | enrich | i18n | typemod | race | all
+#   suite ∈  unit | value | types | nondata | roundtrip | size | jsonschema | cloning |
+#            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
 #   --soak   swaps the fixed batch for the long soak knobs (see rt.mjs FUZZ table)
 ```
 
@@ -317,13 +318,17 @@ pnpm rtx core fuzz <suite> [--soak]
   `binaryEncoderResize`).
 
 `pnpm test` alone already runs every fixed-iteration batch (roundtrip, binary
-size, non-data, and the smoke/gate tests included). The **roundtrip** and
-**binary-size** soaks aren't wired into `rtx core fuzz`; run them directly:
+size, non-data, and the smoke/gate tests included), and `go test ./internal/...`
+runs the Go-side `convert` sweep. So `rtx core fuzz` is not what makes a lane
+run — it is the **soak / replay** front door, and `race` is the only lane it
+gates (nothing else sets `RT_FUZZ_RACE=1`).
 
-```bash
-RT_FUZZ_ROUNDTRIP_SOAK_MS=120000 pnpm exec vitest run allStrategyRoundtrip.integration
-RT_FUZZ_SIZE_SOAK_MS=120000      pnpm exec vitest run binarySizeEstimate.integration
-```
+The soak budgets themselves run in CI in the **`fuzz-soak` job** of
+[release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner
+per lane, on release PRs, on the push to `prod`, and on demand via
+`gh workflow run release-gate.yml --ref <branch>`. That job seeds each lane from
+the run id and echoes the value, so a CI finding replays verbatim. Nowhere else
+runs a soak: the per-PR lanes all use their (small) defaults.
 
 ## Reproducing a finding
 
