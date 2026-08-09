@@ -1631,13 +1631,6 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			// carries the member kinds — escape the whole object.
 			return ctx.builderEscape(node)
 		}
-		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
-			// `record(...)` says exactly one string-keyed index and nothing
-			// beside it. Anything else (a number key, several signatures,
-			// named members alongside) rides the escape, which carries the
-			// type verbatim rather than refusing the declaration.
-			return ctx.builderEscape(node)
-		}
 		bagText := ""
 		if hasStructuralPayload(node) {
 			bagParts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
@@ -1647,11 +1640,30 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			bagText = ", {" + strings.Join(bagParts, ", ") + "}"
 		}
 		if len(indexes) > 0 {
+			if len(members) > 0 {
+				// Named members BESIDE an index have no value-first spelling —
+				// `object(...)` cannot carry an index and `record(...)` cannot
+				// carry named members. The escape carries the type verbatim.
+				return ctx.builderEscape(node)
+			}
+			keyText, keyDiag, keyed := ctx.recordKeyText(indexes)
+			if keyDiag != nil {
+				return "", keyDiag
+			}
+			if !keyed {
+				// Several signatures whose VALUE types differ: one `record`
+				// carries one value type, so the escape takes it.
+				return ctx.builderEscape(node)
+			}
 			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return rt(fmt.Sprintf("record(%s%s)", valueText, bagText))
+			if keyText == "" {
+				// The lone string key is `record`'s implicit default.
+				return rt(fmt.Sprintf("record(%s%s)", valueText, bagText))
+			}
+			return rt(fmt.Sprintf("record(%s, %s%s)", keyText, valueText, bagText))
 		}
 		var parts []string
 		for _, member := range members {
@@ -2344,6 +2356,36 @@ type indexSignature struct {
 // signature, string-keyed, with no named members beside it.
 func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
 	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString
+}
+
+// recordKeyText spells the KEY argument of `record(key, value)` for an index
+// set: "" for the lone string key (record's implicit default, so the one-arg
+// form prints), a single key's builder otherwise, and a union of the keys when
+// a shape carries several signatures (`{[k: string]: V; [n: number]: V}` IS
+// `Record<string | number, V>`). Reports keyed=false when the signatures carry
+// DIFFERENT value types, which one `record` cannot say.
+func (ctx *printContext) recordKeyText(indexes []indexSignature) (string, *Diagnostic, bool) {
+	for _, index := range indexes[1:] {
+		if index.value.ID != indexes[0].value.ID {
+			return "", nil, false
+		}
+	}
+	if len(indexes) == 1 && indexes[0].key.Kind == reflection.KindString {
+		return "", nil, true
+	}
+	keyTexts := make([]string, 0, len(indexes))
+	for _, index := range indexes {
+		keyText, keyDiag := ctx.builderExpr(index.key)
+		if keyDiag != nil {
+			return "", keyDiag, false
+		}
+		keyTexts = append(keyTexts, keyText)
+	}
+	if len(keyTexts) == 1 {
+		return keyTexts[0], nil, true
+	}
+	ctx.needs.useRT = true
+	return fmt.Sprintf("%s.union([%s])", ctx.names.RT, strings.Join(sortArms(keyTexts), ", ")), nil, true
 }
 
 // objectMembers collects an object shape's members: properties, method and
