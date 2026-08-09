@@ -457,6 +457,14 @@ export const FUZZ_FORMAT_PREAMBLE = [
   "import type {OneOf as TFOneOf} from './src/builders/static.ts';",
 ].join('\n');
 
+/** The PACKAGE-import twin, for lanes whose fixtures live in a real on-disk
+ *  project with the shipped dist installed (the convert roundtrip lane) — the
+ *  same shipped types, resolved the way a consumer install resolves them. **/
+export const FUZZ_FORMAT_PREAMBLE_PACKAGE = [
+  "import type * as TF from '@ts-runtypes/core/formats';",
+  "import type {OneOf as TFOneOf} from '@ts-runtypes/core/builders';",
+].join('\n');
+
 /** The SCRATCH-DIR twin: enrich / typemod fixtures live in temp dirs where a
  *  relative './src/...' import cannot resolve, so they carry a local `TF`
  *  namespace restating ONLY the param brands' raw sentinel encoding (four
@@ -507,8 +515,9 @@ export function usesFormatLeaves(gen: GeneratedType): boolean {
   return found;
 }
 
-/** Every direct child shape of a node (shared by the small walkers here). **/
-function childShapes(shape: TypeShape): TypeShape[] {
+/** Every direct child shape of a node (shared by the small walkers here and
+ *  the convert lane's convertibility filter). **/
+export function childShapes(shape: TypeShape): TypeShape[] {
   switch (shape.kind) {
     case 'array':
     case 'set':
@@ -1237,9 +1246,9 @@ export function renderDecl(decl: Decl): string {
  *  resolver lane's `${decls}` interpolation stays correct with no per-harness
  *  wiring. Scratch-dir lanes render their own decls with
  *  FUZZ_FORMAT_SCRATCH_PREAMBLE instead. **/
-export function renderGenerated(gen: GeneratedType): {decls: string; rootExpr: string} {
+export function renderGenerated(gen: GeneratedType, preamble: string = FUZZ_FORMAT_PREAMBLE): {decls: string; rootExpr: string} {
   const decls = gen.decls.map(renderDecl).join('\n');
-  const withPreamble = usesFormatLeaves(gen) ? `${FUZZ_FORMAT_PREAMBLE}\n${decls}` : decls;
+  const withPreamble = usesFormatLeaves(gen) ? `${preamble}\n${decls}` : decls;
   return {decls: withPreamble, rootExpr: renderType(gen.root)};
 }
 

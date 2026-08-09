@@ -84,6 +84,10 @@ const FUZZ = {
   // reflection graphs equal (C6), full chain converges (C4), re-conversion is
   // a byte no-op (C5). RT_FUZZ_SEED replays a failure; RT_FUZZ_ITER widens.
   convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain', '-count=1'], soak: {RT_FUZZ_ITER: '150'}},
+  // FE twin of `convert`: the REAL `ts-runtypes convert` binary over a real
+  // temp project, randomized form chains over the full generated type space,
+  // per-leg id checks + the byte-equal type-form fixpoint oracle.
+  convertcli: {patterns: ['convertFuzz.integration'], soak: {RT_FUZZ_ITER: '40'}},
   all: {patterns: ['fuzz.integration', 'typeFuzz.integration', 'binaryEncoderResize']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
@@ -337,7 +341,7 @@ const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx
 core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
-  rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|all
+  rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)

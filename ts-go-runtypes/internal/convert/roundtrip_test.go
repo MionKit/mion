@@ -172,6 +172,27 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 	convertAndCheckIDs(t, schemaForm, convert.TargetType)
 }
 
+func TestChain_RegexPresetEscapesGenericSpelling(t *testing.T) {
+	// The regex family's params carry the preset-internal `isRegex` engine
+	// flag, which the PUBLIC string builder/alias reject (ExactParams) — the
+	// generic `TF.string({isRegex: …})` spelling resolved a DIFFERENT brand
+	// and moved the id (found by the FE roundtrip fuzz lane). Any generic
+	// family carrying a key outside its public surface must ride the exact
+	// TypeFormat constructor instead.
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Pattern = TF.RegexString;\n" +
+		"type NotPattern = TF.Not<TF.RegexString>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "getRunType<TypeFormat<string, 'stringFormat', {isRegex: true") {
+		t.Errorf("preset-internal params should escape through the exact constructor:\n%s", builderForm)
+	}
+	if strings.Contains(builderForm, "TF.string({isRegex") {
+		t.Errorf("the generic spelling must never carry a non-public param key:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+}
+
 func TestChain_OneOfAndNot(t *testing.T) {
 	source := "import * as RT from '@ts-runtypes/core/builders';\n" +
 		"import * as TF from '@ts-runtypes/core/formats';\n" +
@@ -181,21 +202,21 @@ func TestChain_OneOfAndNot(t *testing.T) {
 		"type NoMail = InferType<typeof noMailRT>;\n" +
 		"import {type InferType} from '@ts-runtypes/core';\n"
 	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{oneOf: [{type: 'string'}, {type: 'number'}]}") {
+	if !strings.Contains(schemaForm, "{oneOf: [{type: 'number'}, {type: 'string'}]}") {
 		t.Errorf("oneOf should print branch-wise:\n%s", schemaForm)
 	}
 	if !strings.Contains(schemaForm, "embedType<TF.Not<TypeFormat<string, 'email', {") {
 		t.Errorf("not should embed the Not<F> brand:\n%s", schemaForm)
 	}
 	builderForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "RT.oneOf([TF.string(), TF.number()])") {
+	if !strings.Contains(builderForm, "RT.oneOf([TF.number(), TF.string()])") {
 		t.Errorf("oneOf should print RT.oneOf:\n%s", builderForm)
 	}
 	if !strings.Contains(builderForm, "RT.not(getRunType<TypeFormat<string, 'email', {") {
 		t.Errorf("not should wrap the negated brand:\n%s", builderForm)
 	}
 	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
-	if !strings.Contains(typeForm, "RT.OneOf<[string, number]>") {
+	if !strings.Contains(typeForm, "RT.OneOf<[number, string]>") {
 		t.Errorf("oneOf type spelling missing:\n%s", typeForm)
 	}
 	if !strings.Contains(typeForm, "TF.Not<TypeFormat<string, 'email', {") {
@@ -451,6 +472,30 @@ func TestChain_NamedFunctionParams(t *testing.T) {
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Send = (event: string, retries: number) => boolean;") {
 		t.Errorf("type target should restore the named signature:\n%s", typeForm)
+	}
+}
+
+func TestChain_ImportLayoutPathIndependent(t *testing.T) {
+	// The FE roundtrip fuzz lane's find (seed 0x5150): a kept user binding on
+	// a managed module rides its own statement once the builders form renders
+	// namespace + named as two statements — the NEXT leg's scan must fold that
+	// extra statement back into the canonical block, or its position depends
+	// on which legs the file has been through and two chains landing on the
+	// same form disagree on import order.
+	source := "import type * as TF from '@ts-runtypes/core/formats';\n" +
+		"import type {OneOf as TFOneOf} from '@ts-runtypes/core/builders';\n" +
+		"export type Boxed = TF.FormattedObject<Record<string, string>, {minProperties: 2}>;\n"
+	buildersForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	passA := convertAndCheckIDs(t, buildersForm, convert.TargetType)
+	schemaForm := convertAndCheckIDs(t, buildersForm, convert.TargetJSONSchema)
+	passB := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if passA != passB {
+		t.Fatalf("type-form fixpoint diverged:\n--- builders → type ---\n%s\n--- builders → json-schema → type ---\n%s", passA, passB)
+	}
+	wantBlock := "import {type OneOf as TFOneOf} from '@ts-runtypes/core/builders';\n" +
+		"import * as TF from '@ts-runtypes/core/formats';\n"
+	if !strings.Contains(passA, wantBlock) {
+		t.Errorf("managed imports must land as one canonical block (kept user binding folded):\n%s", passA)
 	}
 }
 
