@@ -29,6 +29,7 @@ type importNeeds struct {
 	useTF                    bool
 	useGetRunType            bool
 	useInferType             bool
+	useTypeFormat            bool
 	useRunTypeFromJSONSchema bool
 	useEmbedType             bool
 }
@@ -38,6 +39,7 @@ func (needs *importNeeds) merge(other importNeeds) {
 	needs.useTF = needs.useTF || other.useTF
 	needs.useGetRunType = needs.useGetRunType || other.useGetRunType
 	needs.useInferType = needs.useInferType || other.useInferType
+	needs.useTypeFormat = needs.useTypeFormat || other.useTypeFormat
 	needs.useRunTypeFromJSONSchema = needs.useRunTypeFromJSONSchema || other.useRunTypeFromJSONSchema
 	needs.useEmbedType = needs.useEmbedType || other.useEmbedType
 }
@@ -176,6 +178,7 @@ type managedRole struct {
 var managedRoles = []managedRole{
 	{module: moduleCore, imported: "getRunType", needed: func(needs importNeeds) bool { return needs.useGetRunType }, local: func(names *nameTable) string { return names.GetRunType }},
 	{module: moduleCore, imported: "InferType", typeOnly: true, needed: func(needs importNeeds) bool { return needs.useInferType }, local: func(names *nameTable) string { return names.InferType }},
+	{module: moduleCore, imported: "TypeFormat", typeOnly: true, needed: func(needs importNeeds) bool { return needs.useTypeFormat }, local: func(names *nameTable) string { return names.TypeFormat }},
 	{module: moduleBuilders, namespace: true, needed: func(needs importNeeds) bool { return needs.useRT }, local: func(names *nameTable) string { return names.RT }},
 	{module: moduleFormats, namespace: true, needed: func(needs importNeeds) bool { return needs.useTF }, local: func(names *nameTable) string { return names.TF }},
 	{module: moduleJSONSchema, imported: "runTypeFromJsonSchema", needed: func(needs importNeeds) bool { return needs.useRunTypeFromJSONSchema }, local: func(names *nameTable) string { return names.RunTypeFromJSONSchema }},

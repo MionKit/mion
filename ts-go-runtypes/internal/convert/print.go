@@ -148,18 +148,84 @@ type formatFamily struct {
 	// as `485n` literals, and the family can never ride `jsFormat` (JSON
 	// cannot carry a bigint) — the schema target embeds the brand instead.
 	bigintParams bool
+	// exact marks a preset family whose builder/alias merge NON-EMPTY
+	// defaults: the pretty spelling cannot be proven identical to the
+	// annotation (a default key the annotation omits would survive the
+	// merge), so type/builder targets use the exact TypeFormat constructor.
+	exact bool
+	// base is the exact constructor's base-type spelling.
+	base string
 }
 
+// The full leaf-family roster (typeFormats.generated.ts is the pinned name
+// source). Named presets over-specify on purpose: the builder / type-alias
+// call carries the annotation's FULL params (defaults included), which merges
+// onto the preset's defaults to the identical brand — no defaults table to
+// drift, and the id oracle polices every row.
 var formatFamilies = map[string]formatFamily{
-	"stringFormat": {builderFn: "string", typeAlias: "String"},
-	"numberFormat": {builderFn: "number", typeAlias: "Number"},
-	"bigintFormat": {builderFn: "bigInt", typeAlias: "BigInt", bigintParams: true},
+	"stringFormat": {builderFn: "string", typeAlias: "String", base: "string"},
+	"numberFormat": {builderFn: "number", typeAlias: "Number", base: "number"},
+	"bigintFormat": {builderFn: "bigInt", typeAlias: "BigInt", bigintParams: true, base: "bigint"},
+	"email":        {exact: true, base: "string"},
+	"ip":           {exact: true, base: "string"},
+	"domain":       {exact: true, base: "string"},
+	"url":          {exact: true, base: "string"},
+	"date":         {exact: true, base: "string"},
+	"time":         {exact: true, base: "string"},
+	"dateTime":     {exact: true, base: "string"},
+	"nativeDate":   {builderFn: "date", typeAlias: "Date", base: "Date"},
+}
+
+// uuidSpellings maps the uuid family's enumerable version param onto its
+// dedicated preset builders / aliases (the family has no generic type).
+var uuidSpellings = map[string]formatFamily{
+	"any": {builderFn: "uuid", typeAlias: "UUID"},
+	"4":   {builderFn: "uuidv4", typeAlias: "UUIDv4"},
+	"7":   {builderFn: "uuidv7", typeAlias: "UUIDv7"},
+}
+
+// leafFormat resolves a node's annotation to a printable leaf family; false
+// when the annotation is structural (formattedArray/formattedObject, handled
+// at the kind branches) or unknown. uuid resolves through its version param;
+// uuidParamsless strips the version key from the printed params (the preset
+// alias already carries it).
+func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[string]any, bool) {
+	if annotation.Name == "uuid" {
+		version, _ := annotation.Params["version"].(string)
+		family, known := uuidSpellings[version]
+		if !known {
+			return formatFamily{}, nil, false
+		}
+		return family, map[string]any{}, true
+	}
+	family, known := formatFamilies[annotation.Name]
+	if !known {
+		return formatFamily{}, nil, false
+	}
+	return family, annotation.Params, true
+}
+
+// exactBrandType renders the exact TypeFormat constructor for an annotation:
+// no defaults merge, provably the reflected brand.
+func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
+	paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+	if !ok {
+		return "", false
+	}
+	ctx.needs.useTypeFormat = true
+	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.base, quoteSingle(annotation.Name), paramsText), true
+}
+
+// isStructuralAnnotation tells the array/object structural brands from the
+// leaf families — they are handled at their kind branches, not as leaves.
+func isStructuralAnnotation(annotation *reflection.FormatAnnotation) bool {
+	return annotation.Name == "formattedArray" || annotation.Name == "formattedObject"
 }
 
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("format family %q is not convertible yet (generic string/number/bigint families only)", name)}
+		Message: fmt.Sprintf("format family %q is not convertible yet (see docs/todos/format-conversion-completion.md)", name)}
 }
 
 // printFormatParams renders a FormatAnnotation params map as TS source with
@@ -282,16 +348,26 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		return "", ctx.circularPendingDiag()
 	}
 	defer leave()
-	if annotation := node.FormatAnnotation; annotation != nil {
-		family, known := formatFamilies[annotation.Name]
+	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
+		family, params, known := leafFormat(annotation)
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+		if family.exact {
+			exactText, ok := ctx.exactBrandType(annotation, family)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
+			}
+			return exactText, nil
+		}
+		ctx.needs.useTF = true
+		if len(params) == 0 {
+			return fmt.Sprintf("%s.%s", ctx.names.TF, family.typeAlias), nil
+		}
+		paramsText, ok := printFormatParams(params, family.bigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		ctx.needs.useTF = true
 		return fmt.Sprintf("%s.%s<%s>", ctx.names.TF, family.typeAlias, paramsText), nil
 	}
 	switch node.Kind {
@@ -486,12 +562,23 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		ctx.needs.useTF = true
 		return ctx.names.TF + "." + call, nil
 	}
-	if annotation := node.FormatAnnotation; annotation != nil {
-		family, known := formatFamilies[annotation.Name]
+	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
+		family, params, known := leafFormat(annotation)
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+		if family.exact {
+			exactText, ok := ctx.exactBrandType(annotation, family)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
+			}
+			ctx.needs.useGetRunType = true
+			return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, exactText), nil
+		}
+		if len(params) == 0 {
+			return tf(family.builderFn + "()")
+		}
+		paramsText, ok := printFormatParams(params, family.bigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
@@ -683,11 +770,14 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	// rows (minLength / minimum / format:'email' / …) land with the preset
 	// mirror (docs/todos/format-conversion-completion.md), which is also what
 	// will widen --portable coverage to standard-expressible brands.
-	if annotation := node.FormatAnnotation; annotation != nil {
-		family, known := formatFamilies[annotation.Name]
+	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
+		family, _, known := leafFormat(annotation)
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
+		// jsFormat carries the annotation's OWN name + full params verbatim
+		// (uuid included — the door rebuilds the brand from the pair), so the
+		// schema spelling never depends on the preset tables.
 		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)

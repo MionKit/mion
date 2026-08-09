@@ -18,6 +18,7 @@ type nameTable struct {
 	TF                    string
 	InferType             string
 	GetRunType            string
+	TypeFormat            string
 	RunTypeFromJSONSchema string
 	EmbedType             string
 	taken                 map[string]bool
@@ -31,6 +32,7 @@ func newNames(decls []*declaration, imports *importScan) *nameTable {
 		TF:                    "TF",
 		InferType:             "InferType",
 		GetRunType:            "getRunType",
+		TypeFormat:            "TypeFormat",
 		RunTypeFromJSONSchema: "runTypeFromJsonSchema",
 		EmbedType:             "embedType",
 		taken:                 map[string]bool{},
@@ -58,6 +60,9 @@ func newNames(decls []*declaration, imports *importScan) *nameTable {
 		}
 		if local := imports.localFor(moduleCore, "getRunType"); local != "" {
 			names.GetRunType = local
+		}
+		if local := imports.localFor(moduleCore, "TypeFormat"); local != "" {
+			names.TypeFormat = local
 		}
 		if local := imports.localFor(moduleJSONSchema, "runTypeFromJsonSchema"); local != "" {
 			names.RunTypeFromJSONSchema = local
