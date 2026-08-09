@@ -25,10 +25,13 @@ import (
 // declaration's printed output. Only declarations with a TYPE name are
 // reference targets — the alias survives every target form (builders / schema
 // outputs keep the `InferType` alias), so a name reference can never break.
+// Exported is the ALIAS's export modifier: a cross-file reference has to
+// import the type name, which only works when the declaring file exports it.
 type RefTarget struct {
 	TypeName  string
 	ConstName string
 	File      string
+	Exported  bool
 }
 
 // Set is the run-wide conversion context: the files converted together and
@@ -64,7 +67,7 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 			// First declaration wins on a structural-id collision: same id =
 			// same type, so either name is an exact reference.
 			if _, exists := set.Table[resolved.Node.ID]; !exists {
-				set.Table[resolved.Node.ID] = RefTarget{TypeName: decl.Name, ConstName: decl.ConstName, File: absPath}
+				set.Table[resolved.Node.ID] = RefTarget{TypeName: decl.Name, ConstName: decl.ConstName, File: absPath, Exported: decl.AliasExported}
 			}
 		}
 	}
@@ -327,28 +330,17 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfs
 		diags = append(diags, Diagnostic{Code: CodeOutsideSet, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
 			Message: fmt.Sprintf("references %q declared in %s, which is not part of this conversion run — include that file in the same convert invocation", target.Name, path)})
 	}
+	// EVERY identifier is checked — type references, typeof queries,
+	// qualified/namespace member names and value positions alike resolve
+	// through the checker; anything landing on a lib / marker / same-file /
+	// in-set declaration filters out in check.
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {
 		if node == nil {
 			return false
 		}
-		switch node.Kind {
-		case ast.KindTypeReference:
-			reference := node.AsTypeReferenceNode()
-			if reference != nil && reference.TypeName != nil && ast.IsIdentifier(reference.TypeName) {
-				check(reference.TypeName)
-			}
-		case ast.KindTypeQuery:
-			query := node.AsTypeQueryNode()
-			if query != nil && query.ExprName != nil && ast.IsIdentifier(query.ExprName) {
-				check(query.ExprName)
-			}
-		case ast.KindIdentifier:
-			// Value references inside const initializers (a builder composing
-			// another file's const) resolve the same way.
-			if parent := node.Parent; parent != nil && parent.Kind == ast.KindCallExpression {
-				check(node)
-			}
+		if node.Kind == ast.KindIdentifier {
+			check(node)
 		}
 		node.ForEachChild(walk)
 		return false

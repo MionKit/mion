@@ -112,11 +112,15 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 
 	decls := recognizeFile(sourceFile, typeChecker, fs)
 	imports := scanImports(sourceFile, source)
-	names := newNames(decls, imports)
-	fileCtx := &fileContext{set: set, bindings: buildFileBindings(sourceFile, typeChecker), inScope: inScopeNames(sourceFile), path: absPath}
+	inScope := inScopeNames(sourceFile)
+	names := newNames(decls, imports, inScope)
+	fileCtx := &fileContext{set: set, bindings: buildFileBindings(sourceFile, typeChecker), inScope: inScope, path: absPath}
 
-	var replacements []replacement
-	needs := importNeeds{}
+	type plannedDecl struct {
+		decl    *declaration
+		printed *printedDecl
+	}
+	var planned []plannedDecl
 	for _, decl := range decls {
 		if decl.Form == opts.Target {
 			continue
@@ -124,14 +128,6 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		if decl.Generic {
 			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityError, File: absPath, Decl: decl.Name,
 				Message: fmt.Sprintf("generic declaration %q cannot be converted (no spelling for an unbound type parameter)", decl.Name)})
-			continue
-		}
-		// Converting to type-form removes the const binding — any reference
-		// the conversion itself will not rewrite (marker call sites, other
-		// modules) must keep it.
-		if opts.Target == TargetType && decl.Form != TargetType && constUsedBeyondConversions(prog, typeChecker, fs, set, decl, absPath) {
-			result.Diags = append(result.Diags, Diagnostic{Code: CodeConstStillUsed, Severity: SeverityError, File: absPath, Decl: decl.ConstName,
-				Message: fmt.Sprintf("const %q is referenced outside the converted declarations; converting it away would break those uses", decl.ConstName)})
 			continue
 		}
 		if outsideDiags := outsideSetDiags(prog, typeChecker, fs, decl, set, absPath); len(outsideDiags) > 0 {
@@ -148,8 +144,47 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			result.Diags = append(result.Diags, *printDiag)
 			continue
 		}
-		needs.merge(printed.needs)
-		replacements = append(replacements, replacement{start: tokenStart(source, decl.Stmt.Pos()), end: decl.Stmt.End(), text: printed.text})
+		planned = append(planned, plannedDecl{decl: decl, printed: printed})
+	}
+	// Const-away safety, AFTER printing: converting to type-form removes the
+	// const binding, so every reference the conversion will NOT rewrite must
+	// keep it — and only the declarations that actually PRINTED get rewritten
+	// (a skipped or refused declaration keeps its original span, references
+	// included). Dropping one const can re-expose uses inside its own kept
+	// span, so filter to a fixpoint.
+	if opts.Target == TargetType {
+		for {
+			var keptSpans [][2]int
+			for _, plan := range planned {
+				keptSpans = append(keptSpans, [2]int{plan.decl.Stmt.Pos(), plan.decl.Stmt.End()})
+				if plan.decl.AliasStmt != nil {
+					keptSpans = append(keptSpans, [2]int{plan.decl.AliasStmt.Pos(), plan.decl.AliasStmt.End()})
+				}
+			}
+			dropped := false
+			kept := planned[:0]
+			for _, plan := range planned {
+				if plan.decl.Form != TargetType && constUsedBeyondConversions(prog, typeChecker, fs, set, plan.decl, absPath, opts.Target, keptSpans) {
+					result.Diags = append(result.Diags, Diagnostic{Code: CodeConstStillUsed, Severity: SeverityError, File: absPath, Decl: plan.decl.ConstName,
+						Message: fmt.Sprintf("const %q is referenced outside the converted declarations; converting it away would break those uses", plan.decl.ConstName)})
+					dropped = true
+					continue
+				}
+				kept = append(kept, plan)
+			}
+			planned = kept
+			if !dropped {
+				break
+			}
+		}
+	}
+
+	var replacements []replacement
+	needs := importNeeds{}
+	for _, plan := range planned {
+		decl := plan.decl
+		needs.merge(plan.printed.needs)
+		replacements = append(replacements, replacement{start: tokenStart(source, decl.Stmt.Pos()), end: decl.Stmt.End(), text: plan.printed.text})
 		// Converting a const form to type-form replaces the const with a plain
 		// `type Name = …;`, so its InferType alias (now self-referential noise)
 		// is dropped; const → const conversions keep the existing alias as-is.
@@ -180,11 +215,14 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 }
 
 // constUsedBeyondConversions reports whether the const's identifier is
-// referenced anywhere the conversion will NOT rewrite: outside its own
-// declaration and outside every recognized convertible declaration of the
-// in-set files — across the whole program, so an in-set sibling file's
-// marker call site (`createValidateFn(userRT)`) keeps the const too.
-func constUsedBeyondConversions(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, set *Set, decl *declaration, currentFile string) bool {
+// referenced anywhere the conversion will NOT rewrite — across the whole
+// program, so an in-set sibling file's marker call site
+// (`createValidateFn(userRT)`) keeps the const too. For the CURRENT file the
+// rewritten spans are exactly the declarations that PRINTED successfully
+// (currentFileSpans); for OTHER in-set files the run optimistically counts
+// their convertible candidate declarations (each file's own conversion
+// applies the same safety check to itself).
+func constUsedBeyondConversions(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, set *Set, decl *declaration, currentFile string, target Target, currentFileSpans [][2]int) bool {
 	if decl.ConstName == "" {
 		return false
 	}
@@ -194,25 +232,26 @@ func constUsedBeyondConversions(prog *program.Program, typeChecker *checker.Chec
 	}
 	for _, sourceFile := range prog.TS.SourceFiles() {
 		path := sourceFile.FileName()
-		if strings.Contains(path, "/node_modules/") {
+		if strings.Contains(path, "/node_modules/") || strings.HasPrefix(path, "bundled://") {
 			continue
 		}
-		// Spans the conversion rewrites in this file: recognized convertible
-		// declarations of in-set files (their printed forms reference the
-		// TYPE name, never the const).
-		var rewritten []*declaration
-		if path == currentFile || set.Files[path] {
-			rewritten = recognizeFile(sourceFile, typeChecker, fs)
-		}
-		inRewritten := func(pos int) bool {
-			for _, other := range rewritten {
-				if other.Generic {
+		var rewrittenSpans [][2]int
+		if path == currentFile {
+			rewrittenSpans = currentFileSpans
+		} else if set.Files[path] {
+			for _, other := range recognizeFile(sourceFile, typeChecker, fs) {
+				if other.Generic || other.Form == target {
 					continue
 				}
-				if pos >= other.Stmt.Pos() && pos < other.Stmt.End() {
-					return true
+				rewrittenSpans = append(rewrittenSpans, [2]int{other.Stmt.Pos(), other.Stmt.End()})
+				if other.AliasStmt != nil {
+					rewrittenSpans = append(rewrittenSpans, [2]int{other.AliasStmt.Pos(), other.AliasStmt.End()})
 				}
-				if other.AliasStmt != nil && pos >= other.AliasStmt.Pos() && pos < other.AliasStmt.End() {
+			}
+		}
+		inRewritten := func(pos int) bool {
+			for _, span := range rewrittenSpans {
+				if pos >= span[0] && pos < span[1] {
 					return true
 				}
 			}

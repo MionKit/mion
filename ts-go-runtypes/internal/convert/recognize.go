@@ -25,8 +25,13 @@ type declaration struct {
 	// type-form declarations.
 	ConstName string
 	Form      Target
-	Exported  bool
-	Generic   bool
+	// Exported is the recognized STATEMENT's export modifier (the const's,
+	// for const forms); AliasExported is the TYPE name's — the paired
+	// InferType alias for const forms, the statement itself otherwise. The
+	// two can differ, and the printed type declaration follows the alias.
+	Exported      bool
+	AliasExported bool
+	Generic       bool
 	// Stmt is the statement the conversion replaces; NameNode the identifier
 	// the checker resolves; AliasStmt the paired `type N = InferType<typeof c>`
 	// statement for const forms (nil when absent).
@@ -75,6 +80,7 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, fs 
 		if aliasStmt, ok := aliasByConst[decl.ConstName]; ok {
 			decl.AliasStmt = aliasStmt
 			decl.Name = aliasNameByConst[decl.ConstName]
+			decl.AliasExported = isExported(aliasStmt)
 		}
 	}
 	return decls
@@ -82,12 +88,14 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, fs 
 
 // typeFormDeclaration wraps a type alias / interface statement.
 func typeFormDeclaration(statement *ast.Node) *declaration {
+	exported := isExported(statement)
 	decl := &declaration{
-		Form:     TargetType,
-		Exported: isExported(statement),
-		Generic:  hasTypeParameters(statement),
-		Stmt:     statement,
-		NameNode: statement.Name(),
+		Form:          TargetType,
+		Exported:      exported,
+		AliasExported: exported,
+		Generic:       hasTypeParameters(statement),
+		Stmt:          statement,
+		NameNode:      statement.Name(),
 	}
 	if decl.NameNode != nil {
 		decl.Name = decl.NameNode.Text()

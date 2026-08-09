@@ -100,6 +100,11 @@ type moduleImport struct {
 	// cross-file references and removed only when conversion made them unused.
 	managed    bool
 	rewritable bool
+	// Later import statements from the SAME module merge here read-only:
+	// their bindings count as present (no duplicate additions) but only the
+	// primary statement is ever rewritten.
+	extraNamespace string
+	extraNamed     []namedBinding
 }
 
 // importScan is the file's managed-import inventory. allImportEnds records
@@ -113,7 +118,10 @@ type importScan struct {
 
 func (scan *importScan) namespaceAlias(module string) string {
 	if entry := scan.byModule[module]; entry != nil {
-		return entry.namespace
+		if entry.namespace != "" {
+			return entry.namespace
+		}
+		return entry.extraNamespace
 	}
 	return ""
 }
@@ -121,6 +129,11 @@ func (scan *importScan) namespaceAlias(module string) string {
 func (scan *importScan) localFor(module, imported string) string {
 	if entry := scan.byModule[module]; entry != nil {
 		for _, binding := range entry.named {
+			if binding.imported == imported {
+				return binding.local
+			}
+		}
+		for _, binding := range entry.extraNamed {
 			if binding.imported == imported {
 				return binding.local
 			}
@@ -135,7 +148,13 @@ func (scan *importScan) localNames() []string {
 		if entry.namespace != "" {
 			locals = append(locals, entry.namespace)
 		}
+		if entry.extraNamespace != "" {
+			locals = append(locals, entry.extraNamespace)
+		}
 		for _, binding := range entry.named {
+			locals = append(locals, binding.local)
+		}
+		for _, binding := range entry.extraNamed {
 			locals = append(locals, binding.local)
 		}
 	}
@@ -199,10 +218,16 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 				}
 			}
 		}
-		// Keep the FIRST statement per module; later duplicates stay untouched.
-		if scan.byModule[module] == nil {
-			scan.byModule[module] = entry
+		// The FIRST statement per module is the rewritable primary; later
+		// statements merge read-only so their bindings count as present.
+		if existing := scan.byModule[module]; existing != nil {
+			if entry.namespace != "" && existing.namespace == "" && existing.extraNamespace == "" {
+				existing.extraNamespace = entry.namespace
+			}
+			existing.extraNamed = append(existing.extraNamed, entry.named...)
+			continue
 		}
+		scan.byModule[module] = entry
 	}
 	return scan
 }
@@ -247,16 +272,24 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 			finalNamespace = entry.namespace
 			finalNamed = append(finalNamed, entry.named...)
 		}
+		var extraNamespace string
+		var extraNamed []namedBinding
+		if entry != nil {
+			extraNamespace = entry.extraNamespace
+			extraNamed = entry.extraNamed
+		}
 		for _, role := range managedRoles {
 			if role.module != module {
 				continue
 			}
 			local := role.local(names)
-			present := false
-			if role.namespace {
-				present = finalNamespace != ""
-			} else {
-				for _, binding := range finalNamed {
+			// A namespace import of a managed module covers EVERY member
+			// spelling (the printers then use qualified names), so named
+			// roles count as present under it — appending a named binding
+			// would be swallowed by the namespace-wins renderer.
+			present := finalNamespace != "" || extraNamespace != ""
+			if !present && !role.namespace {
+				for _, binding := range append(append([]namedBinding{}, finalNamed...), extraNamed...) {
 					if binding.imported == role.imported {
 						present = true
 					}
@@ -317,17 +350,30 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		neededNames := append([]string(nil), neededByModule[module]...)
 		sort.Strings(neededNames)
 		entry := scan.byModule[module]
-		if entry == nil {
+		boundAlready := func(name string) bool {
+			if entry == nil {
+				return false
+			}
+			for _, binding := range append(append([]namedBinding{}, entry.named...), entry.extraNamed...) {
+				if binding.imported == name {
+					return true
+				}
+			}
+			return false
+		}
+		if entry == nil || !entry.rewritable {
+			// No statement to extend (or a shape we never rewrite — default
+			// import, namespace): still-missing names get their own new
+			// statement rather than being silently dropped.
 			var namedAdds []namedBinding
 			for _, name := range neededNames {
-				namedAdds = append(namedAdds, namedBinding{imported: name, local: name, typeOnly: true})
+				if !boundAlready(name) {
+					namedAdds = append(namedAdds, namedBinding{imported: name, local: name, typeOnly: true})
+				}
 			}
 			if rendered := renderImport(module, "", namedAdds); rendered != "" {
 				additions = append(additions, rendered)
 			}
-			continue
-		}
-		if !entry.rewritable {
 			continue
 		}
 		finalNamed := make([]namedBinding, 0, len(entry.named)+len(neededNames))
@@ -339,7 +385,7 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		}
 		for _, name := range neededNames {
 			present := false
-			for _, existing := range finalNamed {
+			for _, existing := range append(append([]namedBinding{}, finalNamed...), entry.extraNamed...) {
 				if existing.imported == name {
 					present = true
 				}
