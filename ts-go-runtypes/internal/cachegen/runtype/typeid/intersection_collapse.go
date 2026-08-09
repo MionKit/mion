@@ -223,11 +223,22 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 		var patternIDs []string
 		var propNamesIDs []string
 		var unevalIDs []string
+		var tupleLabels []string
+		var haveTupleLabels bool
 		var annotations []*reflection.FormatAnnotation
 		var restMembers []*checker.Type
 		for _, objectMember := range objectMembers {
 			if childType := NotChildTypeFromMember(computer.typeChecker, objectMember); childType != nil {
 				notIDs = append(notIDs, computer.Compute(childType))
+				continue
+			}
+			// Labeled-tuple sentinel (`[A, B] & {__rtLabels?: ['x', 'y']}`):
+			// lift the labels and fold them INTO the tuple id below — the
+			// per-element label fold the type-first labeled tuple gets — so
+			// the value-first object form and `[x: A, y: B]` share one id.
+			// Twin of the serialize side's label-aware projectTuple.
+			if labels, isLabels := TupleLabelsFromMember(computer.typeChecker, objectMember); isLabels && !haveTupleLabels {
+				tupleLabels, haveTupleLabels = labels, true
 				continue
 			}
 			if childType, minCount, maxCount, ok := ContainsSpecFromMember(computer.typeChecker, objectMember); ok {
@@ -302,11 +313,19 @@ func (computer *Computer) collapsedIntersectionID(tsType *checker.Type) string {
 			// Every member was a sentinel — the base is `unknown`.
 			return strconv.Itoa(int(reflection.KindUnknown)) + notKey + containsKey + formatKey
 		}
-		if restCount == 1 && (notKey != "" || formatKey != "" || containsKey != "") {
+		if restCount == 1 && (notKey != "" || formatKey != "" || containsKey != "" || haveTupleLabels) {
 			// Single base ∧ sentinel(s): hash the base AS ITSELF plus the
 			// negation / contains / pattern folds + format key — the
 			// serialize side projects the base node directly (array /
-			// record / class), never a merged objectLiteral.
+			// record / class), never a merged objectLiteral. Lifted tuple
+			// labels fold INTO the tuple id (per-element, the type-first
+			// spelling's fold); they apply only to a tuple base whose element
+			// count they cover — anything else is a hand-rolled sentinel,
+			// ignored on both sides.
+			if haveTupleLabels && checker.IsTupleType(soleRest) &&
+				len(tupleLabels) == len(computer.typeChecker.GetTypeArguments(soleRest)) {
+				return computer.tupleID(soleRest, tupleLabels) + notKey + containsKey + formatKey
+			}
 			return computer.Compute(soleRest) + notKey + containsKey + formatKey
 		}
 		// Tuple ∩ tuple — merge slot-wise (tuplemerge.go) so the id equals

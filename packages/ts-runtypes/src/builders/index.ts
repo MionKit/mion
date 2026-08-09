@@ -54,6 +54,7 @@ export {
   object,
   array,
   tuple,
+  slot,
   union,
   oneOf,
   anyOf,

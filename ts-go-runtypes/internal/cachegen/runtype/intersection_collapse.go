@@ -244,9 +244,18 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		// name as well).
 		var restMembers []*checker.Type
 		var annotations []*reflection.FormatAnnotation
+		var tupleLabels []string
+		var haveTupleLabels bool
 		for _, objectMember := range objectMembers {
 			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
 				node.Negations = append(node.Negations, cache.Serialize(childType))
+				continue
+			}
+			// Labeled-tuple sentinel (`[A, B] & {__rtLabels?: ['x', 'y']}`):
+			// lift the labels and write them onto the projected tuple members
+			// below — never a property. Twin of the typeid-side label fold.
+			if labels, isLabels := typeid.TupleLabelsFromMember(cache.typeChecker, objectMember); isLabels && !haveTupleLabels {
+				tupleLabels, haveTupleLabels = labels, true
 				continue
 			}
 			if childType, minCount, maxCount, ok := typeid.ContainsSpecFromMember(cache.typeChecker, objectMember); ok {
@@ -306,6 +315,16 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			// Every member was a sentinel — the base is `unknown` with the
 			// negation(s) attached (bare JSON Schema `not`).
 			node.Kind = reflection.KindUnknown
+			return
+		}
+		if restCount == 1 && haveTupleLabels && checker.IsTupleType(soleRest) &&
+			len(tupleLabels) == len(cache.typeChecker.GetTypeArguments(soleRest)) {
+			// Tuple base ∧ labels sentinel — project the tuple with the lifted
+			// labels as the member names, exactly what the type-first labeled
+			// tuple projects (the shared structural id demands byte-identical
+			// nodes). A label list that does not cover every element is a
+			// hand-rolled sentinel, ignored on both sides.
+			cache.projectTuple(soleRest, node, tupleLabels)
 			return
 		}
 		if restCount == 1 &&
