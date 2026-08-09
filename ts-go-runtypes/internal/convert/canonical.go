@@ -53,6 +53,13 @@ type canonicalBuilder struct {
 	resolve  func(id string) *reflection.RunType
 	ordinals map[string]string
 	counter  int
+	// sorting guards the union-children sort: a slot's sort key is computed
+	// by re-canonicalizing the slot with a fresh builder, and a cycle back
+	// through the union being sorted would recurse forever. The set is
+	// SHARED into every nested key builder; a union found in it keeps graph
+	// order inside that key computation (the stable key prefix decides the
+	// order before the potentially unstable tail matters).
+	sorting map[string]bool
 }
 
 func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunType {
@@ -100,9 +107,9 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 	out.Parameters = builder.walkSlice(node.Parameters)
 	childrenSlots := node.Children
 	oneOfSlots := node.OneOf
-	if node.Kind == reflection.KindUnion {
-		childrenSlots = builder.sortSlots(childrenSlots)
-		oneOfSlots = builder.sortSlots(oneOfSlots)
+	if node.Kind == reflection.KindUnion && !builder.sorting[node.ID] {
+		childrenSlots = builder.sortSlots(node.ID, childrenSlots)
+		oneOfSlots = builder.sortSlots(node.ID, oneOfSlots)
 	}
 	out.Children = builder.walkSlice(childrenSlots)
 	out.Arguments = builder.walkSlice(node.Arguments)
@@ -158,10 +165,19 @@ func (builder *canonicalBuilder) walkSlice(slots []*reflection.RunType) []*refle
 // sortSlots orders slots by each slot's OWN canonical text (computed with a
 // fresh builder so sibling order cannot leak into the key through the
 // ordinal counter). Sorting must happen BEFORE the real walk assigns
-// ordinals, or the pre-sort visit order would still leak.
-func (builder *canonicalBuilder) sortSlots(slots []*reflection.RunType) []*reflection.RunType {
+// ordinals, or the pre-sort visit order would still leak. ownerID is the
+// union being sorted — key builders inherit it through `sorting` so a cycle
+// back through it cannot recurse.
+func (builder *canonicalBuilder) sortSlots(ownerID string, slots []*reflection.RunType) []*reflection.RunType {
 	if len(slots) < 2 {
 		return slots
+	}
+	if builder.sorting == nil {
+		builder.sorting = map[string]bool{}
+	}
+	if ownerID != "" {
+		builder.sorting[ownerID] = true
+		defer delete(builder.sorting, ownerID)
 	}
 	type keyedSlot struct {
 		slot *reflection.RunType
@@ -169,9 +185,10 @@ func (builder *canonicalBuilder) sortSlots(slots []*reflection.RunType) []*refle
 	}
 	keyed := make([]keyedSlot, 0, len(slots))
 	for _, slot := range slots {
-		key, keyErr := CanonicalGraph(slot, builder.resolve)
-		if keyErr != nil {
-			key = ""
+		keyBuilder := &canonicalBuilder{resolve: builder.resolve, ordinals: map[string]string{}, sorting: builder.sorting}
+		key := ""
+		if rendered, keyErr := json.Marshal(keyBuilder.walk(slot)); keyErr == nil {
+			key = string(rendered)
 		}
 		keyed = append(keyed, keyedSlot{slot: slot, key: key})
 	}
