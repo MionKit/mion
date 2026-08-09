@@ -105,6 +105,26 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     keeps: 'export type Mixed = OneOf<[{next: Mixed}, number]>;',
   },
   {
+    title: 'a cycle that closes on a tuple slot, converting to builders',
+    files: {'main.ts': 'export type Pair = [number, Pair];\n'},
+    target: 'builders',
+    code: 'CNV001',
+    says: 'cycle that closes on a tuple slot',
+    keeps: 'export type Pair = [number, Pair];',
+  },
+  {
+    title: 'a cycle that closes on a tuple slot, converting to JSON Schema',
+    // Both value-first forms recover the type the same way, and TypeScript
+    // instantiates a tuple's slots eagerly, so neither can tie the knot there.
+    // Optional and labeled slots, and a union arm inside one, are the same
+    // shape. The plain type form carries all of them.
+    files: {'main.ts': 'export type Chain = [head: number, tail?: Chain];\n'},
+    target: 'json-schema',
+    code: 'CNV001',
+    says: 'cycle that closes on a tuple slot',
+    keeps: 'export type Chain = [head: number, tail?: Chain];',
+  },
+  {
     title: 'a recursive type reached only inside an embedded type expression',
     // A function signature has no JSON spelling, so the schema target embeds it
     // as quoted TypeScript — and quoted text cannot point back at the

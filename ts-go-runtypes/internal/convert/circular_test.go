@@ -233,6 +233,83 @@ func TestCircular_OneOfPrimitiveBranchRefusedOnBuilders(t *testing.T) {
 	}
 }
 
+func TestCircular_TupleSlotCycleRefusedOnValueForms(t *testing.T) {
+	// A tuple is the one container the value-first forms cannot tie a knot
+	// through: TypeScript instantiates a mapped tuple's slots up front, so
+	// `Recursive<Body>` (and `{$ref: '#'}`'s type recovery, which works the
+	// same way) unrolls itself until the checker gives up rather than
+	// substituting. Converting anyway emitted a declaration whose inferred
+	// type kept a raw `Self` — a silently different id that would not convert
+	// back. The TYPE form carries every one of these, since a hand-written
+	// recursive tuple alias is an ordinary deferred type.
+	for _, source := range []string{
+		"export type Pair = [number, Pair];\n",
+		"export type Tail = [number, Tail?];\n",
+		"export type Rest = [number, ...Rest[]];\n",
+		"export type Labeled = [head: number, tail: Labeled];\n",
+		// A union arm inherits the eagerness (the substitution distributes).
+		"export type Maybe = [number, Maybe | null];\n",
+		// Nested tuples chain it.
+		"export type Nest = [number, [string, Nest]];\n",
+	} {
+		for _, target := range []convert.Target{convert.TargetBuilders, convert.TargetJSONSchema} {
+			_, diags := convertOne(t, source, convert.Options{Target: target})
+			if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+				!strings.Contains(diags[0].Message, "cycle that closes on a tuple slot") {
+				t.Fatalf("expected the tuple-slot refusal for %q on %s, got %+v", source, target, diags)
+			}
+		}
+		if typeForm := convertAndCheckIDs(t, source, convert.TargetType); typeForm != source {
+			t.Errorf("the type form should be a byte no-op:\n%s", typeForm)
+		}
+	}
+}
+
+func TestCircular_TupleSlotBehindDeferredContainerConverts(t *testing.T) {
+	// Every OTHER slot defers, so the knot closes and the cycle converts —
+	// only the direct tuple slot refuses above.
+	for _, source := range []string{
+		"export type Boxed = [number, {value: Boxed}];\n",
+		"export type Many = [number, Many[]];\n",
+		"export type Keyed = [number, Map<string, Keyed>];\n",
+		"export type Unique = [number, Set<Unique>];\n",
+		"export type Later = [number, Promise<Later>];\n",
+		"export type Callable = [number, (node: Callable) => void];\n",
+		// The cycle runs THROUGH a tuple but closes on an object member.
+		"export type Outer = {link: [number, Outer]};\n",
+	} {
+		builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, "RT.circular(") {
+			t.Errorf("a deferred cycle should convert:\n%s", builderForm)
+		}
+		convertAndCheckIDs(t, builderForm, convert.TargetType)
+	}
+}
+
+func TestChain_RecursiveIndexPrintsTheLiteralSpelling(t *testing.T) {
+	// `Record<K, V>` is a mapped ALIAS, so TypeScript resolves its argument
+	// while resolving the declaration: a value that reaches back here is
+	// TS2456. Printing it anyway produced source that does not compile, and
+	// re-converting it baked in `any`. The index-signature literal defers.
+	for _, testCase := range []struct{ source, wants string }{
+		{"export type Idx = {[key: string]: Idx};\n", "export type Idx = {[key: string]: Idx};"},
+		{"export type Mixed = {[key: string]: Mixed | number};\n", "export type Mixed = {[key: string]: Mixed | number};"},
+		// Deferred through an array, so the alias spelling stays legal.
+		{"export type Board = Record<string, Board[]>;\n", "export type Board = Record<string, Board[]>;"},
+	} {
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+		typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+		if !strings.Contains(typeForm, testCase.wants) {
+			t.Errorf("expected %q in:\n%s", testCase.wants, typeForm)
+		}
+		// The type form is the fixpoint — converting it again is a no-op.
+		if again := convertAndCheckIDs(t, typeForm, convert.TargetType); again != typeForm {
+			t.Errorf("type target is not a fixpoint:\n%s\n---\n%s", typeForm, again)
+		}
+	}
+}
+
 func TestChain_MutualCycle(t *testing.T) {
 	// Builders/schema inline the partner (a name reference would make the
 	// const's type self-referential); the type target restores both names.
