@@ -685,7 +685,7 @@ func isStructuralAnnotation(annotation *reflection.FormatAnnotation) bool {
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("format family %q is not convertible yet (see docs/done/format-conversion-completion.md)", name)}
+		Message: fmt.Sprintf("format family %q is not convertible yet (see https://runtypes.pages.dev/guide/converting-forms)", name)}
 }
 
 // printFormatParams renders a FormatAnnotation params map as TS source with
@@ -2615,7 +2615,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		case reflection.KindPropertySignature, reflection.KindProperty:
 		default:
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/done/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see https://runtypes.pages.dev/guide/converting-forms)", member.Name, kindLabel(member.Kind))}
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
@@ -2734,7 +2734,7 @@ func quoteSingle(value string) string {
 // unsupportedDiag reports a kind outside the current printer coverage.
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("%s is not convertible yet (see docs/done/format-conversion-completion.md)", kindLabel(node.Kind))}
+		Message: fmt.Sprintf("%s is not convertible yet (see https://runtypes.pages.dev/guide/converting-forms)", kindLabel(node.Kind))}
 }
 
 // kindLabel names a reflection kind for messages.
