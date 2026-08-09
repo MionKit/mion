@@ -323,28 +323,40 @@ func TestChain_Objects(t *testing.T) {
 	}
 }
 
-func TestChain_IndexShapesRideTheEscape(t *testing.T) {
-	// `record(...)` and `additionalProperties` can each say exactly ONE
-	// string-keyed index with nothing beside it. Every other index shape used
-	// to refuse; it now rides the escape, which carries the type verbatim, so
-	// the declaration converts and every leg keeps its id.
-	for _, source := range []string{
-		"export type Mixed = {name: string; [key: string]: unknown};\n",
-		"export type Numeric = {[key: number]: string};\n",
-		"export type Both = {[k: string]: number; [n: number]: number};\n",
+func TestChain_IndexShapesPrintRecord(t *testing.T) {
+	// `record(key, value)` takes ANY key type, and several index signatures
+	// sharing one value type ARE `Record<K1 | K2, V>` — so these print the
+	// real builder rather than an escape. JSON keys are strings, so the schema
+	// target embeds them; that is the format's limit, not the printer's.
+	for _, testCase := range []struct{ source, builder string }{
+		{"export type Numeric = {[key: number]: string};\n", "RT.record(TF.number(), TF.string())"},
+		{"export type Both = {[k: string]: number; [n: number]: number};\n", "RT.record(RT.union([TF.number(), TF.string()]), TF.number())"},
 	} {
-		builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
-		if !strings.Contains(builderForm, "getRunType<") {
-			t.Errorf("expected the builders escape for %q:\n%s", source, builderForm)
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.builder) {
+			t.Errorf("expected %q for %q:\n%s", testCase.builder, testCase.source, builderForm)
 		}
-		schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
-		if !strings.Contains(schemaForm, "embedType<") {
-			t.Errorf("expected the schema embed for %q:\n%s", source, schemaForm)
-		}
-		// And back again, through both escapes.
 		convertAndCheckIDs(t, builderForm, convert.TargetType)
+		schemaForm := convertAndCheckIDs(t, testCase.source, convert.TargetJSONSchema)
+		if !strings.Contains(schemaForm, "embedType<") {
+			t.Errorf("a non-string key has no JSON spelling, so the schema embeds it:\n%s", schemaForm)
+		}
 		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
+
+	// Named members BESIDE an index still have no value-first or schema
+	// spelling (docs/todos/mixed-record-builder.md), so both escape.
+	mixed := "export type Mixed = {name: string; [key: string]: unknown};\n"
+	builderForm := convertAndCheckIDs(t, mixed, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "getRunType<") {
+		t.Errorf("a mixed record should escape on builders:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, mixed, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "embedType<") {
+		t.Errorf("a mixed record should embed on the schema target:\n%s", schemaForm)
+	}
+	convertAndCheckIDs(t, builderForm, convert.TargetType)
+	convertAndCheckIDs(t, schemaForm, convert.TargetType)
 }
 
 func TestChain_UnknownAbsorbedUnion(t *testing.T) {
