@@ -1,11 +1,24 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-09
+completed: 2026-08-09
 ---
 
 # Full Temporal support in the convert CLI (with an any-resolution guard)
+
+> **Shipped as planned** on `feature/format-conversion-layer`: CNV007 guard
+> (`temporalAnyDiags` in internal/convert/set.go, wired into ConvertFile's
+> per-declaration loop before printing), the three unbranded rows, the 6
+> branded `formatFamilies` rows, and the fifth managed module
+> (`@ts-runtypes/core/formats/temporal` as `TFT`). One harness delta: instead
+> of an opt-in boolean on `setupConvert`, the tests gained full-sources-map
+> variants (`convertOneIn` / `withTemporal` / `fuzzSources`) that pair
+> `main.ts` with `testfixtures.TemporalDTS` as a sibling program root —
+> the same reach, reusable for any future ambient. Chain, all-8, branded,
+> portable-refusal, per-target CNV007 and CLI e2e tests all landed
+> (temporal_test.go, convert-cli.test.ts), plus the fuzz arm below.
 
 ## Problem
 
