@@ -323,6 +323,29 @@ func TestChain_Objects(t *testing.T) {
 	}
 }
 
+func TestChain_UnknownAbsorbedUnion(t *testing.T) {
+	// `string | unknown` IS `unknown` to the checker — the union collapses
+	// BEFORE reflection, so there is only one type and one id. The generated
+	// functions are unknown's, and the converter prints the collapsed spelling
+	// from the first leg on; the discarded members can never resurface, and no
+	// id can move because no second type ever existed.
+	source := "export type Loose = string | unknown;\n" +
+		"type Both = {a: number} | unknown;\n" +
+		"type Gone = string | never;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.unknown()") || strings.Contains(builderForm, "RT.union(") {
+		t.Errorf("an unknown-absorbed union should print the collapsed spelling, not a union:\n%s", builderForm)
+	}
+	if !strings.Contains(builderForm, "TF.string()") {
+		t.Errorf("never should vanish, leaving the plain member:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Loose = unknown;") {
+		t.Errorf("the type target restores the collapsed union as plain unknown:\n%s", typeForm)
+	}
+}
+
 func TestChain_Unions(t *testing.T) {
 	source := "export type Status = 'draft' | 'live';\n" +
 		"type MaybeName = string | null;\n" +

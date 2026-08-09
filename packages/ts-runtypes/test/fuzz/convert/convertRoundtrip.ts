@@ -15,7 +15,9 @@
 //     → run a SECOND independently-randomized chain from the first chain's
 //       type-form output and assert the two final sources are BYTE-EQUAL —
 //       the type form is the converter's canonical fixpoint, so any two
-//       paths through the form graph must land on identical text.
+//       paths through the form graph must land on identical text —
+//     → and run one MORE type leg over that fixpoint, asserting a byte
+//       no-op (C5 at the CLI level: normalization lands on the first pass).
 //
 // Ids are resolved through the resolver's serve ops (ResolverClient
 // setSources + scanFiles — millisecond scans against the same dist package
@@ -329,6 +331,17 @@ export async function runConvertFuzz(options: ConvertFuzzOptions): Promise<Conve
         if (passB.finalSource !== passA.finalSource) {
           throw new Error(
             `type-form fixpoint diverged between chains ${chainA.join(' → ')} and ${chainB.join(' → ')}\n--- pass A ---\n${passA.finalSource}\n--- pass B ---\n${passB.finalSource}`
+          );
+        }
+        // C5 at the CLI level: the shared fixpoint must already BE converged —
+        // one more `--to type` leg over it is a byte no-op. Any normalization
+        // the converter applies (collapsed unknown unions, canonical arm and
+        // import order, slot spellings) has to be reached on the first pass,
+        // never asymptotically.
+        const settled = convertLeg(project, passB.finalSource, 'type');
+        if (settled !== passB.finalSource) {
+          throw new Error(
+            `type-form fixpoint not stable under re-conversion\n--- fixpoint ---\n${passB.finalSource}\n--- re-converted ---\n${settled}`
           );
         }
       } catch (err) {
