@@ -57,25 +57,28 @@ export const CONVERT_GEN_OPTIONS: GenOptions = {
   structuralFormats: true,
 };
 
-/** Shapes with a designed convert refusal (loud CNV001 lanes, recorded in
- *  ROADMAP's convert row and docs/done/format-conversion-completion.md) —
- *  iterations containing one REROLL rather than pinning refusals as green:
- *   - non-string index-signature keys (number / symbol / unions) — mixed and
- *     non-string index signatures refuse;
- *   - named properties BESIDE an index signature — the mixed shape refuses
- *     (an index-only object converts as a record);
- *   - the non-serialisable native binary kinds (ArrayBuffer & co) — no
- *     conversion spelling. **/
+/** Shapes with a designed convert refusal — an iteration containing one
+ *  REROLLS rather than pinning the refusal as green.
+ *
+ *  This filter is deliberately as SMALL as it can be, and shrinking it is how
+ *  coverage grows: every entry is a shape the generator happily produces and
+ *  the lane then refuses to look at, so anything listed here is invisible to
+ *  the oracle. Four entries were removed once they started converting —
+ *  non-string index keys, several index signatures, named members beside an
+ *  index (all now `record` / `intersection` spellings), and the binary natives
+ *  (`RT.classType`). Symbol-keyed members are the only shape left, and they
+ *  refuse because the escape cannot write a symbol's source name down. **/
 function isConvertibleShape(shape: TypeShape): boolean {
   switch (shape.kind) {
-    case 'arraybuffer':
-    case 'sharedarraybuffer':
-    case 'dataview':
+    // The escape prints RESOLVED type arguments, so a typed array comes back
+    // as `Uint8Array<ArrayBuffer | SharedArrayBuffer>` rather than the bare
+    // name — a different type wherever those defaults are not written out,
+    // and the id moves. docs/todos/escape-default-type-arguments.md.
     case 'typedarray':
+    case 'dataview':
       return false;
     case 'object':
-      if (shape.indexKey && (shape.indexKey.length > 1 || shape.indexKey[0] !== 'string')) return false;
-      if (shape.index && shape.props.length > 0) return false;
+      if (shape.indexKey?.includes('symbol')) return false;
       break;
     default:
       break;
