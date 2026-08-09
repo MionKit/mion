@@ -64,6 +64,7 @@ func randomAtomFile(rng *rand.Rand) string {
 	stringPool := []string{"ana", "with 'quote'", `back\slash`, "new\nline", "tab\there", "ünïcode", ""}
 	var out strings.Builder
 	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
+	out.WriteString("import * as TFT from '@ts-runtypes/core/formats/temporal';\n")
 	declCount := 3 + rng.Intn(6)
 	var names []string
 	for index := 0; index < declCount; index++ {
@@ -211,11 +212,13 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			return "[" + strings.Join(parts, ", ") + "]"
 		}
 	}
-	switch rng.Intn(8) {
+	switch rng.Intn(9) {
 	case 6:
 		return fmt.Sprintf("`route/${string}/%d-${number}`", rng.Intn(50))
 	case 7:
 		return fmt.Sprintf("(string & {readonly __brand: %s})", quoteTS(stringPool[rng.Intn(len(stringPool))]))
+	case 8:
+		return temporalLeaf(rng)
 	case 0:
 		return quoteTS(stringPool[rng.Intn(len(stringPool))])
 	case 1:
@@ -229,6 +232,32 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 	default:
 		return atoms[rng.Intn(len(atoms))]
 	}
+}
+
+// temporalLeaf draws a Temporal member: one of the 8 unbranded
+// `Temporal.<Name>` spellings, or a branded TFT form over the 6 orderable
+// families. Bound params come from a known-valid pool — relative `now±P…`
+// bounds are grammar-checked at build time per family (date-only components
+// for the date-like families, time-only for PlainTime), absolute literals at
+// runtime — because the sweep exercises the CONVERSION of branded temporal
+// nodes, not the bound validator.
+func temporalLeaf(rng *rand.Rand) string {
+	unbranded := []string{
+		"Temporal.Instant", "Temporal.ZonedDateTime", "Temporal.PlainDate", "Temporal.PlainTime",
+		"Temporal.PlainDateTime", "Temporal.PlainYearMonth", "Temporal.PlainMonthDay", "Temporal.Duration",
+	}
+	branded := []string{
+		"TFT.Instant<{min: 'now', max: 'now+P1Y'}>",
+		"TFT.ZonedDateTime<{min: 'now-P1D'}>",
+		"TFT.PlainDate<{min: '2020-01-01'}>",
+		"TFT.PlainTime<{min: 'now-PT1H'}>",
+		"TFT.PlainDateTime<{max: 'now+P1DT2H'}>",
+		"TFT.PlainYearMonth<{min: '2020-01'}>",
+	}
+	if rng.Intn(3) == 0 {
+		return branded[rng.Intn(len(branded))]
+	}
+	return unbranded[rng.Intn(len(unbranded))]
 }
 
 // randomFormatLeaf draws a generic-family format brand with random params.

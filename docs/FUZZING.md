@@ -25,7 +25,7 @@ All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/
 | File | Role |
 | ---- | ---- |
 | `core/seededRng.ts` | Deterministic PRNG (`mulberry32`) + `withSeededRandom(seed, fn)` — scopes a seeded `Math.random` so a whole run replays from one number. |
-| `core/typeGen.ts` | The THIRD giant switch — a seeded generator of random types across the WIDEST space (classes, functions, symbols, index sigs, native builtins, intersections, circular interfaces, any/unknown/never/void, format leaves) + named decls + a renderer to `.ts`. |
+| `core/typeGen.ts` | The THIRD giant switch — a seeded generator of random types across the WIDEST space (classes, functions, symbols, index sigs, labeled tuples, native builtins, intersections, circular interfaces, any/unknown/never/void, format leaves) + named decls + a renderer to `.ts`. |
 | `core/runTypeGen.ts` | Seeded generator of `RunType` graphs directly, for the offline lanes that need a schema without compiling a type. |
 | `core/soakBudget.ts` | The soak wall clock: refuses to start an iteration the remaining budget cannot pay for, and sizes each soak test's vitest timeout. |
 | `value/invalidValue.ts` | The metamorphic **giant switch** — the inverse of `mockType.ts`. Per-kind wrong-value generation + the tandem tree walk that corrupts one provably-invalid position. |
@@ -173,8 +173,10 @@ The `convert` suite is the format-conversion sweep and lives Go-side
 (`ts-go-runtypes/internal/convert/fuzz_atoms_test.go`, where the printers
 live): each iteration generates a random declaration file (atoms, literals,
 formats, containers, functions — named and optional-param arms — labeled and
-unlabeled tuples, Temporal members riding the shared ambient, brands,
-readonly members, self-cycles, mutual cycles, cross-declaration references),
+unlabeled tuples, Temporal leaves nested anywhere (all 8 unbranded
+`Temporal.*` types plus branded `TFT.*` bound forms over the 6 orderable
+families, riding the shared ambient), brands, readonly members, self-cycles,
+mutual cycles, cross-declaration references),
 converts it type → builders → json-schema → type, and asserts per leg that
 conversion is total (C1), every declaration keeps its structural id (C2),
 the chain converges (C4), re-conversion is a byte no-op (C5) and the
@@ -343,7 +345,9 @@ reported violation replays exactly.
   fails loudly with a replayable round if a future iteration exceeds
   `SOAK_ITERATION_CEILING_MS`.
 - Not yet generated: generics / conditional / mapped types, template-literal
-  types. Each is a natural new arm of `typeGen.ts`. (Branded `TypeFormat`
+  types, and Temporal members (their VALUES need the runtime Temporal object,
+  which the value lanes cannot assume — the Go-side convert sweep covers
+  Temporal types instead). Each is a natural new arm of `typeGen.ts`. (Branded `TypeFormat`
   primitives ARE generated now — the `FormatLeafName` roster in every lane's
   leaf pool, plus the structural decorations behind
   `GenOptions.structuralFormats`, which only the json-schema lane turns on.)
