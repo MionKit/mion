@@ -113,14 +113,16 @@ id-twins all already project that same shape.
   returns the label strings); functions with all-required named params print
   `RT.func([RT.slot(…)…], ret)`, optional/rest params keep the `getRunType`
   escape (their value-first spellings have no id-exact twin).
-- json-schema target: labeled tuples embed (`embedType<[x: number, y:
-  number]>()` — the type printer already spells labels; id-exact; dialect,
-  so `--portable` refuses). NO `jsLabels` door keyword — that decision
-  stands.
+- json-schema target: labeled tuples ride the `jsLabels` dialect keyword
+  (`{prefixItems: […], jsLabels: ['x', 'y']}`), which the door lowers back
+  onto the `__rtLabels` sentinel — id-exact, `--portable` refuses. The
+  original no-jsLabels descope was REVERSED by a follow-up decision
+  (2026-08-09, "support all features in all input modes"): the keyword
+  shipped right after the slot form, replacing the embed spelling.
 
 ## Out of scope
 
-A `jsLabels` schema keyword; reading labels from the call-site AST; changing
+Reading labels from the call-site AST; changing
 or deprecating the array/positional overloads; enum-builder nominal metadata
 (separate, pre-existing divergence); an object-literal spelling (impossible —
 see the shipped-note above).

@@ -609,21 +609,24 @@ export const TUPLE = {
       'Element labels never affect validation behaviour — only positional types are checked. Labels ARE id-relevant reflection data though (`children[].name` must be per-site reliable), so this labeled tuple is a different cache entry than the unlabelled `[string, number]`.',
     // Labels fold into the structural id (canonical nodes carry children[].name,
     // so same-shape/different-labels must not share a node). The value-first
-    // SLOT form carries the labels through the `__rtLabels` sentinel and
-    // CONVERGES with the labeled type-first id — the id-integrity assert pins
-    // it (the plain array form `RT.tuple([TF.string(), TF.number()])` still
-    // models the unlabeled shape and stays a distinct entry by design).
-    // Same principled divergence for the schema form: prefixItems cannot spell
-    // member labels, so the recovered [string, number] id differs from the
-    // labeled type-first id (embedType is the label-exact schema spelling).
-    jsonSchemaIdDivergent: true,
+    // SLOT form carries the labels through the `__rtLabels` sentinel and the
+    // schema form through the `jsLabels` dialect keyword — BOTH converge with
+    // the labeled type-first id, pinned by the id-integrity asserts (the plain
+    // array form `RT.tuple([TF.string(), TF.number()])` still models the
+    // unlabeled shape and stays a distinct entry by design).
     validate: () => createValidateFn<[name: string, age: number]>(),
     standardSchema: () => createStandardSchema<[name: string, age: number]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[name: string, age: number]>>(),
     validateSchema: () => createValidateFn(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())])),
     validateJsonSchema: () =>
       createValidateFn(
-        runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
+        runTypeFromJsonSchema({
+          type: 'array',
+          prefixItems: [{type: 'string'}, {type: 'number'}],
+          items: false,
+          minItems: 2,
+          jsLabels: ['name', 'age'],
+        } as const)
       ),
     deserializeValidate: () => deserializeValidate<[name: string, age: number]>(),
     validateReflect: () => {
@@ -640,7 +643,13 @@ export const TUPLE = {
       createGetValidationErrorsFn(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())])),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
-        runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
+        runTypeFromJsonSchema({
+          type: 'array',
+          prefixItems: [{type: 'string'}, {type: 'number'}],
+          items: false,
+          minItems: 2,
+          jsLabels: ['name', 'age'],
+        } as const)
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[name: string, age: number]>(),
     getValidationErrorsReflect: () => {

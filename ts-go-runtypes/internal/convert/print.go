@@ -1946,10 +1946,10 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
-		if shape.labeled {
-			// Labels are id data with no JSON Schema keyword — embed the
-			// labeled tuple type verbatim (dialect; --portable refuses).
-			return ctx.schemaEmbedNode(node)
+		if shape.labeled && ctx.opts.Portable {
+			// jsLabels is RunTypes dialect — labels have no standard keyword.
+			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: "tuple slot labels have no standard 2020-12 spelling; drop --portable to use the jsLabels dialect keyword"}
 		}
 		var prefixParts []string
 		for _, member := range append(append([]*reflection.RunType{}, shape.required...), shape.optional...) {
@@ -1975,6 +1975,21 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			out += fmt.Sprintf(", items: %s", restText)
 		} else {
 			out += ", items: false"
+		}
+		if shape.labeled {
+			// Slot labels ride the jsLabels dialect keyword, one literal per
+			// slot in order (rest slot included) — the door lowers it back
+			// onto the `__rtLabels` sentinel, so the printed schema resolves
+			// to the same labeled-tuple id.
+			labels := append(append([]string{}, shape.requiredLabels...), shape.optionalLabels...)
+			if shape.rest != nil {
+				labels = append(labels, shape.restLabel)
+			}
+			quoted := make([]string, 0, len(labels))
+			for _, label := range labels {
+				quoted = append(quoted, quoteSingle(label))
+			}
+			out += fmt.Sprintf(", jsLabels: [%s]", strings.Join(quoted, ", "))
 		}
 		return out + "}", nil
 	case reflection.KindFunction, reflection.KindTemplateLiteral, reflection.KindObject:

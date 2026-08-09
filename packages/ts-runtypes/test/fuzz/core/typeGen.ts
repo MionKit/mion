@@ -46,9 +46,8 @@ export type TypeShape =
   | {kind: 'symbol'}
   | {kind: 'array'; elem: TypeShape; structural?: ArrayStructural}
   // `labels` names every slot (parallel to elems, all-or-nothing — the TS
-  // grammar) and renders `[k0: A, k1: B]`. Labels are id data with no JSON
-  // Schema spelling, so only lanes generating with `GenOptions.tupleLabels`
-  // ever see them.
+  // grammar) and renders `[k0: A, k1: B]`; the schema side renders the
+  // jsLabels dialect keyword. Generated only under `GenOptions.tupleLabels`.
   | {kind: 'tuple'; elems: TypeShape[]; labels?: string[]}
   | {kind: 'object'; props: PropShape[]; index?: TypeShape; indexKey?: IndexKeyKind[]}
   | {kind: 'record'; value: TypeShape; structural?: ObjectStructural}
@@ -620,10 +619,10 @@ export interface GenOptions {
    *  import-free preamble can spell. **/
   formatLeafPool?: readonly FormatLeafName[];
   /** Emit LABELED tuples sometimes (`[k0: A, k1: B]` — every slot named, the
-   *  TS all-or-nothing rule). Labels fold into the structural id but have no
-   *  JSON Schema spelling, so the jsonschema id-convergence lane keeps this
-   *  OFF (schemaRender refuses labeled shapes loudly); the value lanes are
-   *  unaffected (validation is positional). **/
+   *  TS all-or-nothing rule). Labels fold into the structural id; the schema
+   *  side spells them with the jsLabels dialect keyword, so every lane —
+   *  the jsonschema id-convergence lane included — may generate them. The
+   *  value lanes are unaffected (validation is positional). **/
   tupleLabels?: boolean;
 }
 
