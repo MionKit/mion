@@ -96,18 +96,36 @@ type moduleImport struct {
 	module    string
 	namespace string
 	named     []namedBinding
-	// managed marks one of the four runtypes modules whose bindings the
+	// managed marks one of the five runtypes modules whose bindings the
 	// role table owns; rewritable marks a statement whose SHAPE this package
 	// may rewrite at all (named imports only — no default, no namespace).
 	// Foreign modules are rewritable-but-not-managed: bindings are added for
 	// cross-file references and removed only when conversion made them unused.
 	managed    bool
 	rewritable bool
-	// Later import statements from the SAME module merge here read-only:
-	// their bindings count as present (no duplicate additions) but only the
-	// primary statement is ever rewritten.
-	extraNamespace string
-	extraNamed     []namedBinding
+	// Later import statements from the SAME module. A managed named-only
+	// extra folds into the canonical managed block (bindings carried forward,
+	// statement removed) — the block render itself emits namespace + named as
+	// two statements, so its own output MUST re-fold or the layout drifts.
+	// Every other shape merges read-only: bindings count as present but the
+	// statement is never touched.
+	extras []*moduleImport
+}
+
+// foldable reports whether this extra statement may be folded into the
+// canonical managed block: a managed named-only statement (a namespace extra
+// would need a second namespace slot the render does not have).
+func (extra *moduleImport) foldable() bool {
+	return extra.managed && extra.rewritable && extra.namespace == ""
+}
+
+// extraNamedBindings flattens the named bindings of every extra statement.
+func (entry *moduleImport) extraNamedBindings() []namedBinding {
+	var named []namedBinding
+	for _, extra := range entry.extras {
+		named = append(named, extra.named...)
+	}
+	return named
 }
 
 // importScan is the file's managed-import inventory. allImportEnds records
@@ -124,19 +142,22 @@ func (scan *importScan) namespaceAlias(module string) string {
 		if entry.namespace != "" {
 			return entry.namespace
 		}
-		return entry.extraNamespace
+		for _, extra := range entry.extras {
+			if extra.namespace != "" {
+				return extra.namespace
+			}
+		}
 	}
 	return ""
 }
 
 func (scan *importScan) localFor(module, imported string) string {
-	if entry := scan.byModule[module]; entry != nil {
-		for _, binding := range entry.named {
-			if binding.imported == imported {
-				return binding.local
-			}
-		}
-		for _, binding := range entry.extraNamed {
+	entry := scan.byModule[module]
+	if entry == nil {
+		return ""
+	}
+	for _, statement := range append([]*moduleImport{entry}, entry.extras...) {
+		for _, binding := range statement.named {
 			if binding.imported == imported {
 				return binding.local
 			}
@@ -148,17 +169,13 @@ func (scan *importScan) localFor(module, imported string) string {
 func (scan *importScan) localNames() []string {
 	var locals []string
 	for _, entry := range scan.byModule {
-		if entry.namespace != "" {
-			locals = append(locals, entry.namespace)
-		}
-		if entry.extraNamespace != "" {
-			locals = append(locals, entry.extraNamespace)
-		}
-		for _, binding := range entry.named {
-			locals = append(locals, binding.local)
-		}
-		for _, binding := range entry.extraNamed {
-			locals = append(locals, binding.local)
+		for _, statement := range append([]*moduleImport{entry}, entry.extras...) {
+			if statement.namespace != "" {
+				locals = append(locals, statement.namespace)
+			}
+			for _, binding := range statement.named {
+				locals = append(locals, binding.local)
+			}
 		}
 	}
 	return locals
@@ -184,7 +201,8 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 			continue
 		}
 		module := importDecl.ModuleSpecifier.Text()
-		ours := module == moduleCore || module == moduleBuilders || module == moduleFormats || module == moduleJSONSchema
+		ours := module == moduleCore || module == moduleBuilders || module == moduleFormats ||
+			module == moduleTemporal || module == moduleJSONSchema
 		entry := &moduleImport{stmt: statement, module: module, managed: ours, rewritable: true}
 		clause := importDecl.ImportClause
 		if clause == nil {
@@ -221,13 +239,10 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 				}
 			}
 		}
-		// The FIRST statement per module is the rewritable primary; later
-		// statements merge read-only so their bindings count as present.
+		// The FIRST statement per module is the primary; later statements
+		// merge as extras (foldable or read-only per their own shape).
 		if existing := scan.byModule[module]; existing != nil {
-			if entry.namespace != "" && existing.namespace == "" && existing.extraNamespace == "" {
-				existing.extraNamespace = entry.namespace
-			}
-			existing.extraNamed = append(existing.extraNamed, entry.named...)
+			existing.extras = append(existing.extras, entry)
 			continue
 		}
 		scan.byModule[module] = entry
@@ -267,20 +282,40 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 	}
 	var edits []replacement
 	var additions []string
-	// Module order is the canonical block order for appended statements.
+	// The managed modules render as ONE canonical block in the module order
+	// below, placed at the FIRST managed statement's position (the others are
+	// removed) — or appended with the additions when the file has none. Keeping
+	// each managed statement in its own slot made the layout path-dependent: a
+	// statement surviving a leg kept its position while one dropped by an
+	// earlier leg was re-added after the other imports, so two conversion
+	// chains landing on the same form disagreed on import order.
+	var managedBlock []string
+	var managedStmts []*moduleImport
 	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleTemporal, moduleJSONSchema} {
 		entry := scan.byModule[module]
 		var finalNamespace string
 		var finalNamed []namedBinding
+		// fixed* are bindings on statements the plan never touches (read-only
+		// extras): they count as present but cannot be edited or removed.
+		var fixedNamespace string
+		var fixedNamed []namedBinding
+		var foldStmts []*moduleImport
 		if entry != nil && entry.managed {
 			finalNamespace = entry.namespace
 			finalNamed = append(finalNamed, entry.named...)
 		}
-		var extraNamespace string
-		var extraNamed []namedBinding
 		if entry != nil {
-			extraNamespace = entry.extraNamespace
-			extraNamed = entry.extraNamed
+			for _, extra := range entry.extras {
+				if entry.managed && extra.foldable() {
+					finalNamed = append(finalNamed, extra.named...)
+					foldStmts = append(foldStmts, extra)
+					continue
+				}
+				if extra.namespace != "" && fixedNamespace == "" {
+					fixedNamespace = extra.namespace
+				}
+				fixedNamed = append(fixedNamed, extra.named...)
+			}
 		}
 		for _, role := range managedRoles {
 			if role.module != module {
@@ -289,11 +324,10 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 			local := role.local(names)
 			// A namespace import of a managed module covers EVERY member
 			// spelling (the printers then use qualified names), so named
-			// roles count as present under it — appending a named binding
-			// would be swallowed by the namespace-wins renderer.
-			present := finalNamespace != "" || extraNamespace != ""
+			// roles count as present under it.
+			present := finalNamespace != "" || fixedNamespace != ""
 			if !present && !role.namespace {
-				for _, binding := range append(append([]namedBinding{}, finalNamed...), extraNamed...) {
+				for _, binding := range append(append([]namedBinding{}, finalNamed...), fixedNamed...) {
 					if binding.imported == role.imported {
 						present = true
 					}
@@ -326,12 +360,28 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		// and survives unless its own local is unused AND it is one of ours —
 		// non-role bindings are never removed.
 		if entry != nil && entry.managed {
-			appendImportEdit(&edits, source, entry, renderImport(module, finalNamespace, finalNamed))
-			continue
+			managedStmts = append(managedStmts, entry)
+			managedStmts = append(managedStmts, foldStmts...)
 		}
 		if rendered := renderImport(module, finalNamespace, finalNamed); rendered != "" {
-			additions = append(additions, rendered)
+			managedBlock = append(managedBlock, rendered)
 		}
+	}
+	if len(managedStmts) > 0 {
+		first := managedStmts[0]
+		for _, entry := range managedStmts[1:] {
+			if entry.stmt.Pos() < first.stmt.Pos() {
+				first = entry
+			}
+		}
+		appendImportEdit(&edits, source, first, strings.Join(managedBlock, "\n"))
+		for _, entry := range managedStmts {
+			if entry != first {
+				appendImportEdit(&edits, source, entry, "")
+			}
+		}
+	} else {
+		additions = append(additions, managedBlock...)
 	}
 	// Foreign modules, in deterministic order.
 	neededByModule := map[string][]string{}
@@ -358,7 +408,7 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 			if entry == nil {
 				return false
 			}
-			for _, binding := range append(append([]namedBinding{}, entry.named...), entry.extraNamed...) {
+			for _, binding := range append(append([]namedBinding{}, entry.named...), entry.extraNamedBindings()...) {
 				if binding.imported == name {
 					return true
 				}
@@ -389,7 +439,7 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		}
 		for _, name := range neededNames {
 			present := false
-			for _, existing := range append(append([]namedBinding{}, finalNamed...), entry.extraNamed...) {
+			for _, existing := range append(append([]namedBinding{}, finalNamed...), entry.extraNamedBindings()...) {
 				if existing.imported == name {
 					present = true
 				}
@@ -454,27 +504,33 @@ func appendImportEdit(edits *[]replacement, source string, entry *moduleImport, 
 // A namespace and named bindings never share one statement (TS forbids it) —
 // managed modules only ever carry one shape, so namespace wins if both.
 func renderImport(module, namespace string, named []namedBinding) string {
+	// Namespace and named bindings render as SEPARATE statements — TS has no
+	// combined form, and the historical namespace-wins render silently DROPPED
+	// user named bindings (their locals are referenced by user code a managed
+	// namespace does not cover), leaving the output path-dependent and, for a
+	// used binding, broken.
+	var statements []string
 	if namespace != "" {
-		return fmt.Sprintf("import * as %s from '%s';", namespace, module)
+		statements = append(statements, fmt.Sprintf("import * as %s from '%s';", namespace, module))
 	}
-	if len(named) == 0 {
-		return ""
-	}
-	sorted := make([]namedBinding, len(named))
-	copy(sorted, named)
-	sort.Slice(sorted, func(a, b int) bool { return sorted[a].imported < sorted[b].imported })
-	var parts []string
-	for _, binding := range sorted {
-		part := binding.imported
-		if binding.local != binding.imported {
-			part += " as " + binding.local
+	if len(named) > 0 {
+		sorted := make([]namedBinding, len(named))
+		copy(sorted, named)
+		sort.Slice(sorted, func(a, b int) bool { return sorted[a].imported < sorted[b].imported })
+		var parts []string
+		for _, binding := range sorted {
+			part := binding.imported
+			if binding.local != binding.imported {
+				part += " as " + binding.local
+			}
+			if binding.typeOnly {
+				part = "type " + part
+			}
+			parts = append(parts, part)
 		}
-		if binding.typeOnly {
-			part = "type " + part
-		}
-		parts = append(parts, part)
+		statements = append(statements, fmt.Sprintf("import {%s} from '%s';", strings.Join(parts, ", "), module))
 	}
-	return fmt.Sprintf("import {%s} from '%s';", strings.Join(parts, ", "), module)
+	return strings.Join(statements, "\n")
 }
 
 // identifierUsedOutside reports whether local is referenced anywhere outside
@@ -494,8 +550,10 @@ func identifierUsedOutside(sourceFile *ast.SourceFile, local string, scan *impor
 	}
 	inImports := func(pos int) bool {
 		for _, entry := range scan.byModule {
-			if pos >= entry.stmt.Pos() && pos < entry.stmt.End() {
-				return true
+			for _, statement := range append([]*moduleImport{entry}, entry.extras...) {
+				if pos >= statement.stmt.Pos() && pos < statement.stmt.End() {
+					return true
+				}
 			}
 		}
 		return false

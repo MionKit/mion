@@ -142,6 +142,37 @@ func TestChain_SelfCycle(t *testing.T) {
 	}
 }
 
+func TestCircular_StructuralPayloadRefusedOnBuilders(t *testing.T) {
+	// RT.circular's Recursive<Body> substitution maps every container
+	// homomorphically, merging container-level sentinel intersections — a
+	// branded record inside a cycle resolves a DIFFERENT id value-first than
+	// type-first (found by the FE roundtrip fuzz lane; the underlying
+	// limitation is filed in docs/todos/circular-brand-substitution.md). The
+	// builders target must refuse rather than print the id-moving spelling.
+	// The schema target carries the same declaration exactly ($ref: '#'
+	// rebuilds the brand at the right layer) — the chain oracle proves it.
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Registry = {entries: TF.FormattedObject<Record<string, Registry>, {minProperties: 1}>};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+		!strings.Contains(diags[0].Message, "recursive type") {
+		t.Fatalf("expected the circular structural-payload refusal, got %+v", diags)
+	}
+	if !strings.Contains(output, "export type Registry = {entries: TF.FormattedObject<Record<string, Registry>, {minProperties: 1}>};") {
+		t.Errorf("refused declaration must stay untouched:\n%s", output)
+	}
+	// Plain primitive brands inside cycles stay convertible — they pass the
+	// Self substitution untouched.
+	safeSource := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Chain = {tag: TF.Email; next?: Chain};\n"
+	builderForm := convertAndCheckIDs(t, safeSource, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.circular(") {
+		t.Errorf("primitive-branded cycles should still convert:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDsIn(t, map[string]string{"main.ts": source}, convert.TargetJSONSchema)
+	convertAndCheckIDsIn(t, map[string]string{"main.ts": schemaForm}, convert.TargetType)
+}
+
 func TestChain_MutualCycle(t *testing.T) {
 	// Builders/schema inline the partner (a name reference would make the
 	// const's type self-referential); the type target restores both names.

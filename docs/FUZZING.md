@@ -40,6 +40,7 @@ All under [`packages/ts-runtypes/test/fuzz/`](../packages/ts-runtypes/test/fuzz/
 | `type/mockSeedFuzz.ts`, `type/tsValidate.ts` | The mock-determinism driver, and the in-process TypeScript validity gate that filters false positives on non-compilable generated types. |
 | `type/*.smoke.test.ts`, `type/bugReprosValidTs.test.ts` | Pinned minimal repros for findings already fixed. |
 | `jsonschema/schemaRender.ts` + `jsonSchemaFuzz.integration.test.ts` | The json-schema lane: normalize a generated type to the expressible subset, render it as draft 2020-12, and assert the type-first spelling and `FromJsonSchema<S>` resolve to ONE structural id. The format-leaf roster covers EVERY format feature (all 19 `format:` keyword rows, both content keywords, param constraints) and the type-first side IMPORTS the shipped brands (`TF.*` via the fixture preamble + the src overlay) — nothing is restated, so brand/door drift fails loudly as an id divergence at the exact leaf (see the COVERAGE / NO DUPLICATION rules on `FormatLeafName` in `core/typeGen.ts`). Per-keyword convergence is also enumerated (`schemaFormatKeywordConvergence.test.ts`, the id-integrity catalog driver); this lane adds arbitrary-depth composition. |
+| `convert/convertRoundtrip.ts` + `convertFuzz.integration.test.ts` | The convert roundtrip lane — the FE, real-CLI twin of the Go atom sweep, run over the FULL generated type space (`CONVERT_GEN_OPTIONS` = the wild space + `structuralFormats`). Each iteration renders a declarations file with `getRunTypeId` probes (both call shapes for the root, asserted id-equal every draw), spawns the real `ts-runtypes convert` binary over a real temp project (the shipped dist package on disk), walks TWO independently randomized form chains (builders / json-schema middles closed by the type form), asserts every declaration's id after EVERY leg via the resolver's serve ops, and requires the two chains' final type forms to be BYTE-EQUAL — the canonical-fixpoint oracle that caught the path-dependent union order, dropped user import bindings, preset-vs-params id splits, and the RT.circular payload loss. Designed loud refusals reroll or count against a ceiling (`EXPECTED_REFUSALS`) so the allowlist can never swallow the lane. |
 | `roundtrip/roundtripOracle.ts` + `roundtripRunner.ts` | The all-strategy round-trip lane (`RT-*` oracles): every codec strategy for one generated serialisable type. |
 | `binary/sizeOracle.ts` + `sizeFuzzRunner.ts` | The binary size-estimate lane (`O-SIZE-*`): in-bounds values must not resize the cold buffer, oversized ones must. |
 | `binary/binaryEncoderResize.test.ts` | Pinned regression for the first finding. |
@@ -167,7 +168,7 @@ All suites run through the internal CLI: `pnpm rtx core fuzz <suite> [--soak]`. 
 builds the binary + plugin first (except `unit`, which needs neither) and sets the
 suite's `RT_FUZZ_*` env for you. Suites: `unit | value | types | nondata |
 roundtrip | size | jsonschema | cloning | enrich | i18n | typemod | race |
-sidecar | patterngen | convert | all`.
+sidecar | patterngen | convert | convertcli | all`.
 
 The `convert` suite is the format-conversion sweep and lives Go-side
 (`ts-go-runtypes/internal/convert/fuzz_atoms_test.go`, where the printers
@@ -182,6 +183,13 @@ conversion is total (C1), every declaration keeps its structural id (C2),
 the chain converges (C4), re-conversion is a byte no-op (C5) and the
 canonical reflection graph loses no information the id ignores (C6). `RT_FUZZ_SEED` replays a failure;
 `RT_FUZZ_ITER` (the `--soak` knob) widens the sweep.
+
+The `convertcli` suite is its FE twin (`convert/` in the fuzz tree, see the
+layout table): the same C2 oracle per leg but through the REAL CLI binary over
+a real on-disk project, the full `typeGen` space instead of the atom grammar,
+RANDOMIZED chains instead of the fixed one, and the byte-equal type-form
+fixpoint across two independent chains as the convergence oracle. Same knobs:
+`RT_FUZZ_SEED` replays, `RT_FUZZ_ITER` widens.
 
 A `--soak` run is bounded by its own wall clock: the runner refuses to start an
 iteration the remaining budget cannot pay for

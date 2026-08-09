@@ -279,6 +279,19 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 			return nil, diag
 		}
 		if ctx.usedSelf {
+			// RT.circular ties the knot through Recursive<Body>, whose Self
+			// substitution walks every container with a homomorphic map —
+			// MERGING container-level sentinel intersections (structural format
+			// brands, contains/pattern/propertyNames/unevaluated checks, tuple
+			// label carriers), so the value-first spelling resolves a DIFFERENT
+			// id than the type-first declaration (found by the FE roundtrip
+			// fuzz lane; the underlying Recursive limitation is filed in
+			// docs/todos/). Primitive and Date brands survive the substitution
+			// untouched, so only container payloads refuse.
+			if payload := ctx.circularLossyPayload(resolved.Node); payload != "" {
+				return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
+					Message: fmt.Sprintf("%s inside a recursive type is not convertible to builders (RT.circular cannot carry it through the self-substitution)", payload)}
+			}
 			ctx.needs.useRT = true
 			builderExpr = fmt.Sprintf("%s.circular(%s)", ctx.names.RT, builderExpr)
 		}
@@ -383,11 +396,40 @@ var uuidSpellings = map[string]formatFamily{
 	"7":   {builderFn: "uuidv7", typeAlias: "UUIDv7"},
 }
 
+// genericParamKeys lists each generic family's PUBLIC params surface
+// (StringParamsValueFirst / NumberParams / BigIntParams). A reflected
+// annotation carrying any OTHER key — a preset-internal engine flag like the
+// regex family's `isRegex` — cannot be spelled through the generic builder or
+// alias: `TF.string({isRegex: …})` is an ExactParams type error that resolves
+// a DIFFERENT brand (the roundtrip fuzz lane caught the id moving). Those
+// annotations take the exact TypeFormat-constructor escape instead, which
+// carries the params verbatim. Pinned by the chain + fuzz id oracles: a key
+// added to a params interface without a row here only ever DEMOTES that
+// annotation to the (always-correct) exact spelling.
+var genericParamKeys = map[string]map[string]bool{
+	"stringFormat": setOf("maxLength", "minLength", "length", "pattern", "allowedChars", "disallowedChars",
+		"allowedValues", "disallowedValues", "mockSamples", "contentEncoding", "contentMediaType",
+		"trim", "lowercase", "uppercase", "capitalize", "replace", "replaceAll"),
+	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf",
+		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "isCurrency"),
+	"bigintFormat": setOf("min", "max", "lt", "gt", "multipleOf",
+		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"),
+}
+
+func setOf(keys ...string) map[string]bool {
+	out := make(map[string]bool, len(keys))
+	for _, key := range keys {
+		out[key] = true
+	}
+	return out
+}
+
 // leafFormat resolves a node's annotation to a printable leaf family; false
 // when the annotation is structural (formattedArray/formattedObject, handled
 // at the kind branches) or unknown. uuid resolves through its version param;
 // uuidParamsless strips the version key from the printed params (the preset
-// alias already carries it).
+// alias already carries it). A generic family whose params include a key
+// outside its public surface resolves as `exact` (see genericParamKeys).
 func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[string]any, bool) {
 	if annotation.Name == "uuid" {
 		version, _ := annotation.Params["version"].(string)
@@ -400,6 +442,13 @@ func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[stri
 	family, known := formatFamilies[annotation.Name]
 	if !known {
 		return formatFamily{}, nil, false
+	}
+	if spellable := genericParamKeys[annotation.Name]; spellable != nil {
+		for key := range annotation.Params {
+			if !spellable[key] {
+				return formatFamily{exact: true, base: family.base, bigintParams: family.bigintParams}, annotation.Params, true
+			}
+		}
 	}
 	return family, annotation.Params, true
 }
@@ -756,6 +805,70 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 	return shape, true
 }
 
+// sortArms sorts a union's RENDERED arm texts into the canonical
+// path-independent order (plain text sort, stable). The checker's internal
+// union member order is a function of the source FORM — type-id creation
+// order differs between the type, builders and schema programs of one
+// declaration — so printing the Children order verbatim made the printed
+// union depend on the conversion path (the roundtrip fixpoint oracle caught
+// `t0 | t1` flipping to `t1 | t0` across chains). The rendered text is a pure
+// function of the node, so its sort order is the same in every program — and,
+// unlike an id sort, reads naturally (`'draft' | 'live'`).
+func sortArms(arms []string) []string {
+	sort.Strings(arms)
+	return arms
+}
+
+// circularLossyPayload walks a circular declaration's reachable graph for
+// payloads the RT.circular spelling cannot carry: Recursive<Body>'s Self
+// substitution maps every container homomorphically, MERGING container-level
+// sentinel intersections (structural format brands, the schema-check
+// sentinels, tuple label carriers) into plain object shapes with a different
+// structural id. Primitive-branded leaves (`string & brand`) and Date brands
+// pass the substitution untouched and stay printable. Returns a description
+// of the first offending payload, or "" when the body is safe.
+func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
+	visited := map[string]bool{}
+	var walk func(node *reflection.RunType) string
+	walk = func(node *reflection.RunType) string {
+		node = ctx.deref(node)
+		if node == nil || visited[node.ID] {
+			return ""
+		}
+		visited[node.ID] = true
+		hasChecks := len(node.Negations) > 0 || len(node.Contains) > 0 || len(node.PatternProps) > 0 ||
+			len(node.PropNames) > 0 || len(node.Unevaluated) > 0
+		if node.FormatAnnotation != nil || hasChecks {
+			safeCarrier := false
+			switch node.Kind {
+			case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+				reflection.KindBigInt, reflection.KindLiteral, reflection.KindUnknown:
+				safeCarrier = true
+			case reflection.KindClass:
+				safeCarrier = node.SubKind == reflection.SubKindDate
+			}
+			if !safeCarrier {
+				return "a structural constraint on a container"
+			}
+		}
+		if node.Kind == reflection.KindTuple {
+			for _, memberRef := range node.Children {
+				if member := ctx.deref(memberRef); member != nil && member.Name != "" {
+					return "a labeled tuple"
+				}
+			}
+		}
+		found := ""
+		node.EachRefSlot(func(child *reflection.RunType) {
+			if found == "" {
+				found = walk(child)
+			}
+		})
+		return found
+	}
+	return walk(root)
+}
+
 // typeExpr renders the type-first spelling of a node: reference/self checks,
 // the cycle guard, then the user-metadata intersection (`base & {…}`) around
 // the core kind spelling.
@@ -988,7 +1101,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 				branches = append(branches, branchText)
 			}
 			ctx.needs.useRT = true
-			return fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(branches, ", ")), nil
+			return fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(sortArms(branches), ", ")), nil
 		}
 		var parts []string
 		for _, armRef := range node.Children {
@@ -1004,7 +1117,7 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			}
 			parts = append(parts, armText)
 		}
-		return strings.Join(parts, " | "), nil
+		return strings.Join(sortArms(parts), " | "), nil
 	case reflection.KindObjectLiteral:
 		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -1485,7 +1598,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				}
 				branches = append(branches, branchText)
 			}
-			return rt(fmt.Sprintf("oneOf([%s])", strings.Join(branches, ", ")))
+			return rt(fmt.Sprintf("oneOf([%s])", strings.Join(sortArms(branches), ", ")))
 		}
 		var arms []string
 		for _, armRef := range node.Children {
@@ -1495,7 +1608,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			arms = append(arms, armText)
 		}
-		return rt(fmt.Sprintf("union([%s])", strings.Join(arms, ", ")))
+		return rt(fmt.Sprintf("union([%s])", strings.Join(sortArms(arms), ", ")))
 	case reflection.KindObjectLiteral:
 		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -1847,7 +1960,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 				}
 				branches = append(branches, branchText)
 			}
-			return fmt.Sprintf("{oneOf: [%s]}", strings.Join(branches, ", ")), nil
+			return fmt.Sprintf("{oneOf: [%s]}", strings.Join(sortArms(branches), ", ")), nil
 		}
 		allPlainLiterals := true
 		var literalParts []string
@@ -1875,7 +1988,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 		}
 		if allPlainLiterals {
-			return fmt.Sprintf("{enum: [%s]}", strings.Join(literalParts, ", ")), nil
+			return fmt.Sprintf("{enum: [%s]}", strings.Join(sortArms(literalParts), ", ")), nil
 		}
 		var arms []string
 		for _, armRef := range node.Children {
@@ -1885,7 +1998,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			arms = append(arms, armText)
 		}
-		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(arms, ", ")), nil
+		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(sortArms(arms), ", ")), nil
 	case reflection.KindObjectLiteral:
 		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
 			return ctx.schemaEmbedNode(node)
