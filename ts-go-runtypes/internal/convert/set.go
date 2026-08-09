@@ -214,6 +214,75 @@ func sameModuleFile(a, b string) bool {
 	return a == b || strings.EqualFold(a, b)
 }
 
+// fileContext bundles one file's conversion-scoped state for the printers.
+type fileContext struct {
+	set      *Set
+	bindings *fileBindings
+	inScope  map[string]bool
+	path     string
+}
+
+// inScopeNames collects every top-level name the file can reference: import
+// locals plus declared classes, enums, functions, namespaces, aliases,
+// interfaces and consts. Printers spelling a live symbol (an enum, a class)
+// check here — the reflected name is the DECLARATION name, which an aliased
+// import would not bind.
+func inScopeNames(sourceFile *ast.SourceFile) map[string]bool {
+	names := map[string]bool{}
+	root := sourceFile.AsNode()
+	if root == nil {
+		return names
+	}
+	addName := func(nameNode *ast.Node) {
+		if nameNode != nil && ast.IsIdentifier(nameNode) {
+			names[nameNode.Text()] = true
+		}
+	}
+	for _, statement := range root.Statements() {
+		if statement == nil {
+			continue
+		}
+		switch statement.Kind {
+		case ast.KindImportDeclaration:
+			importDecl := statement.AsImportDeclaration()
+			if importDecl == nil || importDecl.ImportClause == nil {
+				continue
+			}
+			clause := importDecl.ImportClause.AsImportClause()
+			if clause == nil {
+				continue
+			}
+			addName(clause.Name())
+			if bindings := clause.NamedBindings; bindings != nil {
+				switch bindings.Kind {
+				case ast.KindNamespaceImport:
+					addName(bindings.AsNamespaceImport().Name())
+				case ast.KindNamedImports:
+					for _, element := range bindings.AsNamedImports().Elements.Nodes {
+						addName(element.Name())
+					}
+				}
+			}
+		case ast.KindClassDeclaration, ast.KindEnumDeclaration, ast.KindFunctionDeclaration,
+			ast.KindTypeAliasDeclaration, ast.KindInterfaceDeclaration, ast.KindModuleDeclaration:
+			addName(statement.Name())
+		case ast.KindVariableStatement:
+			variableStatement := statement.AsVariableStatement()
+			if variableStatement == nil || variableStatement.DeclarationList == nil {
+				continue
+			}
+			declarationList := variableStatement.DeclarationList.AsVariableDeclarationList()
+			if declarationList == nil {
+				continue
+			}
+			for _, declarator := range declarationList.Declarations.Nodes {
+				addName(declarator.Name())
+			}
+		}
+	}
+	return names
+}
+
 // outsideSetDiags walks one declaration's ORIGINAL syntax for references to
 // convertible declarations (type aliases / interfaces / RunType consts) whose
 // file is a program source outside the conversion set. Conversion would have

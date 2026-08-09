@@ -30,10 +30,11 @@ type printContext struct {
 	resolve func(id string) *reflection.RunType
 	needs   importNeeds
 	// Set-wide reference state: the run's declaration table, this file's
-	// import bindings, the root node's id (self back-edges close on it) and,
-	// for the type target only, the printed declaration's own type name.
+	// import bindings and in-scope names, the root node's id (self back-edges
+	// close on it) and, for the type target only, the declaration's own name.
 	set         *Set
 	bindings    *fileBindings
+	inScope     map[string]bool
 	currentFile string
 	rootID      string
 	selfName    string
@@ -228,10 +229,11 @@ func (ctx *printContext) deref(node *reflection.RunType) *reflection.RunType {
 
 // printDecl renders the full replacement statement(s) for one resolved
 // declaration in the requested target form.
-func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, set *Set, bindings *fileBindings, currentFile string) (*printedDecl, *Diagnostic) {
+func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *fileContext) (*printedDecl, *Diagnostic) {
 	decl := resolved.Decl
 	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve,
-		set: set, bindings: bindings, currentFile: currentFile, rootID: resolved.Node.ID}
+		set: fileCtx.set, bindings: fileCtx.bindings, inScope: fileCtx.inScope,
+		currentFile: fileCtx.path, rootID: resolved.Node.ID}
 	exportPrefix := ""
 	if decl.Exported {
 		exportPrefix = "export "
@@ -524,7 +526,7 @@ func (ctx *printContext) closedParts(node *reflection.RunType, params map[string
 // initializer — the empty selfName turns that into a refusal.
 func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diagnostic) {
 	sub := &printContext{names: ctx.names, opts: ctx.opts, decl: ctx.decl, resolve: ctx.resolve,
-		set: ctx.set, bindings: ctx.bindings, currentFile: ctx.currentFile, rootID: ctx.rootID}
+		set: ctx.set, bindings: ctx.bindings, inScope: ctx.inScope, currentFile: ctx.currentFile, rootID: ctx.rootID}
 	text, diag := sub.typeExpr(node)
 	ctx.needs.merge(sub.needs)
 	return text, diag
@@ -692,7 +694,9 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 	return shape, true
 }
 
-// typeExpr renders the type-first spelling of a node.
+// typeExpr renders the type-first spelling of a node: reference/self checks,
+// the cycle guard, then the user-metadata intersection (`base & {…}`) around
+// the core kind spelling.
 func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic) {
 	node = ctx.deref(node)
 	if node == nil {
@@ -706,6 +710,75 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
+	if len(node.TypeMeta) == 0 {
+		return ctx.typeExprCore(node)
+	}
+	// TypeMeta — the open user-metadata objects a collapsed
+	// `base & {…}` intersection carried. The type target restores the
+	// intersection spelling; re-resolving collapses it back to the same
+	// base + metadata pair.
+	baseText, baseDiag := ctx.typeExprCore(node)
+	if baseDiag != nil {
+		return "", baseDiag
+	}
+	// A union base binds looser than `&`; an arrow base would swallow the
+	// intersection into its return type.
+	if node.Kind == reflection.KindUnion || node.Kind == reflection.KindFunction {
+		baseText = "(" + baseText + ")"
+	}
+	parts := []string{baseText}
+	for _, metaRef := range node.TypeMeta {
+		meta := ctx.deref(metaRef)
+		if meta == nil {
+			return "", unsupportedDiag(node, ctx.decl)
+		}
+		metaText, metaDiag := ctx.typeExpr(meta)
+		if metaDiag != nil {
+			return "", metaDiag
+		}
+		parts = append(parts, metaText)
+	}
+	return strings.Join(parts, " & "), nil
+}
+
+// typeSuffixNeedsParens marks spellings that bind looser than a postfix
+// `[]` / `?`: unions, metadata intersections and arrow types.
+func typeSuffixNeedsParens(node *reflection.RunType) bool {
+	if node == nil {
+		return false
+	}
+	if len(node.TypeMeta) > 0 {
+		return true
+	}
+	return node.Kind == reflection.KindUnion || node.Kind == reflection.KindFunction
+}
+
+// wrapForSuffix parenthesizes text when the node's spelling would misparse
+// under a following suffix — unless it printed as a plain name (a reference).
+func wrapForSuffix(node *reflection.RunType, text string) string {
+	if !typeSuffixNeedsParens(node) || isIdentifierText(text) {
+		return text
+	}
+	return "(" + text + ")"
+}
+
+// isIdentifierText reports a bare (possibly qualified) identifier spelling.
+func isIdentifierText(text string) bool {
+	if text == "" {
+		return false
+	}
+	for _, char := range text {
+		if !(char == '.' || char == '_' || char == '$' ||
+			(char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9')) {
+			return false
+		}
+	}
+	return true
+}
+
+// typeExprCore is the kind dispatch behind typeExpr (negations, format
+// annotations, then the kind switch), without the reference/cycle/meta layer.
+func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagnostic) {
 	if len(node.Negations) > 0 {
 		if len(node.Negations) > 1 {
 			return "", ctx.multiNegationDiag()
@@ -776,9 +849,7 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		if diag != nil {
 			return "", diag
 		}
-		if childNode != nil && childNode.Kind == reflection.KindUnion {
-			childText = "(" + childText + ")"
-		}
+		childText = wrapForSuffix(childNode, childText)
 		if hasStructuralPayload(node) {
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
 			if partsDiag != nil {
@@ -823,7 +894,17 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 			}
 			return fmt.Sprintf("Set<%s>", itemText), nil
 		}
-		return "", unsupportedDiag(node, ctx.decl)
+		if isTemporalSubKind(node.SubKind) {
+			return "", ctx.temporalPendingDiag()
+		}
+		if isRegExpNode(node) {
+			return "RegExp", nil
+		}
+		return ctx.classSpelling(node)
+	case reflection.KindRegexp:
+		return "RegExp", nil
+	case reflection.KindEnum:
+		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			var branches []string
@@ -839,9 +920,15 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		}
 		var parts []string
 		for _, armRef := range node.Children {
-			armText, diag := ctx.typeExpr(armRef)
+			armNode := ctx.deref(armRef)
+			armText, diag := ctx.typeExpr(armNode)
 			if diag != nil {
 				return "", diag
+			}
+			// An arrow type as a union arm must parenthesize (parse error
+			// otherwise); metadata intersections are fine under `|`.
+			if armNode != nil && armNode.Kind == reflection.KindFunction && !isIdentifierText(armText) {
+				armText = "(" + armText + ")"
 			}
 			parts = append(parts, armText)
 		}
@@ -864,6 +951,33 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		} else {
 			var parts []string
 			for _, member := range members {
+				if member.signatureNode != nil {
+					// Method / call-signature members keep their signature
+					// syntax — a property-typed arrow would be a different
+					// member kind (and id).
+					paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
+					if paramsDiag != nil {
+						return "", paramsDiag
+					}
+					returnText := "void"
+					if member.signatureNode.Return != nil {
+						text, returnDiag := ctx.typeExpr(member.signatureNode.Return)
+						if returnDiag != nil {
+							return "", returnDiag
+						}
+						returnText = text
+					}
+					if member.callSignature {
+						parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
+					} else {
+						optionalMark := ""
+						if member.optional {
+							optionalMark = "?"
+						}
+						parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
+					}
+					continue
+				}
 				innerText, innerDiag := ctx.typeExpr(member.child)
 				if innerDiag != nil {
 					return "", innerDiag
@@ -911,10 +1025,10 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 					isRest = true
 				}
 			}
-			// A union member binds looser than the `?` suffix and the rest
-			// `[]` — parenthesize so the printed member keeps its meaning.
-			if inner != nil && inner.Kind == reflection.KindUnion && (isRest || member.Optional) {
-				innerText = "(" + innerText + ")"
+			// Unions, metadata intersections and arrows bind looser than the
+			// `?` suffix and the rest `[]` — parenthesize to keep the meaning.
+			if isRest || member.Optional {
+				innerText = wrapForSuffix(inner, innerText)
 			}
 			switch {
 			case isRest && label != "":
@@ -938,8 +1052,161 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 			}
 		}
 		return "[" + strings.Join(parts, ", ") + "]", nil
+	case reflection.KindFunction:
+		return ctx.functionTypeText(node)
+	case reflection.KindTemplateLiteral:
+		templateText, ok := ctx.templateLiteralText(node)
+		if !ok {
+			return "", unsupportedDiag(node, ctx.decl)
+		}
+		return templateText, nil
+	case reflection.KindObject:
+		return "object", nil
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// functionTypeText renders a function node as an arrow type, parameter
+// names included — they fold into the structural id, so the printed labels
+// are the reflected ones.
+func (ctx *printContext) functionTypeText(node *reflection.RunType) (string, *Diagnostic) {
+	paramsText, paramsDiag := ctx.parameterListText(node)
+	if paramsDiag != nil {
+		return "", paramsDiag
+	}
+	returnText := "void"
+	if node.Return != nil {
+		text, returnDiag := ctx.typeExpr(node.Return)
+		if returnDiag != nil {
+			return "", returnDiag
+		}
+		returnText = text
+	}
+	return fmt.Sprintf("(%s) => %s", paramsText, returnText), nil
+}
+
+// parameterListText renders a signature-bearing node's parameter list.
+func (ctx *printContext) parameterListText(node *reflection.RunType) (string, *Diagnostic) {
+	var parts []string
+	for index, paramRef := range node.Parameters {
+		param := ctx.deref(paramRef)
+		if param == nil {
+			return "", unsupportedDiag(node, ctx.decl)
+		}
+		innerText, innerDiag := ctx.typeExpr(param.Child)
+		if innerDiag != nil {
+			return "", innerDiag
+		}
+		name := param.Name
+		if name == "" {
+			name = fmt.Sprintf("arg%d", index)
+		}
+		isRest := false
+		for _, flag := range param.Flags {
+			if flag == "rest" {
+				isRest = true
+			}
+		}
+		switch {
+		case isRest:
+			// A rest parameter's child IS the array type.
+			parts = append(parts, fmt.Sprintf("...%s: %s", name, innerText))
+		case param.Optional:
+			parts = append(parts, fmt.Sprintf("%s?: %s", name, innerText))
+		default:
+			parts = append(parts, fmt.Sprintf("%s: %s", name, innerText))
+		}
+	}
+	return strings.Join(parts, ", "), nil
+}
+
+// templateLiteralText reconstructs the backtick spelling from the reflected
+// texts + placeholder spans.
+func (ctx *printContext) templateLiteralText(node *reflection.RunType) (string, bool) {
+	payload, ok := node.Literal.(map[string]any)
+	if !ok {
+		return "", false
+	}
+	inner, ok := payload["templateLiteral"].(map[string]any)
+	if !ok {
+		return "", false
+	}
+	texts, textsOK := inner["texts"].([]any)
+	placeholders, placeholdersOK := inner["placeholders"].([]any)
+	if !textsOK || !placeholdersOK || len(texts) != len(placeholders)+1 {
+		return "", false
+	}
+	var out strings.Builder
+	out.WriteByte('`')
+	for index, placeholder := range placeholders {
+		text, textOK := texts[index].(string)
+		if !textOK {
+			return "", false
+		}
+		out.WriteString(escapeTemplateText(text))
+		span, spanOK := placeholder.(map[string]any)
+		if !spanOK {
+			return "", false
+		}
+		spanText, spanTextOK := templateSpanText(span)
+		if !spanTextOK {
+			return "", false
+		}
+		out.WriteString("${" + spanText + "}")
+	}
+	lastText, lastOK := texts[len(texts)-1].(string)
+	if !lastOK {
+		return "", false
+	}
+	out.WriteString(escapeTemplateText(lastText))
+	out.WriteByte('`')
+	return out.String(), true
+}
+
+// templateSpanText spells one placeholder span (an atomic kind or a literal).
+func templateSpanText(span map[string]any) (string, bool) {
+	kind, ok := spanKind(span["kind"])
+	if !ok {
+		return "", false
+	}
+	switch kind {
+	case reflection.KindString:
+		return "string", true
+	case reflection.KindNumber:
+		return "number", true
+	case reflection.KindBigInt:
+		return "bigint", true
+	case reflection.KindAny:
+		return "any", true
+	case reflection.KindUnknown:
+		return "unknown", true
+	case reflection.KindLiteral:
+		switch literal := span["literal"].(type) {
+		case string:
+			return quoteSingle(literal), true
+		case float64:
+			return strconv.FormatFloat(literal, 'g', -1, 64), true
+		case bool:
+			return strconv.FormatBool(literal), true
+		}
+	}
+	return "", false
+}
+
+func spanKind(raw any) (reflection.ReflectionKind, bool) {
+	switch value := raw.(type) {
+	case int:
+		return reflection.ReflectionKind(value), true
+	case float64:
+		return reflection.ReflectionKind(value), true
+	}
+	return 0, false
+}
+
+// escapeTemplateText escapes a literal segment for a backtick template.
+func escapeTemplateText(text string) string {
+	replacer := strings.NewReplacer("\\", "\\\\", "`", "\\`", "${", "\\${")
+	return replacer.Replace(text)
 }
 
 // builderExpr renders the value-first builder spelling of a node.
@@ -956,6 +1223,11 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
+	if len(node.TypeMeta) > 0 {
+		// User-metadata intersections have no value-first spelling — the
+		// type-argument escape carries the intersection exactly.
+		return ctx.builderEscape(node)
+	}
 	rt := func(call string) (string, *Diagnostic) {
 		ctx.needs.useRT = true
 		return ctx.names.RT + "." + call, nil
@@ -1073,7 +1345,35 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			return rt(fmt.Sprintf("set(%s)", itemText))
 		}
-		return "", unsupportedDiag(node, ctx.decl)
+		if isTemporalSubKind(node.SubKind) {
+			return "", ctx.temporalPendingDiag()
+		}
+		if isRegExpNode(node) {
+			return rt("regexp()")
+		}
+		if len(node.Arguments) == 0 {
+			// The plain instance type rides the natural ctor-value builder;
+			// a generic instantiation has no ctor-only spelling and escapes
+			// through getRunType instead.
+			spelling, diag := ctx.classSpelling(node)
+			if diag != nil {
+				return "", diag
+			}
+			return rt(fmt.Sprintf("classType(%s)", spelling))
+		}
+		return ctx.builderEscape(node)
+	case reflection.KindRegexp:
+		return rt("regexp()")
+	case reflection.KindEnum:
+		// NOT `RT.enum(Color)`: the enum builder carries the VALUE union
+		// (`E[keyof E]`, assignment-equivalent but a different reflected
+		// graph), so the id-exact builder spelling is the type-argument one.
+		name, diag := ctx.enumSpelling(node)
+		if diag != nil {
+			return "", diag
+		}
+		ctx.needs.useGetRunType = true
+		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, name), nil
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			var branches []string
@@ -1099,6 +1399,11 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
+		}
+		if hasSignatureMembers(members) {
+			// Callable/method-bearing shapes have no builder spelling that
+			// carries the member kinds — escape the whole object.
+			return ctx.builderEscape(node)
 		}
 		if indexValue != nil && len(members) > 0 {
 			return "", ctx.mixedIndexPendingDiag()
@@ -1177,6 +1482,11 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			call += ", " + restText
 		}
 		return rt(call + ")")
+	case reflection.KindFunction, reflection.KindTemplateLiteral, reflection.KindObject:
+		// No value-first spelling carries these exactly (RT.func defaults its
+		// parameter labels, RT.templateLiteral its part grouping) — the
+		// type-argument escape does.
+		return ctx.builderEscape(node)
 	}
 	return "", unsupportedDiag(node, ctx.decl)
 }
@@ -1197,6 +1507,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
+	if len(node.TypeMeta) > 0 {
+		return ctx.schemaEmbedNode(node)
+	}
 	dialect := func(literal string) (string, *Diagnostic) {
 		if ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
@@ -1345,7 +1658,17 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
 		}
-		return "", unsupportedDiag(node, ctx.decl)
+		if isTemporalSubKind(node.SubKind) {
+			return "", ctx.temporalPendingDiag()
+		}
+		if isRegExpNode(node) {
+			return dialect("{jsType: 'RegExp'}")
+		}
+		return ctx.schemaEmbedNode(node)
+	case reflection.KindRegexp:
+		return dialect("{jsType: 'RegExp'}")
+	case reflection.KindEnum:
+		return ctx.schemaEmbedNode(node)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
 			var branches []string
@@ -1402,6 +1725,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
+		}
+		if hasSignatureMembers(members) {
+			return ctx.schemaEmbedNode(node)
 		}
 		if indexValue != nil && len(members) > 0 {
 			return "", ctx.mixedIndexPendingDiag()
@@ -1480,8 +1806,109 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			out += ", items: false"
 		}
 		return out + "}", nil
+	case reflection.KindFunction, reflection.KindTemplateLiteral, reflection.KindObject:
+		return ctx.schemaEmbedNode(node)
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// liveSymbolName resolves the source-level name a node's live symbol (enum /
+// user class) is spelled with, checking it is actually bound in this file —
+// the reflected name is the DECLARATION name, which an aliased import
+// (`import {Color as C}`) would not bind.
+func (ctx *printContext) liveSymbolName(node *reflection.RunType, kindWord string) (string, *Diagnostic) {
+	name := node.TypeName
+	if name == "" && node.ClassRef != nil {
+		name = node.ClassRef.Name
+	}
+	if name == "" {
+		return "", unsupportedDiag(node, ctx.decl)
+	}
+	if ctx.inScope != nil && !ctx.inScope[name] {
+		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: fmt.Sprintf("%s %q is not in scope here (aliased imports of live symbols are not convertible — import it under its own name)", kindWord, name)}
+	}
+	return name, nil
+}
+
+// enumMemberFlag reports the `enumMember:` marker a single-member enum
+// reference carries — the container name is not reflected, so member
+// references refuse loudly for now.
+func enumMemberFlag(node *reflection.RunType) bool {
+	for _, flag := range node.Flags {
+		if strings.HasPrefix(flag, "enumMember:") {
+			return true
+		}
+	}
+	return false
+}
+
+// enumSpelling resolves an enum node to its in-scope declaration name.
+func (ctx *printContext) enumSpelling(node *reflection.RunType) (string, *Diagnostic) {
+	if enumMemberFlag(node) {
+		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "a single enum-member reference is not convertible yet (the reflected node does not carry the container name)"}
+	}
+	return ctx.liveSymbolName(node, "enum")
+}
+
+// classSpelling resolves a class node to its TYPE spelling (`User`,
+// `Box<string>`, `Error`). Builtin names are global and skip the scope check;
+// user classes must be bound under their declaration name.
+func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagnostic) {
+	var name string
+	if node.ClassRef != nil && node.ClassRef.Builtin != "" {
+		name = node.ClassRef.Builtin
+	} else {
+		liveName, diag := ctx.liveSymbolName(node, "class")
+		if diag != nil {
+			return "", diag
+		}
+		name = liveName
+	}
+	if len(node.Arguments) == 0 {
+		return name, nil
+	}
+	var argumentTexts []string
+	for _, argumentRef := range node.Arguments {
+		argument := ctx.deref(argumentRef)
+		argumentText, argumentDiag := ctx.typeExpr(argument)
+		if argumentDiag != nil {
+			return "", argumentDiag
+		}
+		argumentTexts = append(argumentTexts, argumentText)
+	}
+	return fmt.Sprintf("%s<%s>", name, strings.Join(argumentTexts, ", ")), nil
+}
+
+// temporalPendingDiag: Temporal builtins need the lib gating story first.
+func (ctx *printContext) temporalPendingDiag() *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: "Temporal types are not convertible yet"}
+}
+
+func isTemporalSubKind(subKind reflection.ReflectionSubKind) bool {
+	return subKind >= reflection.SubKindTemporalInstant && subKind <= reflection.SubKindTemporalDuration
+}
+
+func isRegExpNode(node *reflection.RunType) bool {
+	if node.Kind == reflection.KindRegexp {
+		return true
+	}
+	return node.Kind == reflection.KindClass && node.ClassRef != nil && node.ClassRef.Builtin == "RegExp"
+}
+
+// builderEscape spells a node as `getRunType<TypeText>()` on the builders
+// target — the escape for shapes with no value-first builder spelling
+// (functions, template literals, metadata intersections, generic class
+// instantiations). Type-argument resolution makes it id-exact by definition.
+func (ctx *printContext) builderEscape(node *reflection.RunType) (string, *Diagnostic) {
+	escapeText, escapeDiag := ctx.escapeTypeText(node)
+	if escapeDiag != nil {
+		return "", escapeDiag
+	}
+	ctx.needs.useGetRunType = true
+	return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, escapeText), nil
 }
 
 // schemaEmbedNode spells a node as `embedType<TypeText>()` on the schema
@@ -1525,20 +1952,23 @@ func (ctx *printContext) mixedIndexPendingDiag() *Diagnostic {
 		Message: "mixed named properties + index signature is not convertible yet (see docs/todos/format-conversion-completion.md)"}
 }
 
-// objectMember is one printable property: its source key spelling (quoted
-// when not a safe identifier), flags, and the dereferenced value node.
+// objectMember is one printable member: its source key spelling (quoted when
+// not a safe identifier), flags, the dereferenced value node — or, for
+// method / call-signature members, the signature-bearing node itself.
 type objectMember struct {
-	name     string
-	key      string
-	optional bool
-	readonly bool
-	child    *reflection.RunType
+	name          string
+	key           string
+	optional      bool
+	readonly      bool
+	child         *reflection.RunType
+	signatureNode *reflection.RunType
+	callSignature bool
 }
 
-// objectMembers collects a plain object shape's property members plus at most
-// one STRING-keyed index signature (number/symbol keys await jsIndexKeys).
-// Members the current phase cannot print (methods, call signatures) report
-// CNV001.
+// objectMembers collects an object shape's members: properties, method and
+// call signatures (type-target printable; builders/schema escape the whole
+// object), plus at most one STRING-keyed index signature (number/symbol keys
+// await jsIndexKeys).
 func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, *reflection.RunType, *Diagnostic) {
 	var members []*objectMember
 	var indexValue *reflection.RunType
@@ -1559,10 +1989,6 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			}
 			continue
 		}
-		if member.Kind != reflection.KindPropertySignature && member.Kind != reflection.KindProperty {
-			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/todos/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
-		}
 		if strings.HasPrefix(member.Name, "@@") {
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
@@ -1570,6 +1996,23 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		key := member.Name
 		if !member.IsSafeName {
 			key = quoteSingle(member.Name)
+		}
+		switch member.Kind {
+		case reflection.KindCallSignature:
+			members = append(members, &objectMember{signatureNode: member, callSignature: true})
+			continue
+		case reflection.KindMethodSignature, reflection.KindMethod:
+			members = append(members, &objectMember{
+				name:          member.Name,
+				key:           key,
+				optional:      member.Optional,
+				signatureNode: member,
+			})
+			continue
+		case reflection.KindPropertySignature, reflection.KindProperty:
+		default:
+			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/todos/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
@@ -1584,6 +2027,16 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		})
 	}
 	return members, indexValue, nil
+}
+
+// hasSignatureMembers reports whether any member is a method/call signature.
+func hasSignatureMembers(members []*objectMember) bool {
+	for _, member := range members {
+		if member.signatureNode != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // literalValueText renders a literal node's VALUE as TS source (`'a'`, `42`,

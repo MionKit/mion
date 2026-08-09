@@ -88,6 +88,9 @@ func randomAtomFile(rng *rand.Rand) string {
 		fmt.Fprintf(&out, "export type FzMutualA = {partner?: FzMutualB; tag: %s};\ntype FzMutualB = {back: FzMutualA[]};\n",
 			randomTypeText(rng, atoms, stringPool, 0))
 	}
+	if rng.Intn(3) == 0 {
+		fmt.Fprintf(&out, "enum FzMode {On, Off, Auto}\nexport type FzModeRef%d = {mode: FzMode; fallback?: FzMode};\n", rng.Intn(100))
+	}
 	return out.String()
 }
 
@@ -95,7 +98,10 @@ func randomAtomFile(rng *rand.Rand) string {
 // tuples above it.
 func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) string {
 	if depth > 0 {
-		switch rng.Intn(8) {
+		switch rng.Intn(9) {
+		case 8:
+			return fmt.Sprintf("((input: %s, extra?: %s) => %s)",
+				randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
 		case 6:
 			if rng.Intn(2) == 0 {
 				return fmt.Sprintf("Record<string, %s>", randomTypeText(rng, atoms, stringPool, depth-1))
@@ -158,7 +164,11 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			return "[" + strings.Join(parts, ", ") + "]"
 		}
 	}
-	switch rng.Intn(6) {
+	switch rng.Intn(8) {
+	case 6:
+		return fmt.Sprintf("`route/${string}/%d-${number}`", rng.Intn(50))
+	case 7:
+		return fmt.Sprintf("(string & {readonly __brand: %s})", quoteTS(stringPool[rng.Intn(len(stringPool))]))
 	case 0:
 		return quoteTS(stringPool[rng.Intn(len(stringPool))])
 	case 1:

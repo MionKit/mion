@@ -59,6 +59,13 @@ describe('json-schema / jsType dialect atoms', () => {
   it('void converges', () => {
     expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'void'} as const))).toBe(getRunTypeId<void>());
   });
+  it('RegExp converges through both marker shapes', () => {
+    const matcher = runTypeFromJsonSchema({jsType: 'RegExp'} as const);
+    expect(getRunTypeId(matcher)).toBe(getRunTypeId<RegExp>());
+    const sample: RegExp = /x/;
+    expect(getRunTypeId(sample)).toBe(getRunTypeId<RegExp>());
+  });
+
   it('native containers converge (Date / Map / Set / Promise)', () => {
     expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'Date'} as const))).toBe(getRunTypeId<Date>());
     const lookup = runTypeFromJsonSchema({

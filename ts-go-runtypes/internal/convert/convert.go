@@ -112,7 +112,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	decls := recognizeFile(sourceFile, typeChecker, fs)
 	imports := scanImports(sourceFile, source)
 	names := newNames(decls, imports)
-	bindings := buildFileBindings(sourceFile, typeChecker)
+	fileCtx := &fileContext{set: set, bindings: buildFileBindings(sourceFile, typeChecker), inScope: inScopeNames(sourceFile), path: absPath}
 
 	var replacements []replacement
 	needs := importNeeds{}
@@ -141,7 +141,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		if resolveErr != nil {
 			return nil, resolveErr
 		}
-		printed, printDiag := printDecl(resolved, opts, names, set, bindings, absPath)
+		printed, printDiag := printDecl(resolved, opts, names, fileCtx)
 		if printDiag != nil {
 			printDiag.File = absPath
 			result.Diags = append(result.Diags, *printDiag)
@@ -165,7 +165,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		return result, nil
 	}
 
-	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements, bindings.removableLocals(set))
+	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements, fileCtx.bindings.removableLocals(set))
 	replacements = append(replacements, importEdits...)
 	output, applyErr := applyReplacements(source, replacements)
 	if applyErr != nil {
