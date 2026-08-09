@@ -116,12 +116,33 @@ func TestBuildersToType_Atoms(t *testing.T) {
 	}
 }
 
-func TestBuildersToType_KeepsUsedConst(t *testing.T) {
+func TestBuildersToType_MarkerUseConvertsAwayWithTheConst(t *testing.T) {
+	// A MARKER use of the const is itself a conversion site (callsites.go), so
+	// rewriting it removes the last reference and the const converts away with
+	// it — where this used to refuse with CNV003, the file now converts whole.
 	source := buildersHeader +
 		"import {getRunTypeId} from '@ts-runtypes/core';\n" +
 		"export const userIdRT = TF.string();\n" +
 		"export type UserId = InferType<typeof userIdRT>;\n" +
 		"export const id = getRunTypeId(userIdRT);\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
+	expectNoDiags(t, diags)
+	expected := "import {getRunTypeId} from '@ts-runtypes/core';\n" +
+		"export type UserId = string;\n" +
+		"export const id = getRunTypeId<UserId>();\n"
+	if output != expected {
+		t.Errorf("output mismatch:\n--- got ---\n%s\n--- want ---\n%s", output, expected)
+	}
+}
+
+func TestBuildersToType_KeepsUsedConst(t *testing.T) {
+	// A use the converter cannot rewrite — a plain function taking the RunType —
+	// still pins the const, and CNV003 still says so.
+	source := buildersHeader +
+		"declare function describe(runType: unknown): string;\n" +
+		"export const userIdRT = TF.string();\n" +
+		"export type UserId = InferType<typeof userIdRT>;\n" +
+		"export const described = describe(userIdRT);\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetType})
 	if len(diags) != 1 || diags[0].Code != convert.CodeConstStillUsed {
 		t.Fatalf("expected one CNV003, got %+v", diags)

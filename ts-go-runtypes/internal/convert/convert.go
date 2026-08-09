@@ -151,6 +151,26 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		}
 		planned = append(planned, plannedDecl{decl: decl, printed: printed})
 	}
+	// Marker CALL SITES (callsites.go). Planned BEFORE the const-away fixpoint
+	// so their spans join keptSpans: rewriting `fn(namedRT)` into `fn<Named>()`
+	// removes a use of the const, which is exactly what lets the const convert
+	// away instead of refusing with CNV005.
+	var plannedCalls []*callSite
+	var callTexts []*printedDecl
+	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, fs, set, opts.Target) {
+		if site.form == opts.Target {
+			continue
+		}
+		printed, printDiag := printCallSite(site, opts, names, fileCtx, cache.NodeByID)
+		if printDiag != nil {
+			printDiag.File = absPath
+			result.Diags = append(result.Diags, *printDiag)
+			continue
+		}
+		plannedCalls = append(plannedCalls, site)
+		callTexts = append(callTexts, printed)
+	}
+
 	// Const-away safety, AFTER printing: converting to type-form removes the
 	// const binding, so every reference the conversion will NOT rewrite must
 	// keep it — and only the declarations that actually PRINTED get rewritten
@@ -160,6 +180,9 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	if opts.Target == TargetType {
 		for {
 			var keptSpans [][2]int
+			for _, site := range plannedCalls {
+				keptSpans = append(keptSpans, [2]int{site.start, site.end})
+			}
 			for _, plan := range planned {
 				keptSpans = append(keptSpans, [2]int{plan.decl.Stmt.Pos(), plan.decl.Stmt.End()})
 				if plan.decl.AliasStmt != nil {
@@ -186,6 +209,10 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 
 	var replacements []replacement
 	needs := importNeeds{}
+	for index, site := range plannedCalls {
+		needs.merge(callTexts[index].needs)
+		replacements = append(replacements, replacement{start: site.start, end: site.end, text: callTexts[index].text})
+	}
 	for _, plan := range planned {
 		decl := plan.decl
 		needs.merge(plan.printed.needs)
