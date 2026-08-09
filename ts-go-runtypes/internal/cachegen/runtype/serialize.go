@@ -1337,13 +1337,15 @@ func (cache *Cache) projectMembersInto(
 	}
 	for i, signature := range callSignatures {
 		callNode := &reflection.RunType{Kind: reflection.KindCallSignature}
-		cache.projectSignatureInto(signature, callNode)
+		// Id BEFORE projecting: parameter nodes intern under the owning
+		// node's id (see appendProperty — an empty id collides them all).
 		structural := fmt.Sprintf("_cs_%s_%d", node.ID, i)
 		callID, err := cache.uniqueDict(structural, cache.opts.hashLength())
 		if err != nil {
 			callID = "x_cs_" + structural
 		}
 		callNode.ID = callID
+		cache.projectSignatureInto(signature, callNode)
 		cache.intern(structural, callID)
 		cache.putNode(callID, callNode)
 		node.Children = append(node.Children, reflection.NewRef(callID))
@@ -1380,6 +1382,17 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 	member.IsSafeName = isSafeName(memberName)
 	applyMemberModifiers(member, symbol, asClass)
 
+	// The member id must exist BEFORE a signature projects into it: parameter
+	// nodes intern under `_pa_<member id>_<name>_<i>`, so an empty id would
+	// collide every same-named parameter of every method member onto one
+	// interned node (the last projection overwriting the rest).
+	structural := fmt.Sprintf("_pr_%s_%s_%d", parent.ID, memberName, index)
+	memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
+	if err != nil {
+		memberID = "x_pr_" + structural
+	}
+	member.ID = memberID
+
 	if isMethod {
 		if asClass {
 			member.Kind = reflection.KindMethod
@@ -1406,12 +1419,6 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 		}
 	}
 
-	structural := fmt.Sprintf("_pr_%s_%s_%d", parent.ID, memberName, index)
-	memberID, err := cache.uniqueDict(structural, cache.opts.hashLength())
-	if err != nil {
-		memberID = "x_pr_" + structural
-	}
-	member.ID = memberID
 	cache.intern(structural, memberID)
 	cache.putNode(memberID, member)
 	parent.Children = append(parent.Children, reflection.NewRef(memberID))
