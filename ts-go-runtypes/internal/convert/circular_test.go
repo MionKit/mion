@@ -183,23 +183,34 @@ func TestCircular_LabeledTupleConverts(t *testing.T) {
 	}
 }
 
-func TestCircular_VariadicLabeledTupleRefusedOnBuilders(t *testing.T) {
-	// The first of two residual shapes: an OPTIONAL (or rest) slot leaves the
-	// tuple without a single literal arity, so there is no slot-by-slot
-	// rebuild and the label carrier cannot be re-attached. Refuse loudly
-	// rather than print an id-moving spelling.
+func TestCircular_OptionalSlotLabeledTupleConverts(t *testing.T) {
+	// An OPTIONAL slot leaves the tuple without a single literal arity, so the
+	// rebuild splits it: the required slots are rebuilt by index, the rest ride
+	// `Partial`, and the label carrier is re-attached. Both halves of the chain
+	// keep the declaration's id.
 	source := "export type Loose = {link: [head: number, tail?: Loose]};\n"
-	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
-		!strings.Contains(diags[0].Message, "optional or rest slot") {
-		t.Fatalf("expected the variadic labeled-tuple refusal, got %+v", diags)
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.slot('head'") || !strings.Contains(builderForm, "RT.slot('tail'") {
+		t.Errorf("an optional-slot labeled tuple should print the slot form:\n%s", builderForm)
 	}
-	if !strings.Contains(output, "export type Loose = {link: [head: number, tail?: Loose]};") {
-		t.Errorf("refused declaration must stay untouched:\n%s", output)
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "[head: number, tail?: Loose]") {
+		t.Errorf("the type target should restore the optional labeled slot:\n%s", typeForm)
 	}
-	// The type and schema forms carry the same declaration exactly.
-	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
-	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+}
+
+func TestCircular_BrandedTemporalConverts(t *testing.T) {
+	// A branded Temporal value inside a recursive declaration used to resolve a
+	// different id value-first: the substitution walked the class, whose
+	// methods return the class, and rebuilt it into a plain object. Temporal
+	// joined Date and RegExp as a leaf, so it now converts.
+	source := "import * as TFT from '@ts-runtypes/core/formats/temporal';\n" +
+		"export type Slot = {value: TFT.PlainDateTime<{max: '2030-01-01T00:00:00'}>; next?: Slot};\n"
+	builderForm := convertAndCheckIDsIn(t, fuzzSources(source), convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "TFT.plainDateTime(") {
+		t.Errorf("a branded Temporal inside a cycle should print its builder:\n%s", builderForm)
+	}
 }
 
 func TestCircular_OneOfPrimitiveBranchRefusedOnBuilders(t *testing.T) {

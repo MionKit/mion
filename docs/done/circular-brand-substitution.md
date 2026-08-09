@@ -65,22 +65,25 @@ the other side from the `sentinelKeys` module, so shipping an eleventh
 sentinel without wiring it here is a COMPILE error rather than a silent id
 move.
 
-**Two shapes remain lossy, and both refuse loudly** (`circularLossyPayload`,
-internal/convert/print.go) — in each the sentinel rides a base TypeScript
-cannot separate from it:
+**One shape remains lossy and refuses loudly** (`circularLossyPayload`,
+internal/convert/print.go): an **exclusive union (`oneOf`) with a primitive /
+Date / RegExp branch** reaching the cycle. The branch tuple rides EVERY arm,
+and a primitive arm passes the substitution untouched, so that copy keeps an
+unsubstituted `Self` — the sentinel rides a base TypeScript cannot separate
+from it.
 
-- a **labeled tuple with an optional or rest slot** that the cycle runs
-  through (no single literal arity, so no slot-by-slot rebuild);
-- an **exclusive union (`oneOf`) with a primitive / Date / RegExp branch**
-  reaching the cycle: the branch tuple rides EVERY arm, and a primitive arm
-  passes the substitution untouched, so that copy keeps an unsubstituted
-  `Self`.
+Two shapes that were lossy when this first landed were closed in a FOLLOW-UP
+on the same branch:
 
-A third refusal is kept for a DIFFERENT, pre-existing bug found while
-finishing this one: a **branded Temporal value** inside a recursive type still
-diverges. It reproduces identically with this whole change reverted, so it is
-filed separately as
-[docs/todos/circular-temporal-brand-divergence.md](../todos/circular-temporal-brand-divergence.md).
+- a **labeled tuple with an optional slot** that the cycle runs through. An
+  optional slot leaves `length` a union (`1 | 2`) instead of a literal, so the
+  slot-by-slot rebuild had nothing to count. It now splits: the required
+  prefix is rebuilt by index, the remaining slots ride `Partial`, and the
+  labels re-attach. (A REST element makes `length` plain `number`, which is
+  the array arm — so optional slots were the whole case.)
+- a **branded Temporal value** inside a recursive type, which had a different
+  root cause entirely and is recorded in
+  [docs/done/circular-temporal-brand-divergence.md](circular-temporal-brand-divergence.md).
 
 ## Cost
 
@@ -119,4 +122,5 @@ Value-first circular spellings with container-level sentinel payloads converge
 with their type-first twins (pinned, both marker shapes); the convert builders
 target prints them instead of refusing; the FE roundtrip lane passes across ten
 seeds at 20 iterations and the Go sweep at 150, with the allowance narrowed to
-the two documented residuals plus the separately-filed Temporal one.
+the single documented residual (a `oneOf` with a primitive branch reaching the
+cycle).

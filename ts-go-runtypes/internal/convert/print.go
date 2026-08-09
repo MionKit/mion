@@ -849,17 +849,6 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 			return ""
 		}
 		visited[node.ID] = true
-		// A branded CLASS leaf (the Temporal families) still resolves a
-		// different id value-first inside a recursive declaration than
-		// type-first. That divergence predates the sentinel-carry work and has
-		// a different root cause — it reproduces identically with the carry
-		// reverted, and outside a cycle the same brand converges — so it keeps
-		// a refusal here and is filed as its own spec
-		// (docs/todos/circular-temporal-brand-divergence.md). Date brands pass
-		// the substitution verbatim and stay convertible.
-		if node.FormatAnnotation != nil && node.Kind == reflection.KindClass && node.SubKind != reflection.SubKindDate {
-			return "a branded Temporal value"
-		}
 		if len(node.OneOf) > 0 && ctx.reachesCycle(node) {
 			for _, branchRef := range node.OneOf {
 				branch := ctx.deref(branchRef)
@@ -878,9 +867,6 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 					}
 				}
 			}
-		}
-		if node.Kind == reflection.KindTuple && ctx.tupleIsLabeled(node) && ctx.tupleVariadic(node) && ctx.reachesCycle(node) {
-			return "a labeled tuple with an optional or rest slot"
 		}
 		found := ""
 		node.EachRefSlot(func(child *reflection.RunType) {

@@ -16,7 +16,7 @@
 // numbers are small and flat — a spike means a regression.
 //
 // ONE REVIEWED EXCEPTION raised every recursive branch (the array/tree branch
-// most, 229→1913): sentinel payloads now SURVIVE the substitution. A carrier
+// most, 229→1976): sentinel payloads now SURVIVE the substitution. A carrier
 // intersection (structural format params, contains / patternProperties /
 // propertyNames / unevaluated / negation slots, tuple labels) used to be
 // dropped or folded into its base, so a value-first `circular` resolved a
@@ -55,7 +55,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<N['value'], number>>;
       type _02 = Expect<Equal<N['next'], N | undefined>>; // Self → the type itself
       `,
-      377
+      406
     );
   });
 
@@ -66,7 +66,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<Tree['name'], string>>;
       type _02 = Expect<Equal<Tree['children'], Tree[]>>;
       `,
-      1913
+      1976
     );
   });
 
@@ -78,7 +78,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type S = Recursive<{id: string; kids: Set<Self>}>;
       type _02 = Expect<Equal<S['kids'], Set<S>>>;
       `,
-      1170
+      1275
     );
   });
 
@@ -89,7 +89,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<D['a']['b']['c'], D>>;
       type _02 = Expect<Equal<D['x'], string>>;
       `,
-      527
+      721
     );
   });
 
@@ -99,7 +99,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type F = Recursive<{x: number; run: (next: Self) => Self}>;
       type _01 = Expect<Equal<F['run'], (next: F) => F>>;
       `,
-      431
+      496
     );
   });
 
@@ -110,7 +110,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<Extract<U, {kind: 'node'}>['child'], U>>;
       type _02 = Expect<Equal<Extract<U, {kind: 'leaf'}>['val'], number>>;
       `,
-      419
+      473
     );
   });
 
@@ -120,7 +120,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type P = Recursive<{a: string; b: number; c: {d: boolean}; when: Date}>;
       type _01 = Expect<Equal<P, {a: string; b: number; c: {d: boolean}; when: Date}>>;
       `,
-      229
+      265
     );
   });
 });
