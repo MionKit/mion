@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mionkit/ts-runtypes/internal/convert"
+	"github.com/mionkit/ts-runtypes/internal/testfixtures"
 )
 
 // The seeded randomized sweep over the atomic space — the compact Go-side
@@ -40,10 +41,10 @@ func TestFuzz_AtomChain(t *testing.T) {
 	for iteration := 0; iteration < iterations; iteration++ {
 		source := randomAtomFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
-		builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
-		schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-		typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
-		again, diags := convertOne(t, typeForm, convert.Options{Target: convert.TargetType})
+		builderForm := convertAndCheckIDsIn(t, fuzzSources(source), convert.TargetBuilders)
+		schemaForm := convertAndCheckIDsIn(t, fuzzSources(builderForm), convert.TargetJSONSchema)
+		typeForm := convertAndCheckIDsIn(t, fuzzSources(schemaForm), convert.TargetType)
+		again, diags := convertOneIn(t, fuzzSources(typeForm), convert.Options{Target: convert.TargetType})
 		expectNoDiags(t, diags)
 		if again != typeForm {
 			t.Errorf("type-form output not stable under re-conversion:\n--- first ---\n%s\n--- second ---\n%s", typeForm, again)
@@ -98,7 +99,17 @@ func randomAtomFile(rng *rand.Rand) string {
 	if rng.Intn(3) == 0 {
 		fmt.Fprintf(&out, "enum FzMode {On, Off, Auto}\nexport type FzModeRef%d = {mode: FzMode; fallback?: FzMode};\n", rng.Intn(100))
 	}
+	if rng.Intn(3) == 0 {
+		// The Temporal ambient rides every fuzz program (fuzzSources).
+		fmt.Fprintf(&out, "export type FzWhen%d = {at: Temporal.Instant; day?: Temporal.PlainDate; span: Temporal.Duration};\n", rng.Intn(100))
+	}
 	return out.String()
+}
+
+// fuzzSources pairs a generated main.ts with the Temporal ambient so the
+// temporal arm resolves (harmless for iterations without it).
+func fuzzSources(source string) map[string]string {
+	return map[string]string{"main.ts": source, "temporal.d.ts": testfixtures.TemporalDTS}
 }
 
 // randomTypeText draws a type expression: leaves at depth 0, arrays and

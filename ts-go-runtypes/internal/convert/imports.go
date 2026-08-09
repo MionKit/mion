@@ -15,11 +15,12 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 )
 
-// The four managed module specifiers, derived from the marker package name.
+// The five managed module specifiers, derived from the marker package name.
 var (
 	moduleCore       = marker.DefaultModule
 	moduleBuilders   = marker.DefaultModule + "/builders"
 	moduleFormats    = marker.DefaultModule + "/formats"
+	moduleTemporal   = marker.DefaultModule + "/formats/temporal"
 	moduleJSONSchema = marker.DefaultModule + "/json-schema"
 )
 
@@ -37,6 +38,7 @@ type foreignNeed struct {
 type importNeeds struct {
 	useRT                    bool
 	useTF                    bool
+	useTFT                   bool
 	useGetRunType            bool
 	useInferType             bool
 	useTypeFormat            bool
@@ -66,6 +68,7 @@ func (needs *importNeeds) keepLocal(local string) {
 func (needs *importNeeds) merge(other importNeeds) {
 	needs.useRT = needs.useRT || other.useRT
 	needs.useTF = needs.useTF || other.useTF
+	needs.useTFT = needs.useTFT || other.useTFT
 	needs.useGetRunType = needs.useGetRunType || other.useGetRunType
 	needs.useInferType = needs.useInferType || other.useInferType
 	needs.useTypeFormat = needs.useTypeFormat || other.useTypeFormat
@@ -248,6 +251,7 @@ var managedRoles = []managedRole{
 	{module: moduleCore, imported: "TypeFormat", typeOnly: true, needed: func(needs importNeeds) bool { return needs.useTypeFormat }, local: func(names *nameTable) string { return names.TypeFormat }},
 	{module: moduleBuilders, namespace: true, needed: func(needs importNeeds) bool { return needs.useRT }, local: func(names *nameTable) string { return names.RT }},
 	{module: moduleFormats, namespace: true, needed: func(needs importNeeds) bool { return needs.useTF }, local: func(names *nameTable) string { return names.TF }},
+	{module: moduleTemporal, namespace: true, needed: func(needs importNeeds) bool { return needs.useTFT }, local: func(names *nameTable) string { return names.TFT }},
 	{module: moduleJSONSchema, imported: "runTypeFromJsonSchema", needed: func(needs importNeeds) bool { return needs.useRunTypeFromJSONSchema }, local: func(names *nameTable) string { return names.RunTypeFromJSONSchema }},
 	{module: moduleJSONSchema, imported: "embedType", needed: func(needs importNeeds) bool { return needs.useEmbedType }, local: func(names *nameTable) string { return names.EmbedType }},
 }
@@ -264,7 +268,7 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 	var edits []replacement
 	var additions []string
 	// Module order is the canonical block order for appended statements.
-	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleJSONSchema} {
+	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleTemporal, moduleJSONSchema} {
 		entry := scan.byModule[module]
 		var finalNamespace string
 		var finalNamed []namedBinding

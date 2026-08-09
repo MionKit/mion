@@ -19,6 +19,7 @@ import (
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
+	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
 // RefTarget is how one converted declaration can be referenced from another
@@ -347,6 +348,60 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfs
 	}
 	decl.Stmt.ForEachChild(walk)
 	return diags
+}
+
+// temporalAnyDiags walks one declaration's WRITTEN type syntax for qualified
+// `Temporal.<Name>` references that resolved to `any` — the signature of a
+// project whose tsconfig lib does not load ESNext.Temporal. Converting such
+// a declaration would cement the destroyed type (`any` / `RT.any()`) into
+// the rewritten source, so it errors instead. This is the convert twin of
+// the resolver's TMP001 guard (resolver/temporal_guard.go), which covers
+// marker call sites only; detection is syntax-based for the same reason —
+// with the lib missing the resolved type IS plain `any`, so the written
+// qualified name is the only evidence of intent.
+func temporalAnyDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) []Diagnostic {
+	var diags []Diagnostic
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if ast.IsTypeReferenceNode(node) {
+			if name, ok := temporalRefName(node); ok {
+				refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
+				if refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0 {
+					diags = append(diags, Diagnostic{Code: CodeTemporalNotLoaded, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+						Message: fmt.Sprintf("%s resolved to 'any' — add \"ESNext.Temporal\" to compilerOptions.lib; converting now would replace the type with any", name)})
+				}
+			}
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	decl.Stmt.ForEachChild(walk)
+	return diags
+}
+
+// temporalRefName reports whether a TypeReference names a builtin Temporal
+// type (`Temporal.<Name>` with <Name> in the registry), returning the
+// qualified spelling for the message.
+func temporalRefName(typeRefNode *ast.Node) (string, bool) {
+	typeRef := typeRefNode.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeName == nil || !ast.IsQualifiedName(typeRef.TypeName) {
+		return "", false
+	}
+	qualified := typeRef.TypeName.AsQualifiedName()
+	if qualified == nil || qualified.Left == nil || qualified.Right == nil {
+		return "", false
+	}
+	if qualified.Left.Kind != ast.KindIdentifier || qualified.Left.Text() != reflection.TemporalNamespace {
+		return "", false
+	}
+	typeName := qualified.Right.Text()
+	if _, ok := reflection.TemporalInfoByName(typeName); !ok {
+		return "", false
+	}
+	return reflection.TemporalNamespace + "." + typeName, true
 }
 
 // isConvertibleTargetDecl reports whether a referenced declaration is one the

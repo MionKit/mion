@@ -12,8 +12,14 @@ import (
 // name → structural id. The name key is the TYPE name when present, else the
 // const name — stable across forms because conversion preserves both.
 func declIDs(t testing.TB, source string) map[string]string {
+	return declIDsIn(t, map[string]string{"main.ts": source})
+}
+
+// declIDsIn is declIDs over a full sources map (extra files carry ambients
+// like the Temporal fixture); ids are read from main.ts.
+func declIDsIn(t testing.TB, sources map[string]string) map[string]string {
 	t.Helper()
-	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
+	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
 	ids, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
@@ -25,8 +31,12 @@ func declIDs(t testing.TB, source string) map[string]string {
 
 // declGraphs is declIDs for the C6 oracle: name → canonical reflection graph.
 func declGraphs(t testing.TB, source string) map[string]string {
+	return declGraphsIn(t, map[string]string{"main.ts": source})
+}
+
+func declGraphsIn(t testing.TB, sources map[string]string) map[string]string {
 	t.Helper()
-	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
+	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
 	graphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
@@ -41,10 +51,22 @@ func declGraphs(t testing.TB, source string) map[string]string {
 // graph (C6 — information the id ignores must survive too) afterwards.
 func convertAndCheckIDs(t *testing.T, source string, target convert.Target) string {
 	t.Helper()
-	output, diags := convertOne(t, source, convert.Options{Target: target})
+	return convertAndCheckIDsIn(t, map[string]string{"main.ts": source}, target)
+}
+
+// convertAndCheckIDsIn is the same oracle over a full sources map: main.ts is
+// the converted file, everything else rides along unchanged (ambients).
+func convertAndCheckIDsIn(t *testing.T, sources map[string]string, target convert.Target) string {
+	t.Helper()
+	output, diags := convertOneIn(t, sources, convert.Options{Target: target})
 	expectNoDiags(t, diags)
-	before := declIDs(t, source)
-	after := declIDs(t, output)
+	withOutput := map[string]string{}
+	for rel, content := range sources {
+		withOutput[rel] = content
+	}
+	withOutput["main.ts"] = output
+	before := declIDsIn(t, sources)
+	after := declIDsIn(t, withOutput)
 	for name, beforeID := range before {
 		afterID, ok := after[name]
 		if !ok {
@@ -59,8 +81,8 @@ func convertAndCheckIDs(t *testing.T, source string, target convert.Target) stri
 		t.Errorf("declaration count changed after --to %s: %d → %d\n%s", target, len(before), len(after), output)
 	}
 	if !t.Failed() {
-		beforeGraphs := declGraphs(t, source)
-		afterGraphs := declGraphs(t, output)
+		beforeGraphs := declGraphsIn(t, sources)
+		afterGraphs := declGraphsIn(t, withOutput)
 		for name, beforeGraph := range beforeGraphs {
 			afterGraph, ok := afterGraphs[name]
 			if !ok {

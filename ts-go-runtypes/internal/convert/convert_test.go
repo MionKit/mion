@@ -51,7 +51,14 @@ func setupConvert(t testing.TB, sources map[string]string) (*program.Program, *r
 // convertOne converts a single main.ts source and returns the output + diags.
 func convertOne(t testing.TB, source string, opts convert.Options) (string, []convert.Diagnostic) {
 	t.Helper()
-	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
+	return convertOneIn(t, map[string]string{"main.ts": source}, opts)
+}
+
+// convertOneIn converts main.ts out of a full sources map — extra entries
+// carry ambients (the Temporal fixture) or sibling modules.
+func convertOneIn(t testing.TB, sources map[string]string, opts convert.Options) (string, []convert.Diagnostic) {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
 	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts, nil)
