@@ -1812,7 +1812,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		}
 		if shape.labeled {
 			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "labeled tuples are not convertible to json-schema yet (jsLabels pending)"}
+				Message: "labeled tuples are not convertible to json-schema yet (label-capable builders pending)"}
 		}
 		var prefixParts []string
 		for _, member := range append(append([]*reflection.RunType{}, shape.required...), shape.optional...) {
