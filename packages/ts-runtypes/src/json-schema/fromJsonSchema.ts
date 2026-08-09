@@ -105,21 +105,34 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
  *  (docs/todos/format-conversion-completion.md). **/
 export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'Map' | 'Set' | 'Promise';
 
-/** The `jsFormat` dialect families accepted so far — the generic param-bag
- *  format families whose params are JSON-carriable. The bigint family is
- *  deliberately absent (a bigint param value cannot ride JSON — those brands
- *  travel through `embedType` instead), and the named preset families
- *  (email / uuid / …) join once the preset-params mirror lands
- *  (docs/todos/format-conversion-completion.md). **/
-export type JsFormatName = 'stringFormat' | 'numberFormat';
+/** The `jsFormat` dialect families — every format family whose params are
+ *  JSON-carriable, carried verbatim as the reflected (name, params) pair. The
+ *  bigint family is deliberately absent (a bigint param value cannot ride
+ *  JSON — those brands travel through `embedType` instead), as are the
+ *  Temporal families (embedded, so the json-schema surface never drags the
+ *  Temporal lib in). **/
+export type JsFormatName =
+  | 'stringFormat'
+  | 'numberFormat'
+  | 'email'
+  | 'uuid'
+  | 'ip'
+  | 'domain'
+  | 'url'
+  | 'date'
+  | 'time'
+  | 'dateTime'
+  | 'nativeDate';
 
 /** `jsFormat: {name, params}` → the exact TypeFormat brand, verbatim. **/
 type FromJsFormat<Name, Params> = Params extends object
-  ? Name extends 'stringFormat'
-    ? TypeFormat<string, 'stringFormat', Params, never>
-    : Name extends 'numberFormat'
-      ? TypeFormat<number, 'numberFormat', Params, never>
-      : never
+  ? Name extends 'numberFormat'
+    ? TypeFormat<number, 'numberFormat', Params, never>
+    : Name extends 'nativeDate'
+      ? TypeFormat<Date, 'nativeDate', Params, never>
+      : Name extends JsFormatName & string
+        ? TypeFormat<string, Name, Params, never>
+        : never
   : never;
 
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.

@@ -100,6 +100,28 @@ func TestChain_GenericFormatFamilies(t *testing.T) {
 	}
 }
 
+func TestChain_NamedFormatPresets(t *testing.T) {
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Contact = TF.Email;\n" +
+		"type Uid = TF.UUIDv4;\n" +
+		"type AnyUid = TF.UUID;\n" +
+		"type Site = TF.Url;\n" +
+		"type Host = TF.Hostname;\n" +
+		"type Day = TF.StringDate;\n" +
+		"type When = TF.Date<{min: 'now'}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	for _, expected := range []string{"TF.uuidv4()", "TF.uuid()", "TF.date({min: 'now'})", "getRunType<TypeFormat<string, 'domain', {"} {
+		if !strings.Contains(builderForm, expected) {
+			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
+		}
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{jsFormat: {name: 'uuid', params: {version: '4'}}}") {
+		t.Errorf("schema form missing the uuid jsFormat row:\n%s", schemaForm)
+	}
+	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+}
+
 func TestChain_ArraysAndTuples(t *testing.T) {
 	source := "export type Tags = string[];\n" +
 		"type Grid = number[][];\n" +
