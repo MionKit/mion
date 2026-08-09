@@ -14,6 +14,17 @@
 //
 // Not listed, deliberately: internal conditions a user cannot author around
 // (a name the converter cannot derive, an unknown --to target).
+//
+// Also not listed, because they CONVERT: any shape whose only problem is that
+// the target form has no word for it rides an escape instead of refusing —
+// `getRunType<T>()` on the builders target, `embedType<T>()` on the schema
+// one, both carrying the type verbatim. Index signatures that `record(...)`
+// cannot say (a number key, several signatures, an index beside named
+// members) go that way, as do functions, template literals and generic class
+// instantiations. An escape is only unavailable when the type CANNOT BE
+// SPELLED AT ALL in the escape's text: an unbound type parameter, or a
+// self-reference, since the escape is quoted text that cannot point back at
+// the declaration being defined.
 import {describe, expect, it} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
@@ -71,22 +82,6 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     code: 'CNV001',
     says: 'cycle through an unnamed type',
     keeps: "export type Outer = {inner: {back?: Outer['inner']}};",
-  },
-  {
-    title: 'named properties beside an index signature (an index-only object converts as a record)',
-    files: {'main.ts': 'export type Mixed = {name: string; [key: string]: unknown};\n'},
-    target: 'builders',
-    code: 'CNV001',
-    says: 'mixed named properties + index signature',
-    keeps: 'export type Mixed = {name: string; [key: string]: unknown};',
-  },
-  {
-    title: 'a non-string index signature key',
-    files: {'main.ts': 'export type Numeric = {[key: number]: string};\n'},
-    target: 'builders',
-    code: 'CNV001',
-    says: 'non-string or multiple index signatures',
-    keeps: 'export type Numeric = {[key: number]: string};',
   },
   {
     title: 'a symbol-keyed member',

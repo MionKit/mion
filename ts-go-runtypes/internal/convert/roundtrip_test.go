@@ -323,6 +323,30 @@ func TestChain_Objects(t *testing.T) {
 	}
 }
 
+func TestChain_IndexShapesRideTheEscape(t *testing.T) {
+	// `record(...)` and `additionalProperties` can each say exactly ONE
+	// string-keyed index with nothing beside it. Every other index shape used
+	// to refuse; it now rides the escape, which carries the type verbatim, so
+	// the declaration converts and every leg keeps its id.
+	for _, source := range []string{
+		"export type Mixed = {name: string; [key: string]: unknown};\n",
+		"export type Numeric = {[key: number]: string};\n",
+		"export type Both = {[k: string]: number; [n: number]: number};\n",
+	} {
+		builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, "getRunType<") {
+			t.Errorf("expected the builders escape for %q:\n%s", source, builderForm)
+		}
+		schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+		if !strings.Contains(schemaForm, "embedType<") {
+			t.Errorf("expected the schema embed for %q:\n%s", source, schemaForm)
+		}
+		// And back again, through both escapes.
+		convertAndCheckIDs(t, builderForm, convert.TargetType)
+		convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	}
+}
+
 func TestChain_UnknownAbsorbedUnion(t *testing.T) {
 	// `string | unknown` IS `unknown` to the checker — the union collapses
 	// BEFORE reflection, so there is only one type and one id. The generated

@@ -1169,70 +1169,32 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		return strings.Join(sortArms(parts), " | "), nil
 	case reflection.KindObjectLiteral:
-		members, indexValue, diag := ctx.objectMembers(node)
+		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
 		}
-		if indexValue != nil && len(members) > 0 {
-			return "", ctx.mixedIndexPendingDiag()
-		}
 		var baseText string
-		if indexValue != nil {
-			valueText, valueDiag := ctx.typeExpr(indexValue)
+		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
+			// A non-string key, several signatures, or an index beside named
+			// members: the object-literal form spells all of them, and it is
+			// what the builders / schema escapes embed as their type text.
+			literalText, literalDiag := ctx.objectLiteralText(members, indexes)
+			if literalDiag != nil {
+				return "", literalDiag
+			}
+			baseText = literalText
+		} else if len(indexes) > 0 {
+			valueText, valueDiag := ctx.typeExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
 			baseText = fmt.Sprintf("Record<string, %s>", valueText)
 		} else {
-			var parts []string
-			for _, member := range members {
-				if member.signatureNode != nil {
-					// Method / call-signature members keep their signature
-					// syntax — a property-typed arrow would be a different
-					// member kind (and id).
-					paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
-					if paramsDiag != nil {
-						return "", paramsDiag
-					}
-					returnText := "void"
-					if member.signatureNode.Return != nil {
-						text, returnDiag := ctx.typeExpr(member.signatureNode.Return)
-						if returnDiag != nil {
-							return "", returnDiag
-						}
-						returnText = text
-					}
-					optionalMark := ""
-					if member.optional {
-						optionalMark = "?"
-					}
-					switch {
-					case member.callSignature:
-						parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
-					case member.readonly:
-						// Method syntax cannot spell `readonly` — the
-						// property-arrow form reflects back identically.
-						parts = append(parts, fmt.Sprintf("readonly %s%s: (%s) => %s", member.key, optionalMark, paramsText, returnText))
-					default:
-						parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
-					}
-					continue
-				}
-				innerText, innerDiag := ctx.typeExpr(member.child)
-				if innerDiag != nil {
-					return "", innerDiag
-				}
-				prefix := ""
-				if member.readonly {
-					prefix = "readonly "
-				}
-				suffix := ""
-				if member.optional {
-					suffix = "?"
-				}
-				parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+			literalText, literalDiag := ctx.objectLiteralText(members, nil)
+			if literalDiag != nil {
+				return "", literalDiag
 			}
-			baseText = "{" + strings.Join(parts, "; ") + "}"
+			baseText = literalText
 		}
 		if hasStructuralPayload(node) {
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
@@ -1660,7 +1622,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		return rt(fmt.Sprintf("union([%s])", strings.Join(sortArms(arms), ", ")))
 	case reflection.KindObjectLiteral:
-		members, indexValue, diag := ctx.objectMembers(node)
+		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
 		}
@@ -1669,8 +1631,12 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			// carries the member kinds — escape the whole object.
 			return ctx.builderEscape(node)
 		}
-		if indexValue != nil && len(members) > 0 {
-			return "", ctx.mixedIndexPendingDiag()
+		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
+			// `record(...)` says exactly one string-keyed index and nothing
+			// beside it. Anything else (a number key, several signatures,
+			// named members alongside) rides the escape, which carries the
+			// type verbatim rather than refusing the declaration.
+			return ctx.builderEscape(node)
 		}
 		bagText := ""
 		if hasStructuralPayload(node) {
@@ -1680,8 +1646,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			bagText = ", {" + strings.Join(bagParts, ", ") + "}"
 		}
-		if indexValue != nil {
-			valueText, valueDiag := ctx.builderExpr(indexValue)
+		if len(indexes) > 0 {
+			valueText, valueDiag := ctx.builderExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
@@ -2053,15 +2019,17 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
 			return ctx.schemaEmbedNode(node)
 		}
-		members, indexValue, diag := ctx.objectMembers(node)
+		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
 		}
 		if hasSignatureMembers(members) {
 			return ctx.schemaEmbedNode(node)
 		}
-		if indexValue != nil && len(members) > 0 {
-			return "", ctx.mixedIndexPendingDiag()
+		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
+			// `additionalProperties` says exactly one string-keyed index and
+			// nothing beside it; every other shape rides the embed escape.
+			return ctx.schemaEmbedNode(node)
 		}
 		schemaBag := ""
 		if hasStructuralPayload(node) {
@@ -2071,8 +2039,8 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			schemaBag = ", " + strings.Join(bagParts, ", ")
 		}
-		if indexValue != nil {
-			valueText, valueDiag := ctx.schemaExpr(indexValue)
+		if len(indexes) > 0 {
+			valueText, valueDiag := ctx.schemaExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
@@ -2284,13 +2252,6 @@ func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection
 	return out
 }
 
-// mixedIndexPendingDiag reports the mixed named-props + index-signature form,
-// whose exact-index-type spelling is a later phase.
-func (ctx *printContext) mixedIndexPendingDiag() *Diagnostic {
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "mixed named properties + index signature is not convertible yet (see docs/done/format-conversion-completion.md)"}
-}
-
 // objectMember is one printable member: its source key spelling (quoted when
 // not a safe identifier), flags, the dereferenced value node — or, for
 // method / call-signature members, the signature-bearing node itself.
@@ -2304,13 +2265,95 @@ type objectMember struct {
 	callSignature bool
 }
 
+// objectLiteralText renders an object shape as a TypeScript object literal:
+// its named members, then one `[key: K]: V` clause per index signature. The
+// type target prints it directly, and it is also what the builders /
+// json-schema escapes embed when their own form has no word for the shape.
+func (ctx *printContext) objectLiteralText(members []*objectMember, indexes []indexSignature) (string, *Diagnostic) {
+	var parts []string
+	for _, member := range members {
+		if member.signatureNode != nil {
+			// Method / call-signature members keep their signature syntax — a
+			// property-typed arrow would be a different member kind (and id).
+			paramsText, paramsDiag := ctx.parameterListText(member.signatureNode)
+			if paramsDiag != nil {
+				return "", paramsDiag
+			}
+			returnText := "void"
+			if member.signatureNode.Return != nil {
+				text, returnDiag := ctx.typeExpr(member.signatureNode.Return)
+				if returnDiag != nil {
+					return "", returnDiag
+				}
+				returnText = text
+			}
+			optionalMark := ""
+			if member.optional {
+				optionalMark = "?"
+			}
+			switch {
+			case member.callSignature:
+				parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
+			case member.readonly:
+				// Method syntax cannot spell `readonly` — the property-arrow
+				// form reflects back identically.
+				parts = append(parts, fmt.Sprintf("readonly %s%s: (%s) => %s", member.key, optionalMark, paramsText, returnText))
+			default:
+				parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
+			}
+			continue
+		}
+		innerText, innerDiag := ctx.typeExpr(member.child)
+		if innerDiag != nil {
+			return "", innerDiag
+		}
+		prefix := ""
+		if member.readonly {
+			prefix = "readonly "
+		}
+		suffix := ""
+		if member.optional {
+			suffix = "?"
+		}
+		parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+	}
+	for _, index := range indexes {
+		keyText, keyDiag := ctx.typeExpr(index.key)
+		if keyDiag != nil {
+			return "", keyDiag
+		}
+		valueText, valueDiag := ctx.typeExpr(index.value)
+		if valueDiag != nil {
+			return "", valueDiag
+		}
+		// The parameter NAME is not part of the type's identity; `key` keeps
+		// the output stable and readable.
+		parts = append(parts, fmt.Sprintf("[key: %s]: %s", keyText, valueText))
+	}
+	return "{" + strings.Join(parts, "; ") + "}", nil
+}
+
+// indexSignature is one `[key: K]: V` member.
+type indexSignature struct {
+	key   *reflection.RunType
+	value *reflection.RunType
+}
+
+// plainStringIndex reports the shape the value-first `record(...)` and the
+// schema's `additionalProperties` can both say directly: exactly one index
+// signature, string-keyed, with no named members beside it.
+func plainStringIndex(members []*objectMember, indexes []indexSignature) bool {
+	return len(indexes) == 1 && len(members) == 0 && indexes[0].key.Kind == reflection.KindString
+}
+
 // objectMembers collects an object shape's members: properties, method and
 // call signatures (type-target printable; builders/schema escape the whole
-// object), plus at most one STRING-keyed index signature (number/symbol keys
-// await jsIndexKeys).
-func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, *reflection.RunType, *Diagnostic) {
+// object), plus every index signature. Shapes only the TYPE form can spell
+// (a non-string key, several signatures, an index beside named members) are
+// returned rather than refused — the other two targets escape them.
+func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMember, []indexSignature, *Diagnostic) {
 	var members []*objectMember
-	var indexValue *reflection.RunType
+	var indexes []indexSignature
 	for _, memberRef := range node.Children {
 		member := ctx.deref(memberRef)
 		if member == nil {
@@ -2318,14 +2361,14 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		}
 		if member.Kind == reflection.KindIndexSignature {
 			indexKey := ctx.deref(member.Index)
-			if indexKey == nil || indexKey.Kind != reflection.KindString || indexValue != nil {
-				return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-					Message: "non-string or multiple index signatures are not convertible yet (jsIndexKeys pending)"}
-			}
-			indexValue = ctx.deref(member.Child)
-			if indexValue == nil {
+			indexValue := ctx.deref(member.Child)
+			if indexKey == nil || indexValue == nil {
 				return nil, nil, unsupportedDiag(node, ctx.decl)
 			}
+			// Non-string keys, several signatures, and named members beside an
+			// index all SPELL fine as a type — only the value-first and schema
+			// forms lack a word for them, and those escape (see indexShape).
+			indexes = append(indexes, indexSignature{key: indexKey, value: indexValue})
 			continue
 		}
 		if isSymbolKeyedName(member.Name) {
@@ -2373,7 +2416,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			child:    child,
 		})
 	}
-	return members, indexValue, nil
+	return members, indexes, nil
 }
 
 // hasSignatureMembers reports whether any member is a method/call signature.
