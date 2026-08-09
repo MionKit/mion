@@ -118,7 +118,20 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  keyword — every prefixItems tuple now probes `S extends {jsLabels: …}`
  *  (WithTupleLabels) so a labels list can ride the `__rtLabels` sentinel onto
  *  the tuple. One conditional per tuple schema; label-less tuples pay only
- *  the probe. **/
+ *  the probe.
+ *
+ *  A ninth REVIEWED EXCEPTION, +5 to +52 across every branch (objects
+ *  2790→2842 is the largest, the rest ≤ +22): `additionalProperties` lowers to
+ *  the INDEX-SIGNATURE spelling `{[key: string]: V}` instead of
+ *  `Record<string, V>`. The two are the same type, but `Record` is a mapped
+ *  ALIAS, so TypeScript resolved its argument while still resolving the
+ *  enclosing schema — and a `{$ref: '#'}` value then unrolled the root into
+ *  itself twelve levels deep before the checker gave up and handed back `any`.
+ *  `type Tree = {[key: string]: Tree}` silently changed identity through the
+ *  JSON Schema form because of it (caught converting the suite's recursive
+ *  shapes). An index signature defers exactly like an ordinary member, so the
+ *  knot ties; the cost is one anonymous object type per object schema instead
+ *  of one alias instantiation, which is why EVERY branch moved a little. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -143,7 +156,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'null'}>, null>>;
       type _07 = Expect<Equal<FromJsonSchema<{}>, unknown>>;
       `,
-      876
+      882
     );
   });
 
@@ -177,7 +190,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type _10 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'ipv6'}>, IPv6>>;
       type _11 = Expect<Equal<FromJsonSchema<{readonly type: 'string'; readonly format: 'uri'}>, Uri>>;
       `,
-      2133
+      2149
     );
   });
 
@@ -193,7 +206,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         StringFormat<{readonly minLength: 5; readonly pattern: {readonly source: '^a+$'; readonly flags: 'u'}}>
       >>;
       `,
-      667
+      677
     );
   });
 
@@ -218,7 +231,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         NumberFormat<{readonly minimum: 0; readonly maximum: 130; integer: true}>
       >>;
       `,
-      1378
+      1395
     );
   });
 
@@ -232,7 +245,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         'a' | 'b' | boolean
       >>;
       `,
-      1587
+      1592
     );
   });
 
@@ -256,7 +269,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _05 = Expect<Equal<FromJsonSchema<{readonly type: readonly ['integer', 'null']}>, NumberFormat<{integer: true}> | null>>;
       `,
-      2816
+      2829
     );
   });
 
@@ -270,7 +283,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         number[][]
       >>;
       `,
-      1035
+      1041
     );
   });
 
@@ -314,7 +327,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2595
+      2600
     );
   });
 
@@ -370,7 +383,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Came back DOWN 2730 → 2657 when the readOnly-lift gate was removed
       // (the per-object ReadonlyPropKeys check is gone); the widened mixed
       // additionalProperties index rides inside the same figure.
-      2790
+      2842
     );
   });
 
@@ -395,7 +408,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4702
+      4710
     );
   });
 
@@ -431,7 +444,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         string
       >>;
       `,
-      1377
+      1385
     );
   });
 
@@ -471,7 +484,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2832
+      2854
     );
   });
 
@@ -503,7 +516,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
         address: {street: string; city?: string};
       }>>;
       `,
-      2035
+      2057
     );
   });
 
@@ -534,7 +547,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       type Missing = FromJsonSchema<{readonly $defs: {readonly a: {readonly type: 'string'}}; readonly $ref: '#/$defs/nope'}>;
       type _07 = Expect<Equal<Missing, never>>;
       `,
-      2214
+      2220
     );
   });
 
