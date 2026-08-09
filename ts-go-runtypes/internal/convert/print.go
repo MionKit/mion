@@ -967,13 +967,18 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 						}
 						returnText = text
 					}
-					if member.callSignature {
+					optionalMark := ""
+					if member.optional {
+						optionalMark = "?"
+					}
+					switch {
+					case member.callSignature:
 						parts = append(parts, fmt.Sprintf("(%s): %s", paramsText, returnText))
-					} else {
-						optionalMark := ""
-						if member.optional {
-							optionalMark = "?"
-						}
+					case member.readonly:
+						// Method syntax cannot spell `readonly` — the
+						// property-arrow form reflects back identically.
+						parts = append(parts, fmt.Sprintf("readonly %s%s: (%s) => %s", member.key, optionalMark, paramsText, returnText))
+					default:
 						parts = append(parts, fmt.Sprintf("%s%s(%s): %s", member.key, optionalMark, paramsText, returnText))
 					}
 					continue
@@ -1747,16 +1752,18 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			return fmt.Sprintf("{type: 'object', additionalProperties: %s%s}", valueText, schemaBag), nil
 		}
+		for _, member := range members {
+			if member.readonly {
+				// Standard readOnly is annotation-only by design (the door
+				// dropped the modifier lift on purpose), and a dialect
+				// keyword would tax every object translation — the embed
+				// escape carries the modifier exactly instead.
+				return ctx.schemaEmbedNode(node)
+			}
+		}
 		var propertyParts []string
 		var requiredParts []string
 		for _, member := range members {
-			if member.readonly {
-				// The exact readonly carrier (jsReadonly) is pending — standard
-				// readOnly is annotation-only by design, so emitting it would
-				// silently drop an id-relevant modifier.
-				return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-					Message: "readonly members are not convertible to json-schema yet (jsReadonly pending)"}
-			}
 			innerText, innerDiag := ctx.schemaExpr(member.child)
 			if innerDiag != nil {
 				return "", innerDiag
@@ -2006,6 +2013,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 				name:          member.Name,
 				key:           key,
 				optional:      member.Optional,
+				readonly:      member.Readonly,
 				signatureNode: member,
 			})
 			continue

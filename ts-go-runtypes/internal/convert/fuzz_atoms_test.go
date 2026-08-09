@@ -142,7 +142,11 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 				if rng.Intn(3) == 0 {
 					optionalMark = "?"
 				}
-				parts = append(parts, fmt.Sprintf("k%d%s: %s", memberIndex, optionalMark, randomTypeText(rng, atoms, stringPool, depth-1)))
+				readonlyMark := ""
+				if rng.Intn(4) == 0 {
+					readonlyMark = "readonly "
+				}
+				parts = append(parts, fmt.Sprintf("%sk%d%s: %s", readonlyMark, memberIndex, optionalMark, randomTypeText(rng, atoms, stringPool, depth-1)))
 			}
 			return "{" + strings.Join(parts, "; ") + "}"
 		case 1:
