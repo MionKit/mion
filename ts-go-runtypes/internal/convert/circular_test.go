@@ -171,7 +171,7 @@ func TestCircular_StructuralPayloadConverts(t *testing.T) {
 func TestCircular_LabeledTupleConverts(t *testing.T) {
 	// A FIXED-arity labeled tuple the cycle runs through is rebuilt slot by
 	// slot, so its label carrier survives and the slot form prints.
-	source := "export type Pair = {slot: [head: number, tail: Pair]};\n"
+	source := "export type Pair = {link: [head: number, tail: Pair]};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.slot('head'") || !strings.Contains(builderForm, "RT.slot('tail'") {
 		t.Errorf("a labeled tuple inside a cycle should print the slot form:\n%s", builderForm)
@@ -188,13 +188,13 @@ func TestCircular_VariadicLabeledTupleRefusedOnBuilders(t *testing.T) {
 	// tuple without a single literal arity, so there is no slot-by-slot
 	// rebuild and the label carrier cannot be re-attached. Refuse loudly
 	// rather than print an id-moving spelling.
-	source := "export type Loose = {slot: [head: number, tail?: Loose]};\n"
+	source := "export type Loose = {link: [head: number, tail?: Loose]};\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
 	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
 		!strings.Contains(diags[0].Message, "optional or rest slot") {
 		t.Fatalf("expected the variadic labeled-tuple refusal, got %+v", diags)
 	}
-	if !strings.Contains(output, "export type Loose = {slot: [head: number, tail?: Loose]};") {
+	if !strings.Contains(output, "export type Loose = {link: [head: number, tail?: Loose]};") {
 		t.Errorf("refused declaration must stay untouched:\n%s", output)
 	}
 	// The type and schema forms carry the same declaration exactly.
