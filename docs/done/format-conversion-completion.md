@@ -103,8 +103,11 @@ json-schema → type), idempotence-pinned (C5) and swept by the seeded fuzzer
    `getRunType<…>()` rather than `RT.func`/`RT.templateLiteral`: the
    value-first spellings default parameter labels / part groupings, which
    fold into the id (the pinned callableBuilder divergence). The escape is
-   id-exact by definition. Label-capable builders remain their own roadmap
-   line; when they land, the printer can switch spelling without moving ids.
+   id-exact by definition. Label-capable builders remain their own work
+   item; when they land, the printer can switch spelling without moving
+   ids. REOPENED 2026-08-09 as a full-plan spec with the decided
+   object-literal design:
+   [docs/todos/label-capable-builders.md](../todos/label-capable-builders.md).
 5. **`--portable` inlines in-set references** (embedType is dialect) — a
    portable schema is self-contained by intent, and inlining is id-exact.
    Everything dialect-only refuses under the flag (CNV006).
@@ -114,7 +117,10 @@ json-schema → type), idempotence-pinned (C5) and swept by the seeded fuzzer
    silently dropping them.
 7. **Temporal refuses** (`CNV001 "Temporal types are not convertible yet"`):
    conversion output would depend on the consumer's lib gating story, which
-   is the Temporal roadmap line's problem, not this feature's.
+   is the Temporal roadmap line's problem, not this feature's. REOPENED
+   2026-08-09 as a full-plan spec (full migration support + a convert-side
+   any-resolution guard):
+   [docs/todos/convert-temporal-support.md](../todos/convert-temporal-support.md).
 8. **Marker-call-site rewrite on `--to type` stays out** (the
    `createValidateFn(myRT)` → `createValidateFn<MyType>()` rewrite): CNV003
    now scans the WHOLE program (not just the file) before converting a const
@@ -162,4 +168,8 @@ spellings the escape already carries exactly), the schema-tail
 reconstruction of `if/then/else` / `unevaluated*` sugar (inputs already
 convert through their resolved graphs; re-printing the sugar is authoring
 cosmetics the id cannot see), and a separate JS fuzz lane (decision 10).
-Labels remain the one true sub-project, tracked on the roadmap.
+The two conversion gaps this run left behind are now OPEN full-plan specs:
+[docs/todos/label-capable-builders.md](../todos/label-capable-builders.md)
+(object-form tuple/function builders) and
+[docs/todos/convert-temporal-support.md](../todos/convert-temporal-support.md)
+(full Temporal migration + the any-resolution guard).
