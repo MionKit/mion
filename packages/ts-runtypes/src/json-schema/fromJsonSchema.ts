@@ -103,7 +103,7 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
 /** The `jsType` dialect values accepted so far — the JS/TS atoms 2020-12
  *  cannot spell. The roster grows with the conversion phases
  *  (docs/todos/format-conversion-completion.md). **/
-export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'Map' | 'Set' | 'Promise';
+export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'RegExp' | 'Map' | 'Set' | 'Promise';
 
 /** The `jsFormat` dialect families — every format family whose params are
  *  JSON-carriable, carried verbatim as the reflected (name, params) pair. The
@@ -1778,9 +1778,11 @@ type FromJsTypeName<Name> = Name extends 'bigint'
       ? undefined
       : Name extends 'void'
         ? void
-        : Name extends 'any'
-          ? any
-          : never;
+        : Name extends 'RegExp'
+          ? RegExp
+          : Name extends 'any'
+            ? any
+            : never;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
   ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>
   : DepSchemasLayer<S, Root, F>;
