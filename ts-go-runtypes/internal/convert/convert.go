@@ -7,10 +7,11 @@
 // and the source edits, so conversion can never change a type's structural id
 // (the id oracle in the convert fuzz lane pins that).
 //
-// Phase 1 scope (docs/todos/format-conversion-layer.md): atomic kinds and
-// literals. Composite kinds, formats, circulars and natives are later phases;
-// a declaration outside the supported set is reported (CNV001) and left
-// untouched.
+// Coverage spans the reflected type space — atoms, literals, formats,
+// composites, enums/classes/natives, functions, template literals, brand
+// metadata, circulars and multi-file reference sets (record:
+// docs/done/format-conversion-completion.md). A declaration with no exact
+// spelling reports a CNV diagnostic and stays untouched.
 package convert
 
 import (

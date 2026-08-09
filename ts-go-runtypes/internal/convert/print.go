@@ -1,9 +1,10 @@
 // print.go — the three printers. Each is a pure walk from a reflection
-// RunType node (plus the name table and the ref-resolve closure) to source
-// text; no checker access, so they test in isolation. Coverage grows by
-// phase (docs/todos/format-conversion-completion.md): atoms + literals +
-// generic format families + arrays + tuples so far; an unsupported kind
-// reports CNV001 and the declaration stays untouched.
+// RunType node (plus the name table, the run's declaration set and the
+// ref-resolve closure) to source text; no checker access, so they test in
+// isolation. Shapes with no native spelling in a target ride the escapes
+// (`getRunType<T>()` on builders, `embedType<T>()` on the schema target);
+// anything with no spelling at all reports CNV001 and the declaration stays
+// untouched (record: docs/done/format-conversion-completion.md).
 package convert
 
 import (
@@ -308,7 +309,7 @@ func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr s
 // formatFamily describes one generic param-bag format family: the reflected
 // annotation name, its `TF` value-first builder and type-first brand alias.
 // The named preset families (email / uuid / …) convert once the preset-params
-// mirror lands (docs/todos/format-conversion-completion.md).
+// mirror lands (docs/done/format-conversion-completion.md).
 type formatFamily struct {
 	builderFn string
 	typeAlias string
@@ -582,7 +583,7 @@ func isStructuralAnnotation(annotation *reflection.FormatAnnotation) bool {
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("format family %q is not convertible yet (see docs/todos/format-conversion-completion.md)", name)}
+		Message: fmt.Sprintf("format family %q is not convertible yet (see docs/done/format-conversion-completion.md)", name)}
 }
 
 // printFormatParams renders a FormatAnnotation params map as TS source with
@@ -1098,6 +1099,13 @@ func (ctx *printContext) parameterListText(node *reflection.RunType) (string, *D
 		if param == nil {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
+		if param.DefaultVal != nil || hasFlag(param, "nonLiteralDefault") {
+			// Parameter defaults (a `typeof fn` type over a real function)
+			// carry reflection information no printed form spells — refuse
+			// rather than drop it.
+			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("parameter %q carries a default value, which has no conversion spelling yet", param.Name)}
+		}
 		innerText, innerDiag := ctx.typeExpr(param.Child)
 		if innerDiag != nil {
 			return "", innerDiag
@@ -1452,7 +1460,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		if shape.labeled {
 			// Labeled tuples await the label-capable builders
-			// (docs/todos/format-conversion-completion.md).
+			// (docs/done/format-conversion-completion.md).
 			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: "labeled tuples are not convertible to builders yet (label-capable builders pending)"}
 		}
@@ -1542,7 +1550,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	}
 	// Format annotations ride jsFormat verbatim for now — the standard-keyword
 	// rows (minLength / minimum / format:'email' / …) land with the preset
-	// mirror (docs/todos/format-conversion-completion.md), which is also what
+	// mirror (docs/done/format-conversion-completion.md), which is also what
 	// will widen --portable coverage to standard-expressible brands.
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, _, known := leafFormat(annotation)
@@ -1956,7 +1964,7 @@ func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection
 // whose exact-index-type spelling is a later phase.
 func (ctx *printContext) mixedIndexPendingDiag() *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "mixed named properties + index signature is not convertible yet (see docs/todos/format-conversion-completion.md)"}
+		Message: "mixed named properties + index signature is not convertible yet (see docs/done/format-conversion-completion.md)"}
 }
 
 // objectMember is one printable member: its source key spelling (quoted when
@@ -2000,6 +2008,13 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}
+		if member.NonEnumerable {
+			// The @nonEnumerable JSDoc marker folds into the id but has no
+			// spelling in any printed form — dropping it silently would move
+			// the id, so the declaration refuses instead.
+			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("member %q is marked @nonEnumerable, which has no conversion spelling yet", member.Name)}
+		}
 		key := member.Name
 		if !member.IsSafeName {
 			key = quoteSingle(member.Name)
@@ -2020,7 +2035,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 		case reflection.KindPropertySignature, reflection.KindProperty:
 		default:
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/todos/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
+				Message: fmt.Sprintf("object member %q (%s) is not convertible yet (see docs/done/format-conversion-completion.md)", member.Name, kindLabel(member.Kind))}
 		}
 		child := ctx.deref(member.Child)
 		if child == nil {
@@ -2076,15 +2091,20 @@ func literalValueText(node *reflection.RunType) (string, bool) {
 	return "", false
 }
 
-// isBigIntLiteral reports the bigint literal encoding: a string payload
-// tagged with the "bigint" flag.
-func isBigIntLiteral(node *reflection.RunType) bool {
-	for _, flag := range node.Flags {
-		if flag == "bigint" {
+// hasFlag reports whether the node carries the given free-form flag marker.
+func hasFlag(node *reflection.RunType, flag string) bool {
+	for _, candidate := range node.Flags {
+		if candidate == flag {
 			return true
 		}
 	}
 	return false
+}
+
+// isBigIntLiteral reports the bigint literal encoding: a string payload
+// tagged with the "bigint" flag.
+func isBigIntLiteral(node *reflection.RunType) bool {
+	return hasFlag(node, "bigint")
 }
 
 // quoteSingle renders a single-quoted TS string literal.
@@ -2118,7 +2138,7 @@ func quoteSingle(value string) string {
 // unsupportedDiag reports a kind outside the current printer coverage.
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
-		Message: fmt.Sprintf("%s is not convertible yet (see docs/todos/format-conversion-completion.md)", kindLabel(node.Kind))}
+		Message: fmt.Sprintf("%s is not convertible yet (see docs/done/format-conversion-completion.md)", kindLabel(node.Kind))}
 }
 
 // kindLabel names a reflection kind for messages.

@@ -107,3 +107,22 @@ func TestPortable_FunctionRefused(t *testing.T) {
 		t.Fatalf("expected one CNV006 for a function under --portable, got %+v", diags)
 	}
 }
+
+func TestNonEnumerableMember_Refused(t *testing.T) {
+	source := "type Guarded = {\n  /** @nonEnumerable */\n  hidden?: string;\n  shown: number;\n};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind || !strings.Contains(diags[0].Message, "@nonEnumerable") {
+		t.Fatalf("expected the @nonEnumerable refusal, got %+v", diags)
+	}
+	if !strings.Contains(output, "@nonEnumerable") {
+		t.Errorf("declaration must stay untouched:\n%s", output)
+	}
+}
+
+func TestParameterDefault_Refused(t *testing.T) {
+	source := "function greet(name = 'ana'): string {\n  return name;\n}\nexport type Greeter = typeof greet;\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind || !strings.Contains(diags[0].Message, "default value") {
+		t.Fatalf("expected the parameter-default refusal, got %+v", diags)
+	}
+}

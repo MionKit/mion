@@ -1,6 +1,6 @@
 // convert_cli.go — the `ts-runtypes convert` verb: rewrite files between the
 // three authoring forms (type-first / builders / JSON Schema) over the shared
-// reflection graph. CLI-only by design (docs/todos/format-conversion-layer.md):
+// reflection graph. CLI-only by design (docs/done/format-conversion-layer.md):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
 // copy, `--check` for a write-nothing report.
 package main
@@ -27,7 +27,7 @@ func runConvert(args []string) {
 	outDirFlag := flagSet.String("out-dir", "", "copy the input directory here and convert the copy, leaving sources untouched (requires a single directory argument)")
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the three authoring forms (EXPERIMENTAL: atomic types and literals so far)
+		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the three authoring forms
 
 Usage:
     ts-runtypes convert --to builders src/models.ts src/api.ts
@@ -35,6 +35,9 @@ Usage:
     ts-runtypes convert --to type --check src/models/
     ts-runtypes convert --to builders src/models/ --out-dir converted/
 
+Files convert as a set: declarations that reference each other stay name
+references, cycles close at the root, imports are managed, and a reference to
+a convertible declaration outside the run errors (CNV004) instead of inlining.
 Declarations already in the target form are left byte-identical. A declaration
 the converter cannot express reports a CNV diagnostic and stays untouched;
 any error makes the exit code non-zero.
