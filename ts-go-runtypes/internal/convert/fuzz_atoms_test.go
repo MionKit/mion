@@ -77,8 +77,15 @@ func randomAtomFile(rng *rand.Rand) string {
 	}
 	if rng.Intn(2) == 0 {
 		cycleName := fmt.Sprintf("FzCycle%d", rng.Intn(100))
-		fmt.Fprintf(&out, "export type %s = {value: %s; next?: %s; kids: %s[]};\n",
-			cycleName, randomTypeText(rng, atoms, stringPool, 0), cycleName, cycleName)
+		if rng.Intn(2) == 0 {
+			// The required-member form keeps the back-edge inside a UNION
+			// (`X | null`), the shape that once overflowed the C6 sorter.
+			fmt.Fprintf(&out, "export type %s = {value: %s; next: %s | null; kids: %s[]};\n",
+				cycleName, randomTypeText(rng, atoms, stringPool, 0), cycleName, cycleName)
+		} else {
+			fmt.Fprintf(&out, "export type %s = {value: %s; next?: %s; kids: %s[]};\n",
+				cycleName, randomTypeText(rng, atoms, stringPool, 0), cycleName, cycleName)
+		}
 	}
 	if rng.Intn(2) == 0 {
 		target := names[rng.Intn(len(names))]

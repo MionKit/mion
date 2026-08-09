@@ -9,9 +9,10 @@ created: 2026-08-08
 
 ## Shipped — phases 0 + 1 (2026-08-08)
 
-The scaffolding + atomic slice landed; phases 2–8 continue as
-[format-conversion-completion.md](format-conversion-completion.md).
-What shipped:
+The scaffolding + atomic slice landed here; phases 2–8 shipped next (the
+finish record, decisions included, is
+[format-conversion-completion.md](format-conversion-completion.md)).
+What shipped in THIS slice:
 
 - **`ts-runtypes convert --to type|builders|json-schema [--check] [--portable] [--out-dir DIR] <files|dir>`**
   (`cmd/ts-runtypes/convert_cli.go`), over the new shared leaf
