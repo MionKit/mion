@@ -38,9 +38,19 @@ func TestFuzz_AtomChain(t *testing.T) {
 		}
 		iterations = parsed
 	}
+	designedRefusals := 0
 	for iteration := 0; iteration < iterations; iteration++ {
 		source := randomAtomFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
+		// The generated space can reach the documented circular refusals (a
+		// branded Temporal, a variadic labeled tuple or a primitive-branch
+		// oneOf inside a recursive type — see circularLossyPayload). Those are
+		// designed loud lanes, not conversion failures: skip the draw and
+		// count it, so the allowance can never quietly swallow the sweep.
+		if _, diags := convertOneIn(t, fuzzSources(source), convert.Options{Target: convert.TargetBuilders}); len(diags) > 0 && allCircularRefusals(diags) {
+			designedRefusals++
+			continue
+		}
 		builderForm := convertAndCheckIDsIn(t, fuzzSources(source), convert.TargetBuilders)
 		schemaForm := convertAndCheckIDsIn(t, fuzzSources(builderForm), convert.TargetJSONSchema)
 		typeForm := convertAndCheckIDsIn(t, fuzzSources(schemaForm), convert.TargetType)
@@ -53,6 +63,24 @@ func TestFuzz_AtomChain(t *testing.T) {
 			t.Fatalf("stopping at first failing iteration (replay with RT_FUZZ_SEED=%d)", seed)
 		}
 	}
+	if designedRefusals > 0 {
+		t.Logf("%d/%d draws skipped on a documented circular refusal", designedRefusals, iterations)
+	}
+	if designedRefusals*2 > iterations {
+		t.Errorf("%d of %d draws hit a designed refusal — the convertible space has shrunk, not the sweep", designedRefusals, iterations)
+	}
+}
+
+// allCircularRefusals reports whether every diagnostic is one of the
+// documented RT.circular payload refusals (the shapes TypeScript cannot
+// separate from their sentinel intersection). Anything else fails the sweep.
+func allCircularRefusals(diags []convert.Diagnostic) bool {
+	for _, diagnostic := range diags {
+		if diagnostic.Code != convert.CodeUnsupportedKind || !strings.Contains(diagnostic.Message, "inside a recursive type") {
+			return false
+		}
+	}
+	return true
 }
 
 // randomAtomFile renders 3–8 named declarations drawn from the atomic space

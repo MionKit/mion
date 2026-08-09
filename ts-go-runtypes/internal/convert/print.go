@@ -819,14 +819,27 @@ func sortArms(arms []string) []string {
 	return arms
 }
 
-// circularLossyPayload walks a circular declaration's reachable graph for
-// payloads the RT.circular spelling cannot carry: Recursive<Body>'s Self
-// substitution maps every container homomorphically, MERGING container-level
-// sentinel intersections (structural format brands, the schema-check
-// sentinels, tuple label carriers) into plain object shapes with a different
-// structural id. Primitive-branded leaves (`string & brand`) and Date brands
-// pass the substitution untouched and stay printable. Returns a description
-// of the first offending payload, or "" when the body is safe.
+// circularLossyPayload walks a circular declaration's reachable graph for the
+// two payloads the RT.circular spelling still cannot carry across
+// `Recursive<Body>`'s Self substitution. Every other container-level sentinel
+// (structural format brands, contains / patternProperties / propertyNames /
+// unevaluated / negation slots, fixed-arity tuple labels) now survives it: the
+// substitution returns a non-recursing node verbatim and rebuilds a recursing
+// one piece by piece (packages/ts-runtypes/src/builders/static.ts). What
+// remains are the shapes whose BASE TypeScript cannot separate from the
+// sentinel intersection, so the payload cannot be re-attached after
+// substituting inside it:
+//
+//   - a `oneOf` whose branch list reaches the cycle while at least one branch
+//     is a primitive / Date / RegExp: the branch tuple rides EVERY arm, and a
+//     primitive arm passes through the substitution untouched, so that copy
+//     keeps an unsubstituted Self;
+//   - a labeled tuple with an OPTIONAL or REST slot that the cycle runs
+//     through: without a single literal arity there is no slot-by-slot rebuild,
+//     and the homomorphic map folds the label carrier into the tuple.
+//
+// Returns a description of the first offending payload, or "" when the body is
+// convertible.
 func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 	visited := map[string]bool{}
 	var walk func(node *reflection.RunType) string
@@ -836,27 +849,38 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 			return ""
 		}
 		visited[node.ID] = true
-		hasChecks := len(node.Negations) > 0 || len(node.Contains) > 0 || len(node.PatternProps) > 0 ||
-			len(node.PropNames) > 0 || len(node.Unevaluated) > 0
-		if node.FormatAnnotation != nil || hasChecks {
-			safeCarrier := false
-			switch node.Kind {
-			case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
-				reflection.KindBigInt, reflection.KindLiteral, reflection.KindUnknown:
-				safeCarrier = true
-			case reflection.KindClass:
-				safeCarrier = node.SubKind == reflection.SubKindDate
-			}
-			if !safeCarrier {
-				return "a structural constraint on a container"
-			}
+		// A branded CLASS leaf (the Temporal families) still resolves a
+		// different id value-first inside a recursive declaration than
+		// type-first. That divergence predates the sentinel-carry work and has
+		// a different root cause — it reproduces identically with the carry
+		// reverted, and outside a cycle the same brand converges — so it keeps
+		// a refusal here and is filed as its own spec
+		// (docs/todos/circular-temporal-brand-divergence.md). Date brands pass
+		// the substitution verbatim and stay convertible.
+		if node.FormatAnnotation != nil && node.Kind == reflection.KindClass && node.SubKind != reflection.SubKindDate {
+			return "a branded Temporal value"
 		}
-		if node.Kind == reflection.KindTuple {
-			for _, memberRef := range node.Children {
-				if member := ctx.deref(memberRef); member != nil && member.Name != "" {
-					return "a labeled tuple"
+		if len(node.OneOf) > 0 && ctx.reachesCycle(node) {
+			for _, branchRef := range node.OneOf {
+				branch := ctx.deref(branchRef)
+				if branch == nil {
+					continue
+				}
+				switch branch.Kind {
+				case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+					reflection.KindBigInt, reflection.KindLiteral, reflection.KindSymbol:
+					return "an exclusive union (oneOf) with a primitive branch"
+				case reflection.KindClass:
+					// Date and RegExp are the two class shapes the substitution
+					// returns verbatim, so their branch copy keeps a raw Self.
+					if branch.SubKind == reflection.SubKindDate || isRegExpNode(branch) {
+						return "an exclusive union (oneOf) with a Date or RegExp branch"
+					}
 				}
 			}
+		}
+		if node.Kind == reflection.KindTuple && ctx.tupleIsLabeled(node) && ctx.tupleVariadic(node) && ctx.reachesCycle(node) {
+			return "a labeled tuple with an optional or rest slot"
 		}
 		found := ""
 		node.EachRefSlot(func(child *reflection.RunType) {
@@ -867,6 +891,58 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 		return found
 	}
 	return walk(root)
+}
+
+// tupleIsLabeled reports whether any slot carries a name.
+func (ctx *printContext) tupleIsLabeled(node *reflection.RunType) bool {
+	for _, memberRef := range node.Children {
+		if member := ctx.deref(memberRef); member != nil && member.Name != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// tupleVariadic reports whether the tuple's arity is a single literal — an
+// optional or rest slot makes it a union (or unbounded), which is what leaves
+// the label carrier unrecoverable after substitution.
+func (ctx *printContext) tupleVariadic(node *reflection.RunType) bool {
+	for _, memberRef := range node.Children {
+		member := ctx.deref(memberRef)
+		if member == nil {
+			continue
+		}
+		if member.Optional || member.Kind == reflection.KindRest {
+			return true
+		}
+	}
+	return false
+}
+
+// reachesCycle reports whether this node's subtree takes part in the
+// declaration's cycle. A carrier sitting entirely OFF the cycle holds no Self
+// after substitution, so it converts unharmed and must not be refused.
+func (ctx *printContext) reachesCycle(node *reflection.RunType) bool {
+	seen := map[string]bool{}
+	var reaches func(current *reflection.RunType) bool
+	reaches = func(current *reflection.RunType) bool {
+		current = ctx.deref(current)
+		if current == nil || seen[current.ID] {
+			return false
+		}
+		seen[current.ID] = true
+		if current.IsCircular {
+			return true
+		}
+		found := false
+		current.EachRefSlot(func(child *reflection.RunType) {
+			if !found {
+				found = reaches(child)
+			}
+		})
+		return found
+	}
+	return reaches(node)
 }
 
 // typeExpr renders the type-first spelling of a node: reference/self checks,

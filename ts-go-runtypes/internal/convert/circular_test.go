@@ -142,35 +142,84 @@ func TestChain_SelfCycle(t *testing.T) {
 	}
 }
 
-func TestCircular_StructuralPayloadRefusedOnBuilders(t *testing.T) {
-	// RT.circular's Recursive<Body> substitution maps every container
-	// homomorphically, merging container-level sentinel intersections — a
-	// branded record inside a cycle resolves a DIFFERENT id value-first than
-	// type-first (found by the FE roundtrip fuzz lane; the underlying
-	// limitation is filed in docs/todos/circular-brand-substitution.md). The
-	// builders target must refuse rather than print the id-moving spelling.
-	// The schema target carries the same declaration exactly ($ref: '#'
-	// rebuilds the brand at the right layer) — the chain oracle proves it.
+func TestCircular_StructuralPayloadConverts(t *testing.T) {
+	// Container-level sentinel payloads inside a cycle used to move the id
+	// value-first (RT.circular's Self substitution folded the intersection
+	// away), so the builders target refused them. The substitution now returns
+	// a non-recursing node verbatim and rebuilds a recursing one piece by
+	// piece, so these print — and the chain oracle proves every leg keeps the
+	// declaration's id.
 	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
 		"export type Registry = {entries: TF.FormattedObject<Record<string, Registry>, {minProperties: 1}>};\n"
-	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
-		!strings.Contains(diags[0].Message, "recursive type") {
-		t.Fatalf("expected the circular structural-payload refusal, got %+v", diags)
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "minProperties: 1") {
+		t.Errorf("a branded record inside a cycle should print with its params:\n%s", builderForm)
 	}
-	if !strings.Contains(output, "export type Registry = {entries: TF.FormattedObject<Record<string, Registry>, {minProperties: 1}>};") {
-		t.Errorf("refused declaration must stay untouched:\n%s", output)
-	}
-	// Plain primitive brands inside cycles stay convertible — they pass the
-	// Self substitution untouched.
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+
+	// Primitive brands inside cycles were always fine — they pass the
+	// substitution untouched.
 	safeSource := "import * as TF from '@ts-runtypes/core/formats';\n" +
 		"export type Chain = {tag: TF.Email; next?: Chain};\n"
-	builderForm := convertAndCheckIDs(t, safeSource, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "RT.circular(") {
-		t.Errorf("primitive-branded cycles should still convert:\n%s", builderForm)
+	safeForm := convertAndCheckIDs(t, safeSource, convert.TargetBuilders)
+	if !strings.Contains(safeForm, "RT.circular(") {
+		t.Errorf("primitive-branded cycles should still convert:\n%s", safeForm)
 	}
-	schemaForm := convertAndCheckIDsIn(t, map[string]string{"main.ts": source}, convert.TargetJSONSchema)
-	convertAndCheckIDsIn(t, map[string]string{"main.ts": schemaForm}, convert.TargetType)
+}
+
+func TestCircular_LabeledTupleConverts(t *testing.T) {
+	// A FIXED-arity labeled tuple the cycle runs through is rebuilt slot by
+	// slot, so its label carrier survives and the slot form prints.
+	source := "export type Pair = {slot: [head: number, tail: Pair]};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.slot('head'") || !strings.Contains(builderForm, "RT.slot('tail'") {
+		t.Errorf("a labeled tuple inside a cycle should print the slot form:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "[head: number, tail: Pair]") {
+		t.Errorf("the type target should restore the labels:\n%s", typeForm)
+	}
+}
+
+func TestCircular_VariadicLabeledTupleRefusedOnBuilders(t *testing.T) {
+	// The first of two residual shapes: an OPTIONAL (or rest) slot leaves the
+	// tuple without a single literal arity, so there is no slot-by-slot
+	// rebuild and the label carrier cannot be re-attached. Refuse loudly
+	// rather than print an id-moving spelling.
+	source := "export type Loose = {slot: [head: number, tail?: Loose]};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+		!strings.Contains(diags[0].Message, "optional or rest slot") {
+		t.Fatalf("expected the variadic labeled-tuple refusal, got %+v", diags)
+	}
+	if !strings.Contains(output, "export type Loose = {slot: [head: number, tail?: Loose]};") {
+		t.Errorf("refused declaration must stay untouched:\n%s", output)
+	}
+	// The type and schema forms carry the same declaration exactly.
+	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+}
+
+func TestCircular_OneOfPrimitiveBranchRefusedOnBuilders(t *testing.T) {
+	// The second residual: the oneOf branch tuple rides EVERY arm, and a
+	// primitive arm passes through the substitution untouched, so its copy of
+	// the tuple keeps an unsubstituted Self.
+	source := "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
+		"export type Mixed = OneOf<[{next: Mixed}, number]>;\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+		!strings.Contains(diags[0].Message, "primitive branch") {
+		t.Fatalf("expected the oneOf primitive-branch refusal, got %+v", diags)
+	}
+	// All-object branches carry no primitive arm, so they convert.
+	objectSource := "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
+		"export type Nodes = OneOf<[{next: Nodes}, {leaf: number}]>;\n"
+	builderForm := convertAndCheckIDs(t, objectSource, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.oneOf(") {
+		t.Errorf("an all-object oneOf inside a cycle should convert:\n%s", builderForm)
+	}
 }
 
 func TestChain_MutualCycle(t *testing.T) {
