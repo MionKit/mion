@@ -1003,7 +1003,14 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       // undefined excluded so presence stays enforced.
       WithAdditional<S, {-readonly [K in R[number]]: PresentValue}, Root, F>
     : S extends {additionalProperties: infer A extends JsonSchemaInput | EmbedSchema<unknown>}
-      ? Record<string, FromJsonSchemaIn<A, Root, F>>
+      ? // The INDEX-SIGNATURE spelling, deliberately, not `Record<string, V>`:
+        // `Record` is a mapped ALIAS, so TypeScript resolves its argument while
+        // resolving the enclosing type, and a `{$ref: '#'}` value then unrolls
+        // the root schema into itself until the checker gives up and hands back
+        // `any` — the declaration silently changed identity. An index signature
+        // defers exactly like an ordinary member, so the knot ties. The two
+        // spellings are the same type.
+        {[key: string]: FromJsonSchemaIn<A, Root, F>}
       : // Keyword-less object gate: Record<string, unknown>, NOT the TS
         // `object` keyword — `object` admits arrays (and its emitted check
         // accepts them), while JSON Schema's object kind excludes them; the
@@ -1057,7 +1064,9 @@ type ObjectArmFrom<S, Root, F extends [unknown]> =
 type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additionalProperties: infer A}
   ? A extends boolean
     ? Props
-    : Props & Record<string, FromJsonSchemaIn<A, Root, F>>
+    : // The index-signature spelling for the same reason as ObjectShapeFrom's:
+      // `Record<>` would resolve a `{$ref: '#'}` value eagerly and unroll.
+      Props & {[key: string]: FromJsonSchemaIn<A, Root, F>}
   : Props;
 
 // array/tuple: `prefixItems` builds a tuple. Members at positions below

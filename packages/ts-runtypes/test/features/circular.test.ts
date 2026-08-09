@@ -23,10 +23,12 @@ import {
   map,
   set,
   oneOf,
+  intersection,
   unknown as rtUnknown,
   never as rtNever,
   type OneOf,
 } from '@ts-runtypes/core/builders';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import '@ts-runtypes/core/formats';
 
 describe('circular() — recursive schemas without types', () => {
@@ -327,5 +329,56 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
     const Plain = object({a: TF.string(), k: record(TF.number(), {minProperties: 2})});
     const Wrapped = circular(object({a: TF.string(), k: record(TF.number(), {minProperties: 2})}));
     expect(getRunTypeId(Wrapped)).toBe(getRunTypeId(Plain));
+  });
+});
+
+// A self-reference is tied by a DEFERRED position: an object member, an array
+// element, a Map / Set / Promise argument, a function parameter. Two spellings
+// look deferred but are not, because both are ALIAS instantiations whose
+// argument TypeScript resolves while it is still resolving the enclosing type:
+// `Record<string, V>` and a tuple slot. The record case is fixable — the index
+// signature `{[key: string]: V}` says the same thing and defers — and is pinned
+// below. The tuple case is not: a mapped tuple computes every slot up front, so
+// `[number, Self]` unrolls the recursion instead of substituting it, and the
+// converter refuses that shape on both value-first targets
+// (test/features/unsupported-conversion.test.ts).
+describe('circular() — a cycle at the ROOT of a record', () => {
+  it('a self-valued index converges in all three forms', () => {
+    interface Tree {
+      [key: string]: Tree;
+    }
+    const typeFirst = getRunTypeId<Tree>();
+    expect(getRunTypeId(circular(record(self())))).toBe(typeFirst);
+    expect(getRunTypeId(runTypeFromJsonSchema({type: 'object', additionalProperties: {$ref: '#'}} as const))).toBe(typeFirst);
+    const sample: Tree = {a: {}};
+    expect(getRunTypeId(sample)).toBe(typeFirst);
+  });
+
+  it('a self-or-number index converges in all three forms', () => {
+    interface Loose {
+      [key: string]: Loose | number;
+    }
+    const typeFirst = getRunTypeId<Loose>();
+    expect(getRunTypeId(circular(record(union([self(), TF.number()]))))).toBe(typeFirst);
+    expect(
+      getRunTypeId(
+        runTypeFromJsonSchema({
+          type: 'object',
+          additionalProperties: {anyOf: [{$ref: '#'}, {type: 'number'}]},
+        } as const)
+      )
+    ).toBe(typeFirst);
+    const sample: Loose = {a: 1};
+    expect(getRunTypeId(sample)).toBe(typeFirst);
+  });
+
+  it('a self-valued index BESIDE named members converges', () => {
+    interface Mixed {
+      name: string;
+      [key: string]: Mixed | string;
+    }
+    expect(getRunTypeId(circular(intersection(record(union([self(), TF.string()])), object({name: TF.string()}))))).toBe(
+      getRunTypeId<Mixed>()
+    );
   });
 });
