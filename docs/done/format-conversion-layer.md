@@ -59,8 +59,10 @@ Divergences from the plan below, decided during implementation:
   applied by a small sorted-splice (`applyReplacements`) rather than the
   sourcerewrite `EditBuffer` (which is marker-insertion-shaped).
 
-The plan as approved follows; its per-feature mapping tables remain the
-authoritative action list for the remaining phases.
+The plan as approved follows, kept as the historical record. Its per-feature
+mapping tables DROVE the remaining phases; where the finish run decided
+differently (dialect keywords superseded by the escapes, `RT.enum` by
+`getRunType<Enum>()`, and so on), the completion record's decision log wins.
 
 ## Problem / intent
 
