@@ -879,30 +879,18 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 	return walk(root)
 }
 
-// tupleIsLabeled reports whether any slot carries a name.
-func (ctx *printContext) tupleIsLabeled(node *reflection.RunType) bool {
-	for _, memberRef := range node.Children {
-		if member := ctx.deref(memberRef); member != nil && member.Name != "" {
-			return true
-		}
+// isSymbolKeyedName reports whether a member name is a SYMBOL key rather than
+// a string one. Two spellings reach here: tsgo's late-bound form
+// `\xFE@<declarationName>@<symbolId>` (the same prefix
+// cachegen/runtype/serialize.go's stableMemberName strips), and the `@@name`
+// form. Only the second used to be checked, so a genuinely symbol-keyed member
+// printed as a STRING property whose key was the mangled internal spelling —
+// a different type, silently, with a moved id and an exit code of 0.
+func isSymbolKeyedName(name string) bool {
+	if strings.HasPrefix(name, "@@") {
+		return true
 	}
-	return false
-}
-
-// tupleVariadic reports whether the tuple's arity is a single literal — an
-// optional or rest slot makes it a union (or unbounded), which is what leaves
-// the label carrier unrecoverable after substitution.
-func (ctx *printContext) tupleVariadic(node *reflection.RunType) bool {
-	for _, memberRef := range node.Children {
-		member := ctx.deref(memberRef)
-		if member == nil {
-			continue
-		}
-		if member.Optional || member.Kind == reflection.KindRest {
-			return true
-		}
-	}
-	return false
+	return len(name) >= 2 && name[0] == 0xFE && name[1] == '@'
 }
 
 // reachesCycle reports whether this node's subtree takes part in the
@@ -2340,7 +2328,7 @@ func (ctx *printContext) objectMembers(node *reflection.RunType) ([]*objectMembe
 			}
 			continue
 		}
-		if strings.HasPrefix(member.Name, "@@") {
+		if isSymbolKeyedName(member.Name) {
 			return nil, nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: fmt.Sprintf("symbol-keyed member %q is not convertible yet", member.Name)}
 		}

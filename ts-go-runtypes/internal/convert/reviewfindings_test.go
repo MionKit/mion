@@ -80,6 +80,22 @@ func TestDuplicateManagedImports_NoDuplicateBinding(t *testing.T) {
 	}
 }
 
+func TestSymbolKeyedMember_RefusesInsteadOfManglingTheKey(t *testing.T) {
+	// tsgo spells a symbol-keyed property `\xFE@<name>@<id>`; the guard only
+	// recognised the `@@name` form, so this printed as a STRING property whose
+	// key was the mangled internal spelling — a different type, silently, with
+	// exit code 0. Found while writing the unsupported-conversion list.
+	source := "declare const tag: unique symbol;\nexport type Tagged = {[tag]: number};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+		!strings.Contains(diags[0].Message, "symbol-keyed member") {
+		t.Fatalf("expected the symbol-keyed refusal, got %+v", diags)
+	}
+	if !strings.Contains(output, "export type Tagged = {[tag]: number};") {
+		t.Errorf("the refused declaration must stay untouched:\n%s", output)
+	}
+}
+
 func TestHelperLocalCollision_SuffixesAlias(t *testing.T) {
 	source := "export const RT = 5;\n" +
 		"export type Person = {name: string};\n"
