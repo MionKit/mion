@@ -109,6 +109,7 @@ export const REGISTRY = [
 
   // — fuzz test knobs (package.json fuzz scripts + the harness) —
   {name: 'RT_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (per-suite default)'},
+  {name: 'RT_FUZZ_ITER', scope: 'dev', task: '-', desc: 'convert fuzz sweep iteration count'},
   {name: 'RT_FUZZ_SOAK_MS', scope: 'dev', task: '-', desc: 'value fuzz soak duration in ms'},
   {name: 'RT_FUZZ_TYPES_SOAK_MS', scope: 'dev', task: '-', desc: 'type fuzz soak duration in ms'},
   {name: 'RT_FUZZ_SIZE_SOAK_MS', scope: 'dev', task: '-', desc: 'binary-size fuzz soak duration in ms'},
