@@ -5,6 +5,11 @@ name: prod · release gate
 #   build         - the full main gate (Go suite + gofmt/vet, JS suite incl. fuzz,
 #                   lint, typecheck, format) on Linux, then build every package + the
 #                   7-platform binary matrix and pack the tarballs.
+#   fuzz-soak     - the SOAK budgets of every fuzz lane, one runner each. The
+#                   suites above run these lanes at their tiny defaults (the
+#                   convert sweep at 6 iterations, its CLI twin at 5); this is
+#                   the only place the `--soak` budgets in rtx's FUZZ registry
+#                   ever execute, and the only place the seed varies.
 #   e2e           - install the PUBLISHED packages from a local verdaccio and run
 #                   the consumer suite, one full run per OS, plus a cheap
 #                   binary-exec sanity check for the Linux side-arches.
@@ -102,6 +107,72 @@ jobs:
           # Long enough that a slow `release` environment approval on the publish
           # side can still download the exact bytes the e2e validated.
           retention-days: 14
+
+  # ── fuzz-soak: the lanes at their SOAK budgets, one runner per lane ────────
+  # Every fuzz lane already runs under `go test ./internal/...` or
+  # `vitest run test/fuzz` — in `build` above and in ci.yml — but only at its
+  # DEFAULT budget, which for the randomized sweeps is close to decorative (the
+  # convert sweep draws 6 declarations, its CLI twin 5). The `--soak` budgets
+  # live in rtx's FUZZ registry (scripts/rt.mjs) and, until this job existed,
+  # nothing ever ran them: no workflow here has a `schedule:`, so they only
+  # executed when a human typed the command.
+  #
+  # Deliberately NOT in ci.yml: that runs on every PR and would pay this on
+  # every push. Here it rides the release gate, whose `workflow_dispatch` also
+  # makes it runnable by hand on any branch (`gh workflow run
+  # release-gate.yml --ref <branch>`) — which covers the manual half too.
+  #
+  # One job per lane (not one job running all of them) so the wall clock is the
+  # SLOWEST lane rather than their sum, and `fail-fast: false` so one lane's
+  # finding never hides another's. Lanes are named literally: a new entry in the
+  # FUZZ registry does not soak here until it is added to this list, which is
+  # the intended trade — a soak budget is a wall-clock commitment, not a default.
+  fuzz-soak:
+    name: fuzz soak · ${{ matrix.lane }}
+    runs-on: ubuntu-latest
+    # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
+    # so bound the job rather than letting a wedged lane hold the gate open.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every lane rtx gives a `soak` budget. `unit` / `sidecar` / `patterngen`
+        # have none (they are fixed-size by construction) and `all` is a
+        # composite of lanes already listed, so none of them appear.
+        lane:
+          - value
+          - types
+          - nondata
+          - roundtrip
+          - size
+          - jsonschema
+          - cloning
+          - enrich
+          - i18n
+          - typemod
+          - race
+          - convert
+          - convertcli
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # rtx builds what a lane needs itself, but doing it as its own step keeps a
+      # build failure legible as a build failure rather than a soak failure.
+      - name: Build the resolver + dists (convertcli spawns the binary)
+        run: pnpm run check:builds
+      - name: Soak ${{ matrix.lane }}
+        env:
+          # The lanes pin a FIXED default seed, so repeat runs re-explore the
+          # same ground. Deriving it from the run id gives every gate new
+          # coverage; it is echoed first so a finding replays verbatim. This does
+          # mean the gate can go red on a latent bug the release did not
+          # introduce — which is the point of a pre-release soak.
+          RT_FUZZ_SEED: ${{ github.run_id }}
+        run: |
+          echo "replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
+          pnpm rtx core fuzz ${{ matrix.lane }} --soak
 
   e2e:
     name: e2e ${{ matrix.pkg }}
