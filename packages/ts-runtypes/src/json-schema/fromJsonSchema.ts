@@ -1769,7 +1769,6 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
 
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
 // `{}` / `true` cannot spell, since those recover `unknown`).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FromJsTypeName<Name> = Name extends 'bigint'
   ? bigint
   : Name extends 'symbol'
@@ -1781,7 +1780,8 @@ type FromJsTypeName<Name> = Name extends 'bigint'
         : Name extends 'RegExp'
           ? RegExp
           : Name extends 'any'
-            ? any
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              any
             : never;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
   ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>

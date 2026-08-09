@@ -143,13 +143,15 @@ json-schema → type), idempotence-pinned (C5) and swept by the seeded fuzzer
 ## Known refusals (loud, by design)
 
 Generic declarations (CNV002), labeled tuples (label-capable builders
-pending), cycles that never pass through a named declaration root, enum
-member references, aliased imports of live symbols, Temporal, mixed
-named+index objects, non-string index signatures, symbol-keyed members,
-`@nonEnumerable` members, parameter defaults, stacked negations / contains /
-propertyNames, pattern-scoped closedness on the schema target, and dialect
-spellings under `--portable`. Each reports a per-declaration CNV diagnostic;
-the declaration stays untouched and the exit code is non-zero.
+pending), cycles that never pass through a named declaration root, aliased
+imports of live symbols, Temporal, mixed named+index objects, non-string
+index signatures, symbol-keyed members, `@nonEnumerable` members, parameter
+defaults, stacked negations / contains / propertyNames, pattern-scoped
+closedness on the schema target, and dialect spellings under `--portable`.
+Each reports a per-declaration CNV diagnostic; the declaration stays
+untouched and the exit code is non-zero. (Enum MEMBER references are not in
+this list: per decision 2 they normalize to their literal value and convert —
+only the residual `enumMember:`-flagged node shape refuses.)
 
 ## Deliberately not carried forward
 

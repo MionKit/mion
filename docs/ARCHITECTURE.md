@@ -76,7 +76,7 @@ the compiler would, which means what we resolve as `T` is what TypeScript resolv
 
 ### How it runs
 
-The program has three subcommands:
+The program has four subcommands:
 
 - **`serve`** is the daemon mode, and the one the bundler plugin drives. It starts once,
   keeps the parsed project and the type checker in memory, and speaks one JSON message
