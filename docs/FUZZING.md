@@ -172,12 +172,13 @@ sidecar | patterngen | convert | all`.
 The `convert` suite is the format-conversion sweep and lives Go-side
 (`ts-go-runtypes/internal/convert/fuzz_atoms_test.go`, where the printers
 live): each iteration generates a random declaration file (atoms, literals,
-formats, containers, functions, brands, readonly members, self-cycles,
-mutual cycles, cross-declaration references), converts it type → builders →
-json-schema → type, and asserts per leg that conversion is total (C1), every
-declaration keeps its structural id (C2), the chain converges (C4),
-re-conversion is a byte no-op (C5) and the canonical reflection graph loses
-no information the id ignores (C6). `RT_FUZZ_SEED` replays a failure;
+formats, containers, functions — named and optional-param arms — labeled and
+unlabeled tuples, Temporal members riding the shared ambient, brands,
+readonly members, self-cycles, mutual cycles, cross-declaration references),
+converts it type → builders → json-schema → type, and asserts per leg that
+conversion is total (C1), every declaration keeps its structural id (C2),
+the chain converges (C4), re-conversion is a byte no-op (C5) and the
+canonical reflection graph loses no information the id ignores (C6). `RT_FUZZ_SEED` replays a failure;
 `RT_FUZZ_ITER` (the `--soak` knob) widens the sweep.
 
 A `--soak` run is bounded by its own wall clock: the runner refuses to start an
