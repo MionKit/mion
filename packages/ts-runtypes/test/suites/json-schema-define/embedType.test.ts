@@ -1,5 +1,5 @@
 // The embedType escape + jsType dialect atoms (phase 1 of the format
-// conversion layer, docs/todos/format-conversion-layer.md): every spelling
+// conversion layer, docs/done/format-conversion-layer.md): every spelling
 // must converge on the type-first structural id — the schema door, the escape
 // hatch, and plain TS are one engine.
 import {describe, expect, it} from 'vitest';

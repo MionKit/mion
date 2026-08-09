@@ -102,7 +102,7 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
 
 /** The `jsType` dialect values accepted so far — the JS/TS atoms 2020-12
  *  cannot spell. The roster grows with the conversion phases
- *  (docs/todos/format-conversion-completion.md). **/
+ *  (docs/done/format-conversion-completion.md). **/
 export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'RegExp' | 'Map' | 'Set' | 'Promise';
 
 /** The `jsFormat` dialect families — every format family whose params are

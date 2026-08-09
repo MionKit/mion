@@ -10,7 +10,7 @@ created: 2026-08-08
 ## Shipped — phases 0 + 1 (2026-08-08)
 
 The scaffolding + atomic slice landed; phases 2–8 continue as
-[todos/format-conversion-completion.md](../todos/format-conversion-completion.md).
+[format-conversion-completion.md](format-conversion-completion.md).
 What shipped:
 
 - **`ts-runtypes convert --to type|builders|json-schema [--check] [--portable] [--out-dir DIR] <files|dir>`**
