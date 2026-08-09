@@ -946,7 +946,7 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 		return
 	}
 	if checker.IsTupleType(tsType) {
-		cache.projectTuple(tsType, node)
+		cache.projectTuple(tsType, node, nil)
 		return
 	}
 
@@ -1011,7 +1011,12 @@ func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.Run
 	cache.projectObjectLiteral(tsType, node)
 }
 
-func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType) {
+// projectTuple projects a tuple type's members. labelOverride (one entry per
+// element — the lifted `__rtLabels` sentinel from the value-first object form)
+// substitutes the declaration labels so the projected node is byte-identical
+// to the type-first labeled tuple sharing its structural id; nil reads the
+// LabeledDeclaration labels.
+func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType, labelOverride []string) {
 	node.Kind = reflection.KindTuple
 	tupleType := tsType.TargetTupleType()
 	elementInfos := tupleType.ElementInfos()
@@ -1045,6 +1050,9 @@ func (cache *Cache) projectTuple(tsType *checker.Type, node *reflection.RunType)
 			if nameNode := labelDecl.Name(); nameNode != nil {
 				member.Name = nameNode.Text()
 			}
+		}
+		if i < len(labelOverride) {
+			member.Name = labelOverride[i]
 		}
 		if elementFlags&checker.ElementFlagsOptional != 0 {
 			member.Optional = true
@@ -1304,7 +1312,7 @@ func (cache *Cache) projectMembersInto(
 		// Twin of the typeid.memberIDs skip.
 		if propertySymbol != nil &&
 			(typeid.IsNotSentinelPropName(propertySymbol.Name) || typeid.IsFormatSentinelPropName(propertySymbol.Name) ||
-				typeid.IsContainsSentinelPropName(propertySymbol.Name)) {
+				typeid.IsContainsSentinelPropName(propertySymbol.Name) || typeid.IsLabelsSentinelPropName(propertySymbol.Name)) {
 			continue
 		}
 		// Members inherited from a default-lib global type (Error's
@@ -1425,8 +1433,24 @@ func (cache *Cache) appendProperty(parent *reflection.RunType, symbol *ast.Symbo
 }
 
 func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *reflection.RunType) {
-	for i, paramSymbol := range signature.Parameters() {
+	params := signature.Parameters()
+	for i, paramSymbol := range params {
 		paramType := cache.typeChecker.GetTypeOfSymbol(paramSymbol)
+		// A trailing rest-tuple param whose expansion carries NAMES (labeled
+		// elements — declaration labels or the lifted `__rtLabels` sentinel —
+		// or the empty tuple) expands into positional Parameter nodes, exactly
+		// as the id side folds it (typeid.signatureID): the labeled value-first
+		// form and the written `(a: A) => R` share a structural id, so their
+		// projections must be byte-identical too — without this the
+		// first-interned site's parameter shape won at random. UNLABELED
+		// non-empty tuples keep the single rest param: every spelling sharing
+		// that id projects the same rest shape already, and the printed
+		// `(...args: [A]) => R` round-trips.
+		if i == len(params)-1 && isRestParameter(paramSymbol) {
+			if expanded := cache.expandRestTupleParam(paramType, node); expanded {
+				continue
+			}
+		}
 		position := i
 		parameter := &reflection.RunType{
 			Kind:     reflection.KindParameter,
@@ -1460,6 +1484,67 @@ func (cache *Cache) projectSignatureInto(signature *checker.Signature, node *ref
 		node.Parameters = append(node.Parameters, reflection.NewRef(paramID))
 	}
 	node.Return = cache.Serialize(cache.typeChecker.GetReturnTypeOfSignature(signature))
+}
+
+// expandRestTupleParam projects a trailing rest-tuple parameter as positional
+// Parameter nodes when — and only when — the id side folds it that way with
+// NAMES: a FIXED tuple whose elements are labeled (declaration labels, or the
+// lifted `__rtLabels` carrier the value-first object form brands), or the
+// empty tuple (whose id equals the written `() => R`). Element optionality
+// mirrors the id fold exactly: no Optional flag, the raw `T | undefined` slot
+// type as the child — which is also what the id-equal written spelling
+// `(a: A, b: B | undefined) => R` projects. Returns false to keep the single
+// rest parameter (unlabeled non-empty tuples, genuine variadics, non-tuple
+// rest types).
+func (cache *Cache) expandRestTupleParam(paramType *checker.Type, node *reflection.RunType) bool {
+	restTuple, labelOverride := paramType, []string(nil)
+	if !checker.IsTupleType(restTuple) {
+		carrierTuple, labels, ok := typeid.SplitLabeledTupleIntersection(cache.typeChecker, paramType)
+		if !ok {
+			return false
+		}
+		restTuple, labelOverride = carrierTuple, labels
+	}
+	typeArguments := cache.typeChecker.GetTypeArguments(restTuple)
+	elementInfos := restTuple.TargetTupleType().ElementInfos()
+	labels := make([]string, 0, len(typeArguments))
+	for i := range typeArguments {
+		label := ""
+		if i < len(elementInfos) {
+			flags := elementInfos[i].TupleElementFlags()
+			if flags&checker.ElementFlagsRest != 0 || flags&checker.ElementFlagsVariadic != 0 {
+				return false
+			}
+			label = typeid.TupleElementLabel(elementInfos[i])
+		}
+		if i < len(labelOverride) {
+			label = labelOverride[i]
+		}
+		labels = append(labels, label)
+	}
+	// TS labels every slot or none, so probing the first element decides.
+	if len(labels) > 0 && labels[0] == "" {
+		return false
+	}
+	for i, typeArgument := range typeArguments {
+		position := i
+		parameter := &reflection.RunType{
+			Kind:     reflection.KindParameter,
+			Name:     labels[i],
+			Position: &position,
+			Child:    cache.Serialize(typeArgument),
+		}
+		structural := fmt.Sprintf("_pa_%s_%s_%d", node.ID, labels[i], i)
+		paramID, err := cache.uniqueDict(structural, cache.opts.hashLength())
+		if err != nil {
+			paramID = "x_pa_" + structural
+		}
+		parameter.ID = paramID
+		cache.intern(structural, paramID)
+		cache.putNode(paramID, parameter)
+		node.Parameters = append(node.Parameters, reflection.NewRef(paramID))
+	}
+	return true
 }
 
 // ---------------------------------------------------------------------------

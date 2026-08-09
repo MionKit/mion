@@ -463,6 +463,73 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 	return strconv.Itoa(int(kind))
 }
 
+// tupleID folds a tuple type's id — bracket-delimited child list per the
+// reference algorithm, with each element's variadic FLAGS (rest / variadic)
+// folded in. The reference RT-compiles per call so a rest tail and a fixed
+// slot never share a runtime Type; our AOT cache is project-global, so
+// without the flag a rest tuple `[number, ...string[]]` and a fixed tuple
+// `[number, string]` both reduce to `Tuple[<number>,<string>]`, collide on a
+// single cache slot, and the (nondeterministically chosen) winner gives one
+// of them the wrong validator. Mirrors the flag handling in
+// internal/cachegen/runtype/serialize.go:projectTuple.
+//
+// Element LABELS fold into the id too (`[s: string]` → `Tuple[s:5]`,
+// unlabeled `[string]` stays `Tuple[5]`): canonical nodes are shared
+// singletons and the projected node carries `children[].name`, so two
+// same-shape tuples differing only in labels MUST NOT collapse — the
+// first-interned site's labels would win for both (scan-order
+// nondeterminism; the mion route-param-names bug). This is the
+// canonical-node rule applied to identity: label data lives on the
+// node, so the label is part of what the node IS. Labeled `Parameters<H>`
+// tuples are exactly how frameworks reflect handler param names.
+//
+// labelOverride (one entry per element) substitutes the declaration labels —
+// how the lifted `__rtLabels` sentinel folds the value-first object form onto
+// the type-first labeled tuple's id. nil reads the ElementInfos labels.
+func (computer *Computer) tupleID(tsType *checker.Type, labelOverride []string) string {
+	typeArguments := computer.typeChecker.GetTypeArguments(tsType)
+	elementInfos := tsType.TargetTupleType().ElementInfos()
+	ids := make([]string, 0, len(typeArguments))
+	for i, typeArgument := range typeArguments {
+		optional, rest, variadic := false, false, false
+		label := ""
+		if i < len(elementInfos) {
+			elementFlags := elementInfos[i].TupleElementFlags()
+			optional = elementFlags&checker.ElementFlagsOptional != 0
+			rest = elementFlags&checker.ElementFlagsRest != 0
+			variadic = elementFlags&checker.ElementFlagsVariadic != 0
+			label = TupleElementLabel(elementInfos[i])
+		}
+		if i < len(labelOverride) {
+			label = labelOverride[i]
+		}
+		// Optional tuple slots type as `T | undefined`; strip it so the slot id
+		// matches the projected node (serialize.go projectTuple does the same).
+		// Tuple slots carry no memberID/optBit (unlike object props / params), so
+		// the `?` suffix keeps optionality in the id — otherwise `[T, U?]` and
+		// `[T, U]` collide (the `|undefined` used to encode it implicitly, before
+		// the strip). Rest reuses TS's `...`; variadic keeps a distinct
+		// `#variadic` marker since it can't share `...` with rest.
+		var child string
+		if optional {
+			child = computer.optionalChildID(typeArgument) + "?"
+		} else {
+			child = computer.Compute(typeArgument)
+		}
+		if rest {
+			child += "..."
+		}
+		if variadic {
+			child += "#variadic"
+		}
+		if label != "" {
+			child = computer.lit(label) + ":" + child
+		}
+		ids = append(ids, child)
+	}
+	return collectionID(int(reflection.KindTuple), ids, true)
+}
+
 func (computer *Computer) objectID(tsType *checker.Type) string {
 	// A bare negation sentinel (`{__rtNot?: Child}` with no other member —
 	// how `unknown & {__rtNot?: …}` reaches us after TS collapses the
@@ -472,63 +539,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		return strconv.Itoa(int(reflection.KindUnknown)) + "!{" + computer.Compute(childType) + "}"
 	}
 	if checker.IsTupleType(tsType) {
-		// Tuple — bracket-delimited child list per the reference algorithm, with
-		// each element's variadic FLAGS (rest / variadic) folded into the id.
-		// The reference RT-compiles per call so a rest tail and a fixed slot
-		// never share a runtime Type; our AOT cache is project-global, so
-		// without the flag a rest tuple `[number, ...string[]]` and a fixed
-		// tuple `[number, string]` both reduce to `Tuple[<number>,<string>]`,
-		// collide on a single cache slot, and the (nondeterministically chosen)
-		// winner gives one of them the wrong validator. Mirrors the flag
-		// handling in internal/cachegen/runtype/serialize.go:projectTuple.
-		//
-		// Element LABELS fold into the id too (`[s: string]` → `Tuple[s:5]`,
-		// unlabeled `[string]` stays `Tuple[5]`): canonical nodes are shared
-		// singletons and the projected node carries `children[].name`, so two
-		// same-shape tuples differing only in labels MUST NOT collapse — the
-		// first-interned site's labels would win for both (scan-order
-		// nondeterminism; the mion route-param-names bug). This is the
-		// canonical-node rule applied to identity: label data lives on the
-		// node, so the label is part of what the node IS. Labeled `Parameters<H>`
-		// tuples are exactly how frameworks reflect handler param names.
-		typeArguments := computer.typeChecker.GetTypeArguments(tsType)
-		elementInfos := tsType.TargetTupleType().ElementInfos()
-		ids := make([]string, 0, len(typeArguments))
-		for i, typeArgument := range typeArguments {
-			optional, rest, variadic := false, false, false
-			label := ""
-			if i < len(elementInfos) {
-				elementFlags := elementInfos[i].TupleElementFlags()
-				optional = elementFlags&checker.ElementFlagsOptional != 0
-				rest = elementFlags&checker.ElementFlagsRest != 0
-				variadic = elementFlags&checker.ElementFlagsVariadic != 0
-				label = tupleElementLabel(elementInfos[i])
-			}
-			// Optional tuple slots type as `T | undefined`; strip it so the slot id
-			// matches the projected node (serialize.go projectTuple does the same).
-			// Tuple slots carry no memberID/optBit (unlike object props / params), so
-			// the `?` suffix keeps optionality in the id — otherwise `[T, U?]` and
-			// `[T, U]` collide (the `|undefined` used to encode it implicitly, before
-			// the strip). Rest reuses TS's `...`; variadic keeps a distinct
-			// `#variadic` marker since it can't share `...` with rest.
-			var child string
-			if optional {
-				child = computer.optionalChildID(typeArgument) + "?"
-			} else {
-				child = computer.Compute(typeArgument)
-			}
-			if rest {
-				child += "..."
-			}
-			if variadic {
-				child += "#variadic"
-			}
-			if label != "" {
-				child = computer.lit(label) + ":" + child
-			}
-			ids = append(ids, child)
-		}
-		return collectionID(int(reflection.KindTuple), ids, true)
+		return computer.tupleID(tsType, nil)
 	}
 
 	// Array. GetTypeArguments only works on TypeReference targets — an
@@ -658,7 +669,7 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 		// symbol-keyed `__rtNot` as a real member while the projection skips
 		// it, splitting id from behavior.
 		if IsNotSentinelPropName(propertySymbol.Name) || IsFormatSentinelPropName(propertySymbol.Name) ||
-			IsContainsSentinelPropName(propertySymbol.Name) {
+			IsContainsSentinelPropName(propertySymbol.Name) || IsLabelsSentinelPropName(propertySymbol.Name) {
 			continue
 		}
 		out = append(out, computer.memberID(propertySymbol, asClass))
@@ -805,19 +816,30 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind reflect
 	// value-first `func([a: A, b: B], R)` brands) is expanded into positional
 	// element params carrying the tuple LABELS as their names, so a labeled
 	// value-first tuple still matches the equivalent written `(a: A, b: B)`.
+	// The `__rtLabels` carrier (`(...args: [A] & {__rtLabels?: ['a']})`, the
+	// shape `func({a: …}, R)` brands) expands the same way with the lifted
+	// labels, so the object form matches the written `(a: A) => R` too.
 	// An UNLABELED value-first tuple expands with empty names and so matches
 	// only other unlabeled forms — sound, just less dedup. (The method/property
 	// NAME — separate from param names — is preserved via the `name` argument
 	// below.)
 	for i, paramSymbol := range params {
 		paramType := computer.typeChecker.GetTypeOfSymbol(paramSymbol)
-		if i == len(params)-1 && isRestParam(paramSymbol) && checker.IsTupleType(paramType) {
-			if elements, ok := computer.fixedTupleParamElements(paramType); ok {
-				for _, element := range elements {
-					parts = append(parts, memberID(int(reflection.KindParameter), paramNameSlot(position, computer.lit(element.label)), false, element.id))
-					position++
+		if i == len(params)-1 && isRestParam(paramSymbol) {
+			restTuple, labelOverride := paramType, []string(nil)
+			if !checker.IsTupleType(restTuple) {
+				if carrierTuple, labels, ok := SplitLabeledTupleIntersection(computer.typeChecker, paramType); ok {
+					restTuple, labelOverride = carrierTuple, labels
 				}
-				continue
+			}
+			if checker.IsTupleType(restTuple) {
+				if elements, ok := computer.fixedTupleParamElements(restTuple, labelOverride); ok {
+					for _, element := range elements {
+						parts = append(parts, memberID(int(reflection.KindParameter), paramNameSlot(position, computer.lit(element.label)), false, element.id))
+						position++
+					}
+					continue
+				}
 			}
 		}
 		optional := paramSymbol.Flags&ast.SymbolFlagsOptional != 0
@@ -866,8 +888,10 @@ type tupleParamElement struct {
 // when it is a FIXED tuple (no rest / variadic element). Used to expand a
 // trailing rest-tuple parameter into positional params. Returns ok=false for a
 // tuple carrying a variadic-ish element (a genuine variadic signature), which
-// is kept as a single `...` entry instead.
-func (computer *Computer) fixedTupleParamElements(tupleType *checker.Type) ([]tupleParamElement, bool) {
+// is kept as a single `...` entry instead. labelOverride (one entry per
+// element — the lifted `__rtLabels` sentinel) substitutes the declaration
+// labels; nil reads the ElementInfos labels.
+func (computer *Computer) fixedTupleParamElements(tupleType *checker.Type, labelOverride []string) ([]tupleParamElement, bool) {
 	typeArguments := computer.typeChecker.GetTypeArguments(tupleType)
 	elementInfos := tupleType.TargetTupleType().ElementInfos()
 	elements := make([]tupleParamElement, 0, len(typeArguments))
@@ -878,18 +902,23 @@ func (computer *Computer) fixedTupleParamElements(tupleType *checker.Type) ([]tu
 			if flags&checker.ElementFlagsRest != 0 || flags&checker.ElementFlagsVariadic != 0 {
 				return nil, false
 			}
-			label = tupleElementLabel(elementInfos[i])
+			label = TupleElementLabel(elementInfos[i])
+		}
+		if i < len(labelOverride) {
+			label = labelOverride[i]
 		}
 		elements = append(elements, tupleParamElement{id: computer.Compute(typeArgument), label: label})
 	}
 	return elements, true
 }
 
-// tupleElementLabel extracts a tuple element's declared label (`[s: string]` →
+// TupleElementLabel extracts a tuple element's declared label (`[s: string]` →
 // "s"), or "" when unlabeled. The label lives on the labeled Parameter /
 // NamedTupleMember AST node's inner binding name — mirrors
 // serialize.go:projectTuple and the tsgo checker's getTupleElementLabel.
-func tupleElementLabel(info checker.TupleElementInfo) string {
+// Exported for the serialize side's rest-tuple parameter expansion, whose
+// label reads must match this fold exactly.
+func TupleElementLabel(info checker.TupleElementInfo) string {
 	labelDecl := info.LabeledDeclaration()
 	if labelDecl == nil {
 		return ""

@@ -7,7 +7,7 @@
 // except where unavoidable (per CLAUDE.md): every helper is an `extends`-guard +
 // indexed-access read.
 
-import type {__rtOneOf, __rtFormatName} from '../runtypes/sentinelKeys.ts';
+import type {__rtOneOf, __rtFormatName, __rtLabels} from '../runtypes/sentinelKeys.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {InferType} from '../runtypes/builderTypes.ts';
 
@@ -146,6 +146,71 @@ export type ObjectType<C> =
  *  (`tuple` / `func`), so a fixed-tuple return is mutable `[A, B]` and converges
  *  with the type-first tuple. **/
 export type MapTuple<T extends readonly RunType[]> = {-readonly [K in keyof T]: InferType<T[K]>};
+
+// ───────────────────── Labeled tuples (slot form) ────────────────────
+//
+// `tuple([slot('x', number()), slot('y', number())])` / `func([slot('event',
+// string())], ret)` author labeled tuple slots / named function parameters
+// value-first. The labels ride an ARRAY of slot carriers because tuples are
+// the ONE order-preserving container in the type system: an object literal's
+// key order is NOT observable — the checker keeps `keyof` unions sorted by
+// internal type id (tsgo addTypeToUnion inserts via CompareTypes binary
+// search), so a record-shaped API would scramble slot order for any key set
+// whose ids disagree with declaration order ({w, h} projected [h, w]).
+//
+// TypeScript cannot CONSTRUCT a labeled tuple type with a mapped type, so the
+// carried type is the plain values tuple intersected with the `__rtLabels`
+// sentinel — a literal string tuple holding the labels in slot order. The Go
+// side lifts the sentinel exactly like the other `__rt*` sentinels (never a
+// property; folds into the structural id; populates the projected member /
+// parameter names), so the slot form converges with the type-first
+// `[x: number, y: number]` / `(event: string) => R` on one structural id.
+
+/** The carrier `slot(label, value)` produces — one labeled tuple slot / named
+ *  function parameter. Deliberately NOT a RunType (the PropModCarrier
+ *  discipline): the labeled overloads require EVERY element to be a slot, so
+ *  TS's all-or-nothing tuple-labeling rule falls out of overload resolution
+ *  instead of a runtime check. **/
+export interface SlotCarrier<Label extends string, Value> {
+  readonly __slotLabel: Label;
+  readonly __slotValue: RunType<Value>;
+}
+
+/** The value types of a slots tuple — homomorphic over the array, so slot
+ *  order is the written order and the result is the MUTABLE values tuple
+ *  (the `MapTuple` discipline). **/
+export type SlotValues<Slots extends readonly SlotCarrier<string, unknown>[]> = {
+  -readonly [K in keyof Slots]: InferType<Slots[K]['__slotValue']>;
+};
+
+/** The label literals of a slots tuple, same order. **/
+export type SlotLabels<Slots extends readonly SlotCarrier<string, unknown>[]> = {
+  -readonly [K in keyof Slots]: Slots[K]['__slotLabel'];
+};
+
+/** The type `tuple([slot…])` / `tuple([slot…], [slot…])` carries: the values
+ *  tuple (optionals folded in via `Partial`) intersected with the labels
+ *  sentinel. Optional slots keep their `?` on the VALUES tuple; the labels
+ *  tuple always covers every slot. **/
+export type LabeledTuple<
+  Slots extends readonly SlotCarrier<string, unknown>[],
+  OptionalSlots extends readonly SlotCarrier<string, unknown>[] = [],
+> = [...SlotValues<Slots>, ...Partial<SlotValues<OptionalSlots>>] & {
+  readonly [__rtLabels]?: readonly [...SlotLabels<Slots>, ...SlotLabels<OptionalSlots>];
+};
+
+/** The rest form's carried type — the rest slot is a labeled slot too (TS
+ *  tuples label all slots or none), so any rest label is expressible:
+ *  `tuple([slot('x', number())], [], slot('items', string()))` ≡
+ *  `[x: number, ...items: string[]]`. **/
+export type LabeledRestTuple<
+  Slots extends readonly SlotCarrier<string, unknown>[],
+  OptionalSlots extends readonly SlotCarrier<string, unknown>[],
+  RestLabel extends string,
+  Rest,
+> = [...SlotValues<Slots>, ...Partial<SlotValues<OptionalSlots>>, ...Rest[]] & {
+  readonly [__rtLabels]?: readonly [...SlotLabels<Slots>, ...SlotLabels<OptionalSlots>, RestLabel];
+};
 
 /** The union of the `InferType` types of a RunType tuple, built RECURSIVELY so EACH
  *  member survives as a distinct arm. The obvious non-recursive form

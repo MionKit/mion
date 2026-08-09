@@ -73,6 +73,16 @@ const (
 	// collapses skip the carrier so members serialize as their plain
 	// selves.
 	oneOfProp = "__rtOneOf"
+	// tupleLabelsProp marks the labeled-tuple sentinel member
+	// (`[number, number] & {readonly __rtLabels?: readonly ['x', 'y']}`) —
+	// how the value-first object forms (`tuple({x: …})` / `func({event: …})`)
+	// carry slot labels / parameter names, which TS cannot construct on a
+	// tuple type directly. Both collapse passes lift it (serialize → the
+	// projected member/parameter names, id → the per-element label fold the
+	// type-first labeled tuple already gets) and the property walks skip it.
+	// The labels tuple covers EVERY element (TS labels all slots or none) —
+	// a length mismatch means a hand-rolled sentinel and is ignored whole.
+	tupleLabelsProp = "__rtLabels"
 	// unevaluatedProp marks the evaluated-key sweep sentinel — the internal
 	// encoding of JSON Schema unevaluatedProperties for the scopes the document
 	// alone cannot decide. Both collapse passes lift it (serialize →
@@ -548,6 +558,86 @@ func PropNamesChildFromMember(typeChecker *checker.Checker, tsType *checker.Type
 		return nil
 	}
 	return childType
+}
+
+// TupleLabelsFromMember inspects one intersection CONSTITUENT for the
+// labeled-tuple sentinel shape — an object whose ONLY prop is the optional
+// `__rtLabels` holding a tuple of string literals — and returns the label
+// strings in slot order. ok=false when the member is something else. Same
+// optional-sentinel discipline as __rtNot / __rtPropNames.
+func TupleLabelsFromMember(typeChecker *checker.Checker, tsType *checker.Type) ([]string, bool) {
+	if tsType == nil || typeChecker == nil {
+		return nil, false
+	}
+	properties := typeChecker.GetPropertiesOfType(tsType)
+	if len(properties) != 1 || !isSentinelProp(properties[0].Name, tupleLabelsProp) {
+		return nil, false
+	}
+	labelsType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
+	if labelsType == nil || !checker.IsTupleType(labelsType) {
+		return nil, false
+	}
+	typeArguments := typeChecker.GetTypeArguments(labelsType)
+	labels := make([]string, 0, len(typeArguments))
+	for _, typeArgument := range typeArguments {
+		if typeArgument.Flags()&checker.TypeFlagsStringLiteral == 0 {
+			return nil, false
+		}
+		label, isString := typeArgument.AsLiteralType().Value().(string)
+		if !isString {
+			return nil, false
+		}
+		labels = append(labels, label)
+	}
+	return labels, true
+}
+
+// IsLabelsSentinelPropName is the labeled-tuple twin for the property walks:
+// once the collapse lifts the labels onto the tuple members / the id's
+// per-element label fold, the merged property walks must not surface the
+// sentinel as a real member.
+func IsLabelsSentinelPropName(name string) bool {
+	return isSentinelProp(name, tupleLabelsProp)
+}
+
+// SplitLabeledTupleIntersection detects the labeled-tuple carrier on a
+// PARAMETER type — an intersection of exactly one tuple member and one
+// `__rtLabels` sentinel member (any/unknown identities tolerated) — and
+// returns the tuple plus the lifted labels. The labels must cover every
+// element (TS labels all slots or none); a mismatch returns ok=false and the
+// caller treats the type as an ordinary intersection.
+func SplitLabeledTupleIntersection(typeChecker *checker.Checker, tsType *checker.Type) (*checker.Type, []string, bool) {
+	if tsType == nil || typeChecker == nil || tsType.Flags()&checker.TypeFlagsIntersection == 0 {
+		return nil, nil, false
+	}
+	var tupleType *checker.Type
+	var labels []string
+	var haveLabels bool
+	for _, member := range tsType.AsUnionOrIntersectionType().Types() {
+		memberFlags := member.Flags()
+		switch {
+		case memberFlags&checker.TypeFlagsAny != 0, memberFlags&checker.TypeFlagsUnknown != 0:
+			// identity under &
+		case checker.IsTupleType(member):
+			if tupleType != nil {
+				return nil, nil, false
+			}
+			tupleType = member
+		default:
+			memberLabels, isLabels := TupleLabelsFromMember(typeChecker, member)
+			if !isLabels || haveLabels {
+				return nil, nil, false
+			}
+			labels, haveLabels = memberLabels, true
+		}
+	}
+	if tupleType == nil || !haveLabels {
+		return nil, nil, false
+	}
+	if len(labels) != len(typeChecker.GetTypeArguments(tupleType)) {
+		return nil, nil, false
+	}
+	return tupleType, labels, true
 }
 
 // ContainsSpecFromMember inspects an object-literal *checker.Type for the

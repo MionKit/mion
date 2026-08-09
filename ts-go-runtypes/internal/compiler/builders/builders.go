@@ -31,6 +31,12 @@ const RunTypeName = "RunType"
 // carrier, not a RunType, so they need their own recognition in the leaf check.
 const PropModSentinel = "__propMod"
 
+// SlotSentinel is the carrier property slot() returns ({__slotLabel,
+// __slotValue}) — one labeled tuple slot / named function parameter. Like
+// propMod it composes into tuple([…]) / func([…]) but returns a carrier, not
+// a RunType, so the leaf check recognizes it structurally.
+const SlotSentinel = "__slotLabel"
+
 // EmbedSentinel is the marker property on the json-schema `embedType` escape's
 // EmbedSchema<T> carrier — a schema-position leaf whose TYPE carries an
 // embedded TS type. Like propMod it returns a carrier, not a RunType, so the
@@ -59,10 +65,14 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *
 	if IsRunType(returnType, markerModule, fs) {
 		return true
 	}
-	// propMod / optional / embedType carriers — recognised structurally by
-	// their sentinel properties (the carrier interfaces are internal, so there
-	// is no symbol to gate on; the properties are unique to the marker module).
+	// propMod / optional / slot / embedType carriers — recognised structurally
+	// by their sentinel properties (the carrier interfaces are internal, so
+	// there is no symbol to gate on; the properties are unique to the marker
+	// module).
 	if checker.Checker_getPropertyOfType(typeChecker, returnType, PropModSentinel) != nil {
+		return true
+	}
+	if checker.Checker_getPropertyOfType(typeChecker, returnType, SlotSentinel) != nil {
 		return true
 	}
 	return checker.Checker_getPropertyOfType(typeChecker, returnType, EmbedSentinel) != nil

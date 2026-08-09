@@ -411,14 +411,51 @@ func TestReadonlyMember_FullChain(t *testing.T) {
 	}
 }
 
-func TestLabeledTuple_RefusedForNow(t *testing.T) {
-	source := "type Point = [x: number, y: number];\n"
-	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
-		t.Fatalf("expected one CNV001 for the labeled tuple, got %+v", diags)
+func TestChain_LabeledTuple(t *testing.T) {
+	source := "type Point = [x: number, y: number];\n" +
+		"export type Span = [start: number, len?: number, ...rest: string[]];\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())])") {
+		t.Errorf("labeled tuples should print the slot form:\n%s", builderForm)
 	}
-	if !strings.Contains(output, "type Point = [x: number, y: number];") {
-		t.Errorf("labeled tuple must stay untouched:\n%s", output)
+	if !strings.Contains(builderForm, "RT.tuple([RT.slot('start', TF.number())], [RT.slot('len', TF.number())], RT.slot('rest', TF.string()))") {
+		t.Errorf("optional and rest slots should carry their labels:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "embedType<[x: number, y: number]>()") {
+		t.Errorf("labeled tuples should embed on the schema target:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "type Point = [x: number, y: number];") ||
+		!strings.Contains(typeForm, "export type Span = [start: number, len?: number, ...rest: string[]];") {
+		t.Errorf("type target should restore the labeled spellings:\n%s", typeForm)
+	}
+}
+
+func TestChain_NamedFunctionParams(t *testing.T) {
+	// All-required named params ride the slot form; optional/rest params keep
+	// the getRunType escape (their value-first spellings have no id-exact
+	// twin) — TestChain_Functions pins that side.
+	source := "export type Send = (event: string, retries: number) => boolean;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.func([RT.slot('event', TF.string()), RT.slot('retries', TF.number())], RT.boolean())") {
+		t.Errorf("named function params should print the slot form:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "embedType<(event: string, retries: number) => boolean>()") {
+		t.Errorf("functions should embed on the schema target:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Send = (event: string, retries: number) => boolean;") {
+		t.Errorf("type target should restore the named signature:\n%s", typeForm)
+	}
+}
+
+func TestPortable_LabeledTupleRefused(t *testing.T) {
+	source := "type Point = [x: number, y: number];\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected one CNV006 for the labeled-tuple embed under --portable, got %+v", diags)
 	}
 }
 

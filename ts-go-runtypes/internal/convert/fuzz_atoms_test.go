@@ -118,6 +118,12 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 	if depth > 0 {
 		switch rng.Intn(9) {
 		case 8:
+			if rng.Intn(2) == 0 {
+				// All-required named params — the slot-form lane (RT.func([RT.slot…])).
+				return fmt.Sprintf("((input: %s, other: %s) => %s)",
+					randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
+			}
+			// Optional param — the getRunType-escape lane.
 			return fmt.Sprintf("((input: %s, extra?: %s) => %s)",
 				randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
 		case 6:
@@ -173,15 +179,34 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			if requiredCount+optionalCount == 0 {
 				requiredCount = 1
 			}
+			// Labeled tuples label EVERY slot (TS grammar) — the slot-form
+			// conversion lane; unlabeled tuples keep the array-form lane. A
+			// labeled optional slot puts the `?` on the label (`k1?: T`), an
+			// unlabeled one on the type (`T?`).
+			labeled := rng.Intn(3) == 0
 			var parts []string
 			for range requiredCount {
-				parts = append(parts, randomTypeText(rng, atoms, stringPool, depth-1))
+				slotType := randomTypeText(rng, atoms, stringPool, depth-1)
+				if labeled {
+					slotType = fmt.Sprintf("k%d: %s", len(parts), slotType)
+				}
+				parts = append(parts, slotType)
 			}
 			for range optionalCount {
-				parts = append(parts, randomTypeText(rng, atoms, stringPool, depth-1)+"?")
+				slotType := randomTypeText(rng, atoms, stringPool, depth-1)
+				if labeled {
+					slotType = fmt.Sprintf("k%d?: %s", len(parts), slotType)
+				} else {
+					slotType += "?"
+				}
+				parts = append(parts, slotType)
 			}
 			if rng.Intn(3) == 0 {
-				parts = append(parts, "..."+randomTypeText(rng, atoms, stringPool, 0)+"[]")
+				if labeled {
+					parts = append(parts, fmt.Sprintf("...rest%d: %s[]", rng.Intn(10), randomTypeText(rng, atoms, stringPool, 0)))
+				} else {
+					parts = append(parts, "..."+randomTypeText(rng, atoms, stringPool, 0)+"[]")
+				}
 			}
 			return "[" + strings.Join(parts, ", ") + "]"
 		}

@@ -690,17 +690,24 @@ func paramValueText(value any, bigintValues bool) (string, bool) {
 
 // tupleShape is a tuple node partitioned into the three builder positions.
 // Ordering is validated: required slots, then optionals, then one rest tail.
+// The parallel label slices carry each slot's projected label; `labeled` is
+// true only when EVERY slot is labeled (the TS grammar — all or none), so a
+// partially-labeled shape (hand-rolled sentinel abuse) stays unprintable.
 type tupleShape struct {
-	required []*reflection.RunType
-	optional []*reflection.RunType
-	rest     *reflection.RunType
-	labeled  bool
+	required       []*reflection.RunType
+	optional       []*reflection.RunType
+	rest           *reflection.RunType
+	requiredLabels []string
+	optionalLabels []string
+	restLabel      string
+	labeled        bool
 }
 
 // tupleMembers partitions a tuple node's members. False when the member
 // layout is one the printers cannot express (interleaved optionals).
 func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bool) {
 	shape := &tupleShape{}
+	memberCount, labelCount := 0, 0
 	for _, memberRef := range node.Children {
 		member := ctx.deref(memberRef)
 		if member == nil {
@@ -710,8 +717,9 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 		if inner == nil {
 			return nil, false
 		}
+		memberCount++
 		if member.Name != "" {
-			shape.labeled = true
+			labelCount++
 		}
 		isRest := false
 		for _, flag := range member.Flags {
@@ -725,17 +733,25 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 				return nil, false
 			}
 			shape.rest = inner
+			shape.restLabel = member.Name
 		case member.Optional:
 			if shape.rest != nil {
 				return nil, false
 			}
 			shape.optional = append(shape.optional, inner)
+			shape.optionalLabels = append(shape.optionalLabels, member.Name)
 		default:
 			if len(shape.optional) > 0 || shape.rest != nil {
 				return nil, false
 			}
 			shape.required = append(shape.required, inner)
+			shape.requiredLabels = append(shape.requiredLabels, member.Name)
 		}
+	}
+	shape.labeled = memberCount > 0 && labelCount == memberCount
+	if labelCount > 0 && labelCount != memberCount {
+		// Partially labeled — no printable spelling on any target.
+		return nil, false
 	}
 	return shape, true
 }
@@ -1530,30 +1546,30 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
-		if shape.labeled {
-			// Labeled tuples await the label-capable builders
-			// (docs/done/format-conversion-completion.md).
-			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "labeled tuples are not convertible to builders yet (label-capable builders pending)"}
-		}
-		renderList := func(members []*reflection.RunType) (string, *Diagnostic) {
+		// Labeled tuples print the slot form (`RT.tuple([RT.slot('x', …)])`),
+		// unlabeled ones the plain array form — the labels are id data, so
+		// the two spellings must never mix.
+		renderList := func(members []*reflection.RunType, labels []string) (string, *Diagnostic) {
 			var parts []string
-			for _, member := range members {
+			for i, member := range members {
 				memberText, diag := ctx.builderExpr(member)
 				if diag != nil {
 					return "", diag
+				}
+				if shape.labeled {
+					memberText = fmt.Sprintf("%s.slot(%s, %s)", ctx.names.RT, quoteSingle(labels[i]), memberText)
 				}
 				parts = append(parts, memberText)
 			}
 			return "[" + strings.Join(parts, ", ") + "]", nil
 		}
-		requiredText, diag := renderList(shape.required)
+		requiredText, diag := renderList(shape.required, shape.requiredLabels)
 		if diag != nil {
 			return "", diag
 		}
 		call := fmt.Sprintf("tuple(%s", requiredText)
 		if len(shape.optional) > 0 || shape.rest != nil {
-			optionalText, optDiag := renderList(shape.optional)
+			optionalText, optDiag := renderList(shape.optional, shape.optionalLabels)
 			if optDiag != nil {
 				return "", optDiag
 			}
@@ -1564,16 +1580,68 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if restDiag != nil {
 				return "", restDiag
 			}
+			if shape.labeled {
+				restText = fmt.Sprintf("%s.slot(%s, %s)", ctx.names.RT, quoteSingle(shape.restLabel), restText)
+			}
 			call += ", " + restText
 		}
 		return rt(call + ")")
-	case reflection.KindFunction, reflection.KindTemplateLiteral, reflection.KindObject:
-		// No value-first spelling carries these exactly (RT.func defaults its
-		// parameter labels, RT.templateLiteral its part grouping) — the
-		// type-argument escape does.
+	case reflection.KindFunction:
+		// All-required named parameters print the slot form
+		// (`RT.func([RT.slot('event', …)], ret)`), which converges with the
+		// written signature (parameter names fold into the id). Optional /
+		// rest / defaulted parameters have no id-exact value-first spelling —
+		// the type-argument escape carries those.
+		if slotForm, printable, diag := ctx.funcSlotForm(node); diag != nil {
+			return "", diag
+		} else if printable {
+			return slotForm, nil
+		}
+		return ctx.builderEscape(node)
+	case reflection.KindTemplateLiteral, reflection.KindObject:
+		// No value-first spelling carries these exactly (RT.templateLiteral
+		// defaults its part grouping) — the type-argument escape does.
 		return ctx.builderEscape(node)
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// funcSlotForm renders a function node as `RT.func([RT.slot(…)…], ret)` when
+// every parameter is named, required, non-rest and default-free — the shape
+// whose value-first id equals the written signature's. printable=false hands
+// anything else back to the escape.
+func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *Diagnostic) {
+	var slotParts []string
+	for _, paramRef := range node.Parameters {
+		param := ctx.deref(paramRef)
+		if param == nil || param.Name == "" || param.Optional || hasFlag(param, "rest") ||
+			param.DefaultVal != nil || hasFlag(param, "nonLiteralDefault") {
+			return "", false, nil
+		}
+		childText, childDiag := ctx.builderExpr(param.Child)
+		if childDiag != nil {
+			return "", false, childDiag
+		}
+		slotParts = append(slotParts, fmt.Sprintf("%s.slot(%s, %s)", ctx.names.RT, quoteSingle(param.Name), childText))
+	}
+	returnNode := ctx.deref(node.Return)
+	ctx.needs.useRT = true
+	if len(slotParts) == 0 {
+		// Zero params: the no-params overload spells `() => R` exactly.
+		if returnNode != nil && returnNode.Kind == reflection.KindVoid {
+			return ctx.names.RT + ".func()", true, nil
+		}
+		returnText, returnDiag := ctx.builderExpr(node.Return)
+		if returnDiag != nil {
+			return "", false, returnDiag
+		}
+		return fmt.Sprintf("%s.func([], %s)", ctx.names.RT, returnText), true, nil
+	}
+	returnText, returnDiag := ctx.builderExpr(node.Return)
+	if returnDiag != nil {
+		return "", false, returnDiag
+	}
+	return fmt.Sprintf("%s.func([%s], %s)", ctx.names.RT, strings.Join(slotParts, ", "), returnText), true, nil
 }
 
 // schemaExpr renders the JSON-Schema spelling of a node. Standard 2020-12
@@ -1879,8 +1947,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return "", unsupportedDiag(node, ctx.decl)
 		}
 		if shape.labeled {
-			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "labeled tuples are not convertible to json-schema yet (label-capable builders pending)"}
+			// Labels are id data with no JSON Schema keyword — embed the
+			// labeled tuple type verbatim (dialect; --portable refuses).
+			return ctx.schemaEmbedNode(node)
 		}
 		var prefixParts []string
 		for _, member := range append(append([]*reflection.RunType{}, shape.required...), shape.optional...) {
