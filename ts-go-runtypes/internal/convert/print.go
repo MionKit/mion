@@ -9,6 +9,7 @@ package convert
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,6 +133,12 @@ func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *D
 		// (structurally identical, so the id cannot move).
 		return "", nil, false
 	}
+	if entry.File != ctx.currentFile && !entry.Exported {
+		// The reference must import the type NAME, which the declaring file
+		// does not export — importing it would not compile.
+		return "", &Diagnostic{Code: CodeOutsideSet, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: fmt.Sprintf("references %q, whose type alias %s does not export — export the alias so the reference can survive conversion", entry.TypeName, entry.File)}, true
+	}
 	spelling := entry.TypeName
 	if ctx.bindings != nil {
 		resolved, keepLocal, needsImport, ok := ctx.bindings.spellForTarget(entry, ctx.currentFile)
@@ -249,12 +256,22 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 			return nil, &Diagnostic{Code: CodeNameCollision, Severity: SeverityError, Decl: declLabel(decl),
 				Message: fmt.Sprintf("no free type name derivable from %q", decl.ConstName)}
 		}
+		// The printed TYPE declaration follows the ALIAS's export modifier
+		// (an unexported const may pair with an exported alias other files
+		// import); an alias-less const keeps the const's own.
+		typeExportPrefix := exportPrefix
+		if decl.Form != TargetType && decl.AliasStmt != nil {
+			typeExportPrefix = ""
+			if decl.AliasExported {
+				typeExportPrefix = "export "
+			}
+		}
 		ctx.selfName = typeName
 		typeExpr, diag := ctx.typeExpr(resolved.Node)
 		if diag != nil {
 			return nil, diag
 		}
-		return &printedDecl{text: fmt.Sprintf("%stype %s = %s;", exportPrefix, typeName, typeExpr), needs: ctx.needs}, nil
+		return &printedDecl{text: fmt.Sprintf("%stype %s = %s;", typeExportPrefix, typeName, typeExpr), needs: ctx.needs}, nil
 
 	case TargetBuilders:
 		builderExpr, diag := ctx.builderExpr(resolved.Node)
@@ -1198,7 +1215,7 @@ func templateSpanText(span map[string]any) (string, bool) {
 		case string:
 			return quoteSingle(literal), true
 		case float64:
-			return strconv.FormatFloat(literal, 'g', -1, 64), true
+			return formatNumberLiteral(literal)
 		case bool:
 			return strconv.FormatBool(literal), true
 		}
@@ -1216,9 +1233,11 @@ func spanKind(raw any) (reflection.ReflectionKind, bool) {
 	return 0, false
 }
 
-// escapeTemplateText escapes a literal segment for a backtick template.
+// escapeTemplateText escapes a literal segment for a backtick template. A
+// raw CR must be escaped: the TS scanner normalizes CR/CRLF to LF in cooked
+// template text, so printing it raw would silently change the literal.
 func escapeTemplateText(text string) string {
-	replacer := strings.NewReplacer("\\", "\\\\", "`", "\\`", "${", "\\${")
+	replacer := strings.NewReplacer("\\", "\\\\", "`", "\\`", "${", "\\${", "\r", "\\r")
 	return replacer.Replace(text)
 }
 
@@ -2074,9 +2093,9 @@ func literalValueText(node *reflection.RunType) (string, bool) {
 	case string:
 		return quoteSingle(value), true
 	case float64:
-		return strconv.FormatFloat(value, 'g', -1, 64), true
+		return formatNumberLiteral(value)
 	case float32:
-		return strconv.FormatFloat(float64(value), 'g', -1, 32), true
+		return formatNumberLiteral(float64(value))
 	case int:
 		return strconv.Itoa(value), true
 	case int32:
@@ -2089,6 +2108,22 @@ func literalValueText(node *reflection.RunType) (string, bool) {
 		return "null", true
 	}
 	return "", false
+}
+
+// formatNumberLiteral renders a numeric literal value as TS source. The
+// Infinity literal type has no keyword spelling — any overflowing literal
+// (1e999) IS it, so that spelling round-trips exactly. NaN has no literal
+// spelling at all and refuses.
+func formatNumberLiteral(value float64) (string, bool) {
+	switch {
+	case math.IsNaN(value):
+		return "", false
+	case math.IsInf(value, 1):
+		return "1e999", true
+	case math.IsInf(value, -1):
+		return "-1e999", true
+	}
+	return strconv.FormatFloat(value, 'g', -1, 64), true
 }
 
 // hasFlag reports whether the node carries the given free-form flag marker.

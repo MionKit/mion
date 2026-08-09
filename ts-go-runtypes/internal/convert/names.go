@@ -24,19 +24,14 @@ type nameTable struct {
 	taken                 map[string]bool
 }
 
-// newNames seeds the table from the recognized declarations and the file's
-// existing imports.
-func newNames(decls []*declaration, imports *importScan) *nameTable {
-	names := &nameTable{
-		RT:                    "RT",
-		TF:                    "TF",
-		InferType:             "InferType",
-		GetRunType:            "getRunType",
-		TypeFormat:            "TypeFormat",
-		RunTypeFromJSONSchema: "runTypeFromJsonSchema",
-		EmbedType:             "embedType",
-		taken:                 map[string]bool{},
-	}
+// newNames seeds the table from the recognized declarations, the file's
+// existing imports and EVERY other top-level name in scope (a `const RT = 5`
+// must push the builders namespace onto a suffixed alias). Helper spellings
+// resolve in order: an existing named binding, an existing namespace import
+// of the module (qualified member spelling — no import edit needed), else
+// the default name claimed against the taken set.
+func newNames(decls []*declaration, imports *importScan, inScope map[string]bool) *nameTable {
+	names := &nameTable{taken: map[string]bool{}}
 	for _, decl := range decls {
 		if decl.Name != "" {
 			names.taken[decl.Name] = true
@@ -45,32 +40,53 @@ func newNames(decls []*declaration, imports *importScan) *nameTable {
 			names.taken[decl.ConstName] = true
 		}
 	}
+	for name := range inScope {
+		names.taken[name] = true
+	}
+	var coreNS, jsonNS string
 	if imports != nil {
 		for _, local := range imports.localNames() {
 			names.taken[local] = true
 		}
-		if alias := imports.namespaceAlias(moduleBuilders); alias != "" {
-			names.RT = alias
-		}
-		if alias := imports.namespaceAlias(moduleFormats); alias != "" {
-			names.TF = alias
-		}
-		if local := imports.localFor(moduleCore, "InferType"); local != "" {
-			names.InferType = local
-		}
-		if local := imports.localFor(moduleCore, "getRunType"); local != "" {
-			names.GetRunType = local
-		}
-		if local := imports.localFor(moduleCore, "TypeFormat"); local != "" {
-			names.TypeFormat = local
-		}
-		if local := imports.localFor(moduleJSONSchema, "runTypeFromJsonSchema"); local != "" {
-			names.RunTypeFromJSONSchema = local
-		}
-		if local := imports.localFor(moduleJSONSchema, "embedType"); local != "" {
-			names.EmbedType = local
-		}
+		coreNS = imports.namespaceAlias(moduleCore)
+		jsonNS = imports.namespaceAlias(moduleJSONSchema)
 	}
+	namespaceOf := func(module string) string {
+		if imports == nil {
+			return ""
+		}
+		return imports.namespaceAlias(module)
+	}
+	localOf := func(module, imported string) string {
+		if imports == nil {
+			return ""
+		}
+		return imports.localFor(module, imported)
+	}
+	helper := func(module, imported, fallback string, memberNS string) string {
+		if local := localOf(module, imported); local != "" {
+			return local
+		}
+		if memberNS != "" {
+			return memberNS + "." + imported
+		}
+		return names.claim(fallback)
+	}
+	if alias := namespaceOf(moduleBuilders); alias != "" {
+		names.RT = alias
+	} else {
+		names.RT = names.claim("RT")
+	}
+	if alias := namespaceOf(moduleFormats); alias != "" {
+		names.TF = alias
+	} else {
+		names.TF = names.claim("TF")
+	}
+	names.InferType = helper(moduleCore, "InferType", "InferType", coreNS)
+	names.GetRunType = helper(moduleCore, "getRunType", "getRunType", coreNS)
+	names.TypeFormat = helper(moduleCore, "TypeFormat", "TypeFormat", coreNS)
+	names.RunTypeFromJSONSchema = helper(moduleJSONSchema, "runTypeFromJsonSchema", "runTypeFromJsonSchema", jsonNS)
+	names.EmbedType = helper(moduleJSONSchema, "embedType", "embedType", jsonNS)
 	return names
 }
 

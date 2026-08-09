@@ -29,6 +29,7 @@ package convert
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/microsoft/typescript-go/shim/checker"
@@ -90,8 +91,8 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 		Visibility:       node.Visibility,
 		IsAbstract:       node.IsAbstract,
 		IsStatic:         node.IsStatic,
-		Literal:          node.Literal,
-		DefaultVal:       node.DefaultVal,
+		Literal:          finiteValue(node.Literal),
+		DefaultVal:       finiteValue(node.DefaultVal),
 		Flags:            node.Flags,
 		Description:      node.Description,
 		FormatAnnotation: node.FormatAnnotation,
@@ -150,6 +151,22 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 		out.Unevaluated = append(out.Unevaluated, copied)
 	}
 	return out
+}
+
+// finiteValue swaps the non-finite floats encoding/json refuses (the
+// Infinity literal type, a NaN payload) for stable string tokens.
+func finiteValue(value any) any {
+	if number, ok := value.(float64); ok {
+		switch {
+		case math.IsInf(number, 1):
+			return "__rtInfinity"
+		case math.IsInf(number, -1):
+			return "__rtNegativeInfinity"
+		case math.IsNaN(number):
+			return "__rtNaN"
+		}
+	}
+	return value
 }
 
 func (builder *canonicalBuilder) walkSlice(slots []*reflection.RunType) []*reflection.RunType {
