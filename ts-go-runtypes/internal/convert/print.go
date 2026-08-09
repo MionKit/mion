@@ -292,6 +292,9 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 				return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
 					Message: fmt.Sprintf("%s inside a recursive type is not convertible to builders (RT.circular cannot carry it through the self-substitution)", payload)}
 			}
+			if diag := ctx.eagerTupleCycleDiag(resolved.Node, decl, "RT.circular"); diag != nil {
+				return nil, diag
+			}
 			ctx.needs.useRT = true
 			builderExpr = fmt.Sprintf("%s.circular(%s)", ctx.names.RT, builderExpr)
 		}
@@ -301,6 +304,11 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 		schemaExpr, diag := ctx.schemaExpr(resolved.Node)
 		if diag != nil {
 			return nil, diag
+		}
+		// `{$ref: '#'}` recovers its type the same way RT.circular does, so the
+		// eager tuple slot defeats it identically.
+		if refDiag := ctx.eagerTupleCycleDiag(resolved.Node, decl, "a {$ref: '#'} back-reference"); refDiag != nil {
+			return nil, refDiag
 		}
 		// Object schema literals need `as const`: an inline literal otherwise
 		// widens against the keyword slots' declared unions (`const: 'ana'`
@@ -879,6 +887,142 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 	return walk(root)
 }
 
+// unionArms visits a node's arms when it is a union, and nothing otherwise.
+// Both eager walks below share it: a conditional / alias resolution distributes
+// over a union immediately, so an arm never hides a self-reference.
+func (ctx *printContext) unionArms(node *reflection.RunType, visit func(arm *reflection.RunType)) {
+	if node.Kind != reflection.KindUnion {
+		return
+	}
+	for _, armRef := range node.Children {
+		if arm := ctx.deref(armRef); arm != nil {
+			visit(arm)
+		}
+	}
+}
+
+// eagerTupleCycleDiag refuses a declaration whose cycle closes on a tuple slot,
+// naming the back-reference the target would have used. Nil when the shape is
+// convertible.
+func (ctx *printContext) eagerTupleCycleDiag(root *reflection.RunType, decl *declaration, backReference string) *Diagnostic {
+	if !ctx.selfLandsInEagerTupleSlot(root) {
+		return nil
+	}
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
+		Message: fmt.Sprintf("a cycle that closes on a tuple slot is not convertible "+
+			"(TypeScript instantiates a tuple's slots eagerly, so %s cannot tie the knot there) — "+
+			"put the recursion behind an object, array, Map, Set or function slot", backReference)}
+}
+
+// selfLandsInEagerTupleSlot reports whether the declaration's own back-edge sits
+// in a TUPLE SLOT that `Recursive<Body>` instantiates EAGERLY.
+//
+// A tuple is the one container the value-first form cannot tie a knot through.
+// Every other slot defers — an object member, an array element, a Map / Set /
+// Promise argument, a function parameter or return — so `RT.circular` walks
+// past it and the knot closes. A homomorphic map over a TUPLE instead computes
+// every slot type up front, so `Recursive<Body>` unrolls itself until
+// TypeScript gives up (TS2589). Nested tuples chain that eagerness; a union arm
+// inherits it (the substitution distributes).
+//
+// Converting such a declaration anyway emitted a builder whose inferred type
+// kept a raw `Self`: the declaration silently changed identity and would not
+// convert back. The type and JSON Schema forms carry it fine, since
+// `type Pair = [number, Pair]` is an ordinary deferred alias.
+func (ctx *printContext) selfLandsInEagerTupleSlot(root *reflection.RunType) bool {
+	seen := map[string]bool{}
+	var walk func(node *reflection.RunType, crossedTuple bool) bool
+	walk = func(node *reflection.RunType, crossedTuple bool) bool {
+		node = ctx.deref(node)
+		if node == nil {
+			return false
+		}
+		if node.ID == ctx.rootID && crossedTuple {
+			return true
+		}
+		// A node first reached WITHOUT a tuple slot must stay walkable once one
+		// has been crossed, so the visited key carries the flag.
+		key := node.ID
+		if crossedTuple {
+			key += "!"
+		}
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+		found := false
+		ctx.unionArms(node, func(arm *reflection.RunType) {
+			if !found {
+				found = walk(arm, crossedTuple)
+			}
+		})
+		if found || node.Kind != reflection.KindTuple {
+			return found
+		}
+		shape, ok := ctx.tupleMembers(node)
+		if !ok {
+			return false
+		}
+		slots := append(append([]*reflection.RunType{}, shape.required...), shape.optional...)
+		if shape.rest != nil {
+			slots = append(slots, shape.rest)
+		}
+		for _, slot := range slots {
+			if walk(slot, true) {
+				return true
+			}
+		}
+		return false
+	}
+	return walk(root, false)
+}
+
+// recordAliasWouldCycle reports whether printing an index signature as the
+// mapped alias `Record<string, V>` would make the declaration circularly
+// reference itself (TS2456).
+//
+// TypeScript resolves an alias body eagerly through its own union arms and
+// through the type ARGUMENTS of another alias, so `type Idx = Record<string,
+// Idx>` and `type Both = Record<string, Both> | number` are both rejected,
+// while every deferred position is fine (`{v: Record<string, X>}`,
+// `Record<string, X[]>`, `[Record<string, X>]`). The index-signature literal
+// `{[key: string]: V}` defers like an ordinary member and is always legal, so
+// it is what gets printed whenever the alias spelling would not compile.
+func (ctx *printContext) recordAliasWouldCycle(value *reflection.RunType) bool {
+	seen := map[string]bool{}
+	var walk func(node *reflection.RunType) bool
+	walk = func(node *reflection.RunType) bool {
+		node = ctx.deref(node)
+		if node == nil {
+			return false
+		}
+		if node.ID == ctx.rootID {
+			return true
+		}
+		if seen[node.ID] {
+			return false
+		}
+		seen[node.ID] = true
+		found := false
+		ctx.unionArms(node, func(arm *reflection.RunType) {
+			if !found {
+				found = walk(arm)
+			}
+		})
+		if found || node.Kind != reflection.KindObjectLiteral {
+			return found
+		}
+		// A nested record's VALUE is another `Record<>` type argument, so it
+		// stays eager; every other object member defers.
+		members, indexes, diag := ctx.objectMembers(node)
+		if diag != nil || len(indexes) != 1 || !plainStringIndex(members, indexes) {
+			return false
+		}
+		return walk(indexes[0].value)
+	}
+	return walk(value)
+}
+
 // isSymbolKeyedName reports whether a member name is a SYMBOL key rather than
 // a string one. Two spellings reach here: tsgo's late-bound form
 // `\xFE@<declarationName>@<symbolId>` (the same prefix
@@ -1178,6 +1322,15 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			// A non-string key, several signatures, or an index beside named
 			// members: the object-literal form spells all of them, and it is
 			// what the builders / schema escapes embed as their type text.
+			literalText, literalDiag := ctx.objectLiteralText(members, indexes)
+			if literalDiag != nil {
+				return "", literalDiag
+			}
+			baseText = literalText
+		} else if len(indexes) > 0 && ctx.recordAliasWouldCycle(indexes[0].value) {
+			// `Record<>` is a mapped ALIAS: TypeScript resolves its argument
+			// while resolving the declaration, so a value that reaches back
+			// here is TS2456. The literal spelling defers and is legal.
 			literalText, literalDiag := ctx.objectLiteralText(members, indexes)
 			if literalDiag != nil {
 				return "", literalDiag

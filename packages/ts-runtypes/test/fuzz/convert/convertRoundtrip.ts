@@ -277,6 +277,11 @@ export interface ConvertFuzzReport {
 const EXPECTED_REFUSALS = [
   /self-referential type inside an embedded type expression/,
   /an exclusive union \(oneOf\) with a (primitive|Date or RegExp) branch inside a recursive type/,
+  // A tuple slot is instantiated EAGERLY, so neither `RT.circular` nor a
+  // `{$ref: '#'}` back-reference can tie the knot there — the type form is the
+  // only one that carries `type Pair = [number, Pair]`
+  // (packages/ts-runtypes/test/features/unsupported-conversion.test.ts).
+  /cycle that closes on a tuple slot/,
 ];
 
 function isExpectedRefusal(message: string): boolean {
