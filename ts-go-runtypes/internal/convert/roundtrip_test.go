@@ -339,19 +339,25 @@ func TestChain_Records(t *testing.T) {
 	}
 }
 
-func TestReadonlyMember_TypeBuilderOnly(t *testing.T) {
+func TestReadonlyMember_FullChain(t *testing.T) {
 	source := "type WithRO = {readonly id: string; count: number};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.object({id: RT.propMod({readonly: true}, TF.string()), count: TF.number()})") {
 		t.Errorf("readonly member should ride propMod:\n%s", builderForm)
 	}
-	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
-	if !strings.Contains(typeForm, "type WithRO = {readonly id: string; count: number};") {
-		t.Errorf("readonly modifier must survive the builder leg:\n%s", typeForm)
+	// Standard readOnly is annotation-only (the door dropped the modifier
+	// lift on purpose), so the schema target embeds the whole object.
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "embedType<{readonly id: string; count: number}>()") {
+		t.Errorf("readonly member should embed on the schema target:\n%s", schemaForm)
 	}
-	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
-		t.Fatalf("expected the jsReadonly-pending refusal, got %+v", diags)
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "type WithRO = {readonly id: string; count: number};") {
+		t.Errorf("readonly modifier must survive the full chain:\n%s", typeForm)
+	}
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected the portable refusal for the readonly embed, got %+v", diags)
 	}
 }
 
