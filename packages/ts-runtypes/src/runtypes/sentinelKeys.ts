@@ -31,6 +31,11 @@
 // Both spellings fold to the same structural id — the property name never
 // reaches the hash (the walk skips it; the annotation supplies the id).
 
+// #region sentinel-keys-extract — the key declarations, sliced verbatim by
+// test/types/substituteSelfHarness.ts (the SubstituteSelf region below names
+// them, and the sliced snippet has no imports). A locally declared symbol of
+// the same NAME is recognised exactly like the shipped one, so the slice is a
+// faithful stand-in.
 export declare const __rtFormatName: unique symbol;
 export declare const __rtFormatParams: unique symbol;
 export declare const __rtFormatBrand: unique symbol;
@@ -41,3 +46,4 @@ export declare const __rtPropNames: unique symbol;
 export declare const __rtOneOf: unique symbol;
 export declare const __rtUnevaluated: unique symbol;
 export declare const __rtLabels: unique symbol;
+// #endregion sentinel-keys-extract

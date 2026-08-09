@@ -22,11 +22,13 @@
 import {describe, expect, test} from 'vitest';
 import * as TF from '../../src/formats/index.ts';
 import type {RunType, InferType, DataOnly} from '../../src/index.ts';
+import type {CarriedKey} from '../../src/builders/static.ts';
 
 describe('structural brand keys — type-only assertions', () => {
   test('assertion bodies are referenced (no runtime work here)', () => {
     expect(typeof assertionsStructuralBrandKeys).toBe('function');
     expect(typeof assertionsRecoveredTypesCarryNoMetadata).toBe('function');
+    expect(typeof assertionsCarriedKeyIsExhaustive).toBe('function');
   });
 });
 
@@ -179,4 +181,20 @@ function assertionsRecoveredTypesCarryNoMetadata() {
   void asPlainShape;
   void fromPlainLiteral;
   void wireAsPlainShape;
+}
+
+// The sentinel vocabulary is CLOSED, and `SubstituteSelf` (the RT.circular
+// knot) depends on that: it takes a carrier intersection apart by that exact
+// list and puts it back together, so a sentinel missing from `CarriedKey`
+// would be silently dropped from — or folded into — any type inside a
+// recursive body, moving its structural id with no error anywhere. Deriving
+// one side from the module makes adding a sentinel without wiring it a
+// COMPILE error here rather than a silent id move at run time.
+type SentinelModule = typeof import('../../src/runtypes/sentinelKeys.ts');
+type AllSentinelKeys = SentinelModule[keyof SentinelModule];
+type Exact<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+
+function assertionsCarriedKeyIsExhaustive(): void {
+  const everySentinelIsCarried: true = null as unknown as Exact<CarriedKey, AllSentinelKeys>;
+  void everySentinelIsCarried;
 }

@@ -7,7 +7,18 @@
 // except where unavoidable (per CLAUDE.md): every helper is an `extends`-guard +
 // indexed-access read.
 
-import type {__rtOneOf, __rtFormatName, __rtLabels} from '../runtypes/sentinelKeys.ts';
+import type {
+  __rtOneOf,
+  __rtFormatName,
+  __rtFormatParams,
+  __rtFormatBrand,
+  __rtNot,
+  __rtContains,
+  __rtPatternProps,
+  __rtPropNames,
+  __rtUnevaluated,
+  __rtLabels,
+} from '../runtypes/sentinelKeys.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {InferType} from '../runtypes/builderTypes.ts';
 
@@ -380,42 +391,203 @@ export type AssembleTemplate<P extends readonly TemplatePart[]> = P extends read
 declare const SelfBrand: unique symbol;
 export type Self = {readonly [SelfBrand]: true};
 
+/** Every sentinel key a CONTAINER can carry, as one closed union. A carrier is
+ *  always `Base & {readonly [key]?: payload}`, and the substitution below has
+ *  to take that intersection apart and put it back together — rebuilding the
+ *  base alone drops the payload, while mapping over the whole intersection
+ *  folds the sentinel INTO the base (both move the structural id away from the
+ *  type-first spelling). The vocabulary is closed by construction: these are
+ *  the resolver's wire contract (runtypes/sentinelKeys.ts), and
+ *  `CarriedKeyExhaustive` in test/types/sentinelCarry.test-d.ts fails the build
+ *  if a new sentinel ships without being listed here. **/
+export type CarriedKey =
+  | typeof __rtFormatName
+  | typeof __rtFormatParams
+  | typeof __rtFormatBrand
+  | typeof __rtNot
+  | typeof __rtContains
+  | typeof __rtPatternProps
+  | typeof __rtPropNames
+  | typeof __rtOneOf
+  | typeof __rtUnevaluated
+  | typeof __rtLabels;
+
+/** True when `T` carries at least one sentinel — the gate each container arm
+ *  gets, so a sentinel-free node keeps its ORIGINAL rebuild verbatim (no shape
+ *  and no id may move for the shapes that already work).
+ *
+ *  Distribution runs over the TEN sentinel keys, not over `keyof T`:
+ *  `Extract<keyof T, CarriedKey>` instantiates once per member of `keyof T`,
+ *  which for an array is a ~40-member union and cost more than the whole
+ *  substitution (the budget suite's tree branch went 8x). An assignability
+ *  probe (`T extends {…?: never}`) is cheaper still but FORCES the deferred
+ *  recursive type and blows the depth limit — this stays purely structural. **/
+/** True when `T` carries at least one sentinel.
+ *
+ *  Deliberately a `keyof` LOOKUP. The two cheaper probes both fail here: an
+ *  assignability check against `never`-typed slots, and reading each slot by
+ *  `infer`, each FORCE the deferred `Recursive<Body>` while TypeScript is
+ *  relating two instances of the recursive type, and the unrolling trips the
+ *  instantiation-depth limit (TS2589) on every recursive schema. A `keyof`
+ *  lookup stays structural and lazy. It costs: `keyof` an array instantiates
+ *  the whole `Array<T>` interface, which is why the budget suite's tree branch
+ *  moved most. Only a node the cycle actually runs THROUGH ever gets here —
+ *  everything else short-circuits above — so that cost is bounded by the
+ *  handful of containers on the cycle, not by the schema's size. **/
+type HasCarried<T> = [Extract<keyof T, CarriedKey>] extends [never] ? false : true;
+
+/** The sentinel slots of `T`, re-emitted in carrier shape with the
+ *  substitution run INSIDE each payload — `contains` / `not` / `patternProps`
+ *  / `unevaluated` payloads can themselves reference `Self`. **/
+type CarrySlots<T, P extends [unknown]> = {
+  readonly [K in Extract<keyof T, CarriedKey>]?: SubstituteSelf<NonNullable<T[K]>, P>;
+};
+
+/** Does `T` reference `Self` anywhere? A carrier that does NOT is returned
+ *  VERBATIM — no rebuild can preserve a shape better than not rebuilding it,
+ *  and this is what keeps a labeled tuple or a params-branded record inside a
+ *  recursive body identical to its type-first twin. Walks the same structure
+ *  as the substitution (Map/Set gated before the object arm), reading each
+ *  composite's members as one union: the conditional is naked, so it
+ *  distributes and `AnyTrue` folds the result. Bodies are finite trees — the
+ *  knot is only tied by `Recursive`, never inside a body — so this terminates. **/
+type ContainsSelf<T> = AnyTrue<ContainsSelfIn<T>>;
+
+/** Folds a distributed boolean union: `never` (no members) and an all-`false`
+ *  union mean "no Self", anything else means at least one member had it. **/
+type AnyTrue<B> = [B] extends [never] ? false : [B] extends [false] ? false : true;
+
+type ContainsSelfIn<T> = T extends Self
+  ? true
+  : T extends string | number | boolean | bigint | symbol | null | undefined
+    ? false
+    : T extends Date | RegExp
+      ? false
+      : T extends Map<any, any>
+        ? T extends Map<infer K, infer V>
+          ? AnyTrue<ContainsSelfIn<K> | ContainsSelfIn<V>>
+          : false
+        : T extends Set<any>
+          ? T extends Set<infer E>
+            ? ContainsSelf<E>
+            : false
+          : T extends Promise<infer E>
+            ? ContainsSelf<E>
+            : T extends (...args: infer A extends readonly unknown[]) => infer R
+              ? AnyTrue<ContainsSelfIn<A[number]> | ContainsSelfIn<R>>
+              : T extends readonly unknown[]
+                ? number extends T['length']
+                  ? ContainsSelf<T[number]>
+                  : // A TUPLE is read per slot: `T[number]` unions the slots, and an
+                    // `unknown` slot beside a `Self` one absorbs the union whole
+                    // (`Self | unknown` IS `unknown`), which hid the recursion and
+                    // returned the tuple unsubstituted.
+                    AnyTrue<{[K in keyof T]: ContainsSelf<T[K]>}[number]>
+                : T extends object
+                  ? // Per-member, NOT `ContainsSelf<T[keyof T]>`: an `unknown`-valued
+                    // member (`record(RT.unknown(), …)`) absorbs the whole union, which
+                    // hid a `Self` sitting in a sentinel payload beside it. Mapping
+                    // first keeps every member's answer separate.
+                    AnyTrue<{[K in keyof T]: ContainsSelf<T[K]>}[keyof T]>
+                  : false;
+
 /** Traverse any node type, replacing every `Self` with the recursion fixpoint
  *  `P[0]`. `P` is a 1-tuple holding the recursion; threading it (not a bare type)
  *  lets `Recursive` defer the self-reference. Leaves (primitives — incl. branded
  *  primitives like `String` = `string & brand` — `Date`, `RegExp`) pass
  *  through; containers recurse. `T extends Self` distributes, so union members
- *  substitute individually. Arrays use `infer E → E[]` (defers the recursive
- *  element); tuples use the homomorphic mapped type (preserves slots/optional). **/
+ *  substitute individually.
+ *
+ *  A node that does NOT reference `Self` is returned VERBATIM: no rebuild can
+ *  preserve a shape better than not rebuilding it. That is what keeps the
+ *  sentinel carriers (`FormattedArray` / `FormattedObject` params, `contains` /
+ *  `patternProperties` / `propertyNames` / `unevaluated` / `not` slots, labeled
+ *  tuples) intact inside a recursive body — every container rebuild below
+ *  either drops such an intersection (Map/Set/array rebuild from inferred
+ *  pieces) or folds it into the base (the homomorphic maps), which moved the
+ *  structural id away from the type-first spelling. It also makes the common
+ *  case CHEAPER, since whole subtrees now short-circuit instead of being
+ *  reconstructed node by node. **/
 type SubstituteSelf<T, P extends [unknown]> = T extends Self
   ? P[0]
   : T extends string | number | boolean | bigint | symbol | null | undefined
     ? T
     : T extends Date | RegExp
       ? T
-      : // Gate Map/Set behind cheap non-`infer` checks so non-collection nodes
-        // skip the inference machinery (same optimisation as `DataOnly`).
-        T extends Map<any, any>
-        ? T extends Map<infer K, infer V>
-          ? Map<SubstituteSelf<K, P>, SubstituteSelf<V, P>>
-          : never // unreachable — gate guarantees a Map
-        : T extends Set<any>
-          ? T extends Set<infer E>
-            ? Set<SubstituteSelf<E, P>>
-            : never // unreachable — gate guarantees a Set
-          : T extends Promise<infer E>
-            ? Promise<SubstituteSelf<E, P>>
-            : T extends (...args: infer A extends readonly unknown[]) => infer R
-              ? (...args: {-readonly [K in keyof A]: SubstituteSelf<A[K], P>}) => SubstituteSelf<R, P>
-              : T extends readonly unknown[]
-                ? number extends T['length']
-                  ? T extends readonly (infer E)[]
-                    ? SubstituteSelf<E, P>[]
-                    : never
-                  : {-readonly [K in keyof T]: SubstituteSelf<T[K], P>}
-                : T extends object
-                  ? {[K in keyof T]: SubstituteSelf<T[K], P>}
-                  : T;
+      : // Leaves are settled above, so only composites pay for the walk.
+        ContainsSelf<T> extends false
+        ? T
+        : SubstituteInto<T, P>;
+
+/** The rebuild proper — reached only for a composite that really does recurse. **/
+type SubstituteInto<T, P extends [unknown]> =
+  // Gate Map/Set behind cheap non-`infer` checks so non-collection nodes
+  // skip the inference machinery (same optimisation as `DataOnly`).
+  T extends Map<any, any>
+    ? T extends Map<infer K, infer V>
+      ? CarryOnto<Map<SubstituteSelf<K, P>, SubstituteSelf<V, P>>, T, P>
+      : never // unreachable — gate guarantees a Map
+    : T extends Set<any>
+      ? T extends Set<infer E>
+        ? CarryOnto<Set<SubstituteSelf<E, P>>, T, P>
+        : never // unreachable — gate guarantees a Set
+      : T extends Promise<infer E>
+        ? Promise<SubstituteSelf<E, P>>
+        : T extends (...args: infer A extends readonly unknown[]) => infer R
+          ? // Parameter lists are tuples, and the slot form of `RT.func` rides its
+            // labels on the same `__rtLabels` carrier a labeled tuple uses.
+            (...args: SubstituteTuple<A, P>) => SubstituteSelf<R, P>
+          : T extends readonly unknown[]
+            ? number extends T['length']
+              ? T extends readonly (infer E)[]
+                ? CarryOnto<SubstituteSelf<E, P>[], T, P>
+                : never
+              : SubstituteTuple<T, P>
+            : T extends object
+              ? HasCarried<T> extends true
+                ? {[K in keyof T as K extends CarriedKey ? never : K]: SubstituteSelf<T[K], P>} & CarrySlots<T, P>
+                : {[K in keyof T]: SubstituteSelf<T[K], P>}
+              : T;
+
+/** Re-attach `Source`'s sentinel slots onto a freshly rebuilt `Base` — the
+ *  Map / Set / array rebuilds infer their pieces and would otherwise drop the
+ *  intersection. Only ever reached for a node the cycle runs THROUGH (a
+ *  carrier that does not recurse never gets here), so `keyof` on an array —
+ *  which instantiates the whole `Array<T>` interface — is paid only where the
+ *  payload genuinely has to be carried across the knot. **/
+type CarryOnto<Base, Source, P extends [unknown]> = HasCarried<Source> extends true ? Base & CarrySlots<Source, P> : Base;
+
+/** Tuples the cycle runs through. The homomorphic map preserves slots,
+ *  optionality and rest elements but folds a sentinel INTO the tuple, and
+ *  TypeScript cannot decompose `tuple & object` back into its tuple half (both
+ *  `[...infer B]` and a rest-parameter inference hand back the whole
+ *  intersection or a widened array). A FIXED-arity carrier is therefore rebuilt
+ *  slot by slot from its indexes, which is exact; a carrier with optional or
+ *  rest slots has no such spelling and keeps the historical fold — the one
+ *  remaining lossy shape, and the only one the convert CLI still refuses. **/
+type SubstituteTuple<T extends readonly unknown[], P extends [unknown]> =
+  HasCarried<T> extends true
+    ? IsFixedArity<T> extends true
+      ? TupleFromIndexes<T, P> & CarrySlots<T, P>
+      : {-readonly [K in keyof T]: SubstituteSelf<T[K], P>}
+    : {-readonly [K in keyof T]: SubstituteSelf<T[K], P>};
+
+/** A tuple whose length is ONE numeric literal: no rest element (`number`) and
+ *  no optional slot (which makes `length` a union of the legal arities). **/
+type IsFixedArity<T extends readonly unknown[]> = number extends T['length']
+  ? false
+  : IsUnion<T['length']> extends true
+    ? false
+    : true;
+
+type IsUnion<X, All = X> = X extends unknown ? ([All] extends [X] ? false : true) : never;
+
+/** Rebuild a fixed-arity tuple slot by slot, substituting each element — the
+ *  intersection's element slots ARE the tuple's, so indexing reaches them
+ *  without needing the base type back. **/
+type TupleFromIndexes<T, P extends [unknown], Acc extends unknown[] = []> = Acc['length'] extends T['length' & keyof T]
+  ? Acc
+  : TupleFromIndexes<T, P, [...Acc, SubstituteSelf<T[Acc['length'] & keyof T], P>]>;
 
 /** Ties a recursive body (containing `Self`) into the self-referential type it
  *  denotes — `Recursive<{next?: Self}>` ≡ `type Node = {next?: Node}`. The

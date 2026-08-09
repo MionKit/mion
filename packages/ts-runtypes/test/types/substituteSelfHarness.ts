@@ -12,17 +12,18 @@ import {makeMeasurer, type MeasureResult} from './compileHarness.ts';
 export type {MeasureResult};
 
 const STATIC_TS = fileURLToPath(new URL('../../src/builders/static.ts', import.meta.url));
+const SENTINEL_KEYS_TS = fileURLToPath(new URL('../../src/runtypes/sentinelKeys.ts', import.meta.url));
 
-/** Slice the `Self` / `SubstituteSelf` / `Recursive` machinery out of static.ts
- *  between the region markers and drop `export` so it lives in a script snippet. **/
-function extractRegion(): string {
-  const source = readFileSync(STATIC_TS, 'utf8');
-  const start = source.indexOf('// #region substituteself-extract');
-  const end = source.indexOf('// #endregion substituteself-extract');
+/** Slice one marked region verbatim out of a source file, dropping `export` so
+ *  it lives in a script snippet. **/
+function extractRegion(file: string, name: string): string {
+  const source = readFileSync(file, 'utf8');
+  const start = source.indexOf(`// #region ${name}`);
+  const end = source.indexOf(`// #endregion ${name}`);
   if (start === -1 || end === -1) {
-    throw new Error('substituteself-extract region markers not found in src/builders/static.ts');
+    throw new Error(`${name} region markers not found in ${file}`);
   }
-  return source.slice(start, end).replace(/^export (type|interface) /gm, '$1 ');
+  return source.slice(start, end).replace(/^export (type|interface|declare) /gm, '$1 ');
 }
 
 const ASSERT_PREAMBLE = `
@@ -31,7 +32,9 @@ type Expect<T extends true> = T;
 type Assignable<A, B> = A extends B ? true : false;
 `;
 
-const PREAMBLE = `${extractRegion()}\n${ASSERT_PREAMBLE}\n`;
+// The sentinel KEYS come first: the SubstituteSelf region names them (the
+// carrier machinery), and the slice has no imports.
+const PREAMBLE = `${extractRegion(SENTINEL_KEYS_TS, 'sentinel-keys-extract')}\n${extractRegion(STATIC_TS, 'substituteself-extract')}\n${ASSERT_PREAMBLE}\n`;
 
 /** Compile `PREAMBLE + snippet` and report errors + raw/net instantiation counts. **/
 export const measureSubstituteSelf = makeMeasurer(PREAMBLE);
