@@ -79,6 +79,11 @@ const FUZZ = {
   // Generation fuzz of the sidecar's `generate` op (supported-subset round-trip
   // + determinism oracles, adversarial construct contract; RT_FUZZ_SEED replays).
   patterngen: {patterns: ['patternGenFuzz']},
+  // Format-conversion sweep (Go-side: the printers live in internal/convert).
+  // Chain oracle per iteration: ids preserved on every leg (C2), canonical
+  // reflection graphs equal (C6), full chain converges (C4), re-conversion is
+  // a byte no-op (C5). RT_FUZZ_SEED replays a failure; RT_FUZZ_ITER widens.
+  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain', '-count=1'], soak: {RT_FUZZ_ITER: '150'}},
   all: {patterns: ['fuzz.integration', 'typeFuzz.integration', 'binaryEncoderResize']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
@@ -159,6 +164,7 @@ function runCore(args) {
     const {value: soak, rest: extra} = takeFlag(rest.slice(1), '--soak');
     const env = {...(suite.env ?? {}), ...(soak ? suite.soak ?? {} : {})};
     ensureBuilt();
+    if (suite.goTest) return proxy('go', ['-C', 'ts-go-runtypes', 'test', ...suite.goTest, ...extra], env);
     if (suite.config) return proxy('pnpm', ['exec', 'vitest', 'run', '--config', suite.config, ...extra], env);
     return proxy('pnpm', ['exec', 'vitest', 'run', ...suite.patterns, ...extra], env);
   }
@@ -331,7 +337,7 @@ const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx
 core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
-  rtx core fuzz <suite> [--soak]   unit|value|types|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|all
+  rtx core fuzz <suite> [--soak]   unit|value|types|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|all
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
