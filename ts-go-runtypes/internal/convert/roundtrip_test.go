@@ -23,8 +23,22 @@ func declIDs(t testing.TB, source string) map[string]string {
 	return ids
 }
 
+// declGraphs is declIDs for the C6 oracle: name → canonical reflection graph.
+func declGraphs(t testing.TB, source string) map[string]string {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
+	defer session.Close()
+	absPath := tspath.ResolvePath(cwd, "main.ts")
+	graphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+	if graphsErr != nil {
+		t.Fatalf("DeclarationGraphs: %v", graphsErr)
+	}
+	return graphs
+}
+
 // convertAndCheckIDs converts source to target and asserts every declaration
-// resolves to the SAME structural id afterwards — the C2 oracle, Go-side.
+// resolves to the SAME structural id (C2) AND the same canonical reflection
+// graph (C6 — information the id ignores must survive too) afterwards.
 func convertAndCheckIDs(t *testing.T, source string, target convert.Target) string {
 	t.Helper()
 	output, diags := convertOne(t, source, convert.Options{Target: target})
@@ -43,6 +57,20 @@ func convertAndCheckIDs(t *testing.T, source string, target convert.Target) stri
 	}
 	if len(after) != len(before) {
 		t.Errorf("declaration count changed after --to %s: %d → %d\n%s", target, len(before), len(after), output)
+	}
+	if !t.Failed() {
+		beforeGraphs := declGraphs(t, source)
+		afterGraphs := declGraphs(t, output)
+		for name, beforeGraph := range beforeGraphs {
+			afterGraph, ok := afterGraphs[name]
+			if !ok {
+				continue
+			}
+			if afterGraph != beforeGraph {
+				t.Errorf("declaration %q lost reflection information after --to %s:\n--- before ---\n%s\n--- after ---\n%s\n--- output ---\n%s",
+					name, target, beforeGraph, afterGraph, output)
+			}
+		}
 	}
 	return output
 }

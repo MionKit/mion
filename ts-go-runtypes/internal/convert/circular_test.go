@@ -66,6 +66,25 @@ func setDeclIDs(t testing.TB, sources map[string]string) map[string]string {
 	return ids
 }
 
+// setDeclGraphs is setDeclIDs for the C6 oracle.
+func setDeclGraphs(t testing.TB, sources map[string]string) map[string]string {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, sources)
+	defer session.Close()
+	graphs := map[string]string{}
+	for rel := range sources {
+		absPath := tspath.ResolvePath(cwd, rel)
+		fileGraphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+		if graphsErr != nil {
+			t.Fatalf("DeclarationGraphs %s: %v", rel, graphsErr)
+		}
+		for name, graph := range fileGraphs {
+			graphs[rel+"#"+name] = graph
+		}
+	}
+	return graphs
+}
+
 // convertSetAndCheckIDs is convertSet plus the C2 oracle across the set. A
 // declaration converting away from an alias-less const gains a DERIVED type
 // name, so names absent after conversion fall back to id-multiset matching.
@@ -93,6 +112,16 @@ func convertSetAndCheckIDs(t *testing.T, sources map[string]string, target conve
 	}
 	if len(after) != len(before) {
 		t.Errorf("declaration count changed after --to %s: %d → %d\n%v", target, len(before), len(after), outputs)
+	}
+	if !t.Failed() {
+		beforeGraphs := setDeclGraphs(t, sources)
+		afterGraphs := setDeclGraphs(t, outputs)
+		for name, beforeGraph := range beforeGraphs {
+			if afterGraph, ok := afterGraphs[name]; ok && afterGraph != beforeGraph {
+				t.Errorf("declaration %q lost reflection information after --to %s:\n--- before ---\n%s\n--- after ---\n%s",
+					name, target, beforeGraph, afterGraph)
+			}
+		}
 	}
 	return outputs
 }
