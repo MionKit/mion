@@ -29,7 +29,15 @@ func TestFuzz_AtomChain(t *testing.T) {
 		seed = parsed
 	}
 	rng := rand.New(rand.NewSource(seed))
-	for iteration := 0; iteration < 6; iteration++ {
+	iterations := 6
+	if raw := os.Getenv("RT_FUZZ_ITER"); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil {
+			t.Fatalf("RT_FUZZ_ITER: %v", parseErr)
+		}
+		iterations = parsed
+	}
+	for iteration := 0; iteration < iterations; iteration++ {
 		source := randomAtomFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
 		builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -46,23 +54,39 @@ func TestFuzz_AtomChain(t *testing.T) {
 	}
 }
 
-// randomAtomFile renders 3–8 named declarations drawn from the atomic space:
-// plain atoms plus string/number/boolean/bigint/null literals, with awkward
-// string contents on purpose.
+// randomAtomFile renders 3–8 named declarations drawn from the atomic space
+// (plain atoms plus string/number/boolean/bigint/null literals, with awkward
+// string contents on purpose), then sprinkles the relational arms: a
+// self-cycle, a cross-declaration reference, and a mutual-cycle pair.
 func randomAtomFile(rng *rand.Rand) string {
 	atoms := []string{"string", "number", "boolean", "bigint", "symbol", "null", "undefined", "any", "unknown", "never", "void"}
 	stringPool := []string{"ana", "with 'quote'", `back\slash`, "new\nline", "tab\there", "ünïcode", ""}
 	var out strings.Builder
 	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
 	declCount := 3 + rng.Intn(6)
+	var names []string
 	for index := 0; index < declCount; index++ {
 		exportPrefix := ""
 		if rng.Intn(2) == 0 {
 			exportPrefix = "export "
 		}
 		name := fmt.Sprintf("Fz%c%d", 'A'+rune(index), rng.Intn(100))
+		names = append(names, name)
 		typeText := randomTypeText(rng, atoms, stringPool, 2)
 		fmt.Fprintf(&out, "%stype %s = %s;\n", exportPrefix, name, typeText)
+	}
+	if rng.Intn(2) == 0 {
+		cycleName := fmt.Sprintf("FzCycle%d", rng.Intn(100))
+		fmt.Fprintf(&out, "export type %s = {value: %s; next?: %s; kids: %s[]};\n",
+			cycleName, randomTypeText(rng, atoms, stringPool, 0), cycleName, cycleName)
+	}
+	if rng.Intn(2) == 0 {
+		target := names[rng.Intn(len(names))]
+		fmt.Fprintf(&out, "type FzRef%d = {ref?: %s; list: %s[]};\n", rng.Intn(100), target, target)
+	}
+	if rng.Intn(3) == 0 {
+		fmt.Fprintf(&out, "export type FzMutualA = {partner?: FzMutualB; tag: %s};\ntype FzMutualB = {back: FzMutualA[]};\n",
+			randomTypeText(rng, atoms, stringPool, 0))
 	}
 	return out.String()
 }

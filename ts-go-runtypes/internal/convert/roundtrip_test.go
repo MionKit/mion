@@ -384,14 +384,35 @@ func TestPortable_DialectRefused(t *testing.T) {
 	}
 }
 
-func TestCircular_RefusedForNow(t *testing.T) {
-	source := "type Tree = {value: number; kids: Tree[]};\ntype Plain = string;\n"
+func TestAnonymousCycle_Refused(t *testing.T) {
+	// A cycle that never passes through a NAMED declaration root has no
+	// spelling (`self()` / `$ref: '#'` bind the root only): the indexed
+	// access below makes the INNER object cycle on itself while only the
+	// outer object is named. The declaration errors and stays untouched.
+	source := "type Outer = {inner: {back?: Outer['inner']}};\ntype Plain = string;\n"
 	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind {
-		t.Fatalf("expected one CNV001 for the circular type, got %+v", diags)
+	foundCycleDiag := false
+	for _, diagnostic := range diags {
+		if diagnostic.Code == convert.CodeUnsupportedKind && strings.Contains(diagnostic.Message, "cycle") {
+			foundCycleDiag = true
+		}
 	}
-	if !strings.Contains(output, "type Tree = {value: number; kids: Tree[]};") || !strings.Contains(output, "const plainRT = TF.string();") {
-		t.Errorf("circular declaration stays untouched while the rest converts:\n%s", output)
+	if !foundCycleDiag {
+		t.Fatalf("expected a CNV001 unnamed-cycle diagnostic, got %+v", diags)
+	}
+	if !strings.Contains(output, "const plainRT = TF.string();") {
+		t.Errorf("the rest of the file still converts:\n%s", output)
+	}
+}
+
+func TestAnonymousCycle_RescuedByNamingIt(t *testing.T) {
+	// Naming the cycling inner type turns the unnamed cycle into an ordinary
+	// declaration reference, so the same shape converts.
+	source := "type Outer = {inner: {back?: Outer['inner']}};\ntype Cut = Outer['inner'];\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+	expectNoDiags(t, diags)
+	if !strings.Contains(output, "getRunType<Cut>()") || !strings.Contains(output, "RT.circular(") {
+		t.Errorf("naming the inner cycle should convert via a reference + its own circular:\n%s", output)
 	}
 }
 

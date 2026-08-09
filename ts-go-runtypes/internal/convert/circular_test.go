@@ -1,0 +1,254 @@
+package convert_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/microsoft/typescript-go/shim/tspath"
+	"github.com/mionkit/ts-runtypes/internal/convert"
+)
+
+// convertSet converts every file of sources with one run-wide Set and returns
+// path → output, asserting no diagnostics.
+func convertSet(t *testing.T, sources map[string]string, opts convert.Options) map[string]string {
+	t.Helper()
+	outputs, diags := convertSetWithDiags(t, sources, opts)
+	for _, diagnostic := range diags {
+		t.Errorf("unexpected diagnostic %s [%s]: %s", diagnostic.Code, diagnostic.Decl, diagnostic.Message)
+	}
+	return outputs
+}
+
+func convertSetWithDiags(t *testing.T, sources map[string]string, opts convert.Options) (map[string]string, []convert.Diagnostic) {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, sources)
+	defer session.Close()
+	absFiles := make([]string, 0, len(sources))
+	relByAbs := map[string]string{}
+	for rel := range sources {
+		absPath := tspath.ResolvePath(cwd, rel)
+		absFiles = append(absFiles, absPath)
+		relByAbs[absPath] = rel
+	}
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, absFiles)
+	if setErr != nil {
+		t.Fatalf("BuildSet: %v", setErr)
+	}
+	outputs := map[string]string{}
+	var diags []convert.Diagnostic
+	for _, absPath := range absFiles {
+		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts, set)
+		if convertErr != nil {
+			t.Fatalf("ConvertFile %s: %v", relByAbs[absPath], convertErr)
+		}
+		outputs[relByAbs[absPath]] = result.Output
+		diags = append(diags, result.Diags...)
+	}
+	return outputs, diags
+}
+
+// setDeclIDs resolves every declaration id across a multi-file set.
+func setDeclIDs(t testing.TB, sources map[string]string) map[string]string {
+	t.Helper()
+	prog, session, cwd := setupConvert(t, sources)
+	defer session.Close()
+	ids := map[string]string{}
+	for rel := range sources {
+		absPath := tspath.ResolvePath(cwd, rel)
+		fileIDs, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+		if idsErr != nil {
+			t.Fatalf("DeclarationIDs %s: %v", rel, idsErr)
+		}
+		for name, id := range fileIDs {
+			ids[rel+"#"+name] = id
+		}
+	}
+	return ids
+}
+
+// convertSetAndCheckIDs is convertSet plus the C2 oracle across the set. A
+// declaration converting away from an alias-less const gains a DERIVED type
+// name, so names absent after conversion fall back to id-multiset matching.
+func convertSetAndCheckIDs(t *testing.T, sources map[string]string, target convert.Target) map[string]string {
+	t.Helper()
+	outputs := convertSet(t, sources, convert.Options{Target: target})
+	before := setDeclIDs(t, sources)
+	after := setDeclIDs(t, outputs)
+	afterCounts := map[string]int{}
+	for _, id := range after {
+		afterCounts[id]++
+	}
+	for name, beforeID := range before {
+		if afterID, ok := after[name]; ok {
+			if afterID != beforeID {
+				t.Errorf("declaration %q changed id after --to %s: %s → %s\n%v", name, target, beforeID, afterID, outputs)
+			}
+			continue
+		}
+		if afterCounts[beforeID] == 0 {
+			t.Errorf("declaration %q (id %s) disappeared after --to %s:\n%v", name, beforeID, target, outputs)
+			continue
+		}
+		afterCounts[beforeID]--
+	}
+	if len(after) != len(before) {
+		t.Errorf("declaration count changed after --to %s: %d → %d\n%v", target, len(before), len(after), outputs)
+	}
+	return outputs
+}
+
+func TestChain_SelfCycle(t *testing.T) {
+	source := "export type TreeNode = {value: number; next?: TreeNode; children: TreeNode[]};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "RT.self()") {
+		t.Errorf("self-cycle should print RT.circular + RT.self():\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{$ref: '#'}") {
+		t.Errorf("self-cycle should print {$ref: '#'} on the schema target:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "next?: TreeNode") || !strings.Contains(typeForm, "children: TreeNode[]") {
+		t.Errorf("type target should close the cycle on the type's own name:\n%s", typeForm)
+	}
+}
+
+func TestChain_MutualCycle(t *testing.T) {
+	// Builders/schema inline the partner (a name reference would make the
+	// const's type self-referential); the type target restores both names.
+	source := "export type Alpha = {beta?: Beta};\nexport type Beta = {alpha?: Alpha};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.circular(") {
+		t.Errorf("mutual cycle should wrap in RT.circular:\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Alpha = {beta?: Beta};") {
+		t.Errorf("type target should reference the partner by name:\n%s", typeForm)
+	}
+}
+
+func TestChain_CrossReference(t *testing.T) {
+	source := "export type Leaf = {value: string};\nexport type Branch = {leaf: Leaf; twigs: Leaf[]};\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "getRunType<Leaf>()") {
+		t.Errorf("acyclic reference should print getRunType<Leaf>():\n%s", builderForm)
+	}
+	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "embedType<Leaf>()") {
+		t.Errorf("acyclic reference should print embedType<Leaf>() on the schema target:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Branch = {leaf: Leaf; twigs: Leaf[]};") {
+		t.Errorf("type target should keep the reference by name:\n%s", typeForm)
+	}
+}
+
+func TestBuildersCircularInput_ToType(t *testing.T) {
+	source := buildersHeader +
+		"export const nodeRT = RT.circular(RT.object({value: TF.number(), next: RT.optional(RT.self())}));\n" +
+		"export type Node = InferType<typeof nodeRT>;\n"
+	typeForm := convertAndCheckIDs(t, source, convert.TargetType)
+	if !strings.Contains(typeForm, "export type Node = {value: number; next?: Node};") {
+		t.Errorf("authored circular builder should convert to the named self-reference:\n%s", typeForm)
+	}
+}
+
+func TestSchemaRefInput_ToType(t *testing.T) {
+	source := "import {type InferType} from '@ts-runtypes/core';\n" +
+		"import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
+		"export const nodeRT = runTypeFromJsonSchema({type: 'object', properties: {value: {type: 'number'}, next: {$ref: '#'}}, required: ['value'], additionalProperties: false} as const);\n" +
+		"export type Node = InferType<typeof nodeRT>;\n"
+	typeForm := convertAndCheckIDs(t, source, convert.TargetType)
+	if !strings.Contains(typeForm, "next?: Node") {
+		t.Errorf("authored $ref: '#' schema should convert to the named self-reference:\n%s", typeForm)
+	}
+}
+
+func TestMultiFile_CrossImport(t *testing.T) {
+	sources := map[string]string{
+		"leaf.ts":   "export type Leaf = {value: string};\n",
+		"branch.ts": "import {type Leaf} from './leaf.ts';\nexport type Branch = {leaf: Leaf};\n",
+	}
+	builderOutputs := convertSetAndCheckIDs(t, sources, convert.TargetBuilders)
+	if !strings.Contains(builderOutputs["branch.ts"], "getRunType<Leaf>()") {
+		t.Errorf("cross-file reference should print getRunType<Leaf>():\n%s", builderOutputs["branch.ts"])
+	}
+	if !strings.Contains(builderOutputs["branch.ts"], "import {type Leaf} from './leaf.ts';") {
+		t.Errorf("existing type import should survive:\n%s", builderOutputs["branch.ts"])
+	}
+	typeOutputs := convertSetAndCheckIDs(t, builderOutputs, convert.TargetType)
+	if !strings.Contains(typeOutputs["branch.ts"], "export type Branch = {leaf: Leaf};") {
+		t.Errorf("type target should restore the named cross-file reference:\n%s", typeOutputs["branch.ts"])
+	}
+}
+
+func TestMultiFile_ConstImportRetargets(t *testing.T) {
+	// branch.ts composes leaf.ts's BUILDER CONST; converting both to type form
+	// drops the const import and references the type name instead.
+	sources := map[string]string{
+		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
+			"export const leafRT = RT.object({value: TF.string()});\nexport type Leaf = InferType<typeof leafRT>;\n",
+		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport {leafRT} from './leaf.ts';\n" +
+			"export const branchRT = RT.object({leaf: leafRT});\n",
+	}
+	typeOutputs := convertSetAndCheckIDs(t, sources, convert.TargetType)
+	branch := typeOutputs["branch.ts"]
+	if !strings.Contains(branch, "{leaf: Leaf}") {
+		t.Errorf("const composition should convert to the type name:\n%s", branch)
+	}
+	if !strings.Contains(branch, "import {type Leaf} from './leaf.ts';") {
+		t.Errorf("the type-name import should be added:\n%s", branch)
+	}
+	if strings.Contains(branch, "leafRT") {
+		t.Errorf("the now-unused const import should be removed:\n%s", branch)
+	}
+}
+
+func TestOutsideSet_Errors(t *testing.T) {
+	// branch.ts references leaf.ts, but only branch.ts is in the run — the
+	// user decided this errors instead of silently inlining the reference.
+	sources := map[string]string{
+		"leaf.ts":   "export type Leaf = {value: string};\n",
+		"branch.ts": "import {type Leaf} from './leaf.ts';\nexport type Branch = {leaf: Leaf};\n",
+	}
+	prog, session, cwd := setupConvert(t, sources)
+	defer session.Close()
+	branchAbs := tspath.ResolvePath(cwd, "branch.ts")
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, []string{branchAbs})
+	if setErr != nil {
+		t.Fatalf("BuildSet: %v", setErr)
+	}
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, branchAbs, convert.Options{Target: convert.TargetBuilders}, set)
+	if convertErr != nil {
+		t.Fatalf("ConvertFile: %v", convertErr)
+	}
+	if len(result.Diags) != 1 || result.Diags[0].Code != convert.CodeOutsideSet {
+		t.Fatalf("expected one CNV004, got %+v", result.Diags)
+	}
+	if result.Changed {
+		t.Errorf("declaration with an outside-set reference must stay untouched")
+	}
+}
+
+func TestAliasOfAlias_ReferencesTarget(t *testing.T) {
+	source := "export type Original = {value: string};\nexport type Mirror = Original;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "const mirrorRT = getRunType<Original>();") {
+		t.Errorf("an alias of an alias should reference the original:\n%s", builderForm)
+	}
+}
+
+func TestPortable_CrossReferenceInlines(t *testing.T) {
+	// embedType is dialect, so --portable inlines references instead
+	// (structurally identical, the id cannot move).
+	source := "export type Leaf = {value: string};\nexport type Branch = {leaf: Leaf};\n"
+	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	expectNoDiags(t, diags)
+	if strings.Contains(output, "embedType") {
+		t.Errorf("--portable must not print embedType:\n%s", output)
+	}
+	if !strings.Contains(output, "leaf: {type: 'object', properties: {value: {type: 'string'}}") {
+		t.Errorf("--portable should inline the reference:\n%s", output)
+	}
+}

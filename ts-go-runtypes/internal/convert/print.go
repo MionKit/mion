@@ -29,9 +29,20 @@ type printContext struct {
 	decl    *declaration
 	resolve func(id string) *reflection.RunType
 	needs   importNeeds
-	// walking guards the recursive printers against circular graphs: a node
-	// already on the walk path reports CNV001 (circular conversion is a later
-	// phase) instead of recursing forever.
+	// Set-wide reference state: the run's declaration table, this file's
+	// import bindings, the root node's id (self back-edges close on it) and,
+	// for the type target only, the printed declaration's own type name.
+	set         *Set
+	bindings    *fileBindings
+	currentFile string
+	rootID      string
+	selfName    string
+	// usedSelf records that a self back-edge printed (`RT.self()`), so the
+	// builders target wraps the whole expression in `RT.circular(…)`.
+	usedSelf bool
+	// walking guards the recursive printers: a node already on the walk path
+	// is a back-edge — the root's id closes as a self-reference, anything
+	// else (a cycle through an unnamed intermediate) reports CNV001.
 	walking map[string]bool
 }
 
@@ -51,11 +62,160 @@ func (ctx *printContext) enter(node *reflection.RunType) (func(), bool) {
 	return func() { delete(ctx.walking, node.ID) }, true
 }
 
-// circularPendingDiag reports a circular type, whose conversion (RT.circular /
-// $defs) is a later phase.
-func (ctx *printContext) circularPendingDiag() *Diagnostic {
+// anonymousCycleDiag reports a cycle that never passes through the printed
+// declaration's root or a referenceable declaration — there is no spelling
+// that closes it (`self()` / `$ref: '#'` bind the root only).
+func (ctx *printContext) anonymousCycleDiag() *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "circular types are not convertible yet (see docs/todos/format-conversion-completion.md)"}
+		Message: "cycle through an unnamed type has no conversion spelling (name the cycling type and convert it too)"}
+}
+
+// declRef resolves a node against the run's declaration table: a self
+// back-edge prints the target's self spelling, another declaration's node
+// prints a name reference. The bool reports whether the node WAS a reference
+// (the caller returns the text/diag instead of walking the node).
+func (ctx *printContext) declRef(node *reflection.RunType, target Target) (string, *Diagnostic, bool) {
+	if node == nil || node.ID == "" || ctx.set == nil {
+		return "", nil, false
+	}
+	if node.ID == ctx.rootID {
+		if len(ctx.walking) == 0 {
+			// The declaration's own root — unless another declaration with the
+			// same structural id already names this exact type, in which case
+			// the whole declaration is an alias of it and prints as a
+			// reference (`type C = B`).
+			if entry, exists := ctx.set.Table[node.ID]; exists && entry.TypeName != "" && entry.TypeName != declLabel(ctx.decl) {
+				return ctx.refSpelling(entry, target)
+			}
+			return "", nil, false
+		}
+		switch target {
+		case TargetType:
+			if ctx.selfName == "" {
+				// A self back-edge inside an embedded type expression (a
+				// negation embed, an escape) would spell the declaration's own
+				// alias inside its own const initializer — circular in TS.
+				return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+					Message: "self-referential type inside an embedded type expression is not convertible"}, true
+			}
+			return ctx.selfName, nil, true
+		case TargetBuilders:
+			ctx.usedSelf = true
+			ctx.needs.useRT = true
+			return ctx.names.RT + ".self()", nil, true
+		case TargetJSONSchema:
+			return "{$ref: '#'}", nil, true
+		}
+		return "", nil, false
+	}
+	entry, exists := ctx.set.Table[node.ID]
+	if !exists || entry.TypeName == "" || !referenceWorthy(node) {
+		return "", nil, false
+	}
+	if target != TargetType && ctx.reaches(node.ID, ctx.rootID) {
+		// The referenced declaration cycles back here; a name reference would
+		// make the printed const's type self-referential (TS rejects it), so
+		// the partner inlines and the cycle closes at the root instead. The
+		// type target keeps the name — aliases resolve lazily.
+		return "", nil, false
+	}
+	return ctx.refSpelling(entry, target)
+}
+
+// refSpelling renders a table reference in the requested target, resolving
+// the cross-file spelling and recording import needs.
+func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *Diagnostic, bool) {
+	if target == TargetJSONSchema && ctx.opts.Portable {
+		// embedType is dialect; under --portable a reference inlines instead
+		// (structurally identical, so the id cannot move).
+		return "", nil, false
+	}
+	spelling := entry.TypeName
+	if ctx.bindings != nil {
+		resolved, keepLocal, needsImport, ok := ctx.bindings.spellForTarget(entry, ctx.currentFile)
+		if !ok {
+			return "", &Diagnostic{Code: CodeOutsideSet, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("references %q from %s but this file has no import that reaches it", entry.TypeName, entry.File)}, true
+		}
+		spelling = resolved
+		if keepLocal != "" {
+			ctx.needs.keepLocal(keepLocal)
+		}
+		if needsImport {
+			ctx.needs.addForeign(foreignNeed{module: ctx.bindings.moduleFor(entry.File), name: entry.TypeName})
+		}
+	}
+	switch target {
+	case TargetType:
+		return spelling, nil, true
+	case TargetBuilders:
+		ctx.needs.useGetRunType = true
+		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, spelling), nil, true
+	case TargetJSONSchema:
+		ctx.needs.useEmbedType = true
+		return fmt.Sprintf("%s<%s>()", ctx.names.EmbedType, spelling), nil, true
+	}
+	return "", nil, false
+}
+
+// referenceWorthy gates name references to the kinds users author as named
+// declarations. Atoms, literals and format brands always inline — an aliased
+// `string` must not upgrade every structurally-equal string in the set to a
+// name reference.
+func referenceWorthy(node *reflection.RunType) bool {
+	switch node.Kind {
+	case reflection.KindObjectLiteral, reflection.KindTuple, reflection.KindUnion,
+		reflection.KindArray, reflection.KindFunction, reflection.KindTemplateLiteral,
+		reflection.KindEnum, reflection.KindClass, reflection.KindPromise:
+		return true
+	}
+	return false
+}
+
+// reaches reports whether targetID is reachable from fromID in the resolved
+// graph — the cycle test behind reference-vs-inline decisions.
+func (ctx *printContext) reaches(fromID, targetID string) bool {
+	if fromID == targetID {
+		return true
+	}
+	visited := map[string]bool{}
+	queue := []string{fromID}
+	found := false
+	var scan func(entry *reflection.RunType)
+	scan = func(entry *reflection.RunType) {
+		if entry == nil || found {
+			return
+		}
+		if entry.ID == targetID {
+			found = true
+			return
+		}
+		if entry.Kind == reflection.KindRef {
+			if !visited[entry.ID] {
+				queue = append(queue, entry.ID)
+			}
+			return
+		}
+		// An inline (non-interned) node: walk its slots directly.
+		entry.EachRefSlot(scan)
+	}
+	for len(queue) > 0 && !found {
+		id := queue[0]
+		queue = queue[1:]
+		if visited[id] {
+			continue
+		}
+		visited[id] = true
+		if id == targetID {
+			return true
+		}
+		node := ctx.resolve(id)
+		if node == nil {
+			continue
+		}
+		node.EachRefSlot(scan)
+	}
+	return found
 }
 
 // deref follows a `{kind:-1, id}` ref sentinel to its canonical node.
@@ -68,9 +228,10 @@ func (ctx *printContext) deref(node *reflection.RunType) *reflection.RunType {
 
 // printDecl renders the full replacement statement(s) for one resolved
 // declaration in the requested target form.
-func printDecl(resolved *resolvedDecl, opts Options, names *nameTable) (*printedDecl, *Diagnostic) {
+func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, set *Set, bindings *fileBindings, currentFile string) (*printedDecl, *Diagnostic) {
 	decl := resolved.Decl
-	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve}
+	ctx := &printContext{names: names, opts: opts, decl: decl, resolve: resolved.Resolve,
+		set: set, bindings: bindings, currentFile: currentFile, rootID: resolved.Node.ID}
 	exportPrefix := ""
 	if decl.Exported {
 		exportPrefix = "export "
@@ -85,6 +246,7 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable) (*printed
 			return nil, &Diagnostic{Code: CodeNameCollision, Severity: SeverityError, Decl: declLabel(decl),
 				Message: fmt.Sprintf("no free type name derivable from %q", decl.ConstName)}
 		}
+		ctx.selfName = typeName
 		typeExpr, diag := ctx.typeExpr(resolved.Node)
 		if diag != nil {
 			return nil, diag
@@ -95,6 +257,10 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable) (*printed
 		builderExpr, diag := ctx.builderExpr(resolved.Node)
 		if diag != nil {
 			return nil, diag
+		}
+		if ctx.usedSelf {
+			ctx.needs.useRT = true
+			builderExpr = fmt.Sprintf("%s.circular(%s)", ctx.names.RT, builderExpr)
 		}
 		return assembleConstDecl(decl, names, exportPrefix, builderExpr, ctx.needs)
 
@@ -350,6 +516,43 @@ func (ctx *printContext) closedParts(node *reflection.RunType, params map[string
 	return nil
 }
 
+// escapeTypeText renders a node's TYPE spelling for an embed/getRunType
+// escape inside a const initializer. Runs on a FRESH walk context (the
+// enclosing printer has already entered the node) that keeps the root id but
+// no self name: embedding the root's own structure is fine, while a nested
+// back-edge to it would spell the declaration's alias inside its own
+// initializer — the empty selfName turns that into a refusal.
+func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diagnostic) {
+	sub := &printContext{names: ctx.names, opts: ctx.opts, decl: ctx.decl, resolve: ctx.resolve,
+		set: ctx.set, bindings: ctx.bindings, currentFile: ctx.currentFile, rootID: ctx.rootID}
+	text, diag := sub.typeExpr(node)
+	ctx.needs.merge(sub.needs)
+	return text, diag
+}
+
+// structuralParamsCarryStandard reports whether the structural brand's params
+// survive the standard-keyword spelling: a value equal to its 2020-12 default
+// (minItems 0, minProperties 0, uniqueItems false) reads back as ABSENT, so
+// the brand would silently drop — those embed instead.
+func structuralParamsCarryStandard(params map[string]any) bool {
+	for key, value := range params {
+		switch key {
+		case "minItems", "minProperties":
+			if number, ok := value.(float64); ok && number == 0 {
+				return false
+			}
+			if number, ok := value.(int); ok && number == 0 {
+				return false
+			}
+		case "uniqueItems":
+			if flag, ok := value.(bool); ok && !flag {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // structuralAnnotationParams returns the structural brand's params (or an
 // empty map when the node carries sentinels without the brand).
 func structuralAnnotationParams(node *reflection.RunType) map[string]any {
@@ -495,9 +698,12 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	if refText, refDiag, isRef := ctx.declRef(node, TargetType); isRef {
+		return refText, refDiag
+	}
 	leave, entered := ctx.enter(node)
 	if !entered {
-		return "", ctx.circularPendingDiag()
+		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
 	if len(node.Negations) > 0 {
@@ -742,9 +948,12 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	if refText, refDiag, isRef := ctx.declRef(node, TargetBuilders); isRef {
+		return refText, refDiag
+	}
 	leave, entered := ctx.enter(node)
 	if !entered {
-		return "", ctx.circularPendingDiag()
+		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
 	rt := func(call string) (string, *Diagnostic) {
@@ -980,9 +1189,12 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	if node == nil {
 		return "", unsupportedDiag(&reflection.RunType{Kind: reflection.KindRef}, ctx.decl)
 	}
+	if refText, refDiag, isRef := ctx.declRef(node, TargetJSONSchema); isRef {
+		return refText, refDiag
+	}
 	leave, entered := ctx.enter(node)
 	if !entered {
-		return "", ctx.circularPendingDiag()
+		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
 	dialect := func(literal string) (string, *Diagnostic) {
@@ -1002,7 +1214,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if ctx.opts.Portable {
 			return dialect("")
 		}
-		negatedText, negDiag := ctx.typeExpr(node.Negations[0])
+		negatedText, negDiag := ctx.escapeTypeText(node.Negations[0])
 		if negDiag != nil {
 			return "", negDiag
 		}
@@ -1083,6 +1295,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		}
 		return fmt.Sprintf("{const: %s}", literalText), nil
 	case reflection.KindArray:
+		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
+			return ctx.schemaEmbedNode(node)
+		}
 		childText, diag := ctx.schemaExpr(node.Child)
 		if diag != nil {
 			return "", diag
@@ -1181,6 +1396,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		}
 		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(arms, ", ")), nil
 	case reflection.KindObjectLiteral:
+		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
+			return ctx.schemaEmbedNode(node)
+		}
 		members, indexValue, diag := ctx.objectMembers(node)
 		if diag != nil {
 			return "", diag
@@ -1264,6 +1482,22 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return out + "}", nil
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// schemaEmbedNode spells a node as `embedType<TypeText>()` on the schema
+// target — the escape for shapes whose standard-keyword spelling would not
+// read back exactly. Dialect, so --portable refuses.
+func (ctx *printContext) schemaEmbedNode(node *reflection.RunType) (string, *Diagnostic) {
+	if ctx.opts.Portable {
+		return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: fmt.Sprintf("%s has no exact standard 2020-12 spelling; drop --portable to use the RunTypes dialect", kindLabel(node.Kind))}
+	}
+	typeText, diag := ctx.escapeTypeText(node)
+	if diag != nil {
+		return "", diag
+	}
+	ctx.needs.useEmbedType = true
+	return fmt.Sprintf("%s<%s>()", ctx.names.EmbedType, typeText), nil
 }
 
 // nativeArguments derefs the KindParameter wrappers a Map/Set node carries in

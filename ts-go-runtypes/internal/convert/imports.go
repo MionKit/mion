@@ -23,7 +23,17 @@ var (
 	moduleJSONSchema = marker.DefaultModule + "/json-schema"
 )
 
-// importNeeds records which managed bindings the printed output uses.
+// foreignNeed is one cross-file type-name import the printed output needs:
+// the module specifier this file reaches the declaration's file through, and
+// the exported type name.
+type foreignNeed struct {
+	module string
+	name   string
+}
+
+// importNeeds records which managed bindings the printed output uses, plus
+// the cross-file needs: foreign type names to import and existing locals the
+// printed references spelled (so removal never strips them).
 type importNeeds struct {
 	useRT                    bool
 	useTF                    bool
@@ -32,6 +42,25 @@ type importNeeds struct {
 	useTypeFormat            bool
 	useRunTypeFromJSONSchema bool
 	useEmbedType             bool
+	foreign                  map[foreignNeed]bool
+	keepLocals               map[string]bool
+}
+
+func (needs *importNeeds) addForeign(need foreignNeed) {
+	if need.module == "" || need.name == "" {
+		return
+	}
+	if needs.foreign == nil {
+		needs.foreign = map[foreignNeed]bool{}
+	}
+	needs.foreign[need] = true
+}
+
+func (needs *importNeeds) keepLocal(local string) {
+	if needs.keepLocals == nil {
+		needs.keepLocals = map[string]bool{}
+	}
+	needs.keepLocals[local] = true
 }
 
 func (needs *importNeeds) merge(other importNeeds) {
@@ -42,6 +71,12 @@ func (needs *importNeeds) merge(other importNeeds) {
 	needs.useTypeFormat = needs.useTypeFormat || other.useTypeFormat
 	needs.useRunTypeFromJSONSchema = needs.useRunTypeFromJSONSchema || other.useRunTypeFromJSONSchema
 	needs.useEmbedType = needs.useEmbedType || other.useEmbedType
+	for need := range other.foreign {
+		needs.addForeign(need)
+	}
+	for local := range other.keepLocals {
+		needs.keepLocal(local)
+	}
 }
 
 // namedBinding is one named import: the exported name, its local alias, and
@@ -52,15 +87,19 @@ type namedBinding struct {
 	typeOnly bool
 }
 
-// moduleImport is one managed import statement.
+// moduleImport is one import statement the scan understands.
 type moduleImport struct {
 	stmt      *ast.Node
 	module    string
 	namespace string
 	named     []namedBinding
-	// managed is false when the statement carries shapes we do not rewrite
-	// (default import, mixed clause) — it is then read-only for alias reuse.
-	managed bool
+	// managed marks one of the four runtypes modules whose bindings the
+	// role table owns; rewritable marks a statement whose SHAPE this package
+	// may rewrite at all (named imports only — no default, no namespace).
+	// Foreign modules are rewritable-but-not-managed: bindings are added for
+	// cross-file references and removed only when conversion made them unused.
+	managed    bool
+	rewritable bool
 }
 
 // importScan is the file's managed-import inventory. allImportEnds records
@@ -123,23 +162,26 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 			continue
 		}
 		module := importDecl.ModuleSpecifier.Text()
-		if module != moduleCore && module != moduleBuilders && module != moduleFormats && module != moduleJSONSchema {
-			continue
-		}
-		entry := &moduleImport{stmt: statement, module: module, managed: true}
+		ours := module == moduleCore || module == moduleBuilders || module == moduleFormats || module == moduleJSONSchema
+		entry := &moduleImport{stmt: statement, module: module, managed: ours, rewritable: true}
 		clause := importDecl.ImportClause
 		if clause == nil {
 			entry.managed = false
+			entry.rewritable = false
 		} else {
 			importClause := clause.AsImportClause()
 			if importClause.Name() != nil {
 				// A default import — never rewritten.
 				entry.managed = false
+				entry.rewritable = false
 			}
 			if bindings := importClause.NamedBindings; bindings != nil {
 				switch bindings.Kind {
 				case ast.KindNamespaceImport:
 					entry.namespace = bindings.AsNamespaceImport().Name().Text()
+					if !ours {
+						entry.rewritable = false
+					}
 				case ast.KindNamedImports:
 					for _, element := range bindings.AsNamedImports().Elements.Nodes {
 						specifier := element.AsImportSpecifier()
@@ -186,8 +228,11 @@ var managedRoles = []managedRole{
 }
 
 // planImportEdits computes the import-statement replacements: per managed
-// module, the final binding set = existing ∪ needed − (managed ∧ unused).
-func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan, needs importNeeds, names *nameTable, replacements []replacement) []replacement {
+// module, the final binding set = existing ∪ needed − (managed ∧ unused);
+// per foreign module, needed cross-file type names are added and in-set
+// bindings conversion made unused (removable, unreferenced, not spelled by
+// any printed reference) are dropped.
+func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan, needs importNeeds, names *nameTable, replacements []replacement, removable map[string]bool) []replacement {
 	usedElsewhere := func(local string) bool {
 		return identifierUsedOutside(sourceFile, local, scan, replacements)
 	}
@@ -244,22 +289,69 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		// and survives unless its own local is unused AND it is one of ours —
 		// non-role bindings are never removed.
 		if entry != nil && entry.managed {
-			newText := renderImport(module, finalNamespace, finalNamed)
-			oldStart := tokenStart(source, entry.stmt.Pos())
-			oldEnd := entry.stmt.End()
-			if newText == "" {
-				if oldEnd < len(source) && source[oldEnd] == '\n' {
-					oldEnd++
-				}
-				edits = append(edits, replacement{start: oldStart, end: oldEnd, text: ""})
-			} else if newText != source[oldStart:oldEnd] {
-				edits = append(edits, replacement{start: oldStart, end: oldEnd, text: newText})
-			}
+			appendImportEdit(&edits, source, entry, renderImport(module, finalNamespace, finalNamed))
 			continue
 		}
 		if rendered := renderImport(module, finalNamespace, finalNamed); rendered != "" {
 			additions = append(additions, rendered)
 		}
+	}
+	// Foreign modules, in deterministic order.
+	neededByModule := map[string][]string{}
+	for need := range needs.foreign {
+		neededByModule[need.module] = append(neededByModule[need.module], need.name)
+	}
+	foreignModules := make([]string, 0, len(scan.byModule)+len(neededByModule))
+	for module, entry := range scan.byModule {
+		if !entry.managed {
+			foreignModules = append(foreignModules, module)
+		}
+	}
+	for module := range neededByModule {
+		if scan.byModule[module] == nil {
+			foreignModules = append(foreignModules, module)
+		}
+	}
+	sort.Strings(foreignModules)
+	for _, module := range foreignModules {
+		neededNames := append([]string(nil), neededByModule[module]...)
+		sort.Strings(neededNames)
+		entry := scan.byModule[module]
+		if entry == nil {
+			var namedAdds []namedBinding
+			for _, name := range neededNames {
+				namedAdds = append(namedAdds, namedBinding{imported: name, local: name, typeOnly: true})
+			}
+			if rendered := renderImport(module, "", namedAdds); rendered != "" {
+				additions = append(additions, rendered)
+			}
+			continue
+		}
+		if !entry.rewritable {
+			continue
+		}
+		finalNamed := make([]namedBinding, 0, len(entry.named)+len(neededNames))
+		for _, existing := range entry.named {
+			drop := removable[existing.local] && !usedElsewhere(existing.local) && !needs.keepLocals[existing.local]
+			if !drop {
+				finalNamed = append(finalNamed, existing)
+			}
+		}
+		for _, name := range neededNames {
+			present := false
+			for _, existing := range finalNamed {
+				if existing.imported == name {
+					present = true
+				}
+			}
+			if !present {
+				finalNamed = append(finalNamed, namedBinding{imported: name, local: name, typeOnly: true})
+			}
+		}
+		if len(finalNamed) == len(entry.named) && len(neededNames) == 0 {
+			continue
+		}
+		appendImportEdit(&edits, source, entry, renderImport(module, "", finalNamed))
 	}
 	if len(additions) > 0 {
 		// Anchor after the last import that SURVIVES this edit — inserting at a
@@ -288,6 +380,24 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 		edits = append(edits, replacement{start: insertAt, end: insertAt, text: text})
 	}
 	return edits
+}
+
+// appendImportEdit records the replacement for one rewritten import
+// statement: a changed statement replaces its span, an emptied one is removed
+// with its trailing newline, an identical render is skipped.
+func appendImportEdit(edits *[]replacement, source string, entry *moduleImport, newText string) {
+	oldStart := tokenStart(source, entry.stmt.Pos())
+	oldEnd := entry.stmt.End()
+	if newText == "" {
+		if oldEnd < len(source) && source[oldEnd] == '\n' {
+			oldEnd++
+		}
+		*edits = append(*edits, replacement{start: oldStart, end: oldEnd, text: ""})
+		return
+	}
+	if newText != source[oldStart:oldEnd] {
+		*edits = append(*edits, replacement{start: oldStart, end: oldEnd, text: newText})
+	}
 }
 
 // renderImport renders one import statement; "" when it has no bindings left.

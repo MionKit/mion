@@ -79,10 +79,14 @@ any error makes the exit code non-zero.
 	defer session.Close()
 
 	options := convert.Options{Target: target, Portable: *portableFlag}
+	conversionSet, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, absFiles)
+	if setErr != nil {
+		fatal("convert: %v", setErr)
+	}
 	errorCount := 0
 	pendingChanges := 0
 	for _, absPath := range absFiles {
-		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, options)
+		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, options, conversionSet)
 		if convertErr != nil {
 			fatal("convert: %v", convertErr)
 		}
