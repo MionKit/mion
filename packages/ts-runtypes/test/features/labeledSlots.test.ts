@@ -11,6 +11,7 @@ import * as TF from '@ts-runtypes/core/formats';
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 describe('labeled slot builders', () => {
   it('tuple slot form converges with the labeled type-first tuple — both getRunTypeId shapes', () => {
@@ -67,6 +68,21 @@ describe('labeled slot builders', () => {
   it('carries labels through the params-tuple form of func', () => {
     const schema = RT.func(RT.tuple([RT.slot('input', TF.string())]), TF.number());
     expect(getRunTypeId(schema)).toBe(getRunTypeId<(input: string) => number>());
+  });
+
+  it('converges with the jsLabels schema spelling — one id across all three forms', () => {
+    const fromBuilder = getRunTypeId(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())]));
+    const fromSchema = getRunTypeId(
+      runTypeFromJsonSchema({
+        type: 'array',
+        prefixItems: [{type: 'string'}, {type: 'number'}],
+        minItems: 2,
+        items: false,
+        jsLabels: ['name', 'age'],
+      } as const)
+    );
+    expect(fromBuilder).toBe(fromSchema);
+    expect(fromBuilder).toBe(getRunTypeId<[name: string, age: number]>());
   });
 
   it('InferType recovers the labeled tuple (assignment-equivalent)', () => {

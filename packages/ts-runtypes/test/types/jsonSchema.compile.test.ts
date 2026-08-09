@@ -112,7 +112,13 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  Combinators rode +18 in the same landing (2677→2695): the boolean-arm
  *  probes plus the allOf push-in — ONE oneOf-bearing arm now rides a
  *  multi-arm allOf as `OneOf<[Rest∧C…]>` instead of resolving never, which
- *  closed the official suite's whole "+ ref inside allOf / oneOf" group. **/
+ *  closed the official suite's whole "+ ref inside allOf / oneOf" group.
+ *
+ *  An eighth REVIEWED EXCEPTION, tuples 2543→2595: the `jsLabels` dialect
+ *  keyword — every prefixItems tuple now probes `S extends {jsLabels: …}`
+ *  (WithTupleLabels) so a labels list can ride the `__rtLabels` sentinel onto
+ *  the tuple. One conditional per tuple schema; label-less tuples pay only
+ *  the probe. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -308,7 +314,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _06 = Expect<Equal<FromJsonSchema<{readonly type: 'array'; readonly items: false}>, []>>;
       `,
-      2543
+      2595
     );
   });
 

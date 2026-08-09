@@ -128,7 +128,7 @@ class ClientHolder {
  *  on the TYPE-FIRST rendering (decls + root — the schema side is expressible
  *  by construction). **/
 async function runOne(holder: ClientHolder, seed: number, report: Report): Promise<void> {
-  const generated = withSeededRandom(seed, () => genType({...WILD_GEN_OPTIONS, structuralFormats: true, tupleLabels: false}));
+  const generated = withSeededRandom(seed, () => genType({...WILD_GEN_OPTIONS, structuralFormats: true}));
   const norm = toSchemaExpressible(generated);
   report.runs++;
   const fixture = renderFixture(norm);

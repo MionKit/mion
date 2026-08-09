@@ -29,6 +29,7 @@
 
 import type {NotSlot} from '../formats/not.ts';
 import type {TypeFormat} from '../runtypes/typeFormat.ts';
+import type {__rtLabels} from '../runtypes/sentinelKeys.ts';
 
 import type {
   EmailAddress,
@@ -198,6 +199,14 @@ export interface JsonSchemaInput {
   readonly unevaluatedItems?: NestedSchema;
   readonly enum?: readonly (string | number | boolean | null)[];
   readonly const?: string | number | boolean | null;
+  // RunTypes dialect: tuple slot LABELS (`[x: number, y: number]`) — one
+  // literal per slot in order, prefix slots first, then the rest slot when
+  // `items` is a schema (TS labels all slots or none). Labels fold into the
+  // structural id via the `__rtLabels` sentinel, so a labeled schema tuple
+  // converges with its labeled type-first twin; the list must cover every
+  // slot or the engine ignores it whole. No standard 2020-12 spelling, so
+  // `--portable` conversions never emit it.
+  readonly jsLabels?: readonly string[];
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1112,7 +1121,7 @@ type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKey
 type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
   prefixItems: infer P extends readonly NestedSchema[];
 }
-  ? BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, [], Root, F>
+  ? WithTupleLabels<S, BuildTupleRequired<P, MinItemsOf<S>, RestOf<S>, [], Root, F>>
   : S extends {items: infer I}
     ? I extends false
       ? MinItemsOf<S> extends 0
@@ -1120,6 +1129,15 @@ type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
         : BuildTupleRequired<[], MinItemsOf<S>, false, [], Root, F>
       : FromJsonSchemaIn<I, Root, F>[]
     : unknown[];
+// `jsLabels` rides the built tuple as the `__rtLabels` sentinel — the same
+// carriage the value-first slot builders use — so the schema spelling, the
+// slot form and the labeled type-first tuple all converge on one structural
+// id. The labels array in the document is order-native (it IS an array), and
+// the Go lift applies it only when it covers every slot (rest slot included),
+// ignoring a mismatched list whole.
+type WithTupleLabels<S, Tuple> = S extends {jsLabels: infer L extends readonly string[]}
+  ? Tuple & {readonly [__rtLabels]?: L}
+  : Tuple;
 type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
 type RestOf<S> = S extends {items: infer I} ? I : 'rt$open';
 type BuildTupleRequired<
@@ -2335,6 +2353,7 @@ export type SchemaLoweringByKeyword = {
   unevaluatedItems: 'slot: __rtUnevaluated — metadata only, the array type is unchanged';
   enum: 'shape: literal union';
   const: 'shape: single literal';
+  jsLabels: 'slot: __rtLabels — tuple slot labels, one per slot in order (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';

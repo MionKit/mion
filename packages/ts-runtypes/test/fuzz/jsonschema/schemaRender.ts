@@ -110,13 +110,11 @@ function normalizeShape(shape: TypeShape, ctx: NormCtx): TypeShape {
     case 'set':
       return {kind: 'array', elem: normalizeShape(shape.elem, ctx)};
     case 'tuple':
-      // Labels are id data with no JSON Schema spelling — a labeled shape
-      // reaching this lane means the generator ran with tupleLabels on, and
-      // the id-convergence oracle would report a mystery divergence. Refuse
-      // at the source instead.
-      if (shape.labels)
-        throw new Error('schemaRender: labeled tuples have no schema spelling — generate this lane with tupleLabels off');
-      return {kind: 'tuple', elems: shape.elems.map((e) => normalizeShape(e, ctx))};
+      return {
+        kind: 'tuple',
+        elems: shape.elems.map((e) => normalizeShape(e, ctx)),
+        ...(shape.labels ? {labels: shape.labels} : {}),
+      };
     case 'record':
       return {
         kind: 'record',
@@ -273,10 +271,14 @@ function renderSchema(shape: TypeShape): string {
       }
       return `{${parts.join(', ')}}`;
     }
-    case 'tuple':
+    case 'tuple': {
       // Generated tuples are all-required and closed: every position below
-      // minItems is required, items: false forbids extras.
-      return `{type: 'array', prefixItems: [${shape.elems.map(renderSchema).join(', ')}], minItems: ${shape.elems.length}, items: false}`;
+      // minItems is required, items: false forbids extras. Slot labels ride
+      // the jsLabels dialect keyword (the door lowers it onto __rtLabels, so
+      // the labeled schema converges with the labeled type-first spelling).
+      const jsLabels = shape.labels ? `, jsLabels: [${shape.labels.map((label) => `'${label}'`).join(', ')}]` : '';
+      return `{type: 'array', prefixItems: [${shape.elems.map(renderSchema).join(', ')}], minItems: ${shape.elems.length}, items: false${jsLabels}}`;
+    }
     case 'record': {
       const parts = [`type: 'object'`, `additionalProperties: ${renderSchema(shape.value)}`];
       if (shape.structural?.minProperties !== undefined) parts.push(`minProperties: ${shape.structural.minProperties}`);

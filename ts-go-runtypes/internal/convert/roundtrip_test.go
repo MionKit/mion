@@ -422,8 +422,11 @@ func TestChain_LabeledTuple(t *testing.T) {
 		t.Errorf("optional and rest slots should carry their labels:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<[x: number, y: number]>()") {
-		t.Errorf("labeled tuples should embed on the schema target:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "jsLabels: ['x', 'y']") {
+		t.Errorf("labeled tuples should print the jsLabels dialect keyword on the schema target:\n%s", schemaForm)
+	}
+	if !strings.Contains(schemaForm, "jsLabels: ['start', 'len', 'rest']") {
+		t.Errorf("optional and rest slots should ride jsLabels in order:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "type Point = [x: number, y: number];") ||
