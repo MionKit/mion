@@ -1639,13 +1639,8 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			bagText = ", {" + strings.Join(bagParts, ", ") + "}"
 		}
+		recordText := ""
 		if len(indexes) > 0 {
-			if len(members) > 0 {
-				// Named members BESIDE an index have no value-first spelling —
-				// `object(...)` cannot carry an index and `record(...)` cannot
-				// carry named members. The escape carries the type verbatim.
-				return ctx.builderEscape(node)
-			}
 			keyText, keyDiag, keyed := ctx.recordKeyText(indexes)
 			if keyDiag != nil {
 				return "", keyDiag
@@ -1659,11 +1654,18 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			if keyText == "" {
-				// The lone string key is `record`'s implicit default.
-				return rt(fmt.Sprintf("record(%s%s)", valueText, bagText))
+			// The structural bag rides the record half (it is the object-level
+			// payload), and the lone string key is `record`'s own default.
+			switch {
+			case keyText == "":
+				recordText = fmt.Sprintf("%s.record(%s%s)", ctx.names.RT, valueText, bagText)
+			default:
+				recordText = fmt.Sprintf("%s.record(%s, %s%s)", ctx.names.RT, keyText, valueText, bagText)
 			}
-			return rt(fmt.Sprintf("record(%s, %s%s)", keyText, valueText, bagText))
+			if len(members) == 0 {
+				ctx.needs.useRT = true
+				return recordText, nil
+			}
 		}
 		var parts []string
 		for _, member := range members {
@@ -1680,6 +1682,14 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 				innerText = fmt.Sprintf("%s.optional(%s)", ctx.names.RT, innerText)
 			}
 			parts = append(parts, fmt.Sprintf("%s: %s", member.key, innerText))
+		}
+		if recordText != "" {
+			// Named members BESIDE an index: `object(...)` cannot carry an
+			// index and `record(...)` cannot carry named members, but their
+			// INTERSECTION is exactly the shape — `Record<K, V> & {…}` is what
+			// TypeScript resolves the mixed literal to, so the id is identical.
+			ctx.needs.useRT = true
+			return rt(fmt.Sprintf("intersection(%s, %s.object({%s}))", recordText, ctx.names.RT, strings.Join(parts, ", ")))
 		}
 		return rt(fmt.Sprintf("object({%s}%s)", strings.Join(parts, ", "), bagText))
 	case reflection.KindTuple:
@@ -2038,9 +2048,10 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if hasSignatureMembers(members) {
 			return ctx.schemaEmbedNode(node)
 		}
-		if len(indexes) > 0 && !plainStringIndex(members, indexes) {
-			// `additionalProperties` says exactly one string-keyed index and
-			// nothing beside it; every other shape rides the embed escape.
+		if len(indexes) > 1 || (len(indexes) == 1 && indexes[0].key.Kind != reflection.KindString) {
+			// JSON object keys are strings, so a number key or a second
+			// signature has no standard spelling — the embed carries it. That
+			// is the FORMAT's limit, not the printer's.
 			return ctx.schemaEmbedNode(node)
 		}
 		schemaBag := ""
@@ -2051,12 +2062,19 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			schemaBag = ", " + strings.Join(bagParts, ", ")
 		}
+		additionalText := ""
 		if len(indexes) > 0 {
 			valueText, valueDiag := ctx.schemaExpr(indexes[0].value)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return fmt.Sprintf("{type: 'object', additionalProperties: %s%s}", valueText, schemaBag), nil
+			if len(members) == 0 {
+				return fmt.Sprintf("{type: 'object', additionalProperties: %s%s}", valueText, schemaBag), nil
+			}
+			// Named members BESIDE the index: `properties` and
+			// `additionalProperties` together, which is exactly what the door
+			// lowers back to `Record<string, V> & {…}`.
+			additionalText = fmt.Sprintf(", additionalProperties: %s", valueText)
 		}
 		for _, member := range members {
 			if member.readonly {
@@ -2083,7 +2101,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if len(requiredParts) > 0 {
 			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
 		}
-		return out + schemaBag + "}", nil
+		return out + additionalText + schemaBag + "}", nil
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {

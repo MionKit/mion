@@ -344,19 +344,40 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
 
-	// Named members BESIDE an index still have no value-first or schema
-	// spelling (docs/todos/mixed-record-builder.md), so both escape.
-	mixed := "export type Mixed = {name: string; [key: string]: unknown};\n"
-	builderForm := convertAndCheckIDs(t, mixed, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "getRunType<") {
-		t.Errorf("a mixed record should escape on builders:\n%s", builderForm)
+	// Named members BESIDE an index print the INTERSECTION: `object(...)`
+	// cannot carry an index and `record(...)` cannot carry named members, but
+	// `Record<K, V> & {…}` is exactly what TypeScript resolves the mixed
+	// literal to, so the id is identical. Optional, readonly and narrower
+	// members all ride it.
+	for _, testCase := range []struct {
+		source, wants string
+		// readonly members embed on the schema target by design (standard
+		// readOnly is annotation-only, so the modifier rides the escape).
+		schemaEmbeds bool
+	}{
+		{source: "export type Mixed = {name: string; [key: string]: unknown};\n", wants: "RT.intersection(RT.record(RT.unknown()), RT.object({name: TF.string()}))"},
+		{source: "export type Loose = {name?: string; [key: string]: unknown};\n", wants: "RT.optional(TF.string())"},
+		{source: "export type Frozen = {readonly name: string; [key: string]: unknown};\n", wants: "RT.propMod({readonly: true}, TF.string())", schemaEmbeds: true},
+		{source: "export type Typed = {id: 'a' | 'b'; [key: string]: string};\n", wants: "RT.intersection(RT.record(TF.string()), RT.object({id:"},
+	} {
+		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
+		if !strings.Contains(builderForm, testCase.wants) {
+			t.Errorf("expected %q for %q:\n%s", testCase.wants, testCase.source, builderForm)
+		}
+		convertAndCheckIDs(t, builderForm, convert.TargetType)
+		// The schema form is standard 2020-12: `properties` beside
+		// `additionalProperties`, which the door lowers back to the same
+		// intersection.
+		schemaForm := convertAndCheckIDs(t, testCase.source, convert.TargetJSONSchema)
+		embedded := strings.Contains(schemaForm, "embedType<")
+		switch {
+		case testCase.schemaEmbeds && !embedded:
+			t.Errorf("a readonly member should still embed on the schema target:\n%s", schemaForm)
+		case !testCase.schemaEmbeds && (embedded || !strings.Contains(schemaForm, "additionalProperties:")):
+			t.Errorf("a mixed record should print properties + additionalProperties:\n%s", schemaForm)
+		}
+		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
-	schemaForm := convertAndCheckIDs(t, mixed, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<") {
-		t.Errorf("a mixed record should embed on the schema target:\n%s", schemaForm)
-	}
-	convertAndCheckIDs(t, builderForm, convert.TargetType)
-	convertAndCheckIDs(t, schemaForm, convert.TargetType)
 }
 
 func TestChain_UnknownAbsorbedUnion(t *testing.T) {
