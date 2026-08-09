@@ -54,7 +54,7 @@ func convertOne(t testing.TB, source string, opts convert.Options) (string, []co
 	prog, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
-	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts)
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts, nil)
 	if convertErr != nil {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}

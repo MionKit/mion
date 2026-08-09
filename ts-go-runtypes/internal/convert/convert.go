@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
@@ -52,11 +53,12 @@ const (
 )
 
 // Diagnostic codes (CNV family). CLI-local for now — catalog + wire
-// registration rides the completion todo with the lint surfacing.
+// registration rides the lint surfacing (see docs/done/format-conversion-*).
 const (
 	CodeUnsupportedKind = "CNV001"
 	CodeGenericDecl     = "CNV002"
 	CodeConstStillUsed  = "CNV003"
+	CodeOutsideSet      = "CNV004"
 	CodeNameCollision   = "CNV005"
 	CodePortableDialect = "CNV006"
 )
@@ -89,12 +91,20 @@ type FileResult struct {
 
 // ConvertFile converts every recognized declaration of one source file to
 // opts.Target and returns the rewritten source. Declarations already in the
-// target form are left byte-identical (idempotence); declarations the phase
-// cannot express are reported and left untouched.
-func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string, opts Options) (*FileResult, error) {
+// target form are left byte-identical (idempotence); declarations the
+// converter cannot express are reported and left untouched. set is the
+// run-wide conversion context; nil converts the file as a single-file set.
+func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string, opts Options, set *Set) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
 		return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
+	}
+	if set == nil {
+		singleSet, setErr := singleFileSet(prog, typeChecker, cache, fs, absPath)
+		if setErr != nil {
+			return nil, setErr
+		}
+		set = singleSet
 	}
 	source := sourceFile.Text()
 	result := &FileResult{Path: absPath, Output: source}
@@ -102,6 +112,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	decls := recognizeFile(sourceFile, typeChecker, fs)
 	imports := scanImports(sourceFile, source)
 	names := newNames(decls, imports)
+	bindings := buildFileBindings(sourceFile, typeChecker)
 
 	var replacements []replacement
 	needs := importNeeds{}
@@ -114,16 +125,23 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 				Message: fmt.Sprintf("generic declaration %q cannot be converted (no spelling for an unbound type parameter)", decl.Name)})
 			continue
 		}
-		if decl.Form != TargetType && usedOutsideDecl(sourceFile, source, decl) {
+		// Converting to type-form removes the const binding — any reference
+		// the conversion itself will not rewrite (marker call sites, other
+		// modules) must keep it.
+		if opts.Target == TargetType && decl.Form != TargetType && constUsedBeyondConversions(prog, typeChecker, fs, set, decl, absPath) {
 			result.Diags = append(result.Diags, Diagnostic{Code: CodeConstStillUsed, Severity: SeverityError, File: absPath, Decl: decl.ConstName,
-				Message: fmt.Sprintf("const %q is referenced outside its own declaration; converting it away would break those uses", decl.ConstName)})
+				Message: fmt.Sprintf("const %q is referenced outside the converted declarations; converting it away would break those uses", decl.ConstName)})
+			continue
+		}
+		if outsideDiags := outsideSetDiags(prog, typeChecker, fs, decl, set, absPath); len(outsideDiags) > 0 {
+			result.Diags = append(result.Diags, outsideDiags...)
 			continue
 		}
 		resolved, resolveErr := resolveDecl(typeChecker, cache, decl)
 		if resolveErr != nil {
 			return nil, resolveErr
 		}
-		printed, printDiag := printDecl(resolved, opts, names)
+		printed, printDiag := printDecl(resolved, opts, names, set, bindings, absPath)
 		if printDiag != nil {
 			printDiag.File = absPath
 			result.Diags = append(result.Diags, *printDiag)
@@ -147,7 +165,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		return result, nil
 	}
 
-	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements)
+	importEdits := planImportEdits(sourceFile, source, imports, needs, names, replacements, bindings.removableLocals(set))
 	replacements = append(replacements, importEdits...)
 	output, applyErr := applyReplacements(source, replacements)
 	if applyErr != nil {
@@ -158,6 +176,73 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		result.Changed = true
 	}
 	return result, nil
+}
+
+// constUsedBeyondConversions reports whether the const's identifier is
+// referenced anywhere the conversion will NOT rewrite: outside its own
+// declaration and outside every recognized convertible declaration of the
+// in-set files — across the whole program, so an in-set sibling file's
+// marker call site (`createValidateFn(userRT)`) keeps the const too.
+func constUsedBeyondConversions(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, set *Set, decl *declaration, currentFile string) bool {
+	if decl.ConstName == "" {
+		return false
+	}
+	constSymbol := typeChecker.GetSymbolAtLocation(decl.NameNode)
+	if constSymbol == nil {
+		return false
+	}
+	for _, sourceFile := range prog.TS.SourceFiles() {
+		path := sourceFile.FileName()
+		if strings.Contains(path, "/node_modules/") {
+			continue
+		}
+		// Spans the conversion rewrites in this file: recognized convertible
+		// declarations of in-set files (their printed forms reference the
+		// TYPE name, never the const).
+		var rewritten []*declaration
+		if path == currentFile || set.Files[path] {
+			rewritten = recognizeFile(sourceFile, typeChecker, fs)
+		}
+		inRewritten := func(pos int) bool {
+			for _, other := range rewritten {
+				if other.Generic {
+					continue
+				}
+				if pos >= other.Stmt.Pos() && pos < other.Stmt.End() {
+					return true
+				}
+				if other.AliasStmt != nil && pos >= other.AliasStmt.Pos() && pos < other.AliasStmt.End() {
+					return true
+				}
+			}
+			return false
+		}
+		used := false
+		var walk func(node *ast.Node) bool
+		walk = func(node *ast.Node) bool {
+			if node == nil || used {
+				return used
+			}
+			if ast.IsIdentifier(node) && node.Text() == decl.ConstName && !inRewritten(node.Pos()) {
+				if symbol := typeChecker.GetSymbolAtLocation(node); symbol != nil && checker.SkipAlias(symbol, typeChecker) == constSymbol {
+					// Import specifiers re-binding the const don't count as
+					// uses on their own; real uses resolve the same symbol at
+					// their own position.
+					if node.Parent == nil || !ast.IsImportSpecifier(node.Parent) {
+						used = true
+						return true
+					}
+				}
+			}
+			node.ForEachChild(walk)
+			return used
+		}
+		sourceFile.AsNode().ForEachChild(walk)
+		if used {
+			return true
+		}
+	}
+	return false
 }
 
 // DeclarationIDs resolves every recognized (non-generic) declaration of a

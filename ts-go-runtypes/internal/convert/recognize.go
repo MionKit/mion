@@ -209,33 +209,9 @@ func hasTypeParameters(statement *ast.Node) bool {
 	return false
 }
 
-// usedOutsideDecl reports whether the const's identifier appears anywhere in
-// the file outside its own declaration statement and paired alias. Phase 1
-// requires an unused const to convert away from a const form — rewriting the
-// referencing call sites is a later phase.
-func usedOutsideDecl(sourceFile *ast.SourceFile, source string, decl *declaration) bool {
-	if decl.ConstName == "" {
-		return false
-	}
-	inside := func(pos int) bool {
-		if pos >= decl.Stmt.Pos() && pos < decl.Stmt.End() {
-			return true
-		}
-		return decl.AliasStmt != nil && pos >= decl.AliasStmt.Pos() && pos < decl.AliasStmt.End()
-	}
-	used := false
-	var walk func(node *ast.Node) bool
-	walk = func(node *ast.Node) bool {
-		if node == nil || used {
-			return used
-		}
-		if ast.IsIdentifier(node) && node.Text() == decl.ConstName && !inside(node.Pos()) {
-			used = true
-			return true
-		}
-		node.ForEachChild(walk)
-		return used
-	}
-	sourceFile.AsNode().ForEachChild(walk)
-	return used
+// isRunTypeValue reports whether a value's declared type is the marker
+// module's `RunType<T>` — the by-return-type detection every recognition
+// path shares.
+func isRunTypeValue(tsType *checker.Type, fs vfspkg.FS) bool {
+	return tsType != nil && builders.IsRunType(tsType, marker.DefaultModule, fs)
 }
