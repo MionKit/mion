@@ -7,7 +7,8 @@
 //
 // The space is intentionally adversarial — not just clean DTOs:
 //   - scalars + literals + `Date` / `RegExp` / `bigint`,
-//   - arrays, tuples, objects (optional / readonly / method / non-ident keys),
+//   - arrays, tuples (labeled + unlabeled — labels are id data), objects
+//     (optional / readonly / method / non-ident keys),
 //   - index signatures + `Record<…>`, unions, intersections,
 //   - native builtins `Map` / `Set` / `Promise`,
 //   - non-serialisable kinds: `function`, `symbol`, `any` / `unknown` /
@@ -44,7 +45,11 @@ export type TypeShape =
   | {kind: 'void'}
   | {kind: 'symbol'}
   | {kind: 'array'; elem: TypeShape; structural?: ArrayStructural}
-  | {kind: 'tuple'; elems: TypeShape[]}
+  // `labels` names every slot (parallel to elems, all-or-nothing — the TS
+  // grammar) and renders `[k0: A, k1: B]`. Labels are id data with no JSON
+  // Schema spelling, so only lanes generating with `GenOptions.tupleLabels`
+  // ever see them.
+  | {kind: 'tuple'; elems: TypeShape[]; labels?: string[]}
   | {kind: 'object'; props: PropShape[]; index?: TypeShape; indexKey?: IndexKeyKind[]}
   | {kind: 'record'; value: TypeShape; structural?: ObjectStructural}
   | {kind: 'union'; members: TypeShape[]; exclusive?: true}
@@ -614,6 +619,12 @@ export interface GenOptions {
    *  The scratch-dir lanes pass SCRATCH_FORMAT_LEAVES — the only leaves their
    *  import-free preamble can spell. **/
   formatLeafPool?: readonly FormatLeafName[];
+  /** Emit LABELED tuples sometimes (`[k0: A, k1: B]` — every slot named, the
+   *  TS all-or-nothing rule). Labels fold into the structural id but have no
+   *  JSON Schema spelling, so the jsonschema id-convergence lane keeps this
+   *  OFF (schemaRender refuses labeled shapes loudly); the value lanes are
+   *  unaffected (validation is positional). **/
+  tupleLabels?: boolean;
 }
 
 export const WILD_GEN_OPTIONS: GenOptions = {
@@ -623,6 +634,7 @@ export const WILD_GEN_OPTIONS: GenOptions = {
   nonDataTypes: true,
   weirdKeys: true,
   named: true,
+  tupleLabels: true,
 };
 
 /** Serialisable-only preset — the strong value oracles (O1/O2/O5/O6) need clean
@@ -635,6 +647,7 @@ export const DATA_GEN_OPTIONS: GenOptions = {
   nonDataTypes: false,
   weirdKeys: true,
   named: true,
+  tupleLabels: true,
 };
 
 /** DataOnly-contract preset — clean serialisable base PLUS the stripped kinds
@@ -648,6 +661,7 @@ export const NONDATA_GEN_OPTIONS: GenOptions = {
   nonDataTypes: true,
   weirdKeys: true,
   named: true,
+  tupleLabels: true,
 };
 
 // keep DEFAULT pointed at the wild space — the headline behaviour.
@@ -960,6 +974,11 @@ function genTuple(ctx: Ctx, depth: number): TypeShape {
   const length = 1 + int(ctx.opts.maxBreadth);
   const elems: TypeShape[] = [];
   for (let i = 0; i < length; i++) elems.push(genShape(ctx, depth + 1));
+  // Labeled tuples label EVERY slot (TS grammar); labels are id data, so the
+  // pipeline must keep same-shape labeled/unlabeled tuples distinct.
+  if (ctx.opts.tupleLabels && chance(1 / 3)) {
+    return {kind: 'tuple', elems, labels: elems.map((_, i) => `k${i}`)};
+  }
   return {kind: 'tuple', elems};
 }
 
@@ -1123,8 +1142,11 @@ export function renderType(shape: TypeShape): string {
       if (!shape.structural) return text;
       return `TF.FormattedArray<${text}, ${arrayStructuralParams(shape.structural)}>`;
     }
-    case 'tuple':
-      return `[${shape.elems.map(renderType).join(', ')}]`;
+    case 'tuple': {
+      if (!shape.labels) return `[${shape.elems.map(renderType).join(', ')}]`;
+      const slots = shape.elems.map((elem, i) => `${shape.labels?.[i]}: ${renderType(elem)}`);
+      return `[${slots.join(', ')}]`;
+    }
     case 'record': {
       const text = `Record<string, ${renderType(shape.value)}>`;
       if (!shape.structural) return text;
@@ -1234,7 +1256,7 @@ export function describeShape(shape: TypeShape, depth = 0): string {
     case 'array':
       return `${describeShape(shape.elem, depth + 1)}[]`;
     case 'tuple':
-      return `[${shape.elems.map((s) => describeShape(s, depth + 1)).join(',')}]`;
+      return `[${shape.labels ? 'lbl:' : ''}${shape.elems.map((s) => describeShape(s, depth + 1)).join(',')}]`;
     case 'object':
       return `{${shape.props.length}${shape.index ? '+idx' : ''}}`;
     case 'record':

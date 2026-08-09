@@ -110,6 +110,12 @@ function normalizeShape(shape: TypeShape, ctx: NormCtx): TypeShape {
     case 'set':
       return {kind: 'array', elem: normalizeShape(shape.elem, ctx)};
     case 'tuple':
+      // Labels are id data with no JSON Schema spelling — a labeled shape
+      // reaching this lane means the generator ran with tupleLabels on, and
+      // the id-convergence oracle would report a mystery divergence. Refuse
+      // at the source instead.
+      if (shape.labels)
+        throw new Error('schemaRender: labeled tuples have no schema spelling — generate this lane with tupleLabels off');
       return {kind: 'tuple', elems: shape.elems.map((e) => normalizeShape(e, ctx))};
     case 'record':
       return {
