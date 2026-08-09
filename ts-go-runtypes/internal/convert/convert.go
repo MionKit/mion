@@ -56,12 +56,13 @@ const (
 // Diagnostic codes (CNV family). CLI-local for now — catalog + wire
 // registration rides the lint surfacing (see docs/done/format-conversion-*).
 const (
-	CodeUnsupportedKind = "CNV001"
-	CodeGenericDecl     = "CNV002"
-	CodeConstStillUsed  = "CNV003"
-	CodeOutsideSet      = "CNV004"
-	CodeNameCollision   = "CNV005"
-	CodePortableDialect = "CNV006"
+	CodeUnsupportedKind   = "CNV001"
+	CodeGenericDecl       = "CNV002"
+	CodeConstStillUsed    = "CNV003"
+	CodeOutsideSet        = "CNV004"
+	CodeNameCollision     = "CNV005"
+	CodePortableDialect   = "CNV006"
+	CodeTemporalNotLoaded = "CNV007"
 )
 
 // Diagnostic is one per-declaration conversion finding.
@@ -128,6 +129,10 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		if decl.Generic {
 			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityError, File: absPath, Decl: decl.Name,
 				Message: fmt.Sprintf("generic declaration %q cannot be converted (no spelling for an unbound type parameter)", decl.Name)})
+			continue
+		}
+		if temporalDiags := temporalAnyDiags(typeChecker, decl, absPath); len(temporalDiags) > 0 {
+			result.Diags = append(result.Diags, temporalDiags...)
 			continue
 		}
 		if outsideDiags := outsideSetDiags(prog, typeChecker, fs, decl, set, absPath); len(outsideDiags) > 0 {

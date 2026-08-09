@@ -341,6 +341,11 @@ type formatFamily struct {
 	exact bool
 	// base is the exact constructor's base-type spelling.
 	base string
+	// temporal marks the FormatTemporalX families: they live on the
+	// dedicated `@ts-runtypes/core/formats/temporal` subpath (`TFT`), and
+	// the schema target embeds the brand (the door keeps Temporal out of
+	// jsFormat by design).
+	temporal bool
 }
 
 // The full leaf-family roster (typeFormats.generated.ts is the pinned name
@@ -360,6 +365,14 @@ var formatFamilies = map[string]formatFamily{
 	"time":         {exact: true, base: "string"},
 	"dateTime":     {exact: true, base: "string"},
 	"nativeDate":   {builderFn: "date", typeAlias: "Date", base: "Date"},
+	// The orderable Temporal families (registry: internal/reflection/
+	// temporal.go); PlainMonthDay / Duration carry no brand (no-params only).
+	"temporalInstant":        {builderFn: "instant", typeAlias: "Instant", temporal: true},
+	"temporalZonedDateTime":  {builderFn: "zonedDateTime", typeAlias: "ZonedDateTime", temporal: true},
+	"temporalPlainDate":      {builderFn: "plainDate", typeAlias: "PlainDate", temporal: true},
+	"temporalPlainTime":      {builderFn: "plainTime", typeAlias: "PlainTime", temporal: true},
+	"temporalPlainDateTime":  {builderFn: "plainDateTime", typeAlias: "PlainDateTime", temporal: true},
+	"temporalPlainYearMonth": {builderFn: "plainYearMonth", typeAlias: "PlainYearMonth", temporal: true},
 }
 
 // uuidSpellings maps the uuid family's enumerable version param onto its
@@ -407,6 +420,21 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 	}
 	ctx.needs.useTypeFormat = true
 	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.base, quoteSingle(annotation.Name), paramsText), true
+}
+
+// temporalBrandText renders the TFT brand spelling for a temporal family
+// annotation (`TFT.PlainDate<{min: '2020-01-01'}>`); paramless spellings are
+// the bare alias.
+func (ctx *printContext) temporalBrandText(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
+	ctx.needs.useTFT = true
+	if len(annotation.Params) == 0 {
+		return ctx.names.TFT + "." + family.typeAlias, true
+	}
+	paramsText, ok := printFormatParams(annotation.Params, false)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s.%s<%s>", ctx.names.TFT, family.typeAlias, paramsText), true
 }
 
 // structuralSubPrinter renders a child node in the current target's dialect —
@@ -822,6 +850,13 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			}
 			return exactText, nil
 		}
+		if family.temporal {
+			brandText, ok := ctx.temporalBrandText(annotation, family)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
+			}
+			return brandText, nil
+		}
 		ctx.needs.useTF = true
 		if len(params) == 0 {
 			return fmt.Sprintf("%s.%s", ctx.names.TF, family.typeAlias), nil
@@ -912,8 +947,11 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			}
 			return fmt.Sprintf("Set<%s>", itemText), nil
 		}
-		if isTemporalSubKind(node.SubKind) {
-			return "", ctx.temporalPendingDiag()
+		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
+			// The registry's Builtin is the qualified global spelling
+			// (`Temporal.Instant`) — in scope whenever the lib is loaded,
+			// which the CNV007 guard has already established.
+			return info.Builtin, nil
 		}
 		if isRegExpNode(node) {
 			return "RegExp", nil
@@ -1291,6 +1329,17 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			ctx.needs.useGetRunType = true
 			return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, exactText), nil
 		}
+		if family.temporal {
+			ctx.needs.useTFT = true
+			if len(params) == 0 {
+				return ctx.names.TFT + "." + family.builderFn + "()", nil
+			}
+			paramsText, ok := printFormatParams(params, false)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
+			}
+			return fmt.Sprintf("%s.%s(%s)", ctx.names.TFT, family.builderFn, paramsText), nil
+		}
 		if len(params) == 0 {
 			return tf(family.builderFn + "()")
 		}
@@ -1377,8 +1426,12 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			return rt(fmt.Sprintf("set(%s)", itemText))
 		}
-		if isTemporalSubKind(node.SubKind) {
-			return "", ctx.temporalPendingDiag()
+		if info, ok := reflection.TemporalInfoBySubKind(node.SubKind); ok {
+			// The natural value-first spelling: the no-params temporal
+			// builders return the UNBRANDED base instance type, so the id
+			// converges with the type-first form by construction.
+			ctx.needs.useTFT = true
+			return ctx.names.TFT + "." + lowerFirst(info.Name) + "()", nil
 		}
 		if isRegExpNode(node) {
 			return rt("regexp()")
@@ -1576,6 +1629,20 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
+		if family.temporal {
+			// Temporal brands embed: the door deliberately keeps the
+			// Temporal families out of jsFormat so the json-schema surface
+			// never drags the Temporal lib in.
+			if ctx.opts.Portable {
+				return dialect("")
+			}
+			brandText, ok := ctx.temporalBrandText(annotation, family)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
+			}
+			ctx.needs.useEmbedType = true
+			return fmt.Sprintf("%s<%s>()", ctx.names.EmbedType, brandText), nil
+		}
 		// jsFormat carries the annotation's OWN name + full params verbatim
 		// (uuid included — the door rebuilds the brand from the pair), so the
 		// schema spelling never depends on the preset tables.
@@ -1690,12 +1757,13 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			}
 			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
 		}
-		if isTemporalSubKind(node.SubKind) {
-			return "", ctx.temporalPendingDiag()
-		}
 		if isRegExpNode(node) {
 			return dialect("{jsType: 'RegExp'}")
 		}
+		// Temporal builtins fall through to the embed escape with the rest of
+		// the class kinds: the door deliberately keeps Temporal out of the
+		// jsType/jsFormat dialect so the json-schema surface never drags the
+		// Temporal lib in.
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindRegexp:
 		return dialect("{jsType: 'RegExp'}")
@@ -1913,16 +1981,6 @@ func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagn
 		argumentTexts = append(argumentTexts, argumentText)
 	}
 	return fmt.Sprintf("%s<%s>", name, strings.Join(argumentTexts, ", ")), nil
-}
-
-// temporalPendingDiag: Temporal builtins need the lib gating story first.
-func (ctx *printContext) temporalPendingDiag() *Diagnostic {
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "Temporal types are not convertible yet"}
-}
-
-func isTemporalSubKind(subKind reflection.ReflectionSubKind) bool {
-	return subKind >= reflection.SubKindTemporalInstant && subKind <= reflection.SubKindTemporalDuration
 }
 
 func isRegExpNode(node *reflection.RunType) bool {

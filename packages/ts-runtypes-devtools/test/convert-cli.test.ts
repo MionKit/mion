@@ -148,6 +148,22 @@ describe('ts-runtypes convert (CLI e2e)', () => {
     }
   });
 
+  register('a Temporal type resolving to any refuses with CNV007 (missing lib guard)', () => {
+    const dir = makeProject();
+    try {
+      // The project tsconfig loads no ESNext.Temporal lib, so Temporal.Instant
+      // resolves to `any` — conversion must refuse, never cement `any`.
+      const meeting = 'export type Meeting = {at: Temporal.Instant};\n';
+      fs.writeFileSync(path.join(dir, 'src', 'meeting.ts'), meeting);
+      const {status, stderr} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
+      expect(status).toBe(1);
+      expect(stderr).toContain('CNV007');
+      expect(fs.readFileSync(path.join(dir, 'src', 'meeting.ts'), 'utf8')).toBe(meeting);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
   register('--portable refuses dialect-needing declarations with CNV006', () => {
     const dir = makeProject();
     try {

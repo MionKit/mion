@@ -16,6 +16,7 @@ type nameTable struct {
 	// that already says `import * as B from '…/builders'` keeps its alias.
 	RT                    string
 	TF                    string
+	TFT                   string
 	InferType             string
 	GetRunType            string
 	TypeFormat            string
@@ -81,6 +82,11 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 		names.TF = alias
 	} else {
 		names.TF = names.claim("TF")
+	}
+	if alias := namespaceOf(moduleTemporal); alias != "" {
+		names.TFT = alias
+	} else {
+		names.TFT = names.claim("TFT")
 	}
 	names.InferType = helper(moduleCore, "InferType", "InferType", coreNS)
 	names.GetRunType = helper(moduleCore, "getRunType", "getRunType", coreNS)
