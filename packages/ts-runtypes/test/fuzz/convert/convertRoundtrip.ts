@@ -263,13 +263,14 @@ export interface ConvertFuzzReport {
 /** The designed CNV001 refusals the generated space can legitimately reach —
  *  each is a documented loud lane, not a bug: recursive types inside embedded
  *  type expressions (no self-reference spelling inside embedType/getRunType
- *  text), and the two shapes whose base TypeScript cannot separate from a
- *  sentinel intersection, so `RT.circular` cannot carry the payload across the
- *  knot (docs/done/circular-brand-substitution.md — every OTHER container-level
- *  payload inside a recursive type now converts). Anything else is a failure. **/
+ *  text), and an exclusive union whose branch tuple rides a PRIMITIVE arm
+ *  inside a cycle — the one shape whose base TypeScript cannot separate from
+ *  the sentinel intersection, so `RT.circular` cannot carry the payload across
+ *  the knot (docs/done/circular-brand-substitution.md; every other
+ *  container-level payload inside a recursive type converts). Anything else is
+ *  a failure. **/
 const EXPECTED_REFUSALS = [
   /self-referential type inside an embedded type expression/,
-  /a labeled tuple with an optional or rest slot inside a recursive type/,
   /an exclusive union \(oneOf\) with a (primitive|Date or RegExp) branch inside a recursive type/,
 ];
 

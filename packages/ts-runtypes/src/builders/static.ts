@@ -443,6 +443,34 @@ type CarrySlots<T, P extends [unknown]> = {
   readonly [K in Extract<keyof T, CarriedKey>]?: SubstituteSelf<NonNullable<T[K]>, P>;
 };
 
+/** The builtin CLASS instance types the walk must treat as leaves, beside
+ *  `Date` and `RegExp`. A class instance can never contain `Self` — `Self`
+ *  only enters a body through builder calls — but walking one is actively
+ *  harmful: Temporal's methods return Temporal (`with(…): PlainDateTime`), so
+ *  the member walk circularly references itself, TypeScript resolves the
+ *  property to `any`, and `ContainsSelf` answers `true` for a BRANDED Temporal
+ *  (the bare one answers `false`). The node was then rebuilt, flattening the
+ *  class into a plain object and moving its structural id.
+ *
+ *  The guard mirrors `TemporalInstanceOrNever` in
+ *  formats/datetime/temporalFormats.ts — this region is sliced verbatim into
+ *  the budget harness and so cannot import it, and
+ *  `assertionsBuiltinClassLeavesAreExhaustive` (test/types/structural.test.ts)
+ *  fails the build if the two ever disagree. `never` is the right fallback for
+ *  a UNION position: without the Temporal lib every arm vanishes and the leaf
+ *  list is exactly `Date | RegExp` again. **/
+type TemporalLeaf<K extends string> = typeof globalThis extends {Temporal: Record<K, {prototype: infer I}>} ? I : never;
+
+export type BuiltinClassLeaf =
+  | TemporalLeaf<'Instant'>
+  | TemporalLeaf<'ZonedDateTime'>
+  | TemporalLeaf<'PlainDate'>
+  | TemporalLeaf<'PlainTime'>
+  | TemporalLeaf<'PlainDateTime'>
+  | TemporalLeaf<'PlainYearMonth'>
+  | TemporalLeaf<'PlainMonthDay'>
+  | TemporalLeaf<'Duration'>;
+
 /** Does `T` reference `Self` anywhere? A carrier that does NOT is returned
  *  VERBATIM — no rebuild can preserve a shape better than not rebuilding it,
  *  and this is what keeps a labeled tuple or a params-branded record inside a
@@ -451,45 +479,61 @@ type CarrySlots<T, P extends [unknown]> = {
  *  composite's members as one union: the conditional is naked, so it
  *  distributes and `AnyTrue` folds the result. Bodies are finite trees — the
  *  knot is only tied by `Recursive`, never inside a body — so this terminates. **/
-type ContainsSelf<T> = AnyTrue<ContainsSelfIn<T>>;
+type ContainsSelf<T, Depth extends unknown[] = []> = AnyTrue<ContainsSelfIn<T, Depth>>;
 
 /** Folds a distributed boolean union: `never` (no members) and an all-`false`
  *  union mean "no Self", anything else means at least one member had it. **/
 type AnyTrue<B> = [B] extends [never] ? false : [B] extends [false] ? false : true;
 
-type ContainsSelfIn<T> = T extends Self
-  ? true
-  : T extends string | number | boolean | bigint | symbol | null | undefined
-    ? false
-    : T extends Date | RegExp
+type ContainsSelfIn<T, Depth extends unknown[]> = Depth['length'] extends 12
+  ? // Budget spent. A node can be genuinely recursive — a `circular(…)` schema
+    // nested inside another one resolves to a type that contains itself — and
+    // walking one never ends. Answer "assume it recurses", which routes the
+    // node to the rebuild: exactly what every node did before this walk
+    // existed, so the worst case is the OLD behaviour for a carrier buried
+    // deeper than the budget, never a leaked `Self`.
+    true
+  : T extends Self
+    ? true
+    : T extends string | number | boolean | bigint | symbol | null | undefined
       ? false
-      : T extends Map<any, any>
-        ? T extends Map<infer K, infer V>
-          ? AnyTrue<ContainsSelfIn<K> | ContainsSelfIn<V>>
-          : false
-        : T extends Set<any>
-          ? T extends Set<infer E>
-            ? ContainsSelf<E>
+      : T extends Date | RegExp | BuiltinClassLeaf
+        ? false
+        : T extends Map<any, any>
+          ? T extends Map<infer K, infer V>
+            ? AnyTrue<ContainsSelfIn<K, Next<Depth>> | ContainsSelfIn<V, Next<Depth>>>
             : false
-          : T extends Promise<infer E>
-            ? ContainsSelf<E>
-            : T extends (...args: infer A extends readonly unknown[]) => infer R
-              ? AnyTrue<ContainsSelfIn<A[number]> | ContainsSelfIn<R>>
-              : T extends readonly unknown[]
-                ? number extends T['length']
-                  ? ContainsSelf<T[number]>
-                  : // A TUPLE is read per slot: `T[number]` unions the slots, and an
-                    // `unknown` slot beside a `Self` one absorbs the union whole
-                    // (`Self | unknown` IS `unknown`), which hid the recursion and
-                    // returned the tuple unsubstituted.
-                    AnyTrue<{[K in keyof T]: ContainsSelf<T[K]>}[number]>
-                : T extends object
-                  ? // Per-member, NOT `ContainsSelf<T[keyof T]>`: an `unknown`-valued
-                    // member (`record(RT.unknown(), …)`) absorbs the whole union, which
-                    // hid a `Self` sitting in a sentinel payload beside it. Mapping
-                    // first keeps every member's answer separate.
-                    AnyTrue<{[K in keyof T]: ContainsSelf<T[K]>}[keyof T]>
-                  : false;
+          : T extends Set<any>
+            ? T extends Set<infer E>
+              ? ContainsSelf<E, Next<Depth>>
+              : false
+            : T extends Promise<infer E>
+              ? ContainsSelf<E, Next<Depth>>
+              : T extends (...args: infer A extends readonly unknown[]) => infer R
+                ? AnyTrue<ContainsSelfIn<A[number], Next<Depth>> | ContainsSelfIn<R, Next<Depth>>>
+                : T extends readonly unknown[]
+                  ? number extends T['length']
+                    ? ContainsSelf<T[number], Next<Depth>>
+                    : AnyTrue<MembersContainSelf<MemberBoxes<T>[number], Depth>>
+                  : T extends object
+                    ? AnyTrue<MembersContainSelf<MemberBoxes<T>[keyof T], Depth>>
+                    : false;
+
+type Next<Depth extends unknown[]> = [...Depth, unknown];
+
+/** Each member wrapped in a 1-tuple. Reading members as ONE bare union
+ *  (`T[keyof T]`) lets an `unknown`-valued member (`record(RT.unknown(), …)`)
+ *  absorb the whole union and hide a `Self` beside it — `Self | unknown` IS
+ *  `unknown`. Boxing keeps every member's answer separate. The box map itself
+ *  never calls `ContainsSelf`, which is what keeps it usable on a genuinely
+ *  recursive type: a mapped type whose VALUES recurse circularly references
+ *  itself (TS2615), while this one only defers into a conditional, exactly as
+ *  the bare indexed access used to. **/
+type MemberBoxes<T> = {[K in keyof T]: [T[K]]};
+
+type MembersContainSelf<Boxed, Depth extends unknown[]> = Boxed extends [infer Member]
+  ? ContainsSelf<Member, Next<Depth>>
+  : false;
 
 /** Traverse any node type, replacing every `Self` with the recursion fixpoint
  *  `P[0]`. `P` is a 1-tuple holding the recursion; threading it (not a bare type)
@@ -512,7 +556,7 @@ type SubstituteSelf<T, P extends [unknown]> = T extends Self
   ? P[0]
   : T extends string | number | boolean | bigint | symbol | null | undefined
     ? T
-    : T extends Date | RegExp
+    : T extends Date | RegExp | BuiltinClassLeaf
       ? T
       : // Leaves are settled above, so only composites pay for the walk.
         ContainsSelf<T> extends false
@@ -557,37 +601,85 @@ type SubstituteInto<T, P extends [unknown]> =
  *  payload genuinely has to be carried across the knot. **/
 type CarryOnto<Base, Source, P extends [unknown]> = HasCarried<Source> extends true ? Base & CarrySlots<Source, P> : Base;
 
-/** Tuples the cycle runs through. The homomorphic map preserves slots,
- *  optionality and rest elements but folds a sentinel INTO the tuple, and
- *  TypeScript cannot decompose `tuple & object` back into its tuple half (both
- *  `[...infer B]` and a rest-parameter inference hand back the whole
- *  intersection or a widened array). A FIXED-arity carrier is therefore rebuilt
- *  slot by slot from its indexes, which is exact; a carrier with optional or
- *  rest slots has no such spelling and keeps the historical fold — the one
- *  remaining lossy shape, and the only one the convert CLI still refuses. **/
+/** Tuples the cycle runs through. The homomorphic map preserves slots and
+ *  optionality but folds a sentinel INTO the tuple, and TypeScript cannot
+ *  decompose `tuple & object` back into its tuple half — a variadic `infer`
+ *  yields `unknown[]`, a spread widens to an array, a head/tail `infer`
+ *  scrambles the slots, and a rest-parameter `infer` hands back the whole
+ *  intersection (all four measured). A carrier is therefore rebuilt from its
+ *  INDEXES, which the intersection exposes unchanged: every slot up to the
+ *  required arity, then the rest of them under `Partial` so their `?` comes
+ *  back, with the labels re-attached. **/
 type SubstituteTuple<T extends readonly unknown[], P extends [unknown]> =
   HasCarried<T> extends true
     ? IsFixedArity<T> extends true
-      ? TupleFromIndexes<T, P> & CarrySlots<T, P>
-      : {-readonly [K in keyof T]: SubstituteSelf<T[K], P>}
+      ? TupleFromIndexes<T, P, RequiredArity<T>> & CarrySlots<T, P>
+      : [
+          ...TupleFromIndexes<T, P, RequiredArity<T>>,
+          ...Partial<OptionalSlots<T, P> extends infer Slots extends unknown[] ? Slots : []>,
+        ] &
+          CarrySlots<T, P>
     : {-readonly [K in keyof T]: SubstituteSelf<T[K], P>};
 
-/** A tuple whose length is ONE numeric literal: no rest element (`number`) and
- *  no optional slot (which makes `length` a union of the legal arities). **/
-type IsFixedArity<T extends readonly unknown[]> = number extends T['length']
-  ? false
-  : IsUnion<T['length']> extends true
-    ? false
-    : true;
+/** A tuple whose length is ONE numeric literal: no optional slot, which makes
+ *  `length` a union of the legal arities. (A REST element makes `length` plain
+ *  `number`, and that is the array arm — this is only ever reached with a
+ *  literal or a union of literals.) **/
+type IsFixedArity<T extends readonly unknown[]> = IsUnion<T['length']> extends true ? false : true;
 
 type IsUnion<X, All = X> = X extends unknown ? ([All] extends [X] ? false : true) : never;
 
-/** Rebuild a fixed-arity tuple slot by slot, substituting each element — the
+/** The accumulator whose length is the tuple's REQUIRED arity — the smallest
+ *  member of the `length` union, found by counting up to the first member. **/
+type RequiredArity<T extends readonly unknown[], Acc extends unknown[] = []> = Acc['length'] extends T['length']
+  ? Acc
+  : RequiredArity<T, [...Acc, unknown]>;
+
+/** The accumulator whose length is the tuple's TOTAL arity. A tuple's legal
+ *  arities are contiguous, so counting stops at the first length the union no
+ *  longer admits. **/
+type TotalArity<T extends readonly unknown[], Acc extends unknown[] = RequiredArity<T>> = [
+  ...Acc,
+  unknown,
+]['length'] extends T['length']
+  ? TotalArity<T, [...Acc, unknown]>
+  : Acc;
+
+/** Rebuild a tuple slot by slot up to `Stop`, substituting each element — the
  *  intersection's element slots ARE the tuple's, so indexing reaches them
  *  without needing the base type back. **/
-type TupleFromIndexes<T, P extends [unknown], Acc extends unknown[] = []> = Acc['length'] extends T['length' & keyof T]
+type TupleFromIndexes<
+  T,
+  P extends [unknown],
+  Stop extends unknown[],
+  Acc extends unknown[] = [],
+> = Acc['length'] extends Stop['length']
   ? Acc
-  : TupleFromIndexes<T, P, [...Acc, SubstituteSelf<T[Acc['length'] & keyof T], P>]>;
+  : TupleFromIndexes<T, P, Stop, [...Acc, SubstituteSelf<T[Acc['length'] & keyof T], P>]>;
+
+/** The slots PAST the required arity, stripped of the `undefined` their
+ *  optionality adds (`Partial` puts it back when they are spliced on). **/
+type OptionalSlots<T extends readonly unknown[], P extends [unknown]> = DropRequired<
+  OptionalCandidates<T, P, TotalArity<T>>,
+  RequiredArity<T>
+>;
+
+type OptionalCandidates<
+  T,
+  P extends [unknown],
+  Stop extends unknown[],
+  Acc extends unknown[] = [],
+> = Acc['length'] extends Stop['length']
+  ? Acc
+  : OptionalCandidates<T, P, Stop, [...Acc, SubstituteSelf<NonNullable<T[Acc['length'] & keyof T]>, P>]>;
+
+type DropRequired<All extends unknown[], Skip extends unknown[]> = Skip['length'] extends 0
+  ? All
+  : All extends [unknown, ...infer Rest]
+    ? Skip extends [unknown, ...infer SkipRest]
+      ? DropRequired<Rest, SkipRest extends unknown[] ? SkipRest : []>
+      : All
+    : [];
 
 /** Ties a recursive body (containing `Self`) into the self-referential type it
  *  denotes — `Recursive<{next?: Self}>` ≡ `type Node = {next?: Node}`. The

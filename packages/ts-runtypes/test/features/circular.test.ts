@@ -5,6 +5,7 @@
 // `interface`s below are only the type-first half of the convergence checks.
 
 import * as TF from '@ts-runtypes/core/formats';
+import * as TFT from '@ts-runtypes/core/formats/temporal';
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, createGetValidationErrorsFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
 import {
@@ -248,6 +249,76 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
       b: unknown;
     }
     expect(getRunTypeId(Obj)).toBe(getRunTypeId<ObjT>());
+  });
+
+  it('optional-slot labeled tuples converge', () => {
+    // An optional slot leaves the tuple without a single literal arity, so it
+    // is rebuilt as required slots + `Partial` of the rest, labels re-attached.
+    interface LooseT {
+      link: [head: number, tail?: LooseT];
+    }
+    const Loose = circular(object({link: tuple([slot('head', TF.number())], [slot('tail', self())])}));
+    expect(getRunTypeId(Loose)).toBe(getRunTypeId<LooseT>());
+    const sample: LooseT = {link: [1]};
+    expect(getRunTypeId(sample)).toBe(getRunTypeId<LooseT>());
+
+    interface TwoOptT {
+      link: [a: number, b?: string, c?: TwoOptT];
+    }
+    expect(
+      getRunTypeId(circular(object({link: tuple([slot('a', TF.number())], [slot('b', TF.string()), slot('c', self())])})))
+    ).toBe(getRunTypeId<TwoOptT>());
+
+    interface AllOptT {
+      link: [a?: number, b?: AllOptT];
+    }
+    expect(getRunTypeId(circular(object({link: tuple([], [slot('a', TF.number()), slot('b', self())])})))).toBe(
+      getRunTypeId<AllOptT>()
+    );
+
+    interface FnT {
+      run: (a: number, b?: FnT) => number;
+    }
+    expect(getRunTypeId(circular(object({run: func(tuple([slot('a', TF.number())], [slot('b', self())]), TF.number())})))).toBe(
+      getRunTypeId<FnT>()
+    );
+  });
+
+  it('builtin class values inside a cycle converge', () => {
+    // Date and RegExp were always passed through as leaves; Temporal joined
+    // them. Walking a Temporal value is not just wasteful but wrong — its
+    // methods return Temporal, so the walk circularly references itself, the
+    // checker resolves the member to `any`, and a BRANDED value was then
+    // rebuilt into a plain object with a different id.
+    interface BrandedT {
+      value: TFT.PlainDateTime<{max: 'now+P1DT2H'}>;
+      next?: BrandedT;
+      kids: BrandedT[];
+    }
+    const Branded = circular(
+      object({value: TFT.plainDateTime({max: 'now+P1DT2H'}), next: optional(self()), kids: array(self())})
+    );
+    expect(getRunTypeId(Branded)).toBe(getRunTypeId<BrandedT>());
+    const sample: BrandedT = {value: null as unknown as BrandedT['value'], kids: []};
+    expect(getRunTypeId(sample)).toBe(getRunTypeId<BrandedT>());
+
+    interface BareT {
+      at: Temporal.Instant;
+      next?: BareT;
+    }
+    expect(getRunTypeId(circular(object({at: TFT.instant(), next: optional(self())})))).toBe(getRunTypeId<BareT>());
+
+    interface DurationT {
+      span: Temporal.Duration;
+      next?: DurationT;
+    }
+    expect(getRunTypeId(circular(object({span: TFT.duration(), next: optional(self())})))).toBe(getRunTypeId<DurationT>());
+
+    interface DateT {
+      when: Date;
+      next?: DateT;
+    }
+    expect(getRunTypeId(circular(object({when: TF.date(), next: optional(self())})))).toBe(getRunTypeId<DateT>());
   });
 
   it('a body with NO self-reference is returned untouched', () => {

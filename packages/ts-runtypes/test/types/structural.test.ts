@@ -22,13 +22,15 @@
 import {describe, expect, test} from 'vitest';
 import * as TF from '../../src/formats/index.ts';
 import type {RunType, InferType, DataOnly} from '../../src/index.ts';
-import type {CarriedKey} from '../../src/builders/static.ts';
+import type {CarriedKey, BuiltinClassLeaf} from '../../src/builders/static.ts';
+import type {TemporalBaseByFormatName} from '../../src/formats/datetime/temporalFormats.ts';
 
 describe('structural brand keys — type-only assertions', () => {
   test('assertion bodies are referenced (no runtime work here)', () => {
     expect(typeof assertionsStructuralBrandKeys).toBe('function');
     expect(typeof assertionsRecoveredTypesCarryNoMetadata).toBe('function');
     expect(typeof assertionsCarriedKeyIsExhaustive).toBe('function');
+    expect(typeof assertionsBuiltinClassLeavesAreExhaustive).toBe('function');
   });
 });
 
@@ -197,4 +199,20 @@ type Exact<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ?
 function assertionsCarriedKeyIsExhaustive(): void {
   const everySentinelIsCarried: true = null as unknown as Exact<CarriedKey, AllSentinelKeys>;
   void everySentinelIsCarried;
+}
+
+// The substitution treats builtin CLASS instances as leaves (Date, RegExp and
+// the Temporal families): a class can never contain `Self`, and walking one is
+// harmful — Temporal's methods return Temporal, so the member walk circularly
+// references itself and the node gets rebuilt into a plain object, moving its
+// id. `BuiltinClassLeaf` mirrors the guarded references in
+// formats/datetime/temporalFormats.ts because the SubstituteSelf region is
+// sliced verbatim into the budget harness and cannot import them; deriving the
+// other side from the canonical map makes a new Temporal type a COMPILE error
+// here instead of a silent id move inside recursive schemas.
+type CanonicalTemporalBases = TemporalBaseByFormatName[keyof TemporalBaseByFormatName];
+
+function assertionsBuiltinClassLeavesAreExhaustive(): void {
+  const everyTemporalBaseIsALeaf: true = null as unknown as Exact<BuiltinClassLeaf, CanonicalTemporalBases>;
+  void everyTemporalBaseIsALeaf;
 }
