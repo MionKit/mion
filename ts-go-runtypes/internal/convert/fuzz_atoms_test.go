@@ -95,6 +95,15 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 				arms = append(arms, randomTypeText(rng, atoms, stringPool, depth-1))
 			}
 			return "(" + strings.Join(arms, " | ") + ")"
+		case 4:
+			switch rng.Intn(3) {
+			case 0:
+				return fmt.Sprintf("TF.FormattedArray<%s[], {uniqueItems: true, maxItems: %d}>", randomTypeText(rng, atoms, stringPool, 0), 1+rng.Intn(9))
+			case 1:
+				return fmt.Sprintf("TF.FormattedArray<%s[], {minItems: %d}>", randomTypeText(rng, atoms, stringPool, 0), rng.Intn(4))
+			default:
+				return fmt.Sprintf("TF.FormattedObject<Record<string, %s>, {minProperties: %d}>", randomTypeText(rng, atoms, stringPool, 0), rng.Intn(3))
+			}
 		case 2:
 			memberCount := 1 + rng.Intn(4)
 			var parts []string

@@ -205,6 +205,13 @@ func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[stri
 	return family, annotation.Params, true
 }
 
+// multiNegationDiag: one `not` per node prints; stacked negations await the
+// allOf spelling.
+func (ctx *printContext) multiNegationDiag() *Diagnostic {
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: "stacked negations are not convertible yet (one not per node prints)"}
+}
+
 // exactBrandType renders the exact TypeFormat constructor for an annotation:
 // no defaults merge, provably the reflected brand.
 func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
@@ -214,6 +221,151 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 	}
 	ctx.needs.useTypeFormat = true
 	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.base, quoteSingle(annotation.Name), paramsText), true
+}
+
+// structuralSubPrinter renders a child node in the current target's dialect —
+// the printer method threaded into the structural helpers.
+type structuralSubPrinter func(node *reflection.RunType) (string, *Diagnostic)
+
+// structuralParts renders a node's structural payload (brand params +
+// contains / patternProperties / propertyNames) as sorted `key: value` parts.
+// closedOK tells whether the target may spell closedness (schema emits
+// `additionalProperties: false` only when the closed list equals the declared
+// keys, which is what the door re-derives).
+func (ctx *printContext) structuralParts(node *reflection.RunType, params map[string]any, sub structuralSubPrinter, target Target) ([]string, *Diagnostic) {
+	var parts []string
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if key == "closed" || key == "closedPatterns" {
+			continue
+		}
+		valueText, ok := paramValueText(params[key], false)
+		if !ok {
+			return nil, unsupportedDiag(node, ctx.decl)
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", key, valueText))
+	}
+	if len(node.Contains) > 1 {
+		return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "stacked contains checks are not convertible yet"}
+	}
+	if len(node.Contains) == 1 {
+		check := node.Contains[0]
+		childText, diag := sub(check.Child)
+		if diag != nil {
+			return nil, diag
+		}
+		parts = append(parts, fmt.Sprintf("contains: %s", childText))
+		if check.Min != 1 {
+			parts = append(parts, fmt.Sprintf("minContains: %s", strconv.FormatFloat(check.Min, 'g', -1, 64)))
+		}
+		if check.Max >= 0 {
+			parts = append(parts, fmt.Sprintf("maxContains: %s", strconv.FormatFloat(check.Max, 'g', -1, 64)))
+		}
+	}
+	if len(node.PatternProps) > 0 {
+		var patternParts []string
+		for _, patternCheck := range node.PatternProps {
+			valueText, diag := sub(patternCheck.Value)
+			if diag != nil {
+				return nil, diag
+			}
+			patternParts = append(patternParts, fmt.Sprintf("%s: %s", quoteSingle(patternCheck.Source), valueText))
+		}
+		parts = append(parts, fmt.Sprintf("patternProperties: {%s}", strings.Join(patternParts, ", ")))
+	}
+	if len(node.PropNames) > 1 {
+		return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "stacked propertyNames checks are not convertible yet"}
+	}
+	if len(node.PropNames) == 1 {
+		keyText, diag := sub(node.PropNames[0])
+		if diag != nil {
+			return nil, diag
+		}
+		parts = append(parts, fmt.Sprintf("propertyNames: %s", keyText))
+	}
+	if closedDiag := ctx.closedParts(node, params, target, &parts); closedDiag != nil {
+		return nil, closedDiag
+	}
+	return parts, nil
+}
+
+// closedParts renders the closedness params. Builders and the type target
+// carry the exact `closed` / `closedPatterns` lists verbatim; the schema
+// target spells `additionalProperties: false` only when the closed list is
+// exactly the declared member set (what the door re-derives), and refuses
+// otherwise rather than move the id.
+func (ctx *printContext) closedParts(node *reflection.RunType, params map[string]any, target Target, parts *[]string) *Diagnostic {
+	closedValue, hasClosed := params["closed"]
+	closedPatternsValue, hasClosedPatterns := params["closedPatterns"]
+	if !hasClosed && !hasClosedPatterns {
+		return nil
+	}
+	if target != TargetJSONSchema {
+		if hasClosed {
+			closedText, ok := paramValueText(closedValue, false)
+			if !ok {
+				return unsupportedDiag(node, ctx.decl)
+			}
+			*parts = append(*parts, fmt.Sprintf("closed: %s", closedText))
+		}
+		if hasClosedPatterns {
+			closedPatternsText, ok := paramValueText(closedPatternsValue, false)
+			if !ok {
+				return unsupportedDiag(node, ctx.decl)
+			}
+			*parts = append(*parts, fmt.Sprintf("closedPatterns: %s", closedPatternsText))
+		}
+		return nil
+	}
+	if hasClosedPatterns {
+		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "pattern-scoped closedness is not convertible to json-schema yet"}
+	}
+	closedList, _ := closedValue.([]any)
+	declaredKeys := map[string]bool{}
+	for _, memberRef := range node.Children {
+		member := ctx.deref(memberRef)
+		if member != nil {
+			declaredKeys[member.Name] = true
+		}
+	}
+	if len(closedList) != len(declaredKeys) {
+		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "closedness with a non-declared key list is not convertible to json-schema yet"}
+	}
+	for _, key := range closedList {
+		keyName, _ := key.(string)
+		if !declaredKeys[keyName] {
+			return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: "closedness with a non-declared key list is not convertible to json-schema yet"}
+		}
+	}
+	*parts = append(*parts, "additionalProperties: false")
+	return nil
+}
+
+// structuralAnnotationParams returns the structural brand's params (or an
+// empty map when the node carries sentinels without the brand).
+func structuralAnnotationParams(node *reflection.RunType) map[string]any {
+	if node.FormatAnnotation != nil && isStructuralAnnotation(node.FormatAnnotation) {
+		return node.FormatAnnotation.Params
+	}
+	return map[string]any{}
+}
+
+// hasStructuralPayload reports whether the node carries anything the
+// structural helpers must print.
+func hasStructuralPayload(node *reflection.RunType) bool {
+	if node.FormatAnnotation != nil && isStructuralAnnotation(node.FormatAnnotation) {
+		return true
+	}
+	return len(node.Contains) > 0 || len(node.PatternProps) > 0 || len(node.PropNames) > 0
 }
 
 // isStructuralAnnotation tells the array/object structural brands from the
@@ -348,6 +500,19 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		return "", ctx.circularPendingDiag()
 	}
 	defer leave()
+	if len(node.Negations) > 0 {
+		if len(node.Negations) > 1 {
+			return "", ctx.multiNegationDiag()
+		}
+		negatedText, diag := ctx.typeExpr(node.Negations[0])
+		if diag != nil {
+			return "", diag
+		}
+		// TF.Not<F> carries the base kind itself, so the negation node prints
+		// as the wrapper alone.
+		ctx.needs.useTF = true
+		return fmt.Sprintf("%s.Not<%s>", ctx.names.TF, negatedText), nil
+	}
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, params, known := leafFormat(annotation)
 		if !known {
@@ -408,6 +573,14 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		if childNode != nil && childNode.Kind == reflection.KindUnion {
 			childText = "(" + childText + ")"
 		}
+		if hasStructuralPayload(node) {
+			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
+			if partsDiag != nil {
+				return "", partsDiag
+			}
+			ctx.needs.useTF = true
+			return fmt.Sprintf("%s.FormattedArray<%s[], {%s}>", ctx.names.TF, childText, strings.Join(parts, ", ")), nil
+		}
 		return childText + "[]", nil
 	case reflection.KindPromise:
 		childText, diag := ctx.typeExpr(node.Child)
@@ -447,7 +620,16 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
-			return "", ctx.oneOfPendingDiag()
+			var branches []string
+			for _, branchRef := range node.OneOf {
+				branchText, diag := ctx.typeExpr(branchRef)
+				if diag != nil {
+					return "", diag
+				}
+				branches = append(branches, branchText)
+			}
+			ctx.needs.useRT = true
+			return fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(branches, ", ")), nil
 		}
 		var parts []string
 		for _, armRef := range node.Children {
@@ -466,30 +648,41 @@ func (ctx *printContext) typeExpr(node *reflection.RunType) (string, *Diagnostic
 		if indexValue != nil && len(members) > 0 {
 			return "", ctx.mixedIndexPendingDiag()
 		}
+		var baseText string
 		if indexValue != nil {
 			valueText, valueDiag := ctx.typeExpr(indexValue)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return fmt.Sprintf("Record<string, %s>", valueText), nil
+			baseText = fmt.Sprintf("Record<string, %s>", valueText)
+		} else {
+			var parts []string
+			for _, member := range members {
+				innerText, innerDiag := ctx.typeExpr(member.child)
+				if innerDiag != nil {
+					return "", innerDiag
+				}
+				prefix := ""
+				if member.readonly {
+					prefix = "readonly "
+				}
+				suffix := ""
+				if member.optional {
+					suffix = "?"
+				}
+				parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+			}
+			baseText = "{" + strings.Join(parts, "; ") + "}"
 		}
-		var parts []string
-		for _, member := range members {
-			innerText, innerDiag := ctx.typeExpr(member.child)
-			if innerDiag != nil {
-				return "", innerDiag
+		if hasStructuralPayload(node) {
+			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
+			if partsDiag != nil {
+				return "", partsDiag
 			}
-			prefix := ""
-			if member.readonly {
-				prefix = "readonly "
-			}
-			suffix := ""
-			if member.optional {
-				suffix = "?"
-			}
-			parts = append(parts, fmt.Sprintf("%s%s%s: %s", prefix, member.key, suffix, innerText))
+			ctx.needs.useTF = true
+			return fmt.Sprintf("%s.FormattedObject<%s, {%s}>", ctx.names.TF, baseText, strings.Join(parts, ", ")), nil
 		}
-		return "{" + strings.Join(parts, "; ") + "}", nil
+		return baseText, nil
 	case reflection.KindTuple:
 		if _, ok := ctx.tupleMembers(node); !ok {
 			return "", unsupportedDiag(node, ctx.decl)
@@ -562,6 +755,16 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		ctx.needs.useTF = true
 		return ctx.names.TF + "." + call, nil
 	}
+	if len(node.Negations) > 0 {
+		if len(node.Negations) > 1 {
+			return "", ctx.multiNegationDiag()
+		}
+		negatedText, diag := ctx.builderExpr(node.Negations[0])
+		if diag != nil {
+			return "", diag
+		}
+		return rt(fmt.Sprintf("not(%s)", negatedText))
+	}
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, params, known := leafFormat(annotation)
 		if !known {
@@ -618,6 +821,13 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if diag != nil {
 			return "", diag
 		}
+		if hasStructuralPayload(node) {
+			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
+			if partsDiag != nil {
+				return "", partsDiag
+			}
+			return rt(fmt.Sprintf("array(%s, {%s})", childText, strings.Join(parts, ", ")))
+		}
 		return rt(fmt.Sprintf("array(%s)", childText))
 	case reflection.KindPromise:
 		childText, diag := ctx.builderExpr(node.Child)
@@ -657,7 +867,15 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
-			return "", ctx.oneOfPendingDiag()
+			var branches []string
+			for _, branchRef := range node.OneOf {
+				branchText, diag := ctx.builderExpr(branchRef)
+				if diag != nil {
+					return "", diag
+				}
+				branches = append(branches, branchText)
+			}
+			return rt(fmt.Sprintf("oneOf([%s])", strings.Join(branches, ", ")))
 		}
 		var arms []string
 		for _, armRef := range node.Children {
@@ -676,12 +894,20 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if indexValue != nil && len(members) > 0 {
 			return "", ctx.mixedIndexPendingDiag()
 		}
+		bagText := ""
+		if hasStructuralPayload(node) {
+			bagParts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
+			if partsDiag != nil {
+				return "", partsDiag
+			}
+			bagText = ", {" + strings.Join(bagParts, ", ") + "}"
+		}
 		if indexValue != nil {
 			valueText, valueDiag := ctx.builderExpr(indexValue)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return rt(fmt.Sprintf("record(%s)", valueText))
+			return rt(fmt.Sprintf("record(%s%s)", valueText, bagText))
 		}
 		var parts []string
 		for _, member := range members {
@@ -699,7 +925,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			parts = append(parts, fmt.Sprintf("%s: %s", member.key, innerText))
 		}
-		return rt(fmt.Sprintf("object({%s})", strings.Join(parts, ", ")))
+		return rt(fmt.Sprintf("object({%s}%s)", strings.Join(parts, ", "), bagText))
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {
@@ -765,6 +991,24 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 				Message: fmt.Sprintf("%s has no standard 2020-12 spelling; drop --portable to use the RunTypes dialect", kindLabel(node.Kind))}
 		}
 		return literal, nil
+	}
+	if len(node.Negations) > 0 {
+		if len(node.Negations) > 1 {
+			return "", ctx.multiNegationDiag()
+		}
+		// The standard `not` keyword runs the door's kind-complement algebra,
+		// which does not read the dialect — the first-class Not<F> type
+		// embeds instead, exact by construction.
+		if ctx.opts.Portable {
+			return dialect("")
+		}
+		negatedText, negDiag := ctx.typeExpr(node.Negations[0])
+		if negDiag != nil {
+			return "", negDiag
+		}
+		ctx.needs.useEmbedType = true
+		ctx.needs.useTF = true
+		return fmt.Sprintf("%s<%s.Not<%s>>()", ctx.names.EmbedType, ctx.names.TF, negatedText), nil
 	}
 	// Format annotations ride jsFormat verbatim for now — the standard-keyword
 	// rows (minLength / minimum / format:'email' / …) land with the preset
@@ -843,6 +1087,13 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if diag != nil {
 			return "", diag
 		}
+		if hasStructuralPayload(node) {
+			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.schemaExpr, TargetJSONSchema)
+			if partsDiag != nil {
+				return "", partsDiag
+			}
+			return fmt.Sprintf("{type: 'array', items: %s, %s}", childText, strings.Join(parts, ", ")), nil
+		}
 		return fmt.Sprintf("{type: 'array', items: %s}", childText), nil
 	case reflection.KindPromise:
 		childText, diag := ctx.schemaExpr(node.Child)
@@ -882,7 +1133,15 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return "", unsupportedDiag(node, ctx.decl)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
-			return "", ctx.oneOfPendingDiag()
+			var branches []string
+			for _, branchRef := range node.OneOf {
+				branchText, diag := ctx.schemaExpr(branchRef)
+				if diag != nil {
+					return "", diag
+				}
+				branches = append(branches, branchText)
+			}
+			return fmt.Sprintf("{oneOf: [%s]}", strings.Join(branches, ", ")), nil
 		}
 		allPlainLiterals := true
 		var literalParts []string
@@ -929,12 +1188,20 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if indexValue != nil && len(members) > 0 {
 			return "", ctx.mixedIndexPendingDiag()
 		}
+		schemaBag := ""
+		if hasStructuralPayload(node) {
+			bagParts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.schemaExpr, TargetJSONSchema)
+			if partsDiag != nil {
+				return "", partsDiag
+			}
+			schemaBag = ", " + strings.Join(bagParts, ", ")
+		}
 		if indexValue != nil {
 			valueText, valueDiag := ctx.schemaExpr(indexValue)
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return fmt.Sprintf("{type: 'object', additionalProperties: %s}", valueText), nil
+			return fmt.Sprintf("{type: 'object', additionalProperties: %s%s}", valueText, schemaBag), nil
 		}
 		var propertyParts []string
 		var requiredParts []string
@@ -959,7 +1226,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if len(requiredParts) > 0 {
 			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
 		}
-		return out + "}", nil
+		return out + schemaBag + "}", nil
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {
@@ -1022,13 +1289,6 @@ func (ctx *printContext) nativeArguments(node *reflection.RunType) []*reflection
 func (ctx *printContext) mixedIndexPendingDiag() *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
 		Message: "mixed named properties + index signature is not convertible yet (see docs/todos/format-conversion-completion.md)"}
-}
-
-// oneOfPendingDiag reports a union carrying the exactly-one combinator, which
-// awaits its RT.oneOf / oneOf printing rows.
-func (ctx *printContext) oneOfPendingDiag() *Diagnostic {
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "oneOf unions are not convertible yet (see docs/todos/format-conversion-completion.md)"}
 }
 
 // objectMember is one printable property: its source key spelling (quoted

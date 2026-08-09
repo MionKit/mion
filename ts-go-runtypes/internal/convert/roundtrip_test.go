@@ -122,6 +122,37 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 	convertAndCheckIDs(t, schemaForm, convert.TargetType)
 }
 
+func TestChain_OneOfAndNot(t *testing.T) {
+	source := "import * as RT from '@ts-runtypes/core/builders';\n" +
+		"import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export const choiceRT = RT.oneOf([TF.string(), TF.number()]);\n" +
+		"export type Choice = InferType<typeof choiceRT>;\n" +
+		"const noMailRT = RT.not(TF.email());\n" +
+		"type NoMail = InferType<typeof noMailRT>;\n" +
+		"import {type InferType} from '@ts-runtypes/core';\n"
+	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{oneOf: [{type: 'string'}, {type: 'number'}]}") {
+		t.Errorf("oneOf should print branch-wise:\n%s", schemaForm)
+	}
+	if !strings.Contains(schemaForm, "embedType<TF.Not<TypeFormat<string, 'email', {") {
+		t.Errorf("not should embed the Not<F> brand:\n%s", schemaForm)
+	}
+	builderForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "RT.oneOf([TF.string(), TF.number()])") {
+		t.Errorf("oneOf should print RT.oneOf:\n%s", builderForm)
+	}
+	if !strings.Contains(builderForm, "RT.not(getRunType<TypeFormat<string, 'email', {") {
+		t.Errorf("not should wrap the negated brand:\n%s", builderForm)
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	if !strings.Contains(typeForm, "RT.OneOf<[string, number]>") {
+		t.Errorf("oneOf type spelling missing:\n%s", typeForm)
+	}
+	if !strings.Contains(typeForm, "TF.Not<TypeFormat<string, 'email', {") {
+		t.Errorf("not type spelling missing:\n%s", typeForm)
+	}
+}
+
 func TestChain_ArraysAndTuples(t *testing.T) {
 	source := "export type Tags = string[];\n" +
 		"type Grid = number[][];\n" +
@@ -157,6 +188,37 @@ func TestChain_ArraysAndTuples(t *testing.T) {
 		if !strings.Contains(typeForm, expected) {
 			t.Errorf("type form missing %q:\n%s", expected, typeForm)
 		}
+	}
+}
+
+func TestChain_StructuralParams(t *testing.T) {
+	source := "import * as RT from '@ts-runtypes/core/builders';\n" +
+		"import * as TF from '@ts-runtypes/core/formats';\n" +
+		"import {type InferType} from '@ts-runtypes/core';\n" +
+		"export const uniqRT = RT.array(TF.string(), {uniqueItems: true, maxItems: 4});\n" +
+		"export type Uniq = InferType<typeof uniqRT>;\n" +
+		"const cntRT = RT.array(TF.number(), {contains: TF.number({min: 5}), minContains: 2});\n" +
+		"type Cnt = InferType<typeof cntRT>;\n" +
+		"const keysRT = RT.record(TF.string(), {minProperties: 1, propertyNames: TF.string({maxLength: 3})});\n" +
+		"type Keys = InferType<typeof keysRT>;\n" +
+		"const patRT = RT.record(RT.unknown(), {patternProperties: {'^a': TF.number()}});\n" +
+		"type Pat = InferType<typeof patRT>;\n"
+	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"{type: 'array', items: {type: 'string'}, maxItems: 4, uniqueItems: true}",
+		"contains: {jsFormat: {name: 'numberFormat', params: {min: 5}}}, minContains: 2",
+		"minProperties: 1, propertyNames: {jsFormat: {name: 'stringFormat', params: {maxLength: 3}}}",
+		"patternProperties: {'^a': {type: 'number'}}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	builderForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	if !strings.Contains(typeForm, "TF.FormattedArray<TF.String<{}>[], {maxItems: 4, uniqueItems: true}>") &&
+		!strings.Contains(typeForm, "TF.FormattedArray<string[], {maxItems: 4, uniqueItems: true}>") {
+		t.Errorf("type form missing the FormattedArray spelling:\n%s", typeForm)
 	}
 }
 
