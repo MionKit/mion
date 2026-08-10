@@ -2126,24 +2126,15 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	case reflection.KindNever:
 		return "{enum: []}", nil
 	case reflection.KindAny:
-		// No wire keywords: `any` accepts every JSON value, which is what an
-		// absent `type` already says.
 		return dialect("{jsType: 'any'}")
 	case reflection.KindUndefined:
-		// undefined and void encode as JSON null, in an object member and an
-		// array slot alike (json_stringify.go). The jsType is what tells the
-		// three apart, since on the wire they are the same value.
-		return dialect("{type: 'null', jsType: 'undefined'}")
+		return dialect("{jsType: 'undefined'}")
 	case reflection.KindVoid:
-		return dialect("{type: 'null', jsType: 'void'}")
+		return dialect("{jsType: 'void'}")
 	case reflection.KindSymbol:
-		// A symbol never reaches the wire at all, so there are no wire keywords
-		// to sit beside it — the same position a function signature is in.
 		return dialect("{jsType: 'symbol'}")
 	case reflection.KindBigInt:
-		// A bigint encodes as a quoted decimal string, so the wire is a string
-		// with the digits pattern and jsType says what it becomes.
-		return dialect("{type: 'string', pattern: '^-?[0-9]+$', jsType: 'bigint'}")
+		return dialect("{jsType: 'bigint'}")
 	case reflection.KindLiteral:
 		if isBigIntLiteral(node) {
 			// A bigint literal rides its DIGITS: `const` cannot hold it (JSON
@@ -2154,10 +2145,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if !ok {
 				return "", unsupportedDiag(node, ctx.decl)
 			}
-			// The same row as the bigint atom with the value pinned: `const`
-			// holds the WIRE value, which is the digit string.
-			return dialect(fmt.Sprintf("{type: 'string', const: %s, jsType: 'bigint'}",
-				quoteSingle(strings.TrimSuffix(digits, "n"))))
+			return dialect(fmt.Sprintf("{jsBigint: %s}", quoteSingle(strings.TrimSuffix(digits, "n"))))
 		}
 		literalText, ok := literalValueText(node)
 		if !ok {
@@ -2193,15 +2181,11 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if diag != nil {
 			return "", diag
 		}
-		// A serialiser awaits the promise and writes the RESOLVED value, so the
-		// wire is that value's own schema with the annotation beside it. The
-		// resolved schema sits in place rather than under a sub-key, for the
-		// same reason Map has no argument list.
-		return dialect(mergeSchema(childText, "jsType: 'Promise'"))
+		return dialect(fmt.Sprintf("{jsType: 'Promise', typeArguments: [%s]}", childText))
 	case reflection.KindClass:
 		switch node.SubKind {
 		case reflection.SubKindDate:
-			return dialect("{type: 'string', format: 'date-time', jsType: 'Date'}")
+			return dialect("{jsType: 'Date'}")
 		case reflection.SubKindMap:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 2 {
@@ -2215,11 +2199,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			// A Map encodes as an array of [key, value] pairs, so the key and
-			// value ARE the wire schema and there is no argument list to carry.
-			return dialect(fmt.Sprintf(
-				"{type: 'array', items: {type: 'array', prefixItems: [%s, %s], minItems: 2, items: false}, jsType: 'Map'}",
-				keyText, valueText))
+			return dialect(fmt.Sprintf("{jsType: 'Map', typeArguments: [%s, %s]}", keyText, valueText))
 		case reflection.SubKindSet:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 1 {
@@ -2229,13 +2209,10 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if itemDiag != nil {
 				return "", itemDiag
 			}
-			// A Set encodes as an array with no duplicates, so `items` carries
-			// the element type and `uniqueItems` is a real constraint a plain
-			// validator enforces.
-			return dialect(fmt.Sprintf("{type: 'array', items: %s, uniqueItems: true, jsType: 'Set'}", itemText))
+			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
 		}
 		if isRegExpNode(node) {
-			return dialect("{type: 'string', jsType: 'RegExp'}")
+			return dialect("{jsType: 'RegExp'}")
 		}
 		// The eight Temporal builtins spell as data, under their reflected
 		// format name (`temporalInstant`) — the same word the branded jsFormat
@@ -2243,23 +2220,13 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		// guarded base map, so nothing here forces the Temporal lib on a
 		// json-schema consumer.
 		if info, isTemporal := reflection.TemporalInfoBySubKind(node.SubKind); isTemporal {
-			// The wire half comes from the registry, so it cannot drift from
-			// what the serializer actually writes.
-			wire := ""
-			if format := info.WireFormat(); format != "" {
-				wire = fmt.Sprintf("format: %s, ", quoteSingle(format))
-			} else if pattern := info.WirePattern(); pattern != "" {
-				wire = fmt.Sprintf("pattern: %s, ", quoteSingle(pattern))
-			}
-			return dialect(fmt.Sprintf("{type: 'string', %sjsType: %s}", wire, quoteSingle(info.DialectName())))
+			return dialect(fmt.Sprintf("{jsType: %s}", quoteSingle(info.DialectName())))
 		}
 		// A user class or any other class kind keeps the escape: its identity
 		// is nominal, so only the live symbol can carry it.
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindRegexp:
-		// `JSON.stringify(re.toString())`, so the wire carries the delimiters
-		// and flags: "/^ab?c$/gi".
-		return dialect("{type: 'string', jsType: 'RegExp'}")
+		return dialect("{jsType: 'RegExp'}")
 	case reflection.KindEnum:
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindUnion:
@@ -2485,9 +2452,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		// TypeScript's `object` keyword — the non-primitive gate. NOT the same
 		// as a keyword-less object schema, which the door reads as
 		// `Record<string, unknown>`.
-		// `object` is the non-primitive gate, and it ADMITS arrays, so the wire
-		// is the two-member type union rather than {type: 'object'}.
-		return dialect("{type: ['object', 'array'], jsType: 'object'}")
+		return dialect("{jsType: 'object'}")
 	}
 	return "", unsupportedDiag(node, ctx.decl)
 }
@@ -2557,23 +2522,6 @@ func (ctx *printContext) functionSchemaText(node *reflection.RunType) (string, *
 	}
 	paramsText += "}"
 	return fmt.Sprintf("{jsFunction: {params: %s, return: %s}}", paramsText, returnText), nil, true
-}
-
-// mergeSchema splices extra keywords into an already-printed schema object, so
-// a keyword can sit BESIDE the wire keywords a nested printer produced rather
-// than replacing them. A non-object spelling (the embed escape, a boolean
-// schema) has nowhere to put them and comes back untouched.
-func mergeSchema(schemaText string, extra string) string {
-	if extra == "" {
-		return schemaText
-	}
-	if !strings.HasPrefix(schemaText, "{") || !strings.HasSuffix(schemaText, "}") {
-		return schemaText
-	}
-	if schemaText == "{}" {
-		return "{" + extra + "}"
-	}
-	return schemaText[:len(schemaText)-1] + ", " + extra + "}"
 }
 
 // jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
