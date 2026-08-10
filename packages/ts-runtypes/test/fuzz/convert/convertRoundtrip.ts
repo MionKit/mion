@@ -116,21 +116,39 @@ export interface ConvertFixture {
  *  root probes resolve to the SAME id on every iteration. **/
 export const VALUE_PROBE = 'FzRoot(value)';
 
+/** The INLINE-type probe's key. Every other probe names its type, and a call
+ *  that names its type is left alone — so without this one the lane never
+ *  exercised call-site CONVERSION at all, only the paths that skip it. This
+ *  probe writes its type inline, so each leg rewrites it into that form's value
+ *  spelling (`getRunTypeId(RT.object({…}))`) and back, with the id pinned
+ *  across all of it.
+ *
+ *  Its shape is fixed rather than generated on purpose: the generated space is
+ *  already covered by the declaration probes, and a shape that referenced a
+ *  declaration would print the `getRunType<Name>()` escape — an extra marker
+ *  site, which would shift the position-ordered probe slice below. **/
+export const INLINE_PROBE = 'FzRoot(inline)';
+
 /** Render the generated type as a DECLARATIONS file the converter rewrites:
  *  package-import preamble, the named decls, the root as `type FzRoot = …`,
  *  and one `getRunTypeId<Name>()` probe per declaration plus one
- *  reflection-shape `getRunTypeId(probeValue)` probe of the root. The probes
- *  are marker call sites — the converter leaves them untouched on every
- *  target, and each one re-resolves the declaration's id after every leg. **/
+ *  reflection-shape `getRunTypeId(probeValue)` probe of the root, and one
+ *  INLINE-type probe. The probes are marker call sites: the named and
+ *  reflection ones must survive every target untouched, the inline one must be
+ *  REWRITTEN into each form and back — and all of them re-resolve their id
+ *  after every leg. **/
 export function renderConvertFixture(gen: GeneratedType): ConvertFixture {
   const {decls, rootExpr} = renderGenerated(gen, FUZZ_FORMAT_PREAMBLE_PACKAGE);
   const declNames = gen.decls.map((decl) => decl.name);
-  const probeNames = ['FzRoot', ...declNames, VALUE_PROBE];
+  const probeNames = ['FzRoot', ...declNames, VALUE_PROBE, INLINE_PROBE];
   const body =
     `import {getRunTypeId} from '@ts-runtypes/core';\n${decls}${decls ? '\n' : ''}` +
     `export type FzRoot = ${rootExpr};\ndeclare const fzRootValueProbe: FzRoot;\n`;
   const probes = ['FzRoot', ...declNames].map((name) => `getRunTypeId<${name}>();\n`).join('');
-  return {source: body + probes + 'getRunTypeId(fzRootValueProbe);\n', probeNames};
+  return {
+    source: body + probes + 'getRunTypeId(fzRootValueProbe);\ngetRunTypeId<{fzInlineProbe: boolean}>();\n',
+    probeNames,
+  };
 }
 
 // --- the on-disk project the CLI converts -----------------------------------

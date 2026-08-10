@@ -1,6 +1,6 @@
 import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
-import {getRunTypeId, type InferType} from '@ts-runtypes/core';
+import {createValidateFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
 import {embedType, runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 // start-before
@@ -53,3 +53,16 @@ type Audit = InferType<typeof auditRT>;
 const sample: Audit = {version: 123n};
 getRunTypeId(sample) === getRunTypeId(auditRT); // true
 // end-embed
+
+// start-call-sites
+// A type written straight into a factory call has no declaration to rewrite,
+// so the converter rewrites the call itself. Before:
+export const isOrder = createValidateFn<{id: string; total: number}>();
+// end-call-sites
+
+// start-call-sites-after
+// And after converting to type builders, the same call with the type as a
+// value. It reflects the same shape, so it is the same validator.
+export const isOrderBuilt = createValidateFn(RT.object({id: TF.string(), total: TF.number()}));
+getRunTypeId<{id: string; total: number}>() === getRunTypeId(RT.object({id: TF.string(), total: TF.number()})); // true
+// end-call-sites-after

@@ -162,6 +162,9 @@ function runCore(args) {
   if (sub === 'bump-tsgolint') return proxy('node', ['scripts/core/bump-tsgolint.mjs', ...rest]);
   if (sub === 'ensure-tsgolint') return proxy('node', ['scripts/core/ensure-tsgolint.mjs', ...rest]);
   if (sub === 'codegen') return runCodegen(rest);
+  // The whole suite tree, converted into the value forms and run against the
+  // same assertions. Generates, runs, removes — see scripts/core/converted-suites.mjs.
+  if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));
   if (sub === 'fuzz') {
     const suite = FUZZ[rest[0]];
     if (!suite) die(`unknown fuzz suite '${rest[0] ?? ''}'. Try: ${Object.keys(FUZZ).join(' | ')} [--soak]`);
@@ -172,7 +175,9 @@ function runCore(args) {
     if (suite.config) return proxy('pnpm', ['exec', 'vitest', 'run', '--config', suite.config, ...extra], env);
     return proxy('pnpm', ['exec', 'vitest', 'run', ...suite.patterns, ...extra], env);
   }
-  die('usage: rtx core <build|smoke|fuzz <suite>|codegen [--check]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>');
+  die(
+    'usage: rtx core <build|smoke|fuzz <suite>|codegen [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+  );
 }
 
 // ── website ────────────────────────────────────────────────────────────────
@@ -343,6 +348,7 @@ core     the engine (Go resolver + TS marker/plugin)
   rtx core smoke                   end-to-end smoke of the resolver + devtools
   rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
+  rtx core converted-suites [--target builders|json-schema] [--keep]   convert the suite tree into the value forms, run it, remove it
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
 

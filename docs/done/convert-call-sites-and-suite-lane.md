@@ -1,8 +1,9 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-09
+completed: 2026-08-10
 ---
 
 # Convert marker CALL SITES, and run the whole suite tree in all three forms
@@ -207,3 +208,61 @@ structural id pinned at each one; `pnpm rtx core converted-suites` generates,
 runs and removes both converted trees; the trees are gitignored; the
 expected-failure list is honest and fails when a refusal is fixed; the release
 gate runs the lane; the website guide documents call-site conversion.
+
+## What shipped
+
+All of it, plus six defects the conversion surfaced. **18,264 tests pass across
+the two converted trees** (`pnpm rtx core converted-suites`), against 24 / 25
+refusals per target — all documented limitations, and the counts are pinned so a
+regression or a fix both fail the lane until the number is updated.
+
+Deviations from the plan, and why:
+
+- **Layout is `test/converted-<target>/`, not `.converted-<target>/`.** Vitest's
+  globs do not match dot directories, so the trees were invisible. They are
+  excluded from the other lanes by name instead (the `json-schema-official`
+  pattern) and gitignored.
+- **The enrich CLI lanes are excluded** (`enrichTranslate`, `enrichReconcile`),
+  and only those. They drive the CLI over fixture projects they generate at
+  runtime through an absolute `.tmp` root, so three copies reconcile on top of
+  each other. Nothing about them exercises the conversion. Recorded in
+  `vitest.converted.config.ts`.
+- **A generic declaration warns instead of erroring.** It has no runtime shape,
+  so there is nothing to convert — the same reason classes and functions are
+  skipped. As an error it failed a whole file over one type-level helper. The
+  row left `unsupported-conversion.test.ts` and the website table.
+
+### Defects found by converting the suites
+
+Each was fixed with the conversion it blocked; the first two account for 519 of
+the 526 diagnostics the first run produced.
+
+1. **A name this file cannot SPELL is not a failure** — an unexported alias, or
+   a type the reflection graph reached structurally, refused with CNV004. It
+   inlines now: same id, one lost name. (430 diagnostics.)
+2. **A reference through a PACKAGE import can never be "added to the run"** —
+   `TF.String`, `FromJsonSchema`. Advice the user cannot act on. (47.)
+3. **A call sees its enclosing block's names**, not just the file's top level.
+   The suites declare classes and enums inside thunks, and the calls reflecting
+   them refused as "not in scope here". (89.)
+4. **A call that already names its type is left alone** — converting one whose
+   type is a thunk-local recursive interface has no name to close the cycle on.
+   (41.)
+5. **A RunType-typed const only converts when the builders authored it.** The
+   mocking suites assemble graphs by hand; reprinting one from its resolved type
+   replaced it with an EMPTY schema. Data loss, not conversion.
+6. **`getRunType` nested in a factory lost its id** — a pre-existing scanner
+   bug, exempted now and pinned by
+   `packages/ts-runtypes/test/features/nestedMarkerCalls.test.ts`. Filed
+   separately as `docs/done/nested-getruntype-loses-its-id.md`.
+
+Two more, found by the tests rather than the suites: a type-only namespace
+import was adopted to spell VALUES (`TF is not defined` at runtime) and now
+folds into the managed block as a value import; and the reflection form was
+matched by a bare generic-reference test, so `getRunTypeId(promiseProbe)` was
+rewritten to its first type argument — caught by the FE roundtrip lane on seed
+133220833, now gated on `builders.IsRunType`.
+
+`deserializeValidate` and its seven siblings gained the `RunType<T>` overload
+their runtime already accepted, so the deserialize half of the suites runs
+value-first too.

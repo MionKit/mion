@@ -5,6 +5,8 @@ name: prod · release gate
 #   build         - the full main gate (Go suite + gofmt/vet, JS suite incl. fuzz,
 #                   lint, typecheck, format) on Linux, then build every package + the
 #                   7-platform binary matrix and pack the tarballs.
+#   converted-suites - the whole suite tree rewritten into the value forms by
+#                   `ts-runtypes convert` and run against the same assertions.
 #   fuzz-soak     - the SOAK budgets of every fuzz lane, one runner each. The
 #                   suites above run these lanes at their tiny defaults (the
 #                   convert sweep at 6 iterations, its CLI twin at 5); this is
@@ -107,6 +109,31 @@ jobs:
           # Long enough that a slow `release` environment approval on the publish
           # side can still download the exact bytes the e2e validated.
           retention-days: 14
+
+  # ── converted-suites: the suite tree, in the value forms ──────────────────
+  # `pnpm rtx core converted-suites` converts packages/ts-runtypes/test/suites/
+  # into one tree per target, runs vitest over them and removes them again. The
+  # assertions are identical to the originals, so a failure here means the
+  # CONVERSION changed behaviour — it cannot mean anything else.
+  #
+  # Not in ci.yml: this converts and type-checks 205 files twice over, which is
+  # not a per-PR cost. Here it rides the pre-publish gate, where the question
+  # "do the three notations still agree?" is exactly what wants answering.
+  converted-suites:
+    name: suite tree in the value forms
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # The command spawns bin/ts-runtypes and the vitest project reads both
+      # dists; a build failure should read as a build failure, not a conversion one.
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Convert the suites, run them, remove the trees
+        run: pnpm rtx core converted-suites
 
   # ── fuzz-soak: the lanes at their SOAK budgets, one runner per lane ────────
   # Every fuzz lane already runs under `go test ./internal/...` or
