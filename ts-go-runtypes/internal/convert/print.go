@@ -2185,7 +2185,11 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	case reflection.KindClass:
 		switch node.SubKind {
 		case reflection.SubKindDate:
-			return dialect("{jsType: 'Date'}")
+			// A Date encodes as its toJSON() ISO string, so the wire half is a
+			// date-time string and jsType says what it becomes. The door reads
+			// jsType first, so the `format` beside it describes the JSON
+			// without contributing to the recovered type (CORE-PRECEDENCE).
+			return dialect("{type: 'string', format: 'date-time', jsType: 'Date'}")
 		case reflection.SubKindMap:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 2 {
