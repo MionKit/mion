@@ -251,8 +251,15 @@ func TestChain_OneOfAndNot(t *testing.T) {
 	if !strings.Contains(schemaForm, "{oneOf: [{type: 'number'}, {type: 'string'}]}") {
 		t.Errorf("oneOf should print branch-wise:\n%s", schemaForm)
 	}
-	if !strings.Contains(schemaForm, "embedType<TF.Not<TypeFormat<string, 'email', {") {
-		t.Errorf("not should embed the Not<F> brand:\n%s", schemaForm)
+	// The first-class negation rides jsNot, its own keyword. The STANDARD
+	// `not` keyword is a different operation — it runs the kind-complement
+	// algebra over the six JSON kinds, which collapses a negated format to
+	// `never` rather than keeping its base type.
+	if !strings.Contains(schemaForm, "{jsNot: {jsFormat: {name: 'email'") {
+		t.Errorf("not should ride the jsNot dialect keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("a negated format should not reach the embed escape:\n%s", schemaForm)
 	}
 	builderForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.oneOf([TF.number(), TF.string()])") {
@@ -617,13 +624,46 @@ func TestChain_NamedFunctionParams(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.func([RT.slot('event', TF.string()), RT.slot('retries', TF.number())], RT.boolean())") {
 		t.Errorf("named function params should print the slot form:\n%s", builderForm)
 	}
+	// On the schema target the signature rides jsFunction: the params are an
+	// ordinary tuple schema, so their names come along on jsLabels.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<(event: string, retries: number) => boolean>()") {
-		t.Errorf("functions should embed on the schema target:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{jsFunction: {params: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false, jsLabels: ['event', 'retries']}, return: {type: 'boolean'}}}") {
+		t.Errorf("functions should ride the jsFunction dialect keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("a named all-required signature should not reach the embed escape:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Send = (event: string, retries: number) => boolean;") {
 		t.Errorf("type target should restore the named signature:\n%s", typeForm)
+	}
+
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected the portable refusal for jsFunction, got %+v", diags)
+	}
+}
+
+func TestChain_OptionalAndRestParamsKeepTheEscape(t *testing.T) {
+	// The two signature shapes jsFunction cannot carry, both for the same
+	// reason: the door spreads the params tuple into a rest parameter and the
+	// parameter names ride an intersection on that tuple, so materialising the
+	// signature rewrites `extra?: string` into a required `extra: string |
+	// undefined`, and a rest slot comes back as ONE spread parameter carrying
+	// a labeled tuple. Dropping the names would keep both, but names fold into
+	// the id just as hard — so the escape carries these exactly, which is the
+	// same line the value-first slot form draws.
+	for _, testCase := range []struct{ source, embed string }{
+		{"export type Send = (event: string, extra?: string) => boolean;\n",
+			"embedType<(event: string, extra?: string) => boolean>()"},
+		{"export type Emit = (topic: string, ...values: number[]) => void;\n",
+			"embedType<(topic: string, ...values: number[]) => void>()"},
+	} {
+		schemaForm := convertAndCheckIDs(t, testCase.source, convert.TargetJSONSchema)
+		if !strings.Contains(schemaForm, testCase.embed) {
+			t.Errorf("expected %q for %q:\n%s", testCase.embed, testCase.source, schemaForm)
+		}
+		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
 }
 

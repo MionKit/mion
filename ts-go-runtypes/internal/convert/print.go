@@ -2004,19 +2004,16 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if len(node.Negations) > 1 {
 			return "", ctx.multiNegationDiag()
 		}
-		// The standard `not` keyword runs the door's kind-complement algebra,
-		// which does not read the dialect — the first-class Not<F> type
-		// embeds instead, exact by construction.
-		if ctx.opts.Portable {
-			return dialect("")
-		}
-		negatedText, negDiag := ctx.escapeTypeText(node.Negations[0])
+		// The negated FORMAT rides jsNot, not the standard `not` keyword: that
+		// one runs the door's kind-complement algebra, so `{type: 'number',
+		// not: {…}}` peels into the six-arm name-set union and collapses to
+		// `never` rather than reaching the first-class `Not<F>`. Two different
+		// operations that happen to share a word.
+		negatedText, negDiag := ctx.schemaExpr(node.Negations[0])
 		if negDiag != nil {
 			return "", negDiag
 		}
-		ctx.needs.useEmbedType = true
-		ctx.needs.useTF = true
-		return fmt.Sprintf("%s<%s.Not<%s>>()", ctx.names.EmbedType, ctx.names.TF, negatedText), nil
+		return dialect(fmt.Sprintf("{jsNot: %s}", negatedText))
 	}
 	// Format annotations ride jsFormat verbatim for now — the standard-keyword
 	// rows (minLength / minimum / format:'email' / …) land with the preset
@@ -2358,10 +2355,93 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return ctx.schemaEmbedNode(node)
 		}
 		return dialect(templateText)
-	case reflection.KindFunction, reflection.KindObject:
-		return ctx.schemaEmbedNode(node)
+	case reflection.KindFunction:
+		// The signature rides as data: a params TUPLE schema (the same
+		// prefixItems / minItems / items / jsLabels vocabulary a written tuple
+		// uses, so optional and rest slots and the parameter NAMES all carry)
+		// beside the return schema.
+		functionText, functionDiag, ok := ctx.functionSchemaText(node)
+		if functionDiag != nil {
+			return "", functionDiag
+		}
+		if !ok {
+			return ctx.schemaEmbedNode(node)
+		}
+		return dialect(functionText)
+	case reflection.KindObject:
+		// TypeScript's `object` keyword — the non-primitive gate. NOT the same
+		// as a keyword-less object schema, which the door reads as
+		// `Record<string, unknown>`.
+		return dialect("{jsType: 'object'}")
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// functionSchemaText renders a function node as the `jsFunction` dialect
+// keyword. ok=false hands the node to the embed escape, for two cases:
+//
+//   - a parameter DEFAULT, which carries reflection information no printed
+//     form spells (the type target refuses it too);
+//   - an OPTIONAL or REST parameter, neither of which survives the trip. The
+//     door spreads the params tuple into a rest parameter and the names ride
+//     an intersection on that tuple, so materialising the signature rewrites
+//     `extra?: string` into a required `extra: string | undefined`, and a rest
+//     slot comes back as ONE spread parameter carrying a labeled tuple rather
+//     than as the parameters it was written as. Dropping the names instead
+//     would keep both, but names fold into the id just as hard — so neither
+//     half can be given up and the escape carries the signature exactly.
+//
+// This is the same shape the value-first slot form accepts (funcSlotForm), for
+// the same reason: all-required, named, default-free parameters are the ones
+// whose rebuilt signature has the id it started with.
+func (ctx *printContext) functionSchemaText(node *reflection.RunType) (string, *Diagnostic, bool) {
+	var prefixParts []string
+	var labels []string
+	labeled := len(node.Parameters) > 0
+	requiredCount := 0
+	for _, paramRef := range node.Parameters {
+		param := ctx.deref(paramRef)
+		if param == nil || param.DefaultVal != nil || hasFlag(param, "nonLiteralDefault") ||
+			param.Optional || hasFlag(param, "rest") {
+			return "", nil, false
+		}
+		if param.Name == "" {
+			// TypeScript labels every slot or none, so one unnamed parameter
+			// drops the whole label list rather than inventing names.
+			labeled = false
+		}
+		labels = append(labels, param.Name)
+		childText, childDiag := ctx.schemaExpr(param.Child)
+		if childDiag != nil {
+			return "", childDiag, false
+		}
+		prefixParts = append(prefixParts, childText)
+		requiredCount++
+	}
+	returnText := "{jsType: 'void'}"
+	if node.Return != nil {
+		text, returnDiag := ctx.schemaExpr(node.Return)
+		if returnDiag != nil {
+			return "", returnDiag, false
+		}
+		returnText = text
+	}
+	paramsText := fmt.Sprintf("{type: 'array', prefixItems: [%s]", strings.Join(prefixParts, ", "))
+	if requiredCount > 0 {
+		paramsText += fmt.Sprintf(", minItems: %d", requiredCount)
+	}
+	// `items: false` closes the tuple: a signature has exactly these
+	// parameters, and an open tail would read as a rest slot.
+	paramsText += ", items: false"
+	if labeled {
+		quoted := make([]string, 0, len(labels))
+		for _, label := range labels {
+			quoted = append(quoted, quoteSingle(label))
+		}
+		paramsText += fmt.Sprintf(", jsLabels: [%s]", strings.Join(quoted, ", "))
+	}
+	paramsText += "}"
+	return fmt.Sprintf("{jsFunction: {params: %s, return: %s}}", paramsText, returnText), nil, true
 }
 
 // jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
