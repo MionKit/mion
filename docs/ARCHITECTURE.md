@@ -102,9 +102,21 @@ The program has four subcommands:
   the id is identical either way. A call whose type is written INLINE
   (`createValidateFn<{a: string}>()`) moves that type into the value slot the same
   factory already declares (`internal/convert/callsites.go`); a call that already
-  names its type, and the reflection form over a runtime value, are left alone. Shapes with no exact standard-schema spelling (bigint literals,
-  functions, brands/TypeMeta, readonly members, enums, classes) ride the `embedType` /
-  `getRunType` escapes, which `--portable` forbids. Refusals are loud per-declaration
+  names its type, and the reflection form over a runtime value, are left alone. Shapes with no STANDARD schema spelling ride the RunTypes
+  dialect as data — `jsType` (the JS/TS atoms, Date/Map/Set/Promise/RegExp/object and
+  the 8 Temporal builtins, named by their reflected format name so the published
+  `.d.ts` never contains `Temporal.`), `jsFormat` (every format family, the 6 orderable
+  Temporal ones and the bigint family included, whose bigint bounds ride as digit
+  strings and come back through `infer … extends bigint`), `jsLabels`, `jsReadonly`,
+  `jsTemplate`, `jsIndexes`, `jsBigint`, `jsFunction`, `jsNot`, `jsMeta` and `jsParams`
+  (structural bounds sitting at their 2020-12 default, which the standard keyword reads
+  back as absent). `--portable` forbids all of them. Only shapes whose identity is a
+  NAME rather than a shape keep the `embedType` / `getRunType` escapes: enums, user
+  classes, cross-declaration references, method / call-signature members (method-ness is
+  syntax, and a rebuilt property-typed arrow is a different member kind and id), and a
+  function with an optional or rest parameter (the door spreads the params tuple into a
+  rest parameter and the names ride an intersection on it, so the optional marker and the
+  names cannot both survive). Refusals are loud per-declaration
   CNV diagnostics (unnamed cycles, a cycle closing on a tuple slot, symbol keys,
   Temporal resolving to any); a generic declaration is a WARNING, not an error — a
   type parameter has no runtime shape, so there is nothing to convert, and its
