@@ -288,8 +288,26 @@ func temporalLeaf(rng *rand.Rand) string {
 	return unbranded[rng.Intn(len(unbranded))]
 }
 
-// randomFormatLeaf draws a generic-family format brand with random params.
+// randomFormatLeaf draws a generic-family format brand with random params, and
+// sometimes its NEGATION.
+//
+// `TF.Not<F>` is here because it was missing: the schema target's negation
+// spelling changed under this suite and only a hand-written chain test noticed,
+// which means the generated space had a hole exactly where a whole keyword
+// lives. A shape the fuzzer cannot draw is a shape its oracle cannot defend.
 func randomFormatLeaf(rng *rand.Rand) string {
+	// One draw in six negates. Kept low because a negation wraps a format leaf
+	// rather than replacing it, so a higher rate would crowd out the plain
+	// brands without adding coverage.
+	if rng.Intn(6) == 0 {
+		return fmt.Sprintf("TF.Not<%s>", randomNotableFormatLeaf(rng))
+	}
+	return randomNotableFormatLeaf(rng)
+}
+
+// randomNotableFormatLeaf draws the format brands `Not<F>` accepts as operands
+// (the string and number families — a negated bigint has no builder spelling).
+func randomNotableFormatLeaf(rng *rand.Rand) string {
 	switch rng.Intn(3) {
 	case 0:
 		switch rng.Intn(3) {

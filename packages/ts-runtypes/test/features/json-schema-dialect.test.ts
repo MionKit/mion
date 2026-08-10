@@ -208,7 +208,7 @@ const RULES: readonly Rule[] = [
   {
     id: 'JS-PROMISE',
     source: 'export type Later = {a: Promise<string>};\n',
-    emits: "jsType: 'Promise'",
+    emits: "{jsType: 'Promise', jsResolved: {type: 'string'}}",
   },
   {
     id: 'JS-SYMBOL',
