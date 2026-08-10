@@ -2021,7 +2021,7 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	return ctx.schemaExprCore(node)
 }
 
-// schemaMetaText renders a `base & {…}` metadata intersection as the `jsMeta`
+// schemaMetaText renders a `base & {…}` metadata intersection as the `tsMeta`
 // dialect keyword: the base schema beside the metadata objects' own schemas,
 // which the door conjoins back. Nested rather than sitting beside the base's
 // keywords, because a base can itself BE a dialect discriminator (`{jsType:
@@ -2051,9 +2051,9 @@ func (ctx *printContext) schemaMetaText(node *reflection.RunType) (string, *Diag
 	}
 	if ctx.opts.Portable {
 		return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: "a metadata intersection has no standard 2020-12 spelling; drop --portable to use the jsMeta dialect keyword"}
+			Message: "a metadata intersection has no standard 2020-12 spelling; drop --portable to use the tsMeta dialect keyword"}
 	}
-	return fmt.Sprintf("{jsMeta: {base: %s, meta: [%s]}}", baseText, strings.Join(metaTexts, ", ")), nil
+	return fmt.Sprintf("{tsMeta: {base: %s, meta: [%s]}}", baseText, strings.Join(metaTexts, ", ")), nil
 }
 
 // schemaExprCore is schemaExpr past the deref / declRef / cycle-guard preamble
@@ -2334,11 +2334,11 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		}
 		// A non-string key or a second signature has no STANDARD spelling —
 		// `additionalProperties` says one thing about string keys and nothing
-		// else — so those ride the jsIndexes dialect keyword, each signature as
+		// else — so those ride the tsIndexes dialect keyword, each signature as
 		// its own key/value schema pair.
-		jsIndexesText := ""
+		tsIndexesText := ""
 		if len(indexes) > 1 || (len(indexes) == 1 && indexes[0].key.Kind != reflection.KindString) {
-			indexesText, indexesDiag, ok := ctx.jsIndexesText(indexes)
+			indexesText, indexesDiag, ok := ctx.tsIndexesText(indexes)
 			if indexesDiag != nil {
 				return "", indexesDiag
 			}
@@ -2347,9 +2347,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			}
 			if ctx.opts.Portable {
 				return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-					Message: "a non-string index signature has no standard 2020-12 spelling; drop --portable to use the jsIndexes dialect keyword"}
+					Message: "a non-string index signature has no standard 2020-12 spelling; drop --portable to use the tsIndexes dialect keyword"}
 			}
-			jsIndexesText = indexesText
+			tsIndexesText = indexesText
 			indexes = nil
 		}
 		schemaBag := ""
@@ -2360,8 +2360,8 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			}
 			schemaBag = ", " + strings.Join(bagParts, ", ")
 		}
-		if jsIndexesText != "" {
-			schemaBag = ", " + jsIndexesText + schemaBag
+		if tsIndexesText != "" {
+			schemaBag = ", " + tsIndexesText + schemaBag
 		}
 		additionalText := ""
 		if len(indexes) > 0 {
@@ -2393,17 +2393,17 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 				readonlyParts = append(readonlyParts, quoteSingle(member.name))
 			}
 		}
-		// A readonly member rides the jsReadonly dialect keyword, named the way
+		// A readonly member rides the tsReadonly dialect keyword, named the way
 		// `required` names its own. Standard `readOnly` is NOT the same thing:
 		// 2020-12 declares it non-constraining and the door lifts nothing from
 		// it, so it would silently drop the modifier and move the id.
 		if len(readonlyParts) > 0 && ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "a readonly member has no standard 2020-12 spelling; drop --portable to use the jsReadonly dialect keyword"}
+				Message: "a readonly member has no standard 2020-12 spelling; drop --portable to use the tsReadonly dialect keyword"}
 		}
 		out := "{type: 'object'"
 		// An index-only shape has no members to name, and an empty `properties`
-		// would just be noise beside the jsIndexes pairs that carry it.
+		// would just be noise beside the tsIndexes pairs that carry it.
 		if len(propertyParts) > 0 {
 			out += fmt.Sprintf(", properties: {%s}", strings.Join(propertyParts, ", "))
 		}
@@ -2411,7 +2411,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
 		}
 		if len(readonlyParts) > 0 {
-			out += fmt.Sprintf(", jsReadonly: [%s]", strings.Join(readonlyParts, ", "))
+			out += fmt.Sprintf(", tsReadonly: [%s]", strings.Join(readonlyParts, ", "))
 		}
 		return out + additionalText + schemaBag + jsParamsSuffix(defaulted) + "}", nil
 	case reflection.KindTuple:
@@ -2420,9 +2420,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			return "", unsupportedDiag(node, ctx.decl)
 		}
 		if shape.labeled && ctx.opts.Portable {
-			// jsLabels is RunTypes dialect — labels have no standard keyword.
+			// tsLabels is RunTypes dialect — labels have no standard keyword.
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "tuple slot labels have no standard 2020-12 spelling; drop --portable to use the jsLabels dialect keyword"}
+				Message: "tuple slot labels have no standard 2020-12 spelling; drop --portable to use the tsLabels dialect keyword"}
 		}
 		var prefixParts []string
 		for _, member := range append(append([]*reflection.RunType{}, shape.required...), shape.optional...) {
@@ -2450,7 +2450,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			out += ", items: false"
 		}
 		if shape.labeled {
-			// Slot labels ride the jsLabels dialect keyword, one literal per
+			// Slot labels ride the tsLabels dialect keyword, one literal per
 			// slot in order (rest slot included) — the door lowers it back
 			// onto the `__rtLabels` sentinel, so the printed schema resolves
 			// to the same labeled-tuple id.
@@ -2462,7 +2462,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			for _, label := range labels {
 				quoted = append(quoted, quoteSingle(label))
 			}
-			out += fmt.Sprintf(", jsLabels: [%s]", strings.Join(quoted, ", "))
+			out += fmt.Sprintf(", tsLabels: [%s]", strings.Join(quoted, ", "))
 		}
 		return out + "}", nil
 	case reflection.KindTemplateLiteral:
@@ -2476,7 +2476,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		return dialect(templateText)
 	case reflection.KindFunction:
 		// The signature rides as data: a params TUPLE schema (the same
-		// prefixItems / minItems / items / jsLabels vocabulary a written tuple
+		// prefixItems / minItems / items / tsLabels vocabulary a written tuple
 		// uses, so optional and rest slots and the parameter NAMES all carry)
 		// beside the return schema.
 		functionText, functionDiag, ok := ctx.functionSchemaText(node)
@@ -2498,7 +2498,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	return "", unsupportedDiag(node, ctx.decl)
 }
 
-// functionSchemaText renders a function node as the `jsFunction` dialect
+// functionSchemaText renders a function node as the `tsFunction` dialect
 // keyword. ok=false hands the node to the embed escape, for two cases:
 //
 //   - a parameter DEFAULT, which carries reflection information no printed
@@ -2559,10 +2559,10 @@ func (ctx *printContext) functionSchemaText(node *reflection.RunType) (string, *
 		for _, label := range labels {
 			quoted = append(quoted, quoteSingle(label))
 		}
-		paramsText += fmt.Sprintf(", jsLabels: [%s]", strings.Join(quoted, ", "))
+		paramsText += fmt.Sprintf(", tsLabels: [%s]", strings.Join(quoted, ", "))
 	}
 	paramsText += "}"
-	return fmt.Sprintf("{jsFunction: {params: %s, return: %s}}", paramsText, returnText), nil, true
+	return fmt.Sprintf("{tsFunction: {params: %s, return: %s}}", paramsText, returnText), nil, true
 }
 
 // mergeSchema splices extra keywords into an already-printed schema object, so
@@ -2643,11 +2643,11 @@ func standardFormatName(name string) string {
 	return ""
 }
 
-// jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
+// tsIndexesText renders a set of index signatures as the `tsIndexes` dialect
 // keyword — one `{key, value}` pair per signature, both sides ordinary schemas,
 // which the door turns back into that many index signatures. ok=false hands the
 // node to the embed escape when a key has no schema spelling of its own.
-func (ctx *printContext) jsIndexesText(indexes []indexSignature) (string, *Diagnostic, bool) {
+func (ctx *printContext) tsIndexesText(indexes []indexSignature) (string, *Diagnostic, bool) {
 	pairs := make([]string, 0, len(indexes))
 	for _, index := range indexes {
 		keyText, keyDiag := ctx.schemaExpr(index.key)
@@ -2662,10 +2662,10 @@ func (ctx *printContext) jsIndexesText(indexes []indexSignature) (string, *Diagn
 		}
 		pairs = append(pairs, fmt.Sprintf("{key: %s, value: %s}", keyText, valueText))
 	}
-	return fmt.Sprintf("jsIndexes: [%s]", strings.Join(pairs, ", ")), nil, true
+	return fmt.Sprintf("tsIndexes: [%s]", strings.Join(pairs, ", ")), nil, true
 }
 
-// templateSchemaText renders a template literal node as the `jsTemplate`
+// templateSchemaText renders a template literal node as the `tsTemplate`
 // dialect keyword — `texts` (n+1 literal chunks) beside `placeholders` (n
 // schemas), the same pairing the reflection carries. ok=false hands the node
 // back to the embed escape: a placeholder TypeScript cannot interpolate
@@ -2687,7 +2687,7 @@ func (ctx *printContext) templateSchemaText(node *reflection.RunType) (string, b
 		}
 		placeholderTexts = append(placeholderTexts, placeholderText)
 	}
-	return fmt.Sprintf("{jsTemplate: {texts: [%s], placeholders: [%s]}}",
+	return fmt.Sprintf("{tsTemplate: {texts: [%s], placeholders: [%s]}}",
 		strings.Join(quotedTexts, ", "), strings.Join(placeholderTexts, ", ")), true
 }
 

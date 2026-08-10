@@ -181,19 +181,19 @@ case into this one path.
 
 Mechanical, but touches the door, the emitter and every test pinning a spelling:
 
-- `jsLabels` → `tsLabels`, `jsReadonly` → `tsReadonly`, `jsIndexes` →
-  `tsIndexes`, `jsTemplate` → `tsTemplate`, `jsFunction` → `tsFunction`,
-  `jsMeta` → `tsMeta`
+- `tsLabels` → `tsLabels`, `tsReadonly` → `tsReadonly`, `tsIndexes` →
+  `tsIndexes`, `tsTemplate` → `tsTemplate`, `tsFunction` → `tsFunction`,
+  `tsMeta` → `tsMeta`
 - **delete** `jsNot` (standard `not`), `jsBigint` (Phase 0 rule), `jsParams`
   (Phase 2)
 
 `tsIndexes` and `tsTemplate` must now emit their wire half too (`propertyNames`
 / `patternProperties`, `pattern`) per `TS-WIRE-HALF`.
 
-⚠️ `jsLabels` already ships and appears in emitted schemas today, so this rename
+⚠️ `tsLabels` already ships and appears in emitted schemas today, so this rename
 is a breaking change to the dialect as implemented. It also interacts with
 [jslabels-schema-to-type-conversion.md](jslabels-schema-to-type-conversion.md),
-an open bug about hand-authored `jsLabels` schemas; check whether that todo is
+an open bug about hand-authored `tsLabels` schemas; check whether that todo is
 fixed, moved or invalidated by this work.
 
 ### Phase 4 — the door

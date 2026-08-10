@@ -274,10 +274,10 @@ function renderSchema(shape: TypeShape): string {
     case 'tuple': {
       // Generated tuples are all-required and closed: every position below
       // minItems is required, items: false forbids extras. Slot labels ride
-      // the jsLabels dialect keyword (the door lowers it onto __rtLabels, so
+      // the tsLabels dialect keyword (the door lowers it onto __rtLabels, so
       // the labeled schema converges with the labeled type-first spelling).
-      const jsLabels = shape.labels ? `, jsLabels: [${shape.labels.map((label) => `'${label}'`).join(', ')}]` : '';
-      return `{type: 'array', prefixItems: [${shape.elems.map(renderSchema).join(', ')}], minItems: ${shape.elems.length}, items: false${jsLabels}}`;
+      const tsLabels = shape.labels ? `, tsLabels: [${shape.labels.map((label) => `'${label}'`).join(', ')}]` : '';
+      return `{type: 'array', prefixItems: [${shape.elems.map(renderSchema).join(', ')}], minItems: ${shape.elems.length}, items: false${tsLabels}}`;
     }
     case 'record': {
       const parts = [`type: 'object'`, `additionalProperties: ${renderSchema(shape.value)}`];

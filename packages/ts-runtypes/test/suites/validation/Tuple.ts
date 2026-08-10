@@ -610,7 +610,7 @@ export const TUPLE = {
     // Labels fold into the structural id (canonical nodes carry children[].name,
     // so same-shape/different-labels must not share a node). The value-first
     // SLOT form carries the labels through the `__rtLabels` sentinel and the
-    // schema form through the `jsLabels` dialect keyword — BOTH converge with
+    // schema form through the `tsLabels` dialect keyword — BOTH converge with
     // the labeled type-first id, pinned by the id-integrity asserts (the plain
     // array form `RT.tuple([TF.string(), TF.number()])` still models the
     // unlabeled shape and stays a distinct entry by design).
@@ -625,7 +625,7 @@ export const TUPLE = {
           prefixItems: [{type: 'string'}, {type: 'number'}],
           items: false,
           minItems: 2,
-          jsLabels: ['name', 'age'],
+          tsLabels: ['name', 'age'],
         } as const)
       ),
     deserializeValidate: () => deserializeValidate<[name: string, age: number]>(),
@@ -648,7 +648,7 @@ export const TUPLE = {
           prefixItems: [{type: 'string'}, {type: 'number'}],
           items: false,
           minItems: 2,
-          jsLabels: ['name', 'age'],
+          tsLabels: ['name', 'age'],
         } as const)
       ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[name: string, age: number]>(),

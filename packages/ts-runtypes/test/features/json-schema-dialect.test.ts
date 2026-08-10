@@ -56,6 +56,18 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   'RT-FORMAT-NAME',
   'RT-FORMAT-PARAMS',
   'RT-FORMAT-BIGINT',
+  // Slice 9 — the six ts* renames.
+  'TS-LABELS',
+  'TS-READONLY',
+  'TS-INDEXES',
+  'TS-TEMPLATE',
+  'TS-FUNCTION',
+  'TS-META',
+  'TS-DROPPABLE',
+  'JS-SYMBOL',
+  'JS-ANY',
+  'RT-FORMAT-NONVALIDATING',
+  'CORE-PORTABLE',
 ]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');
@@ -113,9 +125,13 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'CORE-PORTABLE',
-    source: 'export type Stamp = Date;\n',
-    emits: "{type: 'string', format: 'date-time'}",
-    note: 'under --portable the extension keywords are refused, not silently dropped',
+    // A type the standard can say entirely carries no extension keyword at
+    // all. The refusal half (a Date under --portable) is the separate case
+    // below, since it asserts an exit code rather than a spelling.
+    source: 'export type Name = string;\n',
+    emits: "{type: 'string'}",
+    forbids: ['embedType', 'jsType', 'rtFormat', 'tsLabels'],
+    note: 'a portable document uses no extension keyword',
   },
   {
     id: 'CORE-PRECEDENCE',
@@ -212,10 +228,10 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'JS-SYMBOL',
-    // No jsType exists: the member is dropped before a schema is produced.
+    // No wire keywords: a symbol has no encoding at all. The annotation is
+    // still there, recording which type it was so the schema converts back.
     source: 'export type Tagged = {a: string; b: symbol};\n',
-    emits: "properties: {a: {type: 'string'}}",
-    forbids: ["jsType: 'symbol'"],
+    emits: "b: {jsType: 'symbol'}",
   },
 
   // ── jsType: the broad types ────────────────────────────────────────────
@@ -267,10 +283,11 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'RT-FORMAT-NONVALIDATING',
-    // mockSamples drives mock generation only, so it appears nowhere.
+    // mockSamples drives mock generation only, so it gets no STANDARD keyword.
+    // It still rides rtFormatParams: it is part of the type's identity even
+    // though it constrains nothing, and dropping it would move the id.
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Named = TF.String<{mockSamples: ['ana']}>;\n",
-    emits: "{type: 'string'",
-    forbids: ['mockSamples'],
+    emits: "{type: 'string', rtFormat: 'stringFormat', rtFormatParams: {mockSamples: ['ana']}}",
   },
 
   // ── ts keywords ────────────────────────────────────────────────────────

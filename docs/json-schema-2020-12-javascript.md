@@ -178,7 +178,15 @@ seed after negation widened it.
 
 This is why they need a `jsType` rather than being written as plain `{"type": "null"}`: on the wire the three are indistinguishable, and only the annotation says which one the decoded value is.
 
-**`JS-SYMBOL`** — a `symbol` cannot be encoded. Its identity is the symbol itself and nothing survives a round trip through JSON, so the serialiser refuses the kind outright rather than inventing a placeholder. There is therefore **no** `jsType: "symbol"`: a symbol-keyed or symbol-valued member is dropped before a schema is ever produced, which is exactly what the validate contract does.
+**`JS-SYMBOL`** — a `symbol` cannot be encoded. Its identity is the symbol
+itself and nothing survives a round trip through JSON, so the serialiser refuses
+the kind outright rather than inventing a placeholder.
+
+It still gets `{"jsType": "symbol"}`, with no wire keywords beside it — the same
+position `tsFunction` is in. The annotation is not describing an encoding,
+because there is none; it is recording which TypeScript type this was, so the
+schema can convert back to it. Dropping the member instead would change the
+type's identity, which is the one thing conversion may never do.
 
 ### The two broad types
 

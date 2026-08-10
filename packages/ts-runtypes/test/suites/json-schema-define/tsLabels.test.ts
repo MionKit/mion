@@ -1,4 +1,4 @@
-// jsLabels — the RunTypes dialect keyword naming tuple slots
+// tsLabels — the RunTypes dialect keyword naming tuple slots
 // (`[x: number, y: number]`). One literal per slot in order (rest slot
 // included); the door lowers the list onto the `__rtLabels` sentinel, so the
 // schema spelling converges with the labeled type-first tuple AND the slot
@@ -17,10 +17,10 @@ const LABELED_POINT = {
   prefixItems: [{type: 'number'}, {type: 'number'}],
   minItems: 2,
   items: false,
-  jsLabels: ['x', 'y'],
+  tsLabels: ['x', 'y'],
 } as const;
 
-describe('jsLabels — labeled tuples from JSON Schema', () => {
+describe('tsLabels — labeled tuples from JSON Schema', () => {
   it('converges with the labeled type-first tuple — both getRunTypeId shapes', () => {
     // Reflect shape: the id of the type the schema value models.
     const fromSchema = getRunTypeId(runTypeFromJsonSchema(LABELED_POINT));
@@ -53,7 +53,7 @@ describe('jsLabels — labeled tuples from JSON Schema', () => {
         prefixItems: [{type: 'number'}, {type: 'string'}],
         minItems: 1,
         items: {type: 'boolean'},
-        jsLabels: ['a', 'b', 'tail'],
+        tsLabels: ['a', 'b', 'tail'],
       } as const)
     );
     expect(fromSchema).toBe(getRunTypeId<[a: number, b?: string, ...tail: boolean[]]>());
@@ -66,7 +66,7 @@ describe('jsLabels — labeled tuples from JSON Schema', () => {
         prefixItems: [{type: 'number'}, {type: 'number'}],
         minItems: 2,
         items: false,
-        jsLabels: ['x'],
+        tsLabels: ['x'],
       } as const)
     );
     expect(shortList).toBe(getRunTypeId<[number, number]>());

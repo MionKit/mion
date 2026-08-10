@@ -33,11 +33,11 @@ describe('json-schema / embedType escape', () => {
 
 describe('json-schema / jsFormat dialect', () => {
   it('stringFormat params converge with the TF brand', () => {
-    const viaSchema = runTypeFromJsonSchema({jsFormat: {name: 'stringFormat', params: {maxLength: 5, minLength: 2}}} as const);
+    const viaSchema = runTypeFromJsonSchema({rtFormat: 'stringFormat', rtFormatParams: {maxLength: 5, minLength: 2}} as const);
     expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.String<{minLength: 2; maxLength: 5}>>());
   });
   it('numberFormat params converge with the TF brand', () => {
-    const viaSchema = runTypeFromJsonSchema({jsFormat: {name: 'numberFormat', params: {integer: true}}} as const);
+    const viaSchema = runTypeFromJsonSchema({rtFormat: 'numberFormat', rtFormatParams: {integer: true}} as const);
     expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.Number<{integer: true}>>());
   });
   it('a bigint-family brand rides embedType (no JSON spelling for bigint params)', () => {
@@ -67,15 +67,27 @@ describe('json-schema / jsType dialect atoms', () => {
   });
 
   it('native containers converge (Date / Map / Set / Promise)', () => {
-    expect(getRunTypeId(runTypeFromJsonSchema({jsType: 'Date'} as const))).toBe(getRunTypeId<Date>());
+    // Map and Set read their arguments out of the WIRE schema: a Map encodes
+    // as an array of [key, value] pairs and a Set as a unique array, so the
+    // schema already had to say what the elements are.
+    const stamp = runTypeFromJsonSchema({type: 'string', format: 'date-time', jsType: 'Date'} as const);
+    expect(getRunTypeId(stamp)).toBe(getRunTypeId<Date>());
     const lookup = runTypeFromJsonSchema({
+      type: 'array',
+      items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false},
       jsType: 'Map',
-      typeArguments: [{type: 'string'}, {type: 'number'}],
     } as const);
     expect(getRunTypeId(lookup)).toBe(getRunTypeId<Map<string, number>>());
-    const bag = runTypeFromJsonSchema({jsType: 'Set', typeArguments: [{type: 'boolean'}]} as const);
+    const bag = runTypeFromJsonSchema({
+      type: 'array',
+      items: {type: 'boolean'},
+      uniqueItems: true,
+      jsType: 'Set',
+    } as const);
     expect(getRunTypeId(bag)).toBe(getRunTypeId<Set<boolean>>());
-    const later = runTypeFromJsonSchema({jsType: 'Promise', typeArguments: [{type: 'string'}]} as const);
+    // A promise is the exception: it has no encoding of its own, so the
+    // resolved value's schema rides its own key rather than merging in.
+    const later = runTypeFromJsonSchema({jsType: 'Promise', jsResolved: {type: 'string'}} as const);
     expect(getRunTypeId(later)).toBe(getRunTypeId<Promise<string>>());
   });
 
