@@ -1,8 +1,9 @@
 ---
 type: feature
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-10
+completed: 2026-08-10
 ---
 
 # Implement the JSON Schema JavaScript dialect spec
@@ -34,41 +35,48 @@ The 34 behavioural cases in
 are skipped behind `IMPLEMENTED = false` for exactly this reason. This is the
 last piece before the conversion PR merges.
 
-## Progress — 33 of 37 rules landed
+## Outcome — 37 of 37 rules landed
 
-Slices 1 to 9 are in. Every `jsType` row, the `rtFormat` / `rtFormatParams`
-split and all six `ts*` renames now emit their wire form beside the annotation,
-with the id oracle green at every step.
+Every rule in `docs/json-schema-2020-12-javascript.md` has a passing case in
+`packages/ts-runtypes/test/features/json-schema-dialect.test.ts`, checked against
+the real binary, with a coverage guard that reads the spec file itself so a rule
+cannot be written down and left unimplemented.
 
-Verified end to end: full Go suite, 11,393 JS tests, the converted-suites lane
-(205 files, both value forms, 18,264 tests), and both fuzz lanes across six
-seeds.
+Verified end to end: full Go suite, 11,401 JS tests, the converted-suites lane
+(206 files, both value forms, 18,264 tests), both fuzz lanes across four seeds,
+lint and format.
 
-The decomposition held. Six of the eight jsType rows needed no door change at
+The decomposition held. Six of the eight `jsType` rows needed no door change at
 all, because the door already reads `jsType` first and ignores the wire keywords
 beside it — CORE-PRECEDENCE was true by construction rather than something to
 build. Almost every failure along the way was a stale expected spelling, not an
-identity move.
+identity move, and the difference was readable straight off the oracle: a
+`changed id` line means a real move, a bare `--- FAIL` means a spelling.
 
-### What is still open
+### What the escape count did
 
-| Rule | Why it is not landed |
-| --- | --- |
-| `CORE-NOT` | Emitting the standard `{type: 'string', not: {…}}` moves the id: the door's negation layer does not rebuild the first-class `Not<F>` from it. `jsNot` stays until that door fix lands. This is the one real piece of door work left. |
-| `RT-FORMAT-STANDARD` | Params are not yet mirrored onto the standard constraint keywords (`minLength`, `minimum`, …). Everything rides `rtFormatParams`, so a plain validator does not enforce the bounds and CORE-INERT is not yet fully true for format nodes. |
-| `RT-FORMAT-DEFAULT` | Structural params at their 2020-12 default still ride the old `jsParams` keyword rather than `rtFormatParams`. Mechanical, but note the door reads `rtFormat` before the standard translation, so a structural node must NOT also carry `rtFormat` or an array would route through the format path. |
-| `TS-WIRE-HALF` | `tsIndexes` does not yet emit the `propertyNames` that constrains a numeric key, so the wire half is missing for that one keyword. |
+Over the 205-file suite corpus, `embedType` escapes went from 992 to 227 in the
+first pass. The converted-suites lane then dropped the json-schema target's
+refusals from 24 to 3 (the builders target stays at 24). That gap is the point
+of the dialect: a builder has to come out as a TypeScript expression, so a shape
+with no factory spelling has nowhere to go, while a schema is data and the
+extension keywords carry the same shape as readable JSON. The 3 that remain are
+the ones neither form can spell.
 
-Phase 5 (the `convertDialect` tsconfig option) is also untouched; `--portable`
-works as the per-run override today.
-
-### Two spec corrections the implementation forced
+### Four spec corrections the implementation forced
 
 - **`rtFormatParams` carries ALL params**, not the leftovers. Every param folds
   into the identity, `mockSamples` included, so carrying a subset changes what
-  the type IS.
+  the type IS. The standard keywords are mirrored BESIDE it, for the validator.
 - **A `symbol` keeps `{jsType: 'symbol'}`** with no wire keywords, the same
   position `tsFunction` is in. Dropping the member would move the id.
+- **A format node must NOT also carry `jsType`.** CORE-PRECEDENCE would make it
+  win over `rtFormat` and drop the brand, which collapsed `TF.BigInt<{min:0n}>`
+  to a plain `bigint` — a real identity move, caught by the chain oracle.
+- **`tsTemplate`'s wire pattern wildcards its placeholders.** The spec's original
+  example pinned `${string}` as `[^/]*`, which REJECTS strings the type accepts.
+  A pattern narrower than the placeholder's own type makes the schema disagree
+  with the type it decodes to, so the pattern pins only the literal chunks.
 
 ### One bug the widened fuzzer found
 
@@ -77,6 +85,15 @@ The Go generator driving the chain oracle had no negation in it at all. Adding
 `Promise<Set<null>>`: merging `jsType: 'Promise'` into a child already carrying
 `jsType: 'Set'` puts two annotations on one node. The resolved schema now rides
 `jsResolved`.
+
+### The instantiation budgets came out net LOWER
+
+Sixteen branches, net −10. Three rose (`not` 4742→4832 for real work it used to
+skip, objects +8 and structural keywords +22 for the `tsIndexes` gate) and one
+fell 130 (`ExactJsonSchema`, from deleting three keywords). The `not` probe
+itself is free: it rides the same `Extract<keyof S, …>` key-set the dialect rows
+use rather than a structural probe on every node, which was worth +2-5% on every
+branch before the fold and exactly zero on thirteen of sixteen after it.
 
 ## Plan — one rule group at a time
 
@@ -220,16 +237,23 @@ fixed, moved or invalidated by this work.
 Default stays **extended**: strict-by-default would error on any file containing
 a `Date`, since strict means the `embedType` escape is unavailable too.
 
-- Add `convertDialect?: 'extended' | 'standard'` to `PluginOptions`
-  ([unplugin.ts](../../packages/ts-runtypes-devtools/src/unplugin.ts)) and to
-  `PLUGIN_OPTION_KEY_TABLE`
-  ([plugin-option-keys.ts:10](../../packages/ts-runtypes-devtools/src/plugin-option-keys.ts))
-  — the `satisfies` guard fails the typecheck if only one side is updated.
-- Regenerate the tsconfig plugin key list (`pnpm rtx core codegen`); the
-  plugin-option parity test compares the two.
-- The existing `--portable` CLI flag becomes the per-run override for
-  `'standard'`. Keep the name: it is already documented, tested and in the
-  refusal messages.
+**Shipped tsconfig-only, not as a PluginOptions field.** The plan had it on both
+sides, but convert is a one-shot CLI migration verb the bundler plugin never
+runs, so a `PluginOptions.convertDialect` would have been an option that does
+nothing. It went in the parity test's `GO_ONLY` set instead, beside `i18n`,
+which is the exception the contract already has for exactly this.
+
+- `ConvertDialect string \`json:"convertDialect"\`` on `tsRuntypesPlugin`
+  ([config.go](../../ts-go-runtypes/cmd/ts-runtypes/config.go)), read by
+  `resolveConvertDialect`. An unrecognised value is fatal like a bad tsc option
+  rather than falling back, so a typo'd `"strict"` cannot silently emit
+  extension keywords into a schema the author believes is portable.
+- Regenerated the tsconfig plugin key list (`pnpm rtx core codegen pluginkeys`).
+- The existing `--portable` CLI flag is the per-run override, and now wins in
+  BOTH directions: `flagSet.Visit` reports only flags actually passed, so the
+  project key is not shadowed by the flag's own `false` default and
+  `--portable=false` forces the dialect back on. Keeping the name: it is already
+  documented, tested and in the refusal messages.
 
 ### Phase 6 — retest the whole conversion surface
 
@@ -289,8 +313,10 @@ updated, not its properties.
 
 ## Done when
 
-- Every rule in the spec has a passing case in `json-schema-dialect.test.ts`,
-  with `IMPLEMENTED = true`.
+- Every rule in the spec has a passing case in `json-schema-dialect.test.ts`.
+  (Shipped as a per-rule `LANDED` set rather than one `IMPLEMENTED` flag — that
+  gating is what made the progressive slicing possible at all, since a slice
+  could land green while later rules were still skipped.)
 - A converted schema validates its own wire form under a standard 2020-12
   reading, and stripping every extension keyword changes no verdict.
 - Ids are unchanged on every leg of every chain test and the fuzz lane.

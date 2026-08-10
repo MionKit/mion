@@ -102,15 +102,27 @@ The program has four subcommands:
   the id is identical either way. A call whose type is written INLINE
   (`createValidateFn<{a: string}>()`) moves that type into the value slot the same
   factory already declares (`internal/convert/callsites.go`); a call that already
-  names its type, and the reflection form over a runtime value, are left alone. Shapes with no STANDARD schema spelling ride the RunTypes
-  dialect as data — `jsType` (the JS/TS atoms, Date/Map/Set/Promise/RegExp/object and
-  the 8 Temporal builtins, named by their reflected format name so the published
-  `.d.ts` never contains `Temporal.`), `jsFormat` (every format family, the 6 orderable
-  Temporal ones and the bigint family included, whose bigint bounds ride as digit
-  strings and come back through `infer … extends bigint`), `tsLabels`, `tsReadonly`,
-  `tsTemplate`, `tsIndexes`, `jsBigint`, `tsFunction`, `jsNot`, `tsMeta` and `jsParams`
-  (structural bounds sitting at their 2020-12 default, which the standard keyword reads
-  back as absent). `--portable` forbids all of them. Only shapes whose identity is a
+  names its type, and the reflection form over a runtime value, are left alone. Shapes
+  with no STANDARD schema spelling ride the RunTypes dialect as data, specified in full
+  by [docs/json-schema-2020-12-javascript.md](json-schema-2020-12-javascript.md) and
+  pinned rule-by-rule by `test/features/json-schema-dialect.test.ts` (one case per rule
+  ID, with a coverage check that reads the spec file itself, so a rule cannot be written
+  down and left unimplemented). The dialect EXTENDS 2020-12 rather than replacing it:
+  every keyword sits BESIDE the standard keywords describing the same node's wire form,
+  so `CORE-INERT` holds — deleting every extension keyword changes no validation verdict.
+  Nine keywords, prefixed by who defines the thing they carry: `jsType` (a JavaScript
+  value with a wire form — Date/Map/Set/Promise/RegExp/bigint/object and the 8 Temporal
+  builtins, named by their reflected format name so the published `.d.ts` never contains
+  `Temporal.`), `rtFormat` + `rtFormatParams` (a RunTypes format family; params with a
+  standard keyword mirror onto it and only the remainder rides `rtFormatParams`), and the
+  TypeScript-only facts `tsLabels`, `tsReadonly`, `tsIndexes`, `tsTemplate`, `tsFunction`
+  and `tsMeta`. Negation is deliberately NOT a keyword: JavaScript has no "not this type"
+  and RunTypes' negation exists to model the standard `not`, so it is written with the
+  standard keyword (`CORE-NOT`). The reader's precedence is fixed (`CORE-PRECEDENCE`):
+  embedType → tsMeta → jsType → rtFormat → tsFunction/tsTemplate → standard, and when a
+  dialect keyword wins, the wire keywords beside it are descriptive only and contribute
+  no params. `--portable`, or `convertDialect: 'standard'` in the tsconfig plugin entry,
+  forbids all of them. Only shapes whose identity is a
   NAME rather than a shape keep the `embedType` / `getRunType` escapes: enums, user
   classes, cross-declaration references, method / call-signature members (method-ness is
   syntax, and a rebuilt property-typed arrow is a different member kind and id), and a
