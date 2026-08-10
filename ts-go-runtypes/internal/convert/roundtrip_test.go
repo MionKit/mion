@@ -326,11 +326,14 @@ func TestChain_Objects(t *testing.T) {
 func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// `record(key, value)` takes ANY key type, and several index signatures
 	// sharing one value type ARE `Record<K1 | K2, V>` — so these print the
-	// real builder rather than an escape. JSON keys are strings, so the schema
-	// target embeds them; that is the format's limit, not the printer's.
-	for _, testCase := range []struct{ source, builder string }{
-		{"export type Numeric = {[key: number]: string};\n", "RT.record(TF.number(), TF.string())"},
-		{"export type Both = {[k: string]: number; [n: number]: number};\n", "RT.record(RT.union([TF.number(), TF.string()]), TF.number())"},
+	// real builder rather than an escape. On the schema target a key
+	// `additionalProperties` cannot speak about (numeric, symbol, a pattern)
+	// rides the jsIndexes keyword, one pair per signature.
+	for _, testCase := range []struct{ source, builder, schema string }{
+		{"export type Numeric = {[key: number]: string};\n", "RT.record(TF.number(), TF.string())",
+			"{type: 'object', jsIndexes: [{key: {type: 'number'}, value: {type: 'string'}}]}"},
+		{"export type Both = {[k: string]: number; [n: number]: number};\n", "RT.record(RT.union([TF.number(), TF.string()]), TF.number())",
+			"jsIndexes: [{key: {type: 'string'}, value: {type: 'number'}}, {key: {type: 'number'}, value: {type: 'number'}}]"},
 	} {
 		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
 		if !strings.Contains(builderForm, testCase.builder) {
@@ -338,10 +341,27 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 		}
 		convertAndCheckIDs(t, builderForm, convert.TargetType)
 		schemaForm := convertAndCheckIDs(t, testCase.source, convert.TargetJSONSchema)
-		if !strings.Contains(schemaForm, "embedType<") {
-			t.Errorf("a non-string key has no JSON spelling, so the schema embeds it:\n%s", schemaForm)
+		if !strings.Contains(schemaForm, testCase.schema) {
+			t.Errorf("expected %q for %q:\n%s", testCase.schema, testCase.source, schemaForm)
+		}
+		if strings.Contains(schemaForm, "embedType") {
+			t.Errorf("a non-string index key should ride jsIndexes, not the escape:\n%s", schemaForm)
 		}
 		convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	}
+
+	// A pattern key composes the two new keywords: jsIndexes carries the
+	// signature, and its key is itself a jsTemplate.
+	patternForm := convertAndCheckIDs(t, "export type Routes = {[key: `api/${string}`]: number};\n", convert.TargetJSONSchema)
+	if !strings.Contains(patternForm, "jsIndexes: [{key: {jsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}}, value: {type: 'number'}}]") {
+		t.Errorf("a pattern index key should nest jsTemplate inside jsIndexes:\n%s", patternForm)
+	}
+	convertAndCheckIDs(t, patternForm, convert.TargetType)
+
+	_, diags := convertOne(t, "export type Numeric = {[key: number]: string};\n",
+		convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected the portable refusal for jsIndexes, got %+v", diags)
 	}
 
 	// Named members BESIDE an index print the INTERSECTION: `object(...)`

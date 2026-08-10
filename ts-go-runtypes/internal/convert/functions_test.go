@@ -66,10 +66,36 @@ func TestChain_TemplateLiteral(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<`api/${string}/v${number}`>()") {
 		t.Errorf("template literals should escape through getRunType:\n%s", builderForm)
 	}
+	// On the schema target the parts ride the jsTemplate keyword as data: the
+	// literal chunks beside the placeholder schemas, which is what lets the
+	// door rebuild the type (a pattern string alone could not).
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
+	if !strings.Contains(schemaForm, "{jsTemplate: {texts: ['api/', '/v', ''], placeholders: [{type: 'string'}, {type: 'number'}]}}") {
+		t.Errorf("template literals should ride the jsTemplate dialect keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("template literals should not reach the embed escape:\n%s", schemaForm)
+	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Route = `api/${string}/v${number}`;") {
 		t.Errorf("type target should reconstruct the backtick spelling:\n%s", typeForm)
+	}
+	// bigint is a placeholder in its own right. A LITERAL placeholder is not:
+	// the checker folds `${'a'}` into the neighbouring text before reflection
+	// ever sees it, which is why `texts` here opens with 'a-' and only two
+	// placeholders survive.
+	mixed := convertAndCheckIDs(t, "export type Mixed = `${'a'}-${bigint}-${number}`;\n", convert.TargetJSONSchema)
+	if !strings.Contains(mixed, "texts: ['a-', '-', ''], placeholders: [{jsType: 'bigint'}, {type: 'number'}]") {
+		t.Errorf("a bigint placeholder should get a schema, a literal one folds into the text:\n%s", mixed)
+	}
+	convertAndCheckIDs(t, mixed, convert.TargetType)
+}
+
+func TestPortable_TemplateLiteralRefused(t *testing.T) {
+	source := "export type Route = `api/${string}`;\n"
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected the portable refusal for jsTemplate, got %+v", diags)
 	}
 }
 

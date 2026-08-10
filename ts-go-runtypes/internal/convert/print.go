@@ -2197,11 +2197,25 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if hasSignatureMembers(members) {
 			return ctx.schemaEmbedNode(node)
 		}
+		// A non-string key or a second signature has no STANDARD spelling —
+		// `additionalProperties` says one thing about string keys and nothing
+		// else — so those ride the jsIndexes dialect keyword, each signature as
+		// its own key/value schema pair.
+		jsIndexesText := ""
 		if len(indexes) > 1 || (len(indexes) == 1 && indexes[0].key.Kind != reflection.KindString) {
-			// JSON object keys are strings, so a number key or a second
-			// signature has no standard spelling — the embed carries it. That
-			// is the FORMAT's limit, not the printer's.
-			return ctx.schemaEmbedNode(node)
+			indexesText, indexesDiag, ok := ctx.jsIndexesText(indexes)
+			if indexesDiag != nil {
+				return "", indexesDiag
+			}
+			if !ok {
+				return ctx.schemaEmbedNode(node)
+			}
+			if ctx.opts.Portable {
+				return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+					Message: "a non-string index signature has no standard 2020-12 spelling; drop --portable to use the jsIndexes dialect keyword"}
+			}
+			jsIndexesText = indexesText
+			indexes = nil
 		}
 		schemaBag := ""
 		if hasStructuralPayload(node) {
@@ -2210,6 +2224,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 				return "", partsDiag
 			}
 			schemaBag = ", " + strings.Join(bagParts, ", ")
+		}
+		if jsIndexesText != "" {
+			schemaBag = ", " + jsIndexesText + schemaBag
 		}
 		additionalText := ""
 		if len(indexes) > 0 {
@@ -2249,7 +2266,12 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
 				Message: "a readonly member has no standard 2020-12 spelling; drop --portable to use the jsReadonly dialect keyword"}
 		}
-		out := fmt.Sprintf("{type: 'object', properties: {%s}", strings.Join(propertyParts, ", "))
+		out := "{type: 'object'"
+		// An index-only shape has no members to name, and an empty `properties`
+		// would just be noise beside the jsIndexes pairs that carry it.
+		if len(propertyParts) > 0 {
+			out += fmt.Sprintf(", properties: {%s}", strings.Join(propertyParts, ", "))
+		}
 		if len(requiredParts) > 0 {
 			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
 		}
@@ -2308,10 +2330,134 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			out += fmt.Sprintf(", jsLabels: [%s]", strings.Join(quoted, ", "))
 		}
 		return out + "}", nil
-	case reflection.KindFunction, reflection.KindTemplateLiteral, reflection.KindObject:
+	case reflection.KindTemplateLiteral:
+		// A pattern string alone cannot rebuild the type, so the parts ride
+		// verbatim: the literal texts and the placeholder SCHEMAS, which the
+		// door interpolates back into a template literal type.
+		templateText, ok := ctx.templateSchemaText(node)
+		if !ok {
+			return ctx.schemaEmbedNode(node)
+		}
+		return dialect(templateText)
+	case reflection.KindFunction, reflection.KindObject:
 		return ctx.schemaEmbedNode(node)
 	}
 	return "", unsupportedDiag(node, ctx.decl)
+}
+
+// jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
+// keyword — one `{key, value}` pair per signature, both sides ordinary schemas,
+// which the door turns back into that many index signatures. ok=false hands the
+// node to the embed escape when a key has no schema spelling of its own.
+func (ctx *printContext) jsIndexesText(indexes []indexSignature) (string, *Diagnostic, bool) {
+	pairs := make([]string, 0, len(indexes))
+	for _, index := range indexes {
+		keyText, keyDiag := ctx.schemaExpr(index.key)
+		if keyDiag != nil {
+			// A key the schema vocabulary cannot spell is not an error here:
+			// the whole object still converts, through the escape.
+			return "", nil, false
+		}
+		valueText, valueDiag := ctx.schemaExpr(index.value)
+		if valueDiag != nil {
+			return "", valueDiag, false
+		}
+		pairs = append(pairs, fmt.Sprintf("{key: %s, value: %s}", keyText, valueText))
+	}
+	return fmt.Sprintf("jsIndexes: [%s]", strings.Join(pairs, ", ")), nil, true
+}
+
+// templateSchemaText renders a template literal node as the `jsTemplate`
+// dialect keyword — `texts` (n+1 literal chunks) beside `placeholders` (n
+// schemas), the same pairing the reflection carries. ok=false hands the node
+// back to the embed escape: a placeholder TypeScript cannot interpolate
+// (`unknown`, an object shape) has no template spelling at all.
+func (ctx *printContext) templateSchemaText(node *reflection.RunType) (string, bool) {
+	texts, placeholders, ok := templateParts(node)
+	if !ok {
+		return "", false
+	}
+	quotedTexts := make([]string, 0, len(texts))
+	for _, text := range texts {
+		quotedTexts = append(quotedTexts, quoteSingle(text))
+	}
+	placeholderTexts := make([]string, 0, len(placeholders))
+	for _, placeholder := range placeholders {
+		placeholderText, placeholderOK := templateSpanSchemaText(placeholder)
+		if !placeholderOK {
+			return "", false
+		}
+		placeholderTexts = append(placeholderTexts, placeholderText)
+	}
+	return fmt.Sprintf("{jsTemplate: {texts: [%s], placeholders: [%s]}}",
+		strings.Join(quotedTexts, ", "), strings.Join(placeholderTexts, ", ")), true
+}
+
+// templateParts pulls the (texts, placeholders) pair off a template literal
+// node's payload, checking the n+1 / n pairing the spelling depends on.
+func templateParts(node *reflection.RunType) ([]string, []map[string]any, bool) {
+	payload, ok := node.Literal.(map[string]any)
+	if !ok {
+		return nil, nil, false
+	}
+	inner, ok := payload["templateLiteral"].(map[string]any)
+	if !ok {
+		return nil, nil, false
+	}
+	rawTexts, textsOK := inner["texts"].([]any)
+	rawPlaceholders, placeholdersOK := inner["placeholders"].([]any)
+	if !textsOK || !placeholdersOK || len(rawTexts) != len(rawPlaceholders)+1 {
+		return nil, nil, false
+	}
+	texts := make([]string, 0, len(rawTexts))
+	for _, rawText := range rawTexts {
+		text, textOK := rawText.(string)
+		if !textOK {
+			return nil, nil, false
+		}
+		texts = append(texts, text)
+	}
+	placeholders := make([]map[string]any, 0, len(rawPlaceholders))
+	for _, rawPlaceholder := range rawPlaceholders {
+		placeholder, placeholderOK := rawPlaceholder.(map[string]any)
+		if !placeholderOK {
+			return nil, nil, false
+		}
+		placeholders = append(placeholders, placeholder)
+	}
+	return texts, placeholders, true
+}
+
+// templateSpanSchemaText renders one placeholder as an ordinary schema. Only
+// the kinds TypeScript can interpolate into a template literal type get a
+// spelling — `unknown` and anything else hands the whole node to the escape.
+func templateSpanSchemaText(span map[string]any) (string, bool) {
+	kind, ok := spanKind(span["kind"])
+	if !ok {
+		return "", false
+	}
+	switch kind {
+	case reflection.KindString:
+		return "{type: 'string'}", true
+	case reflection.KindNumber:
+		return "{type: 'number'}", true
+	case reflection.KindBigInt:
+		return "{jsType: 'bigint'}", true
+	case reflection.KindLiteral:
+		switch literal := span["literal"].(type) {
+		case string:
+			return fmt.Sprintf("{const: %s}", quoteSingle(literal)), true
+		case float64:
+			numberText, numberOK := formatNumberLiteral(literal)
+			if !numberOK {
+				return "", false
+			}
+			return fmt.Sprintf("{const: %s}", numberText), true
+		case bool:
+			return fmt.Sprintf("{const: %s}", strconv.FormatBool(literal)), true
+		}
+	}
+	return "", false
 }
 
 // liveSymbolName resolves the source-level name a node's live symbol (enum /
