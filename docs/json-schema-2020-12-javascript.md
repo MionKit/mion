@@ -56,10 +56,17 @@ A document MAY declare it with `$schema`. A document that declares plain `https:
 | `jsIndexes` | `additionalProperties` | index signatures whose key is not a plain string |
 | `jsTemplate` | `pattern` | the parts of a template literal type |
 | `jsFunction` | nothing standard | a function signature |
-| `jsNot` | nothing standard | negation of a single format, keeping its base type |
 | `jsMeta` | nothing standard | a `base & {…}` metadata intersection |
 
 Every one is optional. A document using none of them is ordinary JSON Schema.
+
+There is deliberately no keyword for negation. JavaScript has no "not this type", and RunTypes' negation type exists precisely to model JSON Schema's `not`, so a negated format is written with the standard keyword and nothing else:
+
+```json
+{"type": "string", "not": {"format": "email"}}
+```
+
+A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding a `js` spelling beside it would be inventing a second way to say one thing.
 
 ---
 
@@ -73,7 +80,7 @@ Names the JavaScript type the validated wire form decodes to. Always a sibling o
 | --- | --- | --- |
 | `bigint` | `{"type": "string", "pattern": "^-?[0-9]+$"}` | `bigint` |
 | `Date` | `{"type": "string", "format": "date-time"}` | `Date` |
-| `RegExp` | `{"type": "string"}` | `RegExp` |
+| `RegExp` | `{"type": "string", "pattern": "^/.*/[dgimsuvy]*$"}` | `RegExp` |
 | `Temporal.Instant` | `{"type": "string", "format": "date-time"}` | `Temporal.Instant` |
 | `Temporal.PlainDate` | `{"type": "string", "format": "date"}` | `Temporal.PlainDate` |
 | `Temporal.Duration` | `{"type": "string", "format": "duration"}` | `Temporal.Duration` |
@@ -94,16 +101,23 @@ Four of the Temporal types use `pattern` rather than `format` on purpose. `Tempo
 
 The type arguments are read out of the wire schema itself: a `Map`'s key and value are `prefixItems[0]` and `prefixItems[1]`, a `Set`'s item is `items`. There is no separate argument list, because the wire schema already had to say the same thing to be honest about the JSON.
 
-### Values with no wire form
+### The absent values
 
 | `jsType` | Wire schema | Decodes to |
 | --- | --- | --- |
-| `undefined` | *(none)* | `undefined` |
-| `void` | *(none)* | `void` |
-| `symbol` | *(none)* | `symbol` |
+| `undefined` | `{"type": "null"}` | `undefined` |
+| `void` | `{"type": "null"}` | `void` |
 | `Promise` | the resolved value's schema | `Promise<T>` |
 
-These describe members that do not survive serialisation. They appear so a schema can round-trip back to the exact TypeScript type it came from, and a member carrying one is dropped from the wire, not encoded as `null`.
+`undefined` and `void` are not "no wire form": they encode as JSON `null`, in an object member and in an array slot alike. Only at the top level of a document does the encoder produce the JavaScript value `undefined`, because a bare `undefined` is not a JSON document at all, and a schema is not a document position.
+
+This is why they need a `jsType` rather than being written as plain `{"type": "null"}`: on the wire they are indistinguishable from `null`, and only the annotation says which of the three the decoded value is.
+
+### `symbol` has no schema
+
+A `symbol` cannot be encoded. Its identity is the symbol itself, and nothing survives a round trip through JSON, so the serialiser refuses the kind outright rather than inventing a placeholder.
+
+There is therefore no `jsType: "symbol"`. A symbol-keyed or symbol-valued member is dropped before a schema is ever produced, which is the same thing the validate contract does.
 
 ### The two broad types
 
@@ -248,20 +262,6 @@ A function signature. `params` is an ordinary tuple schema, `return` an ordinary
 Decodes to `(message: string) => boolean`.
 
 Functions have no wire form, so there is no `type` beside it. Using a tuple schema for the parameters means optional slots, a rest slot and the parameter names all come from keywords that already exist.
-
----
-
-## `jsNot`
-
-Negation of a single named format, keeping its base type.
-
-```json
-{"type": "string", "jsNot": {"jsFormat": "email"}}
-```
-
-Decodes to "a string that is not an email address".
-
-This is a different operation from the standard `not`, which negates a whole schema across all six JSON kinds. `{"type": "number", "not": {…}}` under standard semantics is the complement within the number kind; `jsNot` negates one format and keeps its base. Both keywords may appear; they compose as written.
 
 ---
 
