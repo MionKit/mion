@@ -184,9 +184,9 @@ func TestChain_BigintFormatParams(t *testing.T) {
 		"export type Stepped = TF.BigInt<{multipleOf: 5n}>;\n"
 	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
 	for _, expected := range []string{
-		"{jsFormat: {name: 'bigintFormat', params: {max: '255', min: '0'}}}",
-		"{jsFormat: {name: 'bigintFormat', params: {max: '9223372036854775807', min: '-9223372036854775808'}}}",
-		"{jsFormat: {name: 'bigintFormat', params: {multipleOf: '5'}}}",
+		"rtFormat: 'bigintFormat', rtFormatParams: {max: '255', min: '0'}",
+		"rtFormat: 'bigintFormat', rtFormatParams: {max: '9223372036854775807', min: '-9223372036854775808'}",
+		"rtFormat: 'bigintFormat', rtFormatParams: {multipleOf: '5'}",
 	} {
 		if !strings.Contains(schemaForm, expected) {
 			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
@@ -223,8 +223,8 @@ func TestChain_GenericFormatFamilies(t *testing.T) {
 		t.Errorf("string format should print the value-first family builder:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsFormat: {name: 'stringFormat', params: {maxLength: 5, minLength: 2}}} as const") {
-		t.Errorf("format brands should ride jsFormat verbatim:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{type: 'string', rtFormat: 'stringFormat', rtFormatParams: {maxLength: 5, minLength: 2}}") {
+		t.Errorf("format brands should ride rtFormat with their params:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Short = TF.String<{maxLength: 5, minLength: 2}>;") {
@@ -248,8 +248,8 @@ func TestChain_NamedFormatPresets(t *testing.T) {
 		}
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsFormat: {name: 'uuid', params: {version: '4'}}}") {
-		t.Errorf("schema form missing the uuid jsFormat row:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{type: 'string', format: 'uuid', rtFormat: 'uuid', rtFormatParams: {version: '4'}}") {
+		t.Errorf("schema form missing the uuid rtFormat row:\n%s", schemaForm)
 	}
 	convertAndCheckIDs(t, schemaForm, convert.TargetType)
 }
@@ -287,12 +287,10 @@ func TestChain_OneOfAndNot(t *testing.T) {
 	if !strings.Contains(schemaForm, "{oneOf: [{type: 'number'}, {type: 'string'}]}") {
 		t.Errorf("oneOf should print branch-wise:\n%s", schemaForm)
 	}
-	// The first-class negation rides jsNot, its own keyword. The STANDARD
-	// `not` keyword is a different operation — it runs the kind-complement
-	// algebra over the six JSON kinds, which collapses a negated format to
-	// `never` rather than keeping its base type.
-	if !strings.Contains(schemaForm, "{jsNot: {jsFormat: {name: 'email'") {
-		t.Errorf("not should ride the jsNot dialect keyword:\n%s", schemaForm)
+	// Still jsNot: the spec wants the standard `not` (CORE-NOT), but the door
+	// does not yet rebuild `Not<F>` from it, so that slice is unlanded.
+	if !strings.Contains(schemaForm, "{jsNot: {type: 'string', format: 'email', rtFormat: 'email'") {
+		t.Errorf("a negated format should ride the jsNot keyword until CORE-NOT lands:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("a negated format should not reach the embed escape:\n%s", schemaForm)
@@ -366,8 +364,8 @@ func TestChain_StructuralParams(t *testing.T) {
 	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
 	for _, expected := range []string{
 		"{type: 'array', items: {type: 'string'}, maxItems: 4, uniqueItems: true}",
-		"contains: {jsFormat: {name: 'numberFormat', params: {min: 5}}}, minContains: 2",
-		"minProperties: 1, propertyNames: {jsFormat: {name: 'stringFormat', params: {maxLength: 3}}}",
+		"contains: {type: 'number', rtFormat: 'numberFormat', rtFormatParams: {min: 5}}, minContains: 2",
+		"minProperties: 1, propertyNames: {type: 'string', rtFormat: 'stringFormat', rtFormatParams: {maxLength: 3}}",
 		"patternProperties: {'^a': {type: 'number'}}",
 	} {
 		if !strings.Contains(schemaForm, expected) {

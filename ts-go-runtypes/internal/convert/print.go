@@ -2071,46 +2071,52 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if len(node.Negations) > 1 {
 			return "", ctx.multiNegationDiag()
 		}
-		// The negated FORMAT rides jsNot, not the standard `not` keyword: that
-		// one runs the door's kind-complement algebra, so `{type: 'number',
-		// not: {…}}` peels into the six-arm name-set union and collapses to
-		// `never` rather than reaching the first-class `Not<F>`. Two different
-		// operations that happen to share a word.
+		// STILL the jsNot keyword, not the standard `not` the spec calls for
+		// (CORE-NOT). Emitting `{type: 'string', not: {…}}` moved the id: the
+		// door's negation layer does not rebuild the first-class `Not<F>` from
+		// it, so the declaration came back as something else. That door fix is
+		// the CORE-NOT slice; until it lands, this keyword keeps the round trip
+		// exact and CORE-NOT stays out of the conformance test's LANDED set.
 		negatedText, negDiag := ctx.schemaExpr(node.Negations[0])
 		if negDiag != nil {
 			return "", negDiag
 		}
 		return dialect(fmt.Sprintf("{jsNot: %s}", negatedText))
 	}
-	// Format annotations ride jsFormat verbatim for now — the standard-keyword
-	// rows (minLength / minimum / format:'email' / …) land with the preset
-	// mirror (docs/done/format-conversion-completion.md), which is also what
-	// will widen --portable coverage to standard-expressible brands.
+	// A format annotation prints as its WIRE half (the base type, plus the
+	// standard `format` where the family maps onto a registered one) with
+	// `rtFormat` naming the family and `rtFormatParams` carrying its params.
+	//
+	// rtFormatParams carries ALL params verbatim, not only the ones the standard
+	// has no word for. Two reasons: the params fold into the structural id, so
+	// dropping any (mockSamples, nested inside a pattern bag, is the one that
+	// bites) would move it; and one authoritative copy makes reconstruction
+	// exact instead of a merge of two half-sources. The standard keywords beside
+	// it are a faithful PROJECTION of the same params, so a plain validator
+	// still enforces what it can.
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, _, known := leafFormat(annotation)
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		// jsFormat carries the annotation's OWN name + full params verbatim
-		// (uuid included — the door rebuilds the brand from the pair), so the
-		// schema spelling never depends on the preset tables.
 		paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		// JSON has no bigint, so the bigint family's bounds ride as DIGIT
-		// STRINGS and the door lifts the literal types back out of them.
+		// JSON has no bigint, so that family's bounds ride as DIGIT STRINGS and
+		// the door lifts the literal types back out of them.
 		if family.bigintParams {
-			digitsText, ok := printBigintParamsAsDigits(annotation.Params)
-			if !ok {
+			digitsText, digitsOK := printBigintParamsAsDigits(annotation.Params)
+			if !digitsOK {
 				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 			}
-			return dialect(fmt.Sprintf("{jsFormat: {name: %s, params: %s}}", quoteSingle(annotation.Name), digitsText))
+			paramsText = digitsText
 		}
-		if len(annotation.Params) == 0 {
-			return dialect(fmt.Sprintf("{jsFormat: {name: %s}}", quoteSingle(annotation.Name)))
+		parts := []string{formatWireParts(family, annotation), fmt.Sprintf("rtFormat: %s", quoteSingle(annotation.Name))}
+		if len(annotation.Params) > 0 {
+			parts = append(parts, fmt.Sprintf("rtFormatParams: %s", paramsText))
 		}
-		return dialect(fmt.Sprintf("{jsFormat: {name: %s, params: %s}}", quoteSingle(annotation.Name), paramsText))
+		return dialect("{" + strings.Join(parts, ", ") + "}")
 	}
 	switch node.Kind {
 	case reflection.KindString:
@@ -2571,6 +2577,67 @@ func mergeSchema(schemaText string, extra string) string {
 		return "{" + extra + "}"
 	}
 	return schemaText[:len(schemaText)-1] + ", " + extra + "}"
+}
+
+// formatWireParts spells the WIRE half of a format family: the base JSON type
+// plus the standard `format` where the family maps onto a registered one. This
+// is the half a plain 2020-12 validator reads.
+//
+// Deliberately NO `jsType`, even for the families whose base is not a JSON type
+// (bigint, the native Date, Temporal). CORE-PRECEDENCE reads jsType BEFORE
+// rtFormat, so a node carrying both would resolve to the bare JS type and drop
+// its format brand — `TF.BigInt<{min: 0n}>` came back as plain `bigint`. The
+// family name is the complete answer on its own, and RunTypes knows each
+// family's base, so the annotation would be redundant even if it were safe.
+func formatWireParts(family formatFamily, annotation *reflection.FormatAnnotation) string {
+	switch family.base {
+	case "number":
+		return "type: 'number'"
+	case "bigint":
+		// A bigint travels as a decimal string, so the wire is a string and the
+		// jsType is what says it decodes back to a bigint.
+		return "type: 'string', pattern: '^-?[0-9]+$'"
+	}
+	if info, isTemporal := reflection.TemporalInfoByFormatName(annotation.Name); isTemporal {
+		wire := ""
+		if format := info.WireFormat(); format != "" {
+			wire = fmt.Sprintf("format: %s, ", quoteSingle(format))
+		} else if pattern := info.WirePattern(); pattern != "" {
+			wire = fmt.Sprintf("pattern: %s, ", quoteSingle(pattern))
+		}
+		return strings.TrimSuffix(fmt.Sprintf("type: 'string', %s", wire), ", ")
+	}
+	if annotation.Name == "nativeDate" {
+		return "type: 'string', format: 'date-time'"
+	}
+	if standard := standardFormatName(annotation.Name); standard != "" {
+		return fmt.Sprintf("type: 'string', format: %s", quoteSingle(standard))
+	}
+	return "type: 'string'"
+}
+
+// standardFormatName maps a RunTypes format family onto the registered 2020-12
+// `format` value describing the SAME wire shape, or "" when the registry has no
+// honest word for it. Only exact matches appear: claiming a format that a
+// validator would then enforce differently is worse than saying nothing.
+func standardFormatName(name string) string {
+	switch name {
+	case "email":
+		return "email"
+	case "uuid":
+		return "uuid"
+	case "domain":
+		return "hostname"
+	case "url":
+		return "uri"
+	case "date":
+		return "date"
+	case "time":
+		return "time"
+	case "dateTime":
+		return "date-time"
+	}
+	return ""
 }
 
 // jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
