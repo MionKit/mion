@@ -93,6 +93,15 @@ const RULES: readonly Rule[] = [
     emits: "{type: 'string', format: 'date-time'}",
     note: 'under --portable the extension keywords are refused, not silently dropped',
   },
+  {
+    id: 'CORE-PRECEDENCE',
+    // `jsType` wins over the format beside it: this recovers Date, not the
+    // date-time-formatted STRING the same `format` would give on its own. If
+    // both contributed, every Date would land on a different id than written.
+    source: 'export type Stamp = Date;\n',
+    emits: "{type: 'string', format: 'date-time', jsType: 'Date'}",
+    note: 'jsType decides the type, the wire keywords only describe the JSON',
+  },
 
   // ── jsType: values that travel as a string ─────────────────────────────
   {
@@ -104,6 +113,14 @@ const RULES: readonly Rule[] = [
     id: 'JS-DATE',
     source: 'export type Stamp = Date;\n',
     emits: "{type: 'string', format: 'date-time', jsType: 'Date'}",
+  },
+  {
+    id: 'JS-BIGINT-LITERAL',
+    // The same row with the value pinned: `const` holds the WIRE value, which
+    // is the digit string. No separate keyword.
+    source: 'export type Build = 4096n;\n',
+    emits: "{type: 'string', const: '4096', jsType: 'bigint'}",
+    forbids: ['embedType', 'jsBigint'],
   },
   {
     id: 'JS-REGEXP',
