@@ -1991,8 +1991,50 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 	}
 	defer leave()
 	if len(node.TypeMeta) > 0 {
-		return ctx.schemaEmbedNode(node)
+		return ctx.schemaMetaText(node)
 	}
+	return ctx.schemaExprCore(node)
+}
+
+// schemaMetaText renders a `base & {…}` metadata intersection as the `jsMeta`
+// dialect keyword: the base schema beside the metadata objects' own schemas,
+// which the door conjoins back. Nested rather than sitting beside the base's
+// keywords, because a base can itself BE a dialect discriminator (`{jsType:
+// 'bigint'}`) and those are read before any sibling.
+func (ctx *printContext) schemaMetaText(node *reflection.RunType) (string, *Diagnostic) {
+	// The base is this node minus its metadata. The copy drops the ID as well:
+	// the cycle guard already holds this node, and re-entering under the same
+	// ID would read as a cycle.
+	baseNode := *node
+	baseNode.TypeMeta = nil
+	baseNode.ID = ""
+	baseText, baseDiag := ctx.schemaExprCore(&baseNode)
+	if baseDiag != nil {
+		return "", baseDiag
+	}
+	metaTexts := make([]string, 0, len(node.TypeMeta))
+	for _, metaRef := range node.TypeMeta {
+		meta := ctx.deref(metaRef)
+		if meta == nil {
+			return "", unsupportedDiag(node, ctx.decl)
+		}
+		metaText, metaDiag := ctx.schemaExpr(meta)
+		if metaDiag != nil {
+			return "", metaDiag
+		}
+		metaTexts = append(metaTexts, metaText)
+	}
+	if ctx.opts.Portable {
+		return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "a metadata intersection has no standard 2020-12 spelling; drop --portable to use the jsMeta dialect keyword"}
+	}
+	return fmt.Sprintf("{jsMeta: {base: %s, meta: [%s]}}", baseText, strings.Join(metaTexts, ", ")), nil
+}
+
+// schemaExprCore is schemaExpr past the deref / declRef / cycle-guard preamble
+// and past the metadata split, so schemaMetaText can ask for a node's base
+// spelling without re-running any of it.
+func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diagnostic) {
 	dialect := func(literal string) (string, *Diagnostic) {
 		if ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
