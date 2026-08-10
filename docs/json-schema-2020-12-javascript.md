@@ -4,6 +4,8 @@ A small, conservative extension to [JSON Schema draft 2020-12](https://json-sche
 
 Status: specification. Version 1. Keyword prefixes `js`, `ts`, `rt`.
 
+Every rule below carries an ID like `JS-DATE`. Those are not decoration: `packages/ts-runtypes/test/features/json-schema-dialect.test.ts` has one runnable case per ID against the real `convert` binary, and fails if this document names a rule the test does not cover. A rule that is not tested does not exist.
+
 ## Why
 
 JSON Schema describes JSON. JavaScript has types JSON has no word for: `bigint`, `Date`, `Map`, `Set`, `RegExp`, Temporal values, template literal types, functions, the `readonly` modifier. Those types still travel over the wire perfectly well, they just travel *as* something else. A `Date` travels as an ISO string. A `bigint` travels as a decimal string. A `Map` travels as an array of pairs.
@@ -14,7 +16,7 @@ This extension adds that second half. It never replaces the first.
 
 ## The one rule
 
-> **Deleting every extension keyword from a document must not change whether any JSON value validates against it.**
+> **`CORE-INERT` — Deleting every extension keyword from a document must not change whether any JSON value validates against it.**
 
 That is the whole design, and everything below follows from it.
 
@@ -30,7 +32,7 @@ Every validator agrees this accepts `"2026-08-10T09:00:00Z"` and rejects `42`. A
 
 ## What this is not
 
-- **Not a replacement for `type`.** `jsType` sits *beside* `type`, never instead of it. A schema whose only kind information is an extension keyword is not conforming.
+- **`CORE-SIBLING` — Not a replacement for `type`.** `jsType` sits *beside* `type`, never instead of it. A schema whose only kind information is an extension keyword is not conforming.
 - **Not a second validation vocabulary.** No extension keyword narrows, widens or overrides an assertion. They are annotations in the 2020-12 sense.
 - **Not a serialisation format.** It describes JSON that already exists; it does not prescribe how a value is encoded, only what the encoding means.
 
@@ -42,7 +44,7 @@ The dialect is identified by the meta-schema URI:
 https://runtypes.pages.dev/schema/2020-12-javascript
 ```
 
-A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses extension keywords is still conforming, because by the one rule above the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.
+A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses extension keywords is still conforming, because by `CORE-INERT` the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.
 
 ## Three prefixes, and what they promise
 
@@ -56,9 +58,10 @@ Every extension keyword answers one question by its prefix: **where do I go to l
 
 `jsType: "Map"` names a real runtime value with a real encoding. `rtFormat: "email"` names a constraint family RunTypes defines, whose actual checks ride standard keywords. `tsReadonly` names a TypeScript type-system fact that no JSON value can witness.
 
-That last row is the important one. The `ts` keywords exist for exactly one purpose: to restore the original TypeScript type. They constrain nothing, a validator that drops them loses no checking, and a consumer that only cares about the data can strip every keyword starting with `ts` and lose nothing at all.
+That last row is the important one.
 
-Because they carry no constraint, a `ts` keyword MUST be accompanied by whatever standard keywords describe its wire half. `tsIndexes` on a numeric-keyed index signature has to be written beside the `patternProperties` or `propertyNames` that constrains those keys, or the schema would be saying something to RunTypes that it does not say to anyone else, and the one rule above would break.
+- **`TS-DROPPABLE`** — the `ts` keywords exist for exactly one purpose: to restore the original TypeScript type. They constrain nothing, a validator that drops them loses no checking, and a consumer that only cares about the data can strip every keyword starting with `ts` and lose nothing at all.
+- **`TS-WIRE-HALF`** — because they carry no constraint, a `ts` keyword MUST be accompanied by whatever standard keywords describe its wire half. `tsIndexes` on a numeric-keyed index signature has to be written beside the `patternProperties` that constrains those keys, or the schema would be saying something to RunTypes that it does not say to anyone else, and `CORE-INERT` would break.
 
 ## Keyword summary
 
@@ -76,7 +79,7 @@ Because they carry no constraint, a `ts` keyword MUST be accompanied by whatever
 
 Every one is optional. A document using none of them is ordinary JSON Schema.
 
-There is deliberately no keyword for negation. JavaScript has no "not this type", and RunTypes' negation type exists precisely to model JSON Schema's `not`, so a negated format is written with the standard keyword and nothing else:
+**`CORE-NOT`** — there is deliberately no keyword for negation. JavaScript has no "not this type", and RunTypes' negation type exists precisely to model JSON Schema's `not`, so a negated format is written with the standard keyword and nothing else:
 
 ```json
 {"type": "string", "not": {"format": "email"}}
@@ -84,63 +87,64 @@ There is deliberately no keyword for negation. JavaScript has no "not this type"
 
 A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding an extension spelling beside it would be inventing a second way to say one thing.
 
+**`CORE-PORTABLE`** — a *portable* document uses no extension keyword at all. `ts-runtypes convert --portable` emits only portable documents and raises an error where a type cannot be expressed without the extension, so a schema destined for a non-RunTypes consumer never silently depends on it.
+
 ---
 
 ## `jsType`
 
-Names the JavaScript type the validated wire form decodes to. Always a sibling of the `type` (and, where one applies, `format`) that describes the wire.
+Names the JavaScript type the validated wire form decodes to. Always a sibling of the `type` (and, where one applies, `format` or `pattern`) that describes the wire.
 
 ### Values that travel as a string
 
-| `jsType` | Wire schema | Decodes to |
-| --- | --- | --- |
-| `bigint` | `{"type": "string", "pattern": "^-?[0-9]+$"}` | `bigint` |
-| `Date` | `{"type": "string", "format": "date-time"}` | `Date` |
-| `RegExp` | `{"type": "string", "pattern": "^/.*/[dgimsuvy]*$"}` | `RegExp` |
-| `Temporal.Instant` | `{"type": "string", "format": "date-time"}` | `Temporal.Instant` |
-| `Temporal.PlainDate` | `{"type": "string", "format": "date"}` | `Temporal.PlainDate` |
-| `Temporal.Duration` | `{"type": "string", "format": "duration"}` | `Temporal.Duration` |
-| `Temporal.ZonedDateTime` | `{"type": "string", "pattern": "…"}` | `Temporal.ZonedDateTime` |
-| `Temporal.PlainTime` | `{"type": "string", "pattern": "…"}` | `Temporal.PlainTime` |
-| `Temporal.PlainDateTime` | `{"type": "string", "pattern": "…"}` | `Temporal.PlainDateTime` |
-| `Temporal.PlainYearMonth` | `{"type": "string", "pattern": "…"}` | `Temporal.PlainYearMonth` |
-| `Temporal.PlainMonthDay` | `{"type": "string", "pattern": "…"}` | `Temporal.PlainMonthDay` |
+| Rule | `jsType` | Wire schema | Decodes to |
+| --- | --- | --- | --- |
+| `JS-BIGINT` | `bigint` | `{"type": "string", "pattern": "^-?[0-9]+$"}` | `bigint` |
+| `JS-DATE` | `Date` | `{"type": "string", "format": "date-time"}` | `Date` |
+| `JS-REGEXP` | `RegExp` | `{"type": "string"}` | `RegExp` |
 
-Four of the Temporal types use `pattern` rather than `format` on purpose. `Temporal.ZonedDateTime.toJSON()` produces RFC 9557 (`2026-08-10T09:00:00+02:00[Europe/Madrid]`), which is **not** a valid RFC 3339 `date-time`, and `PlainTime` / `PlainDateTime` / `PlainYearMonth` carry no offset where the registered formats require one. Claiming `format: "date-time"` for those would be a false statement about the wire, and a standard validator that checks formats would reject valid data.
+A `RegExp` encodes as `String(re)`, so the wire value carries the delimiters and flags (`"/^ab?c$/gi"`).
+
+### Temporal
+
+| Rule | `jsType` | Wire schema | Decodes to |
+| --- | --- | --- | --- |
+| `JS-TEMPORAL-INSTANT` | `Temporal.Instant` | `{"type": "string", "format": "date-time"}` | `Temporal.Instant` |
+| `JS-TEMPORAL-PLAINDATE` | `Temporal.PlainDate` | `{"type": "string", "format": "date"}` | `Temporal.PlainDate` |
+| `JS-TEMPORAL-DURATION` | `Temporal.Duration` | `{"type": "string", "format": "duration"}` | `Temporal.Duration` |
+| `JS-TEMPORAL-PATTERNED` | `Temporal.ZonedDateTime`, `Temporal.PlainTime`, `Temporal.PlainDateTime`, `Temporal.PlainYearMonth`, `Temporal.PlainMonthDay` | `{"type": "string", "pattern": "…"}` | the matching type |
+
+The last row uses `pattern` rather than `format` on purpose. `Temporal.ZonedDateTime.toJSON()` produces RFC 9557 (`2026-08-10T09:00:00+02:00[Europe/Madrid]`), which is **not** a valid RFC 3339 `date-time`, and `PlainTime` / `PlainDateTime` / `PlainYearMonth` / `PlainMonthDay` carry no offset where the registered formats require one. Claiming `format: "date-time"` for those would be a false statement about the wire, and a standard validator that checks formats would reject valid data.
 
 ### Values that travel as a container
 
-| `jsType` | Wire schema | Decodes to |
-| --- | --- | --- |
-| `Map` | `{"type": "array", "items": {"type": "array", "prefixItems": [K, V], "items": false, "minItems": 2}}` | `Map<K, V>` |
-| `Set` | `{"type": "array", "items": V, "uniqueItems": true}` | `Set<V>` |
+| Rule | `jsType` | Wire schema | Decodes to |
+| --- | --- | --- | --- |
+| `JS-MAP` | `Map` | `{"type": "array", "items": {"type": "array", "prefixItems": [K, V], "items": false, "minItems": 2}}` | `Map<K, V>` |
+| `JS-SET` | `Set` | `{"type": "array", "items": V, "uniqueItems": true}` | `Set<V>` |
 
 The type arguments are read out of the wire schema itself: a `Map`'s key and value are `prefixItems[0]` and `prefixItems[1]`, a `Set`'s item is `items`. There is no separate argument list, because the wire schema already had to say the same thing to be honest about the JSON.
 
 ### The absent values
 
-| `jsType` | Wire schema | Decodes to |
-| --- | --- | --- |
-| `undefined` | `{"type": "null"}` | `undefined` |
-| `void` | `{"type": "null"}` | `void` |
-| `Promise` | the resolved value's schema | `Promise<T>` |
+| Rule | `jsType` | Wire schema | Decodes to |
+| --- | --- | --- | --- |
+| `JS-UNDEFINED` | `undefined` | `{"type": "null"}` | `undefined` |
+| `JS-VOID` | `void` | `{"type": "null"}` | `void` |
+| `JS-PROMISE` | `Promise` | the resolved value's schema | `Promise<T>` |
 
 `undefined` and `void` are not "no wire form": they encode as JSON `null`, in an object member and in an array slot alike. Only at the top level of a document does the encoder produce the JavaScript value `undefined`, because a bare `undefined` is not a JSON document at all, and a schema is not a document position.
 
-This is why they need a `jsType` rather than being written as plain `{"type": "null"}`: on the wire they are indistinguishable from `null`, and only the annotation says which of the three the decoded value is.
+This is why they need a `jsType` rather than being written as plain `{"type": "null"}`: on the wire the three are indistinguishable, and only the annotation says which one the decoded value is.
 
-### `symbol` has no schema
-
-A `symbol` cannot be encoded. Its identity is the symbol itself, and nothing survives a round trip through JSON, so the serialiser refuses the kind outright rather than inventing a placeholder.
-
-There is therefore no `jsType: "symbol"`. A symbol-keyed or symbol-valued member is dropped before a schema is ever produced, which is the same thing the validate contract does.
+**`JS-SYMBOL`** — a `symbol` cannot be encoded. Its identity is the symbol itself and nothing survives a round trip through JSON, so the serialiser refuses the kind outright rather than inventing a placeholder. There is therefore **no** `jsType: "symbol"`: a symbol-keyed or symbol-valued member is dropped before a schema is ever produced, which is exactly what the validate contract does.
 
 ### The two broad types
 
-| `jsType` | Wire schema | Decodes to |
-| --- | --- | --- |
-| `any` | *(none, so every value)* | `any` |
-| `object` | `{"type": ["object", "array"]}` | `object` |
+| Rule | `jsType` | Wire schema | Decodes to |
+| --- | --- | --- | --- |
+| `JS-ANY` | `any` | *(none, so every value)* | `any` |
+| `JS-OBJECT` | `object` | `{"type": ["object", "array"]}` | `object` |
 
 `object` names the TypeScript `object` keyword, the non-primitive gate. It admits arrays, which is why its wire form is the two-member type union rather than `{"type": "object"}`. It is a different type from a schema with no keywords, which describes an ordinary open object.
 
@@ -148,13 +152,15 @@ There is therefore no `jsType: "symbol"`. A symbol-keyed or symbol-valued member
 
 ## `rtFormat` and `rtFormatParams`
 
-`format` in 2020-12 names a well-known string shape from a fixed registry. `rtFormat` names a **type-format family**: a base type plus a named, parameterised constraint set that the decoded value carries as part of its type.
+`format` in 2020-12 names a well-known string shape from a fixed registry. `rtFormat` names a **type-format family**: a base type plus a named, parameterised constraint set that the decoded value carries as part of its type. The families are RunTypes' own, which is why the prefix is `rt` and not `js`: there is no JavaScript "email type".
+
+**`RT-FORMAT-NAME`** — `rtFormat` names the family. Where the standard registry has the right word, both keywords appear and agree:
 
 ```json
 {"type": "string", "format": "email", "rtFormat": "email"}
 ```
 
-Where the standard registry already has the right word, both keywords appear and agree. The pair is not redundant: `format` tells a standard validator what to check, `rtFormat` tells a RunTypes reader which *family* the value belongs to, and two families can share one `format`.
+The pair is not redundant. `format` tells a standard validator what to check; `rtFormat` tells a RunTypes reader which family the value belongs to, and two families can share one `format`:
 
 ```json
 {"type": "string", "minLength": 3, "rtFormat": "stringFormat"}
@@ -163,9 +169,7 @@ Where the standard registry already has the right word, both keywords appear and
 
 Both accept strings of at least three characters. They decode to different types, and only `rtFormat` says which.
 
-### Parameters
-
-A family's parameters go on the **standard keyword** whenever one exists. This is what keeps a standard validator enforcing them:
+**`RT-FORMAT-STANDARD`** — a family's parameters go on the **standard keyword** whenever one exists. This is what keeps a standard validator enforcing them:
 
 | Parameter | Standard keyword |
 | --- | --- |
@@ -177,49 +181,49 @@ A family's parameters go on the **standard keyword** whenever one exists. This i
 | `minItems` / `maxItems` / `uniqueItems` | same |
 | `minProperties` / `maxProperties` | same |
 
-`rtFormatParams` carries only what is left: parameters the standard has no keyword for, and parameters whose value the standard keyword cannot round-trip.
+**`RT-FORMAT-PARAMS`** — `rtFormatParams` carries only what is left: parameters the standard has no keyword for.
 
 ```json
 {"type": "string", "format": "email", "rtFormat": "email", "rtFormatParams": {"localPart": {"maxLength": 64}}}
 ```
 
-Two cases make `rtFormatParams` load-bearing rather than decorative:
+Two cases make it load-bearing rather than decorative.
 
-**Bigint bounds.** A `bigint` family's `min`/`max` are bigints, and JSON has no bigint. They ride as decimal strings:
+**`RT-FORMAT-BIGINT`** — a bigint family's bounds are bigints, and JSON has no bigint. They ride as decimal strings:
 
 ```json
 {"type": "string", "pattern": "^-?[0-9]+$", "jsType": "bigint",
  "rtFormat": "bigintFormat", "rtFormatParams": {"min": "0", "max": "18446744073709551615"}}
 ```
 
-**A parameter sitting at the standard keyword's default.** `{"minItems": 0}` says exactly what omitting `minItems` says, so a reader cannot tell the two apart, and the family's parameter would be lost. It goes in `rtFormatParams` instead, leaving the standard keyword's meaning untouched:
+**`RT-FORMAT-DEFAULT`** — a parameter whose value IS the standard keyword's default. `{"minItems": 0}` says exactly what omitting `minItems` says, so a reader cannot tell the two apart and the family's parameter would be lost. It goes in `rtFormatParams` instead, leaving the standard keyword's meaning untouched:
 
 ```json
 {"type": "array", "items": {"type": "string"}, "rtFormat": "formattedArray", "rtFormatParams": {"minItems": 0}}
 ```
 
-Parameters that only affect mock generation or input transformation (`mockSamples`, `trim`, `lowercase`) have no schema counterpart in either place. They do not describe what a validator enforces, so putting them in a schema would misrepresent it.
+**`RT-FORMAT-NONVALIDATING`** — parameters that only affect mock generation or input transformation (`mockSamples`, `trim`, `lowercase`) appear in neither place. They do not describe what a validator enforces, so putting them in a schema would misrepresent it.
 
 ---
 
 ## `tsLabels`
 
-Tuple slot names, one per slot in order, the rest slot included. Extends `prefixItems`.
+**`TS-LABELS`** — tuple slot names, one per slot in order, the rest slot included.
 
 ```json
 {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}],
  "minItems": 2, "items": false, "tsLabels": ["x", "y"]}
 ```
 
-Decodes to `[x: number, y: number]`. Slot names are part of a tuple's identity in TypeScript, so a labelled tuple and an unlabelled one are different types even though no JSON value can tell them apart.
+Decodes to `[x: number, y: number]`. Slot names are part of a tuple's identity in TypeScript, so a labelled tuple and an unlabelled one are different types even though no JSON value can tell them apart, which is precisely why this is a `ts` keyword.
 
-The list MUST cover every slot or it is ignored whole. A partial list would silently produce a tuple with some slots named, which TypeScript cannot express.
+The list MUST cover every slot or it is ignored whole. A partial list would produce a tuple with some slots named, which TypeScript cannot express.
 
 ---
 
 ## `tsReadonly`
 
-The members carrying the `readonly` modifier, named the way `required` names its own. Extends `required`.
+**`TS-READONLY`** — the members carrying the `readonly` modifier, named the way `required` names its own.
 
 ```json
 {"type": "object", "properties": {"id": {"type": "string"}, "hits": {"type": "number"}},
@@ -228,29 +232,30 @@ The members carrying the `readonly` modifier, named the way `required` names its
 
 Decodes to `{readonly id: string; hits: number}`.
 
-This is **not** the standard `readOnly` keyword, which is an annotation about write access to a resource and constrains nothing. The two can coexist and mean different things.
+This is **not** the standard `readOnly` keyword, which is an annotation about write access to a resource and constrains nothing about the shape. The two can coexist and mean different things.
 
 ---
 
 ## `tsIndexes`
 
-Index signatures whose key `additionalProperties` cannot describe, one entry per signature. Extends `additionalProperties`.
+**`TS-INDEXES`** — index signatures whose key `additionalProperties` cannot describe, one entry per signature.
 
 ```json
-{"type": "object", "tsIndexes": [{"key": {"type": "number"}, "value": {"type": "string"}}]}
+{"type": "object", "propertyNames": {"pattern": "^(?:0|[1-9][0-9]*)$"},
+ "tsIndexes": [{"key": {"type": "number"}, "value": {"type": "string"}}]}
 ```
 
 Decodes to `{[key: number]: string}`.
 
 `additionalProperties` speaks about string keys only, and about all of them at once. It stays the right keyword for `{[key: string]: V}`. `tsIndexes` covers numeric keys, symbol keys, pattern keys (a `key` schema carrying `tsTemplate`), and shapes with more than one signature.
 
-Because JSON object keys are always strings on the wire, a numeric or pattern key does constrain the JSON, and the wire half of that constraint SHOULD also be written with `patternProperties` or `propertyNames` where it can be.
+Per `TS-WIRE-HALF`, the wire half is not optional: JSON object keys are always strings, so a numeric or pattern key really does constrain the JSON and MUST also be written with `propertyNames` or `patternProperties`.
 
 ---
 
 ## `tsTemplate`
 
-The parts of a template literal type: `texts` holds the n+1 literal chunks, `placeholders` the n schemas between them. Extends `pattern`.
+**`TS-TEMPLATE`** — the parts of a template literal type: `texts` holds the n+1 literal chunks, `placeholders` the n schemas between them.
 
 ```json
 {"type": "string", "pattern": "^api/[^/]*/v[0-9]+$",
@@ -259,15 +264,15 @@ The parts of a template literal type: `texts` holds the n+1 literal chunks, `pla
 
 Decodes to `` `api/${string}/v${number}` ``.
 
-The pattern and the parts say the same thing to two different audiences. A pattern alone cannot rebuild the type, because reading a regular expression back into a template literal type is not decidable; the parts can, and a standard validator still gets a real constraint from the pattern.
+The pattern and the parts say the same thing to two different audiences. A pattern alone cannot rebuild the type, because reading a regular expression back into a template literal type is not decidable; the parts can, and per `TS-WIRE-HALF` the pattern is required so a standard validator still gets the real constraint.
 
-Only placeholders that TypeScript can interpolate appear here: `string`, `number`, `bigint`, and literal values. A literal placeholder is normally folded into the neighbouring text by the type checker before it is ever written down.
+Only placeholders TypeScript can interpolate appear here: `string`, `number`, `bigint`, and literal values. A literal placeholder is normally folded into the neighbouring text by the type checker before it is ever written down.
 
 ---
 
 ## `tsFunction`
 
-A function signature. `params` is an ordinary tuple schema, `return` an ordinary schema.
+**`TS-FUNCTION`** — a function signature. `params` is an ordinary tuple schema, `return` an ordinary schema.
 
 ```json
 {"tsFunction": {
@@ -277,13 +282,13 @@ A function signature. `params` is an ordinary tuple schema, `return` an ordinary
 
 Decodes to `(message: string) => boolean`.
 
-Functions have no wire form, so there is no `type` beside it. Using a tuple schema for the parameters means optional slots, a rest slot and the parameter names all come from keywords that already exist.
+Functions have no wire form at all, so there is no `type` beside it and nothing for `TS-WIRE-HALF` to require. Using a tuple schema for the parameters means optional slots, a rest slot and the parameter names all come from keywords that already exist.
 
 ---
 
 ## `tsMeta`
 
-A `base & {…}` metadata intersection: the base schema beside the metadata objects conjoined onto it.
+**`TS-META`** — a `base & {…}` metadata intersection: the base schema beside the metadata objects conjoined onto it.
 
 ```json
 {"tsMeta": {
@@ -304,16 +309,17 @@ Only the base describes the wire. The metadata objects are phantom: they exist i
 An implementation of this dialect:
 
 1. MUST validate the document as draft 2020-12, ignoring the extension keywords for that purpose.
-2. MUST NOT let any extension keyword change a validation verdict.
+2. MUST NOT let any extension keyword change a validation verdict (`CORE-INERT`).
 3. SHOULD reject an extension keyword whose sibling wire keywords contradict it (`{"type": "number", "jsType": "Date"}` is not meaningful, since a `Date` travels as a string).
 4. MAY ignore any extension keyword it does not implement, and MUST fall back to the wire type when it does.
-5. MUST treat every `ts`-prefixed keyword as droppable: stripping all of them leaves a document that validates identically and describes the same JSON.
-
-A **portable** document is one using no extension keyword at all. Producers should offer a mode that emits only portable documents and reports an error where a type cannot be expressed without the extension, so a schema destined for a non-RunTypes consumer never silently depends on it.
+5. MUST treat every `ts`-prefixed keyword as droppable (`TS-DROPPABLE`): stripping all of them leaves a document that validates identically and describes the same JSON.
 
 ## Relationship to RunTypes
 
-RunTypes reads this dialect through `runTypeFromJsonSchema` and writes it with `ts-runtypes convert --to json-schema`. The `--portable` flag is the portable mode described above.
+RunTypes reads this dialect through `runTypeFromJsonSchema` and writes it with `ts-runtypes convert --to json-schema`.
 
-The keyword-to-lowering table is machine-checked in
-`packages/ts-runtypes/src/json-schema/fromJsonSchema.ts` (`SchemaLoweringByKeyword`): every accepted keyword has a row, and a keyword without one fails to compile. That table and this document describe the same thing, so a change to either without the other is a bug.
+Three things keep this document and the code from drifting apart:
+
+- **`packages/ts-runtypes/test/features/json-schema-dialect.test.ts`** runs one case per rule ID above against the real binary, and fails if a rule here has no case.
+- **`SchemaLoweringByKeyword`** (`packages/ts-runtypes/src/json-schema/fromJsonSchema.ts`) is total and machine-checked: an accepted keyword without a row fails to compile.
+- **`packages/ts-runtypes/test/features/unsupported-conversion.test.ts`** is the matching list of what cannot be expressed at all.
