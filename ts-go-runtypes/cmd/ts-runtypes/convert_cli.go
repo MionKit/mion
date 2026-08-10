@@ -134,7 +134,12 @@ func expandConvertArgs(positional []string, outDir string) (string, []string) {
 				return err
 			}
 			if entry.IsDir() {
-				if entry.Name() == "node_modules" {
+				// Skip dependencies and DOT directories. A dot directory is
+				// generated or tool-owned by convention (`.tmp` scratch trees,
+				// `.cache`, `.git`), so rewriting one edits something whose
+				// author is a program — and it is usually gitignored, so the
+				// rewrite is invisible until it breaks the generator.
+				if entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".") {
 					return filepath.SkipDir
 				}
 				return nil

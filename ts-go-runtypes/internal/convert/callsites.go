@@ -59,6 +59,14 @@ type callSite struct {
 	// comma-prefixed (`, {strict: true}`), or "" when only the runtype slot
 	// was occupied.
 	keepArgs string
+	// inScope is the names spellable AT THIS CALL — the file's top-level set
+	// plus everything its enclosing blocks declare. A declaration only ever
+	// sees the file's top level, but a call lives wherever it was written, and
+	// the suites write plenty of them inside thunks that declare their own
+	// class or enum first. Printing a LIVE symbol (a class, an enum) checks
+	// this set, so without the local names those calls refused as "not in
+	// scope here" even though the name was three lines up.
+	inScope map[string]bool
 }
 
 // recognizeCallSites walks the WHOLE file — marker calls live inside object
@@ -79,6 +87,7 @@ func recognizeCallSites(
 	}
 	source := sourceFile.Text()
 	markerOpts := marker.WithDefaults(marker.Options{FS: fs})
+	fileScope := inScopeNames(sourceFile)
 	var sites []*callSite
 	var visit ast.Visitor
 	visit = func(node *ast.Node) bool {
@@ -86,7 +95,9 @@ func recognizeCallSites(
 			return false
 		}
 		if node.Kind == ast.KindCallExpression {
-			if site := recognizeCall(source, node, typeChecker, cache, set, target, markerOpts); site != nil {
+			scope := scopeNamesAt(node, fileScope)
+			if site := recognizeCall(source, node, typeChecker, cache, set, target, markerOpts, scope); site != nil {
+				site.inScope = scope
 				sites = append(sites, site)
 			}
 		}
@@ -95,6 +106,57 @@ func recognizeCallSites(
 	}
 	root.ForEachChild(visit)
 	return sites
+}
+
+// scopeNamesAt returns the names spellable at a node: the file's top-level set
+// plus every class / enum / function / variable / type declared by an enclosing
+// block. Walking OUT from the call is what makes a thunk-local `class Invoice`
+// visible to the call that reflects it.
+func scopeNamesAt(node *ast.Node, fileScope map[string]bool) map[string]bool {
+	names := make(map[string]bool, len(fileScope))
+	for name := range fileScope {
+		names[name] = true
+	}
+	for ancestor := node.Parent; ancestor != nil; ancestor = ancestor.Parent {
+		if !ast.IsBlock(ancestor) && !ast.IsCaseClause(ancestor) && !ast.IsModuleBlock(ancestor) {
+			continue
+		}
+		for _, statement := range ancestor.Statements() {
+			addDeclaredName(statement, names)
+		}
+	}
+	return names
+}
+
+// addDeclaredName records the name a statement binds, when it binds one.
+func addDeclaredName(statement *ast.Node, names map[string]bool) {
+	if statement == nil {
+		return
+	}
+	record := func(nameNode *ast.Node) {
+		if nameNode != nil && ast.IsIdentifier(nameNode) {
+			names[nameNode.Text()] = true
+		}
+	}
+	if ast.IsVariableStatement(statement) {
+		variableStatement := statement.AsVariableStatement()
+		if variableStatement == nil || variableStatement.DeclarationList == nil {
+			return
+		}
+		declarationList := variableStatement.DeclarationList.AsVariableDeclarationList()
+		if declarationList == nil {
+			return
+		}
+		for _, declarator := range declarationList.Declarations.Nodes {
+			record(declarator.Name())
+		}
+		return
+	}
+	switch statement.Kind {
+	case ast.KindClassDeclaration, ast.KindEnumDeclaration, ast.KindFunctionDeclaration,
+		ast.KindInterfaceDeclaration, ast.KindTypeAliasDeclaration, ast.KindModuleDeclaration:
+		record(statement.Name())
+	}
 }
 
 // recognizeCall classifies one call expression, returning nil when it is not a
@@ -107,6 +169,7 @@ func recognizeCall(
 	set *Set,
 	target Target,
 	markerOpts marker.Options,
+	inScope map[string]bool,
 ) *callSite {
 	callExpression := call.AsCallExpression()
 	if callExpression == nil || callExpression.Expression == nil {
@@ -126,12 +189,22 @@ func recognizeCall(
 		builders.IsRunType(returnType, marker.DefaultModule, markerOpts.FS) {
 		return nil
 	}
+	// The rewrite moves T from the type-argument list into the FIRST value slot,
+	// which only means the same thing when the callee actually declares a
+	// `RunType<T>` there. Every shipped factory does (the type-first shape is
+	// its second overload), but a marker-bearing function need not: the suites'
+	// own `deserializeValidate<T>(val?: T, options?, id?)` has the reflection
+	// form ONLY, so handing it a builder passed a RunType as the VALUE and
+	// inferred T as `RunType<…>` — 442 converted tests failed on exactly that.
+	if !hasRunTypeFirstParameter(typeChecker, callExpression, markerOpts.FS) {
+		return nil
+	}
 	arguments := callArguments(callExpression)
 	if callExpression.TypeArguments != nil && len(callExpression.TypeArguments.Nodes) == 1 {
-		return recognizeTypeFormCall(source, call, callExpression, arguments, typeChecker, cache, set, target)
+		return recognizeTypeFormCall(source, call, callExpression, arguments, typeChecker, cache, set, target, inScope)
 	}
 	if callExpression.TypeArguments == nil && len(arguments) > 0 {
-		return recognizeValueFormCall(source, call, callExpression, arguments, typeChecker, cache, target)
+		return recognizeValueFormCall(source, call, callExpression, arguments, typeChecker, cache, target, markerOpts.FS)
 	}
 	return nil
 }
@@ -150,6 +223,7 @@ func recognizeTypeFormCall(
 	cache *runtype.Cache,
 	set *Set,
 	target Target,
+	inScope map[string]bool,
 ) *callSite {
 	if target == TargetType {
 		return nil
@@ -173,7 +247,7 @@ func recognizeTypeFormCall(
 	// the declaration pass rewrites it, the reference keeps working through the
 	// printed `InferType<typeof …>` alias, and rewriting the call would only
 	// swap a clean name for the escape.
-	if namesConvertedDecl(typeArgumentNode, node, set) {
+	if typeArgumentIsSpelledName(typeArgumentNode, node, set, inScope) {
 		return nil
 	}
 	start := typeArgumentListStart(source, callExpression)
@@ -202,12 +276,22 @@ func recognizeValueFormCall(
 	typeChecker *checker.Checker,
 	cache *runtype.Cache,
 	target Target,
+	fs vfspkg.FS,
 ) *callSite {
 	if target != TargetType {
 		return nil
 	}
+	// `builders.IsRunType`, not a bare "generic reference" test: the REFLECTION
+	// form passes an ordinary value, and plenty of ordinary values are generic
+	// references too. A `Promise<undefined>` probe matched the loose check, so
+	// `getRunTypeId(promiseProbe)` was rewritten to `getRunTypeId<undefined>()`
+	// — its first type argument — and the id moved. The FE roundtrip lane caught
+	// it on seed 133220833.
 	runTypeRef := typeChecker.GetTypeAtLocation(arguments[0])
-	if runTypeRef == nil || runTypeRef.ObjectFlags()&checker.ObjectFlagsReference == 0 {
+	if runTypeRef == nil || !builders.IsRunType(runTypeRef, marker.DefaultModule, fs) {
+		return nil
+	}
+	if runTypeRef.ObjectFlags()&checker.ObjectFlagsReference == 0 {
 		return nil
 	}
 	typeArguments := typeChecker.GetTypeArguments(runTypeRef)
@@ -241,7 +325,7 @@ func printCallSite(
 	resolve func(id string) *reflection.RunType,
 ) (*printedDecl, *Diagnostic) {
 	ctx := &printContext{names: names, opts: opts, decl: &declaration{Name: site.label}, resolve: resolve,
-		set: fileCtx.set, bindings: fileCtx.bindings, inScope: fileCtx.inScope,
+		set: fileCtx.set, bindings: fileCtx.bindings, inScope: site.inScope,
 		currentFile: fileCtx.path, rootID: site.node.ID}
 	switch opts.Target {
 	case TargetType:
@@ -295,6 +379,28 @@ func printCallSite(
 	return nil, nil
 }
 
+// hasRunTypeFirstParameter reports whether ANY of the callee's call signatures
+// takes a `RunType<…>` in slot 0 — that is, whether the value-first overload
+// exists at all. It is the precondition for moving a type argument into the
+// value slot.
+func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.CallExpression, fs vfspkg.FS) bool {
+	calleeType := typeChecker.GetTypeAtLocation(callExpression.Expression)
+	if calleeType == nil {
+		return false
+	}
+	for _, signature := range typeChecker.GetSignaturesOfType(calleeType, checker.SignatureKindCall) {
+		parameters := checker.Signature_parameters(signature)
+		if len(parameters) == 0 || parameters[0] == nil {
+			continue
+		}
+		parameterType := checker.Checker_getTypeOfSymbol(typeChecker, parameters[0])
+		if parameterType != nil && builders.IsRunType(parameterType, marker.DefaultModule, fs) {
+			return true
+		}
+	}
+	return false
+}
+
 // hasInjectMarker reports whether the call's resolved signature carries an
 // injection marker parameter — the one contract that makes a call convertible.
 func hasInjectMarker(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
@@ -315,13 +421,29 @@ func hasInjectMarker(typeChecker *checker.Checker, call *ast.Node, markerOpts ma
 	return false
 }
 
-// namesConvertedDecl reports whether the written type argument is a bare
-// reference to a declaration this run already converts.
-func namesConvertedDecl(typeArgumentNode *ast.Node, node *reflection.RunType, set *Set) bool {
-	if !ast.IsTypeReferenceNode(typeArgumentNode) || set == nil || node == nil {
+// typeArgumentIsSpelledName reports whether the call already NAMES its type —
+// `createValidateFn<Node>()` rather than an inline shape. Converting one of
+// those would replace a name with the structure it already stands for, and for
+// a RECURSIVE local type it cannot be done at all: a call has no name of its
+// own for the cycle to close on, so the printer refuses. Two ways a name
+// counts: the run converts that declaration itself (the reference keeps
+// working through the printed alias), or the name is simply spellable here,
+// which covers the thunk-local `interface Node {…}` the suites are full of.
+//
+// A QUALIFIED reference is deliberately not a name in this sense: `TF.Email`
+// is a format brand and converts to its builder like any other shape.
+func typeArgumentIsSpelledName(typeArgumentNode *ast.Node, node *reflection.RunType, set *Set, inScope map[string]bool) bool {
+	if !ast.IsTypeReferenceNode(typeArgumentNode) || node == nil {
 		return false
 	}
-	if typeRef := typeArgumentNode.AsTypeReferenceNode(); typeRef == nil || typeRef.TypeArguments != nil {
+	typeRef := typeArgumentNode.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeArguments != nil || typeRef.TypeName == nil || !ast.IsIdentifier(typeRef.TypeName) {
+		return false
+	}
+	if inScope[typeRef.TypeName.Text()] {
+		return true
+	}
+	if set == nil {
 		return false
 	}
 	entry, exists := set.Table[node.ID]

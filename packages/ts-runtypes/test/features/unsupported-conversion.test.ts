@@ -67,14 +67,13 @@ const MARKER = "import {getRunTypeId} from '@ts-runtypes/core';\n";
 
 const UNSUPPORTED: readonly UnsupportedCase[] = [
   // ── No spelling exists for the shape ──────────────────────────────────
-  {
-    title: 'a generic declaration (an unbound type parameter has no runtime shape)',
-    files: {'main.ts': 'export type Box<T> = {value: T};\n'},
-    target: 'builders',
-    code: 'CNV002',
-    says: 'no spelling for an unbound type parameter',
-    keeps: 'export type Box<T> = {value: T};',
-  },
+  // NOT listed: a generic declaration (`type Box<T> = …`). It is left as
+  // written, but that is a SKIP, not a refusal — a type parameter has no
+  // runtime shape, so there is nothing to convert, exactly as for a class or a
+  // function declaration. It reports CNV002 at WARNING severity and the run
+  // still exits 0; its INSTANTIATIONS convert wherever they are reflected.
+  // (As an error it failed a whole file over one type-level helper, which is
+  // what stopped the suites' own harness files converting.)
   {
     title: 'a cycle that never passes through a named type (name the inner type to fix it)',
     files: {'main.ts': "export type Outer = {inner: {back?: Outer['inner']}};\n"},

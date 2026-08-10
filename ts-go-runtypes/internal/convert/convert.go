@@ -127,8 +127,15 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			continue
 		}
 		if decl.Generic {
-			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityError, File: absPath, Decl: decl.Name,
-				Message: fmt.Sprintf("generic declaration %q cannot be converted (no spelling for an unbound type parameter)", decl.Name)})
+			// WARNING, not an error: a generic alias has no runtime shape to
+			// convert, so there is nothing here to fail on — the same reason
+			// recognizeFile skips classes and functions outright. Its
+			// INSTANTIATIONS convert wherever they are reflected. Reporting it
+			// as an error made one type-level helper (`type Thunk<T> = () => T`)
+			// fail an entire file, which is how the suites' own harness files
+			// stopped converting.
+			result.Diags = append(result.Diags, Diagnostic{Code: CodeGenericDecl, Severity: SeverityWarning, File: absPath, Decl: decl.Name,
+				Message: fmt.Sprintf("generic declaration %q is left as written (an unbound type parameter has no runtime shape); its instantiations still convert", decl.Name)})
 			continue
 		}
 		if temporalDiags := temporalAnyDiags(typeChecker, decl, absPath); len(temporalDiags) > 0 {

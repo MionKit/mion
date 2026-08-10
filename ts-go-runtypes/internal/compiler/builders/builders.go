@@ -43,6 +43,58 @@ const SlotSentinel = "__slotLabel"
 // leaf check recognizes it structurally.
 const EmbedSentinel = "__rtEmbed"
 
+// GetRunTypeName is the marker module's id-LOOKUP escape. It returns a
+// `RunType<T>` like every builder, but it is the one that does not BUILD one:
+// it hands the injected id to the runtime registry and returns what comes back
+// (src/getRunType.ts). Everything else constructs its result from its own
+// arguments, which is why a nested builder can safely lose its id and this one
+// cannot — without an id it has nothing to look up and throws.
+const GetRunTypeName = "getRunType"
+
+// IsIdLookupCall reports whether call is the marker module's `getRunType`.
+// Callers use it to exempt the call from optimisations that assume a
+// RunType-returning call can be reconstructed from its arguments.
+func IsIdLookupCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
+		return false
+	}
+	callExpression := call.AsCallExpression()
+	if callExpression == nil || callExpression.Expression == nil {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(callExpression.Expression)
+	if symbol == nil {
+		return false
+	}
+	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
+		symbol = target
+	}
+	return symbol.Name == GetRunTypeName && marker.DeclaredInModule(symbol, markerModule, fs)
+}
+
+// IsMarkerModuleCall reports whether the call's CALLEE is declared in the
+// marker module — the builders, the format families, the schema door. Unlike
+// IsBuilderLeafCall (which is return-TYPE based, so any user helper returning a
+// RunType passes it) this asks who wrote the function, which is what
+// distinguishes an authored value-first spelling from a hand-assembled graph.
+func IsMarkerModuleCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
+		return false
+	}
+	callExpression := call.AsCallExpression()
+	if callExpression == nil || callExpression.Expression == nil {
+		return false
+	}
+	symbol := typeChecker.GetSymbolAtLocation(callExpression.Expression)
+	if symbol == nil {
+		return false
+	}
+	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
+		symbol = target
+	}
+	return marker.DeclaredInModule(symbol, markerModule, fs)
+}
+
 // IsBuilderLeafCall reports whether call is a static builder-construction call
 // valid as a CompTimeArgs leaf: a builder (returns RunType<…>, incl.
 // the temporal.* family and composers) OR a property modifier (optional() /
