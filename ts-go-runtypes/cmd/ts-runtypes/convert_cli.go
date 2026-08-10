@@ -23,7 +23,7 @@ func runConvert(args []string) {
 	flagSet := flag.NewFlagSet("convert", flag.ExitOnError)
 	toFlag := flagSet.String("to", "", "target form: type | builders | json-schema (required)")
 	checkFlag := flagSet.Bool("check", false, "report the files that would change without writing; exit 1 when changes are pending")
-	portableFlag := flagSet.Bool("portable", false, "json-schema target only: forbid the RunTypes dialect (jsType rows, embedType); declarations needing it become errors")
+	portableFlag := flagSet.Bool("portable", false, "json-schema target only: forbid the RunTypes dialect (jsType rows, embedType); declarations needing it become errors. Overrides the tsconfig convertDialect key; pass --portable=false to force the dialect back on")
 	outDirFlag := flagSet.String("out-dir", "", "copy the input directory here and convert the copy, leaving sources untouched (requires a single directory argument)")
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	flagSet.Usage = func() {
@@ -69,7 +69,16 @@ any error makes the exit code non-zero.
 	for _, file := range files {
 		absFiles = append(absFiles, tspath.NormalizePath(mustAbs(file)))
 	}
-	_, parsed := resolveEnrichProject(*tsconfigFlag)
+	tsconfigPath, parsed := resolveEnrichProject(*tsconfigFlag)
+	// The project picks the dialect; an explicit --portable on the command line
+	// wins for this run. flagSet.Visit reports only flags actually passed, so
+	// the tsconfig key is not shadowed by the flag's own `false` default.
+	portable := resolveConvertDialect(tsconfigPath)
+	flagSet.Visit(func(passed *flag.Flag) {
+		if passed.Name == "portable" {
+			portable = *portableFlag
+		}
+	})
 	cwd := filepath.Dir(absFiles[0])
 	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, absFiles)
 	if progErr != nil {
@@ -81,7 +90,7 @@ any error makes the exit code non-zero.
 	}
 	defer session.Close()
 
-	options := convert.Options{Target: target, Portable: *portableFlag}
+	options := convert.Options{Target: target, Portable: portable}
 	conversionSet, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, absFiles)
 	if setErr != nil {
 		fatal("convert: %v", setErr)
