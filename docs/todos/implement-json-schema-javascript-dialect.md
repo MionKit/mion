@@ -41,18 +41,75 @@ have conformance cases, and `TemporalInfo.WireFormat` / `WirePattern` are in the
 reflection registry with all five patterned types worked out. Nothing calls them
 yet.
 
-**Phase 1 was written and reverted** (`c6b073f`), which proved the atomicity
-claim below empirically rather than leaving it a prediction: emitting the wire
-forms while the door still read the pre-spec shapes moved the id on every
-affected declaration, and five Go chain tests caught it. The emitter half cannot
-be landed on its own. Its diff is recoverable from `9db05e3` if useful, but
-re-deriving it alongside the door is probably cleaner.
+**Phase 1 was written and reverted** (`c6b073f`) after five Go chain tests
+failed. The first reading of that was "the emitter and door must land together
+or every id moves". **That reading was wrong**, and measuring it properly is
+what produced the slice list below.
 
-## Plan
+## What the door already does correctly
 
-Six phases. **Phases 1 to 4 must land in ONE commit** — the emitter and the door
-are two halves of one wire format, and any split leaves every id moved. 5 and 6
-follow.
+Each new wire shape was handed to the door by hand and converted back to a type.
+`X2 = X1` means the door recovered EXACTLY the type it was written as, so the id
+is unchanged:
+
+| Shape | Recovered | |
+| --- | --- | --- |
+| `Date` | `A2 = A1` | ✅ |
+| `bigint` | `B2 = B1` | ✅ |
+| `123n` | `C2 = B1` | ❌ widened to `bigint` |
+| `RegExp` | `D2 = D1` | ✅ |
+| `{a: undefined}` | `E2 = E1` | ✅ |
+| `Map<string, number>` | `F2 = never` | ❌ |
+| `Set<string>` | `G2 = never` | ❌ |
+| `Temporal.Instant` | `H2 = H1` | ✅ |
+
+**Six of eight already work.** The door reads `jsType` FIRST and ignores the
+wire keywords beside it, which is `CORE-PRECEDENCE` holding by construction —
+and it is exactly why `{type: 'string', format: 'date-time', jsType: 'Date'}`
+recovers plain `Date` rather than a date-time string.
+
+So **no new id rule is needed**, on either side. The id follows from the
+recovered TypeScript type, and that machinery is sound. The two broken rows need
+the door to read MORE from the wire, not less: `const` for a bigint literal, and
+`items` / `items.prefixItems` for Set and Map, which no longer carry
+`typeArguments`.
+
+The original five failures decompose the same way: `BigLit`, `Bag`, `Later`,
+`Lookup` and one fuzz case were real id moves (exactly the two broken rows);
+`RegExpNative` and `TemporalUnbranded` had no id line at all and were assertion
+failures on tests pinning the old spelling.
+
+## Plan — one rule group at a time
+
+The atomic unit is **one rule group's emitter + door + test**, not a phase. Land
+a slice, run the id oracle (`go -C ts-go-runtypes test ./internal/convert/`),
+fix what it catches, commit green, move on.
+
+Ordered so the cheap, door-free slices go first and the risk concentrates late:
+
+| # | Slice | Door work? |
+| --- | --- | --- |
+| 1 | `JS-DATE` (+ `CORE-SIBLING`, `CORE-PRECEDENCE`, `CORE-INERT`, which all use Date) | no |
+| 2 | `JS-BIGINT` | no |
+| 3 | `JS-REGEXP`, `JS-OBJECT` | no |
+| 4 | `JS-UNDEFINED`, `JS-VOID` | no |
+| 5 | Temporal: `JS-TEMPORAL-*`, all four rules | no |
+| 6 | `JS-BIGINT-LITERAL` | **yes** — read `const` under `jsType: 'bigint'` |
+| 7 | `JS-MAP`, `JS-SET`, `JS-PROMISE` | **yes** — read the wire instead of `typeArguments` |
+| 8 | `RT-FORMAT-*` — the `rtFormat` / `rtFormatParams` split | **yes**, and needs the param routing designed with the door's reverse mapping |
+| 9 | The six `ts*` renames | mechanical both sides |
+| 10 | `CORE-NOT` — delete `jsNot`, fix the door's `not` collapse | **yes** |
+| 11 | `CORE-PORTABLE` + the `convertDialect` config | no |
+
+Slices 1 to 5 are emitter + test only. Slices 6 to 10 are where the real work
+is.
+
+**Prerequisite for slicing at all:** the conformance test's `IMPLEMENTED` flag is
+global today, so it is all-or-nothing. It has to become a per-rule set
+(`LANDED`) that each slice adds to, or no slice can go green on its own.
+
+The phase descriptions below stay as the reference for WHAT each change is; the
+table above is the order to do them in.
 
 ### Phase 0 — close three gaps in the spec first
 

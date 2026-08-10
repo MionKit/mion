@@ -561,7 +561,10 @@ func TestChain_Natives(t *testing.T) {
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
 	for _, expected := range []string{
-		"runTypeFromJsonSchema({jsType: 'Date'} as const)",
+		// The wire half sits beside the annotation: a Date encodes as its ISO
+		// string, so a standard validator enforces {type, format} and only a
+		// dialect-aware reader takes the jsType.
+		"runTypeFromJsonSchema({type: 'string', format: 'date-time', jsType: 'Date'} as const)",
 		"{jsType: 'Map', typeArguments: [{type: 'string'}, {type: 'array', items: {type: 'number'}}]}",
 		"{jsType: 'Set', typeArguments: [{enum: ['a', 'b']}]}",
 		"{jsType: 'Promise', typeArguments: [{type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok']}]}",

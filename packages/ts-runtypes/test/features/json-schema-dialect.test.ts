@@ -14,12 +14,11 @@
 // dialect exists to prevent (CORE-SIBLING).
 //
 // ── STATUS ────────────────────────────────────────────────────────────────
-// The behavioural cases are SKIPPED until the implementation is rewritten to
-// match the spec. Today's converter emits the pre-spec shapes (`{jsType: 'Map',
-// typeArguments: […]}` rather than the array-of-pairs wire form, `jsFormat` as
-// a nested object rather than `rtFormat` + `rtFormatParams`, and no `type`
-// beside `jsType` at all), so every case below would fail for the same reason.
-// Flip IMPLEMENTED to true with the commit that lands the rewrite.
+// The spec is landing ONE RULE GROUP AT A TIME (see
+// docs/todos/implement-json-schema-javascript-dialect.md). `LANDED` lists the
+// rules whose emitter and door are in place; every other case is skipped, so
+// each slice can go green on its own instead of the suite being all-or-nothing.
+// Add to LANDED in the same commit that implements the rule.
 //
 // The COVERAGE check is not gated: the spec-to-test drift guard is useful from
 // the moment the spec exists, and it does not depend on the converter.
@@ -31,12 +30,18 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {BIN, hasBinary, writeMarkerPackage} from '../../../ts-runtypes-devtools/test/helpers/inline.ts';
 
-/** Flip with the commit that rewrites the converter onto the spec. */
-const IMPLEMENTED = false;
+/** The rules whose implementation has landed. Grows one slice at a time. */
+const LANDED: ReadonlySet<string> = new Set<string>([
+  // Slice 1 — Date, and the three CORE rules it demonstrates.
+  'CORE-SIBLING',
+  'CORE-PRECEDENCE',
+  'CORE-INERT',
+  'JS-DATE',
+]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');
 
-const register = IMPLEMENTED && hasBinary() ? it : it.skip;
+const landed = (id: string) => (LANDED.has(id) && hasBinary() ? it : it.skip);
 
 const TSCONFIG = `{
   "compilerOptions": {
@@ -343,7 +348,7 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
   });
 
   for (const rule of RULES) {
-    register(`${rule.id}${rule.note ? ` — ${rule.note}` : ''}`, {timeout: 120_000}, () => {
+    landed(rule.id)(`${rule.id}${rule.note ? ` — ${rule.note}` : ''}`, {timeout: 120_000}, () => {
       const {main} = convertToSchema(rule.source);
       expect(main, `${rule.id}: expected the schema to contain\n  ${rule.emits}\ngot:\n${main}`).toContain(rule.emits);
       for (const forbidden of rule.forbids ?? ['embedType']) {
@@ -352,7 +357,7 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     });
   }
 
-  register('CORE-PORTABLE refuses the extension rather than dropping it', {timeout: 120_000}, () => {
+  landed('CORE-PORTABLE')('CORE-PORTABLE refuses the extension rather than dropping it', {timeout: 120_000}, () => {
     const {status, stderr, main} = convertToSchema('export type Stamp = Date;\n', true);
     expect(status, `--portable must fail on a type needing the extension:\n${stderr}`).not.toBe(0);
     expect(stderr).toContain('CNV006');
