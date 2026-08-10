@@ -47,6 +47,11 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   'JS-TEMPORAL-PLAINDATE',
   'JS-TEMPORAL-DURATION',
   'JS-TEMPORAL-PATTERNED',
+  // Slices 6-7 — the two rows that needed the door to read MORE from the wire.
+  'JS-BIGINT-LITERAL',
+  'JS-MAP',
+  'JS-SET',
+  'JS-PROMISE',
 ]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');

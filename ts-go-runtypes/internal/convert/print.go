@@ -2142,15 +2142,15 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		return dialect("{type: 'string', pattern: '^-?[0-9]+$', jsType: 'bigint'}")
 	case reflection.KindLiteral:
 		if isBigIntLiteral(node) {
-			// A bigint literal rides its DIGITS: `const` cannot hold it (JSON
-			// has no bigint, and a digit string there would read as a string
-			// literal), so it gets its own keyword and the door lifts the
-			// literal type back with `infer … extends bigint`.
+			// The bigint row with the value pinned: `const` holds the WIRE
+			// value, which is the digit string, and `jsType` is what stops it
+			// reading as an ordinary string literal.
 			digits, ok := node.Literal.(string)
 			if !ok {
 				return "", unsupportedDiag(node, ctx.decl)
 			}
-			return dialect(fmt.Sprintf("{jsBigint: %s}", quoteSingle(strings.TrimSuffix(digits, "n"))))
+			return dialect(fmt.Sprintf("{type: 'string', const: %s, jsType: 'bigint'}",
+				quoteSingle(strings.TrimSuffix(digits, "n"))))
 		}
 		literalText, ok := literalValueText(node)
 		if !ok {
@@ -2186,7 +2186,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if diag != nil {
 			return "", diag
 		}
-		return dialect(fmt.Sprintf("{jsType: 'Promise', typeArguments: [%s]}", childText))
+		// A serialiser awaits the promise and writes the RESOLVED value, so the
+		// wire is that value's own schema with the annotation merged in.
+		return dialect(mergeSchema(childText, "jsType: 'Promise'"))
 	case reflection.KindClass:
 		switch node.SubKind {
 		case reflection.SubKindDate:
@@ -2208,7 +2210,11 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if valueDiag != nil {
 				return "", valueDiag
 			}
-			return dialect(fmt.Sprintf("{jsType: 'Map', typeArguments: [%s, %s]}", keyText, valueText))
+			// A Map encodes as an array of [key, value] pairs, so the key and
+			// value ARE the wire schema — no argument list to keep in sync.
+			return dialect(fmt.Sprintf(
+				"{type: 'array', items: {type: 'array', prefixItems: [%s, %s], minItems: 2, items: false}, jsType: 'Map'}",
+				keyText, valueText))
 		case reflection.SubKindSet:
 			arguments := ctx.nativeArguments(node)
 			if len(arguments) != 1 {
@@ -2218,7 +2224,10 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if itemDiag != nil {
 				return "", itemDiag
 			}
-			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
+			// A Set encodes as an array with no duplicates, so `items` carries
+			// the element and `uniqueItems` is a real constraint a plain
+			// validator enforces.
+			return dialect(fmt.Sprintf("{type: 'array', items: %s, uniqueItems: true, jsType: 'Set'}", itemText))
 		}
 		if isRegExpNode(node) {
 			return dialect("{type: 'string', jsType: 'RegExp'}")
@@ -2545,6 +2554,23 @@ func (ctx *printContext) functionSchemaText(node *reflection.RunType) (string, *
 	}
 	paramsText += "}"
 	return fmt.Sprintf("{jsFunction: {params: %s, return: %s}}", paramsText, returnText), nil, true
+}
+
+// mergeSchema splices extra keywords into an already-printed schema object, so
+// an annotation can sit BESIDE the wire keywords a nested printer produced
+// rather than replacing them. A non-object spelling (the embed escape, a
+// boolean schema) has nowhere to put them and comes back untouched.
+func mergeSchema(schemaText string, extra string) string {
+	if extra == "" {
+		return schemaText
+	}
+	if !strings.HasPrefix(schemaText, "{") || !strings.HasSuffix(schemaText, "}") {
+		return schemaText
+	}
+	if schemaText == "{}" {
+		return "{" + extra + "}"
+	}
+	return schemaText[:len(schemaText)-1] + ", " + extra + "}"
 }
 
 // jsIndexesText renders a set of index signatures as the `jsIndexes` dialect
