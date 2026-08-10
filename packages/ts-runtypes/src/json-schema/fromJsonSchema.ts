@@ -130,15 +130,15 @@ export type JsTypeName =
  *  degrades to `unknown` when the consumer's `lib` lacks it). **/
 export type TemporalJsTypeName = keyof TemporalBaseByJsTypeName;
 
-/** The `jsFormat` dialect families — every format family whose params are
- *  JSON-carriable, carried verbatim as the reflected (name, params) pair. The
- *  bigint family is deliberately absent: a bigint param value cannot ride JSON,
- *  and a digit STRING is a different type, so those brands travel through
- *  `embedType` instead. The six orderable Temporal families ride here like any
- *  other family — their bounds are plain ISO strings. **/
+/** The `jsFormat` dialect families, carried verbatim as the reflected
+ *  (name, params) pair. The six orderable Temporal families ride here like any
+ *  other family (their bounds are plain ISO strings), and so does the bigint
+ *  family: JSON has no bigint, but its params travel as DIGIT STRINGS and
+ *  `LiftBigintParams` puts the literal types back. **/
 export type JsFormatName =
   | 'stringFormat'
   | 'numberFormat'
+  | 'bigintFormat'
   | 'email'
   | 'uuid'
   | 'ip'
@@ -161,12 +161,26 @@ type FromJsFormat<Name, Params> = Params extends object
     ? TemporalFormatOf<Name, Params>
     : Name extends 'numberFormat'
       ? TypeFormat<number, 'numberFormat', Params, never>
-      : Name extends 'nativeDate'
-        ? TypeFormat<Date, 'nativeDate', Params, never>
-        : Name extends JsFormatName & string
-          ? TypeFormat<string, Name, Params, never>
-          : never
+      : Name extends 'bigintFormat'
+        ? TypeFormat<bigint, 'bigintFormat', LiftBigintParams<Params>, never>
+        : Name extends 'nativeDate'
+          ? TypeFormat<Date, 'nativeDate', Params, never>
+          : Name extends JsFormatName & string
+            ? TypeFormat<string, Name, Params, never>
+            : never
   : never;
+
+/** The bigint family's bounds are bigints, and JSON has none — so they ride as
+ *  DIGIT STRINGS (`'255'`, `'-42'`) and come back as the literal types here.
+ *  `infer N extends bigint` inside a template literal is what does the lifting;
+ *  it is the one type-level operation that turns a numeric string into a bigint
+ *  literal type, and without it this family would have to keep the escape. A
+ *  value that does not parse stays as written rather than collapsing to
+ *  `never`, so a hand-authored typo shows up as a mismatched param, not a
+ *  vanished type. **/
+type LiftBigintParams<Params> = {
+  [Key in keyof Params]: Params[Key] extends `${infer Value extends bigint}` ? Value : Params[Key];
+};
 
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
  *  Deliberately permissive on VALUE shapes (it guides authoring without fighting
@@ -258,6 +272,11 @@ export interface JsonSchemaInput {
   // instead, one `{key, value}` pair per signature. No standard spelling, so
   // `--portable` never emits it.
   readonly jsIndexes?: readonly {readonly key: NestedSchema; readonly value: NestedSchema}[];
+  // RunTypes dialect: a bigint LITERAL type (`123n`), carried as its digits.
+  // `const` cannot hold it — JSON has no bigint, and a digit string there
+  // would read as a string literal. No standard spelling, so `--portable`
+  // never emits it.
+  readonly jsBigint?: string;
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1893,9 +1912,11 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
         ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
         : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
           ? TemplateFold<Texts, Placeholders, Root, F>
-          : S extends {if: infer If}
-            ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-            : DepLayer<S, Root, F>;
+          : S extends {jsBigint: infer Digits}
+            ? FromJsBigint<Digits>
+            : S extends {if: infer If}
+              ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+              : DepLayer<S, Root, F>;
 
 // The `jsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -1912,6 +1933,11 @@ type TemplateFold<Texts, Placeholders, Root, F extends [unknown]> = Texts extend
     : Head
   : '';
 type TemplateArg<T> = T extends string | number | bigint | boolean ? T : string;
+
+// `jsBigint: '123'` → the literal type `123n`, by the same template-literal
+// lift `LiftBigintParams` uses. Digits that do not parse fall back to the wide
+// `bigint` rather than `never`, so a bad value is still a bigint-shaped node.
+type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Value : bigint;
 
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
 // `{}` / `true` cannot spell, since those recover `unknown`). The `Temporal.*`
@@ -2490,6 +2516,7 @@ export type SchemaLoweringByKeyword = {
   jsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
   jsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
   jsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
+  jsBigint: 'shape: a bigint literal type, carried as its digits (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';

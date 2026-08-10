@@ -120,14 +120,60 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({jsType: 'bigint'} as const)") {
 		t.Errorf("bigint atom should ride the jsType dialect:\n%s", schemaForm)
 	}
-	if !strings.Contains(schemaForm, "runTypeFromJsonSchema(embedType<123n>())") {
-		t.Errorf("bigint literal should ride embedType:\n%s", schemaForm)
+	// A bigint literal rides its DIGITS. JSON has no bigint and a digit string
+	// under `const` would read back as a string literal, so the value gets its
+	// own keyword and the door lifts `123` to `123n`.
+	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({jsBigint: '123'} as const)") {
+		t.Errorf("bigint literal should ride the jsBigint dialect keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("no atom in this chain should reach the embed escape:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	for _, expected := range []string{"type BigLit = 123n;", "type Answer = 42;", "type Missing = undefined;", "export type UserId = string;"} {
 		if !strings.Contains(typeForm, expected) {
 			t.Errorf("chain output missing %q:\n%s", expected, typeForm)
 		}
+	}
+}
+
+func TestChain_BigintFormatParams(t *testing.T) {
+	// The bigint family's bounds ARE bigints, which JSON cannot hold. They ride
+	// as digit strings and the door lifts the literal types back, so the whole
+	// brand stays data instead of riding the escape. Negative bounds included:
+	// the sign is part of the digits the lift reads.
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type Small = TF.BigInt<{min: 0n, max: 255n}>;\n" +
+		"export type Signed = TF.BigInt<{min: -9223372036854775808n, max: 9223372036854775807n}>;\n" +
+		"export type Stepped = TF.BigInt<{multipleOf: 5n}>;\n"
+	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"{jsFormat: {name: 'bigintFormat', params: {max: '255', min: '0'}}}",
+		"{jsFormat: {name: 'bigintFormat', params: {max: '9223372036854775807', min: '-9223372036854775808'}}}",
+		"{jsFormat: {name: 'bigintFormat', params: {multipleOf: '5'}}}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("a bigint format should not reach the embed escape:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{
+		"export type Small = TF.BigInt<{max: 255n, min: 0n}>;",
+		"export type Signed = TF.BigInt<{max: 9223372036854775807n, min: -9223372036854775808n}>;",
+		"export type Stepped = TF.BigInt<{multipleOf: 5n}>;",
+	} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+	convertAndCheckIDs(t, source, convert.TargetBuilders)
+
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 3 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected a portable refusal per bigint declaration, got %+v", diags)
 	}
 }
 

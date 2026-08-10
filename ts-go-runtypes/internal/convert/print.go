@@ -713,6 +713,27 @@ func printFormatParams(params map[string]any, bigintValues bool) (string, bool) 
 	return "{" + strings.Join(parts, ", ") + "}", true
 }
 
+// printBigintParamsAsDigits spells a bigint family's params for the schema
+// target: the same keys, each value as bare digits with the `n` suffix
+// stripped, which is the form `${infer … extends bigint}` matches on the door
+// side. A non-string param value has no digits to carry, so it reports false.
+func printBigintParamsAsDigits(params map[string]any) (string, bool) {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		digits, ok := params[key].(string)
+		if !ok {
+			return "", false
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", key, quoteSingle(strings.TrimSuffix(digits, "n"))))
+	}
+	return "{" + strings.Join(parts, ", ") + "}", true
+}
+
 func paramValueText(value any, bigintValues bool) (string, bool) {
 	switch typed := value.(type) {
 	case string:
@@ -2013,14 +2034,14 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		// Bigint param values cannot ride JSON — the brand embeds instead.
+		// JSON has no bigint, so the bigint family's bounds ride as DIGIT
+		// STRINGS and the door lifts the literal types back out of them.
 		if family.bigintParams {
-			if ctx.opts.Portable {
-				return dialect("")
+			digitsText, ok := printBigintParamsAsDigits(annotation.Params)
+			if !ok {
+				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 			}
-			ctx.needs.useEmbedType = true
-			ctx.needs.useTF = true
-			return fmt.Sprintf("%s<%s.%s<%s>>()", ctx.names.EmbedType, ctx.names.TF, family.typeAlias, paramsText), nil
+			return dialect(fmt.Sprintf("{jsFormat: {name: %s, params: %s}}", quoteSingle(annotation.Name), digitsText))
 		}
 		if len(annotation.Params) == 0 {
 			return dialect(fmt.Sprintf("{jsFormat: {name: %s}}", quoteSingle(annotation.Name)))
@@ -2052,17 +2073,15 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		return dialect("{jsType: 'bigint'}")
 	case reflection.KindLiteral:
 		if isBigIntLiteral(node) {
-			// A bigint LITERAL cannot ride pure data: no type-level operation
-			// lifts a digit string back to the literal type, so this is exactly
-			// the embedType case.
-			if ctx.opts.Portable {
-				return dialect("")
+			// A bigint literal rides its DIGITS: `const` cannot hold it (JSON
+			// has no bigint, and a digit string there would read as a string
+			// literal), so it gets its own keyword and the door lifts the
+			// literal type back with `infer … extends bigint`.
+			digits, ok := node.Literal.(string)
+			if !ok {
+				return "", unsupportedDiag(node, ctx.decl)
 			}
-			digits, _ := node.Literal.(string)
-			ctx.needs.useEmbedType = true
-			// Type-argument shape: value-shape const inference is not reliable
-			// for negative bigint literal expressions.
-			return fmt.Sprintf("%s<%sn>()", ctx.names.EmbedType, strings.TrimSuffix(digits, "n")), nil
+			return dialect(fmt.Sprintf("{jsBigint: %s}", quoteSingle(strings.TrimSuffix(digits, "n"))))
 		}
 		literalText, ok := literalValueText(node)
 		if !ok {
