@@ -289,6 +289,13 @@ export interface JsonSchemaInput {
   // this one negates one format and keeps its base type. No standard
   // spelling, so `--portable` never emits it.
   readonly jsNot?: NestedSchema;
+  // RunTypes dialect: a `base & {…}` metadata intersection — the open
+  // user-metadata extension point, which is how nominal brands
+  // (`string & {readonly __brand: 'UserId'}`) are written. Nested rather than
+  // sitting beside the base's keywords because a base can itself be a dialect
+  // discriminator, and those are read first. No standard spelling, so
+  // `--portable` never emits it.
+  readonly jsMeta?: {readonly base: NestedSchema; readonly meta: readonly NestedSchema[]};
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1930,9 +1937,11 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
               ? FromJsFunction<Params, Return, Root, F>
               : S extends {jsNot: infer Negated}
                 ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
-                : S extends {if: infer If}
-                  ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-                  : DepLayer<S, Root, F>;
+                : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
+                  ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
+                  : S extends {if: infer If}
+                    ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+                    : DepLayer<S, Root, F>;
 
 // The `jsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -1966,6 +1975,12 @@ type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Val
 // operand constraint (`NotableFormat & ValidNotOperand<F>`) a door-inferred
 // type cannot satisfy generically.
 type FromJsNot<Negated> = ([Negated] extends [string] ? string : [Negated] extends [number] ? number : bigint) & NotSlot<Negated>;
+
+// The `jsMeta` metadata objects, conjoined onto the base arm-by-arm — the
+// intersection the collapsed `base & {…}` was written as.
+type MetaFold<Meta, Root, F extends [unknown]> = Meta extends readonly [infer Head, ...infer Tail]
+  ? FromJsonSchemaIn<Head, Root, F> & MetaFold<Tail, Root, F>
+  : unknown;
 
 type FromJsFunction<Params, Return, Root, F extends [unknown]> =
   FromJsonSchemaIn<Params, Root, F> extends infer Args extends readonly unknown[]
@@ -2557,6 +2572,7 @@ export type SchemaLoweringByKeyword = {
   jsBigint: 'shape: a bigint literal type, carried as its digits (RunTypes dialect, not standard 2020-12)';
   jsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
   jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
+  jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';

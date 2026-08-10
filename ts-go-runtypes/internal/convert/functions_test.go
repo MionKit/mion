@@ -106,9 +106,15 @@ func TestChain_BrandMeta(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<string & {readonly __brand: 'email'}>()") {
 		t.Errorf("brand metadata should escape with the intersection:\n%s", builderForm)
 	}
+	// The intersection rides jsMeta: the base beside its metadata objects, each
+	// an ordinary object schema. The readonly modifier on the brand member
+	// comes along on that object's own jsReadonly.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<string & {readonly __brand: 'email'}>()") {
-		t.Errorf("brand metadata should embed on the schema target:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{jsMeta: {base: {type: 'string'}, meta: [{type: 'object', properties: {__brand: {const: 'email'}}, required: ['__brand'], jsReadonly: ['__brand']}]}}") {
+		t.Errorf("brand metadata should ride the jsMeta dialect keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("brand metadata should not reach the embed escape:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Email = string & {readonly __brand: 'email'};") {
