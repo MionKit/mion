@@ -36,6 +36,25 @@ Every validator agrees this accepts `"2026-08-10T09:00:00Z"` and rejects `42`. A
 - **Not a second validation vocabulary.** No extension keyword narrows, widens or overrides an assertion. They are annotations in the 2020-12 sense.
 - **Not a serialisation format.** It describes JSON that already exists; it does not prescribe how a value is encoded, only what the encoding means.
 
+**`CORE-PRECEDENCE`** — because the extension keywords sit beside the standard
+ones rather than replacing them, a schema can carry several at once and the
+order they are read in has to be stated. A reader recovering a type takes the
+FIRST of these that applies:
+
+1. the `embedType` escape, which carries a type verbatim
+2. `tsMeta`, whose `base` is then read by these same rules
+3. `jsType`
+4. `rtFormat`
+5. `tsFunction`, `tsTemplate`
+6. the standard 2020-12 translation
+
+The consequence worth spelling out: **when `jsType` is present, the wire
+constraint keywords are descriptive only.** `{"type": "string", "format":
+"date-time", "jsType": "Date"}` recovers `Date`, not a date-time-formatted
+string, and not a `Date` carrying string parameters. The `format` describes the
+JSON; the `jsType` decides the type. A reader that let both contribute would
+give every `Date` a different identity from the one it was written with.
+
 ## Identification
 
 The dialect is identified by the meta-schema URI:
@@ -105,6 +124,17 @@ Names the JavaScript type the validated wire form decodes to. Always a sibling o
 
 A `RegExp` encodes as `String(re)`, so the wire value carries the delimiters and flags (`"/^ab?c$/gi"`).
 
+**`JS-BIGINT-LITERAL`** — a bigint LITERAL (`123n`) is the same row with the
+value pinned. `const` holds the wire value, which is the string:
+
+```json
+{"type": "string", "const": "123", "jsType": "bigint"}
+```
+
+There is no separate keyword for it. A digit string under `const` with no
+`jsType` beside it is an ordinary string literal, which is exactly the
+distinction `jsType` exists to make.
+
 ### Temporal
 
 | Rule | `jsType` | Wire schema | Decodes to |
@@ -131,7 +161,13 @@ The type arguments are read out of the wire schema itself: a `Map`'s key and val
 | --- | --- | --- | --- |
 | `JS-UNDEFINED` | `undefined` | `{"type": "null"}` | `undefined` |
 | `JS-VOID` | `void` | `{"type": "null"}` | `void` |
-| `JS-PROMISE` | `Promise` | the resolved value's schema | `Promise<T>` |
+| `JS-PROMISE` | `Promise` | the RESOLVED value's own wire schema, in place | `Promise<T>` |
+
+A `Promise` is not itself encodable, but a serialiser awaits it and writes the
+resolved value, so its wire form is that value's schema with the annotation
+beside it: `{"type": "string", "jsType": "Promise"}` is a promise of a string.
+The resolved schema sits in place rather than under a sub-key, for the same
+reason `Map` has no argument list.
 
 `undefined` and `void` are not "no wire form": they encode as JSON `null`, in an object member and in an array slot alike. Only at the top level of a document does the encoder produce the JavaScript value `undefined`, because a bare `undefined` is not a JSON document at all, and a schema is not a document position.
 

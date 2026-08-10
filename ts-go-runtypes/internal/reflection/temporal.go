@@ -96,6 +96,52 @@ func TemporalInfoBySubKind(subKind ReflectionSubKind) (TemporalInfo, bool) {
 	return info, ok
 }
 
+// WireFormat / WirePattern describe what this temporal type looks like AS JSON,
+// which is what its `toJSON()` emits. Exactly one of the two is set.
+//
+// Only three land on a registered 2020-12 `format`. The other five carry a
+// pattern instead, and that is not a shortcut: ZonedDateTime.toJSON() produces
+// RFC 9557 (`2020-01-01T00:00:00+01:00[Europe/Madrid]`), which a `date-time`
+// checker REJECTS, and PlainTime / PlainDateTime / PlainYearMonth /
+// PlainMonthDay carry no offset where the registered formats require one.
+// Claiming a format for those would make a validator reject valid data.
+//
+// These live in the registry rather than in the converter so validate,
+// serialize and convert can never disagree about what a temporal value looks
+// like on the wire.
+func (info TemporalInfo) WireFormat() string {
+	switch info.Name {
+	case "Instant":
+		return "date-time"
+	case "PlainDate":
+		return "date"
+	case "Duration":
+		return "duration"
+	}
+	return ""
+}
+
+// WirePattern is the anchored regular expression matching this type's
+// `toJSON()` output, for the five with no honest registered format. Empty when
+// WireFormat covers it.
+func (info TemporalInfo) WirePattern() string {
+	switch info.Name {
+	case "ZonedDateTime":
+		// RFC 9557: an RFC 3339 timestamp with a bracketed time-zone suffix.
+		return `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\[[^\]]+\]$`
+	case "PlainTime":
+		return `^\d{2}:\d{2}:\d{2}(?:\.\d+)?$`
+	case "PlainDateTime":
+		return `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$`
+	case "PlainYearMonth":
+		return `^\d{4}-\d{2}$`
+	case "PlainMonthDay":
+		// toJSON() emits the RFC 3339 "--MM-DD" month-day form.
+		return `^--\d{2}-\d{2}$`
+	}
+	return ""
+}
+
 // DialectName is the name the json-schema dialect spells this temporal type
 // with — the reflected format name (`temporalInstant`), which every one of the
 // eight has, unlike FormatName (orderable types only). Deliberately NOT the
