@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { watch, type FSWatcher } from 'chokidar'
 import type { Plugin, ViteDevServer } from 'vite'
-import { getRepoRoot, packagesDir, resolveInPackages } from './repo-root'
+import { getRepoRoot, packagesDir, resolveInPackages, resolveImportableDoc } from './repo-root'
 
 // Monorepo root that contains packages/. Configurable via RT_REPO_ROOT (set by
 // scripts/website/site.mjs to the read-only repo context); falls back to the parent of
@@ -127,6 +127,41 @@ function extractByComments(
  * @param body - The markdown content to process
  * @param isDev - Whether to include filename comments (dev mode)
  */
+/**
+ * Inline an allowlisted repo document (see IMPORTABLE_DOCS) into a content page
+ * as MARKDOWN, so a spec that lives in the repo has exactly one copy and the
+ * website renders it rather than restating it.
+ *
+ * The leading H1 is dropped: Docus takes the page title from frontmatter, so
+ * keeping it would render the heading twice.
+ */
+export function processMarkdownImports(body: string, isDev = false): string {
+  const markdownImportRegex = /<markdown-import\s+([^>]*?)\s*\/>/g
+
+  return body.replace(markdownImportRegex, (_match: string, attributesStr: string) => {
+    try {
+      const attributes = parseAttributes(attributesStr)
+      const doc = attributes.doc || ''
+      if (!doc) throw new Error('Missing required "doc" attribute')
+
+      const absolutePath = resolveImportableDoc(MONOREPO_ROOT, doc)
+      let content: string
+      try {
+        content = readFileSync(absolutePath, 'utf-8')
+      } catch {
+        throw new Error(`Document not readable: ${doc}`)
+      }
+
+      const withoutTitle = content.replace(/^#\s+[^\n]*\n+/, '')
+      const sourceNote = isDev ? `<!-- markdown-import: ${doc} -->\n\n` : ''
+      return `${sourceNote}${withoutTitle.trim()}`
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      return `::alert{type="warning"}\nError processing markdown-import: ${errorMessage}\n::`
+    }
+  })
+}
+
 export function processCodeImports(body: string, isDev = false): string {
   const codeImportRegex = /<code-import\s+([^>]*?)\s*\/>/g
 

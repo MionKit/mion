@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { processCodeImports, exampleWatcherPlugin } from './server/utils/code-import'
+import { processCodeImports, processMarkdownImports, exampleWatcherPlugin } from './server/utils/code-import'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -69,6 +69,9 @@ export default defineNuxtConfig({
     'content:file:beforeParse'(ctx) {
       const { file } = ctx
       if (!file.id.endsWith('.md')) return
+      // markdown-import first: an inlined document may itself contain
+      // <code-import> blocks, and those must still be processed.
+      file.body = processMarkdownImports(file.body, isDev)
       file.body = processCodeImports(file.body, isDev)
     }
   }
