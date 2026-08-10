@@ -191,6 +191,12 @@ RANDOMIZED chains instead of the fixed one, and the byte-equal type-form
 fixpoint across two independent chains as the convergence oracle. Same knobs:
 `RT_FUZZ_SEED` replays, `RT_FUZZ_ITER` widens.
 
+Its fixtures also carry marker CALL SITES in all three shapes: one naming its
+type, one reflecting a runtime value (both must survive every leg untouched) and
+one writing its type INLINE, which every leg rewrites into that form's value
+spelling and back. The inline probe is the only one exercising call-site
+conversion — the other two exercise the paths that skip it.
+
 Every lane already runs under the ordinary test commands — `go test
 ./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
 the rest — at its DEFAULT budget. `rtx core fuzz` is the soak / replay front

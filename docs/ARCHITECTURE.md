@@ -88,18 +88,29 @@ The program has four subcommands:
 - **`enrich`** serves the enrichment workflow described below: it scaffolds the hand
   edited files, re-syncs them when a type changes, and checks them. One shot, and off the
   build path.
-- **`convert`** rewrites type declarations between the three authoring forms — plain
-  types, builders, JSON Schema — over the same reflection graph, so a conversion can
+- **`convert`** rewrites type declarations AND marker CALL SITES between the three
+  authoring forms — plain types, builders, JSON Schema — over the same reflection
+  graph, so a conversion can
   never change a type's id (pinned per leg by chain tests, a seeded fuzz sweep and a
   canonical-graph no-info-loss oracle; `pnpm rtx core fuzz convert`). Files convert as
   a SET: declarations that reference each other stay name references in every target
   (`getRunType<B>()` / `embedType<B>()`), cycles close at the root (`RT.circular` +
   `RT.self()` / `$ref: '#'` / the type's own name), imports are added and pruned, and
-  a reference to a convertible declaration OUTSIDE the run errors (CNV004) instead of
-  inlining silently. Shapes with no exact standard-schema spelling (bigint literals,
+  a reference to a convertible declaration outside the run errors (CNV004) — though a
+  name this file simply cannot SPELL (an unexported alias, a type the graph reached
+  structurally, anything behind a package import) inlines instead of refusing, since
+  the id is identical either way. A call whose type is written INLINE
+  (`createValidateFn<{a: string}>()`) moves that type into the value slot the same
+  factory already declares (`internal/convert/callsites.go`); a call that already
+  names its type, and the reflection form over a runtime value, are left alone. Shapes with no exact standard-schema spelling (bigint literals,
   functions, brands/TypeMeta, readonly members, enums, classes) ride the `embedType` /
   `getRunType` escapes, which `--portable` forbids. Refusals are loud per-declaration
-  CNV diagnostics (generic declarations, labeled tuples, unnamed cycles, Temporal);
+  CNV diagnostics (unnamed cycles, a cycle closing on a tuple slot, symbol keys,
+  Temporal resolving to any); a generic declaration is a WARNING, not an error — a
+  type parameter has no runtime shape, so there is nothing to convert, and its
+  instantiations convert wherever they are reflected. The whole suite tree converts
+  and runs in both value forms on every release gate (`pnpm rtx core
+  converted-suites`);
   the file stays untouched and the exit code is non-zero. One shot, and off the build
   path.
 
