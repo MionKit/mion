@@ -114,8 +114,8 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  multi-arm allOf as `OneOf<[Rest∧C…]>` instead of resolving never, which
  *  closed the official suite's whole "+ ref inside allOf / oneOf" group.
  *
- *  An eighth REVIEWED EXCEPTION, tuples 2543→2595: the `jsLabels` dialect
- *  keyword — every prefixItems tuple now probes `S extends {jsLabels: …}`
+ *  An eighth REVIEWED EXCEPTION, tuples 2543→2595: the `tsLabels` dialect
+ *  keyword — every prefixItems tuple now probes `S extends {tsLabels: …}`
  *  (WithTupleLabels) so a labels list can ride the `__rtLabels` sentinel onto
  *  the tuple. One conditional per tuple schema; label-less tuples pay only
  *  the probe.
@@ -137,14 +137,14 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  2220→2403 and `not` 2842→3090 are the largest): the dialect grew eight new
  *  keywords so the `convert` json-schema target stops reaching for the
  *  `embedType` escape on shapes the engine reflects natively — Temporal
- *  (jsType + jsFormat rows), jsReadonly, jsTemplate, jsIndexes, jsBigint,
- *  jsFunction, jsNot, jsMeta and jsParams. Over the 205-file suite corpus that
+ *  (jsType + jsFormat rows), tsReadonly, tsTemplate, tsIndexes, jsBigint,
+ *  tsFunction, jsNot, tsMeta and jsParams. Over the 205-file suite corpus that
  *  took the escape count from 992 to 227: those subtrees are now readable data
  *  instead of a quoted TypeScript type only the compiler can open.
  *
  *  The per-branch cost is the PROBE, not the rows. The seven discriminators
  *  that replace a translation wholesale are behind one key-set extraction
- *  (`DialectShapeKeys`), and the modifier keywords (jsReadonly, jsIndexes) sit
+ *  (`DialectShapeKeys`), and the modifier keywords (tsReadonly, tsIndexes) sit
  *  behind their own single `Extract<keyof S, …>` gate, so a schema using none
  *  of them pays one conditional each rather than one per keyword — that
  *  gating is what kept this at +2-9% instead of the +9-20% the flat ladder

@@ -415,12 +415,12 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// sharing one value type ARE `Record<K1 | K2, V>` — so these print the
 	// real builder rather than an escape. On the schema target a key
 	// `additionalProperties` cannot speak about (numeric, symbol, a pattern)
-	// rides the jsIndexes keyword, one pair per signature.
+	// rides the tsIndexes keyword, one pair per signature.
 	for _, testCase := range []struct{ source, builder, schema string }{
 		{"export type Numeric = {[key: number]: string};\n", "RT.record(TF.number(), TF.string())",
-			"{type: 'object', jsIndexes: [{key: {type: 'number'}, value: {type: 'string'}}]}"},
+			"{type: 'object', tsIndexes: [{key: {type: 'number'}, value: {type: 'string'}}]}"},
 		{"export type Both = {[k: string]: number; [n: number]: number};\n", "RT.record(RT.union([TF.number(), TF.string()]), TF.number())",
-			"jsIndexes: [{key: {type: 'string'}, value: {type: 'number'}}, {key: {type: 'number'}, value: {type: 'number'}}]"},
+			"tsIndexes: [{key: {type: 'string'}, value: {type: 'number'}}, {key: {type: 'number'}, value: {type: 'number'}}]"},
 	} {
 		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
 		if !strings.Contains(builderForm, testCase.builder) {
@@ -432,23 +432,23 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 			t.Errorf("expected %q for %q:\n%s", testCase.schema, testCase.source, schemaForm)
 		}
 		if strings.Contains(schemaForm, "embedType") {
-			t.Errorf("a non-string index key should ride jsIndexes, not the escape:\n%s", schemaForm)
+			t.Errorf("a non-string index key should ride tsIndexes, not the escape:\n%s", schemaForm)
 		}
 		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
 
-	// A pattern key composes the two new keywords: jsIndexes carries the
-	// signature, and its key is itself a jsTemplate.
+	// A pattern key composes the two new keywords: tsIndexes carries the
+	// signature, and its key is itself a tsTemplate.
 	patternForm := convertAndCheckIDs(t, "export type Routes = {[key: `api/${string}`]: number};\n", convert.TargetJSONSchema)
-	if !strings.Contains(patternForm, "jsIndexes: [{key: {jsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}}, value: {type: 'number'}}]") {
-		t.Errorf("a pattern index key should nest jsTemplate inside jsIndexes:\n%s", patternForm)
+	if !strings.Contains(patternForm, "tsIndexes: [{key: {tsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}}, value: {type: 'number'}}]") {
+		t.Errorf("a pattern index key should nest tsTemplate inside tsIndexes:\n%s", patternForm)
 	}
 	convertAndCheckIDs(t, patternForm, convert.TargetType)
 
 	_, diags := convertOne(t, "export type Numeric = {[key: number]: string};\n",
 		convert.Options{Target: convert.TargetJSONSchema, Portable: true})
 	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
-		t.Fatalf("expected the portable refusal for jsIndexes, got %+v", diags)
+		t.Fatalf("expected the portable refusal for tsIndexes, got %+v", diags)
 	}
 
 	// Named members BESIDE an index print the INTERSECTION: `object(...)`
@@ -458,13 +458,13 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// members all ride it, on every target.
 	for _, testCase := range []struct {
 		source, wants string
-		// The readonly MODIFIER rides the jsReadonly dialect keyword, so even
+		// The readonly MODIFIER rides the tsReadonly dialect keyword, so even
 		// a mixed record keeps its standard `properties` spelling.
 		schemaReadonly string
 	}{
 		{source: "export type Mixed = {name: string; [key: string]: unknown};\n", wants: "RT.intersection(RT.record(RT.unknown()), RT.object({name: TF.string()}))"},
 		{source: "export type Loose = {name?: string; [key: string]: unknown};\n", wants: "RT.optional(TF.string())"},
-		{source: "export type Frozen = {readonly name: string; [key: string]: unknown};\n", wants: "RT.propMod({readonly: true}, TF.string())", schemaReadonly: "jsReadonly: ['name']"},
+		{source: "export type Frozen = {readonly name: string; [key: string]: unknown};\n", wants: "RT.propMod({readonly: true}, TF.string())", schemaReadonly: "tsReadonly: ['name']"},
 		{source: "export type Typed = {id: 'a' | 'b'; [key: string]: string};\n", wants: "RT.intersection(RT.record(TF.string()), RT.object({id:"},
 	} {
 		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
@@ -605,12 +605,12 @@ func TestReadonlyMember_FullChain(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.object({id: RT.propMod({readonly: true}, TF.string()), count: TF.number()})") {
 		t.Errorf("readonly member should ride propMod:\n%s", builderForm)
 	}
-	// The modifier rides the jsReadonly dialect keyword, so the object keeps
+	// The modifier rides the tsReadonly dialect keyword, so the object keeps
 	// its standard spelling — `count` is still an ordinary `{type: 'number'}`
 	// property rather than being dragged into an escape by its sibling.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "required: ['id', 'count'], jsReadonly: ['id']") {
-		t.Errorf("readonly member should ride the jsReadonly keyword:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "required: ['id', 'count'], tsReadonly: ['id']") {
+		t.Errorf("readonly member should ride the tsReadonly keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("a readonly member must not escape its whole object:\n%s", schemaForm)
@@ -639,11 +639,11 @@ func TestChain_LabeledTuple(t *testing.T) {
 		t.Errorf("optional and rest slots should carry their labels:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "jsLabels: ['x', 'y']") {
-		t.Errorf("labeled tuples should print the jsLabels dialect keyword on the schema target:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "tsLabels: ['x', 'y']") {
+		t.Errorf("labeled tuples should print the tsLabels dialect keyword on the schema target:\n%s", schemaForm)
 	}
-	if !strings.Contains(schemaForm, "jsLabels: ['start', 'len', 'rest']") {
-		t.Errorf("optional and rest slots should ride jsLabels in order:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "tsLabels: ['start', 'len', 'rest']") {
+		t.Errorf("optional and rest slots should ride tsLabels in order:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "type Point = [x: number, y: number];") ||
@@ -661,11 +661,11 @@ func TestChain_NamedFunctionParams(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.func([RT.slot('event', TF.string()), RT.slot('retries', TF.number())], RT.boolean())") {
 		t.Errorf("named function params should print the slot form:\n%s", builderForm)
 	}
-	// On the schema target the signature rides jsFunction: the params are an
-	// ordinary tuple schema, so their names come along on jsLabels.
+	// On the schema target the signature rides tsFunction: the params are an
+	// ordinary tuple schema, so their names come along on tsLabels.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsFunction: {params: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false, jsLabels: ['event', 'retries']}, return: {type: 'boolean'}}}") {
-		t.Errorf("functions should ride the jsFunction dialect keyword:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{tsFunction: {params: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false, tsLabels: ['event', 'retries']}, return: {type: 'boolean'}}}") {
+		t.Errorf("functions should ride the tsFunction dialect keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("a named all-required signature should not reach the embed escape:\n%s", schemaForm)
@@ -677,12 +677,12 @@ func TestChain_NamedFunctionParams(t *testing.T) {
 
 	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
 	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
-		t.Fatalf("expected the portable refusal for jsFunction, got %+v", diags)
+		t.Fatalf("expected the portable refusal for tsFunction, got %+v", diags)
 	}
 }
 
 func TestChain_OptionalAndRestParamsKeepTheEscape(t *testing.T) {
-	// The two signature shapes jsFunction cannot carry, both for the same
+	// The two signature shapes tsFunction cannot carry, both for the same
 	// reason: the door spreads the params tuple into a rest parameter and the
 	// parameter names ride an intersection on that tuple, so materialising the
 	// signature rewrites `extra?: string` into a required `extra: string |

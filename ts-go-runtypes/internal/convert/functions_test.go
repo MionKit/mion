@@ -66,12 +66,12 @@ func TestChain_TemplateLiteral(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<`api/${string}/v${number}`>()") {
 		t.Errorf("template literals should escape through getRunType:\n%s", builderForm)
 	}
-	// On the schema target the parts ride the jsTemplate keyword as data: the
+	// On the schema target the parts ride the tsTemplate keyword as data: the
 	// literal chunks beside the placeholder schemas, which is what lets the
 	// door rebuild the type (a pattern string alone could not).
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsTemplate: {texts: ['api/', '/v', ''], placeholders: [{type: 'string'}, {type: 'number'}]}}") {
-		t.Errorf("template literals should ride the jsTemplate dialect keyword:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{tsTemplate: {texts: ['api/', '/v', ''], placeholders: [{type: 'string'}, {type: 'number'}]}}") {
+		t.Errorf("template literals should ride the tsTemplate dialect keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("template literals should not reach the embed escape:\n%s", schemaForm)
@@ -95,7 +95,7 @@ func TestPortable_TemplateLiteralRefused(t *testing.T) {
 	source := "export type Route = `api/${string}`;\n"
 	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
 	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
-		t.Fatalf("expected the portable refusal for jsTemplate, got %+v", diags)
+		t.Fatalf("expected the portable refusal for tsTemplate, got %+v", diags)
 	}
 }
 
@@ -106,12 +106,12 @@ func TestChain_BrandMeta(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<string & {readonly __brand: 'email'}>()") {
 		t.Errorf("brand metadata should escape with the intersection:\n%s", builderForm)
 	}
-	// The intersection rides jsMeta: the base beside its metadata objects, each
+	// The intersection rides tsMeta: the base beside its metadata objects, each
 	// an ordinary object schema. The readonly modifier on the brand member
-	// comes along on that object's own jsReadonly.
+	// comes along on that object's own tsReadonly.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsMeta: {base: {type: 'string'}, meta: [{type: 'object', properties: {__brand: {const: 'email'}}, required: ['__brand'], jsReadonly: ['__brand']}]}}") {
-		t.Errorf("brand metadata should ride the jsMeta dialect keyword:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "{tsMeta: {base: {type: 'string'}, meta: [{type: 'object', properties: {__brand: {const: 'email'}}, required: ['__brand'], tsReadonly: ['__brand']}]}}") {
+		t.Errorf("brand metadata should ride the tsMeta dialect keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("brand metadata should not reach the embed escape:\n%s", schemaForm)

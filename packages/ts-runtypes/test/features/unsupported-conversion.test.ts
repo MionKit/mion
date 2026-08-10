@@ -164,7 +164,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     target: 'json-schema',
     portable: true,
     code: 'CNV006',
-    says: 'jsLabels',
+    says: 'tsLabels',
     keeps: 'export type Point = [x: number, y: number];',
   },
 

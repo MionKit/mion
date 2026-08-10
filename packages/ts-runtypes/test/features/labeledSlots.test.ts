@@ -70,7 +70,7 @@ describe('labeled slot builders', () => {
     expect(getRunTypeId(schema)).toBe(getRunTypeId<(input: string) => number>());
   });
 
-  it('converges with the jsLabels schema spelling — one id across all three forms', () => {
+  it('converges with the tsLabels schema spelling — one id across all three forms', () => {
     const fromBuilder = getRunTypeId(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())]));
     const fromSchema = getRunTypeId(
       runTypeFromJsonSchema({
@@ -78,7 +78,7 @@ describe('labeled slot builders', () => {
         prefixItems: [{type: 'string'}, {type: 'number'}],
         minItems: 2,
         items: false,
-        jsLabels: ['name', 'age'],
+        tsLabels: ['name', 'age'],
       } as const)
     );
     expect(fromBuilder).toBe(fromSchema);

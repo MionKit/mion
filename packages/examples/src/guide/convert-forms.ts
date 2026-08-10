@@ -60,18 +60,19 @@ getRunTypeId(sample) === getRunTypeId(auditRT); // true
 // end-embed
 
 // start-dialect
-// Most of what JSON has no word for still converts as plain data, through
-// extra keywords RunTypes adds to the schema. A bigint literal, a branded
-// string and a function signature all read back as themselves.
+// Most of what JSON has no word for still converts as plain data, through extra
+// keywords RunTypes adds beside the standard ones. Each says what the JSON
+// becomes in JavaScript; the standard keywords still describe the JSON itself,
+// so any validator can read these.
 export const releaseRT = runTypeFromJsonSchema({
   type: 'object',
   properties: {
-    build: {jsBigint: '4096'},
-    channel: {jsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]}},
-    stamp: {jsType: 'temporalInstant'},
+    build: {type: 'string', const: '4096', jsType: 'bigint'},
+    channel: {tsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]}},
+    stamp: {type: 'string', format: 'date-time', jsType: 'Temporal.Instant'},
     notify: {
-      jsFunction: {
-        params: {type: 'array', prefixItems: [{type: 'string'}], minItems: 1, items: false, jsLabels: ['message']},
+      tsFunction: {
+        params: {type: 'array', prefixItems: [{type: 'string'}], minItems: 1, items: false, tsLabels: ['message']},
         return: {type: 'boolean'},
       },
     },

@@ -259,31 +259,31 @@ export interface JsonSchemaInput {
   // converges with its labeled type-first twin; the list must cover every
   // slot or the engine ignores it whole. No standard 2020-12 spelling, so
   // `--portable` conversions never emit it.
-  readonly jsLabels?: readonly string[];
+  readonly tsLabels?: readonly string[];
   // RunTypes dialect: the TS `readonly` MODIFIER on the named properties, the
   // schema-side spelling of `RT.propMod({readonly: true}, …)`. Distinct from
   // 2020-12's `readOnly` annotation below, which deliberately lifts nothing —
   // this one moves the structural id, so it names its members explicitly the
   // way `required` does. No standard spelling, so `--portable` never emits it.
-  readonly jsReadonly?: readonly string[];
+  readonly tsReadonly?: readonly string[];
   // RunTypes dialect: a template literal type, carried as its PARTS — `texts`
   // holds the n+1 literal chunks and `placeholders` the n schemas between
   // them, so the door can rebuild the type rather than guess it back from a
   // pattern. Only placeholders TypeScript can interpolate appear here; the
   // rest keep the embed escape. No standard spelling, so `--portable` never
   // emits it.
-  readonly jsTemplate?: {readonly texts: readonly string[]; readonly placeholders: readonly NestedSchema[]};
+  readonly tsTemplate?: {readonly texts: readonly string[]; readonly placeholders: readonly NestedSchema[]};
   // RunTypes dialect: index signatures whose key is not a plain string, and
   // shapes carrying more than one of them. `additionalProperties` can only
   // speak about string keys, so a numeric, symbol or pattern key rides here
   // instead, one `{key, value}` pair per signature. No standard spelling, so
   // `--portable` never emits it.
-  readonly jsIndexes?: readonly {readonly key: NestedSchema; readonly value: NestedSchema}[];
+  readonly tsIndexes?: readonly {readonly key: NestedSchema; readonly value: NestedSchema}[];
   // RunTypes dialect: a function signature. `params` is an ordinary TUPLE
   // schema, so optional slots (minItems), a rest slot (items) and the
-  // parameter NAMES (jsLabels) all come along for free. No standard spelling,
+  // parameter NAMES (tsLabels) all come along for free. No standard spelling,
   // so `--portable` never emits it.
-  readonly jsFunction?: {readonly params: NestedSchema; readonly return: NestedSchema};
+  readonly tsFunction?: {readonly params: NestedSchema; readonly return: NestedSchema};
   // RunTypes dialect: the first-class format negation (`TF.Not<TF.Email>`),
   // which is a DIFFERENT operation from the standard `not` keyword below —
   // that one runs the kind-complement algebra over the six JSON kinds, while
@@ -296,7 +296,7 @@ export interface JsonSchemaInput {
   // sitting beside the base's keywords because a base can itself be a dialect
   // discriminator, and those are read first. No standard spelling, so
   // `--portable` never emits it.
-  readonly jsMeta?: {readonly base: NestedSchema; readonly meta: readonly NestedSchema[]};
+  readonly tsMeta?: {readonly base: NestedSchema; readonly meta: readonly NestedSchema[]};
   // RunTypes dialect: structural params (array / object bounds) whose value IS
   // their 2020-12 default. `minItems: 0` says exactly what omitting the keyword
   // says, so the standard spelling cannot carry the param back; these ride here
@@ -664,7 +664,7 @@ type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = Fl
   }
 >;
 
-// The `jsReadonly` dialect keyword: the TS `readonly` MODIFIER on the named
+// The `tsReadonly` dialect keyword: the TS `readonly` MODIFIER on the named
 // properties, which is the value-first `RT.propMod({readonly: true}, …)` and a
 // different thing from 2020-12's non-constraining `readOnly` annotation (see
 // the note above — that one deliberately lifts nothing).
@@ -1129,11 +1129,11 @@ type ObjectFrom<S, Root, F extends [unknown]> =
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
-      [Extract<keyof S, 'jsReadonly'>] extends [never]
+      [Extract<keyof S, 'tsReadonly'>] extends [never]
         ? S extends {required: infer R extends readonly string[]}
           ? ObjectFromProps<P, R[number], Root, F>
           : ObjectFromProps<P, never, Root, F>
-        : S extends {jsReadonly: infer RO extends readonly string[]}
+        : S extends {tsReadonly: infer RO extends readonly string[]}
           ? S extends {required: infer R extends readonly string[]}
             ? ObjectFromPropsRO<P, R[number], RO[number], Root, F>
             : ObjectFromPropsRO<P, never, RO[number], Root, F>
@@ -1148,7 +1148,7 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       // six-kind JSON domain (see PresentValue) — every JSON value, with
       // undefined excluded so presence stays enforced.
       WithAdditional<S, {-readonly [K in R[number]]: PresentValue}, Root, F>
-    : S extends {jsIndexes: unknown}
+    : S extends {tsIndexes: unknown}
       ? // An INDEX-ONLY shape: no members to name, so the pairs are the whole
         // object. `unknown` is the empty conjunct WithAdditional folds them
         // onto (it also picks up a string-keyed `additionalProperties` beside
@@ -1226,13 +1226,13 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = WithJsIndexes<
   F
 >;
 
-// The `jsIndexes` dialect keyword: conjoin one index signature per pair.
+// The `tsIndexes` dialect keyword: conjoin one index signature per pair.
 // Written as a MAPPED type over the key rather than `Record<K, V>` for the
 // reason above — a mapped type defers its value the way an ordinary member
 // does, so a `{$ref: '#'}` value ties the knot instead of unrolling the root.
-type WithJsIndexes<S, Props, Root, F extends [unknown]> = [Extract<keyof S, 'jsIndexes'>] extends [never]
+type WithJsIndexes<S, Props, Root, F extends [unknown]> = [Extract<keyof S, 'tsIndexes'>] extends [never]
   ? Props
-  : S extends {jsIndexes: infer Pairs}
+  : S extends {tsIndexes: infer Pairs}
     ? Props & JsIndexFold<Pairs, Root, F>
     : Props;
 type JsIndexFold<Pairs, Root, F extends [unknown]> = Pairs extends readonly [infer Head, ...infer Tail]
@@ -1312,13 +1312,13 @@ type ArrayShapeFrom<S, Root, F extends [unknown]> = S extends {
         : BuildTupleRequired<[], MinItemsOf<S>, false, [], Root, F>
       : FromJsonSchemaIn<I, Root, F>[]
     : unknown[];
-// `jsLabels` rides the built tuple as the `__rtLabels` sentinel — the same
+// `tsLabels` rides the built tuple as the `__rtLabels` sentinel — the same
 // carriage the value-first slot builders use — so the schema spelling, the
 // slot form and the labeled type-first tuple all converge on one structural
 // id. The labels array in the document is order-native (it IS an array), and
 // the Go lift applies it only when it covers every slot (rest slot included),
 // ignoring a mismatched list whole.
-type WithTupleLabels<S, Tuple> = S extends {jsLabels: infer L extends readonly string[]}
+type WithTupleLabels<S, Tuple> = S extends {tsLabels: infer L extends readonly string[]}
   ? Tuple & {readonly [__rtLabels]?: L}
   : Tuple;
 type MinItemsOf<S> = S extends {minItems: infer N extends number} ? N : 0;
@@ -1950,10 +1950,10 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // the document paying for rows it does not use. Same fast-path shape as
 // ArrayKeywordKeys / ObjectKeywordKeys below.
 //
-// `jsReadonly`, `jsIndexes`, `jsLabels` and `jsParams` are deliberately NOT
+// `tsReadonly`, `tsIndexes`, `tsLabels` and `jsParams` are deliberately NOT
 // here: those MODIFY a translation rather than replacing it, so they are read
 // where that translation is built.
-type DialectShapeKeys = 'jsType' | 'rtFormat' | 'jsTemplate' | 'jsFunction' | 'jsNot' | 'jsMeta';
+type DialectShapeKeys = 'jsType' | 'rtFormat' | 'tsTemplate' | 'tsFunction' | 'jsNot' | 'tsMeta';
 
 type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
@@ -1998,17 +1998,17 @@ type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer N
             : FromJsTypeName<Name>
   : S extends {rtFormat: infer Name}
     ? FromJsFormat<Name, S extends {rtFormatParams: infer Params} ? Params : Record<string, never>>
-    : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
+    : S extends {tsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
       ? TemplateFold<Texts, Placeholders, Root, F>
-      : S extends {jsFunction: {params: infer Params; return: infer Return}}
+      : S extends {tsFunction: {params: infer Params; return: infer Return}}
         ? FromJsFunction<Params, Return, Root, F>
         : S extends {jsNot: infer Negated}
           ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
-          : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
+          : S extends {tsMeta: {base: infer Base; meta: infer Meta}}
             ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
             : never;
 
-// The `jsTemplate` dialect keyword: rebuild the template literal type by
+// The `tsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
 // the two lists (n+1 texts, n placeholders, so the recursion ends on the text
 // whose placeholder slot is empty). The emitter only ever writes placeholders
@@ -2030,7 +2030,7 @@ type TemplateArg<T> = T extends string | number | bigint | boolean ? T : string;
 // bigint-shaped node.
 type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Value : bigint;
 
-// The `jsFunction` dialect keyword. `params` lowers through the ORDINARY tuple
+// The `tsFunction` dialect keyword. `params` lowers through the ORDINARY tuple
 // path, so a labeled params tuple arrives as `[a: number, b?: string] &
 // {[__rtLabels]?: […]}` — spreading it into a rest parameter is what gives the
 // signature its parameter names, the same carriage `func([slot(…)], …)` uses
@@ -2042,7 +2042,7 @@ type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Val
 // type cannot satisfy generically.
 type FromJsNot<Negated> = ([Negated] extends [string] ? string : [Negated] extends [number] ? number : bigint) & NotSlot<Negated>;
 
-// The `jsMeta` metadata objects, conjoined onto the base arm-by-arm — the
+// The `tsMeta` metadata objects, conjoined onto the base arm-by-arm — the
 // intersection the collapsed `base & {…}` was written as.
 type MetaFold<Meta, Root, F extends [unknown]> = Meta extends readonly [infer Head, ...infer Tail]
   ? FromJsonSchemaIn<Head, Root, F> & MetaFold<Tail, Root, F>
@@ -2631,13 +2631,13 @@ export type SchemaLoweringByKeyword = {
   unevaluatedItems: 'slot: __rtUnevaluated — metadata only, the array type is unchanged';
   enum: 'shape: literal union';
   const: 'shape: single literal';
-  jsLabels: 'slot: __rtLabels — tuple slot labels, one per slot in order (RunTypes dialect, not standard 2020-12)';
-  jsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
-  jsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
-  jsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
-  jsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
+  tsLabels: 'slot: __rtLabels — tuple slot labels, one per slot in order (RunTypes dialect, not standard 2020-12)';
+  tsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
+  tsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
+  tsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
+  tsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
   jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
-  jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
+  tsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
   jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsResolved: 'shape: the value a jsType Promise resolves to (RunTypes dialect, not standard 2020-12)';

@@ -107,8 +107,8 @@ The program has four subcommands:
   the 8 Temporal builtins, named by their reflected format name so the published
   `.d.ts` never contains `Temporal.`), `jsFormat` (every format family, the 6 orderable
   Temporal ones and the bigint family included, whose bigint bounds ride as digit
-  strings and come back through `infer … extends bigint`), `jsLabels`, `jsReadonly`,
-  `jsTemplate`, `jsIndexes`, `jsBigint`, `jsFunction`, `jsNot`, `jsMeta` and `jsParams`
+  strings and come back through `infer … extends bigint`), `tsLabels`, `tsReadonly`,
+  `tsTemplate`, `tsIndexes`, `jsBigint`, `tsFunction`, `jsNot`, `tsMeta` and `jsParams`
   (structural bounds sitting at their 2020-12 default, which the standard keyword reads
   back as absent). `--portable` forbids all of them. Only shapes whose identity is a
   NAME rather than a shape keep the `embedType` / `getRunType` escapes: enums, user
