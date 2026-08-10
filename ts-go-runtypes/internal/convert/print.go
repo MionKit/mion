@@ -2776,8 +2776,54 @@ func (ctx *printContext) templateSchemaText(node *reflection.RunType) (string, b
 		}
 		placeholderTexts = append(placeholderTexts, placeholderText)
 	}
-	return fmt.Sprintf("{tsTemplate: {texts: [%s], placeholders: [%s]}}",
-		strings.Join(quotedTexts, ", "), strings.Join(placeholderTexts, ", ")), true
+	// TS-WIRE-HALF: the pattern is not optional. A template literal type really
+	// does constrain the string, so a plain 2020-12 validator has to be told —
+	// the keyword alone would say something to RunTypes it does not say to
+	// anyone else.
+	return fmt.Sprintf("{type: 'string', pattern: %s, tsTemplate: {texts: [%s], placeholders: [%s]}}",
+		quoteSingle(templateWirePattern(texts)), strings.Join(quotedTexts, ", "), strings.Join(placeholderTexts, ", ")), true
+}
+
+// templateWirePattern derives the standard `pattern` for a template literal
+// type: the literal chunks, anchored and escaped, with every placeholder a
+// wildcard.
+//
+// The placeholders stay wildcards ON PURPOSE. A regex narrower than the
+// placeholder's own type would REJECT strings the type accepts, and the surface
+// is wider than it looks — TypeScript takes `v0x10`, `v007`, `v.5` and `v1e3`
+// for “ `v${number}` “ (only `NaN`, `Infinity` and numeric separators are
+// out). Over-rejecting would make the schema disagree with the type it decodes
+// to, which is worse than under-constraining, so the pattern pins what is
+// certain (the literal text around the holes) and `tsTemplate` carries the rest.
+func templateWirePattern(texts []string) string {
+	var pattern strings.Builder
+	pattern.WriteString("^")
+	for i, text := range texts {
+		if i > 0 {
+			// `[\s\S]` rather than `.` — ECMA-262 `.` skips line terminators,
+			// and a placeholder can hold a newline.
+			pattern.WriteString(`[\s\S]*`)
+		}
+		pattern.WriteString(escapeRegexLiteral(text))
+	}
+	pattern.WriteString("$")
+	return pattern.String()
+}
+
+// escapeRegexLiteral escapes a literal chunk for use inside an ECMA-262 regular
+// expression. Go's regexp.QuoteMeta is close but not usable here: it escapes
+// with Go's own metacharacter set and the result is read by JavaScript, so the
+// set is spelled out. `/` is deliberately NOT in it — a JSON Schema pattern is a
+// string, never a `/…/` literal, so escaping it would only add noise.
+func escapeRegexLiteral(text string) string {
+	var escaped strings.Builder
+	for _, char := range text {
+		if strings.ContainsRune(`\.+*?()|[]{}^$`, char) {
+			escaped.WriteRune('\\')
+		}
+		escaped.WriteRune(char)
+	}
+	return escaped.String()
 }
 
 // templateParts pulls the (texts, placeholders) pair off a template literal

@@ -440,7 +440,7 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// A pattern key composes the two new keywords: tsIndexes carries the
 	// signature, and its key is itself a tsTemplate.
 	patternForm := convertAndCheckIDs(t, "export type Routes = {[key: `api/${string}`]: number};\n", convert.TargetJSONSchema)
-	if !strings.Contains(patternForm, "tsIndexes: [{key: {tsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}}, value: {type: 'number'}}]") {
+	if !strings.Contains(patternForm, `tsIndexes: [{key: {type: 'string', pattern: '^api/[\\s\\S]*$', tsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}}, value: {type: 'number'}}]`) {
 		t.Errorf("a pattern index key should nest tsTemplate inside tsIndexes:\n%s", patternForm)
 	}
 	convertAndCheckIDs(t, patternForm, convert.TargetType)

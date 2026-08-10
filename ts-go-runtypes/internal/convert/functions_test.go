@@ -68,9 +68,12 @@ func TestChain_TemplateLiteral(t *testing.T) {
 	}
 	// On the schema target the parts ride the tsTemplate keyword as data: the
 	// literal chunks beside the placeholder schemas, which is what lets the
-	// door rebuild the type (a pattern string alone could not).
+	// door rebuild the type (a pattern string alone could not). TS-WIRE-HALF
+	// puts the pattern there anyway, so a standard validator still gets the
+	// constraint; the placeholders are wildcards because a narrower regex would
+	// reject strings the type accepts.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{tsTemplate: {texts: ['api/', '/v', ''], placeholders: [{type: 'string'}, {type: 'number'}]}}") {
+	if !strings.Contains(schemaForm, `{type: 'string', pattern: '^api/[\\s\\S]*/v[\\s\\S]*$', tsTemplate: {texts: ['api/', '/v', ''], placeholders: [{type: 'string'}, {type: 'number'}]}}`) {
 		t.Errorf("template literals should ride the tsTemplate dialect keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {

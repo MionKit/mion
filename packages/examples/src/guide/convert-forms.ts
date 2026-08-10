@@ -68,7 +68,11 @@ export const releaseRT = runTypeFromJsonSchema({
   type: 'object',
   properties: {
     build: {type: 'string', const: '4096', jsType: 'bigint'},
-    channel: {tsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]}},
+    channel: {
+      type: 'string',
+      pattern: '^release/[\\s\\S]*$',
+      tsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]},
+    },
     stamp: {type: 'string', format: 'date-time', jsType: 'Temporal.Instant'},
     notify: {
       tsFunction: {

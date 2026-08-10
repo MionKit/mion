@@ -8,6 +8,7 @@
 
 export const TSCONFIG_PLUGIN_KEYS = [
   'binarySizing',
+  'convertDialect',
   'emitMode',
   'failOnError',
   'genDir',

@@ -321,13 +321,15 @@ Per `TS-WIRE-HALF`, the wire half is not optional: JSON object keys are always s
 **`TS-TEMPLATE`** — the parts of a template literal type: `texts` holds the n+1 literal chunks, `placeholders` the n schemas between them.
 
 ```json
-{"type": "string", "pattern": "^api/[^/]*/v[0-9]+$",
+{"type": "string", "pattern": "^api/[\\s\\S]*/v[\\s\\S]*$",
  "tsTemplate": {"texts": ["api/", "/v", ""], "placeholders": [{"type": "string"}, {"type": "number"}]}}
 ```
 
 Decodes to `` `api/${string}/v${number}` ``.
 
 The pattern and the parts say the same thing to two different audiences. A pattern alone cannot rebuild the type, because reading a regular expression back into a template literal type is not decidable; the parts can, and per `TS-WIRE-HALF` the pattern is required so a standard validator still gets the real constraint.
+
+The pattern pins the literal chunks and leaves every placeholder a wildcard, deliberately. A regex narrower than the placeholder's own type would reject strings the type accepts, and the surface is wider than it looks: TypeScript takes `v0x10`, `v007`, `v.5` and `v1e3` for `` `v${number}` ``. Under-constraining is recoverable (`tsTemplate` carries the exact shape); over-constraining would make the schema disagree with the type it decodes to, which `CORE-INERT` exists to prevent. `[\s\S]` rather than `.` because a placeholder may hold a line terminator.
 
 Only placeholders TypeScript can interpolate appear here: `string`, `number`, `bigint`, and literal values. A literal placeholder is normally folded into the neighbouring text by the type checker before it is ever written down.
 

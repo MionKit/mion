@@ -100,6 +100,8 @@ interface Rule {
    * as JSON, because that is what lands in the user's file.
    */
   readonly emits: string;
+  /** A second required fragment, when one rule pins two separate keywords. */
+  readonly alsoEmits?: string;
   /** Fragments that must NOT appear. Defaults to the embed escape. */
   readonly forbids?: readonly string[];
   /** Set when the rule is about a property of the output, not a spelling. */
@@ -317,6 +319,10 @@ const RULES: readonly Rule[] = [
     id: 'TS-TEMPLATE',
     source: 'export type Route = `api/${string}`;\n',
     emits: "tsTemplate: {texts: ['api/', ''], placeholders: [{type: 'string'}]}",
+    // TS-WIRE-HALF applies here too: the literal chunks are pinned, the
+    // placeholder is a wildcard (a narrower regex would reject strings the
+    // type accepts).
+    alsoEmits: String.raw`pattern: '^api/[\\s\\S]*$'`,
     forbids: ['embedType'],
   },
   {
@@ -393,6 +399,9 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
     landed(rule.id)(`${rule.id}${rule.note ? ` — ${rule.note}` : ''}`, {timeout: 120_000}, () => {
       const {main} = convertToSchema(rule.source);
       expect(main, `${rule.id}: expected the schema to contain\n  ${rule.emits}\ngot:\n${main}`).toContain(rule.emits);
+      if (rule.alsoEmits !== undefined) {
+        expect(main, `${rule.id}: expected the schema to contain\n  ${rule.alsoEmits}\ngot:\n${main}`).toContain(rule.alsoEmits);
+      }
       for (const forbidden of rule.forbids ?? ['embedType']) {
         expect(main, `${rule.id}: the schema must not contain ${forbidden}:\n${main}`).not.toContain(forbidden);
       }
