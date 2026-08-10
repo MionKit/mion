@@ -107,10 +107,18 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 	out.IndexT = builder.walk(node.IndexT)
 	out.Parameters = builder.walkSlice(node.Parameters)
 	childrenSlots := node.Children
+	// One slot list per exclusive level. Each group sorts on its own — branch
+	// order inside a group is id-irrelevant (counting is order-insensitive),
+	// and the GROUP order is already canonical from the producer, which sorts
+	// by the carrier tuple's print.
 	oneOfSlots := node.OneOf
 	if node.Kind == reflection.KindUnion && !builder.sorting[node.ID] {
 		childrenSlots = builder.sortSlots(node.ID, childrenSlots)
-		oneOfSlots = builder.sortSlots(node.ID, oneOfSlots)
+		sortedGroups := make([][]*reflection.RunType, 0, len(oneOfSlots))
+		for _, group := range oneOfSlots {
+			sortedGroups = append(sortedGroups, builder.sortSlots(node.ID, group))
+		}
+		oneOfSlots = sortedGroups
 	}
 	out.Children = builder.walkSlice(childrenSlots)
 	out.Arguments = builder.walkSlice(node.Arguments)
@@ -131,7 +139,9 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 			Source: patternProp.Source, Key: builder.walk(patternProp.Key), Value: builder.walk(patternProp.Value)})
 	}
 	out.PropNames = builder.walkSlice(node.PropNames)
-	out.OneOf = builder.walkSlice(oneOfSlots)
+	for _, group := range oneOfSlots {
+		out.OneOf = append(out.OneOf, builder.walkSlice(group))
+	}
 	for _, unevaluated := range node.Unevaluated {
 		if unevaluated == nil {
 			continue
