@@ -25,8 +25,13 @@ func TestChain_TemporalUnbranded(t *testing.T) {
 		t.Errorf("the temporal subpath import should be added:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<Temporal.Instant>()") {
-		t.Errorf("temporal members should embed on the schema target:\n%s", schemaForm)
+	// Data, not a quoted type: the schema target spells Temporal with the
+	// jsType dialect row rather than reaching for the embed escape.
+	if !strings.Contains(schemaForm, "{jsType: 'Temporal.Instant'}") {
+		t.Errorf("temporal members should ride the jsType dialect row:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("temporal members should not reach the embed escape:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDsIn(t, withTemporal(schemaForm), convert.TargetType)
 	if !strings.Contains(typeForm, "at: Temporal.Instant") || !strings.Contains(typeForm, "day?: Temporal.PlainDate") {
@@ -65,8 +70,13 @@ func TestChain_TemporalBranded(t *testing.T) {
 		t.Errorf("branded temporal should print the TFT param builder:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<TFT.PlainDate<{min: '2020-01-01'}>>()") {
-		t.Errorf("branded temporal should embed the brand on the schema target:\n%s", schemaForm)
+	// The bounds are plain ISO strings, so a branded temporal rides jsFormat
+	// exactly like every other format family — name + params, verbatim.
+	if !strings.Contains(schemaForm, "{jsFormat: {name: 'temporalPlainDate', params: {min: '2020-01-01'}}}") {
+		t.Errorf("branded temporal should ride the jsFormat dialect row:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("branded temporal should not reach the embed escape:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDsIn(t, withTemporal(schemaForm), convert.TargetType)
 	if !strings.Contains(typeForm, "export type Day = TFT.PlainDate<{min: '2020-01-01'}>;") {
