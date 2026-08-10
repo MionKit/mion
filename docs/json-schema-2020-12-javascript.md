@@ -2,7 +2,7 @@
 
 A small, conservative extension to [JSON Schema draft 2020-12](https://json-schema.org/draft/2020-12) that records **what the validated JSON becomes in JavaScript**.
 
-Status: specification. Version 1. Keyword prefix `js`.
+Status: specification. Version 1. Keyword prefixes `js`, `ts`, `rt`.
 
 ## Why
 
@@ -14,11 +14,11 @@ This extension adds that second half. It never replaces the first.
 
 ## The one rule
 
-> **Deleting every `js*` keyword from a document must not change whether any JSON value validates against it.**
+> **Deleting every extension keyword from a document must not change whether any JSON value validates against it.**
 
 That is the whole design, and everything below follows from it.
 
-A document in this dialect is a valid 2020-12 document. Draft 2020-12 requires an implementation to ignore keywords it does not recognise, so any standard validator reads one of these schemas, ignores the `js*` keywords, and enforces exactly the wire contract. Nothing is weakened and nothing is skipped.
+A document in this dialect is a valid 2020-12 document. Draft 2020-12 requires an implementation to ignore keywords it does not recognise, so any standard validator reads one of these schemas, ignores the extension keywords, and enforces exactly the wire contract. Nothing is weakened and nothing is skipped.
 
 A reader that *does* understand the extension gets one more thing: the JavaScript type on the other side of the decode.
 
@@ -30,8 +30,8 @@ Every validator agrees this accepts `"2026-08-10T09:00:00Z"` and rejects `42`. A
 
 ## What this is not
 
-- **Not a replacement for `type`.** `jsType` sits *beside* `type`, never instead of it. A schema whose only kind information is a `js*` keyword is not conforming.
-- **Not a second validation vocabulary.** No `js*` keyword narrows, widens or overrides an assertion. They are annotations in the 2020-12 sense.
+- **Not a replacement for `type`.** `jsType` sits *beside* `type`, never instead of it. A schema whose only kind information is an extension keyword is not conforming.
+- **Not a second validation vocabulary.** No extension keyword narrows, widens or overrides an assertion. They are annotations in the 2020-12 sense.
 - **Not a serialisation format.** It describes JSON that already exists; it does not prescribe how a value is encoded, only what the encoding means.
 
 ## Identification
@@ -42,21 +42,37 @@ The dialect is identified by the meta-schema URI:
 https://runtypes.pages.dev/schema/2020-12-javascript
 ```
 
-A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses `js*` keywords is still conforming, because by the one rule above the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.
+A document MAY declare it with `$schema`. A document that declares plain `https://json-schema.org/draft/2020-12/schema` and uses extension keywords is still conforming, because by the one rule above the keywords are inert to a plain 2020-12 reader. Declaring the dialect URI is a signal to tooling, not a requirement for correctness.
+
+## Three prefixes, and what they promise
+
+Every extension keyword answers one question by its prefix: **where do I go to learn what this value means?**
+
+| Prefix | Defined by | Has a wire form | Read the docs at |
+| --- | --- | --- | --- |
+| `js` | JavaScript | yes, always | MDN |
+| `rt` | RunTypes | yes, through standard constraint keywords | the RunTypes format reference |
+| `ts` | TypeScript | **no**, ever | the TypeScript handbook |
+
+`jsType: "Map"` names a real runtime value with a real encoding. `rtFormat: "email"` names a constraint family RunTypes defines, whose actual checks ride standard keywords. `tsReadonly` names a TypeScript type-system fact that no JSON value can witness.
+
+That last row is the important one. The `ts` keywords exist for exactly one purpose: to restore the original TypeScript type. They constrain nothing, a validator that drops them loses no checking, and a consumer that only cares about the data can strip every keyword starting with `ts` and lose nothing at all.
+
+Because they carry no constraint, a `ts` keyword MUST be accompanied by whatever standard keywords describe its wire half. `tsIndexes` on a numeric-keyed index signature has to be written beside the `patternProperties` or `propertyNames` that constrains those keys, or the schema would be saying something to RunTypes that it does not say to anyone else, and the one rule above would break.
 
 ## Keyword summary
 
 | Keyword | Extends | Carries |
 | --- | --- | --- |
 | `jsType` | `type` | the JavaScript type the wire form decodes to |
-| `jsFormat` | `format` | the named type-format family the value belongs to |
-| `jsFormatParams` | the constraint keywords | family parameters that have no standard keyword |
-| `jsLabels` | `prefixItems` | tuple slot names |
-| `jsReadonly` | `required` | the members that are `readonly` |
-| `jsIndexes` | `additionalProperties` | index signatures whose key is not a plain string |
-| `jsTemplate` | `pattern` | the parts of a template literal type |
-| `jsFunction` | nothing standard | a function signature |
-| `jsMeta` | nothing standard | a `base & {…}` metadata intersection |
+| `rtFormat` | `format` | the named type-format family the value belongs to |
+| `rtFormatParams` | the constraint keywords | family parameters that have no standard keyword |
+| `tsLabels` | `prefixItems` | tuple slot names |
+| `tsReadonly` | `required` | the members that are `readonly` |
+| `tsIndexes` | `additionalProperties` | index signatures whose key is not a plain string |
+| `tsTemplate` | `pattern` | the parts of a template literal type |
+| `tsFunction` | nothing standard | a function signature |
+| `tsMeta` | nothing standard | a `base & {…}` metadata intersection |
 
 Every one is optional. A document using none of them is ordinary JSON Schema.
 
@@ -66,7 +82,7 @@ There is deliberately no keyword for negation. JavaScript has no "not this type"
 {"type": "string", "not": {"format": "email"}}
 ```
 
-A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding a `js` spelling beside it would be inventing a second way to say one thing.
+A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding an extension spelling beside it would be inventing a second way to say one thing.
 
 ---
 
@@ -130,22 +146,22 @@ There is therefore no `jsType: "symbol"`. A symbol-keyed or symbol-valued member
 
 ---
 
-## `jsFormat` and `jsFormatParams`
+## `rtFormat` and `rtFormatParams`
 
-`format` in 2020-12 names a well-known string shape from a fixed registry. `jsFormat` names a **type-format family**: a base type plus a named, parameterised constraint set that the decoded value carries as part of its type.
-
-```json
-{"type": "string", "format": "email", "jsFormat": "email"}
-```
-
-Where the standard registry already has the right word, both keywords appear and agree. The pair is not redundant: `format` tells a standard validator what to check, `jsFormat` tells a RunTypes reader which *family* the value belongs to, and two families can share one `format`.
+`format` in 2020-12 names a well-known string shape from a fixed registry. `rtFormat` names a **type-format family**: a base type plus a named, parameterised constraint set that the decoded value carries as part of its type.
 
 ```json
-{"type": "string", "minLength": 3, "jsFormat": "stringFormat"}
-{"type": "string", "minLength": 3, "format": "email", "jsFormat": "email"}
+{"type": "string", "format": "email", "rtFormat": "email"}
 ```
 
-Both accept strings of at least three characters. They decode to different types, and only `jsFormat` says which.
+Where the standard registry already has the right word, both keywords appear and agree. The pair is not redundant: `format` tells a standard validator what to check, `rtFormat` tells a RunTypes reader which *family* the value belongs to, and two families can share one `format`.
+
+```json
+{"type": "string", "minLength": 3, "rtFormat": "stringFormat"}
+{"type": "string", "minLength": 3, "format": "email", "rtFormat": "email"}
+```
+
+Both accept strings of at least three characters. They decode to different types, and only `rtFormat` says which.
 
 ### Parameters
 
@@ -161,38 +177,38 @@ A family's parameters go on the **standard keyword** whenever one exists. This i
 | `minItems` / `maxItems` / `uniqueItems` | same |
 | `minProperties` / `maxProperties` | same |
 
-`jsFormatParams` carries only what is left: parameters the standard has no keyword for, and parameters whose value the standard keyword cannot round-trip.
+`rtFormatParams` carries only what is left: parameters the standard has no keyword for, and parameters whose value the standard keyword cannot round-trip.
 
 ```json
-{"type": "string", "format": "email", "jsFormat": "email", "jsFormatParams": {"localPart": {"maxLength": 64}}}
+{"type": "string", "format": "email", "rtFormat": "email", "rtFormatParams": {"localPart": {"maxLength": 64}}}
 ```
 
-Two cases make `jsFormatParams` load-bearing rather than decorative:
+Two cases make `rtFormatParams` load-bearing rather than decorative:
 
 **Bigint bounds.** A `bigint` family's `min`/`max` are bigints, and JSON has no bigint. They ride as decimal strings:
 
 ```json
 {"type": "string", "pattern": "^-?[0-9]+$", "jsType": "bigint",
- "jsFormat": "bigintFormat", "jsFormatParams": {"min": "0", "max": "18446744073709551615"}}
+ "rtFormat": "bigintFormat", "rtFormatParams": {"min": "0", "max": "18446744073709551615"}}
 ```
 
-**A parameter sitting at the standard keyword's default.** `{"minItems": 0}` says exactly what omitting `minItems` says, so a reader cannot tell the two apart, and the family's parameter would be lost. It goes in `jsFormatParams` instead, leaving the standard keyword's meaning untouched:
+**A parameter sitting at the standard keyword's default.** `{"minItems": 0}` says exactly what omitting `minItems` says, so a reader cannot tell the two apart, and the family's parameter would be lost. It goes in `rtFormatParams` instead, leaving the standard keyword's meaning untouched:
 
 ```json
-{"type": "array", "items": {"type": "string"}, "jsFormat": "formattedArray", "jsFormatParams": {"minItems": 0}}
+{"type": "array", "items": {"type": "string"}, "rtFormat": "formattedArray", "rtFormatParams": {"minItems": 0}}
 ```
 
 Parameters that only affect mock generation or input transformation (`mockSamples`, `trim`, `lowercase`) have no schema counterpart in either place. They do not describe what a validator enforces, so putting them in a schema would misrepresent it.
 
 ---
 
-## `jsLabels`
+## `tsLabels`
 
 Tuple slot names, one per slot in order, the rest slot included. Extends `prefixItems`.
 
 ```json
 {"type": "array", "prefixItems": [{"type": "number"}, {"type": "number"}],
- "minItems": 2, "items": false, "jsLabels": ["x", "y"]}
+ "minItems": 2, "items": false, "tsLabels": ["x", "y"]}
 ```
 
 Decodes to `[x: number, y: number]`. Slot names are part of a tuple's identity in TypeScript, so a labelled tuple and an unlabelled one are different types even though no JSON value can tell them apart.
@@ -201,13 +217,13 @@ The list MUST cover every slot or it is ignored whole. A partial list would sile
 
 ---
 
-## `jsReadonly`
+## `tsReadonly`
 
 The members carrying the `readonly` modifier, named the way `required` names its own. Extends `required`.
 
 ```json
 {"type": "object", "properties": {"id": {"type": "string"}, "hits": {"type": "number"}},
- "required": ["id", "hits"], "jsReadonly": ["id"]}
+ "required": ["id", "hits"], "tsReadonly": ["id"]}
 ```
 
 Decodes to `{readonly id: string; hits: number}`.
@@ -216,29 +232,29 @@ This is **not** the standard `readOnly` keyword, which is an annotation about wr
 
 ---
 
-## `jsIndexes`
+## `tsIndexes`
 
 Index signatures whose key `additionalProperties` cannot describe, one entry per signature. Extends `additionalProperties`.
 
 ```json
-{"type": "object", "jsIndexes": [{"key": {"type": "number"}, "value": {"type": "string"}}]}
+{"type": "object", "tsIndexes": [{"key": {"type": "number"}, "value": {"type": "string"}}]}
 ```
 
 Decodes to `{[key: number]: string}`.
 
-`additionalProperties` speaks about string keys only, and about all of them at once. It stays the right keyword for `{[key: string]: V}`. `jsIndexes` covers numeric keys, symbol keys, pattern keys (a `key` schema carrying `jsTemplate`), and shapes with more than one signature.
+`additionalProperties` speaks about string keys only, and about all of them at once. It stays the right keyword for `{[key: string]: V}`. `tsIndexes` covers numeric keys, symbol keys, pattern keys (a `key` schema carrying `tsTemplate`), and shapes with more than one signature.
 
 Because JSON object keys are always strings on the wire, a numeric or pattern key does constrain the JSON, and the wire half of that constraint SHOULD also be written with `patternProperties` or `propertyNames` where it can be.
 
 ---
 
-## `jsTemplate`
+## `tsTemplate`
 
 The parts of a template literal type: `texts` holds the n+1 literal chunks, `placeholders` the n schemas between them. Extends `pattern`.
 
 ```json
 {"type": "string", "pattern": "^api/[^/]*/v[0-9]+$",
- "jsTemplate": {"texts": ["api/", "/v", ""], "placeholders": [{"type": "string"}, {"type": "number"}]}}
+ "tsTemplate": {"texts": ["api/", "/v", ""], "placeholders": [{"type": "string"}, {"type": "number"}]}}
 ```
 
 Decodes to `` `api/${string}/v${number}` ``.
@@ -249,13 +265,13 @@ Only placeholders that TypeScript can interpolate appear here: `string`, `number
 
 ---
 
-## `jsFunction`
+## `tsFunction`
 
 A function signature. `params` is an ordinary tuple schema, `return` an ordinary schema.
 
 ```json
-{"jsFunction": {
-  "params": {"type": "array", "prefixItems": [{"type": "string"}], "minItems": 1, "items": false, "jsLabels": ["message"]},
+{"tsFunction": {
+  "params": {"type": "array", "prefixItems": [{"type": "string"}], "minItems": 1, "items": false, "tsLabels": ["message"]},
   "return": {"type": "boolean"}}}
 ```
 
@@ -265,21 +281,21 @@ Functions have no wire form, so there is no `type` beside it. Using a tuple sche
 
 ---
 
-## `jsMeta`
+## `tsMeta`
 
 A `base & {…}` metadata intersection: the base schema beside the metadata objects conjoined onto it.
 
 ```json
-{"jsMeta": {
+{"tsMeta": {
   "base": {"type": "string"},
-  "meta": [{"type": "object", "properties": {"__brand": {"const": "UserId"}}, "required": ["__brand"], "jsReadonly": ["__brand"]}]}}
+  "meta": [{"type": "object", "properties": {"__brand": {"const": "UserId"}}, "required": ["__brand"], "tsReadonly": ["__brand"]}]}}
 ```
 
 Decodes to `string & {readonly __brand: 'UserId'}`, the usual way a nominal brand is written in TypeScript.
 
-The base is nested under the keyword rather than sitting beside it because a base may itself carry a `js*` discriminator, and those are read first.
+The base is nested under the keyword rather than sitting beside it because a base may itself carry a `jsType` or `rtFormat`, and those are read first.
 
-Only the base describes the wire. The metadata objects are phantom: they exist in the type and never in the JSON, which is why the wire contract of a `jsMeta` schema is exactly the wire contract of its base.
+Only the base describes the wire. The metadata objects are phantom: they exist in the type and never in the JSON, which is why the wire contract of a `tsMeta` schema is exactly the wire contract of its base.
 
 ---
 
@@ -287,12 +303,13 @@ Only the base describes the wire. The metadata objects are phantom: they exist i
 
 An implementation of this dialect:
 
-1. MUST validate the document as draft 2020-12, ignoring the `js*` keywords for that purpose.
-2. MUST NOT let any `js*` keyword change a validation verdict.
-3. SHOULD reject a `js*` keyword whose sibling wire keywords contradict it (`{"type": "number", "jsType": "Date"}` is not meaningful, since a `Date` travels as a string).
-4. MAY ignore any `js*` keyword it does not implement, and MUST fall back to the wire type when it does.
+1. MUST validate the document as draft 2020-12, ignoring the extension keywords for that purpose.
+2. MUST NOT let any extension keyword change a validation verdict.
+3. SHOULD reject an extension keyword whose sibling wire keywords contradict it (`{"type": "number", "jsType": "Date"}` is not meaningful, since a `Date` travels as a string).
+4. MAY ignore any extension keyword it does not implement, and MUST fall back to the wire type when it does.
+5. MUST treat every `ts`-prefixed keyword as droppable: stripping all of them leaves a document that validates identically and describes the same JSON.
 
-A **portable** document is one using no `js*` keyword at all. Producers should offer a mode that emits only portable documents and reports an error where a type cannot be expressed without the extension, so a schema destined for a non-RunTypes consumer never silently depends on it.
+A **portable** document is one using no extension keyword at all. Producers should offer a mode that emits only portable documents and reports an error where a type cannot be expressed without the extension, so a schema destined for a non-RunTypes consumer never silently depends on it.
 
 ## Relationship to RunTypes
 
