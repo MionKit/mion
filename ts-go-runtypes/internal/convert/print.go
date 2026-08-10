@@ -2006,20 +2006,6 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		if family.temporal {
-			// Temporal brands embed: the door deliberately keeps the
-			// Temporal families out of jsFormat so the json-schema surface
-			// never drags the Temporal lib in.
-			if ctx.opts.Portable {
-				return dialect("")
-			}
-			brandText, ok := ctx.temporalBrandText(annotation, family)
-			if !ok {
-				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
-			}
-			ctx.needs.useEmbedType = true
-			return fmt.Sprintf("%s<%s>()", ctx.names.EmbedType, brandText), nil
-		}
 		// jsFormat carries the annotation's OWN name + full params verbatim
 		// (uuid included — the door rebuilds the brand from the pair), so the
 		// schema spelling never depends on the preset tables.
@@ -2137,10 +2123,15 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 		if isRegExpNode(node) {
 			return dialect("{jsType: 'RegExp'}")
 		}
-		// Temporal builtins fall through to the embed escape with the rest of
-		// the class kinds: the door deliberately keeps Temporal out of the
-		// jsType/jsFormat dialect so the json-schema surface never drags the
-		// Temporal lib in.
+		// The eight Temporal builtins spell as data, under the JS global's own
+		// qualified name. The door resolves the row through the formats
+		// surface's guarded base map, so naming Temporal here never forces the
+		// Temporal lib on a json-schema consumer.
+		if info, isTemporal := reflection.TemporalInfoBySubKind(node.SubKind); isTemporal {
+			return dialect(fmt.Sprintf("{jsType: %s}", quoteSingle(info.Builtin)))
+		}
+		// A user class or any other class kind keeps the escape: its identity
+		// is nominal, so only the live symbol can carry it.
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindRegexp:
 		return dialect("{jsType: 'RegExp'}")
@@ -2234,17 +2225,9 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			// lowers back to `Record<string, V> & {…}`.
 			additionalText = fmt.Sprintf(", additionalProperties: %s", valueText)
 		}
-		for _, member := range members {
-			if member.readonly {
-				// Standard readOnly is annotation-only by design (the door
-				// dropped the modifier lift on purpose), and a dialect
-				// keyword would tax every object translation — the embed
-				// escape carries the modifier exactly instead.
-				return ctx.schemaEmbedNode(node)
-			}
-		}
 		var propertyParts []string
 		var requiredParts []string
+		var readonlyParts []string
 		for _, member := range members {
 			innerText, innerDiag := ctx.schemaExpr(member.child)
 			if innerDiag != nil {
@@ -2254,10 +2237,24 @@ func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnost
 			if !member.optional {
 				requiredParts = append(requiredParts, quoteSingle(member.name))
 			}
+			if member.readonly {
+				readonlyParts = append(readonlyParts, quoteSingle(member.name))
+			}
+		}
+		// A readonly member rides the jsReadonly dialect keyword, named the way
+		// `required` names its own. Standard `readOnly` is NOT the same thing:
+		// 2020-12 declares it non-constraining and the door lifts nothing from
+		// it, so it would silently drop the modifier and move the id.
+		if len(readonlyParts) > 0 && ctx.opts.Portable {
+			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: "a readonly member has no standard 2020-12 spelling; drop --portable to use the jsReadonly dialect keyword"}
 		}
 		out := fmt.Sprintf("{type: 'object', properties: {%s}", strings.Join(propertyParts, ", "))
 		if len(requiredParts) > 0 {
 			out += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
+		}
+		if len(readonlyParts) > 0 {
+			out += fmt.Sprintf(", jsReadonly: [%s]", strings.Join(readonlyParts, ", "))
 		}
 		return out + additionalText + schemaBag + "}", nil
 	case reflection.KindTuple:

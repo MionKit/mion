@@ -63,6 +63,11 @@ import type {
 } from '../formats/index.ts';
 import type {OneOf} from '../builders/static.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
+import type {
+  TemporalBaseByJsTypeName,
+  TemporalFormatOf,
+  TemporalFormatParamsByName,
+} from '../formats/datetime/temporalFormats.ts';
 
 // #region jsonschema-extract — sliced verbatim by test/types/jsonSchemaHarness.ts
 // into an in-memory program to measure tsc instantiation cost + assert the
@@ -103,15 +108,34 @@ export type NestedSchema = JsonSchemaInput | boolean | EmbedSchema<unknown>;
 
 /** The `jsType` dialect values accepted so far — the JS/TS atoms 2020-12
  *  cannot spell. The roster grows with the conversion phases
- *  (docs/done/format-conversion-completion.md). **/
-export type JsTypeName = 'bigint' | 'symbol' | 'undefined' | 'void' | 'any' | 'Date' | 'RegExp' | 'Map' | 'Set' | 'Promise';
+ *  (docs/done/format-conversion-completion.md). The eight `Temporal.*` rows
+ *  are the JS globals' own qualified names, matching how the Date / RegExp /
+ *  Map / Set / Promise rows spell theirs. **/
+export type JsTypeName =
+  | 'bigint'
+  | 'symbol'
+  | 'undefined'
+  | 'void'
+  | 'any'
+  | 'Date'
+  | 'RegExp'
+  | 'Map'
+  | 'Set'
+  | 'Promise'
+  | TemporalJsTypeName;
+
+/** The eight `Temporal.*` jsType rows. Sourced from the formats surface's own
+ *  guarded base map, so this door never names `Temporal.*` directly and the
+ *  json-schema subpath stays importable without the Temporal lib (the guard
+ *  degrades to `unknown` when the consumer's `lib` lacks it). **/
+export type TemporalJsTypeName = keyof TemporalBaseByJsTypeName;
 
 /** The `jsFormat` dialect families — every format family whose params are
  *  JSON-carriable, carried verbatim as the reflected (name, params) pair. The
- *  bigint family is deliberately absent (a bigint param value cannot ride
- *  JSON — those brands travel through `embedType` instead), as are the
- *  Temporal families (embedded, so the json-schema surface never drags the
- *  Temporal lib in). **/
+ *  bigint family is deliberately absent: a bigint param value cannot ride JSON,
+ *  and a digit STRING is a different type, so those brands travel through
+ *  `embedType` instead. The six orderable Temporal families ride here like any
+ *  other family — their bounds are plain ISO strings. **/
 export type JsFormatName =
   | 'stringFormat'
   | 'numberFormat'
@@ -123,17 +147,25 @@ export type JsFormatName =
   | 'date'
   | 'time'
   | 'dateTime'
-  | 'nativeDate';
+  | 'nativeDate'
+  | TemporalFormatName;
+
+/** The six orderable Temporal format families. PlainMonthDay and Duration have
+ *  no min/max ordering and so have no branded form to carry — unbranded, they
+ *  ride the `jsType` rows above. **/
+export type TemporalFormatName = keyof TemporalFormatParamsByName;
 
 /** `jsFormat: {name, params}` → the exact TypeFormat brand, verbatim. **/
 type FromJsFormat<Name, Params> = Params extends object
-  ? Name extends 'numberFormat'
-    ? TypeFormat<number, 'numberFormat', Params, never>
-    : Name extends 'nativeDate'
-      ? TypeFormat<Date, 'nativeDate', Params, never>
-      : Name extends JsFormatName & string
-        ? TypeFormat<string, Name, Params, never>
-        : never
+  ? Name extends TemporalFormatName
+    ? TemporalFormatOf<Name, Params>
+    : Name extends 'numberFormat'
+      ? TypeFormat<number, 'numberFormat', Params, never>
+      : Name extends 'nativeDate'
+        ? TypeFormat<Date, 'nativeDate', Params, never>
+        : Name extends JsFormatName & string
+          ? TypeFormat<string, Name, Params, never>
+          : never
   : never;
 
 /** The accepted draft 2020-12 JSON Schema subset — the versioned input type.
@@ -207,6 +239,12 @@ export interface JsonSchemaInput {
   // slot or the engine ignores it whole. No standard 2020-12 spelling, so
   // `--portable` conversions never emit it.
   readonly jsLabels?: readonly string[];
+  // RunTypes dialect: the TS `readonly` MODIFIER on the named properties, the
+  // schema-side spelling of `RT.propMod({readonly: true}, …)`. Distinct from
+  // 2020-12's `readOnly` annotation below, which deliberately lifts nothing —
+  // this one moves the structural id, so it names its members explicitly the
+  // way `required` does. No standard spelling, so `--portable` never emits it.
+  readonly jsReadonly?: readonly string[];
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -556,6 +594,27 @@ type ObjectFromProps<P, Req extends PropertyKey, Root, F extends [unknown]> = Fl
     -readonly [K in keyof P as K extends Req ? K : never]: FromJsonSchemaIn<P[K], Root, F>;
   } & {
     -readonly [K in keyof P as K extends Req ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
+  }
+>;
+
+// The `jsReadonly` dialect keyword: the TS `readonly` MODIFIER on the named
+// properties, which is the value-first `RT.propMod({readonly: true}, …)` and a
+// different thing from 2020-12's non-constraining `readOnly` annotation (see
+// the note above — that one deliberately lifts nothing).
+//
+// Split into its own four-group alias rather than widening the two-group one
+// above: an object without the keyword keeps taking exactly the same path it
+// took before, so the common translation pays nothing for a modifier it does
+// not use.
+type ObjectFromPropsRO<P, Req extends PropertyKey, RO extends PropertyKey, Root, F extends [unknown]> = Flatten<
+  {
+    -readonly [K in keyof P as K extends Req ? (K extends RO ? never : K) : never]: FromJsonSchemaIn<P[K], Root, F>;
+  } & {
+    readonly [K in keyof P as K extends Req ? (K extends RO ? K : never) : never]: FromJsonSchemaIn<P[K], Root, F>;
+  } & {
+    -readonly [K in keyof P as K extends Req ? never : K extends RO ? never : K]?: FromJsonSchemaIn<P[K], Root, F>;
+  } & {
+    readonly [K in keyof P as K extends Req ? never : K extends RO ? K : never]?: FromJsonSchemaIn<P[K], Root, F>;
   }
 >;
 // The object-family keywords with no TS spelling ride the formattedObject
@@ -989,9 +1048,13 @@ type ObjectFrom<S, Root, F extends [unknown]> =
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
-      S extends {required: infer R extends readonly string[]}
-        ? ObjectFromProps<P, R[number], Root, F>
-        : ObjectFromProps<P, never, Root, F>,
+      S extends {jsReadonly: infer RO extends readonly string[]}
+        ? S extends {required: infer R extends readonly string[]}
+          ? ObjectFromPropsRO<P, R[number], RO[number], Root, F>
+          : ObjectFromPropsRO<P, never, RO[number], Root, F>
+        : S extends {required: infer R extends readonly string[]}
+          ? ObjectFromProps<P, R[number], Root, F>
+          : ObjectFromProps<P, never, Root, F>,
       Root,
       F
     >
@@ -1795,7 +1858,10 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
           : DepLayer<S, Root, F>;
 
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
-// `{}` / `true` cannot spell, since those recover `unknown`).
+// `{}` / `true` cannot spell, since those recover `unknown`). The `Temporal.*`
+// row is an indexed access over the formats surface's guarded base map, so a
+// consumer without the Temporal lib gets that map's `unknown` degradation
+// rather than a resolution error.
 type FromJsTypeName<Name> = Name extends 'bigint'
   ? bigint
   : Name extends 'symbol'
@@ -1806,10 +1872,12 @@ type FromJsTypeName<Name> = Name extends 'bigint'
         ? void
         : Name extends 'RegExp'
           ? RegExp
-          : Name extends 'any'
-            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              any
-            : never;
+          : Name extends TemporalJsTypeName
+            ? TemporalBaseByJsTypeName[Name]
+            : Name extends 'any'
+              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                any
+              : never;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
   ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>
   : DepSchemasLayer<S, Root, F>;
@@ -2363,6 +2431,7 @@ export type SchemaLoweringByKeyword = {
   enum: 'shape: literal union';
   const: 'shape: single literal';
   jsLabels: 'slot: __rtLabels — tuple slot labels, one per slot in order (RunTypes dialect, not standard 2020-12)';
+  jsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';

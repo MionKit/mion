@@ -348,16 +348,16 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// cannot carry an index and `record(...)` cannot carry named members, but
 	// `Record<K, V> & {…}` is exactly what TypeScript resolves the mixed
 	// literal to, so the id is identical. Optional, readonly and narrower
-	// members all ride it.
+	// members all ride it, on every target.
 	for _, testCase := range []struct {
 		source, wants string
-		// readonly members embed on the schema target by design (standard
-		// readOnly is annotation-only, so the modifier rides the escape).
-		schemaEmbeds bool
+		// The readonly MODIFIER rides the jsReadonly dialect keyword, so even
+		// a mixed record keeps its standard `properties` spelling.
+		schemaReadonly string
 	}{
 		{source: "export type Mixed = {name: string; [key: string]: unknown};\n", wants: "RT.intersection(RT.record(RT.unknown()), RT.object({name: TF.string()}))"},
 		{source: "export type Loose = {name?: string; [key: string]: unknown};\n", wants: "RT.optional(TF.string())"},
-		{source: "export type Frozen = {readonly name: string; [key: string]: unknown};\n", wants: "RT.propMod({readonly: true}, TF.string())", schemaEmbeds: true},
+		{source: "export type Frozen = {readonly name: string; [key: string]: unknown};\n", wants: "RT.propMod({readonly: true}, TF.string())", schemaReadonly: "jsReadonly: ['name']"},
 		{source: "export type Typed = {id: 'a' | 'b'; [key: string]: string};\n", wants: "RT.intersection(RT.record(TF.string()), RT.object({id:"},
 	} {
 		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
@@ -369,12 +369,11 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 		// `additionalProperties`, which the door lowers back to the same
 		// intersection.
 		schemaForm := convertAndCheckIDs(t, testCase.source, convert.TargetJSONSchema)
-		embedded := strings.Contains(schemaForm, "embedType<")
-		switch {
-		case testCase.schemaEmbeds && !embedded:
-			t.Errorf("a readonly member should still embed on the schema target:\n%s", schemaForm)
-		case !testCase.schemaEmbeds && (embedded || !strings.Contains(schemaForm, "additionalProperties:")):
+		if strings.Contains(schemaForm, "embedType<") || !strings.Contains(schemaForm, "additionalProperties:") {
 			t.Errorf("a mixed record should print properties + additionalProperties:\n%s", schemaForm)
+		}
+		if testCase.schemaReadonly != "" && !strings.Contains(schemaForm, testCase.schemaReadonly) {
+			t.Errorf("expected %q for %q:\n%s", testCase.schemaReadonly, testCase.source, schemaForm)
 		}
 		convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	}
@@ -496,11 +495,18 @@ func TestReadonlyMember_FullChain(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.object({id: RT.propMod({readonly: true}, TF.string()), count: TF.number()})") {
 		t.Errorf("readonly member should ride propMod:\n%s", builderForm)
 	}
-	// Standard readOnly is annotation-only (the door dropped the modifier
-	// lift on purpose), so the schema target embeds the whole object.
+	// The modifier rides the jsReadonly dialect keyword, so the object keeps
+	// its standard spelling — `count` is still an ordinary `{type: 'number'}`
+	// property rather than being dragged into an escape by its sibling.
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<{readonly id: string; count: number}>()") {
-		t.Errorf("readonly member should embed on the schema target:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "required: ['id', 'count'], jsReadonly: ['id']") {
+		t.Errorf("readonly member should ride the jsReadonly keyword:\n%s", schemaForm)
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("a readonly member must not escape its whole object:\n%s", schemaForm)
+	}
+	if !strings.Contains(schemaForm, "count: {type: 'number'}") {
+		t.Errorf("the mutable sibling should keep its standard spelling:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
 	if !strings.Contains(typeForm, "type WithRO = {readonly id: string; count: number};") {
