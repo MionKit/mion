@@ -85,10 +85,13 @@ func (checks *SchemaChecks) eachRefSlot(visit func(*RunType)) {
 			visit(propNames)
 		}
 	}
-	// OneOf — the `__rtOneOf` branch children (the OneOf<[…]> combinator).
-	for _, branch := range checks.OneOf {
-		if branch != nil {
-			visit(branch)
+	// OneOf — the `__rtOneOf` branch children (the OneOf<[…]> combinator),
+	// one group per exclusive level.
+	for _, group := range checks.OneOf {
+		for _, branch := range group {
+			if branch != nil {
+				visit(branch)
+			}
 		}
 	}
 	// Unevaluated — the `__rtUnevaluated` sweep's child slots: the leftover

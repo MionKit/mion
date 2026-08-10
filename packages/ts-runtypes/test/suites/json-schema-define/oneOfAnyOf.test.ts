@@ -55,7 +55,8 @@ describe('oneOf — exactly-one across the three authoring modes', () => {
   it('projects a clean union node with the branch list attached', () => {
     const node = getRunType<OneOf<[ArmA, ArmB]>>();
     expect(node.children?.length).toBe(2);
-    expect(node.oneOf?.length).toBe(2);
+    expect(node.oneOf?.length).toBe(1); // one exclusive group
+    expect(node.oneOf?.[0]?.length).toBe(2);
   });
 
   it('rejects a value matching two branches where the union accepts it', () => {
@@ -120,6 +121,109 @@ describe('oneOf — exactly-one across the three authoring modes', () => {
     expect(nested({a: 'x', b: 'y'})).toBe(false);
     // Matches inner (via a) AND the outer c branch → two outer branches.
     expect(nested({a: 'x', c: 'z'})).toBe(false);
+  });
+
+  // ── A oneOf that is NOT the whole union ───────────────────────────────
+  //
+  // `OneOf<[A, B]> | C` is a union of the exclusive part and an ordinary arm.
+  // The branch counting used to REPLACE the whole check, so the `| C` arm was
+  // never validated and a perfectly valid C was rejected — a validator saying
+  // no to a value its own type accepts. Each group counts on its own now, and
+  // the arms beside them are checked like any union member.
+  describe('a oneOf beside ordinary union arms', () => {
+    it('accepts a value matching the arm outside the group, and keeps exclusivity', () => {
+      const withArm = createValidateFn<OneOf<[ArmA, ArmB]> | number>();
+      expect(withArm(42)).toBe(true); // the arm beside the exclusive part
+      expect(withArm({a: 'x'})).toBe(true); // exactly one branch
+      expect(withArm({b: 'y'})).toBe(true);
+      expect(withArm({a: 'x', b: 'y'} as never)).toBe(false); // two branches — still exclusive
+      expect(withArm('nope' as never)).toBe(false); // neither
+    });
+
+    it('accepts null for the nullable spelling', () => {
+      // The realistic one: a nullable exclusive union. `null` is not a branch
+      // (a nullish branch carries no sentinel, so it cannot join the tuple by
+      // being unioned in), it is an ordinary arm beside the group.
+      const nullable = createValidateFn<OneOf<[ArmA, ArmB]> | null>();
+      expect(nullable(null)).toBe(true);
+      expect(nullable({a: 'x'})).toBe(true);
+      expect(nullable({a: 'x', b: 'y'} as never)).toBe(false);
+      expect(nullable({})).toBe(false);
+    });
+
+    it('accepts an object arm outside the group without joining the count', () => {
+      const withObject = createValidateFn<OneOf<[ArmA, ArmB]> | {c: string}>();
+      expect(withObject({c: 'z'})).toBe(true);
+      // Matching the outside arm AND one branch is fine: the arm accepts it
+      // on its own, and nothing says the arm has to be exclusive.
+      expect(withObject({a: 'x', c: 'z'})).toBe(true);
+      // Two branches of the ONE group still fail the count, and `{a, b}` is
+      // not a `{c: string}` either.
+      expect(withObject({a: 'x', b: 'y'} as never)).toBe(false);
+    });
+
+    it('reflects the group and the outside arm separately', () => {
+      const node = getRunType<OneOf<[ArmA, ArmB]> | number>();
+      expect(node.oneOf?.length).toBe(1); // one exclusive group
+      expect(node.oneOf?.[0]?.length).toBe(2); // its two branches
+      expect(node.children?.length).toBe(3); // …plus the arm beside it
+    });
+
+    it('has its own identity, and both marker call shapes agree', () => {
+      // Static shape: the caller supplies T.
+      const staticId = getRunTypeId<OneOf<[ArmA, ArmB]> | number>();
+      // Reflection shape: T inferred from a value.
+      const value: OneOf<[ArmA, ArmB]> | number = 42;
+      expect(getRunTypeId(value)).toBe(staticId);
+      // Distinct from both the bare oneOf and the plain union of the members.
+      expect(staticId).not.toBe(getRunTypeId<OneOf<[ArmA, ArmB]>>());
+      expect(staticId).not.toBe(getRunTypeId<ArmA | ArmB | number>());
+    });
+  });
+
+  // ── Two exclusive groups in one union ─────────────────────────────────
+  //
+  // `OneOf<[A,B]> | OneOf<[C,D]>` carries two independent carriers. The
+  // resolver used to give up on the second one and project the union plain, so
+  // BOTH exclusivity constraints vanished and the type collided with
+  // `A | B | C | D` on its id.
+  describe('two exclusive groups in one union', () => {
+    interface ArmC {
+      c: string;
+    }
+    interface ArmD {
+      d: string;
+    }
+    type TwoGroups = OneOf<[ArmA, ArmB]> | OneOf<[ArmC, ArmD]>;
+
+    it('keeps both exclusivity constraints', () => {
+      const twoGroups = createValidateFn<TwoGroups>();
+      expect(twoGroups({a: 'x'})).toBe(true);
+      expect(twoGroups({c: 'z'})).toBe(true);
+      // Two branches of the FIRST group — that group fails, and the value is
+      // not a member of the second either.
+      expect(twoGroups({a: 'x', b: 'y'} as never)).toBe(false);
+      // Two branches of the SECOND group.
+      expect(twoGroups({c: 'z', d: 'w'} as never)).toBe(false);
+      // One branch in each group: each group counted exactly one, so it
+      // passes — the groups are independent, not a combined count.
+      expect(twoGroups({a: 'x', c: 'z'} as never)).toBe(true);
+      expect(twoGroups({})).toBe(false);
+    });
+
+    it('reflects two groups', () => {
+      const node = getRunType<TwoGroups>();
+      expect(node.oneOf?.length).toBe(2);
+      expect(node.oneOf?.[0]?.length).toBe(2);
+      expect(node.oneOf?.[1]?.length).toBe(2);
+    });
+
+    it('no longer collides with the plain union of the same members', () => {
+      const staticId = getRunTypeId<TwoGroups>();
+      const value: TwoGroups = {a: 'x'};
+      expect(getRunTypeId(value)).toBe(staticId); // marker pair
+      expect(staticId).not.toBe(getRunTypeId<ArmA | ArmB | ArmC | ArmD>());
+    });
   });
 
   it('verr: matched-none reports the union error, matched-several the oneOf error', () => {
@@ -462,7 +566,7 @@ describe('oneOf — type-level acceptance and plain-union consumption DX', () =>
     expect(validate('w01')).toBe(true);
     expect(validate('w40')).toBe(true);
     expect(validate('w41')).toBe(false);
-    expect(getRunType<Wide>().oneOf?.length).toBe(40);
+    expect(getRunType<Wide>().oneOf?.[0]?.length).toBe(40);
   });
 
   it('a branch that subtypes a sibling: runtime stays exact under type reduction', () => {
@@ -486,7 +590,7 @@ describe('oneOf — type-level acceptance and plain-union consumption DX', () =>
     const validate = createValidateFn<Narrow>();
     expect(validate({a: 'x'})).toBe(true); // matches branch 1 only
     expect(validate({a: 'x', b: 1})).toBe(false); // matches both branches
-    expect(getRunType<Narrow>().oneOf?.length).toBe(2);
+    expect(getRunType<Narrow>().oneOf?.[0]?.length).toBe(2);
   });
 });
 

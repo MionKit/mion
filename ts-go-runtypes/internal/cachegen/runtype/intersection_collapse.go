@@ -136,7 +136,9 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			node.Kind = reflection.KindUnion
 			node.Children = append(node.Children, cache.Serialize(base))
 			cache.finalizeUnion(node)
-			node.OneOf = branchNodes
+			// One group: the degenerate collapse only ever reads a SINGLE
+			// carrier constituent, so there is exactly one exclusive level here.
+			node.OneOf = [][]*reflection.RunType{branchNodes}
 			return
 		}
 	}

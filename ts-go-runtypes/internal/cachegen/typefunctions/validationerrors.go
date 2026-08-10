@@ -1370,22 +1370,42 @@ func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v strin
 		nVar := ctx.NextLocalVar("xn")
 		var count strings.Builder
 		count.WriteString("let " + nVar + " = 0;")
-		for _, branch := range rt.OneOf {
-			if ctx.ResolveRef(branch) == nil {
-				panic("validationErrors: unresolvable oneOf branch — dropping it would silently weaken validation")
+		countGroup := func(group []*reflection.RunType, target string) {
+			for _, branch := range group {
+				if ctx.ResolveRef(branch) == nil {
+					panic("validationErrors: unresolvable oneOf branch — dropping it would silently weaken validation")
+				}
+				branchRT := ctx.CompileChild(branch, CodeS)
+				if branchRT.Type == CodeNS {
+					panic("validationErrors: non-serializable oneOf branch — dropping it would silently weaken validation")
+				}
+				if branchRT.Code == "" {
+					// No-check branch (unknown / noop) matches unconditionally.
+					count.WriteString(target + "++;")
+					continue
+				}
+				scratch := ctx.NextLocalVar("xer")
+				count.WriteString("const " + scratch + " = [];((er,pth)=>{" + branchRT.Code + "})(" + scratch + ",[]);" +
+					"if (" + scratch + ".length === 0) " + target + "++;")
 			}
-			branchRT := ctx.CompileChild(branch, CodeS)
-			if branchRT.Type == CodeNS {
-				panic("validationErrors: non-serializable oneOf branch — dropping it would silently weaken validation")
+		}
+		if len(rt.OneOf) == 1 {
+			// The overwhelmingly common shape counts straight into nVar, which
+			// is the exact code this has always emitted.
+			countGroup(rt.OneOf[0], nVar)
+		} else {
+			// Several exclusive levels: each counts on its own, and nVar keeps
+			// the LARGEST count so the "matched several" story names the group
+			// that actually over-matched. A value is only reported as
+			// over-matching when some single group saw more than one branch —
+			// matching one branch in each of two groups is a plain miss, not an
+			// exclusivity failure.
+			for _, group := range rt.OneOf {
+				groupVar := ctx.NextLocalVar("xg")
+				count.WriteString("let " + groupVar + " = 0;")
+				countGroup(group, groupVar)
+				count.WriteString("if (" + groupVar + " > " + nVar + ") " + nVar + " = " + groupVar + ";")
 			}
-			if branchRT.Code == "" {
-				// No-check branch (unknown / noop) matches unconditionally.
-				count.WriteString(nVar + "++;")
-				continue
-			}
-			scratch := ctx.NextLocalVar("xer")
-			count.WriteString("const " + scratch + " = [];((er,pth)=>{" + branchRT.Code + "})(" + scratch + ",[]);" +
-				"if (" + scratch + ".length === 0) " + nVar + "++;")
 		}
 		return RTCode{
 			Code: "if (!" + validateHash + ".fn(" + v + ")) {" + count.String() +

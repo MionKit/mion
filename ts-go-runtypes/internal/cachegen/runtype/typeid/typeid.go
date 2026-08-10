@@ -435,17 +435,28 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		// driven by node.Children downstream (union_safeorder.go), not by this id.
 		members := tsType.Distributed()
 		oneOfKey := ""
-		// OneOf carriers: the level branch tuple's SORTED ids fold under
-		// `oo{…}` — counting is order-insensitive (`oneOf: [A, B]` ≡
-		// `oneOf: [B, A]`) but the grouping is id-relevant, keeping
-		// OneOf<[A, B]> apart from `A | B`. Member ids stay plain — the
+		// OneOf carriers: each level group's branch tuple folds its SORTED ids
+		// under its own `oo{…}` — counting is order-insensitive
+		// (`oneOf: [A, B]` ≡ `oneOf: [B, A]`) but the grouping is id-relevant,
+		// keeping OneOf<[A, B]> apart from `A | B`. Member ids stay plain — the
 		// intersection-collapse id skips each member's carrier constituent.
-		if branches, ok := OneOfFromMembers(computer.typeChecker, members); ok {
-			branchIDs := make([]string, 0, len(branches))
-			for _, branch := range branches {
-				branchIDs = append(branchIDs, computer.Compute(branch))
+		//
+		// One group prints exactly the byte string it always has, so every type
+		// that works today keeps its id. A second group appends a second
+		// `oo{…}`, which is what finally separates `OneOf<[A,B]> | OneOf<[C,D]>`
+		// from the plain `A | B | C | D` it used to collide with. The groups
+		// themselves are sorted so their discovery order cannot leak in.
+		if groups, ok := OneOfFromMembers(computer.typeChecker, members); ok {
+			groupKeys := make([]string, 0, len(groups))
+			for _, branches := range groups {
+				branchIDs := make([]string, 0, len(branches))
+				for _, branch := range branches {
+					branchIDs = append(branchIDs, computer.Compute(branch))
+				}
+				groupKeys = append(groupKeys, "oo{"+computer.sortedJoin(branchIDs)+"}")
 			}
-			oneOfKey = "oo{" + computer.sortedJoin(branchIDs) + "}"
+			sort.Strings(groupKeys)
+			oneOfKey = strings.Join(groupKeys, "")
 		}
 		unionIDs := computer.childIDs(members)
 		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false) + oneOfKey

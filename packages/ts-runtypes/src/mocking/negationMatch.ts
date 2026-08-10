@@ -93,11 +93,21 @@ function matches(value: unknown, node: RunType, depth: number): boolean {
       // exactly-one to a false here (count 1 → 2); that direction only
       // wastes a retry in the mock loop, and the `validate(mock())` gate
       // still polices the rare oneOf-under-negation path.
-      const branches = node.oneOf as RunType[] | undefined;
-      if (branches && branches.length > 0) {
-        let count = 0;
-        for (const branch of branches) if (matches(value, branch, depth + 1)) count++;
-        return count === 1;
+      // One group per exclusive level: the value passes when SOME group counts
+      // exactly one match, or when it matches an ordinary arm sitting beside
+      // them (a member belonging to no group at all).
+      const groups = node.oneOf as RunType[][] | undefined;
+      if (groups && groups.length > 0) {
+        const covered = new Set<RunType>();
+        for (const group of groups) {
+          let count = 0;
+          for (const branch of group) {
+            covered.add(branch);
+            if (matches(value, branch, depth + 1)) count++;
+          }
+          if (count === 1) return true;
+        }
+        return (node.children ?? []).some((arm) => !covered.has(arm) && matches(value, arm, depth + 1));
       }
       return (node.children ?? []).some((arm) => matches(value, arm, depth + 1));
     }

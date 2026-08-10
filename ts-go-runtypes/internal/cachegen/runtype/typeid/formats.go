@@ -425,16 +425,23 @@ func OneOfCarrierBranches(typeChecker *checker.Checker, tsType *checker.Type) []
 }
 
 // OneOfFromMembers scans a union's distributed members for oneOf carriers
-// and resolves WHICH carrier belongs to THIS union level: a nested OneOf
+// and resolves WHICH carriers belong to THIS union level: a nested OneOf
 // branch flattens its own carrier'd members into the outer list (where
-// they carry BOTH tuples), so the level carrier is the one no other
-// carrier's branch tuple contains. Returns the level branch list and ok.
-// ok=false when no carrier is present or the level is ambiguous (two
-// unclaimed carriers — only a hand-rolled spelling produces that; callers
-// keep the plain union projection). Members are returned to the caller
-// UNCHANGED — the collapse skips the carrier constituents, so children
-// already serialize plain.
-func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]*checker.Type, bool) {
+// they carry BOTH tuples), so a level carrier is one no other carrier's
+// branch tuple contains. Returns one branch list per level carrier, and ok.
+// ok=false only when no carrier is present at all.
+//
+// A union can hold MORE THAN ONE level carrier — `OneOf<[A,B]> | OneOf<[C,D]>`
+// is two independent exclusive groups, and each counts on its own. This used
+// to return ok=false for that shape, which dropped both groups and left the
+// union projecting plain: the two exclusivity constraints vanished silently,
+// and the type collided with `A | B | C | D` on its id.
+//
+// Groups come back sorted by the tuple's canonical print, so the caller sees a
+// deterministic order regardless of Go's map iteration. Members are returned to
+// the caller UNCHANGED — the collapse skips the carrier constituents, so
+// children already serialize plain.
+func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([][]*checker.Type, bool) {
 	// Carriers dedupe by the tuple's CANONICAL PRINT, never by pointer: two
 	// members of one big written type can carry pointer-DISTINCT
 	// instantiations of the identical tuple literal (tsgo does not
@@ -484,18 +491,24 @@ func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]
 			}
 		}
 	}
-	var levelBranches []*checker.Type
-	unclaimed := 0
-	for tupleKey, branches := range carrierBranches {
+	levelKeys := make([]string, 0, len(carrierBranches))
+	for tupleKey := range carrierBranches {
 		if !claimed[tupleKey] {
-			unclaimed++
-			levelBranches = branches
+			levelKeys = append(levelKeys, tupleKey)
 		}
 	}
-	if unclaimed != 1 {
+	if len(levelKeys) == 0 {
 		return nil, false
 	}
-	return levelBranches, true
+	// The canonical print is the group's identity everywhere else in this
+	// function, so it is also what orders them — map iteration is randomized,
+	// and an unstable group order would make the id unstable.
+	sort.Strings(levelKeys)
+	groups := make([][]*checker.Type, 0, len(levelKeys))
+	for _, tupleKey := range levelKeys {
+		groups = append(groups, carrierBranches[tupleKey])
+	}
+	return groups, true
 }
 
 // PatternPropSpec is one decoded patternProperties entry (see

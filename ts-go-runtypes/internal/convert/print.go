@@ -466,58 +466,65 @@ func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[stri
 	return family, annotation.Params, true
 }
 
-// partialOneOfDiag reports a union whose `oneOf` branches do NOT cover every
-// member, and nil when they do.
+// uncoveredUnionArms returns the members of a oneOf-bearing union that belong to
+// NO group — the ordinary arms sitting beside the exclusive part.
 //
 // `OneOf<[A, B]> | C` is such a shape: the reflection carries all three members
-// in Children and the two branches in OneOf, exactly as documented. Both
-// printers used to emit the branches alone, so the `| C` arm vanished from the
-// output without a word — and it is not a converter-only slip: `validate`
-// rejects a `C` for the same reason, and the door reads
-// `{anyOf: [{oneOf: […]}, C]}` back as the bare oneOf. The whole story, and the
-// design question behind it, is docs/todos/oneof-not-covering-whole-union.md.
+// in Children and the two branches in one OneOf group, exactly as documented.
+// All three printers used to emit the branches alone, so the `| C` arm vanished
+// from the output without a word. The twin of this walk lives in
+// typefunctions/validate.go (uncoveredUnionArms), which decides the same
+// question for the generated validator.
+// unionArmTypeText prints one arm of a `|` union in type form.
 //
-// Until a representation exists, converting refuses. Losing an arm silently is
-// the one outcome this tool must never produce.
-func (ctx *printContext) partialOneOfDiag(node *reflection.RunType) *Diagnostic {
+// An arrow type as a union arm MUST parenthesize: `(a: A) => B | C` parses as a
+// function RETURNING `B | C`, which is a different type and a different id.
+// Metadata intersections are fine bare. Shared by both union paths — the oneOf
+// one reached the same `|` join without the guard, and the fuzzer caught it on
+// the first program that put a function beside an exclusive group.
+func (ctx *printContext) unionArmTypeText(armRef *reflection.RunType) (string, *Diagnostic) {
+	armNode := ctx.deref(armRef)
+	armText, diag := ctx.typeExpr(armNode)
+	if diag != nil {
+		return "", diag
+	}
+	if armNode != nil && armNode.Kind == reflection.KindFunction && !isIdentifierText(armText) {
+		return "(" + armText + ")", nil
+	}
+	return armText, nil
+}
+
+func (ctx *printContext) uncoveredUnionArms(node *reflection.RunType) []*reflection.RunType {
 	if len(node.OneOf) == 0 {
 		return nil
 	}
-	// A branch contributes its own id AND, when it is a union, every member it
-	// flattens into — a branch may be a plain union (`{anyOf: […]}`) or another
-	// `OneOf` (`OneOf<[OneOf<[A, B]>, C]>`), and in both cases the outer node's
-	// Children hold A and B directly, not the branch node.
 	covered := map[string]bool{}
-	var addCovered func(ref *reflection.RunType)
-	addCovered = func(ref *reflection.RunType) {
-		branch := ctx.deref(ref)
-		if branch == nil || covered[branch.ID] {
-			return
-		}
-		covered[branch.ID] = true
-		if branch.Kind != reflection.KindUnion {
-			return
-		}
-		for _, memberRef := range branch.Children {
-			addCovered(memberRef)
-		}
-		for _, nestedRef := range branch.OneOf {
-			addCovered(nestedRef)
+	for _, group := range node.OneOf {
+		for _, branchRef := range group {
+			branch := ctx.deref(branchRef)
+			if branch == nil {
+				continue
+			}
+			// A union-valued branch flattens into the outer union and may be
+			// re-distributed on the way, so its own children do not enumerate
+			// what it contributed — differencing ids would invent arms. Treat
+			// the whole union as covered there, exactly as the generated
+			// validator does (typefunctions/validate.go, same limit).
+			if branch.Kind == reflection.KindUnion {
+				return nil
+			}
+			covered[branch.ID] = true
 		}
 	}
-	for _, branchRef := range node.OneOf {
-		addCovered(branchRef)
-	}
+	var arms []*reflection.RunType
 	for _, childRef := range node.Children {
 		child := ctx.deref(childRef)
 		if child == nil || covered[child.ID] {
 			continue
 		}
-		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: "an exclusive union (oneOf) that does not cover every member of its union is not convertible " +
-				"(the remaining members have no spelling that survives the round trip) — give the exclusive part its own named type"}
+		arms = append(arms, childRef)
 	}
-	return nil
+	return arms
 }
 
 // multiNegationDiag: one `not` per node prints; stacked negations await the
@@ -963,20 +970,22 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 		}
 		visited[node.ID] = true
 		if len(node.OneOf) > 0 && ctx.reachesCycle(node) {
-			for _, branchRef := range node.OneOf {
-				branch := ctx.deref(branchRef)
-				if branch == nil {
-					continue
-				}
-				switch branch.Kind {
-				case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
-					reflection.KindBigInt, reflection.KindLiteral, reflection.KindSymbol:
-					return "an exclusive union (oneOf) with a primitive branch"
-				case reflection.KindClass:
-					// Date and RegExp are the two class shapes the substitution
-					// returns verbatim, so their branch copy keeps a raw Self.
-					if branch.SubKind == reflection.SubKindDate || isRegExpNode(branch) {
-						return "an exclusive union (oneOf) with a Date or RegExp branch"
+			for _, group := range node.OneOf {
+				for _, branchRef := range group {
+					branch := ctx.deref(branchRef)
+					if branch == nil {
+						continue
+					}
+					switch branch.Kind {
+					case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
+						reflection.KindBigInt, reflection.KindLiteral, reflection.KindSymbol:
+						return "an exclusive union (oneOf) with a primitive branch"
+					case reflection.KindClass:
+						// Date and RegExp are the two class shapes the substitution
+						// returns verbatim, so their branch copy keeps a raw Self.
+						if branch.SubKind == reflection.SubKindDate || isRegExpNode(branch) {
+							return "an exclusive union (oneOf) with a Date or RegExp branch"
+						}
 					}
 				}
 			}
@@ -1391,28 +1400,39 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
 		if len(node.OneOf) > 0 {
-			var branches []string
-			for _, branchRef := range node.OneOf {
-				branchText, diag := ctx.typeExpr(branchRef)
+			// One `RT.OneOf<[…]>` per exclusive group, then the ordinary arms
+			// beside them, all joined by `|` — the same shape the type was
+			// written in.
+			var parts []string
+			for _, group := range node.OneOf {
+				var branches []string
+				for _, branchRef := range group {
+					branchText, diag := ctx.typeExpr(branchRef)
+					if diag != nil {
+						return "", diag
+					}
+					branches = append(branches, branchText)
+				}
+				ctx.needs.useRT = true
+				parts = append(parts, fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(sortArms(branches), ", ")))
+			}
+			for _, armRef := range ctx.uncoveredUnionArms(node) {
+				armText, diag := ctx.unionArmTypeText(armRef)
 				if diag != nil {
 					return "", diag
 				}
-				branches = append(branches, branchText)
+				parts = append(parts, armText)
 			}
-			ctx.needs.useRT = true
-			return fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(sortArms(branches), ", ")), nil
+			if len(parts) == 1 {
+				return parts[0], nil
+			}
+			return strings.Join(sortArms(parts), " | "), nil
 		}
 		var parts []string
 		for _, armRef := range node.Children {
-			armNode := ctx.deref(armRef)
-			armText, diag := ctx.typeExpr(armNode)
+			armText, diag := ctx.unionArmTypeText(armRef)
 			if diag != nil {
 				return "", diag
-			}
-			// An arrow type as a union arm must parenthesize (parse error
-			// otherwise); metadata intersections are fine under `|`.
-			if armNode != nil && armNode.Kind == reflection.KindFunction && !isIdentifierText(armText) {
-				armText = "(" + armText + ")"
 			}
 			parts = append(parts, armText)
 		}
@@ -1859,19 +1879,36 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		ctx.needs.useGetRunType = true
 		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, name), nil
 	case reflection.KindUnion:
-		if diag := ctx.partialOneOfDiag(node); diag != nil {
-			return "", diag
-		}
 		if len(node.OneOf) > 0 {
-			var branches []string
-			for _, branchRef := range node.OneOf {
-				branchText, diag := ctx.builderExpr(branchRef)
+			// One `RT.oneOf([…])` per exclusive group; any ordinary arms beside
+			// them make the whole thing a `RT.union([…])` over the lot.
+			var parts []string
+			for _, group := range node.OneOf {
+				var branches []string
+				for _, branchRef := range group {
+					branchText, diag := ctx.builderExpr(branchRef)
+					if diag != nil {
+						return "", diag
+					}
+					branches = append(branches, branchText)
+				}
+				oneOfText, diag := rt(fmt.Sprintf("oneOf([%s])", strings.Join(sortArms(branches), ", ")))
 				if diag != nil {
 					return "", diag
 				}
-				branches = append(branches, branchText)
+				parts = append(parts, oneOfText)
 			}
-			return rt(fmt.Sprintf("oneOf([%s])", strings.Join(sortArms(branches), ", ")))
+			for _, armRef := range ctx.uncoveredUnionArms(node) {
+				armText, diag := ctx.builderExpr(armRef)
+				if diag != nil {
+					return "", diag
+				}
+				parts = append(parts, armText)
+			}
+			if len(parts) == 1 {
+				return parts[0], nil
+			}
+			return rt(fmt.Sprintf("union([%s])", strings.Join(sortArms(parts), ", ")))
 		}
 		var arms []string
 		for _, armRef := range node.Children {
@@ -2343,19 +2380,33 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	case reflection.KindEnum:
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindUnion:
-		if diag := ctx.partialOneOfDiag(node); diag != nil {
-			return "", diag
-		}
 		if len(node.OneOf) > 0 {
-			var branches []string
-			for _, branchRef := range node.OneOf {
-				branchText, diag := ctx.schemaExpr(branchRef)
+			// One `{oneOf: […]}` per exclusive group; ordinary arms beside them
+			// make the node an `anyOf` over the lot, which is exactly how
+			// 2020-12 spells "exactly one of these, or that".
+			var parts []string
+			for _, group := range node.OneOf {
+				var branches []string
+				for _, branchRef := range group {
+					branchText, diag := ctx.schemaExpr(branchRef)
+					if diag != nil {
+						return "", diag
+					}
+					branches = append(branches, branchText)
+				}
+				parts = append(parts, fmt.Sprintf("{oneOf: [%s]}", strings.Join(sortArms(branches), ", ")))
+			}
+			for _, armRef := range ctx.uncoveredUnionArms(node) {
+				armText, diag := ctx.schemaExpr(armRef)
 				if diag != nil {
 					return "", diag
 				}
-				branches = append(branches, branchText)
+				parts = append(parts, armText)
 			}
-			return fmt.Sprintf("{oneOf: [%s]}", strings.Join(sortArms(branches), ", ")), nil
+			if len(parts) == 1 {
+				return parts[0], nil
+			}
+			return fmt.Sprintf("{anyOf: [%s]}", strings.Join(sortArms(parts), ", ")), nil
 		}
 		allPlainLiterals := true
 		var literalParts []string
