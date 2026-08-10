@@ -640,27 +640,52 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 	return text, diag
 }
 
-// structuralParamsCarryStandard reports whether the structural brand's params
-// survive the standard-keyword spelling: a value equal to its 2020-12 default
-// (minItems 0, minProperties 0, uniqueItems false) reads back as ABSENT, so
-// the brand would silently drop — those embed instead.
-func structuralParamsCarryStandard(params map[string]any) bool {
+// defaultedStructuralParams returns the structural params whose value IS the
+// 2020-12 default for their keyword. Those cannot ride the standard keyword and
+// come back: a schema saying `minItems: 0` validates exactly like one that
+// omits it, so the door reads the keyword as absent (deliberately — that IS the
+// standard's meaning) and the brand would lose the param. They ride jsParams
+// instead, which leaves the standard keywords' semantics untouched.
+func defaultedStructuralParams(params map[string]any) map[string]any {
+	out := map[string]any{}
 	for key, value := range params {
 		switch key {
 		case "minItems", "minProperties":
 			if number, ok := value.(float64); ok && number == 0 {
-				return false
+				out[key] = value
 			}
 			if number, ok := value.(int); ok && number == 0 {
-				return false
+				out[key] = value
 			}
 		case "uniqueItems":
 			if flag, ok := value.(bool); ok && !flag {
-				return false
+				out[key] = value
 			}
 		}
 	}
-	return true
+	return out
+}
+
+// jsParamsSuffix renders the jsParams keyword for a defaulted param set, or ""
+// when there is nothing to carry.
+func jsParamsSuffix(params map[string]any) string {
+	if len(params) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		valueText, ok := paramValueText(params[key], false)
+		if !ok {
+			return ""
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", key, valueText))
+	}
+	return ", jsParams: {" + strings.Join(parts, ", ") + "}"
 }
 
 // structuralAnnotationParams returns the structural brand's params (or an
@@ -2128,8 +2153,16 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		}
 		return fmt.Sprintf("{const: %s}", literalText), nil
 	case reflection.KindArray:
-		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
-			return ctx.schemaEmbedNode(node)
+		// A param whose value IS the 2020-12 default (`minItems: 0`,
+		// `uniqueItems: false`) reads back as ABSENT through the standard
+		// keyword — correct for the standard, where such a schema validates
+		// identically to one without it, but it would drop the brand. Those
+		// entries ride jsParams instead, so the standard keywords keep their
+		// standard meaning and the params still survive.
+		defaulted := defaultedStructuralParams(structuralAnnotationParams(node))
+		if len(defaulted) > 0 && ctx.opts.Portable {
+			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the jsParams dialect keyword"}
 		}
 		childText, diag := ctx.schemaExpr(node.Child)
 		if diag != nil {
@@ -2140,9 +2173,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if partsDiag != nil {
 				return "", partsDiag
 			}
-			return fmt.Sprintf("{type: 'array', items: %s, %s}", childText, strings.Join(parts, ", ")), nil
+			return fmt.Sprintf("{type: 'array', items: %s, %s%s}", childText, strings.Join(parts, ", "), jsParamsSuffix(defaulted)), nil
 		}
-		return fmt.Sprintf("{type: 'array', items: %s}", childText), nil
+		return fmt.Sprintf("{type: 'array', items: %s%s}", childText, jsParamsSuffix(defaulted)), nil
 	case reflection.KindPromise:
 		childText, diag := ctx.schemaExpr(node.Child)
 		if diag != nil {
@@ -2181,12 +2214,13 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if isRegExpNode(node) {
 			return dialect("{jsType: 'RegExp'}")
 		}
-		// The eight Temporal builtins spell as data, under the JS global's own
-		// qualified name. The door resolves the row through the formats
-		// surface's guarded base map, so naming Temporal here never forces the
-		// Temporal lib on a json-schema consumer.
+		// The eight Temporal builtins spell as data, under their reflected
+		// format name (`temporalInstant`) — the same word the branded jsFormat
+		// row uses. The door resolves the row through the formats surface's
+		// guarded base map, so nothing here forces the Temporal lib on a
+		// json-schema consumer.
 		if info, isTemporal := reflection.TemporalInfoBySubKind(node.SubKind); isTemporal {
-			return dialect(fmt.Sprintf("{jsType: %s}", quoteSingle(info.Builtin)))
+			return dialect(fmt.Sprintf("{jsType: %s}", quoteSingle(info.DialectName())))
 		}
 		// A user class or any other class kind keeps the escape: its identity
 		// is nominal, so only the live symbol can carry it.
@@ -2245,8 +2279,12 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		}
 		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(sortArms(arms), ", ")), nil
 	case reflection.KindObjectLiteral:
-		if !structuralParamsCarryStandard(structuralAnnotationParams(node)) {
-			return ctx.schemaEmbedNode(node)
+		// Same as the array branch above: a param sitting at its 2020-12
+		// default rides jsParams so the brand survives.
+		defaulted := defaultedStructuralParams(structuralAnnotationParams(node))
+		if len(defaulted) > 0 && ctx.opts.Portable {
+			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the jsParams dialect keyword"}
 		}
 		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -2293,7 +2331,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 				return "", valueDiag
 			}
 			if len(members) == 0 {
-				return fmt.Sprintf("{type: 'object', additionalProperties: %s%s}", valueText, schemaBag), nil
+				return fmt.Sprintf("{type: 'object', additionalProperties: %s%s%s}", valueText, schemaBag, jsParamsSuffix(defaulted)), nil
 			}
 			// Named members BESIDE the index: `properties` and
 			// `additionalProperties` together, which is exactly what the door
@@ -2336,7 +2374,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if len(readonlyParts) > 0 {
 			out += fmt.Sprintf(", jsReadonly: [%s]", strings.Join(readonlyParts, ", "))
 		}
-		return out + additionalText + schemaBag + "}", nil
+		return out + additionalText + schemaBag + jsParamsSuffix(defaulted) + "}", nil
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {

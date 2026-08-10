@@ -64,7 +64,7 @@ import type {
 import type {OneOf} from '../builders/static.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 import type {
-  TemporalBaseByJsTypeName,
+  TemporalBaseByFormatName,
   TemporalFormatOf,
   TemporalFormatParamsByName,
 } from '../formats/datetime/temporalFormats.ts';
@@ -125,11 +125,17 @@ export type JsTypeName =
   | 'object'
   | TemporalJsTypeName;
 
-/** The eight `Temporal.*` jsType rows. Sourced from the formats surface's own
- *  guarded base map, so this door never names `Temporal.*` directly and the
- *  json-schema subpath stays importable without the Temporal lib (the guard
- *  degrades to `unknown` when the consumer's `lib` lacks it). **/
-export type TemporalJsTypeName = keyof TemporalBaseByJsTypeName;
+/** The eight temporal jsType rows, spelled by their REFLECTED format name
+ *  (`temporalInstant`), not by the qualified source spelling. Two reasons: the
+ *  unbranded row and its branded `jsFormat` twin then share one vocabulary, and
+ *  the published `.d.ts` never contains the characters `Temporal.` — which the
+ *  D1 guard (temporalDtsGuard.test.ts) requires, since a real consumer once ate
+ *  ~40 TS2503 errors from a leaked lib requirement.
+ *
+ *  Sourced from the formats surface's own guarded base map, so this door never
+ *  names the namespace at all and the json-schema subpath stays importable
+ *  without the Temporal lib (the guard degrades to `unknown` without it). **/
+export type TemporalJsTypeName = keyof TemporalBaseByFormatName;
 
 /** The `jsFormat` dialect families, carried verbatim as the reflected
  *  (name, params) pair. The six orderable Temporal families ride here like any
@@ -296,6 +302,12 @@ export interface JsonSchemaInput {
   // discriminator, and those are read first. No standard spelling, so
   // `--portable` never emits it.
   readonly jsMeta?: {readonly base: NestedSchema; readonly meta: readonly NestedSchema[]};
+  // RunTypes dialect: structural params (array / object bounds) whose value IS
+  // their 2020-12 default. `minItems: 0` says exactly what omitting the keyword
+  // says, so the standard spelling cannot carry the param back; these ride here
+  // and leave the standard keywords' meaning alone. No standard spelling, so
+  // `--portable` never emits it.
+  readonly jsParams?: Record<string, unknown>;
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1070,14 +1082,28 @@ type PropNamesParam<S, Root, F extends [unknown]> = S extends {propertyNames: in
     : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
   : unknown;
 type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
-  ObjectKeywordParams<S, Root, F> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F>
+  ObjectKeywordParams<S, Root, F> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F> & JsParamsOf<S>
 >;
+
+// The `jsParams` dialect keyword: structural params whose value IS their
+// 2020-12 default, which the standard keyword cannot carry back. `minItems: 0`
+// says exactly what omitting minItems says, so the door reads it as absent —
+// right for the standard, but it would drop the brand a converted
+// `FormattedArray<…, {minItems: 0}>` needs. Carrying those here keeps the
+// standard keywords' meaning untouched.
+type JsParamsOf<S> = S extends {jsParams: infer P} ? P : unknown;
 // Fast path: an object with none of the structural keywords is just its shape
 // (no brand, no sentinels), so it never pays the FormattedObject wrapper. Only
 // `additionalProperties: false` (closedness) is keyword-bearing — a schema-valued
 // `additionalProperties` (the common Record form) rides ObjectShapeFrom, so it
 // is value-checked here rather than lumped in by key presence.
-type ObjectKeywordKeys = 'minProperties' | 'maxProperties' | 'unevaluatedProperties' | 'patternProperties' | 'propertyNames';
+type ObjectKeywordKeys =
+  | 'minProperties'
+  | 'maxProperties'
+  | 'unevaluatedProperties'
+  | 'patternProperties'
+  | 'propertyNames'
+  | 'jsParams';
 // `additionalProperties: false` is keyword-bearing (closedness); a SCHEMA-valued
 // one only becomes so beside a merging keyword, where it carries the exemption
 // list — everywhere else it rides ObjectShapeFrom as the plain Record it is.
@@ -1099,12 +1125,14 @@ type ObjectFrom<S, Root, F extends [unknown]> =
 type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infer P}
   ? WithAdditional<
       S,
-      S extends {jsReadonly: infer RO extends readonly string[]}
+      [Extract<keyof S, 'jsReadonly'>] extends [never]
         ? S extends {required: infer R extends readonly string[]}
-          ? ObjectFromPropsRO<P, R[number], RO[number], Root, F>
-          : ObjectFromPropsRO<P, never, RO[number], Root, F>
-        : S extends {required: infer R extends readonly string[]}
           ? ObjectFromProps<P, R[number], Root, F>
+          : ObjectFromProps<P, never, Root, F>
+        : S extends {jsReadonly: infer RO extends readonly string[]}
+          ? S extends {required: infer R extends readonly string[]}
+            ? ObjectFromPropsRO<P, R[number], RO[number], Root, F>
+            : ObjectFromPropsRO<P, never, RO[number], Root, F>
           : ObjectFromProps<P, never, Root, F>,
       Root,
       F
@@ -1198,9 +1226,11 @@ type WithAdditional<S, Props, Root, F extends [unknown]> = WithJsIndexes<
 // Written as a MAPPED type over the key rather than `Record<K, V>` for the
 // reason above — a mapped type defers its value the way an ordinary member
 // does, so a `{$ref: '#'}` value ties the knot instead of unrolling the root.
-type WithJsIndexes<S, Props, Root, F extends [unknown]> = S extends {jsIndexes: infer Pairs}
-  ? Props & JsIndexFold<Pairs, Root, F>
-  : Props;
+type WithJsIndexes<S, Props, Root, F extends [unknown]> = [Extract<keyof S, 'jsIndexes'>] extends [never]
+  ? Props
+  : S extends {jsIndexes: infer Pairs}
+    ? Props & JsIndexFold<Pairs, Root, F>
+    : Props;
 type JsIndexFold<Pairs, Root, F extends [unknown]> = Pairs extends readonly [infer Head, ...infer Tail]
   ? (Head extends {key: infer K; value: infer V}
       ? {[Key in Extract<FromJsonSchemaIn<K, Root, F>, PropertyKey>]: FromJsonSchemaIn<V, Root, F>}
@@ -1242,7 +1272,8 @@ type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
     UnevalItemsParams<S, Root, F> &
     (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
     (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
-    (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown)
+    (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown) &
+    JsParamsOf<S>
 >;
 // minItems rides the brand exactly when no tuple shape can carry it: no
 // prefixItems (those keep the required-slot pad) and `items` not `false` (a
@@ -1260,7 +1291,7 @@ type BrandedMinItems<S> = S extends {minItems: infer N extends number}
 // Fast path: an array with none of the structural keywords is just its tuple/
 // array shape (no brand, no contains slot) — so it never pays the FormattedArray
 // wrapper, keeping the common `{type: 'array', items: …}` case cheap.
-type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems';
+type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems' | 'jsParams';
 type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKeys>] extends [never]
   ? [BrandedMinItems<S>] extends [never]
     ? ArrayShapeFrom<S, Root, F>
@@ -1908,40 +1939,58 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // recurse through the same entry. An outer schema carrying value-scoped
 // keywords keeps its CORE translation and takes the sentinel directly (its
 // arms are literal / combinator shapes, not kind gates).
+// The discriminators that REPLACE a schema's translation wholesale. Probed as
+// one key-set extraction rather than as a ladder of `S extends {jsX: …}` arms:
+// an ordinary schema carries none of them, and paying one probe instead of
+// eight is the difference between a dialect row being free and every object in
+// the document paying for rows it does not use. Same fast-path shape as
+// ArrayKeywordKeys / ObjectKeywordKeys below.
+//
+// `jsReadonly`, `jsIndexes`, `jsLabels` and `jsParams` are deliberately NOT
+// here: those MODIFY a translation rather than replacing it, so they are read
+// where that translation is built.
+type DialectShapeKeys = 'jsType' | 'jsFormat' | 'jsTemplate' | 'jsBigint' | 'jsFunction' | 'jsNot' | 'jsMeta';
+
 type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
     ? Embedded
-    : S extends {jsType: infer Name}
-      ? Name extends 'Map'
-        ? S extends {typeArguments: readonly [infer MapKey, infer MapValue]}
-          ? Map<FromJsonSchemaIn<MapKey, Root, F>, FromJsonSchemaIn<MapValue, Root, F>>
+    : [Extract<keyof S, DialectShapeKeys>] extends [never]
+      ? S extends {if: infer If}
+        ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+        : DepLayer<S, Root, F>
+      : FromDialectShape<S, Root, F>;
+
+// The dialect ladder proper, reached only once a schema is known to carry one
+// of the keys above.
+type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer Name}
+  ? Name extends 'Map'
+    ? S extends {typeArguments: readonly [infer MapKey, infer MapValue]}
+      ? Map<FromJsonSchemaIn<MapKey, Root, F>, FromJsonSchemaIn<MapValue, Root, F>>
+      : never
+    : Name extends 'Set'
+      ? S extends {typeArguments: readonly [infer Item]}
+        ? Set<FromJsonSchemaIn<Item, Root, F>>
+        : never
+      : Name extends 'Promise'
+        ? S extends {typeArguments: readonly [infer Value]}
+          ? Promise<FromJsonSchemaIn<Value, Root, F>>
           : never
-        : Name extends 'Set'
-          ? S extends {typeArguments: readonly [infer Item]}
-            ? Set<FromJsonSchemaIn<Item, Root, F>>
-            : never
-          : Name extends 'Promise'
-            ? S extends {typeArguments: readonly [infer Value]}
-              ? Promise<FromJsonSchemaIn<Value, Root, F>>
-              : never
-            : Name extends 'Date'
-              ? Date
-              : FromJsTypeName<Name>
-      : S extends {jsFormat: {name: infer Name}}
-        ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
-        : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
-          ? TemplateFold<Texts, Placeholders, Root, F>
-          : S extends {jsBigint: infer Digits}
-            ? FromJsBigint<Digits>
-            : S extends {jsFunction: {params: infer Params; return: infer Return}}
-              ? FromJsFunction<Params, Return, Root, F>
-              : S extends {jsNot: infer Negated}
-                ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
-                : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
-                  ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
-                  : S extends {if: infer If}
-                    ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-                    : DepLayer<S, Root, F>;
+        : Name extends 'Date'
+          ? Date
+          : FromJsTypeName<Name>
+  : S extends {jsFormat: {name: infer Name}}
+    ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
+    : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
+      ? TemplateFold<Texts, Placeholders, Root, F>
+      : S extends {jsBigint: infer Digits}
+        ? FromJsBigint<Digits>
+        : S extends {jsFunction: {params: infer Params; return: infer Return}}
+          ? FromJsFunction<Params, Return, Root, F>
+          : S extends {jsNot: infer Negated}
+            ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
+            : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
+              ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
+              : never;
 
 // The `jsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -2008,7 +2057,7 @@ type FromJsTypeName<Name> = Name extends 'bigint'
               // that one recovers `Record<string, unknown>`.
               object
             : Name extends TemporalJsTypeName
-              ? TemporalBaseByJsTypeName[Name]
+              ? TemporalBaseByFormatName[Name]
               : Name extends 'any'
                 ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   any
@@ -2573,6 +2622,7 @@ export type SchemaLoweringByKeyword = {
   jsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
   jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
   jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
+  jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';
