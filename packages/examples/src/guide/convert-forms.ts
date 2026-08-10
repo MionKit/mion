@@ -38,21 +38,48 @@ getRunTypeId<User>() === getRunTypeId(userSchemaRT); // true
 // end-identity
 
 // start-embed
-// Some TypeScript types have no JSON spelling (a bigint literal, a function,
-// a branded string). The converter carries them with embedType, which drops
-// a real type into a schema position, so the round trip stays exact.
+// A few types have no way to be written as data at all, because their identity
+// is a name rather than a shape: a class, an enum member, another declaration
+// being referred to. The converter carries those with embedType, which drops a
+// real type into a schema position, so the round trip stays exact.
+export class AuditSource {
+  constructor(public label: string) {}
+}
+
 export const auditRT = runTypeFromJsonSchema({
   type: 'object',
   properties: {
-    version: embedType<123n>(),
-    onSave: embedType<(entry: string) => void>(),
+    source: embedType<AuditSource>(),
+    onSave: embedType<(entry: string, note?: string) => void>(),
   },
-  required: ['version'],
+  required: ['source'],
 } as const);
 type Audit = InferType<typeof auditRT>;
-const sample: Audit = {version: 123n};
+const sample: Audit = {source: new AuditSource('cli')};
 getRunTypeId(sample) === getRunTypeId(auditRT); // true
 // end-embed
+
+// start-dialect
+// Most of what JSON has no word for still converts as plain data, through
+// extra keywords RunTypes adds to the schema. A bigint literal, a branded
+// string and a function signature all read back as themselves.
+export const releaseRT = runTypeFromJsonSchema({
+  type: 'object',
+  properties: {
+    build: {jsBigint: '4096'},
+    channel: {jsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]}},
+    stamp: {jsType: 'temporalInstant'},
+    notify: {
+      jsFunction: {
+        params: {type: 'array', prefixItems: [{type: 'string'}], minItems: 1, items: false, jsLabels: ['message']},
+        return: {type: 'boolean'},
+      },
+    },
+  },
+  required: ['build', 'channel', 'stamp', 'notify'],
+} as const);
+export type Release = InferType<typeof releaseRT>;
+// end-dialect
 
 // start-call-sites
 // A type written straight into a factory call has no declaration to rewrite,

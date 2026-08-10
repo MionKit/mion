@@ -36,9 +36,14 @@ const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 // packages/ts-runtypes/test/features/unsupported-conversion.test.ts — a cycle
 // closing on a tuple slot, a symbol-keyed member, a `typeof someSymbol`, a
 // stacked propertyNames check, a @nonEnumerable member.
+// Both targets refuse the SAME 24 declarations. They were 24 / 25 until the
+// dialect widened (jsType / jsFormat / jsReadonly / jsTemplate / jsIndexes /
+// jsBigint / jsFunction / jsNot / jsMeta / jsParams); the schema target's one
+// extra refusal was the last shape only it could not spell, so the two now
+// agree exactly — which is the interesting property to hold onto.
 const TARGETS = [
   {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 24},
-  {name: 'json-schema', dir: path.join(PACKAGE_ROOT, 'test/converted-json-schema'), expectedRefusals: 25},
+  {name: 'json-schema', dir: path.join(PACKAGE_ROOT, 'test/converted-json-schema'), expectedRefusals: 24},
 ];
 
 const args = process.argv.slice(2);
