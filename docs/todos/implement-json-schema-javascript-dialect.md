@@ -34,50 +34,49 @@ The 34 behavioural cases in
 are skipped behind `IMPLEMENTED = false` for exactly this reason. This is the
 last piece before the conversion PR merges.
 
-## Progress
+## Progress — 33 of 37 rules landed
 
-**Phase 0 is done** (`9db05e3`): the three missing rules are in the spec and
-have conformance cases, and `TemporalInfo.WireFormat` / `WirePattern` are in the
-reflection registry with all five patterned types worked out. Nothing calls them
-yet.
+Slices 1 to 9 are in. Every `jsType` row, the `rtFormat` / `rtFormatParams`
+split and all six `ts*` renames now emit their wire form beside the annotation,
+with the id oracle green at every step.
 
-**Phase 1 was written and reverted** (`c6b073f`) after five Go chain tests
-failed. The first reading of that was "the emitter and door must land together
-or every id moves". **That reading was wrong**, and measuring it properly is
-what produced the slice list below.
+Verified end to end: full Go suite, 11,393 JS tests, the converted-suites lane
+(205 files, both value forms, 18,264 tests), and both fuzz lanes across six
+seeds.
 
-## What the door already does correctly
+The decomposition held. Six of the eight jsType rows needed no door change at
+all, because the door already reads `jsType` first and ignores the wire keywords
+beside it — CORE-PRECEDENCE was true by construction rather than something to
+build. Almost every failure along the way was a stale expected spelling, not an
+identity move.
 
-Each new wire shape was handed to the door by hand and converted back to a type.
-`X2 = X1` means the door recovered EXACTLY the type it was written as, so the id
-is unchanged:
+### What is still open
 
-| Shape | Recovered | |
-| --- | --- | --- |
-| `Date` | `A2 = A1` | ✅ |
-| `bigint` | `B2 = B1` | ✅ |
-| `123n` | `C2 = B1` | ❌ widened to `bigint` |
-| `RegExp` | `D2 = D1` | ✅ |
-| `{a: undefined}` | `E2 = E1` | ✅ |
-| `Map<string, number>` | `F2 = never` | ❌ |
-| `Set<string>` | `G2 = never` | ❌ |
-| `Temporal.Instant` | `H2 = H1` | ✅ |
+| Rule | Why it is not landed |
+| --- | --- |
+| `CORE-NOT` | Emitting the standard `{type: 'string', not: {…}}` moves the id: the door's negation layer does not rebuild the first-class `Not<F>` from it. `jsNot` stays until that door fix lands. This is the one real piece of door work left. |
+| `RT-FORMAT-STANDARD` | Params are not yet mirrored onto the standard constraint keywords (`minLength`, `minimum`, …). Everything rides `rtFormatParams`, so a plain validator does not enforce the bounds and CORE-INERT is not yet fully true for format nodes. |
+| `RT-FORMAT-DEFAULT` | Structural params at their 2020-12 default still ride the old `jsParams` keyword rather than `rtFormatParams`. Mechanical, but note the door reads `rtFormat` before the standard translation, so a structural node must NOT also carry `rtFormat` or an array would route through the format path. |
+| `TS-WIRE-HALF` | `tsIndexes` does not yet emit the `propertyNames` that constrains a numeric key, so the wire half is missing for that one keyword. |
 
-**Six of eight already work.** The door reads `jsType` FIRST and ignores the
-wire keywords beside it, which is `CORE-PRECEDENCE` holding by construction —
-and it is exactly why `{type: 'string', format: 'date-time', jsType: 'Date'}`
-recovers plain `Date` rather than a date-time string.
+Phase 5 (the `convertDialect` tsconfig option) is also untouched; `--portable`
+works as the per-run override today.
 
-So **no new id rule is needed**, on either side. The id follows from the
-recovered TypeScript type, and that machinery is sound. The two broken rows need
-the door to read MORE from the wire, not less: `const` for a bigint literal, and
-`items` / `items.prefixItems` for Set and Map, which no longer carry
-`typeArguments`.
+### Two spec corrections the implementation forced
 
-The original five failures decompose the same way: `BigLit`, `Bag`, `Later`,
-`Lookup` and one fuzz case were real id moves (exactly the two broken rows);
-`RegExpNative` and `TemporalUnbranded` had no id line at all and were assertion
-failures on tests pinning the old spelling.
+- **`rtFormatParams` carries ALL params**, not the leftovers. Every param folds
+  into the identity, `mockSamples` included, so carrying a subset changes what
+  the type IS.
+- **A `symbol` keeps `{jsType: 'symbol'}`** with no wire keywords, the same
+  position `tsFunction` is in. Dropping the member would move the id.
+
+### One bug the widened fuzzer found
+
+The Go generator driving the chain oracle had no negation in it at all. Adding
+`TF.Not<F>` failed on two of the first three seeds — not on negation, but on
+`Promise<Set<null>>`: merging `jsType: 'Promise'` into a child already carrying
+`jsType: 'Set'` puts two annotations on one node. The resolved schema now rides
+`jsResolved`.
 
 ## Plan — one rule group at a time
 
