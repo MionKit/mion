@@ -133,18 +133,23 @@ func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *D
 		// (structurally identical, so the id cannot move).
 		return "", nil, false
 	}
+	// A name this file cannot SPELL is not a conversion failure — it is just a
+	// name. Inlining the structure says the same thing (structurally identical,
+	// so the id cannot move), which is what the --portable branch above already
+	// does. Two ways the name is unspellable: the declaring file does not export
+	// it, and this file has no import that reaches it — the latter is the common
+	// case for a type the reflection graph reached STRUCTURALLY rather than
+	// through anything this file wrote. Both used to refuse (CNV004), which
+	// stopped 430 of the suite's own files from converting for no better reason
+	// than a lost name.
 	if entry.File != ctx.currentFile && !entry.Exported {
-		// The reference must import the type NAME, which the declaring file
-		// does not export — importing it would not compile.
-		return "", &Diagnostic{Code: CodeOutsideSet, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: fmt.Sprintf("references %q, whose type alias %s does not export — export the alias so the reference can survive conversion", entry.TypeName, entry.File)}, true
+		return "", nil, false
 	}
 	spelling := entry.TypeName
 	if ctx.bindings != nil {
 		resolved, keepLocal, needsImport, ok := ctx.bindings.spellForTarget(entry, ctx.currentFile)
 		if !ok {
-			return "", &Diagnostic{Code: CodeOutsideSet, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: fmt.Sprintf("references %q from %s but this file has no import that reaches it", entry.TypeName, entry.File)}, true
+			return "", nil, false
 		}
 		spelling = resolved
 		if keepLocal != "" {

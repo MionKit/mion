@@ -26,7 +26,15 @@ const TSCONFIG_TEST = resolve(REPO_ROOT, 'packages/ts-runtypes/tsconfig.test.jso
 // other's files (one entry's afterAll cleanup must not delete the other's temp
 // modules mid-run). `Lane` names the subdir.
 export type Lane = 'gen' | 'check' | 'reconcile';
-const laneDir = (lane: Lane): string => resolve(TMP_ROOT, lane);
+
+// The lane subdir also carries the WORKER's pid. TMP_ROOT is anchored at
+// test/util, so every copy of a suite file resolves the same one — and the
+// converted-suite trees run the builders and JSON Schema copies of these tests
+// side by side in one vitest project. Two copies of a lane then shared a
+// directory and cleaned up under each other mid-run ("0 translation file(s)").
+// The pid separates concurrent workers without needing to know which tree the
+// caller came from; a sequential re-run inside one worker still reuses its own.
+const laneDir = (lane: Lane): string => resolve(TMP_ROOT, `${lane}-${process.pid}`);
 
 // One temp module per case carries `import type * as TF` + the case's `src`
 // (a `type Target = …;` declaration) re-exported so the program keeps it.

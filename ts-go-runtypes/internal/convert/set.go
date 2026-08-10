@@ -292,6 +292,56 @@ func inScopeNames(sourceFile *ast.SourceFile) map[string]bool {
 // file is a program source outside the conversion set. Conversion would have
 // to inline them silently — the user decided that is an error: include the
 // file in the run instead.
+//
+// referencedThroughPackageImport reports whether the identifier is reached via
+// a BARE module specifier — either directly (`import {X} from 'pkg'`) or as the
+// member of a namespace import (`TF.String`, where `TF` is the alias). A
+// relative specifier returns false: that file really can be added to the run.
+func referencedThroughPackageImport(typeChecker *checker.Checker, nameNode *ast.Node) bool {
+	if aliasIsPackageImport(typeChecker, nameNode) {
+		return true
+	}
+	// `TF.String` / `Temporal.PlainDate`: the identifier under test is the RIGHT
+	// side, and only the LEFT one carries the import.
+	parent := nameNode.Parent
+	if parent == nil {
+		return false
+	}
+	var root *ast.Node
+	switch {
+	case ast.IsQualifiedName(parent):
+		root = parent.AsQualifiedName().Left
+	case ast.IsPropertyAccessExpression(parent):
+		root = parent.AsPropertyAccessExpression().Expression
+	}
+	for root != nil && ast.IsQualifiedName(root) {
+		root = root.AsQualifiedName().Left
+	}
+	return root != nil && root != nameNode && ast.IsIdentifier(root) && aliasIsPackageImport(typeChecker, root)
+}
+
+// aliasIsPackageImport reports whether the identifier binds an import whose
+// module specifier is a bare package name.
+func aliasIsPackageImport(typeChecker *checker.Checker, nameNode *ast.Node) bool {
+	symbol := typeChecker.GetSymbolAtLocation(nameNode)
+	if symbol == nil || symbol.Flags&ast.SymbolFlagsAlias == 0 {
+		return false
+	}
+	aliasDecl := checker.Checker_getDeclarationOfAliasSymbol(typeChecker, symbol)
+	for node := aliasDecl; node != nil; node = node.Parent {
+		if !ast.IsImportDeclaration(node) {
+			continue
+		}
+		importDecl := node.AsImportDeclaration()
+		if importDecl == nil || importDecl.ModuleSpecifier == nil {
+			return false
+		}
+		specifier := importDecl.ModuleSpecifier.Text()
+		return specifier != "" && !strings.HasPrefix(specifier, ".")
+	}
+	return false
+}
+
 func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, decl *declaration, set *Set, currentFile string) []Diagnostic {
 	var diags []Diagnostic
 	reported := map[string]bool{}
@@ -319,6 +369,16 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfs
 		// Only convertible sources count: declaration files (bundled libs,
 		// node_modules typings) are never conversion candidates.
 		if strings.HasSuffix(path, ".d.ts") || strings.Contains(path, "/node_modules/") || prog.SourceFile(path) == nil {
+			return
+		}
+		// Nor is anything reached through a PACKAGE import. "include that file
+		// in the same convert invocation" is advice a user can act on for a
+		// sibling source; for `TF.String` or `FromJsonSchema` it is impossible —
+		// they live in a dependency. The .ts / node_modules filters above miss
+		// this whenever a package resolves to real sources (a `source` export
+		// condition, a workspace link, a `paths` alias), which is exactly how
+		// the marker package's own suites resolve it.
+		if referencedThroughPackageImport(typeChecker, nameNode) {
 			return
 		}
 		if !isConvertibleTargetDecl(targetDecl, typeChecker, fs) {

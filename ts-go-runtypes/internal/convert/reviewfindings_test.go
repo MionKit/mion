@@ -109,22 +109,31 @@ func TestHelperLocalCollision_SuffixesAlias(t *testing.T) {
 	}
 }
 
-func TestCrossFile_UnexportedAliasRefused(t *testing.T) {
+func TestCrossFile_UnexportedAliasInlines(t *testing.T) {
+	// `Leaf` is not exported, so `branch.ts` cannot import the NAME — but a name
+	// it cannot spell is not a conversion failure. The structure inlines
+	// instead, which says the same thing and keeps the same id. (This used to
+	// refuse with CNV004, which stopped whole files converting over a lost
+	// name.)
 	sources := map[string]string{
 		"leaf.ts": "import {type InferType} from '@ts-runtypes/core';\nimport * as RT from '@ts-runtypes/core/builders';\nimport * as TF from '@ts-runtypes/core/formats';\n" +
 			"export const leafRT = RT.object({value: TF.string()});\ntype Leaf = InferType<typeof leafRT>;\n",
 		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\n",
 	}
-	_, diags := convertSetWithDiags(t, sources, convert.Options{Target: convert.TargetJSONSchema})
-	foundExportDiag := false
+	before := setDeclIDs(t, sources)
+	outputs, diags := convertSetWithDiags(t, sources, convert.Options{Target: convert.TargetJSONSchema})
 	for _, diagnostic := range diags {
-		if diagnostic.Code == convert.CodeOutsideSet && strings.Contains(diagnostic.Message, "does not export") {
-			foundExportDiag = true
-		}
+		t.Errorf("unexpected diagnostic %s [%s]: %s", diagnostic.Code, diagnostic.Decl, diagnostic.Message)
 	}
-	if !foundExportDiag {
-		t.Fatalf("expected the unexported-alias refusal, got %+v", diags)
+	if !strings.Contains(outputs["branch.ts"], "properties: {leaf: {type: 'object'") {
+		t.Errorf("the unspellable name should inline its structure:\n%s", outputs["branch.ts"])
+	}
+	after := setDeclIDs(t, outputs)
+	for key, id := range before {
+		if after[key] != id {
+			t.Errorf("declaration %s changed id: %s → %s", key, id, after[key])
+		}
 	}
 }
 

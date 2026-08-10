@@ -563,7 +563,14 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// carrier the enclosing marker discards. Only injection markers count as
 	// "enclosing" — wrappers without one (`optional(...)`, plain helpers,
 	// vitest's `expect`) are transparent, so the walk continues past them.
-	if state.enclosedByInjectionMarker(call) {
+	// …EXCEPT the id-LOOKUP escape. `getRunType<T>()` returns a RunType like a
+	// builder does, but it does not build one — it looks the id up in the
+	// runtime registry — so dropping its id leaves it with nothing to look up
+	// and it throws "no id injected" at the first call. Nested is exactly where
+	// convert emits it (`createValidateFn(getRunType<Named>())`), which is how
+	// this surfaced.
+	if state.enclosedByInjectionMarker(call) &&
+		!builders.IsIdLookupCall(state.scanChecker, state.sess.markerModule(), call, state.sess.marker.FS) {
 		return nil, diags
 	}
 	// EXPLICIT PASS-THROUGH (per slot): a marker parameter the caller already

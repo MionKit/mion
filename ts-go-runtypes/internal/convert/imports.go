@@ -92,10 +92,17 @@ type namedBinding struct {
 
 // moduleImport is one import statement the scan understands.
 type moduleImport struct {
-	stmt      *ast.Node
-	module    string
-	namespace string
-	named     []namedBinding
+	stmt   *ast.Node
+	module string
+	// namespace is the `* as X` alias, and namespaceTypeOnly records that the
+	// statement wrote `import type * as X`. A type-only namespace exists for the
+	// type checker only, so adopting it to spell a VALUE (`TF.string()`) emits
+	// code that throws `TF is not defined` at runtime — which is what the
+	// converted suites hit on a file that imported the formats namespace
+	// type-only.
+	namespace         string
+	namespaceTypeOnly bool
+	named             []namedBinding
 	// managed marks one of the five runtypes modules whose bindings the
 	// role table owns; rewritable marks a statement whose SHAPE this package
 	// may rewrite at all (named imports only — no default, no namespace).
@@ -116,7 +123,18 @@ type moduleImport struct {
 // canonical managed block: a managed named-only statement (a namespace extra
 // would need a second namespace slot the render does not have).
 func (extra *moduleImport) foldable() bool {
-	return extra.managed && extra.rewritable && extra.namespace == ""
+	if !extra.managed || !extra.rewritable {
+		return false
+	}
+	// A VALUE namespace statement stays where it is (the block adopts its alias
+	// and re-renders it). A TYPE-ONLY one must fold: it binds nothing at
+	// runtime, so leaving it alone while the printers spell values through its
+	// alias emits `TF is not defined`. Folding re-renders it through
+	// renderImport, which always writes a value import — the upgrade. Claiming
+	// a second alias instead would work too, but the claim depends on which
+	// legs the file has been through, and two chains landing on the same form
+	// would disagree on it.
+	return extra.namespace == "" || extra.namespaceTypeOnly
 }
 
 // extraNamedBindings flattens the named bindings of every extra statement.
@@ -219,6 +237,7 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 				switch bindings.Kind {
 				case ast.KindNamespaceImport:
 					entry.namespace = bindings.AsNamespaceImport().Name().Text()
+					entry.namespaceTypeOnly = importClause.IsTypeOnly()
 					if !ours {
 						entry.rewritable = false
 					}

@@ -76,7 +76,17 @@ export default defineConfig({
     // test/json-schema-official/** is the official JSON-Schema-Test-Suite lane:
     // its own project + tsconfig so this project's resolver Program skips the
     // hundreds of generated FromJsonSchema call sites.
-    exclude: [...configDefaults.exclude, 'test/playground/**', 'test/mock-format-isolation/**', 'test/json-schema-official/**'],
+    // test/converted-*/** are the generated converted-suite trees — gitignored,
+    // present only while `pnpm rtx core converted-suites` runs, and driven by
+    // vitest.converted.config.ts. Excluding them keeps `pnpm test` from picking
+    // up a half-generated tree if the lane is interrupted.
+    exclude: [
+      ...configDefaults.exclude,
+      'test/playground/**',
+      'test/mock-format-isolation/**',
+      'test/json-schema-official/**',
+      'test/converted-*/**',
+    ],
     // Generating + validating the deepest mock cases (e.g. a 3-D string array,
     // MOCK_ITERATIONS times) takes a few seconds; under the full suite's
     // parallel CPU contention that occasionally crossed vitest's tight 5 s

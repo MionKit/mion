@@ -136,6 +136,16 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs 
 	if !builders.IsRunType(declaredType, marker.DefaultModule, fs) {
 		return nil
 	}
+	// …and the const must actually be BUILT by one of the two authoring forms.
+	// A `RunType`-typed const whose initializer is a user function
+	// (`const Model = objectOf([...])`, hand-assembled graphs in the mocking
+	// suites) is not in any form the converter can round-trip: reprinting it
+	// from its resolved type replaced the whole graph with the type argument's
+	// spelling, and an untyped `RunType` reprinted as an EMPTY schema. Not a
+	// conversion — data loss.
+	if !isAuthoredRunTypeInitializer(declarator.Initializer, typeChecker, fs) {
+		return nil
+	}
 	return &declaration{
 		ConstName: nameNode.Text(),
 		Form:      constForm(declarator.Initializer, sourceFile),
@@ -143,6 +153,38 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs 
 		Stmt:      statement,
 		NameNode:  nameNode,
 	}
+}
+
+// isAuthoredRunTypeInitializer reports whether the initializer is one of the
+// two spellings the converter round-trips: a builder / format call from the
+// value-first surface, or the `runTypeFromJsonSchema` door.
+//
+// A RunType-typed const is NOT enough on its own. The mocking suites assemble
+// RunType graphs by hand from local helpers (`const Model = objectOf([...])`,
+// where objectOf returns a cast object literal), and reprinting one of those
+// from its resolved type threw the graph away — an untyped `RunType` came back
+// as an EMPTY schema. That is data loss, not conversion.
+//
+// The discriminator is that the callee comes from the PACKAGE: `RT.object(…)`
+// and `runTypeFromJsonSchema(…)` are imported, a local helper is not. Module of
+// origin cannot tell them apart here — the suites and src/ share one
+// package.json, so a locally declared helper reports the marker module too.
+func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Checker, fs vfspkg.FS) bool {
+	if initializer == nil || initializer.Kind != ast.KindCallExpression {
+		return false
+	}
+	if !builders.IsBuilderLeafCall(typeChecker, marker.DefaultModule, initializer, fs) {
+		return false
+	}
+	callee := initializer.AsCallExpression().Expression
+	if callee == nil {
+		return false
+	}
+	nameNode := callee
+	if ast.IsPropertyAccessExpression(callee) {
+		nameNode = callee.AsPropertyAccessExpression().Name()
+	}
+	return nameNode != nil && ast.IsIdentifier(nameNode) && referencedThroughPackageImport(typeChecker, nameNode)
 }
 
 // constForm tells a `runTypeFromJsonSchema(…)` const from a builder const by
