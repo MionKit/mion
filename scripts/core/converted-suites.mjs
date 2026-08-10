@@ -64,9 +64,9 @@ function generate(target) {
     {cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024}
   );
   if (result.error) throw result.error;
-  const lines = (result.stderr ?? '').split('\n');
-  const refusals = lines.filter((line) => /CNV\d{3} error/.test(line));
-  const rewritten = lines.filter((line) => line.startsWith('rewrote ')).length;
+  // Diagnostics ride stderr, the per-file `rewrote …` lines ride stdout.
+  const refusals = (result.stderr ?? '').split('\n').filter((line) => /CNV\d{3} error/.test(line));
+  const rewritten = (result.stdout ?? '').split('\n').filter((line) => line.startsWith('rewrote ')).length;
   console.log(`-> ${target.name}: rewrote ${rewritten} file(s), ${refusals.length} refusal(s)`);
   if (refusals.length !== target.expectedRefusals) {
     console.error(
