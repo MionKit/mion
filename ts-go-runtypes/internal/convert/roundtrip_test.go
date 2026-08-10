@@ -123,7 +123,7 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	// A bigint literal rides its DIGITS. JSON has no bigint and a digit string
 	// under `const` would read back as a string literal, so the value gets its
 	// own keyword and the door lifts `123` to `123n`.
-	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({jsBigint: '123'} as const)") {
+	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({type: 'string', const: '123', jsType: 'bigint'} as const)") {
 		t.Errorf("bigint literal should ride the jsBigint dialect keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
@@ -565,9 +565,9 @@ func TestChain_Natives(t *testing.T) {
 		// string, so a standard validator enforces {type, format} and only a
 		// dialect-aware reader takes the jsType.
 		"runTypeFromJsonSchema({type: 'string', format: 'date-time', jsType: 'Date'} as const)",
-		"{jsType: 'Map', typeArguments: [{type: 'string'}, {type: 'array', items: {type: 'number'}}]}",
-		"{jsType: 'Set', typeArguments: [{enum: ['a', 'b']}]}",
-		"{jsType: 'Promise', typeArguments: [{type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok']}]}",
+		"{type: 'array', items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'array', items: {type: 'number'}}], minItems: 2, items: false}, jsType: 'Map'}",
+		"{type: 'array', items: {enum: ['a', 'b']}, uniqueItems: true, jsType: 'Set'}",
+		"{type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok'], jsType: 'Promise'}",
 	} {
 		if !strings.Contains(schemaForm, expected) {
 			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)

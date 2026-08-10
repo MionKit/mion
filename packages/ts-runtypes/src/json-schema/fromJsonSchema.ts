@@ -279,11 +279,6 @@ export interface JsonSchemaInput {
   // instead, one `{key, value}` pair per signature. No standard spelling, so
   // `--portable` never emits it.
   readonly jsIndexes?: readonly {readonly key: NestedSchema; readonly value: NestedSchema}[];
-  // RunTypes dialect: a bigint LITERAL type (`123n`), carried as its digits.
-  // `const` cannot hold it — JSON has no bigint, and a digit string there
-  // would read as a string literal. No standard spelling, so `--portable`
-  // never emits it.
-  readonly jsBigint?: string;
   // RunTypes dialect: a function signature. `params` is an ordinary TUPLE
   // schema, so optional slots (minItems), a rest slot (items) and the
   // parameter NAMES (jsLabels) all come along for free. No standard spelling,
@@ -312,9 +307,6 @@ export interface JsonSchemaInput {
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
   readonly jsType?: JsTypeName;
-  // RunTypes dialect: the parameterized jsType natives' type arguments
-  // (Map<K, V> / Set<T> / Promise<T>), each slot a nested schema.
-  readonly typeArguments?: readonly NestedSchema[];
   // RunTypes dialect: a format brand carried verbatim — the exact
   // (name, params) pair a reflected FormatAnnotation holds, for annotations
   // with no exact standard-keyword spelling. Read as the brand wholesale.
@@ -1949,7 +1941,7 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // `jsReadonly`, `jsIndexes`, `jsLabels` and `jsParams` are deliberately NOT
 // here: those MODIFY a translation rather than replacing it, so they are read
 // where that translation is built.
-type DialectShapeKeys = 'jsType' | 'jsFormat' | 'jsTemplate' | 'jsBigint' | 'jsFunction' | 'jsNot' | 'jsMeta';
+type DialectShapeKeys = 'jsType' | 'jsFormat' | 'jsTemplate' | 'jsFunction' | 'jsNot' | 'jsMeta';
 
 type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
@@ -1964,33 +1956,43 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
 // of the keys above.
 type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer Name}
   ? Name extends 'Map'
-    ? S extends {typeArguments: readonly [infer MapKey, infer MapValue]}
+    ? // The key and value come out of the WIRE schema: a Map encodes as an
+      // array of [key, value] pairs, so `items.prefixItems` already had to say
+      // what they are for the schema to be honest about the JSON. No separate
+      // argument list to keep in sync.
+      S extends {items: {prefixItems: readonly [infer MapKey, infer MapValue]}}
       ? Map<FromJsonSchemaIn<MapKey, Root, F>, FromJsonSchemaIn<MapValue, Root, F>>
       : never
     : Name extends 'Set'
-      ? S extends {typeArguments: readonly [infer Item]}
+      ? // Likewise: a Set encodes as a unique array, so `items` IS the element.
+        S extends {items: infer Item}
         ? Set<FromJsonSchemaIn<Item, Root, F>>
         : never
       : Name extends 'Promise'
-        ? S extends {typeArguments: readonly [infer Value]}
-          ? Promise<FromJsonSchemaIn<Value, Root, F>>
-          : never
+        ? // A serialiser writes the RESOLVED value, so the wire schema is that
+          // value's own — read it with the annotation removed, then wrap.
+          Promise<FromJsonSchemaIn<Omit<S, 'jsType'>, Root, F>>
         : Name extends 'Date'
           ? Date
-          : FromJsTypeName<Name>
+          : Name extends 'bigint'
+            ? // A sibling `const` pins the value. It holds the WIRE value,
+              // which is the digit string, so it lifts to the bigint LITERAL
+              // type rather than reading as a string literal.
+              S extends {const: infer Digits}
+              ? FromJsBigint<Digits>
+              : bigint
+            : FromJsTypeName<Name>
   : S extends {jsFormat: {name: infer Name}}
     ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
     : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
       ? TemplateFold<Texts, Placeholders, Root, F>
-      : S extends {jsBigint: infer Digits}
-        ? FromJsBigint<Digits>
-        : S extends {jsFunction: {params: infer Params; return: infer Return}}
-          ? FromJsFunction<Params, Return, Root, F>
-          : S extends {jsNot: infer Negated}
-            ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
-            : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
-              ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
-              : never;
+      : S extends {jsFunction: {params: infer Params; return: infer Return}}
+        ? FromJsFunction<Params, Return, Root, F>
+        : S extends {jsNot: infer Negated}
+          ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
+          : S extends {jsMeta: {base: infer Base; meta: infer Meta}}
+            ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
+            : never;
 
 // The `jsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -2008,9 +2010,10 @@ type TemplateFold<Texts, Placeholders, Root, F extends [unknown]> = Texts extend
   : '';
 type TemplateArg<T> = T extends string | number | bigint | boolean ? T : string;
 
-// `jsBigint: '123'` → the literal type `123n`, by the same template-literal
-// lift `LiftBigintParams` uses. Digits that do not parse fall back to the wide
-// `bigint` rather than `never`, so a bad value is still a bigint-shaped node.
+// A bigint jsType's sibling `const` → the literal type `123n`, by the same
+// template-literal lift `LiftBigintParams` uses. Digits that do not parse fall
+// back to the wide `bigint` rather than `never`, so a bad value is still a
+// bigint-shaped node.
 type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Value : bigint;
 
 // The `jsFunction` dialect keyword. `params` lowers through the ORDINARY tuple
@@ -2618,14 +2621,12 @@ export type SchemaLoweringByKeyword = {
   jsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
   jsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
   jsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
-  jsBigint: 'shape: a bigint literal type, carried as its digits (RunTypes dialect, not standard 2020-12)';
   jsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
   jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
   jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
   jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
-  typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';
   anyOf: 'shape: plain union (at least one branch)';
   oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
   allOf: 'shape: intersection, merged by the collapse';
