@@ -27,7 +27,7 @@ func TestChain_TemporalUnbranded(t *testing.T) {
 	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
 	// Data, not a quoted type: the schema target spells Temporal with the
 	// jsType dialect row rather than reaching for the embed escape.
-	if !strings.Contains(schemaForm, "{jsType: 'Temporal.Instant'}") {
+	if !strings.Contains(schemaForm, "{jsType: 'temporalInstant'}") {
 		t.Errorf("temporal members should ride the jsType dialect row:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {

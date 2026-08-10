@@ -137,6 +137,42 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	}
 }
 
+func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
+	// `minItems: 0` / `uniqueItems: false` / `minProperties: 0` say exactly
+	// what OMITTING the keyword says, so the door reads the standard spelling
+	// as absent — right for 2020-12, but it would drop the brand on the way
+	// back. Those params ride jsParams instead, which leaves the standard
+	// keywords' meaning untouched.
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type ZeroMin = TF.FormattedArray<string[], {minItems: 0}>;\n" +
+		"export type NotUnique = TF.FormattedArray<string[], {uniqueItems: false}>;\n" +
+		"export type ZeroProps = TF.FormattedObject<Record<string, string>, {minProperties: 0}>;\n"
+	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+	for _, expected := range []string{
+		"jsParams: {minItems: 0}",
+		"jsParams: {uniqueItems: false}",
+		"jsParams: {minProperties: 0}",
+	} {
+		if !strings.Contains(schemaForm, expected) {
+			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
+		}
+	}
+	if strings.Contains(schemaForm, "embedType") {
+		t.Errorf("a defaulted structural param should not reach the embed escape:\n%s", schemaForm)
+	}
+	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	for _, expected := range []string{"{minItems: 0}", "{uniqueItems: false}", "{minProperties: 0}"} {
+		if !strings.Contains(typeForm, expected) {
+			t.Errorf("type form missing %q:\n%s", expected, typeForm)
+		}
+	}
+
+	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
+	if len(diags) != 3 || diags[0].Code != convert.CodePortableDialect {
+		t.Fatalf("expected a portable refusal per defaulted-param declaration, got %+v", diags)
+	}
+}
+
 func TestChain_BigintFormatParams(t *testing.T) {
 	// The bigint family's bounds ARE bigints, which JSON cannot hold. They ride
 	// as digit strings and the door lifts the literal types back, so the whole

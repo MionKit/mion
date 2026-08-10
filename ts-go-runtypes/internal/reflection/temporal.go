@@ -96,6 +96,16 @@ func TemporalInfoBySubKind(subKind ReflectionSubKind) (TemporalInfo, bool) {
 	return info, ok
 }
 
+// DialectName is the name the json-schema dialect spells this temporal type
+// with — the reflected format name (`temporalInstant`), which every one of the
+// eight has, unlike FormatName (orderable types only). Deliberately NOT the
+// qualified `Temporal.Instant`: the published `.d.ts` must not contain those
+// characters or it reads as a Temporal-lib requirement, and this way the
+// unbranded jsType row and the branded jsFormat row share one vocabulary.
+func (info TemporalInfo) DialectName() string {
+	return "temporal" + info.Name
+}
+
 // IsTemporalSubKind reports whether subKind is one of the Temporal types.
 func IsTemporalSubKind(subKind ReflectionSubKind) bool {
 	_, ok := temporalBySubKind[subKind]
