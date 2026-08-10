@@ -143,13 +143,17 @@ func (info TemporalInfo) WirePattern() string {
 }
 
 // DialectName is the name the json-schema dialect spells this temporal type
-// with — the reflected format name (`temporalInstant`), which every one of the
-// eight has, unlike FormatName (orderable types only). Deliberately NOT the
-// qualified `Temporal.Instant`: the published `.d.ts` must not contain those
-// characters or it reads as a Temporal-lib requirement, and this way the
-// unbranded jsType row and the branded jsFormat row share one vocabulary.
+// with: the QUALIFIED JavaScript global (`Temporal.Instant`), the same way the
+// Date / Map / Set / RegExp rows spell theirs. `jsType` names a JavaScript
+// type, and that is the name JavaScript gives it.
+//
+// This is what `Builtin` already holds, so it is a rename rather than a second
+// table. (An earlier pass used the reflected format name to keep the characters
+// `Temporal.` out of the published `.d.ts`; the D1 guard now strips string
+// literals before it scans, which is the precise rule — a quoted name cannot
+// force a lib, only a type reference can.)
 func (info TemporalInfo) DialectName() string {
-	return "temporal" + info.Name
+	return info.Builtin
 }
 
 // IsTemporalSubKind reports whether subKind is one of the Temporal types.

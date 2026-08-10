@@ -117,7 +117,7 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	// at every leg (the fuzz lane widens this over the generated space).
 	builderForm := convertAndCheckIDs(t, atomTypeSource, convert.TargetBuilders)
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({jsType: 'bigint'} as const)") {
+	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({type: 'string', pattern: '^-?[0-9]+$', jsType: 'bigint'} as const)") {
 		t.Errorf("bigint atom should ride the jsType dialect:\n%s", schemaForm)
 	}
 	// A bigint literal rides its DIGITS. JSON has no bigint and a digit string

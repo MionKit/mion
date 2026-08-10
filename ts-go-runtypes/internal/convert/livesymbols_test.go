@@ -76,7 +76,7 @@ func TestChain_RegExpNative(t *testing.T) {
 		t.Errorf("RegExp should print RT.regexp():\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{jsType: 'RegExp'}") {
+	if !strings.Contains(schemaForm, "{type: 'string', jsType: 'RegExp'}") {
 		t.Errorf("RegExp should ride the jsType dialect:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
