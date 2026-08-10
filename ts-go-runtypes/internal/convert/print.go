@@ -2128,13 +2128,18 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	case reflection.KindAny:
 		return dialect("{jsType: 'any'}")
 	case reflection.KindUndefined:
-		return dialect("{jsType: 'undefined'}")
+		// undefined and void encode as JSON null, in an object member and an
+		// array slot alike (json_stringify.go). On the wire the three are the
+		// same value, and the annotation is what tells them apart.
+		return dialect("{type: 'null', jsType: 'undefined'}")
 	case reflection.KindVoid:
-		return dialect("{jsType: 'void'}")
+		return dialect("{type: 'null', jsType: 'void'}")
 	case reflection.KindSymbol:
 		return dialect("{jsType: 'symbol'}")
 	case reflection.KindBigInt:
-		return dialect("{jsType: 'bigint'}")
+		// A bigint encodes as a quoted decimal string, so the wire is a string
+		// carrying the digits pattern and jsType says what it becomes.
+		return dialect("{type: 'string', pattern: '^-?[0-9]+$', jsType: 'bigint'}")
 	case reflection.KindLiteral:
 		if isBigIntLiteral(node) {
 			// A bigint literal rides its DIGITS: `const` cannot hold it (JSON
@@ -2216,7 +2221,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			return dialect(fmt.Sprintf("{jsType: 'Set', typeArguments: [%s]}", itemText))
 		}
 		if isRegExpNode(node) {
-			return dialect("{jsType: 'RegExp'}")
+			return dialect("{type: 'string', jsType: 'RegExp'}")
 		}
 		// The eight Temporal builtins spell as data, under their reflected
 		// format name (`temporalInstant`) — the same word the branded jsFormat
@@ -2224,13 +2229,25 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		// guarded base map, so nothing here forces the Temporal lib on a
 		// json-schema consumer.
 		if info, isTemporal := reflection.TemporalInfoBySubKind(node.SubKind); isTemporal {
-			return dialect(fmt.Sprintf("{jsType: %s}", quoteSingle(info.DialectName())))
+			// The wire half comes from the reflection registry, so it cannot
+			// drift from what the serializer actually writes. Five of the eight
+			// carry a pattern rather than a format on purpose: ZonedDateTime's
+			// toJSON() is RFC 9557, which a date-time checker rejects.
+			wire := ""
+			if format := info.WireFormat(); format != "" {
+				wire = fmt.Sprintf("format: %s, ", quoteSingle(format))
+			} else if pattern := info.WirePattern(); pattern != "" {
+				wire = fmt.Sprintf("pattern: %s, ", quoteSingle(pattern))
+			}
+			return dialect(fmt.Sprintf("{type: 'string', %sjsType: %s}", wire, quoteSingle(info.DialectName())))
 		}
 		// A user class or any other class kind keeps the escape: its identity
 		// is nominal, so only the live symbol can carry it.
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindRegexp:
-		return dialect("{jsType: 'RegExp'}")
+		// `JSON.stringify(re.toString())`, so the wire carries the delimiters
+		// and flags: "/^ab?c$/gi".
+		return dialect("{type: 'string', jsType: 'RegExp'}")
 	case reflection.KindEnum:
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindUnion:
@@ -2456,7 +2473,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		// TypeScript's `object` keyword — the non-primitive gate. NOT the same
 		// as a keyword-less object schema, which the door reads as
 		// `Record<string, unknown>`.
-		return dialect("{jsType: 'object'}")
+		// `object` is the non-primitive gate and it ADMITS arrays, so the wire
+		// is the two-member type union rather than {type: 'object'}.
+		return dialect("{type: ['object', 'array'], jsType: 'object'}")
 	}
 	return "", unsupportedDiag(node, ctx.decl)
 }

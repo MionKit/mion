@@ -64,7 +64,7 @@ import type {
 import type {OneOf} from '../builders/static.ts';
 import type {FormatName} from '../go-generated/typeFormats.generated.ts';
 import type {
-  TemporalBaseByFormatName,
+  TemporalBaseByJsTypeName,
   TemporalFormatOf,
   TemporalFormatParamsByName,
 } from '../formats/datetime/temporalFormats.ts';
@@ -135,7 +135,7 @@ export type JsTypeName =
  *  Sourced from the formats surface's own guarded base map, so this door never
  *  names the namespace at all and the json-schema subpath stays importable
  *  without the Temporal lib (the guard degrades to `unknown` without it). **/
-export type TemporalJsTypeName = keyof TemporalBaseByFormatName;
+export type TemporalJsTypeName = keyof TemporalBaseByJsTypeName;
 
 /** The `jsFormat` dialect families, carried verbatim as the reflected
  *  (name, params) pair. The six orderable Temporal families ride here like any
@@ -2057,7 +2057,7 @@ type FromJsTypeName<Name> = Name extends 'bigint'
               // that one recovers `Record<string, unknown>`.
               object
             : Name extends TemporalJsTypeName
-              ? TemporalBaseByFormatName[Name]
+              ? TemporalBaseByJsTypeName[Name]
               : Name extends 'any'
                 ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   any

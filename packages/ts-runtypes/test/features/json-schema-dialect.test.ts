@@ -37,6 +37,16 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   'CORE-PRECEDENCE',
   'CORE-INERT',
   'JS-DATE',
+  // Slices 2-5 — the rest of the jsType rows that needed no door change.
+  'JS-BIGINT',
+  'JS-REGEXP',
+  'JS-OBJECT',
+  'JS-UNDEFINED',
+  'JS-VOID',
+  'JS-TEMPORAL-INSTANT',
+  'JS-TEMPORAL-PLAINDATE',
+  'JS-TEMPORAL-DURATION',
+  'JS-TEMPORAL-PATTERNED',
 ]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');

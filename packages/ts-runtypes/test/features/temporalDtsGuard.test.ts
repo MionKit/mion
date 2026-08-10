@@ -26,10 +26,25 @@ function collectDts(dir: string, out: string[]): void {
   }
 }
 
-// Strip block and line comments so a `Temporal.*` mention in prose doesn't trip
-// the guard — only real type references count.
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+// Strip comments AND string literals so only real REFERENCES are scanned.
+//
+// A mention in prose was never the hazard, and neither is a quoted name: the
+// failure this guard exists for is TS2503 "cannot find namespace Temporal",
+// which only a type reference can cause. A string literal cannot force a lib —
+// `jsType: 'Temporal.Instant'` in the json-schema dialect's keyword union is
+// text, not a reference, and scanning it would make the guard reject a
+// perfectly safe declaration.
+//
+// Template literals are stripped too: the dialect's key map derives its
+// qualified names with `` `Temporal.${Suffix}` ``, which is a template literal
+// TYPE and equally inert.
+function stripCommentsAndStrings(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``');
 }
 
 describe('published .d.ts does not force the Temporal lib (D1)', () => {
@@ -42,7 +57,7 @@ describe('published .d.ts does not force the Temporal lib (D1)', () => {
 
     const offenders: string[] = [];
     for (const file of files) {
-      const code = stripComments(fs.readFileSync(file, 'utf8'));
+      const code = stripCommentsAndStrings(fs.readFileSync(file, 'utf8'));
       code.split('\n').forEach((line, i) => {
         if (/\bTemporal\./.test(line)) offenders.push(`${path.relative(DIST, file)}:${i + 1}: ${line.trim()}`);
       });

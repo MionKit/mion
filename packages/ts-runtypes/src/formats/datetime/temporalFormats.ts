@@ -133,6 +133,21 @@ export interface TemporalBaseByFormatName {
   temporalDuration: TDuration;
 }
 
+// The same eight bases keyed by their QUALIFIED spelling, which is what the
+// json-schema dialect's `jsType` rows carry (`{jsType: 'Temporal.Instant'}`) —
+// the JS global's own name, matching how the Date / RegExp / Map / Set rows
+// spell theirs. Derived from the map above rather than restated, so a new
+// temporal format cannot land in one and miss the other.
+//
+// Both maps stay HERE, behind the guarded bases: the json-schema door indexes
+// this by keyword and so never names `Temporal.*` itself, which is what keeps
+// that subpath importable without the Temporal lib.
+export type TemporalBaseByJsTypeName = {
+  [Name in keyof TemporalBaseByFormatName as Name extends `temporal${infer Suffix}`
+    ? `Temporal.${Suffix}`
+    : never]: TemporalBaseByFormatName[Name];
+};
+
 // The branded form of the same rows, built from a (name, params) pair — what
 // the json-schema dialect's `jsFormat` carries for a bounded temporal. Spelled
 // as the identical inline intersection the aliases above use, so
