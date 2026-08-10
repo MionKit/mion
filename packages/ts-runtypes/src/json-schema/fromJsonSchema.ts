@@ -245,6 +245,19 @@ export interface JsonSchemaInput {
   // this one moves the structural id, so it names its members explicitly the
   // way `required` does. No standard spelling, so `--portable` never emits it.
   readonly jsReadonly?: readonly string[];
+  // RunTypes dialect: a template literal type, carried as its PARTS — `texts`
+  // holds the n+1 literal chunks and `placeholders` the n schemas between
+  // them, so the door can rebuild the type rather than guess it back from a
+  // pattern. Only placeholders TypeScript can interpolate appear here; the
+  // rest keep the embed escape. No standard spelling, so `--portable` never
+  // emits it.
+  readonly jsTemplate?: {readonly texts: readonly string[]; readonly placeholders: readonly NestedSchema[]};
+  // RunTypes dialect: index signatures whose key is not a plain string, and
+  // shapes carrying more than one of them. `additionalProperties` can only
+  // speak about string keys, so a numeric, symbol or pattern key rides here
+  // instead, one `{key, value}` pair per signature. No standard spelling, so
+  // `--portable` never emits it.
+  readonly jsIndexes?: readonly {readonly key: NestedSchema; readonly value: NestedSchema}[];
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1065,21 +1078,27 @@ type ObjectShapeFrom<S, Root, F extends [unknown]> = S extends {properties: infe
       // six-kind JSON domain (see PresentValue) — every JSON value, with
       // undefined excluded so presence stays enforced.
       WithAdditional<S, {-readonly [K in R[number]]: PresentValue}, Root, F>
-    : S extends {additionalProperties: infer A extends JsonSchemaInput | EmbedSchema<unknown>}
-      ? // The INDEX-SIGNATURE spelling, deliberately, not `Record<string, V>`:
-        // `Record` is a mapped ALIAS, so TypeScript resolves its argument while
-        // resolving the enclosing type, and a `{$ref: '#'}` value then unrolls
-        // the root schema into itself until the checker gives up and hands back
-        // `any` — the declaration silently changed identity. An index signature
-        // defers exactly like an ordinary member, so the knot ties. The two
-        // spellings are the same type.
-        {[key: string]: FromJsonSchemaIn<A, Root, F>}
-      : // Keyword-less object gate: Record<string, unknown>, NOT the TS
-        // `object` keyword — `object` admits arrays (and its emitted check
-        // accepts them), while JSON Schema's object kind excludes them; the
-        // record check is the exact spelling. Also what every negation object
-        // arm uses via GateArmFrom, where array leakage would corrupt ¬.
-        Record<string, unknown>;
+    : S extends {jsIndexes: unknown}
+      ? // An INDEX-ONLY shape: no members to name, so the pairs are the whole
+        // object. `unknown` is the empty conjunct WithAdditional folds them
+        // onto (it also picks up a string-keyed `additionalProperties` beside
+        // them, which is how a mixed key set arrives).
+        WithAdditional<S, unknown, Root, F>
+      : S extends {additionalProperties: infer A extends JsonSchemaInput | EmbedSchema<unknown>}
+        ? // The INDEX-SIGNATURE spelling, deliberately, not `Record<string, V>`:
+          // `Record` is a mapped ALIAS, so TypeScript resolves its argument while
+          // resolving the enclosing type, and a `{$ref: '#'}` value then unrolls
+          // the root schema into itself until the checker gives up and hands back
+          // `any` — the declaration silently changed identity. An index signature
+          // defers exactly like an ordinary member, so the knot ties. The two
+          // spellings are the same type.
+          {[key: string]: FromJsonSchemaIn<A, Root, F>}
+        : // Keyword-less object gate: Record<string, unknown>, NOT the TS
+          // `object` keyword — `object` admits arrays (and its emitted check
+          // accepts them), while JSON Schema's object kind excludes them; the
+          // record check is the exact spelling. Also what every negation object
+          // arm uses via GateArmFrom, where array leakage would corrupt ¬.
+          Record<string, unknown>;
 
 /** "The key exists" as a type: any JSON value, undefined excluded. Spelled as
  *  the six-kind JSON domain — NOT `unknown` (admits undefined, which stops
@@ -1124,13 +1143,32 @@ type ObjectArmFrom<S, Root, F extends [unknown]> =
 // nothing HERE: `true`/omitted stay open, and `false` is enforced by the
 // formattedObject closedness brand that ObjectFrom layers on top (the type
 // level cannot subtract keys).
-type WithAdditional<S, Props, Root, F extends [unknown]> = S extends {additionalProperties: infer A}
-  ? A extends boolean
-    ? Props
-    : // The index-signature spelling for the same reason as ObjectShapeFrom's:
-      // `Record<>` would resolve a `{$ref: '#'}` value eagerly and unroll.
-      Props & {[key: string]: FromJsonSchemaIn<A, Root, F>}
+type WithAdditional<S, Props, Root, F extends [unknown]> = WithJsIndexes<
+  S,
+  S extends {additionalProperties: infer A}
+    ? A extends boolean
+      ? Props
+      : // The index-signature spelling for the same reason as ObjectShapeFrom's:
+        // `Record<>` would resolve a `{$ref: '#'}` value eagerly and unroll.
+        Props & {[key: string]: FromJsonSchemaIn<A, Root, F>}
+    : Props,
+  Root,
+  F
+>;
+
+// The `jsIndexes` dialect keyword: conjoin one index signature per pair.
+// Written as a MAPPED type over the key rather than `Record<K, V>` for the
+// reason above — a mapped type defers its value the way an ordinary member
+// does, so a `{$ref: '#'}` value ties the knot instead of unrolling the root.
+type WithJsIndexes<S, Props, Root, F extends [unknown]> = S extends {jsIndexes: infer Pairs}
+  ? Props & JsIndexFold<Pairs, Root, F>
   : Props;
+type JsIndexFold<Pairs, Root, F extends [unknown]> = Pairs extends readonly [infer Head, ...infer Tail]
+  ? (Head extends {key: infer K; value: infer V}
+      ? {[Key in Extract<FromJsonSchemaIn<K, Root, F>, PropertyKey>]: FromJsonSchemaIn<V, Root, F>}
+      : unknown) &
+      JsIndexFold<Tail, Root, F>
+  : unknown;
 
 // array/tuple: `prefixItems` builds a tuple. Members at positions below
 // `minItems` are required, the rest optional (`?`) — absent minItems means 0,
@@ -1853,9 +1891,27 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
               : FromJsTypeName<Name>
       : S extends {jsFormat: {name: infer Name}}
         ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
-        : S extends {if: infer If}
-          ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-          : DepLayer<S, Root, F>;
+        : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
+          ? TemplateFold<Texts, Placeholders, Root, F>
+          : S extends {if: infer If}
+            ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+            : DepLayer<S, Root, F>;
+
+// The `jsTemplate` dialect keyword: rebuild the template literal type by
+// interpolating the placeholders between the literal chunks, arm-by-arm down
+// the two lists (n+1 texts, n placeholders, so the recursion ends on the text
+// whose placeholder slot is empty). The emitter only ever writes placeholders
+// TypeScript can interpolate, and `TemplateArg` is the belt to that braces:
+// anything else lands on `string` rather than poisoning the whole type.
+type TemplateFold<Texts, Placeholders, Root, F extends [unknown]> = Texts extends readonly [
+  infer Head extends string,
+  ...infer TailTexts,
+]
+  ? Placeholders extends readonly [infer Placeholder, ...infer TailPlaceholders]
+    ? `${Head}${TemplateArg<FromJsonSchemaIn<Placeholder, Root, F>>}${TemplateFold<TailTexts, TailPlaceholders, Root, F>}`
+    : Head
+  : '';
+type TemplateArg<T> = T extends string | number | bigint | boolean ? T : string;
 
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
 // `{}` / `true` cannot spell, since those recover `unknown`). The `Temporal.*`
@@ -2432,6 +2488,8 @@ export type SchemaLoweringByKeyword = {
   const: 'shape: single literal';
   jsLabels: 'slot: __rtLabels — tuple slot labels, one per slot in order (RunTypes dialect, not standard 2020-12)';
   jsReadonly: 'shape: the readonly modifier on the named members (RunTypes dialect, not standard 2020-12)';
+  jsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
+  jsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';
