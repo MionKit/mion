@@ -88,11 +88,16 @@ func allCircularRefusals(diags []convert.Diagnostic) bool {
 // string contents on purpose), then sprinkles the relational arms: a
 // self-cycle, a cross-declaration reference, and a mutual-cycle pair.
 func randomAtomFile(rng *rand.Rand) string {
-	atoms := []string{"string", "number", "boolean", "bigint", "symbol", "null", "undefined", "any", "unknown", "never", "void"}
+	// `RegExp` and `object` are atoms here because each is a jsType ROW of its
+	// own (`{type: 'string', jsType: 'RegExp'}` and
+	// `{type: ['object', 'array'], jsType: 'object'}`) that nothing else in the
+	// generated space reaches.
+	atoms := []string{"string", "number", "boolean", "bigint", "symbol", "null", "undefined", "any", "unknown", "never", "void", "RegExp", "object"}
 	stringPool := []string{"ana", "with 'quote'", `back\slash`, "new\nline", "tab\there", "ünïcode", ""}
 	var out strings.Builder
 	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
 	out.WriteString("import * as TFT from '@ts-runtypes/core/formats/temporal';\n")
+	out.WriteString("import {type OneOf} from '@ts-runtypes/core/builders';\n")
 	declCount := 3 + rng.Intn(6)
 	var names []string
 	for index := 0; index < declCount; index++ {
@@ -145,7 +150,41 @@ func fuzzSources(source string) map[string]string {
 // tuples above it.
 func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) string {
 	if depth > 0 {
-		switch rng.Intn(9) {
+		switch rng.Intn(12) {
+		case 9:
+			// An EXCLUSIVE union — the `oneOf` keyword, which a plain `|` union
+			// never reaches (that is `anyOf`). Branches are objects on purpose:
+			// a primitive branch inside a recursive type is a documented
+			// refusal, and this arm exists to exercise the keyword, not the
+			// refusal lane that circular_test.go already pins.
+			armCount := 2 + rng.Intn(2)
+			var arms []string
+			for armIndex := range armCount {
+				arms = append(arms, fmt.Sprintf("{kind%d: %s; payload: %s}",
+					armIndex, quoteTS(stringPool[rng.Intn(len(stringPool))]), randomTypeText(rng, atoms, stringPool, depth-1)))
+			}
+			return fmt.Sprintf("OneOf<[%s]>", strings.Join(arms, ", "))
+		case 10:
+			// A union of PURE literals collapses to `enum` rather than `anyOf`.
+			// The ordinary union arm can draw one by chance, but only when every
+			// arm happens to be a literal, which is rare enough to leave the
+			// keyword effectively untested.
+			armCount := 2 + rng.Intn(3)
+			var arms []string
+			for range armCount {
+				arms = append(arms, randomLiteralText(rng, stringPool))
+			}
+			return "(" + strings.Join(arms, " | ") + ")"
+		case 11:
+			// Index signatures whose key is not a plain string: the `tsIndexes`
+			// keyword plus the wire half that constrains the key
+			// (`propertyNames` for a numeric key, a nested `tsTemplate` for a
+			// pattern key). `Record<string, T>` is the ordinary
+			// `additionalProperties` and lives on the arm below.
+			if rng.Intn(2) == 0 {
+				return fmt.Sprintf("{[key: number]: %s}", randomTypeText(rng, atoms, stringPool, depth-1))
+			}
+			return fmt.Sprintf("{[key: `api/${string}`]: %s}", randomTypeText(rng, atoms, stringPool, depth-1))
 		case 8:
 			if rng.Intn(2) == 0 {
 				// All-required named params — the slot-form lane (RT.func([RT.slot…])).
@@ -175,16 +214,40 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			armCount := 2 + rng.Intn(3)
 			var arms []string
 			for range armCount {
-				arms = append(arms, randomTypeText(rng, atoms, stringPool, depth-1))
+				arms = append(arms, randomUnionArm(rng, atoms, stringPool, depth-1))
 			}
 			return "(" + strings.Join(arms, " | ") + ")"
 		case 4:
-			switch rng.Intn(3) {
+			// The structural params, which ride the STANDARD keywords rather
+			// than the dialect: minItems/maxItems/uniqueItems/contains(+bounds)
+			// on the array side, minProperties/maxProperties/patternProperties/
+			// propertyNames on the object side. `contains` and the two object
+			// schema-valued params each print a keyword nothing else reaches.
+			switch rng.Intn(6) {
 			case 0:
 				return fmt.Sprintf("TF.FormattedArray<%s[], {uniqueItems: true, maxItems: %d}>", randomTypeText(rng, atoms, stringPool, 0), 1+rng.Intn(9))
 			case 1:
 				return fmt.Sprintf("TF.FormattedArray<%s[], {minItems: %d}>", randomTypeText(rng, atoms, stringPool, 0), rng.Intn(4))
+			case 2:
+				// `minContains: 1` is the 2020-12 default and is not printed, so
+				// the bounded draw uses 2 and up to reach the keywords.
+				if rng.Intn(2) == 0 {
+					return fmt.Sprintf("TF.FormattedArray<%s[], {contains: %s}>",
+						randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0))
+				}
+				minContains := 2 + rng.Intn(3)
+				return fmt.Sprintf("TF.FormattedArray<%s[], {contains: %s; minContains: %d; maxContains: %d}>",
+					randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0), minContains, minContains+rng.Intn(4))
+			case 3:
+				return fmt.Sprintf("TF.FormattedObject<Record<string, %s>, {patternProperties: {'^%c': %s}}>",
+					randomTypeText(rng, atoms, stringPool, 0), 'a'+rune(rng.Intn(26)), randomTypeText(rng, atoms, stringPool, 0))
+			case 4:
+				return fmt.Sprintf("TF.FormattedObject<Record<string, %s>, {propertyNames: %s}>",
+					randomTypeText(rng, atoms, stringPool, 0), randomStringFormatLeaf(rng))
 			default:
+				if rng.Intn(2) == 0 {
+					return fmt.Sprintf("TF.FormattedObject<Record<string, %s>, {maxProperties: %d}>", randomTypeText(rng, atoms, stringPool, 0), 1+rng.Intn(6))
+				}
 				return fmt.Sprintf("TF.FormattedObject<Record<string, %s>, {minProperties: %d}>", randomTypeText(rng, atoms, stringPool, 0), rng.Intn(3))
 			}
 		case 2:
@@ -247,18 +310,52 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 		return fmt.Sprintf("(string & {readonly __brand: %s})", quoteTS(stringPool[rng.Intn(len(stringPool))]))
 	case 8:
 		return temporalLeaf(rng)
+	case 0, 1, 2, 3:
+		return randomLiteralText(rng, stringPool)
+	case 4:
+		return randomFormatLeaf(rng)
+	default:
+		return atoms[rng.Intn(len(atoms))]
+	}
+}
+
+// randomUnionArm draws a type for a DIRECT arm of a plain union, redrawing
+// while it lands on a `OneOf`.
+//
+// `OneOf<[A, B]> | C` is a partial oneOf: the exclusive branches do not cover
+// the whole union, which nothing in the system can currently represent — the
+// converter refuses it (partialOneOfDiag) and `validate` is outright unsound on
+// it. See docs/todos/oneof-not-covering-whole-union.md. Drawing it here would
+// just spend every union draw on that one refusal, so the arm is excluded until
+// the todo lands, at which point this whole function goes away.
+//
+// Only a DIRECT arm is excluded. A `OneOf` nested inside an object member, an
+// array element or a Map value is a union of its own and converts fine, so the
+// keyword keeps its coverage.
+func randomUnionArm(rng *rand.Rand, atoms, stringPool []string, depth int) string {
+	for attempt := 0; attempt < 8; attempt++ {
+		candidate := randomTypeText(rng, atoms, stringPool, depth)
+		if !strings.HasPrefix(candidate, "OneOf<") {
+			return candidate
+		}
+	}
+	return atoms[rng.Intn(len(atoms))]
+}
+
+// randomLiteralText draws a string / number / boolean / bigint literal. Shared
+// by the leaf switch and the enum arm: a union of these collapses to `enum`,
+// so the two have to draw from one pool or the arm could produce a shape the
+// leaves never do.
+func randomLiteralText(rng *rand.Rand, stringPool []string) string {
+	switch rng.Intn(4) {
 	case 0:
 		return quoteTS(stringPool[rng.Intn(len(stringPool))])
 	case 1:
 		return strconv.FormatFloat(randomNumber(rng), 'g', -1, 64)
 	case 2:
 		return strconv.FormatBool(rng.Intn(2) == 0)
-	case 3:
-		return strconv.FormatInt(rng.Int63n(1<<62)-(1<<61), 10) + "n"
-	case 4:
-		return randomFormatLeaf(rng)
 	default:
-		return atoms[rng.Intn(len(atoms))]
+		return strconv.FormatInt(rng.Int63n(1<<62)-(1<<61), 10) + "n"
 	}
 }
 
@@ -302,7 +399,40 @@ func randomFormatLeaf(rng *rand.Rand) string {
 	if rng.Intn(6) == 0 {
 		return fmt.Sprintf("TF.Not<%s>", randomNotableFormatLeaf(rng))
 	}
+	// Half the remaining draws take a NAMED family. The generic
+	// String/Number/BigInt brands were the only formats here, and those carry
+	// no `format` keyword at all — so the whole registered-format half of
+	// RT-FORMAT-STANDARD (email, uuid, uri, hostname, date, time, date-time)
+	// went undrawn, along with every preset whose params the pretty spelling
+	// cannot prove identical (the `exact` constructor lane).
+	if rng.Intn(2) == 0 {
+		return randomStringFormatLeaf(rng)
+	}
 	return randomNotableFormatLeaf(rng)
+}
+
+// randomStringFormatLeaf draws a NAMED string family. The first seven map onto
+// a registered 2020-12 `format` (email / uuid / uri / hostname / date / time /
+// date-time), `ip` deliberately has none (2020-12 splits it into ipv4 and ipv6,
+// and this family spans both), and the presets ride `rtFormat` + a params bag
+// carrying a pattern object.
+func randomStringFormatLeaf(rng *rand.Rand) string {
+	named := []string{
+		"TF.Email", "TF.UUID", "TF.UUIDv4", "TF.UUIDv7", "TF.Url", "TF.Domain",
+		"TF.IP", "TF.IPv4", "TF.StringDateTime", "TF.StringDate", "TF.StringTime",
+		"TF.Alpha", "TF.AlphaNumeric", "TF.Numeric", "TF.Base64", "TF.Base32", "TF.Base16",
+		"TF.Lowercase", "TF.Uppercase", "TF.Capitalize",
+	}
+	if rng.Intn(5) == 0 {
+		// An INLINE pattern bag — the params-carrying spelling, distinct from a
+		// preset's baked-in one. A bare string is not a `PatternParam`, so the
+		// object form is the only legal one.
+		if rng.Intn(2) == 0 {
+			return fmt.Sprintf("TF.String<{pattern: {source: '^[a-%c]+$'}}>", 'b'+rune(rng.Intn(25)))
+		}
+		return fmt.Sprintf("TF.String<{pattern: {source: '^[a-%c]+$'; flags: 'i'}}>", 'b'+rune(rng.Intn(25)))
+	}
+	return named[rng.Intn(len(named))]
 }
 
 // randomNotableFormatLeaf draws the format brands `Not<F>` accepts as operands
@@ -320,11 +450,16 @@ func randomNotableFormatLeaf(rng *rand.Rand) string {
 			return fmt.Sprintf("TF.String<{minLength: %d; maxLength: %d}>", minLength, minLength+1+rng.Intn(50))
 		}
 	case 1:
-		switch rng.Intn(3) {
+		switch rng.Intn(4) {
 		case 0:
 			return fmt.Sprintf("TF.Number<{min: %d; max: %d}>", rng.Intn(100)-50, 100+rng.Intn(1000))
 		case 1:
 			return "TF.Number<{integer: true}>"
+		case 2:
+			// gt / lt mirror onto `exclusiveMinimum` / `exclusiveMaximum`; only
+			// min / max were drawn before, so the exclusive pair of
+			// RT-FORMAT-STANDARD's keyword table went untested.
+			return fmt.Sprintf("TF.Number<{gt: %d; lt: %d}>", rng.Intn(100)-50, 100+rng.Intn(1000))
 		default:
 			return fmt.Sprintf("TF.Number<{multipleOf: %d}>", 1+rng.Intn(9))
 		}

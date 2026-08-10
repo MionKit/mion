@@ -289,7 +289,10 @@ func TestChain_OneOfAndNot(t *testing.T) {
 	}
 	// Negation has no extension keyword: it round-trips through the STANDARD
 	// `not`, which is the keyword RunTypes' negation type was built to model.
-	if !strings.Contains(schemaForm, "{type: 'string', not: {type: 'string', format: 'email', maxLength: 254, minLength: 7, rtFormat: 'email'") {
+	// The negated branch carries its own standard keywords (including the
+	// projected `pattern`), so a plain validator can enforce the negation
+	// rather than reading `not: {}` and rejecting everything.
+	if !strings.Contains(schemaForm, "{type: 'string', not: {type: 'string', format: 'email', maxLength: 254, minLength: 7, pattern: ") {
 		t.Errorf("a negated format should ride the standard not keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {

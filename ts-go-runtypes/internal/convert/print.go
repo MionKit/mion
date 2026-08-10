@@ -466,6 +466,60 @@ func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[stri
 	return family, annotation.Params, true
 }
 
+// partialOneOfDiag reports a union whose `oneOf` branches do NOT cover every
+// member, and nil when they do.
+//
+// `OneOf<[A, B]> | C` is such a shape: the reflection carries all three members
+// in Children and the two branches in OneOf, exactly as documented. Both
+// printers used to emit the branches alone, so the `| C` arm vanished from the
+// output without a word — and it is not a converter-only slip: `validate`
+// rejects a `C` for the same reason, and the door reads
+// `{anyOf: [{oneOf: […]}, C]}` back as the bare oneOf. The whole story, and the
+// design question behind it, is docs/todos/oneof-not-covering-whole-union.md.
+//
+// Until a representation exists, converting refuses. Losing an arm silently is
+// the one outcome this tool must never produce.
+func (ctx *printContext) partialOneOfDiag(node *reflection.RunType) *Diagnostic {
+	if len(node.OneOf) == 0 {
+		return nil
+	}
+	// A branch contributes its own id AND, when it is a union, every member it
+	// flattens into — a branch may be a plain union (`{anyOf: […]}`) or another
+	// `OneOf` (`OneOf<[OneOf<[A, B]>, C]>`), and in both cases the outer node's
+	// Children hold A and B directly, not the branch node.
+	covered := map[string]bool{}
+	var addCovered func(ref *reflection.RunType)
+	addCovered = func(ref *reflection.RunType) {
+		branch := ctx.deref(ref)
+		if branch == nil || covered[branch.ID] {
+			return
+		}
+		covered[branch.ID] = true
+		if branch.Kind != reflection.KindUnion {
+			return
+		}
+		for _, memberRef := range branch.Children {
+			addCovered(memberRef)
+		}
+		for _, nestedRef := range branch.OneOf {
+			addCovered(nestedRef)
+		}
+	}
+	for _, branchRef := range node.OneOf {
+		addCovered(branchRef)
+	}
+	for _, childRef := range node.Children {
+		child := ctx.deref(childRef)
+		if child == nil || covered[child.ID] {
+			continue
+		}
+		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "an exclusive union (oneOf) that does not cover every member of its union is not convertible " +
+				"(the remaining members have no spelling that survives the round trip) — give the exclusive part its own named type"}
+	}
+	return nil
+}
+
 // multiNegationDiag: one `not` per node prints; stacked negations await the
 // allOf spelling.
 func (ctx *printContext) multiNegationDiag() *Diagnostic {
@@ -1805,6 +1859,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		ctx.needs.useGetRunType = true
 		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, name), nil
 	case reflection.KindUnion:
+		if diag := ctx.partialOneOfDiag(node); diag != nil {
+			return "", diag
+		}
 		if len(node.OneOf) > 0 {
 			var branches []string
 			for _, branchRef := range node.OneOf {
@@ -2286,6 +2343,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 	case reflection.KindEnum:
 		return ctx.schemaEmbedNode(node)
 	case reflection.KindUnion:
+		if diag := ctx.partialOneOfDiag(node); diag != nil {
+			return "", diag
+		}
 		if len(node.OneOf) > 0 {
 			var branches []string
 			for _, branchRef := range node.OneOf {
@@ -2642,9 +2702,16 @@ func formatWireParts(family formatFamily, annotation *reflection.FormatAnnotatio
 // the type does not say, which is worse than saying nothing.
 //
 // Deliberately skipped: the bigint family (its bounds are digit strings here,
-// and `minimum` on a string means nothing), `pattern` (the param is a
-// {source, flags} bag, not the plain string the keyword wants) and every
-// non-validating param (mockSamples, trim, …).
+// and `minimum` on a string means nothing) and every non-validating param
+// (mockSamples, trim, …).
+//
+// `pattern` is mirrored, under the rule in patternWireSource. It used to be
+// skipped on the grounds that the param is a {source, flags} bag rather than
+// the plain string the keyword wants — but `source` IS that string, and
+// dropping it broke CORE-INERT outright: reading `{type: 'string', pattern: …,
+// minLength: 3}` and writing it back kept the length and lost the regex, so
+// deleting the extension keywords from the result accepted values the input
+// rejected.
 func standardParamKeywords(params map[string]any, family formatFamily) string {
 	if family.bigintParams {
 		return ""
@@ -2674,10 +2741,60 @@ func standardParamKeywords(params map[string]any, family formatFamily) string {
 		}
 		parts = append(parts, fmt.Sprintf("%s: %s", standard[key], numberText))
 	}
+	if source, ok := patternWireSource(params["pattern"]); ok {
+		// Sorted position: `pattern` sits between `multipleOf` and the rest by
+		// the same key order the numeric loop uses.
+		parts = append(parts, fmt.Sprintf("pattern: %s", quoteSingle(source)))
+		sort.Strings(parts)
+	}
 	if len(parts) == 0 {
 		return ""
 	}
 	return strings.Join(parts, ", ")
+}
+
+// patternWireSource returns the regex source a `pattern` param can safely put on
+// the standard `pattern` keyword, and false when it cannot.
+//
+// A 2020-12 `pattern` is a bare ECMA-262 source with NO flags, so the flags a
+// RunTypes pattern carries decide whether the keyword can say the same thing:
+//
+//   - "" — the keyword is exactly the param. Mirrored.
+//   - "u" — what the DOOR itself lifts a bare standard `pattern` to (see
+//     StringParamsFrom in fromJsonSchema.ts: unicode mode is the default other
+//     2020-12 validators compile under). Mirroring reproduces the source
+//     document byte for byte, so this is the round-trip case and it is mirrored
+//     — EXCEPT when the source uses a unicode property escape. `\p{L}` read
+//     without `u` degrades to a literal `p{L}` match, which would reject nearly
+//     every value the type accepts, and over-rejecting is the one failure this
+//     mirroring must never introduce.
+//   - anything else (i, m, s, y, g) — a standard validator cannot express it.
+//     Case-insensitivity in particular would silently become case-SENSITIVE and
+//     reject values the type accepts, so the pattern stays in rtFormatParams
+//     alone and the standard reading simply says less.
+//
+// Saying less is always sound; saying something stricter than the type is not.
+func patternWireSource(param any) (string, bool) {
+	bag, isBag := param.(map[string]any)
+	if !isBag {
+		return "", false
+	}
+	source, hasSource := bag["source"].(string)
+	if !hasSource || source == "" {
+		return "", false
+	}
+	flags, _ := bag["flags"].(string)
+	switch flags {
+	case "":
+		return source, true
+	case "u":
+		if strings.Contains(source, `\p{`) || strings.Contains(source, `\P{`) {
+			return "", false
+		}
+		return source, true
+	default:
+		return "", false
+	}
 }
 
 // standardFormatName maps a RunTypes format family onto the registered 2020-12

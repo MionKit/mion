@@ -75,6 +75,7 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   // Slice 10-11 — the last four.
   'CORE-NOT',
   'RT-FORMAT-STANDARD',
+  'RT-FORMAT-PATTERN-FLAGS',
   'RT-FORMAT-DEFAULT',
   'TS-WIRE-HALF',
 ]);
@@ -262,7 +263,7 @@ const RULES: readonly Rule[] = [
   {
     id: 'RT-FORMAT-NAME',
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Mail = TF.Email;\n",
-    emits: "{type: 'string', format: 'email', maxLength: 254, minLength: 7, rtFormat: 'email'",
+    emits: "{type: 'string', format: 'email', maxLength: 254, minLength: 7, pattern:",
   },
   {
     id: 'RT-FORMAT-STANDARD',
@@ -270,6 +271,26 @@ const RULES: readonly Rule[] = [
     // enforces it. Only the family name needs the extension.
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Short = TF.String<{minLength: 3}>;\n",
     emits: "{type: 'string', minLength: 3, rtFormat: 'stringFormat'",
+  },
+  {
+    id: 'RT-FORMAT-PATTERN-FLAGS',
+    // A flagless pattern projects onto the standard keyword. Without this the
+    // regex survived ONLY in rtFormatParams, so deleting the extension
+    // keywords dropped a real constraint and CORE-INERT broke.
+    source:
+      "import * as TF from '@ts-runtypes/core/formats';\nexport type Code = TF.String<{pattern: {source: '^ab+c$'; flags: ''}}>;\n",
+    emits: "pattern: '^ab+c$'",
+  },
+  {
+    id: 'RT-FORMAT-PATTERN-FLAGS',
+    note: 'a case-insensitive pattern is NOT projected (it would over-reject)',
+    source:
+      "import * as TF from '@ts-runtypes/core/formats';\nexport type Loose = TF.String<{pattern: {source: '^ab+c$'; flags: 'i'}}>;\n",
+    // The regex still rides rtFormatParams; what must NOT appear is a standard
+    // `pattern` keyword, which a validator would apply case-SENSITIVELY and so
+    // reject values the type accepts.
+    emits: "rtFormatParams: {pattern: {flags: 'i', source: '^ab+c$'}}",
+    forbids: ['embedType', "pattern: '^ab+c$'"],
   },
   {
     id: 'RT-FORMAT-PARAMS',
