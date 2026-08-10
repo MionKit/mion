@@ -14,11 +14,15 @@
 // dialect exists to prevent (CORE-SIBLING).
 //
 // ── STATUS ────────────────────────────────────────────────────────────────
-// The spec is landing ONE RULE GROUP AT A TIME (see
-// docs/todos/implement-json-schema-javascript-dialect.md). `LANDED` lists the
-// rules whose emitter and door are in place; every other case is skipped, so
-// each slice can go green on its own instead of the suite being all-or-nothing.
-// Add to LANDED in the same commit that implements the rule.
+// The spec is fully landed: all 37 rules, emitter and door
+// (docs/done/implement-json-schema-javascript-dialect.md).
+//
+// `LANDED` stays because it is what made the progressive landing possible — it
+// lists the rules whose emitter and door are in place, so a slice could go
+// green on its own instead of the suite being all-or-nothing. It is now pinned
+// EQUAL to the spec's declared set by the coverage check below, so a rule
+// cannot be added to the spec and quietly left skipped. Staging a future slice
+// means consciously relaxing that assertion, which is the point.
 //
 // The COVERAGE check is not gated: the spec-to-test drift guard is useful from
 // the moment the spec exists, and it does not depend on the converter.
@@ -391,6 +395,16 @@ describe('json-schema-2020-12-javascript — the dialect spec', () => {
 
     const invented = [...covered].filter((id) => !declared.has(id)).sort();
     expect(invented, `this file tests rules the spec does not declare:\n  ${invented.join('\n  ')}`).toEqual([]);
+
+    // A case that exists but is not in LANDED silently SKIPS, which would read
+    // as coverage without being it. The spec is complete, so the two sets are
+    // pinned equal.
+    const skipped = [...declared].filter((id) => !LANDED.has(id)).sort();
+    expect(
+      skipped,
+      `the spec declares rules missing from LANDED, so their cases skip:\n  ${skipped.join('\n  ')}\n` +
+        'Implement the rule and add it to LANDED, or stage it deliberately by relaxing this assertion.'
+    ).toEqual([]);
 
     expect(declared.size).toBeGreaterThan(20);
   });
