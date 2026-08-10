@@ -124,7 +124,7 @@ func TestChain_TypeToBuildersToJSONSchemaToType(t *testing.T) {
 	// under `const` would read back as a string literal, so the value gets its
 	// own keyword and the door lifts `123` to `123n`.
 	if !strings.Contains(schemaForm, "runTypeFromJsonSchema({type: 'string', const: '123', jsType: 'bigint'} as const)") {
-		t.Errorf("bigint literal should ride the jsBigint dialect keyword:\n%s", schemaForm)
+		t.Errorf("bigint literal should ride its digits under `const`:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("no atom in this chain should reach the embed escape:\n%s", schemaForm)
@@ -141,7 +141,7 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 	// `minItems: 0` / `uniqueItems: false` / `minProperties: 0` say exactly
 	// what OMITTING the keyword says, so the door reads the standard spelling
 	// as absent — right for 2020-12, but it would drop the brand on the way
-	// back. Those params ride jsParams instead, which leaves the standard
+	// back. Those params ride rtFormatParams instead, which leaves the standard
 	// keywords' meaning untouched.
 	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
 		"export type ZeroMin = TF.FormattedArray<string[], {minItems: 0}>;\n" +
@@ -149,9 +149,9 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 		"export type ZeroProps = TF.FormattedObject<Record<string, string>, {minProperties: 0}>;\n"
 	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
 	for _, expected := range []string{
-		"jsParams: {minItems: 0}",
-		"jsParams: {uniqueItems: false}",
-		"jsParams: {minProperties: 0}",
+		"rtFormatParams: {minItems: 0}",
+		"rtFormatParams: {uniqueItems: false}",
+		"rtFormatParams: {minProperties: 0}",
 	} {
 		if !strings.Contains(schemaForm, expected) {
 			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
@@ -223,7 +223,7 @@ func TestChain_GenericFormatFamilies(t *testing.T) {
 		t.Errorf("string format should print the value-first family builder:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{type: 'string', rtFormat: 'stringFormat', rtFormatParams: {maxLength: 5, minLength: 2}}") {
+	if !strings.Contains(schemaForm, "{type: 'string', maxLength: 5, minLength: 2, rtFormat: 'stringFormat', rtFormatParams: {maxLength: 5, minLength: 2}}") {
 		t.Errorf("format brands should ride rtFormat with their params:\n%s", schemaForm)
 	}
 	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
@@ -287,10 +287,10 @@ func TestChain_OneOfAndNot(t *testing.T) {
 	if !strings.Contains(schemaForm, "{oneOf: [{type: 'number'}, {type: 'string'}]}") {
 		t.Errorf("oneOf should print branch-wise:\n%s", schemaForm)
 	}
-	// Still jsNot: the spec wants the standard `not` (CORE-NOT), but the door
-	// does not yet rebuild `Not<F>` from it, so that slice is unlanded.
-	if !strings.Contains(schemaForm, "{jsNot: {type: 'string', format: 'email', rtFormat: 'email'") {
-		t.Errorf("a negated format should ride the jsNot keyword until CORE-NOT lands:\n%s", schemaForm)
+	// Negation has no extension keyword: it round-trips through the STANDARD
+	// `not`, which is the keyword RunTypes' negation type was built to model.
+	if !strings.Contains(schemaForm, "{type: 'string', not: {type: 'string', format: 'email', maxLength: 254, minLength: 7, rtFormat: 'email'") {
+		t.Errorf("a negated format should ride the standard not keyword:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("a negated format should not reach the embed escape:\n%s", schemaForm)
@@ -364,8 +364,8 @@ func TestChain_StructuralParams(t *testing.T) {
 	schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
 	for _, expected := range []string{
 		"{type: 'array', items: {type: 'string'}, maxItems: 4, uniqueItems: true}",
-		"contains: {type: 'number', rtFormat: 'numberFormat', rtFormatParams: {min: 5}}, minContains: 2",
-		"minProperties: 1, propertyNames: {type: 'string', rtFormat: 'stringFormat', rtFormatParams: {maxLength: 3}}",
+		"contains: {type: 'number', minimum: 5, rtFormat: 'numberFormat', rtFormatParams: {min: 5}}, minContains: 2",
+		"minProperties: 1, propertyNames: {type: 'string', maxLength: 3, rtFormat: 'stringFormat', rtFormatParams: {maxLength: 3}}",
 		"patternProperties: {'^a': {type: 'number'}}",
 	} {
 		if !strings.Contains(schemaForm, expected) {
@@ -418,7 +418,7 @@ func TestChain_IndexShapesPrintRecord(t *testing.T) {
 	// rides the tsIndexes keyword, one pair per signature.
 	for _, testCase := range []struct{ source, builder, schema string }{
 		{"export type Numeric = {[key: number]: string};\n", "RT.record(TF.number(), TF.string())",
-			"{type: 'object', tsIndexes: [{key: {type: 'number'}, value: {type: 'string'}}]}"},
+			"{type: 'object', propertyNames: {pattern: '^(?:0|[1-9][0-9]*)$'}, tsIndexes: [{key: {type: 'number'}, value: {type: 'string'}}]}"},
 		{"export type Both = {[k: string]: number; [n: number]: number};\n", "RT.record(RT.union([TF.number(), TF.string()]), TF.number())",
 			"tsIndexes: [{key: {type: 'string'}, value: {type: 'number'}}, {key: {type: 'number'}, value: {type: 'number'}}]"},
 	} {

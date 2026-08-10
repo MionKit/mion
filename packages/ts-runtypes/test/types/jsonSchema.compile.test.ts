@@ -134,22 +134,40 @@ import {measureJsonSchema} from './jsonSchemaHarness.ts';
  *  of one alias instantiation, which is why EVERY branch moved a little.
  *
  *  A tenth REVIEWED EXCEPTION, +2% to +9% across every branch (`$defs + $ref`
- *  2220→2403 and `not` 2842→3090 are the largest): the dialect grew eight new
+ *  2220→2403 and `not` 2842→3090 are the largest): the dialect grew new
  *  keywords so the `convert` json-schema target stops reaching for the
  *  `embedType` escape on shapes the engine reflects natively — Temporal
- *  (jsType + jsFormat rows), tsReadonly, tsTemplate, tsIndexes, jsBigint,
- *  tsFunction, jsNot, tsMeta and jsParams. Over the 205-file suite corpus that
- *  took the escape count from 992 to 227: those subtrees are now readable data
- *  instead of a quoted TypeScript type only the compiler can open.
+ *  (jsType + rtFormat rows), tsReadonly, tsTemplate, tsIndexes, tsFunction and
+ *  tsMeta. Over the 205-file suite corpus that took the escape count from 992
+ *  to 227: those subtrees are now readable data instead of a quoted TypeScript
+ *  type only the compiler can open.
  *
- *  The per-branch cost is the PROBE, not the rows. The seven discriminators
- *  that replace a translation wholesale are behind one key-set extraction
+ *  The per-branch cost is the PROBE, not the rows. The discriminators that
+ *  replace a translation wholesale are behind one key-set extraction
  *  (`DialectShapeKeys`), and the modifier keywords (tsReadonly, tsIndexes) sit
  *  behind their own single `Extract<keyof S, …>` gate, so a schema using none
  *  of them pays one conditional each rather than one per keyword — that
  *  gating is what kept this at +2-9% instead of the +9-20% the flat ladder
- *  cost. `jsParams` also joins the array and object keyword key-sets, which is
- *  where the array/object branches pick up their share. **/
+ *  cost.
+ *
+ *  An eleventh REVIEWED EXCEPTION on THREE branches — `not` 4742→4832, and
+ *  +8/+22 on objects and structural keywords — REPAID by the fourth
+ *  (ExactJsonSchema 878→748), so the net across all sixteen branches is TEN
+ *  LOWER than before. `docs/json-schema-2020-12-javascript.md` landed as a
+ *  written dialect spec and three keywords went away with it: `jsNot` is the
+ *  standard `not` (CORE-NOT), `jsBigint` is `{type: 'string', const: '<digits>',
+ *  jsType: 'bigint'}` (JS-BIGINT-LITERAL) and `jsParams` is `rtFormatParams`
+ *  plus the standard constraint keywords (RT-FORMAT-STANDARD) — deleting them
+ *  from the accepted-keyword table is where ExactJsonSchema's 130 comes from.
+ *  `not` pays the other side of the same trade: a negated FORMAT is now a real
+ *  `Not<F>` instead of `never`, so the branch does work it used to skip.
+ *  Objects and structural keywords pay the `tsIndexes` gate that keeps a
+ *  `propertyNames` sibling DESCRIPTIVE (TS-WIRE-HALF) rather than lifting it
+ *  into the key type twice. The `not` probe itself is free: it rides the SAME
+ *  `Extract<keyof S, …>` the dialect rows use rather than a structural
+ *  `S extends {not: …}` on every node in the document — measured at +2-5% on
+ *  every branch before that fold, and exactly zero on thirteen of sixteen
+ *  after it. **/
 function check(snippet: string, budget: number): number {
   const r = measureJsonSchema(snippet);
   expect(r.errors, `snippet should type-check cleanly:\n${snippet}\n→ ${r.errors.join('\n  ')}`).toEqual([]);
@@ -401,7 +419,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // Came back DOWN 2730 → 2657 when the readOnly-lift gate was removed
       // (the per-object ReadonlyPropKeys check is gone); the widened mixed
       // additionalProperties index rides inside the same figure.
-      3090
+      3098
     );
   });
 
@@ -426,7 +444,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       >>;
       type _04 = Expect<Equal<FromJsonSchema<{readonly not: {readonly $ref: '#'}}>, never>>;
       `,
-      4742
+      4832
     );
   });
 
@@ -502,7 +520,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       // that use these keywords — the common keyword-less array / object / tuple /
       // Record cases fast-path around the wrapper and are unchanged (see the
       // arrays / objects / tuples branches, all still green at their old budgets).
-      2979
+      3001
     );
   });
 
@@ -589,7 +607,7 @@ describe('FromJsonSchema<S> — per-branch correctness + instantiation budget', 
       };
       type _04 = ExpectFalse<Assignable<NestedTypo, ExactJsonSchema<NestedTypo>>>;
       `,
-      878
+      748
     );
   });
 });

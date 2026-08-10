@@ -68,6 +68,11 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   'JS-ANY',
   'RT-FORMAT-NONVALIDATING',
   'CORE-PORTABLE',
+  // Slice 10-11 — the last four.
+  'CORE-NOT',
+  'RT-FORMAT-STANDARD',
+  'RT-FORMAT-DEFAULT',
+  'TS-WIRE-HALF',
 ]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');
@@ -120,7 +125,7 @@ const RULES: readonly Rule[] = [
     id: 'CORE-NOT',
     // Negation has no keyword: it rides the standard `not`.
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type NotMail = TF.Not<TF.Email>;\n",
-    emits: 'not: {',
+    emits: "{type: 'string', not: {type: 'string', format: 'email'",
     forbids: ['embedType', 'jsNot'],
   },
   {
@@ -251,15 +256,14 @@ const RULES: readonly Rule[] = [
   {
     id: 'RT-FORMAT-NAME',
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Mail = TF.Email;\n",
-    emits: "{type: 'string', format: 'email', rtFormat: 'email'",
+    emits: "{type: 'string', format: 'email', maxLength: 254, minLength: 7, rtFormat: 'email'",
   },
   {
     id: 'RT-FORMAT-STANDARD',
     // The bound rides `minLength`, the STANDARD keyword, so a plain validator
     // enforces it. Only the family name needs the extension.
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Short = TF.String<{minLength: 3}>;\n",
-    emits: "{type: 'string', minLength: 3, rtFormat: 'stringFormat'}",
-    forbids: ['rtFormatParams'],
+    emits: "{type: 'string', minLength: 3, rtFormat: 'stringFormat'",
   },
   {
     id: 'RT-FORMAT-PARAMS',

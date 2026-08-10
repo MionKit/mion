@@ -149,7 +149,7 @@ export type TemporalBaseByJsTypeName = {
 };
 
 // The branded form of the same rows, built from a (name, params) pair — what
-// the json-schema dialect's `jsFormat` carries for a bounded temporal. Spelled
+// the json-schema dialect's `rtFormat` carries for a bounded temporal. Spelled
 // as the identical inline intersection the aliases above use, so
 // `TemporalFormatOf<'temporalPlainDate', {min: '2020-01-01'}>` and
 // `PlainDate<{min: '2020-01-01'}>` are the same type and fold to the same id.
@@ -164,7 +164,7 @@ export type TemporalFormatOf<
 };
 
 // The orderable subset, as a map so `keyof` drives the door's accepted
-// `jsFormat` names rather than a restated union.
+// `rtFormat` names rather than a restated union.
 export interface TemporalFormatParamsByName {
   temporalInstant: MinMax;
   temporalZonedDateTime: MinMax;

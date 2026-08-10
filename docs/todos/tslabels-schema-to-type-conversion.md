@@ -5,17 +5,20 @@ status: ready
 created: 2026-08-09
 ---
 
-# A JSON Schema authored with `jsLabels` cannot be converted to a type
+# A JSON Schema authored with `tsLabels` cannot be converted to a type
+
+> Filed as `jsLabels`; the keyword was renamed to `tsLabels` when
+> `docs/json-schema-2020-12-javascript.md` landed. The defect is unchanged.
 
 ## Problem
 
-A schema written BY HAND with the `jsLabels` dialect keyword refuses on the
+A schema written BY HAND with the `tsLabels` dialect keyword refuses on the
 type target, reporting a symbol-keyed member that the author never wrote:
 
     export const xRT = runTypeFromJsonSchema({
       type: 'array',
       prefixItems: [{type: 'number'}],
-      jsLabels: ['x'],
+      tsLabels: ['x'],
     } as const);
     export type X = InferType<typeof xRT>;
 
@@ -51,7 +54,7 @@ filed rather than reverted.
 
 ## Fix directions to evaluate
 
-- Find why the door's `jsLabels` lowering lands in the object branch when the
+- Find why the door's `tsLabels` lowering lands in the object branch when the
   type-first labeled tuple does not. The likely suspect is the collapse: the
   `__rtLabels` intersection is lifted for one spelling but left as a plain
   intersection member for the other, so the node arrives as an object with an
