@@ -245,6 +245,16 @@ a plain validator still enforces everything it has a word for.
 {"type": "string", "format": "email", "rtFormat": "email", "rtFormatParams": {"localPart": {"maxLength": 64}}}
 ```
 
+**`RT-FORMAT-PATTERN-FLAGS`** — the `pattern` row of that table has one condition. A 2020-12 `pattern` is a bare ECMA-262 source with no flag support, so a RunTypes pattern can only be projected onto it when its flags do not change what the regex matches:
+
+| Flags | Projected? |
+| --- | --- |
+| `""` | Yes. The keyword says exactly what the parameter says. |
+| `"u"` | Yes, unless the source uses a `\p{…}` / `\P{…}` property escape. `u` is what a bare standard `pattern` is read AS, so projecting it reproduces the source document; but `\p{L}` read without `u` degrades to a literal `p{L}` match, which would reject almost everything. |
+| `"i"`, `"m"`, `"s"`, `"y"`, `"g"` | No. A standard validator cannot express them. Case-insensitivity in particular would silently become case-SENSITIVE and reject values the type accepts. |
+
+When the projection is skipped the pattern still rides `rtFormatParams`, and the standard reading simply says less about the value. That direction is always sound. The opposite, a standard reading STRICTER than the type, is what this rule exists to prevent: `CORE-INERT` says deleting the extension keywords must not change a verdict, and a projection that over-rejects would change it.
+
 Two cases make it load-bearing rather than decorative.
 
 **`RT-FORMAT-BIGINT`** — a bigint family's bounds are bigints, and JSON has no bigint. They ride as decimal strings:
