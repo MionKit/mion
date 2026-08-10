@@ -122,6 +122,7 @@ export type JsTypeName =
   | 'Map'
   | 'Set'
   | 'Promise'
+  | 'object'
   | TemporalJsTypeName;
 
 /** The eight `Temporal.*` jsType rows. Sourced from the formats surface's own
@@ -277,6 +278,17 @@ export interface JsonSchemaInput {
   // would read as a string literal. No standard spelling, so `--portable`
   // never emits it.
   readonly jsBigint?: string;
+  // RunTypes dialect: a function signature. `params` is an ordinary TUPLE
+  // schema, so optional slots (minItems), a rest slot (items) and the
+  // parameter NAMES (jsLabels) all come along for free. No standard spelling,
+  // so `--portable` never emits it.
+  readonly jsFunction?: {readonly params: NestedSchema; readonly return: NestedSchema};
+  // RunTypes dialect: the first-class format negation (`TF.Not<TF.Email>`),
+  // which is a DIFFERENT operation from the standard `not` keyword below —
+  // that one runs the kind-complement algebra over the six JSON kinds, while
+  // this one negates one format and keeps its base type. No standard
+  // spelling, so `--portable` never emits it.
+  readonly jsNot?: NestedSchema;
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -1914,9 +1926,13 @@ type FromJsonSchemaIn<S, Root, F extends [unknown]> =
           ? TemplateFold<Texts, Placeholders, Root, F>
           : S extends {jsBigint: infer Digits}
             ? FromJsBigint<Digits>
-            : S extends {if: infer If}
-              ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
-              : DepLayer<S, Root, F>;
+            : S extends {jsFunction: {params: infer Params; return: infer Return}}
+              ? FromJsFunction<Params, Return, Root, F>
+              : S extends {jsNot: infer Negated}
+                ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
+                : S extends {if: infer If}
+                  ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+                  : DepLayer<S, Root, F>;
 
 // The `jsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -1939,6 +1955,23 @@ type TemplateArg<T> = T extends string | number | bigint | boolean ? T : string;
 // `bigint` rather than `never`, so a bad value is still a bigint-shaped node.
 type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Value : bigint;
 
+// The `jsFunction` dialect keyword. `params` lowers through the ORDINARY tuple
+// path, so a labeled params tuple arrives as `[a: number, b?: string] &
+// {[__rtLabels]?: […]}` — spreading it into a rest parameter is what gives the
+// signature its parameter names, the same carriage `func([slot(…)], …)` uses
+// on the value-first side.
+// The `jsNot` dialect keyword — the first-class `Not<F>`, spelled the way
+// formats/not.ts spells it: the negated format's OWN base type carrying the
+// negation slot. Written out here rather than imported as `Not<F>`, whose
+// operand constraint (`NotableFormat & ValidNotOperand<F>`) a door-inferred
+// type cannot satisfy generically.
+type FromJsNot<Negated> = ([Negated] extends [string] ? string : [Negated] extends [number] ? number : bigint) & NotSlot<Negated>;
+
+type FromJsFunction<Params, Return, Root, F extends [unknown]> =
+  FromJsonSchemaIn<Params, Root, F> extends infer Args extends readonly unknown[]
+    ? (...args: Args) => FromJsonSchemaIn<Return, Root, F>
+    : never;
+
 // The `jsType` dialect atoms. `any` intentionally returns `any` (the one type
 // `{}` / `true` cannot spell, since those recover `unknown`). The `Temporal.*`
 // row is an indexed access over the formats surface's guarded base map, so a
@@ -1954,12 +1987,17 @@ type FromJsTypeName<Name> = Name extends 'bigint'
         ? void
         : Name extends 'RegExp'
           ? RegExp
-          : Name extends TemporalJsTypeName
-            ? TemporalBaseByJsTypeName[Name]
-            : Name extends 'any'
-              ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                any
-              : never;
+          : Name extends 'object'
+            ? // TypeScript's `object` keyword (the non-primitive gate), which
+              // is a different type from the keyword-less object schema —
+              // that one recovers `Record<string, unknown>`.
+              object
+            : Name extends TemporalJsTypeName
+              ? TemporalBaseByJsTypeName[Name]
+              : Name extends 'any'
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  any
+                : never;
 type DepLayer<S, Root, F extends [unknown]> = S extends {dependentRequired: infer D}
   ? Conj<DepSchemasLayer<S, Root, F>, DepRequiredFold<D, KeysToTuple<D>>>
   : DepSchemasLayer<S, Root, F>;
@@ -2517,6 +2555,8 @@ export type SchemaLoweringByKeyword = {
   jsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
   jsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
   jsBigint: 'shape: a bigint literal type, carried as its digits (RunTypes dialect, not standard 2020-12)';
+  jsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
+  jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
   typeArguments: 'shape: the parameterized jsType natives (Map / Set / Promise) type-argument slots (RunTypes dialect)';
