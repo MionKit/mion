@@ -310,7 +310,15 @@ export interface JsonSchemaInput {
   // RunTypes dialect: a format brand carried verbatim — the exact
   // (name, params) pair a reflected FormatAnnotation holds, for annotations
   // with no exact standard-keyword spelling. Read as the brand wholesale.
-  readonly jsFormat?: {readonly name: JsFormatName; readonly params?: Record<string, unknown>};
+  // RunTypes dialect: the type-format FAMILY the value belongs to, a sibling
+  // of `format` the way jsType is a sibling of `type`. The `rt` prefix is
+  // deliberate: a family is RunTypes' own concept, not a JavaScript one.
+  readonly rtFormat?: JsFormatName;
+  // RunTypes dialect: that family's params, ALL of them. The standard
+  // constraint keywords beside it are a projection of the same params for a
+  // plain validator; this is the authoritative copy the type is rebuilt from,
+  // because every param folds into the structural identity.
+  readonly rtFormatParams?: Record<string, unknown>;
   readonly anyOf?: readonly NestedSchema[];
   readonly oneOf?: readonly NestedSchema[];
   readonly allOf?: readonly NestedSchema[];
@@ -1941,7 +1949,7 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // `jsReadonly`, `jsIndexes`, `jsLabels` and `jsParams` are deliberately NOT
 // here: those MODIFY a translation rather than replacing it, so they are read
 // where that translation is built.
-type DialectShapeKeys = 'jsType' | 'jsFormat' | 'jsTemplate' | 'jsFunction' | 'jsNot' | 'jsMeta';
+type DialectShapeKeys = 'jsType' | 'rtFormat' | 'jsTemplate' | 'jsFunction' | 'jsNot' | 'jsMeta';
 
 type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
@@ -1982,8 +1990,8 @@ type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer N
               ? FromJsBigint<Digits>
               : bigint
             : FromJsTypeName<Name>
-  : S extends {jsFormat: {name: infer Name}}
-    ? FromJsFormat<Name, S extends {jsFormat: {params: infer Params}} ? Params : Record<string, never>>
+  : S extends {rtFormat: infer Name}
+    ? FromJsFormat<Name, S extends {rtFormatParams: infer Params} ? Params : Record<string, never>>
     : S extends {jsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
       ? TemplateFold<Texts, Placeholders, Root, F>
       : S extends {jsFunction: {params: infer Params; return: infer Return}}
@@ -2626,7 +2634,8 @@ export type SchemaLoweringByKeyword = {
   jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
   jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
-  jsFormat: 'format: the exact (name, params) FormatAnnotation carried verbatim (RunTypes dialect, not standard 2020-12)';
+  rtFormat: 'format: the type-format family name (RunTypes dialect, not standard 2020-12)';
+  rtFormatParams: "params: that family's params, all of them, as the authoritative copy (RunTypes dialect, not standard 2020-12)";
   anyOf: 'shape: plain union (at least one branch)';
   oneOf: 'shape: OneOf<Branches> — the exactly-one combinator';
   allOf: 'shape: intersection, merged by the collapse';

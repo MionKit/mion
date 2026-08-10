@@ -89,6 +89,22 @@ func TemporalInfoByName(name string) (TemporalInfo, bool) {
 	return info, ok
 }
 
+// TemporalInfoByFormatName returns the registry entry whose FormatName matches
+// (`temporalPlainDate`), for callers holding a format annotation rather than a
+// SubKind. ok=false for a non-temporal name, and for the two types with no
+// orderable format family (PlainMonthDay, Duration), which carry no FormatName.
+func TemporalInfoByFormatName(formatName string) (TemporalInfo, bool) {
+	if formatName == "" {
+		return TemporalInfo{}, false
+	}
+	for _, info := range temporalTypes {
+		if info.FormatName == formatName {
+			return info, true
+		}
+	}
+	return TemporalInfo{}, false
+}
+
 // TemporalInfoBySubKind returns the registry entry for a SubKind, or
 // ok=false when the SubKind isn't a Temporal type.
 func TemporalInfoBySubKind(subKind ReflectionSubKind) (TemporalInfo, bool) {

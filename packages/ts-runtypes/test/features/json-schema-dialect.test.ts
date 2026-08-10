@@ -52,6 +52,10 @@ const LANDED: ReadonlySet<string> = new Set<string>([
   'JS-MAP',
   'JS-SET',
   'JS-PROMISE',
+  // Slice 8 — the rtFormat / rtFormatParams split.
+  'RT-FORMAT-NAME',
+  'RT-FORMAT-PARAMS',
+  'RT-FORMAT-BIGINT',
 ]);
 
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../docs/json-schema-2020-12-javascript.md');
@@ -231,7 +235,7 @@ const RULES: readonly Rule[] = [
   {
     id: 'RT-FORMAT-NAME',
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Mail = TF.Email;\n",
-    emits: "{type: 'string', format: 'email', rtFormat: 'email'}",
+    emits: "{type: 'string', format: 'email', rtFormat: 'email'",
   },
   {
     id: 'RT-FORMAT-STANDARD',
@@ -243,14 +247,16 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'RT-FORMAT-PARAMS',
-    // `localPart` has no standard keyword, so it rides rtFormatParams.
+    // rtFormatParams carries ALL the family's params, `localPart` (which has no
+    // standard keyword) among them. Every param folds into the identity, so
+    // carrying only the leftovers would change what the type is.
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Mail = TF.Email<{localPart: {maxLength: 64}}>;\n",
-    emits: 'rtFormatParams: {localPart: {maxLength: 64}}',
+    emits: "rtFormat: 'email', rtFormatParams: {localPart: {maxLength: 64}, ",
   },
   {
     id: 'RT-FORMAT-BIGINT',
     source: "import * as TF from '@ts-runtypes/core/formats';\nexport type Small = TF.BigInt<{min: 0n, max: 255n}>;\n",
-    emits: "rtFormat: 'bigintFormat', rtFormatParams: {max: '255', min: '0'}",
+    emits: "{type: 'string', pattern: '^-?[0-9]+$', rtFormat: 'bigintFormat', rtFormatParams: {max: '255', min: '0'}}",
   },
   {
     id: 'RT-FORMAT-DEFAULT',

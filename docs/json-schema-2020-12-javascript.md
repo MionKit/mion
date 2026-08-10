@@ -217,7 +217,16 @@ Both accept strings of at least three characters. They decode to different types
 | `minItems` / `maxItems` / `uniqueItems` | same |
 | `minProperties` / `maxProperties` | same |
 
-**`RT-FORMAT-PARAMS`** — `rtFormatParams` carries only what is left: parameters the standard has no keyword for.
+**`RT-FORMAT-PARAMS`** — `rtFormatParams` carries **all** of the family's
+parameters, not only the ones the standard has no word for.
+
+That is deliberate, and it was the one place implementation changed the design.
+Every parameter folds into the type's identity, `mockSamples` (nested inside a
+pattern bag) included, so carrying only the leftovers would silently change what
+the type IS. And one authoritative copy makes reconstruction exact, where a
+merge of two half-sources has to agree about precedence forever. The standard
+keywords beside it are a faithful PROJECTION, generated from the same params, so
+a plain validator still enforces everything it has a word for.
 
 ```json
 {"type": "string", "format": "email", "rtFormat": "email", "rtFormatParams": {"localPart": {"maxLength": 64}}}
@@ -238,7 +247,12 @@ Two cases make it load-bearing rather than decorative.
 {"type": "array", "items": {"type": "string"}, "rtFormat": "formattedArray", "rtFormatParams": {"minItems": 0}}
 ```
 
-**`RT-FORMAT-NONVALIDATING`** — parameters that only affect mock generation or input transformation (`mockSamples`, `trim`, `lowercase`) appear in neither place. They do not describe what a validator enforces, so putting them in a schema would misrepresent it.
+**`RT-FORMAT-NONVALIDATING`** — parameters that only affect mock generation or
+input transformation (`mockSamples`, `trim`, `lowercase`) get no STANDARD
+keyword: they do not describe what a validator enforces, so projecting them
+would misrepresent the schema. They still ride `rtFormatParams` with the rest,
+because they are part of the type's identity even though they constrain
+nothing.
 
 ---
 

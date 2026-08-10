@@ -70,10 +70,10 @@ func TestChain_TemporalBranded(t *testing.T) {
 		t.Errorf("branded temporal should print the TFT param builder:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	// The bounds are plain ISO strings, so a branded temporal rides jsFormat
+	// The bounds are plain ISO strings, so a branded temporal rides rtFormat
 	// exactly like every other format family — name + params, verbatim.
-	if !strings.Contains(schemaForm, "{jsFormat: {name: 'temporalPlainDate', params: {min: '2020-01-01'}}}") {
-		t.Errorf("branded temporal should ride the jsFormat dialect row:\n%s", schemaForm)
+	if !strings.Contains(schemaForm, "rtFormat: 'temporalPlainDate', rtFormatParams: {min: '2020-01-01'}") {
+		t.Errorf("branded temporal should ride the rtFormat dialect row:\n%s", schemaForm)
 	}
 	if strings.Contains(schemaForm, "embedType") {
 		t.Errorf("branded temporal should not reach the embed escape:\n%s", schemaForm)
