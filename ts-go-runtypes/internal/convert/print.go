@@ -357,7 +357,7 @@ type formatFamily struct {
 	builderFn string
 	typeAlias string
 	// bigintParams marks a family whose param VALUES are bigints: they print
-	// as `485n` literals, and the family can never ride `jsFormat` (JSON
+	// as `485n` literals, and the family can never ride `rtFormat` (JSON
 	// cannot carry a bigint) — the schema target embeds the brand instead.
 	bigintParams bool
 	// exact marks a preset family whose builder/alias merge NON-EMPTY
@@ -370,7 +370,7 @@ type formatFamily struct {
 	// temporal marks the FormatTemporalX families: they live on the
 	// dedicated `@ts-runtypes/core/formats/temporal` subpath (`TFT`), and
 	// the schema target embeds the brand (the door keeps Temporal out of
-	// jsFormat by design).
+	// rtFormat by design).
 	temporal bool
 }
 
@@ -644,7 +644,7 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 // 2020-12 default for their keyword. Those cannot ride the standard keyword and
 // come back: a schema saying `minItems: 0` validates exactly like one that
 // omits it, so the door reads the keyword as absent (deliberately — that IS the
-// standard's meaning) and the brand would lose the param. They ride jsParams
+// standard's meaning) and the brand would lose the param. They ride rtFormatParams
 // instead, which leaves the standard keywords' semantics untouched.
 func defaultedStructuralParams(params map[string]any) map[string]any {
 	out := map[string]any{}
@@ -666,9 +666,9 @@ func defaultedStructuralParams(params map[string]any) map[string]any {
 	return out
 }
 
-// jsParamsSuffix renders the jsParams keyword for a defaulted param set, or ""
+// rtFormatParamsSuffix renders the rtFormatParams keyword for a defaulted param set, or ""
 // when there is nothing to carry.
-func jsParamsSuffix(params map[string]any) string {
+func rtFormatParamsSuffix(params map[string]any) string {
 	if len(params) == 0 {
 		return ""
 	}
@@ -685,7 +685,7 @@ func jsParamsSuffix(params map[string]any) string {
 		}
 		parts = append(parts, fmt.Sprintf("%s: %s", key, valueText))
 	}
-	return ", jsParams: {" + strings.Join(parts, ", ") + "}"
+	return ", rtFormatParams: {" + strings.Join(parts, ", ") + "}"
 }
 
 // structuralAnnotationParams returns the structural brand's params (or an
@@ -2001,7 +2001,7 @@ func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *
 
 // schemaExpr renders the JSON-Schema spelling of a node. Standard 2020-12
 // spellings are used wherever exact; JS-only constructs ride the dialect
-// (`jsType` / `jsFormat` / `embedType`), which --portable forbids.
+// (`jsType` / `rtFormat` / `embedType`), which --portable forbids.
 func (ctx *printContext) schemaExpr(node *reflection.RunType) (string, *Diagnostic) {
 	node = ctx.deref(node)
 	if node == nil {
@@ -2071,17 +2071,24 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if len(node.Negations) > 1 {
 			return "", ctx.multiNegationDiag()
 		}
-		// STILL the jsNot keyword, not the standard `not` the spec calls for
-		// (CORE-NOT). Emitting `{type: 'string', not: {…}}` moved the id: the
-		// door's negation layer does not rebuild the first-class `Not<F>` from
-		// it, so the declaration came back as something else. That door fix is
-		// the CORE-NOT slice; until it lands, this keyword keeps the round trip
-		// exact and CORE-NOT stays out of the conformance test's LANDED set.
+		// The STANDARD `not`, with no extension spelling beside it (CORE-NOT).
+		// JavaScript has no "not this type"; RunTypes' negation exists to model
+		// JSON Schema's `not`, so it round-trips through the keyword it was
+		// built for. The base type sits beside it, which is what makes a plain
+		// validator read "a string that is not an email".
+		negated := ctx.deref(node.Negations[0])
+		if negated == nil {
+			return "", unsupportedDiag(node, ctx.decl)
+		}
 		negatedText, negDiag := ctx.schemaExpr(node.Negations[0])
 		if negDiag != nil {
 			return "", negDiag
 		}
-		return dialect(fmt.Sprintf("{jsNot: %s}", negatedText))
+		baseText := "type: 'string'"
+		if family, _, known := leafFormat(negated.FormatAnnotation); known && family.base == "number" {
+			baseText = "type: 'number'"
+		}
+		return fmt.Sprintf("{%s, not: %s}", baseText, negatedText), nil
 	}
 	// A format annotation prints as its WIRE half (the base type, plus the
 	// standard `format` where the family maps onto a registered one) with
@@ -2112,7 +2119,17 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			}
 			paramsText = digitsText
 		}
-		parts := []string{formatWireParts(family, annotation), fmt.Sprintf("rtFormat: %s", quoteSingle(annotation.Name))}
+		parts := []string{formatWireParts(family, annotation)}
+		// RT-FORMAT-STANDARD: every param that HAS a standard keyword is
+		// mirrored onto it, so a plain 2020-12 validator enforces the same
+		// bounds a RunTypes one does. Without this, CORE-INERT would be false
+		// for a format node: deleting the extension keywords would delete the
+		// constraints with them. The mirror is a projection, never the source
+		// — rtFormatParams below stays authoritative.
+		if mirrored := standardParamKeywords(annotation.Params, family); mirrored != "" {
+			parts = append(parts, mirrored)
+		}
+		parts = append(parts, fmt.Sprintf("rtFormat: %s", quoteSingle(annotation.Name)))
 		if len(annotation.Params) > 0 {
 			parts = append(parts, fmt.Sprintf("rtFormatParams: %s", paramsText))
 		}
@@ -2168,12 +2185,12 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		// `uniqueItems: false`) reads back as ABSENT through the standard
 		// keyword — correct for the standard, where such a schema validates
 		// identically to one without it, but it would drop the brand. Those
-		// entries ride jsParams instead, so the standard keywords keep their
+		// entries ride rtFormatParams instead, so the standard keywords keep their
 		// standard meaning and the params still survive.
 		defaulted := defaultedStructuralParams(structuralAnnotationParams(node))
 		if len(defaulted) > 0 && ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the jsParams dialect keyword"}
+				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the rtFormatParams dialect keyword"}
 		}
 		childText, diag := ctx.schemaExpr(node.Child)
 		if diag != nil {
@@ -2184,9 +2201,9 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			if partsDiag != nil {
 				return "", partsDiag
 			}
-			return fmt.Sprintf("{type: 'array', items: %s, %s%s}", childText, strings.Join(parts, ", "), jsParamsSuffix(defaulted)), nil
+			return fmt.Sprintf("{type: 'array', items: %s, %s%s}", childText, strings.Join(parts, ", "), rtFormatParamsSuffix(defaulted)), nil
 		}
-		return fmt.Sprintf("{type: 'array', items: %s%s}", childText, jsParamsSuffix(defaulted)), nil
+		return fmt.Sprintf("{type: 'array', items: %s%s}", childText, rtFormatParamsSuffix(defaulted)), nil
 	case reflection.KindPromise:
 		childText, diag := ctx.schemaExpr(node.Child)
 		if diag != nil {
@@ -2242,7 +2259,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 			return dialect("{type: 'string', jsType: 'RegExp'}")
 		}
 		// The eight Temporal builtins spell as data, under their reflected
-		// format name (`temporalInstant`) — the same word the branded jsFormat
+		// format name (`temporalInstant`) — the same word the branded rtFormat
 		// row uses. The door resolves the row through the formats surface's
 		// guarded base map, so nothing here forces the Temporal lib on a
 		// json-schema consumer.
@@ -2319,11 +2336,11 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		return fmt.Sprintf("{anyOf: [%s]}", strings.Join(sortArms(arms), ", ")), nil
 	case reflection.KindObjectLiteral:
 		// Same as the array branch above: a param sitting at its 2020-12
-		// default rides jsParams so the brand survives.
+		// default rides rtFormatParams so the brand survives.
 		defaulted := defaultedStructuralParams(structuralAnnotationParams(node))
 		if len(defaulted) > 0 && ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the jsParams dialect keyword"}
+				Message: "a structural param at its 2020-12 default has no standard spelling that survives; drop --portable to use the rtFormatParams dialect keyword"}
 		}
 		members, indexes, diag := ctx.objectMembers(node)
 		if diag != nil {
@@ -2370,7 +2387,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 				return "", valueDiag
 			}
 			if len(members) == 0 {
-				return fmt.Sprintf("{type: 'object', additionalProperties: %s%s%s}", valueText, schemaBag, jsParamsSuffix(defaulted)), nil
+				return fmt.Sprintf("{type: 'object', additionalProperties: %s%s%s}", valueText, schemaBag, rtFormatParamsSuffix(defaulted)), nil
 			}
 			// Named members BESIDE the index: `properties` and
 			// `additionalProperties` together, which is exactly what the door
@@ -2413,7 +2430,7 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if len(readonlyParts) > 0 {
 			out += fmt.Sprintf(", tsReadonly: [%s]", strings.Join(readonlyParts, ", "))
 		}
-		return out + additionalText + schemaBag + jsParamsSuffix(defaulted) + "}", nil
+		return out + additionalText + schemaBag + rtFormatParamsSuffix(defaulted) + "}", nil
 	case reflection.KindTuple:
 		shape, ok := ctx.tupleMembers(node)
 		if !ok {
@@ -2619,6 +2636,50 @@ func formatWireParts(family formatFamily, annotation *reflection.FormatAnnotatio
 	return "type: 'string'"
 }
 
+// standardParamKeywords projects the params that HAVE a standard 2020-12
+// keyword onto it. Only the exact correspondences appear: a keyword whose
+// meaning differs even slightly would make a plain validator enforce something
+// the type does not say, which is worse than saying nothing.
+//
+// Deliberately skipped: the bigint family (its bounds are digit strings here,
+// and `minimum` on a string means nothing), `pattern` (the param is a
+// {source, flags} bag, not the plain string the keyword wants) and every
+// non-validating param (mockSamples, trim, …).
+func standardParamKeywords(params map[string]any, family formatFamily) string {
+	if family.bigintParams {
+		return ""
+	}
+	standard := map[string]string{
+		"minLength": "minLength", "maxLength": "maxLength",
+		"min": "minimum", "max": "maximum",
+		"gt": "exclusiveMinimum", "lt": "exclusiveMaximum",
+		"multipleOf": "multipleOf",
+	}
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		if _, ok := standard[key]; ok {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		number, isNumber := params[key].(float64)
+		if !isNumber {
+			continue
+		}
+		numberText, ok := formatNumberLiteral(number)
+		if !ok {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s: %s", standard[key], numberText))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, ", ")
+}
+
 // standardFormatName maps a RunTypes format family onto the registered 2020-12
 // `format` value describing the SAME wire shape, or "" when the registry has no
 // honest word for it. Only exact matches appear: claiming a format that a
@@ -2649,6 +2710,7 @@ func standardFormatName(name string) string {
 // node to the embed escape when a key has no schema spelling of its own.
 func (ctx *printContext) tsIndexesText(indexes []indexSignature) (string, *Diagnostic, bool) {
 	pairs := make([]string, 0, len(indexes))
+	patterns := make([]string, 0, len(indexes))
 	for _, index := range indexes {
 		keyText, keyDiag := ctx.schemaExpr(index.key)
 		if keyDiag != nil {
@@ -2661,8 +2723,35 @@ func (ctx *printContext) tsIndexesText(indexes []indexSignature) (string, *Diagn
 			return "", valueDiag, false
 		}
 		pairs = append(pairs, fmt.Sprintf("{key: %s, value: %s}", keyText, valueText))
+		if pattern := wireKeyPattern(ctx.deref(index.key)); pattern != "" {
+			patterns = append(patterns, pattern)
+		}
 	}
-	return fmt.Sprintf("tsIndexes: [%s]", strings.Join(pairs, ", ")), nil, true
+	// TS-WIRE-HALF: tsIndexes carries no constraint of its own, so whatever the
+	// key really says about the JSON has to be written in the standard
+	// vocabulary too. JSON object keys are always strings, so a numeric key IS
+	// a constraint on those strings — `propertyNames` is where a plain
+	// validator reads it.
+	out := fmt.Sprintf("tsIndexes: [%s]", strings.Join(pairs, ", "))
+	if len(patterns) == 1 {
+		out = fmt.Sprintf("propertyNames: {pattern: %s}, %s", quoteSingle(patterns[0]), out)
+	}
+	return out, nil, true
+}
+
+// wireKeyPattern is the anchored pattern the JSON keys of an index signature
+// must match, or "" when the key constrains nothing a JSON key could violate
+// (a plain string key, or a key whose own schema already says it).
+func wireKeyPattern(key *reflection.RunType) string {
+	if key == nil {
+		return ""
+	}
+	if key.Kind == reflection.KindNumber {
+		// A numeric index accepts the JSON keys that are canonical decimal
+		// integers, which is what `String(n)` produces for one.
+		return `^(?:0|[1-9][0-9]*)$`
+	}
+	return ""
 }
 
 // templateSchemaText renders a template literal node as the `tsTemplate`

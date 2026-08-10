@@ -127,7 +127,7 @@ export type JsTypeName =
 
 /** The eight temporal jsType rows, spelled by their REFLECTED format name
  *  (`temporalInstant`), not by the qualified source spelling. Two reasons: the
- *  unbranded row and its branded `jsFormat` twin then share one vocabulary, and
+ *  unbranded row and its branded `rtFormat` twin then share one vocabulary, and
  *  the published `.d.ts` never contains the characters `Temporal.` — which the
  *  D1 guard (temporalDtsGuard.test.ts) requires, since a real consumer once ate
  *  ~40 TS2503 errors from a leaked lib requirement.
@@ -137,12 +137,12 @@ export type JsTypeName =
  *  without the Temporal lib (the guard degrades to `unknown` without it). **/
 export type TemporalJsTypeName = keyof TemporalBaseByJsTypeName;
 
-/** The `jsFormat` dialect families, carried verbatim as the reflected
+/** The `rtFormat` dialect families, carried verbatim as the reflected
  *  (name, params) pair. The six orderable Temporal families ride here like any
  *  other family (their bounds are plain ISO strings), and so does the bigint
  *  family: JSON has no bigint, but its params travel as DIGIT STRINGS and
  *  `LiftBigintParams` puts the literal types back. **/
-export type JsFormatName =
+export type RtFormatName =
   | 'stringFormat'
   | 'numberFormat'
   | 'bigintFormat'
@@ -162,8 +162,8 @@ export type JsFormatName =
  *  ride the `jsType` rows above. **/
 export type TemporalFormatName = keyof TemporalFormatParamsByName;
 
-/** `jsFormat: {name, params}` → the exact TypeFormat brand, verbatim. **/
-type FromJsFormat<Name, Params> = Params extends object
+/** `rtFormat` + `rtFormatParams` → the exact TypeFormat brand, verbatim. **/
+type FromRtFormat<Name, Params> = Params extends object
   ? Name extends TemporalFormatName
     ? TemporalFormatOf<Name, Params>
     : Name extends 'numberFormat'
@@ -172,7 +172,7 @@ type FromJsFormat<Name, Params> = Params extends object
         ? TypeFormat<bigint, 'bigintFormat', LiftBigintParams<Params>, never>
         : Name extends 'nativeDate'
           ? TypeFormat<Date, 'nativeDate', Params, never>
-          : Name extends JsFormatName & string
+          : Name extends RtFormatName & string
             ? TypeFormat<string, Name, Params, never>
             : never
   : never;
@@ -284,12 +284,6 @@ export interface JsonSchemaInput {
   // parameter NAMES (tsLabels) all come along for free. No standard spelling,
   // so `--portable` never emits it.
   readonly tsFunction?: {readonly params: NestedSchema; readonly return: NestedSchema};
-  // RunTypes dialect: the first-class format negation (`TF.Not<TF.Email>`),
-  // which is a DIFFERENT operation from the standard `not` keyword below —
-  // that one runs the kind-complement algebra over the six JSON kinds, while
-  // this one negates one format and keeps its base type. No standard
-  // spelling, so `--portable` never emits it.
-  readonly jsNot?: NestedSchema;
   // RunTypes dialect: a `base & {…}` metadata intersection — the open
   // user-metadata extension point, which is how nominal brands
   // (`string & {readonly __brand: 'UserId'}`) are written. Nested rather than
@@ -297,12 +291,6 @@ export interface JsonSchemaInput {
   // discriminator, and those are read first. No standard spelling, so
   // `--portable` never emits it.
   readonly tsMeta?: {readonly base: NestedSchema; readonly meta: readonly NestedSchema[]};
-  // RunTypes dialect: structural params (array / object bounds) whose value IS
-  // their 2020-12 default. `minItems: 0` says exactly what omitting the keyword
-  // says, so the standard spelling cannot carry the param back; these ride here
-  // and leave the standard keywords' meaning alone. No standard spelling, so
-  // `--portable` never emits it.
-  readonly jsParams?: Record<string, unknown>;
   // RunTypes dialect (NOT standard 2020-12): the JS/TS-atom discriminator the
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
@@ -311,17 +299,19 @@ export interface JsonSchemaInput {
   // to. Its own key rather than merged in place, because that value may carry
   // a jsType of its own.
   readonly jsResolved?: NestedSchema;
-  // RunTypes dialect: a format brand carried verbatim — the exact
-  // (name, params) pair a reflected FormatAnnotation holds, for annotations
-  // with no exact standard-keyword spelling. Read as the brand wholesale.
   // RunTypes dialect: the type-format FAMILY the value belongs to, a sibling
   // of `format` the way jsType is a sibling of `type`. The `rt` prefix is
   // deliberate: a family is RunTypes' own concept, not a JavaScript one.
-  readonly rtFormat?: JsFormatName;
-  // RunTypes dialect: that family's params, ALL of them. The standard
+  readonly rtFormat?: RtFormatName;
+  // RunTypes dialect: a format family's params, ALL of them. The standard
   // constraint keywords beside it are a projection of the same params for a
   // plain validator; this is the authoritative copy the type is rebuilt from,
   // because every param folds into the structural identity.
+  //
+  // Also carries the STRUCTURAL params (array / object bounds) whose value IS
+  // their 2020-12 default: `minItems: 0` says exactly what omitting the keyword
+  // says, so the standard spelling cannot carry it back. Those appear WITHOUT
+  // an `rtFormat` beside them, since the family is implied by `type`.
   readonly rtFormatParams?: Record<string, unknown>;
   readonly anyOf?: readonly NestedSchema[];
   readonly oneOf?: readonly NestedSchema[];
@@ -1080,22 +1070,30 @@ type PatternPropsParam<S, Root, F extends [unknown]> = S extends {patternPropert
   : unknown;
 // propertyNames → the key type `FormattedObject` carries: absent for `true` (no
 // slot), `never` for `false` (no key may be present), else the lowered key schema.
-type PropNamesParam<S, Root, F extends [unknown]> = S extends {propertyNames: infer N}
-  ? [N] extends [true]
-    ? unknown
-    : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
+// `propertyNames` beside a `tsIndexes` is the WIRE half of that index
+// signature (TS-WIRE-HALF): a numeric key really does constrain the JSON keys,
+// and a plain validator has to be told so. It is descriptive there, exactly as
+// a `format` beside a `jsType` is, so it must not also become a param — that
+// would make the recovered type differ from the one written. Same rule as
+// CORE-PRECEDENCE, applied to a modifier keyword instead of a discriminator.
+type PropNamesParam<S, Root, F extends [unknown]> = [Extract<keyof S, 'tsIndexes'>] extends [never]
+  ? S extends {propertyNames: infer N}
+    ? [N] extends [true]
+      ? unknown
+      : {readonly propertyNames: [N] extends [false] ? never : FromJsonSchemaIn<N, Root, F>}
+    : unknown
   : unknown;
 type ObjectAllParams<S, Root, F extends [unknown]> = Flatten<
-  ObjectKeywordParams<S, Root, F> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F> & JsParamsOf<S>
+  ObjectKeywordParams<S, Root, F> & PatternPropsParam<S, Root, F> & PropNamesParam<S, Root, F> & RtFormatParamsOf<S>
 >;
 
-// The `jsParams` dialect keyword: structural params whose value IS their
+// The `rtFormatParams` dialect keyword: structural params whose value IS their
 // 2020-12 default, which the standard keyword cannot carry back. `minItems: 0`
 // says exactly what omitting minItems says, so the door reads it as absent —
 // right for the standard, but it would drop the brand a converted
 // `FormattedArray<…, {minItems: 0}>` needs. Carrying those here keeps the
 // standard keywords' meaning untouched.
-type JsParamsOf<S> = S extends {jsParams: infer P} ? P : unknown;
+type RtFormatParamsOf<S> = S extends {rtFormatParams: infer P} ? P : unknown;
 // Fast path: an object with none of the structural keywords is just its shape
 // (no brand, no sentinels), so it never pays the FormattedObject wrapper. Only
 // `additionalProperties: false` (closedness) is keyword-bearing — a schema-valued
@@ -1107,7 +1105,7 @@ type ObjectKeywordKeys =
   | 'unevaluatedProperties'
   | 'patternProperties'
   | 'propertyNames'
-  | 'jsParams';
+  | 'rtFormatParams';
 // `additionalProperties: false` is keyword-bearing (closedness); a SCHEMA-valued
 // one only becomes so beside a merging keyword, where it carries the exemption
 // list — everywhere else it rides ObjectShapeFrom as the plain Record it is.
@@ -1277,7 +1275,7 @@ type ArrayAllParams<S, Root, F extends [unknown]> = Flatten<
     (S extends {contains: infer C} ? {readonly contains: FromJsonSchemaIn<C, Root, F>} : unknown) &
     (S extends {minContains: infer N extends number} ? {readonly minContains: N} : unknown) &
     (S extends {maxContains: infer N extends number} ? {readonly maxContains: N} : unknown) &
-    JsParamsOf<S>
+    RtFormatParamsOf<S>
 >;
 // minItems rides the brand exactly when no tuple shape can carry it: no
 // prefixItems (those keep the required-slot pad) and `items` not `false` (a
@@ -1295,7 +1293,14 @@ type BrandedMinItems<S> = S extends {minItems: infer N extends number}
 // Fast path: an array with none of the structural keywords is just its tuple/
 // array shape (no brand, no contains slot) — so it never pays the FormattedArray
 // wrapper, keeping the common `{type: 'array', items: …}` case cheap.
-type ArrayKeywordKeys = 'uniqueItems' | 'maxItems' | 'contains' | 'minContains' | 'maxContains' | 'unevaluatedItems' | 'jsParams';
+type ArrayKeywordKeys =
+  | 'uniqueItems'
+  | 'maxItems'
+  | 'contains'
+  | 'minContains'
+  | 'maxContains'
+  | 'unevaluatedItems'
+  | 'rtFormatParams';
 type ArrayFrom<S, Root, F extends [unknown]> = [Extract<keyof S, ArrayKeywordKeys>] extends [never]
   ? [BrandedMinItems<S>] extends [never]
     ? ArrayShapeFrom<S, Root, F>
@@ -1950,14 +1955,38 @@ type LastOfUnion<U> = UnionToIntersectionFn<U> extends () => infer Last ? Last :
 // the document paying for rows it does not use. Same fast-path shape as
 // ArrayKeywordKeys / ObjectKeywordKeys below.
 //
-// `tsReadonly`, `tsIndexes`, `tsLabels` and `jsParams` are deliberately NOT
+// `tsReadonly`, `tsIndexes`, `tsLabels` and `rtFormatParams` are deliberately NOT
 // here: those MODIFY a translation rather than replacing it, so they are read
 // where that translation is built.
-type DialectShapeKeys = 'jsType' | 'rtFormat' | 'tsTemplate' | 'tsFunction' | 'jsNot' | 'tsMeta';
+type DialectShapeKeys = 'jsType' | 'rtFormat' | 'tsTemplate' | 'tsFunction' | 'tsMeta';
+
+// `not` rides the SAME extraction rather than a probe of its own: CORE-NOT has
+// to be answered before the ladder below, and a structural
+// `S extends {not: infer N extends {rtFormat: unknown}}` on every node in the
+// document is many times the cost of widening a key-set by one member. A
+// schema carrying neither a dialect key nor a `not` still pays exactly one
+// conditional to skip both.
+type DialectShapeOrNotKeys = DialectShapeKeys | 'not';
 
 type FromJsonSchemaIn<S, Root, F extends [unknown]> =
   S extends EmbedSchema<infer Embedded>
     ? Embedded
+    : [Extract<keyof S, DialectShapeOrNotKeys>] extends [never]
+      ? S extends {if: infer If}
+        ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
+        : DepLayer<S, Root, F>
+      : FromDialectOrNot<S, Root, F>;
+
+// Reached only once a schema is known to carry `not` or a dialect key.
+type FromDialectOrNot<S, Root, F extends [unknown]> =
+  // CORE-NOT: a `not` whose child names a FORMAT FAMILY is the first-class
+  // negation — `Not<F>`, the base type carrying the negation slot. It is read
+  // before the kind-complement algebra below, which answers a different
+  // question (what is left of the six JSON kinds) and collapses a negated
+  // format to `never`. Two operations, one keyword; the child having an
+  // `rtFormat` is what tells them apart.
+  S extends {not: infer Negated extends {rtFormat: unknown}}
+    ? FromNegation<FromJsonSchemaIn<Negated, Root, F>>
     : [Extract<keyof S, DialectShapeKeys>] extends [never]
       ? S extends {if: infer If}
         ? Conj<DepLayer<S, Root, F>, IteFrom<If, S, Root, F>>
@@ -1997,16 +2026,14 @@ type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer N
               : bigint
             : FromJsTypeName<Name>
   : S extends {rtFormat: infer Name}
-    ? FromJsFormat<Name, S extends {rtFormatParams: infer Params} ? Params : Record<string, never>>
+    ? FromRtFormat<Name, S extends {rtFormatParams: infer Params} ? Params : Record<string, never>>
     : S extends {tsTemplate: {texts: infer Texts; placeholders: infer Placeholders}}
       ? TemplateFold<Texts, Placeholders, Root, F>
       : S extends {tsFunction: {params: infer Params; return: infer Return}}
         ? FromJsFunction<Params, Return, Root, F>
-        : S extends {jsNot: infer Negated}
-          ? FromJsNot<FromJsonSchemaIn<Negated, Root, F>>
-          : S extends {tsMeta: {base: infer Base; meta: infer Meta}}
-            ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
-            : never;
+        : S extends {tsMeta: {base: infer Base; meta: infer Meta}}
+          ? FromJsonSchemaIn<Base, Root, F> & MetaFold<Meta, Root, F>
+          : never;
 
 // The `tsTemplate` dialect keyword: rebuild the template literal type by
 // interpolating the placeholders between the literal chunks, arm-by-arm down
@@ -2035,12 +2062,14 @@ type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Val
 // {[__rtLabels]?: […]}` — spreading it into a rest parameter is what gives the
 // signature its parameter names, the same carriage `func([slot(…)], …)` uses
 // on the value-first side.
-// The `jsNot` dialect keyword — the first-class `Not<F>`, spelled the way
+// The first-class `Not<F>`, reached from the STANDARD `not` when its child
+// names a format family (CORE-NOT). Spelled the way
 // formats/not.ts spells it: the negated format's OWN base type carrying the
 // negation slot. Written out here rather than imported as `Not<F>`, whose
 // operand constraint (`NotableFormat & ValidNotOperand<F>`) a door-inferred
 // type cannot satisfy generically.
-type FromJsNot<Negated> = ([Negated] extends [string] ? string : [Negated] extends [number] ? number : bigint) & NotSlot<Negated>;
+type FromNegation<Negated> = ([Negated] extends [string] ? string : [Negated] extends [number] ? number : bigint) &
+  NotSlot<Negated>;
 
 // The `tsMeta` metadata objects, conjoined onto the base arm-by-arm — the
 // intersection the collapsed `base & {…}` was written as.
@@ -2636,9 +2665,7 @@ export type SchemaLoweringByKeyword = {
   tsTemplate: 'shape: a template literal type, rebuilt from its texts + placeholder schemas (RunTypes dialect, not standard 2020-12)';
   tsIndexes: 'shape: one index signature per {key, value} pair, for keys additionalProperties cannot speak about (RunTypes dialect, not standard 2020-12)';
   tsFunction: 'shape: a function signature — a params tuple schema plus a return schema (RunTypes dialect, not standard 2020-12)';
-  jsNot: 'slot: __rtNot over ONE format, keeping its base type — the first-class Not<F> (RunTypes dialect, not standard 2020-12)';
   tsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
-  jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
   jsResolved: 'shape: the value a jsType Promise resolves to (RunTypes dialect, not standard 2020-12)';
   rtFormat: 'format: the type-format family name (RunTypes dialect, not standard 2020-12)';

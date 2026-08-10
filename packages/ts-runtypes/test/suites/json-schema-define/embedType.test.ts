@@ -31,7 +31,7 @@ describe('json-schema / embedType escape', () => {
   });
 });
 
-describe('json-schema / jsFormat dialect', () => {
+describe('json-schema / rtFormat dialect', () => {
   it('stringFormat params converge with the TF brand', () => {
     const viaSchema = runTypeFromJsonSchema({rtFormat: 'stringFormat', rtFormatParams: {maxLength: 5, minLength: 2}} as const);
     expect(getRunTypeId(viaSchema)).toBe(getRunTypeId<TF.String<{minLength: 2; maxLength: 5}>>());
