@@ -161,13 +161,18 @@ The type arguments are read out of the wire schema itself: a `Map`'s key and val
 | --- | --- | --- | --- |
 | `JS-UNDEFINED` | `undefined` | `{"type": "null"}` | `undefined` |
 | `JS-VOID` | `void` | `{"type": "null"}` | `void` |
-| `JS-PROMISE` | `Promise` | the RESOLVED value's own wire schema, in place | `Promise<T>` |
+| `JS-PROMISE` | `Promise` | the RESOLVED value's schema, under `jsResolved` | `Promise<T>` |
 
 A `Promise` is not itself encodable, but a serialiser awaits it and writes the
-resolved value, so its wire form is that value's schema with the annotation
-beside it: `{"type": "string", "jsType": "Promise"}` is a promise of a string.
-The resolved schema sits in place rather than under a sub-key, for the same
-reason `Map` has no argument list.
+resolved value, so the resolved value's schema is the wire form:
+`{"jsType": "Promise", "jsResolved": {"type": "string"}}` is a promise of a
+string.
+
+Unlike `Map` and `Set`, this one needs its own key. Merging the annotation into
+the resolved schema in place reads better and is wrong: `Promise<Set<null>>`
+would put `jsType: "Promise"` onto a node already carrying `jsType: "Set"`, and
+two annotations cannot share a node. The fuzz generator found that on its first
+seed after negation widened it.
 
 `undefined` and `void` are not "no wire form": they encode as JSON `null`, in an object member and in an array slot alike. Only at the top level of a document does the encoder produce the JavaScript value `undefined`, because a bare `undefined` is not a JSON document at all, and a schema is not a document position.
 

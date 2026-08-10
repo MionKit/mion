@@ -307,6 +307,10 @@ export interface JsonSchemaInput {
   // `convert` CLI emits for kinds the standard cannot spell. A schema carrying
   // it reads as that atom wholesale. `--portable` conversions never emit it.
   readonly jsType?: JsTypeName;
+  // RunTypes dialect: the schema of the value a `jsType: 'Promise'` resolves
+  // to. Its own key rather than merged in place, because that value may carry
+  // a jsType of its own.
+  readonly jsResolved?: NestedSchema;
   // RunTypes dialect: a format brand carried verbatim — the exact
   // (name, params) pair a reflected FormatAnnotation holds, for annotations
   // with no exact standard-keyword spelling. Read as the brand wholesale.
@@ -1977,9 +1981,11 @@ type FromDialectShape<S, Root, F extends [unknown]> = S extends {jsType: infer N
         ? Set<FromJsonSchemaIn<Item, Root, F>>
         : never
       : Name extends 'Promise'
-        ? // A serialiser writes the RESOLVED value, so the wire schema is that
-          // value's own — read it with the annotation removed, then wrap.
-          Promise<FromJsonSchemaIn<Omit<S, 'jsType'>, Root, F>>
+        ? // The resolved schema sits under its own key: a Promise of a value
+          // that ITSELF carries a jsType (a Set, a Map) cannot share the node.
+          S extends {jsResolved: infer Value}
+          ? Promise<FromJsonSchemaIn<Value, Root, F>>
+          : never
         : Name extends 'Date'
           ? Date
           : Name extends 'bigint'
@@ -2634,6 +2640,7 @@ export type SchemaLoweringByKeyword = {
   jsMeta: 'shape: a base & {…} metadata intersection, base beside its metadata objects (RunTypes dialect, not standard 2020-12)';
   jsParams: 'params: structural bounds sitting at their 2020-12 default, which the standard keyword cannot carry back (RunTypes dialect, not standard 2020-12)';
   jsType: 'shape: the JS/TS atom the dialect discriminator names (RunTypes dialect, not standard 2020-12)';
+  jsResolved: 'shape: the value a jsType Promise resolves to (RunTypes dialect, not standard 2020-12)';
   rtFormat: 'format: the type-format family name (RunTypes dialect, not standard 2020-12)';
   rtFormatParams: "params: that family's params, all of them, as the authoritative copy (RunTypes dialect, not standard 2020-12)";
   anyOf: 'shape: plain union (at least one branch)';

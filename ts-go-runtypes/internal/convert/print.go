@@ -2192,9 +2192,12 @@ func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diag
 		if diag != nil {
 			return "", diag
 		}
-		// A serialiser awaits the promise and writes the RESOLVED value, so the
-		// wire is that value's own schema with the annotation merged in.
-		return dialect(mergeSchema(childText, "jsType: 'Promise'"))
+		// The resolved schema rides a SUB-KEY rather than being merged in
+		// place. Merging looked neater and is wrong: `Promise<Set<null>>` would
+		// put `jsType: 'Promise'` onto a child already carrying
+		// `jsType: 'Set'`, and two annotations cannot share one node. Found by
+		// the fuzz generator on the first seed after negation widened it.
+		return dialect(fmt.Sprintf("{jsType: 'Promise', jsResolved: %s}", childText))
 	case reflection.KindClass:
 		switch node.SubKind {
 		case reflection.SubKindDate:

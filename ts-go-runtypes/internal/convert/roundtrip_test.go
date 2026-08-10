@@ -565,7 +565,7 @@ func TestChain_Natives(t *testing.T) {
 		"runTypeFromJsonSchema({type: 'string', format: 'date-time', jsType: 'Date'} as const)",
 		"{type: 'array', items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'array', items: {type: 'number'}}], minItems: 2, items: false}, jsType: 'Map'}",
 		"{type: 'array', items: {enum: ['a', 'b']}, uniqueItems: true, jsType: 'Set'}",
-		"{type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok'], jsType: 'Promise'}",
+		"{jsType: 'Promise', jsResolved: {type: 'object', properties: {ok: {type: 'boolean'}}, required: ['ok']}}",
 	} {
 		if !strings.Contains(schemaForm, expected) {
 			t.Errorf("schema form missing %q:\n%s", expected, schemaForm)
