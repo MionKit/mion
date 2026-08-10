@@ -34,10 +34,25 @@ The 34 behavioural cases in
 are skipped behind `IMPLEMENTED = false` for exactly this reason. This is the
 last piece before the conversion PR merges.
 
+## Progress
+
+**Phase 0 is done** (`9db05e3`): the three missing rules are in the spec and
+have conformance cases, and `TemporalInfo.WireFormat` / `WirePattern` are in the
+reflection registry with all five patterned types worked out. Nothing calls them
+yet.
+
+**Phase 1 was written and reverted** (`c6b073f`), which proved the atomicity
+claim below empirically rather than leaving it a prediction: emitting the wire
+forms while the door still read the pre-spec shapes moved the id on every
+affected declaration, and five Go chain tests caught it. The emitter half cannot
+be landed on its own. Its diff is recoverable from `9db05e3` if useful, but
+re-deriving it alongside the door is probably cleaner.
+
 ## Plan
 
-Six phases. Phases 1 to 4 must land together (the emitter and the door are two
-halves of one wire format); 5 and 6 follow.
+Six phases. **Phases 1 to 4 must land in ONE commit** — the emitter and the door
+are two halves of one wire format, and any split leaves every id moved. 5 and 6
+follow.
 
 ### Phase 0 — close three gaps in the spec first
 
