@@ -796,18 +796,14 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 		node.Kind = reflection.KindUnion
 		members := tsType.Distributed()
 		// OneOf carriers (the exactly-one combinator / JSON Schema oneOf):
-		// land each level's branch tuple as its own group on node.OneOf so
-		// validate counts branch matches per group. Members serialize as-is —
-		// the intersection collapse skips each member's carrier constituent, so
-		// children come out as their plain selves. Twin of the `oo{…}` id fold
-		// in typeid.go.
-		if groups, ok := typeid.OneOfFromMembers(cache.typeChecker, members); ok {
-			for _, branches := range groups {
-				group := make([]*reflection.RunType, 0, len(branches))
-				for _, branch := range branches {
-					group = append(group, cache.Serialize(branch))
-				}
-				node.OneOf = append(node.OneOf, group)
+		// land the level branch tuple on node.OneOf so validate counts
+		// branch matches. Members serialize as-is — the intersection
+		// collapse skips each member's carrier constituent, so children
+		// come out as their plain selves. Twin of the `oo{…}` id fold in
+		// typeid.go.
+		if branches, ok := typeid.OneOfFromMembers(cache.typeChecker, members); ok {
+			for _, branch := range branches {
+				node.OneOf = append(node.OneOf, cache.Serialize(branch))
 			}
 		}
 		for _, member := range members {

@@ -475,19 +475,15 @@ func writePropNames(buffer *strings.Builder, name string, runType *reflection.Ru
 	buffer.WriteString(fmt.Sprintf("%s.propNames = [%s];\n", name, strings.Join(entries, ", ")))
 }
 
-// writeOneOf emits the `<ref>.oneOf = [[branch, …], …];` line — one branch
-// list per exclusive level (runtime consumers: the mock walker's
-// exclusive-branch loop and the negation matcher's counting arm).
+// writeOneOf emits the `<ref>.oneOf = [branch, …];` line — the exactly-one
+// branch list (runtime consumers: the mock walker's exclusive-branch loop
+// and the negation matcher's counting arm).
 func writeOneOf(buffer *strings.Builder, name string, runType *reflection.RunType) {
-	groups := make([]string, 0, len(runType.OneOf))
-	for _, group := range runType.OneOf {
-		branches := make([]string, 0, len(group))
-		for _, branch := range group {
-			branches = append(branches, derefExpr(branch))
-		}
-		groups = append(groups, "["+strings.Join(branches, ", ")+"]")
+	branches := make([]string, 0, len(runType.OneOf))
+	for _, branch := range runType.OneOf {
+		branches = append(branches, derefExpr(branch))
 	}
-	buffer.WriteString(fmt.Sprintf("%s.oneOf = [%s];\n", name, strings.Join(groups, ", ")))
+	buffer.WriteString(fmt.Sprintf("%s.oneOf = [%s];\n", name, strings.Join(branches, ", ")))
 }
 
 // writeFormatAnnotation emits the `<ref>.formatAnnotation = {…};` line. The

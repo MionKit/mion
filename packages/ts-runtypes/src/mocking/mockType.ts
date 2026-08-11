@@ -586,51 +586,29 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // rotation + a bounded attempt budget mirror the negation loop;
       // exclusivity can be genuinely unsatisfiable (duplicate branches), so
       // exhaustion throws loudly instead of shipping an invalid mock.
-      const oneOfGroups = runType.oneOf as RunType[][] | undefined;
-      if (oneOfGroups && oneOfGroups.length > 0) {
-        // The draw pool is every group's branches followed by the ordinary arms
-        // sitting beside them (members belonging to no group at all —
-        // `OneOf<[A,B]> | C`). Each entry remembers its own group, so the
-        // exclusivity check counts SIBLINGS only: a value drawn from one group
-        // is free to match a branch of another, and a value drawn from an
-        // ordinary arm carries no exclusivity requirement at all, exactly as
-        // the generated validator reads it.
-        const covered = new Set<RunType>();
-        const pool: {branch: RunType; group?: RunType[]; indexInGroup: number}[] = [];
-        for (const group of oneOfGroups) {
-          group.forEach((branch, indexInGroup) => {
-            covered.add(branch);
-            pool.push({branch, group, indexInGroup});
-          });
-        }
-        for (const arm of (runType.children ?? []) as RunType[]) {
-          if (!covered.has(arm)) pool.push({branch: arm, indexInGroup: -1});
-        }
+      const oneOfBranches = runType.oneOf as RunType[] | undefined;
+      if (oneOfBranches && oneOfBranches.length > 0) {
         // An explicit unionIndex picks the BRANCH (the tuple as written,
         // duplicates and grouping preserved) — the author's pick, no silent
         // fallback: every draw comes from that branch and a pick that can't
         // land exclusively throws.
         const pickedBranch = mOps.unionIndex;
-        if (pickedBranch !== undefined && (pickedBranch < 0 || pickedBranch >= pool.length)) {
+        if (pickedBranch !== undefined && (pickedBranch < 0 || pickedBranch >= oneOfBranches.length)) {
           throw new Error('unionIndex must be between 0 and the number of oneOf branches.');
         }
         // Budget scales with width so rotation reaches EVERY branch even
         // past 32 of them (each branch gets at least four draws).
-        const attempts = Math.max(32, pool.length * 4);
+        const attempts = Math.max(32, oneOfBranches.length * 4);
         for (let attempt = 0; attempt < attempts; attempt++) {
-          const entry = pool[pickedBranch ?? attempt % pool.length];
+          const branchIndex: number = pickedBranch ?? attempt % oneOfBranches.length;
           let candidate: unknown;
           try {
-            candidate = mockRunType(entry.branch, options, stack);
+            candidate = mockRunType(oneOfBranches[branchIndex], options, stack);
           } catch (error) {
             if (!isNegationMockError(error)) throw error;
             continue;
           }
-          // Compared by INDEX, not identity: a group may list the same branch
-          // twice, and only the drawn slot is exempt from the count.
-          const exclusive =
-            entry.group === undefined ||
-            entry.group.every((other, i) => i === entry.indexInGroup || !negationChildMatches(candidate, other));
+          const exclusive = oneOfBranches.every((other, i) => i === branchIndex || !negationChildMatches(candidate, other));
           if (exclusive) return candidate;
         }
         throw new Error(
