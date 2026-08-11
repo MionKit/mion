@@ -1218,6 +1218,22 @@ func emitTupleMemberValidate(rt *reflection.RunType, ctx *EmitContext, v string)
 // (no required props to fail on), which is incorrect per TS's
 // weak-type rules.
 func emitUnionValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	// An exclusivity the engine cannot honour is refused, not approximated: the
+	// branch counting below decides the WHOLE union, so a member outside the
+	// branches could never be checked and a valid value of it would be
+	// rejected. Marked at projection time (typeid.OneOfDefect), where the
+	// carriers are still visible.
+	//
+	// OOF001 is severity Error, so the build fails at the call site. The
+	// generated body below is then never reached in a normal build; a lane
+	// running with failOnError off still gets today's behaviour rather than a
+	// runtime throw, because CodeOneOfDefect is not registered in
+	// rootThrowWording (alwaysthrow_message.go) and a root CodeNS without a
+	// registered code renders nothing useful. Adding the runtime backstop means
+	// registering it there and latching it as the leaf code.
+	if reason := rt.OneOfDefectReason(); reason != "" {
+		ctx.EmitDiagnostic(diagnostics.CodeOneOfDefect, reason)
+	}
 	// OneOf — the exactly-one combinator: the branch counting replaces the
 	// OR-chain entirely (a count of one implies membership in the flattened
 	// union, and a value matching two branches must FAIL even though the

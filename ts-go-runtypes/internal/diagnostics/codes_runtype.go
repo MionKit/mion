@@ -35,6 +35,15 @@ const (
 	CodeVERootAnyUnknown          = "VE020"
 )
 
+// CodeOneOfDefect: a union whose exclusivity the engine cannot honour — an
+// exclusive union (oneOf) sitting beside ordinary union members, or two of them
+// in one union. Refused rather than approximated: counting the branches decides
+// the whole union, so an arm outside the exclusive part would never be checked
+// and a valid value of it would be rejected, while two carriers collapse to a
+// plain union and lose both constraints silently. ONE code for every factory —
+// the defect belongs to the type, not to the function being generated.
+const CodeOneOfDefect = "OOF001"
+
 // CodeCompositeMissingPrimitive: a JSON composite (jeCL/jeMU/jeDI/jdST/jdPR)
 // entry's soft-dep primitive has no rendered entry in the graph. Always an
 // internal invariant breach, never a user error.
@@ -249,6 +258,7 @@ func init() {
 	// have rendered it (real, noop short-form, or alwaysThrow); the emitted
 	// `utl.getRT(key).fn` prologue would crash at runtime, so the build
 	// fails loudly here instead.
+	register(Definition{Code: CodeOneOfDefect, Family: FamilyRunType, Severity: SeverityError, Title: "exclusive union (oneOf) cannot sit beside other union members"})
 	register(Definition{Code: CodeCompositeMissingPrimitive, Family: FamilyRunType, Severity: SeverityError, Title: "JSON composite references an unrendered primitive entry"})
 
 	// Child-position warnings: the factory still emits, just drops the member.

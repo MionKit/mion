@@ -806,6 +806,15 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 				node.OneOf = append(node.OneOf, cache.Serialize(branch))
 			}
 		}
+		// An exclusivity the engine cannot honour is marked HERE, where the
+		// carriers are still visible as checker types. Downstream only sees the
+		// projected graph, where the collapse has stripped them and the shape is
+		// no longer recoverable — a plain union and a two-carrier union look
+		// identical there. The emitters read the flag and refuse rather than
+		// generating a function that quietly checks the wrong thing.
+		if defect := typeid.OneOfDefect(cache.typeChecker, members); defect != "" {
+			node.Flags = append(node.Flags, reflection.FlagOneOfDefect+":"+defect)
+		}
 		for _, member := range members {
 			node.Children = append(node.Children, cache.Serialize(member))
 		}

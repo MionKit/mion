@@ -69,6 +69,30 @@ const (
 // in the table". Not a reflection kind — the value -1 is reserved for refs.
 const KindRef ReflectionKind = -1
 
+// FlagOneOfDefect is the RunType.Flags marker (with a `:<reason>` suffix) for a
+// union whose exclusivity the engine cannot honour — an exclusive union beside
+// ordinary members, or two of them in one union. See typeid.OneOfDefect for why
+// each is refused rather than approximated, and why the mark has to be made at
+// projection time.
+const FlagOneOfDefect = "oneOfDefect"
+
+// OneOfDefectReason returns the recorded reason when a node carries
+// FlagOneOfDefect, and "" otherwise.
+func (r *RunType) OneOfDefectReason() string {
+	if r == nil {
+		return ""
+	}
+	for _, flag := range r.Flags {
+		if flag == FlagOneOfDefect {
+			return FlagOneOfDefect
+		}
+		if len(flag) > len(FlagOneOfDefect)+1 && flag[:len(FlagOneOfDefect)+1] == FlagOneOfDefect+":" {
+			return flag[len(FlagOneOfDefect)+1:]
+		}
+	}
+	return ""
+}
+
 // RunType is a JSON-friendly union of every reflection RunType variant. Optional
 // fields are gated by `omitempty`. A given RunType uses only the fields relevant
 // to its Kind; the rest stay zero/nil.
@@ -314,6 +338,12 @@ type RunType struct {
 	// Flags carries free-form markers for things we couldn't bridge cleanly
 	// (e.g. "symbol" for symbol-keyed names, "nonLiteralDefault", "bigint").
 	Flags []string `json:"flags,omitempty"`
+
+	// FlagOneOfDefect (with a `:<reason>` suffix) marks a union whose
+	// exclusivity the engine cannot honour — see typeid.OneOfDefect. Stamped at
+	// projection time, where the `__rtOneOf` carriers are still visible; by the
+	// time a consumer reads this graph the collapse has stripped them and the
+	// shape cannot be recovered. Every function emitter refuses on it.
 
 	// Description — JSDoc-style per-member comment. v2.
 	Description string `json:"description,omitempty"`

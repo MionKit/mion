@@ -435,13 +435,112 @@ func OneOfCarrierBranches(typeChecker *checker.Checker, tsType *checker.Type) []
 // UNCHANGED — the collapse skips the carrier constituents, so children
 // already serialize plain.
 func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]*checker.Type, bool) {
-	// Carriers dedupe by the tuple's CANONICAL PRINT, never by pointer: two
-	// members of one big written type can carry pointer-DISTINCT
-	// instantiations of the identical tuple literal (tsgo does not
-	// guarantee interning of anonymous structural types), and treating
-	// them as two tags would mis-read the level as ambiguous and silently
-	// drop the exclusivity. Identical print = identical structure = one
-	// carrier.
+	carrierBranches, claimed := oneOfCarrierLevels(typeChecker, members)
+	if len(carrierBranches) == 0 {
+		return nil, false
+	}
+	var levelBranches []*checker.Type
+	unclaimed := 0
+	for tupleKey, branches := range carrierBranches {
+		if !claimed[tupleKey] {
+			unclaimed++
+			levelBranches = branches
+		}
+	}
+	if unclaimed != 1 {
+		return nil, false
+	}
+	return levelBranches, true
+}
+
+// OneOfDefect reports why a union's exclusivity CANNOT be honoured, or "" when
+// it can. Both shapes it names would otherwise be wrong silently, which is the
+// reason it exists rather than a nicety:
+//
+//   - TWO level carriers (`OneOf<[A,B]> | OneOf<[C,D]>`). OneOfFromMembers gives
+//     up and the union projects PLAIN, so both exclusivity constraints vanish
+//     and the type hashes identically to `A | B | C | D` — two different types,
+//     one identity.
+//   - A carrier'd union with members OUTSIDE the exclusive part
+//     (`OneOf<[A,B]> | C`). Counting the branches decides the whole union, so
+//     the `| C` arm is never checked and a valid `C` is rejected.
+//
+// It runs on CHECKER types, where a carrier is directly visible, rather than on
+// the projected graph, where the collapse has already stripped it and only an
+// id difference is left — that difference over-reports the moment a branch is
+// itself a union, because flattening may re-distribute an intersection and put
+// members in the outer union that the branch node does not list.
+//
+// A member with no carrier is fine when it is IN the level's branch tuple: a
+// nullish branch stays plain by construction (an intersection would reduce it
+// away), so `OneOf<[A, null]>` is whole while `OneOf<[A, B]> | null` is not.
+func OneOfDefect(typeChecker *checker.Checker, members []*checker.Type) string {
+	carrierBranches, claimed := oneOfCarrierLevels(typeChecker, members)
+	if len(carrierBranches) == 0 {
+		return ""
+	}
+	levelKeys := make([]string, 0, len(carrierBranches))
+	for tupleKey := range carrierBranches {
+		if !claimed[tupleKey] {
+			levelKeys = append(levelKeys, tupleKey)
+		}
+	}
+	if len(levelKeys) > 1 {
+		return "two exclusive unions (oneOf) in one union"
+	}
+	if len(levelKeys) == 0 {
+		return ""
+	}
+	// A branch may itself be a union (`OneOf<[A, B | null]>`), and the members
+	// it contributes are what land in the outer union — so the tuple set has to
+	// expand them, or a nullish member hiding inside a union-valued branch
+	// looks like an arm from outside.
+	inTuple := make(map[string]bool)
+	for _, branch := range carrierBranches[levelKeys[0]] {
+		if branch == nil {
+			continue
+		}
+		inTuple[typeChecker.TypeToString(branch)] = true
+		if branch.Flags()&checker.TypeFlagsUnion != 0 {
+			for _, part := range branch.Distributed() {
+				if part != nil {
+					inTuple[typeChecker.TypeToString(part)] = true
+				}
+			}
+		}
+	}
+	for _, member := range members {
+		if member == nil {
+			continue
+		}
+		if member.Flags()&checker.TypeFlagsIntersection != 0 {
+			carried := false
+			for _, constituent := range member.AsUnionOrIntersectionType().Types() {
+				if tupleType, _ := oneOfCarrierTuple(typeChecker, constituent); tupleType != nil {
+					carried = true
+					break
+				}
+			}
+			if carried {
+				continue
+			}
+		} else if tupleType, _ := oneOfCarrierFromProps(typeChecker, member); tupleType != nil {
+			continue
+		}
+		if inTuple[typeChecker.TypeToString(member)] {
+			continue
+		}
+		return "an exclusive union (oneOf) beside ordinary union members"
+	}
+	return ""
+}
+
+// oneOfCarrierLevels is the shared first half of OneOfFromMembers and
+// OneOfDefect: the carriers found on the members, keyed by the tuple's
+// canonical print, plus the set of keys some other carrier's branch list
+// already claims (a nested OneOf flattens its members into the outer list, so
+// the level carrier is the one nobody else's tuple contains).
+func oneOfCarrierLevels(typeChecker *checker.Checker, members []*checker.Type) (map[string][]*checker.Type, map[string]bool) {
 	carrierBranches := make(map[string][]*checker.Type)
 	for _, member := range members {
 		if member == nil {
@@ -455,13 +554,9 @@ func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]
 			}
 			continue
 		}
-		// Merged shadow (DataOnly and other homomorphic projections).
 		if tupleType, branches := oneOfCarrierFromProps(typeChecker, member); tupleType != nil {
 			carrierBranches[typeChecker.TypeToString(tupleType)] = branches
 		}
-	}
-	if len(carrierBranches) == 0 {
-		return nil, false
 	}
 	claimed := make(map[string]bool)
 	for _, branches := range carrierBranches {
@@ -484,18 +579,7 @@ func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]
 			}
 		}
 	}
-	var levelBranches []*checker.Type
-	unclaimed := 0
-	for tupleKey, branches := range carrierBranches {
-		if !claimed[tupleKey] {
-			unclaimed++
-			levelBranches = branches
-		}
-	}
-	if unclaimed != 1 {
-		return nil, false
-	}
-	return levelBranches, true
+	return carrierBranches, claimed
 }
 
 // PatternPropSpec is one decoded patternProperties entry (see
