@@ -7,6 +7,7 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
+	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -1358,6 +1359,11 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // cache) means the entry is always populated by the time the
 // validationErrors closure invokes `utl.getRT('val_<hash>')`.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
+	if reason := rt.OneOfDefectReason(); reason != "" {
+		// Twin of the validate refusal — the verdict is delegated to that
+		// factory, so the report stops at the same place.
+		ctx.EmitDiagnostic(diagnostics.CodeOneOfDefect, reason)
+	}
 	validateHash := operations.PlainHash("validate") + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
 	// OneOf — the validate delegate already enforces exactly-one (its
