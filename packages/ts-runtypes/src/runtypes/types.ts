@@ -95,17 +95,11 @@ export interface SchemaChecks {
    *  pattern sources a matching key is exempt under. */
   unevaluatedKeys?: string[];
   unevaluatedSources?: string[];
-  /** OneOf branch lists (the `__rtOneOf` sentinel on a union node — the
-   *  exactly-one combinator / JSON Schema oneOf), one GROUP per exclusive
-   *  level: the value must match exactly one branch of some group. Mocking
-   *  draws a branch and rejects candidates a second branch of that group also
-   *  matches.
-   *
-   *  A union can carry more than one group (`OneOf<[A,B]> | OneOf<[C,D]>`),
-   *  and `children` may hold members belonging to no group at all
-   *  (`OneOf<[A,B]> | C`) — those are ordinary union arms sitting beside the
-   *  exclusive part. */
-  oneOf?: RunType[][];
+  /** OneOf branch list (the `__rtOneOf` sentinel on a union node — the
+   *  exactly-one combinator / JSON Schema oneOf): the value must match
+   *  exactly one branch. Mocking draws a branch and rejects candidates a
+   *  second branch also matches. */
+  oneOf?: RunType[];
 }
 
 /** Runtime representation of a reflected type. Identification fields are

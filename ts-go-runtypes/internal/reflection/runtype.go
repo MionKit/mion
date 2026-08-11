@@ -368,22 +368,14 @@ type SchemaChecks struct {
 	// the sorted `pn{…}` id fold).
 	PropNames []*RunType `json:"propNames,omitempty"`
 
-	// OneOf — on a union node carrying `__rtOneOf` sentinel members (the
-	// OneOf<[…]> combinator / JSON Schema oneOf): one GROUP per exclusive
-	// level, each the BRANCH list as written, preserving the grouping the
-	// flattened union erases (a branch may itself be a union). validate
-	// counts the branches the value matches WITHIN each group and asserts
-	// some group counted exactly one; Children still hold the flattened
-	// members so serialization, DataOnly and every other positive pathway
-	// stay untouched.
-	//
-	// Two things follow from Children being the full member list, and both
-	// were silently wrong until they were made explicit:
-	//   - a member in NO group is an ordinary union arm sitting beside the
-	//     exclusive part (`OneOf<[A, B]> | C`), and must still be checked;
-	//   - there can be more than one group (`OneOf<[A,B]> | OneOf<[C,D]>`),
-	//     each counting independently.
-	OneOf [][]*RunType `json:"oneOf,omitempty"`
+	// OneOf — on a union node carrying a `__rtOneOf` sentinel member (the
+	// OneOf<[…]> combinator / JSON Schema oneOf): the BRANCH list as
+	// written, preserving the grouping the flattened union erases (a branch
+	// may itself be a union). validate counts the branches the value
+	// matches and asserts the count is exactly one; Children still hold the
+	// flattened members so serialization, DataOnly and every other positive
+	// pathway stay untouched.
+	OneOf []*RunType `json:"oneOf,omitempty"`
 
 	// Unevaluated — one entry per `__rtUnevaluated` sentinel member (JSON
 	// Schema unevaluatedProperties, for the scopes the document alone

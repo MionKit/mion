@@ -1218,102 +1218,19 @@ func emitTupleMemberValidate(rt *reflection.RunType, ctx *EmitContext, v string)
 // (no required props to fail on), which is incorrect per TS's
 // weak-type rules.
 func emitUnionValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// OneOf — the exactly-one combinator. Each GROUP counts its own branches
-	// and asserts exactly one match (a value matching two branches of one group
-	// must FAIL even though the plain union accepts it); a value satisfying ANY
-	// group passes, since two groups are two independent exclusive levels.
-	//
-	// The counting does NOT replace the OR-chain, it joins it. `Children` hold
-	// every flattened member, and a member in no group is an ordinary union arm
-	// sitting beside the exclusive part (`OneOf<[A, B]> | C`). Returning the
-	// counting alone is what made `validate` reject a `C` — a value its own type
-	// accepts.
+	// OneOf — the exactly-one combinator: the branch counting replaces the
+	// OR-chain entirely (a count of one implies membership in the flattened
+	// union, and a value matching two branches must FAIL even though the
+	// plain union accepts it).
 	if len(rt.OneOf) > 0 {
-		parts := make([]string, 0, len(rt.OneOf)+1)
-		for _, group := range rt.OneOf {
-			parts = append(parts, emitOneOfCount(ctx, group, v, "1"))
-		}
-		if uncovered := uncoveredUnionArms(rt, ctx); len(uncovered) > 0 {
-			// CodeNS here would mean every uncovered arm is non-data; the groups
-			// still decide the verdict, so the chain simply contributes nothing.
-			if chain := emitUnionMemberChain(uncovered, ctx, v); chain.Type == CodeE && chain.Code != "" && chain.Code != "false" {
-				parts = append(parts, chain.Code)
-			}
-		}
-		// One part prints exactly the byte string it always has — an ordinary
-		// `OneOf<[…]>` covering its whole union is unchanged by any of this.
-		if len(parts) == 1 {
-			return RTCode{Code: parts[0], Type: CodeE}
-		}
-		return RTCode{Code: "(" + strings.Join(parts, " || ") + ")", Type: CodeE}
+		return RTCode{Code: emitOneOfCount(ctx, rt.OneOf, v, "1"), Type: CodeE}
 	}
 	// DataOnly-strip members (symbol / function-like / Promise /
 	// non-serializable / never) so `Date | symbol` validates as `Date`,
 	// matching DataOnly<T>. An all-stripped union keeps its members and falls
 	// through to the CodeNS branch below (projection is `never`), rendering the
 	// alwaysThrow factory. See union_strip.go.
-	return emitUnionMemberChain(dataOnlyUnionMembers(rt, ctx), ctx, v)
-}
-
-// uncoveredUnionArms returns the union members belonging to NO oneOf group —
-// the ordinary arms sitting beside the exclusive part — in safe order, with the
-// DataOnly strip applied.
-//
-// Coverage is by `RunType.ID`, which is exact only while every branch is an
-// ordinary member. A UNION-valued branch is the limit: TypeScript flattens it
-// into the outer union and the checker may re-distribute an intersection while
-// doing so, so the outer Children end up holding members that belong to the
-// branch without appearing in the branch node's OWN children. Differencing ids
-// then reports arms that are really distribution artifacts, and ORing a check
-// for them in would accept values the exclusivity is meant to reject — the
-// door's `allOf: [A, B, {oneOf: [C, D]}]` push-in produces exactly that shape,
-// and the official 2020-12 suite catches it.
-//
-// So a union-valued branch means NO arms: the whole union is treated as covered,
-// which is what this has always done. `OneOf<[A|B, C]> | D` consequently still
-// drops `D` — recorded in docs/todos/oneof-union-valued-branch-arms.md. Every
-// ordinary shape (`OneOf<[A,B]> | C`, `| null`, two groups) is exact.
-//
-// A nullish branch is covered like any other: it is carrier-LESS by
-// construction (an intersection would reduce it away), but it is still in the
-// branch tuple, so `OneOf<[A, null]>` covers its null while
-// `OneOf<[A, B]> | null` does not.
-func uncoveredUnionArms(rt *reflection.RunType, ctx *EmitContext) []*reflection.RunType {
-	covered := map[string]bool{}
-	for _, group := range rt.OneOf {
-		for _, ref := range group {
-			branch := ctx.ResolveRef(ref)
-			if branch == nil {
-				continue
-			}
-			if branch.Kind == reflection.KindUnion {
-				return nil
-			}
-			covered[branch.ID] = true
-		}
-	}
-	// Same source as dataOnlyUnionMembers: the baked safe order when present.
-	children := rt.SafeUnionChildren
-	if len(children) == 0 {
-		children = rt.Children
-	}
-	arms := make([]*reflection.RunType, 0, len(children))
-	for _, ref := range children {
-		resolved := ctx.ResolveRef(ref)
-		if resolved == nil || covered[resolved.ID] || isStrippedUnionMember(resolved) {
-			continue
-		}
-		arms = append(arms, ref)
-	}
-	return arms
-}
-
-// emitUnionMemberChain is the ordinary union OR-chain over an already-resolved
-// member list: the plain arms OR'd together, with the object arms sharing one
-// `typeof === 'object'` guard. Split out of emitUnionValidate so the oneOf path
-// can run the SAME machinery over the arms its groups do not cover, rather than
-// duplicating the weak-type gating and the shared object guard.
-func emitUnionMemberChain(children []*reflection.RunType, ctx *EmitContext, v string) RTCode {
+	children := dataOnlyUnionMembers(rt, ctx)
 	var simpleChecks []string
 	var objectChecks []string
 	for _, child := range children {

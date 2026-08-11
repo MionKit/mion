@@ -153,11 +153,9 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 		switch rng.Intn(12) {
 		case 9:
 			// An EXCLUSIVE union — the `oneOf` keyword, which a plain `|` union
-			// never reaches (that is `anyOf`). It draws in ORDINARY positions
-			// including a direct union arm, so `OneOf<[A,B]> | C` and two
-			// groups in one union are both in the generated space. Branches are
-			// objects on purpose: a primitive branch inside a recursive type is
-			// a documented refusal, and this arm exercises the keyword, not the
+			// never reaches (that is `anyOf`). Branches are objects on purpose:
+			// a primitive branch inside a recursive type is a documented
+			// refusal, and this arm exists to exercise the keyword, not the
 			// refusal lane that circular_test.go already pins.
 			armCount := 2 + rng.Intn(2)
 			var arms []string
@@ -216,7 +214,7 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			armCount := 2 + rng.Intn(3)
 			var arms []string
 			for range armCount {
-				arms = append(arms, randomTypeText(rng, atoms, stringPool, depth-1))
+				arms = append(arms, randomUnionArm(rng, atoms, stringPool, depth-1))
 			}
 			return "(" + strings.Join(arms, " | ") + ")"
 		case 4:
@@ -319,6 +317,29 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 	default:
 		return atoms[rng.Intn(len(atoms))]
 	}
+}
+
+// randomUnionArm draws a type for a DIRECT arm of a plain union, redrawing
+// while it lands on a `OneOf`.
+//
+// `OneOf<[A, B]> | C` is a partial oneOf: the exclusive branches do not cover
+// the whole union, which nothing in the system can currently represent — the
+// converter refuses it (partialOneOfDiag) and `validate` is outright unsound on
+// it. See docs/todos/oneof-not-covering-whole-union.md. Drawing it here would
+// just spend every union draw on that one refusal, so the arm is excluded until
+// the todo lands, at which point this whole function goes away.
+//
+// Only a DIRECT arm is excluded. A `OneOf` nested inside an object member, an
+// array element or a Map value is a union of its own and converts fine, so the
+// keyword keeps its coverage.
+func randomUnionArm(rng *rand.Rand, atoms, stringPool []string, depth int) string {
+	for attempt := 0; attempt < 8; attempt++ {
+		candidate := randomTypeText(rng, atoms, stringPool, depth)
+		if !strings.HasPrefix(candidate, "OneOf<") {
+			return candidate
+		}
+	}
+	return atoms[rng.Intn(len(atoms))]
 }
 
 // randomLiteralText draws a string / number / boolean / bigint literal. Shared
