@@ -5,6 +5,11 @@
 // (`getRunType<T>()` on builders, `embedType<T>()` on the schema target);
 // anything with no spelling at all reports CNV001 and the declaration stays
 // untouched (record: docs/done/format-conversion-completion.md).
+//
+// Every reflection.RunType field must be printed, refused, or excused — the
+// TestPrintersCoverRunType tripwire (print_coverage_test.go) fails on a field
+// the printers neither consume nor account for, the way the unevaluated*
+// slots once slipped through.
 package convert
 
 import (
