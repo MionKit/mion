@@ -22,15 +22,13 @@
 import {describe, expect, test} from 'vitest';
 import * as TF from '../../src/formats/index.ts';
 import type {RunType, InferType, DataOnly} from '../../src/index.ts';
-import type {CarriedKey, BuiltinClassLeaf, TemporalClassLeaf} from '../../src/builders/static.ts';
-import type {TemporalBaseByFormatName} from '../../src/formats/datetime/temporalFormats.ts';
+import type {CarriedKey} from '../../src/builders/static.ts';
 
 describe('structural brand keys — type-only assertions', () => {
   test('assertion bodies are referenced (no runtime work here)', () => {
     expect(typeof assertionsStructuralBrandKeys).toBe('function');
     expect(typeof assertionsRecoveredTypesCarryNoMetadata).toBe('function');
     expect(typeof assertionsCarriedKeyIsExhaustive).toBe('function');
-    expect(typeof assertionsBuiltinClassLeavesAreExhaustive).toBe('function');
   });
 });
 
@@ -201,39 +199,9 @@ function assertionsCarriedKeyIsExhaustive(): void {
   void everySentinelIsCarried;
 }
 
-// The substitution treats builtin CLASS instances as leaves (Date, RegExp and
-// the Temporal families): a class can never contain `Self`, and walking one is
-// harmful — Temporal's methods return Temporal, so the member walk circularly
-// references itself and the node gets rebuilt into a plain object, moving its
-// id. `BuiltinClassLeaf` mirrors the guarded references in
-// formats/datetime/temporalFormats.ts because the SubstituteSelf region is
-// sliced verbatim into the budget harness and cannot import them; deriving the
-// other side from the canonical map makes a new Temporal type a COMPILE error
-// here instead of a silent id move inside recursive schemas.
-type CanonicalTemporalBases = TemporalBaseByFormatName[keyof TemporalBaseByFormatName];
-
-function assertionsBuiltinClassLeavesAreExhaustive(): void {
-  const everyTemporalBaseIsALeaf: true = null as unknown as Exact<TemporalClassLeaf, CanonicalTemporalBases>;
-  void everyTemporalBaseIsALeaf;
-
-  // The binary builtins are leaves for the same reason (a typed array's
-  // `subarray()` returns its own type). Assignability, not `Exact`: the three
-  // arms COVER all twelve rather than enumerating them, so the check is that
-  // each concrete native lands in the leaf set.
-  const dataViewIsALeaf: BuiltinClassLeaf = null as unknown as DataView;
-  const typedArrayIsALeaf: BuiltinClassLeaf = null as unknown as Uint8Array;
-  const bigIntArrayIsALeaf: BuiltinClassLeaf = null as unknown as BigUint64Array;
-  const bufferIsALeaf: BuiltinClassLeaf = null as unknown as ArrayBuffer;
-  const sharedBufferIsALeaf: BuiltinClassLeaf = null as unknown as SharedArrayBuffer;
-  void dataViewIsALeaf;
-  void typedArrayIsALeaf;
-  void bigIntArrayIsALeaf;
-  void bufferIsALeaf;
-  void sharedBufferIsALeaf;
-
-  // A plain array must NOT be one — the leaf test runs before the array arm,
-  // so a leaked match here would stop `array(self())` substituting at all.
-  // @ts-expect-error a plain array is not a builtin class leaf
-  const arrayIsNotALeaf: BuiltinClassLeaf = null as unknown as string[];
-  void arrayIsNotALeaf;
-}
+// The substitution used to keep a LIST of builtin classes to leave alone, and
+// every class missing from it was silently flattened into a plain object,
+// moving the declaration's id. The list is gone; the invariant it was trying to
+// express is pinned by `substituteSelf.compile.test.ts`'s walk battery instead,
+// which is a rule rather than an enumeration. Only the sentinel-carrier
+// exhaustiveness is asserted here now.

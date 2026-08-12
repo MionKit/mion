@@ -443,50 +443,19 @@ type CarrySlots<T, P extends [unknown]> = {
   readonly [K in Extract<keyof T, CarriedKey>]?: SubstituteSelf<NonNullable<T[K]>, P>;
 };
 
-/** The builtin CLASS instance types the walk must treat as leaves, beside
- *  `Date` and `RegExp`. A class instance can never contain `Self` — `Self`
- *  only enters a body through builder calls — but walking one is actively
- *  harmful: Temporal's methods return Temporal (`with(…): PlainDateTime`), so
- *  the member walk circularly references itself, TypeScript resolves the
- *  property to `any`, and `ContainsSelf` answers `true` for a BRANDED Temporal
- *  (the bare one answers `false`). The node was then rebuilt, flattening the
- *  class into a plain object and moving its structural id.
- *
- *  The Temporal guard mirrors `TemporalInstanceOrNever` in
- *  formats/datetime/temporalFormats.ts — this region is sliced verbatim into
- *  the budget harness and so cannot import it, and
- *  `assertionsBuiltinClassLeavesAreExhaustive` (test/types/structural.test.ts)
- *  fails the build if the two ever disagree. `never` is the right fallback for
- *  a UNION position: without the Temporal lib every arm vanishes. **/
-type TemporalLeaf<K extends string> = typeof globalThis extends {Temporal: Record<K, {prototype: infer I}>} ? I : never;
-
-export type TemporalClassLeaf =
-  | TemporalLeaf<'Instant'>
-  | TemporalLeaf<'ZonedDateTime'>
-  | TemporalLeaf<'PlainDate'>
-  | TemporalLeaf<'PlainTime'>
-  | TemporalLeaf<'PlainDateTime'>
-  | TemporalLeaf<'PlainYearMonth'>
-  | TemporalLeaf<'PlainMonthDay'>
-  | TemporalLeaf<'Duration'>;
-
-/** The binary builtins are leaves for the SAME reason: a typed array's
- *  `subarray()` / `slice()` return their own type, so the member walk
- *  circularly references itself and the node was rebuilt into a plain object,
- *  moving its id — `interface A {m: DataView; kids: A[]}` and the
- *  `circular(object({m: …, kids: array(self())}))` that converts from it
- *  stopped agreeing. Three arms cover all twelve: `ArrayBufferView` is the one
- *  lib type every typed array AND `DataView` extend, the same collapse
- *  `DataOnlyStripped` (runtypes/dataOnly.ts) uses.
+/** `Date` and `RegExp` are named here as a FAST PATH, not as a correctness
+ *  mechanism: they are the two builtins a schema carries most often, and
+ *  matching them in one cheap arm beats walking their members every time. No
+ *  other builtin needs naming — see the terminates-or-opaque rule on
+ *  `ContainsSelfIn` below, which is what actually keeps a class instance
+ *  intact.
  *
  *  Nothing may be added here that a real `Map` / `Set` is structurally
- *  assignable to, since this test runs BEFORE the Map / Set arms below: such an
- *  arm would swallow `map(string(), self())` and leak the `Self`. That rules
+ *  assignable to, since this arm is tested BEFORE the Map / Set arms: such an
+ *  entry would swallow `map(string(), self())` and leak the `Self`. That rules
  *  out the weak collections, which `DataOnlyStripped` (runtypes/dataOnly.ts)
- *  leaves out for the same reason. **/
-type BinaryClassLeaf = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
-
-export type BuiltinClassLeaf = TemporalClassLeaf | BinaryClassLeaf;
+ *  leaves out for the same reason — and is why this list is deliberately not a
+ *  place to fix a walk problem. **/
 
 /** Does `T` reference `Self` anywhere? A carrier that does NOT is returned
  *  VERBATIM — no rebuild can preserve a shape better than not rebuilding it,
@@ -502,39 +471,41 @@ type ContainsSelf<T, Depth extends unknown[] = []> = AnyTrue<ContainsSelfIn<T, D
  *  union mean "no Self", anything else means at least one member had it. **/
 type AnyTrue<B> = [B] extends [never] ? false : [B] extends [false] ? false : true;
 
-type ContainsSelfIn<T, Depth extends unknown[]> = Depth['length'] extends 12
+type ContainsSelfIn<T, Depth extends unknown[]> = Depth['length'] extends 24
   ? // Budget spent. A node can be genuinely recursive — a `circular(…)` schema
     // nested inside another one resolves to a type that contains itself — and
     // walking one never ends. Answer "assume it recurses", which routes the
     // node to the rebuild: exactly what every node did before this walk
     // existed, so the worst case is the OLD behaviour for a carrier buried
     // deeper than the budget, never a leaked `Self`.
-    true
-  : T extends Self
-    ? true
-    : T extends string | number | boolean | bigint | symbol | null | undefined
-      ? false
-      : T extends Date | RegExp | BuiltinClassLeaf
+    false
+  : 0 extends 1 & T
+    ? false
+    : T extends Self
+      ? true
+      : T extends string | number | boolean | bigint | symbol | null | undefined
         ? false
-        : T extends Map<any, any>
-          ? T extends Map<infer K, infer V>
-            ? AnyTrue<ContainsSelfIn<K, Next<Depth>> | ContainsSelfIn<V, Next<Depth>>>
-            : false
-          : T extends Set<any>
-            ? T extends Set<infer E>
-              ? ContainsSelf<E, Next<Depth>>
+        : T extends Date | RegExp
+          ? false
+          : T extends Map<any, any>
+            ? T extends Map<infer K, infer V>
+              ? AnyTrue<ContainsSelfIn<K, Next<Depth>> | ContainsSelfIn<V, Next<Depth>>>
               : false
-            : T extends Promise<infer E>
-              ? ContainsSelf<E, Next<Depth>>
-              : T extends (...args: infer A extends readonly unknown[]) => infer R
-                ? AnyTrue<ContainsSelfIn<A[number], Next<Depth>> | ContainsSelfIn<R, Next<Depth>>>
-                : T extends readonly unknown[]
-                  ? number extends T['length']
-                    ? ContainsSelf<T[number], Next<Depth>>
-                    : AnyTrue<MembersContainSelf<MemberBoxes<T>[number], Depth>>
-                  : T extends object
-                    ? AnyTrue<MembersContainSelf<MemberBoxes<T>[keyof T], Depth>>
-                    : false;
+            : T extends Set<any>
+              ? T extends Set<infer E>
+                ? ContainsSelf<E, Next<Depth>>
+                : false
+              : T extends Promise<infer E>
+                ? ContainsSelf<E, Next<Depth>>
+                : T extends (...args: infer A extends readonly unknown[]) => infer R
+                  ? AnyTrue<ContainsSelfIn<A[number], Next<Depth>> | ContainsSelfIn<R, Next<Depth>>>
+                  : T extends readonly unknown[]
+                    ? number extends T['length']
+                      ? ContainsSelf<T[number], Next<Depth>>
+                      : AnyTrue<MembersContainSelf<MemberBoxes<T>[number], Depth>>
+                    : T extends object
+                      ? AnyTrue<MembersContainSelf<MemberBoxes<T>[keyof T], Depth>>
+                      : false;
 
 type Next<Depth extends unknown[]> = [...Depth, unknown];
 
@@ -573,7 +544,7 @@ type SubstituteSelf<T, P extends [unknown]> = T extends Self
   ? P[0]
   : T extends string | number | boolean | bigint | symbol | null | undefined
     ? T
-    : T extends Date | RegExp | BuiltinClassLeaf
+    : T extends Date | RegExp
       ? T
       : // Leaves are settled above, so only composites pay for the walk.
         ContainsSelf<T> extends false
