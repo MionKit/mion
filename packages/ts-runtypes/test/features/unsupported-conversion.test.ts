@@ -93,14 +93,12 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
 
   // ── An exclusive union that is not the whole union ────────────────────
   {
-    title: 'an exclusive union that does not cover every member of its union',
-    // `OneOf<[A, B]> | C` has no representation anywhere in the system yet:
-    // the reflection carries all three members, but validate drops the extra
-    // arm (unsound), the door reads the schema form back as the bare oneOf,
-    // and there is no builder spelling that survives the round trip. See
-    // docs/todos/oneof-not-covering-whole-union.md. Refusing is the honest
-    // answer until that lands; the converter used to emit the branches alone
-    // and lose the arm without a word.
+    title: 'an exclusive union sitting beside an ordinary union arm',
+    // Exclusivity is checked by counting matched branches, and that count
+    // decides the whole union, so the exclusive union has to BE the whole
+    // union. The same shape stops a normal build with OOF001; convert reads
+    // the very same verdict off the node rather than recomputing it, so the
+    // two can never disagree. See docs/done/oneof-not-covering-whole-union.md.
     files: {
       'main.ts':
         "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
@@ -108,11 +106,11 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     },
     target: 'json-schema',
     code: 'CNV001',
-    says: 'does not cover every member',
+    says: 'beside ordinary union members',
     keeps: 'export type Mixed = OneOf<[{a: string}, {b: number}]> | number;',
   },
   {
-    title: 'an exclusive union that does not cover its union, converting to builders',
+    title: 'an exclusive union beside an ordinary arm, converting to builders',
     files: {
       'main.ts':
         "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
@@ -120,7 +118,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     },
     target: 'builders',
     code: 'CNV001',
-    says: 'does not cover every member',
+    says: 'beside ordinary union members',
     keeps: 'export type Mixed = OneOf<[{a: string}, {b: number}]> | null;',
   },
 

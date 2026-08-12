@@ -106,6 +106,16 @@ position EXCEPT a direct union arm — the refused one.
 - Every shape where the exclusive union IS the whole union still builds. ✅
 - Sibling `anyOf` / `oneOf` is untouched and the official suite still passes. ✅
 
+## The convert refusal reads the same verdict
+
+`convert`'s CNV001 refusal (added earlier in this branch) used to recompute the
+answer by differencing node ids, and that heuristic REFUSED the `allOf` push-in
+shape — `allOf: [A, B, {oneOf: [C, D]}]`, a conformant schema the official suite
+covers — because a union-valued branch does not enumerate what it contributed.
+It now reads `reflection.FlagOneOfDefect` off the node, so convert and the build
+share one detector and cannot disagree. That shape converts again (it still
+refuses on the unrelated, already-documented symbol-keyed-member limitation).
+
 ## Follow-up left open
 
 The refusal is build-time only. A lane running with `failOnError: false` gets

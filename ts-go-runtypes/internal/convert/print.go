@@ -466,58 +466,29 @@ func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[stri
 	return family, annotation.Params, true
 }
 
-// partialOneOfDiag reports a union whose `oneOf` branches do NOT cover every
-// member, and nil when they do.
+// partialOneOfDiag reports a union whose exclusivity the engine refuses —
+// `OneOf<[A, B]> | C` and two exclusive unions in one union — and nil
+// otherwise. Both printers used to emit the branches alone, so the `| C` arm
+// vanished from the output without a word.
 //
-// `OneOf<[A, B]> | C` is such a shape: the reflection carries all three members
-// in Children and the two branches in OneOf, exactly as documented. Both
-// printers used to emit the branches alone, so the `| C` arm vanished from the
-// output without a word — and it is not a converter-only slip: `validate`
-// rejects a `C` for the same reason, and the door reads
-// `{anyOf: [{oneOf: […]}, C]}` back as the bare oneOf. The whole story, and the
-// design question behind it, is docs/todos/oneof-not-covering-whole-union.md.
-//
-// Until a representation exists, converting refuses. Losing an arm silently is
-// the one outcome this tool must never produce.
+// The verdict is READ off the node, not recomputed: internal/cachegen stamps
+// reflection.FlagOneOfDefect at projection time, where the `__rtOneOf` carriers
+// are still visible as checker types (typeid.OneOfDefect). This used to
+// difference node ids instead, and that difference over-reports the moment a
+// branch is itself a union — the checker may re-distribute an intersection
+// while flattening, putting members in the outer union that the branch node
+// does not list. The door's `allOf: [A, B, {oneOf: [C, D]}]` push-in is exactly
+// that shape, and the id difference REFUSED it: a conformant schema the
+// official 2020-12 suite covers, turned away by convert. Reading the flag makes
+// convert and the build agree by construction, since one detector answers both.
 func (ctx *printContext) partialOneOfDiag(node *reflection.RunType) *Diagnostic {
-	if len(node.OneOf) == 0 {
+	reason := node.OneOfDefectReason()
+	if reason == "" {
 		return nil
 	}
-	// A branch contributes its own id AND, when it is a union, every member it
-	// flattens into — a branch may be a plain union (`{anyOf: […]}`) or another
-	// `OneOf` (`OneOf<[OneOf<[A, B]>, C]>`), and in both cases the outer node's
-	// Children hold A and B directly, not the branch node.
-	covered := map[string]bool{}
-	var addCovered func(ref *reflection.RunType)
-	addCovered = func(ref *reflection.RunType) {
-		branch := ctx.deref(ref)
-		if branch == nil || covered[branch.ID] {
-			return
-		}
-		covered[branch.ID] = true
-		if branch.Kind != reflection.KindUnion {
-			return
-		}
-		for _, memberRef := range branch.Children {
-			addCovered(memberRef)
-		}
-		for _, nestedRef := range branch.OneOf {
-			addCovered(nestedRef)
-		}
-	}
-	for _, branchRef := range node.OneOf {
-		addCovered(branchRef)
-	}
-	for _, childRef := range node.Children {
-		child := ctx.deref(childRef)
-		if child == nil || covered[child.ID] {
-			continue
-		}
-		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: "an exclusive union (oneOf) that does not cover every member of its union is not convertible " +
-				"(the remaining members have no spelling that survives the round trip) — give the exclusive part its own named type"}
-	}
-	return nil
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: reason + " is not convertible (exclusivity can only be checked when the exclusive union IS " +
+			"the whole union) — give the exclusive part its own named type"}
 }
 
 // multiNegationDiag: one `not` per node prints; stacked negations await the
