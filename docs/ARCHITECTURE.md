@@ -113,7 +113,8 @@ The program has four subcommands:
   Nine keywords, prefixed by who defines the thing they carry: `jsType` (a JavaScript
   value with a wire form — Date/Map/Set/Promise/RegExp/bigint/object and the 8 Temporal
   builtins, named by their reflected format name so the published `.d.ts` never contains
-  `Temporal.`), `rtFormat` + `rtFormatParams` (a RunTypes format family; params with a
+  `Temporal.`; the Promise row carries the resolved value's schema in the companion
+  keyword `jsResolved`), `rtFormat` + `rtFormatParams` (a RunTypes format family; params with a
   standard keyword mirror onto it and only the remainder rides `rtFormatParams`), and the
   TypeScript-only facts `tsLabels`, `tsReadonly`, `tsIndexes`, `tsTemplate`, `tsFunction`
   and `tsMeta`. Negation is deliberately NOT a keyword: JavaScript has no "not this type"

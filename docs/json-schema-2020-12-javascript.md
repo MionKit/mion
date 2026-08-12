@@ -96,6 +96,10 @@ That last row is the important one.
 | `tsFunction` | nothing standard | a function signature |
 | `tsMeta` | nothing standard | a `base & {…}` metadata intersection |
 
+One companion keyword rides beside a row rather than standing on its own:
+`jsResolved` carries the resolved value's schema of a `jsType: "Promise"` and
+is meaningful only in that pair (JS-PROMISE below).
+
 Every one is optional. A document using none of them is ordinary JSON Schema.
 
 **`CORE-NOT`** — there is deliberately no keyword for negation. JavaScript has no "not this type", and RunTypes' negation type exists precisely to model JSON Schema's `not`, so a negated format is written with the standard keyword and nothing else:
