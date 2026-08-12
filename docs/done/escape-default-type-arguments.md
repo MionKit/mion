@@ -93,12 +93,11 @@ same collapse `DataOnlyStripped` uses.
 
 ## Deliberately left
 
-`WeakMap` / `WeakSet` break the same way but cannot join the leaf list as-is: a
-real `Map` / `Set` is structurally assignable to them, so a leaf arm tested
-before the Map / Set arms would swallow `map(string(), self())` and leak the
-`Self` brand. Filed as
-[weak-collections-flatten-in-recursive-schemas.md](../todos/weak-collections-flatten-in-recursive-schemas.md)
-with the ordering fix written out.
+The weak collections are not covered, and are not planned. They could not join
+the leaf list as-is anyway: a real `Map` / `Set` is structurally assignable to
+them, so a leaf arm tested before the Map / Set arms would swallow
+`map(string(), self())` and leak the `Self` brand — which is the bound on what
+may ever join that list, and the same reason `DataOnlyStripped` leaves them out.
 
 Also noted, not fixed: `IsNonSerializableSymbol` matches by NAME, so a
 user-declared `class Error` collides with the global. That predates this change

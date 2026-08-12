@@ -262,7 +262,8 @@ getRunTypeId<`+typeName+`>();
 // the id, in lockstep with projectClass (which keeps them in Arguments). The
 // converter reads those arguments back out of the cached node to print the
 // escape, so two instantiations sharing an entry would print one's arguments
-// for the other. Positional, not sorted: `WeakMap<K,V>` is not `WeakMap<V,K>`.
+// for the other. Joined POSITIONALLY, not sorted, so swapping two arguments
+// changes the id.
 func TestStructural_NonSerializableDistinctByArguments(t *testing.T) {
 	idFor := func(typeText string) string {
 		_, node := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
@@ -270,13 +271,10 @@ getRunTypeId<`+typeText+`>();
 `)
 		return node.ID
 	}
-	if idFor("WeakSet<object>") == idFor("WeakSet<Date>") {
-		t.Errorf("WeakSet<object> and WeakSet<Date> must not share a cache entry")
+	if idFor("Uint8Array<ArrayBuffer>") == idFor("Uint8Array<SharedArrayBuffer>") {
+		t.Errorf("a typed array's buffer argument must reach the id")
 	}
-	if idFor("WeakMap<object, string>") == idFor("WeakMap<object, number>") {
-		t.Errorf("WeakMap value type must reach the id")
-	}
-	if idFor("WeakMap<object, Date>") == idFor("WeakMap<Date, object>") {
-		t.Errorf("WeakMap type arguments are positional — swapping them must change the id")
+	if idFor("Generator<string, number>") == idFor("Generator<number, string>") {
+		t.Errorf("type arguments are positional — swapping them must change the id")
 	}
 }

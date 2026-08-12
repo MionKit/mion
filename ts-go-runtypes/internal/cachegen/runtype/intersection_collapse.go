@@ -323,12 +323,17 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			// labels as the member names, exactly what the type-first labeled
 			// tuple projects (the shared structural id demands byte-identical
 			// nodes). A label list that does not cover every element is a
-			// hand-rolled sentinel, ignored on both sides.
+			// hand-rolled sentinel, ignored on both sides — it falls to the
+			// single-base branch below, which is why `haveTupleLabels` is in
+			// that guard: without it a labels-ONLY carrier (no other sentinel to
+			// hold the guard open) fell through to the merged-property path and
+			// surfaced the tuple's Array interface as an objectLiteral, while
+			// the id twin was already hashing the plain tuple.
 			cache.projectTuple(soleRest, node, tupleLabels)
 			return
 		}
 		if restCount == 1 &&
-			(len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
+			(haveTupleLabels || len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
 				len(node.PatternProps) > 0 || len(node.PropNames) > 0 || len(node.Unevaluated) > 0) {
 			// Single base ∧ sentinel(s) — `unknown[] & {__rtNot?: …}`,
 			// `Record<string, unknown> & {…}`: project the BASE as itself

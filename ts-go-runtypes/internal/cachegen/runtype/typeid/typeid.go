@@ -618,7 +618,7 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
 		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
 			if typeArguments := computer.typeChecker.GetTypeArguments(tsType); len(typeArguments) > 0 {
-				// Positional, not sorted — `WeakMap<K, V>` is not `WeakMap<V, K>`.
+				// Positional, not sorted — argument ORDER is part of the type.
 				id = collectionJoined(int(reflection.SubKindNonSerializable),
 					strings.Join(computer.childIDs(typeArguments), ","), false)
 			}
