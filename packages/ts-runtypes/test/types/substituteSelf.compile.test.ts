@@ -31,6 +31,20 @@
 // measured and rejected: an assignability check and an `infer`-based slot read
 // each force the deferred recursive type and trip TS2589 on every recursive
 // schema. The ratchet stays one-way from these numbers.
+//
+// A SECOND REVIEWED EXCEPTION raised every branch by 3–12 (under 1% each):
+// `BuiltinClassLeaf` gained the binary builtins, so the leaf test each node
+// runs carries three more arms. It buys the same class of bug the first
+// exception did, for a second family: a typed array's `subarray()` returns its
+// own type, so walking one circularly references itself, the node was rebuilt
+// into a plain object, and `interface A {m: DataView; kids: A[]}` stopped
+// agreeing with the `circular(object({m: …, kids: array(self())}))` that
+// converts from it. `ArrayBufferView` alone (the arm covering DataView and all
+// twelve typed arrays) fits under the OLD budgets; `ArrayBuffer` and
+// `SharedArrayBuffer` are the two arms that tip it. They are still worth it:
+// they break identically, they are one union arm away from correct, and the
+// fuzz lane cannot see them (its generator never draws a bare buffer), so
+// leaving them out would plant a trap nothing watches.
 
 import {describe, it, expect} from 'vitest';
 import {measureSubstituteSelf} from './substituteSelfHarness.ts';
@@ -55,7 +69,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<N['value'], number>>;
       type _02 = Expect<Equal<N['next'], N | undefined>>; // Self → the type itself
       `,
-      406
+      409
     );
   });
 
@@ -66,7 +80,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<Tree['name'], string>>;
       type _02 = Expect<Equal<Tree['children'], Tree[]>>;
       `,
-      1976
+      1982
     );
   });
 
@@ -78,7 +92,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type S = Recursive<{id: string; kids: Set<Self>}>;
       type _02 = Expect<Equal<S['kids'], Set<S>>>;
       `,
-      1275
+      1287
     );
   });
 
@@ -89,7 +103,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<D['a']['b']['c'], D>>;
       type _02 = Expect<Equal<D['x'], string>>;
       `,
-      721
+      731
     );
   });
 
@@ -99,7 +113,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type F = Recursive<{x: number; run: (next: Self) => Self}>;
       type _01 = Expect<Equal<F['run'], (next: F) => F>>;
       `,
-      496
+      502
     );
   });
 
@@ -110,7 +124,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type _01 = Expect<Equal<Extract<U, {kind: 'node'}>['child'], U>>;
       type _02 = Expect<Equal<Extract<U, {kind: 'leaf'}>['val'], number>>;
       `,
-      473
+      479
     );
   });
 
@@ -120,7 +134,7 @@ describe('SubstituteSelf / Recursive — recursive-schema correctness + budget',
       type P = Recursive<{a: string; b: number; c: {d: boolean}; when: Date}>;
       type _01 = Expect<Equal<P, {a: string; b: number; c: {d: boolean}; when: Date}>>;
       `,
-      265
+      270
     );
   });
 });

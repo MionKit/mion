@@ -185,3 +185,98 @@ getRunTypeId<Map<string, number>>();
 		t.Fatalf("hash id %q is not identifier-safe", mapNode.ID)
 	}
 }
+
+// TestStructural_NonSerializableStableAcrossSpellings — a non-serialisable
+// global's id is its CONSTRUCTOR, so every spelling of the same type shares
+// one cache entry. The id used to be built from the lib member surface
+// instead, and a typed array's `subarray()` returns its own type: whether the
+// checker handed the walk the SAME type pointer (a cycle token) or a fresh
+// instantiation (one more unrolled level) depended on how the type was
+// reached, so these four spellings produced two different ids.
+func TestStructural_NonSerializableStableAcrossSpellings(t *testing.T) {
+	_, bare := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<Uint8Array>();
+`)
+	_, viaTypeof := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+declare const bytes: Uint8Array;
+getRunTypeId<typeof bytes>();
+`)
+	_, explicitArgs := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<Uint8Array<ArrayBuffer | SharedArrayBuffer>>();
+`)
+	_, inAnAlias := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+type Bytes = Uint8Array;
+getRunTypeId<Bytes>();
+`)
+	for _, spelled := range []struct {
+		label string
+		node  *reflection.RunType
+	}{{"typeof a variable", viaTypeof}, {"explicit default arguments", explicitArgs}, {"through an alias", inAnAlias}} {
+		if spelled.node.ID != bare.ID {
+			t.Errorf("Uint8Array spelled %s must share the bare id: %q vs %q", spelled.label, spelled.node.ID, bare.ID)
+		}
+	}
+	if bare.SubKind != reflection.SubKindNonSerializable {
+		t.Fatalf("Uint8Array: expected SubKindNonSerializable, got %d", bare.SubKind)
+	}
+}
+
+// TestStructural_NonSerializableFormEquivalence — the reflection call shape
+// reaches the type through the VALUE, the one spelling most likely to hand
+// the walk a differently-interned checker type. It must land on the same
+// entry as the static form (marker coverage rule: paired call shapes, and
+// this is the suite's hash-equivalence pin for the non-serialisable set).
+func TestStructural_NonSerializableFormEquivalence(t *testing.T) {
+	_, static := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<Uint8Array>();
+`)
+	_, reflected := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+const bytes: Uint8Array = new Uint8Array(4);
+getRunTypeId(bytes);
+`)
+	if static.ID != reflected.ID {
+		t.Fatalf("getRunTypeId<Uint8Array>() and getRunTypeId(value) must share an id: %q vs %q", static.ID, reflected.ID)
+	}
+}
+
+// TestStructural_NonSerializableDistinctByName — dropping the member walk
+// must not blur the set together. `Error` and `EvalError` are structurally
+// identical interfaces, so the member walk actually gave them ONE shared id;
+// keying on the constructor name is what tells them apart.
+func TestStructural_NonSerializableDistinctByName(t *testing.T) {
+	ids := map[string]string{}
+	for _, typeName := range []string{"Error", "EvalError", "TypeError", "Uint8Array", "Int8Array", "DataView", "ArrayBuffer"} {
+		_, node := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<`+typeName+`>();
+`)
+		for otherName, otherID := range ids {
+			if otherID == node.ID {
+				t.Errorf("%s and %s must not share a cache entry, both got %q", typeName, otherName, node.ID)
+			}
+		}
+		ids[typeName] = node.ID
+	}
+}
+
+// TestStructural_NonSerializableDistinctByArguments — type arguments stay in
+// the id, in lockstep with projectClass (which keeps them in Arguments). The
+// converter reads those arguments back out of the cached node to print the
+// escape, so two instantiations sharing an entry would print one's arguments
+// for the other. Positional, not sorted: `WeakMap<K,V>` is not `WeakMap<V,K>`.
+func TestStructural_NonSerializableDistinctByArguments(t *testing.T) {
+	idFor := func(typeText string) string {
+		_, node := rootFor(t, `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<`+typeText+`>();
+`)
+		return node.ID
+	}
+	if idFor("WeakSet<object>") == idFor("WeakSet<Date>") {
+		t.Errorf("WeakSet<object> and WeakSet<Date> must not share a cache entry")
+	}
+	if idFor("WeakMap<object, string>") == idFor("WeakMap<object, number>") {
+		t.Errorf("WeakMap value type must reach the id")
+	}
+	if idFor("WeakMap<object, Date>") == idFor("WeakMap<Date, object>") {
+		t.Errorf("WeakMap type arguments are positional — swapping them must change the id")
+	}
+}

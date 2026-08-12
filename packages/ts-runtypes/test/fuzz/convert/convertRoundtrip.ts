@@ -63,20 +63,14 @@ export const CONVERT_GEN_OPTIONS: GenOptions = {
  *  This filter is deliberately as SMALL as it can be, and shrinking it is how
  *  coverage grows: every entry is a shape the generator happily produces and
  *  the lane then refuses to look at, so anything listed here is invisible to
- *  the oracle. Four entries were removed once they started converting —
+ *  the oracle. Six entries were removed once they started converting —
  *  non-string index keys, several index signatures, named members beside an
- *  index (all now `record` / `intersection` spellings), and the binary natives
- *  (`RT.classType`). Symbol-keyed members are the only shape left, and they
+ *  index (all now `record` / `intersection` spellings), the binary natives
+ *  (`RT.classType`), and typed arrays / DataView (whose id used to move with
+ *  the spelling). Symbol-keyed members are the only shape left, and they
  *  refuse because the escape cannot write a symbol's source name down. **/
 function isConvertibleShape(shape: TypeShape): boolean {
   switch (shape.kind) {
-    // The escape prints RESOLVED type arguments, so a typed array comes back
-    // as `Uint8Array<ArrayBuffer | SharedArrayBuffer>` rather than the bare
-    // name — a different type wherever those defaults are not written out,
-    // and the id moves. docs/todos/escape-default-type-arguments.md.
-    case 'typedarray':
-    case 'dataview':
-      return false;
     case 'object':
       if (shape.indexKey?.includes('symbol')) return false;
       break;

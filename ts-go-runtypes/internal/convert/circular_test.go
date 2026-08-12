@@ -213,6 +213,50 @@ func TestCircular_BrandedTemporalConverts(t *testing.T) {
 	}
 }
 
+// TestCircular_BinaryNativesConvert — the same failure mode as the Temporal
+// case above, for the binary builtins: a typed array's `subarray()` returns its
+// own type, so the substitution's member walk circularly referenced itself and
+// rebuilt the node into a plain object, moving the declaration's id. They
+// joined Date / RegExp / Temporal as leaves, so a recursive declaration
+// carrying one now survives the round trip on both targets.
+//
+// Runs the FULL chain (source → json-schema → builders), because the source →
+// json-schema leg passed on its own: the id only moved once the schema form was
+// read back into the value-first builders.
+func TestCircular_BinaryNativesConvert(t *testing.T) {
+	for _, member := range []string{"DataView", "Uint8Array", "Int32Array", "BigInt64Array", "ArrayBuffer", "SharedArrayBuffer"} {
+		t.Run(member, func(t *testing.T) {
+			source := "export interface Node {payload: " + member + "; kids: Node[]}\n"
+			schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+			if t.Failed() {
+				return
+			}
+			buildersForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+			if !strings.Contains(buildersForm, "RT.circular(") {
+				t.Errorf("expected a circular builder:\n%s", buildersForm)
+			}
+		})
+	}
+}
+
+// TestCircular_SelfStillSubstitutesThroughContainers — the negative control for
+// the leaf list above. A leaf arm is tested BEFORE the Map / Set / array arms,
+// so an arm that matched a real container would stop `self()` substituting and
+// silently leak the `Self` brand into the recovered type. (It is also why
+// `WeakMap` / `WeakSet` are NOT leaves: a real Map / Set is structurally
+// assignable to them.)
+func TestCircular_SelfStillSubstitutesThroughContainers(t *testing.T) {
+	for _, kids := range []string{"Node[]", "Map<string, Node>", "Set<Node>", "Record<string, Node>"} {
+		t.Run(kids, func(t *testing.T) {
+			source := "export interface Node {payload: DataView; kids: " + kids + "}\n"
+			schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+			if !t.Failed() {
+				convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+			}
+		})
+	}
+}
+
 func TestCircular_OneOfPrimitiveBranchRefusedOnBuilders(t *testing.T) {
 	// The second residual: the oneOf branch tuple rides EVERY arm, and a
 	// primitive arm passes through the substitution untouched, so its copy of

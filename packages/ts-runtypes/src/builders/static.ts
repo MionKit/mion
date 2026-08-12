@@ -452,16 +452,15 @@ type CarrySlots<T, P extends [unknown]> = {
  *  (the bare one answers `false`). The node was then rebuilt, flattening the
  *  class into a plain object and moving its structural id.
  *
- *  The guard mirrors `TemporalInstanceOrNever` in
+ *  The Temporal guard mirrors `TemporalInstanceOrNever` in
  *  formats/datetime/temporalFormats.ts — this region is sliced verbatim into
  *  the budget harness and so cannot import it, and
  *  `assertionsBuiltinClassLeavesAreExhaustive` (test/types/structural.test.ts)
  *  fails the build if the two ever disagree. `never` is the right fallback for
- *  a UNION position: without the Temporal lib every arm vanishes and the leaf
- *  list is exactly `Date | RegExp` again. **/
+ *  a UNION position: without the Temporal lib every arm vanishes. **/
 type TemporalLeaf<K extends string> = typeof globalThis extends {Temporal: Record<K, {prototype: infer I}>} ? I : never;
 
-export type BuiltinClassLeaf =
+export type TemporalClassLeaf =
   | TemporalLeaf<'Instant'>
   | TemporalLeaf<'ZonedDateTime'>
   | TemporalLeaf<'PlainDate'>
@@ -470,6 +469,24 @@ export type BuiltinClassLeaf =
   | TemporalLeaf<'PlainYearMonth'>
   | TemporalLeaf<'PlainMonthDay'>
   | TemporalLeaf<'Duration'>;
+
+/** The binary builtins are leaves for the SAME reason: a typed array's
+ *  `subarray()` / `slice()` return their own type, so the member walk
+ *  circularly references itself and the node was rebuilt into a plain object,
+ *  moving its id — `interface A {m: DataView; kids: A[]}` and the
+ *  `circular(object({m: …, kids: array(self())}))` that converts from it
+ *  stopped agreeing. Three arms cover all twelve: `ArrayBufferView` is the one
+ *  lib type every typed array AND `DataView` extend, the same collapse
+ *  `DataOnlyStripped` (runtypes/dataOnly.ts) uses.
+ *
+ *  `WeakMap` / `WeakSet` are deliberately NOT here. A real `Map` / `Set` is
+ *  structurally assignable to them, so a leaf test that runs BEFORE the Map /
+ *  Set arms below would swallow `map(string(), self())` and leak the `Self`.
+ *  They are still walked, and still flatten — see
+ *  docs/todos/weak-collections-flatten-in-recursive-schemas.md. **/
+type BinaryClassLeaf = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+
+export type BuiltinClassLeaf = TemporalClassLeaf | BinaryClassLeaf;
 
 /** Does `T` reference `Self` anywhere? A carrier that does NOT is returned
  *  VERBATIM — no rebuild can preserve a shape better than not rebuilding it,
