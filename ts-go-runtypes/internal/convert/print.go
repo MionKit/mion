@@ -498,6 +498,30 @@ func (ctx *printContext) multiNegationDiag() *Diagnostic {
 		Message: "stacked negations are not convertible yet (one not per node prints)"}
 }
 
+// unevaluatedDiag refuses a node carrying an `unevaluated*` sweep
+// (reflection.UnevaluatedCheck), and nil otherwise. No printer has a spelling
+// for the sweep yet — not even the escapes, since the sentinel is lifted OFF
+// the type and quoted type text cannot carry it — and every printer used to
+// walk right past the slot, so the constraint vanished from the output without
+// a diagnostic and the declaration's id moved with it
+// (docs/done/convert-drops-unevaluated.md). Sitting at the top of all three
+// printer cores, the guard covers nested nodes, call sites and the
+// getRunType/embedType escapes alike.
+func (ctx *printContext) unevaluatedDiag(node *reflection.RunType) *Diagnostic {
+	if len(node.Unevaluated) == 0 {
+		return nil
+	}
+	keyword := "unevaluatedProperties/unevaluatedItems"
+	switch node.Kind {
+	case reflection.KindObjectLiteral, reflection.KindObject:
+		keyword = "unevaluatedProperties"
+	case reflection.KindArray, reflection.KindTuple:
+		keyword = "unevaluatedItems"
+	}
+	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+		Message: fmt.Sprintf("an %s sweep is not convertible yet (converting would silently drop the constraint and change the type's identity)", keyword)}
+}
+
 // exactBrandType renders the exact TypeFormat constructor for an annotation:
 // no defaults merge, provably the reflected brand.
 func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
@@ -1224,6 +1248,9 @@ func isIdentifierText(text string) bool {
 // typeExprCore is the kind dispatch behind typeExpr (negations, format
 // annotations, then the kind switch), without the reference/cycle/meta layer.
 func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagnostic) {
+	if diag := ctx.unevaluatedDiag(node); diag != nil {
+		return "", diag
+	}
 	if len(node.Negations) > 0 {
 		if len(node.Negations) > 1 {
 			return "", ctx.multiNegationDiag()
@@ -1361,6 +1388,15 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 	case reflection.KindEnum:
 		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
+		// Same verdict the builders and schema printers read: a union whose
+		// exclusivity the engine refuses must not print. Without this the
+		// OneOf branch below emitted the branch tuple ALONE, so the arm
+		// outside it (`OneOf<[A, B]> | C`'s C) vanished from the printed type
+		// without a word — the exact silent drop 848f00e fixed for the other
+		// two targets.
+		if diag := ctx.partialOneOfDiag(node); diag != nil {
+			return "", diag
+		}
 		if len(node.OneOf) > 0 {
 			var branches []string
 			for _, branchRef := range node.OneOf {
@@ -1663,6 +1699,9 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
+	if diag := ctx.unevaluatedDiag(node); diag != nil {
+		return "", diag
+	}
 	if len(node.TypeMeta) > 0 {
 		// User-metadata intersections have no value-first spelling — the
 		// type-argument escape carries the intersection exactly.
@@ -2088,6 +2127,9 @@ func (ctx *printContext) schemaMetaText(node *reflection.RunType) (string, *Diag
 // and past the metadata split, so schemaMetaText can ask for a node's base
 // spelling without re-running any of it.
 func (ctx *printContext) schemaExprCore(node *reflection.RunType) (string, *Diagnostic) {
+	if diag := ctx.unevaluatedDiag(node); diag != nil {
+		return "", diag
+	}
 	dialect := func(literal string) (string, *Diagnostic) {
 		if ctx.opts.Portable {
 			return "", &Diagnostic{Code: CodePortableDialect, Severity: SeverityError, Decl: declLabel(ctx.decl),

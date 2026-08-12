@@ -91,6 +91,43 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     keeps: 'export type Tagged = {[tag]: number};',
   },
 
+  // ── unevaluated* sweeps ────────────────────────────────────────────────
+  // No printer has a spelling for the sweep yet — not even the escapes, since
+  // the sentinel is lifted OFF the type and quoted type text cannot carry it.
+  // It folds into the type's identity, so dropping it would silently change
+  // what the validator rejects. See docs/done/convert-drops-unevaluated.md.
+  {
+    title: 'a schema carrying an unevaluatedProperties sweep',
+    files: {
+      'main.ts':
+        "import {type InferType} from '@ts-runtypes/core';\n" +
+        "import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
+        "export const xRT = runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false} as const);\n" +
+        'export type X = InferType<typeof xRT>;\n',
+    },
+    target: 'type',
+    code: 'CNV001',
+    says: 'unevaluatedProperties sweep',
+    keeps: 'unevaluatedProperties: false} as const);',
+  },
+  {
+    title: 'a schema carrying an unevaluatedItems sweep',
+    // An OPEN prefix tuple: `items` beside the sweep would evaluate every
+    // slot and the door rightly drops the no-op, so this is the shape where
+    // the sweep actually carries.
+    files: {
+      'main.ts':
+        "import {type InferType} from '@ts-runtypes/core';\n" +
+        "import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
+        "export const pairRT = runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}], minItems: 1, unevaluatedItems: false} as const);\n" +
+        'export type Pair = InferType<typeof pairRT>;\n',
+    },
+    target: 'builders',
+    code: 'CNV001',
+    says: 'unevaluatedItems sweep',
+    keeps: 'unevaluatedItems: false} as const);',
+  },
+
   // ── An exclusive union that is not the whole union ────────────────────
   {
     title: 'an exclusive union sitting beside an ordinary union arm',
@@ -120,6 +157,24 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     code: 'CNV001',
     says: 'beside ordinary union members',
     keeps: 'export type Mixed = OneOf<[{a: string}, {b: number}]> | null;',
+  },
+  {
+    title: 'an exclusive union beside an ordinary arm, converting to plain types',
+    // Written value-first (the type form is already the target otherwise).
+    // The type printer reads the same projection verdict the other two do;
+    // before it did, `RT.OneOf<[A, B]>` printed with the `| number` arm
+    // silently gone.
+    files: {
+      'main.ts':
+        "import {getRunType, type InferType} from '@ts-runtypes/core';\n" +
+        "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
+        'export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();\n' +
+        'export type Mixed = InferType<typeof mixedRT>;\n',
+    },
+    target: 'type',
+    code: 'CNV001',
+    says: 'beside ordinary union members',
+    keeps: 'export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();',
   },
 
   // ── Recursion the value-first form cannot carry ───────────────────────

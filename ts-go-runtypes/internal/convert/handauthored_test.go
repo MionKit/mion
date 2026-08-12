@@ -52,20 +52,21 @@ func TestHandAuthored_EveryDialectKeyword(t *testing.T) {
 		"tsMeta":         `{tsMeta: {base: {type: 'string'}, meta: [{type: 'object', properties: {__brand: {const: 'UserId'}}, required: ['__brand'], tsReadonly: ['__brand']}]}}`,
 		// The structural core keywords, which carry no dialect spelling but
 		// reach the same collapse machinery.
-		"not":                   `{type: 'string', not: {format: 'email'}}`,
-		"contains":              `{type: 'array', items: {type: 'number'}, contains: {const: 7}, minContains: 1}`,
-		"patternProperties":     `{type: 'object', patternProperties: {'^n_': {type: 'number'}}}`,
-		"propertyNames":         `{type: 'object', propertyNames: {pattern: '^[a-z]+$'}}`,
-		"minProperties":         `{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], minProperties: 1}`,
-		"oneOf":                 `{oneOf: [{type: 'object', properties: {a: {type: 'string'}}, required: ['a']}, {type: 'object', properties: {b: {type: 'number'}}, required: ['b']}]}`,
-		"selfRef":               `{type: 'object', properties: {kids: {type: 'array', items: {$ref: '#'}}}, required: ['kids']}`,
-		"unevaluatedProperties": `{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false}`,
+		"not":               `{type: 'string', not: {format: 'email'}}`,
+		"contains":          `{type: 'array', items: {type: 'number'}, contains: {const: 7}, minContains: 1}`,
+		"patternProperties": `{type: 'object', patternProperties: {'^n_': {type: 'number'}}}`,
+		"propertyNames":     `{type: 'object', propertyNames: {pattern: '^[a-z]+$'}}`,
+		"minProperties":     `{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], minProperties: 1}`,
+		"oneOf":             `{oneOf: [{type: 'object', properties: {a: {type: 'string'}}, required: ['a']}, {type: 'object', properties: {b: {type: 'number'}}, required: ['b']}]}`,
+		"selfRef":           `{type: 'object', properties: {kids: {type: 'array', items: {$ref: '#'}}}, required: ['kids']}`,
+		// The unevaluated* keywords are NOT rows here: they refuse by design
+		// (TestUnevaluatedSweep_RefusesInsteadOfDropping in
+		// reviewfindings_test.go — docs/done/convert-drops-unevaluated.md).
 	}
-	// Two rows this coverage FOUND and did not fix — each has a filed spec, and
+	// One row this coverage FOUND and did not fix — it has a filed spec, and
 	// stays listed so the gap is visible rather than absent.
 	open := map[string]string{
-		"unevaluatedProperties": "docs/todos/convert-drops-unevaluated.md — the constraint is dropped silently on both targets",
-		"propertyNames":         "docs/todos/propertynames-non-string-key-schema.md — a TYPELESS propertyNames subschema lowers to a union the value-first builder cannot carry",
+		"propertyNames": "docs/todos/propertynames-non-string-key-schema.md — a TYPELESS propertyNames subschema lowers to a union the value-first builder cannot carry",
 	}
 	for name, schema := range cases {
 		t.Run(name, func(t *testing.T) {
