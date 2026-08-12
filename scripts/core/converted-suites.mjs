@@ -59,6 +59,10 @@ if (targets.length === 0) {
   console.error(`converted-suites: unknown --target '${only}'. Try: ${TARGETS.map((t) => t.name).join(' | ')}`);
   process.exit(2);
 }
+if (!existsSync(BINARY)) {
+  console.error('converted-suites: bin/ts-runtypes is missing — run `pnpm run check:builds` first.');
+  process.exit(1);
+}
 
 const removeTrees = () => {
   for (const target of targets) rmSync(target.dir, {recursive: true, force: true});
@@ -105,9 +109,4 @@ try {
   // `pnpm test` to trip over. `--keep` opts out so a failure can be inspected.
   if (keep) console.log(`-> --keep: left ${targets.map((t) => path.relative(REPO_ROOT, t.dir)).join(', ')} in place`);
   else removeTrees();
-}
-
-if (!existsSync(BINARY)) {
-  console.error('converted-suites: bin/ts-runtypes is missing — run `pnpm run check:builds` first.');
-  process.exitCode = 1;
 }
