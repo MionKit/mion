@@ -242,9 +242,8 @@ func TestCircular_BinaryNativesConvert(t *testing.T) {
 // TestCircular_SelfStillSubstitutesThroughContainers — the negative control for
 // the leaf list above. A leaf arm is tested BEFORE the Map / Set / array arms,
 // so an arm that matched a real container would stop `self()` substituting and
-// silently leak the `Self` brand into the recovered type. (It is also why
-// `WeakMap` / `WeakSet` are NOT leaves: a real Map / Set is structurally
-// assignable to them.)
+// silently leak the `Self` brand into the recovered type — which is the bound
+// on what may ever join that list.
 func TestCircular_SelfStillSubstitutesThroughContainers(t *testing.T) {
 	for _, kids := range []string{"Node[]", "Map<string, Node>", "Set<Node>", "Record<string, Node>"} {
 		t.Run(kids, func(t *testing.T) {

@@ -479,11 +479,11 @@ export type TemporalClassLeaf =
  *  lib type every typed array AND `DataView` extend, the same collapse
  *  `DataOnlyStripped` (runtypes/dataOnly.ts) uses.
  *
- *  `WeakMap` / `WeakSet` are deliberately NOT here. A real `Map` / `Set` is
- *  structurally assignable to them, so a leaf test that runs BEFORE the Map /
- *  Set arms below would swallow `map(string(), self())` and leak the `Self`.
- *  They are still walked, and still flatten — see
- *  docs/todos/weak-collections-flatten-in-recursive-schemas.md. **/
+ *  Nothing may be added here that a real `Map` / `Set` is structurally
+ *  assignable to, since this test runs BEFORE the Map / Set arms below: such an
+ *  arm would swallow `map(string(), self())` and leak the `Self`. That rules
+ *  out the weak collections, which `DataOnlyStripped` (runtypes/dataOnly.ts)
+ *  leaves out for the same reason. **/
 type BinaryClassLeaf = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
 
 export type BuiltinClassLeaf = TemporalClassLeaf | BinaryClassLeaf;
