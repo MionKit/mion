@@ -19,7 +19,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
@@ -111,7 +110,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	source := sourceFile.Text()
 	result := &FileResult{Path: absPath, Output: source}
 
-	decls := recognizeFile(sourceFile, typeChecker, fs)
+	decls := set.declsFor(sourceFile, absPath, typeChecker, fs)
 	imports := scanImports(sourceFile, source)
 	inScope := inScopeNames(sourceFile)
 	names := newNames(decls, imports, inScope)
@@ -199,7 +198,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			dropped := false
 			kept := planned[:0]
 			for _, plan := range planned {
-				if plan.decl.Form != TargetType && constUsedBeyondConversions(prog, typeChecker, fs, set, plan.decl, absPath, opts.Target, keptSpans) {
+				if plan.decl.Form != TargetType && constUsedBeyondConversions(set, plan.decl, absPath, opts.Target, keptSpans) {
 					result.Diags = append(result.Diags, Diagnostic{Code: CodeConstStillUsed, Severity: SeverityError, File: absPath, Decl: plan.decl.ConstName,
 						Message: fmt.Sprintf("const %q is referenced outside the converted declarations; converting it away would break those uses", plan.decl.ConstName)})
 					dropped = true
@@ -260,64 +259,37 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 // rewritten spans are exactly the declarations that PRINTED successfully
 // (currentFileSpans); for OTHER in-set files the run optimistically counts
 // their convertible candidate declarations (each file's own conversion
-// applies the same safety check to itself).
-func constUsedBeyondConversions(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, set *Set, decl *declaration, currentFile string, target Target, currentFileSpans [][2]int) bool {
+// applies the same safety check to itself). The use positions come from the
+// set's program-wide index (set.constUseIndex — built once per run), so the
+// fixpoint iterations only re-filter positions against spans.
+func constUsedBeyondConversions(set *Set, decl *declaration, currentFile string, target Target, currentFileSpans [][2]int) bool {
 	if decl.ConstName == "" {
 		return false
 	}
-	constSymbol := typeChecker.GetSymbolAtLocation(decl.NameNode)
+	constSymbol := set.checker.GetSymbolAtLocation(decl.NameNode)
 	if constSymbol == nil {
 		return false
 	}
-	for _, sourceFile := range prog.TS.SourceFiles() {
-		path := sourceFile.FileName()
-		if strings.Contains(path, "/node_modules/") || strings.HasPrefix(path, "bundled://") {
-			continue
-		}
-		var rewrittenSpans [][2]int
-		if path == currentFile {
-			rewrittenSpans = currentFileSpans
-		} else if set.Files[path] {
-			for _, other := range recognizeFile(sourceFile, typeChecker, fs) {
-				if other.Generic || other.Form == target {
-					continue
-				}
-				rewrittenSpans = append(rewrittenSpans, [2]int{other.Stmt.Pos(), other.Stmt.End()})
-				if other.AliasStmt != nil {
-					rewrittenSpans = append(rewrittenSpans, [2]int{other.AliasStmt.Pos(), other.AliasStmt.End()})
-				}
+	inSpans := func(pos int, spans [][2]int) bool {
+		for _, span := range spans {
+			if pos >= span[0] && pos < span[1] {
+				return true
 			}
 		}
-		inRewritten := func(pos int) bool {
-			for _, span := range rewrittenSpans {
-				if pos >= span[0] && pos < span[1] {
-					return true
-				}
+		return false
+	}
+	otherFileSpans := set.candidateSpansFor(target)
+	for _, use := range set.constUseIndex()[constSymbol] {
+		switch {
+		case use.file == currentFile:
+			if !inSpans(use.pos, currentFileSpans) {
+				return true
 			}
-			return false
-		}
-		used := false
-		var walk func(node *ast.Node) bool
-		walk = func(node *ast.Node) bool {
-			if node == nil || used {
-				return used
+		case set.Files[use.file]:
+			if !inSpans(use.pos, otherFileSpans[use.file]) {
+				return true
 			}
-			if ast.IsIdentifier(node) && node.Text() == decl.ConstName && !inRewritten(node.Pos()) {
-				if symbol := typeChecker.GetSymbolAtLocation(node); symbol != nil && checker.SkipAlias(symbol, typeChecker) == constSymbol {
-					// Import specifiers re-binding the const don't count as
-					// uses on their own; real uses resolve the same symbol at
-					// their own position.
-					if node.Parent == nil || !ast.IsImportSpecifier(node.Parent) {
-						used = true
-						return true
-					}
-				}
-			}
-			node.ForEachChild(walk)
-			return used
-		}
-		sourceFile.AsNode().ForEachChild(walk)
-		if used {
+		default:
 			return true
 		}
 	}

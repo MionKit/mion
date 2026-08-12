@@ -36,16 +36,45 @@ type RefTarget struct {
 }
 
 // Set is the run-wide conversion context: the files converted together and
-// the declaration-id reference table across all of them.
+// the declaration-id reference table across all of them. It also memoizes
+// recognition and the const-reference index — a run recognizes each file
+// once and walks the program for const uses once, instead of re-doing both
+// per candidate declaration inside the const-away fixpoint.
 type Set struct {
 	Files map[string]bool
 	Table map[string]RefTarget
+
+	// The program the set was built over — the index and memo below read it.
+	prog    *program.Program
+	checker *checker.Checker
+	fs      vfspkg.FS
+	// declsByFile memoizes recognizeFile per in-set file (keyed the way the
+	// checker names files, which is how set.Files is keyed too).
+	declsByFile map[string][]*declaration
+	// constUses maps each in-set const declaration's symbol to every use
+	// position across the whole program (import specifiers excluded — they
+	// re-bind, real uses resolve the symbol at their own position). Built
+	// lazily by constUseIndex on the first const-away check.
+	constUses map[*ast.Symbol][]constUse
+	// candidateSpans caches, per target, the statement spans each in-set
+	// file's own conversion would rewrite — the spans whose const uses do
+	// not keep a const alive (each file applies the same safety check to
+	// itself). Built lazily by candidateSpansFor.
+	candidateSpans map[Target]map[string][][2]int
+}
+
+// constUse is one identifier use of an in-set const: the file the checker
+// names and the node position, comparable against statement spans.
+type constUse struct {
+	file string
+	pos  int
 }
 
 // BuildSet recognizes and resolves every file's declarations once, up front,
 // so each file's conversion can reference the others.
 func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absFiles []string) (*Set, error) {
-	set := &Set{Files: map[string]bool{}, Table: map[string]RefTarget{}}
+	set := &Set{Files: map[string]bool{}, Table: map[string]RefTarget{},
+		prog: prog, checker: typeChecker, fs: fs, declsByFile: map[string][]*declaration{}}
 	for _, absPath := range absFiles {
 		set.Files[absPath] = true
 	}
@@ -54,7 +83,9 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 		if sourceFile == nil {
 			return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
 		}
-		for _, decl := range recognizeFile(sourceFile, typeChecker, fs) {
+		decls := recognizeFile(sourceFile, typeChecker, fs)
+		set.declsByFile[absPath] = decls
+		for _, decl := range decls {
 			if decl.Generic || decl.Name == "" {
 				// Generic declarations have no reference spelling; alias-less
 				// consts have no type name that survives conversion — both
@@ -73,6 +104,100 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 		}
 	}
 	return set, nil
+}
+
+// declsFor returns the memoized recognition for an in-set file, recognizing
+// on the spot for a file outside the memo (defensive — ConvertFile is only
+// ever handed set files).
+func (set *Set) declsFor(sourceFile *ast.SourceFile, absPath string, typeChecker *checker.Checker, fs vfspkg.FS) []*declaration {
+	if decls, memoized := set.declsByFile[absPath]; memoized {
+		return decls
+	}
+	return recognizeFile(sourceFile, typeChecker, fs)
+}
+
+// constUseIndex builds (once) the program-wide use index of every in-set
+// const declaration: one walk over every source file, recording each
+// identifier that resolves (through import aliases) to one of the candidate
+// const symbols. The const-away safety check used to run this walk per
+// candidate const, per fixpoint iteration.
+func (set *Set) constUseIndex() map[*ast.Symbol][]constUse {
+	if set.constUses != nil {
+		return set.constUses
+	}
+	set.constUses = map[*ast.Symbol][]constUse{}
+	candidates := map[*ast.Symbol]bool{}
+	names := map[string]bool{}
+	for _, decls := range set.declsByFile {
+		for _, decl := range decls {
+			if decl.ConstName == "" {
+				continue
+			}
+			if symbol := set.checker.GetSymbolAtLocation(decl.NameNode); symbol != nil {
+				candidates[symbol] = true
+				names[decl.ConstName] = true
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return set.constUses
+	}
+	for _, sourceFile := range set.prog.TS.SourceFiles() {
+		path := sourceFile.FileName()
+		if strings.Contains(path, "/node_modules/") || strings.HasPrefix(path, "bundled://") {
+			continue
+		}
+		var walk func(node *ast.Node) bool
+		walk = func(node *ast.Node) bool {
+			if node == nil {
+				return false
+			}
+			if ast.IsIdentifier(node) && names[node.Text()] {
+				if symbol := set.checker.GetSymbolAtLocation(node); symbol != nil {
+					if resolved := checker.SkipAlias(symbol, set.checker); resolved != nil && candidates[resolved] {
+						// Import specifiers re-binding the const don't count as
+						// uses on their own; real uses resolve the same symbol
+						// at their own position.
+						if node.Parent == nil || !ast.IsImportSpecifier(node.Parent) {
+							set.constUses[resolved] = append(set.constUses[resolved], constUse{file: path, pos: node.Pos()})
+						}
+					}
+				}
+			}
+			node.ForEachChild(walk)
+			return false
+		}
+		sourceFile.AsNode().ForEachChild(walk)
+	}
+	return set.constUses
+}
+
+// candidateSpansFor returns (building once per target) the statement spans
+// each in-set file's own conversion would rewrite: every non-generic
+// declaration not already in the target form, alias statements included.
+// Const uses inside these spans do not keep a const alive — each file's own
+// conversion applies the same safety check to itself.
+func (set *Set) candidateSpansFor(target Target) map[string][][2]int {
+	if set.candidateSpans == nil {
+		set.candidateSpans = map[Target]map[string][][2]int{}
+	}
+	if spans, cached := set.candidateSpans[target]; cached {
+		return spans
+	}
+	spans := map[string][][2]int{}
+	for path, decls := range set.declsByFile {
+		for _, other := range decls {
+			if other.Generic || other.Form == target {
+				continue
+			}
+			spans[path] = append(spans[path], [2]int{other.Stmt.Pos(), other.Stmt.End()})
+			if other.AliasStmt != nil {
+				spans[path] = append(spans[path], [2]int{other.AliasStmt.Pos(), other.AliasStmt.End()})
+			}
+		}
+	}
+	set.candidateSpans[target] = spans
+	return spans
 }
 
 // singleFileSet is the implicit set when ConvertFile is called without one.
