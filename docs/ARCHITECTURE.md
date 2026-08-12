@@ -130,7 +130,7 @@ The program has four subcommands:
   rest parameter and the names ride an intersection on it, so the optional marker and the
   names cannot both survive). Refusals are loud per-declaration
   CNV diagnostics (unnamed cycles, a cycle closing on a tuple slot, symbol keys,
-  Temporal resolving to any); a generic declaration is a WARNING, not an error — a
+  Temporal resolving to any, `unevaluated*` sweeps); a generic declaration is a WARNING, not an error — a
   type parameter has no runtime shape, so there is nothing to convert, and its
   instantiations convert wherever they are reflected. The whole suite tree converts
   and runs in both value forms on every release gate (`pnpm rtx core

@@ -12,6 +12,74 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/convert"
 )
 
+// expectSingleRefusal asserts the conversion produced exactly one Error diag
+// with the given code and message fragment, and left the source byte-identical.
+func expectSingleRefusal(t *testing.T, source string, target convert.Target, code, says string) {
+	t.Helper()
+	output, diags := convertOne(t, source, convert.Options{Target: target})
+	errors := 0
+	for _, diagnostic := range diags {
+		if diagnostic.Severity != convert.SeverityError {
+			continue
+		}
+		errors++
+		if diagnostic.Code != code {
+			t.Errorf("--to %s: expected %s, got %s: %s", target, code, diagnostic.Code, diagnostic.Message)
+		}
+		if !strings.Contains(diagnostic.Message, says) {
+			t.Errorf("--to %s: message %q does not mention %q", target, diagnostic.Message, says)
+		}
+	}
+	if errors != 1 {
+		t.Errorf("--to %s: expected exactly one refusal, got %d: %+v", target, errors, diags)
+	}
+	if output != source {
+		t.Errorf("--to %s: a refused declaration must stay byte-identical:\n%s", target, output)
+	}
+}
+
+func TestUnevaluatedSweep_RefusesInsteadOfDropping(t *testing.T) {
+	// No printer has a spelling for the sweep yet, and it used to be dropped
+	// with no diagnostic — the id moved silently
+	// (docs/done/convert-drops-unevaluated.md). The refusal must name the
+	// keyword and fire on the type target and the builders target alike; the
+	// json-schema target never sees it (a schema-form declaration is already
+	// in the target form, so conversion skips it byte-identically).
+	props := handAuthored(
+		`{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false}`)
+	// `items` beside the sweep would evaluate every slot and the door rightly
+	// drops the no-op; an OPEN prefix tuple leaves the tail unevaluated, so
+	// the sweep carries.
+	items := handAuthored(`{type: 'array', prefixItems: [{type: 'string'}], minItems: 1, unevaluatedItems: false}`)
+	for _, target := range []convert.Target{convert.TargetType, convert.TargetBuilders} {
+		expectSingleRefusal(t, props, target, convert.CodeUnsupportedKind, "unevaluatedProperties")
+		expectSingleRefusal(t, items, target, convert.CodeUnsupportedKind, "unevaluatedItems")
+	}
+
+	// The CALL-SITE path hits the same guard: a value-form call converts only
+	// on --to type (value→value call rewrites are out of scope by design), and
+	// there the sweep refuses instead of vanishing from the rewritten call.
+	callSite := "import {createValidateFn} from '@ts-runtypes/core';\n" +
+		"import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
+		"export function check(value: unknown): boolean {\n" +
+		"  const isType = createValidateFn(runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false} as const));\n" +
+		"  return isType(value);\n" +
+		"}\n"
+	expectSingleRefusal(t, callSite, convert.TargetType, convert.CodeUnsupportedKind, "unevaluatedProperties")
+}
+
+func TestPartialOneOf_RefusesOnTypeTarget(t *testing.T) {
+	// The builders and schema printers read the projection's oneOf-defect
+	// verdict; the type printer did not, so `OneOf<[A, B]> | number` written
+	// value-first printed `RT.OneOf<[A, B]>` on --to type — the `| number` arm
+	// vanished without a word and the id moved.
+	source := "import {getRunType, type InferType} from '@ts-runtypes/core';\n" +
+		"import {type OneOf} from '@ts-runtypes/core/builders';\n" +
+		"export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();\n" +
+		"export type Mixed = InferType<typeof mixedRT>;\n"
+	expectSingleRefusal(t, source, convert.TargetType, convert.CodeUnsupportedKind, "beside ordinary union members")
+}
+
 func TestTemplateLiteral_CarriageReturnEscapes(t *testing.T) {
 	source := "export type Weird = `a\\r${string}b`;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
