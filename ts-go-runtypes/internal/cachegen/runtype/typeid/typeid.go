@@ -602,10 +602,30 @@ func (computer *Computer) objectID(tsType *checker.Type) string {
 	}
 	// Non-serialisable globals (Error, WeakMap, typed arrays, …) are tagged
 	// with SubKindNonSerializable and use that as their structural prefix —
-	// matches the `subKind || kind` rule.
+	// matches the `subKind || kind` rule. Identity is the CONSTRUCTOR NAME
+	// (plus any type arguments), never the lib member surface, in lockstep
+	// with projectClass: the projection deliberately stops at
+	// subKind + classRef + Arguments because no consumer walks lib members and
+	// the expanded shape carries "an unstable structural id". Walking them
+	// here made that instability real — a typed array's `subarray()` returns
+	// its own type, and whether the checker hands back the SAME type pointer
+	// (cycle token) or a fresh instantiation (one more unrolled level) depends
+	// on how the type was reached, so `Uint8Array` and `typeof someUint8Array`
+	// hashed differently. It was also no more discriminating: `Error` and
+	// `EvalError` are structurally identical, so the member walk gave them one
+	// shared id anyway.
 	if symbol := tsType.Symbol(); symbol != nil && reflection.IsNonSerializableSymbol(symbol.Name) {
-		ids := computer.memberIDs(tsType, true)
-		return collectionJoined(int(reflection.SubKindNonSerializable), computer.sortedJoin(ids), false)
+		id := strconv.Itoa(int(reflection.SubKindNonSerializable))
+		if tsType.ObjectFlags()&checker.ObjectFlagsReference != 0 {
+			if typeArguments := computer.typeChecker.GetTypeArguments(tsType); len(typeArguments) > 0 {
+				// Positional, not sorted — `WeakMap<K, V>` is not `WeakMap<V, K>`.
+				id = collectionJoined(int(reflection.SubKindNonSerializable),
+					strings.Join(computer.childIDs(typeArguments), ","), false)
+			}
+		}
+		// Same `#name` suffix convention as the class branch below: outside the
+		// `{…}` group so it cannot be mistaken for a member.
+		return id + "#" + computer.lit(symbol.Name)
 	}
 	if isClass(tsType) {
 		// Generic user class — composition of property ids (sorted for
