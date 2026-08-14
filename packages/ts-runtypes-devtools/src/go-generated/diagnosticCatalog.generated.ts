@@ -415,6 +415,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "TypeScript itself rejects this usage (TS2314), but dev-server builds don't\nrun the type checker, so the scan reads the written type arguments and stops\nthe build here instead of silently reflecting `any` (a validator over `any`\naccepts everything).\n\nFix: pass the missing type argument:\n-  const isA = createValidateFn<A>();\n+  const isA = createValidateFn<A<string>>();\n\nFix: or give the parameter a default, which the compiler resolves at every\nbare use site:\n-  interface A<S extends string> { a: S }\n+  interface A<S extends string = string> { a: S }\n   const isA = createValidateFn<A>();   // now resolves to A<string>",
   },
+  MKR012: {
+    headline:
+      '`{0}` here was declared by `{1}`, which this project does not trust as a marker package, so the type argument was dropped and this call reflects `unknown`.',
+    severity: 'warning',
+    detail:
+      'A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     "name": "ts-runtypes",\n+    "markers": {"packages": ["{1}"]}\n   }\n\nThe list is additive, so `@ts-runtypes/core` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from \'@ts-runtypes/core\'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.',
+  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',

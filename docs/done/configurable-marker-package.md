@@ -50,8 +50,18 @@ The unconfigured case does NOT behave symmetrically across the two call shapes, 
 
 So the package gate's real bite is on the static form, and the silent `unknown` is exactly what naming the package fixes.
 
-## Left open
+## The near-miss diagnostic (MKR012)
 
-A **diagnostic** for the near-miss case (a type named like a marker, declared in a package we do not trust) was scoped out. Today that still degrades silently to `unknown` rather than telling the user to add the package to `markers.packages`; the new tests document the behaviour but do not improve it. Filed separately as [marker-package-near-miss-diagnostic.md](../todos/marker-package-near-miss-diagnostic.md).
+Shipped in the same change, because the silent `unknown` above is the failure this feature exists to prevent and leaving it unreported would have shipped the fix without the signal that you need it.
+
+`marker.DetectNearMiss` reports a type whose alias NAME is a marker's but whose declaration failed the gate, and the scan raises **MKR012** (Warning) naming both the marker and the package that declared it, pointing at `markers.packages`. It is deliberately narrow:
+
+- It only runs when an INJECTION marker resolved with a nil type argument — i.e. only the brand-property fallback matched — so it costs nothing on the hot path and cannot fire on an ordinary parameter.
+- It never fires when `checkPackage: false` (nothing can be rejected), nor once the package is trusted, so the fix genuinely silences it.
+- It never fires for a brand declared by the USING file's own package. That is a project's own same-named local type, which is exactly what the gate exists to keep inert, and warning on it every time would be noise.
+
+Pinned by four tests: fires with the right args, and stays silent in each of the three cases above.
+
+## Left open
 
 `cmd/ts-runtypes-wasm` still constructs `marker.Options{}` — the playground has no tsconfig plugin block to read, so there is nothing to thread yet.
