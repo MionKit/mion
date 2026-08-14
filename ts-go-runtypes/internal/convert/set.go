@@ -567,6 +567,69 @@ func temporalAnyDiags(typeChecker *checker.Checker, decl *declaration, currentFi
 	return diags
 }
 
+// unresolvedNameDiags walks one declaration's WRITTEN type syntax for type
+// references that resolved to the checker's ERROR type — `any` the author
+// never wrote, produced by a name that failed to resolve (a typo, missing
+// dependency types, an ambient declaration outside the program). Converting
+// such a declaration would cement `any` / `RT.any()` into the rewritten
+// source, so it errors instead (CNV008). Convert twin of the resolver's
+// MKR013 guard (resolver/unresolved_name_guard.go); `Temporal.*` references
+// are skipped because CNV007 above owns them with a lib-specific message. A
+// written `any`, and a resolved `type Loose = any`, are the true `any`
+// intrinsic — marker.IsErrorLikeAny rejects them by construction.
+func unresolvedNameDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) []Diagnostic {
+	var diags []Diagnostic
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if ast.IsTypeReferenceNode(node) {
+			if _, isTemporal := temporalRefName(node); !isTemporal {
+				refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
+				if marker.IsErrorLikeAny(refType) {
+					if name, ok := writtenRefName(node); ok {
+						diags = append(diags, Diagnostic{Code: CodeUnresolvedTypeName, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+							Message: fmt.Sprintf("type reference '%s' did not resolve and checked as 'any' — converting would write the degraded type; fix the name or include the missing declaration in the tsconfig", name)})
+					}
+				}
+			}
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	decl.Stmt.ForEachChild(walk)
+	return diags
+}
+
+// writtenRefName renders a TypeReference's written entity name (`Name` or
+// `Ns.Nested.Name`) for the CNV008 message.
+func writtenRefName(typeRefNode *ast.Node) (string, bool) {
+	typeRef := typeRefNode.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeName == nil {
+		return "", false
+	}
+	var render func(entity *ast.Node) (string, bool)
+	render = func(entity *ast.Node) (string, bool) {
+		if entity == nil {
+			return "", false
+		}
+		if entity.Kind == ast.KindIdentifier {
+			return entity.Text(), true
+		}
+		if ast.IsQualifiedName(entity) {
+			qualified := entity.AsQualifiedName()
+			left, leftOk := render(qualified.Left)
+			right, rightOk := render(qualified.Right)
+			if leftOk && rightOk {
+				return left + "." + right, true
+			}
+		}
+		return "", false
+	}
+	return render(typeRef.TypeName)
+}
+
 // temporalRefName reports whether a TypeReference names a builtin Temporal
 // type (`Temporal.<Name>` with <Name> in the registry), returning the
 // qualified spelling for the message.

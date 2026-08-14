@@ -9,6 +9,7 @@ import (
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -300,6 +301,78 @@ func inlineSlice(in []*reflection.RunType, resolve func(id string) *reflection.R
 		out[i] = inlineNode(child, resolve, seen)
 	}
 	return out
+}
+
+// UnresolvedNameRefs walks the WRITTEN type syntax of typeName's declaration
+// in absPath and returns the entity names of every type reference that
+// resolved to the checker's ERROR type — `any` the author never wrote (a
+// typo, missing dependency types, an ambient declaration outside the
+// program). Enrichment twin of the resolver's MKR013 guard: a mirror
+// scaffolded from such a declaration would silently miss the degraded
+// members, so callers refuse (Plan, the CLI/parity contract) or skip
+// (PlanMany, the transient-edit daemon sync) when the list is non-empty. A
+// written `any`, and a resolved `type Loose = any`, are the true `any`
+// intrinsic and never listed. Returns nil when the declaration is absent —
+// the resolve path reports that case itself.
+func UnresolvedNameRefs(prog *program.Program, typeChecker *checker.Checker, absPath, typeName string) []string {
+	if prog == nil || typeChecker == nil {
+		return nil
+	}
+	sourceFile := prog.SourceFile(absPath)
+	if sourceFile == nil {
+		return nil
+	}
+	nameNode := findTypeNameNode(sourceFile, typeName)
+	if nameNode == nil || nameNode.Parent == nil {
+		return nil
+	}
+	var names []string
+	var walk func(node *ast.Node) bool
+	walk = func(node *ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if ast.IsTypeReferenceNode(node) {
+			refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
+			if marker.IsErrorLikeAny(refType) {
+				if name, ok := writtenEntityName(node); ok {
+					names = append(names, name)
+				}
+			}
+		}
+		node.ForEachChild(walk)
+		return false
+	}
+	nameNode.Parent.ForEachChild(walk)
+	return names
+}
+
+// writtenEntityName renders a TypeReference's written entity name (`Name` or
+// `Ns.Nested.Name`) for the refusal message.
+func writtenEntityName(typeRefNode *ast.Node) (string, bool) {
+	typeRef := typeRefNode.AsTypeReferenceNode()
+	if typeRef == nil || typeRef.TypeName == nil {
+		return "", false
+	}
+	var render func(entity *ast.Node) (string, bool)
+	render = func(entity *ast.Node) (string, bool) {
+		if entity == nil {
+			return "", false
+		}
+		if entity.Kind == ast.KindIdentifier {
+			return entity.Text(), true
+		}
+		if ast.IsQualifiedName(entity) {
+			qualified := entity.AsQualifiedName()
+			left, leftOk := render(qualified.Left)
+			right, rightOk := render(qualified.Right)
+			if leftOk && rightOk {
+				return left + "." + right, true
+			}
+		}
+		return "", false
+	}
+	return render(typeRef.TypeName)
 }
 
 // findTypeNameNode walks the source file's top-level statements for a type
