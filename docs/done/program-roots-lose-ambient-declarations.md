@@ -1,8 +1,9 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-09
+completed: 2026-08-14
 ---
 
 # Narrow program roots silently drop ambient declarations (lint, dev HMR, convert, enrich)
@@ -153,3 +154,103 @@ The lanes in the table agree with `tsc` about a project's ambient declarations,
 or refuse loudly where they cannot; the parity oracle covers the single-root
 daemon shape; and the per-lane cost of widening the roots is recorded in the PR
 so the choice can be re-litigated with numbers rather than guesses.
+
+## Plan — approved 2026-08-14
+
+Key discovery during planning: **no shim/patch edits are needed anywhere.** The
+shim packages alias the upstream types (`type ParsedCommandLine =
+tsoptions.ParsedCommandLine`, `type Type = checker.Type`, `type IntrinsicType =
+checker.IntrinsicType`), so the exported methods `FileNames()`, `Type.Flags()`,
+`Type.Alias()`, `Type.AsIntrinsicType()` and `IntrinsicType.IntrinsicName()`
+are already callable. Upstream `checker.isErrorType` is `t == c.errorType ||
+(t.flags&Any != 0 && t.alias != nil)`, and `errorType` is the intrinsic named
+`"error"` (`anyType` is `"any"`) — so the EXACT "resolved to `any` but not
+written as `any`" identity test is reproducible verbatim, including the
+transitive `type Foo = Bar`-with-Bar-missing case the symbol-lookup sketch
+would miss. This replaces the `Program_GetSemanticDiagnostics` route entirely
+(decided with the user at plan time: refuse on the precise error-type identity,
+not on blanket semantic diagnostics).
+
+### Part 1 — roots
+
+`InferredConfig` carries the parsed config's `FileNames()`; callers compose
+their own roots via `program.UnionRoots`:
+
+- daemon `setSources` + `serve --sources stdin`: union the config's **`.d.ts`
+  members only** (cheap to parse, carries the globals, and — decisive —
+  `scanAllProgramFiles` skips declaration files, so OpDump/OpGenerate/enrich-op
+  behavior does not widen; full-project rooting there would).
+- `convert` / `enrich` CLIs: union the **full** config list (one-shot; exact
+  tsc agreement). `convert --out-dir` re-roots config members under the copied
+  rootDir into the copy so originals and copies are never double-rooted.
+- The conversion/scan SET stays the caller's file list (`BuildSet`, CNV004,
+  per-file scan semantics unchanged).
+
+Known residual gap (documented, made loud by part 2): globals declared in a
+non-imported plain `.ts` script file are still missed by the daemon lanes.
+
+### Part 2 — guards
+
+- `marker.IsErrorLikeAny(t)` — the shared identity test above.
+- **MKR013** (resolver, both scan guard sites): written-syntax walk (TMP001
+  shape, skipping `Temporal.*` which TMP001 owns) + a slot-level check on the
+  resolved type argument so the reflect form is covered; skips calls where
+  MKR007 already fired. Written `any` / `type Foo = any` stay legal by
+  construction (true `anyType` fails the identity test).
+- **CNV008** (convert): per-declaration walk twin (CNV007 shape); refuses the
+  declaration, source untouched, exit 1.
+- Enrich: same detection over target declarations; skip + nonzero exit.
+
+### Tests
+
+Parity oracle gains a `daemonOnly` sources knob + two rows (production
+single-root shape; ambient `.d.ts` — the regression pin), MKR013 joins the
+tripwire list. New Go suites: `unresolved_name_guard_test.go`,
+`inferred_config` additions, convert `unresolvedname_test.go` + faithful
+ambient conversion, enrich faithful + refusal (re-exec pattern), and a
+`NewInferred` roots benchmark. JS: `ambient-declarations.test.ts` (daemon,
+both marker shapes, HMR stickiness, MKR013 loudness) + convert-cli e2e
+faithful/refusal rows. Fuzzing: not a candidate (fix; no cheap oracle — a
+lane-parity fuzzer would build a Program per case).
+
+## Shipped — 2026-08-14
+
+Both parts landed as planned; deltas from the plan were nil. Per lane:
+
+| Lane | Roots now | Guard |
+| ---- | --------- | ----- |
+| daemon `setSources` (lint + HMR), `serve --sources stdin` | request roots ∪ config `.d.ts` members | MKR013 (walk + reflect-form slot probe; yields to TMP001 / MKR007) |
+| `convert` CLI | targets ∪ full config list (`--out-dir` re-roots copied members) | CNV008 per declaration, source untouched, exit 1 |
+| `enrich` CLI | targets ∪ full config list | `enrichgen.Plan` refuses; `PlanMany` (daemon sync) skips |
+| `compile`, plugin build start | unchanged (`program.New` already rooted the config list) | MKR013 via the shared scan |
+
+The enrich refusal took the shared-plan seam (`enrichgen.Plan`) instead of a
+CLI-side re-exec fatal, so the daemon single-type OpEnrich inherits the same
+contract; enrich tests assert Plan's error directly (no re-exec needed).
+
+### Measured cost of widening the roots (the open question)
+
+`BenchmarkNewInferred_RootModes` (`internal/compiler/program/roots_bench_test.go`),
+200 unimported modules + 4 ambient `.d.ts` + 1 consumer, Linux amd64, count=3:
+
+| Roots | ns/op | delta |
+| ----- | ----- | ----- |
+| single file (old daemon shape) | 46.7–49.7 ms | — |
+| single file + config `.d.ts` (new daemon shape) | 45.4–46.7 ms | within noise (lib parse dominates); +~280 allocs |
+| full config list (one-shot CLI shape) | 48.2–50.0 ms | +4–6%, +2.6 MB, +17.8 k allocs; scales with project size |
+
+The `.d.ts`-only union is effectively free per lint request / HMR edit, so the
+todo's "milliseconds to seconds" risk did not materialize. The full-list union
+is reserved for the one-shot CLIs, where it is paid once — and in the daemon it
+would also have widened the whole-program ops (OpDump / OpGenerate / OpEnrich
+walk non-declaration program files), a behavior change, not just a cost.
+
+### Known boundaries (documented in ARCHITECTURE.md / MKR013's detail text)
+
+- A global declared in a non-imported plain `.ts` SCRIPT file (not `.d.ts`) is
+  still outside the daemon lanes' roots — MKR013 reports it loudly instead of
+  the old silent `any`; the one-shot CLIs see it via the full-list union.
+- The config file list is parsed once per daemon session: a newly ADDED `.d.ts`
+  needs a dev-server / lint-process restart (stated in MKR013's fix text).
+- Guard locality matches TMP001/MKR007: a reflect-form value whose type nests
+  an error-any member below the top level is not detectable at the call site.
