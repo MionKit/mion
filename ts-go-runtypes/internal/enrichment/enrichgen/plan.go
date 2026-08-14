@@ -33,6 +33,13 @@ func Plan(
 	if err != nil {
 		return nil, nil, err
 	}
+	// A written type name that failed to resolve checked as the checker's error
+	// type (`any` never written) — a mirror scaffolded from it would silently
+	// miss the degraded members, so refuse up front (the resolver's MKR013 twin).
+	if unresolved := enrichment.UnresolvedNameRefs(prog, chk, absPath, typeName); len(unresolved) > 0 {
+		return nil, nil, fmt.Errorf("%s: type reference %s did not resolve and checked as 'any' — fix the name or include the missing declaration in the tsconfig before enriching",
+			typeName, strings.Join(unresolved, ", "))
+	}
 	// The rt$ prefix is RESERVED for enrichment meta keys — a colliding property
 	// makes the scaffold unrepresentable, so refuse up front.
 	if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {
@@ -80,6 +87,11 @@ func PlanMany(
 	for _, typeName := range typeNames {
 		resolved, err := enrichment.ResolveTypeRaw(prog, chk, cache, absPath, typeName)
 		if err != nil {
+			continue
+		}
+		// Same unresolved-name posture as the other skips: a degraded type must
+		// not sync a wrong mirror, and must not abort the file's other types.
+		if unresolved := enrichment.UnresolvedNameRefs(prog, chk, absPath, typeName); len(unresolved) > 0 {
 			continue
 		}
 		if collisions := enrichment.ReservedPropertyCollisions(resolved.Node, resolved.Resolve); len(collisions) > 0 {

@@ -55,13 +55,14 @@ const (
 // Diagnostic codes (CNV family). CLI-local for now — catalog + wire
 // registration rides the lint surfacing (see docs/done/format-conversion-*).
 const (
-	CodeUnsupportedKind   = "CNV001"
-	CodeGenericDecl       = "CNV002"
-	CodeConstStillUsed    = "CNV003"
-	CodeOutsideSet        = "CNV004"
-	CodeNameCollision     = "CNV005"
-	CodePortableDialect   = "CNV006"
-	CodeTemporalNotLoaded = "CNV007"
+	CodeUnsupportedKind    = "CNV001"
+	CodeGenericDecl        = "CNV002"
+	CodeConstStillUsed     = "CNV003"
+	CodeOutsideSet         = "CNV004"
+	CodeNameCollision      = "CNV005"
+	CodePortableDialect    = "CNV006"
+	CodeTemporalNotLoaded  = "CNV007"
+	CodeUnresolvedTypeName = "CNV008"
 )
 
 // Diagnostic is one per-declaration conversion finding.
@@ -139,6 +140,13 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 		}
 		if temporalDiags := temporalAnyDiags(typeChecker, decl, absPath); len(temporalDiags) > 0 {
 			result.Diags = append(result.Diags, temporalDiags...)
+			continue
+		}
+		// CNV008 — a written type name resolved to the checker's error type
+		// (`any` never written): refuse the declaration rather than cement
+		// `any` / `RT.any()` into the rewritten source.
+		if unresolvedDiags := unresolvedNameDiags(typeChecker, decl, absPath); len(unresolvedDiags) > 0 {
+			result.Diags = append(result.Diags, unresolvedDiags...)
 			continue
 		}
 		if outsideDiags := outsideSetDiags(prog, typeChecker, markerOpts, decl, set, absPath); len(outsideDiags) > 0 {
