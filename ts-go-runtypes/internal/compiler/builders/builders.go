@@ -71,29 +71,6 @@ func IsIdLookupCall(typeChecker *checker.Checker, call *ast.Node, markerOpts mar
 	return symbol.Name == GetRunTypeName && markerOpts.DeclaredInMarkerPackage(symbol)
 }
 
-// IsMarkerModuleCall reports whether the call's CALLEE is declared in the
-// marker module — the builders, the format families, the schema door. Unlike
-// IsBuilderLeafCall (which is return-TYPE based, so any user helper returning a
-// RunType passes it) this asks who wrote the function, which is what
-// distinguishes an authored value-first spelling from a hand-assembled graph.
-func IsMarkerModuleCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
-	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
-		return false
-	}
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.Expression == nil {
-		return false
-	}
-	symbol := typeChecker.GetSymbolAtLocation(callExpression.Expression)
-	if symbol == nil {
-		return false
-	}
-	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
-		symbol = target
-	}
-	return markerOpts.DeclaredInMarkerPackage(symbol)
-}
-
 // IsBuilderLeafCall reports whether call is a static builder-construction call
 // valid as a CompTimeArgs leaf: a builder (returns RunType<…>, incl.
 // the temporal.* family and composers) OR a property modifier (optional() /
