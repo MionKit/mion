@@ -1097,13 +1097,8 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 	// flag stays unset, so the next setSources re-parses and a fixed config heals
 	// without a respawn. (nil, nil) means no config was named: the fixed inferred
 	// defaults apply.
-	if !sess.inferredConfigDone {
-		inferredConfig, err := program.ParseInferredConfig(cwd, sess.opts.TsconfigPath)
-		if err != nil {
-			return fmt.Errorf("setSources: %s %v", diagnostics.CodeTsconfigLoadFailed, err)
-		}
-		sess.inferredConfig = inferredConfig
-		sess.inferredConfigDone = true
+	if _, err := sess.ensureInferredConfig(cwd); err != nil {
+		return fmt.Errorf("setSources: %s %v", diagnostics.CodeTsconfigLoadFailed, err)
 	}
 
 	overlay := make(map[string]string, len(sources))
@@ -1121,6 +1116,13 @@ func (sess *Session) dispatchSetSources(sources map[string]string) error {
 			fileNames = append(fileNames, absolutePath)
 		}
 	}
+	// Root the config's declaration files alongside the request's sources: a
+	// `.d.ts` in the include set is exactly what tsc sees without an import and
+	// a source-rooted program loses (globals silently check as `any`). Only the
+	// `.d.ts` subset — full-project rooting would widen the whole-program ops
+	// (OpDump / OpGenerate / OpEnrich walk non-declaration program files) and
+	// pay a per-request parse of every project file on the lint lane.
+	fileNames = program.UnionRoots(fileNames, sess.configDeclarationRoots)
 	prog, err := program.NewInferred(program.Options{
 		Cwd:            cwd,
 		SingleThreaded: sess.opts.SingleThreaded,

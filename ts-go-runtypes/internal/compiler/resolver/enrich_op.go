@@ -204,7 +204,8 @@ func materializeMirror(spec mirror.Spec, existing string, readSource func(string
 // ensureInferredConfig lazily parses (and caches) the project tsconfig this
 // session was configured with, so the enrich lane resolves rootDir / genDir
 // exactly as the build does. (nil, nil) means no config was named — the fixed
-// inferred defaults apply.
+// inferred defaults apply. Also freezes configDeclarationRoots, the `.d.ts`
+// subset every setSources-built Program unions into its roots.
 func (sess *Session) ensureInferredConfig(cwd string) (*program.InferredConfig, error) {
 	if !sess.inferredConfigDone {
 		inferredConfig, err := program.ParseInferredConfig(cwd, sess.opts.TsconfigPath)
@@ -213,6 +214,7 @@ func (sess *Session) ensureInferredConfig(cwd string) (*program.InferredConfig, 
 		}
 		sess.inferredConfig = inferredConfig
 		sess.inferredConfigDone = true
+		sess.configDeclarationRoots = inferredConfig.DeclarationFileNames()
 	}
 	return sess.inferredConfig, nil
 }

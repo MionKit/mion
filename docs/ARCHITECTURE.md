@@ -85,7 +85,12 @@ The program has four subcommands:
 - **`serve`** is the daemon mode, and the one the bundler plugin drives. It starts once,
   keeps the parsed project and the type checker in memory, and speaks one JSON message
   per line over standard input and output. The build tool spawns it, asks about each
-  file, then shuts it down.
+  file, then shuts it down. Per-edit rebuilds (HMR, lint requests) re-root the program
+  at the pushed file PLUS the tsconfig's declaration files, so ambient `.d.ts`
+  declarations nothing imports resolve exactly as a build sees them; a written type
+  name that still cannot resolve is refused loudly (MKR013) instead of silently
+  checking as `any`. The config file list is read once per session, so a newly added
+  `.d.ts` needs a daemon restart to be seen.
 - **`compile`** is a one shot batch build for projects with no bundler plugin. It is the
   only mode that writes JavaScript, and it does so by handing the rewritten source back
   to TypeScript's own emitter and then stitching the source maps together.
@@ -135,7 +140,8 @@ The program has four subcommands:
   rest parameter and the names ride an intersection on it, so the optional marker and the
   names cannot both survive). Refusals are loud per-declaration
   CNV diagnostics (unnamed cycles, a cycle closing on a tuple slot, symbol keys,
-  Temporal resolving to any, `unevaluated*` sweeps); a generic declaration is a WARNING, not an error — a
+  Temporal resolving to any, a written type name that fails to resolve — CNV008,
+  `unevaluated*` sweeps); a generic declaration is a WARNING, not an error — a
   type parameter has no runtime shape, so there is nothing to convert, and its
   instantiations convert wherever they are reflected. The whole suite tree converts
   and runs in both value forms on every release gate (`pnpm rtx core

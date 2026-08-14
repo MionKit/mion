@@ -80,7 +80,12 @@ any error makes the exit code non-zero.
 		}
 	})
 	cwd := filepath.Dir(absFiles[0])
-	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, absFiles)
+	// Root the WHOLE config file list beside the conversion targets (one-shot
+	// tool, so the parse cost is paid once): ambient declarations the project
+	// includes then resolve exactly as tsc sees them, instead of silently
+	// checking as `any` and being cemented into the rewritten source. The
+	// conversion SET below stays absFiles — only what the checker sees widens.
+	prog, progErr := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots(absFiles, convertConfigRoots(parsed, rootDir, *outDirFlag)))
 	if progErr != nil {
 		fatal("convert: build program: %v", progErr)
 	}
@@ -129,6 +134,29 @@ any error makes the exit code non-zero.
 	if *checkFlag && pendingChanges > 0 {
 		os.Exit(1)
 	}
+}
+
+// convertConfigRoots returns the config's file list adjusted for --out-dir:
+// members under the copied rootDir are re-rooted into the copy (which contains
+// them — copyIntoOutDir copies the whole tree), so the original and the copy of
+// the same file are never both rooted (duplicate ambient value declarations
+// would otherwise collide); members outside rootDir ride along as-is.
+func convertConfigRoots(parsed *program.InferredConfig, rootDir, outDir string) []string {
+	configFiles := parsed.FileNames()
+	if outDir == "" || rootDir == "" {
+		return configFiles
+	}
+	absRoot := tspath.NormalizePath(mustAbs(rootDir))
+	absOut := tspath.NormalizePath(mustAbs(outDir))
+	rerooted := make([]string, 0, len(configFiles))
+	for _, configFile := range configFiles {
+		if rel := strings.TrimPrefix(configFile, absRoot+"/"); rel != configFile {
+			rerooted = append(rerooted, absOut+"/"+rel)
+			continue
+		}
+		rerooted = append(rerooted, configFile)
+	}
+	return rerooted
 }
 
 // expandConvertArgs resolves the positional arguments to the file set. A

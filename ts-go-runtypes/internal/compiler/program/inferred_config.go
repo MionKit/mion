@@ -25,8 +25,16 @@ import (
 // with no shim — it cannot be named from this module. Callers pass the handle
 // around; only NewInferred (same package) reads it. A nil handle means "no
 // tsconfig anywhere", so Programs fall back to the fixed inferred defaults.
+//
+// fileNames is the config's include-resolved file list (`files` + `include` −
+// `exclude`, absolute), the set tsc itself would root. Inferred lanes union it
+// (or its declaration-file subset) into their roots so ambient declarations —
+// a `.d.ts` in the include set that nothing imports — resolve exactly as they
+// do in the build lane instead of silently degrading to `any`
+// (docs/done/program-roots-lose-ambient-declarations.md).
 type InferredConfig struct {
-	options *core.CompilerOptions
+	options   *core.CompilerOptions
+	fileNames []string
 }
 
 // DiscoverTsconfig walks upward from cwd looking for a tsconfig.json,
@@ -64,6 +72,55 @@ func (inferredConfig *InferredConfig) RootDir() string {
 		return ""
 	}
 	return inferredConfig.options.RootDir
+}
+
+// FileNames returns the config's include-resolved file list (absolute paths),
+// nil for a nil handle. One-shot lanes (convert, enrich) union the whole list
+// into their roots; do not mutate the returned slice.
+func (inferredConfig *InferredConfig) FileNames() []string {
+	if inferredConfig == nil {
+		return nil
+	}
+	return inferredConfig.fileNames
+}
+
+// DeclarationFileNames returns only the declaration-file (`.d.ts`/`.d.mts`/
+// `.d.cts`) members of the config's file list. The daemon lanes root exactly
+// this subset: declaration files are cheap to parse, carry precisely the
+// ambient globals a narrow program loses, and are skipped by the whole-program
+// scan (`scanAllProgramFiles`), so rooting them widens what the checker SEES
+// without widening what any op scans.
+func (inferredConfig *InferredConfig) DeclarationFileNames() []string {
+	if inferredConfig == nil {
+		return nil
+	}
+	var declarationFiles []string
+	for _, fileName := range inferredConfig.fileNames {
+		if tspath.IsDeclarationFileName(fileName) {
+			declarationFiles = append(declarationFiles, fileName)
+		}
+	}
+	return declarationFiles
+}
+
+// UnionRoots appends the extra file names onto base, skipping entries already
+// present (paths are compared as the normalized strings both the config parse
+// and the callers produce). Returns base unchanged when extra adds nothing.
+func UnionRoots(base, extra []string) []string {
+	if len(extra) == 0 {
+		return base
+	}
+	seen := make(map[string]bool, len(base))
+	for _, fileName := range base {
+		seen[fileName] = true
+	}
+	for _, fileName := range extra {
+		if !seen[fileName] {
+			seen[fileName] = true
+			base = append(base, fileName)
+		}
+	}
+	return base
 }
 
 // ParseInferredConfig resolves tsconfigPath relative to cwd and parses it with
@@ -117,7 +174,7 @@ func ParseInferredConfig(cwd, tsconfigPath string, extraConditions ...string) (*
 		options = options.Clone()
 		options.CustomConditions = mergeConditions(extraConditions, parsed.ParsedConfig.CompilerOptions.CustomConditions)
 	}
-	return &InferredConfig{options: options}, nil
+	return &InferredConfig{options: options, fileNames: parsed.FileNames()}, nil
 }
 
 // noInputsFoundCode is tsc's TS18003 ("No inputs were found in config file") —

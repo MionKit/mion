@@ -64,12 +64,36 @@ getRunTypeId(sample);
 export const validatePlain = createValidateFn<Temporal.PlainDate>();
 `
 
+// parityAmbientDTS is an ambient declaration in the include set that NOTHING
+// imports — exactly what tsc roots from the config file list and a program
+// rooted at the handed sources loses (the type silently checks as `any`).
+const parityAmbientDTS = `declare interface ParityAmbient {
+	a: string;
+	b: number;
+}
+`
+
+// parityAmbientSrc consumes the ambient type through both marker shapes. No
+// import can pull ParityAmbient in: resolving it REQUIRES the config's own
+// file list on the program roots.
+const parityAmbientSrc = `import {getRunTypeId, createValidateFn} from '@ts-runtypes/core';
+
+// static getRunTypeId<T>()
+getRunTypeId<{value: ParityAmbient}>();
+
+// value-first getRunTypeId(value)
+declare const sample: {value: ParityAmbient};
+getRunTypeId(sample);
+
+export const validateAmbient = createValidateFn<{value: ParityAmbient}>();
+`
+
 type parityLane struct {
 	sites    []protocol.Site
 	kindByID map[string]reflection.ReflectionKind
 }
 
-func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[string]string) (build, daemon parityLane) {
+func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[string]string, daemonOnly []string) (build, daemon parityLane) {
 	t.Helper()
 	dir := tspath.NormalizePath(t.TempDir())
 
@@ -84,13 +108,25 @@ func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[
 		writeDisk(t, tspath.ResolvePath(dir, name), content)
 	}
 
+	// Production's actual shape: the plugin / lint worker pushes ONLY the edited
+	// or linted file, with the rest of the project (marker package included) on
+	// real disk. A row opts in via daemonOnly; nil keeps the historical
+	// everything-as-sources shape.
+	daemonSources := overlay
+	if daemonOnly != nil {
+		daemonSources = map[string]string{}
+		for _, name := range daemonOnly {
+			daemonSources[name] = overlay[name]
+		}
+	}
+
 	scan := func(r *resolver.Session, lane string) parityLane {
 		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"consumer.ts"}, IncludeRunTypes: true})
 		if resp.Error != "" {
 			t.Fatalf("%s lane scanFiles: %s", lane, resp.Error)
 		}
 		for _, diagnostic := range resp.Diagnostics {
-			if diagnostic.Code == diagnostics.CodeTemporalNotLoaded || diagnostic.Code == diagnostics.CodeMarkerAnyFromUnresolvedImport {
+			if diagnostic.Code == diagnostics.CodeTemporalNotLoaded || diagnostic.Code == diagnostics.CodeMarkerAnyFromUnresolvedImport || diagnostic.Code == diagnostics.CodeMarkerUnresolvedTypeName {
 				t.Fatalf("%s lane emitted %s — the config was not honored: %+v", lane, diagnostic.Code, diagnostic)
 			}
 		}
@@ -114,7 +150,7 @@ func scanParityLanes(t *testing.T, tsconfig, consumerSrc string, extraFiles map[
 	// dispatchSetSources), identical file content via the overlay.
 	server := resolver.NewServer(resolver.Options{Cwd: dir, TsconfigPath: "tsconfig.json", SingleThreaded: true})
 	t.Cleanup(server.Close)
-	if resp := server.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: overlay}); resp.Error != "" {
+	if resp := server.Dispatch(protocol.Request{Op: protocol.OpSetSources, Sources: daemonSources}); resp.Error != "" {
 		t.Fatalf("daemon lane setSources: %s", resp.Error)
 	}
 	daemon = scan(server, "daemon")
@@ -168,6 +204,10 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 		tsconfig   string
 		consumer   string
 		extraFiles map[string]string
+		// daemonOnly narrows the daemon lane's setSources to just these files
+		// (the rest stays on disk) — production's single-root shape. nil sends
+		// the whole overlay, the historical shape.
+		daemonOnly []string
 	}{
 		{
 			name: "bundler",
@@ -197,10 +237,34 @@ func TestTsconfigParity_BuildLaneEqualsDaemonLane(t *testing.T) {
 			consumer:   parityConsumerSrc,
 			extraFiles: map[string]string{"models.ts": parityModelsSrc},
 		},
+		{
+			// Production's single-root shape over the import fixture: the daemon
+			// is handed ONLY the consumer; models.ts resolves from disk through
+			// the import, so parity held here even before the config-roots union.
+			name: "single-root imports",
+			tsconfig: `{"compilerOptions": {"module": "ESNext", "moduleResolution": "bundler",
+				"target": "ES2022", "strict": true, "skipLibCheck": true, "noEmit": true, "types": []}}`,
+			consumer:   parityConsumerSrc,
+			extraFiles: map[string]string{"models.ts": parityModelsSrc},
+			daemonOnly: []string{"consumer.ts"},
+		},
+		{
+			// THE regression pin for docs/done/program-roots-lose-ambient-
+			// declarations.md: an ambient declaration in the include set that
+			// nothing imports, daemon handed only the consumer. Without the
+			// config's declaration files on the inferred roots the daemon checks
+			// ParityAmbient as `any` and the lanes' ids diverge.
+			name: "single-root ambient declaration",
+			tsconfig: `{"compilerOptions": {"module": "ESNext", "moduleResolution": "bundler",
+				"target": "ES2022", "strict": true, "skipLibCheck": true, "noEmit": true, "types": []}}`,
+			consumer:   parityAmbientSrc,
+			extraFiles: map[string]string{"ambient.d.ts": parityAmbientDTS},
+			daemonOnly: []string{"consumer.ts"},
+		},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
-			build, daemon := scanParityLanes(t, row.tsconfig, row.consumer, row.extraFiles)
+			build, daemon := scanParityLanes(t, row.tsconfig, row.consumer, row.extraFiles, row.daemonOnly)
 			assertLaneParity(t, build, daemon)
 		})
 	}

@@ -31,7 +31,10 @@ import (
 // rides into the resolver so enrich's hash-sensitive @rtType ids match a build's.
 func buildProgram(absPath string, parsed *program.InferredConfig, hashLength int) (*program.Program, *resolver.Session, error) {
 	cwd := filepath.Dir(absPath)
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, []string{absPath})
+	// Root the whole config file list beside the target (one-shot tool): ambient
+	// declarations in the include set resolve as tsc sees them instead of the
+	// scaffolded mirror being computed from a silent `any`.
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots([]string{absPath}, parsed.FileNames()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}
@@ -52,7 +55,8 @@ func buildProgramMulti(absPaths []string, parsed *program.InferredConfig, hashLe
 		return nil, nil, fmt.Errorf("no files given")
 	}
 	cwd := filepath.Dir(absPaths[0])
-	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, absPaths)
+	// Same config-roots union as buildProgram — see the comment there.
+	prog, err := program.NewInferred(program.Options{Cwd: cwd, Config: parsed}, program.UnionRoots(absPaths, parsed.FileNames()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("build program: %w", err)
 	}

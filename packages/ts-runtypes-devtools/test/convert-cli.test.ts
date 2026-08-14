@@ -260,4 +260,39 @@ describe('ts-runtypes convert (CLI e2e)', () => {
       fs.rmSync(dir, {recursive: true, force: true});
     }
   });
+
+  // Program-roots fix (docs/done/program-roots-lose-ambient-declarations.md):
+  // the CLI roots the config's whole file list beside the conversion targets,
+  // so an ambient declaration nothing imports resolves like tsc sees it and
+  // converts faithfully instead of silently cementing RT.any().
+  register('an ambient .d.ts in the include set converts faithfully, never as RT.any()', () => {
+    const dir = makeProject();
+    try {
+      fs.writeFileSync(path.join(dir, 'src', 'ambient.d.ts'), 'declare interface AmbientMeta { a: string; b: number }\n');
+      fs.writeFileSync(path.join(dir, 'src', 'holder.ts'), 'export type Holder = {value: AmbientMeta};\n');
+      const {status, stderr} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
+      expect(status, stderr).toBe(0);
+      const holder = fs.readFileSync(path.join(dir, 'src', 'holder.ts'), 'utf8');
+      expect(holder).not.toContain('RT.any()');
+      expect(holder).toContain('RT.object');
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
+
+  register('a written type name that resolves nowhere refuses with CNV008 (exit 1, source untouched)', () => {
+    const dir = makeProject();
+    try {
+      const brokenPath = path.join(dir, 'src', 'broken.ts');
+      fs.writeFileSync(brokenPath, 'export type Broken = {value: MissingThing};\n');
+      const before = fs.readFileSync(brokenPath, 'utf8');
+      const {status, stderr} = runConvert(dir, ['--to', 'builders', brokenPath]);
+      expect(status).toBe(1);
+      expect(stderr).toContain('CNV008');
+      expect(stderr).toContain('MissingThing');
+      expect(fs.readFileSync(brokenPath, 'utf8')).toBe(before);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
+  });
 });
