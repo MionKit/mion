@@ -451,7 +451,7 @@ func New(prog *program.Program, opts Options) (*Session, error) {
 	cache := runtype.NewCache(typeChecker, runtype.Options{
 		HashLength: opts.HashLength,
 	})
-	cache.SetFS(prog.FS)
+	cache.SetMarkerOptions(markerOpts)
 	return &Session{
 		Program:           prog,
 		cache:             cache,
@@ -510,7 +510,7 @@ func (sess *Session) SetProgram(prog *program.Program) error {
 	sess.checker = typeChecker
 	sess.releaseLease = releaseLease
 	sess.cache.Rebind(typeChecker)
-	sess.cache.SetFS(prog.FS)
+	sess.cache.SetMarkerOptions(sess.marker)
 	sess.sites = sess.sites[:0]
 	sess.scannedFiles = map[string]struct{}{}
 	sess.pureFnFileCache = purefunctions.NewFileCache()
@@ -572,20 +572,15 @@ func (sess *Session) Cache() *runtype.Cache { return sess.cache }
 // path keeps using the unexported field directly.
 func (sess *Session) Checker() *checker.Checker { return sess.checker }
 
+// MarkerOptions returns the session's marker detection options — the accepted
+// marker package set (tsconfig `markers` / --marker-packages /
+// --no-marker-package-check) plus the program's filesystem. Exposed so the
+// out-of-band CLI verbs (convert, enrich --check) gate on the SAME configured
+// packages the in-session scan does, instead of re-deriving the default.
+func (sess *Session) MarkerOptions() marker.Options { return sess.marker }
+
 // Sites returns the running list of resolved call-site ids. Callers (CLI,
 // plugin) read this at end-of-build to write out the manifest.
 func (sess *Session) Sites() []protocol.Site {
 	return append([]protocol.Site(nil), sess.sites...)
-}
-
-// markerModule returns the package the marker brands are declared in (the
-// first configured spec's Module, defaulting to marker.DefaultModule). Passed
-// to builders.IsBuilderLeafCall as the module gate.
-func (sess *Session) markerModule() string {
-	for _, spec := range sess.marker.Specs {
-		if spec.Module != "" {
-			return spec.Module
-		}
-	}
-	return marker.DefaultModule
 }

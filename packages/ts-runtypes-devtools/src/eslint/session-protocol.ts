@@ -32,6 +32,14 @@ export interface LintSessionOptions {
   // launcher. A configured path that is not there fails loudly rather than
   // falling back, since a different binary would key caches on another version.
   binary?: string;
+  // Which packages may declare the marker types, mirroring the tsconfig
+  // `markers` key. The resolver reads the tsconfig itself, so this exists for
+  // ONE reason: the cheap text pre-filter that decides whether a file is worth
+  // a resolver round trip matches on import specifiers, and a project whose
+  // markers come from its own package would otherwise have those files skipped
+  // before the resolver ever sees them. Set it to whatever the tsconfig
+  // `markers` block says.
+  markers?: {packages?: string[]; checkPackage?: boolean};
 }
 
 // The keys a host may set under `settings.runtypes`. Anything else there is
@@ -40,7 +48,10 @@ export interface LintSessionOptions {
 // actually expect to take effect. The `satisfies` guard keeps it exhaustive
 // against LintSessionOptions the same way PLUGIN_OPTION_KEYS does for the
 // bundler options (see src/plugin-option-keys.ts).
-const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true} satisfies Record<keyof LintSessionOptions, true>;
+const LINT_SETTING_KEY_TABLE = {timeoutMs: true, tsconfig: true, binary: true, markers: true} satisfies Record<
+  keyof LintSessionOptions,
+  true
+>;
 
 export const LINT_SETTING_KEYS = Object.keys(LINT_SETTING_KEY_TABLE) as (keyof LintSessionOptions)[];
 
@@ -60,6 +71,14 @@ export interface LintWorkerRequest {
   // Resolver binary, same one-shot rule as tsconfig: the first request's value
   // opens the connection and every later one rides it.
   binary?: string;
+  // Which packages may declare the marker types, mirroring the tsconfig
+  // `markers` key. The resolver reads the tsconfig itself, so this exists for
+  // ONE reason: the cheap text pre-filter that decides whether a file is worth
+  // a resolver round trip matches on import specifiers, and a project whose
+  // markers come from its own package would otherwise have those files skipped
+  // before the resolver ever sees them. Set it to whatever the tsconfig
+  // `markers` block says.
+  markers?: {packages?: string[]; checkPackage?: boolean};
 }
 
 export interface LintWorkerResponse {

@@ -61,7 +61,7 @@ func convertOneIn(t testing.TB, sources map[string]string, opts convert.Options)
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
-	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts, nil)
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath, opts, nil)
 	if convertErr != nil {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}

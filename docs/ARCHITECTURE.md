@@ -36,8 +36,12 @@ declaring one extra optional last parameter whose type is a special marker, for 
 `InjectRunTypeId<T>`. The build recognises that parameter, works out what `T` is at each
 call site, and fills the slot in. Because the marker travels on the function signature,
 your own wrapper functions opt in the same way with no extra configuration. A marker only
-counts if it is both named correctly and declared by the RunTypes package, so a
-same named type of your own is inert.
+counts if it is both named correctly and declared by a trusted package, so a
+same named type of your own is inert. The trusted set is `@ts-runtypes/core` plus anything
+the project adds through the tsconfig `markers` key, which lets a library declare the
+brands itself instead of depending on RunTypes for types alone; `markers.checkPackage:
+false` drops the package half of the check entirely (name only matching). The set is
+additive, so configuring it never stops the built in package from being trusted.
 
 **One type, one id.** Each type gets a short id derived from its shape, not its name.
 Two types with the same shape get the same id and share one generated entry, so a
@@ -193,7 +197,12 @@ on disk cache follows the `incremental` setting rather than adding a switch of i
 - **`program`** boots the project: reads the `tsconfig.json`, builds the same view of your
   files TypeScript would, and can layer unsaved editor buffers on top.
 - **`marker`** decides whether a parameter is one of the recognised markers, checking both
-  the name and the package that declares it.
+  the name and the package that declares it. The accepted package set is session config
+  (`marker.Options.Packages` / `SkipPackageCheck`, fed by the tsconfig `markers` key, the
+  plugin option of the same name, and the `--marker-packages` /
+  `--no-marker-package-check` flags), and every gate side caller goes through the one
+  `Options.DeclaredInMarkerPackage` entry point so a configured package cannot reach some
+  checks and miss others.
 - **`builders`** recognises the value first builder calls (`RT.object({...})` and
   friends) by their return type, so they are never mistaken for something to rewrite.
 - **`comptimeargs`** enforces that options which must be known at build time really are

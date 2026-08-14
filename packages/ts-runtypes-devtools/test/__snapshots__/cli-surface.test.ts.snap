@@ -34,10 +34,14 @@ Flags:
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+  --marker-packages packages
+    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
   --no-emit
     	report the RunType-family diagnostics without writing (tsc --noEmit-style): scan only, emit no .js and no cache modules
+  --no-marker-package-check
+    	match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)
   --no-parallel-render
     	disable the parallel cache renders (parallel is the default)
   --no-parallel-scan
@@ -155,8 +159,12 @@ Flags:
     	child-inlining policy: default (unnamed compounds inline, named external) | allInternal
   --js-runtime string
     	JS runtime path the format-pattern checks run on (default: RT_JS_RUNTIME, then node, then bun from PATH; any node-compatible runtime works)
+  --marker-packages packages
+    	comma-separated packages additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted
   --module-mode string
     	virtual-module grouping: default | allSingle | allModules
+  --no-marker-package-check
+    	match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)
   --no-parallel-render
     	disable the parallel cache renders (parallel is the default)
   --no-parallel-scan

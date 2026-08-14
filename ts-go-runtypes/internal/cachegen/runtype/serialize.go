@@ -26,9 +26,9 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/hashid"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype/typeid"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/constants"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -84,10 +84,10 @@ type Cache struct {
 	typeChecker *checker.Checker
 	idComputer  *typeid.Computer
 	// fs is the program's (possibly overlay/virtual) filesystem, used by the
-	// marker package-name gate (dataOnlyTypeName → marker.DeclaredInModule) so
+	// marker package-name gate (dataOnlyTypeName → the configured package set) so
 	// `DataOnly<T>` declared in an overlay/in-memory ts-runtypes package is
 	// recognised. nil falls back to os.ReadFile. Kept in sync by the resolver.
-	fs vfspkg.FS
+	markerOpts marker.Options
 
 	// foreignComputers memoizes one structural-id computer per non-bound
 	// checker handed to AssignIDUnder. Each pool checker materializes its
@@ -153,10 +153,11 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 	}
 }
 
-// SetFS records the program's filesystem for the marker package-name gate.
+// SetMarkerOptions records the marker detection options — the accepted marker
+// package set plus the program's filesystem — for the package-name gate.
 // The resolver calls this on cache creation and on every program swap so the
 // gate reads package.json from the current overlay. Safe to pass nil (os disk).
-func (cache *Cache) SetFS(fs vfspkg.FS) { cache.fs = fs }
+func (cache *Cache) SetMarkerOptions(markerOpts marker.Options) { cache.markerOpts = markerOpts }
 
 // Size returns the number of distinct types currently interned.
 func (cache *Cache) Size() int { return len(cache.nodes) }
@@ -676,7 +677,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 	// name, and its type arguments are the raw builder config, so reflecting them
 	// leaks the RunType wrapper into the bundle. Left anonymous, the switch below
 	// still projects the modeled object shape from the (merged) properties.
-	if alias := checker.Type_alias(tsType); alias != nil && alias.Symbol() != nil && !isBuilderInternalAlias(alias.Symbol(), cache.fs) {
+	if alias := checker.Type_alias(tsType); alias != nil && alias.Symbol() != nil && !isBuilderInternalAlias(alias.Symbol(), cache.markerOpts) {
 		node.TypeName = alias.Symbol().Name
 		if typeArguments := alias.TypeArguments(); len(typeArguments) > 0 {
 			node.TypeArguments = make([]*reflection.RunType, 0, len(typeArguments))
@@ -684,7 +685,7 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 				node.TypeArguments = append(node.TypeArguments, cache.Serialize(typeArgument))
 			}
 		}
-	} else if name, ok := dataOnlyTypeName(tsType, cache.fs); ok {
+	} else if name, ok := dataOnlyTypeName(tsType, cache.markerOpts); ok {
 		// DataOnly<T> from ts-runtypes: the conditional + key-filtering
 		// mapped type strips the alias chain by the time the result reaches us,
 		// so the alias check above misses. Recognise it explicitly so the entry

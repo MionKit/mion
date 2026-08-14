@@ -33,8 +33,8 @@ import (
 	"sort"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -219,13 +219,13 @@ func (builder *canonicalBuilder) sortSlots(ownerID string, slots []*reflection.R
 
 // DeclarationGraphs is the C6 oracle's read side: every recognized
 // (non-generic) declaration's canonical graph, keyed like DeclarationIDs.
-func DeclarationGraphs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string) (map[string]string, error) {
+func DeclarationGraphs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) (map[string]string, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
 		return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
 	}
 	graphs := map[string]string{}
-	for _, decl := range recognizeFile(sourceFile, typeChecker, fs) {
+	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
 		if decl.Generic {
 			continue
 		}

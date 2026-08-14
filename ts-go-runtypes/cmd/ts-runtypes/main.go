@@ -139,6 +139,8 @@ type sharedFlags struct {
 	numberMode              string
 	patternSampleCount      int
 	patternSampleRetries    int
+	markerPackages          string
+	noMarkerPackageCheck    bool
 	pprofCPU                string
 	pprofHeap               string
 }
@@ -179,6 +181,10 @@ func registerSharedFlags(fs *flag.FlagSet) *sharedFlags {
 		"generated mockSamples per sample-less format pattern (default 100; 0 disables generation)")
 	fs.IntVar(&s.patternSampleRetries, "pattern-sample-retries", constants.DefaultPatternSampleRetries,
 		"per-sample draw multiplier for pattern sample generation (whole budget = count × retries; default 10)")
+	fs.StringVar(&s.markerPackages, "marker-packages", "",
+		"comma-separated `packages` additionally allowed to declare the marker types (InjectRunTypeId, CompTimeArgs, …); @ts-runtypes/core is always accepted")
+	fs.BoolVar(&s.noMarkerPackageCheck, "no-marker-package-check", false,
+		"match markers by type NAME alone, whatever package declared them (escape hatch; a local same-named type then drives rewrites too)")
 	fs.StringVar(&s.pprofCPU, "pprof-cpu", "", "write a CPU profile to PATH (whole run)")
 	fs.StringVar(&s.pprofHeap, "pprof-heap", "", "write a heap profile to PATH at exit")
 	return s
@@ -290,6 +296,8 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 		numberMode:              s.numberMode,
 		patternSampleCount:      s.patternSampleCount,
 		patternSampleRetries:    s.patternSampleRetries,
+		markerPackages:          s.markerPackages,
+		noMarkerPackageCheck:    s.noMarkerPackageCheck,
 	}, plugin, absCwd)
 
 	// Validate the MERGED values: a bad mode can arrive from tsconfig as
@@ -337,8 +345,11 @@ func resolveSharedConfig(fs *flag.FlagSet, s *sharedFlags, genDirFlag string, re
 	}
 
 	opts := resolver.Options{
-		HashLength:              merged.hashLength,
-		Marker:                  marker.Options{},
+		HashLength: merged.hashLength,
+		Marker: marker.Options{
+			Packages:         merged.markerPackages,
+			SkipPackageCheck: merged.skipMarkerPackageCheck,
+		},
 		Cwd:                     absCwd,
 		TsconfigPath:            tsconfigPath,
 		TsconfigGenDir:          tsconfigGenDir,

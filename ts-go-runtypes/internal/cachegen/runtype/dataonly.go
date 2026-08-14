@@ -3,15 +3,14 @@ package runtype
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 )
 
 // dataOnlyAliasName is the symbol name of the DataOnly utility type alias the
 // serializer special-cases. Defined in
 // packages/ts-runtypes/src/runtypes/dataOnly.ts and gated by
-// marker.DefaultModule so a user-defined `DataOnly` outside the marker
-// package never triggers the special path.
+// the configured marker package set so a user-defined `DataOnly` outside a
+// marker package never triggers the special path.
 const dataOnlyAliasName = "DataOnly"
 
 // dataOnlyLadderAliasName is the internal helper alias the SHIPPED DataOnly
@@ -45,11 +44,11 @@ var builderInternalAliasNames = map[string]bool{
 // isBuilderInternalAlias reports whether aliasSymbol names one of the
 // ts-runtypes/builders object-shape helper aliases (builderInternalAliasNames),
 // gated on the marker package so a user type of the same name never triggers it.
-func isBuilderInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
+func isBuilderInternalAlias(aliasSymbol *ast.Symbol, markerOpts marker.Options) bool {
 	if aliasSymbol == nil || !builderInternalAliasNames[aliasSymbol.Name] {
 		return false
 	}
-	return marker.DeclaredInModule(aliasSymbol, marker.DefaultModule, fs)
+	return markerOpts.DeclaredInMarkerPackage(aliasSymbol)
 }
 
 // dataOnlyTypeName recognises a synthesized mapped type that came from
@@ -67,7 +66,7 @@ func isBuilderInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
 //
 // The recognition walks `MappedType.declaration` up the AST to its
 // enclosing TypeAliasDeclaration and matches on (a) the alias's symbol
-// name and (b) marker.DeclaredInModule placing the declaration inside
+// name and (b) the package gate placing the declaration inside
 // ts-runtypes — the same module gate the marker scanner uses. TWO alias
 // names match: `DataOnly` itself (the shape minimal stand-ins and older
 // spellings declare the mapped type in), and `DataOnlyLadder` — the
@@ -80,7 +79,7 @@ func isBuilderInternalAlias(aliasSymbol *ast.Symbol, fs vfspkg.FS) bool {
 // `type X = …` argument), falling back to its symbol name (matches
 // `interface X` argument). Returns ok=false for any non-matching case so
 // callers fall through to existing TypeName paths unchanged.
-func dataOnlyTypeName(tsType *checker.Type, fs vfspkg.FS) (string, bool) {
+func dataOnlyTypeName(tsType *checker.Type, markerOpts marker.Options) (string, bool) {
 	if tsType == nil {
 		return "", false
 	}
@@ -103,7 +102,7 @@ func dataOnlyTypeName(tsType *checker.Type, fs vfspkg.FS) (string, bool) {
 	if aliasSymbol == nil || (aliasSymbol.Name != dataOnlyAliasName && aliasSymbol.Name != dataOnlyLadderAliasName) {
 		return "", false
 	}
-	if !marker.DeclaredInModule(aliasSymbol, marker.DefaultModule, fs) {
+	if !markerOpts.DeclaredInMarkerPackage(aliasSymbol) {
 		return "", false
 	}
 	innerName := nameOfBoundType(mappedTypeModifiersType(mapped))

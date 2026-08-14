@@ -11,7 +11,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 )
@@ -43,7 +42,7 @@ type declaration struct {
 // recognizeFile walks the file's top-level statements and returns the
 // convertible declarations in source order. Class and enum declarations are
 // runtime code and are never candidates.
-func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, fs vfspkg.FS) []*declaration {
+func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, markerOpts marker.Options) []*declaration {
 	root := sourceFile.AsNode()
 	if root == nil {
 		return nil
@@ -68,7 +67,7 @@ func recognizeFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, fs 
 		case ast.IsInterfaceDeclaration(statement):
 			decls = append(decls, typeFormDeclaration(statement))
 		case ast.IsVariableStatement(statement):
-			if decl := constFormDeclaration(statement, typeChecker, fs, sourceFile); decl != nil {
+			if decl := constFormDeclaration(statement, typeChecker, markerOpts, sourceFile); decl != nil {
 				decls = append(decls, decl)
 			}
 		}
@@ -107,7 +106,7 @@ func typeFormDeclaration(statement *ast.Node) *declaration {
 // the marker `RunType<T>`. Only single-declarator statements qualify — a
 // multi-declarator statement mixing runtypes with other values has no clean
 // replacement span.
-func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs vfspkg.FS, sourceFile *ast.SourceFile) *declaration {
+func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options, sourceFile *ast.SourceFile) *declaration {
 	variableStatement := statement.AsVariableStatement()
 	if variableStatement == nil || variableStatement.DeclarationList == nil {
 		return nil
@@ -133,7 +132,7 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs 
 		return nil
 	}
 	declaredType := typeChecker.GetTypeOfSymbol(symbol)
-	if !builders.IsRunType(declaredType, marker.DefaultModule, fs) {
+	if !builders.IsRunType(declaredType, markerOpts) {
 		return nil
 	}
 	// …and the const must actually be BUILT by one of the two authoring forms.
@@ -143,7 +142,7 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs 
 	// from its resolved type replaced the whole graph with the type argument's
 	// spelling, and an untyped `RunType` reprinted as an EMPTY schema. Not a
 	// conversion — data loss.
-	if !isAuthoredRunTypeInitializer(declarator.Initializer, typeChecker, fs) {
+	if !isAuthoredRunTypeInitializer(declarator.Initializer, typeChecker, markerOpts) {
 		return nil
 	}
 	return &declaration{
@@ -169,11 +168,11 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, fs 
 // and `runTypeFromJsonSchema(…)` are imported, a local helper is not. Module of
 // origin cannot tell them apart here — the suites and src/ share one
 // package.json, so a locally declared helper reports the marker module too.
-func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Checker, fs vfspkg.FS) bool {
+func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) bool {
 	if initializer == nil || initializer.Kind != ast.KindCallExpression {
 		return false
 	}
-	if !builders.IsBuilderLeafCall(typeChecker, marker.DefaultModule, initializer, fs) {
+	if !builders.IsBuilderLeafCall(typeChecker, initializer, markerOpts) {
 		return false
 	}
 	callee := initializer.AsCallExpression().Expression
@@ -262,6 +261,6 @@ func hasTypeParameters(statement *ast.Node) bool {
 // isRunTypeValue reports whether a value's declared type is the marker
 // module's `RunType<T>` — the by-return-type detection every recognition
 // path shares.
-func isRunTypeValue(tsType *checker.Type, fs vfspkg.FS) bool {
-	return tsType != nil && builders.IsRunType(tsType, marker.DefaultModule, fs)
+func isRunTypeValue(tsType *checker.Type, markerOpts marker.Options) bool {
+	return tsType != nil && builders.IsRunType(tsType, markerOpts)
 }

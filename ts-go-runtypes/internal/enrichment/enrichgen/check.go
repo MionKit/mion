@@ -3,8 +3,8 @@ package enrichgen
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/enrichment"
 	"github.com/mionkit/ts-runtypes/internal/enrichment/astcheck"
@@ -28,9 +28,10 @@ import (
 // filePath is the path echoed on each diagnostic site (the caller's requested
 // path); absolutePath is the absolute path used to resolve the breadcrumb source
 // (the resolver resolves the requested path against the Program's cwd; the CLI
-// already holds an absolute path and passes it for both). moduleFS is the
+// already holds an absolute path and passes it for both). markerOpts carries
+// the accepted marker package set and is the
 // Program filesystem, so unsaved overlay text is honored.
-func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.Cache, moduleFS vfspkg.FS, filePath, absolutePath string) []diagnostics.Diagnostic {
+func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, filePath, absolutePath string) []diagnostics.Diagnostic {
 	var out []diagnostics.Diagnostic
 	if sourceFile == nil {
 		return out
@@ -54,7 +55,7 @@ func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.
 		out = append(out, diagnostics.New(tagCode(blank.Kind, classifier.FamilyAt(blank.Start)), tagSite(filePath, lineIndex, blank)))
 	}
 
-	for _, finding := range astcheck.CheckSourceFile(sourceFile, chk, cache, moduleFS, filePath) {
+	for _, finding := range astcheck.CheckSourceFile(sourceFile, chk, cache, markerOpts, filePath) {
 		out = append(out, enrichDiagnostic(finding.Code, finding.Severity, finding.Args, finding.Site))
 	}
 
@@ -62,7 +63,7 @@ func CheckFile(sourceFile *ast.SourceFile, chk *checker.Checker, cache *runtype.
 	// comment): a hand-written file that merely annotates consts with FriendlyText
 	// / MockData has ordinary relative imports, not a breadcrumb.
 	if scan.HasMarkerComment() {
-		for _, drift := range mirror.CheckBreadcrumbDrift(absolutePath, text, moduleFS) {
+		for _, drift := range mirror.CheckBreadcrumbDrift(absolutePath, text, markerOpts.FS) {
 			out = append(out, diagnostics.New(drift.Code, tagSite(filePath, lineIndex, mirror.TagFinding{Start: drift.Start, End: drift.End}), drift.Args...))
 		}
 	}

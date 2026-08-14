@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 )
 
@@ -95,13 +95,13 @@ type FileResult struct {
 // target form are left byte-identical (idempotence); declarations the
 // converter cannot express are reported and left untouched. set is the
 // run-wide conversion context; nil converts the file as a single-file set.
-func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string, opts Options, set *Set) (*FileResult, error) {
+func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string, opts Options, set *Set) (*FileResult, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
 		return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
 	}
 	if set == nil {
-		singleSet, setErr := singleFileSet(prog, typeChecker, cache, fs, absPath)
+		singleSet, setErr := singleFileSet(prog, typeChecker, cache, markerOpts, absPath)
 		if setErr != nil {
 			return nil, setErr
 		}
@@ -110,7 +110,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	source := sourceFile.Text()
 	result := &FileResult{Path: absPath, Output: source}
 
-	decls := set.declsFor(sourceFile, absPath, typeChecker, fs)
+	decls := set.declsFor(sourceFile, absPath, typeChecker, markerOpts)
 	imports := scanImports(sourceFile, source)
 	inScope := inScopeNames(sourceFile)
 	names := newNames(decls, imports, inScope)
@@ -141,7 +141,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 			result.Diags = append(result.Diags, temporalDiags...)
 			continue
 		}
-		if outsideDiags := outsideSetDiags(prog, typeChecker, fs, decl, set, absPath); len(outsideDiags) > 0 {
+		if outsideDiags := outsideSetDiags(prog, typeChecker, markerOpts, decl, set, absPath); len(outsideDiags) > 0 {
 			result.Diags = append(result.Diags, outsideDiags...)
 			continue
 		}
@@ -163,7 +163,7 @@ func ConvertFile(prog *program.Program, typeChecker *checker.Checker, cache *run
 	// away instead of refusing with CNV005.
 	var plannedCalls []*callSite
 	var callTexts []*printedDecl
-	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, fs, set, opts.Target) {
+	for _, site := range recognizeCallSites(sourceFile, typeChecker, cache, markerOpts, set, opts.Target) {
 		if site.form == opts.Target {
 			continue
 		}
@@ -300,13 +300,13 @@ func constUsedBeyondConversions(set *Set, decl *declaration, currentFile string,
 // file and returns its structural id keyed by declaration name — the type
 // name when present, else the const name. This is the id-preservation
 // oracle's read side: conversion must never move any of these ids.
-func DeclarationIDs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string) (map[string]string, error) {
+func DeclarationIDs(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) (map[string]string, error) {
 	sourceFile := prog.SourceFile(absPath)
 	if sourceFile == nil {
 		return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
 	}
 	ids := map[string]string{}
-	for _, decl := range recognizeFile(sourceFile, typeChecker, fs) {
+	for _, decl := range recognizeFile(sourceFile, typeChecker, markerOpts) {
 		if decl.Generic {
 			continue
 		}

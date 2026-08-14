@@ -22,7 +22,7 @@ func declIDsIn(t testing.TB, sources map[string]string) map[string]string {
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
-	ids, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+	ids, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
 	if idsErr != nil {
 		t.Fatalf("DeclarationIDs: %v", idsErr)
 	}
@@ -39,7 +39,7 @@ func declGraphsIn(t testing.TB, sources map[string]string) map[string]string {
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
-	graphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+	graphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
 	if graphsErr != nil {
 		t.Fatalf("DeclarationGraphs: %v", graphsErr)
 	}

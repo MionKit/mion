@@ -34,6 +34,8 @@ type buildFlags struct {
 	numberMode              string
 	patternSampleCount      int
 	patternSampleRetries    int
+	markerPackages          string
+	noMarkerPackageCheck    bool
 }
 
 // buildOptions is the merged build configuration the resolver consumes.
@@ -55,6 +57,8 @@ type buildOptions struct {
 	numberMode              string
 	patternSampleCount      int
 	patternSampleRetries    int
+	markerPackages          []string
+	skipMarkerPackageCheck  bool
 }
 
 // mergeBuildOptions resolves the effective build configuration from the CLI
@@ -167,7 +171,45 @@ func mergeBuildOptions(flags buildFlags, plugin tsRuntypesPlugin, absCwd string)
 		out.disableParallelRender = !*plugin.ParallelRender
 	}
 
+	// Marker package gate. `packages` is ADDITIVE in both directions: the flag
+	// and the tsconfig entry are unioned rather than one shadowing the other,
+	// because a host plugin naming its own marker package and a project naming
+	// another are both true at once — dropping either would break call sites the
+	// other owns. `checkPackage` is a plain override: the --no-marker-package-check
+	// flag wins, else the tsconfig value, else the default (gate on).
+	out.markerPackages = mergeMarkerPackages(flags.markerPackages, plugin.Markers)
+	out.skipMarkerPackageCheck = flags.noMarkerPackageCheck
+	if !flags.set["no-marker-package-check"] && plugin.Markers != nil && plugin.Markers.CheckPackage != nil {
+		out.skipMarkerPackageCheck = !*plugin.Markers.CheckPackage
+	}
+
 	out.genDir = resolveGenDir(flags, plugin, absCwd)
+	return out
+}
+
+// mergeMarkerPackages unions the --marker-packages flag (comma-separated) with
+// the tsconfig `markers.packages` list, trimming blanks and de-duplicating
+// while preserving first-seen order (flag entries first, so a `--help` dump and
+// a diagnostic read in the order the user is most likely to recognise).
+func mergeMarkerPackages(flagValue string, markers *markersPluginConfig) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	for _, name := range strings.Split(flagValue, ",") {
+		add(name)
+	}
+	if markers != nil {
+		for _, name := range markers.Packages {
+			add(name)
+		}
+	}
 	return out
 }
 

@@ -147,6 +147,18 @@ export interface PluginOptions {
   // patterns whose candidates often miss the declared length bounds. The
   // canonical home is the tsconfig `patternSampleRetries` knob.
   patternSampleRetries?: number;
+  // Which packages are allowed to declare the marker types (InjectRunTypeId,
+  // InjectTypeFnArgs, CompTimeArgs, PureFunction, …). Lets a library ship the
+  // brands itself instead of depending on ts-runtypes just for types.
+  //   packages     — extra package names to accept. Additive: '@ts-runtypes/core'
+  //                  stays accepted, and this list is UNIONED with the tsconfig
+  //                  `markers.packages` entry rather than replacing it.
+  //   checkPackage — false drops the package check entirely, matching a marker
+  //                  on its type NAME alone. Escape hatch: a local
+  //                  `type InjectRunTypeId<T> = …` then drives rewrites too.
+  // The canonical home is the tsconfig `markers` key; set it here to override
+  // or extend it for one build.
+  markers?: {packages?: string[]; checkPackage?: boolean};
   // How cache entries group into modules:
   //   'default'    — runtype nodes ride ONE data bundle (+ per-root facade
   //                  modules); every fn-family / composite / pure-fn entry
@@ -253,6 +265,16 @@ export interface PluginOptions {
 // before their first HMR scan lands them in the set).
 const MARKER_MODULE = '@ts-runtypes/core';
 
+// markerImportProbes builds the quoted-specifier probes the fallback pre-filter
+// matches on: the default marker package plus whatever the project configured
+// (`markers.packages`). Returns null when the package gate is disabled — a
+// marker can then be declared anywhere, so no import-specifier probe is sound
+// and the fallback has to let every file through.
+function markerImportProbes(markers: PluginOptions['markers']): string[] | null {
+  if (markers?.checkPackage === false) return null;
+  return [MARKER_MODULE, ...(markers?.packages ?? [])].flatMap((mod) => [`'${mod}`, `"${mod}`]);
+}
+
 // @ts-runtypes/devtools is built on unplugin: ONE factory, many bundler entry
 // points (@ts-runtypes/devtools/vite, /rollup, /webpack, /rspack, /esbuild are
 // `unplugin.<bundler>` from this instance). Files-mode: the resolver writes
@@ -266,6 +288,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // wins the bundler dev loop); 'go' is the full-transform fallback. Validated
   // at the host boundary so a config typo fails loudly.
   const transformMode: 'go' | 'edits' = options.transformMode ?? 'edits';
+  // Computed once per plugin instance: the fallback pre-filter's import probes
+  // for the project's marker packages (null = package gate disabled).
+  const markerProbes = markerImportProbes(options.markers);
   // Error-severity diagnostics fail the build/transform in every lane unless
   // explicitly opted out (see PluginOptions.failOnError). Precedence is
   // tsc-style: the explicit plugin option wins, else the tsconfig `failOnError`
@@ -386,6 +411,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(options.hashLength !== undefined ? {hashLength: options.hashLength} : {}),
       ...(options.patternSampleCount !== undefined ? {patternSampleCount: options.patternSampleCount} : {}),
       ...(options.patternSampleRetries !== undefined ? {patternSampleRetries: options.patternSampleRetries} : {}),
+      ...(options.markers?.packages?.length ? {markerPackages: options.markers.packages} : {}),
+      ...(options.markers?.checkPackage === false ? {markerPackageCheck: false} : {}),
       ...(options.jsRuntime ? {jsRuntime: options.jsRuntime} : {}),
       // Tri-state → the two low-level resolver flags: report on the wire for
       // both 'file' and 'callback'; the JSON file written only for 'file' (at
@@ -711,7 +738,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       // (before its first HMR scan lands it in siteFiles) needs this textual catch.
       const inSiteSet = siteFiles.has(siteKey(rel));
       if (!inSiteSet) {
-        const importsMarkerModule = code.includes(`'${MARKER_MODULE}`) || code.includes(`"${MARKER_MODULE}`);
+        const importsMarkerModule = markerProbes === null || markerProbes.some((probe) => code.includes(probe));
         const callsPureFnRegistrar = code.includes('registerPureFn') || code.includes('registerAnonymousPureFn');
         if (!importsMarkerModule && !callsPureFnRegistrar) return null;
       }

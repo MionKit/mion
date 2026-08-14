@@ -26,7 +26,7 @@ func (sess *Session) checkEnrichFiles(files []string) []diagnostics.Diagnostic {
 			continue
 		}
 		absolutePath := tspath.ResolvePath(currentDir, file)
-		out = append(out, enrichgen.CheckFile(sourceFile, sess.checker, sess.cache, sess.Program.FS, file, absolutePath)...)
+		out = append(out, enrichgen.CheckFile(sourceFile, sess.checker, sess.cache, sess.marker, file, absolutePath)...)
 	}
 	return out
 }

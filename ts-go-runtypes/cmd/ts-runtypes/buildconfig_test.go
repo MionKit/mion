@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -35,7 +36,7 @@ func TestMergeBuildOptions_DefaultsWhenEmpty(t *testing.T) {
 		genDir:             filepath.Join("/proj", "__runtypes"),
 		patternSampleCount: 100, patternSampleRetries: 10,
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge defaults = %+v, want %+v", got, want)
 	}
 }
@@ -67,7 +68,7 @@ func TestMergeBuildOptions_TsconfigFillsGaps(t *testing.T) {
 		patternSampleCount:    25,
 		patternSampleRetries:  4,
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("merge from tsconfig = %+v, want %+v", got, want)
 	}
 }
@@ -323,5 +324,62 @@ func TestUnknownPluginKeys(t *testing.T) {
 
 	if got := unknownPluginKeys(t.TempDir(), "tsconfig.json"); len(got) != 0 {
 		t.Errorf("no tsconfig should not warn, got %v", got)
+	}
+}
+
+// --- marker package gate ----------------------------------------------------
+
+// The flag and the tsconfig entry are UNIONED rather than one shadowing the
+// other: a host plugin naming its own marker package and a project naming
+// another are both true at once, so dropping either would break call sites the
+// other owns. This is the one merge in the file that is deliberately additive.
+func TestMergeBuildOptions_MarkerPackagesUnionFlagAndTsconfig(t *testing.T) {
+	flags := baseFlags()
+	flags.set["marker-packages"] = true
+	flags.markerPackages = "@from/flag"
+	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{Packages: []string{"@from/tsconfig"}}}
+
+	got := mergeBuildOptions(flags, plugin, "/proj").markerPackages
+	want := []string{"@from/flag", "@from/tsconfig"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("markerPackages = %v, want %v", got, want)
+	}
+}
+
+func TestMergeBuildOptions_MarkerPackagesSplitTrimAndDedupe(t *testing.T) {
+	flags := baseFlags()
+	flags.markerPackages = " @a/one , @b/two ,, @a/one "
+	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{Packages: []string{"@b/two", "  ", "@c/three"}}}
+
+	got := mergeBuildOptions(flags, plugin, "/proj").markerPackages
+	want := []string{"@a/one", "@b/two", "@c/three"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("markerPackages = %v, want %v", got, want)
+	}
+}
+
+func TestMergeBuildOptions_MarkerPackageCheckDefaultsOn(t *testing.T) {
+	if mergeBuildOptions(baseFlags(), tsRuntypesPlugin{}, "/proj").skipMarkerPackageCheck {
+		t.Error("expected the package gate to be ON with nothing configured")
+	}
+}
+
+// checkPackage is a plain override (not additive): the tsconfig turns the gate
+// off, and an explicit flag wins over the tsconfig either way.
+func TestMergeBuildOptions_MarkerPackageCheckFromTsconfig(t *testing.T) {
+	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{CheckPackage: boolPtr(false)}}
+	if !mergeBuildOptions(baseFlags(), plugin, "/proj").skipMarkerPackageCheck {
+		t.Error("expected checkPackage:false to disable the package gate")
+	}
+}
+
+func TestMergeBuildOptions_MarkerPackageCheckFlagWinsOverTsconfig(t *testing.T) {
+	flags := baseFlags()
+	flags.set["no-marker-package-check"] = true
+	flags.noMarkerPackageCheck = true
+	// tsconfig says "keep the gate on"; the explicit flag says otherwise.
+	plugin := tsRuntypesPlugin{Markers: &markersPluginConfig{CheckPackage: boolPtr(true)}}
+	if !mergeBuildOptions(flags, plugin, "/proj").skipMarkerPackageCheck {
+		t.Error("expected --no-marker-package-check to win over the tsconfig entry")
 	}
 }
