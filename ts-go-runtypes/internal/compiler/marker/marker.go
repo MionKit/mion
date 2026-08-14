@@ -303,6 +303,72 @@ func DetectAny(typeChecker *checker.Checker, paramType *checker.Type, opts Optio
 	return 0, nil, false
 }
 
+// NearMiss describes a type whose alias NAME is exactly a marker's but whose
+// declaration failed the module-of-origin gate: the marker the user clearly
+// meant, and the package that actually declared it.
+type NearMiss struct {
+	// MarkerName is the marker spec's name (e.g. "InjectRunTypeId").
+	MarkerName string
+	// DeclaringModule is the package the alias was declared in, "" when the
+	// declaration belongs to no package at all.
+	DeclaringModule string
+}
+
+// DetectNearMiss reports a type that LOOKS like a marker but was rejected by
+// the package gate. It is the diagnostic counterpart of DetectAny and must only
+// be consulted when DetectAny found nothing: a name match plus a gate failure
+// is the one shape that silently costs the user their type argument (the
+// brand-property fallback still emits a site, so the call does not disappear —
+// it quietly reflects `unknown` instead).
+//
+// It deliberately does NOT fire when SkipPackageCheck is set (nothing can be
+// rejected), nor when the alias came from the SAME package as the file that
+// uses it — that is a project's own local brand, exactly what the gate exists
+// to keep inert, and warning about it every time would be noise.
+func DetectNearMiss(paramType *checker.Type, opts Options, usingFileModule string) (NearMiss, bool) {
+	if paramType == nil || opts.SkipPackageCheck {
+		return NearMiss{}, false
+	}
+	opts = WithDefaults(opts)
+	candidates := []*checker.Type{paramType}
+	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
+		candidates = append(candidates, paramType.Types()...)
+	}
+	for _, candidate := range candidates {
+		alias := checker.Type_alias(candidate)
+		if alias == nil {
+			continue
+		}
+		symbol := alias.Symbol()
+		if symbol == nil {
+			continue
+		}
+		for _, spec := range opts.Specs {
+			if symbol.Name != spec.Name || opts.DeclaredInMarkerPackage(symbol) {
+				continue
+			}
+			declaringModule := declaringModuleOfSymbol(symbol, opts.FS)
+			if declaringModule == "" || declaringModule == usingFileModule {
+				continue
+			}
+			return NearMiss{MarkerName: spec.Name, DeclaringModule: declaringModule}, true
+		}
+	}
+	return NearMiss{}, false
+}
+
+// declaringModuleOfSymbol returns the module of symbol's first declaration that
+// belongs to one — the ambient `declare module` name, else the enclosing
+// package.json `"name"`.
+func declaringModuleOfSymbol(symbol *ast.Symbol, fs vfspkg.FS) string {
+	for _, declaration := range symbol.Declarations {
+		if module := DeclaringModuleOfNode(declaration, fs); module != "" {
+			return module
+		}
+	}
+	return ""
+}
+
 // matchedByBrand reports whether paramType (or any union member when it
 // is a union) carries the brand property unique to spec. Used as a
 // last-resort fallback when the alias name has been lost due to

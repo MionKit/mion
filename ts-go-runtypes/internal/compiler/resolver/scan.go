@@ -308,6 +308,28 @@ func (state scanState) detectMarker(paramType *checker.Type) (marker.Kind, *chec
 	return kind, typeArg, matched
 }
 
+// nearMissDiagnostic builds MKR012 for a parameter whose type is named like a
+// marker but was declared by a package the project does not trust. The
+// "using file's package" is passed so a project's OWN same-named brand — the
+// case the gate exists to keep inert — never reports.
+func (state scanState) nearMissDiagnostic(file string, call *ast.Node, paramType *checker.Type) (diagnostics.Diagnostic, bool) {
+	usingModule := marker.DeclaringModuleOfNode(call, state.sess.marker.FS)
+	nearMiss, found := marker.DetectNearMiss(paramType, state.sess.marker, usingModule)
+	if !found {
+		return diagnostics.Diagnostic{}, false
+	}
+	sourceFile := ast.GetSourceFileOfNode(call)
+	if sourceFile == nil {
+		return diagnostics.Diagnostic{}, false
+	}
+	return diagnostics.New(
+		diagnostics.CodeMarkerUntrustedPackage,
+		textpos.NodeSite(file, sourceFile, call),
+		nearMiss.MarkerName,
+		nearMiss.DeclaringModule,
+	), true
+}
+
 // pendingCall is the checker-bound analysis result for one injection
 // call site — a complete Site minus the wire ID, plus the resolved type
 // argument and the checker that materialized it. analyzeCall produces
@@ -506,6 +528,18 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 		}
 		if !matched {
 			continue
+		}
+		// A nil typeArg on an INJECTION marker means the alias never matched and
+		// only the brand PROPERTY did (matchedByBrand, which is deliberately not
+		// module-gated). The usual cause is a near miss: right marker name,
+		// declared by a package this project has not trusted. The call still
+		// emits a site, but for `unknown` instead of the user's type, so say so
+		// rather than letting it pass silently. Guarded on the nil typeArg so the
+		// check costs nothing on the hot path.
+		if typeArg == nil && (kind == marker.KindInjectRunTypeId || kind == marker.KindInjectTypeFnArgs) {
+			if nearMissDiag, found := state.nearMissDiagnostic(file, call, paramType); found {
+				diags = append(diags, nearMissDiag)
+			}
 		}
 		switch kind {
 		case marker.KindInjectRunTypeId:

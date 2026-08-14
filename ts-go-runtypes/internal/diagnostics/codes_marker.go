@@ -38,6 +38,16 @@ const (
 	// checker resolves defaults at use sites). Args: [0] type name, [1] parameter
 	// name; Related: the default-less parameter's declaration + alias hops.
 	CodeMarkerUnresolvedGenericType = "MKR011"
+	// CodeMarkerUntrustedPackage fires when a type is named exactly like a marker
+	// but was declared by a package the project has not trusted, so the
+	// module-of-origin gate rejected it. The brand-property fallback still emits
+	// a site, so the call does not vanish — it silently reflects `unknown`
+	// instead of the user's type, which is the worst shape of failure (the build
+	// succeeds and the generated validator accepts everything). Args: [0] the
+	// marker name, [1] the declaring package. A same-named brand declared by the
+	// USING file's own package never trips it: that is the local-brand case the
+	// gate exists to keep inert.
+	CodeMarkerUntrustedPackage = "MKR012"
 )
 
 // CompTimeArgs-marker codes (CTAxxx). Issued by the resolver when a
@@ -84,6 +94,7 @@ func init() {
 		{Code: CodeMarkerSelfInstantiatingGeneric, Family: FamilyMarker, Severity: SeverityError, Title: "Type re-instantiates itself with fresh type arguments: a self-instantiating generic cannot resolve to a structural id"},
 		{Code: CodeMarkerUnresolvedTypeParameter, Family: FamilyMarker, Severity: SeverityError, Title: "Marker type argument contains an unresolved type parameter: generics must be fully resolved at the call site"},
 		{Code: CodeMarkerUnresolvedGenericType, Family: FamilyMarker, Severity: SeverityError, Title: "Generic type used without its required type arguments: a default-less parameter cannot be resolved"},
+		{Code: CodeMarkerUntrustedPackage, Family: FamilyMarker, Severity: SeverityWarning, Title: "Marker-named type declared by an untrusted package: the type argument was dropped, so the call reflects `unknown`"},
 		{Code: CodeCompTimeArgsNonLiteral, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> argument must be a literal at the call site or const-bound to a literal"},
 		{Code: CodeCompTimeArgsDepthExceeded, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal nesting exceeds depth cap (16), refactor to flatten"},
 		{Code: CodeCompTimeArgsForbiddenConstruct, Family: FamilyMarker, Severity: SeverityError, Title: "CompTimeArgs<T> literal contains a forbidden construct (computed property, function call, ternary, template substitution, or a non-mergeable spread)"},

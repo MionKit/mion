@@ -1,12 +1,14 @@
 package resolver_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/compiler/resolver"
+	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -32,6 +34,13 @@ const thirdPartyPackageName = "@my-org/runtypes-markers"
 // from thirdPartyPackageName, scans callCode, and returns the resolved RunType
 // for the single call site (nil when the markers went unrecognised).
 func markerPackageProgram(t *testing.T, callCode string, markerOpts marker.Options) *reflection.RunType {
+	t.Helper()
+	runType, _ := markerPackageScan(t, callCode, markerOpts)
+	return runType
+}
+
+// markerPackageScan is markerPackageProgram plus the scan's diagnostics.
+func markerPackageScan(t *testing.T, callCode string, markerOpts marker.Options) (*reflection.RunType, []diagnostics.Diagnostic) {
 	t.Helper()
 	cwd := tspath.NormalizePath(t.TempDir())
 	pkgDir := "node_modules/" + thirdPartyPackageName
@@ -60,14 +69,14 @@ func markerPackageProgram(t *testing.T, callCode string, markerOpts marker.Optio
 		t.Fatalf("scan error: %s", resp.Error)
 	}
 	if len(resp.Sites) == 0 {
-		return nil
+		return nil, resp.Diagnostics
 	}
 	for i := range resp.RunTypes {
 		if resp.RunTypes[i].ID == resp.Sites[0].ID {
-			return resp.RunTypes[i]
+			return resp.RunTypes[i], resp.Diagnostics
 		}
 	}
-	return nil
+	return nil, resp.Diagnostics
 }
 
 const staticCall = `import {getRunTypeId} from '@my-org/runtypes-markers';
@@ -194,5 +203,70 @@ func TestMarkerPackage_FormEquivalence(t *testing.T) {
 	}
 	if staticType.ID != reflectType.ID {
 		t.Fatalf("static and reflect forms disagree: %q vs %q", staticType.ID, reflectType.ID)
+	}
+}
+
+// --- MKR012: the near miss is reported, not silently degraded ---------------
+
+// hasUntrustedPackageDiag reports whether the scan flagged a marker-named type
+// from an untrusted package, returning its args joined for assertion (the args
+// are what the message template substitutes, so asserting on them pins the
+// actionable content without coupling to the wording).
+func hasUntrustedPackageDiag(diags []diagnostics.Diagnostic) (string, bool) {
+	for _, diag := range diags {
+		if diag.Code == diagnostics.CodeMarkerUntrustedPackage {
+			return strings.Join(diag.Args, " | "), true
+		}
+	}
+	return "", false
+}
+
+func TestMarkerPackage_UntrustedPackageIsDiagnosed_Static(t *testing.T) {
+	runType, diags := markerPackageScan(t, staticCall, marker.Options{})
+	if runType == nil || runType.Kind != reflection.KindUnknown {
+		t.Fatal("expected the silently-degraded site this diagnostic exists to explain")
+	}
+	message, found := hasUntrustedPackageDiag(diags)
+	if !found {
+		t.Fatalf("expected %s, got %d diagnostic(s)", diagnostics.CodeMarkerUntrustedPackage, len(diags))
+	}
+	// The message has to name the package to add, or it cannot be acted on.
+	if !strings.Contains(message, thirdPartyPackageName) {
+		t.Errorf("expected the declaring package in the message, got %q", message)
+	}
+	if !strings.Contains(message, marker.DefaultName) {
+		t.Errorf("expected the marker name in the message, got %q", message)
+	}
+}
+
+// Configuring the package is the fix, so the diagnostic must go away with it —
+// otherwise it is an unsilenceable warning.
+func TestMarkerPackage_NoDiagnosticOnceConfigured(t *testing.T) {
+	_, diags := markerPackageScan(t, staticCall, marker.Options{Packages: []string{thirdPartyPackageName}})
+	if message, found := hasUntrustedPackageDiag(diags); found {
+		t.Errorf("expected no near-miss diagnostic once the package is trusted, got %q", message)
+	}
+}
+
+func TestMarkerPackage_NoDiagnosticWhenCheckDisabled(t *testing.T) {
+	// Nothing can be rejected with the gate off, so there is no near miss.
+	_, diags := markerPackageScan(t, staticCall, marker.Options{SkipPackageCheck: true})
+	if message, found := hasUntrustedPackageDiag(diags); found {
+		t.Errorf("expected no near-miss diagnostic with the package check off, got %q", message)
+	}
+}
+
+func TestMarkerPackage_NoDiagnosticForTheTrustedPackage(t *testing.T) {
+	// The ordinary case: markers from ts-runtypes must never trip this.
+	const code = `import {getRunTypeId} from '@ts-runtypes/core';
+getRunTypeId<string>();
+`
+	session := setupInlineWith(t, map[string]string{"test.ts": code}, func(programOpts *program.Options, resolverOpts *resolver.Options) {
+		programOpts.SingleThreaded = true
+		resolverOpts.SingleThreaded = true
+	})
+	resp := session.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"test.ts"}, IncludeRunTypes: true})
+	if message, found := hasUntrustedPackageDiag(resp.Diagnostics); found {
+		t.Errorf("expected no near-miss diagnostic for the built-in package, got %q", message)
 	}
 }
