@@ -572,6 +572,10 @@ func newStdioSession(sources string, cfg sessionConfig, stdinDec *json.Decoder) 
 		if err != nil {
 			return nil, fmt.Errorf("tsconfig: %w", err)
 		}
+		// Root the config's declaration files too (same rule as the daemon's
+		// setSources): ambient `.d.ts` members of the include set are what tsc
+		// sees without an import and a handshake-rooted program would lose.
+		fileNames = program.UnionRoots(fileNames, inferredConfig.DeclarationFileNames())
 		p, err := program.NewInferred(program.Options{
 			Cwd:            cfg.absCwd,
 			SingleThreaded: cfg.opts.SingleThreaded,

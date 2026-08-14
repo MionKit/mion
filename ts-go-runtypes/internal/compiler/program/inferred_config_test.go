@@ -192,3 +192,57 @@ func TestParseInferredConfig_ExtraConditionsCloneNotMutate(t *testing.T) {
 		t.Errorf("extras must fold on a Clone(), not on the shared parsed pointer")
 	}
 }
+
+// TestParseInferredConfig_CarriesFileNames — the parse keeps the config's
+// include-resolved file list (the set tsc itself roots), and
+// DeclarationFileNames filters it to the `.d.ts` members the daemon lanes
+// union into their roots. Both accessors are nil-safe for the no-config case.
+func TestParseInferredConfig_CarriesFileNames(t *testing.T) {
+	dir := t.TempDir()
+	writeConfigFile(t, filepath.Join(dir, "tsconfig.json"), `{
+		"compilerOptions": {"strict": true}
+	}`)
+	writeConfigFile(t, filepath.Join(dir, "main.ts"), "export const a = 1;\n")
+	writeConfigFile(t, filepath.Join(dir, "ambient.d.ts"), "declare interface Ambient { a: string }\n")
+
+	inferredConfig, err := ParseInferredConfig(dir, "tsconfig.json")
+	if err != nil {
+		t.Fatalf("ParseInferredConfig: %v", err)
+	}
+	fileNames := inferredConfig.FileNames()
+	if len(fileNames) != 2 {
+		t.Fatalf("FileNames should carry the config's include-resolved list; got %v", fileNames)
+	}
+	joined := strings.Join(fileNames, " ")
+	if !strings.Contains(joined, "main.ts") || !strings.Contains(joined, "ambient.d.ts") {
+		t.Errorf("FileNames should list both project files; got %v", fileNames)
+	}
+
+	declarationFiles := inferredConfig.DeclarationFileNames()
+	if len(declarationFiles) != 1 || !strings.HasSuffix(declarationFiles[0], "ambient.d.ts") {
+		t.Errorf("DeclarationFileNames should keep only the .d.ts members; got %v", declarationFiles)
+	}
+
+	var nilConfig *InferredConfig
+	if nilConfig.FileNames() != nil || nilConfig.DeclarationFileNames() != nil {
+		t.Errorf("nil handle accessors must return nil (the no-config posture)")
+	}
+}
+
+// TestUnionRoots — dedupes against the base, preserves order, and leaves the
+// base untouched when the extras add nothing.
+func TestUnionRoots(t *testing.T) {
+	base := []string{"/p/a.ts", "/p/b.ts"}
+	got := UnionRoots(base, []string{"/p/b.ts", "/p/ambient.d.ts", "/p/a.ts"})
+	want := []string{"/p/a.ts", "/p/b.ts", "/p/ambient.d.ts"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("UnionRoots = %v, want %v", got, want)
+	}
+	same := []string{"/p/a.ts"}
+	if got := UnionRoots(same, nil); len(got) != 1 || got[0] != "/p/a.ts" {
+		t.Errorf("empty extras must be a no-op; got %v", got)
+	}
+	if got := UnionRoots(nil, []string{"/p/only.d.ts"}); len(got) != 1 || got[0] != "/p/only.d.ts" {
+		t.Errorf("nil base takes the extras; got %v", got)
+	}
+}

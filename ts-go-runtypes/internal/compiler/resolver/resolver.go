@@ -263,6 +263,12 @@ type Session struct {
 	// Session-lifetime, not reset on a Program swap.
 	inferredConfig     *program.InferredConfig
 	inferredConfigDone bool
+	// configDeclarationRoots is the config's declaration-file (`.d.ts`) subset,
+	// computed once beside inferredConfig. Every setSources-built Program unions
+	// it into its roots so ambient declarations the project includes — which
+	// nothing imports, so module resolution never reaches them — resolve exactly
+	// as they do in the build lane instead of silently checking as `any`.
+	configDeclarationRoots []string
 	// pureFnHashes is the session-wide index of every pure-fn entry
 	// the resolver has observed so far, keyed by "<ns>::<fnName>" with
 	// the entry's bodyHash as the value. Used by dispatchScanFiles to
