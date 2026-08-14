@@ -94,6 +94,14 @@ export interface ResolverClientOptions {
   // Forwarded as --pattern-sample-retries: the per-sample draw multiplier
   // for pattern sample generation (undefined = the binary default, 10).
   patternSampleRetries?: number;
+  // Extra packages allowed to declare the marker types, forwarded as
+  // --marker-packages at spawn. Session config, not a per-request field: the
+  // resolver folds it into its marker options once when the Program is built,
+  // so it must ride the argv the client replays on respawn.
+  markerPackages?: string[];
+  // false forwards --no-marker-package-check, matching markers on type name
+  // alone. Undefined/true leaves the package gate on (the default).
+  markerPackageCheck?: boolean;
   // Forwarded as --js-runtime: the node/bun path the resolver runs
   // format-pattern checks on. buildResolverArgs defaults it to THIS
   // process's own execPath (the plugin/linter already runs inside a JS
@@ -574,6 +582,8 @@ export function buildResolverArgs(cwd: string, tsconfigPath: string, opts: Resol
   if (opts.hashLength !== undefined) args.push('--hash-length', String(opts.hashLength));
   if (opts.patternSampleCount !== undefined) args.push('--pattern-sample-count', String(opts.patternSampleCount));
   if (opts.patternSampleRetries !== undefined) args.push('--pattern-sample-retries', String(opts.patternSampleRetries));
+  if (opts.markerPackages?.length) args.push('--marker-packages', opts.markerPackages.join(','));
+  if (opts.markerPackageCheck === false) args.push('--no-marker-package-check');
   // Always passed: the resolver's format-pattern checks run on a real JS
   // engine, and THIS process is one — its own execPath is the zero-config
   // default for every lane (build + lint). An explicit option pins another.

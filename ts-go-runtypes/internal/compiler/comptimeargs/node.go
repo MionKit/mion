@@ -63,7 +63,7 @@ func isMarkerAliasParamNode(typeChecker *checker.Checker, paramSymbol *ast.Symbo
 		if symbol == nil || symbol.Name != spec.Name {
 			continue
 		}
-		if marker.DeclaredInModule(symbol, spec.Module, opts.FS) {
+		if opts.DeclaredInMarkerPackage(symbol) {
 			return true
 		}
 	}
@@ -118,7 +118,7 @@ func IsInjectionMarkerParamNode(typeChecker *checker.Checker, paramSymbol *ast.S
 			if !ok || symbol.Name != spec.Name {
 				continue
 			}
-			if marker.DeclaredInModule(symbol, spec.Module, opts.FS) {
+			if opts.DeclaredInMarkerPackage(symbol) {
 				return true
 			}
 		}

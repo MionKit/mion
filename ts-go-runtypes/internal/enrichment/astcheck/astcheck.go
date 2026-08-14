@@ -16,7 +16,6 @@ import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/microsoft/typescript-go/shim/scanner"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
@@ -46,11 +45,12 @@ type PositionedFinding struct {
 // CheckSourceFile walks sourceFile's variable statements, runs the paired
 // FriendlyText / MockData checks on every enrichment const with an
 // object-literal initializer, and returns position-anchored findings.
-// moduleFS is the filesystem the marker package.json gate reads — pass the
+// markerOpts carries the accepted marker package set + the filesystem the
+// package.json gate reads — pass the
 // Program's FS so overlay-backed programs resolve; nil falls through to the
 // real disk (the CLI case). filePath is the path findings report (the
 // resolver echoes request-normalized paths; the CLI passes the absolute path).
-func CheckSourceFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, cache *runtype.Cache, moduleFS vfspkg.FS, filePath string) []PositionedFinding {
+func CheckSourceFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, filePath string) []PositionedFinding {
 	var out []PositionedFinding
 	if sourceFile == nil || typeChecker == nil || cache == nil {
 		return out
@@ -64,7 +64,7 @@ func CheckSourceFile(sourceFile *ast.SourceFile, typeChecker *checker.Checker, c
 			continue
 		}
 		for _, declaration := range variableDeclarations(statement) {
-			kind, typeArg := enrichAnnotation(typeChecker, declaration, moduleFS)
+			kind, typeArg := enrichAnnotation(typeChecker, declaration, markerOpts)
 			if kind == mapKindNone || typeArg == nil {
 				continue
 			}
@@ -118,7 +118,7 @@ func variableDeclarations(statement *ast.Node) []*ast.Node {
 // the module the same way marker.go does. We can't read it off the resolved
 // `*checker.Type` (marker.go's aliasForSpec path) because FriendlyText<T>'s body
 // reduces immediately, so getTypeFromTypeNode drops the alias info.
-func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, moduleFS vfspkg.FS) (mapKind, *checker.Type) {
+func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, markerOpts marker.Options) (mapKind, *checker.Type) {
 	if !ast.IsVariableDeclaration(declaration) {
 		return mapKindNone, nil
 	}
@@ -152,7 +152,7 @@ func enrichAnnotation(typeChecker *checker.Checker, declaration *ast.Node, modul
 	default:
 		return mapKindNone, nil
 	}
-	if !marker.DeclaredInModule(symbol, marker.DefaultModule, moduleFS) {
+	if !markerOpts.DeclaredInMarkerPackage(symbol) {
 		return mapKindNone, nil
 	}
 	typeArgumentNodes := typeNode.TypeArguments()

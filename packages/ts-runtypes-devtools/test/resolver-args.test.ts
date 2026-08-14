@@ -170,3 +170,28 @@ describe('buildResolverArgs — serve subcommand + --sources', () => {
     expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--sources');
   });
 });
+
+// The marker package gate is SESSION config, not a per-request wire field (the
+// resolver folds it into its marker options once, when the Program is built),
+// so it has to ride the argv the client replays on respawn. These pin that.
+describe('buildResolverArgs — marker package gate', () => {
+  it('forwards markerPackages as one comma-separated `--marker-packages`', () => {
+    const args = buildResolverArgs('/proj', 'tsconfig.json', {markerPackages: ['@a/one', '@b/two']});
+    const idx = args.indexOf('--marker-packages');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    expect(args[idx + 1]).toBe('@a/one,@b/two');
+  });
+
+  it('omits --marker-packages when unset or empty (the binary keeps its default gate)', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--marker-packages');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {markerPackages: []})).not.toContain('--marker-packages');
+  });
+
+  it('forwards --no-marker-package-check only for an explicit false', () => {
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {markerPackageCheck: false})).toContain('--no-marker-package-check');
+    // true and undefined both mean "leave the gate on", which is the binary
+    // default — sending a flag for either would be noise.
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {markerPackageCheck: true})).not.toContain('--no-marker-package-check');
+    expect(buildResolverArgs('/proj', 'tsconfig.json', {})).not.toContain('--no-marker-package-check');
+  });
+});

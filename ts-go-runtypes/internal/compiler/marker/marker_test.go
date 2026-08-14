@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/microsoft/typescript-go/shim/ast"
 )
 
 // Locks in the package.json walk used by DeclaredInModule. The Case 1
@@ -116,5 +118,68 @@ func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+// --- configurable marker package -------------------------------------------
+// PackageSet is the set the module-of-origin gate matches against, so these
+// pin the two knobs a project has: adding packages, and turning the gate off.
+
+func TestPackageSet_DefaultsToTheMarkerPackage(t *testing.T) {
+	got := WithDefaults(Options{}).PackageSet()
+	if len(got) != 1 || got[0] != DefaultModule {
+		t.Fatalf("expected exactly [%s], got %v", DefaultModule, got)
+	}
+}
+
+func TestPackageSet_ZeroValueStillGatesOnTheDefault(t *testing.T) {
+	// A zero-value Options (no WithDefaults) must not degrade into "accept
+	// nothing" — an empty set would make DeclaredInAnyModule reject everything
+	// and silently drop every marker.
+	got := Options{}.PackageSet()
+	if len(got) != 1 || got[0] != DefaultModule {
+		t.Fatalf("expected exactly [%s], got %v", DefaultModule, got)
+	}
+}
+
+func TestPackageSet_ConfiguredPackagesAreAdditive(t *testing.T) {
+	// The configured package must be ACCEPTED ALONGSIDE the default, never
+	// instead of it: a project declaring its own markers keeps working with
+	// markers imported from ts-runtypes.
+	got := WithDefaults(Options{Packages: []string{"@my-org/markers"}}).PackageSet()
+	if len(got) != 2 || got[0] != DefaultModule || got[1] != "@my-org/markers" {
+		t.Fatalf("expected [%s @my-org/markers], got %v", DefaultModule, got)
+	}
+}
+
+func TestPackageSet_DedupesAndDropsBlanks(t *testing.T) {
+	got := WithDefaults(Options{Packages: []string{"@a/b", "", "  ", "@a/b", DefaultModule}}).PackageSet()
+	if len(got) != 2 || got[0] != DefaultModule || got[1] != "@a/b" {
+		t.Fatalf("expected [%s @a/b], got %v", DefaultModule, got)
+	}
+}
+
+func TestDeclaredInMarkerPackage_SkipPackageCheckAcceptsAnyDeclaration(t *testing.T) {
+	// With the gate off the symbol's declarations are never consulted, so even
+	// a symbol with NO declarations at all passes on its name alone.
+	opts := WithDefaults(Options{SkipPackageCheck: true})
+	if !opts.DeclaredInMarkerPackage(&ast.Symbol{Name: DefaultName}) {
+		t.Fatal("expected SkipPackageCheck to accept a declaration from anywhere")
+	}
+}
+
+func TestDeclaredInMarkerPackage_NilSymbolIsRejectedEvenWithTheGateOff(t *testing.T) {
+	opts := WithDefaults(Options{SkipPackageCheck: true})
+	if opts.DeclaredInMarkerPackage(nil) {
+		t.Fatal("expected a nil symbol to be rejected")
+	}
+}
+
+func TestDeclaredInAnyModule_EmptyModuleSetRejects(t *testing.T) {
+	if DeclaredInAnyModule(&ast.Symbol{Name: DefaultName}, nil, nil) {
+		t.Fatal("expected an empty module set to reject")
+	}
+	if DeclaredInAnyModule(&ast.Symbol{Name: DefaultName}, []string{"", " "}, nil) {
+		t.Fatal("expected a blanks-only module set to reject")
 	}
 }

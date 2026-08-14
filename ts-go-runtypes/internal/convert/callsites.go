@@ -33,7 +33,6 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
 	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
@@ -77,7 +76,7 @@ func recognizeCallSites(
 	sourceFile *ast.SourceFile,
 	typeChecker *checker.Checker,
 	cache *runtype.Cache,
-	fs vfspkg.FS,
+	markerOpts marker.Options,
 	set *Set,
 	target Target,
 ) []*callSite {
@@ -86,7 +85,7 @@ func recognizeCallSites(
 		return nil
 	}
 	source := sourceFile.Text()
-	markerOpts := marker.WithDefaults(marker.Options{FS: fs})
+	markerOpts = marker.WithDefaults(markerOpts)
 	fileScope := inScopeNames(sourceFile)
 	var sites []*callSite
 	var visit ast.Visitor
@@ -186,7 +185,7 @@ func recognizeCall(
 	// argument and rewrote it into `RT.optional<string>()`, overlapping the
 	// enclosing declaration's own edit.
 	if returnType := typeChecker.GetTypeAtLocation(call); returnType != nil &&
-		builders.IsRunType(returnType, marker.DefaultModule, markerOpts.FS) {
+		builders.IsRunType(returnType, markerOpts) {
 		return nil
 	}
 	// The rewrite moves T from the type-argument list into the FIRST value slot,
@@ -196,7 +195,7 @@ func recognizeCall(
 	// own `deserializeValidate<T>(val?: T, options?, id?)` has the reflection
 	// form ONLY, so handing it a builder passed a RunType as the VALUE and
 	// inferred T as `RunType<…>` — 442 converted tests failed on exactly that.
-	if !hasRunTypeFirstParameter(typeChecker, callExpression, markerOpts.FS) {
+	if !hasRunTypeFirstParameter(typeChecker, callExpression, markerOpts) {
 		return nil
 	}
 	arguments := callArguments(callExpression)
@@ -204,7 +203,7 @@ func recognizeCall(
 		return recognizeTypeFormCall(source, call, callExpression, arguments, typeChecker, cache, set, target, inScope)
 	}
 	if callExpression.TypeArguments == nil && len(arguments) > 0 {
-		return recognizeValueFormCall(source, call, callExpression, arguments, typeChecker, cache, target, markerOpts.FS)
+		return recognizeValueFormCall(source, call, callExpression, arguments, typeChecker, cache, target, markerOpts)
 	}
 	return nil
 }
@@ -276,7 +275,7 @@ func recognizeValueFormCall(
 	typeChecker *checker.Checker,
 	cache *runtype.Cache,
 	target Target,
-	fs vfspkg.FS,
+	markerOpts marker.Options,
 ) *callSite {
 	if target != TargetType {
 		return nil
@@ -288,7 +287,7 @@ func recognizeValueFormCall(
 	// — its first type argument — and the id moved. The FE roundtrip lane caught
 	// it on seed 133220833.
 	runTypeRef := typeChecker.GetTypeAtLocation(arguments[0])
-	if runTypeRef == nil || !builders.IsRunType(runTypeRef, marker.DefaultModule, fs) {
+	if runTypeRef == nil || !builders.IsRunType(runTypeRef, markerOpts) {
 		return nil
 	}
 	if runTypeRef.ObjectFlags()&checker.ObjectFlagsReference == 0 {
@@ -383,7 +382,7 @@ func printCallSite(
 // takes a `RunType<…>` in slot 0 — that is, whether the value-first overload
 // exists at all. It is the precondition for moving a type argument into the
 // value slot.
-func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.CallExpression, fs vfspkg.FS) bool {
+func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.CallExpression, markerOpts marker.Options) bool {
 	calleeType := typeChecker.GetTypeAtLocation(callExpression.Expression)
 	if calleeType == nil {
 		return false
@@ -394,7 +393,7 @@ func hasRunTypeFirstParameter(typeChecker *checker.Checker, callExpression *ast.
 			continue
 		}
 		parameterType := checker.Checker_getTypeOfSymbol(typeChecker, parameters[0])
-		if parameterType != nil && builders.IsRunType(parameterType, marker.DefaultModule, fs) {
+		if parameterType != nil && builders.IsRunType(parameterType, markerOpts) {
 			return true
 		}
 	}

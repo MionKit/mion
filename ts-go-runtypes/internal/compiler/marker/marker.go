@@ -13,10 +13,17 @@
 // The detection is two-layered for every kind:
 //  1. Name match — the type alias' symbol name must equal the configured
 //     marker name (defaults below).
-//  2. Module-of-origin match — the alias must be declared inside the
-//     configured marker package (default "@ts-runtypes/core"). This
-//     stops a user's own `type InjectRunTypeId<T> = ...` (or similarly
-//     named local brand) from accidentally triggering rewrites.
+//  2. Module-of-origin match — the alias must be declared inside one of the
+//     accepted marker packages (always "@ts-runtypes/core", plus whatever
+//     Options.Packages adds). This stops a user's own `type
+//     InjectRunTypeId<T> = ...` (or similarly named local brand) from
+//     accidentally triggering rewrites.
+//
+// Layer 2 is what a third-party library configures when it wants to declare
+// the brands itself rather than depend on ts-runtypes for types alone:
+// Options.Packages ADDS accepted packages (the default is always kept, so the
+// knob can never take working markers away), and Options.SkipPackageCheck
+// drops layer 2 altogether — name-only matching, the deliberate escape hatch.
 package marker
 
 import (
@@ -171,14 +178,30 @@ func DefaultSpecs() []Spec {
 	}
 }
 
-// Options configures marker detection. The Specs slice is the only
-// configuration surface — populated from DefaultSpecs() by
-// WithDefaults when empty. Callers that need to add or rename markers
-// (e.g. tests pinning a non-default module) construct Specs directly.
+// Options configures marker detection. Specs is the marker set itself —
+// populated from DefaultSpecs() by WithDefaults when empty; callers that need
+// to add or rename markers (e.g. tests pinning a non-default module)
+// construct Specs directly. Packages and SkipPackageCheck configure the
+// module-of-origin gate that every spec is matched through, and are the
+// project-configurable half (tsconfig `markers`, the bundler plugin's
+// `markers` option, and the resolver's --marker-packages /
+// --no-marker-package-check flags all land here).
 type Options struct {
 	// Specs, when non-empty, replaces the entire marker set. When empty
 	// WithDefaults fills it with DefaultSpecs().
 	Specs []Spec
+	// Packages names ADDITIONAL packages allowed to declare the marker
+	// types, on top of each spec's own Module. Purely additive by design: a
+	// project that configures its own marker package keeps working with
+	// markers imported from ts-runtypes, so the knob can never silently take
+	// a working call site away. Ignored when SkipPackageCheck is set.
+	Packages []string
+	// SkipPackageCheck drops the module-of-origin gate entirely — a type is a
+	// marker on its NAME alone, wherever it was declared. The escape hatch for
+	// setups the package gate cannot express; it also means any local `type
+	// InjectRunTypeId<T> = …` starts driving rewrites, so it is off by default
+	// and Packages is the answer to prefer.
+	SkipPackageCheck bool
 	// FS, when non-nil, is the virtual filesystem the package-name gate reads
 	// package.json through (DeclaredInModule → packageNameForFile). A marker
 	// declared in an OVERLAY / in-memory node_modules package (the wasm
@@ -198,6 +221,53 @@ func WithDefaults(opts Options) Options {
 	return opts
 }
 
+// PackageSet returns every package name accepted as a marker declaration site:
+// each spec's own Module plus Options.Packages, deduped, in that order. Empty
+// Specs fall back to DefaultModule so a zero-value Options still gates on the
+// real marker package rather than on nothing.
+func (opts Options) PackageSet() []string {
+	packages := make([]string, 0, len(opts.Specs)+len(opts.Packages)+1)
+	seen := map[string]bool{}
+	// Trim here rather than trusting callers: Packages arrives from a tsconfig
+	// array and a bundler option as well as the (already-trimmed) CLI flag, and
+	// a stray " " would otherwise become a package name nothing can ever match.
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		packages = append(packages, name)
+	}
+	if len(opts.Specs) == 0 {
+		add(DefaultModule)
+	}
+	for _, spec := range opts.Specs {
+		add(spec.Module)
+	}
+	for _, name := range opts.Packages {
+		add(name)
+	}
+	return packages
+}
+
+// DeclaredInMarkerPackage reports whether symbol satisfies the
+// module-of-origin gate: declared in any package from PackageSet, or anywhere
+// at all when SkipPackageCheck is set. This is THE gate — every caller that
+// asks "did the marker package declare this?" goes through here (the marker
+// scanner itself, the builders' RunType recognition, DataOnly, the enrichment
+// AST check), so a project's configured packages can never reach some of them
+// and miss others.
+func (opts Options) DeclaredInMarkerPackage(symbol *ast.Symbol) bool {
+	if symbol == nil {
+		return false
+	}
+	if opts.SkipPackageCheck {
+		return true
+	}
+	return DeclaredInAnyModule(symbol, opts.PackageSet(), opts.FS)
+}
+
 // DetectAny inspects a parameter type against every configured marker
 // spec and returns the matching spec's Kind plus the brand's type
 // argument when one matches. Used by the resolver to dispatch
@@ -214,12 +284,12 @@ func DetectAny(typeChecker *checker.Checker, paramType *checker.Type, opts Optio
 	}
 	opts = WithDefaults(opts)
 	for _, spec := range opts.Specs {
-		if typeArgument, ok := matchAliasSpec(paramType, spec, opts.FS); ok {
+		if typeArgument, ok := matchAliasSpec(paramType, spec, opts); ok {
 			return spec.Kind, typeArgument, true
 		}
 		if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
 			for _, member := range paramType.Types() {
-				if typeArgument, ok := matchAliasSpec(member, spec, opts.FS); ok {
+				if typeArgument, ok := matchAliasSpec(member, spec, opts); ok {
 					return spec.Kind, typeArgument, true
 				}
 			}
@@ -277,7 +347,7 @@ func SpecForKind(opts Options, kind Kind) (Spec, bool) {
 // aliasForSpec returns tsType's alias when its symbol name and declaring
 // module match spec — the shared first layer of every alias-based marker
 // match (DetectAny's Kind matching, the InjectTypeFnArgs fn-key read).
-func aliasForSpec(tsType *checker.Type, spec Spec, fs vfspkg.FS) (*checker.TypeAlias, bool) {
+func aliasForSpec(tsType *checker.Type, spec Spec, opts Options) (*checker.TypeAlias, bool) {
 	alias := checker.Type_alias(tsType)
 	if alias == nil {
 		return nil, false
@@ -286,14 +356,14 @@ func aliasForSpec(tsType *checker.Type, spec Spec, fs vfspkg.FS) (*checker.TypeA
 	if symbol == nil || symbol.Name != spec.Name {
 		return nil, false
 	}
-	if !DeclaredInModule(symbol, spec.Module, fs) {
+	if !opts.DeclaredInMarkerPackage(symbol) {
 		return nil, false
 	}
 	return alias, true
 }
 
-func matchAliasSpec(tsType *checker.Type, spec Spec, fs vfspkg.FS) (*checker.Type, bool) {
-	alias, ok := aliasForSpec(tsType, spec, fs)
+func matchAliasSpec(tsType *checker.Type, spec Spec, opts Options) (*checker.Type, bool) {
+	alias, ok := aliasForSpec(tsType, spec, opts)
 	if !ok {
 		return nil, false
 	}
@@ -319,7 +389,7 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	if !found {
 		return nil, false
 	}
-	if keys, ok := fnKeysFromAlias(paramType, spec, opts.FS); ok {
+	if keys, ok := fnKeysFromAlias(paramType, spec, opts); ok {
 		return keys, true
 	}
 	// An optional `id?:` parameter resolves to `InjectTypeFnArgs<…> | undefined`,
@@ -327,7 +397,7 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 	// union-member walk to find it.
 	if checker.Type_flags(paramType)&checker.TypeFlagsUnion != 0 {
 		for _, member := range paramType.Types() {
-			if keys, ok := fnKeysFromAlias(member, spec, opts.FS); ok {
+			if keys, ok := fnKeysFromAlias(member, spec, opts); ok {
 				return keys, true
 			}
 		}
@@ -343,8 +413,8 @@ func FnKeysForInjectTypeFnArgs(typeChecker *checker.Checker, paramType *checker.
 // caller supplied fewer keys — are skipped, so the same reader handles every
 // arity. Returns ok=false unless tsType carries the matching alias with at
 // least one string-literal Fn argument.
-func fnKeysFromAlias(tsType *checker.Type, spec Spec, fs vfspkg.FS) ([]string, bool) {
-	alias, ok := aliasForSpec(tsType, spec, fs)
+func fnKeysFromAlias(tsType *checker.Type, spec Spec, opts Options) ([]string, bool) {
+	alias, ok := aliasForSpec(tsType, spec, opts)
 	if !ok {
 		return nil, false
 	}
@@ -578,18 +648,38 @@ func userVisibleTypeName(name string) bool {
 // packages are recognised); nil falls back to os.ReadFile (real on-disk
 // resolution). The ambient-module form needs no filesystem access at all.
 func DeclaredInModule(symbol *ast.Symbol, module string, fs vfspkg.FS) bool {
-	if symbol == nil || module == "" {
+	if module == "" {
+		return false
+	}
+	return DeclaredInAnyModule(symbol, []string{module}, fs)
+}
+
+// DeclaredInAnyModule is DeclaredInModule over a SET of accepted module names —
+// the form the configurable marker package needs. Each declaration's own module
+// is resolved ONCE and then compared against the set, so accepting N packages
+// costs one package.json walk per declaration, not N.
+func DeclaredInAnyModule(symbol *ast.Symbol, modules []string, fs vfspkg.FS) bool {
+	if symbol == nil || len(modules) == 0 {
+		return false
+	}
+	accepted := make(map[string]bool, len(modules))
+	for _, module := range modules {
+		if module != "" {
+			accepted[module] = true
+		}
+	}
+	if len(accepted) == 0 {
 		return false
 	}
 	for _, declaration := range symbol.Declarations {
-		if findAmbientModuleName(declaration) == module {
+		if accepted[findAmbientModuleName(declaration)] {
 			return true
 		}
 		sourceFile := ast.GetSourceFileOfNode(declaration)
 		if sourceFile == nil {
 			continue
 		}
-		if packageNameForFile(sourceFile.FileName(), fs) == module {
+		if accepted[packageNameForFile(sourceFile.FileName(), fs)] {
 			return true
 		}
 	}

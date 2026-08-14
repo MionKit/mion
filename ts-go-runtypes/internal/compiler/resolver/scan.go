@@ -570,7 +570,7 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	// convert emits it (`createValidateFn(getRunType<Named>())`), which is how
 	// this surfaced.
 	if state.enclosedByInjectionMarker(call) &&
-		!builders.IsIdLookupCall(state.scanChecker, state.sess.markerModule(), call, state.sess.marker.FS) {
+		!builders.IsIdLookupCall(state.scanChecker, call, state.sess.marker) {
 		return nil, diags
 	}
 	// EXPLICIT PASS-THROUGH (per slot): a marker parameter the caller already
@@ -723,7 +723,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		// `array(…)`, …) IS the intended reflect-form value — it's pure
 		// construction, not a side-effectful user function — so it must not warn.
 		if argZero != nil && argZero.Kind == ast.KindCallExpression &&
-			!builders.IsBuilderLeafCall(state.scanChecker, state.sess.markerModule(), argZero, state.sess.marker.FS) {
+			!builders.IsBuilderLeafCall(state.scanChecker, argZero, state.sess.marker) {
 			if diagnostic, ok := state.sess.markerDiagFunctionCallArg(file, argZero); ok {
 				diags = append(diags, diagnostic)
 			}
@@ -748,7 +748,7 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 		// from the run-type overload's `RunType<T>` param). Overriding it with
 		// `RunType<T>` would validate against RunType's own shape, not `T` — and
 		// break recursive run-types bound to an annotated const.
-		if annotated, ok := state.declaredTypeFromIdentifier(argZero); ok && !builders.IsRunType(annotated, state.sess.markerModule(), state.sess.marker.FS) {
+		if annotated, ok := state.declaredTypeFromIdentifier(argZero); ok && !builders.IsRunType(annotated, state.sess.marker) {
 			typeArgument = annotated
 		}
 	}
@@ -1531,9 +1531,9 @@ func (sess *Session) noopValidateOptionDiag(file string, call *ast.Node, lastInd
 // `string({…})` or `optional(number())` inside `object({…})` passes without
 // recursing into it (each self-validates on its own scan visit).
 func (state scanState) isBuilderCallPredicate() func(*ast.Node) bool {
-	module := state.sess.markerModule()
+	markerOpts := state.sess.marker
 	return func(node *ast.Node) bool {
-		return builders.IsBuilderLeafCall(state.scanChecker, module, node, state.sess.marker.FS)
+		return builders.IsBuilderLeafCall(state.scanChecker, node, markerOpts)
 	}
 }
 

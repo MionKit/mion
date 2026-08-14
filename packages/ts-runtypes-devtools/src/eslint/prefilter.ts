@@ -10,18 +10,27 @@ import {
   MOCK_DATA_NAME,
 } from '../go-generated/runtypes-constants.generated.ts';
 
-// MARKER_MODULE mirrors the unplugin's short-circuit: match the package only
-// as a quoted import specifier (`'@ts-runtypes/core`, `"@ts-runtypes/core`, incl.
-// subpaths) so a path mention in a comment never forces a scan.
+// DEFAULT_MARKER_MODULE mirrors the unplugin's short-circuit: match the package
+// only as a quoted import specifier (`'@ts-runtypes/core`, `"@ts-runtypes/core`,
+// incl. subpaths) so a path mention in a comment never forces a scan.
 // The pure-fn registrars are checked separately because the marker package's
 // OWN sources call them via relative imports. `registerPureFn` is a substring
 // of `registerPureFnFactory`, so probing it covers both named registrars.
-const MARKER_MODULE = '@ts-runtypes/core';
+const DEFAULT_MARKER_MODULE = '@ts-runtypes/core';
 
 // referencesMarkerModule gates the compiler-diagnostics pass (severity-tier
 // rules): only files that can contain marker call sites go to the resolver.
-export function referencesMarkerModule(text: string): boolean {
-  return text.includes(`'${MARKER_MODULE}`) || text.includes(`"${MARKER_MODULE}`) || text.includes('registerPureFn');
+// extraPackages are the project's configured marker packages (tsconfig
+// `markers.packages`): a file importing one of those declares markers just as
+// a ts-runtypes import does, so skipping it would lose its diagnostics. The
+// default package is always probed, matching the additive Go-side gate. Pass
+// checkPackage:false (the package gate disabled) to stop pre-filtering by
+// import specifier altogether — a marker can then come from anywhere, so the
+// only sound answer is to let every file through.
+export function referencesMarkerModule(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
+  if (markers?.checkPackage === false) return true;
+  const modules = [DEFAULT_MARKER_MODULE, ...(markers?.packages ?? [])];
+  return modules.some((mod) => text.includes(`'${mod}`) || text.includes(`"${mod}`)) || text.includes('registerPureFn');
 }
 
 // enrichConstAnnotationPattern mirrors the Go-side guard's structural probe: a
@@ -50,7 +59,8 @@ export function looksLikeEnrichmentFile(text: string): boolean {
 
 // needsResolverPass is the union gate the rules share: one resolver pass per
 // file serves every rule, so the file goes over the wire when EITHER family
-// could report on it.
-export function needsResolverPass(text: string): boolean {
-  return referencesMarkerModule(text) || looksLikeEnrichmentFile(text);
+// could report on it. markers is the project's configured marker-package
+// setting, forwarded to referencesMarkerModule.
+export function needsResolverPass(text: string, markers?: {packages?: string[]; checkPackage?: boolean}): boolean {
+  return referencesMarkerModule(text, markers) || looksLikeEnrichmentFile(text);
 }

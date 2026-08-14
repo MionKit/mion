@@ -242,11 +242,11 @@ func TestOutsideSet_NamespaceMemberReferenceErrors(t *testing.T) {
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	branchAbs := tspath.ResolvePath(cwd, "branch.ts")
-	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, []string{branchAbs})
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), []string{branchAbs})
 	if setErr != nil {
 		t.Fatalf("BuildSet: %v", setErr)
 	}
-	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, branchAbs, convert.Options{Target: convert.TargetBuilders}, set)
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), branchAbs, convert.Options{Target: convert.TargetBuilders}, set)
 	if convertErr != nil {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}
@@ -265,11 +265,11 @@ func TestOutsideSet_BuilderPropertyReferenceErrors(t *testing.T) {
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	branchAbs := tspath.ResolvePath(cwd, "branch.ts")
-	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, []string{branchAbs})
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), []string{branchAbs})
 	if setErr != nil {
 		t.Fatalf("BuildSet: %v", setErr)
 	}
-	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, branchAbs, convert.Options{Target: convert.TargetType}, set)
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), branchAbs, convert.Options{Target: convert.TargetType}, set)
 	if convertErr != nil {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}

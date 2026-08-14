@@ -21,6 +21,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   hashLength: true,
   patternSampleCount: true,
   patternSampleRetries: true,
+  markers: true,
   moduleMode: true,
   inlineMode: true,
   transformMode: true,

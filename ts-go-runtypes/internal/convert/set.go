@@ -16,8 +16,8 @@ import (
 
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
+	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -45,9 +45,9 @@ type Set struct {
 	Table map[string]RefTarget
 
 	// The program the set was built over — the index and memo below read it.
-	prog    *program.Program
-	checker *checker.Checker
-	fs      vfspkg.FS
+	prog       *program.Program
+	checker    *checker.Checker
+	markerOpts marker.Options
 	// declsByFile memoizes recognizeFile per in-set file (keyed the way the
 	// checker names files, which is how set.Files is keyed too).
 	declsByFile map[string][]*declaration
@@ -72,9 +72,9 @@ type constUse struct {
 
 // BuildSet recognizes and resolves every file's declarations once, up front,
 // so each file's conversion can reference the others.
-func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absFiles []string) (*Set, error) {
+func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absFiles []string) (*Set, error) {
 	set := &Set{Files: map[string]bool{}, Table: map[string]RefTarget{},
-		prog: prog, checker: typeChecker, fs: fs, declsByFile: map[string][]*declaration{}}
+		prog: prog, checker: typeChecker, markerOpts: markerOpts, declsByFile: map[string][]*declaration{}}
 	for _, absPath := range absFiles {
 		set.Files[absPath] = true
 	}
@@ -83,7 +83,7 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 		if sourceFile == nil {
 			return nil, fmt.Errorf("convert: source file not in program: %s", absPath)
 		}
-		decls := recognizeFile(sourceFile, typeChecker, fs)
+		decls := recognizeFile(sourceFile, typeChecker, markerOpts)
 		set.declsByFile[absPath] = decls
 		for _, decl := range decls {
 			if decl.Generic || decl.Name == "" {
@@ -109,11 +109,11 @@ func BuildSet(prog *program.Program, typeChecker *checker.Checker, cache *runtyp
 // declsFor returns the memoized recognition for an in-set file, recognizing
 // on the spot for a file outside the memo (defensive — ConvertFile is only
 // ever handed set files).
-func (set *Set) declsFor(sourceFile *ast.SourceFile, absPath string, typeChecker *checker.Checker, fs vfspkg.FS) []*declaration {
+func (set *Set) declsFor(sourceFile *ast.SourceFile, absPath string, typeChecker *checker.Checker, markerOpts marker.Options) []*declaration {
 	if decls, memoized := set.declsByFile[absPath]; memoized {
 		return decls
 	}
-	return recognizeFile(sourceFile, typeChecker, fs)
+	return recognizeFile(sourceFile, typeChecker, markerOpts)
 }
 
 // constUseIndex builds (once) the program-wide use index of every in-set
@@ -201,8 +201,8 @@ func (set *Set) candidateSpansFor(target Target) map[string][][2]int {
 }
 
 // singleFileSet is the implicit set when ConvertFile is called without one.
-func singleFileSet(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, fs vfspkg.FS, absPath string) (*Set, error) {
-	return BuildSet(prog, typeChecker, cache, fs, []string{absPath})
+func singleFileSet(prog *program.Program, typeChecker *checker.Checker, cache *runtype.Cache, markerOpts marker.Options, absPath string) (*Set, error) {
+	return BuildSet(prog, typeChecker, cache, markerOpts, []string{absPath})
 }
 
 // binding is one local name an import statement introduces, resolved to the
@@ -467,7 +467,7 @@ func aliasIsPackageImport(typeChecker *checker.Checker, nameNode *ast.Node) bool
 	return false
 }
 
-func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfspkg.FS, decl *declaration, set *Set, currentFile string) []Diagnostic {
+func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, markerOpts marker.Options, decl *declaration, set *Set, currentFile string) []Diagnostic {
 	var diags []Diagnostic
 	reported := map[string]bool{}
 	check := func(nameNode *ast.Node) {
@@ -506,7 +506,7 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, fs vfs
 		if referencedThroughPackageImport(typeChecker, nameNode) {
 			return
 		}
-		if !isConvertibleTargetDecl(targetDecl, typeChecker, fs) {
+		if !isConvertibleTargetDecl(targetDecl, typeChecker, markerOpts) {
 			return
 		}
 		if reported[target.Name] {
@@ -594,7 +594,7 @@ func temporalRefName(typeRefNode *ast.Node) (string, bool) {
 // interface, or a RunType-typed const. Enums, classes, functions and
 // namespaces are runtime code the conversion never touches — referencing them
 // across the set boundary is always fine.
-func isConvertibleTargetDecl(targetDecl *ast.Node, typeChecker *checker.Checker, fs vfspkg.FS) bool {
+func isConvertibleTargetDecl(targetDecl *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) bool {
 	switch targetDecl.Kind {
 	case ast.KindTypeAliasDeclaration, ast.KindInterfaceDeclaration:
 		return true
@@ -611,7 +611,7 @@ func isConvertibleTargetDecl(targetDecl *ast.Node, typeChecker *checker.Checker,
 		if symbol == nil {
 			return false
 		}
-		return isRunTypeValue(typeChecker.GetTypeOfSymbol(symbol), fs)
+		return isRunTypeValue(typeChecker.GetTypeOfSymbol(symbol), markerOpts)
 	}
 	return false
 }

@@ -61,6 +61,27 @@ describe('referencesMarkerModule', () => {
     expect(referencesMarkerModule(`import {x} from "@ts-runtypes/core/schema";`)).toBe(true);
     expect(referencesMarkerModule('// see packages/ts-runtypes/src for details')).toBe(false);
   });
+
+  it('matches a configured marker package, additively with the default one', () => {
+    const markers = {packages: ['@my-org/markers']};
+    const ownPackage = `import {getRunTypeId} from '@my-org/markers';`;
+    // Without config the third-party import is invisible to the pre-filter, so
+    // the file would never reach the resolver and its diagnostics would vanish.
+    expect(referencesMarkerModule(ownPackage)).toBe(false);
+    expect(referencesMarkerModule(ownPackage, markers)).toBe(true);
+    // Configuring one must not stop matching the built-in package.
+    expect(referencesMarkerModule(`import {getRunTypeId} from '@ts-runtypes/core';`, markers)).toBe(true);
+    // Subpaths of a configured package match too, same as the default's.
+    expect(referencesMarkerModule(`import {x} from "@my-org/markers/builders";`, markers)).toBe(true);
+    // A path mention in prose still must not fire.
+    expect(referencesMarkerModule('// see @my-org/markers for details', markers)).toBe(false);
+  });
+
+  it('lets every file through when the package check is disabled', () => {
+    // With no package gate a marker can be declared anywhere, so no import
+    // probe is sound — pre-filtering by specifier would silently drop files.
+    expect(referencesMarkerModule('const unrelated = 1;', {checkPackage: false})).toBe(true);
+  });
 });
 
 describe('looksLikeEnrichmentFile', () => {

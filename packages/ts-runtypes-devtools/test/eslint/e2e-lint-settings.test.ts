@@ -74,6 +74,11 @@ describe('pre-publish e2e lint configs — only settings the plugin actually rea
   });
 
   it('LINT_SETTING_KEYS is the sessionOptions contract', () => {
-    expect([...LINT_SETTING_KEYS].sort()).toEqual(['binary', 'timeoutMs', 'tsconfig']);
+    // `markers` mirrors the tsconfig key of the same name. The resolver reads
+    // the tsconfig itself, so this exists only so the JS-side text pre-filter
+    // knows which import specifiers count as marker imports — without it, a
+    // project whose markers come from its own package would have those files
+    // skipped before the resolver ever saw them.
+    expect([...LINT_SETTING_KEYS].sort()).toEqual(['binary', 'markers', 'timeoutMs', 'tsconfig']);
   });
 });

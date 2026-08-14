@@ -4,21 +4,20 @@
 // inside `object({…})` is a literal, self-validated on its own scan visit).
 //
 // Detection is by RETURN TYPE, not by function name: a builder is any call
-// whose resolved return type is the marker module's `RunType<…>`. Keying on the
+// whose resolved return type is a marker package's `RunType<…>`. Keying on the
 // return type — rather than a hand-maintained name allowlist — auto-covers the
 // six `temporal.*` builders (which resolve through a shared `temporalBuilder`
 // closure whose signature symbol is named `build`/anonymous, not `instant`) and
 // any user wrapper that returns a `RunType<…>`.
 //
 // This is a leaf package: it imports only the AST/checker shims and
-// internal/compiler/marker (for DeclaredInModule). It must not import internal/compiler/resolver
+// internal/compiler/marker (for the package gate). It must not import internal/compiler/resolver
 // or internal/compiler/comptimeargs — both depend on it.
 package builders
 
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	vfspkg "github.com/microsoft/typescript-go/shim/vfs"
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 )
 
@@ -54,7 +53,7 @@ const GetRunTypeName = "getRunType"
 // IsIdLookupCall reports whether call is the marker module's `getRunType`.
 // Callers use it to exempt the call from optimisations that assume a
 // RunType-returning call can be reconstructed from its arguments.
-func IsIdLookupCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+func IsIdLookupCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
 	}
@@ -69,7 +68,7 @@ func IsIdLookupCall(typeChecker *checker.Checker, markerModule string, call *ast
 	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
 		symbol = target
 	}
-	return symbol.Name == GetRunTypeName && marker.DeclaredInModule(symbol, markerModule, fs)
+	return symbol.Name == GetRunTypeName && markerOpts.DeclaredInMarkerPackage(symbol)
 }
 
 // IsMarkerModuleCall reports whether the call's CALLEE is declared in the
@@ -77,7 +76,7 @@ func IsIdLookupCall(typeChecker *checker.Checker, markerModule string, call *ast
 // IsBuilderLeafCall (which is return-TYPE based, so any user helper returning a
 // RunType passes it) this asks who wrote the function, which is what
 // distinguishes an authored value-first spelling from a hand-assembled graph.
-func IsMarkerModuleCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+func IsMarkerModuleCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
 	}
@@ -92,7 +91,7 @@ func IsMarkerModuleCall(typeChecker *checker.Checker, markerModule string, call 
 	if target := checker.SkipAlias(symbol, typeChecker); target != nil {
 		symbol = target
 	}
-	return marker.DeclaredInModule(symbol, markerModule, fs)
+	return markerOpts.DeclaredInMarkerPackage(symbol)
 }
 
 // IsBuilderLeafCall reports whether call is a static builder-construction call
@@ -102,7 +101,7 @@ func IsMarkerModuleCall(typeChecker *checker.Checker, markerModule string, call 
 // so dynamic construction is still rejected. Each accepted call self-validates
 // its own CompTimeArgs args on its own scan visit, so the leaf check STOPS here
 // without recursing.
-func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *ast.Node, fs vfspkg.FS) bool {
+func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts marker.Options) bool {
 	if typeChecker == nil || call == nil || call.Kind != ast.KindCallExpression {
 		return false
 	}
@@ -114,7 +113,7 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *
 	if returnType == nil {
 		return false
 	}
-	if IsRunType(returnType, markerModule, fs) {
+	if IsRunType(returnType, markerOpts) {
 		return true
 	}
 	// propMod / optional / slot / embedType carriers — recognised structurally
@@ -135,17 +134,18 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, markerModule string, call *
 // (defensive, in case a future declaration aliases it), both gated on the
 // declaring module. Exported so the resolver can tell a schema-overload arg
 // (`createValidateFn(schemaConst)`, declared `RunType<T>`) from a reflect-form value.
-// fs is the resolver's virtual filesystem for the module-of-origin package.json
-// walk (nil = real on-disk); see marker.DeclaredInModule.
-func IsRunType(tsType *checker.Type, markerModule string, fs vfspkg.FS) bool {
+// markerOpts carries the accepted marker package set (plus the resolver's
+// virtual filesystem for the package.json walk); see
+// marker.Options.DeclaredInMarkerPackage.
+func IsRunType(tsType *checker.Type, markerOpts marker.Options) bool {
 	if tsType == nil {
 		return false
 	}
-	if symbol := checker.Type_symbol(tsType); symbol != nil && symbol.Name == RunTypeName && marker.DeclaredInModule(symbol, markerModule, fs) {
+	if symbol := checker.Type_symbol(tsType); symbol != nil && symbol.Name == RunTypeName && markerOpts.DeclaredInMarkerPackage(symbol) {
 		return true
 	}
 	if alias := checker.Type_alias(tsType); alias != nil {
-		if symbol := alias.Symbol(); symbol != nil && symbol.Name == RunTypeName && marker.DeclaredInModule(symbol, markerModule, fs) {
+		if symbol := alias.Symbol(); symbol != nil && symbol.Name == RunTypeName && markerOpts.DeclaredInMarkerPackage(symbol) {
 			return true
 		}
 	}

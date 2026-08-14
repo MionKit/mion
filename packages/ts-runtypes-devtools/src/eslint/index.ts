@@ -99,24 +99,34 @@ export function sessionOptions(settings: Record<string, unknown> | undefined): L
   if (typeof bag['timeoutMs'] === 'number') options.timeoutMs = bag['timeoutMs'];
   if (typeof bag['tsconfig'] === 'string') options.tsconfig = bag['tsconfig'];
   if (typeof bag['binary'] === 'string') options.binary = bag['binary'];
+  if (bag['markers'] && typeof bag['markers'] === 'object') {
+    options.markers = bag['markers'] as LintSessionOptions['markers'];
+  }
   return options;
 }
 
 // diagnosticRule builds one transport rule: gate on the cheap text
 // pre-filter, run (or replay) the file's single resolver pass, report the
 // diagnostics routed to THIS rule.
-function diagnosticRule(ruleName: RuleName, description: string, gate: (text: string) => boolean): RuleModule {
+function diagnosticRule(
+  ruleName: RuleName,
+  description: string,
+  gate: (text: string, options: LintSessionOptions) => boolean
+): RuleModule {
   return {
     meta: {type: 'problem', docs: {description}},
     create(context: RuleContext) {
       const text = context.sourceCode.text;
-      if (!gate(text)) return {};
+      // The settings are read BEFORE the gate: the marker pre-filter matches
+      // import specifiers, so it needs the project's configured marker
+      // packages to avoid skipping files whose markers are not ts-runtypes'.
+      const options = sessionOptions(context.settings);
+      if (!gate(text, options)) return {};
       const file = context.physicalFilename ?? context.filename ?? '';
       // Skip unnamed/virtual buffers — the resolver needs a real path to
       // relativize and to resolve the file's imports from disk.
       if (!file || file.startsWith('<')) return {};
       const session = sharedSession();
-      const options = sessionOptions(context.settings);
       if (!engineErrorClaims.has(file)) engineErrorClaims.set(file, ruleName);
       return {
         Program: () => {
@@ -172,7 +182,13 @@ export const rules: Record<RuleName, RuleModule> = Object.fromEntries(
     spec.name,
     spec.gate === 'local'
       ? localAstRule(spec.description)
-      : diagnosticRule(spec.name, spec.description, spec.gate === 'enrichment' ? looksLikeEnrichmentFile : needsResolverPass),
+      : diagnosticRule(
+          spec.name,
+          spec.description,
+          spec.gate === 'enrichment'
+            ? (text: string) => looksLikeEnrichmentFile(text)
+            : (text: string, options: LintSessionOptions) => needsResolverPass(text, options.markers)
+        ),
   ])
 ) as Record<RuleName, RuleModule>;
 

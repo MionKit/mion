@@ -64,7 +64,7 @@ func checkMirrorFilesDiagnostics(paths []string, parsed *program.InferredConfig,
 	var out []diagnostics.Diagnostic
 	for _, path := range existing {
 		sourceFile := prog.SourceFile(path)
-		out = append(out, enrichgen.CheckFile(sourceFile, res.Checker(), res.Cache(), prog.FS, path, path)...)
+		out = append(out, enrichgen.CheckFile(sourceFile, res.Checker(), res.Cache(), res.MarkerOptions(), path, path)...)
 	}
 	return out
 }

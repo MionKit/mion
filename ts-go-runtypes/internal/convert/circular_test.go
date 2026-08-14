@@ -30,14 +30,14 @@ func convertSetWithDiags(t *testing.T, sources map[string]string, opts convert.O
 		absFiles = append(absFiles, absPath)
 		relByAbs[absPath] = rel
 	}
-	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, absFiles)
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absFiles)
 	if setErr != nil {
 		t.Fatalf("BuildSet: %v", setErr)
 	}
 	outputs := map[string]string{}
 	var diags []convert.Diagnostic
 	for _, absPath := range absFiles {
-		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, absPath, opts, set)
+		result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath, opts, set)
 		if convertErr != nil {
 			t.Fatalf("ConvertFile %s: %v", relByAbs[absPath], convertErr)
 		}
@@ -55,7 +55,7 @@ func setDeclIDs(t testing.TB, sources map[string]string) map[string]string {
 	ids := map[string]string{}
 	for rel := range sources {
 		absPath := tspath.ResolvePath(cwd, rel)
-		fileIDs, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+		fileIDs, idsErr := convert.DeclarationIDs(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
 		if idsErr != nil {
 			t.Fatalf("DeclarationIDs %s: %v", rel, idsErr)
 		}
@@ -74,7 +74,7 @@ func setDeclGraphs(t testing.TB, sources map[string]string) map[string]string {
 	graphs := map[string]string{}
 	for rel := range sources {
 		absPath := tspath.ResolvePath(cwd, rel)
-		fileGraphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), prog.FS, absPath)
+		fileGraphs, graphsErr := convert.DeclarationGraphs(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
 		if graphsErr != nil {
 			t.Fatalf("DeclarationGraphs %s: %v", rel, graphsErr)
 		}
@@ -455,11 +455,11 @@ func TestOutsideSet_Errors(t *testing.T) {
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	branchAbs := tspath.ResolvePath(cwd, "branch.ts")
-	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), prog.FS, []string{branchAbs})
+	set, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), []string{branchAbs})
 	if setErr != nil {
 		t.Fatalf("BuildSet: %v", setErr)
 	}
-	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), prog.FS, branchAbs, convert.Options{Target: convert.TargetBuilders}, set)
+	result, convertErr := convert.ConvertFile(prog, session.Checker(), session.Cache(), session.MarkerOptions(), branchAbs, convert.Options{Target: convert.TargetBuilders}, set)
 	if convertErr != nil {
 		t.Fatalf("ConvertFile: %v", convertErr)
 	}

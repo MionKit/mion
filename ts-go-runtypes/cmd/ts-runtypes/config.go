@@ -124,6 +124,29 @@ type tsRuntypesPlugin struct {
 	// the bundler plugin never converts anything (GO_ONLY in the option-parity
 	// test, like `i18n`).
 	ConvertDialect string `json:"convertDialect"`
+	// Markers groups the marker-package gate under one `markers` object (like
+	// `binarySizing`). It answers "which packages am I willing to accept the
+	// marker types from?", so a library can declare `InjectRunTypeId` and
+	// friends itself instead of depending on ts-runtypes purely for types. A nil
+	// object (absent key) keeps the built-in gate: markers count only when
+	// @ts-runtypes/core declared them.
+	Markers *markersPluginConfig `json:"markers"`
+}
+
+// markersPluginConfig is the `markers` object under the ts-runtypes plugin
+// entry:
+//
+//	{ "packages": ["@my-org/runtypes-markers"], "checkPackage": true }
+//
+// packages ADDS packages allowed to declare the marker types; @ts-runtypes/core
+// is always accepted on top of whatever is listed, so this key can never take a
+// working call site away. checkPackage:false drops the package gate entirely —
+// a type is a marker on its NAME alone, wherever it came from. That is the
+// escape hatch, not the recommended setting: with it off, any local `type
+// InjectRunTypeId<T> = …` starts driving rewrites.
+type markersPluginConfig struct {
+	Packages     []string `json:"packages"`
+	CheckPackage *bool    `json:"checkPackage"`
 }
 
 // binarySizingPluginConfig is the `binarySizing` object under the ts-runtypes
