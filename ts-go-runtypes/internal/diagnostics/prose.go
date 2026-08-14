@@ -170,6 +170,16 @@ function route<H extends Handler>(handler: H, fns?: InjectTypeFnArgs<Parameters<
 }
 export const lenRoute = route((ctx: unknown, name: string) => name.length);`,
 	},
+
+	// ──────────────────── unresolved type name (MKR013) ────────────────────
+
+	CodeMarkerUnresolvedTypeName: {
+		Summary: "A type name written at a marker call did not resolve, so TypeScript treated it as `any`. Generated functions built from that would accept every value with no warning, so the build stops instead. A deliberate `any` (written as `any`, or through an alias like `type Loose = any`) is always allowed. Usual causes: a typo in the name, a dependency whose types are missing, or an ambient declaration file that the tsconfig `include` set does not cover. After adding a new declaration file, restart the dev server so it is picked up.",
+		Fix: `// src/ambient.d.ts, matched by the tsconfig include set
+declare interface Ambient { a: string; b: number }`,
+		Example: `import {getRunTypeId} from '@ts-runtypes/core';
+export const id = getRunTypeId<{value: Missing}>();`,
+	},
 }
 
 // init folds the prose onto the registered Definitions. It runs after the

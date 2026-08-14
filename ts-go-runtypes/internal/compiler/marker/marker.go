@@ -516,6 +516,27 @@ func IsFreeTypeParameter(tsType *checker.Type) bool {
 	return checker.Type_flags(tsType)&checker.TypeFlagsTypeParameter != 0
 }
 
+// IsErrorLikeAny reports whether tsType is an `any` the AUTHOR DID NOT WRITE —
+// the checker's own error type, produced when a written type name fails to
+// resolve (a typo, a missing dependency, an ambient declaration the program
+// cannot see). It mirrors tsgo's unexported checker.isErrorType exactly: the
+// error type is the intrinsic named "error" (a deliberate `any`, and a resolved
+// `type Foo = any`, are the intrinsic named "any"), and the only OTHER
+// any-flagged types carrying an alias are the ones the checker manufactures for
+// a reference to an unresolved alias symbol — error-like too. Both tests use
+// exported methods on the shim's aliased types, so no shim accessor is needed.
+func IsErrorLikeAny(tsType *checker.Type) bool {
+	if tsType == nil || tsType.Flags()&checker.TypeFlagsAny == 0 {
+		return false
+	}
+	if tsType.Alias() != nil {
+		return true
+	}
+	// Alias-free any-flagged types are all intrinsics (anyType, autoType,
+	// wildcardType, errorType, ...) — the checker creates no other kind.
+	return tsType.AsIntrinsicType().IntrinsicName() == "error"
+}
+
 // freeParamScanDepth bounds FindFreeTypeParameter's walk. Deep enough for any
 // realistic data shape; the bound (not the visited set) is what terminates on a
 // self-instantiating generic, whose fresh per-level types never repeat — those

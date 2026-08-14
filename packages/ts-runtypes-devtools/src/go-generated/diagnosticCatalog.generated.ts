@@ -422,6 +422,13 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       'A marker only counts when it is BOTH named correctly and declared by a\ntrusted package, so a same-named type of your own never drives rewrites.\nThis one has the right name but comes from a package that is not on the\nlist, so its type argument was ignored: the call still compiles and still\ngenerates a function, but for `unknown` rather than for your type — a\nvalidator over `unknown` accepts everything.\n\nFix: trust the package in your tsconfig plugin entry:\n   {\n     "name": "ts-runtypes",\n+    "markers": {"packages": ["{1}"]}\n   }\n\nThe list is additive, so `@ts-runtypes/core` keeps working alongside it.\nThe same setting exists on the bundler plugin (`markers`) and as the\n`--marker-packages` CLI flag.\n\nIf the package re-exports the markers rather than declaring its own\n(`export type {InjectRunTypeId} from \'@ts-runtypes/core\'`), no setting is\nneeded — a re-export keeps RunTypes as the declaring package, so check\nwhether the package meant to re-export instead.',
   },
+  MKR013: {
+    headline:
+      'Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.',
+    severity: 'error',
+    detail:
+      "The type checker keeps a distinct internal ERROR type for names it could\nnot resolve; it behaves like `any`, so without this guard the validator\nbecomes the always-true identity, the mock `undefined`, and encoders pass\nvalues through — with exit code 0 and no signal. A deliberately written\n`any`, and an alias like `type Loose = any`, are the real `any` and never\ntrip this.\n\nCommon causes and fixes:\n- A typo in the type name: fix the spelling.\n- A dependency whose types are not installed: install/declare them.\n- An ambient declaration (`declare interface ...` in a `.d.ts`) that is\n  not part of the scanned program: make sure the `.d.ts` is matched by the\n  tsconfig `include`/`files` set. The dev server and lint read that file\n  list when they start, so after ADDING a new `.d.ts`, restart the dev\n  server (or the editor's lint process) for it to be seen.",
+  },
   NE001: {
     headline:
       'Property `{0}` is tagged @nonEnumerable but is required: the guard only applies to optional properties, so the tag has no effect. Make it optional (`{0}?`) or remove the tag.',

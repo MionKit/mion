@@ -209,6 +209,16 @@
       "example": null
     },
     {
+      "code": "MKR013",
+      "subsystem": "markers",
+      "severity": "error",
+      "headline": "Marker type resolved to `any` that was never written: `{0}` failed to resolve (or its declaration references a name that does not), so the generated functions would silently accept anything.",
+      "detail": "The type checker keeps a distinct internal ERROR type for names it could\nnot resolve; it behaves like `any`, so without this guard the validator\nbecomes the always-true identity, the mock `undefined`, and encoders pass\nvalues through — with exit code 0 and no signal. A deliberately written\n`any`, and an alias like `type Loose = any`, are the real `any` and never\ntrip this.\n\nCommon causes and fixes:\n- A typo in the type name: fix the spelling.\n- A dependency whose types are not installed: install/declare them.\n- An ambient declaration (`declare interface ...` in a `.d.ts`) that is\n  not part of the scanned program: make sure the `.d.ts` is matched by the\n  tsconfig `include`/`files` set. The dev server and lint read that file\n  list when they start, so after ADDING a new `.d.ts`, restart the dev\n  server (or the editor's lint process) for it to be seen.",
+      "summary": "A type name written at a marker call did not resolve, so TypeScript treated it as `any`. Generated functions built from that would accept every value with no warning, so the build stops instead. A deliberate `any` (written as `any`, or through an alias like `type Loose = any`) is always allowed. Usual causes: a typo in the name, a dependency whose types are missing, or an ambient declaration file that the tsconfig `include` set does not cover. After adding a new declaration file, restart the dev server so it is picked up.",
+      "fix": "// src/ambient.d.ts, matched by the tsconfig include set\ndeclare interface Ambient { a: string; b: number }",
+      "example": "import {getRunTypeId} from '@ts-runtypes/core';\nexport const id = getRunTypeId<{value: Missing}>();"
+    },
+    {
       "code": "PFN001",
       "subsystem": "markers",
       "severity": "error",

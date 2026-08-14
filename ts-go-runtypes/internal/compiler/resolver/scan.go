@@ -678,12 +678,26 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	// namespace — otherwise the emitted validator accepts anything. Emitted
 	// for the injection call regardless of what the type argument resolved
 	// to (it inspects the written syntax, not the resolved type).
-	diags = append(diags, detectTemporalNotLoaded(state.scanChecker, file, call)...)
+	temporalDiags := detectTemporalNotLoaded(state.scanChecker, file, call)
+	diags = append(diags, temporalDiags...)
 	// Sibling guard: T resolved to `any` because an import in this file
 	// failed to resolve in the scan program (MKR007, Error) — the injection
 	// still proceeds (noop tuples), so behavior without failOnError is
 	// unchanged; the diagnostic is what fails strict builds.
-	diags = append(diags, state.detectAnyFromUnresolvedImport(file, call, injectionTypeArgument)...)
+	importDiags := state.detectAnyFromUnresolvedImport(file, call, injectionTypeArgument)
+	diags = append(diags, importDiags...)
+	// Third sibling (MKR013): a written type name that resolved to the
+	// checker's ERROR type — `any` the author never wrote. Suppressed when
+	// MKR007 fired (the import message names the actionable cause); the
+	// slot probe covers the reflect form and yields to a walk hit AND to
+	// TMP001 (the same degraded slot, with a lib-specific fix message).
+	if len(importDiags) == 0 {
+		nameDiags := detectUnresolvedNameRefs(state.scanChecker, file, call)
+		if len(nameDiags) == 0 && len(temporalDiags) == 0 {
+			nameDiags = detectUnresolvedNameSlot(file, call, injectionTypeArgument)
+		}
+		diags = append(diags, nameDiags...)
+	}
 	typeArgument := injectionTypeArgument
 	if marker.IsFreeTypeParameter(typeArgument) {
 		// Call inside a generic wrapper body with the id slot EMPTY — `T` is the
@@ -907,13 +921,26 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 	sourceFile := ast.GetSourceFileOfNode(call)
 	// The Temporal-not-loaded guard is a per-call check (inspects written
 	// syntax, not the resolved type), so it fires once for the whole call.
-	diags = append(diags, detectTemporalNotLoaded(state.scanChecker, file, call)...)
+	temporalDiags := detectTemporalNotLoaded(state.scanChecker, file, call)
+	diags = append(diags, temporalDiags...)
+	// Written-syntax probe of the unresolved-name guard (MKR013), also
+	// per-call. The per-slot reflect probe below yields to its hits, to a
+	// TMP001 hit (same degraded slot, lib-specific fix message), and the
+	// whole family yields to a slot's MKR007 (the import names the cause).
+	nameRefDiags := detectUnresolvedNameRefs(state.scanChecker, file, call)
+	importFired := false
 	pos := call.End() - 1
 	var pendings []pendingCall
 	for _, m := range injecting {
 		// Silent-any guard per slot (MKR007) — a wrapper slot whose T checked
 		// as `any` because this file has an unresolved import.
-		diags = append(diags, state.detectAnyFromUnresolvedImport(file, call, m.typeArg)...)
+		importDiags := state.detectAnyFromUnresolvedImport(file, call, m.typeArg)
+		diags = append(diags, importDiags...)
+		if len(importDiags) > 0 {
+			importFired = true
+		} else if len(nameRefDiags) == 0 && len(temporalDiags) == 0 {
+			diags = append(diags, detectUnresolvedNameSlot(file, call, m.typeArg)...)
+		}
 		if marker.IsFreeTypeParameter(m.typeArg) {
 			// A marker slot whose `T` is the enclosing wrapper's own free type
 			// parameter — no concrete id until the wrapper is instantiated.
@@ -980,6 +1007,9 @@ func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, in
 			typeArgument:  m.typeArg,
 			owner:         state.scanChecker,
 		})
+	}
+	if !importFired {
+		diags = append(diags, nameRefDiags...)
 	}
 	return pendings, diags
 }
