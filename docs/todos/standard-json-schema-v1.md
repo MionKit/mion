@@ -80,13 +80,21 @@ into the runtime cache.
      JS-typed shape (real `Date`, `bigint`), which portable JSON Schema
      cannot honestly express — only the jsType dialect can.
    - **Restore mode (preferred direction)**: `validate` accepts the WIRE
-     JSON value and returns the restored JS value (`restoreFromJson`
-     applied after validating). Then `input()` is the wire schema — fully
-     expressible in PORTABLE standard JSON Schema (dates as
-     `{type: 'string', format: 'date-time'}`) — and `output()` is the
-     JS-typed schema carrying the dialect. This matches how standard-schema
-     consumers (tRPC, Hono, forms) actually use `validate`: parsed JSON in,
-     typed value out.
+     JSON value and returns the restored JS value — the parse-equivalent
+     (Zod's flagship `parse` also validates + transforms in one step; its
+     `~standard.validate` wraps `safeParse`). Then `input()` is the wire
+     schema — ALWAYS expressible in PORTABLE standard JSON Schema (the wire
+     is JSON by definition: dates as `{type: 'string', format:
+     'date-time'}`), so the input side never needs the dialect and never
+     hits the portable error — and `output()` is the JS-typed schema
+     carrying the jsType dialect. Precedent: Zod's `z.toJSONSchema` has an
+     `io: 'input' | 'output'` option; its output side THROWS on
+     JS-only types like `z.date()` ("unrepresentable") where our dialect
+     can actually describe them, and consumers (e.g. LangChain tool
+     calling) explicitly want the input/wire side. `input()` is the
+     flagship artifact (OpenAPI, AI tool-calling, interop). This matches
+     how standard-schema consumers (tRPC, Hono, forms) actually use
+     `validate`: parsed JSON in, typed value out.
    Caveats for restore mode: the shipped `createStandardSchema` is
    check-only (its `validate` returns the SAME object, narrowed), so restore
    semantics need an opt-in (comptime option or a sibling factory). And the
