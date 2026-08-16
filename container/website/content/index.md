@@ -106,7 +106,7 @@ blur: 140px
 ::::div{class="rt-standard-split"}
 :::::div{class="rt-feature-card rt-standard-prose"}
 ### The whole toolbelt, in one box
-Stop gluing five libraries together. RunTypes shares a single type graph across everything it generates, so the validator and the serializer always agree on what your type means.
+Stop gluing many libraries together. RunTypes shares a single type graph across everything it generates, so the validator and the serializer always agree on what your type means.
 
 [One type in, multiple compiled functions out →](/guide/json-serialization)
 :::::
@@ -115,37 +115,51 @@ Stop gluing five libraries together. RunTypes shares a single type graph across 
 ::::
 :::
 
-:::div{class="rt-feature-row"}
-::::card{class="rt-feature-card"}
+:::div{class="rt-object-fns"}
+::::div{class="rt-row-intro"}
 ### Validation
-The job you hire a validator for, with nothing to write: your TypeScript type is the schema. At build time RunTypes compiles it into a plain standalone check, which is how it matches the fastest JIT validators with zero runtime compilation.
+The job you hire a validator for, with nothing to write: your TypeScript type is the schema. At build time RunTypes compiles it into a plain standalone check, which is how it matches the fastest JIT validators with zero runtime compilation. [See the benchmarks →](/benchmarks/validation)
 
-<br>
-
-[See the benchmarks →](/benchmarks/validation)
+The same type is also a Standard Schema, the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
 ::::
 
+::::div{class="rt-object-fn"}
+#### Type guard and error list
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-validate" commentEnd="// end-validate" />
+
+[How validation works →](/guide/validation)
+::::
+
+::::div{class="rt-object-fn"}
+#### Standard Schema
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-standard" commentEnd="// end-standard" />
+
+[One spec, every framework →](/guide/validation#standard-schema)
+::::
 :::
 
 :::div{class="rt-object-fns"}
 ::::div{class="rt-row-intro"}
 ### JSON roundtrip
-Your type compiles into two functions, one that serializes to JSON and one that restores it, so Date, Map, Set, bigint, Temporal, undefined and almost any other type that describes data survive the round trip, **transparently enabling RPC function calls in JavaScript**.
+Your type compiles into two functions, one that serializes to JSON and one that restores it, so Date, bigint, Temporal and almost any other type that describes data survive the round trip.
+
+**Json roundtrip transparently enables RPC function calls in JavaScript, and free devs from hand writing coerce and transform logic.**
 ::::
 
 ::::div{class="rt-object-fn"}
-### RunTypes
+#### RunTypes
 <code-import path="packages/examples/src/_homepage/json-roundtrip.ts" lang="ts" commentStart="// start-roundtrip" commentEnd="// end-roundtrip" />
 ::::
 
 ::::div{class="rt-object-fn"}
-### Zod (hand maintained coercion and transform)
+#### Zod (hand maintained coercion and transform)
 ```ts
 const sessionSchema = z.object({
   user: z.string(),
-  expiresAt: z.coerce.date(), // manual: you tell it how to revive the Date
-  roles: z.array(z.string()).transform((a) => new Set(a)), // manual Set revive
+  // manually revive the Date
+  expiresAt: z.coerce.date(),
+  // manual Set revive
+  roles: z.array(z.string()).transform((a) => new Set(a)), 
 });
 
 // encoding is also yours: JSON.stringify writes a Set as {}
@@ -156,39 +170,29 @@ const wire = toJson({user: 'ada', expiresAt: new Date(), roles: new Set(['admin'
 const back = sessionSchema.parse(JSON.parse(wire));
 
 // nothing checks toJson and sessionSchema agree:
-// keeping the two directions in sync is on you
+// Devs must manually keep the two directions in sync
 ```
 ::::
 
-::::div{class="rt-row-footer"}
 [JSON that keeps your types →](/guide/json-serialization)
-::::
 :::
 
 :::div{class="rt-object-fns rt-section-titles"}
 ::::div{class="rt-object-fn"}
 ### Mocking that conforms to your types
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
+
+[Mock data from your types →](/guide/mocking)
 ::::
 
 ::::div{class="rt-object-fn"}
 ### Binary serialization
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
+
+[Compact bytes on the wire →](/guide/binary-serialization)
 ::::
 :::
 
-:::card{class="rt-standard-card"}
-::::div{class="rt-standard-split rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-standard" commentEnd="// end-standard" />
-
-:::::div{class="rt-feature-card rt-standard-prose"}
-### Speaks Standard Schema
-The same type becomes a [Standard Schema](https://github.com/standard-schema/standard-schema), the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
-
-[One spec, every framework →](/guide/validation#standard-schema)
-:::::
-::::
-:::
 ::
 
 ::u-page-section
@@ -207,6 +211,8 @@ We support **native TypeScript types** (fastest, zero ceremony) **or** the `RT.*
 <code-import path="packages/examples/src/_homepage/define-builder.ts" lang="ts [Type Builder]" />
 ::::
 :::
+
+[Types and type builders, side by side →](/guide/type-builders)
 ::
 
 ::u-page-section
@@ -216,7 +222,7 @@ Formats baked into your types
 #body
 :::div{class="rt-formats-cols"}
 ::::card{class="rt-feature-card"}
-### TypeFormats®
+### TypeFormats
 Ensure type safety with formats like:    
 `email`, `uuidv4`, `ipv4`, `int32`, `positive` and more. 
 
@@ -226,6 +232,8 @@ The validator checks its exact shape, not just its kind. No regex to wire up, no
 #### Temporal Support
 Full TC39 Temporal (`PlainDate`, `ZonedDateTime`, `Duration` and the rest), validated and serialized like any built-in.
 :::::
+
+[Every format you can use →](/guide/type-formats)
 ::::
 
 ::::code-group

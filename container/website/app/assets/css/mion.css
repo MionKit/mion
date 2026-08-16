@@ -446,6 +446,24 @@ h2[data-slot='title'] {
   margin-bottom: 0.75rem;
 }
 
+/* Column labels inside an enclosed row (h4, one step under the row's h3 title).
+   They name a code block rather than a section, so they read as plain
+   highlighted text: no gradient, and the auto heading anchor is neutralised so
+   they never look or behave like a link. */
+.rt-object-fns h4 {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ui-text-highlighted);
+}
+
+.rt-object-fns h4 a {
+  color: inherit;
+  text-decoration: none;
+  pointer-events: none;
+}
+
 .rt-object-fns > * > div {
   flex: 1;
   display: flex;
@@ -476,19 +494,18 @@ h2[data-slot='title'] {
   grid-column: 1 / -1;
 }
 
+/* The closing link line: a plain paragraph written straight into the row (not
+   in a cell), so it is a real <p> like every other link in the section. It
+   spans both columns, and `display: block` keeps it out of the cell rule's
+   flex treatment, which would blockify the link to the full width. */
+.rt-object-fns > p {
+  grid-column: 1 / -1;
+  display: block;
+}
+
 .rt-object-fns > .rt-row-intro p {
   margin: 0 0 0.5rem;
   color: var(--ui-text-muted);
-}
-
-/* full-width link footer under both snippet columns of an enclosed row */
-.rt-object-fns > .rt-row-footer {
-  grid-column: 1 / -1;
-  text-align: center;
-}
-
-.rt-object-fns > .rt-row-footer p {
-  margin: 0.35rem 0 0;
 }
 
 @media (max-width: 760px) {
