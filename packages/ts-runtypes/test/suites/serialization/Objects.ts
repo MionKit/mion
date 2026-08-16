@@ -2487,10 +2487,10 @@ export const OBJECTS = {
       }
       return createBinaryDecoderFn<ObjectWithMethods>();
     },
-    schemaEncoder: () => createJsonEncoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
-    schemaDecoder: () => createJsonDecoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({name: TF.string(), methodProp: RT.func([], RT.any())})),
+    schemaEncoder: () => createJsonEncoderFn(RT.object({name: TF.string(), methodProp: RT.func({ret: RT.any()})})),
+    schemaDecoder: () => createJsonDecoderFn(RT.object({name: TF.string(), methodProp: RT.func({ret: RT.any()})})),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.object({name: TF.string(), methodProp: RT.func({ret: RT.any()})})),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.object({name: TF.string(), methodProp: RT.func({ret: RT.any()})})),
     jsonSchemaEncoder: 'not-supported',
     jsonSchemaDecoder: 'not-supported',
     jsonSchemaBinaryEncoder: 'not-supported',

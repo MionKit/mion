@@ -95,7 +95,7 @@ export function extract<U, X>(
   return builderResult(id, {type: 'extract', child: union, extracted});
 }
 
-/** `Parameters<F>` — `parameters(func([number(), boolean()], string()))` →
+/** `Parameters<F>` — `parameters(func({params: [number(), boolean()], ret: string()}))` →
  *  `RunType<[number, boolean]>`. Takes a function run-type and yields its
  *  parameter tuple (exactly the tuple `Parameters<F>` denotes), so a function's
  *  parameters can be validated as a first-class tuple. The function rides the

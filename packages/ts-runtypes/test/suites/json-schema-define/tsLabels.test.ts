@@ -42,7 +42,7 @@ describe('tsLabels — labeled tuples from JSON Schema', () => {
 
   it('converges with the slot builders — all three authoring forms, one id', () => {
     const fromSchema = getRunTypeId(runTypeFromJsonSchema(LABELED_POINT));
-    const fromBuilder = getRunTypeId(RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())]));
+    const fromBuilder = getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number()), RT.slot('y', TF.number())]}));
     expect(fromSchema).toBe(fromBuilder);
   });
 

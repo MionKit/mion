@@ -67,9 +67,9 @@ func TestComposerCTA_BuilderChildrenAccepted(t *testing.T) {
 const s = string();
 const _arr = array(string());
 const _arrConst = array(s);
-const _tup = tuple([string(), number()]);
+const _tup = tuple({required: [string(), number()]});
 const _uni = union([string(), number()]);
-const _fn = func([string(), number()]);
+const _fn = func({params: [string(), number()]});
 const _fn0 = func();
 void _arr; void _arrConst; void _tup; void _uni; void _fn; void _fn0;
 `
@@ -105,7 +105,7 @@ void _bad;
 func TestComposerCTA_TupleSpreadAccepted(t *testing.T) {
 	const code = `import {tuple, string, number, boolean} from '@ts-runtypes/core';
 const base = [string(), number()];
-const _ok = tuple([...base, boolean()]);
+const _ok = tuple({required: [...base, boolean()]});
 void _ok;
 `
 	if cta := scanComposerCTA(t, code); len(cta) != 0 {
@@ -175,7 +175,7 @@ void _ok;
 func TestComposerCTA_SpreadDynamicRejected(t *testing.T) {
 	const code = `import {tuple, string} from '@ts-runtypes/core';
 declare const parts: [import('@ts-runtypes/core').RunType<string>];
-const _bad = tuple([...parts]);
+const _bad = tuple({required: [...parts]});
 void _bad;
 `
 	cta := scanComposerCTA(t, code)

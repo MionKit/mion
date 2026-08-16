@@ -832,7 +832,7 @@ export const ARRAY = {
     validate: () => createValidateFn<[string, number][]>(),
     standardSchema: () => createStandardSchema<[string, number][]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[string, number][]>>(),
-    validateSchema: () => createValidateFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
+    validateSchema: () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({
@@ -851,7 +851,7 @@ export const ARRAY = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[string, number][]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[string, number][]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({

@@ -59,7 +59,7 @@ describe('respectBinarySize: true — values fit the estimate', () => {
   it('works for nested collections / tuples / records', () => {
     const schema = RT.object({
       grid: RT.array(RT.array(TF.number())),
-      tup: RT.tuple([TF.string(), TF.number()]),
+      tup: RT.tuple({required: [TF.string(), TF.number()]}),
       rec: RT.record(TF.string(), TF.number()),
     });
     const validate = createValidateFn(schema);

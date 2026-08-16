@@ -325,9 +325,9 @@ func TestChain_ArraysAndTuples(t *testing.T) {
 	for _, expected := range []string{
 		"RT.array(TF.string())",
 		"RT.array(RT.array(TF.number()))",
-		"RT.tuple([TF.string(), TF.number()])",
-		"RT.tuple([TF.string()], [TF.number()])",
-		"RT.tuple([RT.boolean()], [], TF.string())",
+		"RT.tuple({required: [TF.string(), TF.number()]})",
+		"RT.tuple({required: [TF.string()], optional: [TF.number()]})",
+		"RT.tuple({required: [RT.boolean()], rest: TF.string()})",
 	} {
 		if !strings.Contains(builderForm, expected) {
 			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
@@ -635,10 +635,10 @@ func TestChain_LabeledTuple(t *testing.T) {
 	source := "type Point = [x: number, y: number];\n" +
 		"export type Span = [start: number, len?: number, ...rest: string[]];\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())])") {
+	if !strings.Contains(builderForm, "RT.tuple({required: [RT.slot('x', TF.number()), RT.slot('y', TF.number())]})") {
 		t.Errorf("labeled tuples should print the slot form:\n%s", builderForm)
 	}
-	if !strings.Contains(builderForm, "RT.tuple([RT.slot('start', TF.number())], [RT.slot('len', TF.number())], RT.slot('rest', TF.string()))") {
+	if !strings.Contains(builderForm, "RT.tuple({required: [RT.slot('start', TF.number())], optional: [RT.slot('len', TF.number())], rest: RT.slot('rest', TF.string())})") {
 		t.Errorf("optional and rest slots should carry their labels:\n%s", builderForm)
 	}
 	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
@@ -661,7 +661,7 @@ func TestChain_NamedFunctionParams(t *testing.T) {
 	// twin) — TestChain_Functions pins that side.
 	source := "export type Send = (event: string, retries: number) => boolean;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "RT.func([RT.slot('event', TF.string()), RT.slot('retries', TF.number())], RT.boolean())") {
+	if !strings.Contains(builderForm, "RT.func({params: [RT.slot('event', TF.string()), RT.slot('retries', TF.number())], ret: RT.boolean()})") {
 		t.Errorf("named function params should print the slot form:\n%s", builderForm)
 	}
 	// On the schema target the signature rides tsFunction: the params are an

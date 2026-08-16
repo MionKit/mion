@@ -61,7 +61,7 @@ const targets: FuzzTarget[] = [];
 
 // --- target: tuple of mixed primitives ---
 {
-  const schema = RT.tuple([TF.string(), TF.number(), RT.boolean()]);
+  const schema = RT.tuple({required: [TF.string(), TF.number(), RT.boolean()]});
   targets.push({
     title: 'Tuple',
     schema,

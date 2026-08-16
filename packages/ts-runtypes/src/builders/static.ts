@@ -160,14 +160,17 @@ export type MapTuple<T extends readonly RunType[]> = {-readonly [K in keyof T]: 
 
 // ───────────────────── Labeled tuples (slot form) ────────────────────
 //
-// `tuple([slot('x', number()), slot('y', number())])` / `func([slot('event',
-// string())], ret)` author labeled tuple slots / named function parameters
-// value-first. The labels ride an ARRAY of slot carriers because tuples are
-// the ONE order-preserving container in the type system: an object literal's
-// key order is NOT observable — the checker keeps `keyof` unions sorted by
-// internal type id (tsgo addTypeToUnion inserts via CompareTypes binary
-// search), so a record-shaped API would scramble slot order for any key set
-// whose ids disagree with declaration order ({w, h} projected [h, w]).
+// `tuple({required: [slot('x', number()), slot('y', number())]})` /
+// `func({params: [slot('event', string())], ret})` author labeled tuple slots /
+// named function parameters value-first. The labels ride an ARRAY of slot
+// carriers because tuples are the ONE order-preserving container in the type
+// system: an object literal's key order is NOT observable — the checker keeps
+// `keyof` unions sorted by internal type id (tsgo addTypeToUnion inserts via
+// CompareTypes binary search), so a record-shaped API would scramble slot order
+// for any key set whose ids disagree with declaration order ({w, h} projected
+// [h, w]). The builders' own object keys name the GROUPS (`required` /
+// `optional` / `rest`, a fixed set read by name), never the slots, so order
+// never rides a key set.
 //
 // TypeScript cannot CONSTRUCT a labeled tuple type with a mapped type, so the
 // carried type is the plain values tuple intersected with the `__rtLabels`
@@ -199,7 +202,7 @@ export type SlotLabels<Slots extends readonly SlotCarrier<string, unknown>[]> = 
   -readonly [K in keyof Slots]: Slots[K]['__slotLabel'];
 };
 
-/** The type `tuple([slot…])` / `tuple([slot…], [slot…])` carries: the values
+/** The type `tuple({required: [slot…]})` / `tuple({required: [slot…], optional: [slot…]})` carries: the values
  *  tuple (optionals folded in via `Partial`) intersected with the labels
  *  sentinel. Optional slots keep their `?` on the VALUES tuple; the labels
  *  tuple always covers every slot. **/
@@ -212,7 +215,7 @@ export type LabeledTuple<
 
 /** The rest form's carried type — the rest slot is a labeled slot too (TS
  *  tuples label all slots or none), so any rest label is expressible:
- *  `tuple([slot('x', number())], [], slot('items', string()))` ≡
+ *  `tuple({required: [slot('x', number())], rest: slot('items', string())})` ≡
  *  `[x: number, ...items: string[]]`. **/
 export type LabeledRestTuple<
   Slots extends readonly SlotCarrier<string, unknown>[],
@@ -222,6 +225,41 @@ export type LabeledRestTuple<
 > = [...SlotValues<Slots>, ...Partial<SlotValues<OptionalSlots>>, ...Rest[]] & {
   readonly [__rtLabels]?: readonly [...SlotLabels<Slots>, ...SlotLabels<OptionalSlots>, RestLabel];
 };
+
+// ─────────────────── Group form (the tuple/func options bag) ──────────────────
+//
+// One overload per FAMILY (plain RunTypes, slot carriers) rather than one per
+// shape: an absent `rest` group leaves its type parameter with no inference
+// site, so it lands on the `never` default and a single non-distributive
+// `[Rest] extends [never]` picks the shape. No `infer` anywhere — a measured
+// choice, as folding the family check into conditionals too costs ~58% more
+// instantiations AND stops rejecting mixed / unknown keys (the bag becomes its
+// own inferred type, so nothing is ever "excess").
+
+/** The type the unlabeled group form carries. `Rest` is `never` when the group
+ *  is absent, which is the presence check. **/
+export type TupleFromGroups<Items extends readonly RunType[], OptionalItems extends readonly RunType[], Rest> = [Rest] extends [
+  never,
+]
+  ? [...MapTuple<Items>, ...Partial<MapTuple<OptionalItems>>]
+  : [...MapTuple<Items>, ...Partial<MapTuple<OptionalItems>>, ...Rest[]];
+
+/** The labeled twin, keyed off the rest LABEL's presence — a rest slot always
+ *  carries one, so the label is the reliable sentinel. **/
+export type LabeledTupleFromGroups<
+  Slots extends readonly SlotCarrier<string, unknown>[],
+  OptionalSlots extends readonly SlotCarrier<string, unknown>[],
+  RestLabel extends string,
+  Rest,
+> = [RestLabel] extends [never] ? LabeledTuple<Slots, OptionalSlots> : LabeledRestTuple<Slots, OptionalSlots, RestLabel, Rest>;
+
+/** The type the `func` group form carries. An empty / absent params group
+ *  brands a bare `() => Return`, NOT `(...args: []) => …` — tsgo reflects the
+ *  empty-tuple rest-spread as a spurious rest parameter, diverging from the
+ *  written `() => R` and from method shorthand. **/
+export type FuncFromParams<Params extends readonly RunType[], Return> = Params extends readonly []
+  ? () => Return
+  : (...args: MapTuple<Params>) => Return;
 
 /** The union of the `InferType` types of a RunType tuple, built RECURSIVELY so EACH
  *  member survives as a distinct arm. The obvious non-recursive form

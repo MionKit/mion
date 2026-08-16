@@ -47,7 +47,7 @@ export const TUPLE = {
       [{message: 'Expected number', path: [1], expected: 'number'}],
     ],
     validateDataOnly: () => createValidateFn<DataOnly<[string, number]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
+    validateSchema: () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
@@ -63,7 +63,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[string, number]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[string, number]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([TF.string(), TF.number()])),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.string(), TF.number()]})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
@@ -137,7 +137,9 @@ export const TUPLE = {
     standardSchema: () => createStandardSchema<[Date, number, string, null, string[], bigint]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[Date, number, string, null, string[], bigint]>>(),
     validateSchema: () =>
-      createValidateFn(RT.tuple([TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()])),
+      createValidateFn(
+        RT.tuple({required: [TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()]})
+      ),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<[Date, number, string, null, string[], bigint]>(),
     validateReflect: () => {
@@ -152,7 +154,7 @@ export const TUPLE = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[Date, number, string, null, string[], bigint]>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
-        RT.tuple([TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()])
+        RT.tuple({required: [TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()]})
       ),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[Date, number, string, null, string[], bigint]>(),
@@ -210,7 +212,8 @@ export const TUPLE = {
     validate: () => createValidateFn<[number, bigint?, boolean?, number?]>(),
     standardSchema: () => createStandardSchema<[number, bigint?, boolean?, number?]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, bigint?, boolean?, number?]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
+    validateSchema: () =>
+      createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<[number, bigint?, boolean?, number?]>(),
     validateReflect: () => {
@@ -224,7 +227,7 @@ export const TUPLE = {
     getValidationErrors: () => createGetValidationErrorsFn<[number, bigint?, boolean?, number?]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, bigint?, boolean?, number?]>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
+      createGetValidationErrorsFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, bigint?, boolean?, number?]>(),
     getValidationErrorsReflect: () => {
@@ -267,7 +270,7 @@ export const TUPLE = {
     validate: () => createValidateFn<[string, number][]>(),
     standardSchema: () => createStandardSchema<[string, number][]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[string, number][]>>(),
-    validateSchema: () => createValidateFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
+    validateSchema: () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({
@@ -286,7 +289,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[string, number][]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[string, number][]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({
@@ -350,7 +353,7 @@ export const TUPLE = {
     validate: () => createValidateFn<[number, ...string[]]>(),
     standardSchema: () => createStandardSchema<[number, ...string[]]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, ...string[]]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.number()], TF.string())),
+    validateSchema: () => createValidateFn(RT.tuple({required: [TF.number()], rest: TF.string()})),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'number'}], items: {type: 'string'}, minItems: 1})
@@ -366,7 +369,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[number, ...string[]]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, ...string[]]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([TF.number()], TF.string())),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.number()], rest: TF.string()})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'number'}], items: {type: 'string'}, minItems: 1})
@@ -530,7 +533,8 @@ export const TUPLE = {
     validate: () => createValidateFn<[number, bigint?, boolean?, number?]>(),
     standardSchema: () => createStandardSchema<[number, bigint?, boolean?, number?]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, bigint?, boolean?, number?]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
+    validateSchema: () =>
+      createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<[number, bigint?, boolean?, number?]>(),
     validateReflect: () => {
@@ -544,7 +548,7 @@ export const TUPLE = {
     getValidationErrors: () => createGetValidationErrorsFn<[number, bigint?, boolean?, number?]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, bigint?, boolean?, number?]>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
+      createGetValidationErrorsFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, bigint?, boolean?, number?]>(),
     getValidationErrorsReflect: () => {
@@ -612,12 +616,12 @@ export const TUPLE = {
     // SLOT form carries the labels through the `__rtLabels` sentinel and the
     // schema form through the `tsLabels` dialect keyword — BOTH converge with
     // the labeled type-first id, pinned by the id-integrity asserts (the plain
-    // array form `RT.tuple([TF.string(), TF.number()])` still models the
+    // array form `RT.tuple({required: [TF.string(), TF.number()]})` still models the
     // unlabeled shape and stays a distinct entry by design).
     validate: () => createValidateFn<[name: string, age: number]>(),
     standardSchema: () => createStandardSchema<[name: string, age: number]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[name: string, age: number]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())])),
+    validateSchema: () => createValidateFn(RT.tuple({required: [RT.slot('name', TF.string()), RT.slot('age', TF.number())]})),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({
@@ -640,7 +644,7 @@ export const TUPLE = {
     getValidationErrors: () => createGetValidationErrorsFn<[name: string, age: number]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[name: string, age: number]>>(),
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.tuple([RT.slot('name', TF.string()), RT.slot('age', TF.number())])),
+      createGetValidationErrorsFn(RT.tuple({required: [RT.slot('name', TF.string()), RT.slot('age', TF.number())]})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({
@@ -722,7 +726,7 @@ export const TUPLE = {
     validate: () => createValidateFn<[number, () => any]>(),
     standardSchema: () => createStandardSchema<[number, () => any]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[number, () => any]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.number(), RT.func([], RT.any())])),
+    validateSchema: () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<[number, () => any]>(),
     validateReflect: () => {
@@ -735,7 +739,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[number, () => any]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[number, () => any]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([TF.number(), RT.func([], RT.any())])),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[number, () => any]>(),
     getValidationErrorsReflect: () => {
@@ -787,7 +791,7 @@ export const TUPLE = {
     validate: () => createValidateFn<[]>(),
     standardSchema: () => createStandardSchema<[]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([])),
+    validateSchema: () => createValidateFn(RT.tuple({})),
     validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'array', items: false})),
     deserializeValidate: () => deserializeValidate<[]>(),
     validateReflect: () => {
@@ -800,7 +804,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([])),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({})),
     getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: false})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<[]>(),
     getValidationErrorsReflect: () => {
@@ -840,7 +844,7 @@ export const TUPLE = {
     validate: () => createValidateFn<[string]>(),
     standardSchema: () => createStandardSchema<[string]>(),
     validateDataOnly: () => createValidateFn<DataOnly<[string]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.string()])),
+    validateSchema: () => createValidateFn(RT.tuple({required: [TF.string()]})),
     validateJsonSchema: () =>
       createValidateFn(runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}], items: false, minItems: 1})),
     deserializeValidate: () => deserializeValidate<[string]>(),
@@ -854,7 +858,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<[string]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<[string]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([TF.string()])),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.string()]})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}], items: false, minItems: 1})
@@ -900,7 +904,7 @@ export const TUPLE = {
     validate: () => createValidateFn<readonly [string, number]>(),
     standardSchema: () => createStandardSchema<readonly [string, number]>(),
     validateDataOnly: () => createValidateFn<DataOnly<readonly [string, number]>>(),
-    validateSchema: () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
+    validateSchema: () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
     validateJsonSchema: () =>
       createValidateFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})
@@ -916,7 +920,7 @@ export const TUPLE = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<readonly [string, number]>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<readonly [string, number]>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple([TF.string(), TF.number()])),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.tuple({required: [TF.string(), TF.number()]})),
     getValidationErrorsJsonSchema: () =>
       createGetValidationErrorsFn(
         runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], items: false, minItems: 2})

@@ -61,7 +61,7 @@ func assertNames(t *testing.T, got, want []string) {
 
 func TestLabeledTuple_SlotFormConvergesWithTypeFirst(t *testing.T) {
 	// Reflect shape: the builder value. Static shape: the written labeled tuple.
-	builderForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())]));
+	builderForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number()), RT.slot('y', TF.number())]}));
 `
 	writtenForm := labeledImports + `getRunTypeId<[x: number, y: number]>();
 `
@@ -75,7 +75,7 @@ func TestLabeledTuple_SlotFormConvergesWithTypeFirst(t *testing.T) {
 }
 
 func TestLabeledTuple_OptionalMembers(t *testing.T) {
-	builderForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('x', TF.number())], [RT.slot('y', TF.string())]));
+	builderForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number())], optional: [RT.slot('y', TF.string())]}));
 `
 	writtenForm := labeledImports + `getRunTypeId<[x: number, y?: string]>();
 `
@@ -91,7 +91,7 @@ func TestLabeledTuple_OptionalMembers(t *testing.T) {
 func TestLabeledTuple_RestSlotCarriesItsLabel(t *testing.T) {
 	// The rest element is a slot too, so any rest label is expressible — and
 	// rest labels are id data like every other label.
-	builderForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('x', TF.number())], [], RT.slot('rest', TF.string())));
+	builderForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number())], rest: RT.slot('rest', TF.string())}));
 `
 	writtenForm := labeledImports + `getRunTypeId<[x: number, ...rest: string[]]>();
 `
@@ -110,12 +110,60 @@ func TestLabeledTuple_RestSlotCarriesItsLabel(t *testing.T) {
 	assertNames(t, memberNames(t, builder.ID, dump(r)), []string{"x", "rest"})
 }
 
+func TestTupleGroups_OmittedGroupsMatchTheirEmptySpelling(t *testing.T) {
+	// Every group is optional, and an omitted one must brand exactly what the
+	// explicitly-empty one brands — otherwise the two spellings of one shape
+	// would land on different cache entries.
+	omitted := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number())], rest: RT.slot('rest', TF.string())}));
+`
+	explicit := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number())], optional: [], rest: RT.slot('rest', TF.string())}));
+`
+	r := setupInline(t, map[string]string{"omitted.ts": omitted, "explicit.ts": explicit})
+	if a, b := resolveFile(t, r, "omitted.ts"), resolveFile(t, r, "explicit.ts"); a.ID != b.ID {
+		t.Fatalf("omitted and empty optional group diverge: %q vs %q", a.ID, b.ID)
+	}
+}
+
+func TestTupleGroups_EmptyBagConvergesWithTheEmptyTuple(t *testing.T) {
+	// An all-empty bag must resolve the UNLABELED empty tuple: a labeled empty
+	// tuple would carry an empty labels sentinel and split the entry in two.
+	builderForm := labeledImports + `getRunTypeId(RT.tuple({}));
+`
+	writtenForm := labeledImports + `getRunTypeId<[]>();
+`
+	r := setupInline(t, map[string]string{"builder.ts": builderForm, "written.ts": writtenForm})
+	if builder, written := resolveFile(t, r, "builder.ts"), resolveFile(t, r, "written.ts"); builder.ID != written.ID {
+		t.Fatalf("tuple({}) and [] diverge: %q vs %q", builder.ID, written.ID)
+	}
+}
+
+func TestLabeledFunc_OmittedParamsGroupConvergesWithNoParams(t *testing.T) {
+	// `{ret}` alone, an empty params list, and a bare `func()` all brand the
+	// same no-params signature — NOT a spurious rest parameter.
+	retOnly := labeledImports + `getRunTypeId(RT.func({ret: TF.number()}));
+`
+	emptyParams := labeledImports + `getRunTypeId(RT.func({params: [], ret: TF.number()}));
+`
+	writtenForm := labeledImports + `getRunTypeId<() => number>();
+`
+	r := setupInline(t, map[string]string{"ret.ts": retOnly, "empty.ts": emptyParams, "written.ts": writtenForm})
+	ret := resolveFile(t, r, "ret.ts")
+	empty := resolveFile(t, r, "empty.ts")
+	written := resolveFile(t, r, "written.ts")
+	if ret.ID != written.ID {
+		t.Fatalf("func({ret}) and () => number diverge: %q vs %q", ret.ID, written.ID)
+	}
+	if empty.ID != written.ID {
+		t.Fatalf("func({params: [], ret}) and () => number diverge: %q vs %q", empty.ID, written.ID)
+	}
+}
+
 func TestLabeledTuple_OrderAdversarial(t *testing.T) {
 	// Five slots ordered against the alphabet — written slot order defines slot
 	// order verbatim. (The record-shaped API this slot form replaced failed
 	// exactly here: the checker keeps keyof unions sorted by internal type id,
 	// not declaration order, so {w, h} projected [h, w].)
-	builderForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('z', TF.number()), RT.slot('y', TF.string()), RT.slot('m', RT.boolean()), RT.slot('b', TF.number()), RT.slot('a', TF.string())]));
+	builderForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('z', TF.number()), RT.slot('y', TF.string()), RT.slot('m', RT.boolean()), RT.slot('b', TF.number()), RT.slot('a', TF.string())]}));
 `
 	writtenForm := labeledImports + `getRunTypeId<[z: number, y: string, m: boolean, b: number, a: string]>();
 `
@@ -129,9 +177,9 @@ func TestLabeledTuple_OrderAdversarial(t *testing.T) {
 }
 
 func TestLabeledTuple_SameShapeDifferentLabelsStayDistinct(t *testing.T) {
-	pointForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())]));
+	pointForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number()), RT.slot('y', TF.number())]}));
 `
-	sizeForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('w', TF.number()), RT.slot('h', TF.number())]));
+	sizeForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('w', TF.number()), RT.slot('h', TF.number())]}));
 `
 	r := setupInline(t, map[string]string{"point.ts": pointForm, "size.ts": sizeForm})
 	point := resolveFile(t, r, "point.ts")
@@ -146,9 +194,9 @@ func TestLabeledTuple_SameShapeDifferentLabelsStayDistinct(t *testing.T) {
 func TestLabeledTuple_SlotFormDivergesFromPlainArrayForm(t *testing.T) {
 	// The plain-RunType array form stays UNLABELED by design — the pinned
 	// divergence.
-	slotForm := labeledImports + `getRunTypeId(RT.tuple([RT.slot('x', TF.number()), RT.slot('y', TF.number())]));
+	slotForm := labeledImports + `getRunTypeId(RT.tuple({required: [RT.slot('x', TF.number()), RT.slot('y', TF.number())]}));
 `
-	arrayForm := labeledImports + `getRunTypeId(RT.tuple([TF.number(), TF.number()]));
+	arrayForm := labeledImports + `getRunTypeId(RT.tuple({required: [TF.number(), TF.number()]}));
 `
 	r := setupInline(t, map[string]string{"slot.ts": slotForm, "array.ts": arrayForm})
 	slotTuple := resolveFile(t, r, "slot.ts")
@@ -159,7 +207,7 @@ func TestLabeledTuple_SlotFormDivergesFromPlainArrayForm(t *testing.T) {
 }
 
 func TestLabeledFunc_SlotFormConvergesWithWrittenSignature(t *testing.T) {
-	builderForm := labeledImports + `getRunTypeId(RT.func([RT.slot('event', TF.string()), RT.slot('retries', TF.number())], TF.number()));
+	builderForm := labeledImports + `getRunTypeId(RT.func({params: [RT.slot('event', TF.string()), RT.slot('retries', TF.number())], ret: TF.number()}));
 `
 	writtenForm := labeledImports + `getRunTypeId<(event: string, retries: number) => number>();
 `
@@ -175,7 +223,7 @@ func TestLabeledFunc_SlotFormConvergesWithWrittenSignature(t *testing.T) {
 func TestLabeledFunc_ParamNamedType(t *testing.T) {
 	// A parameter literally named "type" — the slot label channel must not
 	// collide with the runtime carrier's own `type` tag.
-	builderForm := labeledImports + `getRunTypeId(RT.func([RT.slot('type', TF.string())], TF.number()));
+	builderForm := labeledImports + `getRunTypeId(RT.func({params: [RT.slot('type', TF.string())], ret: TF.number()}));
 `
 	writtenForm := labeledImports + `getRunTypeId<(type: string) => number>();
 `
@@ -183,7 +231,7 @@ func TestLabeledFunc_ParamNamedType(t *testing.T) {
 	builder := resolveFile(t, r, "builder.ts")
 	written := resolveFile(t, r, "written.ts")
 	if builder.ID != written.ID {
-		t.Fatalf("func([slot('type', …)]) and (type: string) => number diverge: %q vs %q", builder.ID, written.ID)
+		t.Fatalf("func({params: [slot('type', …)]}) and (type: string) => number diverge: %q vs %q", builder.ID, written.ID)
 	}
 	assertNames(t, memberNames(t, builder.ID, dump(r)), []string{"type"})
 }
@@ -191,7 +239,7 @@ func TestLabeledFunc_ParamNamedType(t *testing.T) {
 func TestLabeledFunc_EmptyParamsArrayConvergesWithNoParams(t *testing.T) {
 	// `func([], ret)` matches the no-params overload and brands a bare
 	// `() => number`, converging with the written form.
-	builderForm := labeledImports + `getRunTypeId(RT.func([], TF.number()));
+	builderForm := labeledImports + `getRunTypeId(RT.func({ret: TF.number()}));
 `
 	writtenForm := labeledImports + `getRunTypeId<() => number>();
 `
@@ -199,7 +247,7 @@ func TestLabeledFunc_EmptyParamsArrayConvergesWithNoParams(t *testing.T) {
 	builder := resolveFile(t, r, "builder.ts")
 	written := resolveFile(t, r, "written.ts")
 	if builder.ID != written.ID {
-		t.Fatalf("func([]) and () => number diverge: %q vs %q", builder.ID, written.ID)
+		t.Fatalf("func({ret}) and () => number diverge: %q vs %q", builder.ID, written.ID)
 	}
 }
 
@@ -225,7 +273,7 @@ func TestLabeledFunc_RestSpreadProjectionParity(t *testing.T) {
 func TestLabeledTuple_ParamsTupleThroughFunc(t *testing.T) {
 	// The params-TUPLE form carries the labels through the tuple's own slot
 	// form: func(tuple([slot('a', …)]), ret) ≡ (a: string) => number.
-	builderForm := labeledImports + `getRunTypeId(RT.func(RT.tuple([RT.slot('a', TF.string())]), TF.number()));
+	builderForm := labeledImports + `getRunTypeId(RT.func({params: RT.tuple({required: [RT.slot('a', TF.string())]}), ret: TF.number()}));
 `
 	writtenForm := labeledImports + `getRunTypeId<(a: string) => number>();
 `
@@ -233,6 +281,6 @@ func TestLabeledTuple_ParamsTupleThroughFunc(t *testing.T) {
 	builder := resolveFile(t, r, "builder.ts")
 	written := resolveFile(t, r, "written.ts")
 	if builder.ID != written.ID {
-		t.Fatalf("func(tuple([slot('a', …)])) and (a: string) => number diverge: %q vs %q", builder.ID, written.ID)
+		t.Fatalf("func({params: tuple({required: [slot('a', …)]})}) and (a: string) => number diverge: %q vs %q", builder.ID, written.ID)
 	}
 }

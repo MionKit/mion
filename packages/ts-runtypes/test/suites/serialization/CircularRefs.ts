@@ -194,10 +194,14 @@ export const CIRCULAR_REFS = {
       }
       return createBinaryDecoderFn<CircularTuple>();
     },
-    schemaEncoder: () => createJsonEncoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
-    schemaDecoder: () => createJsonDecoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.circular(RT.object({list: RT.tuple([TF.bigInt()], [RT.self()])}))),
+    schemaEncoder: () =>
+      createJsonEncoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
+    schemaDecoder: () =>
+      createJsonDecoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
+    schemaBinaryEncoder: () =>
+      createBinaryEncoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
+    schemaBinaryDecoder: () =>
+      createBinaryDecoderFn(RT.circular(RT.object({list: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}))),
     jsonSchemaEncoder: 'not-supported',
     jsonSchemaDecoder: 'not-supported',
     jsonSchemaBinaryEncoder: 'not-supported',
@@ -507,7 +511,7 @@ export const CIRCULAR_REFS = {
       return createBinaryDecoderFn<CircularTupleComplex>();
     },
     // A ROOT-level recursive tuple can't be authored value-first — `circular(self =>
-    // tuple([bigint()], [self]))` hits TS2589 (TS can't build a recursive tuple type
+    // tuple({required: [bigint()], optional: [self]}))` hits TS2589 (TS can't build a recursive tuple type
     // via the mapping). Covered type-first here; the object→tuple cycle is covered
     // value-first by circular_tuple. Mirrors validation TUPLE.tuple_circular.
     schemaEncoder: 'not-supported',

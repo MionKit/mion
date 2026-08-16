@@ -352,7 +352,7 @@ export const CIRCULAR = {
       return createValidateFn<DataOnly<CircularTuple>>();
     },
     validateSchema: () => {
-      const ct = RT.circular(RT.object({tuple: RT.tuple([TF.bigInt()], [RT.self()])}));
+      const ct = RT.circular(RT.object({tuple: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}));
       return createValidateFn(ct);
     },
     validateJsonSchema: 'not-supported',
@@ -389,7 +389,7 @@ export const CIRCULAR = {
       return createGetValidationErrorsFn<DataOnly<CircularTuple>>();
     },
     getValidationErrorsSchema: () => {
-      const ct = RT.circular(RT.object({tuple: RT.tuple([TF.bigInt()], [RT.self()])}));
+      const ct = RT.circular(RT.object({tuple: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}));
       return createGetValidationErrorsFn(ct);
     },
     getValidationErrorsJsonSchema: 'not-supported',

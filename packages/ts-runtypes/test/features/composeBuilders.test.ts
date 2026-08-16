@@ -60,7 +60,7 @@ describe('compose builders — array', () => {
 
 describe('compose builders — tuple', () => {
   it('validates a fixed [string, number] tuple', () => {
-    const isPair = createValidateFn(tuple([TF.string(), TF.number()]));
+    const isPair = createValidateFn(tuple({required: [TF.string(), TF.number()]}));
     expect(isPair(['a', 1])).toBe(true);
     expect(isPair(['a', 'b'])).toBe(false);
     expect(isPair(['a'])).toBe(false);
@@ -68,13 +68,13 @@ describe('compose builders — tuple', () => {
   });
 
   it('converges with the type-first tuple (boolean elements)', () => {
-    expect(createValidateFn(tuple([boolean(), boolean()]))).toBe(createValidateFn<[boolean, boolean]>());
+    expect(createValidateFn(tuple({required: [boolean(), boolean()]}))).toBe(createValidateFn<[boolean, boolean]>());
   });
 });
 
 describe('compose builders — tuple with rest', () => {
   it('validates [number, ...string[]]', () => {
-    const isRest = createValidateFn(tuple([TF.number()], TF.string()));
+    const isRest = createValidateFn(tuple({required: [TF.number()], rest: TF.string()}));
     expect(isRest([1])).toBe(true);
     expect(isRest([1, 'a', 'b'])).toBe(true);
     expect(isRest([1, 'a', 2])).toBe(false); // rest element must be string
@@ -83,7 +83,7 @@ describe('compose builders — tuple with rest', () => {
   });
 
   it('converges with the type-first rest tuple (boolean head + boolean rest)', () => {
-    expect(createValidateFn(tuple([boolean()], boolean()))).toBe(createValidateFn<[boolean, ...boolean[]]>());
+    expect(createValidateFn(tuple({required: [boolean()], rest: boolean()}))).toBe(createValidateFn<[boolean, ...boolean[]]>());
   });
 });
 
@@ -181,7 +181,7 @@ describe('compose builders — null member survives composition (InferType carri
   });
 
   it('tuple keeps a null slot', () => {
-    const isTup = createValidateFn(tuple([boolean(), literal(null)]));
+    const isTup = createValidateFn(tuple({required: [boolean(), literal(null)]}));
     expect(isTup([true, null])).toBe(true);
     expect(isTup([true, undefined])).toBe(false);
     expect(isTup).toBe(createValidateFn<[boolean, null]>());
@@ -210,7 +210,7 @@ describe('compose builders — getValidationErrors schema form', () => {
 
 describe('compose builders — parameters (Parameters<F>) + func tuple-overload', () => {
   it('extracts a fixed param tuple and converges (brand-free)', () => {
-    const isPair = createValidateFn(parameters(func([boolean(), boolean()])));
+    const isPair = createValidateFn(parameters(func({params: [boolean(), boolean()]})));
     expect(isPair([true, false])).toBe(true);
     expect(isPair([true])).toBe(false);
     expect(isPair([true, 1])).toBe(false);
@@ -219,7 +219,7 @@ describe('compose builders — parameters (Parameters<F>) + func tuple-overload'
   });
 
   it('keeps a trailing-optional param via the func tuple-overload and converges', () => {
-    const isOpt = createValidateFn(parameters(func(tuple([boolean()], [boolean()]))));
+    const isOpt = createValidateFn(parameters(func({params: tuple({required: [boolean()], optional: [boolean()]})})));
     expect(isOpt([true])).toBe(true);
     expect(isOpt([true, false])).toBe(true);
     expect(isOpt([true, 1])).toBe(false);
@@ -230,7 +230,7 @@ describe('compose builders — parameters (Parameters<F>) + func tuple-overload'
     // Head ≠ rest type (number head, string rest) so the rest segment is exercised
     // distinctly; TF.number()/TF.string() carry a format brand so this asserts behavior,
     // not `.toBe`. Same shape the call_signature_params_with_rest case proves.
-    const isRest = createValidateFn(parameters(func(tuple([TF.number()], TF.string()))));
+    const isRest = createValidateFn(parameters(func({params: tuple({required: [TF.number()], rest: TF.string()})})));
     expect(isRest([1])).toBe(true); // head only, zero rest
     expect(isRest([1, 'a', 'b'])).toBe(true);
     expect(isRest([1, 'a', 2])).toBe(false); // rest element must be string
@@ -238,7 +238,7 @@ describe('compose builders — parameters (Parameters<F>) + func tuple-overload'
   });
 
   it('validates realistic (branded) params behaviorally — mirrors call_signature_params', () => {
-    const isArgs = createValidateFn(parameters(func([TF.number(), boolean()], TF.string())));
+    const isArgs = createValidateFn(parameters(func({params: [TF.number(), boolean()], ret: TF.string()})));
     expect(isArgs([1, true])).toBe(true);
     expect(isArgs([1, 'no'])).toBe(false);
     expect(isArgs(['no', true])).toBe(false);
@@ -312,7 +312,7 @@ describe('utility builders — convergence with type-first', () => {
   });
 
   it('returnType(fn) converges with ReturnType<F>', () => {
-    expect(createValidateFn(returnType(func([boolean()], boolean())))).toBe(
+    expect(createValidateFn(returnType(func({params: [boolean()], ret: boolean()})))).toBe(
       createValidateFn<ReturnType<(a: boolean) => boolean>>()
     );
   });

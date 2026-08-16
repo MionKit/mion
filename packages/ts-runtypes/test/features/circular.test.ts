@@ -174,14 +174,16 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
   });
 
   it('labeled tuple — beside and carrying the cycle — converges', () => {
-    const Beside = circular(object({k: tuple([slot('x', TF.number()), slot('y', TF.string())]), next: optional(self())}));
+    const Beside = circular(
+      object({k: tuple({required: [slot('x', TF.number()), slot('y', TF.string())]}), next: optional(self())})
+    );
     interface BesideT {
       k: [x: number, y: string];
       next?: BesideT;
     }
     expect(getRunTypeId(Beside)).toBe(getRunTypeId<BesideT>());
 
-    const Through = circular(object({k: tuple([slot('head', TF.number()), slot('tail', self())])}));
+    const Through = circular(object({k: tuple({required: [slot('head', TF.number()), slot('tail', self())]})}));
     interface ThroughT {
       k: [head: number, tail: ThroughT];
     }
@@ -191,7 +193,7 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
   });
 
   it('labeled function params carrying the cycle converge', () => {
-    const Node = circular(object({run: func([slot('next', self())], TF.number())}));
+    const Node = circular(object({run: func({params: [slot('next', self())], ret: TF.number()})}));
     interface NodeT {
       run: (next: NodeT) => number;
     }
@@ -239,7 +241,7 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
     // as ONE union (`T[number]` / `T[keyof T]`) made `Self | unknown` read as
     // `unknown` and the node looked non-recursive — it was then returned
     // verbatim with the marker still in it. Found by the convert fuzz lane.
-    const Tup = circular(object({p: tuple([self(), rtNever(), rtUnknown()])}));
+    const Tup = circular(object({p: tuple({required: [self(), rtNever(), rtUnknown()]})}));
     interface TupT {
       p: [TupT, never, unknown];
     }
@@ -259,7 +261,7 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
     interface LooseT {
       link: [head: number, tail?: LooseT];
     }
-    const Loose = circular(object({link: tuple([slot('head', TF.number())], [slot('tail', self())])}));
+    const Loose = circular(object({link: tuple({required: [slot('head', TF.number())], optional: [slot('tail', self())]})}));
     expect(getRunTypeId(Loose)).toBe(getRunTypeId<LooseT>());
     const sample: LooseT = {link: [1]};
     expect(getRunTypeId(sample)).toBe(getRunTypeId<LooseT>());
@@ -268,22 +270,32 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
       link: [a: number, b?: string, c?: TwoOptT];
     }
     expect(
-      getRunTypeId(circular(object({link: tuple([slot('a', TF.number())], [slot('b', TF.string()), slot('c', self())])})))
+      getRunTypeId(
+        circular(
+          object({link: tuple({required: [slot('a', TF.number())], optional: [slot('b', TF.string()), slot('c', self())]})})
+        )
+      )
     ).toBe(getRunTypeId<TwoOptT>());
 
     interface AllOptT {
       link: [a?: number, b?: AllOptT];
     }
-    expect(getRunTypeId(circular(object({link: tuple([], [slot('a', TF.number()), slot('b', self())])})))).toBe(
+    expect(getRunTypeId(circular(object({link: tuple({optional: [slot('a', TF.number()), slot('b', self())]})})))).toBe(
       getRunTypeId<AllOptT>()
     );
 
     interface FnT {
       run: (a: number, b?: FnT) => number;
     }
-    expect(getRunTypeId(circular(object({run: func(tuple([slot('a', TF.number())], [slot('b', self())]), TF.number())})))).toBe(
-      getRunTypeId<FnT>()
-    );
+    expect(
+      getRunTypeId(
+        circular(
+          object({
+            run: func({params: tuple({required: [slot('a', TF.number())], optional: [slot('b', self())]}), ret: TF.number()}),
+          })
+        )
+      )
+    ).toBe(getRunTypeId<FnT>());
   });
 
   it('builtin class values inside a cycle converge', () => {

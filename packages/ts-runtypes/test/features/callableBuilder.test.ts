@@ -23,7 +23,7 @@ import * as RT from '@ts-runtypes/core/builders';
 type CallableIface = {(a: number, b: boolean): string; extra: string};
 
 describe('value-first callable builder', () => {
-  const schema = RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}));
+  const schema = RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}));
 
   it('is a DISTINCT cache entry from the named type-first callable interface, with identical behavior', () => {
     const fromSchema = createValidateFn(schema);
