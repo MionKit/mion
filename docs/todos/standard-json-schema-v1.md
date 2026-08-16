@@ -109,6 +109,21 @@ into the runtime cache.
      "parse, don't validate". Fits the existing per-(typeId, strategy)
      composite machinery the `jsonDecoder` family already uses; it is a new
      composite family.
+8. **`JSONShape<T>` — the wire type.** Restore mode needs a type-level wire
+   shape: a sibling of `DataOnly<T>` (same mapped-type pattern,
+   `packages/ts-runtypes/src/runtypes/dataOnly.ts`) applying the leaf wire
+   mappings (`Date`/Temporal → string, `bigint` → string,
+   `Map<K, V>` → `[K, V][]`, `Set<V>` → `V[]`, `RegExp` → string, …) exactly
+   as the Go serializer emits them. Primary use: it fills the standard
+   schema's phantom `types.input` slot — the restore-mode schema is
+   `StandardSchemaV1<JSONShape<T>, DataOnly<T>>`, and `InferInput` over that
+   slot is how consumers (tRPC, TanStack Form, Hono) type request bodies;
+   without it Input degrades to `unknown`. Secondary: it pins the
+   serializers via a three-way agreement tests/fuzz can check —
+   `prepareForJson` output conforms to `JSONShape<T>`, the emitted
+   `input()` schema describes `JSONShape<T>`, `restoreFromJson` maps it
+   back to `DataOnly<T>`. Known cost: one more TS⇄Go leaf-mapping twin to
+   keep in sync; the agreement checks are its drift alarm.
 
 ## Tests
 
