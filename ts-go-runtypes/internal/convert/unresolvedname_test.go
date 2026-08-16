@@ -7,7 +7,7 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/convert"
 )
 
-// CNV008 — the unresolved-type-name refusal (set.go unresolvedNameDiags), the
+// CNV008 — the unresolved-type-name refusal (set.go writtenTypeRefDiags), the
 // convert twin of the resolver's MKR013 guard: a written type reference that
 // resolved to the checker's ERROR type (`any` the author never wrote) refuses
 // the declaration instead of cementing `any` / `RT.any()` into the rewritten

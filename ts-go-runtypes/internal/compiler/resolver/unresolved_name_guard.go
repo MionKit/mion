@@ -18,58 +18,67 @@ import (
 // deliberately written `any`, and a resolved `type Loose = any`, are legal by
 // construction and need no keyword escape. Two probes per call:
 //
-//   - detectUnresolvedNameRefs walks the call's written type-argument syntax
-//     (the TMP001 shape) and reports each offending TypeReference by name.
+//   - detectWrittenTypeRefGuards walks the call's written type-argument syntax
+//     ONCE, classifying each TypeReference into the sibling that owns it:
+//     `Temporal.<KnownName>` → TMP001 (temporal_guard.go — note its stricter
+//     any predicate), any other name → MKR013 when it resolved error-like.
 //   - detectUnresolvedNameSlot covers the reflect form, which has no written
 //     type syntax at the call: the slot's RESOLVED type argument being
 //     error-like is itself proof the degradation was never written.
 //
-// Callers suppress both probes when MKR007 already fired for the call (the
-// unresolved-import message names the actionable import), and the slot probe
-// when the walk already named the reference. Like its siblings this guard only
-// sees syntax written AT the call site: a reflect-form value whose type nests
-// an error-like member deeper than the top level stays invisible here.
+// Callers suppress MKR013 when MKR007 already fired for the call (the
+// unresolved-import message names the actionable import) — TMP001 always
+// surfaces, its cause being independent of imports — and the slot probe when
+// the walk already named a reference. Like its siblings this guard only sees
+// syntax written AT the call site: a reflect-form value whose type nests an
+// error-like member deeper than the top level stays invisible here.
 
-// detectUnresolvedNameRefs scans the call's explicit type-argument syntax for
-// type references that resolved to the checker's error type, emitting MKR013
-// for each. `Temporal.<Name>` references are skipped — TMP001 owns those with
-// a lib-specific fix message.
-func detectUnresolvedNameRefs(scanChecker *checker.Checker, file string, call *ast.Node) []diagnostics.Diagnostic {
+// detectWrittenTypeRefGuards scans the call's explicit type-argument syntax in
+// one traversal, returning TMP001 and MKR013 hits separately so callers keep
+// their per-family suppression rules.
+func detectWrittenTypeRefGuards(scanChecker *checker.Checker, file string, call *ast.Node) (temporalDiags, nameDiags []diagnostics.Diagnostic) {
 	callExpression := call.AsCallExpression()
 	if callExpression == nil || callExpression.TypeArguments == nil {
-		return nil
+		return nil, nil
 	}
-	var diags []diagnostics.Diagnostic
 	for _, typeArgNode := range callExpression.TypeArguments.Nodes {
-		walkUnresolvedNameRefs(scanChecker, file, typeArgNode, &diags)
+		walkWrittenTypeRefs(scanChecker, file, typeArgNode, &temporalDiags, &nameDiags)
 	}
-	return diags
+	return temporalDiags, nameDiags
 }
 
-// walkUnresolvedNameRefs recurses a type-node subtree, emitting MKR013 for
-// every non-Temporal TypeReference whose resolved type is error-like `any`.
-func walkUnresolvedNameRefs(scanChecker *checker.Checker, file string, node *ast.Node, out *[]diagnostics.Diagnostic) {
+// walkWrittenTypeRefs recurses a type-node subtree, classifying every
+// TypeReference: a known Temporal name with an any-flavored resolution emits
+// TMP001, any other name whose resolved type is error-like `any` emits MKR013.
+func walkWrittenTypeRefs(scanChecker *checker.Checker, file string, node *ast.Node, temporalOut, nameOut *[]diagnostics.Diagnostic) {
 	if node == nil {
 		return
 	}
 	if ast.IsTypeReferenceNode(node) {
-		if _, isTemporal := temporalQualifiedName(node); !isTemporal {
-			refType := checker.Checker_getTypeFromTypeNode(scanChecker, node)
-			if marker.IsErrorLikeAny(refType) {
-				if name, ok := writtenEntityName(node); ok {
-					if sourceFile := ast.GetSourceFileOfNode(node); sourceFile != nil {
-						*out = append(*out, diagnostics.New(
-							diagnostics.CodeMarkerUnresolvedTypeName,
-							textpos.NodeSite(file, sourceFile, node),
-							name,
-						))
-					}
+		if temporalName, isTemporal := temporalQualifiedName(node); isTemporal {
+			if temporalDegradedToAny(checker.Checker_getTypeFromTypeNode(scanChecker, node)) {
+				if sourceFile := ast.GetSourceFileOfNode(node); sourceFile != nil {
+					*temporalOut = append(*temporalOut, diagnostics.New(
+						diagnostics.CodeTemporalNotLoaded,
+						textpos.NodeSite(file, sourceFile, node),
+						temporalName,
+					))
+				}
+			}
+		} else if marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(scanChecker, node)) {
+			if name, ok := writtenEntityName(node); ok {
+				if sourceFile := ast.GetSourceFileOfNode(node); sourceFile != nil {
+					*nameOut = append(*nameOut, diagnostics.New(
+						diagnostics.CodeMarkerUnresolvedTypeName,
+						textpos.NodeSite(file, sourceFile, node),
+						name,
+					))
 				}
 			}
 		}
 	}
 	node.ForEachChild(func(child *ast.Node) bool {
-		walkUnresolvedNameRefs(scanChecker, file, child, out)
+		walkWrittenTypeRefs(scanChecker, file, child, temporalOut, nameOut)
 		return false
 	})
 }

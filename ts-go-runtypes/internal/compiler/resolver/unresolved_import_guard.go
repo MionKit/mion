@@ -13,7 +13,8 @@ import (
 // dependency, undeclared `paths` alias), so the marker's `T` checks as `any`
 // — the emitted validator is the always-true identity, the mock is
 // `undefined`, encoders pass values through — with zero signal. Sibling of
-// detectTemporalNotLoaded (the lib-not-loaded flavor of the same trap).
+// the TMP001 walk in detectWrittenTypeRefGuards (the lib-not-loaded flavor of
+// the same trap).
 //
 // Detection requires BOTH signals so a deliberately-`any` marker stays legal:
 // the site's resolved type argument is `any`, AND the site's source file
