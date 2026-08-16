@@ -9,9 +9,10 @@
 // Commands: dev [--isAgent] | build | generate | smoke | verify-docs | shell.
 // TTY commands (dev/build/generate/shell) run podman with stdio inherited so SIGINT
 // (Ctrl-C) reaches the container via the shared process group and --rm cleans up.
-// smoke/verify-docs boot a detached server and poll it with fetch(), removing the
-// container on exit/SIGINT/SIGTERM. The in-container `sh -c '…'` blocks stay shell
-// (they run inside the Linux container, which always has sh).
+// smoke/verify-docs boot a detached server and probe it FROM INSIDE the container
+// (podman exec + the image's own node fetch), removing the container on
+// exit/SIGINT/SIGTERM. The in-container `sh -c '…'` blocks stay shell (they run
+// inside the Linux container, which always has sh).
 
 import {existsSync, globSync, mkdirSync, realpathSync, rmSync, statSync} from 'node:fs';
 import {join} from 'node:path';
@@ -247,7 +248,6 @@ async function cmdSmoke(cfg) {
   ensureImage();
   const cname = `${cfg.containerBase}-smoke`;
   const timeoutS = Number(cfg.smokeTimeout || '90');
-  const url = `http://localhost:${cfg.port}`;
   note(`smoke: starting dev server in background (${cname})`);
   rmContainer(cfg, cname);
   const margs = mountArgs(cfg);
@@ -257,14 +257,22 @@ async function cmdSmoke(cfg) {
   if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--extends', 'docus', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
   const cleanup = withCleanup(cfg, cname);
 
-  note(`smoke: polling ${url} for HTTP 200 (timeout ${timeoutS}s)`);
+  note(`smoke: probing / inside the container for HTTP 200 (timeout ${timeoutS}s; host port ${cfg.port} stays published)`);
   const deadline = Date.now() + timeoutS * 1000;
   let title = '';
+  let lastStatus = null;
   while (Date.now() < deadline) {
-    const html = await tryGet(url);
-    if (html && html.includes('<title>')) {
-      title = html.match(/<title>[^<]*<\/title>/)?.[0] ?? '';
+    const res = containerHttp(cfg, cname, '/');
+    if (res && res.status === 200 && res.body.includes('<title>')) {
+      title = res.body.match(/<title>[^<]*<\/title>/)?.[0] ?? '';
       break;
+    }
+    // A non-200 means the server is up but the render failed - name the status
+    // instead of looking identical to "not up yet" (a 500 here once hid a real
+    // SSR crash behind a bare timeout).
+    if (res && res.status !== lastStatus) {
+      lastStatus = res.status;
+      note(`smoke: server answered HTTP ${res.status}, waiting for 200`);
     }
     await sleep(2000);
   }
@@ -275,7 +283,7 @@ async function cmdSmoke(cfg) {
     cleanup();
     return;
   }
-  console.error(`==> smoke: FAIL (no 200 from ${url} within ${timeoutS}s)`);
+  console.error(`==> smoke: FAIL (no 200 from the in-container probe within ${timeoutS}s${lastStatus ? `; last status ${lastStatus}` : ''})`);
   console.error('==> last 40 lines of container logs:');
   run(cfg.engine, ['logs', '--tail', '40', cname], {stdio: ['inherit', 'inherit', 'inherit']});
   capture(cfg.engine, ['stop', '--time', '1', cname]);
@@ -283,22 +291,35 @@ async function cmdSmoke(cfg) {
   die('', 1);
 }
 
-// GET a URL, returning the body text on a 2xx, else null (the `curl -fsS` analogue).
-async function tryGet(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return await res.text();
-  } catch {
-    return null;
-  }
+// Probe the dev server FROM INSIDE the container (podman exec + the image's own
+// node fetch). Host-side polling through the published port broke when the CI
+// runner image rolled to 20260729+: rootless podman stopped forwarding
+// localhost:<port>, so the server sat healthy inside while every host poll died
+// silently and the smoke went red with a green container. The smoke asserts "the
+// server renders a page", not "the runner forwards ports", so the probe rides the
+// container's own loopback; the -p publish stays for humans browsing the mapped
+// port. Returns {status, body} once HTTP reached the server, else null (server
+// not up yet / exec failed). Pass `body` to POST it as JSON.
+function containerHttp(cfg, cname, path, body) {
+  const script = [
+    `const body = process.env.RT_PROBE_BODY;`,
+    `const res = await fetch('http://127.0.0.1:3000' + process.env.RT_PROBE_PATH, body ? {method: 'POST', headers: {'content-type': 'application/json'}, body} : {}).catch(() => null);`,
+    `if (!res) process.exit(7);`,
+    `process.stdout.write(res.status + '\\n' + (await res.text()));`,
+  ].join('\n');
+  const probeEnv = ['-e', `RT_PROBE_PATH=${path}`, '-e', `RT_PROBE_BODY=${body ? JSON.stringify(body) : ''}`];
+  const result = capture(cfg.engine, ['exec', ...probeEnv, cname, 'node', '--input-type=module', '-e', script]);
+  if (result.status !== 0) return null;
+  const nl = result.stdout.indexOf('\n');
+  const status = nl === -1 ? NaN : Number(result.stdout.slice(0, nl));
+  if (!Number.isFinite(status)) return null;
+  return {status, body: result.stdout.slice(nl + 1)};
 }
 
 async function cmdVerifyDocs(cfg) {
   ensureImage();
   const cname = `${cfg.containerBase}-verify`;
   const timeoutS = Number(cfg.smokeTimeout || '120');
-  const base = `http://localhost:${cfg.port}`;
   // Pick a real example file from the mounted context for the endpoint checks.
   const examples = globSync('**/*.ts', {cwd: join(cfg.repoContext, 'packages/examples/src')});
   if (examples.length === 0) die(`site: no examples found under ${cfg.repoContext}/packages/examples/src - run 'rt website check' after building packages`);
@@ -313,11 +334,12 @@ async function cmdVerifyDocs(cfg) {
   if (run(cfg.engine, ['run', '-d', '--init', '--name', cname, '-p', `${cfg.port}:3000`, ...nargs, ...margs, ...pargs, ...eargs, '-e', 'NODE_ENV=development', '-w', '/app', cfg.image, 'pnpm', 'exec', 'nuxt', 'dev', '--extends', 'docus', '--host', '0.0.0.0', '--port', '3000'], {stdio: ['inherit', 'ignore', 'inherit']}) !== 0) die('site: podman run failed');
   const cleanup = withCleanup(cfg, cname);
 
-  note(`verify-docs: waiting for ${base} (timeout ${timeoutS}s)`);
+  note(`verify-docs: waiting for the dev server (in-container probe, timeout ${timeoutS}s)`);
   const deadline = Date.now() + timeoutS * 1000;
   let up = false;
   while (Date.now() < deadline) {
-    if ((await tryGet(base)) !== null) {
+    const res = containerHttp(cfg, cname, '/');
+    if (res && res.status === 200) {
       up = true;
       break;
     }
@@ -329,44 +351,31 @@ async function cmdVerifyDocs(cfg) {
     die('site: dev server never came up');
   }
 
+  // POST JSON in-container; true if the 2xx body includes `needle`.
+  const postIncludes = (path, body, needle) => {
+    const res = containerHttp(cfg, cname, path, body);
+    return res !== null && res.status >= 200 && res.status < 300 && res.body.includes(needle);
+  };
+
   let fails = 0;
   // 1. twoslash endpoint renders hovers from the mounted packages' .d.ts.
-  if ((await postIncludes(`${base}/api/twoslash`, {path: relpath, hoverMode: 'all'}, 'twoslash'))) console.log(`  PASS  twoslash: rendered hovers for ${relpath}`);
+  if (postIncludes('/api/twoslash', {path: relpath, hoverMode: 'all'}, 'twoslash')) console.log(`  PASS  twoslash: rendered hovers for ${relpath}`);
   else (console.error(`  FAIL  twoslash: no hover markup for ${relpath}`), (fails = 1));
   // 2. file read (the resolver code-import uses) returns code from the context.
-  if ((await postIncludes(`${base}/api/read-file`, {path: relpath}, '"code"'))) console.log(`  PASS  code read: ${relpath}`);
+  if (postIncludes('/api/read-file', {path: relpath}, '"code"')) console.log(`  PASS  code read: ${relpath}`);
   else (console.error(`  FAIL  code read: ${relpath}`), (fails = 1));
   // 3. security boundary: a path escaping packages/ is rejected (403).
-  const code = await postStatus(`${base}/api/read-file`, {path: 'packages/examples/../../package.json'});
+  const code = containerHttp(cfg, cname, '/api/read-file', {path: 'packages/examples/../../package.json'})?.status ?? 0;
   if (code === 403) console.log('  PASS  security: out-of-packages path rejected (403)');
   else (console.error(`  FAIL  security: expected 403, got ${code}`), (fails = 1));
   // 4. homepage server-renders twoslash markup (full SSR path).
-  const home = await tryGet(base);
-  if (home && home.includes('twoslash')) console.log('  PASS  homepage: twoslash markup present in SSR HTML');
+  const home = containerHttp(cfg, cname, '/');
+  if (home && home.status === 200 && home.body.includes('twoslash')) console.log('  PASS  homepage: twoslash markup present in SSR HTML');
   else console.error('  WARN  homepage: no twoslash markup (homepage may not use ::twoslash-code)');
 
   cleanup();
   if (fails === 0) return void note('verify-docs: PASS');
   die('site: verify-docs: FAIL');
-}
-
-// POST JSON; true if the 2xx body includes `needle`, else false (the `curl … | grep`).
-async function postIncludes(url, body, needle) {
-  try {
-    const res = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
-    if (!res.ok) return false;
-    return (await res.text()).includes(needle);
-  } catch {
-    return false;
-  }
-}
-// POST JSON; return the HTTP status (0 on a network error). The `-w '%{http_code}'`.
-async function postStatus(url, body) {
-  try {
-    return (await fetch(url, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)})).status;
-  } catch {
-    return 0;
-  }
 }
 
 function cmdShell(cfg) {
