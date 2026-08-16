@@ -88,10 +88,19 @@ into the runtime cache.
      consumers (tRPC, Hono, forms) actually use `validate`: parsed JSON in,
      typed value out.
    Caveats for restore mode: the shipped `createStandardSchema` is
-   check-only, so restore semantics need an opt-in (comptime option or a
-   sibling factory), and it requires WIRE-shape validation + issues — a
-   different lane than the `'val'` / `'verr'` families, which check the
-   JS-typed shape.
+   check-only (its `validate` returns the SAME object, narrowed), so restore
+   semantics need an opt-in (comptime option or a sibling factory). And the
+   ORDER is inverted vs Zod-style validate-then-transform: our `'val'`
+   validator checks the JS-typed shape (`instanceof Date`, `typeof bigint`),
+   so a wire value fails it before any restore. Two shapes:
+   - restore-then-validate: reuse `'val'` on the revived value — cheapest,
+     but `restoreFromJson` assumes roughly-valid input, and issues would
+     describe the half-restored object, not the JSON the caller sent;
+   - a FUSED validating decoder (preferred): one walk that checks each
+     slot's WIRE form and revives it, recording wire-accurate issues —
+     "parse, don't validate". Fits the existing per-(typeId, strategy)
+     composite machinery the `jsonDecoder` family already uses; it is a new
+     composite family.
 
 ## Tests
 
