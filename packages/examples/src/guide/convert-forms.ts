@@ -1,7 +1,7 @@
 import * as RT from '@ts-runtypes/core/builders';
 import * as TF from '@ts-runtypes/core/formats';
 import {createValidateFn, getRunTypeId, type InferType} from '@ts-runtypes/core';
-import {embedType, runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 // start-before
 // A file you might have today, written type-first.
@@ -37,51 +37,17 @@ getRunTypeId<User>() === getRunTypeId(userRT); // true
 getRunTypeId<User>() === getRunTypeId(userSchemaRT); // true
 // end-identity
 
-// start-embed
-// A few types have no way to be written as data at all, because their identity
-// is a name rather than a shape: a class, an enum member, another declaration
-// being referred to. The converter carries those with embedType, which drops a
-// real type into a schema position, so the round trip stays exact.
-export class AuditSource {
-  constructor(public label: string) {}
-}
-
-export const auditRT = runTypeFromJsonSchema({
-  type: 'object',
-  properties: {
-    source: embedType<AuditSource>(),
-    onSave: embedType<(entry: string, note?: string) => void>(),
-  },
-  required: ['source'],
-} as const);
-type Audit = InferType<typeof auditRT>;
-const sample: Audit = {source: new AuditSource('cli')};
-getRunTypeId(sample) === getRunTypeId(auditRT); // true
-// end-embed
-
 // start-dialect
-// Most of what JSON has no word for still converts as plain data, through extra
-// keywords RunTypes adds beside the standard ones. Each says what the JSON
-// becomes in JavaScript; the standard keywords still describe the JSON itself,
-// so any validator can read these.
+// Types JSON has no word for convert as plain data: extra keywords say what
+// the JSON becomes in JavaScript, and the standard keywords beside them keep
+// describing the JSON itself, so any validator can read the schema.
 export const releaseRT = runTypeFromJsonSchema({
   type: 'object',
   properties: {
     build: {type: 'string', const: '4096', jsType: 'bigint'},
-    channel: {
-      type: 'string',
-      pattern: '^release/[\\s\\S]*$',
-      tsTemplate: {texts: ['release/', ''], placeholders: [{type: 'string'}]},
-    },
     stamp: {type: 'string', format: 'date-time', jsType: 'Temporal.Instant'},
-    notify: {
-      tsFunction: {
-        params: {type: 'array', prefixItems: [{type: 'string'}], minItems: 1, items: false, tsLabels: ['message']},
-        return: {type: 'boolean'},
-      },
-    },
   },
-  required: ['build', 'channel', 'stamp', 'notify'],
+  required: ['build', 'stamp'],
 } as const);
 export type Release = InferType<typeof releaseRT>;
 // end-dialect
