@@ -1,6 +1,6 @@
 ---
 type: feature
-spec: full-plan
+spec: guidelines
 status: ready
 created: 2026-08-16
 ---
