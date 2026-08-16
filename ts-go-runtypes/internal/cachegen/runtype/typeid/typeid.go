@@ -833,11 +833,11 @@ func (computer *Computer) signatureID(signature *checker.Signature, kind reflect
 	// stay in the id so the naming is additive; params are behaviour-neutral
 	// (notSupported) but their names are graph DATA.
 	// A trailing FIXED rest-tuple param (`(...args: [a: A, b: B])`, the shape a
-	// value-first `func([a: A, b: B], R)` brands) is expanded into positional
+	// value-first `func({params: [a: A, b: B], ret: R})` brands) is expanded into positional
 	// element params carrying the tuple LABELS as their names, so a labeled
 	// value-first tuple still matches the equivalent written `(a: A, b: B)`.
 	// The `__rtLabels` carrier (`(...args: [A] & {__rtLabels?: ['a']})`, the
-	// shape `func({a: …}, R)` brands) expands the same way with the lifted
+	// shape `func({params: [slot('a', …)], ret: R})` brands) expands the same way with the lifted
 	// labels, so the object form matches the written `(a: A) => R` too.
 	// An UNLABELED value-first tuple expands with empty names and so matches
 	// only other unlabeled forms — sound, just less dedup. (The method/property

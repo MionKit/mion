@@ -187,7 +187,8 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			return fmt.Sprintf("{[key: `api/${string}`]: %s}", randomTypeText(rng, atoms, stringPool, depth-1))
 		case 8:
 			if rng.Intn(2) == 0 {
-				// All-required named params — the slot-form lane (RT.func([RT.slot…])).
+				// All-required named params — the slot-form lane
+				// (RT.func({params: [RT.slot…], ret})).
 				return fmt.Sprintf("((input: %s, other: %s) => %s)",
 					randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, 0), randomTypeText(rng, atoms, stringPool, depth-1))
 			}
@@ -272,9 +273,10 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 				requiredCount = 1
 			}
 			// Labeled tuples label EVERY slot (TS grammar) — the slot-form
-			// conversion lane; unlabeled tuples keep the array-form lane. A
-			// labeled optional slot puts the `?` on the label (`k1?: T`), an
-			// unlabeled one on the type (`T?`).
+			// conversion lane, where each group element is wrapped in
+			// `RT.slot(…)`; unlabeled tuples print bare elements in the same
+			// groups. A labeled optional slot puts the `?` on the label
+			// (`k1?: T`), an unlabeled one on the type (`T?`).
 			labeled := rng.Intn(3) == 0
 			var parts []string
 			for range requiredCount {

@@ -6,13 +6,13 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
 
-// The slot-form builders (`RT.tuple([RT.slot('x', …)])`,
-// `RT.func([RT.slot('event', …)], ret)`) carry slot labels / parameter names
+// The slot-form builders (`RT.tuple({required: [RT.slot('x', …)]})`,
+// `RT.func({params: [RT.slot('event', …)], ret})`) carry slot labels / parameter names
 // through the `__rtLabels` sentinel and must converge with their type-first
 // labeled twins on ONE structural id — with byte-identical projections
 // (member/parameter names), whichever form is scanned first. Fixtures pair
 // BOTH getRunTypeId call shapes per the marker coverage rule: the value-first
-// builder is the natural reflect form (`getRunTypeId(RT.tuple([…]))`), the
+// builder is the natural reflect form (`getRunTypeId(RT.tuple({required: […]}))`), the
 // written labeled type the static form (`getRunTypeId<[x: number]>()`).
 
 const labeledImports = `import {getRunTypeId} from '@ts-runtypes/core';
@@ -237,7 +237,7 @@ func TestLabeledFunc_ParamNamedType(t *testing.T) {
 }
 
 func TestLabeledFunc_EmptyParamsArrayConvergesWithNoParams(t *testing.T) {
-	// `func([], ret)` matches the no-params overload and brands a bare
+	// An empty `params` group matches the no-params overload and brands a bare
 	// `() => number`, converging with the written form.
 	builderForm := labeledImports + `getRunTypeId(RT.func({ret: TF.number()}));
 `
@@ -272,7 +272,7 @@ func TestLabeledFunc_RestSpreadProjectionParity(t *testing.T) {
 
 func TestLabeledTuple_ParamsTupleThroughFunc(t *testing.T) {
 	// The params-TUPLE form carries the labels through the tuple's own slot
-	// form: func(tuple([slot('a', …)]), ret) ≡ (a: string) => number.
+	// form: func({params: tuple({required: [slot('a', …)]}), ret}) ≡ (a: string) => number.
 	builderForm := labeledImports + `getRunTypeId(RT.func({params: RT.tuple({required: [RT.slot('a', TF.string())]}), ret: TF.number()}));
 `
 	writtenForm := labeledImports + `getRunTypeId<(a: string) => number>();
