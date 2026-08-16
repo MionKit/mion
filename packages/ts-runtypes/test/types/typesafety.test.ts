@@ -272,8 +272,8 @@ function assertionsComposers(): void {
   // (no `infer`: `MapTuple` over the child tuple, `[number]` for unions,
   // positional `A & B` for intersections).
   const _arr: RunType<boolean[]> = RT.array(RT.boolean());
-  const _tup: RunType<[boolean, boolean]> = RT.tuple([RT.boolean(), RT.boolean()]);
-  const _tupRest: RunType<[boolean, ...boolean[]]> = RT.tuple([RT.boolean()], RT.boolean());
+  const _tup: RunType<[boolean, boolean]> = RT.tuple({required: [RT.boolean(), RT.boolean()]});
+  const _tupRest: RunType<[boolean, ...boolean[]]> = RT.tuple({required: [RT.boolean()], rest: RT.boolean()});
   const _uni: RunType<boolean | 'x'> = RT.union([RT.boolean(), RT.literal('x')]);
   const _int: RunType<{a: boolean} & {b: boolean}> = RT.intersection(RT.object({a: RT.boolean()}), RT.object({b: RT.boolean()}));
   const _rec: RunType<Record<string, boolean>> = RT.record(RT.boolean());
@@ -327,20 +327,54 @@ function assertionsNewBuilders(): void {
   void _nev;
   void _voi;
 
-  // 3-arg tuple: the SECOND array is the trailing OPTIONAL elements
-  // (`Partial<MapTuple<O>>` → each `?`); a third RunType is the rest element.
-  const _tupOpt: RunType<[number, bigint?, boolean?]> = RT.tuple([TF.number()], [TF.bigInt(), RT.boolean()]);
-  const _tupOptRest: RunType<[number, bigint?, ...string[]]> = RT.tuple([TF.number()], [TF.bigInt()], TF.string());
+  // The `optional` group holds the trailing OPTIONAL elements
+  // (`Partial<MapTuple<O>>` → each `?`); `rest` holds the rest element.
+  const _tupOpt: RunType<[number, bigint?, boolean?]> = RT.tuple({
+    required: [TF.number()],
+    optional: [TF.bigInt(), RT.boolean()],
+  });
+  const _tupOptRest: RunType<[number, bigint?, ...string[]]> = RT.tuple({
+    required: [TF.number()],
+    optional: [TF.bigInt()],
+    rest: TF.string(),
+  });
+  // Every group is optional, and an omitted one contributes nothing.
+  const _tupEmpty: RunType<[]> = RT.tuple({});
+  const _tupRestOnly: RunType<[number, ...string[]]> = RT.tuple({required: [TF.number()], rest: TF.string()});
+  const _tupOptOnly: RunType<[bigint?]> = RT.tuple({optional: [TF.bigInt()]});
   void _tupOpt;
   void _tupOptRest;
+  void _tupEmpty;
+  void _tupRestOnly;
+  void _tupOptOnly;
+
+  // The group bag is a FIXED key set, and the two families never mix. Each
+  // rejection below is load-bearing: an accepted call would brand a different
+  // type than the caller wrote, silently moving the structural id.
+  // @ts-expect-error — `banana` is not a tuple group.
+  RT.tuple({required: [TF.number()], banana: TF.string()});
+  // @ts-expect-error — `rst` is a typo for `rest`.
+  RT.tuple({required: [TF.number()], rst: TF.string()});
+  // @ts-expect-error — labeled `required` with an unlabeled `optional` group.
+  RT.tuple({required: [RT.slot('x', TF.number())], optional: [TF.number()]});
+  // @ts-expect-error — slots and plain RunTypes mixed inside ONE group.
+  RT.tuple({required: [TF.number(), RT.slot('x', TF.number())]});
+  // @ts-expect-error — `rest` is a single element, not a list.
+  RT.tuple({required: [TF.number()], rest: [TF.string()]});
+  // @ts-expect-error — the positional spelling is gone; groups must be named.
+  RT.tuple([TF.number()], [TF.string()]);
+  // @ts-expect-error — `prams` is a typo for `params`.
+  RT.func({prams: [TF.number()], ret: TF.string()});
+  // @ts-expect-error — the positional func spelling is gone too.
+  RT.func([TF.number()], TF.string());
 
   // func(): ret defaults to void. The wired cases use no typed params (function
-  // values lower per position); `func([], any())` is the `() => any` form that
+  // values lower per position); `func({ret: any()})` is the `() => any` form that
   // tuple_with_non_serializable and interface_with_method author. (A typed-param
   // func carries each leaf's format brand on its param — fine for the scanner,
   // but not asserted as plain primitives here.)
   const _fn0: RunType<() => void> = RT.func();
-  const _fnAny: RunType<() => any> = RT.func([], RT.any());
+  const _fnAny: RunType<() => any> = RT.func({ret: RT.any()});
   void _fn0;
   void _fnAny;
 
@@ -361,16 +395,22 @@ function assertionsNewBuilders(): void {
   void _boxNum;
 
   // func tuple-overload: params as a single tuple RunType (so optional/rest params
-  // ride tuple()); `(...args: T)` ≡ the spread tuple. Brand-free booleans so the
+  // ride tuple(...)); `(...args: T)` ≡ the spread tuple. Brand-free booleans so the
   // positive assignment matches exactly.
-  const _fnTup: RunType<(a: boolean, b?: boolean) => void> = RT.func(RT.tuple([RT.boolean()], [RT.boolean()]));
+  const _fnTup: RunType<(a: boolean, b?: boolean) => void> = RT.func({
+    params: RT.tuple({required: [RT.boolean()], optional: [RT.boolean()]}),
+  });
   void _fnTup;
 
   // parameters(fn): extracts the function's parameter tuple — fixed, trailing-
   // optional, and rest forms each converge with `Parameters<F>`.
-  const _pFixed: RunType<[boolean, boolean]> = RT.parameters(RT.func([RT.boolean(), RT.boolean()]));
-  const _pOpt: RunType<[boolean, boolean?]> = RT.parameters(RT.func(RT.tuple([RT.boolean()], [RT.boolean()])));
-  const _pRest: RunType<[boolean, ...boolean[]]> = RT.parameters(RT.func(RT.tuple([RT.boolean()], RT.boolean())));
+  const _pFixed: RunType<[boolean, boolean]> = RT.parameters(RT.func({params: [RT.boolean(), RT.boolean()]}));
+  const _pOpt: RunType<[boolean, boolean?]> = RT.parameters(
+    RT.func({params: RT.tuple({required: [RT.boolean()], optional: [RT.boolean()]})})
+  );
+  const _pRest: RunType<[boolean, ...boolean[]]> = RT.parameters(
+    RT.func({params: RT.tuple({required: [RT.boolean()], rest: RT.boolean()})})
+  );
   void _pFixed;
   void _pOpt;
   void _pRest;
@@ -388,7 +428,7 @@ function assertionsNewBuilders(): void {
   const _uExtract: RunType<'x'> = RT.extract(RT.union([RT.literal('x'), RT.literal('y')]), RT.literal('x'));
   const _uNonNull: RunType<boolean> = RT.nonNullable(RT.union([RT.boolean(), RT.literal(null)]));
   const _uReadonly: RunType<Readonly<{a: boolean}>> = RT.readonly(RT.object({a: RT.boolean()}));
-  const _uReturn: RunType<boolean> = RT.returnType(RT.func([TF.number()], RT.boolean()));
+  const _uReturn: RunType<boolean> = RT.returnType(RT.func({params: [TF.number()], ret: RT.boolean()}));
   void _uModel;
   void _uPartial;
   void _uRequired;
@@ -498,18 +538,18 @@ function assertionsComposerExactInference(): void {
   // combination that keeps precise per-slot inference once the param is wrapped
   // in the `CompTimeArgs` brand intersection — fails HERE loudly instead of
   // silently degrading the structural id the scanner reads off the brand.
-  const _tup = RT.tuple([RT.boolean(), TF.number()]);
+  const _tup = RT.tuple({required: [RT.boolean(), TF.number()]});
   assertExact<InferType<typeof _tup>, [boolean, number]>(true);
 
-  const _tupOpt = RT.tuple([TF.number()], [RT.boolean()]);
+  const _tupOpt = RT.tuple({required: [TF.number()], optional: [RT.boolean()]});
   assertExact<InferType<typeof _tupOpt>, [number, boolean?]>(true);
 
-  const _tupRest = RT.tuple([TF.number()], TF.string());
+  const _tupRest = RT.tuple({required: [TF.number()], rest: TF.string()});
   assertExact<InferType<typeof _tupRest>, [number, ...string[]]>(true);
 
   // func array-overload: the contravariance trap lives here — only an exact
   // check catches a widened param tuple.
-  const _fn = RT.func([TF.string(), TF.number()], RT.boolean());
+  const _fn = RT.func({params: [TF.string(), TF.number()], ret: RT.boolean()});
   assertExact<InferType<typeof _fn>, (a: string, b: number) => boolean>(true);
 
   const _fn0 = RT.func();
@@ -538,7 +578,7 @@ function assertionsComposerExactInference(): void {
   // spreading a plain `RunType[]` would collapse to an array and lose it. These
   // pin the tuple-operand path that keeps the exact per-slot / per-member types.
   const _tupleParts = [TF.number(), RT.boolean()] as const;
-  const _tupSpread = RT.tuple([..._tupleParts, TF.string()]);
+  const _tupSpread = RT.tuple({required: [..._tupleParts, TF.string()]});
   assertExact<InferType<typeof _tupSpread>, [number, boolean, string]>(true);
 
   const _unionParts = [TF.string(), TF.number()] as const;

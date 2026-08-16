@@ -697,8 +697,8 @@ export const UNION = {
     validateSchema: () =>
       createValidateFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
         ])
       ),
     validateJsonSchema: 'not-supported',
@@ -723,8 +723,8 @@ export const UNION = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
         ])
       ),
     getValidationErrorsJsonSchema: 'not-supported',

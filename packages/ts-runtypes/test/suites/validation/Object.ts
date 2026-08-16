@@ -552,7 +552,7 @@ export const OBJECT = {
     validate: () => createValidateFn<{name: string; cb: () => any}>(),
     standardSchema: () => createStandardSchema<{name: string; cb: () => any}>(),
     validateDataOnly: () => createValidateFn<DataOnly<{name: string; cb: () => any}>>(),
-    validateSchema: () => createValidateFn(RT.object({name: TF.string(), cb: RT.func([], RT.any())})),
+    validateSchema: () => createValidateFn(RT.object({name: TF.string(), cb: RT.func({ret: RT.any()})})),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{name: string; cb: () => any}>(),
     validateReflect: () => {
@@ -565,7 +565,7 @@ export const OBJECT = {
     },
     getValidationErrors: () => createGetValidationErrorsFn<{name: string; cb: () => any}>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{name: string; cb: () => any}>>(),
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({name: TF.string(), cb: RT.func([], RT.any())})),
+    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({name: TF.string(), cb: RT.func({ret: RT.any()})})),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{name: string; cb: () => any}>(),
     getValidationErrorsReflect: () => {
@@ -1615,7 +1615,9 @@ export const OBJECT = {
     // (dataOnlyDivergent), the thunk is declared to satisfy the contract.
     validateDataOnly: () => createValidateFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     validateSchema: () =>
-      createValidateFn(RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}))),
+      createValidateFn(
+        RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
+      ),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<{(a: number, b: boolean): string; extra: string}>(),
     validateReflect: () => {
@@ -1640,7 +1642,7 @@ export const OBJECT = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<{(a: number, b: boolean): string; extra: string}>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
-        RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}))
+        RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))
       ),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<{(a: number, b: boolean): string; extra: string}>(),
@@ -2375,7 +2377,7 @@ export const OBJECT = {
       type CallSig = (a: number, b: boolean) => string;
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
-    validateSchema: () => createValidateFn(RT.parameters(RT.func([TF.number(), RT.boolean()], TF.string()))),
+    validateSchema: () => createValidateFn(RT.parameters(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}))),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean) => string;
@@ -2400,7 +2402,7 @@ export const OBJECT = {
       return createGetValidationErrorsFn<DataOnly<Parameters<CallSig>>>();
     },
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.parameters(RT.func([TF.number(), RT.boolean()], TF.string()))),
+      createGetValidationErrorsFn(RT.parameters(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}))),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean) => string;
@@ -2485,7 +2487,10 @@ export const OBJECT = {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
-    validateSchema: () => createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], [TF.string()])))),
+    validateSchema: () =>
+      createValidateFn(
+        RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], optional: [TF.string()]})}))
+      ),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
@@ -2510,7 +2515,9 @@ export const OBJECT = {
       return createGetValidationErrorsFn<DataOnly<Parameters<CallSig>>>();
     },
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], [TF.string()])))),
+      createGetValidationErrorsFn(
+        RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], optional: [TF.string()]})}))
+      ),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean, c?: string) => Date;
@@ -2591,7 +2598,8 @@ export const OBJECT = {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
       return createValidateFn<DataOnly<Parameters<CallSig>>>();
     },
-    validateSchema: () => createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], TF.date())))),
+    validateSchema: () =>
+      createValidateFn(RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], rest: TF.date()})}))),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;
@@ -2616,7 +2624,9 @@ export const OBJECT = {
       return createGetValidationErrorsFn<DataOnly<Parameters<CallSig>>>();
     },
     getValidationErrorsSchema: () =>
-      createGetValidationErrorsFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], TF.date())))),
+      createGetValidationErrorsFn(
+        RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], rest: TF.date()})}))
+      ),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CallSig = (a: number, b: boolean, ...c: Date[]) => Date;

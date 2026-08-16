@@ -293,9 +293,12 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
-		// Labeled tuples print the slot form (`RT.tuple([RT.slot('x', …)])`),
-		// unlabeled ones the plain array form — the labels are id data, so
-		// the two spellings must never mix.
+		// Every tuple prints the GROUP form (`RT.tuple({required: […]})`), and
+		// only the groups it actually has — naming them is what makes the
+		// generated definition unambiguous, where a bare list reads as if it
+		// might accept optionals. Labeled tuples wrap each element in
+		// `RT.slot(…)`, unlabeled ones print the element alone; the labels are
+		// id data, so the two spellings must never mix.
 		renderList := func(members []*reflection.RunType, labels []string) (string, *Diagnostic) {
 			var parts []string
 			for i, member := range members {
@@ -310,17 +313,20 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			}
 			return "[" + strings.Join(parts, ", ") + "]", nil
 		}
-		requiredText, diag := renderList(shape.required, shape.requiredLabels)
-		if diag != nil {
-			return "", diag
+		var groups []string
+		if len(shape.required) > 0 {
+			requiredText, diag := renderList(shape.required, shape.requiredLabels)
+			if diag != nil {
+				return "", diag
+			}
+			groups = append(groups, "required: "+requiredText)
 		}
-		call := fmt.Sprintf("tuple(%s", requiredText)
-		if len(shape.optional) > 0 || shape.rest != nil {
+		if len(shape.optional) > 0 {
 			optionalText, optDiag := renderList(shape.optional, shape.optionalLabels)
 			if optDiag != nil {
 				return "", optDiag
 			}
-			call += ", " + optionalText
+			groups = append(groups, "optional: "+optionalText)
 		}
 		if shape.rest != nil {
 			restText, restDiag := ctx.builderExpr(shape.rest)
@@ -330,15 +336,15 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			if shape.labeled {
 				restText = fmt.Sprintf("%s.slot(%s, %s)", ctx.names.RT, quoteSingle(shape.restLabel), restText)
 			}
-			call += ", " + restText
+			groups = append(groups, "rest: "+restText)
 		}
-		return rt(call + ")")
+		return rt(fmt.Sprintf("tuple({%s})", strings.Join(groups, ", ")))
 	case reflection.KindFunction:
 		// All-required named parameters print the slot form
-		// (`RT.func([RT.slot('event', …)], ret)`), which converges with the
-		// written signature (parameter names fold into the id). Optional /
-		// rest / defaulted parameters have no id-exact value-first spelling —
-		// the type-argument escape carries those.
+		// (`RT.func({params: [RT.slot('event', …)], ret})`), which converges
+		// with the written signature (parameter names fold into the id).
+		// Optional / rest / defaulted parameters have no id-exact value-first
+		// spelling — the type-argument escape carries those.
 		if slotForm, printable, diag := ctx.funcSlotForm(node); diag != nil {
 			return "", diag
 		} else if printable {
@@ -353,10 +359,10 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	return "", unsupportedDiag(node, ctx.decl)
 }
 
-// funcSlotForm renders a function node as `RT.func([RT.slot(…)…], ret)` when
-// every parameter is named, required, non-rest and default-free — the shape
-// whose value-first id equals the written signature's. printable=false hands
-// anything else back to the escape.
+// funcSlotForm renders a function node as `RT.func({params: [RT.slot(…)…],
+// ret: …})` when every parameter is named, required, non-rest and default-free
+// — the shape whose value-first id equals the written signature's.
+// printable=false hands anything else back to the escape.
 func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *Diagnostic) {
 	var slotParts []string
 	for _, paramRef := range node.Parameters {
@@ -374,7 +380,8 @@ func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *
 	returnNode := ctx.deref(node.Return)
 	ctx.needs.useRT = true
 	if len(slotParts) == 0 {
-		// Zero params: the no-params overload spells `() => R` exactly.
+		// Zero params: an omitted `params` group spells `() => R` exactly, so
+		// the empty list never needs printing.
 		if returnNode != nil && returnNode.Kind == reflection.KindVoid {
 			return ctx.names.RT + ".func()", true, nil
 		}
@@ -382,13 +389,13 @@ func (ctx *printContext) funcSlotForm(node *reflection.RunType) (string, bool, *
 		if returnDiag != nil {
 			return "", false, returnDiag
 		}
-		return fmt.Sprintf("%s.func([], %s)", ctx.names.RT, returnText), true, nil
+		return fmt.Sprintf("%s.func({ret: %s})", ctx.names.RT, returnText), true, nil
 	}
 	returnText, returnDiag := ctx.builderExpr(node.Return)
 	if returnDiag != nil {
 		return "", false, returnDiag
 	}
-	return fmt.Sprintf("%s.func([%s], %s)", ctx.names.RT, strings.Join(slotParts, ", "), returnText), true, nil
+	return fmt.Sprintf("%s.func({params: [%s], ret: %s})", ctx.names.RT, strings.Join(slotParts, ", "), returnText), true, nil
 }
 
 // builderEscape spells a node as `getRunType<TypeText>()` on the builders

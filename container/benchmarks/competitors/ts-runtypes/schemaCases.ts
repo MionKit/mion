@@ -64,7 +64,7 @@ export const schemaCases: CompetitorCases = {
   'ARRAY.string_array_noIsArrayCheck': () => createValidateFn(RT.array(TF.string()), {noIsArrayCheck: true}),
   'ARRAY.object_array': () => createValidateFn(RT.array(RT.object({a: TF.string()}))),
   'ARRAY.union_array': () => createValidateFn(RT.array(RT.union([TF.string(), TF.number()]))),
-  'ARRAY.tuple_array': () => createValidateFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
+  'ARRAY.tuple_array': () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
   'ARRAY.circular_array': () => {
     const ca = RT.circular(RT.array(RT.self()));
     return createValidateFn(ca);
@@ -93,7 +93,7 @@ export const schemaCases: CompetitorCases = {
   'OBJECT.object_via_array_access': () => createValidateFn(RT.object({id: TF.number(), name: TF.string()})),
   'OBJECT.interface_with_optional': () => createValidateFn(RT.object({a: TF.string(), b: RT.optional(TF.number())})),
   'OBJECT.interface_with_date': () => createValidateFn(RT.object({date: TF.date(), name: TF.string()})),
-  'OBJECT.interface_with_method': () => createValidateFn(RT.object({name: TF.string(), cb: RT.func([], RT.any())})),
+  'OBJECT.interface_with_method': () => createValidateFn(RT.object({name: TF.string(), cb: RT.func({ret: RT.any()})})),
   'OBJECT.nested_object': () => createValidateFn(RT.object({a: TF.string(), deep: RT.object({b: TF.string(), c: TF.number()})})),
   'OBJECT.interface_string_array_prop': () => createValidateFn(RT.object({tags: RT.array(TF.string())})),
   'OBJECT.circular_interface': () => {
@@ -122,7 +122,7 @@ export const schemaCases: CompetitorCases = {
     createValidateFn(RT.object({b: TF.string(), c: RT.intersection(RT.record(TF.string()), RT.object({a: TF.string()}))})),
   'OBJECT.function_top_level': () => createValidateFn(RT.func()),
   'OBJECT.interface_callable': () =>
-    createValidateFn(RT.callable(RT.func([TF.number(), RT.boolean()], TF.string()), RT.object({extra: TF.string()}))),
+    createValidateFn(RT.callable(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}), RT.object({extra: TF.string()}))),
   'OBJECT.interface_all_optional': () => createValidateFn(RT.object({a: RT.optional(TF.string()), b: RT.optional(TF.number())})),
   'OBJECT.class_simple': () => {
     class MySerializableClass {
@@ -152,11 +152,11 @@ export const schemaCases: CompetitorCases = {
     }
     return createValidateFn(RT.classType<RpcError<'test-error'>>(RpcError));
   },
-  'OBJECT.call_signature_params': () => createValidateFn(RT.parameters(RT.func([TF.number(), RT.boolean()], TF.string()))),
+  'OBJECT.call_signature_params': () => createValidateFn(RT.parameters(RT.func({params: [TF.number(), RT.boolean()], ret: TF.string()}))),
   'OBJECT.call_signature_params_with_optional': () =>
-    createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], [TF.string()])))),
+    createValidateFn(RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], optional: [TF.string()]})}))),
   'OBJECT.call_signature_params_with_rest': () =>
-    createValidateFn(RT.parameters(RT.func(RT.tuple([TF.number(), RT.boolean()], TF.date())))),
+    createValidateFn(RT.parameters(RT.func({params: RT.tuple({required: [TF.number(), RT.boolean()], rest: TF.date()})}))),
   'OBJECT.record_union_keys': () => createValidateFn(RT.object({a: TF.number(), b: TF.number()})),
   'OBJECT.union_value_index': () => createValidateFn(RT.record(RT.union([TF.string(), TF.number()]))),
   'OBJECT.object_with_union_prop': () =>
@@ -174,20 +174,20 @@ export const schemaCases: CompetitorCases = {
   'OBJECT.index_signature_number_key': () => createValidateFn(RT.record(TF.number(), TF.string())),
 
   // ── TUPLE ──
-  'TUPLE.string_number_pair': () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
+  'TUPLE.string_number_pair': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
   'TUPLE.full_mion_tuple': () =>
-    createValidateFn(RT.tuple([TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()])),
-  'TUPLE.tuple_with_optional': () => createValidateFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
-  'TUPLE.nested_tuple_in_array': () => createValidateFn(RT.array(RT.tuple([TF.string(), TF.number()]))),
-  'TUPLE.tuple_rest': () => createValidateFn(RT.tuple([TF.number()], TF.string())),
+    createValidateFn(RT.tuple({required: [TF.date(), TF.number(), TF.string(), RT.literal(null), RT.array(TF.string()), TF.bigInt()]})),
+  'TUPLE.tuple_with_optional': () => createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
+  'TUPLE.nested_tuple_in_array': () => createValidateFn(RT.array(RT.tuple({required: [TF.string(), TF.number()]}))),
+  'TUPLE.tuple_rest': () => createValidateFn(RT.tuple({required: [TF.number()], rest: TF.string()})),
   'TUPLE.tuple_circular': NOT_SUPPORTED, // validateSchema not-supported
   'TUPLE.tuple_multiple_trailing_optionals': () =>
-    createValidateFn(RT.tuple([TF.number()], [TF.bigInt(), RT.boolean(), TF.number()])),
-  'TUPLE.tuple_named_labels': () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
-  'TUPLE.tuple_with_non_serializable': () => createValidateFn(RT.tuple([TF.number(), RT.func([], RT.any())])),
-  'TUPLE.empty_tuple': () => createValidateFn(RT.tuple([])),
-  'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple([TF.string()])),
-  'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple([TF.string(), TF.number()])),
+    createValidateFn(RT.tuple({required: [TF.number()], optional: [TF.bigInt(), RT.boolean(), TF.number()]})),
+  'TUPLE.tuple_named_labels': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
+  'TUPLE.tuple_with_non_serializable': () => createValidateFn(RT.tuple({required: [TF.number(), RT.func({ret: RT.any()})]})),
+  'TUPLE.empty_tuple': () => createValidateFn(RT.tuple({})),
+  'TUPLE.single_element_tuple': () => createValidateFn(RT.tuple({required: [TF.string()]})),
+  'TUPLE.readonly_tuple': () => createValidateFn(RT.tuple({required: [TF.string(), TF.number()]})),
 
   // ── UNION ──
   'UNION.atomic_union': () => createValidateFn(RT.union([TF.date(), TF.number(), TF.string(), RT.literal(null), TF.bigInt()])),
@@ -232,8 +232,8 @@ export const schemaCases: CompetitorCases = {
   'UNION.union_with_methods': () =>
     createValidateFn(
       RT.union([
-        RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-        RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
+        RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+        RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
       ])
     ),
   'UNION.intersection_to_object': () => createValidateFn(RT.intersection(RT.object({a: TF.string()}), RT.object({b: TF.number()}))),
@@ -328,7 +328,7 @@ export const schemaCases: CompetitorCases = {
     return createValidateFn(cu);
   },
   'CIRCULAR.object_with_tuple_prop': () => {
-    const ct = RT.circular(RT.object({tuple: RT.tuple([TF.bigInt()], [RT.self()])}));
+    const ct = RT.circular(RT.object({tuple: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}));
     return createValidateFn(ct);
   },
   'CIRCULAR.object_with_index_prop': () => {
@@ -435,7 +435,7 @@ export const schemaCases: CompetitorCases = {
     ),
   'UTILITY.non_nullable': () =>
     createValidateFn(RT.nonNullable(RT.union([TF.string(), TF.number(), RT.literal(null), RT.literal(undefined)]))),
-  'UTILITY.return_type': () => createValidateFn(RT.returnType(RT.func([TF.number(), RT.boolean()], TF.date()))),
+  'UTILITY.return_type': () => createValidateFn(RT.returnType(RT.func({params: [TF.number(), RT.boolean()], ret: TF.date()}))),
   'UTILITY.readonly': () => createValidateFn(RT.readonly(RT.object({name: TF.string(), age: TF.number()}))),
   'UTILITY.intersection_with_required_override': () =>
     createValidateFn(

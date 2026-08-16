@@ -25,8 +25,8 @@
 // reflected node), so the scanner enforces each child be a static builder call /
 // array of builder calls / module-scope `const` bound to one — a dynamic schema
 // (`cond ? a : b`, a `.map(...)`, a spread) raises a `CTA0xx` diagnostic instead
-// of silently freezing whatever type it happened to resolve to. The variadic
-// `tuple` / `func` capture their child tuple with `const T` (not a
+// of silently freezing whatever type it happened to resolve to. The grouped
+// `tuple` / `func` capture each group with `const T` (not a
 // `readonly [...T]` spread): intersecting a spread target with the
 // `CompTimeArgs` brand collapses the tuple to an array, so `const` + `MapTuple`'s
 // `-readonly` is the combination that keeps precise per-slot inference. `union`'s
@@ -34,7 +34,6 @@
 // and its variable-arity fallback keeps the `[...T]` spread for `UnionOf<T>`.
 
 import {builderResult} from '../runtypes/builderCore.ts';
-import {isEntryTuple} from '../runtypes/entryTuple.ts';
 import type {RunType} from '../runtypes/types.ts';
 import type {ExactParams} from '../runtypes/builderTypes.ts';
 import type {InjectRunTypeId, CompTimeArgs} from '../markers.ts';
@@ -57,13 +56,6 @@ function isRunTypeLike(arg: unknown): boolean {
 }
 function isFormatParams(arg: unknown): boolean {
   return typeof arg === 'object' && arg !== null && !Array.isArray(arg) && !isRunTypeLike(arg);
-}
-// The injected id occupies the FIRST unfilled slot of the resolved overload, so
-// a positional builder must probe each trailing slot for it BEFORE reading the
-// slot's own meaning — the injected value is an entry-module tuple (an Array),
-// which a bare Array.isArray/object probe would swallow.
-function isInjectedId(arg: unknown): boolean {
-  return typeof arg === 'string' || isEntryTuple(arg);
 }
 // A slot carrier from `slot(label, value)` — probed structurally so the
 // labeled forms unwrap elements at runtime.
@@ -88,8 +80,10 @@ import type {
   Self,
   Recursive,
   LabeledTuple,
-  LabeledRestTuple,
   SlotCarrier,
+  TupleFromGroups,
+  LabeledTupleFromGroups,
+  FuncFromParams,
 } from './static.ts';
 
 /** An array builder. `array(string())` → `RunType<string[]>`; with a trailing
@@ -119,9 +113,11 @@ export function array(
  *  of `tuple(...)` and `func(...)`: `slot('x', number())` names its slot `x`.
  *  Labels are part of a type's structural identity (a labeled tuple is a
  *  different type from its unlabeled twin), which is why they ride an explicit
- *  per-slot carrier — an object-keyed spelling cannot work, as the type system
- *  never observes object key order (see static.ts, SlotCarrier). A bare
- *  `slot(...)` is only meaningful inside `tuple(...)` / `func(...)`. **/
+ *  per-slot carrier — a slot-name-keyed spelling cannot work, as the type system
+ *  never observes object key order (see static.ts, SlotCarrier). The group keys
+ *  those builders DO take (`required` / `optional` / `rest`, `params` / `ret`)
+ *  are a fixed set read by name, so no order rides them. A bare `slot(...)` is
+ *  only meaningful inside `tuple(...)` / `func(...)`. **/
 export function slot<const Label extends string, Value>(
   label: CompTimeArgs<Label>,
   value: CompTimeArgs<RunType<Value>>
@@ -129,101 +125,71 @@ export function slot<const Label extends string, Value>(
   return {__slotLabel: label, __slotValue: value};
 }
 
-/** A tuple builder. Array forms of PLAIN RunTypes author UNLABELED tuples,
- *  each adding a trailing kind:
- *   - Fixed:    `tuple([string(), number()])` → `RunType<[string, number]>`.
- *   - Optional: `tuple([number()], [bigint(), boolean()])` →
- *               `RunType<[number, bigint?, boolean?]>` — the SECOND array holds
+/** A tuple builder. The three slot GROUPS are named and every key is optional.
+ *  Groups of PLAIN RunTypes author UNLABELED tuples:
+ *   - Fixed:    `tuple({required: [string(), number()]})` → `RunType<[string, number]>`.
+ *   - Optional: `tuple({required: [number()], optional: [bigint(), boolean()]})` →
+ *               `RunType<[number, bigint?, boolean?]>` — the `optional` group holds
  *               the trailing optional elements; `Partial<MapTuple<O>>` makes each
- *               slot `?`. A separate arg (not inline `optional()` in one array) so
+ *               slot `?`. A separate group (not inline `optional()` in one list) so
  *               the brand needs no recursive `infer`.
- *   - Rest:     `tuple([number()], string())` → `RunType<[number, ...string[]]>`
- *               — a single RunType second arg is the rest element.
- *   - Optional + rest: `tuple([number()], [bigint()], string())` →
+ *   - Rest:     `tuple({required: [number()], rest: string()})` →
+ *               `RunType<[number, ...string[]]>`.
+ *   - Optional + rest: `tuple({required: [number()], optional: [bigint()], rest: string()})` →
  *               `RunType<[number, bigint?, ...string[]]>`.
- *  Arrays of `slot(label, value)` carriers author LABELED tuples in the same
- *  three positions, converging with the type-first labeled tuple on one
- *  structural id (the `__rtLabels` sentinel; static.ts). TS labels all slots
- *  or none, so slots and plain RunTypes never mix — the rest element is a
- *  slot too, carrying any rest label:
- *   - `tuple([slot('x', number()), slot('y', number())])` → `RunType<[x: number, y: number]>`.
- *   - `tuple([slot('x', number())], [slot('y', number())])` → `RunType<[x: number, y?: number]>`.
- *   - `tuple([slot('x', number())], [], slot('items', string()))` →
+ *   - Empty:    `tuple({})` → `RunType<[]>`.
+ *  Groups of `slot(label, value)` carriers author LABELED tuples under the same
+ *  keys, converging with the type-first labeled tuple on one structural id (the
+ *  `__rtLabels` sentinel; static.ts). TS labels all slots or none, so slots and
+ *  plain RunTypes never mix — the rest element is a slot too, carrying any rest
+ *  label:
+ *   - `tuple({required: [slot('x', number()), slot('y', number())]})` → `RunType<[x: number, y: number]>`.
+ *   - `tuple({required: [slot('x', number())], optional: [slot('y', number())]})` → `RunType<[x: number, y?: number]>`.
+ *   - `tuple({required: [slot('x', number())], rest: slot('items', string())})` →
  *     `RunType<[x: number, ...items: string[]]>`.
- *  Each array is captured as a tuple via `const T` (length/order preserved) —
- *  the `CompTimeArgs` brand rules out the `readonly [...T]` spread, which would
+ *  The keys name the GROUPS, never the slots — a slot-name-keyed object
+ *  (`{x: number()}`) cannot work, as the type system never observes object key
+ *  order (see `slot`); order rides the array INSIDE each group. Each group is
+ *  captured as a tuple via `const T` (length/order preserved) — the
+ *  `CompTimeArgs` brand rules out the `readonly [...T]` spread, which would
  *  collapse it to an array; `MapTuple` / `SlotValues` recover element types. The
  *  scanner reflects the whole tuple type off the brand, so the children ride the
  *  carrier only. **/
-export function tuple<const T extends readonly RunType[]>(
-  items: CompTimeArgs<T>,
-  id?: InjectRunTypeId<MapTuple<T>>
-): RunType<MapTuple<T>>;
-export function tuple<const T extends readonly RunType[], const O extends readonly RunType[]>(
-  items: CompTimeArgs<T>,
-  optionalItems: CompTimeArgs<O>,
-  id?: InjectRunTypeId<[...MapTuple<T>, ...Partial<MapTuple<O>>]>
-): RunType<[...MapTuple<T>, ...Partial<MapTuple<O>>]>;
-export function tuple<const T extends readonly RunType[], const O extends readonly RunType[], R>(
-  items: CompTimeArgs<T>,
-  optionalItems: CompTimeArgs<O>,
-  rest: CompTimeArgs<RunType<R>>,
-  id?: InjectRunTypeId<[...MapTuple<T>, ...Partial<MapTuple<O>>, ...R[]]>
-): RunType<[...MapTuple<T>, ...Partial<MapTuple<O>>, ...R[]]>;
-export function tuple<const T extends readonly RunType[], R>(
-  items: CompTimeArgs<T>,
-  rest: CompTimeArgs<RunType<R>>,
-  id?: InjectRunTypeId<[...MapTuple<T>, ...R[]]>
-): RunType<[...MapTuple<T>, ...R[]]>;
-export function tuple<const T extends readonly SlotCarrier<string, unknown>[]>(
-  slots: CompTimeArgs<T>,
-  id?: InjectRunTypeId<LabeledTuple<T>>
-): RunType<LabeledTuple<T>>;
+export function tuple<const T extends readonly RunType[] = [], const O extends readonly RunType[] = [], RestValue = never>(
+  parts: CompTimeArgs<{readonly required?: T; readonly optional?: O; readonly rest?: RunType<RestValue>}>,
+  id?: InjectRunTypeId<TupleFromGroups<T, O, RestValue>>
+): RunType<TupleFromGroups<T, O, RestValue>>;
 export function tuple<
-  const T extends readonly SlotCarrier<string, unknown>[],
-  const O extends readonly SlotCarrier<string, unknown>[],
->(slots: CompTimeArgs<T>, optionalSlots: CompTimeArgs<O>, id?: InjectRunTypeId<LabeledTuple<T, O>>): RunType<LabeledTuple<T, O>>;
-export function tuple<
-  const T extends readonly SlotCarrier<string, unknown>[],
-  const O extends readonly SlotCarrier<string, unknown>[],
-  const RestLabel extends string,
-  R,
+  const T extends readonly SlotCarrier<string, unknown>[] = [],
+  const O extends readonly SlotCarrier<string, unknown>[] = [],
+  const RestLabel extends string = never,
+  RestValue = never,
 >(
-  slots: CompTimeArgs<T>,
-  optionalSlots: CompTimeArgs<O>,
-  rest: CompTimeArgs<SlotCarrier<RestLabel, R>>,
-  id?: InjectRunTypeId<LabeledRestTuple<T, O, RestLabel, R>>
-): RunType<LabeledRestTuple<T, O, RestLabel, R>>;
+  parts: CompTimeArgs<{
+    readonly required?: T;
+    readonly optional?: O;
+    readonly rest?: SlotCarrier<RestLabel, RestValue>;
+  }>,
+  id?: InjectRunTypeId<LabeledTupleFromGroups<T, O, RestLabel, RestValue>>
+): RunType<LabeledTupleFromGroups<T, O, RestLabel, RestValue>>;
 export function tuple(
-  items: readonly (RunType | SlotCarrier<string, unknown>)[],
-  arg2?: readonly (RunType | SlotCarrier<string, unknown>)[] | RunType | SlotCarrier<string, unknown> | InjectRunTypeId<unknown>,
-  arg3?: RunType | SlotCarrier<string, unknown> | InjectRunTypeId<unknown>,
-  arg4?: InjectRunTypeId<unknown>
+  parts: {
+    readonly required?: readonly (RunType | SlotCarrier<string, unknown>)[];
+    readonly optional?: readonly (RunType | SlotCarrier<string, unknown>)[];
+    readonly rest?: RunType | SlotCarrier<string, unknown>;
+  },
+  id?: InjectRunTypeId<unknown>
 ): RunType {
-  // Every trailing slot probes for the injected id FIRST (isInjectedId — the
-  // injected entry-module tuple is an Array and would satisfy the
-  // optional-items / rest probes), then falls to the slot's own meaning.
-  // Slot carriers unwrap to their child RunTypes; the labels live on the
-  // brand only (the scanner reflects the whole type off it).
-  const children = items.map(slotChild);
-  let optionalChildren: readonly RunType[] | undefined;
-  let rest: RunType | undefined;
-  let injectedId: InjectRunTypeId<unknown> | undefined;
-  if (isInjectedId(arg2)) {
-    injectedId = arg2 as InjectRunTypeId<unknown>;
-  } else if (Array.isArray(arg2)) {
-    optionalChildren = arg2.map(slotChild);
-    if (isInjectedId(arg3)) {
-      injectedId = arg3 as InjectRunTypeId<unknown>;
-    } else if (typeof arg3 === 'object' && arg3 !== null) {
-      rest = slotChild(arg3 as RunType | SlotCarrier<string, unknown>);
-      injectedId = arg4;
-    }
-  } else if (typeof arg2 === 'object' && arg2 !== null) {
-    rest = slotChild(arg2 as RunType | SlotCarrier<string, unknown>);
-    injectedId = arg3 as InjectRunTypeId<unknown> | undefined;
-  }
-  return builderResult(injectedId, {type: 'tuple', children, optionalChildren, rest});
+  // The groups are read by NAME, so there is no trailing-slot probing: the id
+  // always lands in the one unfilled slot the overloads declare. Slot carriers
+  // unwrap to their child RunTypes; the labels live on the brand only (the
+  // scanner reflects the whole type off it).
+  return builderResult(id, {
+    type: 'tuple',
+    children: (parts.required ?? []).map(slotChild),
+    optionalChildren: parts.optional?.map(slotChild),
+    rest: parts.rest === undefined ? undefined : slotChild(parts.rest),
+  });
 }
 
 /** A union builder — `union([string(), number()])` → `RunType<string | number>`.
@@ -473,68 +439,62 @@ export function promise<V>(valueSchema: CompTimeArgs<RunType<V>>, id?: InjectRun
   return builderResult(id, {type: 'promise', child: valueSchema});
 }
 
-/** A function builder. Three param forms:
- *   - Array: `func([string(), number()], boolean())` →
+/** A function builder. The `params` group takes three forms, `ret` names the
+ *  return (defaulting to `void`), and both keys are optional:
+ *   - Array: `func({params: [string(), number()], ret: boolean()})` →
  *            `RunType<(a: string, b: number) => boolean>` — each element is a
  *            positional param RunType, mapped via `MapTuple` (rest-tuple form, so
  *            `(...args: [string, number])` ≡ `(a: string, b: number)`).
- *   - Slots: `func([slot('event', string()), slot('retries', number())], boolean())` →
+ *   - Slots: `func({params: [slot('event', string()), slot('retries', number())], ret: boolean()})` →
  *            `RunType<(event: string, retries: number) => boolean>` — each slot
  *            names its parameter, so the value-first id converges with the
  *            written call signature's (parameter names fold into the structural
  *            id). All-required params only; optional/rest params ride the
  *            tuple form.
- *   - Tuple: `func(tuple([number()], [string()]), date())` →
+ *   - Tuple: `func({params: tuple({required: [number()], optional: [string()]}), ret: date()})` →
  *            `RunType<(a: number, b?: string) => Date>` — a single params-TUPLE
  *            RunType, so optional/rest params ride the `tuple()` builder
  *            (labels included when the tuple uses its slot form).
- *  `func()` → `RunType<() => void>`; `ret` defaults to `void`. Function values
- *  aren't serialisable, so the validator a function lowers to depends on POSITION:
- *  a function-typed object property is skipped entirely, a function at a tuple slot
- *  must be `undefined`, and a top-level function passes a `typeof === 'function'`
- *  gate. The builder exists so those shapes can be authored value-first. **/
-// No-PARAMS form (overloads resolve top-to-bottom, so this is tried FIRST): an
-// empty / omitted param list brands a bare `() => InferType<R>`. NOT `(...args: []) => …`
-// — the empty-tuple rest-spread is reflected by tsgo as a spurious rest parameter,
-// diverging from the written `() => R` and method shorthand. `ret` defaults to `void`.
-export function func<R extends RunType = RunType<void>>(
-  params?: CompTimeArgs<readonly []>,
-  ret?: CompTimeArgs<R>,
-  id?: InjectRunTypeId<() => InferType<R>>
-): RunType<() => InferType<R>>;
+ *  `func()` and `func({})` → `RunType<() => void>`; an empty or omitted `params`
+ *  group brands a bare `() => InferType<R>` (see `FuncFromParams`, static.ts).
+ *  Function values aren't serialisable, so the validator a function lowers to
+ *  depends on POSITION: a function-typed object property is skipped entirely, a
+ *  function at a tuple slot must be `undefined`, and a top-level function passes
+ *  a `typeof === 'function'` gate. The builder exists so those shapes can be
+ *  authored value-first. **/
 export function func<const P extends readonly RunType[] = [], R extends RunType = RunType<void>>(
-  params?: CompTimeArgs<P>,
-  ret?: CompTimeArgs<R>,
-  id?: InjectRunTypeId<(...args: MapTuple<P>) => InferType<R>>
-): RunType<(...args: MapTuple<P>) => InferType<R>>;
+  parts?: CompTimeArgs<{readonly params?: P; readonly ret?: R}>,
+  id?: InjectRunTypeId<FuncFromParams<P, InferType<R>>>
+): RunType<FuncFromParams<P, InferType<R>>>;
 export function func<const P extends readonly SlotCarrier<string, unknown>[], R extends RunType = RunType<void>>(
-  params: CompTimeArgs<P>,
-  ret?: CompTimeArgs<R>,
+  parts: CompTimeArgs<{readonly params: P; readonly ret?: R}>,
   id?: InjectRunTypeId<(...args: LabeledTuple<P>) => InferType<R>>
 ): RunType<(...args: LabeledTuple<P>) => InferType<R>>;
 export function func<T extends readonly unknown[], R extends RunType = RunType<void>>(
-  paramsTuple: CompTimeArgs<RunType<T>>,
-  ret?: CompTimeArgs<R>,
+  parts: CompTimeArgs<{readonly params: RunType<T>; readonly ret?: R}>,
   id?: InjectRunTypeId<(...args: T) => InferType<R>>
 ): RunType<(...args: T) => InferType<R>>;
 export function func(
-  paramsOrTuple?: readonly (RunType | SlotCarrier<string, unknown>)[] | RunType,
-  ret?: RunType,
+  parts?: {
+    readonly params?: readonly (RunType | SlotCarrier<string, unknown>)[] | RunType;
+    readonly ret?: RunType;
+  },
   id?: InjectRunTypeId<unknown>
 ): RunType {
-  // An ARRAY first arg is the array/slots form (positional param RunTypes,
-  // slot carriers unwrapped); a RunType OBJECT first arg is the tuple form (a
-  // single params-tuple RunType whose carried T is the param tuple — lets
-  // optional/rest params be authored via tuple()). The carrier `parameters`
-  // is not walked for root function schemas.
-  const parameters = Array.isArray(paramsOrTuple) ? paramsOrTuple.map(slotChild) : (paramsOrTuple ?? []);
-  return builderResult(id, {type: 'function', parameters, return: ret});
+  // An ARRAY `params` is the array/slots form (positional param RunTypes, slot
+  // carriers unwrapped); a RunType OBJECT is the tuple form (a single
+  // params-tuple RunType whose carried T is the param tuple — lets optional/rest
+  // params be authored via tuple()). The carrier `parameters` is not walked for
+  // root function schemas.
+  const params = parts?.params;
+  const parameters = Array.isArray(params) ? params.map(slotChild) : (params ?? []);
+  return builderResult(id, {type: 'function', parameters, return: parts?.ret});
 }
 
 /** A callable-interface builder — a value that is BOTH callable AND carries data
  *  properties, e.g. `{(a: number, b: boolean): string; extra: string}`. It mixes a
  *  call-signature schema (`func(...)`) with an interface's data properties
- *  (`object({...})`): `callable(func([number(), boolean()], string()), object({extra: string()}))`.
+ *  (`object({...})`): `callable(func({params: [number(), boolean()], ret: string()}), object({extra: string()}))`.
  *
  *  The result's InferType is `Fn & Props` — TS can't express a single object literal
  *  carrying a call signature AND mapped props in one type, so the mix is an

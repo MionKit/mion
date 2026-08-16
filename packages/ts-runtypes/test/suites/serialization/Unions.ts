@@ -703,33 +703,33 @@ export const UNIONS = {
     schemaEncoder: () =>
       createJsonEncoderFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
-          RT.object({active: RT.boolean(), isActive: RT.func([], RT.boolean())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
+          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
         ])
       ),
     schemaDecoder: () =>
       createJsonDecoderFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
-          RT.object({active: RT.boolean(), isActive: RT.func([], RT.boolean())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
+          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
         ])
       ),
     schemaBinaryEncoder: () =>
       createBinaryEncoderFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
-          RT.object({active: RT.boolean(), isActive: RT.func([], RT.boolean())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
+          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
         ])
       ),
     schemaBinaryDecoder: () =>
       createBinaryDecoderFn(
         RT.union([
-          RT.object({name: TF.string(), getName: RT.func([], TF.string())}),
-          RT.object({age: TF.number(), getAge: RT.func([], TF.number())}),
-          RT.object({active: RT.boolean(), isActive: RT.func([], RT.boolean())}),
+          RT.object({name: TF.string(), getName: RT.func({ret: TF.string()})}),
+          RT.object({age: TF.number(), getAge: RT.func({ret: TF.number()})}),
+          RT.object({active: RT.boolean(), isActive: RT.func({ret: RT.boolean()})}),
         ])
       ),
     jsonSchemaEncoder: 'not-supported',
@@ -811,10 +811,10 @@ export const UNIONS = {
     binaryDecoder: () => createBinaryDecoderFn<Date | number | string | (() => any)>(),
     // The function arm is dropped the same way via the value-first path, so each
     // schema thunk resolves the same Date | number | string serializer.
-    schemaEncoder: () => createJsonEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
-    schemaDecoder: () => createJsonDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
-    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
-    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func([], RT.any())])),
+    schemaEncoder: () => createJsonEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
+    schemaDecoder: () => createJsonDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
+    schemaBinaryEncoder: () => createBinaryEncoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
+    schemaBinaryDecoder: () => createBinaryDecoderFn(RT.union([TF.date(), TF.number(), TF.string(), RT.func({ret: RT.any()})])),
     jsonSchemaEncoder: 'not-supported',
     jsonSchemaDecoder: 'not-supported',
     jsonSchemaBinaryEncoder: 'not-supported',

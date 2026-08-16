@@ -103,9 +103,9 @@ function brandedLeaves(): void {
 function composers(): void {
   const arr = RT.array(TF.string());
   const arrObj = RT.array(RT.object({a: TF.number()}));
-  const tup = RT.tuple([TF.string(), TF.number()]);
-  const tupOpt = RT.tuple([TF.string()], [TF.number()]);
-  const tupRest = RT.tuple([TF.string()], TF.number());
+  const tup = RT.tuple({required: [TF.string(), TF.number()]});
+  const tupOpt = RT.tuple({required: [TF.string()], optional: [TF.number()]});
+  const tupRest = RT.tuple({required: [TF.string()], rest: TF.number()});
   const uni = RT.union([TF.string(), TF.number()]);
   const uniLit = RT.union([RT.literal('a'), RT.literal('b')]);
   const inter = RT.intersection(RT.object({a: TF.string()}), RT.object({b: TF.number()}));
@@ -114,7 +114,7 @@ function composers(): void {
   const mp = RT.map(TF.string(), TF.number());
   const st = RT.set(TF.string());
   const prom = RT.promise(TF.string());
-  const fn = RT.func([TF.string(), TF.number()], RT.boolean());
+  const fn = RT.func({params: [TF.string(), TF.number()], ret: RT.boolean()});
   const tmpl = RT.templateLiteral(['user/', TF.number()]);
   assertMutual<InferType<typeof arr>, string[]>();
   assertMutual<InferType<typeof arrObj>, {a: number}[]>();
@@ -174,8 +174,8 @@ function utilities(): void {
   const omt = RT.omit(RT.object({a: TF.string(), b: TF.number()}), ['b']);
   const nn = RT.nonNullable(RT.union([TF.string(), RT.literal(null), RT.literal(undefined)]));
   const roT = RT.readonlyType(RT.object({a: TF.string()}));
-  const ret = RT.returnType(RT.func([], TF.number()));
-  const params = RT.parameters(RT.func([TF.string(), TF.number()], RT.boolean()));
+  const ret = RT.returnType(RT.func({ret: TF.number()}));
+  const params = RT.parameters(RT.func({params: [TF.string(), TF.number()], ret: RT.boolean()}));
   assertMutual<InferType<typeof par>, {a?: string; b?: number}>();
   assertMutual<InferType<typeof req>, {a: string; b: number}>();
   assertMutual<InferType<typeof pck>, {a: string}>();

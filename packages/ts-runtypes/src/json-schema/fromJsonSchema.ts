@@ -2060,7 +2060,7 @@ type FromJsBigint<Digits> = Digits extends `${infer Value extends bigint}` ? Val
 // The `tsFunction` dialect keyword. `params` lowers through the ORDINARY tuple
 // path, so a labeled params tuple arrives as `[a: number, b?: string] &
 // {[__rtLabels]?: […]}` — spreading it into a rest parameter is what gives the
-// signature its parameter names, the same carriage `func([slot(…)], …)` uses
+// signature its parameter names, the same carriage `func({params: [slot(…)], ret: …})` uses
 // on the value-first side.
 // The first-class `Not<F>`, reached from the STANDARD `not` when its child
 // names a format family (CORE-NOT). Spelled the way

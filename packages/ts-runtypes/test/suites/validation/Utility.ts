@@ -1005,7 +1005,7 @@ export const UTILITY = {
       type Fn = (a: number, b: boolean) => Date;
       return createValidateFn<DataOnly<ReturnType<Fn>>>();
     },
-    validateSchema: () => createValidateFn(RT.returnType(RT.func([TF.number(), RT.boolean()], TF.date()))),
+    validateSchema: () => createValidateFn(RT.returnType(RT.func({params: [TF.number(), RT.boolean()], ret: TF.date()}))),
     validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type Fn = (a: number, b: boolean) => Date;
@@ -1029,7 +1029,8 @@ export const UTILITY = {
       type Fn = (a: number, b: boolean) => Date;
       return createGetValidationErrorsFn<DataOnly<ReturnType<Fn>>>();
     },
-    getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.returnType(RT.func([TF.number(), RT.boolean()], TF.date()))),
+    getValidationErrorsSchema: () =>
+      createGetValidationErrorsFn(RT.returnType(RT.func({params: [TF.number(), RT.boolean()], ret: TF.date()}))),
     getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type Fn = (a: number, b: boolean) => Date;
