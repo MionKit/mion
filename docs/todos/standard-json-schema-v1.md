@@ -71,6 +71,27 @@ into the runtime cache.
      other targets (`draft-07`, `openapi-3.0` are out of scope).
 6. **No-plugin fallback** mirrors the other factories: a converter that
    throws with the standard "plugin not configured" guidance.
+7. **Design decision — where `input()` and `output()` actually differ.** The
+   spec's split describes a transform boundary, and ours is the
+   `prepareForJson` / `restoreFromJson` pair. Two possible `validate`
+   semantics; the implementer must pick and design accordingly:
+   - **Check-only** (what `createStandardSchema` ships today): no
+     conversion, so `input()` === `output()`, but the document describes the
+     JS-typed shape (real `Date`, `bigint`), which portable JSON Schema
+     cannot honestly express — only the jsType dialect can.
+   - **Restore mode (preferred direction)**: `validate` accepts the WIRE
+     JSON value and returns the restored JS value (`restoreFromJson`
+     applied after validating). Then `input()` is the wire schema — fully
+     expressible in PORTABLE standard JSON Schema (dates as
+     `{type: 'string', format: 'date-time'}`) — and `output()` is the
+     JS-typed schema carrying the dialect. This matches how standard-schema
+     consumers (tRPC, Hono, forms) actually use `validate`: parsed JSON in,
+     typed value out.
+   Caveats for restore mode: the shipped `createStandardSchema` is
+   check-only, so restore semantics need an opt-in (comptime option or a
+   sibling factory), and it requires WIRE-shape validation + issues — a
+   different lane than the `'val'` / `'verr'` families, which check the
+   JS-typed shape.
 
 ## Tests
 
