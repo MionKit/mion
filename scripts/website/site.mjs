@@ -77,6 +77,11 @@ function mountArgs(cfg) {
   // RT_REPO_ROOT=/repo-context (see envArgs). Third-party .d.ts are deliberately
   // NOT mounted — twoslash mounts only the first-party packages the examples import.
   if (existsSync(join(cfg.repoContext, 'packages'))) args.push('-v', `${join(cfg.repoContext, 'packages')}:/repo-context/packages:ro${cfg.mountOpts}`);
+  // docs/ holds the specs a content page inlines with <markdown-import>. Without
+  // this mount the import fails inside the container ("Document not readable").
+  // What a page may publish is still decided by the IMPORTABLE_DOCS allowlist in
+  // server/utils/repo-root.ts, never by the mount.
+  if (existsSync(join(cfg.repoContext, 'docs'))) args.push('-v', `${join(cfg.repoContext, 'docs')}:/repo-context/docs:ro${cfg.mountOpts}`);
   // Generated benchmark/test results the docs read (RT_DOCDATA=/app/.docdata).
   mkdirSync(cfg.docdataDir, {recursive: true});
   args.push('-v', `${cfg.docdataDir}:/app/.docdata:ro${cfg.mountOpts}`);
