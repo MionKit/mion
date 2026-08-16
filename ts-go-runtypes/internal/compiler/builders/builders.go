@@ -32,7 +32,7 @@ const PropModSentinel = "__propMod"
 
 // SlotSentinel is the carrier property slot() returns ({__slotLabel,
 // __slotValue}) — one labeled tuple slot / named function parameter. Like
-// propMod it composes into tuple([…]) / func([…]) but returns a carrier, not
+// propMod it composes into tuple({required: […]}) / func({params: […]}) but returns a carrier, not
 // a RunType, so the leaf check recognizes it structurally.
 const SlotSentinel = "__slotLabel"
 
