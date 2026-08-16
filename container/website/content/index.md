@@ -1,6 +1,6 @@
 ---
 seo:
-  title: 'RunTypes: TypeScript types that show up at runtime'
+  title: 'RunTypes: The evolution of validation libraries'
   description: Validation, JSON + binary serialization, mock data and reflection, generated straight from your TypeScript types. No schemas, no drift.
 pageClass: home-page
 ---
@@ -19,19 +19,17 @@ blur: 150px
 #header
 :::typed-title
 ---
-leading: "We fixed TypeScript"
-strikeWord: "fixed"
-enhancedWord: "Enhanced"
+leading: "The evolution of validation libraries"
 titles:
-  - 'Types reflection'
-  - 'Automatic validation'
-  - 'Automatic data mocking'
-  - 'Same type roundtrip serialization'
-  - 'Say hello to TsRunTypes'
+  - 'High Perf Validation'
+  - 'Automatic Json Roundtrip'
+  - 'Automatic Data Mocking'
+  - 'RunTime Types Reflection'
+  - 'Say hello to ts-runtypes'
 ---
 #description
-TypeScript decided it is **(Just a Linter)** and to ditch your types at run-time.
-<br/>We respectfully **put them back in the run-time** in a way that's reliable and makes sense.
+**Why stop at validation?**
+<br/>Your validator already knows the exact shape of your data. RunTypes turns that same knowledge into validation, serialization, mocking and reflection, straight from your TypeScript types.
 :::
 
 :::div{class="tsgo-kicker"}
@@ -91,7 +89,7 @@ GitHub
 class: home-features
 ---
 #title
-Two ways to describe a shape, One source of truth.
+One Type, Multiple functionality.
 
 #root
 :::gradient-bg
@@ -102,6 +100,100 @@ top: 10rem
 blur: 140px
 ---
 :::
+
+#body
+:::card{class="rt-standard-card"}
+::::div{class="rt-standard-split"}
+:::::div{class="rt-feature-card rt-standard-prose"}
+### The whole toolbelt, in one box
+Stop gluing five libraries together. RunTypes shares a single type graph across everything it generates, so the validator and the serializer always agree on what your type means.
+
+[One type in, multiple compiled functions out →](/guide/json-serialization)
+:::::
+
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-type" commentEnd="// end-type" />
+::::
+:::
+
+:::div{class="rt-feature-row rt-stack-reverse"}
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-validate" commentEnd="// end-validate" />
+
+::::card{class="rt-feature-card"}
+### Validation
+The job you hire a validator for, with nothing to write: your TypeScript type is the schema. At build time RunTypes compiles it into a plain standalone check, which is how it matches the fastest JIT validators with zero runtime compilation.
+
+<br>
+
+[See the benchmarks →](/benchmarks/validation)
+::::
+:::
+
+:::div{class="rt-object-fns"}
+::::div{class="rt-object-fn"}
+### Mocking that conforms to your types
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
+::::
+
+::::div{class="rt-object-fn"}
+### Binary serialization
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
+::::
+:::
+
+:::div{class="rt-object-fns"}
+::::div{class="rt-row-intro"}
+### JSON roundtrip
+Your type compiles into two functions, one that serializes to JSON and one that restores it, so Date, Map, Set, bigint, Temporal, undefined and almost any other type that describes data survive the round trip, **transparently enabling RPC function calls in JavaScript**.
+::::
+
+::::div{class="rt-object-fn"}
+### RunTypes
+<code-import path="packages/examples/src/_homepage/json-roundtrip.ts" lang="ts" commentStart="// start-roundtrip" commentEnd="// end-roundtrip" />
+::::
+
+::::div{class="rt-object-fn"}
+### Zod (hand maintained coercion and transform)
+```ts
+const sessionSchema = z.object({
+  user: z.string(),
+  expiresAt: z.coerce.date(), // manual: you tell it how to revive the Date
+  roles: z.array(z.string()).transform((a) => new Set(a)), // manual Set revive
+});
+
+// encoding is also yours: JSON.stringify writes a Set as {}
+const toJson = (session: Session) =>
+  JSON.stringify({...session, roles: [...session.roles]});
+
+const wire = toJson({user: 'ada', expiresAt: new Date(), roles: new Set(['admin'])});
+const back = sessionSchema.parse(JSON.parse(wire));
+
+// nothing checks toJson and sessionSchema agree:
+// keeping the two directions in sync is on you
+```
+::::
+
+::::div{class="rt-row-footer"}
+[JSON that keeps your types →](/guide/json-serialization)
+::::
+:::
+
+:::card{class="rt-standard-card"}
+::::div{class="rt-standard-split rt-stack-reverse"}
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-standard" commentEnd="// end-standard" />
+
+:::::div{class="rt-feature-card rt-standard-prose"}
+### Speaks Standard Schema
+The same type becomes a [Standard Schema](https://github.com/standard-schema/standard-schema), the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
+
+[One spec, every framework →](/guide/validation#standard-schema)
+:::::
+::::
+:::
+::
+
+::u-page-section
+#title
+Two ways to describe a shape, One source of truth.
 
 #body
 Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file.
@@ -149,60 +241,6 @@ Full TC39 Temporal (`PlainDate`, `ZonedDateTime`, `Duration` and the rest), vali
 
 ::u-page-section
 #title
-One Type, Multiple functionality.
-
-#body
-:::card{class="rt-standard-card"}
-::::div{class="rt-standard-split"}
-:::::div{class="rt-feature-card rt-standard-prose"}
-### The whole toolbelt, in one box
-Stop gluing five libraries together. RunTypes shares a single type graph across everything it generates, so the validator and the serializer always agree on what your type means.
-
-[One type in, multiple compiled functions out →](/guide/serialization)
-:::::
-
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-type" commentEnd="// end-type" />
-::::
-:::
-
-:::div{class="rt-object-fns"}
-::::div{class="rt-object-fn"}
-### Validation
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-validate" commentEnd="// end-validate" />
-::::
-
-::::div{class="rt-object-fn"}
-### JSON roundtrip to the original type
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-json" commentEnd="// end-json" />
-::::
-
-::::div{class="rt-object-fn"}
-### Binary serialization
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
-::::
-
-::::div{class="rt-object-fn"}
-### Mocking that conforms to your types
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
-::::
-:::
-
-:::card{class="rt-standard-card"}
-::::div{class="rt-standard-split rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-standard" commentEnd="// end-standard" />
-
-:::::div{class="rt-feature-card rt-standard-prose"}
-### Speaks Standard Schema
-The same type becomes a [Standard Schema](https://github.com/standard-schema/standard-schema), the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
-
-[One spec, every framework →](/guide/validation#standard-schema)
-:::::
-::::
-:::
-::
-
-::u-page-section
-#title
 The reflection TypeScript never shipped
 
 #body
@@ -229,6 +267,150 @@ You don't have to write the type out. Hand `getRunType` any value and it reflect
 :::
 ::
 
+::u-page-section
+#title
+We also speak JSON Schema
+
+#body
+:::div{class="rt-feature-row rt-stack-reverse"}
+<code-import path="packages/examples/src/_homepage/define-json-schema.ts" lang="ts" />
+
+::::card{class="rt-feature-card"}
+### A migration door for AJV and OpenAPI projects
+Coming from a schema-first setup? Hand an existing JSON Schema (draft 2020-12) to any factory while you move over. Keywords become real checks, the TypeScript type comes back out, and a schema describing the same shape as a type compiles to the exact same generated function. Your types stay the source of truth; the schemas you already have are welcome on the way in.
+
+<br>
+
+[Using JSON Schemas →](/guide/json-schema)
+
+[Experimental]{.rt-badge-experimental}
+::::
+:::
+::
+
+
+::u-page-section
+#title
+High performance compiled code
+
+#body
+:::div{class="rt-feature-row rt-feature-row--top"}
+::::card{class="rt-feature-card"}
+### Every library says they are the fastest, we back it up!
+Our performance matches and surpass the fastest validators (AJV, TypeBox, Typia) 
+and we have the most comprehensive benchmark suite to back it up.
+
+:::::perf-bars
+---
+caption: Validation throughput, is-valid check (ops/sec, higher is better)
+footnote: Zod has no fast is-valid path. It validates by parsing to errors, so its bar is the error-reporting result.
+bars:
+  - name: ts-runtypes
+    score: 40.6
+    label: 40.6M
+    highlight: true
+  - name: typia
+    score: 39.7
+    label: 39.7M
+  - name: typebox-Jit
+    score: 38.2
+    label: 38.2M
+  - name: ajv-Jit
+    score: 36.9
+    label: 36.9M
+  - name: zod
+    score: 7.9
+    label: 7.9M
+    muted: true
+---
+:::::
+
+:::::div{class="rt-card-footer"}
+[See the full benchmarks results →](/benchmarks/validation)
+:::::
+::::
+
+::::card{class="rt-feature-card"}
+### Tested to the highest standard
+:::::stat-tiles
+---
+tiles:
+  - source: frontEndTests
+    label: front-end tests
+    sub: Vitest (marker + plugin)
+    hue: 145
+  - source: goTests
+    label: Go tests
+    sub: go test ./internal
+    hue: 198
+  - value: "∞"
+    label: Fuzzy Testing
+    sub: Random inputs and randomly-generated types, checked against invariants, with every finding replayable from a seed.
+    hue: 280
+    wide: true
+---
+:::::
+
+Every transform, cache shape and generated function is covered, on top of an extensive structured suite spanning validation, JSON, binary, mocks and reflection.
+::::
+:::
+::
+
+::u-page-section
+#title
+Compile time code generation
+
+#body
+:::div{class="rt-treeshake-cols"}
+::::card{class="rt-feature-card"}
+### Ship only what you use
+Generated code is demand-driven and every entry is its own module, so bundlers split and tree-shake natively. A file that only reflects an id ships zero validation code, and the Vite plugin adds zero runtime dependencies.
+
+<br>
+
+[Build-time, not run-time →](/introduction/about-ts-runtypes#build-time-not-run-time)
+::::
+
+::::code-group
+```ts [Source Code]
+type Order = {
+  id: string;
+  name: number;
+  email: string;
+};
+
+const isUser = createValidateFn<User>();
+```
+::::
+
+::::code-group
+```ts [Transformed]
+import {__rt_a1b_Xk7} from './__runtypes/types/a1b_Xk7.js';
+
+type Order = {
+  id: string;
+  name: number;
+  email: string;
+};
+
+const isUser = createValidateFn<User>(__rt_a1b_Xk7);
+```
+::::
+
+::::code-group
+```js [__runtypes/types/a1b_Xk7.js]
+// shown as a function for clarity, the real emit is a positional
+// tuple: faster to initialise, fewer bytes on the wire
+export function __rt_a1b_Xk7(value) {
+  return typeof value === "object" && value !== null &&
+  typeof value.id === "number" &&
+  typeof value.name === "string" &&
+  typeof value.email === "string";
+}
+```
+::::
+:::
+::
 
 ::u-page-section
 ---
@@ -238,6 +420,10 @@ class: ai-section
 :u-icon{name="i-lucide-sparkles" class="ai-title-icon"} AI Agents meets Deterministic
 
 #body
+
+:::div{class="ai-experimental"}
+[Experimental]{.rt-badge-experimental}
+:::
 
 :::card-group
 ---
@@ -408,149 +594,6 @@ export const userMock: MockData<User> = {
 :::
 ::
 
-::u-page-section
-#title
-Migrating? Your existing JSON Schemas come along
-
-#body
-:::div{class="rt-feature-row rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/define-json-schema.ts" lang="ts" />
-
-::::card{class="rt-feature-card"}
-### A migration door for AJV and OpenAPI projects
-Coming from a schema-first setup? Hand an existing JSON Schema (draft 2020-12) to any factory while you move over. Keywords become real checks, the TypeScript type comes back out, and a schema describing the same shape as a type compiles to the exact same generated function. Your types stay the source of truth; the schemas you already have are welcome on the way in.
-
-<br>
-
-[How to migrate JSON Schemas →](/guide/json-schema)
-::::
-:::
-::
-
-
-::u-page-section
-#title
-Performance is nothing without control
-
-#body
-:::div{class="rt-feature-row rt-feature-row--top"}
-::::card{class="rt-feature-card"}
-### Toe to Toe with the fastest
-Our performance matches the fastest validators (AJV, TypeBox, Typia)    
-Even in their faster JIT mode, but without any JIT compilation cost.
-
-:::::perf-bars
----
-caption: Validation throughput, is-valid check (ops/sec, higher is better)
-footnote: Zod has no fast is-valid path. It validates by parsing to errors, so its bar is the error-reporting result.
-bars:
-  - name: ts-runtypes
-    score: 40.6
-    label: 40.6M
-    highlight: true
-  - name: typia
-    score: 39.7
-    label: 39.7M
-  - name: typebox-Jit
-    score: 38.2
-    label: 38.2M
-  - name: ajv-Jit
-    score: 36.9
-    label: 36.9M
-  - name: zod
-    score: 7.9
-    label: 7.9M
-    muted: true
----
-:::::
-
-:::::div{class="rt-card-footer"}
-[See the full head-to-head →](/benchmarks/validation)
-:::::
-::::
-
-::::card{class="rt-feature-card"}
-### Tested to the highest standard
-:::::stat-tiles
----
-tiles:
-  - source: frontEndTests
-    label: front-end tests
-    sub: Vitest (marker + plugin)
-    hue: 145
-  - source: goTests
-    label: Go tests
-    sub: go test ./internal
-    hue: 198
-  - value: "∞"
-    label: Fuzzy Testing
-    sub: Random inputs and randomly-generated types, checked against invariants, with every finding replayable from a seed.
-    hue: 280
-    wide: true
----
-:::::
-
-Every transform, cache shape and generated function is covered, on top of an extensive structured suite spanning validation, JSON, binary, mocks and reflection.
-::::
-:::
-::
-
-::u-page-section
-#title
-Tree-shaken to the bone
-
-#body
-:::div{class="rt-treeshake-cols"}
-::::card{class="rt-feature-card"}
-### Ship only what you call
-Caches are demand-driven and every entry is its own module, so bundlers split and tree-shake natively. A file that only reflects an id ships zero validation code, and the Vite plugin adds zero runtime dependencies.
-
-<br>
-
-[Build-time, not run-time →](/introduction/about-ts-runtypes#build-time-not-run-time)
-::::
-
-::::code-group
-```ts [Source Code]
-type Order = {
-  id: string;
-  name: number;
-  email: string;
-};
-
-const isUser = createValidateFn<User>();
-```
-::::
-
-::::code-group
-```ts [Transformed]
-import {__rt_a1b_Xk7} from './__runtypes/types/a1b_Xk7.js';
-
-type Order = {
-  id: string;
-  name: number;
-  email: string;
-};
-
-const isUser = createValidateFn<User>(__rt_a1b_Xk7);
-```
-::::
-
-::::code-group
-```js [__runtypes/types/a1b_Xk7.js]
-// shown as a function for clarity, the real emit is a positional
-// tuple: faster to initialise, fewer bytes on the wire
-export function __rt_a1b_Xk7(value) {
-  return typeof value === "object" && value !== null &&
-  typeof value.id === "number" &&
-  typeof value.name === "string" &&
-  typeof value.email === "string";
-}
-```
-::::
-:::
-::
-
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1786149345416 -->
+<!-- code-import-timestamp 1786897979183 -->

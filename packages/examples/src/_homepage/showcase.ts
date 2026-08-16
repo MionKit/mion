@@ -2,8 +2,6 @@ import type * as TF from '@ts-runtypes/core/formats';
 import {
   createValidateFn,
   createGetValidationErrorsFn,
-  createJsonEncoderFn,
-  createJsonDecoderFn,
   createBinaryEncoderFn,
   createBinaryDecoderFn,
   createMockDataFn,
@@ -39,14 +37,6 @@ const orderErrors = createGetValidationErrorsFn<Order>();
 orderErrors({...order, total: 'free'}); // [{path: ['total'], expected: 'number'}]
 // end-validate
 
-// start-json
-const toJson = createJsonEncoderFn<Order>();
-const fromJson = createJsonDecoderFn<Order>();
-
-const wire = toJson(order)!; // Date -> string (undefined only for undefined input)
-const back = fromJson(wire); // string -> Date again, typed as DataOnly<Order>
-// end-json
-
 // start-binary
 const toBytes = createBinaryEncoderFn<Order>();
 const fromBytes = createBinaryDecoderFn<Order>();
@@ -68,4 +58,4 @@ orderSchema['~standard'].validate(order); // {value: order}
 orderSchema['~standard'].validate({}); // {issues: [{message, path}, …]}
 // end-standard
 
-export {order, back, order2, fake, orderSchema};
+export {order, order2, fake, orderSchema};
