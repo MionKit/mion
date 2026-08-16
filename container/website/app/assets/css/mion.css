@@ -100,10 +100,6 @@ h2[data-slot='title'] {
   color: var(--color-green-400);
 }
 
-.home-features a {
-  color: var(--ui-text-highlighted);
-}
-
 .home-features .stylish-list {
   display: flex;
   width: fit-content;
@@ -220,6 +216,12 @@ h2[data-slot='title'] {
 .ai-explore {
   text-align: center;
   margin-top: 1.5rem;
+}
+
+/* "Experimental" pill under the AI section title */
+.ai-experimental {
+  text-align: center;
+  margin-bottom: 1.5rem;
 }
 
 /* The three step tiles: a row of rounded, slightly-darker tiles reusing the
@@ -449,6 +451,33 @@ h2[data-slot='title'] {
 .rt-object-fns :is(pre, code) {
   font-size: 0.8rem;
   line-height: 1.55;
+}
+
+/* two enclosed rows back to back need an explicit gap (the boxes themselves
+   carry no vertical margin) */
+.rt-object-fns + .rt-object-fns {
+  margin-top: 1rem;
+}
+
+/* full-width intro cell inside the enclosed row (title + prose spanning both
+   snippet columns, used by the JSON roundtrip row) */
+.rt-object-fns > .rt-row-intro {
+  grid-column: 1 / -1;
+}
+
+.rt-object-fns > .rt-row-intro p {
+  margin: 0 0 0.5rem;
+  color: var(--ui-text-muted);
+}
+
+/* full-width link footer under both snippet columns of an enclosed row */
+.rt-object-fns > .rt-row-footer {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.rt-object-fns > .rt-row-footer p {
+  margin: 0.35rem 0 0;
 }
 
 @media (max-width: 760px) {
@@ -806,5 +835,30 @@ body.rt-wide-page [class~='lg:grid-cols-10']:has(> div[class~='lg:col-span-2']) 
 .tsgo-badge strong {
   color: var(--color-green-400);
   font-weight: 700;
+}
+
+/* "Experimental" pill ────────────────────────────────────────────────────────
+   Small amber badge for features whose surface may still change (currently
+   JSON Schema input). Used inline in content markdown as
+   [Experimental]{.rt-badge-experimental}. */
+.rt-badge-experimental {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #d9a13d;
+  border: 1px solid color-mix(in srgb, #d9a13d 45%, transparent);
+  background: color-mix(in srgb, #d9a13d 10%, transparent);
+}
+
+:root.light .rt-badge-experimental {
+  color: #9a6b17;
+  border-color: color-mix(in srgb, #9a6b17 45%, transparent);
+  background: color-mix(in srgb, #9a6b17 8%, transparent);
 }
 
