@@ -435,6 +435,17 @@ h2[data-slot='title'] {
   animation: gradient-flow 12s linear infinite;
 }
 
+/* Section-level titles inside an enclosed row read at the same size as the
+   feature-card h3 ("The whole toolbelt, in one box"). The per-column code
+   labels of the JSON row keep the small size, so the row still has a
+   hierarchy. */
+.rt-object-fns > .rt-row-intro h3,
+.rt-object-fns.rt-section-titles > .rt-object-fn > h3 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+}
+
 .rt-object-fns > * > div {
   flex: 1;
   display: flex;
