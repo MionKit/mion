@@ -115,9 +115,7 @@ Stop gluing five libraries together. RunTypes shares a single type graph across 
 ::::
 :::
 
-:::div{class="rt-feature-row rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-validate" commentEnd="// end-validate" />
-
+:::div{class="rt-feature-row"}
 ::::card{class="rt-feature-card"}
 ### Validation
 The job you hire a validator for, with nothing to write: your TypeScript type is the schema. At build time RunTypes compiles it into a plain standalone check, which is how it matches the fastest JIT validators with zero runtime compilation.
@@ -126,18 +124,8 @@ The job you hire a validator for, with nothing to write: your TypeScript type is
 
 [See the benchmarks →](/benchmarks/validation)
 ::::
-:::
 
-:::div{class="rt-object-fns"}
-::::div{class="rt-object-fn"}
-### Mocking that conforms to your types
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
-::::
-
-::::div{class="rt-object-fn"}
-### Binary serialization
-<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
-::::
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-validate" commentEnd="// end-validate" />
 :::
 
 :::div{class="rt-object-fns"}
@@ -177,6 +165,18 @@ const back = sessionSchema.parse(JSON.parse(wire));
 ::::
 :::
 
+:::div{class="rt-object-fns rt-section-titles"}
+::::div{class="rt-object-fn"}
+### Mocking that conforms to your types
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
+::::
+
+::::div{class="rt-object-fn"}
+### Binary serialization
+<code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
+::::
+:::
+
 :::card{class="rt-standard-card"}
 ::::div{class="rt-standard-split rt-stack-reverse"}
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-standard" commentEnd="// end-standard" />
@@ -196,7 +196,7 @@ The same type becomes a [Standard Schema](https://github.com/standard-schema/sta
 Two ways to describe a shape, One source of truth.
 
 #body
-Write a plain TypeScript type (fastest, zero ceremony) **or** reach for the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file.
+We support **native TypeScript types** (fastest, zero ceremony) **or** the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file.
 
 :::div{class="rt-define-cols"}
 ::::code-group
@@ -596,4 +596,4 @@ export const userMock: MockData<User> = {
 
 [&nbsp;]{style="padding-bottom: 6rem;"}
 
-<!-- code-import-timestamp 1786897979183 -->
+<!-- code-import-timestamp 1786913265716 -->
