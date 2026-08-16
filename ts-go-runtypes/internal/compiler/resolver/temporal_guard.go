@@ -3,64 +3,31 @@ package resolver
 import (
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
-	"github.com/mionkit/ts-runtypes/internal/textpos"
 )
 
-// detectTemporalNotLoaded scans the explicit type-argument syntax of a marker
-// call for `Temporal.<Name>` type references that resolved to `any` — the
+// TMP001 — the Temporal flavor of the silent-`any` guard family. Emitted by the
+// shared written-syntax walk in unresolved_name_guard.go for a
+// `Temporal.<KnownName>` reference whose resolution degraded to `any`: the
 // signature of a consumer whose tsconfig `lib` doesn't load the Temporal
 // namespace (e.g. `lib: ["ES2023"]` with no ESNext.Temporal). Left unguarded,
 // such a reference silently degrades to `any` and the generated validator
-// accepts ANY value with no signal. We surface it as a TMP001 error instead.
+// accepts ANY value with no signal.
 //
-// Detection is syntax-based on purpose: when the lib is missing there is no
-// `Temporal` symbol to inspect on the resolved type — the type IS plain `any`
-// — so the only evidence of intent is the written `Temporal.<Name>` qualified
-// name. We walk the call's type-argument nodes, and for every TypeReference
-// whose name is `Temporal.<KnownTemporalType>`, check whether the node's
-// resolved type is `any`; if so, emit the diagnostic.
-//
-// Note: when the lib IS loaded, `Temporal.PlainDate` resolves to a real
+// Unlike its MKR013 sibling, the predicate accepts EVERY any-flavored
+// resolution — the true `any` intrinsic included, not only the checker's error
+// type — because no builtin `Temporal.<Name>` may legitimately mean `any`: with
+// the lib missing the reference resolves to the error type, and a consumer-side
+// stub (`declare namespace Temporal { type PlainDate = any }`) resolves to the
+// real `any` intrinsic yet equally destroys the temporal runtype the call
+// promises. When the lib IS loaded, `Temporal.PlainDate` resolves to a real
 // (non-any) type, so this fires nothing — zero cost for correct setups.
-func detectTemporalNotLoaded(scanChecker *checker.Checker, file string, call *ast.Node) []diagnostics.Diagnostic {
-	callExpression := call.AsCallExpression()
-	if callExpression == nil || callExpression.TypeArguments == nil {
-		return nil
-	}
-	var diagnostics []diagnostics.Diagnostic
-	for _, typeArgNode := range callExpression.TypeArguments.Nodes {
-		walkTemporalRefs(scanChecker, file, typeArgNode, &diagnostics)
-	}
-	return diagnostics
-}
 
-// walkTemporalRefs recurses a type-node subtree, emitting TMP001 for every
-// `Temporal.<Name>` reference that resolved to `any`.
-func walkTemporalRefs(scanChecker *checker.Checker, file string, node *ast.Node, out *[]diagnostics.Diagnostic) {
-	if node == nil {
-		return
-	}
-	if ast.IsTypeReferenceNode(node) {
-		if name, ok := temporalQualifiedName(node); ok {
-			refType := checker.Checker_getTypeFromTypeNode(scanChecker, node)
-			if refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0 {
-				sourceFile := ast.GetSourceFileOfNode(node)
-				if sourceFile != nil {
-					*out = append(*out, diagnostics.New(
-						diagnostics.CodeTemporalNotLoaded,
-						textpos.NodeSite(file, sourceFile, node),
-						name,
-					))
-				}
-			}
-		}
-	}
-	node.ForEachChild(func(child *ast.Node) bool {
-		walkTemporalRefs(scanChecker, file, child, out)
-		return false
-	})
+// temporalDegradedToAny reports whether a known-Temporal reference's resolved
+// type is any-flavored (the `any` intrinsic, the checker's error type, or an
+// alias of `any`).
+func temporalDegradedToAny(refType *checker.Type) bool {
+	return refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0
 }
 
 // temporalQualifiedName reports whether a TypeReference node names a builtin

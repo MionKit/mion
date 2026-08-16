@@ -535,28 +535,45 @@ func outsideSetDiags(prog *program.Program, typeChecker *checker.Checker, marker
 	return diags
 }
 
-// temporalAnyDiags walks one declaration's WRITTEN type syntax for qualified
-// `Temporal.<Name>` references that resolved to `any` — the signature of a
-// project whose tsconfig lib does not load ESNext.Temporal. Converting such
-// a declaration would cement the destroyed type (`any` / `RT.any()`) into
-// the rewritten source, so it errors instead. This is the convert twin of
-// the resolver's TMP001 guard (resolver/temporal_guard.go), which covers
-// marker call sites only; detection is syntax-based for the same reason —
-// with the lib missing the resolved type IS plain `any`, so the written
-// qualified name is the only evidence of intent.
-func temporalAnyDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) []Diagnostic {
-	var diags []Diagnostic
+// writtenTypeRefDiags walks one declaration's WRITTEN type syntax once,
+// classifying every type reference into the silent-any refusal that owns it —
+// the convert twin of the resolver's shared walk (resolver/
+// unresolved_name_guard.go). Converting a degraded declaration would cement
+// the destroyed type (`any` / `RT.any()`) into the rewritten source, so both
+// families error instead:
+//
+//   - Temporal (CodeTemporalNotLoaded): a qualified `Temporal.<KnownName>`
+//     reference that resolved to ANY any-flavored type — the signature of a
+//     project whose tsconfig lib does not load ESNext.Temporal. Syntax-based
+//     for the same reason as the resolver guard: with the lib missing the
+//     resolved type IS plain `any`, so the written qualified name is the only
+//     evidence of intent (resolver/temporal_guard.go documents why this
+//     predicate is stricter than its sibling's).
+//   - Unresolved name (CNV008): any other reference that resolved to the
+//     checker's ERROR type — `any` the author never wrote (a typo, missing
+//     dependency types, an ambient declaration outside the program). A written
+//     `any`, and a resolved `type Loose = any`, are the true `any` intrinsic —
+//     marker.IsErrorLikeAny rejects them by construction.
+//
+// The families return separately so the caller keeps its precedence: a
+// Temporal hit refuses the declaration with the lib-specific message alone.
+func writtenTypeRefDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) (temporalDiags, unresolvedDiags []Diagnostic) {
 	var walk func(node *ast.Node) bool
 	walk = func(node *ast.Node) bool {
 		if node == nil {
 			return false
 		}
 		if ast.IsTypeReferenceNode(node) {
-			if name, ok := temporalRefName(node); ok {
+			if temporalName, isTemporal := temporalRefName(node); isTemporal {
 				refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
 				if refType != nil && checker.Type_flags(refType)&checker.TypeFlagsAny != 0 {
-					diags = append(diags, Diagnostic{Code: CodeTemporalNotLoaded, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
-						Message: fmt.Sprintf("%s resolved to 'any' — add \"ESNext.Temporal\" to compilerOptions.lib; converting now would replace the type with any", name)})
+					temporalDiags = append(temporalDiags, Diagnostic{Code: CodeTemporalNotLoaded, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+						Message: fmt.Sprintf("%s resolved to 'any' — add \"ESNext.Temporal\" to compilerOptions.lib; converting now would replace the type with any", temporalName)})
+				}
+			} else if marker.IsErrorLikeAny(checker.Checker_getTypeFromTypeNode(typeChecker, node)) {
+				if name, ok := writtenRefName(node); ok {
+					unresolvedDiags = append(unresolvedDiags, Diagnostic{Code: CodeUnresolvedTypeName, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
+						Message: fmt.Sprintf("type reference '%s' did not resolve and checked as 'any' — converting would write the degraded type; fix the name or include the missing declaration in the tsconfig", name)})
 				}
 			}
 		}
@@ -564,42 +581,7 @@ func temporalAnyDiags(typeChecker *checker.Checker, decl *declaration, currentFi
 		return false
 	}
 	decl.Stmt.ForEachChild(walk)
-	return diags
-}
-
-// unresolvedNameDiags walks one declaration's WRITTEN type syntax for type
-// references that resolved to the checker's ERROR type — `any` the author
-// never wrote, produced by a name that failed to resolve (a typo, missing
-// dependency types, an ambient declaration outside the program). Converting
-// such a declaration would cement `any` / `RT.any()` into the rewritten
-// source, so it errors instead (CNV008). Convert twin of the resolver's
-// MKR013 guard (resolver/unresolved_name_guard.go); `Temporal.*` references
-// are skipped because CNV007 above owns them with a lib-specific message. A
-// written `any`, and a resolved `type Loose = any`, are the true `any`
-// intrinsic — marker.IsErrorLikeAny rejects them by construction.
-func unresolvedNameDiags(typeChecker *checker.Checker, decl *declaration, currentFile string) []Diagnostic {
-	var diags []Diagnostic
-	var walk func(node *ast.Node) bool
-	walk = func(node *ast.Node) bool {
-		if node == nil {
-			return false
-		}
-		if ast.IsTypeReferenceNode(node) {
-			if _, isTemporal := temporalRefName(node); !isTemporal {
-				refType := checker.Checker_getTypeFromTypeNode(typeChecker, node)
-				if marker.IsErrorLikeAny(refType) {
-					if name, ok := writtenRefName(node); ok {
-						diags = append(diags, Diagnostic{Code: CodeUnresolvedTypeName, Severity: SeverityError, File: currentFile, Decl: declLabel(decl),
-							Message: fmt.Sprintf("type reference '%s' did not resolve and checked as 'any' — converting would write the degraded type; fix the name or include the missing declaration in the tsconfig", name)})
-					}
-				}
-			}
-		}
-		node.ForEachChild(walk)
-		return false
-	}
-	decl.Stmt.ForEachChild(walk)
-	return diags
+	return temporalDiags, unresolvedDiags
 }
 
 // writtenRefName renders a TypeReference's written entity name (`Name` or

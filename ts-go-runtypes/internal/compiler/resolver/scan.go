@@ -673,12 +673,12 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	sourceFile := ast.GetSourceFileOfNode(call)
 	injectionTypeArgument := slot.typeArg
 	injectionFnKeys := slot.fnKeys
-	// Guard against a `Temporal.*` type that silently resolved to `any`
-	// because the consumer's tsconfig lib doesn't load the Temporal
-	// namespace — otherwise the emitted validator accepts anything. Emitted
-	// for the injection call regardless of what the type argument resolved
-	// to (it inspects the written syntax, not the resolved type).
-	temporalDiags := detectTemporalNotLoaded(state.scanChecker, file, call)
+	// One walk over the call's written type-argument syntax classifies every
+	// type reference into the silent-any guard that owns it: `Temporal.<Name>`
+	// that degraded to `any` → TMP001 (Temporal lib not loaded — otherwise the
+	// emitted validator accepts anything), any other name that resolved to the
+	// checker's ERROR type — `any` the author never wrote — → MKR013.
+	temporalDiags, nameDiags := detectWrittenTypeRefGuards(state.scanChecker, file, call)
 	diags = append(diags, temporalDiags...)
 	// Sibling guard: T resolved to `any` because an import in this file
 	// failed to resolve in the scan program (MKR007, Error) — the injection
@@ -686,13 +686,11 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 	// unchanged; the diagnostic is what fails strict builds.
 	importDiags := state.detectAnyFromUnresolvedImport(file, call, injectionTypeArgument)
 	diags = append(diags, importDiags...)
-	// Third sibling (MKR013): a written type name that resolved to the
-	// checker's ERROR type — `any` the author never wrote. Suppressed when
-	// MKR007 fired (the import message names the actionable cause); the
-	// slot probe covers the reflect form and yields to a walk hit AND to
-	// TMP001 (the same degraded slot, with a lib-specific fix message).
+	// MKR013 is suppressed when MKR007 fired (the import message names the
+	// actionable cause); TMP001 above always surfaces. The slot probe covers
+	// the reflect form and yields to a walk hit AND to TMP001 (the same
+	// degraded slot, with a lib-specific fix message).
 	if len(importDiags) == 0 {
-		nameDiags := detectUnresolvedNameRefs(state.scanChecker, file, call)
 		if len(nameDiags) == 0 && len(temporalDiags) == 0 {
 			nameDiags = detectUnresolvedNameSlot(file, call, injectionTypeArgument)
 		}
@@ -919,15 +917,13 @@ func (state scanState) analyzeTrailingInjection(file string, call *ast.Node, cal
 func (state scanState) analyzeMultiSlotInjection(file string, call *ast.Node, injecting []injectMarker, argsCount int, trailingComma bool) ([]pendingCall, []diagnostics.Diagnostic) {
 	var diags []diagnostics.Diagnostic
 	sourceFile := ast.GetSourceFileOfNode(call)
-	// The Temporal-not-loaded guard is a per-call check (inspects written
-	// syntax, not the resolved type), so it fires once for the whole call.
-	temporalDiags := detectTemporalNotLoaded(state.scanChecker, file, call)
+	// One walk over the call's written type-argument syntax classifies every
+	// type reference into the guard that owns it (TMP001 / MKR013) — per-call,
+	// like the trailing path. The per-slot reflect probe below yields to both
+	// families' hits; MKR013 additionally yields to a slot's MKR007 after the
+	// loop (the import names the cause), while TMP001 always surfaces.
+	temporalDiags, nameRefDiags := detectWrittenTypeRefGuards(state.scanChecker, file, call)
 	diags = append(diags, temporalDiags...)
-	// Written-syntax probe of the unresolved-name guard (MKR013), also
-	// per-call. The per-slot reflect probe below yields to its hits, to a
-	// TMP001 hit (same degraded slot, lib-specific fix message), and the
-	// whole family yields to a slot's MKR007 (the import names the cause).
-	nameRefDiags := detectUnresolvedNameRefs(state.scanChecker, file, call)
 	importFired := false
 	pos := call.End() - 1
 	var pendings []pendingCall

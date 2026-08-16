@@ -71,6 +71,64 @@ export const _ = getRunTypeId<{createdAt: Temporal.Instant; name: string}>();
 	}
 }
 
+// The predicate split from the MKR013 sibling, pinned. A consumer-side stub
+// (`declare namespace Temporal { type PlainDate = any }`) resolves to the TRUE
+// `any` intrinsic — not the checker's error type — so the generic guard treats
+// it as deliberate `any` and stays silent, while the Temporal guard still
+// refuses the WRITTEN reference: no builtin Temporal name may mean `any`. The
+// value-first shape writes no type syntax at the call, so a stubbed value
+// passes as deliberate `any` — the guards only see call-site syntax.
+func TestTemporalGuard_AnyStub(t *testing.T) {
+	stub := "declare namespace Temporal { type PlainDate = any }\n"
+	countCodes := func(resp protocol.Response) (tmp001, mkr013 int) {
+		for _, d := range resp.Diagnostics {
+			switch d.Code {
+			case diagnostics.CodeTemporalNotLoaded:
+				tmp001++
+			case diagnostics.CodeMarkerUnresolvedTypeName:
+				mkr013++
+			}
+		}
+		return tmp001, mkr013
+	}
+	t.Run("static getRunTypeId<T>() refuses the stubbed reference", func(t *testing.T) {
+		r := setupInline(t, map[string]string{
+			"temporal.d.ts": stub,
+			"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+export const _ = getRunTypeId<Temporal.PlainDate>();
+`,
+		})
+		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+		if resp.Error != "" {
+			t.Fatalf("scan: %s", resp.Error)
+		}
+		tmp001, mkr013 := countCodes(resp)
+		if tmp001 != 1 {
+			t.Fatalf("stubbed Temporal.PlainDate must fire TMP001, got %d", tmp001)
+		}
+		if mkr013 != 0 {
+			t.Errorf("the generic guard must not double-report the stub (true `any` intrinsic), got %d MKR013", mkr013)
+		}
+	})
+	t.Run("value-first getRunTypeId(value) passes the stub as deliberate any", func(t *testing.T) {
+		r := setupInline(t, map[string]string{
+			"temporal.d.ts": stub,
+			"a.ts": `import {getRunTypeId} from '@ts-runtypes/core';
+declare const when: Temporal.PlainDate;
+export const _ = getRunTypeId(when);
+`,
+		})
+		resp := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"a.ts"}})
+		if resp.Error != "" {
+			t.Fatalf("scan: %s", resp.Error)
+		}
+		tmp001, mkr013 := countCodes(resp)
+		if tmp001 != 0 || mkr013 != 0 {
+			t.Fatalf("value-first over a stubbed (true-any) Temporal must stay silent, got TMP001=%d MKR013=%d", tmp001, mkr013)
+		}
+	})
+}
+
 // A user type literally named `Temporal.Foo` (not a builtin) or a bare
 // `PlainDate` must NOT trip the guard.
 func TestTemporalGuard_IgnoresNonBuiltinNames(t *testing.T) {
