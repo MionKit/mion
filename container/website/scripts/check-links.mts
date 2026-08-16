@@ -1,17 +1,21 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 /**
  * Script to detect broken code-import links in website content.
  * Scans all markdown files in container/website/content for <code-import> tags
  * and verifies that the referenced files exist.
  *
- * Usage: npx tsx container/website/scripts/check-links.ts
+ * Usage: node container/website/scripts/check-links.mts
  */
 
 import {readdirSync, readFileSync, existsSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
-const WEBSITE_CONTENT_DIR = resolve(__dirname, '../content');
-const MONOREPO_ROOT = resolve(__dirname, '../..');
+const WEBSITE_CONTENT_DIR = resolve(import.meta.dirname, '../content');
+// Same convention as server/utils/repo-root.ts: RT_REPO_ROOT is the mounted
+// repo context inside the container; the fallback covers host runs.
+const MONOREPO_ROOT = process.env.RT_REPO_ROOT
+  ? resolve(process.env.RT_REPO_ROOT)
+  : resolve(import.meta.dirname, '../../..');
 
 interface BrokenLink {
   mdFile: string;
