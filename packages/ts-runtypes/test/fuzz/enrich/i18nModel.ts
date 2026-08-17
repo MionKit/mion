@@ -396,10 +396,16 @@ export const I18N_COMMANDS: I18nCommand[] = [
       const afterFirst = readTranslation(ctx.fixture);
 
       // Move tokens of leaves the source dropped (or de-declared) to carcassed.
+      // De-declared covers a field DROPPED and RE-ADDED between updates with a
+      // different spec: T still carries the old line, but a re-add without the
+      // pattern param de-declares that leaf, so its authored value must carcass
+      // (the reconciler parks it in an @rtOrphanChild) exactly like a drop.
       for (const [leafId, token] of [...model.authored]) {
-        const field = leafId.split('.')[0];
+        const [field, key] = leafId.split('.');
         const isFieldLeaf = field !== 'root' && field !== PLURAL_FIELD;
-        if (isFieldLeaf && !model.fields.has(field)) {
+        if (!isFieldLeaf) continue;
+        const spec = model.fields.get(field);
+        if (!spec || (key === 'pattern' && !spec.pattern)) {
           model.authored.delete(leafId);
           model.carcassed.set(leafId, token);
         }
