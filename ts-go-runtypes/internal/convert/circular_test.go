@@ -132,11 +132,7 @@ func TestChain_SelfCycle(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "RT.self()") {
 		t.Errorf("self-cycle should print RT.circular + RT.self():\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{$ref: '#'}") {
-		t.Errorf("self-cycle should print {$ref: '#'} on the schema target:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "next?: TreeNode") || !strings.Contains(typeForm, "children: TreeNode[]") {
 		t.Errorf("type target should close the cycle on the type's own name:\n%s", typeForm)
 	}
@@ -155,8 +151,7 @@ func TestCircular_StructuralPayloadConverts(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.circular(") || !strings.Contains(builderForm, "minProperties: 1") {
 		t.Errorf("a branded record inside a cycle should print with its params:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	convertAndCheckIDs(t, builderForm, convert.TargetType)
 
 	// Primitive brands inside cycles were always fine — they pass the
 	// substitution untouched.
@@ -176,8 +171,7 @@ func TestCircular_LabeledTupleConverts(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.slot('head'") || !strings.Contains(builderForm, "RT.slot('tail'") {
 		t.Errorf("a labeled tuple inside a cycle should print the slot form:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "[head: number, tail: Pair]") {
 		t.Errorf("the type target should restore the labels:\n%s", typeForm)
 	}
@@ -193,8 +187,7 @@ func TestCircular_OptionalSlotLabeledTupleConverts(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.slot('head'") || !strings.Contains(builderForm, "RT.slot('tail'") {
 		t.Errorf("an optional-slot labeled tuple should print the slot form:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "[head: number, tail?: Loose]") {
 		t.Errorf("the type target should restore the optional labeled slot:\n%s", typeForm)
 	}
@@ -218,20 +211,12 @@ func TestCircular_BrandedTemporalConverts(t *testing.T) {
 // own type, so the substitution's member walk circularly referenced itself and
 // rebuilt the node into a plain object, moving the declaration's id. They
 // joined Date / RegExp / Temporal as leaves, so a recursive declaration
-// carrying one now survives the round trip on both targets.
-//
-// Runs the FULL chain (source → json-schema → builders), because the source →
-// json-schema leg passed on its own: the id only moved once the schema form was
-// read back into the value-first builders.
+// carrying one now survives the round trip.
 func TestCircular_BinaryNativesConvert(t *testing.T) {
 	for _, member := range []string{"DataView", "Uint8Array", "Int32Array", "BigInt64Array", "ArrayBuffer", "SharedArrayBuffer"} {
 		t.Run(member, func(t *testing.T) {
 			source := "export interface Node {payload: " + member + "; kids: Node[]}\n"
-			schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
-			if t.Failed() {
-				return
-			}
-			buildersForm := convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+			buildersForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 			if !strings.Contains(buildersForm, "RT.circular(") {
 				t.Errorf("expected a circular builder:\n%s", buildersForm)
 			}
@@ -248,39 +233,18 @@ func TestCircular_SelfStillSubstitutesThroughContainers(t *testing.T) {
 	for _, kids := range []string{"Node[]", "Map<string, Node>", "Set<Node>", "Record<string, Node>"} {
 		t.Run(kids, func(t *testing.T) {
 			source := "export interface Node {payload: DataView; kids: " + kids + "}\n"
-			schemaForm := convertAndCheckIDs(t, source, convert.TargetJSONSchema)
+			builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 			if !t.Failed() {
-				convertAndCheckIDs(t, schemaForm, convert.TargetBuilders)
+				convertAndCheckIDs(t, builderForm, convert.TargetType)
 			}
 		})
-	}
-}
-
-func TestCircular_OneOfPrimitiveBranchRefusedOnBuilders(t *testing.T) {
-	// The second residual: the oneOf branch tuple rides EVERY arm, and a
-	// primitive arm passes through the substitution untouched, so its copy of
-	// the tuple keeps an unsubstituted Self.
-	source := "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-		"export type Mixed = OneOf<[{next: Mixed}, number]>;\n"
-	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
-	if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
-		!strings.Contains(diags[0].Message, "primitive branch") {
-		t.Fatalf("expected the oneOf primitive-branch refusal, got %+v", diags)
-	}
-	// All-object branches carry no primitive arm, so they convert.
-	objectSource := "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-		"export type Nodes = OneOf<[{next: Nodes}, {leaf: number}]>;\n"
-	builderForm := convertAndCheckIDs(t, objectSource, convert.TargetBuilders)
-	if !strings.Contains(builderForm, "RT.oneOf(") {
-		t.Errorf("an all-object oneOf inside a cycle should convert:\n%s", builderForm)
 	}
 }
 
 func TestCircular_TupleSlotCycleRefusedOnValueForms(t *testing.T) {
 	// A tuple is the one container the value-first forms cannot tie a knot
 	// through: TypeScript instantiates a mapped tuple's slots up front, so
-	// `Recursive<Body>` (and `{$ref: '#'}`'s type recovery, which works the
-	// same way) unrolls itself until the checker gives up rather than
+	// `Recursive<Body>` unrolls itself until the checker gives up rather than
 	// substituting. Converting anyway emitted a declaration whose inferred
 	// type kept a raw `Self` — a silently different id that would not convert
 	// back. The TYPE form carries every one of these, since a hand-written
@@ -295,12 +259,10 @@ func TestCircular_TupleSlotCycleRefusedOnValueForms(t *testing.T) {
 		// Nested tuples chain it.
 		"export type Nest = [number, [string, Nest]];\n",
 	} {
-		for _, target := range []convert.Target{convert.TargetBuilders, convert.TargetJSONSchema} {
-			_, diags := convertOne(t, source, convert.Options{Target: target})
-			if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
-				!strings.Contains(diags[0].Message, "cycle that closes on a tuple slot") {
-				t.Fatalf("expected the tuple-slot refusal for %q on %s, got %+v", source, target, diags)
-			}
+		_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+		if len(diags) != 1 || diags[0].Code != convert.CodeUnsupportedKind ||
+			!strings.Contains(diags[0].Message, "cycle that closes on a tuple slot") {
+			t.Fatalf("expected the tuple-slot refusal for %q, got %+v", source, diags)
 		}
 		if typeForm := convertAndCheckIDs(t, source, convert.TargetType); typeForm != source {
 			t.Errorf("the type form should be a byte no-op:\n%s", typeForm)
@@ -341,8 +303,7 @@ func TestChain_RecursiveIndexPrintsTheLiteralSpelling(t *testing.T) {
 		{"export type Board = Record<string, Board[]>;\n", "export type Board = Record<string, Board[]>;"},
 	} {
 		builderForm := convertAndCheckIDs(t, testCase.source, convert.TargetBuilders)
-		schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-		typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+		typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 		if !strings.Contains(typeForm, testCase.wants) {
 			t.Errorf("expected %q in:\n%s", testCase.wants, typeForm)
 		}
@@ -354,15 +315,14 @@ func TestChain_RecursiveIndexPrintsTheLiteralSpelling(t *testing.T) {
 }
 
 func TestChain_MutualCycle(t *testing.T) {
-	// Builders/schema inline the partner (a name reference would make the
-	// const's type self-referential); the type target restores both names.
+	// Builders inline the partner (a name reference would make the const's
+	// type self-referential); the type target restores both names.
 	source := "export type Alpha = {beta?: Beta};\nexport type Beta = {alpha?: Alpha};\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "RT.circular(") {
 		t.Errorf("mutual cycle should wrap in RT.circular:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Alpha = {beta?: Beta};") {
 		t.Errorf("type target should reference the partner by name:\n%s", typeForm)
 	}
@@ -374,11 +334,7 @@ func TestChain_CrossReference(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<Leaf>()") {
 		t.Errorf("acyclic reference should print getRunType<Leaf>():\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<Leaf>()") {
-		t.Errorf("acyclic reference should print embedType<Leaf>() on the schema target:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Branch = {leaf: Leaf; twigs: Leaf[]};") {
 		t.Errorf("type target should keep the reference by name:\n%s", typeForm)
 	}
@@ -391,17 +347,6 @@ func TestBuildersCircularInput_ToType(t *testing.T) {
 	typeForm := convertAndCheckIDs(t, source, convert.TargetType)
 	if !strings.Contains(typeForm, "export type Node = {value: number; next?: Node};") {
 		t.Errorf("authored circular builder should convert to the named self-reference:\n%s", typeForm)
-	}
-}
-
-func TestSchemaRefInput_ToType(t *testing.T) {
-	source := "import {type InferType} from '@ts-runtypes/core';\n" +
-		"import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
-		"export const nodeRT = runTypeFromJsonSchema({type: 'object', properties: {value: {type: 'number'}, next: {$ref: '#'}}, required: ['value'], additionalProperties: false} as const);\n" +
-		"export type Node = InferType<typeof nodeRT>;\n"
-	typeForm := convertAndCheckIDs(t, source, convert.TargetType)
-	if !strings.Contains(typeForm, "next?: Node") {
-		t.Errorf("authored $ref: '#' schema should convert to the named self-reference:\n%s", typeForm)
 	}
 }
 
@@ -476,19 +421,5 @@ func TestAliasOfAlias_ReferencesTarget(t *testing.T) {
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
 	if !strings.Contains(builderForm, "const mirrorRT = getRunType<Original>();") {
 		t.Errorf("an alias of an alias should reference the original:\n%s", builderForm)
-	}
-}
-
-func TestPortable_CrossReferenceInlines(t *testing.T) {
-	// embedType is dialect, so --portable inlines references instead
-	// (structurally identical, the id cannot move).
-	source := "export type Leaf = {value: string};\nexport type Branch = {leaf: Leaf};\n"
-	output, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
-	expectNoDiags(t, diags)
-	if strings.Contains(output, "embedType") {
-		t.Errorf("--portable must not print embedType:\n%s", output)
-	}
-	if !strings.Contains(output, "leaf: {type: 'object', properties: {value: {type: 'string'}}") {
-		t.Errorf("--portable should inline the reference:\n%s", output)
 	}
 }

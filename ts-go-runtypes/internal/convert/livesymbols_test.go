@@ -19,11 +19,7 @@ func TestChain_Enum(t *testing.T) {
 	if !strings.Contains(builderForm, "export enum Color {Red, Green, Blue}") {
 		t.Errorf("the enum declaration itself stays untouched:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<Color>()") {
-		t.Errorf("enum reference should embed on the schema target:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "color: Color") {
 		t.Errorf("type target should restore the enum name:\n%s", typeForm)
 	}
@@ -36,8 +32,7 @@ func TestChain_StringEnum(t *testing.T) {
 	if !strings.Contains(builderForm, "getRunType<Status>()") {
 		t.Errorf("string enum should print getRunType<Status>():\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	convertAndCheckIDs(t, builderForm, convert.TargetType)
 }
 
 func TestEnumMember_NormalizesToLiteral(t *testing.T) {
@@ -59,11 +54,7 @@ func TestChain_UserClass(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.classType(User)") {
 		t.Errorf("class instance should print RT.classType(User):\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "embedType<User>()") {
-		t.Errorf("class instance should embed on the schema target:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "user: User") {
 		t.Errorf("type target should restore the class name:\n%s", typeForm)
 	}
@@ -75,11 +66,7 @@ func TestChain_RegExpNative(t *testing.T) {
 	if !strings.Contains(builderForm, "RT.regexp()") {
 		t.Errorf("RegExp should print RT.regexp():\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDs(t, builderForm, convert.TargetJSONSchema)
-	if !strings.Contains(schemaForm, "{type: 'string', jsType: 'RegExp'}") {
-		t.Errorf("RegExp should ride the jsType dialect:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDs(t, schemaForm, convert.TargetType)
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
 	if !strings.Contains(typeForm, "pattern: RegExp") {
 		t.Errorf("type target should print RegExp:\n%s", typeForm)
 	}
@@ -99,13 +86,5 @@ func TestAliasedEnumImport_Refused(t *testing.T) {
 	}
 	if !foundScopeDiag {
 		t.Fatalf("expected the aliased-import scope refusal, got %+v", diags)
-	}
-}
-
-func TestPortable_EnumRefused(t *testing.T) {
-	source := "export enum Color {Red, Green}\nexport type Paint = {color: Color};\n"
-	_, diags := convertOne(t, source, convert.Options{Target: convert.TargetJSONSchema, Portable: true})
-	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
-		t.Fatalf("expected one CNV006 for the enum under --portable, got %+v", diags)
 	}
 }

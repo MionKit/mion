@@ -24,16 +24,7 @@ func TestChain_TemporalUnbranded(t *testing.T) {
 	if !strings.Contains(builderForm, "import * as TFT from '@ts-runtypes/core/formats/temporal';") {
 		t.Errorf("the temporal subpath import should be added:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	// Data, not a quoted type: the schema target spells Temporal with the
-	// jsType dialect row rather than reaching for the embed escape.
-	if !strings.Contains(schemaForm, "{type: 'string', format: 'date-time', jsType: 'Temporal.Instant'}") {
-		t.Errorf("temporal members should ride the jsType dialect row:\n%s", schemaForm)
-	}
-	if strings.Contains(schemaForm, "embedType") {
-		t.Errorf("temporal members should not reach the embed escape:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDsIn(t, withTemporal(schemaForm), convert.TargetType)
+	typeForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetType)
 	if !strings.Contains(typeForm, "at: Temporal.Instant") || !strings.Contains(typeForm, "day?: Temporal.PlainDate") {
 		t.Errorf("type target should restore the qualified Temporal spellings:\n%s", typeForm)
 	}
@@ -57,8 +48,7 @@ func TestChain_TemporalAllEight(t *testing.T) {
 			t.Errorf("builder form missing %q:\n%s", expected, builderForm)
 		}
 	}
-	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	convertAndCheckIDsIn(t, withTemporal(schemaForm), convert.TargetType)
+	convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetType)
 }
 
 func TestChain_TemporalBranded(t *testing.T) {
@@ -69,26 +59,9 @@ func TestChain_TemporalBranded(t *testing.T) {
 	if !strings.Contains(builderForm, "TFT.plainDate({min: '2020-01-01'})") {
 		t.Errorf("branded temporal should print the TFT param builder:\n%s", builderForm)
 	}
-	schemaForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetJSONSchema)
-	// The bounds are plain ISO strings, so a branded temporal rides rtFormat
-	// exactly like every other format family — name + params, verbatim.
-	if !strings.Contains(schemaForm, "rtFormat: 'temporalPlainDate', rtFormatParams: {min: '2020-01-01'}") {
-		t.Errorf("branded temporal should ride the rtFormat dialect row:\n%s", schemaForm)
-	}
-	if strings.Contains(schemaForm, "embedType") {
-		t.Errorf("branded temporal should not reach the embed escape:\n%s", schemaForm)
-	}
-	typeForm := convertAndCheckIDsIn(t, withTemporal(schemaForm), convert.TargetType)
+	typeForm := convertAndCheckIDsIn(t, withTemporal(builderForm), convert.TargetType)
 	if !strings.Contains(typeForm, "export type Day = TFT.PlainDate<{min: '2020-01-01'}>;") {
 		t.Errorf("type target should restore the brand alias:\n%s", typeForm)
-	}
-}
-
-func TestPortable_TemporalRefused(t *testing.T) {
-	source := "export type Meeting = {at: Temporal.Instant};\n"
-	_, diags := convertOneIn(t, withTemporal(source), convert.Options{Target: convert.TargetJSONSchema, Portable: true})
-	if len(diags) != 1 || diags[0].Code != convert.CodePortableDialect {
-		t.Fatalf("expected one CNV006 for the temporal embed under --portable, got %+v", diags)
 	}
 }
 
@@ -108,7 +81,6 @@ func TestTemporalAnyGuard_AllTargets(t *testing.T) {
 		keeping string
 	}{
 		{convert.TargetBuilders, typeFormSource, "export type Meeting = {at: Temporal.Instant};"},
-		{convert.TargetJSONSchema, typeFormSource, "export type Meeting = {at: Temporal.Instant};"},
 		{convert.TargetType, builderFormSource, "export const meetingRT = getRunType<{at: Temporal.Instant}>();"},
 	}
 	for _, testCase := range cases {

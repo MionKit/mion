@@ -43,17 +43,16 @@ func TestFuzz_AtomChain(t *testing.T) {
 		source := randomAtomFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
 		// The generated space can reach the documented circular refusals (a
-		// branded Temporal, a variadic labeled tuple or a primitive-branch
-		// oneOf inside a recursive type — see circularLossyPayload). Those are
-		// designed loud lanes, not conversion failures: skip the draw and
-		// count it, so the allowance can never quietly swallow the sweep.
+		// branded Temporal or a variadic labeled tuple inside a recursive type
+		// — see circularLossyPayload). Those are designed loud lanes, not
+		// conversion failures: skip the draw and count it, so the allowance
+		// can never quietly swallow the sweep.
 		if _, diags := convertOneIn(t, fuzzSources(source), convert.Options{Target: convert.TargetBuilders}); len(diags) > 0 && allCircularRefusals(diags) {
 			designedRefusals++
 			continue
 		}
 		builderForm := convertAndCheckIDsIn(t, fuzzSources(source), convert.TargetBuilders)
-		schemaForm := convertAndCheckIDsIn(t, fuzzSources(builderForm), convert.TargetJSONSchema)
-		typeForm := convertAndCheckIDsIn(t, fuzzSources(schemaForm), convert.TargetType)
+		typeForm := convertAndCheckIDsIn(t, fuzzSources(builderForm), convert.TargetType)
 		again, diags := convertOneIn(t, fuzzSources(typeForm), convert.Options{Target: convert.TargetType})
 		expectNoDiags(t, diags)
 		if again != typeForm {
@@ -97,7 +96,6 @@ func randomAtomFile(rng *rand.Rand) string {
 	var out strings.Builder
 	out.WriteString("import * as TF from '@ts-runtypes/core/formats';\n")
 	out.WriteString("import * as TFT from '@ts-runtypes/core/formats/temporal';\n")
-	out.WriteString("import {type OneOf} from '@ts-runtypes/core/builders';\n")
 	declCount := 3 + rng.Intn(6)
 	var names []string
 	for index := 0; index < declCount; index++ {
@@ -151,19 +149,6 @@ func fuzzSources(source string) map[string]string {
 func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) string {
 	if depth > 0 {
 		switch rng.Intn(12) {
-		case 9:
-			// An EXCLUSIVE union — the `oneOf` keyword, which a plain `|` union
-			// never reaches (that is `anyOf`). Branches are objects on purpose:
-			// a primitive branch inside a recursive type is a documented
-			// refusal, and this arm exists to exercise the keyword, not the
-			// refusal lane that circular_test.go already pins.
-			armCount := 2 + rng.Intn(2)
-			var arms []string
-			for armIndex := range armCount {
-				arms = append(arms, fmt.Sprintf("{kind%d: %s; payload: %s}",
-					armIndex, quoteTS(stringPool[rng.Intn(len(stringPool))]), randomTypeText(rng, atoms, stringPool, depth-1)))
-			}
-			return fmt.Sprintf("OneOf<[%s]>", strings.Join(arms, ", "))
 		case 10:
 			// A union of PURE literals collapses to `enum` rather than `anyOf`.
 			// The ordinary union arm can draw one by chance, but only when every
@@ -215,7 +200,7 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 			armCount := 2 + rng.Intn(3)
 			var arms []string
 			for range armCount {
-				arms = append(arms, randomUnionArm(rng, atoms, stringPool, depth-1))
+				arms = append(arms, randomTypeText(rng, atoms, stringPool, depth-1))
 			}
 			return "(" + strings.Join(arms, " | ") + ")"
 		case 4:
@@ -321,29 +306,6 @@ func randomTypeText(rng *rand.Rand, atoms, stringPool []string, depth int) strin
 	}
 }
 
-// randomUnionArm draws a type for a DIRECT arm of a plain union, redrawing
-// while it lands on a `OneOf`.
-//
-// `OneOf<[A, B]> | C` is a partial oneOf: the exclusive branches do not cover
-// the whole union, which nothing in the system can currently represent — the
-// converter refuses it (partialOneOfDiag) and `validate` is outright unsound on
-// it. See docs/todos/oneof-not-covering-whole-union.md. Drawing it here would
-// just spend every union draw on that one refusal, so the arm is excluded until
-// the todo lands, at which point this whole function goes away.
-//
-// Only a DIRECT arm is excluded. A `OneOf` nested inside an object member, an
-// array element or a Map value is a union of its own and converts fine, so the
-// keyword keeps its coverage.
-func randomUnionArm(rng *rand.Rand, atoms, stringPool []string, depth int) string {
-	for attempt := 0; attempt < 8; attempt++ {
-		candidate := randomTypeText(rng, atoms, stringPool, depth)
-		if !strings.HasPrefix(candidate, "OneOf<") {
-			return candidate
-		}
-	}
-	return atoms[rng.Intn(len(atoms))]
-}
-
 // randomLiteralText draws a string / number / boolean / bigint literal. Shared
 // by the leaf switch and the enum arm: a union of these collapses to `enum`,
 // so the two have to draw from one pool or the arm could produce a shape the
@@ -387,30 +349,18 @@ func temporalLeaf(rng *rand.Rand) string {
 	return unbranded[rng.Intn(len(unbranded))]
 }
 
-// randomFormatLeaf draws a generic-family format brand with random params, and
-// sometimes its NEGATION.
-//
-// `TF.Not<F>` is here because it was missing: the schema target's negation
-// spelling changed under this suite and only a hand-written chain test noticed,
-// which means the generated space had a hole exactly where a whole keyword
-// lives. A shape the fuzzer cannot draw is a shape its oracle cannot defend.
+// randomFormatLeaf draws a generic-family format brand with random params.
 func randomFormatLeaf(rng *rand.Rand) string {
-	// One draw in six negates. Kept low because a negation wraps a format leaf
-	// rather than replacing it, so a higher rate would crowd out the plain
-	// brands without adding coverage.
-	if rng.Intn(6) == 0 {
-		return fmt.Sprintf("TF.Not<%s>", randomNotableFormatLeaf(rng))
-	}
-	// Half the remaining draws take a NAMED family. The generic
-	// String/Number/BigInt brands were the only formats here, and those carry
-	// no `format` keyword at all — so the whole registered-format half of
-	// RT-FORMAT-STANDARD (email, uuid, uri, hostname, date, time, date-time)
-	// went undrawn, along with every preset whose params the pretty spelling
-	// cannot prove identical (the `exact` constructor lane).
+	// Half the draws take a NAMED family. The generic String/Number/BigInt
+	// brands were the only formats here, and those carry no `format` keyword
+	// at all — so the whole registered-format half of RT-FORMAT-STANDARD
+	// (email, uuid, uri, hostname, date, time, date-time) went undrawn, along
+	// with every preset whose params the pretty spelling cannot prove
+	// identical (the `exact` constructor lane).
 	if rng.Intn(2) == 0 {
 		return randomStringFormatLeaf(rng)
 	}
-	return randomNotableFormatLeaf(rng)
+	return randomGenericFormatLeaf(rng)
 }
 
 // randomStringFormatLeaf draws a NAMED string family. The first seven map onto
@@ -437,9 +387,9 @@ func randomStringFormatLeaf(rng *rand.Rand) string {
 	return named[rng.Intn(len(named))]
 }
 
-// randomNotableFormatLeaf draws the format brands `Not<F>` accepts as operands
-// (the string and number families — a negated bigint has no builder spelling).
-func randomNotableFormatLeaf(rng *rand.Rand) string {
+// randomGenericFormatLeaf draws a generic string / number / bigint family
+// brand with random params.
+func randomGenericFormatLeaf(rng *rand.Rand) string {
 	switch rng.Intn(3) {
 	case 0:
 		switch rng.Intn(3) {

@@ -19,11 +19,11 @@ import (
 // siteIDs scans one source through the real resolver and returns the DISTINCT
 // reflected ids of its marker sites, sorted.
 //
-// Distinct, not a multiset, and that is the whole subtlety: the value forms
-// carry MORE sites than the type form, because every builder call
-// (`RT.object(…)`) and every `runTypeFromJsonSchema(…)` is itself a marker
-// site. A conversion adds sites; what it must never do is lose an id or invent
-// one. The set is exactly that invariant.
+// Distinct, not a multiset, and that is the whole subtlety: the value form
+// carries MORE sites than the type form, because every builder call
+// (`RT.object(…)`) is itself a marker site. A conversion adds sites; what it
+// must never do is lose an id or invent one. The set is exactly that
+// invariant.
 func siteIDs(t testing.TB, source string) []string {
 	t.Helper()
 	_, session, cwd := setupConvert(t, map[string]string{"main.ts": source})
@@ -73,13 +73,7 @@ func TestCallSites_EveryLegKeepsEveryID(t *testing.T) {
 	}
 	assertSameIDs(t, "--to builders", baseline, siteIDs(t, buildersForm))
 
-	schemaForm, schemaDiags := convertOne(t, buildersForm, convert.Options{Target: convert.TargetJSONSchema})
-	if len(schemaDiags) > 0 {
-		t.Fatalf("unexpected diagnostics: %+v", schemaDiags)
-	}
-	assertSameIDs(t, "--to json-schema", baseline, siteIDs(t, schemaForm))
-
-	typeForm, typeDiags := convertOne(t, schemaForm, convert.Options{Target: convert.TargetType})
+	typeForm, typeDiags := convertOne(t, buildersForm, convert.Options{Target: convert.TargetType})
 	if len(typeDiags) > 0 {
 		t.Fatalf("unexpected diagnostics: %+v", typeDiags)
 	}

@@ -1,41 +1,35 @@
 package convert_test
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/microsoft/typescript-go/shim/tspath"
 	"github.com/mionkit/ts-runtypes/internal/convert"
 )
 
-// parityPairsIn runs the SchemaParityProbe over a sources map's main.ts.
-func parityPairsIn(t testing.TB, sources map[string]string) []convert.SchemaParityPair {
+// docPairsIn runs the SchemaDocProbe over a sources map's main.ts.
+func docPairsIn(t testing.TB, sources map[string]string) []convert.SchemaDocPair {
 	t.Helper()
 	prog, session, cwd := setupConvert(t, sources)
 	defer session.Close()
 	absPath := tspath.ResolvePath(cwd, "main.ts")
-	pairs, probeErr := convert.SchemaParityProbe(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
+	pairs, probeErr := convert.SchemaDocProbe(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absPath)
 	if probeErr != nil {
-		t.Fatalf("SchemaParityProbe: %v", probeErr)
+		t.Fatalf("SchemaDocProbe: %v", probeErr)
 	}
 	return pairs
 }
 
-func expectParity(t *testing.T, pairs []convert.SchemaParityPair) {
-	t.Helper()
-	for _, pair := range pairs {
-		if pair.Printer != pair.Renderer {
-			t.Errorf("schema spelling drift on %s:\n--- printer ---\n%s\n--- renderer ---\n%s", pair.Decl, pair.Printer, pair.Renderer)
-		}
-	}
-}
-
-// The hand corpus: one declaration per shared-subset shape. Every declaration
-// here must be spellable by BOTH backends, so the floor assertion pins that
-// the probe is not silently skipping its way to vacuous success.
-func TestSchemaDocParity_Corpus(t *testing.T) {
+// The hand corpus: one declaration per shared-subset shape. The renderer's
+// spelling for each is pinned as a golden document — regenerate with
+// RT_UPDATE_GOLDEN=1 after an INTENTIONAL spelling change.
+func TestSchemaDoc_Corpus(t *testing.T) {
 	source := "" +
 		"import * as TF from '@ts-runtypes/core/formats';\n" +
 		"import * as TFT from '@ts-runtypes/core/formats/temporal';\n" +
@@ -73,19 +67,40 @@ func TestSchemaDocParity_Corpus(t *testing.T) {
 		"type Deferred = Promise<string>;\n" +
 		"type UniqueTags = TF.FormattedArray<string[], {uniqueItems: true, minItems: 1}>;\n" +
 		"type BoundedBag = TF.FormattedObject<{a: string}, {minProperties: 1}>;\n"
-	pairs := parityPairsIn(t, fuzzSources(source))
-	// Every declaration above is probe-comparable; a silent skip regression
-	// would show up as a falling count.
+	pairs := docPairsIn(t, fuzzSources(source))
+	// Every declaration above must render; a silent skip regression would show
+	// up as a falling count.
 	if len(pairs) < 30 {
-		t.Fatalf("expected at least 30 comparable declarations, probe returned %d", len(pairs))
+		t.Fatalf("expected at least 30 rendered declarations, probe returned %d", len(pairs))
 	}
-	expectParity(t, pairs)
+	var rendered strings.Builder
+	for _, pair := range pairs {
+		fmt.Fprintf(&rendered, "=== %s\n%s\n", pair.Decl, pair.Renderer)
+	}
+	goldenPath := filepath.Join("testdata", "schemadoc_corpus.golden")
+	if os.Getenv("RT_UPDATE_GOLDEN") == "1" {
+		if mkErr := os.MkdirAll(filepath.Dir(goldenPath), 0o755); mkErr != nil {
+			t.Fatalf("mkdir testdata: %v", mkErr)
+		}
+		if writeErr := os.WriteFile(goldenPath, []byte(rendered.String()), 0o644); writeErr != nil {
+			t.Fatalf("write golden: %v", writeErr)
+		}
+		return
+	}
+	golden, readErr := os.ReadFile(goldenPath)
+	if readErr != nil {
+		t.Fatalf("read golden (regenerate with RT_UPDATE_GOLDEN=1): %v", readErr)
+	}
+	if rendered.String() != string(golden) {
+		t.Errorf("schema document spelling drifted from the golden corpus (regenerate with RT_UPDATE_GOLDEN=1 if intentional):\n--- got ---\n%s\n--- want ---\n%s", rendered.String(), string(golden))
+	}
 }
 
 // The seeded fuzz leg: the same generated atom space the convert chain sweep
-// uses, checked for printer/renderer parity instead of id preservation.
-// Replay a reported seed with RT_FUZZ_SEED; widen with RT_FUZZ_ITER.
-func TestFuzz_SchemaDocParity(t *testing.T) {
+// uses, checked for renderer determinism (same source renders byte-identical
+// documents across two independent probe runs). Replay a reported seed with
+// RT_FUZZ_SEED; widen with RT_FUZZ_ITER.
+func TestFuzz_SchemaDocDeterminism(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
 	}
@@ -106,18 +121,26 @@ func TestFuzz_SchemaDocParity(t *testing.T) {
 		}
 		iterations = parsed
 	}
-	comparable := 0
+	rendered := 0
 	for iteration := 0; iteration < iterations; iteration++ {
 		source := randomAtomFile(rng)
 		t.Logf("seed %d iteration %d:\n%s", seed, iteration, source)
-		pairs := parityPairsIn(t, fuzzSources(source))
-		comparable += len(pairs)
-		expectParity(t, pairs)
+		first := docPairsIn(t, fuzzSources(source))
+		second := docPairsIn(t, fuzzSources(source))
+		if len(first) != len(second) {
+			t.Fatalf("probe count drifted between runs: %d vs %d (replay with RT_FUZZ_SEED=%d)", len(first), len(second), seed)
+		}
+		for i := range first {
+			if first[i].Renderer != second[i].Renderer {
+				t.Errorf("non-deterministic document for %s:\n--- first ---\n%s\n--- second ---\n%s", first[i].Decl, first[i].Renderer, second[i].Renderer)
+			}
+		}
+		rendered += len(first)
 		if t.Failed() {
 			t.Fatalf("stopping at first failing iteration (replay with RT_FUZZ_SEED=%d)", seed)
 		}
 	}
-	if comparable == 0 {
-		t.Errorf("no comparable declarations across %d iterations — the probe's skip rules have eaten the sweep", iterations)
+	if rendered == 0 {
+		t.Errorf("no rendered declarations across %d iterations — the probe's skip rules have eaten the sweep", iterations)
 	}
 }
