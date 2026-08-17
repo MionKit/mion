@@ -262,6 +262,29 @@ func TestChain_ArraysAndTuples(t *testing.T) {
 	}
 }
 
+// A `never` rest is uninhabited, so it contributes no elements and TypeScript
+// folds `[T, ...never[]]` into a shape that rebuilding the group spelling
+// (`RT.tuple({required: […], rest: RT.never()})`) does not resolve back to — the
+// id changed on the builders leg. Found by the convert fuzz soak (seed
+// 32080010770, iteration 131, oracle C2). The type-argument escape is id-exact,
+// same remedy as TestChain_UniqueItemsFalseEscapesGenericSpelling. Every OTHER
+// rest element still prints the group form (TestChain_ArraysAndTuples pins
+// `[boolean, ...string[]]`), so the escape is scoped to the never rest alone.
+func TestChain_NeverRestTupleEscapesGroupSpelling(t *testing.T) {
+	source := "export type NeverRest = [any, ...never[]];\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "getRunType<[any, ...never[]]>()") {
+		t.Errorf("a never-rest tuple must take the type-argument escape:\n%s", builderForm)
+	}
+	if strings.Contains(builderForm, "rest: RT.never()") {
+		t.Errorf("the group spelling is not id-exact for a never rest:\n%s", builderForm)
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	if !strings.Contains(typeForm, "[any, ...never[]]") {
+		t.Errorf("the type form must keep the written tuple:\n%s", typeForm)
+	}
+}
+
 func TestChain_StructuralParams(t *testing.T) {
 	source := "import * as RT from '@ts-runtypes/core/builders';\n" +
 		"import * as TF from '@ts-runtypes/core/formats';\n" +
