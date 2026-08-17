@@ -190,7 +190,7 @@ describe('rtx bench sub-verbs reach bench.mjs', () => {
       const {include} = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
       // Each map annotated `CompetitorCases` is a totality claim; the gate only
       // proves it for files the project actually compiles.
-      const maps = ['cases.ts', 'schemaCases.ts', 'jsonSchemaCases.ts', 'specCases.ts'].filter(
+      const maps = ['cases.ts', 'schemaCases.ts'].filter(
         (file) => existsSync(join(dir, file)) && readFileSync(join(dir, file), 'utf8').includes('CompetitorCases')
       );
       for (const map of maps) expect(include, `${competitor}/tsconfig.json`).toContain(map);

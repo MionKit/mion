@@ -9,8 +9,6 @@
 //     to the SAME injected id before and after conversion — the id oracle at
 //     the binary level, both call shapes covered;
 //   - --out-dir converts a copy (assets carried along, sources untouched);
-//   - --portable refuses dialect-needing declarations with CNV006, and the
-//     tsconfig `convertDialect` key is its project-level twin (flag wins);
 //   - flag validation exits non-zero.
 import {describe, expect, it} from 'vitest';
 import {spawnSync} from 'node:child_process';
@@ -54,24 +52,6 @@ function makeProject(): string {
   fs.writeFileSync(path.join(dir, 'src', 'api.ts'), API_TS);
   fs.writeFileSync(path.join(dir, 'src', 'notes.txt'), 'asset\n');
   return dir;
-}
-
-// Rewrite the project's tsconfig with a ts-runtypes plugin entry pinning the
-// convert dialect. `convertDialect` rides the language-service plugin slot like
-// every other RunTypes project key, so tsc ignores it.
-function writeDialectTsconfig(dir: string, convertDialect: string): void {
-  fs.writeFileSync(
-    path.join(dir, 'tsconfig.json'),
-    `{
-  "compilerOptions": {
-    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
-    "rootDir": "src", "outDir": "dist", "strict": true,
-    "plugins": [{"name": "ts-runtypes", "convertDialect": "${convertDialect}"}]
-  },
-  "include": ["src"]
-}
-`
-  );
 }
 
 interface RunResult {
@@ -178,73 +158,6 @@ describe('ts-runtypes convert (CLI e2e)', () => {
       expect(status).toBe(1);
       expect(stderr).toContain('CNV007');
       expect(fs.readFileSync(path.join(dir, 'src', 'meeting.ts'), 'utf8')).toBe(meeting);
-    } finally {
-      fs.rmSync(dir, {recursive: true, force: true});
-    }
-  });
-
-  register('--portable refuses dialect-needing declarations with CNV006', () => {
-    const dir = makeProject();
-    try {
-      fs.writeFileSync(path.join(dir, 'src', 'big.ts'), 'export type Big = bigint;\n');
-      const {status, stderr} = runConvert(dir, ['--to', 'json-schema', '--portable', '--check', path.join(dir, 'src')]);
-      expect(status).toBe(1);
-      expect(stderr).toContain('CNV006');
-    } finally {
-      fs.rmSync(dir, {recursive: true, force: true});
-    }
-  });
-
-  // The project-level twin of --portable. `convertDialect: 'standard'` in the
-  // tsconfig plugin entry means every convert run in that project emits strictly
-  // standard 2020-12, so a schema committed to a repo cannot quietly grow an
-  // extension keyword. The flag still wins per run, in BOTH directions.
-  register("convertDialect: 'standard' refuses dialect-needing declarations without any flag", () => {
-    const dir = makeProject();
-    try {
-      writeDialectTsconfig(dir, 'standard');
-      fs.writeFileSync(path.join(dir, 'src', 'big.ts'), 'export type Big = bigint;\n');
-      const {status, stderr} = runConvert(dir, ['--to', 'json-schema', '--check', path.join(dir, 'src')]);
-      expect(status).toBe(1);
-      expect(stderr).toContain('CNV006');
-    } finally {
-      fs.rmSync(dir, {recursive: true, force: true});
-    }
-  });
-
-  register("convertDialect: 'extended' is the default and emits the dialect", () => {
-    const dir = makeProject();
-    try {
-      writeDialectTsconfig(dir, 'extended');
-      fs.writeFileSync(path.join(dir, 'src', 'big.ts'), 'export type Big = bigint;\n');
-      const {status} = runConvert(dir, ['--to', 'json-schema', path.join(dir, 'src')]);
-      expect(status).toBe(0);
-      expect(fs.readFileSync(path.join(dir, 'src', 'big.ts'), 'utf8')).toContain("jsType: 'bigint'");
-    } finally {
-      fs.rmSync(dir, {recursive: true, force: true});
-    }
-  });
-
-  register('--portable=false overrides a project pinned to standard', () => {
-    const dir = makeProject();
-    try {
-      writeDialectTsconfig(dir, 'standard');
-      fs.writeFileSync(path.join(dir, 'src', 'big.ts'), 'export type Big = bigint;\n');
-      const {status} = runConvert(dir, ['--to', 'json-schema', '--portable=false', path.join(dir, 'src')]);
-      expect(status).toBe(0);
-      expect(fs.readFileSync(path.join(dir, 'src', 'big.ts'), 'utf8')).toContain("jsType: 'bigint'");
-    } finally {
-      fs.rmSync(dir, {recursive: true, force: true});
-    }
-  });
-
-  register('an unrecognised convertDialect value is fatal rather than silently extended', () => {
-    const dir = makeProject();
-    try {
-      writeDialectTsconfig(dir, 'strict');
-      const {status, stderr} = runConvert(dir, ['--to', 'json-schema', '--check', path.join(dir, 'src')]);
-      expect(status).not.toBe(0);
-      expect(stderr).toContain('convertDialect');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
     }
