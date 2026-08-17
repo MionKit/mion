@@ -122,7 +122,6 @@ const OPTIONS = {
     '@ts-runtypes/core': [path.join(MARKER, 'index.d.ts')],
     '@ts-runtypes/core/builders': [path.join(MARKER, 'builders', 'index.d.ts')],
     '@ts-runtypes/core/formats': [path.join(MARKER, 'formats', 'index.d.ts')],
-    '@ts-runtypes/core/json-schema': [path.join(MARKER, 'json-schema', 'index.d.ts')],
     '@ts-runtypes/core/formats/temporal': [path.join(MARKER, 'formats', 'datetime', 'temporalFormats.d.ts')],
   },
   // esnext.full + esnext.temporal: the shared DateTime suites reference
@@ -300,7 +299,6 @@ async function main() {
   const typiaInstalled = fs.existsSync(path.join(TYPIA_DIR, 'node_modules', 'typia'));
   if (!typiaInstalled) console.error('typecost: typia is not installed in this image (its install layer is non-fatal); its column renders n/a.');
   const typia = typiaInstalled ? extractTypeForm(path.join(TYPIA_DIR, 'cases.ts'), 'cases', 'typia.createIs') : {preamble: [], entries: {}, keys: []};
-  const tsJsonSchema = extractTsGo(path.join(TSGO_DIR, 'jsonSchemaCases.ts'), 'jsonSchemaCases', 'schema');
 
   const valueByKey = await loadSampleValues();
 
@@ -331,8 +329,6 @@ async function main() {
       if (zod.entries[key]) console.log(`\n===== zod =====\n${probeZod(zod.preamble, zod.entries[key].locals, zod.entries[key].exprText, value)}`);
       if (typebox.entries[key]) console.log(`\n===== typebox =====\n${probeTypebox(typebox.preamble, typebox.entries[key].locals, typebox.entries[key].exprText, value)}`);
       if (tp) console.log(`\n===== typia =====\n${probeTsType(typia.preamble, tp.locals, tp.typeText, value)}`);
-      const js = tsJsonSchema.entries[key];
-      if (js) console.log(`\n===== ts-go(jsonSchema) =====\n${probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, value)}`);
       process.exit(0);
     }
 
@@ -354,20 +350,6 @@ async function main() {
       ? measure('typebox', 'typebox', PROBE_TYPEBOX, probeTypebox(typebox.preamble, [], 'Type.String()', V), probeTypebox(typebox.preamble, typebox.entries[key].locals, typebox.entries[key].exprText, value))
       : {status: 'na'};
 
-    // The two SCHEMA-DOCUMENT forms, both TOTAL over the suite: every case ajv
-    // can state as a document is measured here too, so the columns answer "what
-    // does recovering a type from this document cost" across the whole table
-    // rather than in one lane. A case JSON Schema cannot express (bigint, Date,
-    // Map/Set, Temporal, circular refs, the advanced TS utility types) is n/a in
-    // both, mirroring ajv's own not-supported set. ajv has no typecost form at
-    // all — it validates the document and recovers no static type, which is the
-    // trade the page exists to show.
-    const js = tsJsonSchema.entries[key];
-    cell.tsJsonSchema = js
-      ? measure('tsJsonSchema', 'tsgo', PROBE_TSGO, probeTsSchema(tsJsonSchema.preamble, [], "runTypeFromJsonSchema({type: 'string'})", V), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, value), probeTsSchema(tsJsonSchema.preamble, js.locals, js.arg.text, undefined))
-      : {status: 'na'};
-
-
     const tp = typia.entries[key];
     cell.typia = tp
       ? measure('typia', 'typia', PROBE_TYPIA, probeTsType(typia.preamble, [], 'string', V), probeTsType(typia.preamble, tp.locals, tp.typeText, value), probeTsType(typia.preamble, tp.locals, tp.typeText, undefined))
@@ -383,8 +365,7 @@ async function main() {
 
 const LIBS = [
   ['ts-go(type)', 'tsType', 'ts-runtypes-type'],
-  ['ts-go(builder)', 'tsBuilder', 'ts-runtypes-schema'],
-  ['ts-go(jsonSchema)', 'tsJsonSchema', 'ts-runtypes-json-schema'],
+  ['ts-go(builder)', 'tsSchema', 'ts-runtypes-schema'],
   ['zod', 'zod', 'zod'],
   ['typebox', 'typebox', 'typebox'],
   ['typia', 'typia', 'typia'],

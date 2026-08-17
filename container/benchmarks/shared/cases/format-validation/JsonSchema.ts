@@ -5,13 +5,14 @@
 // states them in its own dialect exactly as it does for the FormatString and
 // FormatNumber groups.
 //
-// The structural half of this group (closedness, key patterns, uniqueness, …)
+// The structural half of this group (key patterns, uniqueness, key counts, …)
 // lives in ../validation/JsonSchema.ts. See that file's header for why the
 // document sits on the case and how the competitor columns are filled.
 //
-// No `expectedFormatErrors` here: those describe the error payload of the
-// ts-runtypes FormatString / FormatNumber types, and these cases reach the same
-// constraints through the schema door instead.
+// No `expectedFormatErrors` here: those belong to the FormatString /
+// FormatNumber groups' own cases. This group only scores accept/reject, with
+// the schema document as ajv's column and each competitor's native spelling of
+// the same constraint beside it.
 import type {JsonSchemaFormatCase} from '../types.ts';
 
 export const JSON_SCHEMA = {

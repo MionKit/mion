@@ -3681,46 +3681,10 @@ export const cases: CompetitorCases = {
   // TypeBox has no runtime JSON Schema INPUT door (TypeCompiler dispatches on
   // TypeBox's own [Kind] symbol, which a plain document does not carry), so
   // these entries state the same CONSTRAINT in TypeBox's own dialect — which is
-  // mostly a direct spelling, because TypeBox schemas ARE JSON Schema. Three
-  // keywords are accepted into the schema object but never compiled into a
-  // check, so they opt out rather than report a validator that passes
-  // everything (each verified by compiling and running it).
-  'JSON_SCHEMA.closed_object': {
-    build: () => {
-      const schema = Type.Object({id: Type.Integer(), name: Type.String()}, {additionalProperties: false});
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Object({id: Type.Integer(), name: Type.String()}, {additionalProperties: false});
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
-  'JSON_SCHEMA.pattern_properties': {
-    // `Type.Record(/^col_/, …)` compiles to `{"not":{}}` in the pinned build (it
-    // rejects everything), so the prefix is expressed as a template-literal key,
-    // which compiles to a real key check. `additionalProperties: false` is what
-    // CLOSES it: without that the template-literal Record constrains matching
-    // keys but lets a foreign key through, which is open patternProperties, not
-    // this case.
-    build: () => {
-      const schema = Type.Record(Type.TemplateLiteral('col_${string}'), Type.Number(), {additionalProperties: false});
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => check.Check(value);
-    },
-    buildErrors: () => {
-      const schema = Type.Record(Type.TemplateLiteral('col_${string}'), Type.Number(), {additionalProperties: false});
-      const check = TypeCompiler.Compile(schema);
-      return (value: unknown) => {
-        for (const _ of check.Errors(value)) return false;
-        return true;
-      };
-    },
-  },
+  // mostly a direct spelling, because TypeBox schemas ARE JSON Schema. One
+  // keyword (propertyNames) is accepted into the schema object but never
+  // compiled into a check, so it opts out rather than report a validator that
+  // passes everything (verified by compiling and running it).
   'JSON_SCHEMA.property_names': NOT_SUPPORTED, // propertyNames is carried in the schema but never compiled into a check
   'JSON_SCHEMA.contains_count': {
     build: () => {
@@ -3767,7 +3731,6 @@ export const cases: CompetitorCases = {
       };
     },
   },
-  'JSON_SCHEMA.dependent_required': NOT_SUPPORTED, // dependentRequired is carried in the schema but never compiled into a check
   'JSON_SCHEMA.string_email': {
     build: () => {
       const schema = Type.String({

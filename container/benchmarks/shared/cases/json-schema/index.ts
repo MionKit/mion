@@ -7,10 +7,10 @@
 // that asked "who can consume a document", which left every column but ajv
 // reading not-supported and duplicated shapes the other groups already bench.
 //
-// What survives here is the merged view the DOCUMENT consumers need: ajv
-// compiles the case's own bytes, and the typecost document columns read the
-// same map. Keeping one import path for that is the whole reason this file
-// exists — the case objects are defined next to the suites they belong to.
+// What survives here is the merged view the one DOCUMENT consumer needs: ajv
+// compiles the case's own bytes. Keeping one import path for that is the whole
+// reason this file exists — the case objects are defined next to the suites
+// they belong to.
 
 import {JSON_SCHEMA as STRUCTURAL} from '../validation/JsonSchema.ts';
 import {JSON_SCHEMA as VALUE_CONSTRAINTS} from '../format-validation/JsonSchema.ts';

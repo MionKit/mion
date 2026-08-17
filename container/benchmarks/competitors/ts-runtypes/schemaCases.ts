@@ -737,23 +737,20 @@ export const schemaCases: CompetitorCases = {
     ),
 
   // ── JSON_SCHEMA ──
-  // The whole group opts out, on purpose. These cases exist to measure the JSON
-  // SCHEMA door, and there is no runtypes-to-JSON-Schema transform: a value-first
-  // builder that happens to describe the same shape is a stand-in we invented for
-  // the bench, not a second way to consume the document. Presenting its cost as
-  // "ts-runtypes on this document" would be a fabricated comparison, so the
-  // jsonSchema column is the single ts-runtypes answer on these rows.
-  'JSON_SCHEMA.closed_object': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.pattern_properties': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.property_names': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.unique_items': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.dependent_required': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.string_email': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.int_bounded': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.string_pattern': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
-  'JSON_SCHEMA.multiple_of': NOT_SUPPORTED, // no value-first twin: the subject is the document itself
+  // The same value-first authoring cases.ts uses for this group (there, unlike
+  // every other group, the two maps coincide: the structural keywords have no
+  // plain-type spelling, so cases.ts is already value-first). The structural
+  // keywords ride the trailing params bags on `RT.array` / `RT.record`; the
+  // value keywords are TF formats.
+  'JSON_SCHEMA.property_names': () =>
+    createValidateFn(RT.record(TF.number(), {propertyNames: TF.string({pattern: {source: '^[a-z]+$', flags: ''}})})),
+  'JSON_SCHEMA.contains_count': () => createValidateFn(RT.array(TF.number(), {contains: TF.number({min: 10}), minContains: 2})),
+  'JSON_SCHEMA.unique_items': () => createValidateFn(RT.array(TF.number(), {uniqueItems: true})),
+  'JSON_SCHEMA.object_size': () => createValidateFn(RT.record(TF.number(), {minProperties: 1, maxProperties: 3})),
+  'JSON_SCHEMA.string_email': () => createValidateFn(TF.email()),
+  'JSON_SCHEMA.int_bounded': () => createValidateFn(TF.number({integer: true, min: 0, max: 130})),
+  'JSON_SCHEMA.string_pattern': () => createValidateFn(TF.string({pattern: {source: '^[a-z][a-z0-9-]*$', flags: ''}})),
+  'JSON_SCHEMA.multiple_of': () => createValidateFn(TF.number({multipleOf: 5})),
 
   // ── STRICT ──
   // The builder door's strict pair. The run-type is built TWICE on purpose: each

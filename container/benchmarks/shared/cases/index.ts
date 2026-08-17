@@ -15,7 +15,7 @@ import type {SharedCase} from './types.ts';
 // The JSON Schema cases are NOT a suite of their own: each half lives in the
 // suite that benches it, as the group `JSON_SCHEMA` (the same way DATETIME is a
 // group in both validation and format-validation). ./json-schema/index.ts keeps
-// the merged document map for ajv and the typecost document columns.
+// the merged document map for ajv.
 export type SuiteName = 'validation' | 'format-validation' | 'realworld' | 'strict';
 
 // `${GROUP}.${case}` over every group in a suite object (`{ATOMIC: {...}, ...}`).
