@@ -1,8 +1,9 @@
-// Runtime "does this candidate match the negated child?" test used by the
-// mock walker's rejection sampling (mockType.ts). The generated VALIDATORS
-// never use this — negation is compiled there (`base && !(child)`); this
-// mirror exists only because mocking is a runtime interpreter, so it needs a
-// runtime answer to the same question.
+// Runtime "does this candidate match the child schema?" test used by the
+// mock walker's rejection sampling (mockType.ts) for the contains /
+// patternProperties / propertyNames checks. The generated VALIDATORS never
+// use this — the checks are compiled there; this mirror exists only because
+// mocking is a runtime interpreter, so it needs a runtime answer to the same
+// question.
 //
 // Bias: where a named format's exact acceptance is expensive to reproduce,
 // the tests here are deliberately LOOSE (over-match). An over-match only
@@ -19,17 +20,17 @@ import {structuralFormatAccepts} from './structuralFormat.ts';
 
 const MAX_MATCH_DEPTH = 16;
 
-export function negationChildMatches(value: unknown, child: RunType): boolean {
+export function childSchemaMatches(value: unknown, child: RunType): boolean {
   return matches(value, child, 0);
 }
 
 function matches(value: unknown, node: RunType, depth: number): boolean {
-  if (depth > MAX_MATCH_DEPTH) throw negationMatchError('recursion exceeded MAX_MATCH_DEPTH');
+  if (depth > MAX_MATCH_DEPTH) throw childMatchError('recursion exceeded MAX_MATCH_DEPTH');
   const kind = node.kind as number;
   switch (kind) {
     case RunTypeKind.ref: {
       const resolved = getRTUtils().getRunType(node.id as string);
-      if (!resolved) throw negationMatchError(`unresolvable ref '${String(node.id)}'`);
+      if (!resolved) throw childMatchError(`unresolvable ref '${String(node.id)}'`);
       return matches(value, resolved, depth + 1);
     }
     case RunTypeKind.any:
@@ -87,20 +88,8 @@ function matches(value: unknown, node: RunType, depth: number): boolean {
         return element === undefined ? true : matches(item, element, depth + 1);
       });
     }
-    case RunTypeKind.union: {
-      // OneOf (exactly-one) counts BRANCH matches — the tag's branch list,
-      // not the flattened members. A branch over-match can flip a true
-      // exactly-one to a false here (count 1 → 2); that direction only
-      // wastes a retry in the mock loop, and the `validate(mock())` gate
-      // still polices the rare oneOf-under-negation path.
-      const branches = node.oneOf as RunType[] | undefined;
-      if (branches && branches.length > 0) {
-        let count = 0;
-        for (const branch of branches) if (matches(value, branch, depth + 1)) count++;
-        return count === 1;
-      }
+    case RunTypeKind.union:
       return (node.children ?? []).some((arm) => matches(value, arm, depth + 1));
-    }
     case RunTypeKind.objectLiteral: {
       if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
       if (!structuralFormatAccepts(value, node.formatAnnotation)) return false;
@@ -123,7 +112,7 @@ function matches(value: unknown, node: RunType, depth: number): boolean {
       return true;
     }
     default:
-      throw negationMatchError(`cannot test a candidate against child kind ${kind}`);
+      throw childMatchError(`cannot test a candidate against child kind ${kind}`);
   }
 }
 
@@ -198,7 +187,7 @@ type PatternParam = {source?: unknown; flags?: unknown};
 function patternTest(param: unknown, value: string): boolean {
   const pattern = param as PatternParam;
   if (!pattern || typeof pattern.source !== 'string') {
-    throw negationMatchError('pattern param without a literal source');
+    throw childMatchError('pattern param without a literal source');
   }
   return new RegExp(pattern.source, typeof pattern.flags === 'string' ? pattern.flags : '').test(value);
 }
@@ -236,7 +225,7 @@ function formatMatches(value: string, annotation: FormatAnnotation | undefined):
   // test demands a dot that the single-label HOSTNAME_PATTERN does not.
   if (params.pattern) return stringParamsMatch(value, params);
   const named = NAMED_STRING_FORMATS[name];
-  if (!named) throw negationMatchError(`no runtime test for string format '${name}'`);
+  if (!named) throw childMatchError(`no runtime test for string format '${name}'`);
   // Pattern-less named formats (ip / uuid / idn-hostname / the RFC email pair)
   // carry their check in the emitter, not in params; the loose test over-matches
   // them, which is the safe direction.
@@ -290,13 +279,12 @@ function stringParamsMatch(value: string, params: Record<string, unknown>): bool
       // the pattern arm has already tested it. Any other setting is a check
       // this walker cannot reproduce.
       case 'idna':
-        if (param !== 'ascii') throw negationMatchError(`no runtime test for idna '${String(param)}'`);
+        if (param !== 'ascii') throw childMatchError(`no runtime test for idna '${String(param)}'`);
         break;
       case 'mockSamples':
-      case 'not':
         break; // generation-only / handled by the caller
       default:
-        throw negationMatchError(`no runtime test for string param '${key}'`);
+        throw childMatchError(`no runtime test for string param '${key}'`);
     }
   }
   return true;
@@ -327,10 +315,9 @@ function numberParamsMatch(value: number, annotation: FormatAnnotation | undefin
         break;
       case 'isCurrency':
       case 'mockSamples':
-      case 'not':
         break; // presentation / generation-only
       default:
-        throw negationMatchError(`no runtime test for number param '${key}'`);
+        throw childMatchError(`no runtime test for number param '${key}'`);
     }
   }
   return true;
@@ -359,59 +346,24 @@ function bigintParamsMatch(value: bigint, annotation: FormatAnnotation | undefin
         break;
       }
       case 'mockSamples':
-      case 'not':
         break;
       default:
-        throw negationMatchError(`no runtime test for bigint param '${key}'`);
+        throw childMatchError(`no runtime test for bigint param '${key}'`);
     }
   }
   return true;
 }
 
-function negationMatchError(reason: string): Error {
+function childMatchError(reason: string): Error {
   return new Error(
-    `Cannot mock a negated type (${reason}). Provide a MockData pool for this type (enrich) with values that do not match the negation.`
+    `Cannot mock a constrained child (${reason}). Provide a MockData pool for this type (enrich) with values that satisfy the constraint.`
   );
 }
 
-/** True for the rejection-sampling give-up errors (both the exhausted-attempts
- *  throw in mockType and the cannot-test throws above). The union mock walker
- *  uses this to fall through to a sibling arm — a negated union arm can be
- *  provably empty (a schema enum member excluded by a sibling `not`), and
- *  only an ALL-arms failure should surface. **/
-export function isNegationMockError(error: unknown): boolean {
-  return error instanceof Error && error.message.startsWith('Cannot mock a negated type');
-}
-
-// ───────────────────── analytic numeric complements ─────────────────────
-// When the base generator keeps producing values that match a negated
-// numeric child (e.g. the integer draws of `random.number` against
-// `Not<Integer>`), the complement can be CONSTRUCTED from the child's own
-// params: just outside each bound, off the integer grid, off the multiple.
-// Candidates that fail the parent's own positive format are filtered by the
-// caller through `negationChildMatches`-style checks before use.
-
-export function analyticNumericComplement(parent: RunType): unknown[] {
-  const isBigInt = (parent.kind as number) === RunTypeKind.bigint;
-  const candidates: unknown[] = [];
-  for (const raw of parent.negations ?? []) {
-    const child = (raw.kind as number) === RunTypeKind.ref ? getRTUtils().getRunType(raw.id as string) : raw;
-    const params = child?.formatAnnotation?.params ?? {};
-    if (isBigInt) {
-      if (typeof params.min === 'number' || typeof params.min === 'string') candidates.push(BigInt(params.min) - 1n);
-      if (typeof params.max === 'number' || typeof params.max === 'string') candidates.push(BigInt(params.max) + 1n);
-      continue;
-    }
-    if (typeof params.min === 'number') candidates.push(params.min - 1);
-    if (typeof params.max === 'number') candidates.push(params.max + 1);
-    if (typeof params.gt === 'number') candidates.push(params.gt);
-    if (typeof params.lt === 'number') candidates.push(params.lt);
-    if (params.integer === true) candidates.push(0.5, 7.5, -1.5);
-    if (typeof params.multipleOf === 'number' && params.multipleOf !== 0) {
-      candidates.push(params.multipleOf / 2, params.multipleOf * 1.5);
-    }
-  }
-  // Generic off-grid fallbacks so an empty-params child still gets a shot.
-  if (!isBigInt) candidates.push(0.5, -0.5);
-  return candidates;
+/** True for the rejection-sampling give-up errors (the cannot-test throws
+ *  above). The union mock walker uses this to fall through to a sibling arm —
+ *  a constrained arm can be unmockable while its siblings are fine, and only
+ *  an ALL-arms failure should surface. **/
+export function isMockSamplingError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('Cannot mock a constrained child');
 }

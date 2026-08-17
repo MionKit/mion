@@ -62,17 +62,6 @@
         "types": "./dist/cjs/builders/index.d.ts",
         "default": "./dist/cjs/builders/index.js"
       }
-    },
-    "./json-schema": {
-      "source": "./src/json-schema/index.ts",
-      "import": {
-        "types": "./dist/json-schema/index.d.ts",
-        "default": "./dist/json-schema/index.js"
-      },
-      "require": {
-        "types": "./dist/cjs/json-schema/index.d.ts",
-        "default": "./dist/cjs/json-schema/index.js"
-      }
     }
   },
   "bin": {
@@ -101,7 +90,7 @@
   },
   "scripts": {
     "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit && tsc -p test/json-schema-official/tsconfig.json --noEmit",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "pretest": "pnpm --filter @ts-runtypes/devtools run build",
     "test": "vitest run",
     "dev:test": "vitest watch",

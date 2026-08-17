@@ -10,20 +10,16 @@
 // the `brand` tag) moved to the `ts-runtypes/formats` surface (namespaced `TF`),
 // and the `temporal.*` builders to `ts-runtypes/formats/temporal` (`TFT`); none of
 // them are exported here — a format's TYPE and its BUILDER now live together.
-// ONE deliberate exception: `not` (format negation) is re-exported below so the
-// builder surface can spell `RT.not(TF.email())` — negation reads as composition,
-// and the builder namespace is where composition lives.
 //
 // The older `ts-runtypes/schema` subpath still resolves to THIS module as a
 // deprecated alias; it is removed at 1.0 (see docs/ROADMAP.md).
-export {not} from '../formats/not.ts';
 
 // The STRUCTURAL array/object keywords are no longer separate builders: every
 // one rides a trailing params bag on `array` / `object` / `record`
 // (`RT.array(RT.number(), {uniqueItems: true})`), and the wrapper TYPES
 // `FormattedArray` / `FormattedObject` live on the `ts-runtypes/formats`
-// surface beside the other format types. All three authoring modes (type-first,
-// value-first, JSON Schema) converge on one id.
+// surface beside the other format types. Both authoring modes (type-first,
+// value-first) converge on one id.
 
 // Atomic NON-format builders — the atomic leaves (`literal` / `regexp` / `symbol`),
 // `boolean`, the top / bottom kinds (`any` / `unknown` / `never` / `void`;
@@ -56,7 +52,6 @@ export {
   tuple,
   slot,
   union,
-  oneOf,
   anyOf,
   intersection,
   record,
@@ -70,9 +65,6 @@ export {
   templateLiteral,
   propMod,
   optional,
-  dependentRequired,
-  dependentSchemas,
-  conditional,
 } from './compose.ts';
 
 // Utility-type builders — Partial / Required / Pick / Omit / Exclude / Extract /
@@ -97,7 +89,7 @@ export {
 // Type-level composer helpers (in static.ts). The format-builder helpers
 // (`InferType` / `BrandArg` / `LeafType` / …) live in runtypes/builderTypes.ts;
 // `InferType` is re-exported from the package root.
-export type {PropModifiers, MapTuple, TemplatePart, AssembleTemplate, OneOf, AnyOf} from './static.ts';
+export type {PropModifiers, MapTuple, TemplatePart, AssembleTemplate, AnyOf} from './static.ts';
 
 // Run-type registration is per-entry now: the value-first builders' marker
 // call sites import their type's virtual entry module and register it (plus

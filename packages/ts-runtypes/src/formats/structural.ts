@@ -1,11 +1,9 @@
-// Structural formats — the value-first + type-first spelling of the JSON
-// Schema array/object keywords that have no plain TS shape. There are exactly
-// TWO wrappers, `FormattedArray<Base, P>` and `FormattedObject<Base, P>`, and
-// EVERY array/object keyword rides their params bag (`FormattedArrayParams` /
-// `FormattedObjectParams`). Each wrapper reproduces the schema translation's
-// lowering (fromJsonSchema.ts) member-for-member, so the three authoring modes
-// (type-first, value-first, JSON Schema) converge on ONE structural id by
-// construction.
+// Structural formats — the value-first + type-first spelling of the
+// array/object constraint keywords that have no plain TS shape. There are
+// exactly TWO wrappers, `FormattedArray<Base, P>` and `FormattedObject<Base, P>`,
+// and EVERY array/object keyword rides their params bag (`FormattedArrayParams` /
+// `FormattedObjectParams`). The two authoring modes (type-first, value-first)
+// converge on ONE structural id by construction.
 //
 // ONE BAG IN, TWO CHANNELS OUT. The params bag is the whole authoring surface:
 // `contains` sits in `FormattedArrayParams` next to `minItems`, and a caller
@@ -17,36 +15,24 @@
 // id and one type spelled two ways could split. The keywords that carry a TYPE
 // (`contains`, `patternProperties`, `propertyNames`) therefore ride a
 // dedicated one-property sentinel instead, which the resolver walks as a real
-// type — the same convention the negation sentinel `__rtNot` already uses
-// (`NotChildTypeFromMember`, same file). The literal-valued keywords
+// type. The literal-valued keywords
 // (length/count bounds, uniqueItems, closedness) ride the brand.
 //
 // `closed` / `closedPatterns` (from `additionalProperties: false`) are part of
 // `FormattedObjectParams` but are DERIVED, never hand-authored: an allowed-key
 // list that disagrees with the inner shape is a silent always-reject footgun,
 // so the value-first `object` builder computes them from the shape rather than
-// taking a hand-written list (see compose.ts). The schema door derives them
-// from the schema's own `properties`.
+// taking a hand-written list (see compose.ts).
 
 import type {RunType} from '../runtypes/types.ts';
-import type {
-  __rtFormatName,
-  __rtFormatParams,
-  __rtContains,
-  __rtPatternProps,
-  __rtPropNames,
-  __rtUnevaluated,
-} from '../runtypes/sentinelKeys.ts';
+import type {__rtFormatName, __rtFormatParams, __rtContains, __rtPatternProps, __rtPropNames} from '../runtypes/sentinelKeys.ts';
 
 type Flatten<T> = {[K in keyof T]: T[K]};
 
-// #region structural-slice — the type-first structural surface below is shared
-// VERBATIM into the JSON Schema translation tests (jsonSchemaHarness.ts and
-// jsonSchemaFuzz.integration.test.ts), so those tests exercise these REAL type
-// definitions rather than hand-written copies. It is RunType-free on purpose
-// (the value-first halves that need RunType live BELOW the region); `Flatten`
-// (above) and the sentinel KEY symbols are supplied by the module the tests
-// slice this into. The key symbols only have to be declared with the same NAMES
+// #region structural-slice — the type-first structural surface. It is
+// RunType-free on purpose (the value-first halves that need RunType live BELOW
+// the region); `Flatten` (above) and the sentinel KEY symbols are supplied by
+// this module. The key symbols only have to be declared with the same NAMES
 // (`declare const __rtFormatName: unique symbol`, …) — the resolver matches a
 // symbol-keyed property on its declaration name, so a locally declared symbol
 // is recognised exactly like the shipped one.
@@ -59,7 +45,7 @@ export const FORMATTED_OBJECT_NAME = 'formattedObject';
 
 /** The two structural-brand sentinels, spelled raw (TypeFormat's base is
  *  primitive-constrained, so array / object brands carry the sentinels as a
- *  plain intersection member — same encoding the schema door emits).
+ *  plain intersection member).
  *  Exported ONCE from here — this is the wide-brand shape every metadata
  *  walker (DataOnly's keep probes, StripRunTypeMeta's collapse) matches. **/
 export type StructuralBrand<Name extends string, P extends object> = {
@@ -69,8 +55,8 @@ export type StructuralBrand<Name extends string, P extends object> = {
 
 // ─────────────────────────── Array params ───────────────────────────
 
-/** Every JSON Schema array keyword, as one bag. `minItems`/`maxItems` are
- *  exact length bounds, `uniqueItems` is 2020-12 deep JSON equality;
+/** Every array constraint keyword, as one bag. `minItems`/`maxItems` are
+ *  exact length bounds, `uniqueItems` is deep JSON equality;
  *  `contains` (with the optional `minContains`/`maxContains` occurrence
  *  bounds) is the element type at least one item must match.
  *
@@ -86,7 +72,6 @@ export interface FormattedArrayParams<Contains = unknown> {
   readonly contains?: Contains;
   readonly minContains?: number;
   readonly maxContains?: number;
-  readonly unevaluated?: UnevaluatedSpec<Contains>;
 }
 
 // The literal keywords that ride `__rtFormatParams`. Selecting them by key is
@@ -96,7 +81,7 @@ export interface FormattedArrayParams<Contains = unknown> {
 type ArrayLiteralKeys = 'minItems' | 'maxItems' | 'uniqueItems';
 type ArrayLiteralPart<P> = {readonly [K in Extract<keyof P, ArrayLiteralKeys>]: P[K]};
 
-// The `contains` child slot — matches the door's ContainsPart exactly:
+// The `contains` child slot:
 // `{rt$child: C; rt$min: N|1; rt$max?: M}` under an optional `__rtContains`.
 type ContainsSlot<P> = P extends {contains: infer C}
   ? {
@@ -108,16 +93,15 @@ type ContainsSlot<P> = P extends {contains: infer C}
   : unknown;
 
 /** An array/tuple base carrying every array keyword in `P`. The literal bounds
- *  ride the `formattedArray` brand (added only when at least one is present,
- *  matching the door), `contains` rides its own child sentinel. **/
+ *  ride the `formattedArray` brand (added only when at least one is present),
+ *  `contains` rides its own child sentinel. **/
 export type FormattedArray<Base extends readonly unknown[], P extends FormattedArrayParams> = Base &
   ([keyof ArrayLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_ARRAY_NAME, ArrayLiteralPart<P>>) &
-  ContainsSlot<P> &
-  UnevaluatedSlot<P>;
+  ContainsSlot<P>;
 
 // ─────────────────────────── Object params ──────────────────────────
 
-/** Every JSON Schema object keyword, as one bag. `minProperties`/
+/** Every object constraint keyword, as one bag. `minProperties`/
  *  `maxProperties` are key-count bounds; `patternProperties` maps a
  *  pattern-source to the value TYPE its matching keys carry; `propertyNames`
  *  is the string constraint every key must satisfy; `closed`/`closedPatterns`
@@ -137,56 +121,20 @@ export interface FormattedObjectParams<Value = unknown, Key = string> {
   /** The keys a SCHEMA-valued `additionalProperties` exempts: the schema's OWN
    *  `properties`, and nothing else. Without it the emitted index-signature
    *  sweep exempts every key the merged object happens to declare, so a
-   *  property contributed by an `allOf` member wrongly escapes the check —
-   *  2020-12 has `additionalProperties` look at its own siblings only. **/
+   *  property contributed by an intersection member wrongly escapes the
+   *  check. **/
   readonly additionalOwn?: readonly string[];
-  readonly unevaluated?: UnevaluatedSpec<Value>;
-}
-
-/** The run-time evaluated-key sweep behind `unevaluatedProperties`, for the
- *  scopes the document alone cannot decide. `keys` / `sources` are evaluated
- *  UNCONDITIONALLY (own keywords, every `allOf` member, every `$ref` target —
- *  all must pass for the schema to pass); `groups` carry the contributions a
- *  guard decides at run time. `value` is what a key nobody evaluated must
- *  satisfy, absent for the `false` reading where nothing does. **/
-export interface UnevaluatedSpec<Value = unknown> {
-  readonly value?: Value;
-  readonly keys?: readonly string[];
-  readonly sources?: readonly string[];
-  /** The array twin of `keys`: how many leading indexes are evaluated. **/
-  readonly prefix?: number;
-  readonly groups?: readonly UnevaluatedGroup<Value>[];
-}
-
-/** One conditional contribution. Exactly one guard: `when` is a subschema whose
- *  SUCCESS fires it (an `anyOf` / `oneOf` arm, or an `if`), `whenNot` the same
- *  subschema failing (the `else` side), `whenKey` a key's presence
- *  (`dependentSchemas`). `all` marks a group evaluating EVERY key when it fires
- *  — an arm carrying `additionalProperties`, `items` or its own
- *  `unevaluated*`. **/
-export interface UnevaluatedGroup<Value = unknown> {
-  readonly when?: Value;
-  readonly whenNot?: Value;
-  readonly whenKey?: string;
-  readonly keys?: readonly string[];
-  readonly sources?: readonly string[];
-  readonly prefix?: number;
-  readonly all?: true;
 }
 
 type ObjectLiteralKeys = 'minProperties' | 'maxProperties' | 'closed' | 'closedPatterns' | 'additionalOwn';
 type ObjectLiteralPart<P> = {readonly [K in Extract<keyof P, ObjectLiteralKeys>]: P[K]};
 
-// The `patternProperties` slot — matches the door's PatternPropsPart: each
-// key's `rt$key` is a stringFormat pattern brand over the source, `rt$value`
-// is the pattern's value type.
+// The `patternProperties` slot: each key's `rt$key` is a stringFormat pattern
+// brand over the source, `rt$value` is the pattern's value type.
 //
 // `flags: ''` here is DELIBERATE and matches the runtime: the emitted key
 // sweeps compile `new RegExp(source)` with no flags, so the brand (which only
-// powers the mock sample pools) says the same. The door's `pattern` keyword
-// compiles with `'u'` instead — a documented divergence, kept because
-// flipping the key sweeps to unicode mode would throw at factory time on
-// legal legacy patterns that are invalid under `u`.
+// powers the mock sample pools) says the same.
 type PatternPropsSlot<P> = P extends {patternProperties: infer M}
   ? {
       readonly [__rtPatternProps]?: {
@@ -198,13 +146,9 @@ type PatternPropsSlot<P> = P extends {patternProperties: infer M}
     }
   : unknown;
 
-// The `propertyNames` slot — matches the door's PropNamesPart (`never` is the
+// The `propertyNames` slot (`never` is the
 // `propertyNames: false` case: no key may be present).
 type PropNamesSlot<P> = P extends {propertyNames: infer N} ? {readonly [__rtPropNames]?: N} : unknown;
-
-// The `unevaluated` slot — carried whole so the collapse can lift the guard
-// subschemas as CHILD TYPES (a format-annotation param cannot hold a RunType).
-type UnevaluatedSlot<P> = P extends {unevaluated: infer U} ? {readonly [__rtUnevaluated]?: U} : unknown;
 
 /** An object/record base carrying every object keyword in `P`. The literal
  *  bounds + closedness ride the `formattedObject` brand (added only when at
@@ -213,8 +157,7 @@ type UnevaluatedSlot<P> = P extends {unevaluated: infer U} ? {readonly [__rtUnev
 export type FormattedObject<Base extends object, P extends FormattedObjectParams> = Base &
   ([keyof ObjectLiteralPart<P>] extends [never] ? unknown : StructuralBrand<typeof FORMATTED_OBJECT_NAME, ObjectLiteralPart<P>>) &
   PatternPropsSlot<P> &
-  PropNamesSlot<P> &
-  UnevaluatedSlot<P>;
+  PropNamesSlot<P>;
 
 // #endregion structural-slice
 

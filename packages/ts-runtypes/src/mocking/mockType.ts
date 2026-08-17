@@ -13,7 +13,7 @@ import type {RunType} from '../runtypes/types.ts';
 import {RunTypeKind, RunTypeSubKind} from '../go-generated/runTypeKind.generated.ts';
 import type {RunTypeKindValue} from '../go-generated/runTypeKind.generated.ts';
 import {getMockingFunction} from './mockRegistry.ts';
-import {negationChildMatches, analyticNumericComplement, isNegationMockError} from './negationMatch.ts';
+import {childSchemaMatches, isMockSamplingError} from './childMatch.ts';
 import {canonicalJson, isStructuralFormat, structuralFormatAccepts} from './structuralFormat.ts';
 import {getRTUtils} from '../runtypes/rtUtils.ts';
 import {nativeMockRandom} from './mockRandom.ts';
@@ -147,77 +147,40 @@ function dataArrayLength(node: MockDataNode | undefined, random: MockRandom): nu
   return undefined;
 }
 
-// Bounded rejection sampling for negated types: complements of real-world
-// constraints are dense, so a handful of draws converges. A type whose
-// candidates keep matching the negation is an authoring problem and must
+// Bounded rejection sampling for constrained structural formats: the
+// admissible set is dense, so a handful of draws converges. A type whose
+// candidates keep failing the constraints is an authoring problem and must
 // surface loudly, not spin.
-const NEGATION_MOCK_ATTEMPTS = 32;
+const STRUCTURAL_MOCK_ATTEMPTS = 32;
 
-/** Dispatch wrapper: negation-bearing nodes (`runType.negations`, the wire
- *  form of the `__rtNot` sentinel) draw from the base generator — enrichment
- *  pools included — and keep the first candidate matching NO negated child,
- *  so `validate(mock())` holds (the compiled validator checks `!(child)`).
- *  A pool whose values all match the negation throws below rather than
- *  shipping unsound mocks. **/
+/** Dispatch wrapper: structural-format nodes reject-sample from the base
+ *  generator — enrichment pools included — and keep the first candidate
+ *  satisfying the constraints, so `validate(mock())` holds. A pool whose
+ *  values never satisfy them throws below rather than shipping unsound
+ *  mocks. **/
 function mockSwitch(runType: RunType, options: RunTypeMockOptions, stack: RunType[]): unknown {
-  const negations = runType.negations;
   // Structural format annotations (formattedArray / formattedObject) reject-sample
   // through the same loop: the array case pre-shapes its draws (length
   // clamp, unique-aware fill), so this guard mostly polices tuple / record /
   // bare-object bases where the annotation landed on a non-array node.
   const structural = isStructuralFormat(runType.formatAnnotation) ? runType.formatAnnotation : undefined;
-  const hasNegations = !!negations && negations.length > 0;
-  if (!hasNegations && !structural) return mockKindSwitch(runType, options, stack);
-  for (let attempt = 0; attempt < NEGATION_MOCK_ATTEMPTS; attempt++) {
+  if (!structural) return mockKindSwitch(runType, options, stack);
+  for (let attempt = 0; attempt < STRUCTURAL_MOCK_ATTEMPTS; attempt++) {
     // Back half of the attempts: shrink collection draws — short (and empty)
-    // arrays dodge negated contains / minItems children that long random
-    // arrays keep matching, turning a ~1e-4 exhaustion flake into never.
+    // arrays dodge contains / minItems constraints that long random
+    // arrays keep failing, turning a ~1e-4 exhaustion flake into never.
     const attemptOptions =
-      attempt < NEGATION_MOCK_ATTEMPTS / 2
+      attempt < STRUCTURAL_MOCK_ATTEMPTS / 2
         ? options
         : {...options, mock: {...(options.mock as MockOptions), arrayLength: attempt % 3}};
     const candidate = mockKindSwitch(runType, attemptOptions, stack);
-    if (structural && !structuralFormatAccepts(candidate, structural)) continue;
-    if (hasNegations && negations.some((child) => negationChildMatches(candidate, child))) continue;
+    if (!structuralFormatAccepts(candidate, structural)) continue;
     return candidate;
   }
-  if (!hasNegations) {
-    throw new Error(
-      `Cannot mock a structural format: ${NEGATION_MOCK_ATTEMPTS} candidates all failed the ${String(runType.formatAnnotation?.name)} constraints. ` +
-        'Provide a MockData pool for this type (enrich) with values that satisfy them.'
-    );
-  }
-  // Numeric bases: the random generator may sit entirely inside the negated
-  // set (integer draws vs ¬Integer); construct complements from the child's
-  // own params instead of giving up.
-  const kind = runType.kind as number;
-  if (kind === RunTypeKind.number || kind === RunTypeKind.bigint) {
-    for (const candidate of analyticNumericComplement(runType)) {
-      if (kind === RunTypeKind.number && !numberFormatAccepts(candidate, runType)) continue;
-      if (!negations.some((child) => negationChildMatches(candidate, child))) return candidate;
-    }
-  }
   throw new Error(
-    `Cannot mock a negated type: ${NEGATION_MOCK_ATTEMPTS} candidates all matched the negated constraint. ` +
-      'Provide a MockData pool for this type (enrich) with values that do not match the negation.'
+    `Cannot mock a structural format: ${STRUCTURAL_MOCK_ATTEMPTS} candidates all failed the ${String(runType.formatAnnotation?.name)} constraints. ` +
+      'Provide a MockData pool for this type (enrich) with values that satisfy them.'
   );
-}
-
-/** Positive filter for analytic complement candidates: the candidate must
- *  still satisfy the PARENT's own format params (when the negated node also
- *  carries positive constraints, e.g. a schema-authored
- *  `{type:'number', minimum: 0, not: {multipleOf: 1}}`). **/
-function numberFormatAccepts(candidate: unknown, runType: RunType): boolean {
-  if (typeof candidate !== 'number' || !Number.isFinite(candidate)) return false;
-  const params = runType.formatAnnotation?.params;
-  if (!params) return true;
-  if (typeof params.min === 'number' && candidate < params.min) return false;
-  if (typeof params.max === 'number' && candidate > params.max) return false;
-  if (typeof params.gt === 'number' && candidate <= params.gt) return false;
-  if (typeof params.lt === 'number' && candidate >= params.lt) return false;
-  if (params.integer === true && !Number.isInteger(candidate)) return false;
-  if (typeof params.multipleOf === 'number' && params.multipleOf !== 0 && candidate % params.multipleOf !== 0) return false;
-  return true;
 }
 
 /** Per-kind dispatch. New kinds land here, NOT in helper files — the whole
@@ -374,7 +337,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
           const entryItems: unknown[] = [];
           for (let n = 0; n < entry.min; n++) {
             const item = mockRunType(entry.child, childOpts, stack);
-            if (!negationChildMatches(item, child)) {
+            if (!childSchemaMatches(item, child)) {
               throw new Error(
                 'Cannot mock contains: the contains child and the items type are contradictory. ' +
                   'Provide a MockData pool for this type (enrich).'
@@ -390,7 +353,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
         while (items.length < Math.max(length, matched.length) && fillerAttempts < 64) {
           fillerAttempts++;
           const filler = mockRunType(child, childOpts, stack);
-          if (containsChecks.every((entry) => !negationChildMatches(filler, entry.child))) items.push(filler);
+          if (containsChecks.every((entry) => !childSchemaMatches(filler, entry.child))) items.push(filler);
         }
         if (arrayParams?.uniqueItems === true) {
           const seen = new Set<string>();
@@ -490,7 +453,7 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       // loudly rather than ship a maybe-invalid mock.
       const tupleContains = (runType.contains ?? []) as {child: RunType; min: number; max: number}[];
       for (const entry of tupleContains) {
-        const overCount = shaped.filter((item) => negationChildMatches(item, entry.child)).length;
+        const overCount = shaped.filter((item) => childSchemaMatches(item, entry.child)).length;
         if (entry.min > 0 || (entry.max >= 0 && overCount > entry.max)) {
           throw new Error(
             'Cannot mock contains over a tuple (prefixItems) base. Provide a MockData pool for this type (enrich).'
@@ -580,41 +543,6 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       return parent;
     }
     case RunTypeKind.union: {
-      // OneOf (exactly-one): draw from the BRANCH list and reject any
-      // candidate a second branch also matches — the mock must land in
-      // exactly one branch or the generated validator rejects it. Branch
-      // rotation + a bounded attempt budget mirror the negation loop;
-      // exclusivity can be genuinely unsatisfiable (duplicate branches), so
-      // exhaustion throws loudly instead of shipping an invalid mock.
-      const oneOfBranches = runType.oneOf as RunType[] | undefined;
-      if (oneOfBranches && oneOfBranches.length > 0) {
-        // An explicit unionIndex picks the BRANCH (the tuple as written,
-        // duplicates and grouping preserved) — the author's pick, no silent
-        // fallback: every draw comes from that branch and a pick that can't
-        // land exclusively throws.
-        const pickedBranch = mOps.unionIndex;
-        if (pickedBranch !== undefined && (pickedBranch < 0 || pickedBranch >= oneOfBranches.length)) {
-          throw new Error('unionIndex must be between 0 and the number of oneOf branches.');
-        }
-        // Budget scales with width so rotation reaches EVERY branch even
-        // past 32 of them (each branch gets at least four draws).
-        const attempts = Math.max(32, oneOfBranches.length * 4);
-        for (let attempt = 0; attempt < attempts; attempt++) {
-          const branchIndex: number = pickedBranch ?? attempt % oneOfBranches.length;
-          let candidate: unknown;
-          try {
-            candidate = mockRunType(oneOfBranches[branchIndex], options, stack);
-          } catch (error) {
-            if (!isNegationMockError(error)) throw error;
-            continue;
-          }
-          const exclusive = oneOfBranches.every((other, i) => i === branchIndex || !negationChildMatches(candidate, other));
-          if (exclusive) return candidate;
-        }
-        throw new Error(
-          `Cannot mock OneOf: no candidate matched exactly one branch after ${attempts} attempts — the branches overlap too heavily (or are duplicates, which no value can satisfy).`
-        );
-      }
       const allChildren = (runType.children ?? []) as RunType[];
       // Pick only among the DataOnly-surviving members so the value passes
       // validate<T> (the validator drops stripped members like symbol /
@@ -631,20 +559,20 @@ function mockKindSwitch(runType: RunType, options: RunTypeMockOptions, stack: Ru
       const index = mOps.unionIndex ?? random.int(0, children.length - 1);
       // An explicit unionIndex is the author's pick — no silent fallback.
       if (mOps.unionIndex !== undefined) return mockRunType(children[index], options, stack);
-      // A negated arm can be provably empty (a schema enum member excluded
-      // by a sibling `not`) and exhaust its rejection sampling. Fall through
-      // to the remaining arms; only an all-arms failure surfaces.
-      let negationFailure: unknown;
+      // A constrained arm can exhaust its rejection sampling while its
+      // siblings are fine. Fall through to the remaining arms; only an
+      // all-arms failure surfaces.
+      let samplingFailure: unknown;
       for (let offset = 0; offset < children.length; offset++) {
         const arm = children[(index + offset) % children.length];
         try {
           return mockRunType(arm, options, stack);
         } catch (error) {
-          if (!isNegationMockError(error)) throw error;
-          negationFailure = error;
+          if (!isMockSamplingError(error)) throw error;
+          samplingFailure = error;
         }
       }
-      throw negationFailure;
+      throw samplingFailure;
     }
     case RunTypeKind.templateLiteral:
       return buildTemplateLiteralString(runType, mOps, random);
@@ -715,11 +643,8 @@ function buildObjectLiteral(
   // batches. Shapes the loop cannot fix (a closed literal below its
   // minProperties) fall back to the rejection loop's loud give-up.
   const annotation = runType.formatAnnotation;
-  // `unevaluatedKeys` rides the node rather than the annotation params (the
-  // keyword never shapes the type, so a node can carry the sweep and no
-  // formattedObject brand at all), which is why it opens this block too.
-  if (annotation?.name === 'formattedObject' || runType.unevaluatedKeys) {
-    const params = (annotation?.name === 'formattedObject' ? (annotation.params ?? {}) : {}) as Record<string, unknown>;
+  if (annotation?.name === 'formattedObject') {
+    const params = (annotation.params ?? {}) as Record<string, unknown>;
     const declared = new Set<string | number>();
     let indexMember: RunType | undefined;
     for (const member of children) {
@@ -733,22 +658,10 @@ function buildObjectLiteral(
     // sampling alone never converges here, it just burns all 32 candidates and
     // gives up. Runs before AND after the minProperties top-up, since the
     // top-up draws fresh index batches.
-    //
-    // `unevaluatedProperties` closes the same way, but off the SENTINEL rather
-    // than a param, since it never shapes the type. Its admissible set is the
-    // unconditionally evaluated keys plus every guarded group's — a group's key
-    // only counts when its arm passed, and a mock that carries the key carries
-    // whatever the arm demanded to produce it, so including them is sound and
-    // leaving them out would delete keys the shape itself asked for. A schema
-    // VALUE (`unevaluatedProperties: {…}`) admits leftovers as long as they
-    // match it, which an arbitrary index draw will not, so it trims the same.
     const stringList = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
-    const closedParam = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
-    const closed = closedParam ?? runType.unevaluatedKeys;
-    const closedPatterns = [...stringList(params.closedPatterns), ...(runType.unevaluatedSources ?? [])].map(
-      (source) => new RegExp(source)
-    );
+    const closed = Array.isArray(params.closed) ? (params.closed as unknown[]) : undefined;
+    const closedPatterns = stringList(params.closedPatterns).map((source) => new RegExp(source));
     const trimDisallowedKeys = (): void => {
       if (!closed) return;
       for (const key of Object.keys(parent)) {
@@ -828,7 +741,7 @@ function buildObjectLiteral(
       for (let attempt = 0; attempt < 8; attempt++) {
         const renamed = mockRunType(propNames[0], options, stack);
         if (typeof renamed !== 'string' || renamed in parent) continue;
-        if (!propNames.every((entry) => negationChildMatches(renamed, entry))) continue;
+        if (!propNames.every((entry) => childSchemaMatches(renamed, entry))) continue;
         parent[renamed] = entryValue;
         break;
       }

@@ -1,4 +1,4 @@
-import type {__rtFormatName, __rtNot, __rtContains, __rtPatternProps, __rtPropNames, __rtOneOf} from './sentinelKeys.ts';
+import type {__rtFormatName, __rtContains, __rtPatternProps, __rtPropNames} from './sentinelKeys.ts';
 
 /* ########
  * 2024 ma-jerez
@@ -169,26 +169,17 @@ export type DataOnly<T, Depth extends number = 8> = Depth extends 0
       : T extends string | number | boolean | bigint | null | undefined | DataOnlyNative
         ? T // primitive / native (+ Temporal) — keep verbatim
         : DataOnlySentinelKept<T> extends true
-          ? T // sentinel-branded container (format brand / negation / child-schema slot / oneOf carrier) — keep verbatim, exactly like a branded primitive: mapping over the intersection would mangle the brand (and hand the checker an array-like with no reference target)
+          ? T // sentinel-branded container (format brand / child-schema slot) — keep verbatim, exactly like a branded primitive: mapping over the intersection would mangle the brand (and hand the checker an array-like with no reference target)
           : DataOnlyLadder<T, Depth>;
 // Sentinel detection must survive a string INDEX SIGNATURE base (a record's
 // keyof absorbs the literal sentinel keys, and indexing a record at any key
 // returns the value type), so each probe filters on the sentinel's VALUE
 // SHAPE: a proper string-literal for the brand name, the rt$-keyed spec for
-// patternProperties, the string-family child for propertyNames, the branch
-// tuple for oneOf, the rt$child spec for contains. A record whose declared
+// patternProperties, the string-family child for propertyNames, the
+// rt$child spec for contains. A record whose declared
 // value type happens to match a filter is kept verbatim — harmless, those
-// value shapes are inherently clean data. The one probe that cannot be
-// shape-filtered (__rtNot carries an arbitrary child) is gated off records
-// entirely; a record-based negation under DataOnly stays a documented
-// residual rather than a silent strip of record values.
-type DataOnlySentinelKeys =
-  | typeof __rtFormatName
-  | typeof __rtNot
-  | typeof __rtContains
-  | typeof __rtPatternProps
-  | typeof __rtPropNames
-  | typeof __rtOneOf;
+// value shapes are inherently clean data.
+type DataOnlySentinelKeys = typeof __rtFormatName | typeof __rtContains | typeof __rtPatternProps | typeof __rtPropNames;
 // The common path (every plain object / array / tuple in every DataOnly
 // walk) pays ONE Extract + ONE index-signature check: a literal sentinel
 // key in keyof T is definitive (the __rt namespace is reserved), and only
@@ -201,14 +192,11 @@ type DataOnlyProperStringLiteral<X> = [X] extends [never] ? false : string exten
 // Record probes: indexing a record at any key returns the VALUE type, so
 // each probe filters on the sentinel's value shape; false positives are
 // limited to inherently-clean value shapes (a proper string literal, the
-// rt$value spec, a string-family child, a branch tuple). __rtNot carries an
-// arbitrary child and cannot be shape-filtered — record-based negation
-// stays a documented DataOnly divergence rather than a silent strip.
+// rt$value spec, a string-family child).
 type DataOnlyRecordSentinelKept<T> = true extends
   | DataOnlyProperStringLiteral<NonNullable<T[typeof __rtFormatName & keyof T]>>
   | DataOnlySentinelProbe<NonNullable<T[typeof __rtPatternProps & keyof T]>, Record<string, {rt$value: unknown}>>
   | DataOnlySentinelProbe<NonNullable<T[typeof __rtPropNames & keyof T]>, string>
-  | DataOnlySentinelProbe<NonNullable<T[typeof __rtOneOf & keyof T]>, readonly [unknown, unknown, ...unknown[]]>
   ? true
   : false;
 type DataOnlyLadder<T, Depth extends number> =
