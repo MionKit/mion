@@ -95,6 +95,9 @@ var registry = []Operation{
 	{Name: "formatTransform", FamilyTag: "fmt", Axis: AxisNone, Public: true, FnKey: "fmt"},
 	{Name: "toBinary", FamilyTag: "tb", Axis: AxisNone, Public: true, FnKey: "tb", CircularGuarded: true},
 	{Name: "fromBinary", FamilyTag: "fb", Axis: AxisNone, Public: true, FnKey: "fb"},
+	// jsonSchema: the per-type JSON Schema DOCUMENT (schemadoc.RenderDocument
+	// rendered at build time); the entry's fn returns the document object.
+	{Name: "jsonSchema", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
 
 	// Public — composite JSON encoder / decoder (JsonStrategy axis). FamilyTag is
 	// empty; each strategy renders its own entry (per-strategy tags added to
