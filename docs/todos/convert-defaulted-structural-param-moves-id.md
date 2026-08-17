@@ -1,0 +1,53 @@
+---
+type: fix
+spec: guidelines
+status: ready
+created: 2026-08-17
+---
+
+# `--to builders` silently moves the id of a defaulted structural param brand
+
+## Problem
+
+Converting `TF.FormattedArray<string[], {uniqueItems: false}>` with
+`--to builders` prints the generic spelling
+`RT.array(TF.string(), {uniqueItems: false})`, which resolves a DIFFERENT
+structural id (observed `DxTv1xz` → `dZPrjlH`), and a follow-up `--to type`
+then drops the brand entirely (`string[]`). Identity preservation is the one
+thing convert promises never to break.
+
+## Why
+
+The public params surface in
+[packages/ts-runtypes/src/formats/structural.ts](../../packages/ts-runtypes/src/formats/structural.ts)
+declares `readonly uniqueItems?: true` — `false` is outside the public
+builder surface, so the printed params bag does not reconstruct the original
+brand. The precedent for exactly this shape is
+`TestChain_RegexPresetEscapesGenericSpelling`
+([ts-go-runtypes/internal/convert/roundtrip_test.go](../../ts-go-runtypes/internal/convert/roundtrip_test.go)):
+a brand whose params cannot be spelled by the public builders must ride the
+exact `getRunType<TypeFormat<…>>` constructor escape instead of the generic
+spelling.
+
+It was masked historically because only the (now removed) json-schema
+convert target ever exercised defaulted-param brands; the builders printer
+never had coverage for them. `minItems: 0` / `minProperties: 0` round-trip
+correctly and stay pinned by `TestChain_StructuralParamsAtTheirDefault`; the
+`uniqueItems: false` arm was trimmed from that test rather than pinning the
+id-moving behavior (2026-08-17, during the json-schema-input removal).
+
+## Fix direction
+
+Decide, per structural family, which param VALUES are outside the public
+builder surface (`uniqueItems: false` is the known case; audit the other
+literal-valued keywords for equivalents). For those, the builders printer
+must take the constructor escape route (`exactBrandType` /
+`getRunType<TypeFormat<…>>`), mirroring the `isRegex` precedent. Re-add the
+trimmed `uniqueItems: false` chain arm as the regression pin.
+
+## Done when
+
+- `TF.FormattedArray<string[], {uniqueItems: false}>` chain-converts
+  type → builders → type with the id held.
+- The trimmed arm is restored in `TestChain_StructuralParamsAtTheirDefault`
+  (or an equivalent pin).
