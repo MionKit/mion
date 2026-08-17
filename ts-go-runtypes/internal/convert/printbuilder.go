@@ -276,6 +276,15 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if !ok {
 			return "", unsupportedDiag(node, ctx.decl)
 		}
+		// A `never` rest is uninhabited, so it contributes no elements and
+		// TypeScript folds `[T, ...never[]]` into a shape the rebuilt
+		// `rest: RT.never()` does not resolve back to — the group spelling is
+		// NOT id-exact here (the convert fuzz caught `[any, ...never[]]`
+		// changing id on the builders leg, C2). The type-argument escape is
+		// exact, same as for template literals and objects below.
+		if shape.rest != nil && shape.rest.Kind == reflection.KindNever {
+			return ctx.builderEscape(node)
+		}
 		// Every tuple prints the GROUP form (`RT.tuple({required: […]})`), and
 		// only the groups it actually has — naming them is what makes the
 		// generated definition unambiguous, where a bare list reads as if it
