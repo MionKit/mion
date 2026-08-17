@@ -86,6 +86,14 @@ next build, no action needed).
   matching its own `CompiledFnArgs` contract (#299).
 - **typeid:** Non-serialisable globals are keyed by constructor, not lib members,
   so their ids no longer depend on which lib declaration supplied them.
+- **typeid:** A total-expansion budget bounds the structural-id walk, so a type
+  the compiler error-recovered from unparseable source can no longer spin
+  forever — the build reports the type as unresolvable instead of hanging.
+- **serialization:** A declared property whose value is a function is dropped by
+  every wire when the object also has an index signature. Its key stayed in the
+  index signature's sweep, so the index value's encoder ran over the function:
+  binary threw an uncontrolled `TypeError` and JSON silently emitted the
+  function's source text.
 - **resolver:** The shipped `DataOnly` ladder alias is recognised when composing
   `TypeName`.
 - **purefns:** Call/new type arguments are stripped from extracted pure-fn
