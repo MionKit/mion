@@ -34,6 +34,18 @@ orderSchemaDoc({libraryOptions: {portable: true}});
 // {type: 'string', pattern: '^-?[0-9]+$'}: only standard keywords survive.
 // end-portable
 
+// start-closedness
+// Declaring the paired encoder strategy closes the document to the keys the
+// wire can actually carry: clone and direct never emit undeclared keys, so
+// every object with declared properties gains additionalProperties: false.
+orderSchemaDoc({libraryOptions: {encoderStrategy: 'clone'}});
+// {type: 'object', properties: {...}, required: [...], additionalProperties: false}
+
+// A mutate pairing preserves extra keys on the wire, so its document stays
+// open; records keep the index schema additionalProperties already carries.
+orderSchemaDoc({libraryOptions: {encoderStrategy: 'mutate'}}); // unchanged
+// end-closedness
+
 // start-standard
 // createStandardSchema returns ONE object implementing both standard
 // interfaces: validation (validate) and JSON Schema conversion (jsonSchema).

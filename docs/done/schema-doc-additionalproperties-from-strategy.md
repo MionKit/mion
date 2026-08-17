@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-17
 ---
 
@@ -61,3 +61,33 @@ already guard against, see
 
 - Any new structural param or authoring surface for closedness.
 - Changing what the codecs themselves do with unknown keys.
+
+## Shipped (2026-08-17)
+
+Implemented as the runtime stamp (the `portable`-style post-process):
+
+- `libraryOptions.encoderStrategy` on the schema options
+  ([packages/ts-runtypes/src/standard/jsonSchemaDoc.ts](../../packages/ts-runtypes/src/standard/jsonSchemaDoc.ts)):
+  `'clone'` / `'direct'` deep-stamp `additionalProperties: false` onto every
+  KEYED object node (`type: 'object'` with declared `properties` and no
+  `additionalProperties` of its own); `'mutate'` leaves the document open;
+  `'compact'` throws a RangeError (its wire is positional arrays the keyed
+  document does not describe); an unknown value throws rather than silently
+  returning an open document. Records keep the index schema their
+  `additionalProperties` already carries, and the bare `object` keyword is
+  never closed (that would read as "no keys at all"). The stamp runs before
+  the portable strip, so a portable closed document keeps it.
+- The input()/output() deliberation resolved to the module's one-document
+  doctrine: the option is an explicit caller declaration of the paired
+  encoder's wire, and the one shared document reflects it on whichever side
+  reads it (`createJsonSchemaFn` only exposes the input side, so a split
+  would have made the stamp unreachable from the standalone factory).
+- Pinned by
+  [packages/ts-runtypes/test/features/jsonSchemaClosedness.test.ts](../../packages/ts-runtypes/test/features/jsonSchemaClosedness.test.ts)
+  (12 cases: default open, clone/direct closed incl. nested, mutate open,
+  record untouched, bare object untouched, portable composition, compact +
+  unknown-value refusals, both converter sides, static/value-first and
+  static/reflection pairs).
+- Documented in the website guide
+  (`container/website/content/02.guide/14.json-schema-generation.md`,
+  "Closed objects follow the encoder") with a compiled example region.
