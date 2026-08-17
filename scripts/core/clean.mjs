@@ -75,8 +75,6 @@ const GROUPS = [
       'packages/**/__runtypes', // resolver genDirs written by the test suites
       'packages/ts-runtypes/test/suites/enrich/.tmp',
       'packages/ts-runtypes/test/tmp-build-*',
-      'packages/ts-runtypes/test/json-schema-official/generated',
-      'packages/ts-runtypes/test/json-schema-official/results.json',
     ],
   },
 ];
