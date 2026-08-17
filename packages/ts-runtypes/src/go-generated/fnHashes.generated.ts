@@ -50,6 +50,7 @@ export const FN_HASHES = {
       mutateC: 'MEw',
     },
   },
+  jsonSchema: {axis: 'none', variants: {'': 'UMi'}},
   pj: {axis: 'none', variants: {'': 'tt1'}},
   pjs: {axis: 'none', variants: {'': 'oak'}},
   rj: {axis: 'none', variants: {'': 'X13'}},

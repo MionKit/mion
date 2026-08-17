@@ -15,6 +15,7 @@ export const CACHE_MODULES = {
   formatTransform: {name: 'formatTransformModule', varPrefix: 'g_fmt_', tag: 'fmt'},
   fromBinary: {name: 'fromBinaryModule', varPrefix: 'g_fb_', tag: 'fb'},
   hasUnknownKeys: {name: 'hasUnknownKeysModule', varPrefix: 'g_huk_', tag: 'huk'},
+  jsonSchema: {name: 'jsonSchemaModule', varPrefix: 'g_jsc_', tag: 'jsc'},
   prepareForJson: {name: 'prepareForJsonModule', varPrefix: 'g_pj_', tag: 'pj'},
   prepareForJsonSafe: {name: 'prepareForJsonSafeModule', varPrefix: 'g_pjs_', tag: 'pjs'},
   pureFns: {name: 'pureFnsModule', varPrefix: '', tag: ''},
@@ -46,6 +47,9 @@ export const FROMBINARY_TAG = 'fb';
 export const HASUNKNOWNKEYS_VAR_PREFIX = 'g_huk_';
 export const HASUNKNOWNKEYS_MODULE_NAME = 'hasUnknownKeysModule';
 export const HASUNKNOWNKEYS_TAG = 'huk';
+export const JSONSCHEMA_VAR_PREFIX = 'g_jsc_';
+export const JSONSCHEMA_MODULE_NAME = 'jsonSchemaModule';
+export const JSONSCHEMA_TAG = 'jsc';
 export const PREPAREFORJSON_VAR_PREFIX = 'g_pj_';
 export const PREPAREFORJSON_MODULE_NAME = 'prepareForJsonModule';
 export const PREPAREFORJSON_TAG = 'pj';

@@ -107,6 +107,11 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_fmt_",
 		Tag:       "fmt",
 	},
+	"jsonSchema": {
+		Name:      "jsonSchemaModule",
+		VarPrefix: "g_jsc_",
+		Tag:       "jsc",
+	},
 	"pureFns": {
 		Name:      "pureFnsModule",
 		VarPrefix: "",

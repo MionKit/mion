@@ -66,6 +66,9 @@ var Families = []FamilySpec{
 	family("fromBinary", FromBinaryEmitter{}),
 	// formatTransform: the value-transform family (createFormatTransformFn<T>).
 	family("formatTransform", FormatTransformEmitter{}),
+	// jsonSchema: the per-type JSON Schema document (see json_schema_doc.go);
+	// the whole document renders inline at the root — no cross-entry deps.
+	family("jsonSchema", JsonSchemaDocEmitter{}),
 	family("validate", ValidateEmitter{}),
 }
 

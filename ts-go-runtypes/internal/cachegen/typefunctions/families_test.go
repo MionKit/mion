@@ -11,8 +11,8 @@ import (
 // LAST row (the dispatcher renders families in registry order so the
 // CrossFamilyValRoots collection passes hit the per-dispatch entry memo).
 func TestFamilies_RegistryRoundTrip(t *testing.T) {
-	if len(Families) != 15 {
-		t.Fatalf("expected 15 type-walking families, got %d", len(Families))
+	if len(Families) != 16 {
+		t.Fatalf("expected 16 type-walking families, got %d", len(Families))
 	}
 	for _, spec := range Families {
 		if spec.Settings.Tag == "" {
