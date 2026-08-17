@@ -57,7 +57,6 @@ const FUZZ = {
   unit: {config: 'packages/ts-runtypes/test/fuzz/vitest.fuzz-unit.config.ts'},
   value: {patterns: ['fuzz.integration'], soak: {RT_FUZZ_SOAK_MS: '60000'}},
   types: {patterns: ['typeFuzz.integration'], soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
-  jsonschema: {patterns: ['jsonSchemaFuzz.integration'], soak: {RT_FUZZ_JSONSCHEMA_SOAK_MS: '60000'}},
   cloning: {patterns: ['cloneFuzz.integration'], soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
   // Three compile-bound lanes whose RT_FUZZ_*_SOAK_MS vars were registered
   // (scripts/lib/env.mjs) but had no entry here, so nothing could ever set them.
@@ -237,7 +236,7 @@ async function runWebsite(args) {
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
-const BENCH_SUB = new Set(['audit', 'spec', 'typecheck', 'engine-check', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
+const BENCH_SUB = new Set(['audit', 'typecheck', 'engine-check', 'typecost', 'compiletime', 'serialization', 'smoke', 'prep', 'clean', 'capture-env', 'shell', 'transform-wire', 'fullbench', 'website-bench', 'bench-one', 'build']);
 // Translate the rtx-level flags (--one/--full/--website/--build-only) to bench.mjs's
 // own sub-verbs; a bare sub-verb passes through, and the default is `bench`.
 function benchArgs(args) {
@@ -346,9 +345,9 @@ const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx
 core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
-  rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|jsonschema|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+  rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
-  rtx core converted-suites [--target builders|json-schema] [--keep]   convert the suite tree into the value forms, run it, remove it
+  rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
   rtx core ensure-tsgolint [--check]   check the submodule out to tsgolint.pin.json + re-apply patches (--check verifies only)
 
@@ -365,7 +364,7 @@ website
 
 bench
   rtx bench [--one <name>|--full|--website|--build-only] [--quick]
-  rtx bench <audit|spec|typecost|compiletime|serialization|smoke>
+  rtx bench <audit|typecost|compiletime|serialization|smoke>
   rtx bench typecheck              compile every competitor map in the image (totality gate)
 
 ${RELEASE_HELP}

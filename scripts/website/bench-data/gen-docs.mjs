@@ -24,7 +24,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 import ts from 'typescript';
-import {spawnSync} from 'node:child_process';
 import {loadEnv} from '../../lib/env.mjs';
 
 loadEnv(); // load .env (dev) so RT_BENCH_* knobs apply when run directly
@@ -295,11 +294,10 @@ function buildValidationBench() {
             !f.endsWith('.typecost.json') &&
             !f.endsWith('.compiletime.json') &&
             !f.endsWith('.alignment.json') &&
-            // <competitor>.spec.json is the JSON Schema conformance corpus, whose
-            // `cases` are keyed by spec case rather than by shared case key. It
-            // carries the same `competitor` field, so leaving it in here let it
-            // overwrite that competitor's real timing results and blanked every
-            // row only ts-runtypes or ajv populated.
+            // <competitor>.spec.json came from the removed JSON Schema
+            // spec-conformance lane; stale copies can linger in a cached results
+            // dir, carry the same `competitor` field, and would overwrite that
+            // competitor's real timing results — so keep filtering them out.
             !f.endsWith('.spec.json') &&
             f !== 'alignment-misalignments.json' &&
             f !== 'env.json'
@@ -499,18 +497,12 @@ function emitValidationBench(outName, label, rows, competitors, byComp, sources)
 // directory that does not exist; extractCaseSources returns empty for a missing
 // file, so both columns shipped with no hover source at all).
 //
-// AJV has no row here, and that asymmetry is the page's point: it consumes the
-// same document ts-go(jsonSchema) does, but recovers NO static type from it, so
-// there is no type cost to measure.
+// AJV has no row here, and that asymmetry is the page's point: it validates a
+// JSON Schema document but recovers NO static type from it, so there is no
+// type cost to measure.
 const TYPECOST_FORMS = [
   {id: 'ts-runtypes-type', label: 'ts-runtypes (type)', srcFile: 'ts-runtypes/cases.ts', srcVar: 'cases'},
   {id: 'ts-runtypes-schema', label: 'ts-runtypes (builder)', srcFile: 'ts-runtypes/schemaCases.ts', srcVar: 'schemaCases'},
-  {
-    id: 'ts-runtypes-json-schema',
-    label: 'ts-runtypes (jsonSchema)',
-    srcFile: 'ts-runtypes/jsonSchemaCases.ts',
-    srcVar: 'jsonSchemaCases',
-  },
   {id: 'typia', label: 'typia', srcFile: 'typia/cases.ts', srcVar: 'cases'},
   {id: 'typebox', label: 'typebox', srcFile: 'typebox/cases.ts', srcVar: 'cases'},
   {id: 'zod', label: 'zod', srcFile: 'zod/cases.ts', srcVar: 'cases'},
@@ -582,7 +574,6 @@ function buildTypecostBench() {
   const FORM_LIB = {
     'ts-runtypes-type': 'ts-runtypes',
     'ts-runtypes-schema': 'ts-runtypes',
-    'ts-runtypes-json-schema': 'ts-runtypes',
     typia: 'typia',
     typebox: 'typebox',
     zod: 'zod',
@@ -727,114 +718,6 @@ function buildAlignmentBench() {
   return caseMeta.size;
 }
 
-// ── JSON Schema spec-conformance bench ───────────────────────────────────────
-// Reads container/benchmarks/results/<competitor>.spec.json, produced by
-// shared/harness/spec.ts. Unlike every other bench here the reference is the
-// SPEC, not ts-runtypes: the corpus samples are labelled by draft 2020-12 and
-// each library is scored against those labels, so the ts-runtypes column can and
-// should be able to show a non-zero cell. Only the libraries that consume a
-// document appear (ts-runtypes and ajv today).
-const SPEC_COMPETITORS = ['ts-runtypes', 'ajv'];
-
-function buildSpecBench() {
-  const data = new Map();
-  for (const comp of SPEC_COMPETITORS) {
-    const file = path.join(RESULTS_DIR, `${comp}.spec.json`);
-    if (fs.existsSync(file)) data.set(comp, JSON.parse(fs.readFileSync(file, 'utf8')));
-  }
-  if (data.size === 0) {
-    process.stderr.write(`skip json-schema-spec bench: no results/*.spec.json in ${RESULTS_DIR} (run \`pnpm rtx bench spec\`)\n`);
-    return 0;
-  }
-  const competitors = SPEC_COMPETITORS.filter((c) => data.has(c));
-
-  const outDir = path.join(OUT_ROOT, 'json-schema-spec');
-  fs.rmSync(outDir, {recursive: true, force: true});
-  fs.mkdirSync(outDir, {recursive: true});
-
-  // Case universe + order from the first competitor that produced results; every
-  // competitor runs the identical corpus, so the orders agree by construction.
-  const reference = data.get(competitors[0]).cases;
-  const sectionMap = new Map();
-  for (const refCase of reference) {
-    if (!sectionMap.has(refCase.group)) {
-      sectionMap.set(refCase.group, {key: refCase.group, label: sectionLabel(refCase.group), cases: []});
-    }
-    const results = {};
-    const detail = [];
-    for (const comp of competitors) {
-      const entry = data.get(comp).cases.find((c) => c.key === refCase.key);
-      if (!entry) continue;
-      // A build error is NOT zero divergences: the document was refused outright,
-      // so the cell must not read as a pass. Surfaced as 'err'.
-      results[comp] = entry.buildError
-        ? {conformance: {valid: 0, status: 'err'}}
-        : {conformance: {valid: entry.divergences, status: 'ok'}};
-      if (entry.buildError || entry.divergences) {
-        detail.push({
-          competitor: comp,
-          buildError: entry.buildError,
-          rejectsValid: entry.failures.filter((f) => f.path === 'accept').map((f) => f.valueRepr),
-          acceptsInvalid: entry.failures.filter((f) => f.path === 'reject').map((f) => f.valueRepr),
-        });
-      }
-    }
-    sectionMap.get(refCase.group).cases.push({key: safeKey(refCase.key), title: refCase.name, results});
-    fs.writeFileSync(
-      path.join(outDir, `${safeKey(refCase.key)}.json`),
-      JSON.stringify({
-        competitors: [{name: 'schema', source: JSON.stringify(specDocumentFor(refCase.key), null, 2)}],
-        title: refCase.title,
-        description: refCase.description,
-        disagreements: detail.length ? detail : undefined,
-      })
-    );
-  }
-
-  const index = {
-    bench: 'json-schema-spec',
-    label: 'JSON Schema conformance',
-    unit: 'count',
-    showInvalid: false,
-    metrics: [
-      {
-        key: 'conformance',
-        label: 'Divergences from the specification',
-        metricLabel: 'samples each library judges differently than draft 2020-12 requires, lower is better',
-        lowerBetter: true,
-        cellHint: 'samples whose verdict disagrees with the specification (0 = conforms)',
-      },
-    ],
-    competitors,
-    versions: ENV?.versions,
-    meta: metaBlock(),
-    sections: [...sectionMap.values()],
-  };
-  fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(index));
-  return reference.length;
-}
-
-// The document under test, read straight off the shared corpus so the hover shows
-// the exact bytes both libraries were given.
-let SPEC_DOCS = null;
-function specDocumentFor(key) {
-  if (SPEC_DOCS === null) {
-    SPEC_DOCS = new Map();
-    const out = spawnSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        "import {iterateSpecCases} from './container/benchmarks/shared/cases/json-schema-spec/index.ts';" +
-          'console.log(JSON.stringify(iterateSpecCases().map((c) => [c.key, c.case.schema])));',
-      ],
-      {cwd: REPO_ROOT, encoding: 'utf8'}
-    );
-    if (out.status === 0) for (const [k, schema] of JSON.parse(out.stdout)) SPEC_DOCS.set(k, schema);
-  }
-  return SPEC_DOCS.get(key) ?? null;
-}
-
 // ── compile-time bench ───────────────────────────────────────────────────────
 // Build-time cost of the two transform-based libraries, from
 // container/benchmarks/results/{ts-runtypes,typia}.compiletime.json. The whole suite is
@@ -956,8 +839,6 @@ if (process.argv[1] && process.argv[1].endsWith('gen-docs.mjs')) {
   process.stdout.write(`compiletime bench: ${c} cases → container/website/public/bench-data/compiletime/\n`);
   const a = buildAlignmentBench();
   process.stdout.write(`alignment bench: ${a} cases → container/website/public/bench-data/alignment/\n`);
-  const sp = buildSpecBench();
-  process.stdout.write(`json-schema-spec bench: ${sp} cases → container/website/public/bench-data/json-schema-spec/\n`);
   const sm = stampSerializationMeta();
   process.stdout.write(`serialization meta: stamped ${sm} index(es) → container/website/public/bench-data/{serialization,serialization-formats}/\n`);
 }

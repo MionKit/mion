@@ -33,22 +33,11 @@ const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 
 // Per target: the tree it generates, and the number of declarations convert is
 // expected to refuse. Every refusal is a documented limitation with a row in
-// packages/ts-runtypes/test/features/unsupported-conversion.test.ts.
-//
-// The two counts differ by design, and the gap is the point of the dialect. A
+// packages/ts-runtypes/test/features/unsupported-conversion.test.ts. A
 // BUILDER has to come out as a TypeScript expression, so a shape with no
-// factory spelling has nowhere to go; a SCHEMA is data, so the extension
-// keywords carry the same shape as readable JSON. Once
-// docs/json-schema-2020-12-javascript.md landed, the schema target stopped
-// refusing symbol-keyed members, `typeof someSymbol`, stacked propertyNames
-// checks and the rest of that group — 24 down to 3.
-//
-// The 3 that remain are the ones neither form can spell: a cycle closing on a
-// tuple slot (TypeScript instantiates tuple slots eagerly, so a `{$ref: '#'}`
-// cannot tie the knot) and two @nonEnumerable members.
+// factory spelling has nowhere to go.
 const TARGETS = [
   {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 24},
-  {name: 'json-schema', dir: path.join(PACKAGE_ROOT, 'test/converted-json-schema'), expectedRefusals: 3},
 ];
 
 const args = process.argv.slice(2);
