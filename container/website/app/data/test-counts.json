@@ -1,17 +1,17 @@
 {
   "frontEnd": {
-    "tests": 11210,
-    "files": 281,
+    "tests": 9275,
+    "files": 272,
     "projects": {
-      "@ts-runtypes/devtools": 664,
+      "@ts-runtypes/devtools": 575,
       "@ts-runtypes/go-be-sidecar": 21,
       "mock-format-isolation": 3,
-      "playground": 17,
-      "runtypes": 10146
+      "playground": 15,
+      "runtypes": 8661
     }
   },
   "go": {
-    "tests": 1116,
-    "packages": 33
+    "tests": 1267,
+    "packages": 37
   }
 }
