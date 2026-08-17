@@ -4,14 +4,16 @@
 // calls, and its output runs — without paying the full-matrix cost on every
 // bundler.
 //
-// The `@ts-runtypes/core/json-schema` import is deliberate and load-bearing:
-// every light smoke must resolve at least one subpath export out of the PACKED
-// tarball, or a broken `exports` entry ships unnoticed (the gap that let
-// `formats/temporal` go uncovered). It also puts a BUILDER-form marker call
-// (`runTypeFromJsonSchema({…})`, rewritten by appending an argument rather than by
-// stripping a type argument) in front of all six adapters.
+// The `@ts-runtypes/core/builders` + `@ts-runtypes/core/formats` imports are
+// deliberate and load-bearing: every light smoke must resolve at least one
+// subpath export out of the PACKED tarball, or a broken `exports` entry ships
+// unnoticed (the gap that let `formats/temporal` go uncovered). They also put a
+// value-first BUILDER-form marker call (`createValidateFn(RT.object({…}))`,
+// rewritten by appending an argument rather than by stripping a type argument)
+// in front of all six adapters.
 import {createValidateFn, getRunTypeId, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@ts-runtypes/core/formats';
 import {type CheckResult, eq, ok} from './check';
 
 export interface Widget {
@@ -30,27 +32,15 @@ export const widgetIdFromValue = getRunTypeId(sample);
 export const encodeWidget = createJsonEncoderFn<Widget>();
 export const decodeWidget = createJsonDecoderFn<Widget>();
 
-// Subpath + builder-form marker call. `Tag` is the hand-written twin the
-// schema-authored type must converge on.
+// Subpath + value-first builder-form marker call. `Tag` is the hand-written
+// twin the builder-authored type must converge on.
 export interface Tag {
   label: string;
   weight: number;
 }
 export const tagIdStatic = getRunTypeId<Tag>();
-export const isTag = createValidateFn(
-  runTypeFromJsonSchema({
-    type: 'object',
-    properties: {label: {type: 'string'}, weight: {type: 'number'}},
-    required: ['label', 'weight'],
-  })
-);
-export const tagIdFromSchema = getRunTypeId(
-  runTypeFromJsonSchema({
-    type: 'object',
-    properties: {label: {type: 'string'}, weight: {type: 'number'}},
-    required: ['label', 'weight'],
-  })
-);
+export const isTag = createValidateFn(RT.object({label: TF.string(), weight: TF.number()}));
+export const tagIdFromBuilder = getRunTypeId(RT.object({label: TF.string(), weight: TF.number()}));
 
 export function selfCheck(): {ok: boolean; results: CheckResult[]} {
   const wire = encodeWidget(sample)!;
@@ -62,11 +52,11 @@ export function selfCheck(): {ok: boolean; results: CheckResult[]} {
     // Convergence: static id ≡ value-first id for equal T.
     eq('minimal: static id ≡ value-first id', widgetIdStatic, widgetIdFromValue),
     ok('minimal: JSON round-trip restores the Date', back.when instanceof Date),
-    // The json-schema subpath resolved out of the packed tarball AND its
-    // builder-form call site was rewritten (an un-rewritten one cannot validate).
-    ok('minimal: json-schema subpath validator accepts a good value', isTag({label: 'a', weight: 1})),
-    ok('minimal: json-schema subpath validator rejects a bad value', !isTag({label: 5, weight: 'x'})),
-    eq('minimal: static id ≡ schema-authored id', tagIdStatic, tagIdFromSchema),
+    // The builders + formats subpaths resolved out of the packed tarball AND the
+    // value-first call site was rewritten (an un-rewritten one cannot validate).
+    ok('minimal: builders subpath validator accepts a good value', isTag({label: 'a', weight: 1})),
+    ok('minimal: builders subpath validator rejects a bad value', !isTag({label: 5, weight: 'x'})),
+    eq('minimal: static id ≡ builder-authored id', tagIdStatic, tagIdFromBuilder),
   ];
   return {ok: results.every((result) => result.ok), results};
 }

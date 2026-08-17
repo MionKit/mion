@@ -5,8 +5,9 @@
 //      `getRunTypeId<…>`) survive — the transform + TS strip removed them.
 //   2. The injected cache wiring is present (the `__rt_` tuple bindings the
 //      rewrite threads into each call site), so the output carries generated code.
-//   3. The `@ts-runtypes/core/json-schema` SUBPATH specifier survived into the
-//      bundle, proving that export resolved out of the packed tarball here.
+//   3. The `@ts-runtypes/core/builders` and `@ts-runtypes/core/formats` SUBPATH
+//      specifiers survived into the bundle, proving those exports resolved out
+//      of the packed tarball here.
 //
 // Check 3 covers what 1 and 2 cannot. `@ts-runtypes/core` and its subpaths are
 // external in every app (`CORE_EXTERNAL` in build-all.mjs), so a subpath the
@@ -15,18 +16,18 @@
 // all, which is how `formats/temporal` went uncovered.
 //
 // What is deliberately NOT asserted here: that each individual BUILDER-form call
-// site (`runTypeFromJsonSchema({…})`) carries an injected `__rt_…` trailing argument. That
+// site (`RT.object({…})`) carries an injected `__rt_…` trailing argument. That
 // was tried and is not a sound byte-level check, for two independent reasons:
 //   - Not every builder call needs its own id. A nested one whose result feeds
-//     another marker call — `RT.partial(runTypeFromJsonSchema(SCHEMA))` — is folded into the
-//     outer site and correctly emerges as a bare `runTypeFromJsonSchema(SCHEMA)`. A byte
+//     another marker call — `createValidateFn(RT.object({…}))` — is folded into the
+//     outer site and correctly emerges as a bare `RT.object({…})`. A byte
 //     check cannot tell that apart from a site the plugin skipped.
 //   - The callee spelling is bundler-specific. webpack emits the indirect
-//     `(0, ns.runTypeFromJsonSchema)(…)` form, so a `runTypeFromJsonSchema(` needle finds nothing at
+//     `(0, ns.object)(…)` form, so an `RT.object(` needle finds nothing at
 //     all in its dist.
 // Builder-form injection is proven BEHAVIOURALLY instead, in build-outputs.test.mjs:
-// `minimal.ts` (all six adapters) and the `json-schema` family (build-vite) both
-// build validators through `runTypeFromJsonSchema(…)` and assert they discriminate and that
+// `minimal.ts` (all six adapters) and the `type-builders` family (build-vite) both
+// build validators through `RT.object(…)` and assert they discriminate and that
 // their ids converge with the hand-written twin. A skipped injection cannot
 // produce a working validator, so those checks fail loudly where a byte scan
 // would have to guess.
@@ -44,9 +45,12 @@ const ALL = ['build-vite', 'smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 's
 // After a successful transform + TS strip, no `markerName<` pattern remains.
 const RESIDUAL = /\b(?:createValidateFn|getRunTypeId|getRunType|createJsonEncoderFn|createJsonDecoderFn|createBinaryEncoderFn)\s*</;
 
-// The subpath specifier, in either module syntax an adapter may emit for an
+// The subpath specifiers, in either module syntax an adapter may emit for an
 // external (`from "…"` / `require("…")`), quoted either way.
-const SUBPATH = /["']@ts-runtypes\/core\/json-schema["']/;
+const SUBPATHS = [
+  {name: '@ts-runtypes/core/builders', pattern: /["']@ts-runtypes\/core\/builders["']/},
+  {name: '@ts-runtypes/core/formats', pattern: /["']@ts-runtypes\/core\/formats["']/},
+];
 
 for (const app of ALL) {
   test(`${app}: dist shows rewrite evidence (no residual markers, injected wiring present)`, () => {
@@ -55,9 +59,11 @@ for (const app of ALL) {
     const code = readFileSync(dist, 'utf8');
     assert.ok(!RESIDUAL.test(code), `${app}: found an un-rewritten generic marker call in the dist`);
     assert.ok(code.includes('__rt_'), `${app}: no injected __rt_ cache binding found — the plugin may have no-op'd`);
-    assert.ok(
-      SUBPATH.test(code),
-      `${app}: the @ts-runtypes/core/json-schema subpath specifier is absent from the dist — the packed tarball's subpath export did not resolve`
-    );
+    for (const {name, pattern} of SUBPATHS) {
+      assert.ok(
+        pattern.test(code),
+        `${app}: the ${name} subpath specifier is absent from the dist — the packed tarball's subpath export did not resolve`
+      );
+    }
   });
 }
