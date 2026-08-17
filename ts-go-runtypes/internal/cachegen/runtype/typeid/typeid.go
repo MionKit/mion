@@ -81,6 +81,14 @@ type Computer struct {
 	// SELF-INSTANTIATING GENERIC — surfaced as MKR009 naming the type), or ""
 	// when no single named type dominates (plain too-deep nesting — MKR008).
 	depthCulprit string
+	// walkOps counts Compute's real expansions (cache-missing, non-cycle
+	// dispatches) since the last ResetDepthExceeded. The depth cap alone cannot
+	// bound a graph that mints a fresh *checker.Type per member query at SHALLOW
+	// depth (tsgo's error-recovered parse of a truncated source reaches this): no
+	// pointer repeats, so the cache never hits and every subtree re-expands per
+	// query — bounded depth, exponential time. maxWalkOps latches the same
+	// discard-and-diagnose path as the depth cap.
+	walkOps int
 	// overrides folds `overrideX<T>(pureFn)` registrations into the structural
 	// id. Keyed by a node's BASE structural key (children's overrides already
 	// folded, this node's own NOT yet) → family op key → cfn body hash. When a
@@ -110,6 +118,12 @@ func NewWithOverrides(typeChecker *checker.Checker, overrides map[string]map[str
 // no computable structural id changes.
 const maxWalkDepth = 512
 
+// maxWalkOps caps one top-level walk's TOTAL expansions (see walkOps). A
+// legitimate walk expands each distinct node once (the pointer cache holds), so
+// even monster types sit orders of magnitude below this; only a walk whose
+// pointers never repeat can reach it, and such a walk never terminates usefully.
+const maxWalkOps = 1_000_000
+
 // depthSentinel is the deterministic string Compute returns at maxWalkDepth. It
 // never ships as a real id: the cache layer detects the depthExceeded flag and
 // raises a diagnostic instead of committing a node. The value only needs to be
@@ -129,6 +143,7 @@ func (computer *Computer) DepthCulprit() string { return computer.depthCulprit }
 func (computer *Computer) ResetDepthExceeded() {
 	computer.depthExceeded = false
 	computer.depthCulprit = ""
+	computer.walkOps = 0
 }
 
 // Compute returns the structural id of tsType. Safe to call repeatedly with
@@ -136,6 +151,12 @@ func (computer *Computer) ResetDepthExceeded() {
 func (computer *Computer) Compute(tsType *checker.Type) string {
 	if tsType == nil {
 		return strconv.Itoa(int(reflection.KindNever))
+	}
+	// A latched walk is already doomed — its ids are discarded and the site
+	// diagnosed (MKR008/MKR009) — so composing more text is pure waste, and on
+	// a fresh-type-minting graph EXPONENTIAL waste: unwind immediately.
+	if computer.depthExceeded {
+		return depthSentinel
 	}
 	// Template-extraction re-walk (canonicalize.go): an in-cluster child
 	// resolves to a slot placeholder instead of text, so ONE check here covers
@@ -158,16 +179,21 @@ func (computer *Computer) Compute(tsType *checker.Type) string {
 	if cached, ok := computer.cache[tsType]; ok {
 		return cached
 	}
-	// Depth backstop: a graph that instantiates a FRESH *checker.Type on every
+	// Walk backstop: a graph that instantiates a FRESH *checker.Type on every
 	// member query (lib.esnext's IteratorObject family; a self-instantiating
 	// generic; a genuinely unbounded alias) never repeats a pointer, so neither
-	// the cache nor stackIndex ever fires and the recursion would overflow the Go
-	// stack (fatal, uncatchable). len(stack) is the live recursion depth, so cap
-	// it here — after the cheap cache/cycle returns, before the push. The flag is
-	// authoritative; the sentinel only keeps sink-less walks deterministic, and is
-	// deliberately NOT cached so the same pointer reached at a shallower depth
-	// elsewhere can still compute a real id.
-	if len(computer.stack) >= maxWalkDepth {
+	// the cache nor stackIndex ever fires. Deep spirals would overflow the Go
+	// stack (fatal, uncatchable) — maxWalkDepth caps the live recursion depth.
+	// SHALLOW fresh-minting graphs (tsgo's error-recovered parse of a truncated
+	// source) instead re-expand every subtree per query — bounded depth,
+	// exponential time — so maxWalkOps caps the walk's total expansions. Both
+	// checks sit here, after the cheap cache/cycle returns, before the push. The
+	// flag is authoritative; the sentinel only keeps sink-less walks
+	// deterministic and is never cached — once the latch is set, the entry check
+	// above unwinds every remaining Compute immediately (the walk's ids are
+	// discarded and the site diagnosed, so nothing needs a real id after it).
+	computer.walkOps++
+	if len(computer.stack) >= maxWalkDepth || computer.walkOps >= maxWalkOps {
 		if !computer.depthExceeded {
 			computer.depthExceeded = true
 			computer.depthCulprit = computer.classifySpiral()
