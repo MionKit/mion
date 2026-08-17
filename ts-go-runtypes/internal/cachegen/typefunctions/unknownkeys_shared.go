@@ -443,12 +443,19 @@ func stringListParam(raw any) []string {
 }
 
 // collectSiblingNamedKeys returns the deduped, sorted names of every declared
-// property that must be SKIPPED by an index-signature for-in loop: non-static,
-// non-function-like named children. Crucially it keys on the NAME, independent
-// of whether the per-family emit keeps or DROPS the property — a property whose
-// value is DataOnly-stripped (`p0: ArrayBuffer`) is dropped from the projection
-// but its key must still be skipped so the index loop doesn't copy it back in
-// (G6). Shared by publishSiblingNamedKeysForIndexSig (binary + the JSON mutate /
+// property that must be SKIPPED by an index-signature for-in loop: every named
+// non-static child. Crucially it keys on the NAME, independent of whether the
+// per-family emit keeps or DROPS the property — a property whose value is
+// DataOnly-stripped (`p0: ArrayBuffer`) is dropped from the projection but its
+// key must still be skipped so the index loop doesn't copy it back in (G6).
+// FUNCTION-LIKE children are stripped the same way and so are covered by that
+// same rule: excluding them here left their key in the sweep, and the index
+// signature's own value encoder then ran over a function
+// (`{p0: () => number; [k: number]: RegExp}` reached serString(undefined) — an
+// uncontrolled TypeError in binary, a function silently serialized as its
+// source text in JSON). Statics stay out: they are not own enumerable keys, so
+// no for-in ever reaches them.
+// Shared by publishSiblingNamedKeysForIndexSig (binary + the JSON mutate /
 // stringify walks) and the clone path's buildSafeIndexSignatureObject.
 func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string {
 	var siblingNames []string
@@ -457,7 +464,7 @@ func collectSiblingNamedKeys(rt *reflection.RunType, ctx *EmitContext) []string 
 		if resolved == nil || resolved.Kind == reflection.KindIndexSignature {
 			continue
 		}
-		if resolved.IsStatic || isFunctionLikeKind(resolved.Kind) {
+		if resolved.IsStatic {
 			continue
 		}
 		if resolved.Name != "" {
