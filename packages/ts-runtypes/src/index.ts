@@ -45,6 +45,10 @@ export {type RunType} from './runtypes/types.ts';
 export {getRunType} from './getRunType.ts';
 export {type DataOnly} from './runtypes/dataOnly.ts';
 export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta.ts';
+// `JSONShape<T>` — the RunTypes JSON wire twin of `DataOnly<T>` (what
+// createJsonEncoderFn writes / createJsonDecoderFn reads). Annotation-grade:
+// never reflect it.
+export {type JSONShape} from './runtypes/jsonShape.ts';
 export {type InferType, type OneOf, type AnyOf} from './builders/static.ts';
 
 // AI enrichment — type-keyed, committed maps validated against `T` at scan time
