@@ -225,6 +225,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		childText = wrapForSuffix(childNode, childText)
 		if hasStructuralPayload(node) {
+			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+				return ctx.rawStructuralBrandType(node, childText+"[]")
+			}
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
 			if partsDiag != nil {
 				return "", partsDiag
@@ -336,6 +339,9 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 			baseText = literalText
 		}
 		if hasStructuralPayload(node) {
+			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+				return ctx.rawStructuralBrandType(node, baseText)
+			}
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.typeExpr, TargetType)
 			if partsDiag != nil {
 				return "", partsDiag

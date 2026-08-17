@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-17
 ---
 
@@ -51,3 +51,28 @@ trimmed `uniqueItems: false` chain arm as the regression pin.
   type → builders → type with the id held.
 - The trimmed arm is restored in `TestChain_StructuralParamsAtTheirDefault`
   (or an equivalent pin).
+
+## Shipped (2026-08-17)
+
+Implemented as planned, with the raw-brand spelling as the escape (the
+structural twin of the `isRegex` TypeFormat-constructor escape):
+
+- `structuralParamsPubliclySpellable` + `rawStructuralBrandType`
+  ([ts-go-runtypes/internal/convert/print.go](../../ts-go-runtypes/internal/convert/print.go))
+  whitelist the public bag surface per family (formattedArray: numeric
+  `minItems`/`maxItems`, `uniqueItems` only as literal `true`;
+  formattedObject: numeric key-count bounds + the derived string-list
+  params). Anything else — `uniqueItems: false`, an unknown hand-spelled
+  sentinel key — is out of surface.
+- The TYPE target prints the raw sentinel intersection
+  (`string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>`),
+  which resolves the identical annotation and id; the BUILDERS target rides
+  `builderEscape`, whose quoted type text now takes the same raw spelling —
+  so `getRunType<…raw…>()` compiles and the id holds.
+- Out-of-surface params BESIDE contains/patternProperties/propertyNames
+  slots refuse (CNV001) rather than mis-spell — no raw spelling carries the
+  child slots too.
+- Pinned by `TestChain_UniqueItemsFalseEscapesGenericSpelling`
+  ([ts-go-runtypes/internal/convert/roundtrip_test.go](../../ts-go-runtypes/internal/convert/roundtrip_test.go)):
+  builders form uses the escape, never the generic bag, and the follow-up
+  `--to type` keeps the raw spelling with the id held.
