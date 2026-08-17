@@ -54,21 +54,15 @@ func (runType *RunType) EachRefSlot(visit func(*RunType)) {
 // extends through here, so a slot added to SchemaChecks is wired into every
 // walker by extending this method alone.
 func (checks *SchemaChecks) eachRefSlot(visit func(*RunType)) {
-	// Negations — the `__rtNot` children.
-	for _, negation := range checks.Negations {
-		if negation != nil {
-			visit(negation)
-		}
-	}
-	// Contains — the `__rtContains` children (JSON Schema contains); each
-	// entry's child is a full node slot exactly like a negation child.
+	// Contains — the `__rtContains` children; each
+	// entry's child is a full node slot exactly like any other child slot.
 	for _, containsCheck := range checks.Contains {
 		if containsCheck != nil && containsCheck.Child != nil {
 			visit(containsCheck.Child)
 		}
 	}
 	// PatternProps / PropNames — the `__rtPatternProps` / `__rtPropNames`
-	// children (JSON Schema patternProperties / propertyNames).
+	// children (patternProperties / propertyNames).
 	for _, patternProp := range checks.PatternProps {
 		if patternProp == nil {
 			continue
@@ -83,35 +77,6 @@ func (checks *SchemaChecks) eachRefSlot(visit func(*RunType)) {
 	for _, propNames := range checks.PropNames {
 		if propNames != nil {
 			visit(propNames)
-		}
-	}
-	// OneOf — the `__rtOneOf` branch children (the OneOf<[…]> combinator).
-	for _, branch := range checks.OneOf {
-		if branch != nil {
-			visit(branch)
-		}
-	}
-	// Unevaluated — the `__rtUnevaluated` sweep's child slots: the leftover
-	// value plus each guarded group's subschema. Omitting them starved the
-	// family populator, the bundle dep collector and the per-file scope walk
-	// of the guard children.
-	for _, unevaluated := range checks.Unevaluated {
-		if unevaluated == nil {
-			continue
-		}
-		if unevaluated.Value != nil {
-			visit(unevaluated.Value)
-		}
-		for _, group := range unevaluated.Groups {
-			if group == nil {
-				continue
-			}
-			if group.When != nil {
-				visit(group.When)
-			}
-			if group.WhenNot != nil {
-				visit(group.WhenNot)
-			}
 		}
 	}
 }

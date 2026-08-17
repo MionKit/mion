@@ -265,14 +265,12 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 	}
 	// patternProperties / propertyNames: per-key checks over the object's
 	// own keys — same statement-base hoist discipline as every splice above.
-	// `rt.Unevaluated` is shared by both kinds — the KEY sweep here, the index
-	// sweep below — so each side must claim only its own.
-	if rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 || (len(rt.Unevaluated) > 0 && !isArrayNodeKind(rt.Kind))) {
+	if rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0) {
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
 		if base.Type != CodeE {
-			panic("validate: patternProperties/propertyNames/unevaluated on a base that did not reduce to a boolean expression (kind " +
+			panic("validate: patternProperties/propertyNames on a base that did not reduce to a boolean expression (kind " +
 				strconv.Itoa(int(rt.Kind)) + ") — dropping them would silently weaken validation")
 		}
 		code := base.Code
@@ -292,66 +290,6 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 				} else {
 					code = "(" + code + " && " + check + ")"
 				}
-			}
-		}
-		// The evaluated-key sweeps run LAST, so a value already rejected by the
-		// shape never pays for them. Stacked sweeps AND-chain — every arm's
-		// sweep enforces, mirroring the sorted `u{…}` id fold.
-		if !isArrayNodeKind(rt.Kind) {
-			for _, unevaluated := range rt.Unevaluated {
-				check := emitUnevaluatedCheck(ctx, unevaluated)
-				if check != "" && check != "true" {
-					if code == "" || code == "true" {
-						code = check
-					} else {
-						code = "(" + code + " && " + check + ")"
-					}
-				}
-			}
-		}
-		base.Code = code
-	}
-	// The array twin of the key sweep, spliced the same way and equally last.
-	if rt != nil && len(rt.Unevaluated) > 0 && isArrayNodeKind(rt.Kind) {
-		if base.Type != CodeE {
-			base = ctx.AsExpression(base)
-		}
-		if base.Type == CodeE {
-			for _, unevaluated := range rt.Unevaluated {
-				check := emitUnevaluatedItemsCheck(ctx, rt, unevaluated)
-				if check != "" && check != "true" {
-					if base.Code == "" || base.Code == "true" {
-						base.Code = check
-					} else {
-						base.Code = "(" + base.Code + " && " + check + ")"
-					}
-				}
-			}
-		}
-	}
-	if rt != nil && len(rt.Negations) > 0 {
-		if base.Type != CodeE {
-			base = ctx.AsExpression(base)
-		}
-		if base.Type != CodeE {
-			panic("validate: negation base did not reduce to a boolean expression (kind " +
-				strconv.Itoa(int(rt.Kind)) + ") — dropping the ¬ would silently weaken validation")
-		}
-		code := base.Code
-		for _, negation := range rt.Negations {
-			resolved := ctx.ResolveRef(negation)
-			if resolved == nil {
-				panic("validate: unresolvable negation child — dropping it would silently weaken validation")
-			}
-			childRT := ctx.CompileChild(negation, CodeE)
-			if childRT.Type != CodeE || childRT.Code == "" {
-				panic("validate: negation child did not compile to a boolean expression (kind " +
-					strconv.Itoa(int(resolved.Kind)) + ") — dropping it would silently weaken validation")
-			}
-			if code == "" || code == "true" {
-				code = "!(" + childRT.Code + ")"
-			} else {
-				code = "(" + code + " && !(" + childRT.Code + "))"
 			}
 		}
 		base.Code = code
@@ -390,47 +328,6 @@ func emitContainsCount(ctx *EmitContext, containsCheck *reflection.ContainsCheck
 		childRT.Code + ") " + nVar + "++;}return " + boundsOver(nVar) + ";})())"
 }
 
-// emitOneOfCount builds the exactly-one counting IIFE over the oneOf
-// branches: every branch validates the SAME value, the match count must
-// satisfy `count === <want>` ("1" for validate; verr reuses the counter
-// with a different comparison). A branch that compiles to no check
-// (unknown / noop) counts as an unconditional match — with two or more
-// branches that makes the oneOf statically unsatisfiable, which the
-// counting reports honestly (count ≥ 2 → false).
-func emitOneOfCount(ctx *EmitContext, branches []*reflection.RunType, v, want string) string {
-	nVar := ctx.NextLocalVar("xo")
-	var body strings.Builder
-	body.WriteString("((() => {let " + nVar + " = 0;")
-	for _, branch := range branches {
-		resolved := ctx.ResolveRef(branch)
-		if resolved == nil {
-			panic("validate: unresolvable oneOf branch — dropping it would silently weaken validation")
-		}
-		branchRT := ctx.CompileChild(branch, CodeE)
-		if branchRT.Type != CodeE {
-			panic("validate: oneOf branch did not compile to a boolean expression — dropping it would silently weaken validation")
-		}
-		branchCode := branchRT.Code
-		if branchCode == "" {
-			branchCode = "true"
-		}
-		// Mirror the OR-chain's per-child treatment: the weak-type presence
-		// gate for all-optional object members, and the object guard an
-		// object arm DROPPED because its immediate parent frame is this
-		// union (emitObjectValidate's ParentIsUnion elision assumes the
-		// OR-chain's shared guard, which the counting path replaces).
-		if gate := looseCheckGate(resolved, ctx, v); gate != "" {
-			branchCode = "(" + branchCode + " && " + gate + ")"
-		}
-		if isObjectLikeKind(resolved.Kind) {
-			branchCode = "(typeof " + v + " === 'object' && " + v + " !== null && " + branchCode + ")"
-		}
-		body.WriteString("if (" + branchCode + ") " + nVar + "++;")
-	}
-	body.WriteString("return " + nVar + " === " + want + ";})())")
-	return body.String()
-}
-
 // emitPatternPropCheck: keys matching the entry's source must have values
 // validating against the entry's value child. The regex hoists into the
 // factory prologue once per (source, factory); the value child compiles
@@ -461,197 +358,6 @@ func emitPatternPropCheck(ctx *EmitContext, patternProp *reflection.PatternPropC
 	// because the value child compiled against `v[<key>]` and closes over v.
 	return "((() => {for (const " + kVar + " in " + ctx.Vλl + ") {if (" + reVar + ".test(" + kVar + ") && !(" +
 		childRT.Code + ")) return false;}return true;})())"
-}
-
-// emitUnevaluatedCheck: the run-time evaluated-key sweep behind
-// unevaluatedProperties. Every key the schema did NOT evaluate must satisfy the
-// leftover value (or, for the `false` reading, must not exist).
-//
-// The unconditional key list hoists into the factory prologue; each guarded
-// group contributes one `continue` line whose flag is the guard subschema's own
-// check. Groups marked `all` end the sweep outright — the arm evaluates every
-// key when it fires.
-//
-// Guards are compiled here rather than reused from the applicator emit, so an
-// arm's check runs twice at run time (once for the applicator, once for the
-// sweep). Correct, and the shape a later pass can hoist into a shared flag; see
-// docs/todos/unevaluated-runtime-evaluated-set.md.
-func emitUnevaluatedCheck(ctx *EmitContext, check *reflection.UnevaluatedCheck) string {
-	kVar := ctx.NextLocalVar("uk")
-	v := ctx.Vλl
-	var body strings.Builder
-	body.WriteString("((() => {for (const " + kVar + " in " + v + ") {")
-	for _, group := range check.Groups {
-		if !group.All {
-			continue
-		}
-		if guard := unevalGuardExpr(ctx, group, v); guard != "" {
-			body.WriteString("if (" + guard + ") break; ")
-		}
-	}
-	if test := unevalMemberTest(ctx, check.Keys, check.Sources, kVar); test != "" {
-		body.WriteString("if (" + test + ") continue; ")
-	}
-	for _, group := range check.Groups {
-		if group.All {
-			continue
-		}
-		test := unevalMemberTest(ctx, group.Keys, group.Sources, kVar)
-		if test == "" {
-			continue
-		}
-		guard := unevalGuardExpr(ctx, group, v)
-		if guard == "" {
-			continue
-		}
-		body.WriteString("if (" + guard + " && (" + test + ")) continue; ")
-	}
-	// The leftover: `false` rejects outright, a schema value checks the member.
-	if check.Value == nil {
-		body.WriteString("return false;")
-	} else {
-		ctx.SetChildAccessor(v + "[" + kVar + "]")
-		childRT := ctx.CompileChild(check.Value, CodeE)
-		ctx.SetChildAccessor("")
-		if childRT.Type != CodeE || childRT.Code == "" {
-			// A leftover nothing can check accepts every key — the sweep has
-			// nothing left to assert.
-			return "true"
-		}
-		body.WriteString("if (!(" + childRT.Code + ")) return false;")
-	}
-	body.WriteString("}return true;})())")
-	return body.String()
-}
-
-// emitUnevaluatedItemsCheck: the array twin of the key sweep. Contributions are
-// PREFIX LENGTHS, so the boundary is the highest prefix the value's own passing
-// branches turned on, and everything past it is unevaluated.
-func emitUnevaluatedItemsCheck(ctx *EmitContext, rt *reflection.RunType, check *reflection.UnevaluatedCheck) string {
-	v := ctx.Vλl
-	iVar := ctx.NextLocalVar("ui")
-	wVar := ctx.NextLocalVar("uw")
-	var body strings.Builder
-	body.WriteString("((() => {let " + wVar + " = " + strconv.Itoa(check.Prefix) + ";")
-	for _, group := range check.Groups {
-		guard := unevalGuardExpr(ctx, group, v)
-		if guard == "" {
-			continue
-		}
-		if group.All {
-			// The arm evaluates every index when it fires, so nothing is left.
-			body.WriteString("if (" + guard + ") return true;")
-			continue
-		}
-		if group.Prefix <= check.Prefix {
-			continue
-		}
-		body.WriteString("if (" + guard + " && " + wVar + " < " + strconv.Itoa(group.Prefix) + ") " +
-			wVar + " = " + strconv.Itoa(group.Prefix) + ";")
-	}
-	// `contains` is the one keyword that evaluates SCATTERED indexes, so with one
-	// in scope the boundary alone cannot decide: every index past it still has to
-	// be offered to the contains children before it counts as unevaluated.
-	var containsTests []string
-	for _, containsCheck := range rt.Contains {
-		if containsCheck == nil || ctx.ResolveRef(containsCheck.Child) == nil {
-			continue
-		}
-		ctx.SetChildAccessor(v + "[" + iVar + "]")
-		childRT := ctx.CompileChild(containsCheck.Child, CodeE)
-		ctx.SetChildAccessor("")
-		if childRT.Type == CodeE && childRT.Code != "" {
-			containsTests = append(containsTests, "("+childRT.Code+")")
-		}
-	}
-	if check.Value == nil && len(containsTests) == 0 {
-		body.WriteString("return " + v + ".length <= " + wVar + ";})())")
-		return body.String()
-	}
-	leftover := "return false;"
-	if check.Value != nil {
-		ctx.SetChildAccessor(v + "[" + iVar + "]")
-		childRT := ctx.CompileChild(check.Value, CodeE)
-		ctx.SetChildAccessor("")
-		if childRT.Type != CodeE || childRT.Code == "" {
-			return "true"
-		}
-		leftover = "if (!(" + childRT.Code + ")) return false;"
-	}
-	body.WriteString("for (let " + iVar + " = " + wVar + "; " + iVar + " < " + v + ".length; " + iVar + "++) {")
-	if len(containsTests) > 0 {
-		body.WriteString("if (" + strings.Join(containsTests, " || ") + ") continue;")
-	}
-	body.WriteString(leftover + "}return true;})())")
-	return body.String()
-}
-
-// isArrayNodeKind reports whether the node is the array side of the sweep.
-func isArrayNodeKind(kind reflection.ReflectionKind) bool {
-	return kind == reflection.KindArray || kind == reflection.KindTuple
-}
-
-// unevalGuardExpr renders the condition that fires one group: a subschema
-// validating, that subschema failing, or a key simply being present.
-func unevalGuardExpr(ctx *EmitContext, group *reflection.UnevalGroup, v string) string {
-	if group.WhenKey != "" {
-		return "(" + quoteJS(group.WhenKey) + " in " + v + ")"
-	}
-	child := group.When
-	negate := false
-	if child == nil {
-		child = group.WhenNot
-		negate = true
-	}
-	if child == nil || ctx.ResolveRef(child) == nil {
-		return ""
-	}
-	ctx.SetChildAccessor(v)
-	childRT := ctx.CompileChild(child, CodeE)
-	ctx.SetChildAccessor("")
-	if childRT.Type != CodeE || childRT.Code == "" {
-		// An always-true guard fires unconditionally; an unrenderable one is
-		// dropped, which only ever leaves MORE keys unevaluated (over-rejects).
-		if negate {
-			return ""
-		}
-		return "true"
-	}
-	if negate {
-		return "!(" + childRT.Code + ")"
-	}
-	return "(" + childRT.Code + ")"
-}
-
-// unevalMemberTest renders "this key is in that contribution": an identity
-// chain below the house threshold, a hoisted Set above it, plus one hoisted
-// RegExp per pattern source.
-func unevalMemberTest(ctx *EmitContext, keys []string, sources []string, kVar string) string {
-	var tests []string
-	if len(keys) > 0 {
-		if len(keys) <= unevalIdentityChainMaxKeys {
-			for _, key := range keys {
-				tests = append(tests, kVar+" === "+quoteJS(key))
-			}
-		} else {
-			setVar := ctx.NextLocalVar("uks")
-			if !ctx.HasContextItem(setVar) {
-				ctx.SetContextItem(setVar, "const "+setVar+" = new Set("+arrayToJSLiteral(keys)+")")
-			}
-			tests = append(tests, setVar+".has("+kVar+")")
-		}
-	}
-	for _, source := range sources {
-		reVar := ctx.NextLocalVar("ure")
-		if !ctx.HasContextItem(reVar) {
-			ctx.SetContextItem(reVar, "const "+reVar+" = new RegExp("+jsquote.Double(source)+")")
-		}
-		tests = append(tests, reVar+".test("+kVar+")")
-	}
-	if len(tests) == 0 {
-		return ""
-	}
-	return strings.Join(tests, " || ")
 }
 
 // Mirrors identityChainMaxKeys in formats/structural/objectformat.go: at or
@@ -1218,29 +924,6 @@ func emitTupleMemberValidate(rt *reflection.RunType, ctx *EmitContext, v string)
 // (no required props to fail on), which is incorrect per TS's
 // weak-type rules.
 func emitUnionValidate(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	// An exclusivity the engine cannot honour is refused, not approximated: the
-	// branch counting below decides the WHOLE union, so a member outside the
-	// branches could never be checked and a valid value of it would be
-	// rejected. Marked at projection time (typeid.OneOfDefect), where the
-	// carriers are still visible.
-	//
-	// OOF001 is severity Error, so the build fails at the call site. The
-	// generated body below is then never reached in a normal build; a lane
-	// running with failOnError off still gets today's behaviour rather than a
-	// runtime throw, because CodeOneOfDefect is not registered in
-	// rootThrowWording (alwaysthrow_message.go) and a root CodeNS without a
-	// registered code renders nothing useful. Adding the runtime backstop means
-	// registering it there and latching it as the leaf code.
-	if reason := rt.OneOfDefectReason(); reason != "" {
-		ctx.EmitDiagnostic(diagnostics.CodeOneOfDefect, reason)
-	}
-	// OneOf — the exactly-one combinator: the branch counting replaces the
-	// OR-chain entirely (a count of one implies membership in the flattened
-	// union, and a value matching two branches must FAIL even though the
-	// plain union accepts it).
-	if len(rt.OneOf) > 0 {
-		return RTCode{Code: emitOneOfCount(ctx, rt.OneOf, v, "1"), Type: CodeE}
-	}
 	// DataOnly-strip members (symbol / function-like / Promise /
 	// non-serializable / never) so `Date | symbol` validates as `Date`,
 	// matching DataOnly<T>. An all-stripped union keeps its members and falls

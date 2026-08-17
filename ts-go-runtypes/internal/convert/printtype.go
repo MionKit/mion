@@ -159,22 +159,6 @@ func isIdentifierText(text string) bool {
 // typeExprCore is the kind dispatch behind typeExpr (negations, format
 // annotations, then the kind switch), without the reference/cycle/meta layer.
 func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagnostic) {
-	if diag := ctx.unevaluatedDiag(node); diag != nil {
-		return "", diag
-	}
-	if len(node.Negations) > 0 {
-		if len(node.Negations) > 1 {
-			return "", ctx.multiNegationDiag()
-		}
-		negatedText, diag := ctx.typeExpr(node.Negations[0])
-		if diag != nil {
-			return "", diag
-		}
-		// TF.Not<F> carries the base kind itself, so the negation node prints
-		// as the wrapper alone.
-		ctx.needs.useTF = true
-		return fmt.Sprintf("%s.Not<%s>", ctx.names.TF, negatedText), nil
-	}
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, params, known := leafFormat(annotation)
 		if !known {
@@ -299,27 +283,6 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 	case reflection.KindEnum:
 		return ctx.enumSpelling(node)
 	case reflection.KindUnion:
-		// Same verdict the builders and schema printers read: a union whose
-		// exclusivity the engine refuses must not print. Without this the
-		// OneOf branch below emitted the branch tuple ALONE, so the arm
-		// outside it (`OneOf<[A, B]> | C`'s C) vanished from the printed type
-		// without a word — the exact silent drop 848f00e fixed for the other
-		// two targets.
-		if diag := ctx.partialOneOfDiag(node); diag != nil {
-			return "", diag
-		}
-		if len(node.OneOf) > 0 {
-			var branches []string
-			for _, branchRef := range node.OneOf {
-				branchText, diag := ctx.typeExpr(branchRef)
-				if diag != nil {
-					return "", diag
-				}
-				branches = append(branches, branchText)
-			}
-			ctx.needs.useRT = true
-			return fmt.Sprintf("%s.OneOf<[%s]>", ctx.names.RT, strings.Join(sortArms(branches), ", ")), nil
-		}
 		var parts []string
 		for _, armRef := range node.Children {
 			armNode := ctx.deref(armRef)

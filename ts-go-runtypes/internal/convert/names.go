@@ -14,15 +14,13 @@ import (
 type nameTable struct {
 	// Namespace aliases / helper locals, honoring existing imports so a file
 	// that already says `import * as B from '…/builders'` keeps its alias.
-	RT                    string
-	TF                    string
-	TFT                   string
-	InferType             string
-	GetRunType            string
-	TypeFormat            string
-	RunTypeFromJSONSchema string
-	EmbedType             string
-	taken                 map[string]bool
+	RT         string
+	TF         string
+	TFT        string
+	InferType  string
+	GetRunType string
+	TypeFormat string
+	taken      map[string]bool
 }
 
 // newNames seeds the table from the recognized declarations, the file's
@@ -44,13 +42,12 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 	for name := range inScope {
 		names.taken[name] = true
 	}
-	var coreNS, jsonNS string
+	var coreNS string
 	if imports != nil {
 		for _, local := range imports.localNames() {
 			names.taken[local] = true
 		}
 		coreNS = imports.namespaceAlias(moduleCore)
-		jsonNS = imports.namespaceAlias(moduleJSONSchema)
 	}
 	namespaceOf := func(module string) string {
 		if imports == nil {
@@ -91,8 +88,6 @@ func newNames(decls []*declaration, imports *importScan, inScope map[string]bool
 	names.InferType = helper(moduleCore, "InferType", "InferType", coreNS)
 	names.GetRunType = helper(moduleCore, "getRunType", "getRunType", coreNS)
 	names.TypeFormat = helper(moduleCore, "TypeFormat", "TypeFormat", coreNS)
-	names.RunTypeFromJSONSchema = helper(moduleJSONSchema, "runTypeFromJsonSchema", "runTypeFromJsonSchema", jsonNS)
-	names.EmbedType = helper(moduleJSONSchema, "embedType", "embedType", jsonNS)
 	return names
 }
 

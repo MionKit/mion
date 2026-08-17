@@ -24,9 +24,6 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		return "", ctx.anonymousCycleDiag()
 	}
 	defer leave()
-	if diag := ctx.unevaluatedDiag(node); diag != nil {
-		return "", diag
-	}
 	if len(node.TypeMeta) > 0 {
 		// User-metadata intersections have no value-first spelling — the
 		// type-argument escape carries the intersection exactly.
@@ -39,16 +36,6 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 	tf := func(call string) (string, *Diagnostic) {
 		ctx.needs.useTF = true
 		return ctx.names.TF + "." + call, nil
-	}
-	if len(node.Negations) > 0 {
-		if len(node.Negations) > 1 {
-			return "", ctx.multiNegationDiag()
-		}
-		negatedText, diag := ctx.builderExpr(node.Negations[0])
-		if diag != nil {
-			return "", diag
-		}
-		return rt(fmt.Sprintf("not(%s)", negatedText))
 	}
 	if annotation := node.FormatAnnotation; annotation != nil && !isStructuralAnnotation(annotation) {
 		family, params, known := leafFormat(annotation)
@@ -194,20 +181,6 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		ctx.needs.useGetRunType = true
 		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, name), nil
 	case reflection.KindUnion:
-		if diag := ctx.partialOneOfDiag(node); diag != nil {
-			return "", diag
-		}
-		if len(node.OneOf) > 0 {
-			var branches []string
-			for _, branchRef := range node.OneOf {
-				branchText, diag := ctx.builderExpr(branchRef)
-				if diag != nil {
-					return "", diag
-				}
-				branches = append(branches, branchText)
-			}
-			return rt(fmt.Sprintf("oneOf([%s])", strings.Join(sortArms(branches), ", ")))
-		}
 		var arms []string
 		for _, armRef := range node.Children {
 			armText, diag := ctx.builderExpr(armRef)

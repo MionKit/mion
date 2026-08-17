@@ -184,7 +184,7 @@ func StandardParamKeywords(params map[string]any, family FormatFamily) string {
 //
 //   - "" — the keyword is exactly the param. Mirrored.
 //   - "u" — what the DOOR itself lifts a bare standard `pattern` to (see
-//     StringParamsFrom in fromJsonSchema.ts: unicode mode is the default other
+//     the historical door lowering: unicode mode is the default other
 //     2020-12 validators compile under). Mirroring reproduces the source
 //     document byte for byte, so this is the round-trip case and it is mirrored
 //     — EXCEPT when the source uses a unicode property escape. `\p{L}` read

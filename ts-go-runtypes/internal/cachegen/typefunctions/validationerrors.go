@@ -7,7 +7,6 @@ import (
 
 	"github.com/mionkit/ts-runtypes/internal/cachegen/operations"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/typefunctions/formats"
-	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/jsquote"
 	"github.com/mionkit/ts-runtypes/internal/reflection"
 )
@@ -122,21 +121,10 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			}
 		}
 	}
-	// Negations: the value fails ¬child precisely when it PASSES the child,
-	// i.e. when the child's own verr body pushes ZERO errors. The child's
-	// statements are compiled with this walker and probed against a SCRATCH
-	// error array (er/pth shadowed in an IIFE), so this works uniformly for
-	// every child kind — leaf, format-branded, compound — with no
-	// cross-family cache reference and no risk of polluting the real error
-	// list with the child's (meaningless-under-negation) positive errors.
-	// One canonical 'not' error per negation, matching how JSON Schema
-	// validators report a single "must NOT be valid". Gated on the base-kind
-	// guard so a type-mismatched value reports only the base error.
-	// patternProperties / propertyNames: per-key probes with the scratch
-	// error array; one canonical error per violated entry, gated on the
-	// base-kind guard like every splice here.
-	if base.Type == CodeS && rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 ||
-		(len(rt.Unevaluated) > 0 && !isArrayNodeKind(rt.Kind))) {
+	// patternProperties / propertyNames: per-key probes with a scratch
+	// error array (er/pth shadowed in an IIFE); one canonical error per
+	// violated entry, gated on the base-kind guard like every splice here.
+	if base.Type == CodeS && rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0) {
 		appendCheck := func(check string) {
 			check = wrapFormatCheckPath(ctx, check)
 			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
@@ -191,36 +179,6 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 				appendCheck(check)
 			}
 		}
-		// The evaluated-key sweep — verr's twin of validate's
-		// emitUnevaluatedCheck. One canonical error per violated sweep,
-		// mirroring how patternProperties / propertyNames report above.
-		if !isArrayNodeKind(rt.Kind) {
-			for _, unevaluated := range rt.Unevaluated {
-				if check := emitUnevaluatedVerrKeys(ctx, unevaluated); check != "" {
-					appendCheck(check)
-				}
-			}
-		}
-	}
-	// The array side of the sweep — verr's twin of emitUnevaluatedItemsCheck,
-	// same base-kind gating discipline as every splice here.
-	if base.Type == CodeS && rt != nil && len(rt.Unevaluated) > 0 && isArrayNodeKind(rt.Kind) {
-		for _, unevaluated := range rt.Unevaluated {
-			check := emitUnevaluatedVerrItems(ctx, rt, unevaluated)
-			if check == "" {
-				continue
-			}
-			check = wrapFormatCheckPath(ctx, check)
-			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
-			switch {
-			case base.Code == "":
-				base.Code = check
-			case guard == "":
-				base.Code = base.Code + ";" + check
-			default:
-				base.Code = base.Code + ";if (" + guard + ") {" + check + "}"
-			}
-		}
 	}
 	// Contains: count the items whose child verr body pushes ZERO errors
 	// (the same scratch-array probe the negation splice uses) and push one
@@ -256,40 +214,6 @@ func (e ValidationErrorsEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, 
 			if containsCheck.Max >= 0 {
 				check += ";if (" + nVar + " > " + formats.FormatNumber(containsCheck.Max) + ") " +
 					formats.FormatErrCall("pth", "er", "array", "contains", "maxContains", formats.FormatNumber(containsCheck.Max))
-			}
-			check = wrapFormatCheckPath(ctx, check)
-			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
-			switch {
-			case base.Code == "":
-				base.Code = check
-			case guard == "":
-				base.Code = base.Code + ";" + check
-			default:
-				base.Code = base.Code + ";if (" + guard + ") {" + check + "}"
-			}
-		}
-	}
-	if base.Type == CodeS && rt != nil && len(rt.Negations) > 0 {
-		for _, negation := range rt.Negations {
-			if ctx.ResolveRef(negation) == nil {
-				panic("validationErrors: unresolvable negation child — dropping it would silently weaken validation")
-			}
-			childRT := ctx.CompileChild(negation, CodeS)
-			if childRT.Type == CodeNS {
-				// The child's validator always throws (never-ish): no value can
-				// match it, so the negation can never fail — nothing to emit.
-				continue
-			}
-			notErr := formats.FormatErrCall("pth", "er", "not", "not", "not", "true")
-			var check string
-			if childRT.Code == "" {
-				// A noop child (any/unknown) matches EVERY value, so the
-				// negation unconditionally fails.
-				check = notErr
-			} else {
-				scratch := ctx.NextLocalVar("ner")
-				check = "const " + scratch + "=[];((er,pth)=>{" + childRT.Code + "})(" + scratch + ",[]);" +
-					"if (" + scratch + ".length===0) {" + notErr + "}"
 			}
 			check = wrapFormatCheckPath(ctx, check)
 			guard := baseKindGuard(rt, ctx.Vλl, ctx.NumberMode())
@@ -361,157 +285,6 @@ func baseKindGuard(rt *reflection.RunType, vλl, numberMode string) string {
 		return "typeof " + vλl + " === 'object' && " + vλl + " !== null"
 	}
 	return ""
-}
-
-// unevalVerrGuardExpr renders a group's firing condition for the verr sweeps:
-// the guard subschema's verr body folded into a scratch-array probe expression
-// (`((er,pth)=>{…;return er.length===0;})([],[])` — the negation splice's probe
-// as one expression), or the plain key-presence test. Mirrors validate.go's
-// unevalGuardExpr degradations exactly — an unrenderable positive guard fires
-// unconditionally, an unrenderable negated one is dropped — so validate and
-// verr always agree on WHICH keys count as unevaluated.
-func unevalVerrGuardExpr(ctx *EmitContext, group *reflection.UnevalGroup, v string) string {
-	if group.WhenKey != "" {
-		return "(" + quoteJS(group.WhenKey) + " in " + v + ")"
-	}
-	child := group.When
-	negate := false
-	if child == nil {
-		child = group.WhenNot
-		negate = true
-	}
-	if child == nil || ctx.ResolveRef(child) == nil {
-		return ""
-	}
-	ctx.SetChildAccessor(v)
-	childRT := ctx.CompileChild(child, CodeS)
-	ctx.SetChildAccessor("")
-	if childRT.Type == CodeNS || childRT.Code == "" {
-		if negate {
-			return ""
-		}
-		return "true"
-	}
-	probe := "(((er,pth)=>{" + childRT.Code + ";return er.length===0;})([],[]))"
-	if negate {
-		return "!" + probe
-	}
-	return probe
-}
-
-// emitUnevaluatedVerrKeys renders one evaluated-key sweep as a verr statement —
-// validate's emitUnevaluatedCheck with every child probed through a scratch
-// error array (no cross-family cache reference), pushing ONE canonical error
-// when a key nobody evaluated violates the leftover. Returns "" when the sweep
-// asserts nothing (mirroring validate's `true` short-circuits) so the caller
-// skips the splice.
-func emitUnevaluatedVerrKeys(ctx *EmitContext, check *reflection.UnevaluatedCheck) string {
-	kVar := ctx.NextLocalVar("uk")
-	v := ctx.Vλl
-	var body strings.Builder
-	body.WriteString("if (!((() => {for (const " + kVar + " in " + v + ") {")
-	for _, group := range check.Groups {
-		if !group.All {
-			continue
-		}
-		if guard := unevalVerrGuardExpr(ctx, group, v); guard != "" {
-			body.WriteString("if (" + guard + ") break; ")
-		}
-	}
-	if test := unevalMemberTest(ctx, check.Keys, check.Sources, kVar); test != "" {
-		body.WriteString("if (" + test + ") continue; ")
-	}
-	for _, group := range check.Groups {
-		if group.All {
-			continue
-		}
-		test := unevalMemberTest(ctx, group.Keys, group.Sources, kVar)
-		if test == "" {
-			continue
-		}
-		guard := unevalVerrGuardExpr(ctx, group, v)
-		if guard == "" {
-			continue
-		}
-		body.WriteString("if (" + guard + " && (" + test + ")) continue; ")
-	}
-	if check.Value == nil {
-		body.WriteString("return false;")
-	} else {
-		ctx.SetChildAccessor(v + "[" + kVar + "]")
-		childRT := ctx.CompileChild(check.Value, CodeS)
-		ctx.SetChildAccessor("")
-		if childRT.Type == CodeNS || childRT.Code == "" {
-			// A leftover nothing can check accepts every key — mirror
-			// validate's no-assert reading.
-			return ""
-		}
-		body.WriteString("if (!(((er,pth)=>{" + childRT.Code + ";return er.length===0;})([],[]))) return false;")
-	}
-	body.WriteString("}return true;})()))")
-	return body.String() + " " +
-		formats.FormatErrCall("pth", "er", "object", "unevaluatedProperties", "unevaluatedProperties", "true")
-}
-
-// emitUnevaluatedVerrItems — the array twin: validate's
-// emitUnevaluatedItemsCheck with scratch-array probes, one canonical error.
-func emitUnevaluatedVerrItems(ctx *EmitContext, rt *reflection.RunType, check *reflection.UnevaluatedCheck) string {
-	v := ctx.Vλl
-	iVar := ctx.NextLocalVar("ui")
-	wVar := ctx.NextLocalVar("uw")
-	var body strings.Builder
-	body.WriteString("if (!((() => {let " + wVar + " = " + strconv.Itoa(check.Prefix) + ";")
-	for _, group := range check.Groups {
-		guard := unevalVerrGuardExpr(ctx, group, v)
-		if guard == "" {
-			continue
-		}
-		if group.All {
-			body.WriteString("if (" + guard + ") return true;")
-			continue
-		}
-		if group.Prefix <= check.Prefix {
-			continue
-		}
-		body.WriteString("if (" + guard + " && " + wVar + " < " + strconv.Itoa(group.Prefix) + ") " +
-			wVar + " = " + strconv.Itoa(group.Prefix) + ";")
-	}
-	// `contains` evaluates SCATTERED indexes — same special case as validate's
-	// items sweep, with the match decided by a scratch-array probe.
-	var containsTests []string
-	for _, containsCheck := range rt.Contains {
-		if containsCheck == nil || ctx.ResolveRef(containsCheck.Child) == nil {
-			continue
-		}
-		ctx.SetChildAccessor(v + "[" + iVar + "]")
-		childRT := ctx.CompileChild(containsCheck.Child, CodeS)
-		ctx.SetChildAccessor("")
-		if childRT.Type != CodeNS && childRT.Code != "" {
-			containsTests = append(containsTests, "(((er,pth)=>{"+childRT.Code+";return er.length===0;})([],[]))")
-		}
-	}
-	if check.Value == nil && len(containsTests) == 0 {
-		body.WriteString("return " + v + ".length <= " + wVar + ";")
-	} else {
-		leftover := "return false;"
-		if check.Value != nil {
-			ctx.SetChildAccessor(v + "[" + iVar + "]")
-			childRT := ctx.CompileChild(check.Value, CodeS)
-			ctx.SetChildAccessor("")
-			if childRT.Type == CodeNS || childRT.Code == "" {
-				return ""
-			}
-			leftover = "if (!(((er,pth)=>{" + childRT.Code + ";return er.length===0;})([],[]))) return false;"
-		}
-		body.WriteString("for (let " + iVar + " = " + wVar + "; " + iVar + " < " + v + ".length; " + iVar + "++) {")
-		if len(containsTests) > 0 {
-			body.WriteString("if (" + strings.Join(containsTests, " || ") + ") continue;")
-		}
-		body.WriteString(leftover + "}return true;")
-	}
-	body.WriteString("})()))")
-	return body.String() + " " +
-		formats.FormatErrCall("pth", "er", "array", "unevaluatedItems", "unevaluatedItems", "true")
 }
 
 func (ValidationErrorsEmitter) emitKindDefault(rt *reflection.RunType, ctx *EmitContext, _ CodeType) RTCode {
@@ -1359,47 +1132,8 @@ func emitTemplateLiteralValidationErrors(rt *reflection.RunType, ctx *EmitContex
 // cache) means the entry is always populated by the time the
 // validationErrors closure invokes `utl.getRT('val_<hash>')`.
 func emitUnionValidationErrors(rt *reflection.RunType, ctx *EmitContext, v string) RTCode {
-	if reason := rt.OneOfDefectReason(); reason != "" {
-		// Twin of the validate refusal — the verdict is delegated to that
-		// factory, so the report stops at the same place.
-		ctx.EmitDiagnostic(diagnostics.CodeOneOfDefect, reason)
-	}
 	validateHash := operations.PlainHash("validate") + "_" + rt.ID
 	ctx.registerRTLookup(validateHash)
-	// OneOf — the validate delegate already enforces exactly-one (its
-	// boolean is the counting check), so detection is unchanged; inside the
-	// failure block the branches are re-probed against scratch error arrays
-	// (the negation-splice idiom) purely to tell the two failure stories
-	// apart: matched none → the canonical union error, matched several →
-	// one 'oneOf' error carrying the match count as its val.
-	if len(rt.OneOf) > 0 {
-		nVar := ctx.NextLocalVar("xn")
-		var count strings.Builder
-		count.WriteString("let " + nVar + " = 0;")
-		for _, branch := range rt.OneOf {
-			if ctx.ResolveRef(branch) == nil {
-				panic("validationErrors: unresolvable oneOf branch — dropping it would silently weaken validation")
-			}
-			branchRT := ctx.CompileChild(branch, CodeS)
-			if branchRT.Type == CodeNS {
-				panic("validationErrors: non-serializable oneOf branch — dropping it would silently weaken validation")
-			}
-			if branchRT.Code == "" {
-				// No-check branch (unknown / noop) matches unconditionally.
-				count.WriteString(nVar + "++;")
-				continue
-			}
-			scratch := ctx.NextLocalVar("xer")
-			count.WriteString("const " + scratch + " = [];((er,pth)=>{" + branchRT.Code + "})(" + scratch + ",[]);" +
-				"if (" + scratch + ".length === 0) " + nVar + "++;")
-		}
-		return RTCode{
-			Code: "if (!" + validateHash + ".fn(" + v + ")) {" + count.String() +
-				"if (" + nVar + " > 1) {" + formats.FormatErrCall("pth", "er", "union", "oneOf", "oneOf", nVar) +
-				"} else {" + callRTErr(ctx, "union", "") + "}}",
-			Type: CodeS,
-		}
-	}
 	return RTCode{
 		Code: "if (!" + validateHash + ".fn(" + v + ")) " + callRTErr(ctx, "union", ""),
 		Type: CodeS,

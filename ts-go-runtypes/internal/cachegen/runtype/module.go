@@ -209,11 +209,6 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	if runType.FormatAnnotation != nil {
 		writeFormatAnnotation(buffer, name, runType)
 	}
-	// negations — the negated children of a `__rtNot` sentinel; the mock
-	// walker rejection-samples against them at runtime.
-	if len(runType.Negations) > 0 {
-		buffer.WriteString(fmt.Sprintf("%s.negations = [%s];\n", name, joinRefs(runType.Negations)))
-	}
 	if len(runType.Contains) > 0 {
 		writeContains(buffer, name, runType)
 	}
@@ -222,9 +217,6 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 	}
 	if len(runType.PropNames) > 0 {
 		writePropNames(buffer, name, runType)
-	}
-	if len(runType.OneOf) > 0 {
-		writeOneOf(buffer, name, runType)
 	}
 	if len(runType.TypeArguments) > 0 {
 		buffer.WriteString(fmt.Sprintf("%s.typeArguments = [%s];\n", name, joinRefs(runType.TypeArguments)))
@@ -242,7 +234,7 @@ func writeFooter(buffer *strings.Builder, runType *reflection.RunType) {
 		buffer.WriteString(fmt.Sprintf("%s.extends = [%s];\n", name, joinRefs(runType.Extends)))
 	}
 	// Only the narrow half — this footer already wrote the slot specials
-	// (formatAnnotation / contains / patternProps / propNames / oneOf) above;
+	// (formatAnnotation / contains / patternProps / propNames) above;
 	// the historical full writeBundleSpecials call emitted them twice.
 	writeExpressionSpecials(buffer, name, runType)
 }
@@ -278,7 +270,6 @@ func renderRelations(runType *reflection.RunType, indexOf map[string]int) string
 		relRefs(runType.ExtendsArguments, indexOf),    // 11 extendsArguments
 		relRefs(runType.Implements, indexOf),          // 12 implements
 		relRefs(runType.Extends, indexOf),             // 13 extends
-		relRefs(runType.Negations, indexOf),           // 14 negations
 	}
 	slots = trimTrailingHoles(slots)
 	if len(slots) == 0 {
@@ -345,9 +336,7 @@ func hasBundleSpecials(runType *reflection.RunType) bool {
 		isFooterLiteral(runType) ||
 		len(runType.Contains) > 0 ||
 		len(runType.PatternProps) > 0 ||
-		len(runType.PropNames) > 0 ||
-		len(runType.OneOf) > 0 ||
-		len(runType.Unevaluated) > 0
+		len(runType.PropNames) > 0
 }
 
 // writeBundleSpecials writes the residual footer lines for the runtime-special
@@ -375,15 +364,12 @@ func writeBundleSpecials(buffer *strings.Builder, runType *reflection.RunType) {
 	if len(runType.PropNames) > 0 {
 		writePropNames(buffer, name, runType)
 	}
-	if len(runType.OneOf) > 0 {
-		writeOneOf(buffer, name, runType)
-	}
 	writeExpressionSpecials(buffer, name, runType)
 }
 
 // writeExpressionSpecials writes the residual lines BOTH layouts need exactly
-// once: the builtin classType, the footer-only bigint/symbol literal and the
-// flattened unevaluated key set. writeFooter (per-node layout) emits the slot
+// once: the builtin classType and the footer-only bigint/symbol literal.
+// writeFooter (per-node layout) emits the slot
 // specials itself and calls only this narrow half.
 func writeExpressionSpecials(buffer *strings.Builder, name string, runType *reflection.RunType) {
 	// classType — built-in constructors looked up on globalThis so the
@@ -394,42 +380,6 @@ func writeExpressionSpecials(buffer *strings.Builder, name string, runType *refl
 	// Footer-only literals (bigint / symbol).
 	if isFooterLiteral(runType) {
 		buffer.WriteString(fmt.Sprintf("%s.literal = %s;\n", name, footerLiteralExpr(runType)))
-	}
-	writeUnevaluatedKeys(buffer, name, runType)
-}
-
-// writeUnevaluatedKeys emits the FLATTENED admissible key set behind an
-// `unevaluated*` sweep — the unconditionally evaluated keys plus every guarded
-// group's, and the same for pattern sources. The guards themselves stay a
-// compile-time concern (the emitted validator carries them); the mock walker
-// only needs to know which keys it may deal, so it gets the flat set and no
-// child derefs. Nothing is written when the sweep names no keys at all, which
-// is the `unevaluatedProperties: false` on a bare object case — there the mock
-// has nothing to trim TO and an empty list would read as "no constraint".
-func writeUnevaluatedKeys(buffer *strings.Builder, name string, runType *reflection.RunType) {
-	if len(runType.Unevaluated) == 0 {
-		return
-	}
-	// Stacked sweeps flatten together: the mock walker only needs the union of
-	// admissible keys, and a key every sweep rejects stays out of every list.
-	var keys, sources []string
-	for _, check := range runType.Unevaluated {
-		if check == nil {
-			continue
-		}
-		keys = append(keys, check.Keys...)
-		sources = append(sources, check.Sources...)
-		for _, group := range check.Groups {
-			if group == nil {
-				continue
-			}
-			keys = append(keys, group.Keys...)
-			sources = append(sources, group.Sources...)
-		}
-	}
-	buffer.WriteString(fmt.Sprintf("%s.unevaluatedKeys = [%s];\n", name, joinQuoted(keys)))
-	if len(sources) > 0 {
-		buffer.WriteString(fmt.Sprintf("%s.unevaluatedSources = [%s];\n", name, joinQuoted(sources)))
 	}
 }
 
@@ -473,17 +423,6 @@ func writePropNames(buffer *strings.Builder, name string, runType *reflection.Ru
 		entries = append(entries, derefExpr(propNames))
 	}
 	buffer.WriteString(fmt.Sprintf("%s.propNames = [%s];\n", name, strings.Join(entries, ", ")))
-}
-
-// writeOneOf emits the `<ref>.oneOf = [branch, …];` line — the exactly-one
-// branch list (runtime consumers: the mock walker's exclusive-branch loop
-// and the negation matcher's counting arm).
-func writeOneOf(buffer *strings.Builder, name string, runType *reflection.RunType) {
-	branches := make([]string, 0, len(runType.OneOf))
-	for _, branch := range runType.OneOf {
-		branches = append(branches, derefExpr(branch))
-	}
-	buffer.WriteString(fmt.Sprintf("%s.oneOf = [%s];\n", name, strings.Join(branches, ", ")))
 }
 
 // writeFormatAnnotation emits the `<ref>.formatAnnotation = {…};` line. The

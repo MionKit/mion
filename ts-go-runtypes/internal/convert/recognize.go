@@ -1,14 +1,12 @@
 // recognize.go classifies a file's top-level convertible declarations: type
 // aliases, interfaces, and consts whose resolved type is the marker module's
-// `RunType<T>` (builder calls and `runTypeFromJsonSchema` alike — detection is
+// `RunType<T>` (detection is
 // by RETURN TYPE, the same rule internal/compiler/builders applies, never by
 // function name). An `InferType<typeof x>` alias is paired with its const so
 // the two convert as one declaration.
 package convert
 
 import (
-	"strings"
-
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/compiler/builders"
@@ -147,16 +145,16 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, mar
 	}
 	return &declaration{
 		ConstName: nameNode.Text(),
-		Form:      constForm(declarator.Initializer, sourceFile),
+		Form:      TargetBuilders,
 		Exported:  isExported(statement),
 		Stmt:      statement,
 		NameNode:  nameNode,
 	}
 }
 
-// isAuthoredRunTypeInitializer reports whether the initializer is one of the
-// two spellings the converter round-trips: a builder / format call from the
-// value-first surface, or the `runTypeFromJsonSchema` door.
+// isAuthoredRunTypeInitializer reports whether the initializer is the
+// spelling the converter round-trips: a builder / format call from the
+// value-first surface.
 //
 // A RunType-typed const is NOT enough on its own. The mocking suites assemble
 // RunType graphs by hand from local helpers (`const Model = objectOf([...])`,
@@ -165,7 +163,7 @@ func constFormDeclaration(statement *ast.Node, typeChecker *checker.Checker, mar
 // as an EMPTY schema. That is data loss, not conversion.
 //
 // The discriminator is that the callee comes from the PACKAGE: `RT.object(…)`
-// and `runTypeFromJsonSchema(…)` are imported, a local helper is not. Module of
+// is imported, a local helper is not. Module of
 // origin cannot tell them apart here — the suites and src/ share one
 // package.json, so a locally declared helper reports the marker module too.
 func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Checker, markerOpts marker.Options) bool {
@@ -184,32 +182,6 @@ func isAuthoredRunTypeInitializer(initializer *ast.Node, typeChecker *checker.Ch
 		nameNode = callee.AsPropertyAccessExpression().Name()
 	}
 	return nameNode != nil && ast.IsIdentifier(nameNode) && referencedThroughPackageImport(typeChecker, nameNode)
-}
-
-// constForm tells a `runTypeFromJsonSchema(…)` const from a builder const by
-// the callee's written name. The name check is on the SPELLED callee only —
-// both forms already passed the RunType return-type gate, so this only picks
-// which target the const is idempotent under.
-func constForm(initializer *ast.Node, sourceFile *ast.SourceFile) Target {
-	if initializer.Kind == ast.KindCallExpression {
-		callee := initializer.AsCallExpression().Expression
-		if callee != nil && strings.HasSuffix(calleeText(callee), "runTypeFromJsonSchema") {
-			return TargetJSONSchema
-		}
-	}
-	return TargetBuilders
-}
-
-// calleeText renders an identifier or dotted callee (`ns.fn`) as text.
-func calleeText(callee *ast.Node) string {
-	switch callee.Kind {
-	case ast.KindIdentifier:
-		return callee.Text()
-	case ast.KindPropertyAccessExpression:
-		access := callee.AsPropertyAccessExpression()
-		return calleeText(access.Expression) + "." + access.Name().Text()
-	}
-	return ""
 }
 
 // inferTypeAliasTarget reports whether a type alias is the paired

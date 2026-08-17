@@ -15,13 +15,12 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/marker"
 )
 
-// The five managed module specifiers, derived from the marker package name.
+// The four managed module specifiers, derived from the marker package name.
 var (
-	moduleCore       = marker.DefaultModule
-	moduleBuilders   = marker.DefaultModule + "/builders"
-	moduleFormats    = marker.DefaultModule + "/formats"
-	moduleTemporal   = marker.DefaultModule + "/formats/temporal"
-	moduleJSONSchema = marker.DefaultModule + "/json-schema"
+	moduleCore     = marker.DefaultModule
+	moduleBuilders = marker.DefaultModule + "/builders"
+	moduleFormats  = marker.DefaultModule + "/formats"
+	moduleTemporal = marker.DefaultModule + "/formats/temporal"
 )
 
 // foreignNeed is one cross-file type-name import the printed output needs:
@@ -36,16 +35,14 @@ type foreignNeed struct {
 // the cross-file needs: foreign type names to import and existing locals the
 // printed references spelled (so removal never strips them).
 type importNeeds struct {
-	useRT                    bool
-	useTF                    bool
-	useTFT                   bool
-	useGetRunType            bool
-	useInferType             bool
-	useTypeFormat            bool
-	useRunTypeFromJSONSchema bool
-	useEmbedType             bool
-	foreign                  map[foreignNeed]bool
-	keepLocals               map[string]bool
+	useRT         bool
+	useTF         bool
+	useTFT        bool
+	useGetRunType bool
+	useInferType  bool
+	useTypeFormat bool
+	foreign       map[foreignNeed]bool
+	keepLocals    map[string]bool
 }
 
 func (needs *importNeeds) addForeign(need foreignNeed) {
@@ -72,8 +69,6 @@ func (needs *importNeeds) merge(other importNeeds) {
 	needs.useGetRunType = needs.useGetRunType || other.useGetRunType
 	needs.useInferType = needs.useInferType || other.useInferType
 	needs.useTypeFormat = needs.useTypeFormat || other.useTypeFormat
-	needs.useRunTypeFromJSONSchema = needs.useRunTypeFromJSONSchema || other.useRunTypeFromJSONSchema
-	needs.useEmbedType = needs.useEmbedType || other.useEmbedType
 	for need := range other.foreign {
 		needs.addForeign(need)
 	}
@@ -220,7 +215,7 @@ func scanImports(sourceFile *ast.SourceFile, source string) *importScan {
 		}
 		module := importDecl.ModuleSpecifier.Text()
 		ours := module == moduleCore || module == moduleBuilders || module == moduleFormats ||
-			module == moduleTemporal || module == moduleJSONSchema
+			module == moduleTemporal
 		entry := &moduleImport{stmt: statement, module: module, managed: ours, rewritable: true}
 		clause := importDecl.ImportClause
 		if clause == nil {
@@ -286,8 +281,6 @@ var managedRoles = []managedRole{
 	{module: moduleBuilders, namespace: true, needed: func(needs importNeeds) bool { return needs.useRT }, local: func(names *nameTable) string { return names.RT }},
 	{module: moduleFormats, namespace: true, needed: func(needs importNeeds) bool { return needs.useTF }, local: func(names *nameTable) string { return names.TF }},
 	{module: moduleTemporal, namespace: true, needed: func(needs importNeeds) bool { return needs.useTFT }, local: func(names *nameTable) string { return names.TFT }},
-	{module: moduleJSONSchema, imported: "runTypeFromJsonSchema", needed: func(needs importNeeds) bool { return needs.useRunTypeFromJSONSchema }, local: func(names *nameTable) string { return names.RunTypeFromJSONSchema }},
-	{module: moduleJSONSchema, imported: "embedType", needed: func(needs importNeeds) bool { return needs.useEmbedType }, local: func(names *nameTable) string { return names.EmbedType }},
 }
 
 // planImportEdits computes the import-statement replacements: per managed
@@ -310,7 +303,7 @@ func planImportEdits(sourceFile *ast.SourceFile, source string, scan *importScan
 	// chains landing on the same form disagreed on import order.
 	var managedBlock []string
 	var managedStmts []*moduleImport
-	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleTemporal, moduleJSONSchema} {
+	for _, module := range []string{moduleCore, moduleBuilders, moduleFormats, moduleTemporal} {
 		entry := scan.byModule[module]
 		var finalNamespace string
 		var finalNamed []namedBinding
