@@ -40,10 +40,43 @@ func (JsonSchemaDocEmitter) IsRTInlined(ctx *InlineContext) bool {
 }
 
 // Emit renders the complete document for the root frame. Child frames are
-// never entered (this emitter never calls CompileChild).
+// never entered (this emitter never calls CompileChild). Unions get their
+// wire layout from the REAL buildFlatLayout — the same instance shape the
+// JSON encoders compile from — so a wrapped union's document describes the
+// `[index, value]` envelope the encoder actually writes, and the two can
+// never disagree.
 func (JsonSchemaDocEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expectedCType CodeType) RTCode {
-	doc := schemadoc.RenderDocument(rt, ctx.ResolveRef)
+	doc := schemadoc.RenderDocumentWire(rt, ctx.ResolveRef, func(union *reflection.RunType) *schemadoc.UnionWireLayout {
+		return unionWireLayoutFor(union, ctx)
+	})
 	return RTCode{Code: "return (" + doc.Source + ");", Type: CodeRB}
+}
+
+// unionWireLayoutFor projects buildFlatLayout's structural half into the
+// renderer's view. A pure field mapping — no wire decision is recomputed, so
+// the document's envelope and the encoder's envelope share one source.
+func unionWireLayoutFor(union *reflection.RunType, ctx *EmitContext) *schemadoc.UnionWireLayout {
+	layout := buildFlatLayout(union, ctx)
+	wire := &schemadoc.UnionWireLayout{Wraps: layout.AtomicNeedsTuple, HasMergedObjects: len(layout.ObjectMembers) > 0}
+	if !wire.Wraps {
+		return wire
+	}
+	for _, member := range layout.AtomicMembers {
+		wire.Atomics = append(wire.Atomics, schemadoc.UnionWireAtomic{Node: member.Resolved, Index: member.OriginalIndex})
+	}
+	for _, mergedProp := range layout.MergedProps {
+		prop := schemadoc.UnionWireProp{
+			Name:         mergedProp.Name,
+			IsSafeName:   mergedProp.IsSafeName,
+			Required:     mergedProp.Required,
+			NeedsSubWrap: mergedProp.NeedsSubWrap,
+		}
+		for _, candidate := range mergedProp.Candidates {
+			prop.Candidates = append(prop.Candidates, candidate.Resolved)
+		}
+		wire.MergedProps = append(wire.MergedProps, prop)
+	}
+	return wire
 }
 
 // EmitDependencyCall is unreachable (IsRTInlined is always true).
