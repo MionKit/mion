@@ -277,28 +277,6 @@ You don't have to write the type out. Hand `getRunType` any value and it reflect
 
 ::u-page-section
 #title
-We also speak JSON Schema
-
-#body
-:::div{class="rt-feature-row rt-stack-reverse"}
-<code-import path="packages/examples/src/_homepage/define-json-schema.ts" lang="ts" />
-
-::::card{class="rt-feature-card"}
-### A migration door for AJV and OpenAPI projects
-Coming from a schema-first setup? Hand an existing JSON Schema (draft 2020-12) to any factory while you move over. Keywords become real checks, the TypeScript type comes back out, and a schema describing the same shape as a type compiles to the exact same generated function. Your types stay the source of truth; the schemas you already have are welcome on the way in.
-
-<br>
-
-[Using JSON Schemas →](/guide/json-schema)
-
-[Experimental]{.rt-badge-experimental}
-::::
-:::
-::
-
-
-::u-page-section
-#title
 High performance compiled code
 
 #body

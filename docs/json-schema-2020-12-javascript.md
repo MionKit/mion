@@ -4,7 +4,7 @@ A small, conservative extension to [JSON Schema draft 2020-12](https://json-sche
 
 Status: specification. Version 1. Keyword prefixes `js`, `ts`, `rt`.
 
-Every rule below carries an ID like `JS-DATE`. Those are not decoration: `packages/ts-runtypes/test/features/json-schema-dialect.test.ts` has one runnable case per ID against the real `convert` binary, and fails if this document names a rule the test does not cover. A rule that is not tested does not exist.
+Every rule below carries an ID like `JS-DATE`.
 
 ## Why
 
@@ -41,12 +41,11 @@ ones rather than replacing them, a schema can carry several at once and the
 order they are read in has to be stated. A reader recovering a type takes the
 FIRST of these that applies:
 
-1. the `embedType` escape, which carries a type verbatim
-2. `tsMeta`, whose `base` is then read by these same rules
-3. `jsType`
-4. `rtFormat`
-5. `tsFunction`, `tsTemplate`
-6. the standard 2020-12 translation
+1. `tsMeta`, whose `base` is then read by these same rules
+2. `jsType`
+3. `rtFormat`
+4. `tsFunction`, `tsTemplate`
+5. the standard 2020-12 translation
 
 The consequence worth spelling out: **when `jsType` is present, the wire
 constraint keywords are descriptive only.** `{"type": "string", "format":
@@ -102,7 +101,7 @@ is meaningful only in that pair (JS-PROMISE below).
 
 Every one is optional. A document using none of them is ordinary JSON Schema.
 
-**`CORE-NOT`** — there is deliberately no keyword for negation. JavaScript has no "not this type", and RunTypes' negation type exists precisely to model JSON Schema's `not`, so a negated format is written with the standard keyword and nothing else:
+**`CORE-NOT`** — there is deliberately no keyword for negation. JavaScript has no "not this type", so a negated constraint is written with the standard keyword and nothing else:
 
 ```json
 {"type": "string", "not": {"format": "email"}}
@@ -110,7 +109,7 @@ Every one is optional. A document using none of them is ordinary JSON Schema.
 
 A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding an extension spelling beside it would be inventing a second way to say one thing.
 
-**`CORE-PORTABLE`** — a *portable* document uses no extension keyword at all. `ts-runtypes convert --portable` emits only portable documents and raises an error where a type cannot be expressed without the extension, so a schema destined for a non-RunTypes consumer never silently depends on it.
+**`CORE-PORTABLE`** — a *portable* document uses no extension keyword at all. The schema generator's `portable` option emits only portable documents, so a schema destined for a non-RunTypes consumer never silently depends on the extension.
 
 ---
 
@@ -395,10 +394,4 @@ An implementation of this dialect:
 
 ## Relationship to RunTypes
 
-RunTypes reads this dialect through `runTypeFromJsonSchema` and writes it with `ts-runtypes convert --to json-schema`.
-
-Three things keep this document and the code from drifting apart:
-
-- **`packages/ts-runtypes/test/features/json-schema-dialect.test.ts`** runs one case per rule ID above against the real binary, and fails if a rule here has no case.
-- **`SchemaLoweringByKeyword`** (`packages/ts-runtypes/src/json-schema/fromJsonSchema.ts`) is total and machine-checked: an accepted keyword without a row fails to compile.
-- **`packages/ts-runtypes/test/features/unsupported-conversion.test.ts`** is the matching list of what cannot be expressed at all.
+RunTypes writes this dialect through the schema generator (`createJsonSchemaFn` / `createStandardSchema`); its `portable` option strips every extension keyword.
