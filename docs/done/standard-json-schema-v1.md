@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-16
 ---
 
@@ -212,3 +212,33 @@ Steps (each fully tested + committed before the next):
 5. Website guide page + 12.json-schema-js reframe + ARCHITECTURE.md; spec
    reconciled and moved to docs/done; a standalone (standard-free) follow-up
    todo filed for natural-JSON parse via a fused validating decoder.
+
+## Shipped (2026-08-17)
+
+Landed on `feature/standard-json-schema-v1` as five commits, one per step:
+
+1. `JSONShape<T>` (`runtypes/jsonShape.ts`) — the JSON wire twin of DataOnly
+   (Date/Temporal/RegExp to strings, bigint to digit strings, Map/Set to
+   arrays, undefined slots to null, wrapped unions as `[number, memberWire]`
+   envelopes). Type pins + runtime conformance against the real encoder.
+2. `internal/schemadoc` — the convert printer's format vocabulary extracted
+   into a shared leaf (printer rewired behavior-identically) plus the runtime
+   document renderer (`RenderDocument`: total, degrade-with-warnings,
+   `$defs`/`{$ref: '#'}` cycles, structural classes, enum value lists).
+   Printer/renderer parity pinned by a hand corpus and a seeded fuzz leg
+   (`SchemaParityProbe`) — the fuzzing this feature ships.
+3. The `jsonSchema` (`jsc`) cache family — operations row, CacheModules
+   entry, whole-document emitter; codegen mirrors regenerated.
+4. The JS surface — vendored StandardJSONSchemaV1 interfaces,
+   `createJsonSchemaFn<T>()`, and the `~standard.jsonSchema` converter on
+   `createStandardSchema` (one object satisfies both standard interfaces).
+   `input()` and `output()` return the SAME document; `libraryOptions:
+   {portable: true}` deep-strips the dialect keywords; non-2020-12 targets
+   throw. 296 new feature tests (goldens + full cross-suite sweep).
+5. Website guide page (Generating JSON Schema), JSON Schema JS page updated
+   to name the generator as an emitter, ARCHITECTURE.md.
+
+NOT shipped, by explicit decision recorded above: transform-inside-validate
+(restore mode) and any input/output asymmetry — `validate` stays check-only.
+The natural-JSON parse direction lives on as its own standard-free idea in
+docs/todos/natural-json-parse.md.

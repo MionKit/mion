@@ -239,8 +239,10 @@ This is the largest part of the Go program.
 - **`typefunctions`** is the code generator. For each supported operation it walks the
   type description and produces the JavaScript body. Operations include validation,
   validation errors, several JSON strategies, binary encode and decode, unknown key
-  checks, exact shape cloning, and format transforms. Each operation is one plug in
-  module behind a shared interface, so adding one does not touch the walker.
+  checks, exact shape cloning, format transforms, and JSON Schema documents (the
+  `jsonSchema`/`jsc` family, whose entry returns the whole document rendered by
+  `internal/schemadoc`). Each operation is one plug in module behind a shared
+  interface, so adding one does not touch the walker.
 - **`typefunctions/formats/`** holds the string, number, and date and time format checks
   (email, uuid, url, patterns, Temporal types) that get spliced into the generated bodies.
 - **`purefunctions`** handles small self contained helper functions, both yours and the
@@ -266,6 +268,16 @@ This is the largest part of the Go program.
   stale entry is a miss rather than a wrong answer.
 - **`hashid`** is the shared short hash used for ids, tuned so the result is always a
   valid JavaScript identifier.
+
+`internal/schemadoc` sits beside `cachegen` as the shared JSON-Schema vocabulary: the
+format-family roster and every pure keyword-rendering helper, plus the runtime document
+renderer. Two consumers read it — the convert printer's schema target and the `jsc`
+cache family's emitter — so the mapping between a type and its schema spelling has one
+home. Where the printer refuses (conversion must round-trip a declaration's identity),
+the renderer degrades: cycles close with `$defs`/`{$ref: '#'}`, classes render their
+structural wire shape, and anything unspellable widens to `{}` with a warning, so a
+document under-constrains but never lies. Printer/renderer parity is pinned by a corpus
+test and a seeded fuzz leg (`SchemaParityProbe` in `internal/convert`).
 
 ### `internal/enrichment/`: the files humans edit
 
