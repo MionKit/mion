@@ -27,13 +27,11 @@ const JS_ONLY = new Set([
   'jsRuntime',
 ]);
 // Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
-// in the tsconfig `plugins` array (not a project option), `i18n` is
+// in the tsconfig `plugins` array (not a project option), and `i18n` is
 // enrichment-lane config the bundler build never consumes (a future feature may
 // drive enrichment from the plugin and move `i18n` into PluginOptions; until then
-// it stays tsconfig-only), and `convertDialect` configures the `convert` verb —
-// a one-shot CLI migration tool the bundler plugin never runs, so a PluginOptions
-// counterpart would be an option that does nothing.
-const GO_ONLY = new Set(['name', 'i18n', 'convertDialect']);
+// it stays tsconfig-only).
+const GO_ONLY = new Set(['name', 'i18n']);
 
 describe('PluginOptions <-> tsRuntypesPlugin project-option parity', () => {
   const js = new Set<string>(PLUGIN_OPTION_KEYS as readonly string[]);

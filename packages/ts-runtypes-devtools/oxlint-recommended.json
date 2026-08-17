@@ -27,7 +27,6 @@
     "runtypes/enrichment-field": "error",
     "runtypes/enrichment-message": "warn",
     "runtypes/enrichment-broken-source": "error",
-    "runtypes/enrichment-misplaced-file": "warn",
-    "runtypes/json-schema-dropped-intent": "warn"
+    "runtypes/enrichment-misplaced-file": "warn"
   }
 }

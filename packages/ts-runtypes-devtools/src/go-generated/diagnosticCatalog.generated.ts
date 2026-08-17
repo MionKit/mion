@@ -436,12 +436,6 @@ export const DIAGNOSTIC_CATALOG: Record<string, DiagnosticEntry> = {
     detail:
       "The runtime enumerability guard (which lets a value omit a property from\nthe wire when it isn't an enumerable own property) is applied ONLY to\noptional properties. That keeps the decoder's `DataOnly<T>` return type\nhonest: a guarded property is always one the type already allows to be\nabsent. A `@nonEnumerable` tag on a REQUIRED property is therefore ignored;\nthe property still serializes unconditionally.\n\nFix: make the property optional:\n-  /** @nonEnumerable */ token: string;\n+  /** @nonEnumerable */ token?: string;",
   },
-  OOF001: {
-    headline: '{0} is not supported: exclusivity can only be checked when the exclusive union IS the whole union.',
-    severity: 'error',
-    detail:
-      '`OneOf<[A, B]>` means the value matches EXACTLY ONE of A or B, and the\ncheck works by counting how many branches match. That count decides the\nwhole union, so there is nowhere to put a member that is not one of the\nbranches:\n\n  type T = OneOf<[A, B]> | C;        // the `| C` arm could never be checked\n  type U = OneOf<[A, B]> | OneOf<[C, D]>;  // two counts cannot be combined\n\nGive the exclusive part its own named type and union that:\n\n  type Pick = OneOf<[A, B]>;\n  type T = Pick | C;                 // still not supported — same shape\n\nOr, if you meant at-least-one rather than exactly-one, use a plain union\n(`A | B | C`), which is JSON Schema `anyOf`.\n\nA `oneOf` written next to other KEYWORDS in a JSON Schema is unaffected:\n`{"anyOf": [...], "oneOf": [...]}` is fine, because those combine as an\nAND over the same value rather than as union arms.',
-  },
   OVR001: {
     headline: 'Duplicate override for `{0}`: there can be exactly one override per (type, function).',
     severity: 'error',
