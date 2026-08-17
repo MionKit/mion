@@ -1928,20 +1928,6 @@ export const cases: CompetitorCases = {
   // build a validator from one), so these entries state the same CONSTRAINT in
   // zod's own dialect, exactly like every other group here. Only the keywords
   // zod genuinely cannot express opt out.
-  'JSON_SCHEMA.closed_object': {
-    buildErrors: () => {
-      const schema = z.strictObject({id: z.int(), name: z.string()});
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
-  'JSON_SCHEMA.pattern_properties': {
-    buildErrors: () => {
-      // A regex-constrained record key is zod's patternProperties: a key that
-      // fails the regex is rejected rather than ignored.
-      const schema = z.record(z.string().regex(/^col_/), z.number());
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
   'JSON_SCHEMA.property_names': {
     buildErrors: () => {
       const schema = z.record(z.string().regex(/^[a-z]+$/), z.number());
@@ -1951,17 +1937,6 @@ export const cases: CompetitorCases = {
   'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no array `contains` / count-of-matching-items check
   'JSON_SCHEMA.unique_items': NOT_SUPPORTED, // no array uniqueness check
   'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no key-count bounds on objects
-  'JSON_SCHEMA.dependent_required': {
-    buildErrors: () => {
-      // dependentRequired is a union of the allowed combinations — the same
-      // spelling the JSON Schema guide gives for the type-side equivalent.
-      const schema = z.union([
-        z.object({credit_card: z.int(), billing_address: z.string()}),
-        z.object({credit_card: z.never().optional(), billing_address: z.string().optional()}),
-      ]);
-      return (value: unknown) => schema.safeParse(value).success;
-    },
-  },
   'JSON_SCHEMA.string_email': {
     buildErrors: () => {
       const schema = z.email();

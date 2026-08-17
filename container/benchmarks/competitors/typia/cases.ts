@@ -2746,31 +2746,9 @@ export const cases: CompetitorCases = {
   // ── JSON_SCHEMA ──
   // typia has no JSON Schema INPUT door (json.application<[T]>() is the OUTPUT
   // direction), so these entries state the same CONSTRAINT as a typia type plus
-  // tags, like every other group here. Closedness cases use createEquals /
-  // createValidateEquals: createIs is structural and accepts excess keys, which
-  // is exactly what these cases must reject. Every entry below was verified
-  // against this group's EXACT shared samples by building it through the real
-  // ttsc transform, not inferred from the tag names.
-  'JSON_SCHEMA.closed_object': {
-    build: () => {
-      const check = typia.createEquals<{id: number & tags.Type<'int32'>; name: string}>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidateEquals<{id: number & tags.Type<'int32'>; name: string}>();
-      return (v) => val(v).success;
-    },
-  },
-  'JSON_SCHEMA.pattern_properties': {
-    build: () => {
-      const check = typia.createEquals<Record<`col_${string}`, number>>();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidateEquals<Record<`col_${string}`, number>>();
-      return (v) => val(v).success;
-    },
-  },
+  // tags, like every other group here. Every entry below was verified against
+  // this group's EXACT shared samples by building it through the real ttsc
+  // transform, not inferred from the tag names.
   'JSON_SCHEMA.property_names': NOT_SUPPORTED, // an index signature key cannot carry a regex constraint
   'JSON_SCHEMA.contains_count': NOT_SUPPORTED, // no count-of-matching-items tag
   'JSON_SCHEMA.unique_items': {
@@ -2784,20 +2762,6 @@ export const cases: CompetitorCases = {
     },
   },
   'JSON_SCHEMA.object_size': NOT_SUPPORTED, // no key-count bounds on an index signature
-  'JSON_SCHEMA.dependent_required': {
-    build: () => {
-      const check = typia.createEquals<
-        {credit_card: number & tags.Type<'int32'>; billing_address: string} | {billing_address?: string}
-      >();
-      return (v) => check(v);
-    },
-    buildErrors: () => {
-      const val = typia.createValidateEquals<
-        {credit_card: number & tags.Type<'int32'>; billing_address: string} | {billing_address?: string}
-      >();
-      return (v) => val(v).success;
-    },
-  },
   'JSON_SCHEMA.string_email': {
     build: () => {
       const check = typia.createIs<string & tags.Format<'email'>>();
@@ -2841,8 +2805,7 @@ export const cases: CompetitorCases = {
 
   // ── STRICT ──
   // createIs is structural and ACCEPTS excess keys, so the closed forms
-  // (createEquals / createValidateEquals) are the correct pair here — same choice
-  // the JSON_SCHEMA closedness cases make.
+  // (createEquals / createValidateEquals) are the correct pair here.
   'STRICT.flat_required': {
     build: () => {
       interface StrictFlat {

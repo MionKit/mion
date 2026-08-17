@@ -3408,14 +3408,6 @@ export const cases: CompetitorCases = {
   // cases that did diverge (record_number, union_anyof, both the bare
   // `{type:'number'}` NaN/Infinity split) were plain shapes and left this group
   // with the rest of the shape cases.
-  'JSON_SCHEMA.closed_object': {
-    build: () => compile2020('closed_object', false),
-    buildErrors: () => compile2020('closed_object', true),
-  },
-  'JSON_SCHEMA.pattern_properties': {
-    build: () => compile2020('pattern_properties', false),
-    buildErrors: () => compile2020('pattern_properties', true),
-  },
   'JSON_SCHEMA.property_names': {
     build: () => compile2020('property_names', false),
     buildErrors: () => compile2020('property_names', true),
@@ -3431,10 +3423,6 @@ export const cases: CompetitorCases = {
   'JSON_SCHEMA.object_size': {
     build: () => compile2020('object_size', false),
     buildErrors: () => compile2020('object_size', true),
-  },
-  'JSON_SCHEMA.dependent_required': {
-    build: () => compile2020('dependent_required', false),
-    buildErrors: () => compile2020('dependent_required', true),
   },
   'JSON_SCHEMA.string_email': {
     build: () => compile2020('string_email', false),

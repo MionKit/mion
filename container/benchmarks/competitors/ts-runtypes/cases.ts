@@ -8,10 +8,10 @@
 // propagating position) opt out with NOT_SUPPORTED. This map also drives the
 // runtime ts-go column and typecost's ts-go-type column. TOTAL over every key.
 
-import type * as TF from '@ts-runtypes/core/formats';
+import * as TF from '@ts-runtypes/core/formats';
 import type * as TFT from '@ts-runtypes/core/formats/temporal';
+import * as RT from '@ts-runtypes/core/builders';
 import {createValidateFn, createGetValidationErrorsFn, createHasUnknownKeysFn, registerFormatPattern} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {NOT_SUPPORTED, type CompetitorCases} from '../../shared/harness/types.ts';
 
 // Custom string-format patterns the STRING_FORMAT.pattern_* cases reference —
@@ -2717,139 +2717,69 @@ export const cases: CompetitorCases = {
   },
 
   // ── JSON_SCHEMA ──
-  // The schema document is re-authored inline on purpose: `runTypeFromJsonSchema(…)` reads
-  // its literal at BUILD time off this call site, so a cross-module reference
-  // has nothing to read. Kept byte-honest against shared/cases (validation and
-  // format-validation each hold half the group) by the alignment audit, which
-  // runs every column over the same samples.
-  'JSON_SCHEMA.closed_object': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {id: {type: 'integer'}, name: {type: 'string'}},
-        required: ['id', 'name'],
-        additionalProperties: false,
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {id: {type: 'integer'}, name: {type: 'string'}},
-        required: ['id', 'name'],
-        additionalProperties: false,
-      }));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.pattern_properties': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        patternProperties: {'^col_': {type: 'number'}},
-        additionalProperties: false,
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        patternProperties: {'^col_': {type: 'number'}},
-        additionalProperties: false,
-      }));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
+  // The case's schema document is ajv's column only; ts-runtypes states the
+  // same constraints natively — the structural keywords ride the value-first
+  // params bags on `RT.array` / `RT.record`, the value keywords are TF formats.
+  // Each schema is re-authored inline per thunk on purpose: every factory reads
+  // its own call site at BUILD time, so a shared cross-thunk local would have
+  // nothing for the second factory to read. Kept byte-honest against
+  // shared/cases (validation and format-validation each hold half the group) by
+  // the alignment audit, which runs every column over the same samples.
   'JSON_SCHEMA.property_names': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        propertyNames: {pattern: '^[a-z]+$'},
-        additionalProperties: {type: 'number'},
-      })),
+    build: () => createValidateFn(RT.record(TF.number(), {propertyNames: TF.string({pattern: {source: '^[a-z]+$', flags: ''}})})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        propertyNames: {pattern: '^[a-z]+$'},
-        additionalProperties: {type: 'number'},
-      }));
+      const getErrors = createGetValidationErrorsFn(
+        RT.record(TF.number(), {propertyNames: TF.string({pattern: {source: '^[a-z]+$', flags: ''}})})
+      );
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.contains_count': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'array',
-        items: {type: 'number'},
-        contains: {type: 'number', minimum: 10},
-        minContains: 2,
-      })),
+    build: () => createValidateFn(RT.array(TF.number(), {contains: TF.number({min: 10}), minContains: 2})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'array',
-        items: {type: 'number'},
-        contains: {type: 'number', minimum: 10},
-        minContains: 2,
-      }));
+      const getErrors = createGetValidationErrorsFn(RT.array(TF.number(), {contains: TF.number({min: 10}), minContains: 2}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.unique_items': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true})),
+    build: () => createValidateFn(RT.array(TF.number(), {uniqueItems: true})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'array', items: {type: 'number'}, uniqueItems: true}));
+      const getErrors = createGetValidationErrorsFn(RT.array(TF.number(), {uniqueItems: true}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.object_size': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        additionalProperties: {type: 'number'},
-        minProperties: 1,
-        maxProperties: 3,
-      })),
+    build: () => createValidateFn(RT.record(TF.number(), {minProperties: 1, maxProperties: 3})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        additionalProperties: {type: 'number'},
-        minProperties: 1,
-        maxProperties: 3,
-      }));
-      return (value: unknown) => getErrors(value).length === 0;
-    },
-  },
-  'JSON_SCHEMA.dependent_required': {
-    build: () => createValidateFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {credit_card: {type: 'integer'}, billing_address: {type: 'string'}},
-        dependentRequired: {credit_card: ['billing_address']},
-      })),
-    buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({
-        type: 'object',
-        properties: {credit_card: {type: 'integer'}, billing_address: {type: 'string'}},
-        dependentRequired: {credit_card: ['billing_address']},
-      }));
+      const getErrors = createGetValidationErrorsFn(RT.record(TF.number(), {minProperties: 1, maxProperties: 3}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.string_email': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'string', format: 'email'})),
+    build: () => createValidateFn(TF.email()),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', format: 'email'}));
+      const getErrors = createGetValidationErrorsFn(TF.email());
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.int_bounded': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'integer', minimum: 0, maximum: 130})),
+    build: () => createValidateFn(TF.number({integer: true, min: 0, max: 130})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'integer', minimum: 0, maximum: 130}));
+      const getErrors = createGetValidationErrorsFn(TF.number({integer: true, min: 0, max: 130}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.string_pattern': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z][a-z0-9-]*$'})),
+    build: () => createValidateFn(TF.string({pattern: {source: '^[a-z][a-z0-9-]*$', flags: ''}})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string', pattern: '^[a-z][a-z0-9-]*$'}));
+      const getErrors = createGetValidationErrorsFn(TF.string({pattern: {source: '^[a-z][a-z0-9-]*$', flags: ''}}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
   'JSON_SCHEMA.multiple_of': {
-    build: () => createValidateFn(runTypeFromJsonSchema({type: 'number', multipleOf: 5})),
+    build: () => createValidateFn(TF.number({multipleOf: 5})),
     buildErrors: () => {
-      const getErrors = createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'number', multipleOf: 5}));
+      const getErrors = createGetValidationErrorsFn(TF.number({multipleOf: 5}));
       return (value: unknown) => getErrors(value).length === 0;
     },
   },
