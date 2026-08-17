@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: in-progress
+status: done
 created: 2026-08-16
 ---
 
@@ -168,3 +168,47 @@ Commit sequence (linear, separable):
    (delete guide 11, trim 12/13/index/about + input framing), README,
    ARCHITECTURE, ROADMAP.
 6. Move this spec + the propertyNames spec to `docs/done/`.
+
+## Shipped (2026-08-17)
+
+Everything in the plan above landed, in the recorded commit sequence. Where
+the outcome differs from the plan, the shipped reality is:
+
+- **`--portable` / CNV006 / `convertDialect` were deleted outright** (as the
+  corrected plan says), together with the `--to json-schema` target, the
+  `runTypeFromJsonSchema` / `embedType` import plumbing and the
+  `json-schema-dropped-intent` lint rule (the router doctrine's one
+  documented exception is gone with it).
+- **`conditional()` / `dependentRequired()` / `dependentSchemas()` were
+  removed too** — they existed to mirror the door's if/then/else lowerings
+  and were built on the deleted `NotSlot` machinery.
+- **`SchemaParityProbe` became `SchemaDocProbe`**: the printer half is gone,
+  so the renderer's shared-subset coverage now rests on a 33-declaration
+  corpus GOLDEN (`internal/convert/testdata/schemadoc_corpus.golden`,
+  regenerate with RT_UPDATE_GOLDEN=1) plus a seeded renderer-determinism
+  fuzz leg.
+- **`json-schema-dialect.test.ts` was deleted** (its mechanism was
+  `convert --to json-schema`). ⚠️ The dialect spec
+  `docs/json-schema-2020-12-javascript.md` now has NO per-rule test backing;
+  emitted-dialect coverage rests on the corpus golden +
+  `jsonSchemaDocSuite` / `jsonSchemaUnionWire` output tests. Wiring a
+  generator-side per-rule harness is an open decision.
+- **Closedness (`additionalProperties: false`) lost its only authoring
+  surface** with the door (`closed` / `closedPatterns` are derived-only
+  params). The bench rows depending on it (`closed_object`,
+  `pattern_properties`, `dependent_required`) were deleted; the other
+  JSON_SCHEMA bench rows were re-authored value-first.
+- **`negationMatch.ts` became `childMatch.ts`** — it survives for the
+  contains / patternProperties / propertyNames mock sampling.
+- `docs/done/propertynames-non-string-key-schema.md` was closed as OBSOLETE
+  (its trigger was door-only; the propertyNames feature stays).
+- Latent bugs found and fixed along the way: the fuzz `time` leaf's valid
+  pool never satisfied `TF.StringTime`'s RFC 3339 validator (exposed by the
+  reshuffled fixed-seed stream); an orphaned OOF001 message entry panicked
+  the diagnostics init; typecost's `tsBuilder`/`tsSchema` field mismatch
+  crashed every typecost run (predated this change).
+- Follow-up filed: `docs/todos/convert-defaulted-structural-param-moves-id.md`
+  (`--to builders` moves the id of a `uniqueItems: false` brand — needs the
+  constructor-escape route).
+- `container/website/app/data/test-counts.json` needs a container-side
+  regeneration (`pnpm rtx website test-counts`) — the suite counts shrank.
