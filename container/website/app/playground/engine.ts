@@ -116,13 +116,10 @@ function linkRootTuple(entryModules: Record<string, string>, binding: string): u
 }
 
 // How the editor's snippet defines the type: a TS type `MyType` (the call site
-// is `<factory><MyType>()`), a `const MyType = ...` run-type built from
-// ts-runtypes/builders + ts-runtypes/formats, or a JSON Schema 2020-12
-// document through `const MyType = runTypeFromJsonSchema({…} as const)`. The
-// last two share the run-type call shape (`<factory>(MyType)`), so the engine
-// treats every non-'type' mode identically: the difference is only which
-// preset source the editor shows.
-export type Mode = 'type' | 'builder' | 'jsonSchema';
+// is `<factory><MyType>()`), or a `const MyType = ...` run-type built from
+// ts-runtypes/builders + ts-runtypes/formats (the run-type call shape,
+// `<factory>(MyType)`).
+export type Mode = 'type' | 'builder';
 
 // factoryImport renders the import line the playground shows around a snippet,
 // the same `import { <factory> } from '@ts-runtypes/core'` the engine prepends before

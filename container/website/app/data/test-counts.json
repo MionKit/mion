@@ -5,7 +5,6 @@
     "projects": {
       "@ts-runtypes/devtools": 664,
       "@ts-runtypes/go-be-sidecar": 21,
-      "json-schema-official": 359,
       "mock-format-isolation": 3,
       "playground": 17,
       "runtypes": 10146

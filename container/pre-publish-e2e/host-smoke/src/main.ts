@@ -1,5 +1,6 @@
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
+import * as RT from '@ts-runtypes/core/builders';
+import * as TF from '@ts-runtypes/core/formats';
 
 export interface User {
   id: number;
@@ -18,17 +19,14 @@ export const userTypeIdStatic = getRunTypeId<User>();
 const sampleUser: User = {id: 1, name: 'Ada', email: 'a@b.c', roles: ['admin']};
 export const userTypeIdFromValue = getRunTypeId(sampleUser);
 
-// The builder call form, off the packed json-schema subpath: a schema literal
-// denoting the same User shape must land on the same structural id.
-export const userTypeIdFromSchema = getRunTypeId(
-  runTypeFromJsonSchema({
-    type: 'object',
-    properties: {
-      id: {type: 'number'},
-      name: {type: 'string'},
-      email: {type: 'string'},
-      roles: {type: 'array', items: {type: 'string'}},
-    },
-    required: ['id', 'name', 'email', 'roles'],
+// The value-first builder call form, off the packed builders + formats subpaths:
+// an RT/TF run-type denoting the same User shape must land on the same
+// structural id.
+export const userTypeIdFromBuilder = getRunTypeId(
+  RT.object({
+    id: TF.number(),
+    name: TF.string(),
+    email: TF.string(),
+    roles: RT.array(TF.string()),
   })
 );
