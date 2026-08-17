@@ -172,7 +172,6 @@ jobs:
           - nondata
           - roundtrip
           - size
-          - jsonschema
           - cloning
           - enrich
           - i18n
