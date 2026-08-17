@@ -273,7 +273,22 @@ export {
   type StandardSchemaTypes,
   type StandardSchemaInferInput,
   type StandardSchemaInferOutput,
+  type StandardJSONSchemaV1,
+  type StandardJSONSchemaProps,
+  type StandardJSONSchemaConverter,
+  type StandardJSONSchemaOptions,
 } from './standard/spec.ts';
+// StandardJSONSchemaV1 — the schema-document half: `createJsonSchemaFn<T>()`
+// returns the per-type JSON Schema document fn, and createStandardSchema's
+// `~standard.jsonSchema` converter serves the same document.
+export {createJsonSchemaFn, type JsonSchemaFn} from './standard/createJsonSchemaFn.ts';
+export {
+  stripDialect,
+  buildJsonSchemaConverter,
+  JSON_SCHEMA_TARGET,
+  JSON_SCHEMA_DIALECT_KEYWORDS,
+  type JsonSchemaDocFn,
+} from './standard/jsonSchemaDoc.ts';
 
 // Circular-reference guard for the live-object families (validate /
 // getValidationErrors / jsonEncode / binaryEncode). Armed per call with the

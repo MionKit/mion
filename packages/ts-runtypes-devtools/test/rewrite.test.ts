@@ -70,7 +70,7 @@ getRunTypeId(u);
   );
 
   runTest(
-    'multi-fn marker: createStandardSchema injects an ARRAY of two entry tuples',
+    'multi-fn marker: createStandardSchema injects an ARRAY of three entry tuples',
     {
       'std.ts': `import {createStandardSchema} from '@ts-runtypes/core';
 createStandardSchema<string>();
@@ -81,20 +81,24 @@ createStandardSchema<string>();
         const {code: out, sites} = await rewrite('std.ts', sources['std.ts'], client);
 
         expect(sites.length).toBe(1);
-        // The multi-function marker (<T,'val','verr'>) emits two fnIds; the
-        // scalar fnId mirrors fnIds[0].
+        // The multi-function marker (<T,'val','verr','jsonSchema'>) emits three
+        // fnIds; the scalar fnId mirrors fnIds[0].
         expect(sites[0].fnIds).toBeDefined();
-        expect(sites[0].fnIds).toHaveLength(2);
-        const [valFn, verrFn] = sites[0].fnIds!;
+        expect(sites[0].fnIds).toHaveLength(3);
+        const [valFn, verrFn, jscFn] = sites[0].fnIds!;
         const id = sites[0].id;
         const valBinding = `__rt_${valFn}_${id}`;
         const verrBinding = `__rt_${verrFn}_${id}`;
-        // BOTH entry modules are imported, one binding each.
+        const jscBinding = `__rt_${jscFn}_${id}`;
+        // ALL entry modules are imported, one binding each.
         expect(out).toContain(`import {__rt_${valFn}_${id}} from 'rtmod:/${valFn}_${id}.js';`);
         expect(out).toContain(`import {__rt_${verrFn}_${id}} from 'rtmod:/${verrFn}_${id}.js';`);
+        expect(out).toContain(`import {__rt_${jscFn}_${id}} from 'rtmod:/${jscFn}_${id}.js';`);
         // The single trailing slot (ids @ paramIndex 2) carries an array of the
-        // two bindings; the val/options slots (0,1) are `undefined`-padded.
-        expect(out).toContain(`createStandardSchema<string>(undefined, undefined, [${valBinding}, ${verrBinding}]);`);
+        // three bindings; the val/options slots (0,1) are `undefined`-padded.
+        expect(out).toContain(
+          `createStandardSchema<string>(undefined, undefined, [${valBinding}, ${verrBinding}, ${jscBinding}]);`
+        );
       });
     }
   );

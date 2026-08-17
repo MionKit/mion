@@ -72,3 +72,44 @@ export type StandardSchemaInferInput<Schema extends StandardSchemaV1> = NonNulla
 
 /** Infers the output type of a Standard Schema. */
 export type StandardSchemaInferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['output'];
+
+// Standard JSON Schema v1 — the companion interface for schema-to-JSON-Schema
+// conversion (upstream: StandardJSONSchemaV1 in `@standard-schema/spec`,
+// flattened here like the validation interfaces above). A single object may
+// satisfy BOTH interfaces by carrying `validate` and `jsonSchema` side by side
+// under one `~standard`, which is exactly what `createStandardSchema` returns.
+
+/** The Standard JSON Schema interface. */
+export interface StandardJSONSchemaV1<Input = unknown, Output = Input> {
+  /** The Standard JSON Schema properties. */
+  readonly '~standard': StandardJSONSchemaProps<Input, Output>;
+}
+
+/** The Standard JSON Schema properties interface. */
+export interface StandardJSONSchemaProps<Input = unknown, Output = Input> {
+  /** The version number of the standard. */
+  readonly version: 1;
+  /** The vendor name of the schema library. */
+  readonly vendor: string;
+  /** Methods generating the input / output JSON Schema documents. */
+  readonly jsonSchema: StandardJSONSchemaConverter;
+  /** Inferred types associated with the schema. */
+  readonly types?: StandardSchemaTypes<Input, Output> | undefined;
+}
+
+/** The input / output JSON Schema conversion methods. */
+export interface StandardJSONSchemaConverter {
+  /** Converts the input type to a JSON Schema document. */
+  readonly input: (options?: StandardJSONSchemaOptions) => Record<string, unknown>;
+  /** Converts the output type to a JSON Schema document. */
+  readonly output: (options?: StandardJSONSchemaOptions) => Record<string, unknown>;
+}
+
+/** The conversion options. `target` names the JSON Schema dialect to emit
+ *  (only `'draft-2020-12'` is supported); `libraryOptions` carries
+ *  vendor-specific flags — ts-runtypes reads `{portable: true}` to strip its
+ *  dialect keywords from the returned document. */
+export interface StandardJSONSchemaOptions {
+  readonly target?: string;
+  readonly libraryOptions?: Record<string, unknown> | undefined;
+}

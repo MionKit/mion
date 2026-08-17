@@ -117,7 +117,7 @@ createStandardSchema<string>();
     async (sources) => {
       await withInlineSources(sources, async ({client}) => {
         const {sites, applied} = await assertModeParity(client, 'std.ts', sources['std.ts']);
-        expect(sites[0].fnIds).toHaveLength(2);
+        expect(sites[0].fnIds).toHaveLength(3);
         expect(applied.code).toMatch(/createStandardSchema<string>\(undefined, undefined, \[__rt_[^\]]+\]\);/);
       });
     }

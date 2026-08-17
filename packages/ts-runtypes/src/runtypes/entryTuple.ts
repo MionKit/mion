@@ -513,6 +513,9 @@ const familyMeta: Record<string, FamilyMeta> = {
     noop: noopFromBinary,
   },
   fmt: valueShaped('fmt', noopIdentity),
+  // jsonSchema documents: the fn RETURNS the document (its `v` arg is unused);
+  // a noop entry (never emitted today) would honestly say "any value".
+  jsc: valueShaped('jsc', () => ({})),
   // JSON composites — encoder tags host on pj metadata, decoder tags on rj,
   // but their noop is NATIVE JSON (see the comment above): an all-elided
   // encoder body is `return JSON.stringify(v)`, an all-elided decoder body is

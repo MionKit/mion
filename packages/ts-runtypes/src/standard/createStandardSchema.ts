@@ -22,7 +22,10 @@ import type {ValidateFn, GetValidationErrorsFn, ValidateOptions} from '../create
 import type {CompTimeFnArgs, InjectTypeFnArgs} from '../markers.ts';
 import {runTypeErrorsToIssues} from './issueMapping.ts';
 import type {RTValidationIssue} from './issueMapping.ts';
-import type {StandardSchemaSuccessResult, StandardSchemaProps} from './spec.ts';
+import type {StandardSchemaSuccessResult, StandardSchemaProps, StandardJSONSchemaConverter} from './spec.ts';
+import {buildJsonSchemaConverter} from './jsonSchemaDoc.ts';
+import type {JsonSchemaDocFn} from './jsonSchemaDoc.ts';
+import {jsonSchemaDocFallback} from './createJsonSchemaFn.ts';
 
 /** Failure result whose issues are the richer RTValidationIssue. Assignable to
  *  the spec FailureResult since RTValidationIssue extends StandardSchemaIssue. **/
@@ -36,13 +39,16 @@ export interface RTValidationFailureResult {
 export type RTValidationResult<Output> = StandardSchemaSuccessResult<Output> | RTValidationFailureResult;
 
 /** The createStandardSchema return type: a Standard Schema whose `validate`
- *  returns the richer RTValidationResult. Structurally assignable to
- *  StandardSchemaV1<Input, Output> (the validate return is assignable to the
- *  spec's), so it interops with any spec consumer while exposing the structured
- *  issue data at the type level. **/
+ *  returns the richer RTValidationResult, carrying the StandardJSONSchemaV1
+ *  converter beside it — ONE object satisfying both interfaces. Structurally
+ *  assignable to StandardSchemaV1<Input, Output> (the validate return is
+ *  assignable to the spec's) and to StandardJSONSchemaV1, so it interops with
+ *  any spec consumer while exposing the structured issue data at the type
+ *  level. **/
 export interface RTStandardSchemaV1<Input = unknown, Output = Input> {
   readonly '~standard': Omit<StandardSchemaProps<Input, Output>, 'validate'> & {
     readonly validate: (value: unknown) => RTValidationResult<Output> | Promise<RTValidationResult<Output>>;
+    readonly jsonSchema: StandardJSONSchemaConverter;
   };
 }
 
@@ -60,25 +66,27 @@ const errorsFallback: GetValidationErrorsFn = () => [];
 export function createStandardSchema<T>(
   runType: RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>>;
 export function createStandardSchema<T>(
   val?: T,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>>;
 export function createStandardSchema<T>(
   valOrSchema?: T | RunType<T>,
   options?: CompTimeFnArgs<ValidateOptions>,
-  ids?: InjectTypeFnArgs<T, 'val', 'verr'>
+  ids?: InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>
 ): RTStandardSchemaV1<DataOnly<T>> {
   // A value-first schema's runtime `.id` overrides the injected type id for both
   // lookups (correct even for recursive schemas).
   const runTypeId = isRunTypeValue(valOrSchema) ? valOrSchema.id : undefined;
-  // The marker injects `[valTuple, verrTuple]` in the Fn-arg order 'val','verr'.
+  // The marker injects `[valTuple, verrTuple, jscTuple]` in the Fn-arg order
+  // 'val','verr','jsonSchema'.
   const injected = ids as unknown as readonly EntryTuple[] | undefined;
   const valInjected = injected ? injected[0] : undefined;
   const verrInjected = injected ? injected[1] : undefined;
+  const jscInjected = injected ? injected[2] : undefined;
   // Resolve each under its own family fnName. The circular-reference guard is
   // compile-time: `{rejectCircularRefs: true}` forked each family's fnHash, so
   // the armed tuples self-guard (validate -> false on a cycle;
@@ -95,9 +103,14 @@ export function createStandardSchema<T>(
     runTypeId,
     verrInjected
   );
+  const docFn = resolveEntryTupleFn<JsonSchemaDocFn>('createJsonSchemaFn', jsonSchemaDocFallback, runTypeId, jscInjected);
   const props: RTStandardSchemaV1<DataOnly<T>>['~standard'] = {
     version: 1,
     vendor: 'ts-runtypes',
+    // The StandardJSONSchemaV1 converter — one document for both sides (the
+    // standard keywords describe the JSON wire; the dialect rows annotate the
+    // JS shape; see jsonSchemaDoc.ts).
+    jsonSchema: buildJsonSchemaConverter(docFn),
     // Two-tier: cheap boolean first (zero allocation on the valid path), and
     // only on failure compute + map the issues.
     validate(value: unknown): RTValidationResult<DataOnly<T>> {
