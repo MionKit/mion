@@ -174,36 +174,41 @@ compare-to-a-trusted-source. Reuse the existing fuzz type generator.
   printer's mapping (shared leaf, parity-tested).
 - `pnpm test` + Go tests green; website docs updated; PR-readiness gate met.
 
-## Plan — incremental implementation (approved 2026-08-17)
+## Plan — incremental implementation (approved 2026-08-17, revised same day)
 
-Decisions taken with the user during implement-todo planning: FULL scope
-(JSONShape + restore mode + documents); fuzzing implemented by extending the
-existing convert / roundtrip fuzz lanes (no third-party referee); restore mode
-is a `restore` FLAG on the existing `createStandardSchema` (not a sibling
-factory); one emitted document per type (wire-first + dialect keys, matching
-the convert printer's CORE-INERT semantics), portable = runtime strip.
+REVISION (user decision, recorded): the restore-mode direction is REJECTED —
+no transform inside validation functions, ever. Reasons: the standard's
+input/output split only serves transforming validators; the output side (a JS
+value) is not expressible in JSON Schema at all (Zod's own answer is to throw
+"unrepresentable"); framework adoption of StandardJSONSchemaV1 is near-zero
+today; and the serializer's flat-union envelope means the existing restore
+primitive reads the RUNTYPES wire, not the plain JSON a third-party client
+sends, so a composed restore would not have served the standard-schema use
+case anyway. `validate` stays check-only; `input()` and `output()` return the
+SAME document (wire-first + jsType dialect; `libraryOptions: {portable: true}`
+strips the dialect keys — one rule, no input/output asymmetry). `JSONShape<T>`
+is kept, decoupled from the standard: it types the RunTypes JSON wire
+(createJsonEncoderFn output / createJsonDecoderFn input) and its tests pin the
+Go serializer wire at type + runtime level.
 
 Steps (each fully tested + committed before the next):
 
 1. `JSONShape<T>` mapped type (`runtypes/jsonShape.ts`, DataOnly-style) with
-   leaf wire mappings verified against the Go serializer emitters; compile
-   tests pin every mapping plus a `prepareForJson` conformance leg.
-2. `restore?: boolean` on `createStandardSchema` — marker widens to
-   `'val','verr','rj'`; `validate(wire)` = restore (try/catch) then validate;
-   `{restore: true}` overload returns
-   `RTStandardSchemaV1<JSONShape<T>, DataOnly<T>>`.
-3. Go `internal/schemadoc` leaf: printschema's format-keyword helpers move
+   leaf wire mappings verified against the Go serializer emitters (flat-union
+   envelope included: wrapped unions spell `[number, memberWire]`); type pins
+   in test/types + runtime wire-conformance in test/features against the real
+   encoder, both marker call shapes.
+2. Go `internal/schemadoc` leaf: printschema's format-keyword helpers move
    there (printer rewired, behavior-identical); new standalone document
    renderer with `$defs`/`$ref` cycles; F1–F17 parity test + a parity leg in
    the Go convert fuzz sweep.
-4. `jsc` cache family: operations row + CacheModules entry + Families row +
+3. `jsc` cache family: operations row + CacheModules entry + Families row +
    emitter delegating to schemadoc; codegen regen; emission + plugin
    injection tests.
-5. JS surface: vendored StandardJSONSchemaV1 interfaces, portable strip
-   walker (input strips; output throws on jsType under portable; target
-   validated), `createJsonSchemaFn<T>()`, converter on `createStandardSchema`.
-6. Roundtrip-lane fuzz property: prepare → restore-validate round-trip +
-   mutated-wire agreement with the reference validator.
-7. Website guide page + 12.json-schema-js reframe + ARCHITECTURE.md; spec
-   reconciled and moved to docs/done; fused-validating-decoder follow-up todo
-   filed.
+4. JS surface: vendored StandardJSONSchemaV1 interfaces, portable strip
+   walker (one rule: strips dialect keys; unknown target throws),
+   `createJsonSchemaFn<T>()`, converter on `createStandardSchema` with
+   `input() === output()`; validate untouched.
+5. Website guide page + 12.json-schema-js reframe + ARCHITECTURE.md; spec
+   reconciled and moved to docs/done; a standalone (standard-free) follow-up
+   todo filed for natural-JSON parse via a fused validating decoder.
