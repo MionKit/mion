@@ -113,6 +113,13 @@ function mountArgs(cfg) {
       if (skip.has(base)) continue;
       args.push('-v', `${join(competitorsDir, competitor, base)}:/bench/competitors/${competitor}/${base}:ro${mo}`);
     }
+    // dist is build OUTPUT (excluded from the ro mounts above), so it used to land
+    // in the --rm container's throwaway layer — and buildAndRunOne builds and runs
+    // in SEPARATE containers, so node/bun found no dist/run.mjs. Mount it rw from
+    // the host (gitignored) so the emitted bundle survives across those runs.
+    const distDir = join(competitorsDir, competitor, 'dist');
+    mkdirSync(distDir, {recursive: true});
+    args.push('-v', `${distDir}:/bench/competitors/${competitor}/dist${mo}`);
   }
 
   // Shared suite (no deps) + the typecost runner + the harness-level files.
