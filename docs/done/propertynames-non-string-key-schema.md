@@ -1,9 +1,22 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-12
 ---
+
+> **CLOSED AS OBSOLETE (2026-08-17)** by the JSON Schema input removal
+> (`docs/done/remove-json-schema-input.md`). Every reproduction below goes
+> through `runTypeFromJsonSchema`, which no longer exists — the door was the
+> only producer of a non-string `propertyNames` slot. Both surviving authoring
+> surfaces reject one at compile time: the value-first builders constrain the
+> key schema to `RunType<string>` (`FormattedObjectParamsValueFirst`,
+> `packages/ts-runtypes/src/formats/structural.ts`), and the type-first
+> `TF.FormattedObject<B, P>` bound enforces `Key = string`. The propertyNames
+> FEATURE itself (declaring what record keys are allowed, e.g.
+> `RT.record(value, {propertyNames: TF.string({pattern: …})})`) is unchanged
+> and stays. No code change shipped for this spec; the original analysis is
+> kept below as history.
 
 # A typeless `propertyNames` subschema converts to builders code that does not compile
 
