@@ -69,30 +69,6 @@ const (
 // in the table". Not a reflection kind — the value -1 is reserved for refs.
 const KindRef ReflectionKind = -1
 
-// FlagOneOfDefect is the RunType.Flags marker (with a `:<reason>` suffix) for a
-// union whose exclusivity the engine cannot honour — an exclusive union beside
-// ordinary members, or two of them in one union. See typeid.OneOfDefect for why
-// each is refused rather than approximated, and why the mark has to be made at
-// projection time.
-const FlagOneOfDefect = "oneOfDefect"
-
-// OneOfDefectReason returns the recorded reason when a node carries
-// FlagOneOfDefect, and "" otherwise.
-func (r *RunType) OneOfDefectReason() string {
-	if r == nil {
-		return ""
-	}
-	for _, flag := range r.Flags {
-		if flag == FlagOneOfDefect {
-			return FlagOneOfDefect
-		}
-		if len(flag) > len(FlagOneOfDefect)+1 && flag[:len(FlagOneOfDefect)+1] == FlagOneOfDefect+":" {
-			return flag[len(FlagOneOfDefect)+1:]
-		}
-	}
-	return ""
-}
-
 // RunType is a JSON-friendly union of every reflection RunType variant. Optional
 // fields are gated by `omitempty`. A given RunType uses only the fields relevant
 // to its Kind; the rest stay zero/nil.
@@ -339,30 +315,23 @@ type RunType struct {
 	// (e.g. "symbol" for symbol-keyed names, "nonLiteralDefault", "bigint").
 	Flags []string `json:"flags,omitempty"`
 
-	// FlagOneOfDefect (with a `:<reason>` suffix) marks a union whose
-	// exclusivity the engine cannot honour — see typeid.OneOfDefect. Stamped at
-	// projection time, where the `__rtOneOf` carriers are still visible; by the
-	// time a consumer reads this graph the collapse has stripped them and the
-	// shape cannot be recovered. Every function emitter refuses on it.
-
 	// Description — JSDoc-style per-member comment. v2.
 	Description string `json:"description,omitempty"`
 }
 
-// SchemaChecks groups the sentinel-lifted JSON Schema constraint checks a
+// SchemaChecks groups the sentinel-lifted structural constraint checks a
 // RunType can carry. Every field follows the same three-part contract:
 //
-//   - it is populated from a `__rt…` sentinel member (`__rtNot` /
-//     `__rtContains` / `__rtPatternProps` / `__rtPropNames` / `__rtOneOf` /
-//     `__rtUnevaluated`) lifted OFF the property walk — a sentinel must never
-//     surface as a real object property;
+//   - it is populated from a `__rt…` sentinel member (`__rtContains` /
+//     `__rtPatternProps` / `__rtPropNames`) lifted OFF the property walk — a
+//     sentinel must never surface as a real object property;
 //   - it folds into the structural id, so a checked type can never share a
 //     cache entry with its unchecked twin (id = behavior);
 //   - it is consumed by validate/validationErrors ONLY — the JSON codecs,
 //     DataOnly and binary all key off the positive base node.
 //
 // Embedded (unnamed) in RunType so encoding/json serialises the fields flat
-// and Go code reads them promoted (`node.Negations`). Two promotion caveats:
+// and Go code reads them promoted (`node.Contains`). Two promotion caveats:
 // a promoted field cannot be set in a RunType composite literal (set it after
 // construction, or via `SchemaChecks: SchemaChecks{…}`), and a future RunType
 // field must never reuse one of these JSON keys — encoding/json silently
@@ -370,50 +339,26 @@ type RunType struct {
 // enumerated by eachRefSlot (refslots.go); a slot added here must be wired
 // into that method.
 type SchemaChecks struct {
-	// Negations — one entry per `__rtNot` sentinel member
-	// (`Base & {readonly __rtNot?: Child}`), the internal encoding of JSON
-	// Schema `not` and the format-scoped `Not<F>`. Each entry is the fully
-	// serialized CHILD node whose validator the emit inverts:
-	// validate = base && !(childValidate).
-	Negations []*RunType `json:"negations,omitempty"`
-
 	// Contains — one entry per `__rtContains` sentinel member, the internal
-	// encoding of JSON Schema contains / minContains / maxContains. Each
+	// encoding of contains / minContains / maxContains. Each
 	// entry pairs a fully serialized child with its occurrence bounds:
 	// validate counts the array items matching the child and asserts
 	// Min ≤ count (and count ≤ Max when Max ≥ 0).
 	Contains []*ContainsCheck `json:"contains,omitempty"`
 
-	// PatternProps — from the `__rtPatternProps` sentinel member (JSON
-	// Schema patternProperties): each entry pairs a key regex SOURCE with
+	// PatternProps — from the `__rtPatternProps` sentinel member
+	// (patternProperties): each entry pairs a key regex SOURCE with
 	// the value child every matching key must validate against (plus a
 	// pattern-branded key child that exists so the build-time
 	// pattern-sample pools ride into the runtime cache for key mocking).
 	// Sorted by source.
 	PatternProps []*PatternPropCheck `json:"patternProps,omitempty"`
 
-	// PropNames — one entry per `__rtPropNames` sentinel member (JSON
-	// Schema propertyNames): every KEY of the object validates as a string
+	// PropNames — one entry per `__rtPropNames` sentinel member
+	// (propertyNames): every KEY of the object validates as a string
 	// against EVERY child (allOf-stacked propertyNames conjoin, mirroring
 	// the sorted `pn{…}` id fold).
 	PropNames []*RunType `json:"propNames,omitempty"`
-
-	// OneOf — on a union node carrying a `__rtOneOf` sentinel member (the
-	// OneOf<[…]> combinator / JSON Schema oneOf): the BRANCH list as
-	// written, preserving the grouping the flattened union erases (a branch
-	// may itself be a union). validate counts the branches the value
-	// matches and asserts the count is exactly one; Children still hold the
-	// flattened members so serialization, DataOnly and every other positive
-	// pathway stay untouched.
-	OneOf []*RunType `json:"oneOf,omitempty"`
-
-	// Unevaluated — one entry per `__rtUnevaluated` sentinel member (JSON
-	// Schema unevaluatedProperties, for the scopes the document alone
-	// cannot decide). Keys/Sources are evaluated unconditionally; Groups
-	// carry the contributions a guard decides at run time. Stacked sweeps
-	// (allOf arms each carrying the keyword) each enforce, mirroring the
-	// sorted `u{…}` id fold.
-	Unevaluated []*UnevaluatedCheck `json:"unevaluated,omitempty"`
 }
 
 // ClassRef captures enough provenance for a v2 footer to wire up
@@ -442,38 +387,13 @@ type FormatAnnotation struct {
 	Params map[string]any `json:"params,omitempty"`
 }
 
-// ContainsCheck is one JSON Schema contains assertion on an array-shaped
+// ContainsCheck is one contains assertion on an array-shaped
 // node: at least Min (and at most Max, when Max ≥ 0; -1 means unbounded)
 // of the array's items validate against Child.
 type ContainsCheck struct {
 	Child *RunType `json:"child"`
 	Min   float64  `json:"min"`
 	Max   float64  `json:"max"`
-}
-
-// UnevaluatedCheck is the evaluated-member sweep. Value is what a member
-// nobody evaluated must satisfy; nil is the `false` reading, where nothing
-// does.
-type UnevaluatedCheck struct {
-	Value   *RunType       `json:"value,omitempty"`
-	Keys    []string       `json:"keys,omitempty"`
-	Sources []string       `json:"sources,omitempty"`
-	Prefix  int            `json:"prefix,omitempty"`
-	Groups  []*UnevalGroup `json:"groups,omitempty"`
-}
-
-// UnevalGroup is one conditional contribution. Exactly one guard is set: When
-// is a subschema whose SUCCESS fires the group, WhenNot the same subschema
-// failing (the `else` side), WhenKey a key's mere presence
-// (dependentSchemas). All marks a group evaluating EVERY key when it fires.
-type UnevalGroup struct {
-	When    *RunType `json:"when,omitempty"`
-	WhenNot *RunType `json:"whenNot,omitempty"`
-	WhenKey string   `json:"whenKey,omitempty"`
-	Keys    []string `json:"keys,omitempty"`
-	Sources []string `json:"sources,omitempty"`
-	Prefix  int      `json:"prefix,omitempty"`
-	All     bool     `json:"all,omitempty"`
 }
 
 // PatternPropCheck is one JSON Schema patternProperties entry: keys matching

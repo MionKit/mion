@@ -25,22 +25,21 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
 )
 
-// Target names one of the three authoring forms a file can be converted to.
+// Target names one of the two authoring forms a file can be converted to.
 type Target string
 
 const (
-	TargetType       Target = "type"
-	TargetBuilders   Target = "builders"
-	TargetJSONSchema Target = "json-schema"
+	TargetType     Target = "type"
+	TargetBuilders Target = "builders"
 )
 
 // ParseTarget maps the CLI --to value onto a Target.
 func ParseTarget(raw string) (Target, error) {
 	switch Target(raw) {
-	case TargetType, TargetBuilders, TargetJSONSchema:
+	case TargetType, TargetBuilders:
 		return Target(raw), nil
 	}
-	return "", fmt.Errorf("unknown --to target %q (expected type | builders | json-schema)", raw)
+	return "", fmt.Errorf("unknown --to target %q (expected type | builders)", raw)
 }
 
 // Severity of a conversion diagnostic. Errors leave the declaration
@@ -60,7 +59,6 @@ const (
 	CodeConstStillUsed     = "CNV003"
 	CodeOutsideSet         = "CNV004"
 	CodeNameCollision      = "CNV005"
-	CodePortableDialect    = "CNV006"
 	CodeTemporalNotLoaded  = "CNV007"
 	CodeUnresolvedTypeName = "CNV008"
 )
@@ -77,9 +75,6 @@ type Diagnostic struct {
 // Options selects the conversion target for a run.
 type Options struct {
 	Target Target
-	// Portable forbids the RunTypes schema dialect (jsType rows, embedType) on
-	// the json-schema target: a declaration needing it becomes an Error.
-	Portable bool
 }
 
 // FileResult is the outcome of converting one file. Output is the full new

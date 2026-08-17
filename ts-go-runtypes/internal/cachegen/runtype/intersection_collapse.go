@@ -29,7 +29,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 	var (
 		primitiveMember *checker.Type
 		literalMember   *checker.Type
-		carrierMember   *checker.Type
 		objectMembers   []*checker.Type
 		hasNever        bool
 		// hasIncompatiblePrimitives surfaces `string & number`-style cases
@@ -67,21 +66,10 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			}
 		case memberFlags&checker.TypeFlagsObject != 0,
 			// The bare `object` keyword (TypeFlagsNonPrimitive) — a real base
-			// in `object & {__rtNot?: …}` intersections. Without this case the
+			// in `object & {sentinel}` intersections. Without this case the
 			// member is silently DROPPED and the collapse degrades the base to
 			// unknown, deleting the kind check from the generated validator.
 			memberFlags&checker.TypeFlagsNonPrimitive != 0:
-			// OneOf carriers never classify: the member must serialize as its
-			// plain self on every downstream path (primitive brand, builtin
-			// class, object merge) — the branch semantics live on the UNION
-			// node (typeid.OneOfFromMembers), never on a member. Captured
-			// (not dropped) for the duplicate-branch degenerate below.
-			if typeid.IsOneOfCarrierMember(cache.typeChecker, member) {
-				if carrierMember == nil {
-					carrierMember = member
-				}
-				continue
-			}
 			objectMembers = append(objectMembers, member)
 		}
 	}
@@ -89,56 +77,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 	if hasNever || hasIncompatiblePrimitives {
 		node.Kind = reflection.KindNever
 		return
-	}
-
-	// Duplicate-branch degenerate: identical oneOf branches intern to ONE
-	// arm, the union dedups away, and the carrier'd intersection stands
-	// alone. Distinct-branch carriers always live under a surviving union
-	// (which owns the semantics), so the standalone treatment fires ONLY
-	// when the branch ids collide — then the node is the one-member union
-	// with counting (count ≥ 2 always, so nothing validates: exactly what
-	// duplicate branches mean). A multi-base intersection here has no
-	// single child to project — never, loud over silently under-checking.
-	if carrierMember != nil {
-		branches := typeid.OneOfCarrierBranches(cache.typeChecker, carrierMember)
-		branchNodes := make([]*reflection.RunType, 0, len(branches))
-		seenIDs := map[string]bool{}
-		hasDuplicate := false
-		for _, branch := range branches {
-			branchNode := cache.Serialize(branch)
-			if seenIDs[branchNode.ID] {
-				hasDuplicate = true
-			}
-			seenIDs[branchNode.ID] = true
-			branchNodes = append(branchNodes, branchNode)
-		}
-		if hasDuplicate {
-			var base *checker.Type
-			baseCount := 0
-			if primitiveMember != nil {
-				base = primitiveMember
-				baseCount++
-			}
-			if literalMember != nil {
-				base = literalMember
-				baseCount++
-			}
-			if len(objectMembers) == 1 {
-				base = objectMembers[0]
-				baseCount++
-			} else if len(objectMembers) > 1 {
-				baseCount += len(objectMembers)
-			}
-			if baseCount != 1 {
-				node.Kind = reflection.KindNever
-				return
-			}
-			node.Kind = reflection.KindUnion
-			node.Children = append(node.Children, cache.Serialize(base))
-			cache.finalizeUnion(node)
-			node.OneOf = branchNodes
-			return
-		}
 	}
 
 	// Primitive narrowing: `string & "x"` should already be reduced by the
@@ -167,15 +105,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		cache.projectPrimitiveInto(primary, node)
 		var annotations []*reflection.FormatAnnotation
 		for _, objectMember := range objectMembers {
-			// Negation sentinel (`{__rtNot?: Child}`): serialize the CHILD
-			// onto node.Negations — the validate/verr emit inverts its check
-			// (`base && !(child)`). Never a TypeMeta decorator and never a
-			// property. Twin of the `!{…}` id fold in
-			// typeid/intersection_collapse.go.
-			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
-				node.Negations = append(node.Negations, cache.Serialize(childType))
-				continue
-			}
 			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
 				annotations = append(annotations, annotation)
 				continue
@@ -237,9 +166,9 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 	// + GetSignaturesOfType, all of which are safe on intersections —
 	// the TS checker has already merged property sets across members.
 	if len(objectMembers) > 0 {
-		// Lift negation sentinels and structural format brands first
-		// (`{a} & {__rtNot?: Child}`, `unknown[] & {__rtFormatName?: …}`):
-		// sentinel members become Negations entries / the FormatAnnotation,
+		// Lift structural format brands and sentinel slots first
+		// (`unknown[] & {__rtFormatName?: …}`):
+		// sentinel members become check entries / the FormatAnnotation,
 		// never merged properties (projectMembersInto skips the props by
 		// name as well).
 		var restMembers []*checker.Type
@@ -247,10 +176,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		var tupleLabels []string
 		var haveTupleLabels bool
 		for _, objectMember := range objectMembers {
-			if childType := typeid.NotChildTypeFromMember(cache.typeChecker, objectMember); childType != nil {
-				node.Negations = append(node.Negations, cache.Serialize(childType))
-				continue
-			}
 			// Labeled-tuple sentinel (`[A, B] & {__rtLabels?: ['x', 'y']}`):
 			// lift the labels and write them onto the projected tuple members
 			// below — never a property. Twin of the typeid-side label fold.
@@ -272,17 +197,13 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 				}
 				continue
 			}
-			// APPEND, never assign: allOf-stacked propertyNames / unevaluated*
+			// APPEND, never assign: allOf-stacked propertyNames
 			// arrive as one sentinel member each, and the id fold appends them
-			// all (`pn{…}` / `u{…}`, sorted). A bare assignment here enforced
+			// all (`pn{…}`, sorted). A bare assignment here enforced
 			// only the LAST lifted child while the id folded every arm —
 			// id ≠ behavior, the one thing the pipeline promises never to do.
 			if childType := typeid.PropNamesChildFromMember(cache.typeChecker, objectMember); childType != nil {
 				node.PropNames = append(node.PropNames, cache.Serialize(childType))
-				continue
-			}
-			if spec, isUneval := typeid.UnevalSpecFromMember(cache.typeChecker, objectMember); isUneval {
-				node.Unevaluated = append(node.Unevaluated, cache.serializeUnevaluated(spec))
 				continue
 			}
 			if annotation := typeid.FormatAnnotationFromType(cache.typeChecker, objectMember); annotation != nil {
@@ -313,7 +234,7 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 		}
 		if restCount == 0 {
 			// Every member was a sentinel — the base is `unknown` with the
-			// negation(s) attached (bare JSON Schema `not`).
+			// check(s) attached.
 			node.Kind = reflection.KindUnknown
 			return
 		}
@@ -333,9 +254,9 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			return
 		}
 		if restCount == 1 &&
-			(haveTupleLabels || len(node.Negations) > 0 || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
-				len(node.PatternProps) > 0 || len(node.PropNames) > 0 || len(node.Unevaluated) > 0) {
-			// Single base ∧ sentinel(s) — `unknown[] & {__rtNot?: …}`,
+			(haveTupleLabels || node.FormatAnnotation != nil || len(node.Contains) > 0 ||
+				len(node.PatternProps) > 0 || len(node.PropNames) > 0) {
+			// Single base ∧ sentinel(s) — `unknown[] & {sentinel}`,
 			// `Record<string, unknown> & {…}`: project the BASE as itself
 			// (array / record / class / tuple), negations attached. Routing
 			// it through the merged-property path would surface the array's
@@ -343,11 +264,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 			// keyword is not a TypeFlagsObject type — project it directly
 			// (projectObjectType would misroute it).
 			//
-			// `__rtUnevaluated` belongs in this list for the same reason as the
-			// rest, and the ID twin has always folded it in (the `u{…}` key).
-			// It only became reachable once `unevaluated*` stopped shaping the
-			// type: before that an array carrying it also carried a format
-			// annotation, so the guard passed for the wrong reason.
 			if soleRest.Flags()&checker.TypeFlagsNonPrimitive != 0 {
 				node.Kind = reflection.KindObject
 				return
@@ -381,36 +297,6 @@ func (cache *Cache) collapseIntersection(tsType *checker.Type, node *reflection.
 
 	// Fully reduced to any/unknown — pick unknown as a safe fallback.
 	node.Kind = reflection.KindUnknown
-}
-
-// serializeUnevaluated turns the raw sentinel payload into the protocol shape,
-// serializing each guard subschema (and the leftover value) as a child node.
-// Twin of the id side's unevaluatedKey — the two must read the same fields in
-// the same order or a cache entry and its id part company.
-func (cache *Cache) serializeUnevaluated(spec typeid.UnevalSpec) *reflection.UnevaluatedCheck {
-	check := &reflection.UnevaluatedCheck{Keys: spec.Keys, Sources: spec.Sources, Prefix: spec.Prefix}
-	// A `never` value is the `false` reading — nothing satisfies it, so the
-	// sweep rejects rather than checking, and the node carries no child.
-	if spec.Value != nil && spec.Value.Flags()&checker.TypeFlagsNever == 0 {
-		check.Value = cache.Serialize(spec.Value)
-	}
-	for _, group := range spec.Groups {
-		entry := &reflection.UnevalGroup{
-			WhenKey: group.WhenKey,
-			Keys:    group.Keys,
-			Sources: group.Sources,
-			Prefix:  group.Prefix,
-			All:     group.All,
-		}
-		if group.When != nil {
-			entry.When = cache.Serialize(group.When)
-		}
-		if group.WhenNot != nil {
-			entry.WhenNot = cache.Serialize(group.WhenNot)
-		}
-		check.Groups = append(check.Groups, entry)
-	}
-	return check
 }
 
 // projectMergedTuple builds the tuple node for a slot-wise tuple ∩ tuple

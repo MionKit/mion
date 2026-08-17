@@ -796,26 +796,6 @@ func (cache *Cache) projectType(tsType *checker.Type, id string) *reflection.Run
 	case flags&checker.TypeFlagsUnion != 0:
 		node.Kind = reflection.KindUnion
 		members := tsType.Distributed()
-		// OneOf carriers (the exactly-one combinator / JSON Schema oneOf):
-		// land the level branch tuple on node.OneOf so validate counts
-		// branch matches. Members serialize as-is — the intersection
-		// collapse skips each member's carrier constituent, so children
-		// come out as their plain selves. Twin of the `oo{…}` id fold in
-		// typeid.go.
-		if branches, ok := typeid.OneOfFromMembers(cache.typeChecker, members); ok {
-			for _, branch := range branches {
-				node.OneOf = append(node.OneOf, cache.Serialize(branch))
-			}
-		}
-		// An exclusivity the engine cannot honour is marked HERE, where the
-		// carriers are still visible as checker types. Downstream only sees the
-		// projected graph, where the collapse has stripped them and the shape is
-		// no longer recoverable — a plain union and a two-carrier union look
-		// identical there. The emitters read the flag and refuse rather than
-		// generating a function that quietly checks the wrong thing.
-		if defect := typeid.OneOfDefect(cache.typeChecker, members); defect != "" {
-			node.Flags = append(node.Flags, reflection.FlagOneOfDefect+":"+defect)
-		}
 		for _, member := range members {
 			node.Children = append(node.Children, cache.Serialize(member))
 		}
@@ -946,15 +926,6 @@ func toAnySlice(strs []string) []any {
 // ---------------------------------------------------------------------------
 
 func (cache *Cache) projectObjectType(tsType *checker.Type, node *reflection.RunType) {
-	// A bare negation sentinel (`{__rtNot?: Child}` alone — how
-	// `unknown & {__rtNot?: …}` arrives after TS collapses the identity
-	// intersection): an unknown base carrying the negation, never an
-	// object literal with a property. Twin of the objectID early return.
-	if childType := typeid.NotChildTypeFromMember(cache.typeChecker, tsType); childType != nil {
-		node.Kind = reflection.KindUnknown
-		node.Negations = append(node.Negations, cache.Serialize(childType))
-		return
-	}
 	if checker.IsTupleType(tsType) {
 		cache.projectTuple(tsType, node, nil)
 		return
@@ -1314,14 +1285,14 @@ func (cache *Cache) projectMembersInto(
 		if asClass && propertySymbol != nil && propertySymbol.Name == "prototype" {
 			continue
 		}
-		// The negation / format sentinels are never real properties: when an
-		// object ∧ `{__rtNot?: …}` / `∧ {__rtFormatName?: …}` intersection
+		// The format / slot sentinels are never real properties: when an
+		// object ∧ `{__rtFormatName?: …}` intersection
 		// routes through the merged property walk, the collapse has already
-		// lifted them onto node.Negations / node.FormatAnnotation —
+		// lifted them onto node.FormatAnnotation / the check slots —
 		// projecting the props too would surface them on the wire shape.
 		// Twin of the typeid.memberIDs skip.
 		if propertySymbol != nil &&
-			(typeid.IsNotSentinelPropName(propertySymbol.Name) || typeid.IsFormatSentinelPropName(propertySymbol.Name) ||
+			(typeid.IsFormatSentinelPropName(propertySymbol.Name) ||
 				typeid.IsContainsSentinelPropName(propertySymbol.Name) || typeid.IsLabelsSentinelPropName(propertySymbol.Name)) {
 			continue
 		}

@@ -30,15 +30,6 @@ const (
 	// sentinels above for the FormatAnnotation and ignores the brand — so a
 	// branded format and its unbranded twin must resolve ONE structural id.
 	formatBrandProp = "__rtFormatBrand"
-	// notChildProp marks a negation sentinel member
-	// (`Base & {readonly __rtNot?: Child}`) — the internal encoding of JSON
-	// Schema `not` and the format-scoped `Not<F>`. The prop carries the
-	// TRANSLATED CHILD TYPE (not schema data), so both collapse passes lift
-	// it the same way they lift format sentinels: the serialize side turns
-	// the child into a reflection.RunType under node.Negations, the id side
-	// folds the child's structural id under a `!` tag. Deliberately NOT
-	// spelled `not` — real-world schemas contain properties named `not`.
-	notChildProp = "__rtNot"
 	// containsChildProp marks a contains sentinel member
 	// (`Base & {readonly __rtContains?: {rt$child: C; rt$min: N; rt$max?: M}}`)
 	// — the internal encoding of JSON Schema contains / minContains /
@@ -57,22 +48,6 @@ const (
 	patternKeyKey    = "rt$key"
 	patternValueKey  = "rt$value"
 	propNamesProp    = "__rtPropNames"
-	// oneOfProp marks the exactly-one CARRIER — the internal encoding of
-	// the OneOf<[…]> combinator and JSON Schema oneOf: every non-nullish
-	// union member intersects an object whose ONLY prop is this one,
-	// OPTIONAL, holding the branch tuple
-	// (`A & {__rtOneOf?: Bs} | B & {__rtOneOf?: Bs} | null`). Per-member
-	// carriage is deliberate: a whole-union sentinel cannot survive the
-	// checker (an intersection over the union distributes and destroys
-	// null branches; an extra tag member breaks plain-union consumption —
-	// property access, discriminated switches, widening). The optional
-	// prop keeps each member assignable with its plain form; nullish
-	// branches stay plain and any one surviving carrier provides the
-	// tuple. Union-level detection (OneOfFromMembers) lifts the branch
-	// list onto the node / an `oo{…}` id fold, and both intersection
-	// collapses skip the carrier so members serialize as their plain
-	// selves.
-	oneOfProp = "__rtOneOf"
 	// tupleLabelsProp marks the labeled-tuple sentinel member
 	// (`[number, number] & {readonly __rtLabels?: readonly ['x', 'y']}`) —
 	// how the value-first object forms (`tuple({x: …})` / `func({event: …})`)
@@ -83,20 +58,6 @@ const (
 	// The labels tuple covers EVERY element (TS labels all slots or none) —
 	// a length mismatch means a hand-rolled sentinel and is ignored whole.
 	tupleLabelsProp = "__rtLabels"
-	// unevaluatedProp marks the evaluated-key sweep sentinel — the internal
-	// encoding of JSON Schema unevaluatedProperties for the scopes the document
-	// alone cannot decide. Both collapse passes lift it (serialize →
-	// node.Unevaluated, id → a `u{…}` fold) and the property walks skip it.
-	unevaluatedProp  = "__rtUnevaluated"
-	unevalValueKey   = "value"
-	unevalKeysKey    = "keys"
-	unevalSourcesKey = "sources"
-	unevalGroupsKey  = "groups"
-	unevalWhenKey    = "when"
-	unevalWhenNotKey = "whenNot"
-	unevalWhenKeyKey = "whenKey"
-	unevalAllKey     = "all"
-	unevalPrefixKey  = "prefix"
 )
 
 // lateBoundNamePrefix is how tsgo spells a property whose key is a `unique
@@ -327,15 +288,6 @@ func greatestCommonDivisor(left, right int64) int64 {
 	return left
 }
 
-// IsNotSentinelPropName reports whether a property name is the negation
-// sentinel (`__rtNot`). Property walks on BOTH sides (typeid.memberIDs and
-// the serialize-side projectMembersInto) skip it so the sentinel never
-// surfaces as a real object property when TS merges it into an
-// intersection's property set.
-func IsNotSentinelPropName(name string) bool {
-	return isSentinelProp(name, notChildProp)
-}
-
 // IsFormatSentinelPropName is the TypeFormat twin of IsNotSentinelPropName:
 // once the collapse lifts a structural brand (`unknown[] & {__rtFormatName?:
 // …}`) onto node.FormatAnnotation / the id's format key, the merged property
@@ -345,241 +297,13 @@ func IsFormatSentinelPropName(name string) bool {
 }
 
 // IsContainsSentinelPropName is the contains twin for the property walks.
-// The patternProperties / propertyNames / oneOf-carrier sentinels ride the
-// same skip: merged property walks over a carrier'd intersection
-// (GetPropertiesOfType on the whole type) surface `__rtOneOf` as a prop,
+// The patternProperties / propertyNames sentinels ride the
+// same skip: merged property walks over a sentinel'd intersection
+// (GetPropertiesOfType on the whole type) surface the sentinel as a prop,
 // and it must never become a real member or an id contribution.
 func IsContainsSentinelPropName(name string) bool {
 	return isSentinelProp(name, containsChildProp) || isSentinelProp(name, patternPropsProp) ||
-		isSentinelProp(name, propNamesProp) || isSentinelProp(name, oneOfProp) ||
-		isSentinelProp(name, unevaluatedProp)
-}
-
-// oneOfCarrierTuple inspects one intersection CONSTITUENT for the oneOf
-// carrier shape — an object whose ONLY prop is the optional `__rtOneOf`
-// holding a ≥2-branch tuple — and returns the tuple type (the carrier's
-// identity for level resolution) plus its element types in written order.
-// The type-level OneOf requires two branches, so anything else is a
-// hand-rolled spelling we refuse to guess at.
-func oneOfCarrierTuple(typeChecker *checker.Checker, constituent *checker.Type) (*checker.Type, []*checker.Type) {
-	if constituent == nil || typeChecker == nil {
-		return nil, nil
-	}
-	properties := typeChecker.GetPropertiesOfType(constituent)
-	if len(properties) != 1 || !isSentinelProp(properties[0].Name, oneOfProp) {
-		return nil, nil
-	}
-	return oneOfTupleFromSymbol(typeChecker, properties[0])
-}
-
-// oneOfCarrierFromProps reads the carrier off a member's MERGED property
-// set: type-level projections that map over the intersection (DataOnly)
-// merge the carrier into one object type, where the branch tuple survives
-// only as the `__rtOneOf` prop among the member's own props. The `__rt`
-// prefix is the sentinel namespace (same claim `__rtNot` makes), so a prop
-// spelled exactly like this IS the carrier.
-func oneOfCarrierFromProps(typeChecker *checker.Checker, member *checker.Type) (*checker.Type, []*checker.Type) {
-	if member == nil || typeChecker == nil || member.Flags()&checker.TypeFlagsObject == 0 {
-		return nil, nil
-	}
-	for _, symbol := range typeChecker.GetPropertiesOfType(member) {
-		if isSentinelProp(symbol.Name, oneOfProp) {
-			return oneOfTupleFromSymbol(typeChecker, symbol)
-		}
-	}
-	return nil, nil
-}
-
-func oneOfTupleFromSymbol(typeChecker *checker.Checker, symbol *ast.Symbol) (*checker.Type, []*checker.Type) {
-	// The prop is optional (so a carrier'd member stays assignable with its
-	// plain form) — strip the optionality-induced undefined.
-	tupleType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
-	if tupleType == nil || tupleType.Flags()&checker.TypeFlagsUndefined != 0 || !checker.IsTupleType(tupleType) {
-		return nil, nil
-	}
-	branches := typeChecker.GetTypeArguments(tupleType)
-	if len(branches) < 2 {
-		return nil, nil
-	}
-	return tupleType, branches
-}
-
-// IsOneOfCarrierMember reports whether an intersection member is a oneOf
-// carrier. Both intersection collapses SKIP it at classification time, so
-// a carrier'd member serializes and hashes as its plain self (the branch
-// semantics live on the UNION node via OneOfFromMembers, never on the
-// members).
-func IsOneOfCarrierMember(typeChecker *checker.Checker, tsType *checker.Type) bool {
-	tupleType, _ := oneOfCarrierTuple(typeChecker, tsType)
-	return tupleType != nil
-}
-
-// OneOfCarrierBranches exposes a carrier constituent's branch tuple to the
-// serialize-side collapse: when DUPLICATE branches dedup the whole oneOf
-// union to a single member, the carrier'd intersection stands alone and
-// the collapse must project the degenerate one-member union with counting
-// instead of silently dropping the exclusivity.
-func OneOfCarrierBranches(typeChecker *checker.Checker, tsType *checker.Type) []*checker.Type {
-	_, branches := oneOfCarrierTuple(typeChecker, tsType)
-	return branches
-}
-
-// OneOfFromMembers scans a union's distributed members for oneOf carriers
-// and resolves WHICH carrier belongs to THIS union level: a nested OneOf
-// branch flattens its own carrier'd members into the outer list (where
-// they carry BOTH tuples), so the level carrier is the one no other
-// carrier's branch tuple contains. Returns the level branch list and ok.
-// ok=false when no carrier is present or the level is ambiguous (two
-// unclaimed carriers — only a hand-rolled spelling produces that; callers
-// keep the plain union projection). Members are returned to the caller
-// UNCHANGED — the collapse skips the carrier constituents, so children
-// already serialize plain.
-func OneOfFromMembers(typeChecker *checker.Checker, members []*checker.Type) ([]*checker.Type, bool) {
-	carrierBranches, claimed := oneOfCarrierLevels(typeChecker, members)
-	if len(carrierBranches) == 0 {
-		return nil, false
-	}
-	var levelBranches []*checker.Type
-	unclaimed := 0
-	for tupleKey, branches := range carrierBranches {
-		if !claimed[tupleKey] {
-			unclaimed++
-			levelBranches = branches
-		}
-	}
-	if unclaimed != 1 {
-		return nil, false
-	}
-	return levelBranches, true
-}
-
-// OneOfDefect reports why a union's exclusivity CANNOT be honoured, or "" when
-// it can. Both shapes it names would otherwise be wrong silently, which is the
-// reason it exists rather than a nicety:
-//
-//   - TWO level carriers (`OneOf<[A,B]> | OneOf<[C,D]>`). OneOfFromMembers gives
-//     up and the union projects PLAIN, so both exclusivity constraints vanish
-//     and the type hashes identically to `A | B | C | D` — two different types,
-//     one identity.
-//   - A carrier'd union with members OUTSIDE the exclusive part
-//     (`OneOf<[A,B]> | C`). Counting the branches decides the whole union, so
-//     the `| C` arm is never checked and a valid `C` is rejected.
-//
-// It runs on CHECKER types, where a carrier is directly visible, rather than on
-// the projected graph, where the collapse has already stripped it and only an
-// id difference is left — that difference over-reports the moment a branch is
-// itself a union, because flattening may re-distribute an intersection and put
-// members in the outer union that the branch node does not list.
-//
-// A member with no carrier is fine when it is IN the level's branch tuple: a
-// nullish branch stays plain by construction (an intersection would reduce it
-// away), so `OneOf<[A, null]>` is whole while `OneOf<[A, B]> | null` is not.
-func OneOfDefect(typeChecker *checker.Checker, members []*checker.Type) string {
-	carrierBranches, claimed := oneOfCarrierLevels(typeChecker, members)
-	if len(carrierBranches) == 0 {
-		return ""
-	}
-	levelKeys := make([]string, 0, len(carrierBranches))
-	for tupleKey := range carrierBranches {
-		if !claimed[tupleKey] {
-			levelKeys = append(levelKeys, tupleKey)
-		}
-	}
-	if len(levelKeys) > 1 {
-		return "two exclusive unions (oneOf) in one union"
-	}
-	if len(levelKeys) == 0 {
-		return ""
-	}
-	// A branch may itself be a union (`OneOf<[A, B | null]>`), and the members
-	// it contributes are what land in the outer union — so the tuple set has to
-	// expand them, or a nullish member hiding inside a union-valued branch
-	// looks like an arm from outside.
-	inTuple := make(map[string]bool)
-	for _, branch := range carrierBranches[levelKeys[0]] {
-		if branch == nil {
-			continue
-		}
-		inTuple[typeChecker.TypeToString(branch)] = true
-		if branch.Flags()&checker.TypeFlagsUnion != 0 {
-			for _, part := range branch.Distributed() {
-				if part != nil {
-					inTuple[typeChecker.TypeToString(part)] = true
-				}
-			}
-		}
-	}
-	for _, member := range members {
-		if member == nil {
-			continue
-		}
-		if member.Flags()&checker.TypeFlagsIntersection != 0 {
-			carried := false
-			for _, constituent := range member.AsUnionOrIntersectionType().Types() {
-				if tupleType, _ := oneOfCarrierTuple(typeChecker, constituent); tupleType != nil {
-					carried = true
-					break
-				}
-			}
-			if carried {
-				continue
-			}
-		} else if tupleType, _ := oneOfCarrierFromProps(typeChecker, member); tupleType != nil {
-			continue
-		}
-		if inTuple[typeChecker.TypeToString(member)] {
-			continue
-		}
-		return "an exclusive union (oneOf) beside ordinary union members"
-	}
-	return ""
-}
-
-// oneOfCarrierLevels is the shared first half of OneOfFromMembers and
-// OneOfDefect: the carriers found on the members, keyed by the tuple's
-// canonical print, plus the set of keys some other carrier's branch list
-// already claims (a nested OneOf flattens its members into the outer list, so
-// the level carrier is the one nobody else's tuple contains).
-func oneOfCarrierLevels(typeChecker *checker.Checker, members []*checker.Type) (map[string][]*checker.Type, map[string]bool) {
-	carrierBranches := make(map[string][]*checker.Type)
-	for _, member := range members {
-		if member == nil {
-			continue
-		}
-		if member.Flags()&checker.TypeFlagsIntersection != 0 {
-			for _, constituent := range member.AsUnionOrIntersectionType().Types() {
-				if tupleType, branches := oneOfCarrierTuple(typeChecker, constituent); tupleType != nil {
-					carrierBranches[typeChecker.TypeToString(tupleType)] = branches
-				}
-			}
-			continue
-		}
-		if tupleType, branches := oneOfCarrierFromProps(typeChecker, member); tupleType != nil {
-			carrierBranches[typeChecker.TypeToString(tupleType)] = branches
-		}
-	}
-	claimed := make(map[string]bool)
-	for _, branches := range carrierBranches {
-		for _, branch := range branches {
-			if branch == nil || branch.Flags()&checker.TypeFlagsUnion == 0 {
-				continue
-			}
-			for _, part := range branch.Distributed() {
-				if part.Flags()&checker.TypeFlagsIntersection != 0 {
-					for _, constituent := range part.AsUnionOrIntersectionType().Types() {
-						if tupleType, _ := oneOfCarrierTuple(typeChecker, constituent); tupleType != nil {
-							claimed[typeChecker.TypeToString(tupleType)] = true
-						}
-					}
-					continue
-				}
-				if tupleType, _ := oneOfCarrierFromProps(typeChecker, part); tupleType != nil {
-					claimed[typeChecker.TypeToString(tupleType)] = true
-				}
-			}
-		}
-	}
-	return carrierBranches, claimed
+		isSentinelProp(name, propNamesProp)
 }
 
 // PatternPropSpec is one decoded patternProperties entry (see
@@ -628,7 +352,7 @@ func PatternPropsFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 
 // PropNamesChildFromMember inspects an object-literal *checker.Type for the
 // propertyNames sentinel and returns the key-validating child, nil when the
-// member is something else. Same optional-sentinel discipline as __rtNot.
+// member is something else. Same optional-sentinel discipline as the other slots.
 func PropNamesChildFromMember(typeChecker *checker.Checker, tsType *checker.Type) *checker.Type {
 	if tsType == nil || typeChecker == nil {
 		return nil
@@ -648,7 +372,7 @@ func PropNamesChildFromMember(typeChecker *checker.Checker, tsType *checker.Type
 // labeled-tuple sentinel shape — an object whose ONLY prop is the optional
 // `__rtLabels` holding a tuple of string literals — and returns the label
 // strings in slot order. ok=false when the member is something else. Same
-// optional-sentinel discipline as __rtNot / __rtPropNames.
+// optional-sentinel discipline as __rtPropNames.
 func TupleLabelsFromMember(typeChecker *checker.Checker, tsType *checker.Type) ([]string, bool) {
 	if tsType == nil || typeChecker == nil {
 		return nil, false
@@ -765,131 +489,6 @@ func ContainsSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) 
 	return child, minCount, maxCount, true
 }
 
-// UnevalSpec is the RAW payload read off an `__rtUnevaluated` sentinel: the
-// literal key/source lists plus the guard and value CHECKER types, which each
-// collapse half turns into its own thing (a serialized node, or an id).
-type UnevalSpec struct {
-	Value   *checker.Type
-	Keys    []string
-	Sources []string
-	Prefix  int
-	Groups  []UnevalSpecGroup
-}
-
-// UnevalSpecGroup is one guarded contribution; exactly one of When / WhenNot /
-// WhenKey is set.
-type UnevalSpecGroup struct {
-	When    *checker.Type
-	WhenNot *checker.Type
-	WhenKey string
-	Keys    []string
-	Sources []string
-	Prefix  int
-	All     bool
-}
-
-// UnevalSpecFromMember reads an `__rtUnevaluated` sentinel member. Returns
-// ok=false for anything that is not one, so callers route those through the
-// normal member path.
-func UnevalSpecFromMember(typeChecker *checker.Checker, tsType *checker.Type) (UnevalSpec, bool) {
-	if tsType == nil || typeChecker == nil {
-		return UnevalSpec{}, false
-	}
-	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || !isSentinelProp(properties[0].Name, unevaluatedProp) {
-		return UnevalSpec{}, false
-	}
-	specType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
-	if specType == nil {
-		return UnevalSpec{}, false
-	}
-	spec := UnevalSpec{}
-	for _, specProp := range typeChecker.GetPropertiesOfType(specType) {
-		switch specProp.Name {
-		case unevalValueKey:
-			// Read RAW: GetNonNullableType would degrade an `unknown` value
-			// to `{}` and lose the accept-everything reading.
-			spec.Value = typeChecker.GetTypeOfSymbol(specProp)
-		case unevalKeysKey:
-			spec.Keys = stringTupleOf(typeChecker, specProp)
-		case unevalSourcesKey:
-			spec.Sources = stringTupleOf(typeChecker, specProp)
-		case unevalPrefixKey:
-			if value, isNumber := literalNumberOf(typeChecker, specProp); isNumber {
-				spec.Prefix = int(value)
-			}
-		case unevalGroupsKey:
-			spec.Groups = unevalGroupsOf(typeChecker, specProp)
-		}
-	}
-	return spec, true
-}
-
-func unevalGroupsOf(typeChecker *checker.Checker, symbol *ast.Symbol) []UnevalSpecGroup {
-	tupleType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
-	if tupleType == nil || !checker.IsTupleType(tupleType) {
-		return nil
-	}
-	var groups []UnevalSpecGroup
-	for _, element := range typeChecker.GetTypeArguments(tupleType) {
-		if element == nil {
-			continue
-		}
-		group := UnevalSpecGroup{}
-		for _, groupProp := range typeChecker.GetPropertiesOfType(element) {
-			switch groupProp.Name {
-			case unevalWhenKey:
-				group.When = typeChecker.GetTypeOfSymbol(groupProp)
-			case unevalWhenNotKey:
-				group.WhenNot = typeChecker.GetTypeOfSymbol(groupProp)
-			case unevalWhenKeyKey:
-				group.WhenKey = unevalKeyLiteralOf(typeChecker, groupProp)
-			case unevalKeysKey:
-				group.Keys = stringTupleOf(typeChecker, groupProp)
-			case unevalSourcesKey:
-				group.Sources = stringTupleOf(typeChecker, groupProp)
-			case unevalPrefixKey:
-				if value, isNumber := literalNumberOf(typeChecker, groupProp); isNumber {
-					group.Prefix = int(value)
-				}
-			case unevalAllKey:
-				group.All = true
-			}
-		}
-		groups = append(groups, group)
-	}
-	return groups
-}
-
-// stringTupleOf reads a `readonly string[]` literal tuple property.
-func stringTupleOf(typeChecker *checker.Checker, symbol *ast.Symbol) []string {
-	tupleType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
-	if tupleType == nil || !checker.IsTupleType(tupleType) {
-		return nil
-	}
-	var out []string
-	for _, element := range typeChecker.GetTypeArguments(tupleType) {
-		if element == nil || element.Flags()&checker.TypeFlagsStringLiteral == 0 {
-			continue
-		}
-		if value, ok := element.AsLiteralType().Value().(string); ok {
-			out = append(out, value)
-		}
-	}
-	return out
-}
-
-func unevalKeyLiteralOf(typeChecker *checker.Checker, symbol *ast.Symbol) string {
-	literal := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(symbol))
-	if literal == nil || literal.Flags()&checker.TypeFlagsStringLiteral == 0 {
-		return ""
-	}
-	if value, ok := literal.AsLiteralType().Value().(string); ok {
-		return value
-	}
-	return ""
-}
-
 // literalNumberOf reads a number-literal property's value via the canonical
 // type string (the same robust route projectPrimitiveInto takes).
 func literalNumberOf(typeChecker *checker.Checker, symbol *ast.Symbol) (float64, bool) {
@@ -902,31 +501,6 @@ func literalNumberOf(typeChecker *checker.Checker, symbol *ast.Symbol) (float64,
 		return 0, false
 	}
 	return value, true
-}
-
-// NotChildTypeFromMember inspects an object-literal *checker.Type for the
-// negation sentinel (`{readonly __rtNot?: Child}`) and returns the CHILD type
-// with the optionality-induced `undefined` stripped. Returns nil when the
-// member is not a negation sentinel — callers route those through the normal
-// TypeMeta / property path. The member must carry ONLY the sentinel prop:
-// a real object type that happens to include `__rtNot` alongside other
-// properties is not a sentinel and must not be silently rewritten.
-func NotChildTypeFromMember(typeChecker *checker.Checker, tsType *checker.Type) *checker.Type {
-	if tsType == nil || typeChecker == nil {
-		return nil
-	}
-	properties := typeChecker.GetPropertiesOfType(tsType)
-	if len(properties) != 1 || !isSentinelProp(properties[0].Name, notChildProp) {
-		return nil
-	}
-	// Same optional-sentinel discipline as the format props: the prop is
-	// declared optional so the branded type stays mutually assignable with
-	// its base; strip the `undefined` before handing the child to the walk.
-	childType := typeChecker.GetNonNullableType(typeChecker.GetTypeOfSymbol(properties[0]))
-	if childType == nil || childType.Flags()&checker.TypeFlagsUndefined != 0 {
-		return nil
-	}
-	return childType
 }
 
 // literalParamsFromType walks an object-literal type into the

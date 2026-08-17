@@ -1,5 +1,5 @@
 // convert_cli.go — the `ts-runtypes convert` verb: rewrite files between the
-// three authoring forms (type-first / builders / JSON Schema) over the shared
+// two authoring forms (type-first / builders) over the shared
 // reflection graph. CLI-only by design (docs/done/format-conversion-layer.md):
 // a one-shot migration tool, in place by default, `--out-dir` for a converted
 // copy, `--check` for a write-nothing report.
@@ -21,17 +21,15 @@ import (
 
 func runConvert(args []string) {
 	flagSet := flag.NewFlagSet("convert", flag.ExitOnError)
-	toFlag := flagSet.String("to", "", "target form: type | builders | json-schema (required)")
+	toFlag := flagSet.String("to", "", "target form: type | builders (required)")
 	checkFlag := flagSet.Bool("check", false, "report the files that would change without writing; exit 1 when changes are pending")
-	portableFlag := flagSet.Bool("portable", false, "json-schema target only: forbid the RunTypes dialect (jsType rows, embedType); declarations needing it become errors. Overrides the tsconfig convertDialect key; pass --portable=false to force the dialect back on")
 	outDirFlag := flagSet.String("out-dir", "", "copy the input directory here and convert the copy, leaving sources untouched (requires a single directory argument)")
 	tsconfigFlag := flagSet.String("tsconfig", "", "project tsconfig path (default: found like tsc, searching upward from the working directory)")
 	flagSet.Usage = func() {
-		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the three authoring forms
+		printUsage(flagSet, `ts-runtypes convert — rewrite type declarations between the two authoring forms
 
 Usage:
     ts-runtypes convert --to builders src/models.ts src/api.ts
-    ts-runtypes convert --to json-schema src/models/
     ts-runtypes convert --to type --check src/models/
     ts-runtypes convert --to builders src/models/ --out-dir converted/
 
@@ -69,16 +67,7 @@ any error makes the exit code non-zero.
 	for _, file := range files {
 		absFiles = append(absFiles, tspath.NormalizePath(mustAbs(file)))
 	}
-	tsconfigPath, parsed := resolveEnrichProject(*tsconfigFlag)
-	// The project picks the dialect; an explicit --portable on the command line
-	// wins for this run. flagSet.Visit reports only flags actually passed, so
-	// the tsconfig key is not shadowed by the flag's own `false` default.
-	portable := resolveConvertDialect(tsconfigPath)
-	flagSet.Visit(func(passed *flag.Flag) {
-		if passed.Name == "portable" {
-			portable = *portableFlag
-		}
-	})
+	_, parsed := resolveEnrichProject(*tsconfigFlag)
 	cwd := filepath.Dir(absFiles[0])
 	// Root the WHOLE config file list beside the conversion targets (one-shot
 	// tool, so the parse cost is paid once): ambient declarations the project
@@ -95,7 +84,7 @@ any error makes the exit code non-zero.
 	}
 	defer session.Close()
 
-	options := convert.Options{Target: target, Portable: portable}
+	options := convert.Options{Target: target}
 	conversionSet, setErr := convert.BuildSet(prog, session.Checker(), session.Cache(), session.MarkerOptions(), absFiles)
 	if setErr != nil {
 		fatal("convert: %v", setErr)

@@ -106,24 +106,6 @@ type tsRuntypesPlugin struct {
 	// field); folds into each entry's fnHash variant, so it is NOT a disk
 	// fingerprint input.
 	Validate *validatePluginConfig `json:"validate"`
-	// ConvertDialect is the `convert --to json-schema` output dialect:
-	//
-	//   "extended" (default) — emit json-schema-2020-12-javascript, the
-	//                RunTypes extension (docs/json-schema-2020-12-javascript.md).
-	//                Every extension keyword sits BESIDE a standard wire
-	//                description, so a plain 2020-12 validator still enforces
-	//                the JSON contract and only the round-trip back to a
-	//                TypeScript type needs the extension.
-	//   "standard" — emit strictly standard 2020-12. A declaration that needs
-	//                an extension keyword to be expressible becomes a CNV006
-	//                error rather than losing its meaning silently.
-	//
-	// The `--portable` flag is the per-run override in both directions
-	// (`--portable` / `--portable=false`), and wins over this key when passed.
-	// Convert is a CLI-only verb, so this has no PluginOptions counterpart —
-	// the bundler plugin never converts anything (GO_ONLY in the option-parity
-	// test, like `i18n`).
-	ConvertDialect string `json:"convertDialect"`
 	// Markers groups the marker-package gate under one `markers` object (like
 	// `binarySizing`). It answers "which packages am I willing to accept the
 	// marker types from?", so a library can declare `InjectRunTypeId` and
@@ -236,35 +218,6 @@ func resolveEnrichProject(tsconfigFlag string) (string, *program.InferredConfig)
 		fatal("%v", err)
 	}
 	return tsconfigPath, parsed
-}
-
-// resolveConvertDialect reads the project's `convertDialect` key and returns
-// whether the convert run should be PORTABLE (standard 2020-12 only). Absent or
-// empty means "extended", today's behaviour: a project that never writes the key
-// keeps the full dialect. An unrecognised value is fatal like a bad tsc option
-// rather than silently falling back — a typo'd "strict" would otherwise emit
-// extension keywords into a schema the author believes is portable.
-func resolveConvertDialect(tsconfigPath string) bool {
-	if tsconfigPath == "" {
-		return false
-	}
-	pluginTsconfig, parsedOk := parseTsconfig(tsconfigPath)
-	if !parsedOk {
-		fatal("tsconfig %s: cannot parse", tsconfigPath)
-	}
-	plugin, pluginOk := findTsRuntypesPlugin(pluginTsconfig)
-	if !pluginOk {
-		return false
-	}
-	switch plugin.ConvertDialect {
-	case "", "extended":
-		return false
-	case "standard":
-		return true
-	default:
-		fatal("tsconfig %s: convertDialect must be \"extended\" or \"standard\", got %q", tsconfigPath, plugin.ConvertDialect)
-		return false
-	}
 }
 
 // resolveEnrichConfig computes the enrichment config for an enrich target file.

@@ -36,12 +36,6 @@ const PropModSentinel = "__propMod"
 // a RunType, so the leaf check recognizes it structurally.
 const SlotSentinel = "__slotLabel"
 
-// EmbedSentinel is the marker property on the json-schema `embedType` escape's
-// EmbedSchema<T> carrier — a schema-position leaf whose TYPE carries an
-// embedded TS type. Like propMod it returns a carrier, not a RunType, so the
-// leaf check recognizes it structurally.
-const EmbedSentinel = "__rtEmbed"
-
 // GetRunTypeName is the marker module's id-LOOKUP escape. It returns a
 // `RunType<T>` like every builder, but it is the one that does not BUILD one:
 // it hands the injected id to the runtime registry and returns what comes back
@@ -93,17 +87,14 @@ func IsBuilderLeafCall(typeChecker *checker.Checker, call *ast.Node, markerOpts 
 	if IsRunType(returnType, markerOpts) {
 		return true
 	}
-	// propMod / optional / slot / embedType carriers — recognised structurally
+	// propMod / optional / slot carriers — recognised structurally
 	// by their sentinel properties (the carrier interfaces are internal, so
 	// there is no symbol to gate on; the properties are unique to the marker
 	// module).
 	if checker.Checker_getPropertyOfType(typeChecker, returnType, PropModSentinel) != nil {
 		return true
 	}
-	if checker.Checker_getPropertyOfType(typeChecker, returnType, SlotSentinel) != nil {
-		return true
-	}
-	return checker.Checker_getPropertyOfType(typeChecker, returnType, EmbedSentinel) != nil
+	return checker.Checker_getPropertyOfType(typeChecker, returnType, SlotSentinel) != nil
 }
 
 // IsRunType reports whether tsType is the marker module's `RunType<…>` —

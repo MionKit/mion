@@ -417,12 +417,6 @@ const (
 	SlotFunctionRoot        DiagSlot = "fn-root"
 	SlotArrayElement        DiagSlot = "array-element"
 	SlotNonSerializableElem DiagSlot = "ns-elem"
-	// SlotOneOfDefect — a union whose exclusivity cannot be honoured: an
-	// exclusive union (oneOf) beside ordinary union members, or two of them in
-	// one union. Refused rather than approximated, because either shape would
-	// otherwise generate a function that quietly checks the wrong thing. See
-	// typeid.OneOfDefect.
-	SlotOneOfDefect DiagSlot = "oneof-defect"
 
 	// Child-position silent-skip slots — factory degrades.
 	SlotFunctionPropDropped DiagSlot = "fn-prop-dropped"

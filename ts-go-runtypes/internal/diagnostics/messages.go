@@ -400,10 +400,6 @@ var messagesByCode = map[string]message{
 		Headline: "Property `{0}` is a function: `unknownKeysToUndefinedWire` does not handle function values, so this property is silently not cleared.",
 		Detail:   "`unknownKeysToUndefinedWire` works on JSON-shaped data; functions don't survive JSON, so\nthe emitter drops them. The rest of the object's behaviour is unaffected.\n\nThis is by design, see the \"one contract: serializable data only\"\nsection in CLAUDE.md. If you need a stricter checker that fails on\nmissing/extra function-typed members, watch the project roadmap.",
 	},
-	"OOF001": {
-		Headline: "{0} is not supported: exclusivity can only be checked when the exclusive union IS the whole union.",
-		Detail:   "`OneOf<[A, B]>` means the value matches EXACTLY ONE of A or B, and the\ncheck works by counting how many branches match. That count decides the\nwhole union, so there is nowhere to put a member that is not one of the\nbranches:\n\n  type T = OneOf<[A, B]> | C;        // the `| C` arm could never be checked\n  type U = OneOf<[A, B]> | OneOf<[C, D]>;  // two counts cannot be combined\n\nGive the exclusive part its own named type and union that:\n\n  type Pick = OneOf<[A, B]>;\n  type T = Pick | C;                 // still not supported — same shape\n\nOr, if you meant at-least-one rather than exactly-one, use a plain union\n(`A | B | C`), which is JSON Schema `anyOf`.\n\nA `oneOf` written next to other KEYWORDS in a JSON Schema is unaffected:\n`{\"anyOf\": [...], \"oneOf\": [...]}` is fine, because those combine as an\nAND over the same value rather than as union arms.",
-	},
 	"JCP001": {
 		Headline: "Internal error: JSON composite `{0}` references primitive entry `{1}` (type `{2}`) which was never rendered; please file an issue.",
 	},

@@ -18,7 +18,7 @@
 //   - Position — the parent slice order carries it;
 //   - ID — replaced by first-visit ordinals so interning ids never leak in
 //     (C2 already pins id equality);
-//   - UNION member order (Children / OneOf on a union node) — the id folds
+//   - UNION member order (Children on a union node) — the id folds
 //     unions order-insensitively and the checker reorders members between
 //     sessions, so canonical children sort by their own canonical text.
 //
@@ -107,15 +107,12 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 	out.IndexT = builder.walk(node.IndexT)
 	out.Parameters = builder.walkSlice(node.Parameters)
 	childrenSlots := node.Children
-	oneOfSlots := node.OneOf
 	if node.Kind == reflection.KindUnion && !builder.sorting[node.ID] {
 		childrenSlots = builder.sortSlots(node.ID, childrenSlots)
-		oneOfSlots = builder.sortSlots(node.ID, oneOfSlots)
 	}
 	out.Children = builder.walkSlice(childrenSlots)
 	out.Arguments = builder.walkSlice(node.Arguments)
 	out.TypeMeta = builder.walkSlice(node.TypeMeta)
-	out.Negations = builder.walkSlice(node.Negations)
 	for _, containsCheck := range node.Contains {
 		if containsCheck == nil {
 			continue
@@ -131,25 +128,6 @@ func (builder *canonicalBuilder) walk(node *reflection.RunType) *reflection.RunT
 			Source: patternProp.Source, Key: builder.walk(patternProp.Key), Value: builder.walk(patternProp.Value)})
 	}
 	out.PropNames = builder.walkSlice(node.PropNames)
-	out.OneOf = builder.walkSlice(oneOfSlots)
-	for _, unevaluated := range node.Unevaluated {
-		if unevaluated == nil {
-			continue
-		}
-		copied := &reflection.UnevaluatedCheck{
-			Value: builder.walk(unevaluated.Value), Keys: unevaluated.Keys,
-			Sources: unevaluated.Sources, Prefix: unevaluated.Prefix}
-		for _, group := range unevaluated.Groups {
-			if group == nil {
-				continue
-			}
-			copied.Groups = append(copied.Groups, &reflection.UnevalGroup{
-				When: builder.walk(group.When), WhenNot: builder.walk(group.WhenNot),
-				WhenKey: group.WhenKey, Keys: group.Keys, Sources: group.Sources,
-				Prefix: group.Prefix, All: group.All})
-		}
-		out.Unevaluated = append(out.Unevaluated, copied)
-	}
 	return out
 }
 

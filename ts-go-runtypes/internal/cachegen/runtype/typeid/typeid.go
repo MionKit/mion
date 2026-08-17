@@ -434,21 +434,8 @@ func (computer *Computer) dispatch(tsType *checker.Type) string {
 		// dedups `A | B` with `B | A`. Runtime member precedence is unaffected — it's
 		// driven by node.Children downstream (union_safeorder.go), not by this id.
 		members := tsType.Distributed()
-		oneOfKey := ""
-		// OneOf carriers: the level branch tuple's SORTED ids fold under
-		// `oo{…}` — counting is order-insensitive (`oneOf: [A, B]` ≡
-		// `oneOf: [B, A]`) but the grouping is id-relevant, keeping
-		// OneOf<[A, B]> apart from `A | B`. Member ids stay plain — the
-		// intersection-collapse id skips each member's carrier constituent.
-		if branches, ok := OneOfFromMembers(computer.typeChecker, members); ok {
-			branchIDs := make([]string, 0, len(branches))
-			for _, branch := range branches {
-				branchIDs = append(branchIDs, computer.Compute(branch))
-			}
-			oneOfKey = "oo{" + computer.sortedJoin(branchIDs) + "}"
-		}
 		unionIDs := computer.childIDs(members)
-		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false) + oneOfKey
+		return collectionJoined(int(kind), computer.sortedJoin(unionIDs), false)
 	}
 	if flags&checker.TypeFlagsIntersection != 0 {
 		return computer.collapsedIntersectionID(tsType)
@@ -531,13 +518,6 @@ func (computer *Computer) tupleID(tsType *checker.Type, labelOverride []string) 
 }
 
 func (computer *Computer) objectID(tsType *checker.Type) string {
-	// A bare negation sentinel (`{__rtNot?: Child}` with no other member —
-	// how `unknown & {__rtNot?: …}` reaches us after TS collapses the
-	// identity intersection): the id is an unknown base plus the negation
-	// fold, NOT an object literal carrying a property.
-	if childType := NotChildTypeFromMember(computer.typeChecker, tsType); childType != nil {
-		return strconv.Itoa(int(reflection.KindUnknown)) + "!{" + computer.Compute(childType) + "}"
-	}
 	if checker.IsTupleType(tsType) {
 		return computer.tupleID(tsType, nil)
 	}
@@ -678,17 +658,13 @@ func (computer *Computer) memberIDs(tsType *checker.Type, asClass bool) []string
 	properties := computer.typeChecker.GetPropertiesOfType(tsType)
 	out := make([]string, 0, len(properties))
 	for _, propertySymbol := range properties {
-		// The negation / format sentinels are never real properties: when an
+		// The format / slot sentinels are never real properties: when an
 		// object ∧ sentinel intersection is hashed through the merged
 		// property walk, the sentinel props must stay out of the member list
-		// (the collapse folds them as a `!{…}` tag / format key instead).
-		// Mirrors the serialize-side projectMembersInto skip.
-		// Symbol-aware on purpose: the serialize twin (projectMembersInto)
-		// skips via IsNotSentinelPropName, which also matches the late-bound
-		// `unique symbol` spelling — a literal == compare here would fold a
-		// symbol-keyed `__rtNot` as a real member while the projection skips
-		// it, splitting id from behavior.
-		if IsNotSentinelPropName(propertySymbol.Name) || IsFormatSentinelPropName(propertySymbol.Name) ||
+		// (the collapse folds them as a format key / slot fold instead).
+		// Mirrors the serialize-side projectMembersInto skip, which is
+		// symbol-aware (matches the late-bound `unique symbol` spelling too).
+		if IsFormatSentinelPropName(propertySymbol.Name) ||
 			IsContainsSentinelPropName(propertySymbol.Name) || IsLabelsSentinelPropName(propertySymbol.Name) {
 			continue
 		}

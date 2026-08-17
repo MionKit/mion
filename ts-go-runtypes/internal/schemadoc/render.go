@@ -1,27 +1,25 @@
 // The runtime JSON-Schema document renderer: walks a reflection.RunType graph
 // and renders ONE self-contained document as JS object-literal source — the
 // body the `jsc` cache family emits (`() => ({…})`), later served through the
-// StandardJSONSchemaV1 converter. Emits the exact textual dialect the convert
-// printer's schema target emits (wire-first standard keywords + the jsType /
-// rtFormat extension rows), which is what the parity tests compare.
+// StandardJSONSchemaV1 converter. Emits the textual dialect
+// (wire-first standard keywords + the jsType /
+// rtFormat extension rows), pinned by the corpus golden in internal/convert.
 //
-// Where the convert printer REFUSES (it must round-trip a declaration's
-// identity), this renderer DEGRADES: the document is descriptive, one-way
-// output, so an unspellable corner renders its closest honest under-constraint
+// The document is descriptive, one-way
+// output, so an unspellable corner DEGRADES: it renders its closest honest
+// under-constraint
 // (usually `{}` — "any value") and records a Warning instead of failing the
-// build. The deliberate divergences from the printer:
+// build. Notable spellings:
 //
-//   - references: no declaration table, no embedType escape. Cycles close via
-//     `$defs` — a back-edge to the ROOT renders `{$ref: '#'}` (printer
-//     parity), any other back-edge renders `{$ref: '#/$defs/<id>'}` and the
+//   - references: no declaration table. Cycles close via
+//     `$defs` — a back-edge to the ROOT renders `{$ref: '#'}`,
+//     any other back-edge renders `{$ref: '#/$defs/<id>'}` and the
 //     cycling node's body is appended to the root's `$defs`;
 //   - user classes render STRUCTURALLY (their wire shape — the nominal
 //     identity is a validator concern, not a document one);
 //   - enums render as their value list (`{enum: […]}`);
 //   - method / call-signature members DROP (they are not data and never reach
-//     the wire — the same projection DataOnly applies);
-//   - unevaluated sweeps, stacked negations / contains / propertyNames and
-//     other printer refusals degrade with a Warning.
+//     the wire — the same projection DataOnly applies).
 package schemadoc
 
 import (
@@ -213,26 +211,6 @@ func (r *docRenderer) metaText(node *reflection.RunType) string {
 }
 
 func (r *docRenderer) exprCore(node *reflection.RunType) string {
-	if len(node.Unevaluated) > 0 {
-		// The sweep has no document spelling (the printer refuses for id
-		// reasons); the base constraint still describes every valid value.
-		r.warn("an unevaluatedProperties/unevaluatedItems sweep has no document spelling; the document under-constrains")
-	}
-	if len(node.Negations) > 0 {
-		if len(node.Negations) > 1 {
-			r.warn("stacked negations render only the first")
-		}
-		negated := r.resolve(node.Negations[0])
-		if negated == nil {
-			return r.degrade("a negation of an unresolved node rendered as {}")
-		}
-		negatedText := r.expr(node.Negations[0])
-		baseText := "type: 'string'"
-		if family, _, known := LeafFormat(negated.FormatAnnotation); known && family.Base == "number" {
-			baseText = "type: 'number'"
-		}
-		return fmt.Sprintf("{%s, not: %s}", baseText, negatedText)
-	}
 	if annotation := node.FormatAnnotation; annotation != nil && !IsStructuralAnnotation(annotation) {
 		family, _, known := LeafFormat(annotation)
 		if !known {
@@ -460,15 +438,6 @@ func (r *docRenderer) mergedPropText(prop UnionWireProp, envelope func(string, s
 
 // unionNaturalText is the raw-union / layout-less spelling.
 func (r *docRenderer) unionNaturalText(node *reflection.RunType) string {
-	if reason := node.OneOfDefectReason(); reason != "" {
-		r.warn("%s; the document renders the union as anyOf (exclusivity not expressed)", reason)
-	} else if len(node.OneOf) > 0 {
-		branches := make([]string, 0, len(node.OneOf))
-		for _, branchRef := range node.OneOf {
-			branches = append(branches, r.expr(branchRef))
-		}
-		return fmt.Sprintf("{oneOf: [%s]}", strings.Join(SortArms(branches), ", "))
-	}
 	allPlainLiterals := true
 	var literalParts []string
 	for _, armRef := range node.Children {

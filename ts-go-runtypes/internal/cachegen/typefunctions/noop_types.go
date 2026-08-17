@@ -545,12 +545,9 @@ func isNoopForValidate(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt == nil {
 		return false
 	}
-	// A negation- or contains-bearing unknown is a REAL check (`!(child)` /
-	// the occurrence count) — never the trivial `() => true`. The unevaluated
-	// sweep belongs in this list too: an unevaluated-only node emits a real
-	// key/index sweep.
-	if len(rt.Negations) > 0 || len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 ||
-		len(rt.OneOf) > 0 || len(rt.Unevaluated) > 0 {
+	// A contains-bearing unknown is a REAL check (the occurrence count) —
+	// never the trivial `() => true`.
+	if len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 {
 		return false
 	}
 	return rt.Kind == reflection.KindAny || rt.Kind == reflection.KindUnknown
@@ -564,10 +561,8 @@ func isNoopForValidationErrors(rt *reflection.RunType, ctx *EmitContext) bool {
 	if rt == nil {
 		return false
 	}
-	// Negation- and contains-bearing nodes push real errors — and so does the
-	// unevaluated sweep's canonical error.
-	if len(rt.Negations) > 0 || len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 ||
-		len(rt.OneOf) > 0 || len(rt.Unevaluated) > 0 {
+	// Contains-bearing nodes push real errors.
+	if len(rt.Contains) > 0 || len(rt.PatternProps) > 0 || len(rt.PropNames) > 0 {
 		return false
 	}
 	return rt.Kind == reflection.KindAny || rt.Kind == reflection.KindUnknown

@@ -14,7 +14,6 @@ package convert
 // re-export block), so the value-first spelling of that same call is:
 //
 //	createValidateFn(RT.object({id: TF.string(), age: RT.optional(TF.number())}))
-//	createValidateFn(runTypeFromJsonSchema({type: 'object', …} as const))
 //
 // and the conversion is a rewrite of the call itself — no name to invent, no
 // statement to place, no collision to resolve. The structural id is identical
@@ -29,8 +28,6 @@ package convert
 // free.
 
 import (
-	"strings"
-
 	"github.com/microsoft/typescript-go/shim/ast"
 	"github.com/microsoft/typescript-go/shim/checker"
 	"github.com/mionkit/ts-runtypes/internal/cachegen/runtype"
@@ -361,19 +358,6 @@ func printCallSite(
 		}
 		return &printedDecl{text: "(" + builderExpr + site.keepArgs + ")", needs: ctx.needs}, nil
 
-	case TargetJSONSchema:
-		schemaExpr, diag := ctx.schemaExpr(site.node)
-		if diag != nil {
-			return nil, diag
-		}
-		if refDiag := ctx.eagerTupleCycleDiag(site.node, ctx.decl, "a {$ref: '#'} back-reference"); refDiag != nil {
-			return nil, refDiag
-		}
-		if strings.HasPrefix(schemaExpr, "{") {
-			schemaExpr += " as const"
-		}
-		ctx.needs.useRunTypeFromJSONSchema = true
-		return &printedDecl{text: "(" + names.RunTypeFromJSONSchema + "(" + schemaExpr + ")" + site.keepArgs + ")", needs: ctx.needs}, nil
 	}
 	return nil, nil
 }

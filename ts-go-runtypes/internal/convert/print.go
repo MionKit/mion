@@ -4,9 +4,9 @@
 // checker access, so they test in isolation. This file holds the walk context
 // (printContext: cycle guard, reference resolution, import needs), printDecl,
 // and every helper two or more targets consume — the target cores live in
-// printtype.go, printbuilder.go and printschema.go. Shapes with no native
-// spelling in a target ride the escapes (`getRunType<T>()` on builders,
-// `embedType<T>()` on the schema target); anything with no spelling at all
+// printtype.go and printbuilder.go. Shapes with no native
+// spelling in a target ride the `getRunType<T>()` escape on builders;
+// anything with no spelling at all
 // reports CNV001 and the declaration stays untouched (record:
 // docs/done/format-conversion-completion.md).
 //
@@ -114,8 +114,6 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 			ctx.usedSelf = true
 			ctx.needs.useRT = true
 			return ctx.names.RT + ".self()", nil, true
-		case TargetJSONSchema:
-			return "{$ref: '#'}", nil, true
 		}
 		return "", nil, false
 	}
@@ -136,11 +134,6 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 // refSpelling renders a table reference in the requested target, resolving
 // the cross-file spelling and recording import needs.
 func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *Diagnostic, bool) {
-	if target == TargetJSONSchema && ctx.opts.Portable {
-		// embedType is dialect; under --portable a reference inlines instead
-		// (structurally identical, so the id cannot move).
-		return "", nil, false
-	}
 	// A name this file cannot SPELL is not a conversion failure — it is just a
 	// name. Inlining the structure says the same thing (structurally identical,
 	// so the id cannot move), which is what the --portable branch above already
@@ -173,9 +166,6 @@ func (ctx *printContext) refSpelling(entry RefTarget, target Target) (string, *D
 	case TargetBuilders:
 		ctx.needs.useGetRunType = true
 		return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, spelling), nil, true
-	case TargetJSONSchema:
-		ctx.needs.useEmbedType = true
-		return fmt.Sprintf("%s<%s>()", ctx.names.EmbedType, spelling), nil, true
 	}
 	return "", nil, false
 }
@@ -312,26 +302,6 @@ func printDecl(resolved *resolvedDecl, opts Options, names *nameTable, fileCtx *
 			builderExpr = fmt.Sprintf("%s.circular(%s)", ctx.names.RT, builderExpr)
 		}
 		return assembleConstDecl(decl, names, exportPrefix, builderExpr, ctx.needs)
-
-	case TargetJSONSchema:
-		schemaExpr, diag := ctx.schemaExpr(resolved.Node)
-		if diag != nil {
-			return nil, diag
-		}
-		// `{$ref: '#'}` recovers its type the same way RT.circular does, so the
-		// eager tuple slot defeats it identically.
-		if refDiag := ctx.eagerTupleCycleDiag(resolved.Node, decl, "a {$ref: '#'} back-reference"); refDiag != nil {
-			return nil, refDiag
-		}
-		// Object schema literals need `as const`: an inline literal otherwise
-		// widens against the keyword slots' declared unions (`const: 'ana'`
-		// would recover `string`). Boolean schemas and embedType calls don't.
-		if strings.HasPrefix(schemaExpr, "{") {
-			schemaExpr += " as const"
-		}
-		wrapped := fmt.Sprintf("%s(%s)", names.RunTypeFromJSONSchema, schemaExpr)
-		ctx.needs.useRunTypeFromJSONSchema = true
-		return assembleConstDecl(decl, names, exportPrefix, wrapped, ctx.needs)
 	}
 	return nil, &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl), Message: "unknown target"}
 }
@@ -357,62 +327,6 @@ func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr s
 	return &printedDecl{text: text, needs: needs}, nil
 }
 
-// partialOneOfDiag reports a union whose exclusivity the engine refuses —
-// `OneOf<[A, B]> | C` and two exclusive unions in one union — and nil
-// otherwise. Both printers used to emit the branches alone, so the `| C` arm
-// vanished from the output without a word.
-//
-// The verdict is READ off the node, not recomputed: internal/cachegen stamps
-// reflection.FlagOneOfDefect at projection time, where the `__rtOneOf` carriers
-// are still visible as checker types (typeid.OneOfDefect). This used to
-// difference node ids instead, and that difference over-reports the moment a
-// branch is itself a union — the checker may re-distribute an intersection
-// while flattening, putting members in the outer union that the branch node
-// does not list. The door's `allOf: [A, B, {oneOf: [C, D]}]` push-in is exactly
-// that shape, and the id difference REFUSED it: a conformant schema the
-// official 2020-12 suite covers, turned away by convert. Reading the flag makes
-// convert and the build agree by construction, since one detector answers both.
-func (ctx *printContext) partialOneOfDiag(node *reflection.RunType) *Diagnostic {
-	reason := node.OneOfDefectReason()
-	if reason == "" {
-		return nil
-	}
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: reason + " is not convertible (exclusivity can only be checked when the exclusive union IS " +
-			"the whole union) — give the exclusive part its own named type"}
-}
-
-// multiNegationDiag: one `not` per node prints; stacked negations await the
-// allOf spelling.
-func (ctx *printContext) multiNegationDiag() *Diagnostic {
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: "stacked negations are not convertible yet (one not per node prints)"}
-}
-
-// unevaluatedDiag refuses a node carrying an `unevaluated*` sweep
-// (reflection.UnevaluatedCheck), and nil otherwise. No printer has a spelling
-// for the sweep yet — not even the escapes, since the sentinel is lifted OFF
-// the type and quoted type text cannot carry it — and every printer used to
-// walk right past the slot, so the constraint vanished from the output without
-// a diagnostic and the declaration's id moved with it
-// (docs/done/convert-drops-unevaluated.md). Sitting at the top of all three
-// printer cores, the guard covers nested nodes, call sites and the
-// getRunType/embedType escapes alike.
-func (ctx *printContext) unevaluatedDiag(node *reflection.RunType) *Diagnostic {
-	if len(node.Unevaluated) == 0 {
-		return nil
-	}
-	keyword := "unevaluatedProperties/unevaluatedItems"
-	switch node.Kind {
-	case reflection.KindObjectLiteral, reflection.KindObject:
-		keyword = "unevaluatedProperties"
-	case reflection.KindArray, reflection.KindTuple:
-		keyword = "unevaluatedItems"
-	}
-	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-		Message: fmt.Sprintf("an %s sweep is not convertible yet (converting would silently drop the constraint and change the type's identity)", keyword)}
-}
-
 // exactBrandType renders the exact TypeFormat constructor for an annotation:
 // no defaults merge, provably the reflected brand.
 func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
@@ -430,9 +344,6 @@ type structuralSubPrinter func(node *reflection.RunType) (string, *Diagnostic)
 
 // structuralParts renders a node's structural payload (brand params +
 // contains / patternProperties / propertyNames) as sorted `key: value` parts.
-// closedOK tells whether the target may spell closedness (schema emits
-// `additionalProperties: false` only when the closed list equals the declared
-// keys, which is what the door re-derives).
 func (ctx *printContext) structuralParts(node *reflection.RunType, params map[string]any, sub structuralSubPrinter, target Target) ([]string, *Diagnostic) {
 	var parts []string
 	keys := make([]string, 0, len(params))
@@ -496,58 +407,28 @@ func (ctx *printContext) structuralParts(node *reflection.RunType, params map[st
 	return parts, nil
 }
 
-// closedParts renders the closedness params. Builders and the type target
-// carry the exact `closed` / `closedPatterns` lists verbatim; the schema
-// target spells `additionalProperties: false` only when the closed list is
-// exactly the declared member set (what the door re-derives), and refuses
-// otherwise rather than move the id.
+// closedParts renders the closedness params: both targets
+// carry the exact `closed` / `closedPatterns` lists verbatim.
 func (ctx *printContext) closedParts(node *reflection.RunType, params map[string]any, target Target, parts *[]string) *Diagnostic {
 	closedValue, hasClosed := params["closed"]
 	closedPatternsValue, hasClosedPatterns := params["closedPatterns"]
 	if !hasClosed && !hasClosedPatterns {
 		return nil
 	}
-	if target != TargetJSONSchema {
-		if hasClosed {
-			closedText, ok := paramValueText(closedValue, false)
-			if !ok {
-				return unsupportedDiag(node, ctx.decl)
-			}
-			*parts = append(*parts, fmt.Sprintf("closed: %s", closedText))
+	if hasClosed {
+		closedText, ok := paramValueText(closedValue, false)
+		if !ok {
+			return unsupportedDiag(node, ctx.decl)
 		}
-		if hasClosedPatterns {
-			closedPatternsText, ok := paramValueText(closedPatternsValue, false)
-			if !ok {
-				return unsupportedDiag(node, ctx.decl)
-			}
-			*parts = append(*parts, fmt.Sprintf("closedPatterns: %s", closedPatternsText))
-		}
-		return nil
+		*parts = append(*parts, fmt.Sprintf("closed: %s", closedText))
 	}
 	if hasClosedPatterns {
-		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: "pattern-scoped closedness is not convertible to json-schema yet"}
-	}
-	closedList, _ := closedValue.([]any)
-	declaredKeys := map[string]bool{}
-	for _, memberRef := range node.Children {
-		member := ctx.deref(memberRef)
-		if member != nil {
-			declaredKeys[member.Name] = true
+		closedPatternsText, ok := paramValueText(closedPatternsValue, false)
+		if !ok {
+			return unsupportedDiag(node, ctx.decl)
 		}
+		*parts = append(*parts, fmt.Sprintf("closedPatterns: %s", closedPatternsText))
 	}
-	if len(closedList) != len(declaredKeys) {
-		return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-			Message: "closedness with a non-declared key list is not convertible to json-schema yet"}
-	}
-	for _, key := range closedList {
-		keyName, _ := key.(string)
-		if !declaredKeys[keyName] {
-			return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
-				Message: "closedness with a non-declared key list is not convertible to json-schema yet"}
-		}
-	}
-	*parts = append(*parts, "additionalProperties: false")
 	return nil
 }
 
@@ -669,25 +550,6 @@ func (ctx *printContext) circularLossyPayload(root *reflection.RunType) string {
 			return ""
 		}
 		visited[node.ID] = true
-		if len(node.OneOf) > 0 && ctx.reachesCycle(node) {
-			for _, branchRef := range node.OneOf {
-				branch := ctx.deref(branchRef)
-				if branch == nil {
-					continue
-				}
-				switch branch.Kind {
-				case reflection.KindString, reflection.KindNumber, reflection.KindBoolean,
-					reflection.KindBigInt, reflection.KindLiteral, reflection.KindSymbol:
-					return "an exclusive union (oneOf) with a primitive branch"
-				case reflection.KindClass:
-					// Date and RegExp are the two class shapes the substitution
-					// returns verbatim, so their branch copy keeps a raw Self.
-					if branch.SubKind == reflection.SubKindDate || isRegExpNode(branch) {
-						return "an exclusive union (oneOf) with a Date or RegExp branch"
-					}
-				}
-			}
-		}
 		found := ""
 		node.EachRefSlot(func(child *reflection.RunType) {
 			if found == "" {

@@ -7,9 +7,9 @@ import (
 
 // Thin aliases over the shared schema vocabulary (internal/schemadoc): the
 // format-family roster and the pure keyword-rendering helpers moved there so
-// the runtime document renderer (the `jsc` cache family) and this printer read
-// ONE vocabulary and can never drift. Call sites keep their historical names;
-// the schemadoc names are the canonical ones.
+// the runtime document renderer (the `jsc` cache family) and the type/builders
+// printers read ONE vocabulary and can never drift. Call sites keep their
+// historical names; the schemadoc names are the canonical ones.
 
 type formatFamily = schemadoc.FormatFamily
 
@@ -54,37 +54,3 @@ func isBigIntLiteral(node *reflection.RunType) bool { return schemadoc.IsBigIntL
 func quoteSingle(value string) string { return schemadoc.QuoteSingle(value) }
 
 func kindLabel(kind reflection.ReflectionKind) string { return schemadoc.KindLabel(kind) }
-
-func defaultedStructuralParams(params map[string]any) map[string]any {
-	return schemadoc.DefaultedStructuralParams(params)
-}
-
-func rtFormatParamsSuffix(params map[string]any) string {
-	return schemadoc.RTFormatParamsSuffix(params)
-}
-
-func printBigintParamsAsDigits(params map[string]any) (string, bool) {
-	return schemadoc.PrintBigintParamsAsDigits(params)
-}
-
-func formatWireParts(family formatFamily, annotation *reflection.FormatAnnotation) string {
-	return schemadoc.FormatWireParts(family, annotation)
-}
-
-func standardParamKeywords(params map[string]any, family formatFamily) string {
-	return schemadoc.StandardParamKeywords(params, family)
-}
-
-func standardFormatName(name string) string { return schemadoc.StandardFormatName(name) }
-
-func wireKeyPattern(key *reflection.RunType) string { return schemadoc.WireKeyPattern(key) }
-
-func templateWirePattern(texts []string) string { return schemadoc.TemplateWirePattern(texts) }
-
-func templateParts(node *reflection.RunType) ([]string, []map[string]any, bool) {
-	return schemadoc.TemplateParts(node)
-}
-
-func templateSpanSchemaText(span map[string]any) (string, bool) {
-	return schemadoc.TemplateSpanSchemaText(span)
-}
