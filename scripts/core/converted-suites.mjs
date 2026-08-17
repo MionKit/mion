@@ -37,7 +37,7 @@ const VITEST_CONFIG = path.join(PACKAGE_ROOT, 'vitest.converted.config.ts');
 // BUILDER has to come out as a TypeScript expression, so a shape with no
 // factory spelling has nowhere to go.
 const TARGETS = [
-  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 24},
+  {name: 'builders', dir: path.join(PACKAGE_ROOT, 'test/converted-builders'), expectedRefusals: 23},
 ];
 
 const args = process.argv.slice(2);
