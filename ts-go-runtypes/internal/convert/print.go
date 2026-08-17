@@ -338,6 +338,77 @@ func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation,
 	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.Base, quoteSingle(annotation.Name), paramsText), true
 }
 
+// structuralParamsPubliclySpellable reports whether a structural annotation's
+// literal params can be reconstructed through the PUBLIC params bags
+// (FormattedArrayParams / FormattedObjectParams, formats/structural.ts). A
+// payload outside that surface — `uniqueItems: false` (the bag declares
+// `uniqueItems?: true`), or an unknown key from a hand-spelled sentinel —
+// must ride the exact raw-brand spelling instead: the generic bag either
+// fails to compile or resolves a DIFFERENT id (the `isRegex` precedent,
+// TestChain_RegexPresetEscapesGenericSpelling).
+func structuralParamsPubliclySpellable(annotation *reflection.FormatAnnotation) bool {
+	if annotation == nil {
+		return true
+	}
+	isNumber := func(value any) bool { _, ok := value.(float64); return ok }
+	isStringList := func(value any) bool {
+		list, ok := value.([]any)
+		if !ok {
+			return false
+		}
+		for _, item := range list {
+			if _, ok := item.(string); !ok {
+				return false
+			}
+		}
+		return true
+	}
+	var allowed map[string]func(any) bool
+	switch annotation.Name {
+	case "formattedArray":
+		allowed = map[string]func(any) bool{
+			"minItems":    isNumber,
+			"maxItems":    isNumber,
+			"uniqueItems": func(value any) bool { flag, ok := value.(bool); return ok && flag },
+		}
+	case "formattedObject":
+		allowed = map[string]func(any) bool{
+			"minProperties":  isNumber,
+			"maxProperties":  isNumber,
+			"closed":         isStringList,
+			"closedPatterns": isStringList,
+			"additionalOwn":  isStringList,
+		}
+	default:
+		return true
+	}
+	for key, value := range annotation.Params {
+		check, known := allowed[key]
+		if !known || !check(value) {
+			return false
+		}
+	}
+	return true
+}
+
+// rawStructuralBrandType spells a structural brand whose params sit outside
+// the public bag surface as the raw sentinel intersection
+// (`Base & TF.StructuralBrand<'formattedArray', {…}>`) — byte-honest with the
+// reflected annotation, so the id cannot move. Child-carrying slots beside
+// such a payload have no raw spelling that carries them too, so they refuse.
+func (ctx *printContext) rawStructuralBrandType(node *reflection.RunType, baseText string) (string, *Diagnostic) {
+	if len(node.Contains) > 0 || len(node.PatternProps) > 0 || len(node.PropNames) > 0 {
+		return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+			Message: "structural params outside the public builder surface beside contains/patternProperties/propertyNames are not convertible"}
+	}
+	paramsText, ok := printFormatParams(node.FormatAnnotation.Params, false)
+	if !ok {
+		return "", unsupportedDiag(node, ctx.decl)
+	}
+	ctx.needs.useTF = true
+	return fmt.Sprintf("%s & %s.StructuralBrand<%s, %s>", baseText, ctx.names.TF, quoteSingle(node.FormatAnnotation.Name), paramsText), nil
+}
+
 // structuralSubPrinter renders a child node in the current target's dialect —
 // the printer method threaded into the structural helpers.
 type structuralSubPrinter func(node *reflection.RunType) (string, *Diagnostic)

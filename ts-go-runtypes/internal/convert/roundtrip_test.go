@@ -140,6 +140,29 @@ func TestChain_StructuralParamsAtTheirDefault(t *testing.T) {
 	}
 }
 
+func TestChain_UniqueItemsFalseEscapesGenericSpelling(t *testing.T) {
+	// `uniqueItems: false` sits OUTSIDE the public params bag
+	// (FormattedArrayParams declares `uniqueItems?: true`), so the generic
+	// `RT.array(…, {uniqueItems: false})` spelling resolved a DIFFERENT id and
+	// a follow-up --to type dropped the brand entirely. The brand must ride
+	// the raw StructuralBrand spelling instead — the structural twin of the
+	// `isRegex` constructor escape (TestChain_RegexPresetEscapesGenericSpelling).
+	// docs/done history: filed during the json-schema-input removal.
+	source := "import * as TF from '@ts-runtypes/core/formats';\n" +
+		"export type LooseTags = string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>;\n"
+	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
+	if !strings.Contains(builderForm, "getRunType<string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>>()") {
+		t.Errorf("out-of-surface structural params should escape through the raw brand spelling:\n%s", builderForm)
+	}
+	if strings.Contains(builderForm, "RT.array") {
+		t.Errorf("the generic bag must never carry a non-public param value:\n%s", builderForm)
+	}
+	typeForm := convertAndCheckIDs(t, builderForm, convert.TargetType)
+	if !strings.Contains(typeForm, "string[] & TF.StructuralBrand<'formattedArray', {uniqueItems: false}>") {
+		t.Errorf("the type form must keep the raw brand spelling:\n%s", typeForm)
+	}
+}
+
 func TestChain_BigintFormatParams(t *testing.T) {
 	// The bigint family's bounds ARE bigints. Negative bounds included: the
 	// sign is part of the digits.

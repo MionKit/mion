@@ -105,6 +105,12 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			return "", diag
 		}
 		if hasStructuralPayload(node) {
+			// Params outside the public bag surface (`uniqueItems: false`, a
+			// hand-spelled sentinel key) escape whole: the generic bag would
+			// resolve a different brand and move the id.
+			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+				return ctx.builderEscape(node)
+			}
 			parts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
 			if partsDiag != nil {
 				return "", partsDiag
@@ -202,6 +208,10 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		}
 		bagText := ""
 		if hasStructuralPayload(node) {
+			// Same discipline as the array arm: out-of-surface params escape.
+			if !structuralParamsPubliclySpellable(node.FormatAnnotation) {
+				return ctx.builderEscape(node)
+			}
 			bagParts, partsDiag := ctx.structuralParts(node, structuralAnnotationParams(node), ctx.builderExpr, TargetBuilders)
 			if partsDiag != nil {
 				return "", partsDiag
