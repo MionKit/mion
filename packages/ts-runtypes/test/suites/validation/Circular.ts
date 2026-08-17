@@ -1,5 +1,4 @@
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import type {ValidationCase} from './types.ts';
 import {
   createValidateFn,
@@ -18,7 +17,6 @@ export const CIRCULAR = {
       "Full fixture (number + string + optional self-ref + Date) exercising the same self-recursive dependency call as OBJECT.circular_interface but pinning the exact 'Circular object' shape.",
     validateNotes: [
       'Self-referential shapes are validated recursively. Atomic rules apply at every level (NaN at `n`, Invalid Date at `d`, etc.).',
-      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
     ],
     validate: () => {
       interface Circular {
@@ -77,7 +75,6 @@ export const CIRCULAR = {
       );
       return createValidateFn(cir);
     },
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Circular {
         n: number;
@@ -136,7 +133,6 @@ export const CIRCULAR = {
       );
       return createGetValidationErrorsFn(cir);
     },
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Circular {
         n: number;
@@ -223,13 +219,11 @@ export const CIRCULAR = {
       "Self-recursive array whose union element type includes the array itself, closing the cycle via Array to Union to Array ('Circular array + union').",
     validateNotes: [
       'The union check is a boolean delegation that does NOT recurse into per-arm error paths: when a nested-array element fails, getValidationErrors reports a single `expected: "union"` at the outer index, not the deep path of the inner failure.',
-      'JSON Schema: the Date member has no schema INPUT spelling (instance type).',
     ],
     validateSchema: () => {
       const cu = RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])));
       return createValidateFn(cu);
     },
-    validateJsonSchema: 'not-supported',
     validate: () => {
       type CuArray = (CuArray | Date | number | string)[];
       return createValidateFn<CuArray>();
@@ -268,7 +262,6 @@ export const CIRCULAR = {
       const cu = RT.circular(RT.array(RT.union([RT.self(), TF.date(), TF.number(), TF.string()])));
       return createGetValidationErrorsFn(cu);
     },
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type CuArray = (CuArray | Date | number | string)[];
       return deserializeGetValidationErrors<CuArray>();
@@ -330,7 +323,6 @@ export const CIRCULAR = {
 
   object_with_tuple_prop: {
     title: 'Circular tuple property',
-    validateNotes: 'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
     description:
       "Self-referential object whose cycle closes via a tuple-typed property, sending the recursion through an object to tuple boundary like TUPLE.tuple_circular ('Circular object with tuple').",
     validate: () => {
@@ -355,7 +347,6 @@ export const CIRCULAR = {
       const ct = RT.circular(RT.object({tuple: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}));
       return createValidateFn(ct);
     },
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface CircularTuple {
         tuple: [bigint, CircularTuple?];
@@ -392,7 +383,6 @@ export const CIRCULAR = {
       const ct = RT.circular(RT.object({tuple: RT.tuple({required: [TF.bigInt()], optional: [RT.self()]})}));
       return createGetValidationErrorsFn(ct);
     },
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface CircularTuple {
         tuple: [bigint, CircularTuple?];
@@ -487,14 +477,6 @@ export const CIRCULAR = {
       const ci = RT.circular(RT.object({index: RT.record(RT.self())}));
       return createValidateFn(ci);
     },
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
-          required: ['index'],
-        })
-      ),
     deserializeValidate: () => {
       interface CircularIndex {
         index: {[key: string]: CircularIndex};
@@ -531,14 +513,6 @@ export const CIRCULAR = {
       const ci = RT.circular(RT.object({index: RT.record(RT.self())}));
       return createGetValidationErrorsFn(ci);
     },
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {index: {type: 'object', additionalProperties: {$ref: '#'}}},
-          required: ['index'],
-        })
-      ),
     deserializeGetValidationErrors: () => {
       interface CircularIndex {
         index: {[key: string]: CircularIndex};
@@ -634,26 +608,6 @@ export const CIRCULAR = {
       );
       return createValidateFn(cd);
     },
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            deep1: {
-              type: 'object',
-              properties: {
-                deep2: {
-                  type: 'object',
-                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
-                  required: ['deep3'],
-                },
-              },
-              required: ['deep2'],
-            },
-          },
-          required: ['deep1'],
-        })
-      ),
     deserializeValidate: () => {
       interface CircularDeep {
         deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
@@ -696,26 +650,6 @@ export const CIRCULAR = {
       );
       return createGetValidationErrorsFn(cd);
     },
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            deep1: {
-              type: 'object',
-              properties: {
-                deep2: {
-                  type: 'object',
-                  properties: {deep3: {type: 'object', properties: {deep4: {$ref: '#'}}}},
-                  required: ['deep3'],
-                },
-              },
-              required: ['deep2'],
-            },
-          },
-          required: ['deep1'],
-        })
-      ),
     deserializeGetValidationErrors: () => {
       interface CircularDeep {
         deep1: {deep2: {deep3: {deep4?: CircularDeep}}};
@@ -791,7 +725,6 @@ export const CIRCULAR = {
       "RootNotCircular is a flat shape (literal discriminator + one prop) whose ciChild property is a self-referential ICircularDeep, pinning the case where the dependency-call layer kicks in below the root rather than at it ('Interface with nested circular type where root is not the circular ref').",
     validateNotes: [
       'The root is a flat (non-recursive) shape; recursion lives only in the `ciChild` subtree, so the dependency-call layer is exercised below the root rather than at it.',
-      'JSON Schema: the bigint member has no schema spelling (JSON has no bigint).',
     ],
     validate: () => {
       interface ICircularDeep {
@@ -842,7 +775,6 @@ export const CIRCULAR = {
       const root = RT.object({isRoot: RT.literal(true), ciChild: icd});
       return createValidateFn(root);
     },
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface ICircularDeep {
         name: string;
@@ -922,7 +854,6 @@ export const CIRCULAR = {
       const root = RT.object({isRoot: RT.literal(true), ciChild: icd});
       return createGetValidationErrorsFn(root);
     },
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface ICircularDeep {
         name: string;
@@ -1055,7 +986,6 @@ export const CIRCULAR = {
 
   multiple_circular_types_cross_referenced: {
     title: 'Cross-referenced circular types',
-    validateNotes: 'JSON Schema: the Date and bigint members have no schema spelling.',
     description:
       "RootCircular carries an optional self-ref plus two distinct circular siblings (ICircularDeep, ICircularDate) where ICircularDate also references ICircularDeep, stressing the resolver when several crossing recursive types are in flight at once ('Interface with nested circular + multiple circular').",
     validate: () => {
@@ -1150,7 +1080,6 @@ export const CIRCULAR = {
       );
       return createValidateFn(root);
     },
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface ICircularDeep {
         name: string;
@@ -1293,7 +1222,6 @@ export const CIRCULAR = {
       );
       return createGetValidationErrorsFn(root);
     },
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface ICircularDeep {
         name: string;

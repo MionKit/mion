@@ -1,55 +1,50 @@
-// contentEncoding / contentMediaType formats now have a value-first spelling:
+// contentEncoding / contentMediaType formats have a value-first spelling:
 // TF.base64() / TF.base32() / TF.base16() (JSON Schema `contentEncoding`) and
 // TF.jsonContent() / TF.jsonContentBase64() (`contentMediaType:
-// application/json`). Each converges on one id with the schema door it mirrors,
-// and validates/mocks soundly. Marker rule: both getRunTypeId call shapes.
+// application/json`). Each converges on one id between the type-first and
+// value-first spellings, and validates/mocks soundly. Marker rule: both
+// getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
 import {createMockDataFn, createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import '@ts-runtypes/core/formats';
 
 describe('contentEncoding base64/32/16 formats', () => {
-  it('base64 converges with the schema door and validates', () => {
-    const door = getRunTypeId(runTypeFromJsonSchema({type: 'string', contentEncoding: 'base64'}));
-    expect(getRunTypeId(TF.base64())).toBe(door);
-    expect(getRunTypeId<TF.Base64>()).toBe(door);
+  it('base64 type-first and value-first converge, and validates', () => {
+    expect(getRunTypeId(TF.base64())).toBe(getRunTypeId<TF.Base64>());
     const isBase64 = createValidateFn(TF.base64());
     expect(isBase64('SGVsbG8=')).toBe(true);
     expect(isBase64('not base64!')).toBe(false);
   });
 
-  it('base32 and base16 converge with the door', () => {
-    expect(getRunTypeId(TF.base32())).toBe(getRunTypeId(runTypeFromJsonSchema({type: 'string', contentEncoding: 'base32'})));
-    expect(getRunTypeId(TF.base16())).toBe(getRunTypeId(runTypeFromJsonSchema({type: 'string', contentEncoding: 'base16'})));
+  it('base32 and base16 type-first and value-first converge', () => {
+    expect(getRunTypeId(TF.base32())).toBe(getRunTypeId<TF.Base32>());
+    expect(getRunTypeId(TF.base16())).toBe(getRunTypeId<TF.Base16>());
   });
 });
 
 describe('contentMediaType application/json (jsonContent)', () => {
-  it('jsonContent converges with the door and validates JSON', () => {
-    const door = getRunTypeId(runTypeFromJsonSchema({type: 'string', contentMediaType: 'application/json'}));
-    expect(getRunTypeId(TF.jsonContent())).toBe(door);
+  it('jsonContent type-first and value-first converge, and validates JSON', () => {
+    const typeFirst = getRunTypeId<TF.JsonContent>();
+    expect(getRunTypeId(TF.jsonContent())).toBe(typeFirst);
     // reflection form (marker rule)
     const value: TF.JsonContent = '{}' as TF.JsonContent;
-    expect(getRunTypeId(value)).toBe(door);
+    expect(getRunTypeId(value)).toBe(typeFirst);
     const isJson = createValidateFn(TF.jsonContent());
     expect(isJson('{"a":1}')).toBe(true);
     expect(isJson('not json')).toBe(false);
   });
 
-  it('jsonContentBase64 converges with the door (base64-then-JSON)', () => {
-    const door = getRunTypeId(
-      runTypeFromJsonSchema({type: 'string', contentMediaType: 'application/json', contentEncoding: 'base64'})
-    );
-    expect(getRunTypeId(TF.jsonContentBase64())).toBe(door);
+  it('jsonContentBase64 type-first and value-first converge (base64-then-JSON)', () => {
+    expect(getRunTypeId(TF.jsonContentBase64())).toBe(getRunTypeId<TF.JsonContentBase64>());
   });
 });
 
 // A version-agnostic UUID still mocks: the generator narrows to v4 (every v4 is
-// a valid version-agnostic UUID), so `format: 'uuid'` from a JSON Schema
-// produces sample data like any other format. Mock ⊆ valid is the invariant —
-// the generator may be narrower than the validator, never wider.
+// a valid version-agnostic UUID), so the open alias produces sample data like
+// any other format. Mock ⊆ valid is the invariant — the generator may be
+// narrower than the validator, never wider.
 describe('UUID version any — mocks are concrete even though validation is open', () => {
   it('mocks a valid UUID for the version-agnostic alias, via type and builder', () => {
     const isUuid = createValidateFn(TF.uuid());
@@ -61,13 +56,6 @@ describe('UUID version any — mocks are concrete even though validation is open
         expect(value[14], `expected a v4 mock, got version nibble ${value[14]}`).toBe('4');
       }
     }
-  });
-
-  it('a JSON Schema format: uuid mocks and re-validates end to end', () => {
-    const fromSchema = runTypeFromJsonSchema({type: 'string', format: 'uuid'});
-    const mock = createMockDataFn(fromSchema);
-    const isUuid = createValidateFn(fromSchema);
-    for (let i = 0; i < 25; i++) expect(isUuid(mock() as string)).toBe(true);
   });
 
   it('a version-pinned alias still mocks its own version', () => {

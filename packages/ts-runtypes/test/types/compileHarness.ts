@@ -31,12 +31,9 @@ export const SENTINEL_KEYS_PREAMBLE = `
 declare const __rtFormatName: unique symbol;
 declare const __rtFormatParams: unique symbol;
 declare const __rtFormatBrand: unique symbol;
-declare const __rtNot: unique symbol;
 declare const __rtContains: unique symbol;
 declare const __rtPatternProps: unique symbol;
 declare const __rtPropNames: unique symbol;
-declare const __rtOneOf: unique symbol;
-declare const __rtUnevaluated: unique symbol;
 `;
 
 export interface MeasureResult {

@@ -37,9 +37,8 @@ export function soakTestTimeout(soakMs: number, headroomMs: number = SOAK_HEADRO
 }
 
 /** Per-iteration cost ceiling for the soak lanes' pathology tripwire. Above
- *  both in-lane timeouts (compile 10s, jsonschema scan 20s — those already
- *  surface as violations), so only genuinely unbounded synchronous work trips
- *  it. When one iteration exceeds this, the soak FAILS naming the round and
+ *  the in-lane compile timeout (10s — that already surfaces as a violation),
+ *  so only genuinely unbounded synchronous work trips it. When one iteration exceeds this, the soak FAILS naming the round and
  *  its cost — an actionable finding with a replayable seed — instead of
  *  blowing the vitest timeout and mimicking a harness failure
  *  (docs/done/soak-single-iteration-pathology.md is the incident that

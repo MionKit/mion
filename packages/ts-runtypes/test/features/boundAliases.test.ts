@@ -2,15 +2,13 @@
 // with the JSON Schema keywords (minimum / maximum / exclusiveMinimum /
 // exclusiveMaximum) OR the engine's short keys (min / max / gt / lt), and both
 // fold to ONE structural id — the Go scanner canonicalises the alias spelling
-// when it reads `__rtFormatParams`. Convergence is pinned across all three
-// authoring modes (type-first alias, value-first builder, JSON Schema door),
-// and — per the CLAUDE.md marker-coverage rule — across both getRunTypeId call
-// shapes.
+// when it reads `__rtFormatParams`. Convergence is pinned across both
+// authoring modes (type-first alias, value-first builder), and — per the
+// CLAUDE.md marker-coverage rule — across both getRunTypeId call shapes.
 
 import {describe, expect, it} from 'vitest';
 import {getRunTypeId} from '@ts-runtypes/core';
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import '@ts-runtypes/core/formats';
 
 describe('bound keyword aliases converge with the short spelling', () => {
@@ -26,12 +24,10 @@ describe('bound keyword aliases converge with the short spelling', () => {
     expect(getRunTypeId<TF.Number<{exclusiveMinimum: 0; exclusiveMaximum: 100}>>()).toBe(exclShort);
   });
 
-  it('number: value-first builder converges with both spellings and the door', () => {
+  it('number: value-first builder converges with both spellings', () => {
     const short = getRunTypeId<TF.Number<{min: 0; max: 100}>>();
     expect(getRunTypeId(TF.number({min: 0, max: 100}))).toBe(short);
     expect(getRunTypeId(TF.number({minimum: 0, maximum: 100}))).toBe(short);
-    // JSON Schema door
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'number', minimum: 0, maximum: 100}))).toBe(short);
   });
 
   it('bigint: keyword spellings converge', () => {
@@ -48,11 +44,8 @@ describe('bound keyword aliases converge with the short spelling', () => {
     expect(getRunTypeId(TF.date({max: 'now'}))).toBe(short);
   });
 
-  it('exclusive bounds via keyword spelling converge with the door', () => {
+  it('exclusive bounds via keyword spelling converge with the short keys', () => {
     const keyword = TF.number({minimum: 0, exclusiveMaximum: 10});
-    const door = runTypeFromJsonSchema({type: 'number', minimum: 0, exclusiveMaximum: 10});
-    expect(getRunTypeId(keyword)).toBe(getRunTypeId(door));
-    // and with the short-key builder
-    expect(getRunTypeId(TF.number({min: 0, lt: 10}))).toBe(getRunTypeId(door));
+    expect(getRunTypeId(keyword)).toBe(getRunTypeId(TF.number({min: 0, lt: 10})));
   });
 });

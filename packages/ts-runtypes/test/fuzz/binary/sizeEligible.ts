@@ -28,13 +28,11 @@ function eligible(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>)
     case 'dataview':
     case 'typedarray':
       return false;
-    // Format brands / negations: binary sizing keys off the positive base, but
+    // Format brands: binary sizing keys off the positive base, but
     // respectBinarySize SHRINKS the mock distribution (string length, number
-    // bounds) — a shrunken pool can sit entirely inside a format's constraint
-    // (or a negation's complement can vanish from it), so the size-lane mock
-    // either violates the format or exhausts negation rejection sampling.
+    // bounds) — a shrunken pool can sit entirely inside a format's
+    // constraint, so the size-lane mock can violate the format.
     case 'format':
-    case 'not':
       return false;
     case 'array':
     case 'set':

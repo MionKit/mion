@@ -5,8 +5,7 @@
 //
 // Covers: required/optional inversion, formats → keywords, wire projections
 // (Date / bigint / Map / Set), tuples via prefixItems, unions, records, enums,
-// non-data drop-vs-throw (DataOnly discipline), recursion via $defs/$ref, and a
-// full round-trip with the Phase-2.1 input prototype.
+// non-data drop-vs-throw (DataOnly discipline), and recursion via $defs/$ref.
 
 import {describe, expect, it} from 'vitest';
 import {getRunType, getRunTypeId} from '@ts-runtypes/core';
@@ -15,7 +14,6 @@ import type * as TF from '@ts-runtypes/core/formats';
 // formats module in the runtime graph like real format-using apps have it.
 import '@ts-runtypes/core/formats';
 import {runTypeToJsonSchema} from './jsonSchemaOutput.proto.ts';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 
 interface Address {
   street: string;
@@ -208,27 +206,5 @@ describe('jsonSchema output — recursion via $defs/$ref', () => {
     const properties = entry.properties as Record<string, Record<string, unknown>>;
     expect(properties.value).toEqual({type: 'string'});
     expect((properties.children as {items: {$ref: string}}).items.$ref).toBe(ref);
-  });
-});
-
-describe('jsonSchema output — round-trip with the Phase-2.1 input prototype', () => {
-  it('schema → type → schema preserves structure, required set and formats', () => {
-    const source = {
-      type: 'object',
-      properties: {
-        id: {type: 'string', format: 'uuid'},
-        score: {type: 'integer', minimum: 0, maximum: 100},
-        labels: {type: 'array', items: {type: 'string'}},
-      },
-      required: ['id', 'score'],
-    } as const;
-
-    const {schema} = runTypeToJsonSchema(getRunType(runTypeFromJsonSchema(source)));
-    expect(schema.type).toBe('object');
-    expect([...(schema.required as string[])].sort()).toEqual(['id', 'score']);
-    const properties = schema.properties as Record<string, Record<string, unknown>>;
-    expect(properties.id).toEqual(expect.objectContaining({type: 'string', format: 'uuid'}));
-    expect(properties.score).toEqual(expect.objectContaining({type: 'integer', minimum: 0, maximum: 100}));
-    expect(properties.labels).toEqual({type: 'array', items: {type: 'string'}});
   });
 });

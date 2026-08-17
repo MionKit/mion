@@ -107,9 +107,9 @@ describe('fuzz / soakBudget — the soak owns its wall clock', () => {
     const finding = pathologyReport(SOAK_ITERATION_CEILING_MS + 1, 741);
     expect(finding).toContain('round 741');
     expect(finding).toContain(`${SOAK_ITERATION_CEILING_MS + 1}ms`);
-    // Above both in-lane timeouts (compile 10s, jsonschema scan 20s), so those
-    // paths keep reporting through their own oracles, not this tripwire.
-    expect(SOAK_ITERATION_CEILING_MS).toBeGreaterThan(20_000);
+    // Above the in-lane compile timeout (10s), so that path keeps reporting
+    // through its own oracle, not this tripwire.
+    expect(SOAK_ITERATION_CEILING_MS).toBeGreaterThan(10_000);
   });
 
   it('charges fixed setup to the budget without counting it as iteration cost', () => {

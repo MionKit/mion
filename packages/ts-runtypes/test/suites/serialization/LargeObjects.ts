@@ -8,10 +8,8 @@ export const LARGE_OBJECTS = {
     title: 'Wide Interface',
     description:
       'Single interface with 30+ properties spanning scalars, Date, bigint, and a nested object, exercising the per-field walk cost without any union dispatch.',
-    serializeNotes: [
+    serializeNotes:
       'The Date fields (`createdAt`/`updatedAt` and nested `meta.lastSeen`) JSON-encode to ISO strings and revive to Dates; the `big1`/`big2` bigints encode to decimal strings (rebuilt via `BigInt(...)`) on the JSON wire and take the binary string-fallback path.',
-      'JSON Schema: the Date properties are instance types with no schema INPUT spelling. (bigint too)',
-    ],
     mutateEncoder: () => {
       interface WideRecord {
         id: number;
@@ -468,10 +466,6 @@ export const LARGE_OBJECTS = {
           meta: RT.object({category: TF.string(), priority: TF.number(), lastSeen: TF.date()}),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface WideRecord {
         id: number;
@@ -543,7 +537,6 @@ export const LARGE_OBJECTS = {
   },
   object_union_5: {
     title: 'Object Union',
-    serializeNotes: 'JSON Schema: the Date properties are instance types with no schema INPUT spelling.',
     description:
       'Five-member discriminated union of distinct large event shapes where the flat encoder should win clearly, since non-flat runs a validate walk per candidate member.',
     mutateEncoder: () => {
@@ -1188,10 +1181,6 @@ export const LARGE_OBJECTS = {
           }),
         ])
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ProductEvent {
         kind: 'product';
@@ -1291,7 +1280,6 @@ export const LARGE_OBJECTS = {
   },
   mixed_union_atomic_and_large_objects: {
     title: 'Mixed Union',
-    serializeNotes: 'JSON Schema: the Date properties are instance types with no schema INPUT spelling.',
     description:
       'A string | number | ProductEvent | UserEvent union that exercises the flat encoder atomic short-circuit alongside the merged-object envelope.',
     mutateEncoder: () => {
@@ -1593,10 +1581,6 @@ export const LARGE_OBJECTS = {
           }),
         ])
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface ProductEvent {
         kind: 'product';
@@ -1645,7 +1629,6 @@ export const LARGE_OBJECTS = {
   },
   deep_nested: {
     title: 'Deep Nested',
-    serializeNotes: 'JSON Schema: the Date properties are instance types with no schema INPUT spelling.',
     description: 'Walks five levels of nested arrays of objects to amplify per-property overhead.',
     mutateEncoder: () => {
       interface DeepNestedLeaf {
@@ -2008,10 +1991,6 @@ export const LARGE_OBJECTS = {
           ),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface DeepNestedLeaf {
         id: number;
@@ -2051,10 +2030,8 @@ export const LARGE_OBJECTS = {
     title: 'Large Class Union',
     description:
       'Three-member discriminated union of large class instances. These classes are UNREGISTERED, so decode returns plain objects; a registered class serializer would rebuild the instance.',
-    serializeNotes: [
+    serializeNotes:
       'Named class union members route through the flat union per-member INDEX dispatch (`[idx, value]`), not the merged `[-1, …]` object branch — so a registered class could reconstruct per member. Each carries Date (`when`/`releasedAt`/`processedAt`, ISO-string on the wire) and bigint (`total`/`score`, decimal-string on the wire) members; unregistered here, decode returns plain objects.',
-      'JSON Schema: class instance types are nominal and have no schema INPUT spelling.',
-    ],
     // The value-first schema builder models these as `RT.object(...)` (object
     // literals, which stay in the merged `[-1, …]` branch), while the type-first
     // side is a CLASS union that now routes per-member for potential
@@ -2471,10 +2448,6 @@ export const LARGE_OBJECTS = {
           }),
         ])
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       class LargeClassA {
         kind!: 'classA';

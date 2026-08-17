@@ -1,27 +1,23 @@
 // The variable-width string formats (Email / Hostname / Uri) accept a partial
 // options object that OVERRIDES their built-in bounds while keeping the built-in
 // pattern: `TF.email({minLength: 10})` is still the email pattern, just with a
-// different minimum. The JSON Schema door rides the SAME merge — a
-// `format: 'email'` + `minLength` sibling lowers to `Email<{minLength}>` — so the
-// three authoring modes (type-first alias, value-first builder, JSON Schema door)
-// fold to ONE structural id, across both getRunTypeId call shapes (marker rule).
+// different minimum. The two authoring modes (type-first alias, value-first
+// builder) fold to ONE structural id, across both getRunTypeId call shapes
+// (marker rule).
 
 import {describe, expect, it} from 'vitest';
 import {createValidateFn, getRunTypeId} from '@ts-runtypes/core';
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import '@ts-runtypes/core/formats';
 
 describe('variable-width format length overrides converge across authoring modes', () => {
-  it('email: minLength sibling ≡ type-first ≡ value-first ≡ door', () => {
+  it('email: minLength override ≡ type-first ≡ value-first', () => {
     const typeFirst = getRunTypeId<TF.EmailAddress<{minLength: 10}>>();
     // reflection form (marker rule)
     const value: TF.EmailAddress<{minLength: 10}> = 'a@example.com' as TF.EmailAddress<{minLength: 10}>;
     expect(getRunTypeId(value)).toBe(typeFirst);
     // value-first builder
     expect(getRunTypeId(TF.emailAddress({minLength: 10}))).toBe(typeFirst);
-    // JSON Schema door
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'email', minLength: 10}))).toBe(typeFirst);
   });
 
   it('email: an override keeps the built-in pattern (distinct from a plain string bound)', () => {
@@ -35,18 +31,16 @@ describe('variable-width format length overrides converge across authoring modes
     expect(isEmail('not-an-email')).toBe(false);
   });
 
-  it('hostname: maxLength sibling converges (type-first + reflection + builder + door)', () => {
+  it('hostname: maxLength override converges (type-first + reflection + builder)', () => {
     const typeFirst = getRunTypeId<TF.Hostname<{maxLength: 100}>>();
     const value: TF.Hostname<{maxLength: 100}> = 'example.com' as TF.Hostname<{maxLength: 100}>;
     expect(getRunTypeId(value)).toBe(typeFirst);
     expect(getRunTypeId(TF.hostname({maxLength: 100}))).toBe(typeFirst);
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'hostname', maxLength: 100}))).toBe(typeFirst);
   });
 
-  it('uri: minLength + maxLength siblings converge', () => {
+  it('uri: minLength + maxLength overrides converge', () => {
     const typeFirst = getRunTypeId<TF.Uri<{minLength: 12; maxLength: 200}>>();
     expect(getRunTypeId(TF.uri({minLength: 12, maxLength: 200}))).toBe(typeFirst);
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'string', format: 'uri', minLength: 12, maxLength: 200}))).toBe(typeFirst);
   });
 });
 

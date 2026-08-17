@@ -11,7 +11,7 @@ import {createJsonSchemaFn, createJsonEncoderFn} from '@ts-runtypes/core';
 
 // ── A tiny structural validator over the keyword subset the renderer emits ──
 // (type / const / enum / properties / required / additionalProperties:false /
-// prefixItems / items / minItems / anyOf / oneOf / pattern / $ref). Dialect
+// prefixItems / items / minItems / anyOf / pattern / $ref). Dialect
 // keywords (jsType, rtFormat, …) are annotations and are ignored, exactly as
 // the standard prescribes for unknown keywords.
 type Doc = Record<string, unknown>;
@@ -27,7 +27,6 @@ function docAccepts(doc: unknown, value: unknown, root: Doc): boolean {
     return defs && key in defs ? docAccepts(defs[key], value, root) : true;
   }
   if (node.anyOf) return (node.anyOf as unknown[]).some((arm) => docAccepts(arm, value, root));
-  if (node.oneOf) return (node.oneOf as unknown[]).filter((arm) => docAccepts(arm, value, root)).length === 1;
   if ('const' in node && JSON.stringify(node.const) !== JSON.stringify(value)) return false;
   if (node.enum && !(node.enum as unknown[]).some((entry) => JSON.stringify(entry) === JSON.stringify(value))) return false;
   const types = Array.isArray(node.type) ? (node.type as string[]) : typeof node.type === 'string' ? [node.type] : [];

@@ -87,7 +87,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type _03 = Expect<Equal<StripRunTypeMeta<readonly Email[]>, readonly string[]>>;
       type _04 = Expect<Equal<StripRunTypeMeta<[Email, number]>, [string, number]>>;
       type _05 = Expect<Equal<StripRunTypeMeta<[Email?, ...Bounded[]]>, [string?, ...number[]]>>;
-      // A contains/unevaluated slot rides the array base and strips with it.
+      // A contains slot rides the array base and strips with it.
       type WithContains = unknown[] & {readonly [__rtContains]?: {readonly rt$child: Email; readonly rt$min: 1}};
       type _06 = Expect<Equal<StripRunTypeMeta<WithContains>, unknown[]>>;
       `,
@@ -100,8 +100,8 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       BRAND_PREAMBLE +
         `
       // The shipped FormattedArray encoding: the literal bounds ride the
-      // structural brand, contains / unevaluated ride their own slots. Element
-      // inference would collapse the slots, so the tuple path subtracts instead.
+      // structural brand, contains rides its own slot. Element inference would
+      // collapse the slots, so the tuple path subtracts instead.
       type ArrBrand<P> = {readonly [__rtFormatName]?: 'formattedArray'; readonly [__rtFormatParams]?: P};
       type UniqPair = [boolean?, boolean?] & ArrBrand<{uniqueItems: true}>;
       type _01 = Expect<Equal<StripRunTypeMeta<UniqPair>, [boolean?, boolean?]>>;
@@ -120,8 +120,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       // Every structural slot subtracts, stacked on one tuple.
       type Stacked = [string, number] &
         ArrBrand<{minItems: 2}> &
-        {readonly [__rtContains]?: {readonly rt$child: Email; readonly rt$min: 1}} &
-        {readonly [__rtUnevaluated]?: {value: unknown}};
+        {readonly [__rtContains]?: {readonly rt$child: Email; readonly rt$min: 1}};
       type _05 = Expect<Equal<StripRunTypeMeta<Stacked>, [string, number]>>;
       // A readonly tuple keeps its modifier.
       type RoPair = readonly [Email, Email] & ArrBrand<{minItems: 2}>;
@@ -137,14 +136,11 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     check(
       BRAND_PREAMBLE +
         `
-      type Slotted = {a: Email; readonly b?: Bounded} & {readonly [__rtPropNames]?: Email} & {readonly [__rtNot]?: 'x'};
+      type Slotted = {a: Email; readonly b?: Bounded} & {readonly [__rtPropNames]?: Email};
       type _01 = Expect<Equal<StripRunTypeMeta<Slotted>, {a: string; readonly b?: number}>>;
       type _02 = Expect<Equal<StripRunTypeMeta<{u: {v: Email}}>, {u: {v: string}}>>;
-      type RecordSlotted = Record<string, Email> & {readonly [__rtUnevaluated]?: {value: unknown}};
+      type RecordSlotted = Record<string, Email> & {readonly [__rtPropNames]?: Email};
       type _03 = Expect<Equal<StripRunTypeMeta<RecordSlotted>, {[x: string]: string}>>;
-      // The oneOf carrier strips off each union arm.
-      type Carrier = {a: string} & {readonly [__rtOneOf]?: [unknown, unknown]};
-      type _04 = Expect<Equal<StripRunTypeMeta<Carrier | number>, {a: string} | number>>;
       `,
       724
     );
@@ -173,37 +169,24 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
     );
   });
 
-  it('brand subtraction: the if/then/else-over-consts arms keep their literals', () => {
+  it('brand subtraction: branded literal union arms keep their literals', () => {
     check(
       BRAND_PREAMBLE +
         `
-      // The shipped lowering of {if: {maxLength: 4}, then: {const: 'yes'},
-      // else: {const: 'other'}} — (If ∧ Then) ∨ (¬If ∧ Else), where the
-      // condition rides each arm as an ordinary intersection brand.
+      // A format brand riding literal union arms subtracts per constituent.
       type IfBrand = {readonly [__rtFormatName]?: 'stringFormat'; readonly [__rtFormatParams]?: {maxLength: 4}};
-      type Ite = ('yes' & IfBrand) | ('other' & {readonly [__rtNot]?: string & IfBrand});
-      type _01 = Expect<Equal<StripRunTypeMeta<Ite>, 'yes' | 'other'>>;
-      // The numeric twin.
-      type IteNum = (1 & {readonly [__rtFormatName]?: 'numberFormat'}) | (2 & {readonly [__rtNot]?: number});
-      type _02 = Expect<Equal<StripRunTypeMeta<IteNum>, 1 | 2>>;
-      // A oneOf carrier over literal arms recovers too (same mechanism).
-      type OneOfLits = ('a' & {readonly [__rtOneOf]?: ['a', 1]}) | (1 & {readonly [__rtOneOf]?: ['a', 1]});
-      type _03 = Expect<Equal<StripRunTypeMeta<OneOfLits>, 'a' | 1>>;
-      // Nested in an object, and across a wider union.
-      type _04 = Expect<Equal<StripRunTypeMeta<{a: Ite; b: {c: Ite}}>, {a: 'yes' | 'other'; b: {c: 'yes' | 'other'}}>>;
       type Five = ('a' | 'b' | 'c' | 'd' | 'e') & IfBrand;
-      type _05 = Expect<Equal<StripRunTypeMeta<Five>, 'a' | 'b' | 'c' | 'd' | 'e'>>;
-      // A multi-constituent stack subtracts every part, one per constituent.
-      type Stacked = 'x' & IfBrand & {readonly [__rtNot]?: string} & {readonly [__rtOneOf]?: ['x', 'y']};
-      type _06 = Expect<Equal<StripRunTypeMeta<Stacked>, 'x'>>;
+      type _01 = Expect<Equal<StripRunTypeMeta<Five>, 'a' | 'b' | 'c' | 'd' | 'e'>>;
+      // Nested in an object, and across a wider union.
+      type _02 = Expect<Equal<StripRunTypeMeta<{a: Five; b: {c: Five}}>, {a: 'a' | 'b' | 'c' | 'd' | 'e'; b: {c: 'a' | 'b' | 'c' | 'd' | 'e'}}>>;
       // Degradation, not regression: a sentinel the residual does not model
       // leaves the arm branded, so it widens exactly as it did before.
       type Unmodelled = 'x' & {readonly [__rtPropNames]?: string};
-      type _07 = Expect<Equal<StripRunTypeMeta<Unmodelled>, string>>;
+      type _03 = Expect<Equal<StripRunTypeMeta<Unmodelled>, string>>;
       // WIDE brands still collapse to the base — nothing to recover there.
-      type _08 = Expect<Equal<StripRunTypeMeta<Email>, string>>;
-      type _09 = Expect<Equal<StripRunTypeMeta<Nominal>, string>>;
-      type _10 = Expect<Equal<StripRunTypeMeta<never>, never>>;
+      type _04 = Expect<Equal<StripRunTypeMeta<Email>, string>>;
+      type _05 = Expect<Equal<StripRunTypeMeta<Nominal>, string>>;
+      type _06 = Expect<Equal<StripRunTypeMeta<never>, never>>;
       `,
       2152
     );
@@ -251,7 +234,7 @@ describe('StripRunTypeMeta<T> — per-branch correctness + instantiation budget'
       type Dressed = Email | number | boolean | {[key: string]: unknown} | unknown[] | null;
       type _02 = Expect<Equal<StripRunTypeMeta<Dressed>, JsonValue>>;
       // A union that is value-equivalent but carries STRUCTURED object arms
-      // (a dependent-schema case split) keeps them — the arms document.
+      // keeps them — the arms document.
       type Split = string | number | boolean | unknown[] | {bar: string; [key: string]: unknown} | {bar?: undefined; [key: string]: unknown} | null;
       type _03 = ExpectFalse<Equal<StripRunTypeMeta<Split>, JsonValue>>;
       `,

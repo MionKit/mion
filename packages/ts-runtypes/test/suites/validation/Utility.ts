@@ -1,5 +1,4 @@
 import * as TF from '@ts-runtypes/core/formats';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import type {ValidationCase} from './types.ts';
 import {
   createValidateFn,
@@ -18,7 +17,6 @@ export const UTILITY = {
       'utility/partial.spec.ts makes all properties optional, resolving to {name?: string; age?: number; createdAt?: Date} and reusing the object emit with the allOptionalCode array-rejection guard.',
     validateNotes: [
       'Resolves to an all-optional object shape, so the `allOptionalCode` guard kicks in: arrays, Date, Map, Set, RegExp are rejected at the top level even though `{}` is valid. Present properties still run their atomic checks (Invalid Date in `createdAt` fails).',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       interface Person {
@@ -63,7 +61,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<Partial<Person>>>();
     },
     validateSchema: () => createValidateFn(RT.partial(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}))),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -108,7 +105,6 @@ export const UTILITY = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.partial(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}))),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -191,7 +187,6 @@ export const UTILITY = {
       'utility/required.spec.ts makes all properties required, resolving to a plain object literal and reusing the object emit.',
     validateNotes: [
       'Optional props become required, so a value missing any of them now FAILS — `{}` and `{name: "John"}` are rejected (they were valid under the original optional shape).',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       interface MaybePerson {
@@ -221,7 +216,6 @@ export const UTILITY = {
       createValidateFn(
         RT.required(RT.object({name: RT.optional(TF.string()), age: RT.optional(TF.number()), createdAt: RT.optional(TF.date())}))
       ),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface MaybePerson {
         name?: string;
@@ -268,7 +262,6 @@ export const UTILITY = {
       createGetValidationErrorsFn(
         RT.required(RT.object({name: RT.optional(TF.string()), age: RT.optional(TF.number()), createdAt: RT.optional(TF.date())}))
       ),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface MaybePerson {
         name?: string;
@@ -350,7 +343,6 @@ export const UTILITY = {
     description: 'utility/pick.spec.ts keeps only the named properties, resolving to {name: string; createdAt: Date}.',
     validateNotes: [
       'Resolves to a fixed-property object with only the picked keys. Extra properties on the input still pass (structural typing).',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       interface Person {
@@ -378,7 +370,6 @@ export const UTILITY = {
     },
     validateSchema: () =>
       createValidateFn(RT.pick(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['name', 'createdAt'])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -425,7 +416,6 @@ export const UTILITY = {
       createGetValidationErrorsFn(
         RT.pick(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['name', 'createdAt'])
       ),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -499,7 +489,6 @@ export const UTILITY = {
     description: 'utility/omit.spec.ts drops the named properties, resolving to {name: string; createdAt: Date}.',
     validateNotes: [
       'Resolves to the original shape minus the omitted keys. The omitted property can still appear on the input — structural typing accepts extras.',
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       interface Person {
@@ -527,7 +516,6 @@ export const UTILITY = {
     },
     validateSchema: () =>
       createValidateFn(RT.omit(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['age'])),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -572,7 +560,6 @@ export const UTILITY = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.omit(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['age'])),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -642,7 +629,6 @@ export const UTILITY = {
     validateDataOnly: () => createValidateFn<DataOnly<Exclude<'name' | 'age' | 'createdAt', 'age'>>>(),
     validateSchema: () =>
       createValidateFn(RT.exclude(RT.union([RT.literal('name'), RT.literal('age'), RT.literal('createdAt')]), RT.literal('age'))),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({enum: ['name', 'createdAt']})),
     deserializeValidate: () => deserializeValidate<Exclude<'name' | 'age' | 'createdAt', 'age'>>(),
     validateReflect: () => {
       const v: Exclude<'name' | 'age' | 'createdAt', 'age'> = 'name';
@@ -658,7 +644,6 @@ export const UTILITY = {
       createGetValidationErrorsFn(
         RT.exclude(RT.union([RT.literal('name'), RT.literal('age'), RT.literal('createdAt')]), RT.literal('age'))
       ),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({enum: ['name', 'createdAt']})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Exclude<'name' | 'age' | 'createdAt', 'age'>>(),
     getValidationErrorsReflect: () => {
       const v: Exclude<'name' | 'age' | 'createdAt', 'age'> = 'name';
@@ -704,7 +689,6 @@ export const UTILITY = {
           RT.union([RT.literal('name'), RT.literal('createdAt')])
         )
       ),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({enum: ['name', 'createdAt']})),
     deserializeValidate: () => deserializeValidate<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(),
     validateReflect: () => {
       const v: Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'> = 'name';
@@ -724,7 +708,6 @@ export const UTILITY = {
           RT.union([RT.literal('name'), RT.literal('createdAt')])
         )
       ),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({enum: ['name', 'createdAt']})),
     deserializeGetValidationErrors: () =>
       deserializeGetValidationErrors<Extract<'name' | 'age' | 'createdAt', 'name' | 'createdAt'>>(),
     getValidationErrorsReflect: () => {
@@ -793,19 +776,6 @@ export const UTILITY = {
           RT.object({kind: RT.literal('circle')})
         )
       ),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, base: {type: 'number'}, height: {type: 'number'}},
-              required: ['kind', 'base', 'height'],
-            },
-          ],
-        })
-      ),
     deserializeValidate: () => {
       type Shape =
         | {kind: 'circle'; radius: number}
@@ -853,19 +823,6 @@ export const UTILITY = {
           ]),
           RT.object({kind: RT.literal('circle')})
         )
-      ),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          anyOf: [
-            {type: 'object', properties: {kind: {const: 'square'}, x: {type: 'number'}}, required: ['kind', 'x']},
-            {
-              type: 'object',
-              properties: {kind: {const: 'triangle'}, base: {type: 'number'}, height: {type: 'number'}},
-              required: ['kind', 'base', 'height'],
-            },
-          ],
-        })
       ),
     deserializeGetValidationErrors: () => {
       type Shape =
@@ -941,7 +898,6 @@ export const UTILITY = {
     validateDataOnly: () => createValidateFn<DataOnly<NonNullable<string | number | null | undefined>>>(),
     validateSchema: () =>
       createValidateFn(RT.nonNullable(RT.union([TF.string(), TF.number(), RT.literal(null), RT.literal(undefined)]))),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}]})),
     deserializeValidate: () => deserializeValidate<NonNullable<string | number | null | undefined>>(),
     validateReflect: () => {
       const v: NonNullable<string | number | null | undefined> = 'hello';
@@ -955,8 +911,6 @@ export const UTILITY = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<NonNullable<string | number | null | undefined>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.nonNullable(RT.union([TF.string(), TF.number(), RT.literal(null), RT.literal(undefined)]))),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(runTypeFromJsonSchema({anyOf: [{type: 'string'}, {type: 'number'}]})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<NonNullable<string | number | null | undefined>>(),
     getValidationErrorsReflect: () => {
       const v: NonNullable<string | number | null | undefined> = 'hello';
@@ -991,7 +945,6 @@ export const UTILITY = {
     description: "utility/params-return.spec.ts extracts a function's return type, resolving to Date.",
     validateNotes: [
       "Resolves to the function's return type (`Date`), so the validator checks for a valid Date instance — NOT a function. Invalid Dates (`new Date(NaN)`) are rejected like any other Date case.",
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       type Fn = (a: number, b: boolean) => Date;
@@ -1006,7 +959,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<ReturnType<Fn>>>();
     },
     validateSchema: () => createValidateFn(RT.returnType(RT.func({params: [TF.number(), RT.boolean()], ret: TF.date()}))),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       type Fn = (a: number, b: boolean) => Date;
       return deserializeValidate<ReturnType<Fn>>();
@@ -1031,7 +983,6 @@ export const UTILITY = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.returnType(RT.func({params: [TF.number(), RT.boolean()], ret: TF.date()}))),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       type Fn = (a: number, b: boolean) => Date;
       return deserializeGetValidationErrors<ReturnType<Fn>>();
@@ -1073,7 +1024,6 @@ export const UTILITY = {
 
   readonly: {
     title: 'Readonly',
-    validateNotes: 'JSON Schema: readonly property modifiers fold into the structural id and have no schema spelling.',
     description:
       'Readonly<T> marks properties readonly at the TS layer, but the readonly bit is erased at runtime so the validator behaves identically to the source object (regression check).',
     validate: () => {
@@ -1098,7 +1048,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<Readonly<Person>>>();
     },
     validateSchema: () => createValidateFn(RT.readonly(RT.object({name: TF.string(), age: TF.number()}))),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -1137,7 +1086,6 @@ export const UTILITY = {
       return createGetValidationErrorsFn<DataOnly<Readonly<Person>>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.readonly(RT.object({name: TF.string(), age: TF.number()}))),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -1210,7 +1158,6 @@ export const UTILITY = {
       'An intersection that flips a property\'s optionality — `Partial<Person>` makes all props optional, then `& Required<Pick<Person, "name">>` re-requires only `name`, so tsgo resolves the intersection to {name: string; age?: number; createdAt?: Date} and reuses the object emit.',
     validateNotes: [
       "Intersections of utility types resolve at the type-checker layer to a single flat object shape. Use this pattern to flip a specific property's optionality without re-declaring the whole type.",
-      'JSON Schema: the resolved shape carries a native Date, which has no schema INPUT spelling.',
     ],
     validate: () => {
       interface Person {
@@ -1243,7 +1190,6 @@ export const UTILITY = {
           RT.required(RT.pick(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['name']))
         )
       ),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -1293,7 +1239,6 @@ export const UTILITY = {
           RT.required(RT.pick(RT.object({name: TF.string(), age: TF.number(), createdAt: TF.date()}), ['name']))
         )
       ),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -1377,10 +1322,6 @@ export const UTILITY = {
     validateDataOnly: () => createValidateFn<DataOnly<Omit<{a: string; b?: number; c: boolean}, 'a'>>>(),
     validateSchema: () =>
       createValidateFn(RT.omit(RT.object({a: TF.string(), b: RT.optional(TF.number()), c: RT.boolean()}), ['a'])),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({type: 'object', properties: {b: {type: 'number'}, c: {type: 'boolean'}}, required: ['c']})
-      ),
     deserializeValidate: () => deserializeValidate<Omit<{a: string; b?: number; c: boolean}, 'a'>>(),
     validateReflect: () => {
       const v: Omit<{a: string; b?: number; c: boolean}, 'a'> = {c: true};
@@ -1394,10 +1335,6 @@ export const UTILITY = {
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Omit<{a: string; b?: number; c: boolean}, 'a'>>>(),
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.omit(RT.object({a: TF.string(), b: RT.optional(TF.number()), c: RT.boolean()}), ['a'])),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({type: 'object', properties: {b: {type: 'number'}, c: {type: 'boolean'}}, required: ['c']})
-      ),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Omit<{a: string; b?: number; c: boolean}, 'a'>>(),
     getValidationErrorsReflect: () => {
       const v: Omit<{a: string; b?: number; c: boolean}, 'a'> = {c: true};
@@ -1462,7 +1399,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<keyof Person>>();
     },
     validateSchema: () => createValidateFn(RT.union([RT.literal('name'), RT.literal('age'), RT.literal('createdAt')])),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({enum: ['name', 'age', 'createdAt']})),
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -1507,7 +1443,6 @@ export const UTILITY = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.literal('name'), RT.literal('age'), RT.literal('createdAt')])),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({enum: ['name', 'age', 'createdAt']})),
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -1585,14 +1520,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<typeof config>>();
     },
     validateSchema: () => createValidateFn(RT.object({url: TF.string(), port: TF.number()})),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {url: {type: 'string'}, port: {type: 'number'}},
-          required: ['url', 'port'],
-        })
-      ),
     deserializeValidate: () => {
       const config = {url: 'http://example.com', port: 8080};
       return deserializeValidate<typeof config>();
@@ -1614,14 +1541,6 @@ export const UTILITY = {
       return createGetValidationErrorsFn<DataOnly<typeof config>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.object({url: TF.string(), port: TF.number()})),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {url: {type: 'string'}, port: {type: 'number'}},
-          required: ['url', 'port'],
-        })
-      ),
     deserializeGetValidationErrors: () => {
       const config = {url: 'http://example.com', port: 8080};
       return deserializeGetValidationErrors<typeof config>();
@@ -1690,7 +1609,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<Person['name']>>();
     },
     validateSchema: () => createValidateFn(TF.string()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string'})),
     deserializeValidate: () => {
       interface Person {
         name: string;
@@ -1729,7 +1647,6 @@ export const UTILITY = {
       return createGetValidationErrorsFn<DataOnly<Person['name']>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string'})),
     deserializeGetValidationErrors: () => {
       interface Person {
         name: string;
@@ -1797,7 +1714,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<IsString<'hello'>>>();
     },
     validateSchema: () => createValidateFn(RT.boolean()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'boolean'})),
     deserializeValidate: () => {
       type IsString<T> = T extends string ? boolean : number;
       return deserializeValidate<IsString<'hello'>>();
@@ -1821,7 +1737,6 @@ export const UTILITY = {
       return createGetValidationErrorsFn<DataOnly<IsString<'hello'>>>();
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.boolean()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'boolean'})),
     deserializeGetValidationErrors: () => {
       type IsString<T> = T extends string ? boolean : number;
       return deserializeGetValidationErrors<IsString<'hello'>>();
@@ -1891,14 +1806,6 @@ export const UTILITY = {
     },
     validateSchema: () =>
       createValidateFn(RT.object({a: RT.union([TF.string(), RT.literal(null)]), b: RT.union([TF.number(), RT.literal(null)])})),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {a: {anyOf: [{type: 'string'}, {type: 'null'}]}, b: {anyOf: [{type: 'number'}, {type: 'null'}]}},
-          required: ['a', 'b'],
-        })
-      ),
     deserializeValidate: () => {
       interface Source {
         a: string;
@@ -1944,14 +1851,6 @@ export const UTILITY = {
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(
         RT.object({a: RT.union([TF.string(), RT.literal(null)]), b: RT.union([TF.number(), RT.literal(null)])})
-      ),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {a: {anyOf: [{type: 'string'}, {type: 'null'}]}, b: {anyOf: [{type: 'number'}, {type: 'null'}]}},
-          required: ['a', 'b'],
-        })
       ),
     deserializeGetValidationErrors: () => {
       interface Source {
@@ -2084,26 +1983,6 @@ export const UTILITY = {
           admin: RT.object({kind: RT.literal('checkbox'), value: RT.boolean()}),
         })
       ),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            name: {type: 'object', properties: {kind: {const: 'text'}, value: {type: 'string'}}, required: ['kind', 'value']},
-            age: {
-              type: 'object',
-              properties: {kind: {const: 'number'}, value: {type: 'number'}, min: {type: 'number'}},
-              required: ['kind', 'value'],
-            },
-            admin: {
-              type: 'object',
-              properties: {kind: {const: 'checkbox'}, value: {type: 'boolean'}},
-              required: ['kind', 'value'],
-            },
-          },
-          required: ['name', 'age', 'admin'],
-        })
-      ),
     deserializeValidate: () => {
       type FieldFor<T> = T extends string
         ? {kind: 'text'; value: string}
@@ -2200,26 +2079,6 @@ export const UTILITY = {
           name: RT.object({kind: RT.literal('text'), value: TF.string()}),
           age: RT.object({kind: RT.literal('number'), value: TF.number(), min: RT.optional(TF.number())}),
           admin: RT.object({kind: RT.literal('checkbox'), value: RT.boolean()}),
-        })
-      ),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            name: {type: 'object', properties: {kind: {const: 'text'}, value: {type: 'string'}}, required: ['kind', 'value']},
-            age: {
-              type: 'object',
-              properties: {kind: {const: 'number'}, value: {type: 'number'}, min: {type: 'number'}},
-              required: ['kind', 'value'],
-            },
-            admin: {
-              type: 'object',
-              properties: {kind: {const: 'checkbox'}, value: {type: 'boolean'}},
-              required: ['kind', 'value'],
-            },
-          },
-          required: ['name', 'age', 'admin'],
         })
       ),
     deserializeGetValidationErrors: () => {
@@ -2383,15 +2242,6 @@ export const UTILITY = {
       return createValidateFn<DataOnly<Wrap<string | number>>>();
     },
     validateSchema: () => createValidateFn(RT.union([RT.object({w: TF.string()}), RT.object({w: TF.number()})])),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          anyOf: [
-            {type: 'object', properties: {w: {type: 'string'}}, required: ['w']},
-            {type: 'object', properties: {w: {type: 'number'}}, required: ['w']},
-          ],
-        })
-      ),
     deserializeValidate: () => {
       type Wrap<T> = T extends any ? {w: T} : never;
       return deserializeValidate<Wrap<string | number>>();
@@ -2416,15 +2266,6 @@ export const UTILITY = {
     },
     getValidationErrorsSchema: () =>
       createGetValidationErrorsFn(RT.union([RT.object({w: TF.string()}), RT.object({w: TF.number()})])),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          anyOf: [
-            {type: 'object', properties: {w: {type: 'string'}}, required: ['w']},
-            {type: 'object', properties: {w: {type: 'number'}}, required: ['w']},
-          ],
-        })
-      ),
     deserializeGetValidationErrors: () => {
       type Wrap<T> = T extends any ? {w: T} : never;
       return deserializeGetValidationErrors<Wrap<string | number>>();
@@ -2504,16 +2345,6 @@ export const UTILITY = {
           audio: RT.optional(RT.object({volume: RT.optional(TF.number()), muted: RT.optional(RT.boolean())})),
         })
       ),
-    validateJsonSchema: () =>
-      createValidateFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            display: {type: 'object', properties: {theme: {enum: ['light', 'dark']}, brightness: {type: 'number'}}},
-            audio: {type: 'object', properties: {volume: {type: 'number'}, muted: {type: 'boolean'}}},
-          },
-        })
-      ),
     deserializeValidate: () => {
       interface Settings {
         display: {theme: 'light' | 'dark'; brightness: number};
@@ -2566,16 +2397,6 @@ export const UTILITY = {
             })
           ),
           audio: RT.optional(RT.object({volume: RT.optional(TF.number()), muted: RT.optional(RT.boolean())})),
-        })
-      ),
-    getValidationErrorsJsonSchema: () =>
-      createGetValidationErrorsFn(
-        runTypeFromJsonSchema({
-          type: 'object',
-          properties: {
-            display: {type: 'object', properties: {theme: {enum: ['light', 'dark']}, brightness: {type: 'number'}}},
-            audio: {type: 'object', properties: {volume: {type: 'number'}, muted: {type: 'boolean'}}},
-          },
         })
       ),
     deserializeGetValidationErrors: () => {
