@@ -16,9 +16,9 @@
 // (a name the converter cannot derive, an unknown --to target).
 //
 // Also not listed, because they CONVERT: any shape whose only problem is that
-// the target form has no word for it rides an escape instead of refusing —
-// `getRunType<T>()` on the builders target, `embedType<T>()` on the schema
-// one, both carrying the type verbatim. Index signatures that `record(...)`
+// the target form has no word for it rides the `getRunType<T>()` escape on
+// the builders target, carrying the type verbatim. Index signatures that
+// `record(...)`
 // cannot say (a number key, several signatures, an index beside named
 // members) go that way, as do functions, template literals and generic class
 // instantiations. An escape is only unavailable when the type CANNOT BE
@@ -46,7 +46,7 @@ const TSCONFIG = `{
 /** With `ESNext.Temporal` dropped from `lib` — the CNV007 case. */
 const TSCONFIG_NO_TEMPORAL = TSCONFIG.replace('"target": "ES2022"', '"target": "ES2022", "lib": ["ES2022"]');
 
-type Target = 'type' | 'builders' | 'json-schema';
+type Target = 'type' | 'builders';
 
 interface UnsupportedCase {
   /** What a reader should understand the limitation to be. */
@@ -54,7 +54,6 @@ interface UnsupportedCase {
   /** The declarations, as `src/<name>.ts`. `main.ts` is the converted file. */
   readonly files: Readonly<Record<string, string>>;
   readonly target: Target;
-  readonly portable?: true;
   readonly noTemporalLib?: true;
   readonly code: string;
   /** A distinctive fragment of the message the user is shown. */
@@ -91,104 +90,7 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     keeps: 'export type Tagged = {[tag]: number};',
   },
 
-  // ── unevaluated* sweeps ────────────────────────────────────────────────
-  // No printer has a spelling for the sweep yet — not even the escapes, since
-  // the sentinel is lifted OFF the type and quoted type text cannot carry it.
-  // It folds into the type's identity, so dropping it would silently change
-  // what the validator rejects. See docs/done/convert-drops-unevaluated.md.
-  {
-    title: 'a schema carrying an unevaluatedProperties sweep',
-    files: {
-      'main.ts':
-        "import {type InferType} from '@ts-runtypes/core';\n" +
-        "import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
-        "export const xRT = runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false} as const);\n" +
-        'export type X = InferType<typeof xRT>;\n',
-    },
-    target: 'type',
-    code: 'CNV001',
-    says: 'unevaluatedProperties sweep',
-    keeps: 'unevaluatedProperties: false} as const);',
-  },
-  {
-    title: 'a schema carrying an unevaluatedItems sweep',
-    // An OPEN prefix tuple: `items` beside the sweep would evaluate every
-    // slot and the door rightly drops the no-op, so this is the shape where
-    // the sweep actually carries.
-    files: {
-      'main.ts':
-        "import {type InferType} from '@ts-runtypes/core';\n" +
-        "import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
-        "export const pairRT = runTypeFromJsonSchema({type: 'array', prefixItems: [{type: 'string'}], minItems: 1, unevaluatedItems: false} as const);\n" +
-        'export type Pair = InferType<typeof pairRT>;\n',
-    },
-    target: 'builders',
-    code: 'CNV001',
-    says: 'unevaluatedItems sweep',
-    keeps: 'unevaluatedItems: false} as const);',
-  },
-
-  // ── An exclusive union that is not the whole union ────────────────────
-  {
-    title: 'an exclusive union sitting beside an ordinary union arm',
-    // Exclusivity is checked by counting matched branches, and that count
-    // decides the whole union, so the exclusive union has to BE the whole
-    // union. The same shape stops a normal build with OOF001; convert reads
-    // the very same verdict off the node rather than recomputing it, so the
-    // two can never disagree. See docs/done/oneof-not-covering-whole-union.md.
-    files: {
-      'main.ts':
-        "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-        'export type Mixed = OneOf<[{a: string}, {b: number}]> | number;\n',
-    },
-    target: 'json-schema',
-    code: 'CNV001',
-    says: 'beside ordinary union members',
-    keeps: 'export type Mixed = OneOf<[{a: string}, {b: number}]> | number;',
-  },
-  {
-    title: 'an exclusive union beside an ordinary arm, converting to builders',
-    files: {
-      'main.ts':
-        "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-        'export type Mixed = OneOf<[{a: string}, {b: number}]> | null;\n',
-    },
-    target: 'builders',
-    code: 'CNV001',
-    says: 'beside ordinary union members',
-    keeps: 'export type Mixed = OneOf<[{a: string}, {b: number}]> | null;',
-  },
-  {
-    title: 'an exclusive union beside an ordinary arm, converting to plain types',
-    // Written value-first (the type form is already the target otherwise).
-    // The type printer reads the same projection verdict the other two do;
-    // before it did, `RT.OneOf<[A, B]>` printed with the `| number` arm
-    // silently gone.
-    files: {
-      'main.ts':
-        "import {getRunType, type InferType} from '@ts-runtypes/core';\n" +
-        "import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-        'export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();\n' +
-        'export type Mixed = InferType<typeof mixedRT>;\n',
-    },
-    target: 'type',
-    code: 'CNV001',
-    says: 'beside ordinary union members',
-    keeps: 'export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();',
-  },
-
   // ── Recursion the value-first form cannot carry ───────────────────────
-  {
-    title: 'an exclusive union with a plain-value branch, reaching a cycle',
-    files: {
-      'main.ts':
-        "import {type OneOf} from '@ts-runtypes/core/builders';\n" + 'export type Mixed = OneOf<[{next: Mixed}, number]>;\n',
-    },
-    target: 'builders',
-    code: 'CNV001',
-    says: 'primitive branch',
-    keeps: 'export type Mixed = OneOf<[{next: Mixed}, number]>;',
-  },
   {
     title: 'a cycle that closes on a tuple slot, converting to builders',
     files: {'main.ts': 'export type Pair = [number, Pair];\n'},
@@ -196,29 +98,6 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     code: 'CNV001',
     says: 'cycle that closes on a tuple slot',
     keeps: 'export type Pair = [number, Pair];',
-  },
-  {
-    title: 'a cycle that closes on a tuple slot, converting to JSON Schema',
-    // Both value-first forms recover the type the same way, and TypeScript
-    // instantiates a tuple's slots eagerly, so neither can tie the knot there.
-    // Optional and labeled slots, and a union arm inside one, are the same
-    // shape. The plain type form carries all of them.
-    files: {'main.ts': 'export type Chain = [head: number, tail?: Chain];\n'},
-    target: 'json-schema',
-    code: 'CNV001',
-    says: 'cycle that closes on a tuple slot',
-    keeps: 'export type Chain = [head: number, tail?: Chain];',
-  },
-  {
-    title: 'a recursive type reached only inside an embedded type expression',
-    // A function signature has no JSON spelling, so the schema target embeds it
-    // as quoted TypeScript — and quoted text cannot point back at the
-    // declaration being defined.
-    files: {'main.ts': 'export type Node = {run: (n: Node) => void};\n'},
-    target: 'json-schema',
-    code: 'CNV001',
-    says: 'self-referential type inside an embedded type expression',
-    keeps: 'export type Node = {run: (n: Node) => void};',
   },
 
   // ── Cross-file references the run cannot see ──────────────────────────
@@ -232,26 +111,6 @@ const UNSUPPORTED: readonly UnsupportedCase[] = [
     code: 'CNV004',
     says: 'not part of this conversion run',
     keeps: 'export type Branch = {leaf: Leaf};',
-  },
-
-  // ── Standard JSON Schema cannot say it (--portable only) ──────────────
-  {
-    title: 'a bigint under --portable (the RunTypes dialect is forbidden there)',
-    files: {'main.ts': 'export type Big = bigint;\n'},
-    target: 'json-schema',
-    portable: true,
-    code: 'CNV006',
-    says: 'drop --portable',
-    keeps: 'export type Big = bigint;',
-  },
-  {
-    title: 'labeled tuple slots under --portable (2020-12 has no label spelling)',
-    files: {'main.ts': 'export type Point = [x: number, y: number];\n'},
-    target: 'json-schema',
-    portable: true,
-    code: 'CNV006',
-    says: 'tsLabels',
-    keeps: 'export type Point = [x: number, y: number];',
   },
 
   // ── The library is missing, so the type is already lost ───────────────
@@ -282,7 +141,6 @@ function runConvert(entry: UnsupportedCase): RunResult {
       fs.writeFileSync(path.join(dir, 'src', name), name === 'main.ts' ? MARKER + content : content);
     }
     const args = ['convert', '--tsconfig', path.join(dir, 'tsconfig.json'), '--to', entry.target];
-    if (entry.portable) args.push('--portable');
     args.push(path.join(dir, 'src', 'main.ts'));
     const result = spawnSync(BIN, args, {encoding: 'utf8', cwd: dir, maxBuffer: 32 * 1024 * 1024});
     return {

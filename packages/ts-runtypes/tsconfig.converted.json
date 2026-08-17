@@ -16,13 +16,12 @@
     "src/**/*",
     "test/util/**/*",
     "test/support/**/*",
-    "test/converted-builders/**/*",
-    "test/converted-json-schema/**/*"
+    "test/converted-builders/**/*"
   ],
   // `exclude` is NOT inherited-and-merged — a base config's exclude applies
   // wholesale unless the child restates it, and tsconfig.test.json excludes the
   // converted trees. Restating it without them is what puts the converted files
   // in this Program at all; without this the resolver found zero call sites and
   // every converted test threw "no id injected".
-  "exclude": ["node_modules", "dist", "test/playground", "test/json-schema-official"]
+  "exclude": ["node_modules", "dist", "test/playground"]
 }

@@ -53,13 +53,6 @@ function conforms(shape: TypeShape, value: unknown, decls: Map<string, Decl>): b
       return objectConforms(shape.props, value, decls);
     case 'format':
       return FORMAT_LEAVES[shape.name].test(value); // predicate includes the base-kind check
-    case 'not': {
-      // Not<F> = base kind holds AND the format check fails (never a bare ¬).
-      if (shape.child.kind !== 'format') return false;
-      const spec = FORMAT_LEAVES[shape.child.name];
-      const baseOk = spec.family === 'string' ? typeof value === 'string' : typeof value === 'number' && Number.isFinite(value);
-      return baseOk && !spec.test(value);
-    }
     case 'ref':
       return refConforms(shape.name, value, decls);
     default:

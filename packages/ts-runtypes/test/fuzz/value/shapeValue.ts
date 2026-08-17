@@ -124,11 +124,6 @@ function valueOf(shape: TypeShape, ctx: ValueCtx): unknown {
     }
     case 'format':
       return pick(FORMAT_LEAVES[shape.name].valid);
-    case 'not':
-      // The generator only wraps format leaves; a counter value satisfies the
-      // base kind while failing the negated format — exactly Not's valid set.
-      if (shape.child.kind !== 'format') throw new Error('not-shape child must be a format leaf');
-      return pick(FORMAT_LEAVES[shape.child.name].counter);
     case 'object':
       return objectValue(shape.props, shape.index, shape.indexKey, ctx);
     case 'union':
@@ -263,8 +258,6 @@ function floorValue(shape: TypeShape): unknown {
       return {};
     case 'format':
       return FORMAT_LEAVES[shape.name].valid[0];
-    case 'not':
-      return shape.child.kind === 'format' ? FORMAT_LEAVES[shape.child.name].counter[0] : undefined;
     case 'tuple':
       return shape.elems.map(floorValue);
     case 'union':
@@ -323,8 +316,6 @@ function safe(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): bo
       return shape.members.every((s) => safe(s, decls, seen));
     case 'format':
       return true; // exact valid/counter pools — strong oracles hold
-    case 'not':
-      return shape.child.kind === 'format';
     case 'intersection':
       // ONLY pure-object intersections (a clean structural merge). A primitive
       // member would make the whole thing a branded primitive — out of scope.
@@ -350,11 +341,10 @@ function safe(shape: TypeShape, decls: Map<string, Decl>, seen: Set<string>): bo
 // =============================================================================
 
 function disjointValue(shape: TypeShape): unknown {
-  // Format / negation leaves: corrupt by violating the BASE kind — a same-kind
-  // junk value could still satisfy the brand (`'__invalid__'` has length ≥ 3)
-  // or its negation, so only the cross-kind replacement is provably rejected.
-  const formatChild =
-    shape.kind === 'format' ? shape : shape.kind === 'not' && shape.child.kind === 'format' ? shape.child : null;
+  // Format leaves: corrupt by violating the BASE kind — a same-kind junk
+  // value could still satisfy the brand (`'__invalid__'` has length ≥ 3), so
+  // only the cross-kind replacement is provably rejected.
+  const formatChild = shape.kind === 'format' ? shape : null;
   if (formatChild) return FORMAT_LEAVES[formatChild.name].family === 'string' ? 1234567 : '__invalid__';
   const acceptsString = shape.kind === 'string' || (shape.kind === 'literal' && typeof shape.value === 'string');
   return acceptsString ? 1234567 : '__invalid__';

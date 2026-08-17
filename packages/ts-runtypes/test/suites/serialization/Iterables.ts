@@ -8,10 +8,7 @@ export const ITERABLES = {
     title: 'Set<string>',
     description:
       'Root `Set<string>` serializes to a JSON array via `Array.from(v)` and restores with `new Set(v)` (atomic string elements need no per-element transform), while binary writes a uint32 size prefix followed by the encoded elements then rebuilds the Set.',
-    serializeNotes: [
-      'Set round-trips as a JSON array (insertion order preserved), rehydrated to a Set on decode.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'Set round-trips as a JSON array (insertion order preserved), rehydrated to a Set on decode.',
     mutateEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Set<string>>(undefined, {strategy: 'direct'}),
@@ -25,19 +22,13 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.set(TF.string())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.set(TF.string())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.set(TF.string())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Set<string>(['one', 'two', 'three'])]}),
   },
   set_nullable: {
     title: 'Set<number | null>',
     description: 'Root `Set<number | null>` keeps a `null` element across every strategy (serialized as the JSON null literal).',
-    serializeNotes: [
+    serializeNotes:
       'A Set builds its JSON array via `[...].join(",")` like a plain array, so a null / undefined element must emit the constant `"null"` rather than a bare value (which join would drop, shrinking the Set).',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Set<number | null>>(undefined, {strategy: 'direct'}),
@@ -51,19 +42,13 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.set(RT.union([TF.number(), RT.literal(null)]))),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.set(RT.union([TF.number(), RT.literal(null)]))),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.set(RT.union([TF.number(), RT.literal(null)]))),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Set<number | null>([1, null, 2])]}),
   },
   set_void: {
     title: 'Set<void>',
     description: 'Root `Set<void>` keeps its element across every strategy (serialized as the JSON null literal).',
-    serializeNotes: [
+    serializeNotes:
       'A Set builds its JSON array via `[...].join(",")`, so a void / undefined element must emit the constant "null" rather than a bare value that join would coerce to empty and drop.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Set<void>>(undefined, {strategy: 'direct'}),
@@ -77,10 +62,6 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.set(RT.void())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.set(RT.void())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.set(RT.void())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [new Set<void>([undefined])]}),
   },
   set_small_object: {
@@ -90,7 +71,6 @@ export const ITERABLES = {
     serializeNotes: [
       'Set materialises to a JSON array of element objects, rehydrated to a Set on decode.',
       'Optional `prop4: Date` round-trips via its ISO string; optional `prop5: bigint` via a decimal string (not natively JSON-encodable).',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
     ],
     mutateEncoder: () => {
       interface SmallObject {
@@ -230,10 +210,6 @@ export const ITERABLES = {
           })
         )
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface SmallObject {
         prop1: string;
@@ -257,10 +233,7 @@ export const ITERABLES = {
     title: 'Nested sets',
     description:
       'Object with two `Set<{s: string; arr: number[]}>` properties where each nested set serializes to a JSON array of objects restored via `new Set(v)` (atomic-shaped elements need no value transform) and binary nests a size-prefixed entry list per set.',
-    serializeNotes: [
-      'Each nested Set round-trips as a JSON array, rehydrated to a Set on decode.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'Each nested Set round-trips as a JSON array, rehydrated to a Set on decode.',
     mutateEncoder: () => {
       type Set1 = Set<{s: string; arr: number[]}>;
       interface DeepWithSet {
@@ -374,10 +347,6 @@ export const ITERABLES = {
           c: RT.set(RT.object({s: TF.string(), arr: RT.array(TF.number())})),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       const setB = new Set([
         {s: 'a', arr: [1, 2, 3]},
@@ -394,10 +363,8 @@ export const ITERABLES = {
     title: 'Map<string, number>',
     description:
       'Root `Map<string, number>` serializes to a JSON array of `[key, value]` pairs via `Array.from(v)` and restores with `new Map(v)` (atomic string keys and number values need no per-entry transform), while binary writes a uint32 size prefix followed by encoded entries.',
-    serializeNotes: [
+    serializeNotes:
       'Map round-trips as a JSON array of [key, value] pairs (insertion order preserved), rehydrated to a Map on decode.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Map<string, number>>(undefined, {strategy: 'direct'}),
@@ -411,10 +378,6 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.map(TF.string(), TF.number())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.map(TF.string(), TF.number())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.map(TF.string(), TF.number())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         new Map<string, number>([
@@ -432,7 +395,6 @@ export const ITERABLES = {
     serializeNotes: [
       'Map materialises to a JSON array of [key, value] pairs, rehydrated to a Map on decode.',
       'Value-side `prop4: Date` round-trips via its ISO string; `prop5: bigint` via a decimal string.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
     ],
     mutateEncoder: () => {
       interface SmallObject {
@@ -576,10 +538,6 @@ export const ITERABLES = {
           })
         )
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface SmallObject {
         prop1: string;
@@ -606,7 +564,6 @@ export const ITERABLES = {
     serializeNotes: [
       'Object keys are emitted as the entry tuple key (a JSON object) and rebuilt into a fresh Map key on decode.',
       'Key-side `prop4: Date` round-trips via its ISO string; `prop5: bigint` via a decimal string.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
     ],
     mutateEncoder: () => {
       interface SmallObject {
@@ -750,10 +707,6 @@ export const ITERABLES = {
           TF.number()
         )
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => {
       interface SmallObject {
         prop1: string;
@@ -777,10 +730,7 @@ export const ITERABLES = {
     title: 'Nested maps',
     description:
       'Object with a nested `Map<string, {sm: {s: string; arr: number[]}}>` property where the map serializes to a JSON array of `[key, value]` pairs restored via `new Map(v)` (atomic-shaped values need no value transform) and binary nests a size-prefixed entry list.',
-    serializeNotes: [
-      'The nested Map round-trips as a JSON array of [key, value] pairs, rehydrated to a Map on decode.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'The nested Map round-trips as a JSON array of [key, value] pairs, rehydrated to a Map on decode.',
     mutateEncoder: () => {
       interface DeepWithMap {
         a: string;
@@ -872,10 +822,6 @@ export const ITERABLES = {
           b: RT.map(TF.string(), RT.object({sm: RT.object({s: TF.string(), arr: RT.array(TF.number())})})),
         })
       ),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         {
@@ -895,7 +841,6 @@ export const ITERABLES = {
     serializeNotes: [
       'Map round-trips as a JSON array of [key, value] pairs, rehydrated to a Map on decode.',
       'bigint keys serialize as decimal strings and restore via BigInt(...); JSON cannot encode bigint directly.',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
     ],
     mutateEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<bigint, number>>(undefined, {strategy: 'clone'}),
@@ -910,10 +855,6 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.map(TF.bigInt(), TF.number())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.map(TF.bigInt(), TF.number())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.map(TF.bigInt(), TF.number())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         new Map<bigint, number>([
@@ -931,7 +872,6 @@ export const ITERABLES = {
     serializeNotes: [
       'Map round-trips as a JSON array of [key, value] pairs, rehydrated to a Map on decode.',
       'Date values serialize via their ISO string and restore with new Date(...).',
-      'JSON Schema: Map/Set instance types have no schema INPUT spelling.',
     ],
     mutateEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Map<string, Date>>(undefined, {strategy: 'clone'}),
@@ -946,10 +886,6 @@ export const ITERABLES = {
     schemaDecoder: () => createJsonDecoderFn(RT.map(TF.string(), TF.date())),
     schemaBinaryEncoder: () => createBinaryEncoderFn(RT.map(TF.string(), TF.date())),
     schemaBinaryDecoder: () => createBinaryDecoderFn(RT.map(TF.string(), TF.date())),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({
       values: [
         new Map<string, Date>([

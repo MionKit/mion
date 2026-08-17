@@ -69,7 +69,7 @@ function subKindOf(node: RunType): number {
 }
 
 function fail(message: string): never {
-  throw new Error(`[runTypeFromJsonSchema] ${message}`);
+  throw new Error(`[runTypeToJsonSchema] ${message}`);
 }
 
 function isNonData(node: RunType): boolean {

@@ -118,11 +118,9 @@ type MetaKeyNames =
   | '__rtFormatName'
   | '__rtFormatParams'
   | '__rtFormatBrand'
-  | '__rtNot'
   | '__rtContains'
   | '__rtPatternProps'
-  | '__rtPropNames'
-  | '__rtOneOf';
+  | '__rtPropNames';
 
 /** True when `T` exposes ANY sentinel under its original string name. **/
 type LeaksMeta<T> = [Extract<keyof T, MetaKeyNames>] extends [never] ? false : true;

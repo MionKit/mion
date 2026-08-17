@@ -9,13 +9,11 @@ import {
   assertValidateDeserializeStatic,
   assertValidateDeserializeReflect,
   assertValidateSchema,
-  assertValidateJsonSchema,
   assertFormatGetValidationErrorsStatic,
   assertFormatGetValidationErrorsReflect,
   assertFormatGetValidationErrorsDeserializeStatic,
   assertFormatGetValidationErrorsDeserializeReflect,
   assertGetValidationErrorsSchema,
-  assertGetValidationErrorsJsonSchema,
   assertMockTypeStatic,
   assertMockTypeReflect,
   titleFor,
@@ -28,14 +26,12 @@ describe('format-validation / Realworld', () => {
     it(titleFor(c, 'validate/deserialize-static'), () => assertValidateDeserializeStatic(c));
     it(titleFor(c, 'validate/deserialize-reflect'), () => assertValidateDeserializeReflect(c));
     it(titleFor(c, 'validate/schema'), () => assertValidateSchema(c));
-    it(titleFor(c, 'validate/json-schema'), () => assertValidateJsonSchema(c));
 
     it(titleFor(c, 'getValidationErrors/format'), () => assertFormatGetValidationErrorsStatic(c));
     it(titleFor(c, 'getValidationErrors/reflect'), () => assertFormatGetValidationErrorsReflect(c));
     it(titleFor(c, 'getValidationErrors/deserialize-static'), () => assertFormatGetValidationErrorsDeserializeStatic(c));
     it(titleFor(c, 'getValidationErrors/deserialize-reflect'), () => assertFormatGetValidationErrorsDeserializeReflect(c));
     it(titleFor(c, 'getValidationErrors/schema'), () => assertGetValidationErrorsSchema(c));
-    it(titleFor(c, 'getValidationErrors/json-schema'), () => assertGetValidationErrorsJsonSchema(c));
 
     it(titleFor(c, 'mockType/static'), () => assertMockTypeStatic(c));
     it(titleFor(c, 'mockType/reflect'), () => assertMockTypeReflect(c));

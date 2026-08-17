@@ -18,7 +18,7 @@
 // ONE REVIEWED EXCEPTION raised every recursive branch (the array/tree branch
 // most, 229→1976): sentinel payloads now SURVIVE the substitution. A carrier
 // intersection (structural format params, contains / patternProperties /
-// propertyNames / unevaluated / negation slots, tuple labels) used to be
+// propertyNames slots, tuple labels) used to be
 // dropped or folded into its base, so a value-first `circular` resolved a
 // different structural id than its type-first twin — the bug this pays for
 // (docs/done/circular-brand-substitution.md). Two costs bought it: a

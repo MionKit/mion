@@ -25,9 +25,6 @@ type Fmt<Base, Name extends string, Params extends object> = Base & {
 type ScratchString<P extends object> = Fmt<string, 'stringFormat', P>;
 type ScratchNumber<P extends object> = Fmt<number, 'numberFormat', P>;
 type ScratchInteger = ScratchNumber<{integer: true}>;
-type ScratchNot<F extends string | number | bigint> = ([F] extends [string] ? string : [F] extends [number] ? number : bigint) & {
-  readonly __rtNot?: F;
-};
 
 describe('fuzz / scratch format preamble still equals the shipped brand encodings', () => {
   it('String / Number / Integer spellings resolve to the shipped ids (static form)', () => {
@@ -36,9 +33,9 @@ describe('fuzz / scratch format preamble still equals the shipped brand encoding
     expect(getRunTypeId<ScratchInteger>()).toBe(getRunTypeId<TF.Integer>());
   });
 
-  it('the Not spelling resolves to the shipped id (reflection form)', () => {
-    const negated: ScratchNot<ScratchString<{maxLength: 8}>> = 'longer than eight' as ScratchNot<ScratchString<{maxLength: 8}>>;
-    expect(getRunTypeId(negated)).toBe(getRunTypeId<TF.Not<TF.String<{maxLength: 8}>>>());
+  it('the String spelling resolves to the shipped id (reflection form)', () => {
+    const bounded: ScratchString<{maxLength: 8}> = 'short' as ScratchString<{maxLength: 8}>;
+    expect(getRunTypeId(bounded)).toBe(getRunTypeId<TF.String<{maxLength: 8}>>());
   });
 
   it('the pinned literals are the lines the preamble actually emits', () => {
@@ -49,7 +46,6 @@ describe('fuzz / scratch format preamble still equals the shipped brand encoding
         "  export type String<P extends object> = Fmt<string, 'stringFormat', P>;",
         "  export type Number<P extends object> = Fmt<number, 'numberFormat', P>;",
         '  export type Integer = Number<{integer: true}>;',
-        '  export type Not<F extends string | number | bigint> = ([F] extends [string] ? string : [F] extends [number] ? number : bigint) & {readonly __rtNot?: F};',
         '}',
       ].join('\n')
     );

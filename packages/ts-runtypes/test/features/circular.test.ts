@@ -22,13 +22,10 @@ import {
   func,
   map,
   set,
-  oneOf,
   intersection,
   unknown as rtUnknown,
   never as rtNever,
-  type OneOf,
 } from '@ts-runtypes/core/builders';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import '@ts-runtypes/core/formats';
 
 describe('circular() — recursive schemas without types', () => {
@@ -224,18 +221,6 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
     expect(getRunTypeId(AsSet)).toBe(getRunTypeId<SetT>());
   });
 
-  it('all-object oneOf inside a cycle converges', () => {
-    const Node = circular(oneOf([object({next: self()}), object({leaf: TF.number()})]));
-    interface ArmA {
-      next: RecOneOf;
-    }
-    interface ArmB {
-      leaf: number;
-    }
-    type RecOneOf = OneOf<[ArmA, ArmB]>;
-    expect(getRunTypeId(Node)).toBe(getRunTypeId<RecOneOf>());
-  });
-
   it('a top-type sibling does not hide the recursion', () => {
     // `unknown` absorbs any union it sits in, so reading a composite's members
     // as ONE union (`T[number]` / `T[keyof T]`) made `Self | unknown` read as
@@ -355,31 +340,22 @@ describe('circular() — sentinel payloads survive the self-substitution', () =>
 // converter refuses that shape on both value-first targets
 // (test/features/unsupported-conversion.test.ts).
 describe('circular() — a cycle at the ROOT of a record', () => {
-  it('a self-valued index converges in all three forms', () => {
+  it('a self-valued index converges in both forms', () => {
     interface Tree {
       [key: string]: Tree;
     }
     const typeFirst = getRunTypeId<Tree>();
     expect(getRunTypeId(circular(record(self())))).toBe(typeFirst);
-    expect(getRunTypeId(runTypeFromJsonSchema({type: 'object', additionalProperties: {$ref: '#'}} as const))).toBe(typeFirst);
     const sample: Tree = {a: {}};
     expect(getRunTypeId(sample)).toBe(typeFirst);
   });
 
-  it('a self-or-number index converges in all three forms', () => {
+  it('a self-or-number index converges in both forms', () => {
     interface Loose {
       [key: string]: Loose | number;
     }
     const typeFirst = getRunTypeId<Loose>();
     expect(getRunTypeId(circular(record(union([self(), TF.number()]))))).toBe(typeFirst);
-    expect(
-      getRunTypeId(
-        runTypeFromJsonSchema({
-          type: 'object',
-          additionalProperties: {anyOf: [{$ref: '#'}, {type: 'number'}]},
-        } as const)
-      )
-    ).toBe(typeFirst);
     const sample: Loose = {a: 1};
     expect(getRunTypeId(sample)).toBe(typeFirst);
   });

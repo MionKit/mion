@@ -60,36 +60,6 @@ export function assertValidatorIdIntegrity(c: ValidationCase): void {
   }
 }
 
-/** runTypeFromJsonSchema validator id-integrity: the runTypeFromJsonSchema-authored form
- *  (`createValidateFn(runTypeFromJsonSchema({…}))`) and the type-first form must resolve
- *  the SAME cached factory — the same `.toBe` mechanism as
- *  `assertValidatorIdIntegrity`, applied to the THIRD authoring form. Skips
- *  factoryThrows, jsonSchemaIdDivergent (the runTypeFromJsonSchema-specific divergence
- *  set — NOT `idDivergent`, which describes the value-first form), and any case
- *  whose runTypeFromJsonSchema thunk is pending / `'not-supported'`. **/
-export function assertJsonSchemaValidatorIdIntegrity(c: ValidationCase): void {
-  if (c.factoryThrows) return;
-  if (c.jsonSchemaIdDivergent) return;
-
-  const validate = resolveThunk(c.validate);
-  const validateJsonSchema = resolveThunk(c.validateJsonSchema);
-  if (validate && validateJsonSchema) {
-    expect(
-      validateJsonSchema(),
-      `${c.title}: validate — runTypeFromJsonSchema and type-first must resolve the SAME cached factory (same structural id)`
-    ).toBe(validate());
-  }
-
-  const getValidationErrors = resolveThunk(c.getValidationErrors);
-  const getValidationErrorsJsonSchema = resolveThunk(c.getValidationErrorsJsonSchema);
-  if (getValidationErrors && getValidationErrorsJsonSchema) {
-    expect(
-      getValidationErrorsJsonSchema(),
-      `${c.title}: getValidationErrors — runTypeFromJsonSchema and type-first must resolve the SAME cached factory (same structural id)`
-    ).toBe(getValidationErrors());
-  }
-}
-
 /** DataOnly-equivalence: the validator built from `createValidateFn<DataOnly<T>>()`
  *  must produce the SAME verdicts on the case's samples as the bare-`T`
  *  validator — proving the `DataOnly` type mapping drops exactly the members
@@ -180,16 +150,6 @@ export function assertSerializerIdIntegrity(c: SerializationCase): void {
   // differ. Skip, same as the validator suite skips idDivergent.
   if (c.idDivergent) return;
   runSerializerIdIntegrity(c, c.schemaEncoder, c.schemaBinaryEncoder, 'value-first schema');
-}
-
-/** runTypeFromJsonSchema serializer id-integrity: the runTypeFromJsonSchema-authored encoders must
- *  produce output byte-identical to the type-first encoders — the serializer
- *  counterpart of `assertJsonSchemaValidatorIdIntegrity`, honoring the
- *  runTypeFromJsonSchema-specific `jsonSchemaIdDivergent` flag. **/
-export function assertJsonSchemaSerializerIdIntegrity(c: SerializationCase): void {
-  if (c.roundTripBestEffort) return;
-  if (c.jsonSchemaIdDivergent) return;
-  runSerializerIdIntegrity(c, c.jsonSchemaEncoder, c.jsonSchemaBinaryEncoder, 'jsonSchema');
 }
 
 /** Shared byte-identity core for the two authoring-form serializer drivers:

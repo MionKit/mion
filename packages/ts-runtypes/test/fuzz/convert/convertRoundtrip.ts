@@ -7,9 +7,8 @@
 //   getRunTypeId probe per declaration, in BOTH call shapes for the root)
 //     → spawn the REAL `ts-runtypes convert` binary over a REAL temp project
 //       (the shipped dist package on disk, the same posture a consumer has)
-//     → walk a RANDOMIZED chain of intermediate forms — builders and
-//       json-schema in random order and length — always starting and ending
-//       at the type form (the generator only speaks types)
+//     → walk a chain of intermediate builders legs — always starting and
+//       ending at the type form (the generator only speaks types)
 //     → after EVERY leg, re-resolve the probes and assert every declaration
 //       kept its structural id (the C2 oracle, per leg)
 //     → run a SECOND independently-randomized chain from the first chain's
@@ -49,7 +48,7 @@ import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver
 export {hasBinary};
 
 /** The convert lane's generation space: the wild space plus the structural
- *  JSON Schema surface and labeled tuples — everything the converter ships.
+ *  format surface and labeled tuples — everything the converter ships.
  *  Shapes the converter REFUSES BY DESIGN are filtered out per iteration
  *  (see isConvertibleShape), not silently under-generated. **/
 export const CONVERT_GEN_OPTIONS: GenOptions = {
@@ -175,7 +174,7 @@ export function destroyConvertProject(project: ConvertProject): void {
   fs.rmSync(project.dir, {recursive: true, force: true});
 }
 
-export type ConvertTarget = 'type' | 'builders' | 'json-schema';
+export type ConvertTarget = 'type' | 'builders';
 
 /** Run one CLI conversion leg over the project's src/main.ts. Throws with the
  *  full context on any non-zero exit (a refusal diagnostic, a crash). **/
@@ -222,18 +221,11 @@ export async function scanProbeIds(
 
 // --- the randomized chain ----------------------------------------------------
 
-/** A random intermediate walk: 1–3 steps over {builders, json-schema} with no
- *  immediate repeats (a same-form leg is a byte no-op skip), closed by the
- *  type form. **/
+/** The intermediate walk: with two forms shipping, every chain is one
+ *  builders leg closed by the type form (a same-form leg is a byte no-op
+ *  skip, so no longer walks exist). **/
 export function randomChain(): ConvertTarget[] {
-  const middles: ConvertTarget[] = [];
-  const count = 1 + Math.floor(Math.random() * 3);
-  const pool: ConvertTarget[] = ['builders', 'json-schema'];
-  for (let i = 0; i < count; i++) {
-    const options = pool.filter((target) => target !== middles[middles.length - 1]);
-    middles.push(options[Math.floor(Math.random() * options.length)]);
-  }
-  return [...middles, 'type'];
+  return ['builders', 'type'];
 }
 
 export interface ChainResult {
@@ -279,19 +271,13 @@ export interface ConvertFuzzReport {
 
 /** The designed CNV001 refusals the generated space can legitimately reach —
  *  each is a documented loud lane, not a bug: recursive types inside embedded
- *  type expressions (no self-reference spelling inside embedType/getRunType
- *  text), and an exclusive union whose branch tuple rides a PRIMITIVE arm
- *  inside a cycle — the one shape whose base TypeScript cannot separate from
- *  the sentinel intersection, so `RT.circular` cannot carry the payload across
- *  the knot (docs/done/circular-brand-substitution.md; every other
- *  container-level payload inside a recursive type converts). Anything else is
- *  a failure. **/
+ *  type expressions (no self-reference spelling inside getRunType text).
+ *  Anything else is a failure. **/
 const EXPECTED_REFUSALS = [
   /self-referential type inside an embedded type expression/,
-  /an exclusive union \(oneOf\) with a (primitive|Date or RegExp) branch inside a recursive type/,
-  // A tuple slot is instantiated EAGERLY, so neither `RT.circular` nor a
-  // `{$ref: '#'}` back-reference can tie the knot there — the type form is the
-  // only one that carries `type Pair = [number, Pair]`
+  // A tuple slot is instantiated EAGERLY, so `RT.circular` cannot tie the
+  // knot there — the type form is the only one that carries
+  // `type Pair = [number, Pair]`
   // (packages/ts-runtypes/test/features/unsupported-conversion.test.ts).
   /cycle that closes on a tuple slot/,
 ];

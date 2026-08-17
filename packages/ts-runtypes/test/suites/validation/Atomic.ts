@@ -8,22 +8,17 @@ import {
   type DataOnly,
 } from '@ts-runtypes/core';
 import * as RT from '@ts-runtypes/core/builders';
-import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';
 import {deserializeValidate, deserializeGetValidationErrors} from '../../util/deserializeRTFunctions.ts';
 
 export const ATOMIC = {
   any: {
     title: 'Any',
     description: 'The `any` keyword produces a no-op validator that accepts every value.',
-    validateNotes: [
-      'No-op validator — every value passes. Equivalent to `() => true`.',
-      'JSON Schema: the always-true schema (true / {}) recovers `unknown`, not `any` — the unknown case covers that spelling.',
-    ],
+    validateNotes: ['No-op validator — every value passes. Equivalent to `() => true`.'],
     validate: () => createValidateFn<any>(),
     standardSchema: () => createStandardSchema<any>(),
     validateDataOnly: () => createValidateFn<DataOnly<any>>(),
     validateSchema: () => createValidateFn(RT.any()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<any>(),
     validateReflect: () => {
       const v: any = null;
@@ -36,7 +31,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<any>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<any>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.any()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<any>(),
     getValidationErrorsReflect: () => {
       const v: any = null;
@@ -64,7 +58,6 @@ export const ATOMIC = {
       'The `bigint` primitive uses a strict typeof gate, so plain numbers including Infinity and -Infinity are rejected.',
     validateNotes: [
       'Strict `typeof === "bigint"`. Plain `number` values (including `Infinity` / `-Infinity`) are rejected — `42` is not `42n`.',
-      'JSON Schema: JSON has no bigint; the {type: "integer", format: "int64"} OpenAPI idiom is deliberately out of scope.',
     ],
     validate: () => createValidateFn<bigint>(),
     standardSchema: () => createStandardSchema<bigint>(),
@@ -85,7 +78,6 @@ export const ATOMIC = {
     ],
     validateDataOnly: () => createValidateFn<DataOnly<bigint>>(),
     validateSchema: () => createValidateFn(TF.bigInt()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<bigint>(),
     validateReflect: () => {
       const v: bigint = 1n;
@@ -98,7 +90,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<bigint>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<bigint>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.bigInt()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<bigint>(),
     getValidationErrorsReflect: () => {
       const v: bigint = 1n;
@@ -137,7 +128,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<boolean>(),
     validateDataOnly: () => createValidateFn<DataOnly<boolean>>(),
     validateSchema: () => createValidateFn(RT.boolean()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'boolean'})),
     deserializeValidate: () => deserializeValidate<boolean>(),
     validateReflect: () => {
       const v: boolean = true;
@@ -150,7 +140,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<boolean>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<boolean>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.boolean()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'boolean'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<boolean>(),
     getValidationErrorsReflect: () => {
       const v: boolean = true;
@@ -185,13 +174,11 @@ export const ATOMIC = {
     validateNotes: [
       'Must be an actual Date instance (instanceof Date).',
       'Invalid Date instances are rejected — e.g., `new Date("not-a-date")` or `new Date(NaN)`, whose `.getTime()` returns NaN.',
-      'JSON Schema: native Date is an instance type with no schema INPUT spelling (format: "date" recovers the ISO string brand instead).',
     ],
     validate: () => createValidateFn<Date>(),
     standardSchema: () => createStandardSchema<Date>(),
     validateDataOnly: () => createValidateFn<DataOnly<Date>>(),
     validateSchema: () => createValidateFn(TF.date()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<Date>(),
     validateReflect: () => {
       const v: Date = new Date();
@@ -204,7 +191,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<Date>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<Date>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.date()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<Date>(),
     getValidationErrorsReflect: () => {
       const v: Date = new Date();
@@ -233,7 +219,6 @@ export const ATOMIC = {
     validateNotes: [
       'Validator accepts the underlying enum VALUES (0, "green", 2 for Color {Red, Green="green", Blue=2}).',
       'Enum member NAMES as strings ("Red", "Green", "Blue") are NOT accepted — these are TS-only handles, not runtime values.',
-      'JSON Schema: enum recovers the literal-value union — same nominal-vs-structural divergence the value-first form has (idDivergent).',
     ],
     // The value-first `RT.enum(Color)` carries the enum's value-UNION (kind union),
     // while the type-first `createValidateFn<Color>()` is the named `KindEnum`: they
@@ -241,7 +226,6 @@ export const ATOMIC = {
     // builder can't reconstruct the nominal enum's member-name metadata). See the
     // enum builder doc in src/builders/atomic.ts.
     idDivergent: true,
-    jsonSchemaIdDivergent: true,
     validate: () => {
       enum Color {
         Red,
@@ -274,7 +258,6 @@ export const ATOMIC = {
       }
       return createValidateFn(RT.enum(Color));
     },
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({enum: [0, 'green', 2]})),
     deserializeValidate: () => {
       enum Color {
         Red,
@@ -325,7 +308,6 @@ export const ATOMIC = {
       }
       return createGetValidationErrorsFn(RT.enum(Color));
     },
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({enum: [0, 'green', 2]})),
     deserializeGetValidationErrors: () => {
       enum Color {
         Red,
@@ -401,7 +383,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<2>(),
     validateDataOnly: () => createValidateFn<DataOnly<2>>(),
     validateSchema: () => createValidateFn(RT.literal(2)),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: 2})),
     deserializeValidate: () => deserializeValidate<2>(),
     validateReflect: () => {
       const v = 2 as const;
@@ -414,7 +395,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<2>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<2>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(2)),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: 2})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<2>(),
     getValidationErrorsReflect: () => {
       const v = 2 as const;
@@ -446,7 +426,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<'a'>(),
     validateDataOnly: () => createValidateFn<DataOnly<'a'>>(),
     validateSchema: () => createValidateFn(RT.literal('a')),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: 'a'})),
     deserializeValidate: () => deserializeValidate<'a'>(),
     validateReflect: () => {
       const v = 'a' as const;
@@ -459,7 +438,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<'a'>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<'a'>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal('a')),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: 'a'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<'a'>(),
     getValidationErrorsReflect: () => {
       const v = 'a' as const;
@@ -493,7 +471,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<true>(),
     validateDataOnly: () => createValidateFn<DataOnly<true>>(),
     validateSchema: () => createValidateFn(RT.literal(true)),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: true})),
     deserializeValidate: () => deserializeValidate<true>(),
     validateReflect: () => {
       const v = true as const;
@@ -506,7 +483,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<true>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<true>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(true)),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: true})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<true>(),
     getValidationErrorsReflect: () => {
       const v = true as const;
@@ -533,15 +509,11 @@ export const ATOMIC = {
   literal_1n: {
     title: 'BigInt literal',
     description: 'The bigint literal type `1n` is matched by strict `===`, so the number 1 fails.',
-    validateNotes: [
-      'Strict === equality with the bigint literal. The number 1 and the string "1n" do NOT satisfy 1n.',
-      'JSON Schema: JSON has no bigint, so a bigint literal like 1n has no const spelling.',
-    ],
+    validateNotes: ['Strict === equality with the bigint literal. The number 1 and the string "1n" do NOT satisfy 1n.'],
     validate: () => createValidateFn<1n>(),
     standardSchema: () => createStandardSchema<1n>(),
     validateDataOnly: () => createValidateFn<DataOnly<1n>>(),
     validateSchema: () => createValidateFn(RT.literal(1n)),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<1n>(),
     validateReflect: () => {
       const v = 1n as const;
@@ -554,7 +526,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<1n>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<1n>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(1n)),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<1n>(),
     getValidationErrorsReflect: () => {
       const v = 1n as const;
@@ -588,7 +559,6 @@ export const ATOMIC = {
       'A symbol literal is matched by its `description` rather than unique-symbol identity, per the reference semantics.',
     validateNotes: [
       'TS DIVERGENCE: Symbol literal types are matched by `description`, not by unique-symbol identity. A different `Symbol("hello")` instance with the same description WILL satisfy the type. Strict TS treats each `typeof sym` as a unique-symbol referring to that exact value.',
-      'JSON Schema: symbols are not JSON data — a symbol literal has no schema spelling.',
     ],
     validate: () => {
       const sym = Symbol('hello');
@@ -605,7 +575,6 @@ export const ATOMIC = {
     // No value-first builder for a unique-symbol literal (matched by description);
     // `RT.symbol()` is the bare-symbol kind, which is unsupported at root anyway.
     validateSchema: 'not-supported',
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
       return deserializeValidate<typeof sym>();
@@ -629,7 +598,6 @@ export const ATOMIC = {
       return createGetValidationErrorsFn<DataOnly<typeof sym>>();
     },
     getValidationErrorsSchema: 'not-supported',
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
       return deserializeGetValidationErrors<typeof sym>();
@@ -678,7 +646,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<never>(),
     validateDataOnly: () => createValidateFn<DataOnly<never>>(),
     validateSchema: () => createValidateFn(RT.never()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema(false)),
     deserializeValidate: () => deserializeValidate<never>(),
     validateReflect: () => {
       const v: never = null as never;
@@ -691,7 +658,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<never>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<never>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.never()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema(false)),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<never>(),
     getValidationErrorsReflect: () => {
       const v: never = null as never;
@@ -734,7 +700,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<null>(),
     validateDataOnly: () => createValidateFn<DataOnly<null>>(),
     validateSchema: () => createValidateFn(RT.literal(null)),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'null'})),
     deserializeValidate: () => deserializeValidate<null>(),
     validateReflect: () => {
       const v: null = null;
@@ -747,7 +712,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<null>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<null>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(null)),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'null'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<null>(),
     getValidationErrorsReflect: () => {
       const v: null = null;
@@ -790,7 +754,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<number>(),
     validateDataOnly: () => createValidateFn<DataOnly<number>>(),
     validateSchema: () => createValidateFn(TF.number()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'number'})),
     deserializeValidate: () => deserializeValidate<number>(),
     validateReflect: () => {
       const v: number = 42;
@@ -803,7 +766,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<number>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<number>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.number()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'number'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<number>(),
     getValidationErrorsReflect: () => {
       const v: number = 42;
@@ -848,7 +810,6 @@ export const ATOMIC = {
     // No value-first builder for the TS `object` primitive (any non-null
     // non-primitive) — `RT.object(...)` is the shape composer, a different kind.
     validateSchema: 'not-supported',
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'object'})),
     deserializeValidate: () => deserializeValidate<object>(),
     validateReflect: () => {
       const v: object = {};
@@ -861,7 +822,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<object>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<object>>(),
     getValidationErrorsSchema: 'not-supported',
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'object'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<object>(),
     getValidationErrorsReflect: () => {
       const v: object = {};
@@ -879,16 +839,6 @@ export const ATOMIC = {
     getSamples: () => ({
       valid: [{}, {a: 42, b: 'hello'}, [], new Date(), /abc/],
       invalid: [null, undefined, 42, 'hello', true, Symbol()],
-    }),
-    // JSON Schema's object kind is NOT the TS `object` primitive: the schema
-    // door translates `{type: 'object'}` to Record<string, unknown> (the
-    // record check), so arrays and class instances are REJECTED per 2020-12
-    // while the type-first form above accepts them. Deliberate divergence —
-    // both flags below pair up.
-    jsonSchemaIdDivergent: true,
-    getJsonSchemaSamples: () => ({
-      valid: [{}, {a: 42, b: 'hello'}],
-      invalid: [null, undefined, 42, 'hello', true, Symbol(), [], new Date(), /abc/],
     }),
     // The bare `object` primitive (protocol.KindObject) reuses the `objectLiteral`
     // emit token — there is NO distinct `object`/`nonNullObject` token. The gate
@@ -911,13 +861,11 @@ export const ATOMIC = {
     validateNotes: [
       'Must be an actual RegExp instance (`instanceof RegExp`). A string like `"/abc/"` does NOT satisfy.',
       'The getValidationErrors and mockType REFLECT forms are not supported: a reflect value `const v: RegExp = /abc/` narrows to the literal-regex type `/abc/`, dispatching to the regexp-literal arm — getValidationErrors would then report `expected: "literal"` instead of `"regexp"`, and mockType would resolve a regexp-literal runtype. The validate reflect forms survive because the validator body coincides on the samples; only the kindname-reporting paths diverge.',
-      'JSON Schema: a RegExp instance is not JSON data, so it has no schema INPUT spelling (the pattern keyword constrains strings, not RegExp values).',
     ],
     validate: () => createValidateFn<RegExp>(),
     standardSchema: () => createStandardSchema<RegExp>(),
     validateDataOnly: () => createValidateFn<DataOnly<RegExp>>(),
     validateSchema: () => createValidateFn(RT.regexp()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<RegExp>(),
     validateReflect: () => {
       const v: RegExp = /abc/;
@@ -930,7 +878,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<RegExp>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<RegExp>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<RegExp>(),
     // Reflect forms for the kindname-reporting paths are deliberately opted out
     // (see validateNotes): `const v: RegExp = /abc/` narrows to the literal-regex
@@ -961,7 +908,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<string>(),
     validateDataOnly: () => createValidateFn<DataOnly<string>>(),
     validateSchema: () => createValidateFn(TF.string()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({type: 'string'})),
     deserializeValidate: () => deserializeValidate<string>(),
     validateReflect: () => {
       const v: string = 'hello';
@@ -974,7 +920,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<string>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<string>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(TF.string()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({type: 'string'})),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<string>(),
     getValidationErrorsReflect: () => {
       const v: string = 'hello';
@@ -1006,7 +951,6 @@ export const ATOMIC = {
     description: 'The bare `symbol` primitive is unsupported at root, so the factory throws on first call.',
     validateNotes: [
       'Symbol at root is unsupported — identity does not survive across realms or round-trips, so a `typeof === "symbol"` check would give false confidence. The Go pipeline renders the factory as alwaysThrow (codes VL002 / VE002 / IS002), and the very first `createXxx<symbol>()` call throws.',
-      'JSON Schema: symbols are not JSON data — no schema spelling exists.',
     ],
     validate: () => createValidateFn<symbol>(),
     standardSchema: () => createStandardSchema<symbol>(),
@@ -1014,7 +958,6 @@ export const ATOMIC = {
     // Bare symbol is unsupported at root — the value-first `RT.symbol()` resolves
     // the same alwaysThrow factory, so this thunk throws like the type-first form.
     validateSchema: () => createValidateFn(RT.symbol()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<symbol>(),
     validateReflect: () => {
       const v: symbol = Symbol();
@@ -1027,7 +970,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<symbol>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<symbol>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<symbol>(),
     getValidationErrorsReflect: () => {
       const v: symbol = Symbol();
@@ -1049,15 +991,11 @@ export const ATOMIC = {
   undefined: {
     title: 'Undefined',
     description: 'A strict `=== undefined` check treats undefined as distinct from null and other falsy values.',
-    validateNotes: [
-      'Strict === undefined check. `null`, `0`, `""`, `false`, `{}`, `[]` are all rejected.',
-      'JSON Schema: undefined is not JSON data — JSON Schema has no spelling for it (type: "null" recovers null, a distinct type).',
-    ],
+    validateNotes: ['Strict === undefined check. `null`, `0`, `""`, `false`, `{}`, `[]` are all rejected.'],
     validate: () => createValidateFn<undefined>(),
     standardSchema: () => createStandardSchema<undefined>(),
     validateDataOnly: () => createValidateFn<DataOnly<undefined>>(),
     validateSchema: () => createValidateFn(RT.literal(undefined)),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<undefined>(),
     validateReflect: () => {
       const v: undefined = undefined;
@@ -1070,7 +1008,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<undefined>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<undefined>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(undefined)),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<undefined>(),
     getValidationErrorsReflect: () => {
       const v: undefined = undefined;
@@ -1106,13 +1043,11 @@ export const ATOMIC = {
     description: 'The `void` type validates like undefined, accepting undefined and a bare function return but rejecting null.',
     validateNotes: [
       'TS DIVERGENCE: `void` validates like `undefined` — it accepts `undefined` (and a bare `(): void => {}` return) but rejects `null`, unlike a `null | undefined` type.',
-      'JSON Schema: void validates like undefined, which is not JSON data — no schema spelling exists.',
     ],
     validate: () => createValidateFn<void>(),
     standardSchema: () => createStandardSchema<void>(),
     validateDataOnly: () => createValidateFn<DataOnly<void>>(),
     validateSchema: () => createValidateFn(RT.void()),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<void>(),
     validateReflect: () => {
       const v: void = undefined;
@@ -1125,7 +1060,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<void>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<void>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.void()),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<void>(),
     getValidationErrorsReflect: () => {
       const v: void = undefined;
@@ -1171,7 +1105,6 @@ export const ATOMIC = {
     // (noLiterals keeps the literal's structural id and folds into the variant
     // key; it does NOT degrade to `number`'s id before hashing.)
     validateSchema: () => createValidateFn(RT.literal(2), {noLiterals: true}),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: 2}), {noLiterals: true}),
     deserializeValidate: () => deserializeValidate<2>(undefined, {noLiterals: true}),
     validateReflect: () => {
       const v = 2 as const;
@@ -1184,7 +1117,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<2>(undefined, {noLiterals: true}),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<2>>(undefined, {noLiterals: true}),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(2), {noLiterals: true}),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: 2}), {noLiterals: true}),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<2>(undefined, {noLiterals: true}),
     getValidationErrorsReflect: () => {
       const v = 2 as const;
@@ -1217,7 +1149,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<'a'>(undefined, {noLiterals: true}),
     validateDataOnly: () => createValidateFn<DataOnly<'a'>>(undefined, {noLiterals: true}),
     validateSchema: () => createValidateFn(RT.literal('a'), {noLiterals: true}),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: 'a'}), {noLiterals: true}),
     deserializeValidate: () => deserializeValidate<'a'>(undefined, {noLiterals: true}),
     validateReflect: () => {
       const v = 'a' as const;
@@ -1230,7 +1161,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<'a'>(undefined, {noLiterals: true}),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<'a'>>(undefined, {noLiterals: true}),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal('a'), {noLiterals: true}),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: 'a'}), {noLiterals: true}),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<'a'>(undefined, {noLiterals: true}),
     getValidationErrorsReflect: () => {
       const v = 'a' as const;
@@ -1259,7 +1189,6 @@ export const ATOMIC = {
     description: 'With `{noLiterals: true}` the RegExp literal degrades to `RegExp`, using an instanceof check.',
     validateNotes: [
       '`{noLiterals: true}` degrades the literal to its base type `RegExp`. Any RegExp instance passes (constructor form `new RegExp(...)` included); source + flags are no longer matched.',
-      'JSON Schema: the literal degrades to RegExp, an instance type that is not JSON data — no schema spelling exists.',
     ],
     validate: () => {
       const reg = /abc/i;
@@ -1277,7 +1206,6 @@ export const ATOMIC = {
     // resolve the `itNL_<regexp id>` variant. (No RegExp-literal kind exists since
     // PR #76, so `typeof /abc/i` is plain `RegExp` — `RT.regexp()` is the match.)
     validateSchema: () => createValidateFn(RT.regexp(), {noLiterals: true}),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       const reg = /abc/i;
       return deserializeValidate<typeof reg>(undefined, {noLiterals: true});
@@ -1301,7 +1229,6 @@ export const ATOMIC = {
       return createGetValidationErrorsFn<DataOnly<typeof reg>>(undefined, {noLiterals: true});
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.regexp(), {noLiterals: true}),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const reg = /abc/i;
       return deserializeGetValidationErrors<typeof reg>(undefined, {noLiterals: true});
@@ -1343,7 +1270,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<true>(undefined, {noLiterals: true}),
     validateDataOnly: () => createValidateFn<DataOnly<true>>(undefined, {noLiterals: true}),
     validateSchema: () => createValidateFn(RT.literal(true), {noLiterals: true}),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema({const: true}), {noLiterals: true}),
     deserializeValidate: () => deserializeValidate<true>(undefined, {noLiterals: true}),
     validateReflect: () => {
       const v = true as const;
@@ -1356,7 +1282,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<true>(undefined, {noLiterals: true}),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<true>>(undefined, {noLiterals: true}),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(true), {noLiterals: true}),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema({const: true}), {noLiterals: true}),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<true>(undefined, {noLiterals: true}),
     getValidationErrorsReflect: () => {
       const v = true as const;
@@ -1386,13 +1311,11 @@ export const ATOMIC = {
     description: 'With `{noLiterals: true}` the bigint literal degrades to `bigint`, using a typeof check.',
     validateNotes: [
       '`{noLiterals: true}` degrades the literal to its base type `bigint`. Any bigint passes; the number `1` does NOT.',
-      'JSON Schema: the literal degrades to bigint, which JSON lacks — no schema spelling exists.',
     ],
     validate: () => createValidateFn<1n>(undefined, {noLiterals: true}),
     standardSchema: () => createStandardSchema<1n>(undefined, {noLiterals: true}),
     validateDataOnly: () => createValidateFn<DataOnly<1n>>(undefined, {noLiterals: true}),
     validateSchema: () => createValidateFn(RT.literal(1n), {noLiterals: true}),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => deserializeValidate<1n>(undefined, {noLiterals: true}),
     validateReflect: () => {
       const v = 1n as const;
@@ -1405,7 +1328,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<1n>(undefined, {noLiterals: true}),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<1n>>(undefined, {noLiterals: true}),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.literal(1n), {noLiterals: true}),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<1n>(undefined, {noLiterals: true}),
     getValidationErrorsReflect: () => {
       const v = 1n as const;
@@ -1435,7 +1357,6 @@ export const ATOMIC = {
     description: 'With `{noLiterals: true}` the symbol literal degrades to bare symbol, which is unsupported at root.',
     validateNotes: [
       '`{noLiterals: true}` degrades the literal to its base type `symbol`, which is unsupported at root (see the `symbol` case above). The factory is rendered as alwaysThrow; the first `createXxx<typeof sym>()` call throws.',
-      'JSON Schema: the literal degrades to bare symbol, which is not JSON data — no schema spelling exists.',
     ],
     validate: () => {
       const sym = Symbol('hello');
@@ -1452,7 +1373,6 @@ export const ATOMIC = {
     // Degrades to bare symbol (unsupported at root) — `RT.symbol()` resolves the
     // same alwaysThrow factory, so the schema thunk throws like the type-first form.
     validateSchema: () => createValidateFn(RT.symbol(), {noLiterals: true}),
-    validateJsonSchema: 'not-supported',
     deserializeValidate: () => {
       const sym = Symbol('hello');
       return deserializeValidate<typeof sym>(undefined, {noLiterals: true});
@@ -1476,7 +1396,6 @@ export const ATOMIC = {
       return createGetValidationErrorsFn<DataOnly<typeof sym>>(undefined, {noLiterals: true});
     },
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.symbol(), {noLiterals: true}),
-    getValidationErrorsJsonSchema: 'not-supported',
     deserializeGetValidationErrors: () => {
       const sym = Symbol('hello');
       return deserializeGetValidationErrors<typeof sym>(undefined, {noLiterals: true});
@@ -1517,7 +1436,6 @@ export const ATOMIC = {
     standardSchema: () => createStandardSchema<unknown>(),
     validateDataOnly: () => createValidateFn<DataOnly<unknown>>(),
     validateSchema: () => createValidateFn(RT.unknown()),
-    validateJsonSchema: () => createValidateFn(runTypeFromJsonSchema(true)),
     deserializeValidate: () => deserializeValidate<unknown>(),
     validateReflect: () => {
       const v: unknown = null;
@@ -1530,7 +1448,6 @@ export const ATOMIC = {
     getValidationErrors: () => createGetValidationErrorsFn<unknown>(),
     getValidationErrorsDataOnly: () => createGetValidationErrorsFn<DataOnly<unknown>>(),
     getValidationErrorsSchema: () => createGetValidationErrorsFn(RT.unknown()),
-    getValidationErrorsJsonSchema: () => createGetValidationErrorsFn(runTypeFromJsonSchema(true)),
     deserializeGetValidationErrors: () => deserializeGetValidationErrors<unknown>(),
     getValidationErrorsReflect: () => {
       const v: unknown = null;

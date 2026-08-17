@@ -42,7 +42,7 @@ export function soakSeed(): number {
 
 /** Ceiling on the share of runs a lane's TS-validity gate may suppress.
  *
- *  Both `type/typeFuzzRunner.ts` and the json-schema lane DISCARD every
+ *  `type/typeFuzzRunner.ts` DISCARDS every
  *  violation recorded for a generated type that fails a TypeScript re-check —
  *  sound, because tsgo is lenient and still produces a RunType for input that
  *  does not compile, so a violation there is a generator false positive rather
@@ -68,8 +68,3 @@ export const FLAKE_CEILING = 0.25;
  *  regression leaves the lane turning its loop while asserting almost nothing.
  *  Set well under the observed rate. **/
 export const STRONG_ORACLE_FLOOR = 0.1;
-
-/** Floor on the share of json-schema fixtures whose two reflection sites were
- *  actually compared. Every fixture should reach the comparison, so this is set
- *  just low enough to tolerate the occasional scan timeout. **/
-export const COMPARISON_FLOOR = 0.9;

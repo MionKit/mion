@@ -23,10 +23,8 @@ export const DATETIME = {
   date: {
     title: 'date',
     description: 'Root `Date` round-trips across JSON and binary, returning a real Date instance on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes Date to an ISO string and revives it with `new Date(...)`; binary stores the epoch as a fixed 8-byte float64 of `getTime()`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Date>(undefined, {strategy: 'direct'}),
@@ -40,10 +38,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TF.date()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TF.date()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TF.date()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     // Span whole-second, sub-second ms precision, the Unix epoch (getTime 0),
     // and a pre-1970 (negative epoch) date.
     getTestData: () => ({
@@ -62,10 +56,8 @@ export const DATETIME = {
     title: 'Temporal.Instant',
     description:
       'Root `Temporal.Instant`, an exact point on the timeline, round-trips across JSON and binary, returning a real Instant on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes via `Instant.toJSON()` (UTC instant string) and revives with `Temporal.Instant.from(...)`; equality is canonical-string compare since Instants have no enumerable own keys.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Temporal.Instant>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.Instant>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.Instant>(undefined, {strategy: 'direct'}),
@@ -79,10 +71,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.instant()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.instant()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.instant()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.Instant.from('2020-01-15T10:30:00Z'), T.Instant.fromEpochMilliseconds(0)]}),
   },
 
@@ -90,10 +78,8 @@ export const DATETIME = {
     title: 'Temporal.ZonedDateTime',
     description:
       'Root `Temporal.ZonedDateTime`, an instant plus time zone and calendar, round-trips across JSON and binary, returning a real ZonedDateTime on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes via `toJSON()` (a `...[TimeZone]` string carrying the zone) and revives with `Temporal.ZonedDateTime.from(...)`; the time-zone annotation is preserved through the round-trip.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.ZonedDateTime>(undefined, {strategy: 'direct'}),
@@ -107,10 +93,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.zonedDateTime()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.zonedDateTime()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.zonedDateTime()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.ZonedDateTime.from('2020-01-15T10:30:00[UTC]')]}),
   },
 
@@ -118,10 +100,7 @@ export const DATETIME = {
     title: 'Temporal.PlainDate',
     description:
       'Root `Temporal.PlainDate`, a calendar date with no time or zone, round-trips across JSON and binary, returning a real PlainDate on decode.',
-    serializeNotes: [
-      'JSON serializes via `toJSON()` (a `YYYY-MM-DD` string) and revives with `Temporal.PlainDate.from(...)`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'JSON serializes via `toJSON()` (a `YYYY-MM-DD` string) and revives with `Temporal.PlainDate.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainDate>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainDate>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.PlainDate>(undefined, {strategy: 'direct'}),
@@ -135,10 +114,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.plainDate()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainDate()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainDate()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.PlainDate.from('2020-08-24'), T.PlainDate.from('1999-01-01')]}),
   },
 
@@ -146,10 +121,7 @@ export const DATETIME = {
     title: 'Temporal.PlainTime',
     description:
       'Root `Temporal.PlainTime`, a wall-clock time with no date or zone, round-trips across JSON and binary, returning a real PlainTime on decode.',
-    serializeNotes: [
-      'JSON serializes via `toJSON()` (an `HH:MM:SS` string) and revives with `Temporal.PlainTime.from(...)`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'JSON serializes via `toJSON()` (an `HH:MM:SS` string) and revives with `Temporal.PlainTime.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainTime>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainTime>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.PlainTime>(undefined, {strategy: 'direct'}),
@@ -163,10 +135,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.plainTime()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainTime()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainTime()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.PlainTime.from('19:39:09'), T.PlainTime.from('00:00:00')]}),
   },
 
@@ -174,10 +142,8 @@ export const DATETIME = {
     title: 'Temporal.PlainDateTime',
     description:
       'Root `Temporal.PlainDateTime`, a date and time with no zone, round-trips across JSON and binary, returning a real PlainDateTime on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes via `toJSON()` (a `YYYY-MM-DDTHH:MM:SS` string) and revives with `Temporal.PlainDateTime.from(...)`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.PlainDateTime>(undefined, {strategy: 'direct'}),
@@ -191,10 +157,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.plainDateTime()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainDateTime()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainDateTime()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.PlainDateTime.from('1995-12-07T15:00:00')]}),
   },
 
@@ -202,10 +164,7 @@ export const DATETIME = {
     title: 'Temporal.PlainYearMonth',
     description:
       'Root `Temporal.PlainYearMonth`, a year and month with no day, round-trips across JSON and binary, returning a real PlainYearMonth on decode.',
-    serializeNotes: [
-      'JSON serializes via `toJSON()` (a `YYYY-MM` string) and revives with `Temporal.PlainYearMonth.from(...)`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'JSON serializes via `toJSON()` (a `YYYY-MM` string) and revives with `Temporal.PlainYearMonth.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.PlainYearMonth>(undefined, {strategy: 'direct'}),
@@ -219,10 +178,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.plainYearMonth()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainYearMonth()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainYearMonth()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.PlainYearMonth.from('2020-10')]}),
   },
 
@@ -230,10 +185,7 @@ export const DATETIME = {
     title: 'Temporal.PlainMonthDay',
     description:
       'Root `Temporal.PlainMonthDay`, a month and day with no year, round-trips across JSON and binary, returning a real PlainMonthDay on decode.',
-    serializeNotes: [
-      'JSON serializes via `toJSON()` (an `MM-DD` string) and revives with `Temporal.PlainMonthDay.from(...)`.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
+    serializeNotes: 'JSON serializes via `toJSON()` (an `MM-DD` string) and revives with `Temporal.PlainMonthDay.from(...)`.',
     mutateEncoder: () => createJsonEncoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.PlainMonthDay>(undefined, {strategy: 'direct'}),
@@ -247,10 +199,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.plainMonthDay()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.plainMonthDay()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.plainMonthDay()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.PlainMonthDay.from('07-14')]}),
   },
 
@@ -258,10 +206,8 @@ export const DATETIME = {
     title: 'Temporal.Duration',
     description:
       'Root `Temporal.Duration`, a length of time rather than a point, round-trips across JSON and binary, returning a real Duration on decode.',
-    serializeNotes: [
+    serializeNotes:
       'JSON serializes via `toJSON()` (an ISO-8601 `P...` duration string) and revives with `Temporal.Duration.from(...)`; the zero-duration `PT0S` sample confirms the empty case survives.',
-      'JSON Schema: Date/Temporal instance types have no schema INPUT spelling.',
-    ],
     mutateEncoder: () => createJsonEncoderFn<Temporal.Duration>(undefined, {strategy: 'mutate'}),
     cloneEncoder: () => createJsonEncoderFn<Temporal.Duration>(undefined, {strategy: 'clone'}),
     directEncoder: () => createJsonEncoderFn<Temporal.Duration>(undefined, {strategy: 'direct'}),
@@ -275,10 +221,6 @@ export const DATETIME = {
     schemaDecoder: () => createJsonDecoderFn(TFT.duration()),
     schemaBinaryEncoder: () => createBinaryEncoderFn(TFT.duration()),
     schemaBinaryDecoder: () => createBinaryDecoderFn(TFT.duration()),
-    jsonSchemaEncoder: 'not-supported',
-    jsonSchemaDecoder: 'not-supported',
-    jsonSchemaBinaryEncoder: 'not-supported',
-    jsonSchemaBinaryDecoder: 'not-supported',
     getTestData: () => ({values: [T.Duration.from('P1Y2M10DT2H30M'), T.Duration.from('PT0S')]}),
   },
 } as const satisfies Record<string, SerializationCase>;
