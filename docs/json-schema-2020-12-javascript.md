@@ -101,14 +101,6 @@ is meaningful only in that pair (JS-PROMISE below).
 
 Every one is optional. A document using none of them is ordinary JSON Schema.
 
-**`CORE-NOT`** — there is deliberately no keyword for negation. JavaScript has no "not this type", so a negated constraint is written with the standard keyword and nothing else:
-
-```json
-{"type": "string", "not": {"format": "email"}}
-```
-
-A standard validator reads that as "a string that is not an email address", which is exactly what it means. Adding an extension spelling beside it would be inventing a second way to say one thing.
-
 **`CORE-PORTABLE`** — a *portable* document uses no extension keyword at all. The schema generator's `portable` option emits only portable documents, so a schema destined for a non-RunTypes consumer never silently depends on the extension.
 
 ---
@@ -174,8 +166,7 @@ string.
 Unlike `Map` and `Set`, this one needs its own key. Merging the annotation into
 the resolved schema in place reads better and is wrong: `Promise<Set<null>>`
 would put `jsType: "Promise"` onto a node already carrying `jsType: "Set"`, and
-two annotations cannot share a node. The fuzz generator found that on its first
-seed after negation widened it.
+two annotations cannot share a node.
 
 `undefined` and `void` are not "no wire form": they encode as JSON `null`, in an object member and in an array slot alike. Only at the top level of a document does the encoder produce the JavaScript value `undefined`, because a bare `undefined` is not a JSON document at all, and a schema is not a document position.
 
@@ -395,3 +386,5 @@ An implementation of this dialect:
 ## Relationship to RunTypes
 
 RunTypes writes this dialect through the schema generator (`createJsonSchemaFn` / `createStandardSchema`); its `portable` option strips every extension keyword.
+
+The executable twin of this spec is the conformance test at `packages/ts-runtypes/test/features/jsonSchemaDialectSpec.test.ts`: one case per rule ID, driving each type through the runtime schema generator and asserting the document the rule requires. A coverage check reads this file and fails when a declared rule has no case, and when a case tests a rule this file does not declare. A rule that is not tested does not exist.
