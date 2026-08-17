@@ -174,9 +174,9 @@ func recognizeCall(
 	if !hasInjectMarker(typeChecker, call, markerOpts) {
 		return nil
 	}
-	// A call that RETURNS a RunType is a BUILDER (`RT.optional(TF.string())`),
-	// the `getRunType<T>()` escape, or the schema door — all of them carry the
-	// injection marker too, and none of them is a conversion site: they are the
+	// A call that RETURNS a RunType is a BUILDER (`RT.optional(TF.string())`)
+	// or the `getRunType<T>()` escape — both carry the
+	// injection marker too, and neither is a conversion site: they are the
 	// value form's own vocabulary, printed by the declaration pass. Without this
 	// gate the value-form branch below matched every builder taking a RunType
 	// argument and rewrote it into `RT.optional<string>()`, overlapping the

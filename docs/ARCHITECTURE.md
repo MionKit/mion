@@ -97,14 +97,14 @@ The program has four subcommands:
 - **`enrich`** serves the enrichment workflow described below: it scaffolds the hand
   edited files, re-syncs them when a type changes, and checks them. One shot, and off the
   build path.
-- **`convert`** rewrites type declarations AND marker CALL SITES between the three
-  authoring forms — plain types, builders, JSON Schema — over the same reflection
+- **`convert`** rewrites type declarations AND marker CALL SITES between the two
+  authoring forms — plain types and builders — over the same reflection
   graph, so a conversion can
   never change a type's id (pinned per leg by chain tests, a seeded fuzz sweep and a
   canonical-graph no-info-loss oracle; `pnpm rtx core fuzz convert`). Files convert as
-  a SET: declarations that reference each other stay name references in every target
-  (`getRunType<B>()` / `embedType<B>()`), cycles close at the root (`RT.circular` +
-  `RT.self()` / `$ref: '#'` / the type's own name), imports are added and pruned, and
+  a SET: declarations that reference each other stay name references in both targets
+  (`getRunType<B>()`), cycles close at the root (`RT.circular` +
+  `RT.self()` / the type's own name), imports are added and pruned, and
   a reference to a convertible declaration outside the run errors (CNV004) — though a
   name this file simply cannot SPELL (an unexported alias, a type the graph reached
   structurally, anything behind a package import) inlines instead of refusing, since
@@ -112,36 +112,15 @@ The program has four subcommands:
   (`createValidateFn<{a: string}>()`) moves that type into the value slot the same
   factory already declares (`internal/convert/callsites.go`); a call that already
   names its type, and the reflection form over a runtime value, are left alone. Shapes
-  with no STANDARD schema spelling ride the RunTypes dialect as data, specified in full
-  by [docs/json-schema-2020-12-javascript.md](json-schema-2020-12-javascript.md) and
-  pinned rule-by-rule by `test/features/json-schema-dialect.test.ts` (one case per rule
-  ID, with a coverage check that reads the spec file itself, so a rule cannot be written
-  down and left unimplemented). The dialect EXTENDS 2020-12 rather than replacing it:
-  every keyword sits BESIDE the standard keywords describing the same node's wire form,
-  so `CORE-INERT` holds — deleting every extension keyword changes no validation verdict.
-  Nine keywords, prefixed by who defines the thing they carry: `jsType` (a JavaScript
-  value with a wire form — Date/Map/Set/Promise/RegExp/bigint/object and the 8 Temporal
-  builtins, named by their reflected format name so the published `.d.ts` never contains
-  `Temporal.`; the Promise row carries the resolved value's schema in the companion
-  keyword `jsResolved`), `rtFormat` + `rtFormatParams` (a RunTypes format family; params with a
-  standard keyword mirror onto it and only the remainder rides `rtFormatParams`), and the
-  TypeScript-only facts `tsLabels`, `tsReadonly`, `tsIndexes`, `tsTemplate`, `tsFunction`
-  and `tsMeta`. Negation is deliberately NOT a keyword: JavaScript has no "not this type"
-  and RunTypes' negation exists to model the standard `not`, so it is written with the
-  standard keyword (`CORE-NOT`). The reader's precedence is fixed (`CORE-PRECEDENCE`):
-  embedType → tsMeta → jsType → rtFormat → tsFunction/tsTemplate → standard, and when a
-  dialect keyword wins, the wire keywords beside it are descriptive only and contribute
-  no params. `--portable`, or `convertDialect: 'standard'` in the tsconfig plugin entry,
-  forbids all of them. Only shapes whose identity is a
-  NAME rather than a shape keep the `embedType` / `getRunType` escapes: enums, user
+  the builder form has no word for keep the `getRunType` escape, which carries the type
+  itself: enums, user
   classes, cross-declaration references, method / call-signature members (method-ness is
-  syntax, and a rebuilt property-typed arrow is a different member kind and id), and a
-  function with an optional or rest parameter (the door spreads the params tuple into a
-  rest parameter and the names ride an intersection on it, so the optional marker and the
-  names cannot both survive). Refusals are loud per-declaration
+  syntax, and a rebuilt property-typed arrow is a different member kind and id),
+  functions with an optional or rest parameter, template literals and bigint
+  literals. Refusals are loud per-declaration
   CNV diagnostics (unnamed cycles, a cycle closing on a tuple slot, symbol keys,
-  Temporal resolving to any, a written type name that fails to resolve — CNV008,
-  `unevaluated*` sweeps); a generic declaration is a WARNING, not an error — a
+  Temporal resolving to any, a written type name that fails to resolve — CNV008);
+  a generic declaration is a WARNING, not an error — a
   type parameter has no runtime shape, so there is nothing to convert, and its
   instantiations convert wherever they are reflected. The whole suite tree converts
   and runs in both value forms on every release gate (`pnpm rtx core
@@ -241,7 +220,19 @@ This is the largest part of the Go program.
   validation errors, several JSON strategies, binary encode and decode, unknown key
   checks, exact shape cloning, format transforms, and JSON Schema documents (the
   `jsonSchema`/`jsc` family, whose entry returns the whole document rendered by
-  `internal/schemadoc`). Each operation is one plug in module behind a shared
+  `internal/schemadoc`). The emitted documents use the RunTypes dialect specified in
+  full by [docs/json-schema-2020-12-javascript.md](json-schema-2020-12-javascript.md).
+  The dialect EXTENDS 2020-12 rather than replacing it: every extension keyword sits
+  BESIDE the standard keywords describing the same node's wire form, so deleting every
+  extension keyword changes no validation verdict (`CORE-INERT`). The keywords are
+  prefixed by who defines the thing they carry: `jsType` (a JavaScript value with a
+  wire form — Date/Map/Set/Promise/RegExp/bigint/object and the 8 Temporal builtins;
+  the Promise row carries the resolved value's schema in the companion keyword
+  `jsResolved`), `rtFormat` + `rtFormatParams` (a RunTypes format family; params with a
+  standard keyword mirror onto it and only the remainder rides `rtFormatParams`), and
+  the TypeScript-only facts `tsLabels`, `tsReadonly`, `tsIndexes`, `tsTemplate`,
+  `tsFunction` and `tsMeta`; the generator's `portable` option strips them all.
+  Each operation is one plug in module behind a shared
   interface, so adding one does not touch the walker.
 - **`typefunctions/formats/`** holds the string, number, and date and time format checks
   (email, uuid, url, patterns, Temporal types) that get spliced into the generated bodies.
@@ -380,121 +371,36 @@ small, because the specialised code is generated. What ships here is:
   type, `registerClassSerializer` to rebuild real class instances, plus hooks for custom
   formats, mock functions, and helper functions.
 
-There are three ways to describe a type, and they all meet in the same place. Type first
+There are two ways to describe a type, and they both meet in the same place. Type first
 uses plain TypeScript (`createValidateFn<User>()`). Type builders come from the
 `/builders` subpath (`RT.object({...})`, aliased as `/schema` until 1.0) and return a
-run-type, with `InferType` to get the type back out. JSON
-Schema first passes a draft 2020-12 literal from the `/json-schema` subpath
-(`createValidateFn(runTypeFromJsonSchema({...}))`) with `FromJsonSchema` to get the type back out.
-All three converge on the same structural id, so equivalent shapes resolve to the same
+run-type, with `InferType` to get the type back out.
+Both converge on the same structural id, so equivalent shapes resolve to the same
 cached factory whichever way they were written. The `/formats` subpath adds string,
 number, and date formats such as email and uuid, and `/formats/temporal` adds Temporal
 support as an opt in so nobody pays for it unintentionally.
 
-The JSON Schema form is a translation, not a second engine. The schema literal is read at
-build time and turned into the TypeScript type it denotes (constraint keywords land in the
-same format brands the other two forms use), and the resolver never sees the schema at
-all; it reflects the computed type. Keywords a type cannot express ride sentinel-encoded
-slots the intersection collapse lifts off the base — `__rtNot` (negation), `__rtContains`
+Constraints a plain type cannot spell directly ride sentinel-encoded
+slots the intersection collapse lifts off the base — `__rtContains`
 (occurrence counting), `__rtPatternProps` / `__rtPropNames` (key-scoped children),
-`__rtUnevaluated` (the `unevaluated*` evaluated-set sweep) — plus
+`__rtLabels` (tuple slot labels) — plus the format brands and
 the structural format families (formattedArray / formattedObject) for length, uniqueness,
 key-count and closedness checks, so the generated validator is exact even where the
-recovered type is the closest expressible supertype. Every one of these keywords also has
-a value-first + type-first spelling: they ride a single params bag on the collection
+visible type is the closest expressible supertype. Every one of these has
+a value-first + type-first spelling: a single params bag on the collection
 builders — `RT.array(item, {uniqueItems, contains, …})` / `RT.object(config, {minProperties,
 patternProperties, propertyNames, …})` / `RT.record(…, {…})` — and the `FormattedArray<Base, P>`
-/ `FormattedObject<Base, P>` wrapper types (formats/structural.ts), the door's exact twins.
-Every sentinel slot is a LIST with append semantics end to end: allOf-stacked
-`propertyNames` (or `unevaluated*`) arrive as one sentinel member per arm, the id fold
+/ `FormattedObject<Base, P>` wrapper types (formats/structural.ts).
+Every sentinel slot is a LIST with append semantics end to end: stacked
+entries arrive as one sentinel member each, the id fold
 appends them into a sorted tag and the serialize collapse appends the same children, so
-every arm is enforced and the id is order-free — id = behavior, never last-wins. Bare
-`minItems` (no `prefixItems` in scope) rides `FormattedArrayParams.minItems`, the same
-encoding `RT.array({minItems})` carries, so the three modes share one id; beside
-`prefixItems` the tuple keeps carrying it as required slots. Boolean subschemas are
-accepted at every schema position (2020-12 core §4.3.2), and the combinator probes admit
-them — an all-boolean `allOf` really is `never`. One arm of a multi-arm `allOf` may carry
-`oneOf`: the other arms push into each branch (the base holds uniformly, so the
-exactly-one count is unchanged), never-branches filter out of the carrier, and a second
-exclusivity carrier still resolves `never` (loud). The mixed
-`properties` + schema-valued `additionalProperties` form keeps its EXACT index type on
-purpose — the recovered type is the validator's source, and TypeScript cannot spell
-"every key except the declared ones" — so the admitting projection lives in the clean
-types below, never in the reflected type.
-Closedness is derived from the shape rather than hand-authored. Two emit-side rules keep the translation honest where the recovered type alone would not: a key matched by a sibling `__rtPatternProps` entry is EXEMPT from the index signature a schema-valued `additionalProperties` lowers to (2020-12: a matched key is not "additional"), the pattern twin of the long-standing sibling-named-key skip; and a REQUIRED member whose type imposes no value check (`unknown` / `any`) still emits a PRESENCE check, since `{}` is not assignable to `{foo: unknown}` — without it the slot leaves the AND chain and the member silently turns optional, which also breaks the weak-type gate's "one required prop already enforces presence" shortcut. The collapse also merges TUPLE ∩
-TUPLE intersections slot-wise (the shape allOf-over-prefixItems produces; boolean slot
-schemas ride along — `true` pads, `false` forbids the position): unknown sides defer,
-id-equal sides collapse, the length window intersects, and the merged node is
-indistinguishable from the equivalent hand-written tuple — while a genuine slot conflict
-or impossible length window projects `never` (over-rejects; a silent noop validator is
-the one forbidden outcome). A plain ARRAY joins the same merge as a tuple with no fixed
-slots and an open tail of its element type, which is what `prefixItems` in one applicator
-meeting `items` in another lowers to. Slots the two sides constrain DIFFERENTLY get one
-more chance before the conflict verdict: they fold ARM BY ARM (a type-less schema keyword
-denotes the six-kind union, so both sides are unions differing in one arm), identical arms
-pass through, same-base arms merge their format annotations through the same
-`MergeFormatAnnotations` that tightens bounds and folds `multipleOf` by least common
-multiple, and a pair the fold cannot express is DROPPED — which narrows the slot, keeping
-the failure direction over-rejection. The fold verdict is computed once, in the shared
-`typeid` package, so both collapse halves reach it identically; every slot that reaches it
-used to project `never`, so no id that resolves without it can move.
-
-`unevaluatedProperties` / `unevaluatedItems` are METADATA ONLY, and that is the whole
-design. The recovered type never changes shape for them: an object carrying the keyword is
-the same object type it would be without it, an array the same array. What the keyword
-asserts rides the `__rtUnevaluated` sentinel — the unconditionally evaluated key set (or
-prefix) plus one guarded group per conditional contributor: a passing `anyOf` / `oneOf`
-arm, an `if` with or without branches, a `dependentSchemas` trigger key, a `contains`
-match. The emit sweeps the members against it; the object side sweeps keys with `for…in`,
-the array side raises a prefix watermark per passing group and skips `contains`-matched
-indexes past it. Both splices are gated on the node kind (the payload is shared by the two
-families), and the two collapse halves must lift it identically or a cache entry and its
-id part company. The ONE thing decided at the type level is whether to emit at all: an
-`additionalProperties` / `items` in an always-passing scope, or an `unevaluated*: true`,
-already evaluates every member, so the keyword asserts nothing and no sentinel is written.
-Earlier revisions tried to SPELL the keyword in the type (closing the object over a merged
-key set, capping the array at the longest prefix, turning a schema value into an index
-signature), which forced the door to prove statically that the evaluated set was knowable;
-every one of those proofs was unnecessary, since the sweep is exact in all of those cases
-too. The runtime node carries a FLATTENED key list (`unevaluatedKeys` /
-`unevaluatedSources`) purely so the mock walker knows which keys it may deal — the guards
-stay compile-time. Plain-union validation is
-at-least-one (pinned by test), which makes anyOf the faithful spelling of a union; oneOf
-is the exactly-one combinator (`OneOf<[…]>` / `RT.oneOf`): every non-nullish member
-carries the branch tuple on an OPTIONAL `__rtOneOf` sentinel prop
-(`A & {__rtOneOf?: Bs} | B & {__rtOneOf?: Bs} | null`, built as ONE shallow mapped type
-plus an indexed access — O(1) instantiation depth at any width; the per-arm nullish
-check is a naked-parameter conditional so it distributes into union-valued branches and
-their null stays plain). Per-member carriage is deliberate: a whole-union intersection
-distributes and destroys null branches, and an extra tag member breaks plain-union
-consumption (discriminated switches, widening back to `A | B`). The union projection
-reads the carriers (or their merged DataOnly shadow) onto the node's `oneOf` branch
-list, both collapses skip the carrier so members serialize as their plain selves, and
-validate counts branch matches instead of short-circuiting. One degenerate is handled
-explicitly: identical branches intern to one arm and dedup the union away, so a
-STANDALONE carrier'd intersection with duplicate branch ids projects the one-member
-union with counting (nothing validates — exactly what duplicate branches mean) instead
-of silently degrading to the plain base.
-
-How faithful the whole translation is gets measured, not asserted: the official
-JSON-Schema-Test-Suite (draft 2020-12 required set plus optional/format) runs as its own
-vitest project at `packages/ts-runtypes/test/json-schema-official/`. The suite is a
-commit-pinned git devDependency; `scripts/core/gen-json-schema-suite.mjs` type-probes every
-schema group against the door's input contract (committed `triage.json`), generates real
-`as const` call-site modules (gitignored, rebuilt by `check:builds`), and the lane pins
-every verdict against a committed two-way divergence ledger — a regression AND a silently
-fixed divergence both turn it red. The scoreboard is that directory's `CONFORMANCE.md`.
-The lane also runs the TYPE gate: every spec-valid sample of every accepted group is
-emitted as an assignment into `JsonSchemaType<typeof schema>` and compiled through the
-real TypeScript compiler (only the fresh-literal excess-property check is filtered —
-open-world samples carry undeclared keys by design), with its own two-way ledger
-(`type-gate-divergences.json`) under the same stale-entry-fails discipline.
+every entry is enforced and the id is order-free — id = behavior, never last-wins.
 
 `DataOnly<T>` lives here too. It is the type level statement of the data only contract: it
 projects a type down to what can actually survive a JSON round trip, which is why decoders
 return it. The return type cannot claim a method survived when it did not. Its
-annotation-grade twin is `StripRunTypeMeta<T>` (and the door's `JsonSchemaType<S>` on the
-json-schema subpath): every sentinel stripped, format brands collapsed to their base —
+annotation-grade twin is `StripRunTypeMeta<T>`: every sentinel stripped, format brands
+collapsed to their base —
 and NEVER reflected, because the stripped metadata IS the validation contract; a factory
 built from the clean type would enforce nothing. DataOnly keeps the sentinels for exactly
 that reason and stays the reflection-safe projection.
@@ -538,12 +444,7 @@ compiler's diagnostics into your editor, named after what they catch rather than
 severity; the other keeps the hand edited enrichment files honest by refusing unfilled
 `@todo` markers and leftover `@rtOrphan` blocks. The rules do not analyse anything
 themselves. They ask the Go program and route the answers, caching per file so all the
-rules share one round trip. ONE documented exception: `json-schema-dropped-intent` is a
-local rule that walks `runTypeFromJsonSchema({…})` literals in the linted file itself
-(both hosts hand rules the same ESTree AST) and warns where declared intent is read and
-ignored — readOnly/writeOnly, orphaned then/else, orphaned contains bounds. The resolver
-never sees a JSON Schema document, so there is no wire diagnostic to route; the local
-lane exists for schema-literal hygiene only and pays no resolver pass.
+rules share one round trip.
 
 Because there is no `source` condition here, and because the lint entry points are literal
 paths into the built output, **this package must be rebuilt after every source edit.** It
