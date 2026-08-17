@@ -55,7 +55,7 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		if family.exact {
+		if family.Exact {
 			exactText, ok := ctx.exactBrandType(annotation, family)
 			if !ok {
 				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
@@ -63,25 +63,25 @@ func (ctx *printContext) builderExpr(node *reflection.RunType) (string, *Diagnos
 			ctx.needs.useGetRunType = true
 			return fmt.Sprintf("%s<%s>()", ctx.names.GetRunType, exactText), nil
 		}
-		if family.temporal {
+		if family.Temporal {
 			ctx.needs.useTFT = true
 			if len(params) == 0 {
-				return ctx.names.TFT + "." + family.builderFn + "()", nil
+				return ctx.names.TFT + "." + family.BuilderFn + "()", nil
 			}
 			paramsText, ok := printFormatParams(params, false)
 			if !ok {
 				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 			}
-			return fmt.Sprintf("%s.%s(%s)", ctx.names.TFT, family.builderFn, paramsText), nil
+			return fmt.Sprintf("%s.%s(%s)", ctx.names.TFT, family.BuilderFn, paramsText), nil
 		}
 		if len(params) == 0 {
-			return tf(family.builderFn + "()")
+			return tf(family.BuilderFn + "()")
 		}
-		paramsText, ok := printFormatParams(params, family.bigintParams)
+		paramsText, ok := printFormatParams(params, family.BigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		return tf(fmt.Sprintf("%s(%s)", family.builderFn, paramsText))
+		return tf(fmt.Sprintf("%s(%s)", family.BuilderFn, paramsText))
 	}
 	switch node.Kind {
 	case reflection.KindString:

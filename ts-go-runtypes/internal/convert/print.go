@@ -18,7 +18,6 @@ package convert
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -358,123 +357,6 @@ func assembleConstDecl(decl *declaration, names *nameTable, exportPrefix, expr s
 	return &printedDecl{text: text, needs: needs}, nil
 }
 
-// formatFamily describes one generic param-bag format family: the reflected
-// annotation name, its `TF` value-first builder and type-first brand alias.
-// The named preset families (email / uuid / …) convert once the preset-params
-// mirror lands (docs/done/format-conversion-completion.md).
-type formatFamily struct {
-	builderFn string
-	typeAlias string
-	// bigintParams marks a family whose param VALUES are bigints: they print
-	// as `485n` literals, and the family can never ride `rtFormat` (JSON
-	// cannot carry a bigint) — the schema target embeds the brand instead.
-	bigintParams bool
-	// exact marks a preset family whose builder/alias merge NON-EMPTY
-	// defaults: the pretty spelling cannot be proven identical to the
-	// annotation (a default key the annotation omits would survive the
-	// merge), so type/builder targets use the exact TypeFormat constructor.
-	exact bool
-	// base is the exact constructor's base-type spelling.
-	base string
-	// temporal marks the FormatTemporalX families: they live on the
-	// dedicated `@ts-runtypes/core/formats/temporal` subpath (`TFT`), and
-	// the schema target embeds the brand (the door keeps Temporal out of
-	// rtFormat by design).
-	temporal bool
-}
-
-// The full leaf-family roster (typeFormats.generated.ts is the pinned name
-// source). Named presets over-specify on purpose: the builder / type-alias
-// call carries the annotation's FULL params (defaults included), which merges
-// onto the preset's defaults to the identical brand — no defaults table to
-// drift, and the id oracle polices every row.
-var formatFamilies = map[string]formatFamily{
-	"stringFormat": {builderFn: "string", typeAlias: "String", base: "string"},
-	"numberFormat": {builderFn: "number", typeAlias: "Number", base: "number"},
-	"bigintFormat": {builderFn: "bigInt", typeAlias: "BigInt", bigintParams: true, base: "bigint"},
-	"email":        {exact: true, base: "string"},
-	"ip":           {exact: true, base: "string"},
-	"domain":       {exact: true, base: "string"},
-	"url":          {exact: true, base: "string"},
-	"date":         {exact: true, base: "string"},
-	"time":         {exact: true, base: "string"},
-	"dateTime":     {exact: true, base: "string"},
-	"nativeDate":   {builderFn: "date", typeAlias: "Date", base: "Date"},
-	// The orderable Temporal families (registry: internal/reflection/
-	// temporal.go); PlainMonthDay / Duration carry no brand (no-params only).
-	"temporalInstant":        {builderFn: "instant", typeAlias: "Instant", temporal: true},
-	"temporalZonedDateTime":  {builderFn: "zonedDateTime", typeAlias: "ZonedDateTime", temporal: true},
-	"temporalPlainDate":      {builderFn: "plainDate", typeAlias: "PlainDate", temporal: true},
-	"temporalPlainTime":      {builderFn: "plainTime", typeAlias: "PlainTime", temporal: true},
-	"temporalPlainDateTime":  {builderFn: "plainDateTime", typeAlias: "PlainDateTime", temporal: true},
-	"temporalPlainYearMonth": {builderFn: "plainYearMonth", typeAlias: "PlainYearMonth", temporal: true},
-}
-
-// uuidSpellings maps the uuid family's enumerable version param onto its
-// dedicated preset builders / aliases (the family has no generic type).
-var uuidSpellings = map[string]formatFamily{
-	"any": {builderFn: "uuid", typeAlias: "UUID"},
-	"4":   {builderFn: "uuidv4", typeAlias: "UUIDv4"},
-	"7":   {builderFn: "uuidv7", typeAlias: "UUIDv7"},
-}
-
-// genericParamKeys lists each generic family's PUBLIC params surface
-// (StringParamsValueFirst / NumberParams / BigIntParams). A reflected
-// annotation carrying any OTHER key — a preset-internal engine flag like the
-// regex family's `isRegex` — cannot be spelled through the generic builder or
-// alias: `TF.string({isRegex: …})` is an ExactParams type error that resolves
-// a DIFFERENT brand (the roundtrip fuzz lane caught the id moving). Those
-// annotations take the exact TypeFormat-constructor escape instead, which
-// carries the params verbatim. Pinned by the chain + fuzz id oracles: a key
-// added to a params interface without a row here only ever DEMOTES that
-// annotation to the (always-correct) exact spelling.
-var genericParamKeys = map[string]map[string]bool{
-	"stringFormat": setOf("maxLength", "minLength", "length", "pattern", "allowedChars", "disallowedChars",
-		"allowedValues", "disallowedValues", "mockSamples", "contentEncoding", "contentMediaType",
-		"trim", "lowercase", "uppercase", "capitalize", "replace", "replaceAll"),
-	"numberFormat": setOf("integer", "float", "min", "max", "lt", "gt", "multipleOf",
-		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "isCurrency"),
-	"bigintFormat": setOf("min", "max", "lt", "gt", "multipleOf",
-		"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"),
-}
-
-func setOf(keys ...string) map[string]bool {
-	out := make(map[string]bool, len(keys))
-	for _, key := range keys {
-		out[key] = true
-	}
-	return out
-}
-
-// leafFormat resolves a node's annotation to a printable leaf family; false
-// when the annotation is structural (formattedArray/formattedObject, handled
-// at the kind branches) or unknown. uuid resolves through its version param;
-// uuidParamsless strips the version key from the printed params (the preset
-// alias already carries it). A generic family whose params include a key
-// outside its public surface resolves as `exact` (see genericParamKeys).
-func leafFormat(annotation *reflection.FormatAnnotation) (formatFamily, map[string]any, bool) {
-	if annotation.Name == "uuid" {
-		version, _ := annotation.Params["version"].(string)
-		family, known := uuidSpellings[version]
-		if !known {
-			return formatFamily{}, nil, false
-		}
-		return family, map[string]any{}, true
-	}
-	family, known := formatFamilies[annotation.Name]
-	if !known {
-		return formatFamily{}, nil, false
-	}
-	if spellable := genericParamKeys[annotation.Name]; spellable != nil {
-		for key := range annotation.Params {
-			if !spellable[key] {
-				return formatFamily{exact: true, base: family.base, bigintParams: family.bigintParams}, annotation.Params, true
-			}
-		}
-	}
-	return family, annotation.Params, true
-}
-
 // partialOneOfDiag reports a union whose exclusivity the engine refuses —
 // `OneOf<[A, B]> | C` and two exclusive unions in one union — and nil
 // otherwise. Both printers used to emit the branches alone, so the `| C` arm
@@ -534,12 +416,12 @@ func (ctx *printContext) unevaluatedDiag(node *reflection.RunType) *Diagnostic {
 // exactBrandType renders the exact TypeFormat constructor for an annotation:
 // no defaults merge, provably the reflected brand.
 func (ctx *printContext) exactBrandType(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
-	paramsText, ok := printFormatParams(annotation.Params, family.bigintParams)
+	paramsText, ok := printFormatParams(annotation.Params, family.BigintParams)
 	if !ok {
 		return "", false
 	}
 	ctx.needs.useTypeFormat = true
-	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.base, quoteSingle(annotation.Name), paramsText), true
+	return fmt.Sprintf("%s<%s, %s, %s>", ctx.names.TypeFormat, family.Base, quoteSingle(annotation.Name), paramsText), true
 }
 
 // structuralSubPrinter renders a child node in the current target's dialect —
@@ -683,91 +565,10 @@ func (ctx *printContext) escapeTypeText(node *reflection.RunType) (string, *Diag
 	return text, diag
 }
 
-// structuralAnnotationParams returns the structural brand's params (or an
-// empty map when the node carries sentinels without the brand).
-func structuralAnnotationParams(node *reflection.RunType) map[string]any {
-	if node.FormatAnnotation != nil && isStructuralAnnotation(node.FormatAnnotation) {
-		return node.FormatAnnotation.Params
-	}
-	return map[string]any{}
-}
-
-// hasStructuralPayload reports whether the node carries anything the
-// structural helpers must print.
-func hasStructuralPayload(node *reflection.RunType) bool {
-	if node.FormatAnnotation != nil && isStructuralAnnotation(node.FormatAnnotation) {
-		return true
-	}
-	return len(node.Contains) > 0 || len(node.PatternProps) > 0 || len(node.PropNames) > 0
-}
-
-// isStructuralAnnotation tells the array/object structural brands from the
-// leaf families — they are handled at their kind branches, not as leaves.
-func isStructuralAnnotation(annotation *reflection.FormatAnnotation) bool {
-	return annotation.Name == "formattedArray" || annotation.Name == "formattedObject"
-}
-
 // unsupportedFormatDiag reports a format family this phase cannot print.
 func unsupportedFormatDiag(name string, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
 		Message: fmt.Sprintf("format family %q is not convertible yet (see https://runtypes.pages.dev/guide/converting-forms)", name)}
-}
-
-// printFormatParams renders a FormatAnnotation params map as TS source with
-// sorted keys, so printed output is deterministic. False for a params value
-// this phase cannot render.
-func printFormatParams(params map[string]any, bigintValues bool) (string, bool) {
-	keys := make([]string, 0, len(params))
-	for key := range params {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	var parts []string
-	for _, key := range keys {
-		valueText, ok := paramValueText(params[key], bigintValues)
-		if !ok {
-			return "", false
-		}
-		parts = append(parts, fmt.Sprintf("%s: %s", key, valueText))
-	}
-	return "{" + strings.Join(parts, ", ") + "}", true
-}
-
-func paramValueText(value any, bigintValues bool) (string, bool) {
-	switch typed := value.(type) {
-	case string:
-		// A bigint-family param value arrives as its bigint-literal string
-		// (`485n`); it prints back verbatim as the literal the authoring
-		// surface requires (the suffix is appended only if absent).
-		if bigintValues {
-			if strings.HasSuffix(typed, "n") {
-				return typed, true
-			}
-			return typed + "n", true
-		}
-		return quoteSingle(typed), true
-	case float64:
-		return strconv.FormatFloat(typed, 'g', -1, 64), true
-	case int:
-		return strconv.Itoa(typed), true
-	case bool:
-		return strconv.FormatBool(typed), true
-	case nil:
-		return "null", true
-	case map[string]any:
-		return printFormatParams(typed, bigintValues)
-	case []any:
-		var parts []string
-		for _, element := range typed {
-			elementText, ok := paramValueText(element, bigintValues)
-			if !ok {
-				return "", false
-			}
-			parts = append(parts, elementText)
-		}
-		return "[" + strings.Join(parts, ", ") + "]", true
-	}
-	return "", false
 }
 
 // tupleShape is a tuple node partitioned into the three builder positions.
@@ -836,20 +637,6 @@ func (ctx *printContext) tupleMembers(node *reflection.RunType) (*tupleShape, bo
 		return nil, false
 	}
 	return shape, true
-}
-
-// sortArms sorts a union's RENDERED arm texts into the canonical
-// path-independent order (plain text sort, stable). The checker's internal
-// union member order is a function of the source FORM — type-id creation
-// order differs between the type, builders and schema programs of one
-// declaration — so printing the Children order verbatim made the printed
-// union depend on the conversion path (the roundtrip fixpoint oracle caught
-// `t0 | t1` flipping to `t1 | t0` across chains). The rendered text is a pure
-// function of the node, so its sort order is the same in every program — and,
-// unlike an id sort, reads naturally (`'draft' | 'live'`).
-func sortArms(arms []string) []string {
-	sort.Strings(arms)
-	return arms
 }
 
 // circularLossyPayload walks a circular declaration's reachable graph for the
@@ -1042,16 +829,6 @@ func (ctx *printContext) reachesCycle(node *reflection.RunType) bool {
 	return reaches(node)
 }
 
-func spanKind(raw any) (reflection.ReflectionKind, bool) {
-	switch value := raw.(type) {
-	case int:
-		return reflection.ReflectionKind(value), true
-	case float64:
-		return reflection.ReflectionKind(value), true
-	}
-	return 0, false
-}
-
 // liveSymbolName resolves the source-level name a node's live symbol (enum /
 // user class) is spelled with, checking it is actually bound in this file —
 // the reflected name is the DECLARATION name, which an aliased import
@@ -1119,13 +896,6 @@ func (ctx *printContext) classSpelling(node *reflection.RunType) (string, *Diagn
 		argumentTexts = append(argumentTexts, argumentText)
 	}
 	return fmt.Sprintf("%s<%s>", name, strings.Join(argumentTexts, ", ")), nil
-}
-
-func isRegExpNode(node *reflection.RunType) bool {
-	if node.Kind == reflection.KindRegexp {
-		return true
-	}
-	return node.Kind == reflection.KindClass && node.ClassRef != nil && node.ClassRef.Builtin == "RegExp"
 }
 
 // nativeArguments derefs the KindParameter wrappers a Map/Set node carries in
@@ -1248,51 +1018,6 @@ func hasSignatureMembers(members []*objectMember) bool {
 	return false
 }
 
-// literalValueText renders a literal node's VALUE as TS source (`'a'`, `42`,
-// `true`, `123n`). False when the literal payload is a shape this phase does
-// not print (regexp / symbol literals).
-func literalValueText(node *reflection.RunType) (string, bool) {
-	if isBigIntLiteral(node) {
-		digits, ok := node.Literal.(string)
-		return strings.TrimSuffix(digits, "n") + "n", ok
-	}
-	switch value := node.Literal.(type) {
-	case string:
-		return quoteSingle(value), true
-	case float64:
-		return formatNumberLiteral(value)
-	case float32:
-		return formatNumberLiteral(float64(value))
-	case int:
-		return strconv.Itoa(value), true
-	case int32:
-		return strconv.FormatInt(int64(value), 10), true
-	case int64:
-		return strconv.FormatInt(value, 10), true
-	case bool:
-		return strconv.FormatBool(value), true
-	case nil:
-		return "null", true
-	}
-	return "", false
-}
-
-// formatNumberLiteral renders a numeric literal value as TS source. The
-// Infinity literal type has no keyword spelling — any overflowing literal
-// (1e999) IS it, so that spelling round-trips exactly. NaN has no literal
-// spelling at all and refuses.
-func formatNumberLiteral(value float64) (string, bool) {
-	switch {
-	case math.IsNaN(value):
-		return "", false
-	case math.IsInf(value, 1):
-		return "1e999", true
-	case math.IsInf(value, -1):
-		return "-1e999", true
-	}
-	return strconv.FormatFloat(value, 'g', -1, 64), true
-}
-
 // hasFlag reports whether the node carries the given free-form flag marker.
 func hasFlag(node *reflection.RunType, flag string) bool {
 	for _, candidate := range node.Flags {
@@ -1303,61 +1028,8 @@ func hasFlag(node *reflection.RunType, flag string) bool {
 	return false
 }
 
-// isBigIntLiteral reports the bigint literal encoding: a string payload
-// tagged with the "bigint" flag.
-func isBigIntLiteral(node *reflection.RunType) bool {
-	return hasFlag(node, "bigint")
-}
-
-// quoteSingle renders a single-quoted TS string literal.
-func quoteSingle(value string) string {
-	var out strings.Builder
-	out.WriteByte('\'')
-	for _, char := range value {
-		switch char {
-		case '\\':
-			out.WriteString(`\\`)
-		case '\'':
-			out.WriteString(`\'`)
-		case '\n':
-			out.WriteString(`\n`)
-		case '\r':
-			out.WriteString(`\r`)
-		case '\t':
-			out.WriteString(`\t`)
-		default:
-			if char < 0x20 {
-				out.WriteString(fmt.Sprintf(`\u%04x`, char))
-			} else {
-				out.WriteRune(char)
-			}
-		}
-	}
-	out.WriteByte('\'')
-	return out.String()
-}
-
 // unsupportedDiag reports a kind outside the current printer coverage.
 func unsupportedDiag(node *reflection.RunType, decl *declaration) *Diagnostic {
 	return &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(decl),
 		Message: fmt.Sprintf("%s is not convertible yet (see https://runtypes.pages.dev/guide/converting-forms)", kindLabel(node.Kind))}
-}
-
-// kindLabel names a reflection kind for messages.
-func kindLabel(kind reflection.ReflectionKind) string {
-	labels := map[reflection.ReflectionKind]string{
-		reflection.KindNever: "never", reflection.KindAny: "any", reflection.KindUnknown: "unknown",
-		reflection.KindVoid: "void", reflection.KindObject: "object", reflection.KindString: "string",
-		reflection.KindNumber: "number", reflection.KindBoolean: "boolean", reflection.KindSymbol: "symbol",
-		reflection.KindBigInt: "bigint", reflection.KindNull: "null", reflection.KindUndefined: "undefined",
-		reflection.KindRegexp: "regexp", reflection.KindLiteral: "a literal", reflection.KindTemplateLiteral: "a template literal",
-		reflection.KindPromise: "Promise", reflection.KindClass: "a class", reflection.KindEnum: "an enum",
-		reflection.KindUnion: "a union", reflection.KindIntersection: "an intersection", reflection.KindArray: "an array",
-		reflection.KindTuple: "a tuple", reflection.KindObjectLiteral: "an object shape", reflection.KindFunction: "a function",
-		reflection.KindRef: "a reference",
-	}
-	if label, ok := labels[kind]; ok {
-		return label
-	}
-	return fmt.Sprintf("kind %d", kind)
 }

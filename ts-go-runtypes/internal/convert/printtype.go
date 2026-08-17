@@ -19,13 +19,13 @@ import (
 func (ctx *printContext) temporalBrandText(annotation *reflection.FormatAnnotation, family formatFamily) (string, bool) {
 	ctx.needs.useTFT = true
 	if len(annotation.Params) == 0 {
-		return ctx.names.TFT + "." + family.typeAlias, true
+		return ctx.names.TFT + "." + family.TypeAlias, true
 	}
 	paramsText, ok := printFormatParams(annotation.Params, false)
 	if !ok {
 		return "", false
 	}
-	return fmt.Sprintf("%s.%s<%s>", ctx.names.TFT, family.typeAlias, paramsText), true
+	return fmt.Sprintf("%s.%s<%s>", ctx.names.TFT, family.TypeAlias, paramsText), true
 }
 
 // recordAliasWouldCycle reports whether printing an index signature as the
@@ -180,14 +180,14 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		if !known {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		if family.exact {
+		if family.Exact {
 			exactText, ok := ctx.exactBrandType(annotation, family)
 			if !ok {
 				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 			}
 			return exactText, nil
 		}
-		if family.temporal {
+		if family.Temporal {
 			brandText, ok := ctx.temporalBrandText(annotation, family)
 			if !ok {
 				return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
@@ -196,13 +196,13 @@ func (ctx *printContext) typeExprCore(node *reflection.RunType) (string, *Diagno
 		}
 		ctx.needs.useTF = true
 		if len(params) == 0 {
-			return fmt.Sprintf("%s.%s", ctx.names.TF, family.typeAlias), nil
+			return fmt.Sprintf("%s.%s", ctx.names.TF, family.TypeAlias), nil
 		}
-		paramsText, ok := printFormatParams(params, family.bigintParams)
+		paramsText, ok := printFormatParams(params, family.BigintParams)
 		if !ok {
 			return "", unsupportedFormatDiag(annotation.Name, ctx.decl)
 		}
-		return fmt.Sprintf("%s.%s<%s>", ctx.names.TF, family.typeAlias, paramsText), nil
+		return fmt.Sprintf("%s.%s<%s>", ctx.names.TF, family.TypeAlias, paramsText), nil
 	}
 	switch node.Kind {
 	case reflection.KindString:
