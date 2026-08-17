@@ -133,36 +133,6 @@ export interface TemporalBaseByFormatName {
   temporalDuration: TDuration;
 }
 
-// The same eight bases keyed by their QUALIFIED spelling, which is what the
-// json-schema dialect's `jsType` rows carry (`{jsType: 'Temporal.Instant'}`) —
-// the JS global's own name, matching how the Date / RegExp / Map / Set rows
-// spell theirs. Derived from the map above rather than restated, so a new
-// temporal format cannot land in one and miss the other.
-//
-// Both maps stay HERE, behind the guarded bases: the json-schema door indexes
-// this by keyword and so never names `Temporal.*` itself, which is what keeps
-// that subpath importable without the Temporal lib.
-export type TemporalBaseByJsTypeName = {
-  [Name in keyof TemporalBaseByFormatName as Name extends `temporal${infer Suffix}`
-    ? `Temporal.${Suffix}`
-    : never]: TemporalBaseByFormatName[Name];
-};
-
-// The branded form of the same rows, built from a (name, params) pair — what
-// the json-schema dialect's `rtFormat` carries for a bounded temporal. Spelled
-// as the identical inline intersection the aliases above use, so
-// `TemporalFormatOf<'temporalPlainDate', {min: '2020-01-01'}>` and
-// `PlainDate<{min: '2020-01-01'}>` are the same type and fold to the same id.
-// Constrained to the six ORDERABLE names: PlainMonthDay and Duration have no
-// min/max ordering, so they have no branded form to rebuild.
-export type TemporalFormatOf<
-  Name extends keyof TemporalFormatParamsByName,
-  Params extends object,
-> = TemporalBaseByFormatName[Name] & {
-  readonly [__rtFormatName]?: Name;
-  readonly [__rtFormatParams]?: Params;
-};
-
 // The orderable subset, as a map so `keyof` drives the door's accepted
 // `rtFormat` names rather than a restated union.
 export interface TemporalFormatParamsByName {

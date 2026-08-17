@@ -2,12 +2,9 @@ import type {
   __rtFormatName,
   __rtFormatParams,
   __rtFormatBrand,
-  __rtNot,
   __rtContains,
   __rtPatternProps,
   __rtPropNames,
-  __rtOneOf,
-  __rtUnevaluated,
 } from './sentinelKeys.ts';
 
 /* ########
@@ -18,8 +15,8 @@ import type {
  * ######## */
 
 /** `StripRunTypeMeta<T>` — the ANNOTATION-grade projection of a type: every
- *  RunTypes sentinel (format brands, negation / contains / patternProperties /
- *  propertyNames / oneOf / unevaluated slots) is removed and the plain data
+ *  RunTypes sentinel (format brands, contains / patternProperties /
+ *  propertyNames slots) is removed and the plain data
  *  shape survives. `Email` collapses to `string`, a `FormattedArray<number[],…>`
  *  to `number[]`, an object drops its sentinel-symbol keys and recurses its
  *  members. Use it where a CLEAN TypeScript type is the deliverable — editor
@@ -71,12 +68,9 @@ type StripMetaSentinelKeys =
   | typeof __rtFormatName
   | typeof __rtFormatParams
   | typeof __rtFormatBrand
-  | typeof __rtNot
   | typeof __rtContains
   | typeof __rtPatternProps
-  | typeof __rtPropNames
-  | typeof __rtOneOf
-  | typeof __rtUnevaluated;
+  | typeof __rtPropNames;
 
 /** Recursion-budget decrement — same discipline as `DataOnly`: bounded depth
  *  lets circular types resolve finitely, and the floor keeps the remaining
@@ -137,8 +131,6 @@ type StripMetaFmtPart<T> = typeof __rtFormatName extends keyof T
       }
     : {readonly [__rtFormatName]?: T[typeof __rtFormatName & keyof T]}
   : unknown;
-type StripMetaNotPart<T> = typeof __rtNot extends keyof T ? {readonly [__rtNot]?: T[typeof __rtNot & keyof T]} : unknown;
-type StripMetaOneOfPart<T> = typeof __rtOneOf extends keyof T ? {readonly [__rtOneOf]?: T[typeof __rtOneOf & keyof T]} : unknown;
 // The STRUCTURAL slots (formats/structural.ts). They ride array / object bases
 // only, so the literal path never pays for them — only the branded-tuple path
 // below models them.
@@ -151,9 +143,6 @@ type StripMetaPatternPropsPart<T> = typeof __rtPatternProps extends keyof T
 type StripMetaPropNamesPart<T> = typeof __rtPropNames extends keyof T
   ? {readonly [__rtPropNames]?: T[typeof __rtPropNames & keyof T]}
   : unknown;
-type StripMetaUnevaluatedPart<T> = typeof __rtUnevaluated extends keyof T
-  ? {readonly [__rtUnevaluated]?: T[typeof __rtUnevaluated & keyof T]}
-  : unknown;
 
 /** A branded literal → its bare literal, or `Base` when the subtraction did
  *  not fully clear. The `keyof U` re-check is the safety net: an unmatched
@@ -161,12 +150,12 @@ type StripMetaUnevaluatedPart<T> = typeof __rtUnevaluated extends keyof T
  *  and so widens exactly as it did before this helper existed — degradation,
  *  never a wrong answer.
  *
- *  `__rtContains` / `__rtPatternProps` / `__rtPropNames` / `__rtUnevaluated`
+ *  `__rtContains` / `__rtPatternProps` / `__rtPropNames`
  *  are deliberately not modelled: they ride array / object bases only, so a
  *  literal never carries one, and anything that somehow does trips the
  *  re-check. `__rtFormatBrand` never reaches here — the required-nominal-brand
  *  arm returns `Base` before this is consulted. **/
-type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T> & StripMetaNotPart<T> & StripMetaOneOfPart<T>
+type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T>
   ? [Extract<keyof U, StripMetaSentinelKeys>] extends [never]
     ? U
     : Base
@@ -174,8 +163,8 @@ type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T> & 
 
 /** A branded TUPLE → the bare tuple, elements stripped; `T` verbatim when the
  *  subtraction did not fully clear. Same mechanism as StripMetaUnbrandLit, with
- *  the four STRUCTURAL slots modelled too: an array brand is
- *  `Base & StructuralBrand<'formattedArray', …> & ContainsSlot & UnevaluatedSlot`
+ *  the STRUCTURAL slots modelled too: an array brand is
+ *  `Base & StructuralBrand<'formattedArray', …> & ContainsSlot`
  *  (formats/structural.ts), so leaving any of them out would match nothing and
  *  subtract nothing.
  *
@@ -186,12 +175,9 @@ type StripMetaUnbrandLit<T, Base> = T extends (infer U) & StripMetaFmtPart<T> & 
  *  elements, so a tuple OF branded elements strips all the way down. **/
 type StripMetaUnbrandTuple<T, Depth extends number> = T extends (infer U) &
   StripMetaFmtPart<T> &
-  StripMetaNotPart<T> &
-  StripMetaOneOfPart<T> &
   StripMetaContainsPart<T> &
   StripMetaPatternPropsPart<T> &
-  StripMetaPropNamesPart<T> &
-  StripMetaUnevaluatedPart<T>
+  StripMetaPropNamesPart<T>
   ? [Extract<keyof U, StripMetaSentinelKeys>] extends [never]
     ? U extends readonly unknown[]
       ? {[K in keyof U]: StripRunTypeMeta<U[K], _StripMetaDepth[Depth]>}
@@ -297,8 +283,8 @@ type StripMetaNoNamedKeys<T> = Record<never, never> extends StripMetaLiteralKeys
  *  is also true of every all-optional object and silently kept weak types
  *  (and the metadata inside them) verbatim.
  *
- *  Sentinel presence is probed FIRST: a bare carrier (`unknown & {__rtOneOf?:
- *  …}`, a bare `{__rtNot?: …}`) is an all-optional object, and once every key
+ *  Sentinel presence is probed FIRST: a bare carrier (e.g. a lone
+ *  `{__rtContains?: …}`) is an all-optional object, and once every key
  *  is a sentinel, the honest clean type is the `unknown` the base was.
  *
  *  Index signatures beside NAMED properties widen their value to `unknown`:

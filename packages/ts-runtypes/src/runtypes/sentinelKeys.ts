@@ -39,11 +39,8 @@
 export declare const __rtFormatName: unique symbol;
 export declare const __rtFormatParams: unique symbol;
 export declare const __rtFormatBrand: unique symbol;
-export declare const __rtNot: unique symbol;
 export declare const __rtContains: unique symbol;
 export declare const __rtPatternProps: unique symbol;
 export declare const __rtPropNames: unique symbol;
-export declare const __rtOneOf: unique symbol;
-export declare const __rtUnevaluated: unique symbol;
 export declare const __rtLabels: unique symbol;
 // #endregion sentinel-keys-extract

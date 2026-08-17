@@ -2,12 +2,9 @@ import type {
   __rtFormatName,
   __rtFormatParams,
   __rtFormatBrand,
-  __rtNot,
   __rtContains,
   __rtPatternProps,
   __rtPropNames,
-  __rtOneOf,
-  __rtUnevaluated,
 } from './sentinelKeys.ts';
 import type {DataOnlyNativeExtra} from './dataOnly.ts';
 
@@ -71,7 +68,7 @@ import type {DataOnlyNativeExtra} from './dataOnly.ts';
  *   - a ROOT-level `undefined` is returned as `undefined` by the encoder
  *     (top-level `undefined` is not a JSON document) but spelled `null` here;
  *   - object-based sentinel carriers recurse structurally (their symbol keys
- *     drop); a record-based negation keeps its record shape. **/
+ *     drop). **/
 
 /** Sentinel keys — the full set from sentinelKeys.ts; symbol-keyed, so the
  *  object map's symbol filter drops them and the primitive arms use them to
@@ -80,12 +77,9 @@ type JSONShapeSentinelKeys =
   | typeof __rtFormatName
   | typeof __rtFormatParams
   | typeof __rtFormatBrand
-  | typeof __rtNot
   | typeof __rtContains
   | typeof __rtPatternProps
-  | typeof __rtPropNames
-  | typeof __rtOneOf
-  | typeof __rtUnevaluated;
+  | typeof __rtPropNames;
 
 /** Non-data kinds the wire never carries — `DataOnly`'s stripped set. **/
 type JSONShapeStripped =

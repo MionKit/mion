@@ -68,11 +68,9 @@ export const URL_FILE_PATTERN = registerFormatPattern({
   mockSamples: ['file:///etc/hosts', 'file:///var/log/app.log'],
 });
 
-// ─────────────── JSON Schema named formats (draft 2020-12) ───────────────
+// ─────────────── RFC named formats (JSON Schema 2020-12 parity) ───────────────
 //
-// One pattern per `format` keyword the schema door lowers, transcribed from the
-// RFC each keyword names and pinned case-by-case against the official
-// JSON-Schema-Test-Suite (see packages/ts-runtypes/test/json-schema-official/).
+// One pattern per named `format`, transcribed from the RFC each keyword names.
 //
 // HOSTNAME_PATTERN is RFC 1123, which DOMAIN_PATTERN is not: a domain here
 // wants a dotted name with a TLD, while a hostname may be a single label

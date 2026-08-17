@@ -49,7 +49,7 @@ export {type StripRunTypeMeta, type JsonValue} from './runtypes/stripRunTypeMeta
 // createJsonEncoderFn writes / createJsonDecoderFn reads). Annotation-grade:
 // never reflect it.
 export {type JSONShape} from './runtypes/jsonShape.ts';
-export {type InferType, type OneOf, type AnyOf} from './builders/static.ts';
+export {type InferType, type AnyOf} from './builders/static.ts';
 
 // AI enrichment — type-keyed, committed maps validated against `T` at scan time
 // (see docs/AI_ENRICHMENT.md). `FriendlyText<T>` combines labels + error

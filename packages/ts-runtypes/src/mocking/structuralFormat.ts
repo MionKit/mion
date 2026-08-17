@@ -1,7 +1,7 @@
 // Runtime twins of the structural format checks the Go emitters compile
 // (formattedArray / formattedObject — internal/cachegen/typefunctions/formats/
 // structural). The mock walker needs the same answers at generation time:
-// rejection sampling over annotated bases and honest negation-child tests.
+// rejection sampling over annotated bases and honest child-schema tests.
 // The generated VALIDATORS never import this — their checks are compiled.
 import type {FormatAnnotation} from '../runtypes/formatAnnotation.ts';
 
@@ -36,7 +36,7 @@ export function isStructuralFormat(annotation: FormatAnnotation | undefined): bo
 /** Does `value` satisfy the structural format annotation? True when the
  *  annotation is absent or belongs to a non-structural family (those have
  *  their own mock paths). Rejection sampling keeps candidates this ACCEPTS;
- *  the negation matcher rejects candidates this accepts on the child. **/
+ *  the child matcher rejects candidates this accepts on the child. **/
 export function structuralFormatAccepts(value: unknown, annotation: FormatAnnotation | undefined): boolean {
   if (!annotation) return true;
   const params = (annotation.params ?? {}) as Record<string, unknown>;

@@ -53,8 +53,6 @@ export type {
 // `ts-runtypes/formats/temporal` subpath, NOT re-exported here, so non-Temporal
 // consumers never pull in the Temporal lib.)
 export {string, number, currency, bigInt, date, brand} from './scalars.ts';
-export {not} from './not.ts';
-export type {Not, NotableFormat, ValidNotOperand} from './not.ts';
 export {
   alpha,
   alphaNumeric,
