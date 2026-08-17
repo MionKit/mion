@@ -1,7 +1,7 @@
 ---
 type: feature
 spec: guidelines
-status: blocked
+status: in-progress
 created: 2026-08-16
 ---
 
@@ -110,3 +110,61 @@ Measured footprint (2026-08 investigation):
 - All buckets above deleted; both test suites green; website builds; the
   emitted-schema feature (phase 1) unaffected; docs show two authoring forms
   plus schema OUTPUT only.
+
+## Plan — full removal (approved 2026-08-17)
+
+The blocker (`standard-json-schema-v1.md`) shipped: `internal/schemadoc` +
+the `jsc` cache family + `createJsonSchemaFn` are the surviving OUTPUT stack,
+and it imports only `internal/reflection` (never `internal/convert`), so the
+convert-side deletion cannot break emission. Since none of the JSON Schema
+input features were ever published, the removal ships without breaking-change
+ceremony.
+
+Investigation corrections to the body above:
+
+- Real footprint is ~14,000–16,000 lines, not 9,500–11,000: the shared suite
+  case tables (`test/suites/{validation,serialization,format-*,enrich}`)
+  carry a per-case jsonSchema thunk arm (~500 field refs) consumed by the
+  three `test/util/*Asserts.ts` drivers; the website playground has a third
+  `jsonSchema` mode; `container/pre-publish-e2e` has a whole schema-input
+  family; `json-schema-define/` is 4,749 lines not 1,698.
+- `--portable` / CNV006 / `convertDialect` do NOT live on in the schema-emit
+  leaf — runtime portability is implemented independently in JS
+  (`standard/jsonSchemaDoc.ts`), so all three are deleted outright with the
+  convert schema target.
+- `canonical.go` has no "schema halves" — it only loses the three brand
+  slots (`OneOf`, `Negations`, `Unevaluated`).
+- The public `conditional()` / `dependentSchemas()` builders are built on
+  `NotSlot` / `NotableFormat` and exist to mirror if/then/else — they are
+  removed with the `not` brand (aggressive-removal decision, user approved).
+- `SchemaParityProbe` (`internal/convert/schemadocparity*.go`) is phase 1's
+  own fuzz deliverable; deleting the printer would orphan the renderer's
+  shared-subset coverage. Its 33-declaration corpus is ported into
+  `internal/schemadoc` as golden-document tests before the printer dies.
+- `docs/todos/propertynames-non-string-key-schema.md` is fully obsoleted
+  (every reproduction goes through `runTypeFromJsonSchema`; both surviving
+  authoring surfaces reject a non-string key schema at compile time) — it
+  moves to `docs/done/` with the obsolescence recorded. The native
+  propertyNames feature stays.
+
+Commit sequence (linear, separable):
+
+1. JS input door: `src/json-schema/`, the `./json-schema` export, the
+   `json-schema-dropped-intent` ESLint rule, playground overlay entry.
+2. Input tests + harness: `json-schema-define/`, `test/types/jsonSchema*`,
+   `test/fuzz/jsonschema/`, `test/json-schema-official/`, the playground
+   test, the per-case jsonSchema thunk arms + driver plumbing, the
+   converted-suites json-schema target, `gen-json-schema-suite.mjs`, fuzz
+   registry + `RT_FUZZ_JSONSCHEMA_SOAK_MS`.
+3. Go convert lane to two forms: `TargetJSONSchema`, `printschema.go`,
+   `schemadocparity*.go` (corpus ported first), `--portable`/CNV006,
+   `convertDialect`, embedType/runTypeFromJsonSchema import plumbing,
+   convert test trims.
+4. The three brands, JS + Go: oneOf (incl. OOF001 + defect machinery), not
+   (incl. `conditional`/`dependentSchemas`), unevaluated; regen diag catalog
+   + constants mirrors.
+5. Benchmarks (`jsonSchemaCases`/`specCases`/spec harness + typecost lane +
+   gen-docs), pre-publish-e2e family, playground third mode, website content
+   (delete guide 11, trim 12/13/index/about + input framing), README,
+   ARCHITECTURE, ROADMAP.
+6. Move this spec + the propertyNames spec to `docs/done/`.
