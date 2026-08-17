@@ -13,9 +13,9 @@ import (
 // (docs/done/convert-drops-unevaluated.md) showed was missing: the C6
 // projection forced every RunType field to be COMPARED or excluded, but
 // nothing forced the printers to CONSUME or refuse what the comparison
-// protects. A populated slot no printer read (Unevaluated) vanished from
-// every target, invisible to the roundtrip fuzz lane because the printers
-// never emitted it either.
+// protects. A populated slot no printer read (the since-removed Unevaluated)
+// vanished from every target, invisible to the roundtrip fuzz lane because
+// the printers never emitted it either.
 //
 // Every field of reflection.RunType (and of the embedded SchemaChecks) must
 // declare how the three printers treat it, `<channel>: <how>`:
@@ -62,7 +62,7 @@ var printerDispositionByField = map[string]string{
 	"Optional": "printed: member `?` / RT.optional / propMod / the schema `required` inversion",
 	"Readonly": "printed: the readonly modifier / propMod / tsReadonly",
 	"Literal":  "printed: literalValueText behind const/enum/RT.literal and literal types",
-	"Flags":    "printed: rest and bigint discriminate spellings; defect flags refuse (partialOneOfDiag), symbol-keyed names refuse (isSymbolKeyedName)",
+	"Flags":    "printed: rest and bigint discriminate spellings; symbol-keyed names refuse (isSymbolKeyedName)",
 
 	// Recursed slots.
 	"Child":        "printed: array element / promise payload / member value, recursed",
@@ -114,12 +114,9 @@ var printerDispositionByField = map[string]string{
 }
 
 var printerDispositionByCheck = map[string]string{
-	"Negations":    "printed: the standard not / RT.not / TF.Not; stacked negations refuse (multiNegationDiag)",
 	"Contains":     "printed: contains/minContains/maxContains parts (structuralParts); stacked checks refuse",
 	"PatternProps": "printed: the patternProperties part (structuralParts)",
 	"PropNames":    "printed: the propertyNames part (structuralParts); stacked checks refuse",
-	"OneOf":        "printed: OneOf<[…]> / RT.oneOf / oneOf; a partial exclusive union refuses (partialOneOfDiag)",
-	"Unevaluated":  "refused: unevaluatedDiag at the top of every printer core (docs/done/convert-drops-unevaluated.md)",
 }
 
 func TestPrintersCoverRunType(t *testing.T) {

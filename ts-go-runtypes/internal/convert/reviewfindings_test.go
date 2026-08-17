@@ -38,48 +38,6 @@ func expectSingleRefusal(t *testing.T, source string, target convert.Target, cod
 	}
 }
 
-func TestUnevaluatedSweep_RefusesInsteadOfDropping(t *testing.T) {
-	// No printer has a spelling for the sweep yet, and it used to be dropped
-	// with no diagnostic — the id moved silently
-	// (docs/done/convert-drops-unevaluated.md). The refusal must name the
-	// keyword and fire on the type target and the builders target alike; the
-	// json-schema target never sees it (a schema-form declaration is already
-	// in the target form, so conversion skips it byte-identically).
-	props := handAuthored(
-		`{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false}`)
-	// `items` beside the sweep would evaluate every slot and the door rightly
-	// drops the no-op; an OPEN prefix tuple leaves the tail unevaluated, so
-	// the sweep carries.
-	items := handAuthored(`{type: 'array', prefixItems: [{type: 'string'}], minItems: 1, unevaluatedItems: false}`)
-	for _, target := range []convert.Target{convert.TargetType, convert.TargetBuilders} {
-		expectSingleRefusal(t, props, target, convert.CodeUnsupportedKind, "unevaluatedProperties")
-		expectSingleRefusal(t, items, target, convert.CodeUnsupportedKind, "unevaluatedItems")
-	}
-
-	// The CALL-SITE path hits the same guard: a value-form call converts only
-	// on --to type (value→value call rewrites are out of scope by design), and
-	// there the sweep refuses instead of vanishing from the rewritten call.
-	callSite := "import {createValidateFn} from '@ts-runtypes/core';\n" +
-		"import {runTypeFromJsonSchema} from '@ts-runtypes/core/json-schema';\n" +
-		"export function check(value: unknown): boolean {\n" +
-		"  const isType = createValidateFn(runTypeFromJsonSchema({type: 'object', properties: {a: {type: 'string'}}, required: ['a'], unevaluatedProperties: false} as const));\n" +
-		"  return isType(value);\n" +
-		"}\n"
-	expectSingleRefusal(t, callSite, convert.TargetType, convert.CodeUnsupportedKind, "unevaluatedProperties")
-}
-
-func TestPartialOneOf_RefusesOnTypeTarget(t *testing.T) {
-	// The builders and schema printers read the projection's oneOf-defect
-	// verdict; the type printer did not, so `OneOf<[A, B]> | number` written
-	// value-first printed `RT.OneOf<[A, B]>` on --to type — the `| number` arm
-	// vanished without a word and the id moved.
-	source := "import {getRunType, type InferType} from '@ts-runtypes/core';\n" +
-		"import {type OneOf} from '@ts-runtypes/core/builders';\n" +
-		"export const mixedRT = getRunType<OneOf<[{a: string}, {b: number}]> | number>();\n" +
-		"export type Mixed = InferType<typeof mixedRT>;\n"
-	expectSingleRefusal(t, source, convert.TargetType, convert.CodeUnsupportedKind, "beside ordinary union members")
-}
-
 func TestTemplateLiteral_CarriageReturnEscapes(t *testing.T) {
 	source := "export type Weird = `a\\r${string}b`;\n"
 	builderForm := convertAndCheckIDs(t, source, convert.TargetBuilders)
@@ -190,18 +148,33 @@ func TestCrossFile_UnexportedAliasInlines(t *testing.T) {
 			"export const branchRT = RT.object({leaf: leafRT});\n",
 	}
 	before := setDeclIDs(t, sources)
-	outputs, diags := convertSetWithDiags(t, sources, convert.Options{Target: convert.TargetJSONSchema})
+	outputs, diags := convertSetWithDiags(t, sources, convert.Options{Target: convert.TargetType})
 	for _, diagnostic := range diags {
 		t.Errorf("unexpected diagnostic %s [%s]: %s", diagnostic.Code, diagnostic.Decl, diagnostic.Message)
 	}
-	if !strings.Contains(outputs["branch.ts"], "properties: {leaf: {type: 'object'") {
+	if !strings.Contains(outputs["branch.ts"], "{leaf: {value: string}}") {
 		t.Errorf("the unspellable name should inline its structure:\n%s", outputs["branch.ts"])
 	}
+	// A const converting to a type gains a DERIVED type name, so names absent
+	// after conversion fall back to id-multiset matching (as in
+	// convertSetAndCheckIDs).
 	after := setDeclIDs(t, outputs)
+	afterCounts := map[string]int{}
+	for _, id := range after {
+		afterCounts[id]++
+	}
 	for key, id := range before {
-		if after[key] != id {
-			t.Errorf("declaration %s changed id: %s → %s", key, id, after[key])
+		if afterID, ok := after[key]; ok {
+			if afterID != id {
+				t.Errorf("declaration %s changed id: %s → %s", key, id, afterID)
+			}
+			continue
 		}
+		if afterCounts[id] == 0 {
+			t.Errorf("declaration %s (id %s) disappeared:\n%v", key, id, outputs)
+			continue
+		}
+		afterCounts[id]--
 	}
 }
 
@@ -224,10 +197,10 @@ func TestForeignDefaultImport_StillAddsTypeImport(t *testing.T) {
 		"branch.ts": "import * as RT from '@ts-runtypes/core/builders';\nimport dflt, {leafRT} from './leaf.ts';\n" +
 			"export const branchRT = RT.object({leaf: leafRT});\nexport const keep = dflt;\n",
 	}
-	outputs := convertSetAndCheckIDs(t, sources, convert.TargetJSONSchema)
+	outputs := convertSetAndCheckIDs(t, sources, convert.TargetType)
 	branch := outputs["branch.ts"]
-	if !strings.Contains(branch, "embedType<Leaf>()") {
-		t.Fatalf("cross-file reference should embed by name:\n%s", branch)
+	if !strings.Contains(branch, "{leaf: Leaf}") {
+		t.Fatalf("cross-file reference should spell the name:\n%s", branch)
 	}
 	if !strings.Contains(branch, "import {type Leaf} from './leaf.ts';") {
 		t.Errorf("the type import must be added even though the existing statement has a default import:\n%s", branch)

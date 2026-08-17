@@ -1,0 +1,60 @@
+=== Atom
+{type: 'string'}
+=== Num
+{type: 'number'}
+=== Flag
+{type: 'boolean'}
+=== Nil
+{type: 'null'}
+=== Missing
+{type: 'null', jsType: 'undefined'}
+=== Big
+{type: 'string', pattern: '^-?[0-9]+$', jsType: 'bigint'}
+=== BigLit
+{type: 'string', const: '485', jsType: 'bigint'}
+=== Lit
+{const: 'ana'}
+=== NumLit
+{const: 42}
+=== LitUnion
+{enum: ['a', 'b', null]}
+=== MixedUnion
+{anyOf: [{const: false}, {const: true}, {type: 'number'}, {type: 'string'}]}
+=== Branded
+{type: 'string', format: 'email', maxLength: 254, minLength: 7, pattern: '^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$', rtFormat: 'email', rtFormatParams: {maxLength: 254, minLength: 7, pattern: {flags: '', mockSamples: ['john@example.com', 'jane.doe@mion.io', 'contact@test.org'], source: '^[^\\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\\.)+[a-zA-Z]{2,63}$'}}}
+=== Bounded
+{type: 'string', maxLength: 8, minLength: 2, rtFormat: 'stringFormat', rtFormatParams: {maxLength: 8, minLength: 2}}
+=== BoundedNum
+{type: 'number', maximum: 100, minimum: 0, rtFormat: 'numberFormat', rtFormatParams: {max: 100, min: 0}}
+=== When
+{type: 'string', format: 'date-time', jsType: 'Date'}
+=== Pattern
+{type: 'string', jsType: 'RegExp'}
+=== Instant
+{type: 'string', format: 'date-time', rtFormat: 'temporalInstant', rtFormatParams: {gt: 'string | undefined', lt: 'string | undefined', max: 'string | undefined', min: 'string | undefined'}}
+=== Lookup
+{type: 'array', items: {type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false}, jsType: 'Map'}
+=== Tags
+{type: 'array', items: {type: 'string'}, uniqueItems: true, jsType: 'Set'}
+=== Items
+{type: 'array', items: {type: 'string'}}
+=== Pair
+{type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 2, items: false}
+=== OptPair
+{type: 'array', prefixItems: [{type: 'string'}, {type: 'number'}], minItems: 1, items: false}
+=== WithRest
+{type: 'array', prefixItems: [{type: 'string'}], minItems: 1, items: {type: 'number'}}
+=== Template
+{type: 'string', pattern: '^v[\\s\\S]*$', tsTemplate: {texts: ['v', ''], placeholders: [{type: 'number'}]}}
+=== Person
+{type: 'object', properties: {id: {type: 'string'}, name: {type: 'string'}, age: {type: 'number'}}, required: ['id', 'name'], tsReadonly: ['id']}
+=== Nested
+{type: 'object', properties: {person: {type: 'object', properties: {id: {type: 'string'}, name: {type: 'string'}, age: {type: 'number'}}, required: ['id', 'name'], tsReadonly: ['id']}, scores: {type: 'array', items: {type: 'number'}}}, required: ['person', 'scores']}
+=== Dict
+{type: 'object', additionalProperties: {type: 'number'}}
+=== Deferred
+{jsType: 'Promise', jsResolved: {type: 'string'}}
+=== UniqueTags
+{type: 'array', items: {type: 'string'}, minItems: 1, uniqueItems: true}
+=== BoundedBag
+{type: 'object', properties: {a: {type: 'string'}}, required: ['a'], minProperties: 1}

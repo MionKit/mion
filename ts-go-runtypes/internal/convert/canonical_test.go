@@ -31,11 +31,10 @@ var canonicalExcluded = map[string]bool{
 	"Implements": true, "SafeUnionChildren": true, "UnionDiscriminators": true,
 }
 
-// Every SchemaChecks field is compared (all six are sentinel-lifted schema
+// Every SchemaChecks field is compared (all three are sentinel-lifted schema
 // constraints — information by definition).
 var canonicalChecksCompared = map[string]bool{
-	"Negations": true, "Contains": true, "PatternProps": true,
-	"PropNames": true, "OneOf": true, "Unevaluated": true,
+	"Contains": true, "PatternProps": true, "PropNames": true,
 }
 
 // Every reflection.RunType field must be CLASSIFIED by the C6 projection:

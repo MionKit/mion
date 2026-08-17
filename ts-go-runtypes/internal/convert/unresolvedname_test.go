@@ -27,7 +27,6 @@ func TestUnresolvedNameGuard_AllTargets(t *testing.T) {
 		keeping string
 	}{
 		{convert.TargetBuilders, typeFormSource, "export type Holder = {value: Missing};"},
-		{convert.TargetJSONSchema, typeFormSource, "export type Holder = {value: Missing};"},
 		{convert.TargetType, builderFormSource, "export const holderRT = getRunType<{value: Missing}>();"},
 	}
 	for _, testCase := range cases {
