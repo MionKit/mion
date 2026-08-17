@@ -77,3 +77,93 @@ func TestJsonSchemaDoc_SelfCycleClosesWithRootRef(t *testing.T) {
 		t.Errorf("self-recursive document must close with {$ref: '#'}, got:\n%s", entry)
 	}
 }
+
+// Union documents describe the WIRE: a wrapped union (any member with an
+// encode/decode transform) renders the flat-union `[index, value]` envelope
+// the JSON encoders write — buildFlatLayout is the single source for both —
+// while a raw union keeps the natural spelling.
+
+func jscUnionDump() protocol.Dump {
+	date := &reflection.RunType{ID: "dat1", Kind: reflection.KindClass, SubKind: reflection.SubKindDate}
+	str := &reflection.RunType{ID: "str2", Kind: reflection.KindString}
+	wrapped := &reflection.RunType{ID: "uni1", Kind: reflection.KindUnion,
+		Children: []*reflection.RunType{makeRef("dat1"), makeRef("str2")}}
+	litA := &reflection.RunType{ID: "litA", Kind: reflection.KindLiteral, Literal: "a"}
+	litB := &reflection.RunType{ID: "litB", Kind: reflection.KindLiteral, Literal: "b"}
+	raw := &reflection.RunType{ID: "uni2", Kind: reflection.KindUnion,
+		Children: []*reflection.RunType{makeRef("litA"), makeRef("litB")}}
+	circle := &reflection.RunType{ID: "cir1", Kind: reflection.KindObjectLiteral}
+	circle.Children = []*reflection.RunType{
+		{Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("litA")},
+		{Kind: reflection.KindProperty, Name: "r", IsSafeName: true, Child: makeRef("dat1")},
+	}
+	square := &reflection.RunType{ID: "squ1", Kind: reflection.KindObjectLiteral}
+	square.Children = []*reflection.RunType{
+		{Kind: reflection.KindProperty, Name: "kind", IsSafeName: true, Child: makeRef("litB")},
+		{Kind: reflection.KindProperty, Name: "n", IsSafeName: true, Child: makeRef("str2")},
+	}
+	objects := &reflection.RunType{ID: "uni3", Kind: reflection.KindUnion,
+		Children: []*reflection.RunType{makeRef("cir1"), makeRef("squ1")}}
+	return protocol.Dump{
+		RunTypes: []*reflection.RunType{date, str, wrapped, litA, litB, raw, circle, square, objects},
+		Sites: []protocol.Site{
+			{File: "call.ts", Pos: 0, ID: "uni1", Demand: []protocol.SiteDemand{{FamilyTag: "jsc"}}},
+			{File: "call.ts", Pos: 10, ID: "uni2", Demand: []protocol.SiteDemand{{FamilyTag: "jsc"}}},
+			{File: "call.ts", Pos: 20, ID: "uni3", Demand: []protocol.SiteDemand{{FamilyTag: "jsc"}}},
+		},
+	}
+}
+
+func TestJsonSchemaDoc_WrappedUnionRendersTheEnvelope(t *testing.T) {
+	out := renderJscToString(t, jscUnionDump())
+	entry := extractInitLine(out, jscKey("uni1"))
+	if entry == "" {
+		t.Fatalf("no jsc entry for the wrapped union; render:\n%s", out)
+	}
+	for _, fragment := range []string{
+		"jsType: 'union'",
+		"prefixItems: [{const: 0}, {type: 'string', format: 'date-time', jsType: 'Date'}]",
+		"prefixItems: [{const: 1}, {type: 'string'}]",
+		"minItems: 2, items: false",
+	} {
+		if !strings.Contains(entry, fragment) {
+			t.Errorf("wrapped-union document missing %q, got:\n%s", fragment, entry)
+		}
+	}
+	if strings.Contains(entry, "anyOf: [{type: 'string'") {
+		t.Errorf("wrapped union must not render the natural anyOf, got:\n%s", entry)
+	}
+}
+
+func TestJsonSchemaDoc_RawUnionKeepsTheNaturalSpelling(t *testing.T) {
+	out := renderJscToString(t, jscUnionDump())
+	entry := extractInitLine(out, jscKey("uni2"))
+	if entry == "" {
+		t.Fatalf("no jsc entry for the raw union; render:\n%s", out)
+	}
+	if !strings.Contains(entry, "{enum: ['a', 'b']}") {
+		t.Errorf("raw literal union must stay the natural enum, got:\n%s", entry)
+	}
+	if strings.Contains(entry, "jsType: 'union'") {
+		t.Errorf("raw union must not wrap, got:\n%s", entry)
+	}
+}
+
+func TestJsonSchemaDoc_ObjectUnionRendersTheMergedArm(t *testing.T) {
+	out := renderJscToString(t, jscUnionDump())
+	entry := extractInitLine(out, jscKey("uni3"))
+	if entry == "" {
+		t.Fatalf("no jsc entry for the object union; render:\n%s", out)
+	}
+	for _, fragment := range []string{
+		"jsType: 'union'",
+		"prefixItems: [{const: -1}, {type: 'object', properties: {",
+		"r: {type: 'string', format: 'date-time', jsType: 'Date'}",
+		"n: {type: 'string'}",
+		"required: ['kind']",
+	} {
+		if !strings.Contains(entry, fragment) {
+			t.Errorf("object-union document missing %q, got:\n%s", fragment, entry)
+		}
+	}
+}

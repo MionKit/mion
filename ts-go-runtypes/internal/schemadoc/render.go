@@ -45,11 +45,63 @@ type Document struct {
 	Warnings []Warning
 }
 
+// UnionWireLayout is the renderer's structural view of a union's WIRE layout —
+// a projection of the JSON serializer's FlatLayout (cachegen/typefunctions,
+// union_flat_layout.go), provided by the caller so the document describes the
+// exact envelope the encoder writes and the decoder reads. When Wraps is
+// false the union travels raw and the natural spelling (enum / anyOf / oneOf)
+// is the wire truth.
+type UnionWireLayout struct {
+	// Wraps mirrors FlatLayout.AtomicNeedsTuple: the union travels as
+	// `[index, value]` envelopes (object members merged under index -1).
+	Wraps bool
+	// Atomics carries the per-member-dispatch members with their wire index.
+	Atomics []UnionWireAtomic
+	// HasMergedObjects is true when the union has mergeable object members —
+	// the `[-1, mergedObject]` arm exists.
+	HasMergedObjects bool
+	// MergedProps is the merged-object property list, first-appearance order.
+	MergedProps []UnionWireProp
+}
+
+// UnionWireAtomic is one atomic-bucket member: its node and wire index.
+type UnionWireAtomic struct {
+	Node  *reflection.RunType
+	Index int
+}
+
+// UnionWireProp is one merged-object property. Candidates keeps the
+// serializer's sub-index positions (a stripped candidate stays as nil so the
+// surviving indices do not shift).
+type UnionWireProp struct {
+	Name       string
+	IsSafeName bool
+	// Required mirrors the layout: declared non-optionally by EVERY object
+	// member, so the key is always present on the wire.
+	Required bool
+	// NeedsSubWrap: a conflicting prop's value travels as its own nested
+	// `[subIndex, value]` envelope selecting the candidate.
+	NeedsSubWrap bool
+	Candidates   []*reflection.RunType
+}
+
+// UnionLayoutFn supplies the wire layout for a union node, or nil when the
+// caller has no layout to offer (the renderer then spells the union in its
+// natural form — correct for raw unions and for the convert-parity path).
+type UnionLayoutFn func(union *reflection.RunType) *UnionWireLayout
+
 // RenderDocument renders the JSON-Schema document for root. deref resolves
 // `{kind: ref, id}` sentinels to their canonical nodes (pass the identity
 // function when the graph is already fully wired).
 func RenderDocument(root *reflection.RunType, deref func(*reflection.RunType) *reflection.RunType) Document {
-	renderState := &docRenderer{deref: deref, walking: map[string]bool{}, defs: map[string]*reflection.RunType{}}
+	return RenderDocumentWire(root, deref, nil)
+}
+
+// RenderDocumentWire is RenderDocument with a union wire-layout provider: the
+// jsc cache emitter passes a projection of the REAL FlatLayout so wrapped
+// unions render their `[index, value]` envelope instead of the natural form.
+func RenderDocumentWire(root *reflection.RunType, deref func(*reflection.RunType) *reflection.RunType, layoutFor UnionLayoutFn) Document {
+	renderState := &docRenderer{deref: deref, layoutFor: layoutFor, walking: map[string]bool{}, defs: map[string]*reflection.RunType{}}
 	resolvedRoot := renderState.resolve(root)
 	if resolvedRoot != nil {
 		renderState.rootID = resolvedRoot.ID
@@ -94,11 +146,12 @@ func RenderDocument(root *reflection.RunType, deref func(*reflection.RunType) *r
 }
 
 type docRenderer struct {
-	deref    func(*reflection.RunType) *reflection.RunType
-	rootID   string
-	walking  map[string]bool
-	defs     map[string]*reflection.RunType
-	warnings []Warning
+	deref     func(*reflection.RunType) *reflection.RunType
+	layoutFor UnionLayoutFn
+	rootID    string
+	walking   map[string]bool
+	defs      map[string]*reflection.RunType
+	warnings  []Warning
 }
 
 func (r *docRenderer) resolve(node *reflection.RunType) *reflection.RunType {
@@ -327,10 +380,86 @@ func (r *docRenderer) enumText(node *reflection.RunType) string {
 	return fmt.Sprintf("{enum: [%s]}", strings.Join(SortArms(parts), ", "))
 }
 
-// unionText renders a union: oneOf (exclusive brand), a plain-literal enum
-// list, or anyOf — the printer's exact vocabulary; the partial-oneOf defect
-// degrades to anyOf with a warning.
+// unionText renders a union. The WIRE decides the spelling: when the caller
+// supplied a layout and the union wraps (the serializer's flat-union envelope,
+// union_flat_layout.go), the document describes the envelope — `[index,
+// value]` tuples, object members merged under index -1 — because that IS what
+// travels and what the decoder reads. A raw union (every member JSON-natural)
+// and the layout-less path (convert parity) keep the natural vocabulary:
+// oneOf (exclusive brand), a plain-literal enum list, or anyOf.
 func (r *docRenderer) unionText(node *reflection.RunType) string {
+	if r.layoutFor != nil {
+		if wire := r.layoutFor(node); wire != nil && wire.Wraps {
+			return r.unionEnvelopeText(wire)
+		}
+	}
+	return r.unionNaturalText(node)
+}
+
+// unionEnvelopeText renders the flat-union wire envelope. Arm order is wire
+// order (atomic members by index, the merged-object arm last) — meaningful,
+// so deliberately NOT text-sorted like natural anyOf arms.
+func (r *docRenderer) unionEnvelopeText(wire *UnionWireLayout) string {
+	envelope := func(indexText, payload string) string {
+		return fmt.Sprintf("{type: 'array', prefixItems: [{const: %s}, %s], minItems: 2, items: false}", indexText, payload)
+	}
+	arms := make([]string, 0, len(wire.Atomics)+1)
+	for _, atomic := range wire.Atomics {
+		arms = append(arms, envelope(strconv.Itoa(atomic.Index), r.expr(atomic.Node)))
+	}
+	if wire.HasMergedObjects {
+		propertyParts := make([]string, 0, len(wire.MergedProps))
+		requiredParts := make([]string, 0, len(wire.MergedProps))
+		for _, prop := range wire.MergedProps {
+			key := prop.Name
+			if !prop.IsSafeName {
+				key = QuoteSingle(prop.Name)
+			}
+			propertyParts = append(propertyParts, fmt.Sprintf("%s: %s", key, r.mergedPropText(prop, envelope)))
+			if prop.Required {
+				requiredParts = append(requiredParts, QuoteSingle(prop.Name))
+			}
+		}
+		merged := "{type: 'object'"
+		if len(propertyParts) > 0 {
+			merged += fmt.Sprintf(", properties: {%s}", strings.Join(propertyParts, ", "))
+		}
+		if len(requiredParts) > 0 {
+			merged += fmt.Sprintf(", required: [%s]", strings.Join(requiredParts, ", "))
+		}
+		merged += "}"
+		arms = append(arms, envelope("-1", merged))
+	}
+	return fmt.Sprintf("{anyOf: [%s], jsType: 'union'}", strings.Join(arms, ", "))
+}
+
+// mergedPropText renders one merged-object property's wire: the single
+// candidate's document, an anyOf across candidates, or — for a sub-wrapped
+// conflict prop — the nested `[subIndex, value]` envelopes. Candidate slice
+// positions ARE the sub-indexes (stripped candidates hold their slot as nil).
+func (r *docRenderer) mergedPropText(prop UnionWireProp, envelope func(string, string) string) string {
+	var arms []string
+	for subIndex, candidate := range prop.Candidates {
+		if candidate == nil {
+			continue // a DataOnly-stripped candidate — never on the wire
+		}
+		if prop.NeedsSubWrap {
+			arms = append(arms, envelope(strconv.Itoa(subIndex), r.expr(candidate)))
+		} else {
+			arms = append(arms, r.expr(candidate))
+		}
+	}
+	if len(arms) == 0 {
+		return "{}"
+	}
+	if len(arms) == 1 {
+		return arms[0]
+	}
+	return fmt.Sprintf("{anyOf: [%s]}", strings.Join(arms, ", "))
+}
+
+// unionNaturalText is the raw-union / layout-less spelling.
+func (r *docRenderer) unionNaturalText(node *reflection.RunType) string {
 	if reason := node.OneOfDefectReason(); reason != "" {
 		r.warn("%s; the document renders the union as anyOf (exclusivity not expressed)", reason)
 	} else if len(node.OneOf) > 0 {

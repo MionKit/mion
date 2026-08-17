@@ -276,8 +276,14 @@ cache family's emitter — so the mapping between a type and its schema spelling
 home. Where the printer refuses (conversion must round-trip a declaration's identity),
 the renderer degrades: cycles close with `$defs`/`{$ref: '#'}`, classes render their
 structural wire shape, and anything unspellable widens to `{}` with a warning, so a
-document under-constrains but never lies. Printer/renderer parity is pinned by a corpus
-test and a seeded fuzz leg (`SchemaParityProbe` in `internal/convert`).
+document under-constrains but never lies. Unions describe the SERIALIZED wire: the
+`jsc` emitter projects the real flat-union layout (`buildFlatLayout`) into the
+renderer, so a wrapped union's document is the `[index, value]` envelope the JSON
+encoder writes (object members merged under index `-1`, `jsType: 'union'`), and a
+raw union keeps the natural spelling — document, encoder and decoder share one wire
+by construction. Printer/renderer parity is pinned by a corpus test and a seeded
+fuzz leg (`SchemaParityProbe` in `internal/convert`; wrapped unions are renderer-only
+and are pinned instead by the emission tests and the runtime agreement suite).
 
 ### `internal/enrichment/`: the files humans edit
 

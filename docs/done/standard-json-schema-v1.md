@@ -240,5 +240,16 @@ Landed on `feature/standard-json-schema-v1` as five commits, one per step:
 
 NOT shipped, by explicit decision recorded above: transform-inside-validate
 (restore mode) and any input/output asymmetry — `validate` stays check-only.
-The natural-JSON parse direction lives on as its own standard-free idea in
-docs/todos/natural-json-parse.md.
+
+ADDENDUM (same day): union documents describe THE ENCODER'S WIRE. The
+flat-union envelope (`[index, value]`, object members merged under index -1)
+is a deliberate strength of the serializer, so the generated documents spell
+it out rather than the natural anyOf form: the jsc emitter projects the REAL
+buildFlatLayout into the renderer (schemadoc.UnionWireLayout), wrapped unions
+render their envelope arms with `jsType: 'union'`, raw unions stay natural —
+exactly matching what createJsonEncoderFn writes in each case. Pinned by Go
+emission tests and a runtime agreement suite (jsonSchemaUnionWire.test.ts)
+whose structural validator accepts every encoder output and rejects the
+natural spelling for wrapped unions. A schema-conforming sender therefore
+speaks the decoder's wire, unions included; the briefly-filed
+natural-json-parse todo was withdrawn as contrary to this decision.
