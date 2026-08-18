@@ -141,19 +141,25 @@ jobs:
   # DEFAULT budget, which for the randomized sweeps is close to decorative (the
   # convert sweep draws 6 declarations, its CLI twin 5). The `--soak` budgets
   # live in rtx's FUZZ registry (scripts/rt.mjs) and, until this job existed,
-  # nothing ever ran them: no workflow here has a `schedule:`, so they only
-  # executed when a human typed the command.
+  # nothing ever ran them: no workflow has a `schedule:`, so they only executed
+  # when a human typed the command. This job is still the RELEASE half of that;
+  # fuzz-soak.yml is the other half, running the same twelve lanes on demand for
+  # the cost of twelve short jobs instead of the whole gate, so findings can be
+  # drained between releases rather than piling up against one.
   #
   # Deliberately NOT in ci.yml: that runs on every PR and would pay this on
   # every push. Here it rides the release gate, whose `workflow_dispatch` also
-  # makes it runnable by hand on any branch (`gh workflow run
-  # release-gate.yml --ref <branch>`) — which covers the manual half too.
+  # makes the whole gate runnable by hand on any branch (`gh workflow run
+  # release-gate.yml --ref <branch>`).
   #
   # One job per lane (not one job running all of them) so the wall clock is the
   # SLOWEST lane rather than their sum, and `fail-fast: false` so one lane's
   # finding never hides another's. Lanes are named literally: a new entry in the
   # FUZZ registry does not soak here until it is added to this list, which is
   # the intended trade — a soak budget is a wall-clock commitment, not a default.
+  # What IS pinned is that this list matches fuzz-soak.yml's and that every lane
+  # named here exists in the registry (fuzz-lane-contracts.test.ts), so the
+  # deliberate opt-in cannot decay into a dead lane name.
   fuzz-soak:
     name: fuzz soak · ${{ matrix.lane }}
     runs-on: ubuntu-latest

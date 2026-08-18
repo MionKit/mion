@@ -319,6 +319,24 @@ Then fix the bug and **pin it**: add the minimal repro to
 why a feature can change and we still trust thousands of strange inputs keep
 behaving.
 
+## Running a soak round
+
+A **round** is every lane that has a `--soak` budget, run on one fresh seed. Two
+places do it:
+
+- `pnpm rtx core fuzz <lane> --soak` locally, with `RT_FUZZ_SEED` set to
+  something you have not used before. Lanes cannot run concurrently (each
+  invocation rebuilds the binary), so a full round is sequential.
+- The **fuzz-soak** workflow, run by hand from the Actions tab or
+  `gh workflow run fuzz-soak.yml`. Twelve lanes in parallel, a fresh seed derived
+  from the run id, and a `lane` / `seed` pair of inputs so one finding replays on
+  one runner. The release gate runs the same twelve lanes on every prod PR.
+
+Rounds are worth running between releases, not only when a release forces one:
+these budgets are the only place the lanes explore new ground, so skipping them
+banks up findings until the worst possible moment
+([drain-fuzz-soak-backlog](../../../../docs/done/drain-fuzz-soak-backlog.md)).
+
 ## Environment variables
 
 The authoritative list is the `REGISTRY` in
