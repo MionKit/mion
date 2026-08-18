@@ -145,6 +145,10 @@ next build, no action needed).
 - **release-gate:** Every fuzz lane's `--soak` budget runs in the gate, one
   runner per lane, seeded from the run id so each gate explores new ground (the
   seed is echoed for verbatim replay).
+- **fuzz-soak:** The same lanes also run on demand outside the release path, so
+  draining a finding costs twelve short jobs rather than a whole gate, and the
+  lane lists in both workflows and the rtx registry are pinned equal by a
+  contract test.
 
 ## [0.11.0] - 2026-07-26
 
