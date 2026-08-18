@@ -121,6 +121,30 @@ a copied commit would land clean but put a non-`main` SHA into prod's ancestry;
 re-cutting keeps the branch a literal prefix of `main` (and `main-ancestor` green).
 Then hand the green PR to the developer to merge — with the merge-commit reminder.
 
+### A red `fuzz soak` lane blocks the release
+
+The soak lanes are the only place the fuzz budgets run with a varying seed, so the
+gate is where latent bugs surface — including ones the release did not introduce.
+**Every red soak lane blocks anyway.** There is no "it predates this version, ship
+it" carve-out: the finding is real, it is reproducible from the seed the job
+printed, and a release is the worst moment to start trusting an unfixed oracle
+violation. Fix forward on `main` and re-cut, exactly as above.
+
+**Never re-roll the seed to get green.** A second run on a fresh seed that passes is
+not evidence the bug is gone, only that the new seed did not reach it — the lane
+draws from a huge space and most draws miss any given defect. The green that counts
+is the failing seed replayed after the fix (`RT_FUZZ_SEED=<seed> pnpm rtx core fuzz
+<lane> --soak`, the command the job echoes on its first line).
+
+If a finding genuinely cannot be fixed inside the cycle, that is an explicit
+developer decision, not an agent one: ask, and record it as a `docs/todos/` spec
+naming the lane, the seed and the oracle before anything ships.
+
+The way to stop paying for this at release time is to drain findings between
+releases — `fuzz-soak.yml` runs the same twelve lanes on demand
+(`gh workflow run fuzz-soak.yml`, or the Actions tab) for the cost of twelve short
+jobs instead of the whole gate.
+
 ## Phase 3 — publish, approve, deploy
 
 The merge push fires publish.yml: `merge-shape` guard → full gate rerun →
@@ -158,5 +182,6 @@ When it succeeds, hand the developer the finishing steps, in order:
 - Into `prod`: **merge commit only**. Into `main`: rebase only, as everywhere else.
 - Never merge `prod` into `main`; never push to `prod` outside a PR; never push tags.
 - Every fix lands on `main` first — `prod` receives it via a promotion.
+- **A red `fuzz soak` lane blocks the release** — fix it forward, never re-roll the seed to get green; only the failing seed replayed clean counts.
 - The changelog is curated, not raw generator output — and only ever prepended.
 - One-time setup: the `prod` ruleset must require the `main-ancestor` check (`release head is an ancestor of main`) alongside the gate and `version-fresh`.
