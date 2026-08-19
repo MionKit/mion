@@ -5,7 +5,7 @@
 > covers step 1 (what you're testing and what you can see) and step 2 (is it worth it?),
 > since you settle those with the user first. The rule throughout: look before you build,
 > and build only the gaps. Full prose:
-> [framework-fuzzy-testing.md → Step 4](../../../docs/talks/directive-driven-testing/framework-fuzzy-testing.md#step-4-build-the-pieces).
+> [framework-fuzzy-testing.md → Step 4](framework-fuzzy-testing.md#step-4-build-the-pieces).
 
 ## Step 1 · Name the code and bound it (with the user)
 
