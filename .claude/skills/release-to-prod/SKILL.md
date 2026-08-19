@@ -136,9 +136,11 @@ draws from a huge space and most draws miss any given defect. The green that cou
 is the failing seed replayed after the fix (`RT_FUZZ_SEED=<seed> pnpm rtx core fuzz
 <lane> --soak`, the command the job echoes on its first line).
 
-If a finding genuinely cannot be fixed inside the cycle, that is an explicit
-developer decision, not an agent one: ask, and record it as a `docs/todos/` spec
-naming the lane, the seed and the oracle before anything ships.
+Default to fixing the finding inside the cycle. Shipping without the fix is an
+explicit developer decision, never an agent one: ask. Only if the developer
+chooses to defer does it get a `docs/todos/` spec naming the lane, the seed and
+the oracle before anything ships, and that spec is work still owed after the
+release, not a way to close the finding out.
 
 The way to stop paying for this at release time is to drain findings between
 releases — `fuzz-soak.yml` runs the same twelve lanes on demand
