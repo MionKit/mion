@@ -20,11 +20,15 @@ name: fuzz-soak
 # RT_FUZZ_SEED so a finding from any other run replays here verbatim; left blank
 # it derives from the run id, which is what makes each round fresh ground.
 #
-# The lane list is literal in four places — the `lane` options and the `pick`
-# step below, release-gate.yml's matrix, and rtx's FUZZ registry. They are pinned
-# equal by packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts, so a
-# lane added to one and forgotten in another fails the suite instead of silently
-# never soaking (which is exactly how a dead `jsonschema` lane sat in the gate's
+# The lane list lives in ONE place — rtx's FUZZ registry (scripts/rt.mjs): the
+# `pick` step below and release-gate.yml's matrix both derive from it via
+# `rtx core fuzz-lanes`, so a lane that gains a soak budget wires itself up in
+# both workflows. The one remaining literal copy is the `lane` choice options
+# below, because GitHub resolves dispatch options before any job runs — they
+# can never be derived. packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts
+# pins that copy (and both derivations) to the registry, so a lane added to the
+# registry and forgotten here fails the suite instead of silently never being
+# offered (which is exactly how a dead `jsonschema` lane sat in the gate's
 # matrix until it broke a release round).
 on:
   workflow_dispatch:
@@ -65,12 +69,18 @@ jobs:
     outputs:
       lanes: ${{ steps.pick.outputs.lanes }}
     steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      # `all` derives the list from the FUZZ registry — bare node on the
+      # zero-dep CLI, no pnpm install, no submodules, no build.
       - id: pick
         env:
           LANE: ${{ inputs.lane }}
         run: |
           if [ "$LANE" = 'all' ]; then
-            lanes='["value","types","nondata","roundtrip","size","cloning","enrich","i18n","typemod","race","convert","convertcli"]'
+            lanes="$(node scripts/rt.mjs core fuzz-lanes)"
           else
             lanes="[\"$LANE\"]"
           fi
