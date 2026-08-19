@@ -139,6 +139,10 @@ next build, no action needed).
 - **runtypes:** Per-rule dialect-spec conformance runs via the schema generator,
   and the schema-doc corpus is pinned as a golden.
 - **serialization:** StringTime and StringDateTime round-trip cases.
+- **fuzz:** Every lane derives its entry seed from the package version instead
+  of a pinned constant, and prints it with the command that replays it, so a run
+  is reproducible within a release and each version bump rotates the ground the
+  lanes explore.
 
 ### CI
 

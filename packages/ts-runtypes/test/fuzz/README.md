@@ -302,7 +302,22 @@ runs a soak: the per-PR lanes all use their (small) defaults.
 
 ## Reproducing a finding
 
-Every violation is logged with the seed that produced it. To replay:
+Every lane derives its **entry seed from the package version** (`version.json`),
+folded with the lane name, and prints it. No lane carries a pinned seed. That
+makes a run reproducible within a release (a red build replays exactly, a green
+one stays green) while every version bump rotates the ground the lanes explore.
+`RT_FUZZ_SEED` overrides it everywhere.
+
+The seed is printed at lane start, so a failing run carries its own replay
+instructions:
+
+```
+[types-fuzz] seed 0xae14e729 from version 0.12.0 — replay: RT_FUZZ_SEED=0xae14e729 pnpm rtx core fuzz types
+```
+
+Vitest only surfaces that line when the test fails, which is exactly when it is
+needed. Every violation is ALSO logged with the per-iteration seed that produced
+it. To replay:
 
 - **Stateless fuzzers** (value / roundtrip / type / binary): set the base seed
   and a short soak so the runner re-derives the same stream, e.g.
@@ -324,9 +339,11 @@ behaving.
 A **round** is every lane that has a `--soak` budget, run on one fresh seed. Two
 places do it:
 
-- `pnpm rtx core fuzz <lane> --soak` locally, with `RT_FUZZ_SEED` set to
-  something you have not used before. Lanes cannot run concurrently (each
-  invocation rebuilds the binary), so a full round is sequential.
+- `pnpm rtx core fuzz <lane> --soak` locally. Set `RT_FUZZ_SEED` to explore
+  ground the current version does not reach, since an unset seed is derived from
+  the version and so is the same every run within a release. Lanes cannot run
+  concurrently (each invocation rebuilds the binary), so a full round is
+  sequential.
 - The **fuzz-soak** workflow, run by hand from the Actions tab or
   `gh workflow run fuzz-soak.yml`. Twelve lanes in parallel, a fresh seed derived
   from the run id, and a `lane` / `seed` pair of inputs so one finding replays on
@@ -345,7 +362,7 @@ all fuzz knobs are `dev`-scoped with sensible defaults.
 
 | Variable                                                                     | Effect                                                                  |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `RT_FUZZ_SEED`                                                               | Base PRNG seed for a soak/replay run (per-fuzzer default)               |
+| `RT_FUZZ_SEED`                                                               | Entry seed for ANY run; unset derives one from the package version      |
 | `RT_FUZZ_SOAK_MS`                                                            | value fuzz soak duration (ms)                                           |
 | `RT_FUZZ_TYPES_SOAK_MS`                                                      | type fuzz soak duration (ms)                                            |
 | `RT_FUZZ_NONDATA_SOAK_MS`                                                    | non-data type fuzz soak duration (ms)                                   |
