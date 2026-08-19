@@ -107,9 +107,10 @@ export const REGISTRY = [
   {name: 'RT_BENCH_PNPM_VERSION', scope: 'dev', task: '-', desc: 'pnpm version, forwarded to the image build'},
   {name: 'RT_BENCH_CA_CERT', scope: 'dev', task: '-', desc: 'Extra CA certs, forwarded to the image build'},
 
-  // — fuzz test knobs (package.json fuzz scripts + the harness) —
-  {name: 'RT_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (per-suite default)'},
-  {name: 'RT_FUZZ_ITER', scope: 'dev', task: '-', desc: 'convert fuzz sweep iteration count'},
+  // — fuzz test knobs (the harness; `rtx core fuzz <lane> [--quick|--soak]`
+  //   sets them per lane from the FUZZ registry in scripts/rt.mjs) —
+  {name: 'RT_FUZZ_SEED', scope: 'dev', task: '-', desc: 'Fuzz PRNG seed (default: derived from the package version + lane)'},
+  {name: 'RT_FUZZ_ITER', scope: 'dev', task: '-', desc: 'convert fuzz sweep iteration count — drives BOTH convert lanes (Go sweeps default 6, the CLI twin 5)'},
   {name: 'RT_FUZZ_SOAK_MS', scope: 'dev', task: '-', desc: 'value fuzz soak duration in ms'},
   {name: 'RT_FUZZ_TYPES_SOAK_MS', scope: 'dev', task: '-', desc: 'type fuzz soak duration in ms'},
   {name: 'RT_FUZZ_SIZE_SOAK_MS', scope: 'dev', task: '-', desc: 'binary-size fuzz soak duration in ms'},

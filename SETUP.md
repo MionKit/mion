@@ -495,10 +495,11 @@ so it replaces the old per-script `check:builds` pre-hooks. Run `pnpm rtx --help
 for the full surface.
 
 ```bash
-pnpm rtx dev                     # build if stale, then vitest in watch mode
-pnpm rtx dev --run               # one-shot pass (== pnpm test)
-pnpm rtx dev fuzz <suite> [--soak]  # unit|value|types|enrich|i18n|typemod|race|all
-pnpm rtx dev smoke               # resolver + devtools end-to-end smoke
+pnpm test                        # build if stale, then the whole JS suite
+pnpm rtx core build              # build the resolver + dev dists if stale
+pnpm rtx core fuzz <lane…> [--quick|--soak]   # unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+pnpm rtx core fuzz-lanes         # the soak lane list as JSON (the soak workflows' matrix source)
+pnpm rtx core smoke              # resolver + devtools end-to-end smoke
 pnpm rtx website dev [--agent]   # hot-reload docs server (:3000, or :3100 --agent)
 pnpm rtx website build [--no-bench] [--quick]   # build the docs site
 pnpm rtx website check --static  # serve the built site + assert the benchmark pages render

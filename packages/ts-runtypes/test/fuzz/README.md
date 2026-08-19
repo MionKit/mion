@@ -273,32 +273,51 @@ code / stdout / stderr / JSON findings on both success and failure paths.
 The `rtx` front door builds the binary first, then runs the suite:
 
 ```bash
-pnpm rtx core fuzz <suite> [--soak]
-#   suite ∈  unit | value | types | nondata | roundtrip | size | cloning |
+pnpm rtx core fuzz <lane…> [--quick|--soak]
+#   lane ∈   unit | value | types | nondata | roundtrip | size | cloning |
 #            enrich | i18n | typemod | race | sidecar | patterngen | convert | convertcli | all
-#   --soak   swaps the fixed batch for the long soak knobs (see rt.mjs FUZZ table)
+#   --quick  the per-PR tier: ~2x the fixed batch (what ci.yml runs)
+#   --soak   the release tier: the long soak knobs (see the rt.mjs FUZZ table)
 ```
 
 - `unit` runs the pure-TS core tests via `vitest.fuzz-unit.config.ts` (no
   binary).
 - `value` / `types` / `cloning` / `enrich` / `i18n` / `typemod` each run one
-  integration file; `--soak` turns up its iteration/duration env.
+  integration file; `--quick` and `--soak` turn up its iteration/duration env.
 - `race` is the only path that sets `RT_FUZZ_RACE=1`.
-- `all` is a quick trio (`fuzz.integration`, `typeFuzz.integration`,
-  `binaryEncoderResize`).
+- `all` runs EVERY lane at its default budget: the whole `test/fuzz` tree, both
+  sidecar lanes, the race test, and both Go sweeps under `internal/convert`
+  (including the lane-less schemadoc determinism sweep). It takes no tier flag —
+  a quick or soak round is per-lane, so the time-boxed lanes never share CPU.
+- Several lanes in one invocation (`pnpm rtx core fuzz types value --quick`) pay
+  vitest's startup once; if any of them is time-boxed, rtx runs the files
+  sequentially and says so.
 
 `pnpm test` alone already runs every fixed-iteration batch (roundtrip, binary
 size, non-data, and the smoke/gate tests included), and `go test ./internal/...`
 runs the Go-side `convert` sweep. So `rtx core fuzz` is not what makes a lane
-run — it is the **soak / replay** front door, and `race` is the only lane it
+run — it is the **tier / replay** front door, and `race` is the only lane it
 gates (nothing else sets `RT_FUZZ_RACE=1`).
 
-The soak budgets themselves run in CI in the **`fuzz-soak` job** of
+**Three budget tiers.** The default batch is a floor, not coverage. `--quick` is
+the per-PR tier and runs on EVERY PR in
+[ci.yml](../../../../.github/workflows/ci.yml): the count-based lanes ride the
+`go tests + fuzz` sweep, the six time-boxed ones run as one sequential batch on
+the `js tests + lint` runner, and `RT_FUZZ_ITER` widens the Go sweeps. `--soak`
+is the release tier, run by the **`fuzz-soak` job** of
 [release-gate.yml](../../../../.github/workflows/release-gate.yml) — one runner
 per lane, on release PRs, on the push to `prod`, and on demand via
-`gh workflow run release-gate.yml --ref <branch>`. That job seeds each lane from
-the run id and echoes the value, so a CI finding replays verbatim. Nowhere else
-runs a soak: the per-PR lanes all use their (small) defaults.
+`gh workflow run release-gate.yml --ref <branch>` — or off the release path with
+`gh workflow run fuzz-soak.yml`. Those jobs seed each lane from the run id and
+echo the value, so a CI finding replays verbatim; the per-PR tier keeps the
+version-derived seed instead, so a red lane belongs to that PR.
+
+**Time-boxed vs count-based.** The `*_SOAK_MS` lanes (value, types, nondata,
+roundtrip, size, cloning) fuzz against a wall clock, so CPU contention silently
+buys them LESS coverage and they must never run concurrently. The rest are
+count-based: fixed coverage, contention costs only wall clock. `rtx` enforces
+this for multi-lane runs, and both CI and the soak workflows schedule
+accordingly.
 
 ## Reproducing a finding
 
@@ -341,13 +360,16 @@ places do it:
 
 - `pnpm rtx core fuzz <lane> --soak` locally. Set `RT_FUZZ_SEED` to explore
   ground the current version does not reach, since an unset seed is derived from
-  the version and so is the same every run within a release. Lanes cannot run
-  concurrently (each invocation rebuilds the binary), so a full round is
-  sequential.
+  the version and so is the same every run within a release. Soak the lanes one
+  at a time: the time-boxed ones lose coverage to contention, and a full local
+  round is therefore the sum of the lane budgets.
 - The **fuzz-soak** workflow, run by hand from the Actions tab or
-  `gh workflow run fuzz-soak.yml`. Twelve lanes in parallel, a fresh seed derived
-  from the run id, and a `lane` / `seed` pair of inputs so one finding replays on
-  one runner. The release gate runs the same twelve lanes on every prod PR.
+  `gh workflow run fuzz-soak.yml`. Every soak lane in parallel, one runner each,
+  a fresh seed derived from the run id, and a `lane` / `seed` pair of inputs so
+  one finding replays on one runner. The release gate runs the same lanes on
+  every prod PR. Both derive that lane list from the `FUZZ` registry
+  (`pnpm rtx core fuzz-lanes`), so giving a lane a soak budget is all it takes
+  to enrol it in both.
 
 Rounds are worth running between releases, not only when a release forces one:
 these budgets are the only place the lanes explore new ground, so skipping them

@@ -1,7 +1,7 @@
 ---
 type: chore
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-19
 ---
 
@@ -101,3 +101,61 @@ Do it when no release is in flight, so check names can change freely.
 The seeding policy itself, which shipped separately: every lane now derives its
 entry seed from the package version and logs it. That change also closed finding 6
 above.
+
+## Plan — quick tier + registry-derived lanes (approved 2026-08-19)
+
+Approved with one addition to the original direction: **a per-PR QUICK tier**.
+Waiting for a release to run soak budgets means findings arrive with their cause
+long out of context, so every lane now also runs on every PR at roughly twice
+its default budget, placed to keep the two CI jobs balanced rather than to add
+runners.
+
+Measured first, on real runs (the numbers that sized the tier):
+
+| | wall clock | notes |
+| --- | --- | --- |
+| full soak round | ~96 runner-min over 12 parallel jobs | slowest lane `typemod` 27m46s; `enrich` 14m06s, `i18n` 10m16s, the other nine 4-6m |
+| per-PR defaults (before) | ~1.5 min | already ran inside `go tests + fuzz`; the gate itself called them "close to decorative" |
+| per-PR quick tier (after) | ~3 min of runner time | +~50s PR wall clock, no new runner instances |
+
+What shipped:
+
+1. **One source of truth** (findings 1-3). The `FUZZ` registry in
+   `scripts/rt.mjs` owns the lane list; `rtx core fuzz-lanes` emits the soak
+   lanes as JSON and both soak workflows build their matrices from it through a
+   ~30s `pick` job. **The opt-in survives, relocated**: a lane soaks only if its
+   registry entry carries a `soak` budget, which is still a deliberate
+   wall-clock commitment, now stated once instead of four times. Four lists
+   became one plus one justified copy: a `workflow_dispatch` choice input's
+   `options` are resolved before any job runs and can never be derived, so that
+   list stays literal and `fuzz-lane-contracts.test.ts` pins it to the registry.
+   `release-gate.yml` was NOT converted to call the reusable workflow (finding
+   2): deriving the matrix is what actually collapsed the duplication, and
+   nesting `workflow_call` would have re-prefixed every check name for no
+   further gain.
+2. **`all` is now all** (finding 4). It runs every lane at its default budget:
+   the whole `test/fuzz` tree, both sidecar lanes, `race` (it sets
+   `RT_FUZZ_RACE=1` itself) and both Go sweeps under `internal/convert` —
+   including `TestFuzz_SchemaDocDeterminism`, which no lane reached before. It
+   takes no tier flag, because a quick or soak round is per-lane by design.
+3. **The scheduling rule is enforced, not just written down** (finding 5).
+   `rtx core fuzz` accepts several lanes in one invocation, and when that set
+   contains a time-boxed (`*_SOAK_MS`) lane it runs the files sequentially and
+   says why. Batching also pays vitest's startup once: the six time-boxed lanes
+   take ~2min together versus ~3.5min run separately. Lanes that would collide
+   on the shared `RT_FUZZ_ITER` now fail loudly instead of silently taking one
+   budget. The rule is documented in the registry header, `docs/FUZZING.md` and
+   the fuzz README.
+4. **Quick tier in `ci.yml`**, split by that same rule: the six time-boxed lanes
+   run as one sequential batch on the `js tests + lint` runner, the count-based
+   lanes ride `go tests + fuzz`'s sweep (whose exclude list removes the six, so
+   the jobs stay a disjoint partition), and `RT_FUZZ_ITER` widens the Go sweeps.
+   Seeds stay version-derived per PR, so a red lane belongs to that PR and
+   replays locally with the command the failing step names. Projected from the
+   measurements: both jobs land ~7.5 min, against 6m41s and 5m26s before.
+
+Drive-by fixes found while working: `rtx core fuzz constructor` used to pass the
+unknown-suite guard and crash on a prototype property; `SETUP.md` documented a
+`pnpm rtx dev …` area that no longer exists; the env registry's fuzz header
+referenced `package.json` fuzz scripts that are gone, and `RT_FUZZ_ITER`'s row
+did not mention that it drives two lanes.

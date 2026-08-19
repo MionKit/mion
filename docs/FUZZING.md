@@ -163,11 +163,53 @@ follow-up.
 
 ## Running
 
-All suites run through the internal CLI: `pnpm rtx core fuzz <suite> [--soak]`. It
-builds the binary + plugin first (except `unit`, which needs neither) and sets the
-suite's `RT_FUZZ_*` env for you. Suites: `unit | value | types | nondata |
-roundtrip | size | cloning | enrich | i18n | typemod | race |
-sidecar | patterngen | convert | convertcli | all`.
+All suites run through the internal CLI: `pnpm rtx core fuzz <lane…>
+[--quick|--soak]`. It builds the binary + plugin first and sets each lane's
+`RT_FUZZ_*` env for you from the `FUZZ` registry in
+[scripts/rt.mjs](../scripts/rt.mjs), which is the single source of truth for the
+lane list and every budget. Lanes: `unit | value | types | nondata | roundtrip |
+size | cloning | enrich | i18n | typemod | race | sidecar | patterngen | convert
+| convertcli | all`.
+
+Name several lanes in one invocation (`pnpm rtx core fuzz types value --quick`)
+to pay vitest's startup once. See the scheduling rule below before doing that.
+
+### Budget tiers
+
+Every lane runs at one of three budgets:
+
+| Tier | Set by | Where it runs | Rough size |
+| --- | --- | --- | --- |
+| default | nothing — the value baked into each test | `pnpm test`, `go test ./internal/...` | a handful of iterations: proof the harness runs, not coverage |
+| quick | `--quick` | **every PR**, in ci.yml | ~2x the default; ~3 min of runner time, split across the two CI jobs |
+| soak | `--soak` | release-gate.yml, and on demand via fuzz-soak.yml | one runner per lane under a 45-min cap; ~96 runner-minutes for a full round |
+
+Giving a lane a `soak` block in the registry IS the opt-in to the release tier:
+a soak budget is a real wall-clock commitment, but once made, both soak
+workflows pick the lane up automatically (they derive their matrices from
+`pnpm rtx core fuzz-lanes`).
+
+### Scheduling: time-boxed vs count-based
+
+The two budget shapes CANNOT be scheduled the same way:
+
+- **Time-boxed** lanes (`RT_FUZZ_*_SOAK_MS`: value, types, nondata, roundtrip,
+  size, cloning) fuzz until a wall clock runs out. Under CPU contention they
+  silently buy LESS coverage in the same wall clock, so they must never run
+  concurrently with each other.
+- **Count-based** lanes (sequences / iterations: enrich, i18n, typemod, race,
+  convert, convertcli) do a fixed amount of work. Contention costs wall clock
+  only, so they can share a runner.
+
+`rtx` enforces this rather than trusting you to remember it: a multi-lane
+invocation containing a time-boxed lane runs the files sequentially
+(`--no-file-parallelism`) and says so. The soak workflows give every lane its
+own runner, and ci.yml splits the two kinds across its two jobs for the same
+reason.
+
+Note that `RT_FUZZ_ITER` drives BOTH convert lanes, so exporting it in a shell
+widens the two at once; asking one invocation for different budgets on both
+(`fuzz convert convertcli --quick`) is a hard error rather than a silent pick.
 
 The `convert` suite is the format-conversion sweep and lives Go-side
 (`ts-go-runtypes/internal/convert/fuzz_atoms_test.go`, where the printers
@@ -196,20 +238,30 @@ one writing its type INLINE, which every leg rewrites into that form's value
 spelling and back. The inline probe is the only one exercising call-site
 conversion — the other two exercise the paths that skip it.
 
-Every lane already runs under the ordinary test commands — `go test
+Every lane also runs under the ordinary test commands — `go test
 ./internal/...` picks up the Go `convert` sweep, `vitest run test/fuzz` picks up
-the rest — at its DEFAULT budget. `rtx core fuzz` is the soak / replay front
+the rest — at its DEFAULT budget. `rtx core fuzz` is the tier / replay front
 door over those same commands, not a gate (`race` is the one lane it gates,
 since nothing else sets `RT_FUZZ_RACE=1`).
+
+Every lane runs on EVERY PR at its quick budget, in
+[ci.yml](../.github/workflows/ci.yml): the count-based lanes ride the `go tests
++ fuzz` job's sweep, the time-boxed ones run in one sequential batch on the `js
+tests + lint` runner, and the Go sweeps widen via `RT_FUZZ_ITER`. Seeds stay
+version-derived there (no `RT_FUZZ_SEED`), so a red lane belongs to that PR and
+replays locally with the command the failing step names. The point is that a
+finding lands while the change that caused it is still in review, instead of
+arriving at the next release with its cause long out of context.
 
 The soak budgets run in CI in the `fuzz-soak` job of
 [release-gate.yml](../.github/workflows/release-gate.yml): one runner per lane,
 on release PRs, on the push to `prod`, and on demand with `gh workflow run
 release-gate.yml --ref <branch>`. Each lane is seeded from the run id and the
 seed is echoed, so a CI finding replays verbatim with `RT_FUZZ_SEED=<printed>
-pnpm rtx core fuzz <lane> --soak`. Nothing else runs a soak — the per-PR lanes
-are all at their defaults, which for the randomized sweeps is a handful of
-iterations.
+pnpm rtx core fuzz <lane> --soak`. A round can also be run off the release path
+with [fuzz-soak.yml](../.github/workflows/fuzz-soak.yml) (`gh workflow run
+fuzz-soak.yml -f lane=<lane|all>`), so findings get drained between releases
+rather than piling up against one.
 
 A `--soak` run is bounded by its own wall clock: the runner refuses to start an
 iteration the remaining budget cannot pay for
@@ -223,8 +275,12 @@ soak as a timeout failure.
 # offline unit tests — pure logic, no Go binary needed
 pnpm rtx core fuzz unit
 
-# end-to-end sweep over compiled functions (builds binary + plugin first)
+# EVERY lane at its default budget: the whole fuzz tree, both sidecar lanes,
+# the race test and both Go sweeps (builds binary + plugin first)
 pnpm rtx core fuzz all
+
+# what CI runs per PR: the six time-boxed lanes, one sequential batch
+pnpm rtx core fuzz cloning nondata roundtrip size types value --quick
 
 # autonomous soak: fuzz for 60s, log every finding (set RT_FUZZ_SEED to replay)
 pnpm rtx core fuzz value --soak
