@@ -9,13 +9,14 @@
 //
 // These tests pin the parts of that machinery that can be checked from the host
 // without the image: the API names the competitor maps call, the exit-code
-// meaning each lane reports, the aggregate step's tolerance for the non-competitor
-// artifacts that share `results/`, and the rtx -> bench.mjs verb wiring.
+// meaning each lane reports, the tolerance both results readers (aggregate.mjs and
+// the website's gen-docs.mjs) have for the non-competitor artifacts that share
+// `results/`, and the rtx -> bench.mjs verb wiring.
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
 import {readFileSync, existsSync, mkdtempSync, writeFileSync} from 'node:fs';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 import {tmpdir} from 'node:os';
 
@@ -158,6 +159,78 @@ describe('aggregate.mjs survives the other artifacts that share results/', () =>
     expect(run.status).toBe(0);
     expect(run.stdout).toContain('ajv.json');
     expect(run.stdout).toContain('unreadable JSON');
+  });
+});
+
+describe('gen-docs.mjs reads results/ the same way everywhere', () => {
+  // Same class of bug as the aggregate one above, one directory up: the strict lane's
+  // reader carried its OWN filename blocklist, that copy never learned about the audit
+  // lane's <competitor>.alignment.json, and `pnpm rtx website build` (which runs the
+  // audit right before gen-docs) died with "Cannot read properties of undefined
+  // (reading 'map')" — a red website deploy with the site already built. Both readers
+  // now go through readCompetitorResults, which filters on SHAPE.
+  const results = (name: string, key: string, suite: string): string =>
+    JSON.stringify({
+      competitor: name,
+      cases: [
+        {
+          key,
+          suite,
+          group: key.split('.')[0],
+          name: key.split('.')[1],
+          validate: {status: 'ok', validOpsSec: 1, invalidOpsSec: 1},
+        },
+      ],
+    });
+
+  // gen-docs.mjs is a plain script with no declarations, so call its reader out of
+  // process (the same shape the aggregate tests above use) rather than importing it.
+  function readResults(dir: string): {competitors: string[]; firstCaseKey: string | null} {
+    const genDocs = pathToFileURL(join(REPO_ROOT, 'scripts/website/bench-data/gen-docs.mjs')).href;
+    const script = `
+      const {readCompetitorResults} = await import(${JSON.stringify(genDocs)});
+      const results = readCompetitorResults(process.argv[1]);
+      process.stdout.write(JSON.stringify({competitors: results.map((r) => r.competitor), firstCaseKey: results[0]?.cases[0]?.key ?? null}));
+    `;
+    const run = spawnSync(process.execPath, ['--input-type=module', '-e', script, dir], {encoding: 'utf8'});
+    expect(run.stderr).not.toContain('TypeError');
+    expect(run.status, run.stderr).toBe(0);
+    return JSON.parse(run.stdout);
+  }
+
+  function resultsDir(files: Record<string, string>): string {
+    const dir = mkdtempSync(join(tmpdir(), 'rt-gen-docs-'));
+    for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
+    return dir;
+  }
+
+  it('keeps the competitor results and skips every other artifact that shares the dir', () => {
+    const dir = resultsDir({
+      'zod.json': results('zod', 'ATOMIC.string', 'validation'),
+      'env.json': JSON.stringify({node: process.version}),
+      'zod.alignment.json': JSON.stringify({competitor: 'zod', records: [], totals: {misalignments: 0}}),
+      'alignment-misalignments.json': JSON.stringify({misalignments: []}),
+      'ts-runtypes.typecost.json': JSON.stringify({library: 'ts-runtypes', instantiations: 1}),
+      'ts-runtypes.compiletime.json': JSON.stringify({library: 'ts-runtypes', stripMs: 1}),
+      'transform-wire.json': JSON.stringify({mode: 'go', samples: []}),
+      // Carries both `competitor` and `cases`, so only the name rules it out.
+      'zod.spec.json': results('zod', 'JSON_SCHEMA.type', 'validation'),
+      'broken.json': '{ not json',
+    });
+    expect(readResults(dir)).toEqual({competitors: ['zod'], firstCaseKey: 'ATOMIC.string'});
+  });
+
+  it('returns nothing for a lane directory that was never written', () => {
+    // The bun lane's subdir is absent whenever RT_BENCH_BUN=0, and the strict bench
+    // reads it unconditionally.
+    expect(readResults(join(tmpdir(), 'rt-gen-docs-absent-lane'))).toEqual({competitors: [], firstCaseKey: null});
+  });
+
+  it('has one results-directory reader, so a second blocklist cannot drift back in', () => {
+    const source = read('scripts/website/bench-data/gen-docs.mjs');
+    // buildSampleMap walks shared/cases/**; the only OTHER listing is the reader.
+    expect([...source.matchAll(/readdirSync\(/g)]).toHaveLength(2);
+    expect(source).toContain('export function readCompetitorResults(dir)');
   });
 });
 
