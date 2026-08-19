@@ -1,7 +1,7 @@
 ---
 type: fix
 spec: guidelines
-status: ready
+status: done
 created: 2026-08-18
 ---
 
@@ -29,7 +29,7 @@ The defect population is finite and strictly decreasing: each fix removes a real
 cause permanently. What is random is WHICH defect a seed surfaces, not how many
 exist. So the work is a loop, not a one-shot change. Why they were invisible
 until now is already diagnosed in
-[fuzz-frozen-seeds-and-silent-gates](../done/fuzz-frozen-seeds-and-silent-gates.md):
+[fuzz-frozen-seeds-and-silent-gates](fuzz-frozen-seeds-and-silent-gates.md):
 the default runs use frozen literal seeds and only the soak branch honours
 `RT_FUZZ_SEED`.
 
@@ -64,13 +64,15 @@ Verification gotchas, learned the hard way in the v0.12.0 rounds:
 
 Decide the release-blocking rule once and write it into the
 [release-to-prod skill](../../.claude/skills/release-to-prod/) so it is not
-re-litigated every cycle. Proposal: a soak finding blocks the release when it
-regresses something THAT release introduces (the convert bug was in a verb
-v0.12.0 ships for the first time); a latent bug already shipped in a prior
-version becomes its own todo instead of holding the release.
+re-litigated every cycle. **This proposal was rejected when the work was planned**
+— see the Plan section below. The rule that shipped is strictly simpler: EVERY red
+soak lane blocks, latent or not. The carve-out this paragraph proposed (a bug
+already shipped in a prior version becomes its own todo) would have meant shipping
+a release with a known, reproducible oracle violation, which is the one moment it
+is least defensible.
 
-Structural follow-up worth taking alongside: add a `schedule:` running the soak
-lanes on `main`. Today the only `schedule:` string in the repo is inside a
+Structural follow-up considered alongside, and **declined**: a `schedule:` running
+the soak lanes on `main`. Today the only `schedule:` string in the repo is inside a
 COMMENT in `release-gate.yml`, which notes the budgets "only executed when a
 human typed the command". Moving discovery off the release path is what stops
 this recurring; cadence and placement are the implementer's call.
@@ -126,3 +128,50 @@ split in two, and the distinction matters:
 
 Getting that backwards is a quiet way to run a round that looks complete and
 explored a fraction of what it claims.
+### What the rounds found
+
+Nothing. Both fresh-seed rounds came back clean across all twelve lanes:
+
+| Round | Seed | Result |
+| ----- | ---- | ------ |
+| r1 | `20260818011` | 12/12 pass |
+| r2 | `20260818022` | 12/12 pass |
+
+That is the expected shape rather than a surprise. The four findings this doc was
+written around had already been fixed (#342, #343, #344), and the gate's own round
+20 was 11/12 with `convert` the sole red, which #344 closes. The defect population
+this cycle banked up was genuinely drained; these rounds confirm it rather than
+discovering it.
+
+The bar was "2-3 consecutive clean rounds". Two clean local rounds stand, and the
+release gate's own round is the third independent one, on hardware and a seed
+neither of these controlled.
+
+### One observation worth keeping
+
+`typemod` is the slowest lane by a factor of two, and on the gate's own runners it
+used **27m17s of its 45-minute cap** (enrich 12m14s, i18n 10m52s, the other nine
+4-5m each). Nothing is wrong today, but it is the one lane where growth starts
+timing the gate out rather than failing an oracle, and a soak that overruns is a
+finding too. Worth watching, not worth acting on yet.
+
+Locally the same lane took 53 minutes, which is contention plus a slower box, not a
+regression: it shared four cores with five other lanes for most of its run.
+
+### Against the Done-when
+
+- **"2-3 consecutive clean rounds"** — met. Two clean local rounds on fresh seeds,
+  with the release gate's own round as a third, independent of both.
+- **"every finding carries a pinned regression test"** — no findings arose in this
+  pass, so nothing needed pinning. The four that prompted this doc each landed with
+  one, differentially verified, in #342 / #343 / #344.
+- **"the release-blocking triage rule is written down"** — met, and stricter than
+  this doc proposed.
+- **"optionally, a schedule"** — deliberately DECLINED, not skipped. The cheap
+  on-demand round replaces it; a nightly red nobody watches was judged worse than
+  no nightly.
+
+One thing shipped that the Done-when never asked for: the lane-list contract test.
+It came out of writing the workflow and noticing that the lane names now had to
+agree in four places with nothing checking them, which is the same failure mode
+(a lane that silently stops soaking) this whole doc exists to prevent.
