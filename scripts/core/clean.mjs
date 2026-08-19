@@ -72,6 +72,7 @@ const GROUPS = [
       'container/benchmarks/__runtypes',
       'container/website/public/bench-data',
       'container/pre-publish-e2e/package-lock.json',
+      'container/pre-publish-e2e/host-smoke/__runtypes',
       'packages/**/__runtypes', // resolver genDirs written by the test suites
       'packages/ts-runtypes/test/suites/enrich/.tmp',
       'packages/ts-runtypes/test/tmp-build-*',
