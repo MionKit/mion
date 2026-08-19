@@ -351,8 +351,7 @@ places do it:
 
 Rounds are worth running between releases, not only when a release forces one:
 these budgets are the only place the lanes explore new ground, so skipping them
-banks up findings until the worst possible moment
-([drain-fuzz-soak-backlog](../../../../docs/done/drain-fuzz-soak-backlog.md)).
+banks up findings until the worst possible moment.
 
 ## Environment variables
 
