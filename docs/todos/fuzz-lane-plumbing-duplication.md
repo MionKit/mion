@@ -72,12 +72,10 @@ to break a release round.
    so the two kinds cannot be scheduled the same way. Nothing states that anywhere
    a reader would look.
 
-6. **Three lanes reach for the seed helpers inconsistently.** `enrich`, `i18n` and
-   `typemod` call `parseSeed(process.env.RT_FUZZ_SEED, <pinned>)` directly instead
-   of the `laneSeed()` / `soakSeed()` helpers in
-   [core/fuzzPolicy.ts](../../packages/ts-runtypes/test/fuzz/core/fuzzPolicy.ts),
-   so they skip the "print the seed when it differs from the pinned default"
-   behaviour every other lane gets.
+6. ~~**Three lanes reach for the seed helpers inconsistently.**~~ **DONE** —
+   fixed by the version-seeding change: `laneSeed` / `soakSeed` collapsed into one
+   `entrySeed(lane)` that every lane now calls, including the two sidecar lanes in
+   `packages/ts-runtypes-go-be-sidecar` and both Go sweeps.
 
 ## Direction
 
@@ -100,7 +98,6 @@ Do it when no release is in flight, so check names can change freely.
 
 ## Out of scope
 
-The seeding policy itself (pinned defaults, timestamp-derived entry seeds,
-logging a seed so a failure replays). That is being changed separately; finding 6
-here is only about which helper the three model lanes call, not what the helpers
-should do.
+The seeding policy itself, which shipped separately: every lane now derives its
+entry seed from the package version and logs it. That change also closed finding 6
+above.
