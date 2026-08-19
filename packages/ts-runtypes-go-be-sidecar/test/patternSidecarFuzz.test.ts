@@ -13,9 +13,10 @@ import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
+import {entrySeed} from '../../ts-runtypes/test/fuzz/core/fuzzPolicy.ts';
 
 const BUNDLE = resolve(import.meta.dirname, '../../../ts-go-runtypes/internal/jsengine/sidecar.bundle.mjs');
-const SEED = Number(process.env.RT_FUZZ_SEED ?? 0x51deca12);
+const SEED = entrySeed('sidecar');
 const BATCHES = 12;
 const JOBS_PER_BATCH = 40;
 

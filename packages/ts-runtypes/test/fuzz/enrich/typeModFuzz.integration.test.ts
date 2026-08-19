@@ -32,12 +32,12 @@ import {describe, it, expect, afterAll} from 'vitest';
 import {cleanupReconcileLane} from '../../util/enrichReconcile.ts';
 import {BIN} from './enrichCli.ts';
 import {runTypeModFuzz, runOneModSequence, shrinkModFailure, formatModReport} from './typeModFuzzRunner.ts';
-import {parseSeed, FLAKE_CEILING} from '../core/fuzzPolicy.ts';
+import {entrySeed, parseSeed, FLAKE_CEILING} from '../core/fuzzPolicy.ts';
 
 afterAll(cleanupReconcileLane);
 
 const HAS_BIN = existsSync(BIN);
-const SEED = parseSeed(process.env.RT_FUZZ_SEED, 0x7b9e4d11);
+const SEED = entrySeed('typemod');
 // Sequences that failed but did not reproduce on shrink (see the ceiling below).
 let flakes = 0;
 const SEQUENCES = Number(process.env.RT_FUZZ_TYPEMOD_SEQUENCES ?? 6);

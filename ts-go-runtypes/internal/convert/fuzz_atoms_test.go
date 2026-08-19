@@ -21,14 +21,7 @@ func TestFuzz_AtomChain(t *testing.T) {
 	if testing.Short() {
 		t.Skip("randomized sweep skipped under -short")
 	}
-	seed := int64(20260808)
-	if raw := os.Getenv("RT_FUZZ_SEED"); raw != "" {
-		parsed, parseErr := strconv.ParseInt(raw, 10, 64)
-		if parseErr != nil {
-			t.Fatalf("RT_FUZZ_SEED: %v", parseErr)
-		}
-		seed = parsed
-	}
+	seed := entrySeed(t, "convert")
 	rng := rand.New(rand.NewSource(seed))
 	iterations := 6
 	if raw := os.Getenv("RT_FUZZ_ITER"); raw != "" {

@@ -1,17 +1,24 @@
 // The seeding policy every lane starts from, and the ceilings that stop a
 // lane's own safety valves from swallowing it silently.
 //
-// The policy: each lane keeps a PINNED default so CI is deterministic and a red
-// build is always reproducible, but `RT_FUZZ_SEED` overrides it in the DEFAULT
-// run of every lane — not just in the soak / replay branches, which is how it
-// used to be for 9 of the 11 lanes. That gap meant the default run swept ONE
-// frozen sample of the generated space on every CI run, forever: the oracles
-// were properties, but nothing was exploring.
+// The policy: NO lane carries a pinned seed. Each derives its entry seed from
+// the package VERSION, so a run is reproducible within a release (a red build
+// replays exactly, a green one stays green) while every version bump rotates
+// the ground the lanes explore. `RT_FUZZ_SEED` still overrides for replay, and
+// the seed is ALWAYS logged next to the command that reproduces it.
 //
-// So exploring is now one env var away (`RT_FUZZ_SEED=$RANDOM pnpm rtx core fuzz
-// types`) and a nightly job can vary it without the ordinary build losing
-// determinism. `laneSeed` also PRINTS the seed whenever it differs from the
-// pinned default, so a failure from an explored seed replays from the log.
+// Why not a timestamp: it makes every CI run nondeterministic, so a PR can go
+// red for a latent bug it did not introduce and a re-run answers differently.
+// Why not a constant: nothing ever explores new ground, which is how a whole
+// release cycle of findings once banked up against one release
+// (docs/done/drain-fuzz-soak-backlog.md).
+//
+// Exploring BETWEEN releases is the SOAK lanes' job, not this one's: both
+// release-gate.yml and fuzz-soak.yml set RT_FUZZ_SEED from the run id, so a
+// soak still gets fresh ground on every run.
+
+import {readFileSync} from 'node:fs';
+import {hashString} from './seededRng.ts';
 
 /** Parse an `RT_FUZZ_SEED`-style value: decimal, or `0x`-prefixed hex. **/
 export function parseSeed(raw: string | undefined, fallback: number): number {
@@ -20,22 +27,36 @@ export function parseSeed(raw: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed >>> 0 : fallback >>> 0;
 }
 
-/** The base seed for a lane's DEFAULT (fixed-iteration) run: the pinned value,
- *  unless `RT_FUZZ_SEED` overrides it. `lane` only names the run in the log. **/
-export function laneSeed(lane: string, pinned: number): number {
-  const seed = parseSeed(process.env.RT_FUZZ_SEED, pinned);
-  if (seed !== pinned >>> 0) {
-    console.error(
-      `[${lane}-fuzz] exploring with RT_FUZZ_SEED=0x${seed.toString(16)} (pinned default 0x${(pinned >>> 0).toString(16)})`
-    );
-  }
-  return seed;
+const VERSION_FILE = new URL('../../../../../version.json', import.meta.url);
+let cachedVersion: string | undefined;
+
+/** The lockstep version every package and the published binary share.
+ *
+ *  Read from version.json rather than the Go `constants.Version`, which is the
+ *  literal string "dev" in anything but a release build — seeding from that
+ *  would be a pinned constant wearing a disguise. **/
+export function packageVersion(): string {
+  if (cachedVersion !== undefined) return cachedVersion;
+  const {version} = JSON.parse(readFileSync(VERSION_FILE, 'utf8')) as {version?: string};
+  if (!version) throw new Error(`${VERSION_FILE.pathname}: no "version" field to seed from`);
+  cachedVersion = version;
+  return version;
 }
 
-/** The base seed for a lane's SOAK run. A soak is explicitly an exploration, so
- *  it starts from `RT_FUZZ_SEED` and falls back to a pinned 1 for replayability. **/
-export function soakSeed(): number {
-  return parseSeed(process.env.RT_FUZZ_SEED, 1);
+/** The entry seed for one lane: `RT_FUZZ_SEED` when set, otherwise derived from
+ *  the package version so the run is reproducible within a release and rotates
+ *  with each bump. The lane name is folded in so two lanes never share a draw
+ *  sequence.
+ *
+ *  ALWAYS logs. A finding whose seed nobody recorded costs a bisect instead of
+ *  a re-run, so the log line is the feature, not decoration. **/
+export function entrySeed(lane: string): number {
+  const override = process.env.RT_FUZZ_SEED;
+  const seed = override ? parseSeed(override, 0) : hashString(`${packageVersion()}:${lane}`);
+  const hex = `0x${seed.toString(16)}`;
+  const origin = override ? 'from RT_FUZZ_SEED' : `from version ${packageVersion()}`;
+  console.error(`[${lane}-fuzz] seed ${hex} ${origin} — replay: RT_FUZZ_SEED=${hex} pnpm rtx core fuzz ${lane}`);
+  return seed;
 }
 
 // --- Gates that must not be able to hide a whole lane -----------------------

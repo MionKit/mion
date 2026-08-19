@@ -13,7 +13,7 @@ import {describe, it, expect} from 'vitest';
 import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
-import {laneSeed, soakSeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
+import {entrySeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / type-generation — oracle sweep over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -21,7 +21,7 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
   register(
     'finds no oracle violations across a batch of generated types',
     async () => {
-      const report = await runTypeFuzz({seed: laneSeed('type', 0xc0ffee), iterations: 100});
+      const report = await runTypeFuzz({seed: entrySeed('types'), iterations: 100});
       if (report.violations.length > 0) {
         const summary = report.violations
           .slice(0, 25)
@@ -58,7 +58,7 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
   it.runIf(soakMs > 0)(
     'soak — generate types continuously and log all findings',
     async () => {
-      const report = await runTypeFuzzForDuration(soakMs, {seed: soakSeed()}, (v) => {
+      const report = await runTypeFuzzForDuration(soakMs, {seed: entrySeed('types')}, (v) => {
         console.error(`[type-fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    ${v.value}`);
       });
       console.error(

@@ -4,7 +4,7 @@
 // byte-equal type-form fixpoint across two independently random chains.
 // Replay a reported failure with RT_FUZZ_SEED; widen with RT_FUZZ_ITER.
 import {describe, expect, it} from 'vitest';
-import {laneSeed, parseSeed} from '../core/fuzzPolicy.ts';
+import {entrySeed, parseSeed} from '../core/fuzzPolicy.ts';
 import {hasBinary, runConvertFuzz} from './convertRoundtrip.ts';
 
 const register = hasBinary() ? it : it.skip;
@@ -16,7 +16,7 @@ function iterations(fallback: number): number {
 describe('convert roundtrip fuzz (CLI end to end)', () => {
   register('randomized form chains preserve every id and land on one canonical type form', {timeout: 900_000}, async () => {
     const report = await runConvertFuzz({
-      seed: laneSeed('convert-roundtrip', 0x7f0c9e1),
+      seed: entrySeed('convertcli'),
       iterations: iterations(5),
     });
     expect(report.failures, report.failures.join('\n\n')).toEqual([]);
