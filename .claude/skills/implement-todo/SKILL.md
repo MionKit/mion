@@ -92,9 +92,11 @@ Mirror the todo's own **Done when** so approval is measured against the author's
   - **For a `guidelines` todo, append the approved plan** as a new section at the **bottom** of the doc (e.g. `## Plan — <label> (approved <date>)`). Guidelines todos start with only direction, so recording the plan you actually got approved means the doc carries the real, built plan when it eventually lands in `docs/done/`. Repeated passes **append** rather than overwrite, so a todo implemented in stages accumulates its full history. (A `full-plan` todo already carries its plan in the body — don't re-append; you reconcile it in step 8.)
 - Build to the plan and the spec's **Done when**, respecting its **Out of scope**.
 - Mind the build discipline: rebuild `bin/ts-runtypes` after any Go edit before `pnpm test`, and rebuild `ts-runtypes-devtools` after any of its src edits (consumers read its dist). Details in [CLAUDE.md](../../../CLAUDE.md).
-- **An issue surfaces mid-implementation? Decide related vs. unrelated, and either way tell the user.** CLAUDE.md requires the tell-and-file for out-of-scope findings, so never let one live only in chat.
-  - **Related** — it sits on the same code path, or the todo's fix is incomplete or wrong without it. Fix it as part of this change; that is the ideal, a clean fix rather than a half one that spawns a follow-up. If the related fix is distinct enough to deserve its own record, file a `docs/todos/` spec for it and move that into `docs/done/` when it lands with this change.
-  - **Unrelated** — file it as a new spec under `docs/todos/` (evidence + a fix direction) and **leave it there**. Do not widen the current task to chase it.
+- **An issue surfaces mid-implementation? Tell the user, then see it solved.** CLAUDE.md requires every finding to end up fixed or genuinely tracked toward a fix, never merely recorded, so never let one live only in chat.
+  - **Related** — it sits on the same code path, or the todo's fix is incomplete or wrong without it. Fix it here; that is the ideal, a clean fix rather than a half one that spawns a follow-up.
+  - **Unrelated** — fix it here too, in its own commit with its own test. A wider diff is usually the cheaper outcome.
+  - **Genuinely cannot land in this task?** File a `docs/todos/` spec with the evidence and a concrete fix plan, and tell the user it is still work owed rather than work closed out.
+  - **Needs a decision you cannot make alone?** Ask the user in this session and carry out the answer.
 
 ## Step 8 — PR-readiness gate, then finish
 
@@ -115,7 +117,7 @@ Close by telling the user what shipped versus the todo's Done-when, and flag any
 - **Do not add fuzzing without asking**, and do not hand-roll the fuzzer — route to the fuzzy-testing skill.
 - **Do not pull candidates from `docs/done/` or `docs/maybe/`** — only `docs/todos/` holds ready work.
 - **Do not exceed the todo's stated Out-of-scope**, and do not leave the spec sitting in `docs/todos/` after you finish it.
-- **Do not chase an *unrelated* issue inline** — file it as a new `docs/todos/` spec and leave it; only issues genuinely related to the current fix fold into this change.
+- **Do not let an *unrelated* issue end as a filed-and-forgotten spec** — fix it in this session, in its own commit, whenever it reasonably fits; a spec is only for what truly cannot land here, and it is a commitment to finish, not a way to close the loop.
 - **Do not let a diverged spec move unchanged** — if what shipped differs from the plan, update the todo to reflect reality before `git mv`-ing it to `docs/done/`.
 - **Do not answer the skill's own AskUserQuestion for the user** — this skill is interactive by design; it needs the human's choices.
 

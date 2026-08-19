@@ -268,8 +268,9 @@ all and is the more common form now.
   formats now test their params, which is exactly what they compile to. Pinned
   by `test/features/negatedFormatMockSoundness.test.ts`.
 
-Findings large enough to need their own spec are filed under
-[`docs/todos/`](todos/) rather than listed here.
+Findings are fixed by the session that finds them and pinned by a regression
+test. Anything that genuinely cannot land inline gets a [`docs/todos/`](todos/)
+spec, which is work still owed rather than a parking space.
 
 ## Phase 2 — random TypeScript type generation (implemented)
 
