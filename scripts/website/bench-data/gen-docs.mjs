@@ -280,36 +280,63 @@ function samplesCodeFor(key) {
   return `// valid\n${samp.valid};\n\n// invalid\n${samp.invalid};`;
 }
 
+// ── reading a results directory ──────────────────────────────────────────────
+// results/ holds far more than the per-competitor timing files: env.json, the audit
+// lane's <competitor>.alignment.json plus alignment-misalignments.json, the
+// *.typecost.json / *.compiletime.json / transform-wire.json artifacts, and stale
+// <competitor>.spec.json from the removed spec-conformance lane. Every reader of the
+// TIMING files has to skip all of them, and a per-reader filename blocklist rots the
+// moment a lane adds an artifact: that is exactly how the strict lane's reader died
+// with "Cannot read properties of undefined (reading 'map')" on the first
+// <competitor>.alignment.json and took a whole website deploy down with it. So filter
+// on SHAPE, the way container/benchmarks/aggregate.mjs already does, and name what was
+// skipped so a genuinely malformed competitor file surfaces instead of vanishing.
+//
+// The one file shape cannot rule out is <competitor>.spec.json: it carries both a
+// `competitor` string and a `cases` array, so it would overwrite that competitor's real
+// timing row. It stays an explicit exclusion.
+export function readCompetitorResults(dir) {
+  let files;
+  try {
+    files = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const results = [];
+  const skipped = [];
+  for (const file of files.filter((f) => f.endsWith('.json') && !f.endsWith('.spec.json'))) {
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    } catch (err) {
+      skipped.push(`${file} (unreadable JSON: ${err.message})`);
+      continue;
+    }
+    if (typeof parsed?.competitor !== 'string' || !Array.isArray(parsed.cases)) {
+      skipped.push(`${file} (not a competitor result: no competitor/cases)`);
+      continue;
+    }
+    results.push(parsed);
+  }
+  if (skipped.length > 0) process.stderr.write(`note: gen-docs skipped ${skipped.length} non-competitor file(s) in ${dir}: ${skipped.join(', ')}\n`);
+  return results;
+}
+
+// competitor name → (case key → case), the lookup every bench table reads from.
+const byCompetitor = (results) => new Map(results.map((r) => [r.competitor, new Map(r.cases.map((c) => [c.key, c]))]));
+
 // ── runtime (validation) bench ───────────────────────────────────────────────
 // Split into TWO benches that mirror the suite pages: `validation` (the data types
 // + realworld DTOs) and `validation-formats` (the format-validation suite). DATETIME
 // lives in BOTH suites, so the split is by the CASE's suite, not by section.
 function buildValidationBench() {
-  const files = fs.existsSync(RESULTS_DIR)
-    ? fs
-        .readdirSync(RESULTS_DIR)
-        .filter(
-          (f) =>
-            f.endsWith('.json') &&
-            !f.endsWith('.typecost.json') &&
-            !f.endsWith('.compiletime.json') &&
-            !f.endsWith('.alignment.json') &&
-            // <competitor>.spec.json came from the removed JSON Schema
-            // spec-conformance lane; stale copies can linger in a cached results
-            // dir, carry the same `competitor` field, and would overwrite that
-            // competitor's real timing results — so keep filtering them out.
-            !f.endsWith('.spec.json') &&
-            f !== 'alignment-misalignments.json' &&
-            f !== 'env.json'
-        )
-    : [];
-  if (files.length === 0) {
-    process.stderr.write(`skip validation bench: no results/*.json in ${RESULTS_DIR} (run \`pnpm run bench\` first)\n`);
+  const results = readCompetitorResults(RESULTS_DIR);
+  if (results.length === 0) {
+    process.stderr.write(`skip validation bench: no competitor results in ${RESULTS_DIR} (run \`pnpm run bench\` first)\n`);
     return 0;
   }
-  const results = files.map((f) => JSON.parse(fs.readFileSync(path.join(RESULTS_DIR, f), 'utf8')));
   const competitors = results.map((r) => r.competitor).sort(order);
-  const byComp = new Map(results.map((r) => [r.competitor, new Map(r.cases.map((c) => [c.key, c]))]));
+  const byComp = byCompetitor(results);
   // case list = the longest competitor's cases (preserves suite/group/name order).
   const rows = results.reduce((longest, r) => (r.cases.length > longest.length ? r.cases : longest), []);
 
@@ -354,21 +381,9 @@ function buildValidationBench() {
 function emitStrictBench(rows, competitors, sources) {
   if (rows.length === 0) return 0;
   const BUN_DIR = path.join(RESULTS_DIR, 'bun');
-  const readLane = (dir) => {
-    if (!fs.existsSync(dir)) return new Map();
-    const files = fs
-      .readdirSync(dir)
-      .filter((f) => f.endsWith('.json') && f !== 'env.json' && !f.endsWith('.typecost.json') && !f.endsWith('.compiletime.json') && !f.endsWith('.spec.json') && f !== 'alignment-misalignments.json');
-    return new Map(
-      files.map((f) => {
-        const parsed = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        return [parsed.competitor, new Map(parsed.cases.map((c) => [c.key, c]))];
-      })
-    );
-  };
   const lanes = [
-    {suffix: '', byComp: readLane(RESULTS_DIR)},
-    {suffix: ' · bun', byComp: readLane(BUN_DIR)},
+    {suffix: '', byComp: byCompetitor(readCompetitorResults(RESULTS_DIR))},
+    {suffix: ' · bun', byComp: byCompetitor(readCompetitorResults(BUN_DIR))},
   ];
 
   const outDir = path.join(OUT_ROOT, 'strict');

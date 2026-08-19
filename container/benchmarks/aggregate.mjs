@@ -46,7 +46,10 @@ function load() {
   }
   const results = [];
   const skipped = [];
-  for (const file of files.filter((f) => f.endsWith('.json'))) {
+  // <competitor>.spec.json (from the removed JSON Schema spec-conformance lane) is the
+  // one artifact SHAPE cannot rule out: it carries both `competitor` and `cases`, so a
+  // stale copy in a cached results dir would overwrite that competitor's real timings.
+  for (const file of files.filter((f) => f.endsWith('.json') && !f.endsWith('.spec.json'))) {
     let parsed;
     try {
       parsed = JSON.parse(readFileSync(path.join(RESULTS_DIR, file), 'utf8'));
