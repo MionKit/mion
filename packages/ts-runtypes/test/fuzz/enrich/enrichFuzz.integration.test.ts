@@ -1,6 +1,6 @@
 // Event-driven fuzz of the FriendlyText/MockData sync pipeline — the first real
 // application of the fuzzy-testing framework
-// (docs/talks/directive-driven-testing/framework-fuzzy-testing.md §6).
+// (.claude/skills/fuzzy-testing/framework-fuzzy-testing.md §6).
 //
 // It generalises the hand-written enrichReconcile.test.ts cases to RANDOM edit
 // sequences: every oracle (R1/R2/R3/R5/R6/R7a/R8/R10) asserts a behaviour that

@@ -4,7 +4,7 @@
 > LOOP, not a one-pass form: investigate, propose a few candidate rules grounded in the
 > user's code, let them confirm or correct, refine, come back for more. The user knows
 > what "correct" means here; you know the rule shapes and the codebase. Full prose:
-> [framework-fuzzy-testing.md → Step 3](../../../docs/talks/directive-driven-testing/framework-fuzzy-testing.md#step-3-what-should-always-be-true).
+> [framework-fuzzy-testing.md → Step 3](framework-fuzzy-testing.md#step-3-what-should-always-be-true).
 
 ## Start by harvesting what's already there
 

@@ -6,7 +6,7 @@
 // the example suite (test/suites/enrich/enrichReconcile.test.ts) already PROVES
 // on hand-written cases — so every assertion here is sound (a failure is a real
 // regression). Rule ids match
-// docs/talks/directive-driven-testing/framework-fuzzy-testing.md §6.4:
+// .claude/skills/fuzzy-testing/framework-fuzzy-testing.md §6.4:
 //
 //   R1  idempotence      a second `--update` is byte-identical
 //   R2  metamorphic      a type edit makes a bounded, predictable change to E

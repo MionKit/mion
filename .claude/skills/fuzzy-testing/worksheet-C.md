@@ -5,7 +5,7 @@
 > paid the three hardest costs: a valid input, a working way to call the code, and a true
 > check. A fuzz test is what you get by letting each of those vary, so most of the work is
 > done. Full prose:
-> [framework-fuzzy-testing.md → grow an existing test](../../../docs/talks/directive-driven-testing/framework-fuzzy-testing.md#already-have-a-normal-test-grow-it).
+> [framework-fuzzy-testing.md → grow an existing test](framework-fuzzy-testing.md#already-have-a-normal-test-grow-it).
 
 ## Open the test and map its three parts
 
