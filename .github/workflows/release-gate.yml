@@ -136,32 +136,51 @@ jobs:
         run: pnpm rtx core converted-suites
 
   # ── fuzz-soak: the lanes at their SOAK budgets, one runner per lane ────────
-  # Every fuzz lane already runs under `go test ./internal/...` or
-  # `vitest run test/fuzz` — in `build` above and in ci.yml — but only at its
-  # DEFAULT budget, which for the randomized sweeps is close to decorative (the
-  # convert sweep draws 6 declarations, its CLI twin 5). The `--soak` budgets
-  # live in rtx's FUZZ registry (scripts/rt.mjs) and, until this job existed,
-  # nothing ever ran them: no workflow has a `schedule:`, so they only executed
-  # when a human typed the command. This job is still the RELEASE half of that;
-  # fuzz-soak.yml is the other half, running the same twelve lanes on demand for
-  # the cost of twelve short jobs instead of the whole gate, so findings can be
-  # drained between releases rather than piling up against one.
-  #
-  # Deliberately NOT in ci.yml: that runs on every PR and would pay this on
-  # every push. Here it rides the release gate, whose `workflow_dispatch` also
-  # makes the whole gate runnable by hand on any branch (`gh workflow run
-  # release-gate.yml --ref <branch>`).
+  # Every fuzz lane already runs on every PR: ci.yml executes each at its QUICK
+  # budget (~2x the near-decorative defaults — the convert sweep's default draws
+  # 6 declarations, its CLI twin 5) so findings surface while the causing change
+  # is still in review. The `--soak` budgets in rtx's FUZZ registry
+  # (scripts/rt.mjs) are the RELEASE tier, and this job is its release half;
+  # fuzz-soak.yml is the other half, running the same lanes on demand for the
+  # cost of twelve short jobs instead of the whole gate, so findings can be
+  # drained between releases rather than piling up against one. The gate's
+  # `workflow_dispatch` also makes the whole gate runnable by hand on any
+  # branch (`gh workflow run release-gate.yml --ref <branch>`).
   #
   # One job per lane (not one job running all of them) so the wall clock is the
-  # SLOWEST lane rather than their sum, and `fail-fast: false` so one lane's
-  # finding never hides another's. Lanes are named literally: a new entry in the
-  # FUZZ registry does not soak here until it is added to this list, which is
-  # the intended trade — a soak budget is a wall-clock commitment, not a default.
-  # What IS pinned is that this list matches fuzz-soak.yml's and that every lane
-  # named here exists in the registry (fuzz-lane-contracts.test.ts), so the
-  # deliberate opt-in cannot decay into a dead lane name.
+  # SLOWEST lane rather than their sum — and because the time-boxed lanes must
+  # never share CPU (the registry's scheduling rule) — with `fail-fast: false`
+  # so one lane's finding never hides another's.
+  #
+  # The matrix is DERIVED from the registry via `rtx core fuzz-lanes` (the
+  # `pick` job): giving a lane a `soak` budget there IS the opt-in. A soak
+  # budget is a wall-clock commitment, not a default — but once committed in
+  # the registry, the lane wires itself up here and in fuzz-soak.yml, so the
+  # commitment can no longer decay into a dead or forgotten lane name.
+  # fuzz-lane-contracts.test.ts pins this derivation, and pins the one list
+  # that can never be derived (fuzz-soak.yml's dispatch choice options) to the
+  # same registry.
+  pick:
+    name: pick soak lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lanes: ${{ steps.pick.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      # Bare node on the zero-dep CLI — no pnpm install, no submodules, no build.
+      - id: pick
+        run: |
+          lanes="$(node scripts/rt.mjs core fuzz-lanes)"
+          echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
+          echo "Soaking: $lanes" >> "$GITHUB_STEP_SUMMARY"
+
   fuzz-soak:
     name: fuzz soak · ${{ matrix.lane }}
+    needs: pick
     runs-on: ubuntu-latest
     # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
     # so bound the job rather than letting a wedged lane hold the gate open.
@@ -169,22 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Every lane rtx gives a `soak` budget. `unit` / `sidecar` / `patterngen`
-        # have none (they are fixed-size by construction) and `all` is a
-        # composite of lanes already listed, so none of them appear.
-        lane:
-          - value
-          - types
-          - nondata
-          - roundtrip
-          - size
-          - cloning
-          - enrich
-          - i18n
-          - typemod
-          - race
-          - convert
-          - convertcli
+        lane: ${{ fromJSON(needs.pick.outputs.lanes) }}
     steps:
       - uses: actions/checkout@v5
         with:

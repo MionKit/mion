@@ -53,25 +53,52 @@ const die = (msg, code = 1) => {
 };
 
 // ── core: the engine (Go resolver + TS marker/plugin) ──────────────────────
+// THE single source of truth for the fuzz lane list. The soak workflows derive
+// their matrices from it (`rtx core fuzz-lanes`); the one list that cannot be
+// derived (fuzz-soak.yml's workflow_dispatch choice options — GitHub resolves
+// those before any job runs) plus ci.yml's quick-tier wiring are pinned back to
+// this table by packages/ts-runtypes-devtools/test/fuzz-lane-contracts.test.ts.
+// Entries stay ONE PER LINE — that test parses them line-wise.
+//
+// Budget tiers. Every lane always runs at one of three:
+//   default  what `pnpm test` / `vitest run test/fuzz` executes: a handful of
+//            iterations — a floor proving the harness runs, not real coverage.
+//   quick    `--quick`: the per-PR tier (ci.yml). Roughly 2x the default work,
+//            sized so the two heavy CI jobs stay balanced (~+2-3 min total).
+//   soak     `--soak`: the release tier (release-gate.yml / fuzz-soak.yml),
+//            one lane per runner under a 45-minute cap. Giving a lane a `soak`
+//            block IS the opt-in — it is a wall-clock commitment, and the
+//            workflows will pick the lane up from here automatically.
+//
+// ⚠ Scheduling rule (docs/done/drain-fuzz-soak-backlog.md): the *_SOAK_MS lanes
+// are TIME-BOXED — CPU contention silently buys LESS coverage in the same wall
+// clock, so never run two of them concurrently (ci.yml soaks them one at a
+// time; the soak workflows give each lane its own runner). The count-based
+// lanes (sequences / iterations) have fixed coverage — contention only costs
+// wall clock, so they may share a runner.
+//
+// ⚠ RT_FUZZ_ITER drives BOTH convert lanes (`convert` and `convertcli`):
+// exporting it in a shell widens the two at once. The tier blocks set it
+// per-lane, so `--quick` / `--soak` never collide.
 const FUZZ = {
   unit: {config: 'packages/ts-runtypes/test/fuzz/vitest.fuzz-unit.config.ts'},
-  value: {patterns: ['fuzz.integration'], soak: {RT_FUZZ_SOAK_MS: '60000'}},
-  types: {patterns: ['typeFuzz.integration'], soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
-  cloning: {patterns: ['cloneFuzz.integration'], soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
-  // Three compile-bound lanes whose RT_FUZZ_*_SOAK_MS vars were registered
-  // (scripts/lib/env.mjs) but had no entry here, so nothing could ever set them.
-  // `roundtrip` / `size` had no lane matching their files at all; `nondata` DID
-  // run under `types` (vitest's positional filter is case-INSENSITIVE, so
-  // `typeFuzz.integration` matches nonDataTypeFuzz too) but only ever at its
-  // 100-iteration default, because `types --soak` sets the TYPES var.
-  nondata: {patterns: ['nonDataTypeFuzz.integration'], soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
-  roundtrip: {patterns: ['allStrategyRoundtrip.integration'], soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
-  size: {patterns: ['binarySizeEstimate.integration'], soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
-  enrich: {patterns: ['enrichFuzz.integration'], soak: {RT_FUZZ_ENRICH_SEQUENCES: '400', RT_FUZZ_ENRICH_MAXCMDS: '24'}},
-  i18n: {patterns: ['i18nFuzz.integration'], soak: {RT_FUZZ_I18N_SEQUENCES: '400', RT_FUZZ_I18N_MAXCMDS: '24'}},
-  typemod: {patterns: ['typeModFuzz.integration'], soak: {RT_FUZZ_TYPEMOD_REPORT: '1', RT_FUZZ_TYPEMOD_SEQUENCES: '400', RT_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
+  // Patterns are vitest positional filters: case-INSENSITIVE substring matches
+  // on the file path. `value` and `types` are path-anchored because their bare
+  // names are substrings of half the tree ('fuzz.integration' matches every
+  // *Fuzz.integration file; 'typeFuzz' matches nonDataTypeFuzz) — anchored, a
+  // lane runs exactly its own file, so per-lane tier runs stay cheap and the
+  // ci.yml partition stays exact.
+  value: {patterns: ['value/fuzz.integration'], quick: {RT_FUZZ_SOAK_MS: '10000'}, soak: {RT_FUZZ_SOAK_MS: '60000'}},
+  types: {patterns: ['type/typeFuzz.integration'], quick: {RT_FUZZ_TYPES_SOAK_MS: '10000'}, soak: {RT_FUZZ_TYPES_SOAK_MS: '60000'}},
+  cloning: {patterns: ['cloneFuzz.integration'], quick: {RT_FUZZ_CLONE_SOAK_MS: '10000'}, soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
+  nondata: {patterns: ['nonDataTypeFuzz.integration'], quick: {RT_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
+  roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
+  size: {patterns: ['binarySizeEstimate.integration'], quick: {RT_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
+  enrich: {patterns: ['enrichFuzz.integration'], quick: {RT_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {RT_FUZZ_ENRICH_SEQUENCES: '400', RT_FUZZ_ENRICH_MAXCMDS: '24'}},
+  i18n: {patterns: ['i18nFuzz.integration'], quick: {RT_FUZZ_I18N_SEQUENCES: '12'}, soak: {RT_FUZZ_I18N_SEQUENCES: '400', RT_FUZZ_I18N_MAXCMDS: '24'}},
+  typemod: {patterns: ['typeModFuzz.integration'], quick: {RT_FUZZ_TYPEMOD_SEQUENCES: '12'}, soak: {RT_FUZZ_TYPEMOD_REPORT: '1', RT_FUZZ_TYPEMOD_SEQUENCES: '400', RT_FUZZ_TYPEMOD_MAXSTEPS: '20'}},
   // race is the ONLY path that sets RT_FUZZ_RACE=1 — without it enrichRace self-skips.
-  race: {patterns: ['enrichRace'], env: {RT_FUZZ_RACE: '1'}, soak: {RT_FUZZ_RACE_ITERATIONS: '25', RT_FUZZ_RACE_FANOUT: '8'}},
+  race: {patterns: ['enrichRace'], env: {RT_FUZZ_RACE: '1'}, quick: {RT_FUZZ_RACE_ITERATIONS: '5', RT_FUZZ_RACE_FANOUT: '8'}, soak: {RT_FUZZ_RACE_ITERATIONS: '25', RT_FUZZ_RACE_FANOUT: '8'}},
   // Robustness fuzz of the committed go:embed sidecar bundle under real node
   // (garbage patterns/flags/samples + oversized batches; RT_FUZZ_SEED replays).
   sidecar: {patterns: ['patternSidecarFuzz']},
@@ -82,12 +109,18 @@ const FUZZ = {
   // Chain oracle per iteration: ids preserved on every leg (C2), canonical
   // reflection graphs equal (C6), full chain converges (C4), re-conversion is
   // a byte no-op (C5). RT_FUZZ_SEED replays a failure; RT_FUZZ_ITER widens.
-  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain', '-count=1'], soak: {RT_FUZZ_ITER: '150'}},
+  convert: {goTest: ['./internal/convert/', '-run', 'TestFuzz_AtomChain', '-count=1'], quick: {RT_FUZZ_ITER: '30'}, soak: {RT_FUZZ_ITER: '150'}},
   // FE twin of `convert`: the REAL `ts-runtypes convert` binary over a real
   // temp project, randomized form chains over the full generated type space,
   // per-leg id checks + the byte-equal type-form fixpoint oracle.
-  convertcli: {patterns: ['convertFuzz.integration'], soak: {RT_FUZZ_ITER: '40'}},
-  all: {patterns: ['fuzz.integration', 'typeFuzz.integration', 'binaryEncoderResize']},
+  convertcli: {patterns: ['convertFuzz.integration'], quick: {RT_FUZZ_ITER: '10'}, soak: {RT_FUZZ_ITER: '40'}},
+  // Honest composite: EVERY lane at its default budget — the whole test/fuzz
+  // tree (all JS lanes + the unit files + the fuzz-adjacent regression tests),
+  // both sidecar lanes, the race test (via the env below), and both Go sweeps
+  // under internal/convert (`-run TestFuzz_` also catches the lane-less
+  // schemadoc determinism sweep). No tier blocks on purpose: a quick/soak
+  // round is per-lane so the time-boxed lanes never share CPU (rule above).
+  all: {patterns: ['test/fuzz', 'patternSidecarFuzz', 'patternGenFuzz'], env: {RT_FUZZ_RACE: '1'}, goTest: ['./internal/convert/', '-run', 'TestFuzz_', '-count=1']},
 };
 // Go→TS mirrors. rtx runs each generator DIRECTLY — the whole point is that
 // adding a mirror is ONE entry here, with no companion `gen:*` package.json
@@ -154,6 +187,55 @@ function runCodegen(args) {
   if (exec('git', ['diff', '--exit-code', '--', ...outputs]) !== 0) die('codegen drift — a committed Go→TS mirror is stale. Run `rtx core codegen all` and commit.');
 }
 
+// A lane is TIME-BOXED when its budget is a wall clock (RT_FUZZ_*_SOAK_MS):
+// CPU contention silently buys it LESS coverage, so such lanes must never run
+// concurrently (see the FUZZ registry note). Count-based lanes are immune.
+const isTimeBoxed = (lane) => Object.keys(FUZZ[lane].soak ?? {}).some((key) => key.endsWith('_SOAK_MS'));
+
+// rtx core fuzz <lane…> [--quick|--soak] [vitest/go args…]
+// Several lanes in ONE invocation pay vitest's startup once (~80s saved over
+// six separate runs), which is why ci.yml runs the time-boxed lanes this way.
+// The scheduling rule is ENFORCED here, not just documented: a multi-lane run
+// that includes a time-boxed lane goes sequential automatically.
+function runFuzz(args) {
+  const {value: quick, rest: afterQuick} = takeFlag(args, '--quick');
+  const {value: soak, rest: afterSoak} = takeFlag(afterQuick, '--soak');
+  // Lanes are the LEADING words; everything from the first flag on is forwarded
+  // verbatim to vitest/go (so `fuzz value -t "soak"` still works).
+  const firstFlag = afterSoak.findIndex((arg) => arg.startsWith('-'));
+  const lanes = firstFlag === -1 ? afterSoak : afterSoak.slice(0, firstFlag);
+  const extra = firstFlag === -1 ? [] : afterSoak.slice(firstFlag);
+  if (!lanes.length) die(`name at least one fuzz suite. Try: ${Object.keys(FUZZ).join(' | ')} [--quick|--soak]`);
+  for (const lane of lanes) if (!Object.hasOwn(FUZZ, lane)) die(`unknown fuzz suite '${lane}'. Try: ${Object.keys(FUZZ).join(' | ')} [--quick|--soak]`);
+  if (quick && soak) die(`pick one budget tier: --quick or --soak, not both`);
+  const tier = quick ? 'quick' : soak ? 'soak' : undefined;
+
+  const env = {};
+  for (const lane of lanes) {
+    if (tier && !FUZZ[lane][tier]) die(`fuzz suite '${lane}' has no ${tier} budget${lane === 'all' ? ' on purpose — budget tiers are per-lane so the time-boxed lanes never share CPU (see the FUZZ registry note)' : ''}`);
+    for (const [key, value] of Object.entries({...(FUZZ[lane].env ?? {}), ...(tier ? FUZZ[lane][tier] : {})})) {
+      // convert + convertcli share RT_FUZZ_ITER, so one invocation cannot give
+      // them different budgets — fail loudly instead of silently picking one.
+      if (key in env && env[key] !== value) die(`'${lanes.join(' ')}' collide on ${key} (${env[key]} vs ${value}) — run those lanes separately`);
+      env[key] = value;
+    }
+  }
+
+  const patterns = lanes.flatMap((lane) => FUZZ[lane].patterns ?? []);
+  const goTests = lanes.filter((lane) => FUZZ[lane].goTest);
+  const configs = lanes.filter((lane) => FUZZ[lane].config);
+  if (configs.length && lanes.length > 1) die(`fuzz suite '${configs[0]}' runs its own vitest config — run it on its own`);
+  // Enforced, not advisory: sequential the moment a time-boxed lane shares the
+  // invocation, unless the caller already said how to parallelise.
+  const sequential = lanes.length > 1 && lanes.some(isTimeBoxed) && !extra.some((arg) => arg.includes('file-parallelism'));
+  if (sequential) console.log(`rtx: running ${lanes.length} lanes sequentially — ${lanes.filter(isTimeBoxed).join(', ')} time-boxed (contention would silently cut coverage)`);
+
+  ensureBuilt();
+  if (configs.length) proxy('pnpm', ['exec', 'vitest', 'run', '--config', FUZZ[configs[0]].config, ...extra], env);
+  else if (patterns.length) proxy('pnpm', ['exec', 'vitest', 'run', ...(sequential ? ['--no-file-parallelism'] : []), ...patterns, ...extra], env);
+  for (const lane of goTests) proxy('go', ['-C', 'ts-go-runtypes', 'test', ...FUZZ[lane].goTest, ...extra], env);
+}
+
 function runCore(args) {
   const [sub, ...rest] = args;
   if (sub === 'build') return coreBuild(rest);
@@ -164,18 +246,16 @@ function runCore(args) {
   // The whole suite tree, converted into the value forms and run against the
   // same assertions. Generates, runs, removes — see scripts/core/converted-suites.mjs.
   if (sub === 'converted-suites') return (ensureBuilt(), proxy('node', ['scripts/core/converted-suites.mjs', ...rest]));
-  if (sub === 'fuzz') {
-    const suite = FUZZ[rest[0]];
-    if (!suite) die(`unknown fuzz suite '${rest[0] ?? ''}'. Try: ${Object.keys(FUZZ).join(' | ')} [--soak]`);
-    const {value: soak, rest: extra} = takeFlag(rest.slice(1), '--soak');
-    const env = {...(suite.env ?? {}), ...(soak ? suite.soak ?? {} : {})};
-    ensureBuilt();
-    if (suite.goTest) return proxy('go', ['-C', 'ts-go-runtypes', 'test', ...suite.goTest, ...extra], env);
-    if (suite.config) return proxy('pnpm', ['exec', 'vitest', 'run', '--config', suite.config, ...extra], env);
-    return proxy('pnpm', ['exec', 'vitest', 'run', ...suite.patterns, ...extra], env);
+  // The machine-readable soak lane list (every FUZZ entry with a soak budget),
+  // as sorted JSON. release-gate.yml and fuzz-soak.yml build their matrices
+  // from this — bare node, no deps, no build, no env needed.
+  if (sub === 'fuzz-lanes') {
+    process.stdout.write(`${JSON.stringify(Object.keys(FUZZ).filter((lane) => FUZZ[lane].soak).sort())}\n`);
+    return;
   }
+  if (sub === 'fuzz') return runFuzz(rest);
   die(
-    'usage: rtx core <build|smoke|fuzz <suite>|codegen [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
+    'usage: rtx core <build|smoke|fuzz <suite> [--quick|--soak]|fuzz-lanes|codegen [--check]|converted-suites [--target T] [--keep]|bump-tsgolint [<rev>]|ensure-tsgolint [--check]>'
   );
 }
 
@@ -345,7 +425,8 @@ const HELP = `rtx — internal RunTypes dev/build/publish CLI  (run as: pnpm rtx
 core     the engine (Go resolver + TS marker/plugin)
   rtx core build [targets…]        build the binary + dev dists if stale
   rtx core smoke                   end-to-end smoke of the resolver + devtools
-  rtx core fuzz <suite> [--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+  rtx core fuzz <suite> [--quick|--soak]   unit|value|types|nondata|roundtrip|size|cloning|enrich|i18n|typemod|race|sidecar|patterngen|convert|convertcli|all
+  rtx core fuzz-lanes              print the soak lane list as JSON (the workflows' matrix source)
   rtx core codegen [all|constants|kind|fnhashes|typeformats|diag|builtinpurefns|pluginkeys|sidecar] [--check]   regenerate Go→TS mirrors, pure-fn table + sidecar bundle
   rtx core converted-suites [--keep]   convert the suite tree into the builders form, run it, remove it
   rtx core bump-tsgolint [<rev>] [--skip-tests]   move the tsgolint/typescript-go pin (default: latest release), re-patch, rebuild + test
