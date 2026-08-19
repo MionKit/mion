@@ -1,5 +1,0 @@
-# Rendered Marp outputs — build artifacts of slides.md, regenerate on demand
-# (see README.md). The Markdown source is the deliverable; these are not committed.
-slides.html
-slides.pdf
-slides.pptx
