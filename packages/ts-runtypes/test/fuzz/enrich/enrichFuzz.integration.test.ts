@@ -16,12 +16,12 @@ import {describe, it, expect, afterAll} from 'vitest';
 import {cleanupReconcileLane} from '../../util/enrichReconcile.ts';
 import {BIN} from './enrichCli.ts';
 import {runEnrichFuzz, runOneSequence, shrinkFailure, formatReport} from './enrichFuzzRunner.ts';
-import {parseSeed} from '../core/fuzzPolicy.ts';
+import {entrySeed, parseSeed} from '../core/fuzzPolicy.ts';
 
 afterAll(cleanupReconcileLane);
 
 const HAS_BIN = existsSync(BIN);
-const SEED = parseSeed(process.env.RT_FUZZ_SEED, 0x0e17c0de);
+const SEED = entrySeed('enrich');
 const SEQUENCES = Number(process.env.RT_FUZZ_ENRICH_SEQUENCES ?? 6);
 const MAX_COMMANDS = Number(process.env.RT_FUZZ_ENRICH_MAXCMDS ?? 8);
 const REPLAY = process.env.RT_FUZZ_ENRICH_REPLAY ? parseSeed(process.env.RT_FUZZ_ENRICH_REPLAY, 0) : null;

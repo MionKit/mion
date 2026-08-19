@@ -23,7 +23,7 @@ import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
 import {NONDATA_GEN_OPTIONS} from '../core/typeGen.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
-import {laneSeed, soakSeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
+import {entrySeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
 
 describe('fuzz / DataOnly non-data lane — serialize-or-fail contract over non-data types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -32,7 +32,7 @@ describe('fuzz / DataOnly non-data lane — serialize-or-fail contract over non-
     'finds no DataOnly-contract violations across a batch of non-data types',
     async () => {
       const report = await runTypeFuzz({
-        seed: laneSeed('nondata', 0xda7a01),
+        seed: entrySeed('nondata'),
         iterations: 100,
         gen: NONDATA_GEN_OPTIONS,
         valueSource: 'mock',
@@ -75,7 +75,7 @@ describe('fuzz / DataOnly non-data lane — serialize-or-fail contract over non-
     async () => {
       const report = await runTypeFuzzForDuration(
         soakMs,
-        {seed: soakSeed(), gen: NONDATA_GEN_OPTIONS, valueSource: 'mock'},
+        {seed: entrySeed('nondata'), gen: NONDATA_GEN_OPTIONS, valueSource: 'mock'},
         (v) => {
           console.error(`[nondata-fuzz][${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n    ${v.value}`);
         }
