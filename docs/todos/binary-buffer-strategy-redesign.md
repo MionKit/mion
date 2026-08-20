@@ -52,10 +52,38 @@ plus another allocation per growth step, all left to the GC.
 
 Relevant 0.12.0 additions the original spec predates: the `sizeStrategy` model
 (`dynamic` / `precalculate` / `initialSize` / `intoBuffer`), `createBinarySizerFn()` (exact on-wire
-size with no output allocation), and `binarySizeEstimateFromTuple()` — the last of which is **not
-exported from the package index**, so mion cannot read the per-type estimate. mion does not use
-`createBinaryEncoderFn` at all (it writes its own multi-method envelope), so it gets none of these
-for free.
+size with no output allocation), and the **compile-time per-type size estimate** (see below). mion
+does not use `createBinaryEncoderFn` at all (it writes its own multi-method envelope), so it gets
+none of these for free.
+
+### The compile-time per-type estimate — reachable, and worth reaching for
+
+Upstream's `dynamic` strategy seeds a cold buffer from a per-type estimate the plugin bakes into the
+`tb` entry tuple, read back by `binarySizeEstimateFromTuple()`. Neither that helper nor the estimate
+is exported: `binarySizeEstimateFromTuple` lives in the un-exported `runtypes/entryTuple` module, and
+`registerTypeFnTuple` decodes the value into its `record` but **omits it from the cache entry it
+builds** — so it is NOT readable from `getRT(hash)`.
+
+It *is* readable from the raw injected tuple, which **mion already holds**: `buildJitFnsFromMarker`
+receives `fns.tb` (`packages/core/src/runtypes/mionAdapter.ts:225`). Probed against real
+plugin output, the estimate sits at slot 11 and is per-type and meaningful:
+
+| handler return type | `tb` tuple estimate |
+| --- | --- |
+| `number` | 8 B (exactly a float64) |
+| `Pet {name: string; born: Date}` | 35 B |
+| `{id: string; tags: string[]; notes: string; nested: {...}}` | 2798 B |
+
+Every non-`tb` family's tuple is shorter than 12 slots and has nothing at 11, so the read is
+identifiable rather than blind: require `familyTag === 'tb'`, `length === 12`, and a finite positive
+number at slot 11, else fall back. Today all three of those routes cold-start at a flat 16 KiB —
+a **468× over-allocation** for `savePet`.
+
+This is an internal slot, so the coupling is real. It is mitigated exactly the way mion already
+mitigates the same class of read in `resolveCompiledPureFn` (which reads the raw `pureFnsCache`
+because upstream exposes no API for it): a validated read that degrades to a default, **plus a test
+that asserts a real compiled route still yields a plausible estimate** — so if upstream moves the
+slot the build fails loudly instead of silently reverting to 16 KiB.
 
 ## Evidence — what is wrong today
 
@@ -81,7 +109,7 @@ complete copy of the payload. But **every** platform adapter reads `mionResp.bin
 pays one extra full-size allocation + memcpy per binary response for a value nothing consumes.
 (`rawBody` *is* read by the router's own specs, so it must keep working — as a view.)
 
-**E3. routesFlow cold start allocates 16 KiB per member route.** `predictBufferSize` sums
+**E3. Cold start ignores the per-type estimate, and routesFlow multiplies the miss.** `predictBufferSize` sums
 `sizeForKey(k)` over `relatedKeys`, and each cold key falls back to `defaultBufferSize` — and note
 `coldStartSize` is **ignored** on the `relatedKeys` path. A 5-route flow cold-starts at 80 KiB.
 
@@ -119,7 +147,12 @@ real cold-start size instead of a flat 16 KiB.
 sized at a high quantile of the route's recent sizes, and passes `{buffer}` — upstream growth is off,
 so mion's job is to size such that overflow is rare and to handle it correctly when it happens.
 On overflow: catch, **re-encode once** through the `adaptive` path, and escalate that route's size
-class so the next request does not repeat it. Steady-state retry rate should trend to ~0; the
+class so the next request does not repeat it.
+
+**Only warm routes are pooled.** The compile-time estimate is a tight per-type figure (8 B for a
+`number`), so pooling a route on its first request would invite an overflow-retry storm. A route
+takes the `adaptive` path until it has enough observations to predict a p99 (proposed: 8), then
+becomes eligible for the pool. Cold-start retries therefore cannot happen by construction. Steady-state retry rate should trend to ~0; the
 benchmark measures whether it does.
 
 ### mion-owned size statistics
@@ -134,6 +167,11 @@ across all history). That answers E4.
 
 - `adaptive` asks for ~p90 plus a pad; `pooled` asks for ~p99 (floored at the recent max) rounded up
   to a size class.
+- **Cold start uses the compile-time estimate, not a flat default**: before a route has observations,
+  mion sizes the envelope as the sum over the execution chain of each method's `tb` estimate, plus
+  its key string and framing, plus the pad. `RtMethodReflection` carries the per-method estimate,
+  read once at reflection-build time. A route with no usable estimate falls back to the configured
+  default.
 - Keyed by route path. Binary serialization only runs on a **matched** route (unmatched paths error
   out as JSON before reaching it), so the key space is bounded by the route table. A hard cap with
   FILO eviction backstops that invariant anyway, mirroring the existing
