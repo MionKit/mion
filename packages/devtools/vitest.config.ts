@@ -8,10 +8,15 @@ export default defineConfig({
     plugins: [
         mionVitePlugin({
             runTypes: {
-                tsConfig: resolve(__dirname, '../../tsconfig.json'),
+                tsConfig: resolve(__dirname, 'tsconfig.json'),
                 compilerOptions: {
                     sourceMap: true,
                 },
+                // Deliberately not the upstream default: patternSidecar.spec.ts asserts the
+                // generated pool is exactly this many, which only proves the passthrough works
+                // if the number is distinctive. Keep it in sync with EXPECTED_SAMPLE_COUNT there
+                // — on drift that spec fails, which is the point.
+                patternSampleCount: 7,
             },
         }),
     ],

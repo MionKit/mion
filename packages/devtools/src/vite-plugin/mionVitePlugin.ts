@@ -54,11 +54,22 @@ export interface MionRunTypesOptions {
      *  mion run-types adapter is scanner-clean since the pure-fn helpers moved onto the
      *  untracked runtime-key APIs, so strict mode is safe monorepo-wide). */
     failOnError?: TsRuntypesPluginOptions['failOnError'];
-    /** Allow TypeFormat patterns that carry mockSamples but use JS-only regex features
-     *  (unicode `\u…` escapes, lookarounds, backreferences) RE2 cannot compile — the
-     *  build-time sample check is skipped (FMT004 suppressed) and delegated to the JS
-     *  lint lane. Set true for packages whose formats use such patterns. */
-    allowUncheckedPatterns?: TsRuntypesPluginOptions['allowUncheckedPatterns'];
+    /** How many mockSamples to generate for a TypeFormat pattern that declares none.
+     *  Pattern checks run on a real JS engine (the same `new RegExp` the emitted validator
+     *  uses), so any JS regex is checkable — there is nothing to opt out of. Declared
+     *  mockSamples always win over generation. A pattern the generator cannot handle
+     *  (lookarounds are the usual case) fails the build with FMT005, asking for explicit
+     *  mockSamples. */
+    patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
+    /** How many times to retry sample generation before failing with FMT005. The total
+     *  budget is `patternSampleCount * patternSampleRetries` — raise this for heavily
+     *  constrained patterns whose random draws often miss. */
+    patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
+    /** JS runtime used to run the pattern-checking sidecar. node and bun are found
+     *  automatically on PATH; set this (or the upstream `RT_JS_RUNTIME` env var) only to
+     *  point at another runtime. When no runtime can be started the build fails closed
+     *  with FMT004 rather than shipping unverified patterns. */
+    jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
     /** LEGACY (deepkit) — accepted and ignored. */
     compilerOptions?: unknown;
     include?: string | string[];
@@ -224,7 +235,9 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
         // the untracked *ByKey APIs / the raw cache), so consumers get the documented
         // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
         failOnError: rt.failOnError ?? true,
-        allowUncheckedPatterns: rt.allowUncheckedPatterns,
+        patternSampleCount: rt.patternSampleCount,
+        patternSampleRetries: rt.patternSampleRetries,
+        jsRuntime: rt.jsRuntime,
         // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
         // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
         ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),

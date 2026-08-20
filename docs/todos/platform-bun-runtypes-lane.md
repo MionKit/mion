@@ -42,7 +42,7 @@ imported cross-package route definitions are read but never rewritten.
 
 1. **Make the resolver transform cross-package source on demand** (the real blocker). Options: widen the
    scanned program (a synthetic tsconfig whose `include` covers the resolved `@mionjs/router`/`@mionjs/core`
-   source, or the resolver's `allowUncheckedPatterns`/scan-root knobs), or drive the resolver's whole-program
+   source, or the resolver's scan-root knobs), or drive the resolver's whole-program
    SCAN at buildStart so per-file `onLoad` transforms hit a warm call-site index. Needs @ts-runtypes/devtools
    guidance — file an upstream issue for a first-party **Bun.plugin-compatible** adapter (the `unplugin.bun`
    context targets `Bun.build`, not the runtime preload; the two shims above should live upstream).

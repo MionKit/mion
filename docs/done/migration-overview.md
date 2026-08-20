@@ -39,13 +39,19 @@ See the root [`CLAUDE.md`](../../CLAUDE.md) → "Docs & follow-up tracking (`doc
 - mion adapts to ts-runtypes, not the other way round — only touch ts-run-types for actual bugs/gaps.
 - As little modification to `@mionjs/router` as possible; `@mionjs/run-types` is a proxy over `@ts-runtypes/core`.
 
-## Version status (2026-07-16)
+## Version status (2026-08-20)
 
-mion consumes **`@ts-runtypes/{core,devtools,bin}@0.9.3`** from npm. Since 0.9.3 the per-family
-fn-hash prefixes are version-STABLE (the salt no longer folds the binary version — only the
-`<typeId>` half of each `<fnHash>_<typeId>` key does), so `JIT_FUNCTION_IDS` is now DERIVED from
-`@ts-runtypes/core`'s public `getFnHash` and never needs a manual refresh on a version bump
-(landed: [jit-function-ids-version-pinning.md](jit-function-ids-version-pinning.md)).
+mion consumes **`@ts-runtypes/{core,devtools,bin}@0.12.0`** from npm — see
+[ts-runtypes-0.12.0-upgrade.md](ts-runtypes-0.12.0-upgrade.md) for that bump's surface audit and the
+breaking `allowUncheckedPatterns` removal.
+
+Since 0.9.3 the per-family fn-hash prefixes are version-STABLE (the salt no longer folds the binary
+version — only the `<typeId>` half of each `<fnHash>_<typeId>` key does), so `JIT_FUNCTION_IDS` is
+DERIVED from `@ts-runtypes/core`'s public `getFnHash` and never needs a manual refresh on a version
+bump (landed: [jit-function-ids-version-pinning.md](jit-function-ids-version-pinning.md)). 0.12.0
+added one `fnHashes` entry (`jsonSchema`) and changed no existing hash, so the wire format for
+existing families is untouched.
+
 The platform resolver binary installs via `@ts-runtypes/bin`'s `@ts-runtypes/binary-<os>-<arch>`
-optional deps (the `TS_RUNTYPES_BIN` env var remains a dev convenience). `minimumReleaseAgeExclude`
-in `pnpm-workspace.yaml` covers `unplugin` + `@ts-runtypes/*` until they age past the 30-day policy.
+optional deps. `minimumReleaseAgeExclude` in `pnpm-workspace.yaml` covers `unplugin` +
+`@ts-runtypes/*` until they age past the 30-day policy.
