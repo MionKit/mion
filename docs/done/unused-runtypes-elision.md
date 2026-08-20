@@ -158,6 +158,26 @@ on broken output. (An earlier narrow hand-rolled generator, `builderGen.ts`,
 was replaced by this converter-backed design in the same PR — its first run
 had already caught its own wrong-arity fixture bug, which is why E0 exists.)
 
+The lane's first long soaks paid for themselves with TWO real pre-existing
+bugs, both fixed in the same PR with pinned regression tests:
+
+- `internal/cachegen/typefunctions/validate.go` — a contains /
+  patternProperties / propertyNames splice over a base that had degraded to
+  the unsupported-sentinel `CodeNS` hard-failed the resolver instead of
+  propagating the sentinel to the alwaysThrow lane
+  (`validate_ns_splice_test.go`). The lane grew the E4 oracle from it: a
+  hard resolver error is captured as a replayable finding (seed included)
+  instead of crashing the soak.
+- `internal/convert/print.go` — a builders conversion of a recursive named
+  type whose cycle needs a getRunType escape kept the partner's NAME inside
+  the escape's type text; after conversion that name resolves through an
+  EAGER `InferType<typeof partnerRT>` on the same cycle, so TypeScript
+  silently collapsed the knot to `any` and the printed code type-erased the
+  schema (caught as an E2 id collision, seed 886383364). Such references now
+  refuse loudly with the designed embedded-self-reference diagnostic
+  (`TestChain_EscapeOnCycleRefuses`; the pure type target keeps the name —
+  real type aliases resolve lazily there).
+
 ## Out of scope
 
 - Whole-program elision of exported-but-never-used consts (needs a cross-file

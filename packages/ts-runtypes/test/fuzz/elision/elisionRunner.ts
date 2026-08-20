@@ -211,8 +211,18 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
     return;
   }
 
-  const staticSide = await compileFixture(client, spellings.staticSource);
-  const valueSide = await compileFixture(client, spellings.valueSource);
+  // A resolver ERROR (a scanFiles-level failure, not a diagnostic) is a
+  // finding, not a lane crash: capture it with the seed so it replays, and
+  // let the soak keep hunting.
+  let staticSide: CompiledFixture;
+  let valueSide: CompiledFixture;
+  try {
+    staticSide = await compileFixture(client, spellings.staticSource);
+    valueSide = await compileFixture(client, spellings.valueSource);
+  } catch (err) {
+    state.violations.push({oracle: 'E4-resolver', seed, title, message: errMsg(err)});
+    return;
+  }
 
   // E0 — each spelling resolves exactly its three createX sites.
   for (const [form, side] of [

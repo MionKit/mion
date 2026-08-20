@@ -20,7 +20,8 @@ export interface ElisionViolation {
     | 'E1-id-drift'
     | 'E2-static-reflection'
     | 'E2-value-missing-reflection'
-    | 'E3-behavior';
+    | 'E3-behavior'
+    | 'E4-resolver';
   seed: number;
   title: string;
   message: string;
