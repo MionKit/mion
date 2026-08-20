@@ -8,7 +8,7 @@ name: ci
 # runner to even the two out:
 #   go-fuzz — Go suite (gofmt/vet/test) + the count-based JS fuzz sweep + race
 #   js-lint — check-format + lint/typecheck + the rest of the JS suite + the
-#             six time-boxed fuzz lanes, soaked sequentially
+#             seven time-boxed fuzz lanes, soaked sequentially
 # Both are PATH-GATED via the `changes` job (dorny/paths-filter), same mechanism
 # as `smoke`: they run only when Go (ts-go-runtypes/**) or JS (packages/** + root
 # JS config + scripts) files change, so a docs-only PR skips both. Inside go-fuzz
@@ -20,7 +20,7 @@ name: ci
 # near-decorative defaults; see the FUZZ registry in scripts/rt.mjs — so
 # soak-grade findings surface while the causing change is still in review
 # instead of at release time (the gate's 45-min soak stays the release tier).
-# Placement follows the registry's scheduling rule: the six TIME-BOXED lanes
+# Placement follows the registry's scheduling rule: the seven TIME-BOXED lanes
 # run one at a time on the js-lint runner (contention silently buys less
 # coverage), the COUNT-BASED lanes (fixed coverage, contention only costs wall
 # clock) ride go-fuzz's parallel sweep. Lane names, exclude list and env values
@@ -28,8 +28,8 @@ name: ci
 # version-derived (no RT_FUZZ_SEED): a red lane is attributable to THIS PR and
 # replays locally with the exact command the failing step names.
 #
-# The three vitest slices — go-fuzz's sweep (test/fuzz/ minus the six
-# time-boxed files), js-lint's per-lane quick soaks (exactly those six), and
+# The three vitest slices — go-fuzz's sweep (test/fuzz/ minus the seven
+# time-boxed files), js-lint's per-lane quick soaks (exactly those seven), and
 # js-lint's `--exclude '**/test/fuzz/**'` suite — are a complete, DISJOINT
 # partition of the JS suite, so no test is dropped or double-run — a semantic
 # split by directory instead of a hash shard.
@@ -120,7 +120,7 @@ jobs:
         run: go test ./internal/...
       # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
       # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
-      # regression/smoke/unit tests in the same tree. The six time-boxed lanes
+      # regression/smoke/unit tests in the same tree. The seven time-boxed lanes
       # are excluded — js-lint soaks those sequentially (see the header note).
       # The env values mirror the registry's quick blocks; values, exclude list
       # and the trailing slash on `test/fuzz/` (it keeps the devtools
@@ -134,7 +134,7 @@ jobs:
           RT_FUZZ_ITER: '10'
         run: >-
           pnpm exec vitest run test/fuzz/
-          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate}.integration.test.ts'
+          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz}.integration.test.ts'
       # enrichRace self-skips unless RT_FUZZ_RACE=1 (scripts audit §3.4); the
       # sweep above never sets it, so the concurrency coverage rides here at the
       # race lane's quick budget (rtx sets RT_FUZZ_RACE=1 itself).
@@ -143,7 +143,7 @@ jobs:
 
   # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
   # Everything except the fuzz tree runs here, plus the static checks and the
-  # six time-boxed fuzz lanes (sequential, quick budgets). Together with
+  # seven time-boxed fuzz lanes (sequential, quick budgets). Together with
   # go-fuzz this is a complete, disjoint partition of the JS suite.
   js-lint:
     name: js tests + lint
@@ -176,9 +176,9 @@ jobs:
         run: pnpm run lint
       - name: JS suite (everything except test/fuzz)
         run: pnpm exec vitest run --exclude '**/test/fuzz/**'
-      # The six TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing
+      # The seven TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing
       # each; the release soak gives them 60s). ONE invocation: rtx pays vitest's
-      # startup once (~2min here vs ~3.5min for six separate runs) and, because
+      # startup once (~2min here vs separate per-lane runs) and, because
       # the set contains time-boxed lanes, runs the files sequentially itself —
       # contention would silently cut their coverage (see the FUZZ registry note
       # in scripts/rt.mjs). They live on THIS runner because go-fuzz already
@@ -187,7 +187,7 @@ jobs:
       # nothing double-runs (pinned by fuzz-lane-contracts.test.ts), and a red
       # lane replays locally with this exact command.
       - name: Time-boxed fuzz lanes at quick budgets
-        run: pnpm rtx core fuzz cloning nondata roundtrip size types value --quick
+        run: pnpm rtx core fuzz cloning elision nondata roundtrip size types value --quick
 
   # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
   # Validates every commit in the PR range against commitlint.config.js. PR-only

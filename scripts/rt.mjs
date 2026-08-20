@@ -93,6 +93,7 @@ const FUZZ = {
   cloning: {patterns: ['cloneFuzz.integration'], quick: {RT_FUZZ_CLONE_SOAK_MS: '10000'}, soak: {RT_FUZZ_CLONE_SOAK_MS: '60000'}},
   nondata: {patterns: ['nonDataTypeFuzz.integration'], quick: {RT_FUZZ_NONDATA_SOAK_MS: '10000'}, soak: {RT_FUZZ_NONDATA_SOAK_MS: '60000'}},
   roundtrip: {patterns: ['allStrategyRoundtrip.integration'], quick: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '10000'}, soak: {RT_FUZZ_ROUNDTRIP_SOAK_MS: '60000'}},
+  elision: {patterns: ['elision/elisionFuzz.integration'], quick: {RT_FUZZ_ELISION_SOAK_MS: '10000'}, soak: {RT_FUZZ_ELISION_SOAK_MS: '60000'}},
   size: {patterns: ['binarySizeEstimate.integration'], quick: {RT_FUZZ_SIZE_SOAK_MS: '10000'}, soak: {RT_FUZZ_SIZE_SOAK_MS: '60000'}},
   enrich: {patterns: ['enrichFuzz.integration'], quick: {RT_FUZZ_ENRICH_SEQUENCES: '12'}, soak: {RT_FUZZ_ENRICH_SEQUENCES: '400', RT_FUZZ_ENRICH_MAXCMDS: '24'}},
   i18n: {patterns: ['i18nFuzz.integration'], quick: {RT_FUZZ_I18N_SEQUENCES: '12'}, soak: {RT_FUZZ_I18N_SEQUENCES: '400', RT_FUZZ_I18N_MAXCMDS: '24'}},

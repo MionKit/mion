@@ -58,6 +58,7 @@ test/fuzz/
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
+├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -236,6 +237,31 @@ strip every one), and type-blind **junk** for robustness only.
 - `cloneFuzzRunner.ts` — pure data-in/report-out driver under seeded
   `Math.random`, so a violation replays from its `seed`.
 - Tests: `cloneFuzz.integration` (the soak, `RT_FUZZ_CLONE_SOAK_MS`).
+
+### `elision/` — the two schema spellings stay equivalent
+
+Targets the unused-builder-const elision: a builder const referenced only via
+`InferType<typeof rt>` emits NO reflection graph, while any value use keeps it.
+Each iteration generates one builder schema (a deliberately narrow, JSON-pure
+subset — `builderGen.ts`, the runTypeGen philosophy), renders BOTH spellings
+(static `createXFn<T>()` vs value `createXFn(rt)`), compiles each through the
+real resolver, and checks:
+
+- `elisionOracle.ts` — **E0** fixture integrity (each spelling resolves exactly
+  its three createX sites — a miscount means the generator emitted source that
+  did not express the schema), **E1** entry equivalence (every module the
+  static form emits exists BYTE-IDENTICALLY in the value form's output — same
+  type id + same fnHashes ⇒ same entries, whichever spelling; byte equality is
+  strictly stronger than probing values), **E2** emission split (the static
+  form carries no runtypes bundle and no reflection site; the value form keeps
+  both).
+- `elisionRunner.ts` — **E3** behavior floor on the static form (the elided
+  spelling is the feature's risk surface): no Error diagnostics, validate
+  accepts a conforming probe and rejects a root-violating one, and JSON
+  `decode(encode(v))` round-trips (key-order-insensitive compare).
+- Tests: `elisionFuzz.integration` (the soak, `RT_FUZZ_ELISION_SOAK_MS`);
+  `elisionOracle.unit` (binary-free negative controls: every oracle proven to
+  fire on a deliberately broken output).
 
 ### `enrich/` — model-based (stateful) fuzzers
 

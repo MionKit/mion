@@ -45,6 +45,7 @@ on:
           - roundtrip
           - size
           - cloning
+          - elision
           - enrich
           - i18n
           - typemod
