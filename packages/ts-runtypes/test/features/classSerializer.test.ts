@@ -9,9 +9,11 @@
 // binary (createBinaryEncoderFn / createBinaryDecoderFn) families; an UNREGISTERED
 // class round-trips structurally to a plain object (no throw).
 //
-// The registry is keyed by the class's TYPE ID (the plugin injects the trailing
-// InjectRunTypeId slot from the `new () => T` constructor param), so it matches
-// the emitted `utl.getClassSerializer(<rt.ID>)` lookup and is minification-safe.
+// The registry is keyed by the class's TYPE ID (the plugin fills the trailing
+// InjectTypeFnArgs<T, 'csr'> slot with the name-card entry tuple, whose key
+// carries the id resolved from the `new () => T` constructor param), so it
+// matches the emitted `utl.getClassSerializer(<rt.ID>)` lookup and is
+// minification-safe.
 //
 // Pairing rule (CLAUDE.md): static form `createXxx<Foo>()` and reflect form
 // `createXxx(value)` are exercised as distinct cases; both resolve to the same

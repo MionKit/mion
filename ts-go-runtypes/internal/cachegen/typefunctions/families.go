@@ -69,6 +69,9 @@ var Families = []FamilySpec{
 	// jsonSchema: the per-type JSON Schema document (see json_schema_doc.go);
 	// the whole document renders inline at the root — no cross-entry deps.
 	family("jsonSchema", JsonSchemaDocEmitter{}),
+	// classSerializerReg: registerClassSerializer's build-time class-name card
+	// (see class_serializer_reg.go); inline at the root, no cross-entry deps.
+	family("classSerializerReg", ClassSerializerRegEmitter{}),
 	family("validate", ValidateEmitter{}),
 }
 

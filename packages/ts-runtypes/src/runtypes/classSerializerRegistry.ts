@@ -40,29 +40,38 @@
 //
 // The registry is keyed TWICE, both keys build-time strings:
 //
-//   1. The registration site's structural TYPE ID — the trailing injected
-//      `id?: InjectRunTypeId<T>` slot. Exact-instantiation matches (the same
-//      `T` at the registration and the use site) hit this first.
-//   2. The CLASS NAME, recovered from the registered type's reflected node
-//      (`node.typeName` — the build stamps the source class name there).
-//      Generics are ERASED at runtime: `RpcError<'a'>` and `RpcError<'b',
-//      Data>` are the SAME class object, so one `registerClassSerializer(
-//      RpcError, …)` must reconstruct every instantiation the program uses.
-//      Each instantiation hashes to a different structural id, but they all
-//      share the class name — the emitter bakes it into the lookup
-//      (`utl.getClassSerializer('<id>', '<className>')`) as a literal.
+//   1. The registration site's structural TYPE ID — recovered from the
+//      trailing injected `id?: InjectTypeFnArgs<T, 'csr'>` slot.
+//      Exact-instantiation matches (the same `T` at the registration and the
+//      use site) hit this first.
+//   2. The CLASS NAME, carried by the injected `csr` name-card entry
+//      (its `typeName` slot — the build stamps the source class name there;
+//      see the Go-side classSerializerReg family). Generics are ERASED at
+//      runtime: `RpcError<'a'>` and `RpcError<'b', Data>` are the SAME class
+//      object, so one `registerClassSerializer(RpcError, …)` must reconstruct
+//      every instantiation the program uses. Each instantiation hashes to a
+//      different structural id, but they all share the class name — the
+//      emitter bakes it into the lookup (`utl.getClassSerializer('<id>',
+//      '<className>')`) as a literal.
+//
+// The `csr` marker exists so a registration site demands ONE tiny name-card
+// entry instead of the class's whole reflection graph (the pre-csr
+// InjectRunTypeId form forced the full type graph into the bundle just to
+// recover the name string). A legacy bare-runtype tuple (stale generated code)
+// still resolves: its key is the plain type id and the name falls back to the
+// reflected node when registered.
 //
 // Neither side ever reads runtime `cls.name`, so minification cannot skew the
 // pairing (the only exception is the manual bare-string-id escape hatch, which
-// has no reflected node to read — that path falls back to `cls.name` and is
+// has no injected entry to read — that path falls back to `cls.name` and is
 // documented as not minification-safe). Two DIFFERENT classes sharing one name
 // make that name ambiguous: the name lane is disabled (with a console warning)
 // and only exact-id matches route through the registry for them.
 
 import type {DataOnly} from './dataOnly.ts';
-import type {InjectRunTypeId} from '../markers.ts';
-import {isEntryTuple, initFromTuple, entryTupleKey, type EntryTuple} from './entryTuple.ts';
-import {getRTUtils} from './rtUtils.ts';
+import type {InjectTypeFnArgs} from '../markers.ts';
+import {isEntryTuple, initFromTuple, entryTupleKey, FN_HASH_LEN, type EntryTuple} from './entryTuple.ts';
+import {getRTUtils, getRTFnCaches} from './rtUtils.ts';
 
 /** Any class constructor. */
 export interface AnyClass<T = any> {
@@ -134,17 +143,31 @@ export function classSerializerEpoch(): number {
   return epoch;
 }
 
-// Extract the registry key (the class's structural type id) from the injected
-// trailing `id` slot. The plugin injects the entry-module tuple (like
-// getRunTypeId); a wrapper / manual call may pass the bare id string. Without a
-// plugin there is no injected id, so registration can't be keyed — throw, since
-// the emitted codecs (which the plugin produces) could never match it anyway.
-function classSerializerKey(id: InjectRunTypeId<unknown> | undefined, cls: AnyClass): string {
+// The resolved registration identity: the structural TYPE id (the registry
+// key the emitted codecs look up) plus, when the plugin injected the csr
+// name-card tuple, that entry's full cache key (the name source).
+interface ClassSerializerIdentity {
+  typeId: string;
+  entryKey?: string;
+}
+
+// Extract the registration identity from the injected trailing `id` slot. The
+// plugin injects the `csr` name-card entry tuple (key `<csrHash>_<typeId>`);
+// a wrapper / manual call may pass the bare type-id string. A legacy
+// reflection tuple (stale generated code from the pre-csr marker) carries the
+// bare type id as its key — cache keys are alphanumeric with exactly one `_`
+// in fn keys, so the underscore split is unambiguous. Without a plugin there
+// is no injected id, so registration can't be keyed — throw, since the
+// emitted codecs (which the plugin produces) could never match it anyway.
+function classSerializerIdentity(id: InjectTypeFnArgs<unknown, 'csr'> | undefined, cls: AnyClass): ClassSerializerIdentity {
   if (isEntryTuple(id)) {
-    initFromTuple(id as EntryTuple);
-    return entryTupleKey(id as EntryTuple);
+    initFromTuple(id as unknown as EntryTuple);
+    const key = entryTupleKey(id as unknown as EntryTuple);
+    const separator = key.indexOf('_');
+    if (separator === FN_HASH_LEN) return {typeId: key.slice(FN_HASH_LEN + 1), entryKey: key};
+    return {typeId: key};
   }
-  if (typeof id === 'string' && id.length > 0) return id;
+  if (typeof id === 'string' && id.length > 0) return {typeId: id};
   throw new Error(
     `[ts-runtypes] registerClassSerializer(${cls.name || '<anonymous>'}): no type id injected. ` +
       `The ts-runtypes-devtools plugin must process the registration file so the class's ` +
@@ -152,15 +175,21 @@ function classSerializerKey(id: InjectRunTypeId<unknown> | undefined, cls: AnyCl
   );
 }
 
-// Resolve the class's SOURCE name for the name-fallback lane. The injected
-// tuple materialized the reflected node into the runtype cache (initFromTuple
-// ran inside classSerializerKey), so `node.typeName` carries the build-time
-// class name — minification-proof, and identical to the literal the emitter
-// bakes into `utl.getClassSerializer('<id>', '<className>')`. The manual
-// bare-string-id path has no node to read, so it falls back to runtime
-// `cls.name` (documented: not minification-safe).
-function classSerializerName(key: string, cls: AnyClass): string | undefined {
-  const node = getRTUtils().getRunType(key);
+// Resolve the class's SOURCE name for the name-fallback lane. The injected csr
+// name card carries the build-time class name in its `typeName` slot —
+// minification-proof, and identical to the literal the emitter bakes into
+// `utl.getClassSerializer('<id>', '<className>')`. A legacy reflection tuple
+// has no card; its reflected node (registered by initFromTuple) carries the
+// same string in `node.typeName`. The manual bare-string-id path has neither,
+// so it falls back to runtime `cls.name` (documented: not minification-safe).
+function classSerializerName(identity: ClassSerializerIdentity, cls: AnyClass): string | undefined {
+  if (identity.entryKey !== undefined) {
+    // Raw cache read (getRTFnCaches, not getRT) — the name rides the entry's
+    // typeName slot, so there is no reason to materialize the card's fn.
+    const typeName = getRTFnCaches().rtFnsCache[identity.entryKey]?.typeName;
+    if (typeof typeName === 'string' && typeName.length > 0) return typeName;
+  }
+  const node = getRTUtils().getRunType(identity.typeId);
   const typeName = node?.typeName;
   if (typeof typeName === 'string' && typeName.length > 0) return typeName;
   return cls.name || undefined;
@@ -191,13 +220,13 @@ function indexByName(name: string, entry: ClassSerializerEntry): void {
 export function registerClassSerializer<T>(
   cls: SerializableClass<T>,
   handler?: ClassSerializerHandler<T>,
-  id?: InjectRunTypeId<T>
+  id?: InjectTypeFnArgs<T, 'csr'>
 ): void;
 // Non-empty constructor: `deserialize` is REQUIRED (auto `new cls()` is unavailable).
 export function registerClassSerializer<T>(
   cls: AnyClass<T>,
   handler: ClassSerializerHandler<T> & {deserialize(data: DataOnly<T>): T},
-  id?: InjectRunTypeId<T>
+  id?: InjectTypeFnArgs<T, 'csr'>
 ): void;
 /** Register a custom (de)serializer for a user-defined class. Pass the class
  *  itself — the ENCOURAGED form needs no type argument at all:
@@ -212,9 +241,13 @@ export function registerClassSerializer<T>(
  *  `registerClassSerializer<WireError<'x'>>(…)` still works but adds nothing.
  *  Re-registering the same class (any instantiation) updates the handlers
  *  everywhere and never drops previously covered keys. */
-export function registerClassSerializer<T>(cls: AnyClass<T>, handler?: ClassSerializerHandler<T>, id?: InjectRunTypeId<T>): void {
+export function registerClassSerializer<T>(
+  cls: AnyClass<T>,
+  handler?: ClassSerializerHandler<T>,
+  id?: InjectTypeFnArgs<T, 'csr'>
+): void {
   if (typeof cls !== 'function') throw new Error('registerClassSerializer: cls must be a class constructor');
-  const key = classSerializerKey(id, cls);
+  const identity = classSerializerIdentity(id, cls);
   let state = classStates.get(cls);
   if (!state) {
     state = {entry: {cls}, keys: new Set()};
@@ -224,9 +257,9 @@ export function registerClassSerializer<T>(cls: AnyClass<T>, handler?: ClassSeri
   // the LAST registration's handlers win for every key at once.
   state.entry.serialize = handler?.serialize as ((instance: any) => unknown) | undefined;
   state.entry.deserialize = handler?.deserialize as ((data: any) => any) | undefined;
-  state.keys.add(key);
-  classSerializers.set(key, state.entry);
-  const name = classSerializerName(key, cls);
+  state.keys.add(identity.typeId);
+  classSerializers.set(identity.typeId, state.entry);
+  const name = classSerializerName(identity, cls);
   if (name && state.name === undefined) {
     state.name = name;
     indexByName(name, state.entry);
