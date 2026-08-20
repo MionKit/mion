@@ -121,12 +121,29 @@ func (ctx *printContext) declRef(node *reflection.RunType, target Target) (strin
 	if !exists || entry.TypeName == "" || !referenceWorthy(node) {
 		return "", nil, false
 	}
-	if target != TargetType && ctx.reaches(node.ID, ctx.rootID) {
-		// The referenced declaration cycles back here; a name reference would
-		// make the printed const's type self-referential (TS rejects it), so
-		// the partner inlines and the cycle closes at the root instead. The
-		// type target keeps the name — aliases resolve lazily.
-		return "", nil, false
+	if ctx.reaches(node.ID, ctx.rootID) {
+		// The referenced declaration cycles back here.
+		if target != TargetType {
+			// A name reference would make the printed const's type
+			// self-referential (TS rejects it), so the partner inlines and the
+			// cycle closes at the root instead.
+			return "", nil, false
+		}
+		if ctx.selfName == "" && ctx.opts.Target == TargetBuilders {
+			// Embedded type text in a BUILDERS conversion (a getRunType escape
+			// / negation embed): after conversion the referenced name resolves
+			// through `InferType<typeof partnerRT>`, and the partner's const
+			// joins this very cycle — the converted aliases are EAGER, so
+			// TypeScript silently collapses the knot to `any` and the printed
+			// code type-erases the schema (found by the elision fuzz lane).
+			// No spelling closes a cycle inside embedded text, so refuse
+			// loudly like the direct self-back-edge above.
+			return "", &Diagnostic{Code: CodeUnsupportedKind, Severity: SeverityError, Decl: declLabel(ctx.decl),
+				Message: fmt.Sprintf("self-referential type inside an embedded type expression is not convertible (the reference to %s cycles back through this declaration)", entry.TypeName)}, true
+		}
+		// The pure type target keeps the name — its output leaves every
+		// declaration a REAL type, and real type references resolve lazily,
+		// so the cycle stays legal TS.
 	}
 	return ctx.refSpelling(entry, target)
 }
