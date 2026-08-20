@@ -48,6 +48,11 @@ describe('fuzz / elision — the two schema spellings stay equivalent', () => {
     'soak — generate schemas continuously and report all findings',
     async () => {
       const report = await runElisionFuzzForDuration(soakMs, {seed: entrySeed('elision')});
+      // Green soaks report their coverage too — a count is the run's result.
+      console.error(
+        `[elision-fuzz] soak done: ${report.runs} schemas over ${soakMs}ms ` +
+          `(${report.strongRuns} reached the E3 probes, ${report.rerolls} re-rolls)`
+      );
       if (report.violations.length > 0) throw new Error(renderViolations(report));
       expect(report.runs).toBeGreaterThan(0);
     },
