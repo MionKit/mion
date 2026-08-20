@@ -5,7 +5,7 @@
 
 Bumped `@ts-runtypes/{core,devtools,bin}` `0.11.0 → 0.12.0` (9 pins across 7 packages, all in
 `dependencies`). `minimumReleaseAgeExclude` already covers `@ts-runtypes/*`, so the 30-day policy
-did not reject the day-old release. Whole suite green: 47 files / 692 tests.
+did not reject the day-old release. Whole suite green: 47 files / 693 tests.
 
 The upgrade carried two things: the `CompiledFnArgs` fix (its own record —
 [upstream-compiledfnargs-type-lie.md](upstream-compiledfnargs-type-lie.md)) and a **breaking change
@@ -87,15 +87,13 @@ devtools spec had needed reflection before.
 
 ## Not covered here
 
-- `patternSampleRetries` is passed through but not tested. The build-failure harness makes it
-  testable in principle (exhaustion surfaces as FMT005), but provoking it reliably is
-  probabilistic and would risk a flaky test; the `patternSampleCount: 0` case covers the
-  deterministic half of that code path.
 - Anything drizzle — deferred to a separate full investigation at the maintainer's request.
 
 ## Failure paths are guarded too
 
 The negative cases — bad `mockSamples` (FMT003), an ungeneratable pattern (FMT005), and clashing
 pools on a shared cache entry (FMT006) — each get a test that runs a real vite build expected to
-FAIL and asserts on the diagnostic code. See
+FAIL and asserts on the diagnostic code. `patternSampleRetries` is guarded there too, though more
+weakly: the retry budget turns out to have no provokable effect on generation, so the test pins the
+passthrough (the resolver rejects a value below 1) rather than the budget. See
 [build-failure-test-harness.md](build-failure-test-harness.md).
