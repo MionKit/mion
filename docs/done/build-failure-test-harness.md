@@ -62,26 +62,36 @@ entries" on the enabling side.
 Repairing the FMT003 fixture (`minLength: 5` → `1`) fails exactly its own test with
 `expected [] to include 'FMT003'`, and no other. The suite went 46 files / 687 tests → **47 / 693**.
 
-## `patternSampleRetries`, and a corrected assumption
+## `patternSampleRetries` — what is and is not established
 
-This spec originally said retries could not be tested because provoking budget exhaustion would be
-*probabilistic and flaky*. **That reasoning was wrong.** Measured against the real resolver, the
-retry budget has no observable effect that can be provoked at all: the sample generator either
-models a construct — and fills the pool on the FIRST attempt, at any budget — or cannot parse it,
-and then fails at every budget. Length bounds, backreferences, lookaheads, `allowedChars` and
-`disallowedValues` were each tried at budget 1 versus budget 200; none is budget-sensitive. The
-generator is markedly more capable than FMT005's wording suggests.
+`patternSampleRetries` is an **internal attempt counter**: how many draws the generator makes before
+giving up and reporting FMT005. Its effect is therefore only visible from outside on a pattern whose
+draws fail often enough that the budget decides the outcome.
 
-So the failure mode the flakiness argument was built on does not appear to be reachable, and no
-amount of retry tuning would have made it deterministic.
+No such pattern was found. Length bounds, backreferences, lookaheads, `allowedChars` and
+`disallowedValues` were each tried at budget 1 versus budget 200 and behaved identically. **That is
+a limit of the search, not evidence the retry loop is inert** — constructing a pattern that fails
+just often enough is genuinely hard, and that difficulty is the real reason this option is awkward
+to test.
 
-What IS observable is that the value reaches the resolver, which rejects anything below 1
+An earlier draft of this spec claimed the budget had "no provokable effect at all". That was an
+overstatement from a handful of samples and has been withdrawn.
+
+One measurement supports the internal-counter reading rather than contradicting it: a pattern the
+generator cannot PARSE (`fmt005`) fails in the same ~280ms at retries 1, 50 and 500 — it errors
+before the retry loop is ever entered, so budget-insensitivity there is expected and says nothing
+about draw-failure cases.
+
+### What the test actually pins
+
+The value reaches the resolver, which rejects anything below 1
 (`invalid pattern-sample-retries 0 (want >= 1)`). That complaint goes to the resolver process's own
-stderr — an inherited fd, not capturable in-process through vite's logger — so the test rides on
-the CONTRAST instead: the same fixture with `patternSampleRetries: 0` fails and with `1` builds
-clean. Only the option differs, so the failure is attributable to it. Verified as a real guard:
-deleting the passthrough line from `mionVitePlugin.ts` fails exactly this test
-(`expected true to be false`) and no other.
+stderr — an inherited fd, not capturable in-process through vite's logger — so the test rides on the
+CONTRAST: the same fixture with `patternSampleRetries: 0` fails and with `1` builds clean. Only the
+option differs, so the failure is attributable to it. Verified as a real guard: deleting the
+passthrough line from `mionVitePlugin.ts` fails exactly this test (`expected true to be false`) and
+no other.
 
 This is a weaker claim than its siblings and the test says so in place: it guards the passthrough,
-not the budget's effect on generation.
+not the budget's effect on generation. Accepted deliberately — an all-or-nothing outcome is what a
+correctly-working internal retry counter looks like from the outside.
