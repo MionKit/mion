@@ -8,48 +8,31 @@
 // ts-runtypes migration: the in-house seqproto-based implementation was replaced by
 // the @ts-runtypes/core DataView serializer — the compiled toBinary/fromBinary functions
 // are emitted against ITS wire protocol (varint lengths, string cache, Temporal support),
-// so the serializer objects must come from the same package. What survives here is NOT a type
-// mirror (the types are re-exported from @ts-runtypes/core): it is mion's own option-name and
-// creation-signature surface (bufferSize/workflowRouteIds), kept deliberately as public API.
+// so the serializer objects must come from the same package.
+//
+// mion decides the BUFFER, ts-runtypes does the ENCODING. Every serializer created here is given
+// an explicit `size` or a caller-owned `buffer`, so upstream's own predictor is never consulted and
+// its module-global `sizeHistory` is never written to (mion never calls the serializer's
+// markAsEnded, which is what records into it). Sizing lives in ./sizeStats.ts, buffer reuse in
+// ./bufferPool.ts.
 
 import {
     createDataViewSerializer as rtCreateDataViewSerializer,
     createDataViewDeserializer as rtCreateDataViewDeserializer,
-    setSerializationOptions as rtSetSerializationOptions,
 } from '@ts-runtypes/core';
 import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
 // NOTE: those types ARE @ts-runtypes/core's (re-exported), so no casting is needed below.
 
-/** Legacy mion serialization options, mapped onto the ts-runtypes equivalents. */
-export interface SerializationOptions {
-    /** initial buffer size when a route has no recorded size history (ts-runtypes defaultBufferSize) */
-    bufferSize: number;
-    /** stddev multiplier for the per-route predicted buffer size (ts-runtypes sizeMultiplier) */
-    averageResponseSizeMultiplier: number;
-    /** strings longer than this are never cached (ts-runtypes maxStrCacheLength) */
-    maxStrCacheLength: number;
-    /** max entries in the encoded-string cache (ts-runtypes maxCacheSize) */
-    maxCacheSize: number;
+/** Creates a growing serializer over a freshly allocated buffer of exactly `size` bytes.
+ *  An underestimate costs one in-place grow copy, never a throw. */
+export function createDataViewSerializer(routeId: string, size: number): DataViewSerializer {
+    return rtCreateDataViewSerializer(routeId, {size, grow: true});
 }
 
-/** Applies serialization options (proxied to the ts-runtypes DataView serializer). */
-export function setSerializationOptions(options: Partial<SerializationOptions>) {
-    rtSetSerializationOptions({
-        ...(options.bufferSize !== undefined ? {defaultBufferSize: options.bufferSize} : {}),
-        ...(options.averageResponseSizeMultiplier !== undefined ? {sizeMultiplier: options.averageResponseSizeMultiplier} : {}),
-        ...(options.maxStrCacheLength !== undefined ? {maxStrCacheLength: options.maxStrCacheLength} : {}),
-        ...(options.maxCacheSize !== undefined ? {maxCacheSize: options.maxCacheSize} : {}),
-    });
-}
-
-/**
- * Creates a DataView-based serializer for binary serialization.
- * Buffer size is predicted from the route's recorded response sizes; for routesFlow
- * requests pass the involved route ids so their sizes are summed.
- */
-export function createDataViewSerializer(routeId: string, workflowRouteIds?: string[]): DataViewSerializer {
-    const options = workflowRouteIds?.length ? {relatedKeys: workflowRouteIds} : undefined;
-    return rtCreateDataViewSerializer(routeId, options);
+/** Creates a NON-growing serializer over a caller-owned (pooled) buffer. Upstream cannot resize a
+ *  buffer it does not own, so overflow throws — callers must be prepared to re-encode. */
+export function createPooledDataViewSerializer(routeId: string, buffer: ArrayBuffer): DataViewSerializer {
+    return rtCreateDataViewSerializer(routeId, {buffer});
 }
 
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */

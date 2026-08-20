@@ -14,7 +14,7 @@ import {bench, describe} from 'vitest';
 import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
-import {serializeBinaryBody, createDataViewSerializer} from '@mionjs/core';
+import {serializeBinaryBody, predictSize} from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
 interface Item {
@@ -40,14 +40,15 @@ function chainFor(path: string): MethodWithJitFns[] {
 
 /** One serialization, capturing what it cost. */
 function measureOnce(path: string, chain: MethodWithJitFns[], routeId: string, value: unknown) {
-    // A probe serializer reads the prediction WITHOUT recording anything, so it reflects
-    // exactly what the real call is about to allocate.
-    const predicted = createDataViewSerializer(path).buffer.byteLength;
-    const {serializer} = serializeBinaryBody(path, chain, {[routeId]: value}, true);
+    // What the adaptive strategy will allocate. Accurate for every warm request (the cold-start
+    // fallback only applies while the key has no observations at all).
+    const predicted = predictSize(path, 0.9, 1.25, 0, false);
+    const {serializer, release} = serializeBinaryBody(path, chain, {[routeId]: value}, true);
     const payload = serializer.getLength();
     const final = serializer.buffer.byteLength;
+    release();
     // serializeBinaryBody no longer slices an owned copy; the view the adapters read is free.
-    return {predicted, payload, final, grew: final > predicted, copies: 0};
+    return {payload, final, predicted, grew: predicted > 0 && final > predicted, copies: 0};
 }
 
 function pct(sorted: number[], p: number): number {
