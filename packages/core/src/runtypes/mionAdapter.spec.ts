@@ -13,6 +13,7 @@ import {
     getReflectionFromMarkers,
     getParamCountFromRunType,
     getParamsFromRunType,
+    readBinarySizeEstimate,
     resolveInjectedRunType,
     resolveCompiledPureFn,
     RtMarkerPayload,
@@ -102,6 +103,35 @@ describe('mionAdapter: reflection from injected markers', () => {
         expect(labelled.map((param) => param.optional)).toEqual([undefined, true]);
         // a non-tuple runtype yields no params rather than throwing
         expect(getParamsFromRunType(resolveInjectedRunType(savePet.rtFns.returnId))).toEqual([]);
+    });
+
+    // ############# compile-time binary size estimate #############
+    //
+    // This test is the tripwire for a deliberate coupling. The estimate lives at a fixed slot of the
+    // `tb` entry tuple; upstream exports neither the reader nor the value on the cache entry, so mion
+    // reads the slot directly (see readBinarySizeEstimate). If a version bump moves or drops that
+    // slot the read silently returns undefined and every cold binary buffer quietly reverts to the
+    // flat fallback — a performance regression with no failing test anywhere. So assert it loudly.
+    it('reads the compile-time binary size estimate off the tb tuple', () => {
+        const estimate = readBinarySizeEstimate(savePet.rtFns.returnFns);
+        expect(estimate).toBeDefined();
+        // a small object: a real byte count, not a placeholder or a whole default buffer
+        expect(estimate).toBeGreaterThan(0);
+        expect(estimate).toBeLessThan(4096);
+        // and it rides the reflection, which is what the serializer sizes from
+        const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
+        expect(reflection.returnBinarySizeEstimate).toBe(estimate);
+        expect(reflection.paramsBinarySizeEstimate).toBeGreaterThan(0);
+    });
+
+    it('degrades to undefined (never throws) when no usable estimate is present', () => {
+        expect(readBinarySizeEstimate(undefined)).toBeUndefined();
+        expect(readBinarySizeEstimate([])).toBeUndefined();
+        // a tb tuple of the right width but a nonsense payload
+        expect(readBinarySizeEstimate([['tb', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, 'nope']])).toBeUndefined();
+        expect(readBinarySizeEstimate([['tb', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, -5]])).toBeUndefined();
+        // a non-tb family is never mistaken for one
+        expect(readBinarySizeEstimate([['val', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, 99]])).toBeUndefined();
     });
 
     it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {
