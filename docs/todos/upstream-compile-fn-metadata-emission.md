@@ -26,17 +26,55 @@ resolver already computed** to emit it — plain, build-time, serializable data.
 
 ```ts
 const {fn, metadata} = compileValidateFn<HandlerParams<typeof savePet>>();
+// metadata.isNoop  → false
 // metadata.members → [{name: 'pet', optional: false}, {name: 'notes', optional: true}]
 ```
 
 Candidate v1 metadata — chosen because it is exactly what mion reads today (see evidence below):
 
+- **`isNoop`** — **the single most important field.** See below; it is a non-negotiable for v1.
 - **tuple member labels** — `[pet: Pet, notes?: string]` → member `name` + `optional`
 - **function signature shape** — parameter names, arity, optional/rest flags
 - **return shape hint** — whether the type is `void` / `never` / `undefined` (mion's `hasReturnData`)
 - possibly **format name/params per member** (drizzle reads these from the graph too, see
   [drizzle-column-mapping-on-type-formats.md](drizzle-column-mapping-on-type-formats.md), though that
   spec solves its half in the *type* lane)
+
+### `isNoop` is the field that matters most
+
+Every other field on this list *describes* the type. `isNoop` lets the caller **skip the call
+entirely** — it is the only one that removes work from the hot path rather than annotating it. A
+validator for `any`, a JSON transform for a type that needs none, a serializer for a void return:
+the compiler knows at build time that invoking it is pointless, and one emitted boolean turns a
+per-request function call into a branch.
+
+**mion already depends on this and already gates on it** — `isNoop` exists on upstream's
+`CompiledFnData` today (read at `packages/core/src/runtypes/mionAdapter.ts:115`), which is exactly
+why it is the proof the channel works. The gates:
+
+| Gate | Skips |
+| --- | --- |
+| `router/src/dispatch.ts:178` | request validation |
+| `router/src/dispatch.ts:160` | JSON restore of params — returns them untouched |
+| `router/src/dispatch.ts:197`, `:205` | the whole `strictTypes` unknown-key pass |
+| `client/src/lib/validation.ts:57` | client-side pre-validation |
+| `client/src/lib/serializer.ts:133` | param prep — falls through to a plain `JSON.stringify` |
+| `client/src/lib/serializer.ts:232` | return-value restore |
+| `core/src/binary/bodySerializer.ts:71` | binary framing for that method |
+
+So whatever shape `compileXFn` returns, **`isNoop` must ride on it** — if the metadata object omits
+it, every one of these call sites still has to go find the `CompiledFnData` entry separately, and
+the new API is strictly worse than what it replaces.
+
+Two mion-side symptoms worth handing upstream as motivation, both consequences of `isNoop` only
+existing on a cache entry rather than on the compiled fn itself:
+
+- **mion fabricates noop fns.** `routerUtils.ts:274-302` hand-builds a `noopJitFns` set with
+  `isNoop: true` and throwing bodies, for handlers with no params or a void return — cases where the
+  compiler could simply have emitted `isNoop: true` on the real thing.
+- **mion guesses `false` when it cannot tell.** `mionAdapter.ts:181` (`fabricateEntry`) hardcodes
+  `isNoop: false` for a marker with no cache entry. That is the conservative direction — it costs a
+  pointless call, it does not break — but it is a guess standing in for a fact the compiler had.
 
 ## Evidence — what mion hand-rolls today because the metadata is not emitted
 
@@ -61,10 +99,13 @@ The next one — per-parameter formats, defaults, descriptions for docs — repe
 
 ## Precedent: upstream already ships data next to a compiled fn
 
-`CompiledFnData` already carries `code`, `fnID`, `args` and `defaultParamValues` — per-compiled-fn
-build-time data that mion consumes and even puts on the wire. 0.12.0 fixed `defaultParamValues` to
-hold wire-safe strings instead of laundered runtime values
+`CompiledFnData` already carries `isNoop`, `code`, `fnID`, `args` and `defaultParamValues` —
+per-compiled-fn build-time data that mion consumes and even puts on the wire. 0.12.0 fixed
+`defaultParamValues` to hold wire-safe strings instead of laundered runtime values
 ([../done/upstream-compiledfnargs-type-lie.md](../done/upstream-compiledfnargs-type-lie.md)).
+
+`isNoop` in particular is the existence proof: a build-time fact, emitted as one boolean, that
+consumers gate real work on. This ask is "more of that", not a new idea.
 
 So "a compiled fn carries emitted data beside it" is an **established channel**, not a new
 mechanism. This ask widens that channel from *calling-convention* data to *type-shape* data.
@@ -77,10 +118,13 @@ mechanism. This ask widens that channel from *calling-convention* data to *type-
 2. **Coexist or replace?** `createXFn` must almost certainly stay — most consumers (mion's own
    examples: `home-run-types.ts`, `strict-types-example.ts`, `serialization-*.ts`) want a bare
    function and should not pay for metadata they never read.
-3. **v1 metadata set.** Tuple labels + optionality + arity + return-has-data covers four of mion's
-   five walks. `HeadersSubset` header names is mion-specific class introspection — either it stays a
-   mion walk, or v1 includes a generic "declared property names for a class/object node" entry that
-   mion composes on top. Decide explicitly rather than half-covering it.
+3. **v1 metadata set.** `isNoop` is not negotiable (above). Tuple labels + optionality + arity +
+   return-has-data covers four of mion's five walks. `HeadersSubset` header names is mion-specific
+   class introspection — either it stays a mion walk, or v1 includes a generic "declared property
+   names for a class/object node" entry that mion composes on top. Decide explicitly rather than
+   half-covering it.
+   Related: should the compiler emit `isNoop: true` for the cases mion currently fabricates
+   (no params, void return), so `noopJitFns` can be deleted rather than hand-maintained?
 4. **Opt-in?** Metadata is emitted per compiled fn per call site, so it is bundle size for everyone.
    Should it be gated behind an emit option (mion would turn it on via `mionVitePlugin`)?
 5. **Wire safety.** mion ships some of this to the browser. Confirm plain JSON: no symbols, no
@@ -90,7 +134,8 @@ mechanism. This ask widens that channel from *calling-convention* data to *type-
 ## Fix plan
 
 1. **File the upstream issue** in `ts-run-types`, using mion's five call sites above as the
-   motivating consumer, and the `CompiledFnData` precedent as the proposed channel.
+   motivating consumer, `isNoop` as the lead argument (already emitted, already load-bearing on
+   seven hot paths), and the `CompiledFnData` precedent as the proposed channel.
 2. Agree shape + v1 metadata set upstream. **Record the decision back into this spec.**
 3. Once it lands and mion upgrades: replace `getParamsFromRunType`, `getParamCountFromRunType`,
    `runTypeHasData` (and `getHeaderNamesFromRunType` if covered) with metadata reads, and delete
@@ -104,5 +149,8 @@ mechanism. This ask widens that channel from *calling-convention* data to *type-
 - An upstream issue exists and its outcome is recorded here: accepted with an agreed shape, or
   declined with the reasoning (in which case mion keeps the walks and this spec closes).
 - If shipped: mion reads emitted metadata instead of walking the graph, and `RtNodeLike` is gone.
+- `isNoop` reaches the call sites through the metadata, not through a separate `CompiledFnData`
+  lookup — and if the compiler emits it for zero-param/void-return types, `noopJitFns` and
+  `fabricateEntry`'s hardcoded `isNoop: false` go with it.
 - **Explicitly NOT done** by attaching `RunType` graphs to `RtMethodReflection` — that direction was
   considered and rejected on 2026-08-20.
