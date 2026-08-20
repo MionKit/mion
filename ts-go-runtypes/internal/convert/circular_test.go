@@ -314,6 +314,37 @@ func TestChain_RecursiveIndexPrintsTheLiteralSpelling(t *testing.T) {
 	}
 }
 
+func TestChain_EscapeOnCycleRefuses(t *testing.T) {
+	// A cycle whose builders spelling needs a getRunType ESCAPE (a method
+	// forces one) has no sound print: the escape's type text can only reach
+	// its cycle partner by NAME, and after conversion that name resolves
+	// through `InferType<typeof partnerRT>` — an EAGER alias whose const sits
+	// on the same cycle, so TypeScript silently collapses the whole knot to
+	// `any` and the printed code type-erases the schema. Found by the elision
+	// fuzz lane (seed 886383364: a recursive interface under an array root);
+	// the reference must refuse like the direct self-back-edge does.
+	for _, source := range []string{
+		// The wild shape: recursion through the partner that names the array.
+		"export interface TreeNode {label(): string; kids: Forest;}\nexport type Forest = TreeNode[];\n",
+		// A mutual object cycle with the escape on one side.
+		"export interface Alpha {tag(): string; beta?: Beta;}\nexport type Beta = {alpha?: Alpha};\n",
+	} {
+		_, diags := convertOne(t, source, convert.Options{Target: convert.TargetBuilders})
+		if len(diags) == 0 {
+			t.Fatalf("expected the embedded-cycle refusal for %q, got a clean conversion", source)
+		}
+		for _, diagnostic := range diags {
+			if diagnostic.Code != convert.CodeUnsupportedKind ||
+				!strings.Contains(diagnostic.Message, "self-referential type inside an embedded type expression") {
+				t.Fatalf("expected the embedded self-reference refusal for %q, got %+v", source, diags)
+			}
+		}
+		// The pure type target keeps every declaration a REAL type, where the
+		// names resolve lazily — the same source must still convert cleanly.
+		convertAndCheckIDs(t, source, convert.TargetType)
+	}
+}
+
 func TestChain_MutualCycle(t *testing.T) {
 	// Builders inline the partner (a name reference would make the const's
 	// type self-referential); the type target restores both names.
