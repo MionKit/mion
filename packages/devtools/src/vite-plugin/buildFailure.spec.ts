@@ -26,7 +26,7 @@ import type {MionRunTypesOptions} from './mionVitePlugin.ts';
 
 const FIXTURES = resolve(dirname(fileURLToPath(import.meta.url)), '../../test-fixtures');
 
-type BuildOutcome = {ok: boolean; codes: string[]; messages: string[]};
+type BuildOutcome = {ok: boolean; codes: string[]; messages: string[]; error: string};
 
 /** Runs one fixture through a real vite build with the mion plugin and reports what came out,
  *  instead of throwing. Diagnostics reach us as plugin WARNINGS (upstream's `ctx.warn`); the thrown
@@ -39,6 +39,7 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
     logger.warn = logger.warnOnce = logger.error = (msg: string) => void messages.push(String(msg));
 
     let ok = true;
+    let error = '';
     try {
         await build({
             root: dir,
@@ -48,11 +49,12 @@ async function buildFixture(name: string, runTypes: Partial<MionRunTypesOptions>
             build: {write: false, lib: {entry: resolve(dir, 'index.ts'), formats: ['es']}, minify: false},
             plugins: [mionVitePlugin({runTypes: {tsConfig: resolve(dir, 'tsconfig.json'), ...runTypes}}) as never],
         });
-    } catch {
+    } catch (e) {
         ok = false;
+        error = String((e as Error)?.message ?? e);
     }
     const codes = [...new Set(messages.join('\n').match(/FMT\d{3}/g) ?? [])];
-    return {ok, codes, messages};
+    return {ok, codes, messages, error};
 }
 
 describe('build halts on pattern diagnostics', () => {
@@ -93,5 +95,26 @@ describe('build halts on pattern diagnostics', () => {
         const result = await buildFixture('fmt006');
         expect(result.codes).toContain('FMT006');
         expect(result.ok).toBe(false);
+    }, 60_000);
+
+    it('patternSampleRetries is validated by the resolver', async () => {
+        // Unlike its siblings this one gets no FMT code, because the retry BUDGET turns out to have
+        // no observable effect we can provoke: the generator either models a construct (and fills
+        // the pool on the first attempt, at any budget) or cannot parse it at all (and fails at
+        // every budget). Length bounds, backreferences, lookaheads, allowedChars and
+        // disallowedValues were all tried — none is budget-sensitive.
+        //
+        // What IS observable is that the value reaches the resolver, which rejects anything below
+        // 1 outright. Its complaint goes to the resolver process's own stderr rather than through
+        // vite's logger, so the assertion rides on the CONTRAST instead: same fixture, same
+        // everything, only the option differs — so the failure is attributable to it and nothing
+        // else. A mis-wired passthrough would let 0 sail through and both halves would build.
+        const rejected = await buildFixture('ok', {patternSampleRetries: 0});
+        expect(rejected.ok).toBe(false);
+        expect(rejected.error).toMatch(/resolver/i);
+
+        const accepted = await buildFixture('ok', {patternSampleRetries: 1});
+        expect(accepted.codes).toEqual([]);
+        expect(accepted.ok).toBe(true);
     }, 60_000);
 });

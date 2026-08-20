@@ -42,6 +42,7 @@ the **code**, never message text — upstream headlines interpolate values and w
 | FMT005 | `fmt005` | lookaround pattern, no declared samples, generator cannot handle it |
 | FMT005 | `ok` + `patternSampleCount: 0` | generation disabled reaches the same diagnostic |
 | FMT006 | `fmt006` | two sites, one cache entry, different pools |
+| passthrough | `ok` + `patternSampleRetries: 0` vs `1` | resolver rejects < 1; contrast attributes the failure |
 
 Two design points worth keeping:
 
@@ -59,11 +60,28 @@ entries" on the enabling side.
 ## Verified as real guards
 
 Repairing the FMT003 fixture (`minLength: 5` → `1`) fails exactly its own test with
-`expected [] to include 'FMT003'`, and no other. The suite went 46 files / 687 tests → **47 / 692**.
+`expected [] to include 'FMT003'`, and no other. The suite went 46 files / 687 tests → **47 / 693**.
 
-## Still not covered
+## `patternSampleRetries`, and a corrected assumption
 
-`patternSampleRetries`. The harness now makes it testable in principle — exhaustion surfaces as
-FMT005 — but provoking it needs a pattern constrained enough that random draws reliably miss within
-`patternSampleCount × patternSampleRetries`, which is inherently probabilistic and would risk a
-flaky test. The `patternSampleCount: 0` case covers the deterministic half of the same code path.
+This spec originally said retries could not be tested because provoking budget exhaustion would be
+*probabilistic and flaky*. **That reasoning was wrong.** Measured against the real resolver, the
+retry budget has no observable effect that can be provoked at all: the sample generator either
+models a construct — and fills the pool on the FIRST attempt, at any budget — or cannot parse it,
+and then fails at every budget. Length bounds, backreferences, lookaheads, `allowedChars` and
+`disallowedValues` were each tried at budget 1 versus budget 200; none is budget-sensitive. The
+generator is markedly more capable than FMT005's wording suggests.
+
+So the failure mode the flakiness argument was built on does not appear to be reachable, and no
+amount of retry tuning would have made it deterministic.
+
+What IS observable is that the value reaches the resolver, which rejects anything below 1
+(`invalid pattern-sample-retries 0 (want >= 1)`). That complaint goes to the resolver process's own
+stderr — an inherited fd, not capturable in-process through vite's logger — so the test rides on
+the CONTRAST instead: the same fixture with `patternSampleRetries: 0` fails and with `1` builds
+clean. Only the option differs, so the failure is attributable to it. Verified as a real guard:
+deleting the passthrough line from `mionVitePlugin.ts` fails exactly this test
+(`expected true to be false`) and no other.
+
+This is a weaker claim than its siblings and the test says so in place: it guards the passthrough,
+not the budget's effect on generation.
