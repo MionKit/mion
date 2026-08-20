@@ -58,7 +58,7 @@ test/fuzz/
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
-├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
+├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E4)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -269,7 +269,11 @@ refusal surface is the convert lane's job) and are reported.
   structural-format shapes excluded — shapeValue does not model contains /
   uniqueItems constraints): validate accepts a conforming probe and rejects a
   proven corruption; codec behavior needs no probing because E1's byte
-  equality already carries it.
+  equality already carries it. **E4** resolver robustness: a hard resolver
+  error while compiling either spelling (a scanFiles failure, not a
+  diagnostic) is captured as a finding with its seed instead of crashing the
+  soak — this caught a real emitter panic (an NS-sentinel base reaching the
+  contains / patternProperties splices in the validate emitter).
 - Tests: `elisionFuzz.integration` (the soak, `RT_FUZZ_ELISION_SOAK_MS`);
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).

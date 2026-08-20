@@ -49,9 +49,12 @@ describe('fuzz / elision — the two schema spellings stay equivalent', () => {
     async () => {
       const report = await runElisionFuzzForDuration(soakMs, {seed: entrySeed('elision')});
       // Green soaks report their coverage too — a count is the run's result.
-      console.error(
+      // Written to process.stderr directly: vitest replays a test's console
+      // output only when the test FAILS, which would swallow exactly the
+      // green-run count this line exists to report.
+      process.stderr.write(
         `[elision-fuzz] soak done: ${report.runs} schemas over ${soakMs}ms ` +
-          `(${report.strongRuns} reached the E3 probes, ${report.rerolls} re-rolls)`
+          `(${report.strongRuns} reached the E3 probes, ${report.rerolls} re-rolls)\n`
       );
       if (report.violations.length > 0) throw new Error(renderViolations(report));
       expect(report.runs).toBeGreaterThan(0);
