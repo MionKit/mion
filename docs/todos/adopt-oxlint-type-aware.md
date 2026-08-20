@@ -3,17 +3,30 @@ type: chore
 spec: full-plan
 status: blocked
 created: 2026-07-04
-updated: 2026-08-03
+updated: 2026-08-19
 ---
 
 # Adopt `oxlint --type-aware` for this repo's own source
 
-**Status: BLOCKED until 2026-08-21 — do not start before that date.** The adoption needs
-`oxlint@1.75.0` (the first stable type-aware line, published 2026-07-21 23:21 UTC) plus its
-paired `oxlint-tsgolint`, and the repo's `minimumReleaseAge: 43200` (30 days) in
-[`pnpm-workspace.yaml`](../../pnpm-workspace.yaml) blocks installing it until **2026-08-21**.
-On/after that date this is a turnkey `full-plan` spec: the scope was measured on 2026-07-24
-and the resolutions are written out below.
+**Status: BLOCKED until 2026-08-20 23:21 UTC — do not start before then.** The adoption needs
+`oxlint@1.75.0` (the first stable type-aware line) plus its paired `oxlint-tsgolint@7.0.2001`,
+and the repo's `minimumReleaseAge: 43200` (30 days) in
+[`pnpm-workspace.yaml`](../../pnpm-workspace.yaml) blocks installing them until each is 30 days
+old:
+
+| Package | Published | Installable from |
+|---------|-----------|------------------|
+| `oxlint-tsgolint@7.0.2001` | 2026-07-21 14:33 UTC | **2026-08-20 14:33 UTC** |
+| `oxlint@1.75.0` | 2026-07-21 23:21 UTC | **2026-08-20 23:21 UTC** |
+
+Checked 2026-08-19: `pnpm add -Dw oxlint@1.75.0 oxlint-tsgolint@7.0.2001` still fails with
+`ERR_PNPM_NO_MATURE_MATCHING_VERSION — Version 7.0.2001 (released 29 days ago) of
+oxlint-tsgolint does not meet the minimumReleaseAge constraint`. No newer oxlint helps: 1.76.0
+ages in 2026-08-26, and every oxlint ≥ 1.75.0 pins the same `oxlint-tsgolint >= 7.0.2001`, so
+1.75.0 + 7.0.2001 is the pair regardless.
+
+After that timestamp this is a turnkey spec: the full scope was re-measured **on the stable
+engine** on 2026-08-19 and every resolution is written out below.
 
 **History:** the last surviving item of the OXC toolchain migration follow-ups
 (parent: [`docs/done/oxc-toolchain-migration.md`](../done/oxc-toolchain-migration.md); points 1
@@ -22,8 +35,7 @@ see [`docs/done/scope-rename-ts-runtypes-org.md`](../done/scope-rename-ts-runtyp
 Next.js item moved to [`docs/maybe/next-js-support.md`](../maybe/next-js-support.md) on
 2026-07-22). The old `oxc-migration-followups.md` was dropped on 2026-08-01 (commit `e0d36971`)
 as "not adopting"; that call was reversed on 2026-08-03 — we are adopting, just not until the
-stable engine ages in. This file re-files the remaining work single-topic, carrying the
-2026-07-24 measurements.
+stable engine ages in.
 
 ## What this is (and is not)
 
@@ -38,83 +50,96 @@ in CI; our plugin is unaffected either way.
 Nothing type-aware runs today, so it is pure lint-coverage gain — but adopting it means enabling
 the rules and fixing whatever they flag.
 
-## Investigation (2026-07-24)
+## Re-triage on the stable engine (2026-08-19) — authoritative
 
-Installed the pre-stable engine on a throwaway basis (`oxlint-tsgolint@0.22.0`, which pnpm
-resolves as an optional peer of the then-pinned `oxlint@1.68.0`) and ran `oxlint --type-aware`
-across the real linted scope to size the adoption. Fully reverted afterward — no dependency or
-config change was committed.
+Installed `oxlint@1.75.0` + `oxlint-tsgolint@7.0.2001` on a throwaway basis **outside the repo**
+(a scratch npm project, so no workspace dependency or config change and no policy relaxation) and
+ran that binary against the repo's real [`.oxlintrc.json`](../../.oxlintrc.json). This supersedes
+the 2026-07-24 pre-stable measurement below.
 
-### What was measured
+**The stable core is clean.** Bumping 1.68 → 1.75 without `--type-aware` reports 0 findings over
+107 files, so the multi-minor bump adds no syntax-rule triage.
 
-`--type-aware` with the existing config ([`.oxlintrc.json`](../../.oxlintrc.json) has
-`categories.correctness: "error"` and no other categories enabled) turns on only the
-correctness-category type-aware rules. The full-scope run flagged **6 findings across 4 files**:
+**Type-aware flags 14 findings across 8 files** (the pre-stable run predicted 6 across 4):
 
-| Rule | Site(s) | Verdict |
-|------|---------|---------|
-| `no-implied-eval` ×2 | `packages/ts-runtypes/src/runtypes/rtUtils.ts:252,288` | Correct detection of the **intentional** `new Function(...)` code-mode reconstruction (`buildPureFnFactoryFromCode`, `buildFactoryFromCode`). These are the only two runtime `new Function` call sites; the rest are comments. → justified inline `// oxlint-disable-next-line typescript/no-implied-eval` at both, which keeps the rule live as a tripwire for accidental `eval`. |
-| `unbound-method` ×2 | `packages/ts-runtypes/src/runtypes/classSerializerRegistry.ts:225,226` | **Real fix.** The public `ClassSerializerHandler<T>` interface declares `serialize?(instance)` / `deserialize?(data)` as **method** signatures, but they are stored on the entry and later invoked as standalone functions (never as methods with `this`). Align them to function-property signatures (`serialize?: (instance: T) => unknown`), matching the sibling `ClassSerializerEntry` which already uses that form. Type-only change; validate the public-API variance shift against the existing typecheck + tests. |
-| `no-base-to-string` ×1 | `packages/ts-runtypes/src/mocking/mockType.ts:573` | **Real fix.** `String(span.literal)` where `TemplateLiteralPlaceholder.literal` is `unknown`. A TS template-literal placeholder value is always a primitive literal — narrow the field to `string \| number \| bigint \| boolean`. Type-only change. |
-| `restrict-template-expressions` ×1 | `packages/ts-runtypes-devtools/src/unplugin.ts:267` | **FALSE POSITIVE — pre-stable engine bug, not a code issue.** Isolated with throwaway probes: `0.22.0` tsgolint mis-resolves `ModuleMode` (the `typeof`-based union alias in `packages/ts-runtypes-devtools/src/go-generated/runtypes-constants.generated.ts`) as an `any`/`error` type. A reduced probe surfaced it explicitly as `no-redundant-type-constituents: 'ModuleMode' is an 'error' type that acts as 'any'`. The repo's own `tsc` typecheck resolves `ModuleMode` correctly (CI is green). Local string-literal interpolation and even importing the same const *values* both lint clean — only the `typeof`-union type alias trips it. |
+| Rule | Site(s) | Resolution |
+|------|---------|------------|
+| `unbound-method` ×2 | `packages/ts-runtypes/src/runtypes/classSerializerRegistry.ts:225,226` | **Real fix.** The public `ClassSerializerHandler<T>` interface (`:85`) declares `serialize?(instance)` / `deserialize?(data)` as **method** signatures, but they are stored on the entry and later invoked as standalone functions (never as methods with `this`). Align them to function-property signatures (`serialize?: (instance: T) => unknown`), matching the sibling `ClassSerializerEntry` (`:98`) which already uses that form; carry the same form into the overload at `:199`. Type-only; validate the public-API variance shift (method params are bivariant, property params contravariant) against typecheck + tests. |
+| `no-implied-eval` ×2 | `packages/ts-runtypes/src/runtypes/rtUtils.ts:274,310` | Correct detection of the **intentional** `new Function(...)` code-mode reconstruction (`buildPureFnFactoryFromCode`, `buildFactoryFromCode`). These are the only two runtime `new Function` call sites; the rest are comments. → justified inline `// oxlint-disable-next-line typescript/no-implied-eval` at both, which keeps the rule live as a tripwire for accidental `eval`. |
+| `no-base-to-string` ×1 | `packages/ts-runtypes/src/mocking/mockType.ts:871` | **Real fix.** `String(span.literal)` where `TemplateLiteralPlaceholder.literal` (`:860`) is `unknown`. A TS template-literal placeholder value is always a primitive literal — narrow the field to `string \| number \| bigint \| boolean`. Type-only change. |
+| `no-base-to-string` ×1 | `packages/ts-runtypes/src/standard/jsonSchemaDoc.ts:75` | **Real fix, new.** `String(raw)` where `raw` comes from `libraryOptions?: Record<string, unknown>` ([`spec.ts:114`](../../packages/ts-runtypes/src/standard/spec.ts)), so it genuinely is `unknown` — a user passing an object gets `[object Object]` in the error. Use `JSON.stringify(raw)` instead. |
+| `no-misused-spread` ×7 | `mocking/mockStringFormat.ts:263`, `formats/string/string-formats-pure-fns.ts:206,269,327,329`, `ts-runtypes-go-be-sidecar/src/jobs.ts:145,216` | **All intentional, new.** Every site is `[...str]` used deliberately for **code-point** iteration — the JSON Schema `minLength`/`maxLength` semantics the emitted validators check, plus punycode/IDNA processing. The rule's own warning (that spreading splits emoji into code points) is precisely the behaviour these sites want. → configure `"typescript/no-misused-spread": ["error", {"allow": ["string"]}]`, verified on a probe to clear all string spreads while still catching the dangerous half (spreading a `Map` into an object literal). Cheaper and more honest than 7 inline suppressions. |
+| `restrict-template-expressions` ×1 | `packages/ts-runtypes-devtools/src/unplugin.ts:389` | **Real fix — this is NOT the false positive the 2026-07-24 run recorded.** The stable engine labels it `Type: never` on the interpolated `MODULE_MODE_ALL_MODULES`, and **`tsc` agrees**: after `moduleMode !== MODULE_MODE_DEFAULT && … !== MODULE_MODE_ALL_SINGLE` the checked value is already `never`, and the third comparison narrows the *constant itself* to `never`. Confirmed with a reduced probe — inside that branch `const probe: number = C` compiles clean (so `C` is `never`) while the same line against the first constant errors with `Type 'string' is not assignable to type 'number'`. → hoist the three modes into a module-level `as const` tuple, validate with `.includes(...)`, and build the "expected" list from that tuple; the narrowing and the triplicated literals both go away. |
 
-The headline safety rules (`no-floating-promises`, `no-misused-promises`, `await-thenable`) fired
+The headline safety rules (`no-floating-promises`, `no-misused-promises`, `await-thenable`) fire
 **zero** — the codebase's promise handling is already clean.
 
-### Why this waits for stable
+### What changed versus the pre-stable measurement
 
-The confirmed false positive (and the `ModuleMode` type-resolution bug behind it) means adopting
-on the pre-stable engine would require baking suppressions around **engine bugs**, not real
-issues — a bad thing to commit. Type-aware linting went **stable on 2026-07-22** (oxlint 1.75.0
-line, tsgolint `7.0.x`), which is expected to fix these resolution bugs. Chosen path: **wait for
-stable to age past `minimumReleaseAge`, then adopt cleanly** — no supply-chain-policy relaxation,
-no engine-bug workarounds.
+1. **The "false positive" is real.** The 2026-07-24 run blamed a pre-stable tsgolint bug that
+   mis-resolved the `ModuleMode` `typeof`-union alias as an `any`/`error` type. On stable the
+   diagnostic is different (`Type: never`) and independently confirmed against `tsc`. Nothing
+   here needs a suppression baked around an engine bug — the original reason to wait held, and
+   the answer it produced was "fix the code", not "suppress it".
+2. **The lint scope grew.** The old note recorded it as `packages/ts-runtypes/src` +
+   `packages/ts-runtypes-devtools/src`. `packages/ts-runtypes-go-be-sidecar/src` has since been
+   added to the workspace and carries 2 of the findings.
+3. **`no-misused-spread` is new to the finding set** (7 sites) — a rule the pre-stable engine
+   either did not ship or did not run.
 
-## Plan (execute on/after 2026-08-21)
+## Investigation (2026-07-24) — superseded, kept for history
+
+Installed the pre-stable engine on a throwaway basis (`oxlint-tsgolint@0.22.0`, resolved as an
+optional peer of the then-pinned `oxlint@1.68.0`) and ran `oxlint --type-aware` across the real
+linted scope. It flagged 6 findings across 4 files: the two `no-implied-eval` sites, the two
+`unbound-method` sites, the `mockType.ts` `no-base-to-string` site, and the
+`restrict-template-expressions` site — the last of which was diagnosed as a **false positive**
+(`no-redundant-type-constituents: 'ModuleMode' is an 'error' type that acts as 'any'` on a
+reduced probe). That diagnosis was engine-specific and does not survive on stable; see above.
+
+That run is why the adoption waited: baking suppressions around **engine bugs** rather than real
+issues is a bad thing to commit, so the chosen path was to wait for the stable engine to age past
+`minimumReleaseAge` and adopt cleanly — no supply-chain-policy relaxation, no workarounds.
+
+## Plan (execute on/after 2026-08-20 23:21 UTC)
 
 1. **Deps** — root [`package.json`](../../package.json) devDependencies (exact-pinned per
-   policy): bump `oxlint` from `1.68.0` to the current stable (≥ 1.75.0, aged ≥ 30 days at the
-   time of the run) and add matching `oxlint-tsgolint` (the `7.0.x` line paired with that
-   oxlint; pnpm wires it as oxlint's optional peer, shown in the lockfile as
-   `oxlint@<v>(oxlint-tsgolint@<v>)`). `pnpm add -Dw oxlint@<v> oxlint-tsgolint@<v>`.
+   policy): bump `oxlint` `1.68.0` → `1.75.0` and add `oxlint-tsgolint@7.0.2001`, via
+   `pnpm add -Dw oxlint@1.75.0 oxlint-tsgolint@7.0.2001`. pnpm wires tsgolint as oxlint's
+   optional peer, shown in the lockfile as `oxlint@1.75.0(oxlint-tsgolint@7.0.2001)`.
    No `allowBuilds` entry needed — tsgolint ships prebuilt platform binaries
    (`@oxlint-tsgolint/<os>-<arch>`), no install script, so `ignoreScripts: true` is fine.
 
-   **Don't wait for a newer oxlint minor.** As of 2026-08-03, `oxlint` 1.75.0, 1.76.0 and
-   1.77.0 all declare `peerDependencies: { "oxlint-tsgolint": ">=7.0.2001" }`, and 7.0.2001
-   (published 2026-07-21 14:33 UTC, `latest`) is the only version satisfying it — the
-   type-aware engine, and therefore the `ModuleMode` bug below, is the same artifact across
-   all of them. A later oxlint minor only moves the *core* (syntax rules), which just adds
-   unrelated findings to triage in step 3. **`oxlint-tsgolint` moving is the only thing worth
-   re-checking before the run**; if a newer one has itself aged past 30 days, take it.
-2. **Enable** — add `"options": { "typeAware": true }` to
-   [`.oxlintrc.json`](../../.oxlintrc.json) (root-config only; **do not** enable `typeCheck` —
-   the repo already runs `tsc` for compiler diagnostics). Everything that uses the
-   `lint:runtypes` script inherits it automatically: `pnpm run lint`, `pnpm rtx verify`,
-   `ci.yml` (job `js-lint`), and `release-gate.yml`. The RunTypes `jsPlugins` lint plugin is
-   orthogonal and stays as-is.
-3. **Re-run + re-triage** `oxlint --type-aware` on stable. Expected: the 5 legit findings below
-   persist and the `restrict-template-expressions` false positive is gone. The multi-minor
-   oxlint bump (1.68 → ≥ 1.75) may surface a few unrelated *syntax*-rule findings — fix or scope
-   those too.
-4. **Apply the 5 legit resolutions** from the table: 2 inline `no-implied-eval` suppressions
-   (rtUtils.ts) + the `unbound-method` interface fix (classSerializerRegistry.ts) + the
-   `no-base-to-string` narrowing (mockType.ts).
-5. **CI** — confirm `oxlint-tsgolint` installs on the runner via `.github/actions/bootstrap`
-   (`pnpm install` pulls the linux-x64 prebuilt binary; no Go toolchain needed for it) and that
-   lint stays green in both `ci.yml` and `release-gate.yml`.
+   **`oxlint-tsgolint` moving is the only thing worth re-checking before the run**; if a newer
+   one has itself aged past 30 days, take it (and the matching oxlint).
+2. **Enable** — in [`.oxlintrc.json`](../../.oxlintrc.json) add `"options": {"typeAware": true}`
+   (confirmed as the correct key against oxlint 1.75.0's `configuration_schema.json`;
+   **do not** enable `typeCheck` — the repo already runs `tsc` for compiler diagnostics) plus
+   the `no-misused-spread` rule option from the table. Everything that uses the `lint:runtypes`
+   script inherits it automatically: `pnpm run lint`, `pnpm rtx verify`, `ci.yml` (job
+   `js-lint`), and `release-gate.yml`. The RunTypes `jsPlugins` lint plugin is orthogonal and
+   stays as-is.
+3. **Apply the six resolutions** from the table (2 suppressions + 4 code fixes). Rebuild
+   `ts-runtypes-devtools` after its src edit — consumers read its dist.
+4. **Re-run + re-triage.** Expect a clean run; anything new is a same-day-of-run delta from a
+   newer engine and gets triaged the same way.
+5. **CI** — nothing to add: `.github/actions/bootstrap` already runs
+   `pnpm install --frozen-lockfile`, which pulls the linux-x64 prebuilt binary (no Go toolchain
+   needed for it). Confirm lint stays green in both `ci.yml` and `release-gate.yml`.
 6. **Verify** — `pnpm run lint` clean, `pnpm test` green, `pnpm run format` /
-   `pnpm run check-format` clean.
+   `pnpm run check-format` clean, `pnpm install --frozen-lockfile` clean.
 7. **Docs + close** — dev-tooling only, so **no website docs**. Add the new `oxlint-tsgolint` dev
-   dep + the type-aware lint step to [`SETUP.md`](../../SETUP.md)'s lint section if it enumerates
-   lint deps/commands. Then `git mv` this file into `docs/done/`.
+   dep + the type-aware step to [`SETUP.md`](../../SETUP.md)'s lint section (the paragraph at
+   ~line 192 that enumerates what the oxlint pass covers). Then reconcile this spec with what
+   actually shipped and `git mv` it into `docs/done/`.
 
 ## Done when
 
 - `oxlint --type-aware` is on by default in `.oxlintrc.json` and green across `pnpm run lint`,
   `ci.yml`, and `release-gate.yml`.
-- The 3 real code findings are fixed and the 2 `new Function` sites carry justified inline
-  suppressions.
+- All 14 findings are resolved: 4 real code fixes, 2 justified inline suppressions at the
+  `new Function` sites, and the `no-misused-spread` string allowance covering the 7 code-point
+  spreads.
 - `pnpm test` and `pnpm run check-format` stay green.
 
 ## Out of scope
@@ -123,13 +148,19 @@ no engine-bug workarounds.
 - Any change to the RunTypes lint plugin (`@ts-runtypes/devtools/eslint`).
 - Relaxing `minimumReleaseAge` to install the engine sooner.
 
-**Empirical notes for the future run:** oxlint auto-discovers each file's `tsconfig.json` (a
+**Empirical notes for the run:** oxlint auto-discovers each file's `tsconfig.json` (a
 `--tsconfig=<path>` override exists but is **not** needed — the per-package `tsconfig.json`s
 already `include` their `src`). Effective lint scope after the `.oxlintrc.json` `ignorePatterns`
-is only `packages/ts-runtypes/src` (minus `caches/`) + `packages/ts-runtypes-devtools/src`;
-tests, scripts, examples, and `ts-go-runtypes/` are all ignored.
+is `packages/ts-runtypes/src` (minus `caches/`) + `packages/ts-runtypes-devtools/src` +
+`packages/ts-runtypes-go-be-sidecar/src`; tests, scripts, examples, and `ts-go-runtypes/` are all
+ignored. Type-aware costs little: a full pass is ~1.2s against ~0.7s for the core-only pass, and
+the single-file shape `lint-staged` runs at pre-commit is ~436ms against ~255ms — no need to
+scope the hook away from it.
 
-## No test needed
+## Tests
 
-This is a lint-config chore whose acceptance is the existing suite staying green with the rules
-active; the three code fixes are type-only.
+Mostly a lint-config chore whose acceptance is the existing suite staying green with the rules
+active, and four of the six resolutions are type-only. One exception: the `moduleMode` validation
+in `unplugin.ts` has **no test at all** today and this change rewrites it, so add a small Vitest
+under [`packages/ts-runtypes-devtools/test/`](../../packages/ts-runtypes-devtools/test/) covering
+an accepted mode and a rejected one (whose message should name all three valid modes).
