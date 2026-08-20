@@ -92,17 +92,19 @@ assertions via `entrymodules_helpers_test.go`):
   builder call elided.
 - `getRunType<T>()` with unused result still emits (never elided).
 
-FE end-to-end (devtools test, e.g.
-`packages/ts-runtypes-devtools/test/unused-runtypes-elision.test.ts`, on the
-normal shared inline client since the behavior is default): compile + EXECUTE
-both acceptance sources via `evalCacheFor`:
+FE end-to-end (SHIPPED as two tests):
 
-- static-form source: cache contains no runtype rows, the validator runs and
-  validates correctly;
-- value-form source: runtype rows present, validator correct;
-- the elided builder const evaluates without crashing (carrier fallback).
-- Marker coverage rule: pair both `getRunTypeId` shapes with a convergence
-  assert somewhere in the suite (CLAUDE.md rule).
+- `packages/ts-runtypes-devtools/test/unused-runtypes-elision.test.ts` — the
+  acceptance pair at cache level over the inline daemon: the static form emits
+  one site and zero runtype modules while its materialised validator behaves;
+  the value form keeps both sites, the `runtypes` bundle instantiates, same
+  validator behavior.
+- `packages/ts-runtypes/test/features/unusedBuilderElision.test.ts` — through
+  the REAL vitest plugin: the elided lane registers no graph at runtime (and
+  the module executes fine on the carrier fallback — note the elided const can
+  be referenced NOWHERE in the test, since any reference is itself a value
+  use), the kept lane's graph registers and its const IS the live node, plus
+  the paired `getRunTypeId` shapes with a convergence assert (CLAUDE.md rule).
 
 Because the behavior is default-on, the ENTIRE existing Go + JS suite acts as
 the regression net: audit any existing fixture whose builder const becomes
@@ -123,21 +125,35 @@ update its expectations or give it a real use — surface anything surprising.
   example (the form stays supported and documented). Add a short plain-language
   note on the behavior: a schema you only take the type of ships no reflection
   data; using or exporting the schema value keeps it.
-- **Playground presets** (`container/website/app/playground/presets.ts`, plus
-  `engine.ts` if it appends usage code): presets already end with
-  `type X = InferType<typeof MyType>` — audit every preset (and any generated
-  companion snippet) so the createXFn usage is the static form.
+- **Playground** (audited; deliberate divergence from the original bullet):
+  the playground's TWO MODES exist precisely to demonstrate the two call
+  shapes — `ts` mode IS the static form, and builder mode's value-first
+  `createX(MyType)` call is the mode's subject (the engine's site handling
+  depends on it). Converting builder mode would delete the value-form demo
+  from the site. Shipped instead: the presets header documents that the
+  recovered type is the recommended handle in an app (zero runtype cache) and
+  that builder mode keeps the value-first call on purpose; every preset
+  already closes with `type X = InferType<typeof MyType>`.
 - `docs/ARCHITECTURE.md`: extend the "Only what you ask for" paragraph — an
   unused builder const now emits nothing; using or exporting it keeps the graph.
 
-## Fuzzing
+## Fuzzing (SHIPPED — user opted in)
 
-Cheap oracle: for a corpus of builder-based sources, the compiled functions of
-the static-form and value-form spellings of the same type must BEHAVE
-identically (validate / encode / decode outputs match on the same inputs) —
-elision changes emission size, never behavior. Optional lane; wire into the
-existing fuzz harness style under `packages/ts-runtypes/test/fuzz/` if time
-allows.
+New `elision` lane under `packages/ts-runtypes/test/fuzz/elision/`
+(`pnpm rtx core fuzz elision`, quick/soak via `RT_FUZZ_ELISION_SOAK_MS`, wired
+into the rt.mjs FUZZ registry / env registry / .env.sample / ci.yml /
+fuzz-soak.yml, all pinned by fuzz-lane-contracts). Per generated builder schema
+(a deliberately narrow JSON-pure generator, `builderGen.ts`) both spellings
+compile through the real resolver and the oracles check: E0 fixture integrity
+(exactly three createX sites per spelling), E1 entry equivalence (every module
+the static form emits exists BYTE-IDENTICALLY in the value form's output —
+stronger than probing values, since both spellings share type id + fnHashes),
+E2 emission split (static: no bundle, no reflection site; value: both kept),
+E3 behavior floor on the static form (validate accepts/rejects correctly, JSON
+round-trip, no Error diagnostics). Negative controls in
+`elisionOracle.unit.test.ts` prove every oracle fires on broken output. The
+lane's first run caught a generator bug (wrong union arity typing to `any`) —
+E0 exists because of it.
 
 ## Out of scope
 
@@ -151,11 +167,26 @@ allows.
   conservative and correct; refine later if it matters).
 - Any configuration knob — the behavior is unconditional by design.
 
-## Done when
+## Done when (MET)
 
-- The acceptance pair is pinned by both the Go tests and the FE e2e test.
-- Homepage, type-builders guide examples, and every playground preset favor the
-  static InferType form; the guide documents the behavior in plain language.
-- Existing suites audited for newly-elidable fixtures; `pnpm run lint`,
-  `pnpm run format`, full `pnpm test`, and
-  `go -C ts-go-runtypes test ./internal/...` green.
+- The acceptance pair is pinned by the Go tests
+  (`internal/compiler/resolver/unused_runtypes_test.go`, 8 cases) and both FE
+  tests; the fuzz lane holds it over generated schemas.
+- Homepage (`define-builder.ts` + index.md copy) and the type-builders guide
+  (side-by-side example + a new prose paragraph) favor the static InferType
+  form; the value form stays demonstrated in the mixed/labeled examples and
+  the playground's builder mode (see the playground note above).
+- Existing suites audited: zero fixtures relied on unused builder consts (full
+  Go + JS suites green unchanged). `pnpm run lint`, `pnpm run format`,
+  `pnpm test` (9354 passed), `go -C ts-go-runtypes test ./internal/...`, and
+  `pnpm rtx core fuzz elision` (default + 15s local soak) all green.
+
+## Implementation notes
+
+- Analysis helper: `ts-go-runtypes/internal/compiler/builders/usage.go`
+  (`IsValueBuilderCall` + `UnusedBuilderConst`); the scanner drops the pending
+  site in `internal/compiler/resolver/scan.go`'s single-trailing branch, AFTER
+  analyzeTrailingInjection so the site's diagnostics are kept.
+- The runtype bundle's MODULE basename is the fixed `runtypes`
+  (entrymodules.ModuleName special-cases the bundle kind) — assertions that
+  grep for the `rts_<hash>` entry key alone are vacuous.
