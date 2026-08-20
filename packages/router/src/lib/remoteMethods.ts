@@ -12,7 +12,6 @@ import type {
     AnyObject,
     CompiledTypeFn,
     CompiledFnData,
-    CompiledFnArgs,
     SerializablePureFunction,
     MethodWithOptions,
     PureFnsDataCache,
@@ -191,25 +190,6 @@ export function serializeMethodDeps(
     }
 }
 
-/** Drops non-string entries so the value satisfies `CompiledFnArgs` on the wire.
- *
- *  ⚠️ This exists because of an upstream type bug, not because mion wants to lose data.
- *  `CompiledFnArgs` types every value as `string`, but @ts-runtypes' own `familyMeta` emits
- *  `{vλl: undefined, pλth: [], εrr: []}` and friends for `defaultParamValues`, laundered through
- *  `as unknown as CompiledFnArgs`. Shipping those verbatim is not an option: the metadata route is
- *  serialized by the `sj` JIT stringifier compiled FROM `CompiledFnData`, which has no
- *  undefined-guard on a required property — it would emit the literal text `"vλl":undefined` and
- *  the client's JSON.parse would throw on every entry.
- *
- *  Nothing reads these values on either side (upstream restores through `code` alone, and they are
- *  derivable from `familyTag`), so the loss is inert. See docs/todos/upstream-compiledfnargs-type-lie.md. */
-function toWireArgs(args: CompiledFnArgs): CompiledFnArgs {
-    const out: Record<string, string> = {};
-    for (const [key, value] of Object.entries(args)) if (typeof value === 'string') out[key] = value;
-    if (!('vλl' in out)) out.vλl = 'v';
-    return out as CompiledFnArgs;
-}
-
 function getSerializableJitCompiler(comp: CompiledTypeFn): CompiledFnData {
     return {
         typeName: comp.typeName,
@@ -220,7 +200,7 @@ function getSerializableJitCompiler(comp: CompiledTypeFn): CompiledFnData {
         rtFnHash: comp.rtFnHash,
         args: {...comp.args},
         isNoop: comp.isNoop,
-        defaultParamValues: toWireArgs(comp.defaultParamValues),
+        defaultParamValues: {...comp.defaultParamValues},
         code: comp.code,
         rtDependencies: comp.rtDependencies ? [...comp.rtDependencies] : undefined,
         pureFnDependencies: comp.pureFnDependencies ? [...comp.pureFnDependencies] : undefined,
