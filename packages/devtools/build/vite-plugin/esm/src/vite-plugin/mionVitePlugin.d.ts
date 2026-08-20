@@ -9,7 +9,9 @@ export interface MionRunTypesOptions {
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
     failOnError?: TsRuntypesPluginOptions['failOnError'];
-    allowUncheckedPatterns?: TsRuntypesPluginOptions['allowUncheckedPatterns'];
+    patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
+    patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
+    jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
     compilerOptions?: unknown;
     include?: string | string[];
     exclude?: string | string[];

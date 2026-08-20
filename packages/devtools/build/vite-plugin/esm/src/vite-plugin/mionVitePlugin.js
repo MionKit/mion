@@ -61,7 +61,9 @@ function mionVitePlugin(options = {}) {
     // the untracked *ByKey APIs / the raw cache), so consumers get the documented
     // "Error = build must fail" contract. Opt out per package with `failOnError: false`.
     failOnError: rt.failOnError ?? true,
-    allowUncheckedPatterns: rt.allowUncheckedPatterns,
+    patternSampleCount: rt.patternSampleCount,
+    patternSampleRetries: rt.patternSampleRetries,
+    jsRuntime: rt.jsRuntime,
     // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
     // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
     ...manifestPath ? { pureFnReport: "callback", onPureFnReport: harvestReport } : {}

@@ -6,12 +6,13 @@
  * ######## */
 
 import {describe, it, expect, beforeEach} from 'vitest';
-import {getPublicApi} from './remoteMethods.ts';
+import {getPublicApi, serializeMethodDeps} from './remoteMethods.ts';
 import {registerRoutes, initRouter, resetRouter} from '../router.ts';
 import {CallContext} from '../types/context.ts';
 import {Routes} from '../types/general.ts';
 import {MiddleFnMethod, RouteMethod} from '../types/remoteMethods.ts';
 import {getJitFnHashes, HandlerType} from '@mionjs/core';
+import type {CompiledFnData, PureFnsDataCache, MethodWithOptions} from '@mionjs/core';
 import {middleFn, rawMiddleFn, route} from './handlers.ts';
 import {getRTUtils} from '@ts-runtypes/core';
 import type {InitializedTypeFn} from '@ts-runtypes/core';
@@ -126,6 +127,46 @@ describe('Public Methods should', () => {
         // ###### Deserialization ######
         const serialized = prepareForJson([123, date]);
         expect(serialized).toEqual([123, date]);
+    });
+
+    it('ship every defaultParamValues slot intact through a JSON round trip', async () => {
+        await initRouter({contextDataFactory: getSharedData, getPublicRoutesData: true});
+        const testR = {
+            addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
+        };
+        const api = await registerRoutes(testR);
+
+        const deps: Record<string, CompiledFnData> = {};
+        const purFnDeps: PureFnsDataCache = {};
+        serializeMethodDeps(api.addMilliseconds as MethodWithOptions, deps, purFnDeps);
+
+        // The metadata route ships these as JSON, so assert on what the client actually receives.
+        const overTheWire: Record<string, CompiledFnData> = JSON.parse(JSON.stringify(deps));
+        const entries = Object.values(overTheWire);
+        expect(entries.length).toBeGreaterThan(0);
+
+        for (const entry of entries) {
+            // `args` and `defaultParamValues` describe the same emitted signature — one slot per
+            // parameter — so any slot missing here is a slot dropped in transit. Compared as key
+            // SETS on purpose: `toEqual` treats a missing key and an undefined one as equal, and
+            // JSON.stringify drops undefined-valued keys, so a value-wise round-trip check passes
+            // even when slots have gone missing.
+            expect(Object.keys(entry.defaultParamValues).sort()).toEqual(Object.keys(entry.args).sort());
+            // Both tables hold JS SOURCE FRAGMENTS (identifiers in `args`, default expressions in
+            // `defaultParamValues`), spliced back into a signature when the client rebuilds the fn
+            // via `new Function(...)`. A non-string here means a runtime value leaked into a
+            // source-text slot.
+            for (const value of Object.values(entry.defaultParamValues)) expect(typeof value).toBe('string');
+        }
+
+        // The error-shaped families are the regression: they carry three slots, and the removed
+        // `toWireArgs` workaround collapsed them to one — `{vλl: 'v'}` — injecting an identifier
+        // where a default expression belongs.
+        const errorShaped = entries.filter((e) => e.familyTag === 'verr' || e.familyTag === 'uke');
+        expect(errorShaped.length).toBeGreaterThan(0);
+        errorShaped.forEach((entry) => {
+            expect(entry.defaultParamValues).toEqual({vλl: '', pλth: '[]', εrr: '[]'});
+        });
     });
 
     it('generate public data when suing prefix and suffix', async () => {
