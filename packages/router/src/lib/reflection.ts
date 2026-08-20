@@ -11,7 +11,7 @@ import {getHeadersReflectionFromMarkers, getReflectionFromMarkers, isAsyncHandle
 import {Handler} from '../types/handlers.ts';
 import {RouterOptions} from '../types/general.ts';
 import {RouteOptions, MiddleFnOptions, HeadersMiddleFnOptions, MiddleFnMethod, HeadersMethod} from '../types/remoteMethods.ts';
-import {AnyHandlerDef} from '../types/definitions.ts';
+import {AnyHandlerDef, RawMiddleFnDef} from '../types/definitions.ts';
 
 // ############ This file is the only one consuming type reflection within the router ########
 // ts-runtypes migration: all type information is injected AT BUILD TIME into the
@@ -75,13 +75,18 @@ function createRawMiddleFnReflection(isAsync: boolean, hasReturnData: boolean = 
 
 // ############ Main Reflection Functions ############
 
+/** Definitions that carry an injected `rtFns` payload. RawMiddleFnDef is excluded: a raw
+ *  middleFn declares no extra params, so it has no reflection and goes through
+ *  getRawMethodReflection instead. */
+type ReflectableDef = Exclude<AnyHandlerDef, RawMiddleFnDef>;
+
 /**
  * Gets reflection data for a route or middleFn definition.
  * All data derives from the ts-runtypes marker payload the factory stashed on the definition
  * (`def.rtFns`); registration fails loudly when the payload is missing (plugin not active).
  */
 export async function getHandlerReflection(
-    def: AnyHandlerDef,
+    def: ReflectableDef,
     routeId: string,
     routerOptions: RouterOptions,
     // handlerOptions/strictTypes stay unused here: option-dependent behavior (strictTypes)

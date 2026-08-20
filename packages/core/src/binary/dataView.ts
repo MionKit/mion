@@ -56,3 +56,16 @@ export function createDataViewSerializer(routeId: string, workflowRouteIds?: str
 export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
     return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer);
 }
+
+/**
+ * Narrows a serializer's buffer view to the `Uint8Array<ArrayBuffer>` that `BodyInit` accepts.
+ *
+ * `getBufferView()` is typed `Uint8Array`, which since TS 5.7 means `Uint8Array<ArrayBufferLike>` --
+ * and `ArrayBufferLike` admits `SharedArrayBuffer`, which `BodyInit` rejects. The DataView
+ * serializer always allocates a plain `ArrayBuffer` (`new ArrayBuffer(size)`, and `resize()` does
+ * the same), so the narrowing is sound. Used by the fetch-style platform adapters, which all pass
+ * this straight into `new Response(...)`.
+ */
+export function toResponseBody(view: Uint8Array): Uint8Array<ArrayBuffer> {
+    return view as Uint8Array<ArrayBuffer>;
+}

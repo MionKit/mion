@@ -10,6 +10,7 @@ import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, Validati
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
+// type-result-start
 /** Result type for call() - 4-tuple pattern */
 export type Result<
     RouteSuccess,
@@ -17,6 +18,7 @@ export type Result<
     MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
     MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
 > = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
+// type-result-end
 
 /** Extract success type from a MiddleFnSubRequest */
 export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? HandlerSuccessResponse<PH> : never;
@@ -113,6 +115,7 @@ export type HandlerErrors<PH extends (...args: any[]) => Promise<any>> = Simplif
     Extract<HandlerResponse<PH>, RpcError<string, any>> | ValidationError
 >;
 
+// type-sub-request-start
 /** Represents a remote method (sub request) */
 export interface SubRequest<PH extends PublicHandler> {
     pointer: string[];
@@ -124,6 +127,7 @@ export interface SubRequest<PH extends PublicHandler> {
     error?: HandlerFailResponse<PH>;
     serializedParams?: any[];
 }
+// type-sub-request-end
 
 /** Unified config object for call() */
 export interface CallSetup<
@@ -150,6 +154,7 @@ export interface RoutesFlowBuilder<Routes extends RouteSubRequest<any>[]> {
     }): Promise<WorkflowResult<Routes, H>>;
 }
 
+// type-route-sub-request-start
 /** structure returned from the proxy, containing info of the remote route to execute */
 export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /** Validates Route's parameters and returns type errors */
@@ -189,7 +194,9 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
         timeout?: number;
     }): Promise<WorkflowResult<any, H>>;
 }
+// type-route-sub-request-end
 
+// type-middleware-sub-request-start
 /** structure returned from the proxy, containing info of the remote middleFn to execute */
 export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubRequest<PH> {
     /** Validates MiddleFn's parameters and returns type errors */
@@ -199,6 +206,7 @@ export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubReque
     /** Removes prefilled value */
     removePrefill: () => Promise<void>;
 }
+// type-middleware-sub-request-end
 
 export type NonClientRoute = never | PublicMiddleFn | PublicHeadersFn;
 

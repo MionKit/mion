@@ -15,7 +15,7 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes, toResponseBody} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -170,7 +170,7 @@ function reply(
             const serializer = mionResp.binSerializer!;
             responseHeaders.set('content-length', String(serializer.getLength()));
             // content-type already set by serializer
-            const response = new Response(serializer.getBufferView(), {
+            const response = new Response(toResponseBody(serializer.getBufferView()), {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });

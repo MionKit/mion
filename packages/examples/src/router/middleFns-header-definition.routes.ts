@@ -1,6 +1,6 @@
 import {HeadersSubset, RpcError} from '@mionjs/core';
 import {headersFn, middleFn, Routes} from '@mionjs/router';
-import {getAuthUser, isAuthorized} from 'MyAuth';
+import {getAuthUser, isAuthorized} from './myAuth.ts';
 
 const routes = {
     // using the headersFn to declare request headers, headers param must be next after context

@@ -195,15 +195,14 @@ type OptionalParamBlocking = {name?: string} | {name: string; age: number}; // S
 route((ctx, person: OptionalParamBlocking): string => person.name || 'unknown');
 
 // ========================================
-// Rule: @mionjs/no-type-imports
+// Type-only imports (no longer a rule violation)
 // ========================================
 
-// start:no-type-imports
-// ❌ WRONG: Type-only import - types are erased at runtime
+// `import type` is safe: @ts-runtypes resolves types at build time from the TypeScript program
+// and injects at the route() call site, so the erased import costs nothing. This used to trip
+// @mionjs/no-type-imports, which existed for deepkit's import-time reflection and has been removed.
 import type {User, Product} from './models.ts';
 
-// Types imported with 'type' keyword are erased at runtime
-// mion cannot generate validation/serialization functions for them
 const getUser = route((ctx, id: number): User => {
     return {id, name: 'John', email: 'john@example.com'};
 });

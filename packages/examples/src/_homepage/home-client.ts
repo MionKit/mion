@@ -22,4 +22,5 @@ if (user) {
 }
 
 // Type error: id must be a number
+// @ts-expect-error -- shown on purpose; the assertion fails the build if this ever stops erroring
 routes.getUser('1234').call();
