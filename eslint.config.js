@@ -35,6 +35,14 @@ export default tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   mionESLintPlugin.configs.recommended,
+  // @ts-runtypes' 25 `runtypes/*` rules, at THEIR default severities -- a deliberate choice, not a
+  // default we never looked at. Every `error` rule there marks output that is wrong or impossible
+  // to generate (invalid-marker, {validate,json,binary}-non-serializable, format, non-enumerable,
+  // invalid-override, the enrichment-file rules): the build would fail on them anyway, so finding
+  // out at lint time is strictly earlier. Every `warn` rule describes something that still works
+  // but silently drops or reshapes data (*-skipped-member, class-serializer, clone-shared-reference,
+  // unknown-keys, redundant-marker, override-side-effect) -- worth reading, not worth blocking a
+  // consumer's first build on. Nothing is downgraded: the whole set passes on this repo today.
   tsRuntypesESLint.configs.recommended,
   {
     languageOptions: {

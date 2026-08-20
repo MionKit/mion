@@ -37,6 +37,16 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Code-import check
+        # A dangling <code-import> path or comment marker does not fail the website build --
+        # it renders an error placeholder in place of the example. This makes it loud.
+        run: pnpm run check-code-imports
+
+      - name: Typecheck examples
+        # Source-resolution typecheck of packages/examples (no build needed). Examples are the
+        # bodies of the website's code blocks, so a broken example is broken documentation.
+        run: pnpm run check-types-examples
+
       - name: Test
         # Batched: each vitest invocation initializes its projects' ts-runtypes
         # resolvers concurrently (~200MB each); running all 12 projects in one go

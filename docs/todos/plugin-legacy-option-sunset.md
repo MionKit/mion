@@ -24,6 +24,21 @@ Keep the warn-and-ignore shim for **one published release** so consumers get a m
 3. Note the removal in the release/CHANGELOG so a stale config now fails loudly (as an unknown-property
    error) rather than silently — the intended end state.
 
+## The window has NOT started yet (verified 2026-08-20)
+
+Do not act on this because a release happened — check WHICH release.
+
+- `@mionjs/devtools@0.8.10` (the current `latest` on npm) was published **2026-05-06T15:30:42Z**.
+- The warn-and-ignore shim landed in **`bb9f36f`**, committed **2026-07-21** — two and a half months
+  AFTER that publish, in the same commit that bumped the version to 0.8.10 locally.
+
+So no published release contains the shim: consumers on 0.8.10 still get the options' original
+behaviour with no deprecation notice at all. **The window opens at the first release published
+after `bb9f36f`**, and the removal lands one release after that.
+
+Re-verify the same way before acting: `npm view @mionjs/devtools time --json` against
+`git show -s --format=%ci bb9f36f`.
+
 ## Why it's tracked separately
 
 It is a scheduled deprecation, not dead code: removing the options today would pull a documented
