@@ -5,12 +5,11 @@ until upstream agrees a shape. Needs an issue filed in `ts-run-types` first.
 **Type:** feature (upstream), then a mion cleanup
 **Created:** 2026-08-20
 
-Replaces the withdrawn `carry-runtypes-on-method-reflection.md` (deleted in the same commit as this
-file). That spec proposed retaining `paramsRunType` / `returnRunType` on mion's method reflection so
-future shape questions would not each need a bespoke field. **That direction is rejected**: it parks
-a recursive, possibly circular `RunType` graph in memory per method, and it still leaves mion
-hand-walking upstream's node internals for every new question. The answer belongs one layer down —
-in the compiler, which already knows all of it at build time.
+Every new type-shape question mion needs answering (param names, optionality, return shape) costs a
+bespoke field plus a hand-written walk over upstream's runtype graph. Retaining the `RunType`s
+themselves on mion's method reflection does **not** fix that — it parks a recursive, possibly
+circular graph in memory per method and mion still walks node internals for every question. The
+answer belongs one layer down: in the compiler, which already knows all of it at build time.
 
 ## The ask
 

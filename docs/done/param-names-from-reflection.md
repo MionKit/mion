@@ -117,12 +117,7 @@ unnecessary.
 ## Follow-up
 
 The broader idea behind the review comment — that future shape questions should not each need a
-bespoke field — was first written up as `carry-runtypes-on-method-reflection.md` (carry the
-`paramsRunType` / `returnRunType` on the reflection). **That was withdrawn on 2026-08-20:** a
-RunType graph is recursive/circular and retaining one per method solves nothing, since mion would
-still be hand-walking upstream's node internals for every new question.
-
-The direction taken instead is an upstream ask —
-[upstream-compile-fn-metadata-emission.md](../todos/upstream-compile-fn-metadata-emission.md): have
+bespoke field plus a hand-written graph walk — is tracked as an upstream ask:
+[upstream-compile-fn-metadata-emission.md](../todos/upstream-compile-fn-metadata-emission.md). Have
 `@ts-runtypes/core` emit the build-time metadata (tuple labels, param names, optionality, return
 shape) next to the compiled function, so `paramNames` and friends are read, not derived.
