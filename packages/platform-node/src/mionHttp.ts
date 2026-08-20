@@ -10,6 +10,7 @@ import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
 import type {NodeHttpOptions} from './types.ts';
+import {configureBufferPool, type BufferPoolConfig} from '@mionjs/core';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
@@ -38,10 +39,18 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
     return httpOptions;
 }
 
+/** Arms mion's binary buffer pool. Safe here because this adapter releases the buffer on the
+ *  response's 'finish'/'close' events, once node is done with the view. */
+function applyBinaryBufferPool(pool: false | Partial<BufferPoolConfig>): void {
+    if (pool === false) return configureBufferPool({enabled: false});
+    configureBufferPool({...pool, enabled: true});
+}
+
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
     const isTest = getENV('NODE_ENV') === 'test';
 
     if (options) setNodeHttpOpts(options);
+    applyBinaryBufferPool(httpOptions.binaryBufferPool);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
     if (!isTest)
@@ -202,6 +211,12 @@ function reply(httpResp: ServerResponse, mionResp: MionResponse) {
             httpResp.setHeader('content-length', serializer.getLength());
             // content-type already set by serializer
             httpResp.end(serializer.getBufferView());
+            // The view aliases the (possibly pooled) buffer and node keeps it queued until the
+            // socket drains, so the buffer only goes back once the response is done. Both events
+            // fire on a normal response and 'close' alone on an abort; release is idempotent.
+            const releaseBuffer = () => mionResp.releaseBinBuffer?.();
+            httpResp.on('finish', releaseBuffer);
+            httpResp.on('close', releaseBuffer);
             break;
         }
         default: {
