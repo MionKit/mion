@@ -8,7 +8,14 @@ import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {initRouter, registerRoutes, route, resetRouter, getRouteExecutionChain} from '@mionjs/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp.ts';
 import type {CallContext, Route} from '@mionjs/router';
-import {StatusCodes, type PublicRpcError, serializeBinaryBody, deserializeBinaryBody, routesCache} from '@mionjs/core';
+import {
+    StatusCodes,
+    type PublicRpcError,
+    serializeBinaryBody,
+    deserializeBinaryBody,
+    routesCache,
+    getBufferPoolStats,
+} from '@mionjs/core';
 import type {Server} from 'http';
 
 describe('node http router', () => {
@@ -218,6 +225,40 @@ describe('node http router', () => {
             resetRouter();
             await initRouter({contextDataFactory: getSharedData, basePath: 'api/', serializer: 'binary'});
             await registerRoutes({changeUserName, getDate});
+        });
+
+        // End-to-end proof of the buffer-pool release lifetime. The response buffer is handed to
+        // node as a VIEW and only returned to the pool on 'finish'/'close', once the socket is done
+        // with it. If that release were mistimed, a buffer would be reused while still in flight and
+        // payloads would corrupt under load — so drive real concurrent requests and check both that
+        // reuse actually happens and that every response is still byte-correct.
+        it('reuses pooled binary buffers across requests without corrupting responses', async () => {
+            const executionChain = getRouteExecutionChain('/api/getDate')!.methods;
+            const date = new Date('2022-04-22T00:17:00.000Z');
+            const requestBuffer = serializeBinaryBody(
+                '/api/getDate',
+                executionChain,
+                {getDate: [{date}]},
+                false
+            ).serializer.getBuffer();
+
+            const call = async () => {
+                const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
+                    method: 'POST',
+                    headers: {'content-type': 'application/octet-stream'},
+                    body: Buffer.from(requestBuffer),
+                });
+                const {body} = deserializeBinaryBody('/api/getDate', await response.arrayBuffer(), true);
+                return body.getDate.date;
+            };
+
+            // warm the route past the pool threshold, then hammer it concurrently
+            for (let i = 0; i < 10; i++) expect(await call()).toEqual(date);
+            const concurrent = await Promise.all(Array.from({length: 25}, () => call()));
+            concurrent.forEach((got) => expect(got).toEqual(date));
+
+            // and the pool was genuinely in play, not silently disabled
+            expect(getBufferPoolStats().hits).toBeGreaterThan(0);
         });
 
         it('should send binary request and receive binary response with Date objects', async () => {

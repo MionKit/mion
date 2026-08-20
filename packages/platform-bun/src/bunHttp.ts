@@ -15,7 +15,8 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes} from '@mionjs/core';
+import {getENV, SerializerModes, configureBufferPool} from '@mionjs/core';
+import type {BufferPoolConfig} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -41,10 +42,18 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     return httpOptions;
 }
 
+/** Arms mion's binary buffer pool. Safe here because Bun copies the response bytes synchronously,
+ *  so the buffer is released as soon as the Response is constructed. */
+function applyBinaryBufferPool(pool: false | Partial<BufferPoolConfig>): void {
+    if (pool === false) return configureBufferPool({enabled: false});
+    configureBufferPool({...pool, enabled: true});
+}
+
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
     const isTest = getENV('NODE_ENV') === 'test';
 
     if (options) setBunHttpOpts(options);
+    applyBinaryBufferPool(httpOptions.binaryBufferPool);
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
@@ -174,6 +183,9 @@ function reply(
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
+            // Bun copies the bytes into the Response synchronously (proven by
+            // bunHttp.binary.test.ts), so the buffer can go back immediately.
+            mionResp.releaseBinBuffer?.();
             return response;
         }
         default: {
