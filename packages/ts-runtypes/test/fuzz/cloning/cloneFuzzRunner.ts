@@ -12,6 +12,7 @@
 // Vitest and as a standalone long-running soak (see runCloneFuzzForDuration).
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import {startSoakBudget} from '../core/soakBudget.ts';
 import {randomJunk} from '../value/fuzzRunner.ts';
 import {deepCopyValue, mutateWithExtras} from './extrasValue.ts';
@@ -37,6 +38,9 @@ export interface CloneFuzzReport {
   iterations: number;
   seed: number;
   violations: CloneViolation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts), each with
+   *  its replay seed. **/
+  crashes: CrashRecord[];
   /** Duration runs only: the slowest single iteration and its zero-based round,
    *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
   slowestIterationMs?: number;
@@ -50,18 +54,21 @@ export function runCloneFuzz(targets: CloneFuzzTarget[], options: CloneFuzzOptio
   const seed = options.seed ?? 0x1234abcd;
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const violations: CloneViolation[] = [];
+  const guard = startCrashGuard();
   let runs = 0;
 
   for (const target of targets) {
     for (let i = 0; i < iterations; i++) {
       const iterSeed = mixSeed(seed, target.title, i);
-      withSeededRandom(iterSeed, () => {
-        runs++;
-        cloneFuzzOneIteration(target, iterSeed, violations);
-      });
+      guard.runSync(iterSeed, () =>
+        withSeededRandom(iterSeed, () => {
+          runs++;
+          cloneFuzzOneIteration(target, iterSeed, violations);
+        })
+      );
     }
   }
-  return {runs, iterations, seed, violations};
+  return {runs, iterations, seed, violations, crashes: guard.crashes};
 }
 
 /** Soak mode: keep fuzzing until `durationMs` elapses, logging violations as
@@ -74,6 +81,7 @@ export function runCloneFuzzForDuration(
 ): CloneFuzzReport {
   const seed = options.seed ?? Date.now() >>> 0;
   const violations: CloneViolation[] = [];
+  const guard = startCrashGuard();
   let runs = 0;
   let round = 0;
   // One "iteration" is a full round over every target (see runFuzzForDuration).
@@ -82,12 +90,14 @@ export function runCloneFuzzForDuration(
   while (budget.canStart()) {
     for (const target of targets) {
       const iterSeed = mixSeed(seed, target.title, round);
-      withSeededRandom(iterSeed, () => {
-        runs++;
-        const before = violations.length;
-        cloneFuzzOneIteration(target, iterSeed, violations);
-        if (onViolation) for (let i = before; i < violations.length; i++) onViolation(violations[i]);
-      });
+      guard.runSync(iterSeed, () =>
+        withSeededRandom(iterSeed, () => {
+          runs++;
+          const before = violations.length;
+          cloneFuzzOneIteration(target, iterSeed, violations);
+          if (onViolation) for (let i = before; i < violations.length; i++) onViolation(violations[i]);
+        })
+      );
     }
     round++;
     budget.mark();
@@ -97,6 +107,7 @@ export function runCloneFuzzForDuration(
     iterations: round,
     seed,
     violations,
+    crashes: guard.crashes,
     slowestIterationMs: budget.slowestIterationMs(),
     slowestIterationRound: budget.slowestIterationRound(),
   };

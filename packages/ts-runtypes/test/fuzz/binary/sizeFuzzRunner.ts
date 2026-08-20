@@ -20,6 +20,7 @@ import {startSoakBudget} from '../core/soakBudget.ts';
 import {genType, isRecursive, DATA_GEN_OPTIONS, type GeneratedType} from '../core/typeGen.ts';
 import {openClient, compileType, hasBinary, BIN, type CompiledType} from '../type/typeFuzzHarness.ts';
 import {checkInBounds, checkOversized, type SizeViolation} from './sizeOracle.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import {sizeLaneEligible} from './sizeEligible.ts';
 
 export {hasBinary, BIN};
@@ -85,6 +86,10 @@ export interface SizeFuzzReport {
   iterations: number;
   seed: number;
   violations: SizeViolation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts), each with
+   *  its replay seed. The deterministic floor stays UNGUARDED on purpose — its
+   *  loud failure is the resolver-reachable proof. **/
+  crashes: CrashRecord[];
   stats: SizeFuzzStats;
   /** Duration runs only: the slowest single iteration and its zero-based round,
    *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
@@ -293,21 +298,25 @@ export async function runSizeFuzz(options: SizeFuzzOptions = {}): Promise<SizeFu
   // a run the random fuzz left vacuous.
   accumulate(stats, violations, await runFloor(seed));
 
+  const guard = startCrashGuard();
   for (let c = 0; c < SIZE_CONFIGS.length; c++) {
     const cfg = SIZE_CONFIGS[c];
     let client = openClient(cfg);
     try {
       for (let i = 0; i < perConfig && runs < iterations; i++) {
-        const step = await runOneWithRespawn(client, cfg, mixSeed(seed, `cfg${c}`, i));
-        client = step.client;
-        accumulate(stats, violations, step.result);
+        const iterSeed = mixSeed(seed, `cfg${c}`, i);
+        await guard.run(iterSeed, async () => {
+          const step = await runOneWithRespawn(client, cfg, iterSeed);
+          client = step.client;
+          accumulate(stats, violations, step.result);
+        });
         runs++;
       }
     } finally {
       client.close();
     }
   }
-  return {runs, iterations, seed, violations, stats};
+  return {runs, iterations, seed, violations, crashes: guard.crashes, stats};
 }
 
 /** Soak variant — generate types continuously for `durationMs`, logging each
@@ -334,15 +343,19 @@ export async function runSizeFuzzForDuration(
   accumulate(stats, violations, floor);
   for (const v of floor.violations) onViolation?.(v);
 
+  const guard = startCrashGuard();
   while (budget.canStart()) {
     const cfg = SIZE_CONFIGS[round % SIZE_CONFIGS.length];
     let client = openClient(cfg);
     try {
       for (let i = 0; i < 25 && budget.canStart(); i++) {
-        const step = await runOneWithRespawn(client, cfg, mixSeed(seed, `soak${round}`, i));
-        client = step.client;
-        for (const v of step.result.violations) onViolation?.(v);
-        accumulate(stats, violations, step.result);
+        const iterSeed = mixSeed(seed, `soak${round}`, i);
+        await guard.run(iterSeed, async () => {
+          const step = await runOneWithRespawn(client, cfg, iterSeed);
+          client = step.client;
+          for (const v of step.result.violations) onViolation?.(v);
+          accumulate(stats, violations, step.result);
+        });
         runs++;
         budget.mark();
       }
@@ -356,6 +369,7 @@ export async function runSizeFuzzForDuration(
     iterations: runs,
     seed,
     violations,
+    crashes: guard.crashes,
     stats,
     slowestIterationMs: budget.slowestIterationMs(),
     slowestIterationRound: budget.slowestIterationRound(),

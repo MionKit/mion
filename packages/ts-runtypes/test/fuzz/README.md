@@ -52,13 +52,13 @@ the **seed** that produced it, so it replays byte-for-byte (see
 ```
 test/fuzz/
 ├── vitest.fuzz-unit.config.ts   # standalone config for *.unit.test.ts (no Go binary)
-├── core/                        # shared: deterministic RNG + random-type generator
+├── core/                        # shared: deterministic RNG + random-type generator + crash guard
 ├── value/                       # fix the type, fuzz the VALUE           (O1–O7)
 ├── roundtrip/                   # one type, every codec strategy must agree (RT-*)
 ├── type/                        # fuzz the TYPE itself                    (TR1–TR4 + O*)
 ├── binary/                      # binary encoder size-estimation / buffer growth (O-SIZE-*)
 ├── cloning/                     # exact-shape clone vs a reference interpreter (O15–O17)
-├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E4)
+├── elision/                     # unused-builder elision: the two spellings stay equivalent (E0–E3)
 └── enrich/                      # model-based (stateful sequence) fuzzers  (R*, T*, NL/RC/CB…)
 ```
 
@@ -78,8 +78,8 @@ the Go binary first). The unbounded **soak** variants and the concurrency
 
 ## The shared core (`core/`)
 
-Everything downstream is built on two files, and both are deterministic so any
-run replays from a single number.
+Everything downstream is built on these files, and all of it is deterministic
+so any run replays from a single number.
 
 - **`seededRng.ts`** — `mulberry32(seed)` is a tiny 32-bit PRNG.
   `withSeededRandom(seed, fn)` swaps the global `Math.random` for the seeded
@@ -89,6 +89,16 @@ run replays from a single number.
   `withSeededRandom` makes it reproducible. `mixSeed(base, label, i)` folds a
   base seed, a stream label (`'value'`, `'roundtrip'`, …) and an iteration index
   into one uint32 so two streams never share a draw sequence.
+- **`crashGuard.ts`** — the generic crash-capture mechanism every lane's loop
+  wraps its per-iteration body in. A HARD failure (a resolver error, a
+  harness throw — something the oracles never see because no result exists to
+  check) becomes a replayable `{seed, message}` record on the report's
+  `crashes` list instead of killing the run, so a long soak keeps hunting and
+  fails loudly at the end with every crash listed. A streak of
+  `CRASH_STREAK_LIMIT` consecutive crashes still rethrows immediately:
+  different seeds failing identically means the harness broke (dead client,
+  missing binary), not a generated shape. Born from the elision lane's first
+  20-minute soak dying mid-run on a real resolver panic with no seed recorded.
 - **`typeGen.ts`** — a recursive generator of random TypeScript types across the
   widest shape space we can express: scalars, literals, `Date`/`RegExp`/`bigint`,
   arrays, tuples, objects (optional / readonly / method / non-identifier keys),
@@ -269,11 +279,10 @@ refusal surface is the convert lane's job) and are reported.
   structural-format shapes excluded — shapeValue does not model contains /
   uniqueItems constraints): validate accepts a conforming probe and rejects a
   proven corruption; codec behavior needs no probing because E1's byte
-  equality already carries it. **E4** resolver robustness: a hard resolver
-  error while compiling either spelling (a scanFiles failure, not a
-  diagnostic) is captured as a finding with its seed instead of crashing the
-  soak — this caught a real emitter panic (an NS-sentinel base reaching the
-  contains / patternProperties splices in the validate emitter).
+  equality already carries it. Hard resolver errors are not an oracle here —
+  they ride the generic crash guard (`core/crashGuard.ts`), which this lane's
+  first soak motivated by finding a real emitter panic (an NS-sentinel base
+  reaching the contains / patternProperties splices in the validate emitter).
 - Tests: `elisionFuzz.integration` (the soak, `RT_FUZZ_ELISION_SOAK_MS`);
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).

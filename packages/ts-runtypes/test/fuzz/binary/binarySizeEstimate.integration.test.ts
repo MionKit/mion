@@ -16,6 +16,7 @@ import {hasBinary} from './sizeFuzzRunner.ts';
 import {runSizeFuzz, runSizeFuzzForDuration} from './sizeFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
+import {renderCrashes} from '../core/crashGuard.ts';
 
 describe('fuzz / binary size estimate — sound for in-bounds data', () => {
   const register = hasBinary() ? it : it.skip;
@@ -24,14 +25,15 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
     'no under-allocation for in-bounds data; oversized data grows and round-trips',
     async () => {
       const report = await runSizeFuzz({seed: entrySeed('size'), iterations: 80});
-      if (report.violations.length > 0) {
+      if (report.violations.length > 0 || report.crashes.length > 0) {
         const summary = report.violations
           .slice(0, 25)
           .map((v) => `  [${v.oracle}] ${v.type} (seed=${v.seed}): ${v.message}\n      ${v.value}`)
           .join('\n');
         throw new Error(
-          `${report.violations.length} size violation(s) over ${report.runs} types:\n${summary}` +
-            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '')
+          `${report.violations.length} size violation(s) + ${report.crashes.length} crash(es) over ${report.runs} types:\n${summary}` +
+            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '') +
+            (report.crashes.length > 0 ? `\n${renderCrashes(report.crashes)}` : '')
         );
       }
       expect(report.runs).toBe(80);
@@ -59,6 +61,7 @@ describe('fuzz / binary size estimate — sound for in-bounds data', () => {
           `${report.stats.noGrowChecked} no-resize checks, ${report.stats.negativesExercised} grows, ${report.stats.skipped} skipped`
       );
       expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
+      if (report.crashes.length > 0) throw new Error(renderCrashes(report.crashes));
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

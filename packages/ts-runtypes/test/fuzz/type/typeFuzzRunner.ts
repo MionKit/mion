@@ -23,6 +23,7 @@
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {startSoakBudget} from '../core/soakBudget.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import {genType, describeType, isRecursive, DEFAULT_GEN_OPTIONS, type GeneratedType, type GenOptions} from '../core/typeGen.ts';
 import {genValidValue, validValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {compileType, openClient, renderFixture, type CompiledType, type WiredFns} from './typeFuzzHarness.ts';
@@ -80,6 +81,9 @@ export interface TypeFuzzReport {
   iterations: number;
   seed: number;
   violations: Violation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts), each with
+   *  its replay seed. **/
+  crashes: CrashRecord[];
   /** How many generated types had violations that were DROPPED because the type
    *  did not actually compile (invalid TypeScript). tsgo is lenient and still
    *  produces a RunType for non-compilable input, so a violation there is a
@@ -138,16 +142,18 @@ export async function runTypeFuzz(options: TypeFuzzOptions = {}): Promise<TypeFu
   const violations: Violation[] = [];
   const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
+  const guard = startCrashGuard();
   let runs = 0;
   try {
     for (let i = 0; i < iterations; i++) {
       runs++;
-      await fuzzOneType(holder, mixSeed(seed, 'type', i), gen, valueSource, violations, stats);
+      const iterSeed = mixSeed(seed, 'type', i);
+      await guard.run(iterSeed, () => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats));
     }
   } finally {
     holder.close();
   }
-  return {runs, iterations, seed, violations, ...stats};
+  return {runs, iterations, seed, violations, crashes: guard.crashes, ...stats};
 }
 
 export async function runTypeFuzzForDuration(
@@ -161,6 +167,7 @@ export async function runTypeFuzzForDuration(
   const violations: Violation[] = [];
   const stats: FuzzStats = {skippedInvalidTypes: 0, strongOracleRuns: 0};
   const holder = new ClientHolder();
+  const guard = startCrashGuard();
   let runs = 0;
   let round = 0;
   const budget = startSoakBudget(durationMs);
@@ -168,7 +175,8 @@ export async function runTypeFuzzForDuration(
     while (budget.canStart()) {
       runs++;
       const before = violations.length;
-      await fuzzOneType(holder, mixSeed(seed, 'type', round), gen, valueSource, violations, stats);
+      const iterSeed = mixSeed(seed, 'type', round);
+      await guard.run(iterSeed, () => fuzzOneType(holder, iterSeed, gen, valueSource, violations, stats));
       if (onViolation) for (let k = before; k < violations.length; k++) onViolation(violations[k]);
       round++;
       budget.mark();
@@ -181,6 +189,7 @@ export async function runTypeFuzzForDuration(
     iterations: round,
     seed,
     violations,
+    crashes: guard.crashes,
     ...stats,
     slowestIterationMs: budget.slowestIterationMs(),
     slowestIterationRound: budget.slowestIterationRound(),

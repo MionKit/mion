@@ -29,6 +29,7 @@
 // validator probes plus an encoder no-throw smoke.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import {startSoakBudget} from '../core/soakBudget.ts';
 import {
   genType,
@@ -175,6 +176,9 @@ export interface ElisionFuzzReport {
    *  root). Reported so a generator regression cannot silently hollow the lane. **/
   rerolls: number;
   violations: ElisionViolation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts) — a
+   *  resolver error, a converter crash — each with its replay seed. **/
+  crashes: CrashRecord[];
 }
 
 interface IterationState {
@@ -211,18 +215,11 @@ async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: nu
     return;
   }
 
-  // A resolver ERROR (a scanFiles-level failure, not a diagnostic) is a
-  // finding, not a lane crash: capture it with the seed so it replays, and
-  // let the soak keep hunting.
-  let staticSide: CompiledFixture;
-  let valueSide: CompiledFixture;
-  try {
-    staticSide = await compileFixture(client, spellings.staticSource);
-    valueSide = await compileFixture(client, spellings.valueSource);
-  } catch (err) {
-    state.violations.push({oracle: 'E4-resolver', seed, title, message: errMsg(err)});
-    return;
-  }
+  // A resolver ERROR here (a scanFiles-level failure, not a diagnostic) is
+  // caught by the crash guard wrapped around fuzzOne in runLoop — recorded
+  // with this iteration's seed, the soak keeps hunting.
+  const staticSide = await compileFixture(client, spellings.staticSource);
+  const valueSide = await compileFixture(client, spellings.valueSource);
 
   // E0 — each spelling resolves exactly its three createX sites.
   for (const [form, side] of [
@@ -330,10 +327,12 @@ async function runLoop(
   const state: IterationState = {violations: [], strongRuns: 0, rerolls: 0};
   const client = openClient();
   const project = createConvertProject();
+  const guard = startCrashGuard();
   let runs = 0;
   try {
     while (shouldContinue(runs)) {
-      await fuzzOne(client, project, mixSeed(seed, 'elision', runs), state);
+      const iterSeed = mixSeed(seed, 'elision', runs);
+      await guard.run(iterSeed, () => fuzzOne(client, project, iterSeed, state));
       runs++;
       afterIteration?.();
     }
@@ -341,7 +340,7 @@ async function runLoop(
     client.close();
     destroyConvertProject(project);
   }
-  return {runs, seed, strongRuns: state.strongRuns, rerolls: state.rerolls, violations: state.violations};
+  return {runs, seed, strongRuns: state.strongRuns, rerolls: state.rerolls, violations: state.violations, crashes: guard.crashes};
 }
 
 export async function runElisionFuzz(options: ElisionFuzzOptions = {}): Promise<ElisionFuzzReport> {
