@@ -89,15 +89,56 @@ func CollectEntries(dump protocol.Dump) entrymodules.Graph {
 	// Facades are emitted for every reflection root — even one whose node never
 	// made it into the dump (defensive): the injected import must resolve, and
 	// the runtime degrades to a registry miss exactly as before.
+	extraDeps := reflectionSiteDemandKeys(dump.Sites)
 	for _, root := range facadeRoots {
 		graph.Add(&entrymodules.Entry{
 			Key:      root,
 			Kind:     entrymodules.KindRunTypeFacade,
 			ArgsText: quoteJS(root),
 			Deps:     []string{bundleKey},
+			SoftDeps: extraDeps[root],
 		})
 	}
 	return graph
+}
+
+// reflectionSiteDemandKeys maps each reflection root id to the deduped, sorted
+// cache-entry keys its sites demand BEYOND the runtype graph — today the fmt
+// (formatTransform) entry a createMockDataFn-shaped site needs so generated
+// mocks apply declared format transforms (see scan.go
+// mockFormatTransformDemand). Riding the facade's SoftDeps loads those entries
+// with the site's injected import; an entry the emitter dropped degrades to a
+// KindMissing stub, so the import always resolves and the mock walker simply
+// finds no transform — the pre-demand behavior.
+func reflectionSiteDemandKeys(sites []protocol.Site) map[string][]string {
+	byRoot := map[string]map[string]bool{}
+	for _, site := range sites {
+		if site.ID == "" || site.FnId != "" || len(site.Demand) == 0 {
+			continue
+		}
+		for _, demand := range site.Demand {
+			if demand.FnHash == "" {
+				continue
+			}
+			if byRoot[site.ID] == nil {
+				byRoot[site.ID] = map[string]bool{}
+			}
+			byRoot[site.ID][demand.FnHash+"_"+site.ID] = true
+		}
+	}
+	if len(byRoot) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(byRoot))
+	for id, keys := range byRoot {
+		list := make([]string, 0, len(keys))
+		for key := range keys {
+			list = append(list, key)
+		}
+		sort.Strings(list)
+		out[id] = list
+	}
+	return out
 }
 
 // indexNodes maps every dumped RunType by its id, skipping nil / id-less nodes.
@@ -121,6 +162,10 @@ func indexNodes(runTypes []*reflection.RunType) map[string]*reflection.RunType {
 // reason the bundle replaced it) — kept as the allModules escape hatch.
 func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
 	graph := make(entrymodules.Graph, len(dump.RunTypes))
+	// Same extra-demand wiring as the bundle path: a mock-shaped reflection
+	// site's fmt entries ride the root node's own module (the injected import
+	// target in allModules mode) as SoftDeps.
+	extraDeps := reflectionSiteDemandKeys(dump.Sites)
 	for _, runType := range dump.RunTypes {
 		if runType == nil || runType.ID == "" {
 			continue
@@ -136,6 +181,7 @@ func CollectEntriesPerNode(dump protocol.Dump) entrymodules.Graph {
 			ArgsText: strings.Join(renderFactoryArgs(runType), ","),
 			InitBody: footer.String(),
 			Deps:     collectRefDeps(runType),
+			SoftDeps: extraDeps[runType.ID],
 		})
 	}
 	return graph
