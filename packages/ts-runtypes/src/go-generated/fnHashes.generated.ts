@@ -31,6 +31,7 @@ export const FN_HASHES = {
   ces: {axis: 'none', variants: {'': 'wsq'}},
   cj: {axis: 'none', variants: {'': 'xnN'}},
   cjr: {axis: 'none', variants: {'': 'Siw'}},
+  csr: {axis: 'none', variants: {'': 'ndT'}},
   fb: {axis: 'none', variants: {'': 'mY6'}},
   fmt: {axis: 'none', variants: {'': 'SS6'}},
   huk: {axis: 'hasUnknownKeysOptions', variants: {'': 'lRN', OV: 'Omg'}},

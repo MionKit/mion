@@ -112,6 +112,11 @@ var CacheModules = CacheModuleGroup{
 		VarPrefix: "g_jsc_",
 		Tag:       "jsc",
 	},
+	"classSerializerReg": {
+		Name:      "classSerializerRegModule",
+		VarPrefix: "g_csr_",
+		Tag:       "csr",
+	},
 	"pureFns": {
 		Name:      "pureFnsModule",
 		VarPrefix: "",

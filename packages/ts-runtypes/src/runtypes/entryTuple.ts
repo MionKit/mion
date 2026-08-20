@@ -498,6 +498,10 @@ const familyMeta: Record<string, FamilyMeta> = {
   ces: valueShaped('ces', noopIdentity),
   uke: errorShaped('uke'),
   ukuw: valueShaped('ukuw', noopIdentity),
+  // classSerializerReg name card: the tuple's typeName slot carries the
+  // build-time class name registerClassSerializer's name-fallback lane keys
+  // on; the fn (returns that name) is never called on the hot path.
+  csr: valueShaped('csr', noopIdentity),
   tb: {
     fnID: 'tb',
     args: () => ({vλl: 'v', sεr: 'Ser'}) as CompiledFnArgs,

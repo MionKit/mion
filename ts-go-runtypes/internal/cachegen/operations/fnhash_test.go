@@ -14,7 +14,7 @@ import (
 // variant: val +16, verr +16, tb +1, jsonEncoder +4 = +37. If this trips, an
 // operation (or the circular fork) changed without updating the count (and you
 // should re-confirm the collision guard still holds).
-const expectedCanonicalKeyCount = 53 + 37 + 1 // +1: the jsonSchema (jsc) document operation
+const expectedCanonicalKeyCount = 53 + 37 + 1 + 1 // +1: the jsonSchema (jsc) document operation; +1: the classSerializerReg (csr) name card
 
 func TestFnHashCollisionFree(t *testing.T) {
 	// Runs at init too, but assert here so the failure is a test, not a panic.

@@ -98,6 +98,13 @@ var registry = []Operation{
 	// jsonSchema: the per-type JSON Schema DOCUMENT (schemadoc.RenderDocument
 	// rendered at build time); the entry's fn returns the document object.
 	{Name: "jsonSchema", FamilyTag: "jsc", Axis: AxisNone, Public: true, FnKey: "jsonSchema"},
+	// classSerializerReg backs registerClassSerializer's trailing
+	// InjectTypeFnArgs<T, 'csr'> marker: the emitted entry is a tiny name card
+	// (its typeName carries the source class name, its fn returns it) so
+	// registration reads the build-time class name WITHOUT demanding the type's
+	// reflection graph. Public: false — the entry has no user-facing behavior to
+	// override or recover.
+	{Name: "classSerializerReg", FamilyTag: "csr", Axis: AxisNone, Public: false, FnKey: "csr"},
 
 	// Public — composite JSON encoder / decoder (JsonStrategy axis). FamilyTag is
 	// empty; each strategy renders its own entry (per-strategy tags added to

@@ -9,6 +9,7 @@ export interface CacheModuleSettings {
 }
 
 export const CACHE_MODULES = {
+  classSerializerReg: {name: 'classSerializerRegModule', varPrefix: 'g_csr_', tag: 'csr'},
   cloneExactShape: {name: 'cloneExactShapeModule', varPrefix: 'g_ces_', tag: 'ces'},
   compactForJson: {name: 'compactForJsonModule', varPrefix: 'g_cj_', tag: 'cj'},
   compactFromJson: {name: 'compactFromJsonModule', varPrefix: 'g_cjr_', tag: 'cjr'},
@@ -29,6 +30,9 @@ export const CACHE_MODULES = {
   validationErrors: {name: 'validationErrorsModule', varPrefix: 'g_verr_', tag: 'verr'},
 } as const satisfies Record<string, CacheModuleSettings>;
 
+export const CLASSSERIALIZERREG_VAR_PREFIX = 'g_csr_';
+export const CLASSSERIALIZERREG_MODULE_NAME = 'classSerializerRegModule';
+export const CLASSSERIALIZERREG_TAG = 'csr';
 export const CLONEEXACTSHAPE_VAR_PREFIX = 'g_ces_';
 export const CLONEEXACTSHAPE_MODULE_NAME = 'cloneExactShapeModule';
 export const CLONEEXACTSHAPE_TAG = 'ces';
