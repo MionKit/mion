@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {BufferPoolConfig} from '@mionjs/core';
+
 /** Bun serve options without fetch/error handlers (those are provided by mion) */
 type BunServeOptions = Omit<Bun.Serve.BaseServeOptions<unknown>, 'error'> &
     Omit<Bun.Serve.HostnamePortServeOptions<unknown>, 'error'>;
