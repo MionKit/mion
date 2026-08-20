@@ -60,7 +60,12 @@ call sites carry a small extra beyond the obvious: `registerClassSerializer` nee
 the class's build-time name, so it generates a tiny name card instead of the type's
 reflection graph, and `createMockDataFn` also demands the format-transform entry for its
 type so generated mock values honor declared transforms (lowercase, trim, and so on)
-without a separate `createFormatTransformFn` call.
+without a separate `createFormatTransformFn` call. Demand also prunes the builders: a
+builder const whose value is never used in its own file (the only references are
+`typeof` in type position, the `InferType<typeof myRT>` pattern) emits no reflection
+graph at all — using the value anywhere, or exporting the const, keeps it. The analysis
+is per file, so exported schemas are always kept; export the derived type instead of the
+schema when other files only need the shape.
 
 **Data only.** Validators and converters work on the JSON shaped projection of your type.
 Members that cannot survive that trip (functions, symbols, promises) are dropped, and

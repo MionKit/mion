@@ -10,8 +10,9 @@ const userRunType = RT.object({
   roles: RT.array(RT.union([RT.literal('admin'), RT.literal('user')])),
 });
 
-// Same validator, same result. Your call.
-const isUser = createValidateFn(userRunType);
-
-// Recover the TypeScript type from the run-type whenever you need it.
+// Recover the TypeScript type, then generate from the type. Same validator,
+// same result. Used this way the builder itself adds zero generated data.
 type User = InferType<typeof userRunType>;
+const isUser = createValidateFn<User>();
+
+isUser({id: 1, name: 'Ada', email: 'ada@example.com', roles: ['admin']}); // true

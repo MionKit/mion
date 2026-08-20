@@ -8,6 +8,11 @@
 //     type form, so both read like real code. Each closes with
 //     `type <Name> = InferType<typeof MyType>` to show recovering the plain TS type
 //     from the run-type (the builder counterpart to the `ts` form's `MyType`).
+//     In an app the recovered type is the recommended handle: calling
+//     `createX<Name>()` with it (the `ts` mode's shape) leaves the schema value
+//     unused, so the build emits no runtype cache for it. Builder mode keeps
+//     the value-first call ON PURPOSE — demonstrating that call shape (and the
+//     runtype cache it produces) is exactly what the mode switch is for.
 // The mode switch toggles which form the editor shows. The shapes mirror the
 // real-world DTO scenarios in the validation suite
 // (packages/ts-runtypes/test/suites/validation/Realworld.ts).

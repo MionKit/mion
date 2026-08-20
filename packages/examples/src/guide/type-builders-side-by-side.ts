@@ -23,10 +23,11 @@ const productRunType = RT.object({
   status: RT.union([RT.literal('draft'), RT.literal('live')]),
 });
 
-// Recover the TypeScript type from the run-type whenever you need it.
+// Recover the TypeScript type, then generate from the type. Used this way
+// the schema itself adds nothing to your bundle.
 type ProductFromRunType = InferType<typeof productRunType>;
 
-const isProductB = createValidateFn(productRunType);
+const isProductB = createValidateFn<ProductFromRunType>();
 // end-builder
 
 export {isProductA, isProductB};
