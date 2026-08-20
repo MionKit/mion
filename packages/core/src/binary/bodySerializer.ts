@@ -35,6 +35,29 @@ const ENVELOPE_HEADER_BYTES = 4;
 /** floor for a cold buffer, so a tiny estimate still absorbs framing jitter */
 const MIN_COLD_START_BYTES = 64;
 
+/** Counters for how the binary lane actually behaved. Real observability, and what the pooled
+ *  specs assert against so a test cannot pass without exercising the path it claims to cover. */
+export interface BinaryStrategyStats {
+    /** envelopes written into a pooled (non-growing) buffer */
+    pooled: number;
+    /** envelopes written into a freshly allocated growing buffer */
+    adaptive: number;
+    /** pooled attempts that overflowed and were re-encoded on a growing buffer */
+    retries: number;
+}
+
+const strategyStats: BinaryStrategyStats = {pooled: 0, adaptive: 0, retries: 0};
+
+export function getBinaryStrategyStats(): BinaryStrategyStats {
+    return {...strategyStats};
+}
+
+export function resetBinaryStrategyStats(): void {
+    strategyStats.pooled = 0;
+    strategyStats.adaptive = 0;
+    strategyStats.retries = 0;
+}
+
 /** Result of serializing a binary body. The payload is `view` (zero-copy, valid until `release()`);
  *  callers needing an owned copy use `serializer.getBuffer()`. */
 export interface BinaryBodyResult {
@@ -117,7 +140,9 @@ export function serializeBinaryBody(
         const capacity = lease.buffer.byteLength;
         try {
             const serializer = createPooledDataViewSerializer(path, lease.buffer);
-            return finish(path, writeEnvelope(serializer, executionChain, body, isResponse), lease);
+            const result = finish(path, writeEnvelope(serializer, executionChain, body, isResponse), lease);
+            strategyStats.pooled++;
+            return result;
         } catch (err: any) {
             lease.release();
             // An overflow means the prediction was too tight for THIS payload. Anything else is a
@@ -125,6 +150,7 @@ export function serializeBinaryBody(
             if (!isCapacityOverflow(err)) throw toRpcError(err, isResponse);
             // Escalate the route's class so the next request does not repeat the miss, then fall
             // through and re-encode once on a growing buffer, which cannot overflow.
+            strategyStats.retries++;
             recordSize(path, sizeClassFor(capacity + 1));
         }
     }
@@ -132,7 +158,9 @@ export function serializeBinaryBody(
     const size = predictBufferSize(path, executionChain, body, isResponse, false, workflowRouteIds);
     try {
         const serializer = createDataViewSerializer(path, size);
-        return finish(path, writeEnvelope(serializer, executionChain, body, isResponse), undefined);
+        const result = finish(path, writeEnvelope(serializer, executionChain, body, isResponse), undefined);
+        strategyStats.adaptive++;
+        return result;
     } catch (err: any) {
         throw toRpcError(err, isResponse);
     }

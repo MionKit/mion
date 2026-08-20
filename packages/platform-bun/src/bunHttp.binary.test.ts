@@ -126,3 +126,23 @@ describe('bun router binary serialization should', () => {
         expect(headers['content-type']).toEqual('application/octet-stream');
     });
 });
+
+// The pooled binary strategy on this platform releases the response buffer as soon as the Response
+// is constructed. That is only sound because Bun copies the bytes out synchronously — if it ever
+// started aliasing the caller's memory, a pooled buffer could be overwritten by the next request
+// while the response was still in flight, silently corrupting payloads. Prove it rather than
+// trusting a comment; if this fails, platform-bun must stop pooling.
+describe('bun Response copy semantics (buffer pooling depends on this)', () => {
+    test('copies a Uint8Array body synchronously', async () => {
+        const buffer = new ArrayBuffer(16);
+        const view = new Uint8Array(buffer, 0, 8);
+        view.set([1, 2, 3, 4, 5, 6, 7, 8]);
+
+        const response = new Response(view);
+        // simulate the pool handing this very buffer to the next request
+        view.fill(0xff);
+
+        const body = new Uint8Array(await response.arrayBuffer());
+        expect(Array.from(body)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+});

@@ -21,5 +21,11 @@ export interface BunHttpOptions {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: number; // default 256KB
+    /**
+     * Binary response buffer pooling. Enabled by default on this platform: Bun copies the bytes into
+     * the Response synchronously (proven in bunHttp.binary.test.ts), so the buffer can be handed back
+     * as soon as the Response is constructed. Pass `false` to disable, or an object to tune classes.
+     */
+    binaryBufferPool: false | Partial<BufferPoolConfig>;
 }
 // type-bun-http-options-end

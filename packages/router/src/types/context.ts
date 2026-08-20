@@ -80,6 +80,11 @@ export interface MionResponse {
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
     readonly binSerializer?: DataViewSerializer | undefined;
+    /** Returns the binary response buffer to mion's pool. Platform adapters MUST call this once the
+     *  payload has been written or copied out — see each adapter for its safe point. Idempotent, and
+     *  a no-op when the buffer was not pooled. Until it is called the buffer is not reused, so a
+     *  missed call costs a reuse, never correctness. */
+    readonly releaseBinBuffer?: (() => void) | undefined;
 }
 // type-mion-response-end
 

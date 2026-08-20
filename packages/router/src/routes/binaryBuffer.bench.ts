@@ -14,7 +14,15 @@ import {bench, describe} from 'vitest';
 import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
 import {route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
-import {serializeBinaryBody, predictSize} from '@mionjs/core';
+import {
+    serializeBinaryBody,
+    predictSize,
+    configureBufferPool,
+    resetBufferPool,
+    getBufferPoolStats,
+    getBinaryStrategyStats,
+    resetBinaryStrategyStats,
+} from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
 interface Item {
@@ -57,9 +65,11 @@ function pct(sorted: number[], p: number): number {
 }
 
 /** Runs a profile N times and prints the allocation/accuracy table. */
-function profile(name: string, path: string, make: (i: number) => unknown, n = 2000) {
+function profile(name: string, routeId: string, path: string, make: (i: number) => unknown, n = 2000, pooled = false) {
+    resetBufferPool();
+    resetBinaryStrategyStats();
+    if (pooled) configureBufferPool({enabled: true});
     const chain = chainFor(path);
-    const routeId = name;
     const payloads: number[] = [];
     let grows = 0;
     let allocated = 0;
@@ -76,18 +86,26 @@ function profile(name: string, path: string, make: (i: number) => unknown, n = 2
     }
     const sorted = [...payloads].sort((a, b) => a - b);
     const mean = payloads.reduce((a, b) => a + b, 0) / payloads.length;
+    const pool = getBufferPoolStats();
+    const strategy = getBinaryStrategyStats();
+    const dist =
+        `${name.padEnd(11)} n=${n} payload(mean/p50/p90/p99/max)=` +
+        `${mean.toFixed(0)}/${pct(sorted, 50)}/${pct(sorted, 90)}/${pct(sorted, 99)}/${sorted[sorted.length - 1]}`;
+    // The two strategies are judged on different things, so report what each actually does rather
+    // than forcing both into one set of columns: a pooled buffer cannot grow and is a size CLASS
+    // rather than a fitted size, so "grows" and "overAlloc" are meaningless for it.
+    if (pooled) {
+        console.log(`${dist} | allocations=${pool.misses} reuses=${pool.hits} retries=${strategy.retries}`);
+        return;
+    }
+    const totalPayload = Math.max(
+        1,
+        payloads.reduce((a, b) => a + b, 0)
+    );
     console.log(
-        `${name.padEnd(10)} n=${n} payload(mean/p50/p90/p99/max)=` +
-            `${mean.toFixed(0)}/${pct(sorted, 50)}/${pct(sorted, 90)}/${pct(sorted, 99)}/${sorted[sorted.length - 1]}` +
-            ` grows=${grows} (${((grows / n) * 100).toFixed(1)}%)` +
+        `${dist} allocations=${n} grows=${grows} (${((grows / n) * 100).toFixed(1)}%)` +
             ` allocKB=${(allocated / 1024).toFixed(0)} payloadCopies=${payloadCopies}` +
-            ` overAlloc=${(
-                allocated /
-                Math.max(
-                    1,
-                    payloads.reduce((a, b) => a + b, 0)
-                )
-            ).toFixed(1)}x`
+            ` overAlloc=${(allocated / totalPayload).toFixed(1)}x`
     );
 }
 
@@ -108,9 +126,13 @@ describe('binary buffer baseline', () => {
     bench(
         'measure profiles (table printed once)',
         () => {
-            profile('tiny', '/tiny', () => 42);
-            profile('small', '/small', (i) => ({id: `id-${i}`, name: 'name', tags: ['a', 'b'], score: i}));
-            profile('skewed', '/skewed', skewedList, 1000);
+            const smallValue = (i: number) => ({id: `id-${i}`, name: 'name', tags: ['a', 'b'], score: i});
+            profile('tiny', 'tiny', '/tiny', () => 42);
+            profile('small', 'small', '/small', smallValue);
+            profile('skewed', 'skewed', '/skewed', skewedList, 1000);
+            profile('tiny+pool', 'tiny', '/tiny', () => 42, 2000, true);
+            profile('small+pool', 'small', '/small', smallValue, 2000, true);
+            profile('skewed+pool', 'skewed', '/skewed', skewedList, 1000, true);
         },
         {iterations: 1, warmupIterations: 0, time: 0}
     );

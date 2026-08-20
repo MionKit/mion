@@ -6,6 +6,7 @@
  * ######## */
 
 import {ServerOptions} from 'https';
+import type {BufferPoolConfig} from '@mionjs/core';
 
 // type-node-http-options-start
 export interface NodeHttpOptions {
@@ -20,6 +21,12 @@ export interface NodeHttpOptions {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: number; // default 256KB
+    /**
+     * Binary response buffer pooling. Enabled by default on this platform: node's 'finish'/'close'
+     * events give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
+     * allocating one per request. Pass `false` to disable, or an object to tune the size classes.
+     */
+    binaryBufferPool: false | Partial<BufferPoolConfig>;
 }
 // type-node-http-options-end
 

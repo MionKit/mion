@@ -25,4 +25,5 @@ export const DEFAULT_HTTP_OPTIONS: NodeHttpOptions = {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: 256000, // 256KB
+    binaryBufferPool: {},
 };

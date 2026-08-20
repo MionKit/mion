@@ -129,6 +129,9 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
+            // `new Response(BufferSource)` copies the bytes per the Fetch spec, so the buffer is
+            // free immediately. This runtime is not pooled by default regardless.
+            mionResp.releaseBinBuffer?.();
             return response;
         }
         default: {

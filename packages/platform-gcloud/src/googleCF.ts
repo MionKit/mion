@@ -117,7 +117,9 @@ function reply(mionResp: MionResponse, resp: Response): void {
             const serializer = mionResp.binSerializer!;
             resp.set('content-length', `${serializer.getLength()}`);
             // content-type already set by serializer
+            // Buffer.from copies the bytes out, so the buffer is free the moment end() is called.
             resp.end(Buffer.from(serializer.getBufferView()));
+            mionResp.releaseBinBuffer?.();
             break;
         }
         default: {

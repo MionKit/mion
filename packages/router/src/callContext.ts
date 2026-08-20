@@ -67,6 +67,7 @@ export function createCallContext(
             rawBody: '',
             serializer: SerializerModes.json,
             binSerializer: undefined,
+            releaseBinBuffer: undefined,
         },
         executionChain,
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
@@ -111,6 +112,7 @@ export function acquireCallContext(
         resp.rawBody = '';
         resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
+        resp.releaseBinBuffer = undefined;
         // Reset execution chain and routesFlow route IDs
         const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
         ctx.executionChain = executionChain;
@@ -145,6 +147,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
             rawBody: '',
             serializer: SerializerModes.json,
             binSerializer: undefined,
+            releaseBinBuffer: undefined,
         };
         mutableCtx.shared = null as any;
         mutableCtx.executionChain = null as any;
