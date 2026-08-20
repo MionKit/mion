@@ -1,6 +1,6 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
 import {Routes, initMionRouter, headersFn, route} from '@mionjs/router';
-import {getAuthUser, isAuthorized} from 'MyAuth';
+import {getAuthUser, isAuthorized} from './myAuth.ts';
 
 const authorizationMiddleFn = headersFn(
     async (context, {headers}: HeadersSubset<'Authorization', 'User-id'>): Promise<void | RpcError<'not-authorized'>> => {

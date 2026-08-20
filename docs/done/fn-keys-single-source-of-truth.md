@@ -127,6 +127,7 @@ src/runtypes/mionAdapter.ts(39,37): error TS2322: Type '"notAFnId"' is not assig
   '"ces" | "cj" | "cjr" | "fb" | "fmt" | "huk" | "jsonDecoder" | ... | "val" | "verr"'
 ```
 
-and mion has **no green tsc gate** (see [examples-precompile-debt.md](../todos/examples-precompile-debt.md)).
-So the binding is real but currently only catches a mistake when someone runs `tsc` by hand. That
-is an argument for the CI typecheck lane, tracked separately.
+At the time this was written mion had **no green tsc gate**, so the binding was real but only caught
+a mistake when someone ran `tsc` by hand. That gate now exists: `pnpm run check-types-examples` runs
+in CI and typechecks the `@mionjs/*` source alongside the examples (see
+[examples-precompile-debt.md](examples-precompile-debt.md)).

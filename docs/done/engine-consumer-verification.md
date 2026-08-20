@@ -38,4 +38,5 @@ fixtures: (1) `core/src/friendlyErrors.ts` keys on format paths/names/tokens tha
 - The website contract text change rides [examples-and-website-refresh.md](examples-and-website-refresh.md).
   The "Formats should carry a real BrandName" follow-up recorded here is moot: mion's brands are gone,
   and drizzle — the only consumer — should key on format names instead, which needs no upstream change.
-  See [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md).
+  Rekeying drizzle on format names was tracked as a follow-up and later dropped in favour of a full
+  rewrite of that package's column mapping.

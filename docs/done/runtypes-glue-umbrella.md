@@ -54,11 +54,10 @@ unsound with nothing in CI to catch it.
 - [routesflow-query-validation.md](routesflow-query-validation.md) — an unvalidated
   attacker-supplied array index, same wire object as `bodyHash`. **Since fixed**: the whole
   `RoutesFlowQuery` is now validated on decode, plus an arity bound while the chain is built.
-- [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md) —
-  where the brand vocabulary lives now that mion supplies none. Drizzle should key its column mapping
-  on ts-runtypes **type formats**, not on brands: its brand branch is already dead code, so the type
-  and runtime lanes disagree today.
-- [eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md) — its rationale for
+- Drizzle's column mapping — where the brand vocabulary lives now that mion supplies none. Its brand
+  branch is dead code, so the type and runtime lanes disagree. Tracked as a follow-up at the time and
+  later dropped: that package's mapping is slated for a rewrite from scratch, not a repair.
+- [eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md) — its rationale for
   keeping mion's purity rule corrected.
 
 ## A note on the guard
@@ -70,7 +69,7 @@ guard the specs relied on to prove "nothing referenced the deleted types" did no
 This work used explicit `tsc --noEmit` baselines per package plus the examples source-resolution
 check, diffed before and after each phase. Standing that up as a real CI gate is worth doing;
 `packages/examples/tsconfig.check.json` already says as much in its own header, and
-[examples-precompile-debt.md](../todos/examples-precompile-debt.md) tracks the path.
+[examples-precompile-debt.md](examples-precompile-debt.md) tracks the path.
 
 ## Verification
 

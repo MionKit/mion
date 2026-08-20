@@ -1,6 +1,8 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
 import {Routes, headersFn, middleFn, initMionRouter, route} from '@mionjs/router';
-import {Logger} from 'Logger';
+
+// stand-in for your own logger
+const Logger = {log: (...args: unknown[]): void => console.log(...args)};
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};

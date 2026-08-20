@@ -1,5 +1,4 @@
 import {Routes, route} from '@mionjs/router';
-import {memoryStoreService} from './full-example.app.ts';
 
 // Your TypeScript types ARE the validation schema
 interface User {
@@ -20,6 +19,6 @@ const routes = {
         // user is already validated and types are restored
         console.log(user.birthDate instanceof Date); // true
         console.log(user.tags instanceof Set); // true
-        return memoryStoreService.createUser(user);
+        return {id: 'USER-123', ...user};
     }),
 } satisfies Routes;

@@ -1,6 +1,9 @@
+import {HandlerType} from '@mionjs/core';
 import {Route, MiddleFnDef} from '@mionjs/router';
 import {myApp} from './full-example.app.ts';
 
+// Route and MiddleFnDef are plain object types, so you can extend them with your own metadata
+// and still register them like any other definition.
 interface MyRoute extends Route {
     doNotFail: boolean;
 }
@@ -10,7 +13,8 @@ interface MyMiddleFn extends MiddleFnDef {
 
 const someRoute: MyRoute = {
     doNotFail: true,
-    route: (): void => {
+    type: HandlerType.route,
+    handler: (): void => {
         if (someRoute.doNotFail) {
             // do something
         } else {
@@ -21,7 +25,8 @@ const someRoute: MyRoute = {
 
 const someMiddleFn: MyMiddleFn = {
     shouldLog: false,
-    middleFn: (): void => {
+    type: HandlerType.middleFn,
+    handler: (): void => {
         if (someMiddleFn.shouldLog) {
             myApp.cloudLogs.log('hello');
         } else {
@@ -29,3 +34,5 @@ const someMiddleFn: MyMiddleFn = {
         }
     },
 };
+
+export const routes = {someRoute, someMiddleFn};

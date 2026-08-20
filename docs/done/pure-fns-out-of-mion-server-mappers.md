@@ -77,7 +77,7 @@ rule enforced a constraint that did not exist, and duplicated upstream everywher
 Removed: the rule, its spec, `purityRules.ts`, and the `configs.recommended` entry.
 `no-vite-client` (mion-specific, no upstream equivalent) survives; its one import from `purityRules`
 is inlined, narrowed to the single module that actually exports `serverMapFrom`. Stale rationale in
-[eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md) corrected.
+[eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md) corrected.
 
 ## Tests
 

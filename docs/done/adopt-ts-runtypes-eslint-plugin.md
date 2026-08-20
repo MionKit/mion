@@ -3,7 +3,7 @@
 **Status:** done — the plugin is wired in and green across all 13 projects.
 **Created:** 2026-07-22
 **Updated:** 2026-07-27 (split out of the retired docs/partially/; residual tuning + docs work
-moved to [../todos/eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md))
+moved to [eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md))
 
 ## What shipped (PR #128)
 
@@ -24,7 +24,7 @@ moved to [../todos/eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning
 
 Severity tuning, the duplicate CLS001 emission, the `no-type-imports` / `enforce-type-imports`
 re-evaluation, and the website rule-set doc are tracked in
-[../todos/eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md). The stale
+[eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md). The stale
 example fixtures for the removed `type-formats-imports` rule are tracked with the rest of the
 website/examples drift in
 [website-stale-package-references.md](website-stale-package-references.md).

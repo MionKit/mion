@@ -31,7 +31,7 @@ That turned out to be cheap — drizzle's entire brand dependency was one type-a
 
 `3.client/2.validation-errors.md` was **already broken** before this change: it documents
 `getFriendlyErrors` / `FriendlyErrors<T>`, removed in `d76c326e`, and 12 of its `code-import` blocks
-point at 5 files that do not exist (logged in [broken-code-import-paths.md](../todos/broken-code-import-paths.md)).
+point at 5 files that do not exist (logged in [broken-code-import-paths.md](broken-code-import-paths.md)).
 
 ## What stayed, and why
 
@@ -51,7 +51,9 @@ Format-typed **test fixtures** across router/client/test-server all import from
 types through `ExtractBrandName<T>` to recover the 20 brand *strings*. Replaced with a literal union
 of the same 20 names — zero runtime change, and the per-dialect completeness guards
 (`_Missing*Brands` / `_Extra*Brands` in `sqlite`/`mysql`/`postgres.types.ts`) still work. Follow-up
-recorded in [drizzle-column-mapping-on-type-formats.md](../todos/drizzle-column-mapping-on-type-formats.md).
+recorded as a follow-up at the time. That follow-up was later dropped: the whole drizzle column-mapping
+lane is slated for a rewrite from scratch rather than a repair (see the ⚠️ note on `AllBrandNames` in
+`packages/drizze/src/types/common.types.ts`).
 
 Two related fixes fell out while repointing `FormatName` at upstream:
 

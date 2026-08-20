@@ -92,22 +92,16 @@ Updating dependencies:
 
 - There is a special package called `examples` that contains code examples that should compile
 
-## ⚠️⚠️⚠️ TYPE IMPORTS !!CRITICAL!! ⚠️⚠️⚠️
+## Type imports
 
-NEVER USE `import type` FOR TYPES THAT NEED RUNTIME REFLECTION!
+`import type` is **safe** for types used in routes/middleFns. `@ts-runtypes` resolves types at BUILD
+TIME from the TypeScript program and injects the compiled functions at the `route()`/`middleFn()`
+call site, so an erased import changes nothing.
 
-- The type compiler needs the actual import statement to preserve type metadata.
-- Using `import type` strips the metadata and causes silent failures.
-- This applies to: Any type imports used for run-types, type formats, or any other types that need type reflection
-- If tests fail silently with (type metadata not found), CHECK YOUR IMPORTS FIRST
-
-```ts
-// ❌ WRONG - This breaks reflection!
-import type {Email, UUID} from '@ts-runtypes/core/formats';
-
-// ✅ CORRECT - Use regular import for types that need reflection
-import {Email, UUID} from '@ts-runtypes/core/formats';
-```
+This was NOT true under deepkit, whose runtime reflection was emitted from the import statement --
+`import type` stripped the metadata and caused silent failures. That is why this file used to carry
+a "TYPE IMPORTS !!CRITICAL!!" warning and why `@mionjs/no-type-imports` existed; both are gone.
+`packages/router/src/typeOnlyImports.spec.ts` guards the current behaviour.
 
 Note: type formats and brands live entirely in `@ts-runtypes` — mion re-exports none of them.
 

@@ -35,9 +35,35 @@ export const myAuthService = {
     isAuthorized: (token: string): boolean => token === 'ABCD',
     getIdentity: (token: string): User | null => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
 };
+export interface Pet {
+    id: string;
+    name: string;
+    ownerId: number;
+}
+
+export interface SomeData {
+    id: string;
+    value: string;
+}
+
+// stand-in for your own database layer
+export const myDbService = {
+    getPet: async (id: string): Promise<Pet | null> => (id === 'PET-404' ? null : {id, name: 'Rex', ownerId: 1}),
+    getPetFromUser: async (user: User | null): Promise<Pet> => ({id: 'PET-1', name: 'Rex', ownerId: user?.id ?? 0}),
+    getData: async (id: string): Promise<SomeData | null> => (id === 'DATA-404' ? null : {id, value: 'some value'}),
+};
+
+// stand-in for your own log shipping service
+export const myCloudLogsService = {
+    log: (...args: unknown[]): void => console.log(...args),
+    error: async (...args: unknown[]): Promise<void> => console.error(...args),
+};
+
 export const myApp = {
     store: memoryStoreService,
     auth: myAuthService,
+    db: myDbService,
+    cloudLogs: myCloudLogsService,
 };
 export const shared = {
     me: null as any as User,

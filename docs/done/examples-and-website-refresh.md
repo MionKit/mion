@@ -26,13 +26,13 @@ deepkit / `mion-build-aot` APIs.
 - A `check-types` script + `tsconfig.check.json` were added, but a fully-green typecheck GATE is NOT
   wired: the examples carry substantial pre-existing, non-migration debt (placeholder-import doc
   snippets, friendly-errors format-param rework, source-package strict-check issues). That debt +
-  the remaining CI-enforcement item are tracked in [examples-precompile-debt.md](../todos/examples-precompile-debt.md).
+  the remaining CI-enforcement item are tracked in [examples-precompile-debt.md](examples-precompile-debt.md).
 
 ## What did NOT ship, and where it went
 
 - **A green typecheck GATE.** `check-types` + `tsconfig.check.json` exist but are not wired as a
   gate: the examples carry substantial pre-existing, non-migration debt. Tracked in
-  [../todos/examples-precompile-debt.md](../todos/examples-precompile-debt.md).
+  [examples-precompile-debt.md](examples-precompile-debt.md).
 - **The 2026-07-22 proxy-removal wave.** After this refresh, `@mionjs/run-types` and
   `@mionjs/type-formats` were deleted, leaving a second round of website drift (deleted-package
   references, old `Format*` names, the removed `type-formats-imports` rule and its fixtures).

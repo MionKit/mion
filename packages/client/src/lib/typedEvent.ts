@@ -9,6 +9,7 @@ import type {RpcError} from '@mionjs/core';
 import type {HandlersRegistry} from './handlersRegistry.ts';
 import type {ErrorHandler, SuccessHandler} from '../types.ts';
 
+// type-typed-event-start
 /** Persistent event emitter for middleFn success and error handling */
 export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
     constructor(
@@ -55,3 +56,4 @@ export class TypedEvent<S = void, E extends RpcError<string, any> = never> {
         return this.registry.hasSuccessHandler(this.handlerId);
     }
 }
+// type-typed-event-end

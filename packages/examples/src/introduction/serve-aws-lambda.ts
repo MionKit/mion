@@ -1,5 +1,5 @@
 import {AwsLambdaOptions, createAwsLambdaHandler} from '@mionjs/platform-aws';
-import './myApi.routes';
+import './myApi.routes.ts';
 
 // set options specific for aws lambda
 const awsOptions: Partial<AwsLambdaOptions> = {};
