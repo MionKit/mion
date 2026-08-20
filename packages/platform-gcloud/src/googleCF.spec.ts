@@ -290,7 +290,7 @@ describe('serverless router', () => {
 
             // Serialize request body to binary
             const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody('/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
                 method: 'POST',
@@ -314,7 +314,12 @@ describe('serverless router', () => {
 
             // Serialize request body to binary
             const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/changeUserName', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody(
+                '/changeUserName',
+                executionChain,
+                requestBody,
+                false
+            ).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port3}/changeUserName`, {
                 method: 'POST',
@@ -339,7 +344,7 @@ describe('serverless router', () => {
 
             // Serialize request body with no params (optional dataPoint)
             const requestBody = {getDate: [undefined]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/getDate', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody('/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port3}/getDate`, {
                 method: 'POST',

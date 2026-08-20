@@ -19,10 +19,7 @@ export function serializeBinaryBody(
     body: Record<string, any>,
     isResponse: boolean,
     workflowRouteIds?: string[]
-): {
-    serializer: DataViewSerializer;
-    buffer: ReturnType<DataViewSerializer['getBuffer']>;
-} {
+): {serializer: DataViewSerializer} {
     try {
         const serializer = createDataViewSerializer(path, workflowRouteIds);
 
@@ -44,7 +41,10 @@ export function serializeBinaryBody(
         serializer.view.setUint32(itemsLengthIndex, itemsLength, true);
         serializer.markAsEnded();
 
-        return {serializer, buffer: serializer.getBuffer()};
+        // NOTE: no getBuffer() here — that is a full slice COPY of the payload. Callers read the
+        // bytes from the serializer itself: getBufferView() for a zero-copy view (what every
+        // platform adapter does), or getBuffer() explicitly when they need an owned copy.
+        return {serializer};
     } catch (err: any) {
         if (err instanceof RpcError) throw err;
         throw new RpcError({

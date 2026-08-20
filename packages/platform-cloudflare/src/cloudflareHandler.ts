@@ -129,7 +129,6 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
-            serializer.markAsEnded();
             return response;
         }
         default: {
