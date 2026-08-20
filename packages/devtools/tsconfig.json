@@ -7,5 +7,5 @@
   },
   "references": [],
   "include": ["."],
-  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts", "test-fixtures"]
 }
