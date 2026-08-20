@@ -94,6 +94,6 @@ devtools spec had needed reflection before.
 The negative cases — bad `mockSamples` (FMT003), an ungeneratable pattern (FMT005), and clashing
 pools on a shared cache entry (FMT006) — each get a test that runs a real vite build expected to
 FAIL and asserts on the diagnostic code. `patternSampleRetries` is guarded there too, though more
-weakly: the retry budget turns out to have no provokable effect on generation, so the test pins the
-passthrough (the resolver rejects a value below 1) rather than the budget. See
-[build-failure-test-harness.md](build-failure-test-harness.md).
+weakly: it is an internal attempt counter, and no pattern was found whose outcome the budget
+decides, so the test pins the passthrough (the resolver rejects a value below 1) rather than the
+budget's effect. See [build-failure-test-harness.md](build-failure-test-harness.md).
