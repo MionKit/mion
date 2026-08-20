@@ -200,7 +200,7 @@ const back = sessionSchema.parse(JSON.parse(wire));
 Two ways to describe a shape, One source of truth.
 
 #body
-We support **native TypeScript types** (fastest, zero ceremony) **or** the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file.
+We support **native TypeScript types** (fastest, zero ceremony) **or** the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file. And when you only take the type back out of a builder, the schema itself adds nothing to your bundle.
 
 :::div{class="rt-define-cols"}
 ::::code-group
