@@ -245,6 +245,15 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 	// accessor; an empty child (any/unknown — `contains: true`) counts every
 	// item, so the length itself is the count.
 	if rt != nil && len(rt.Contains) > 0 {
+		// An unvalidatable base (an unsupported member bubbled CodeNS up)
+		// PROPAGATES: the walker escalates NS to the alwaysThrow lane, which
+		// never silently weakens anything — the splice must not turn that
+		// graceful degrade into a hard resolver error. (Found by the elision
+		// fuzz lane: structural formats over the wide type space were the
+		// first to compile validate across NS-bearing bases.)
+		if base.Type == CodeNS {
+			return base
+		}
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
@@ -266,6 +275,10 @@ func (e ValidateEmitter) Emit(rt *reflection.RunType, ctx *EmitContext, expected
 	// patternProperties / propertyNames: per-key checks over the object's
 	// own keys — same statement-base hoist discipline as every splice above.
 	if rt != nil && (len(rt.PatternProps) > 0 || len(rt.PropNames) > 0) {
+		// Same NS-propagation rule as the contains splice above.
+		if base.Type == CodeNS {
+			return base
+		}
 		if base.Type != CodeE {
 			base = ctx.AsExpression(base)
 		}
