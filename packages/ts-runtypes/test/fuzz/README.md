@@ -242,23 +242,34 @@ strip every one), and type-blind **junk** for robustness only.
 
 Targets the unused-builder-const elision: a builder const referenced only via
 `InferType<typeof rt>` emits NO reflection graph, while any value use keeps it.
-Each iteration generates one builder schema (a deliberately narrow, JSON-pure
-subset — `builderGen.ts`, the runTypeGen philosophy), renders BOTH spellings
-(static `createXFn<T>()` vs value `createXFn(rt)`), compiles each through the
-real resolver, and checks:
+ONE generator covers the FULL space: each iteration draws from `typeGen`
+(the convert lane's generation space) and derives the builder spellings with
+the REAL `ts-runtypes convert --to builders` CLI — no hand-written builder
+printer exists here, so there is nothing to drift from the product converter
+(`internal/convert/printbuilder.go`), and every fixture's builder spelling is
+byte-for-byte what a user's conversion would produce. The converted output IS
+the static spelling (`const rt = …; type T = InferType<typeof rt>;` with the
+calls naming `T`); the value spelling is a tail swap of the lane's own three
+calls to `createXFn(rt)`. Designed converter refusals re-roll (pinning the
+refusal surface is the convert lane's job) and are reported.
 
 - `elisionOracle.ts` — **E0** fixture integrity (each spelling resolves exactly
-  its three createX sites — a miscount means the generator emitted source that
-  did not express the schema), **E1** entry equivalence (every module the
-  static form emits exists BYTE-IDENTICALLY in the value form's output — same
-  type id + same fnHashes ⇒ same entries, whichever spelling; byte equality is
-  strictly stronger than probing values), **E2** emission split (the static
-  form carries no runtypes bundle and no reflection site; the value form keeps
-  both).
+  its three createX sites), **E1** entry equivalence (same fn-entry keys, and
+  every function-side module the static form emits exists BYTE-IDENTICALLY in
+  the value form's output — reflection modules excluded, call-site coordinates
+  in alwaysThrow messages normalized; byte equality is strictly stronger than
+  probing values), **E2** emission split, DIFFERENTIAL and escape-aware: a
+  builder-printed root's reflection site must be gone from the static form and
+  the value form must carry exactly one more, while a `getRunType<T>()` escape
+  (never elidable by design) rides both spellings and cancels out; strict
+  zero-reflection is asserted for declaration-free, escape-free fixtures.
 - `elisionRunner.ts` — **E3** behavior floor on the static form (the elided
-  spelling is the feature's risk surface): no Error diagnostics, validate
-  accepts a conforming probe and rejects a root-violating one, and JSON
-  `decode(encode(v))` round-trips (key-order-insensitive compare).
+  spelling is the feature's risk surface), on the diagnostics-clean tier that
+  `shapeValue` provably models (`valueOracleSafe`, non-floored values,
+  structural-format shapes excluded — shapeValue does not model contains /
+  uniqueItems constraints): validate accepts a conforming probe and rejects a
+  proven corruption; codec behavior needs no probing because E1's byte
+  equality already carries it.
 - Tests: `elisionFuzz.integration` (the soak, `RT_FUZZ_ELISION_SOAK_MS`);
   `elisionOracle.unit` (binary-free negative controls: every oracle proven to
   fire on a deliberately broken output).

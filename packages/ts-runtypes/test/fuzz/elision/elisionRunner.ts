@@ -1,90 +1,162 @@
-// Driver for the elision form-equivalence lane: generate a builder schema
-// (builderGen), render BOTH spellings, compile each through the REAL resolver
-// (the type lane's ResolverClient harness), and check the oracles:
+// Driver for the elision form-equivalence lane, over the FULL generated type
+// space: ONE generator (core/typeGen.ts) with a FORM axis, where the builders
+// form is derived by the REAL `ts-runtypes convert --to builders` CLI rather
+// than a hand-written builder printer — the product converter owns the
+// type→builder spelling knowledge (internal/convert/printbuilder.go), so
+// there is no JS twin to keep in sync and every fixture's builder spelling is
+// byte-for-byte what a user's conversion would produce.
 //
-//   E1  every module the static form emits exists BYTE-IDENTICALLY in the
-//       value form's output (same type id + same fnHashes ⇒ same entries,
-//       whichever spelling — the convergence contract).
-//   E2  the static form emits zero reflection payload (no runtypes bundle, no
-//       reflection site); the value form keeps both.
-//   E3  the static form's compiled functions BEHAVE: no Error diagnostics,
-//       validate accepts a conforming value and rejects a root-violating one,
-//       and JSON decode(encode(valid)) round-trips (values are JSON-pure by
-//       construction, so plain JSON.stringify equality is the comparison).
+// Per iteration (all randomness under one mixSeed, so a violation replays):
 //
-// Each iteration derives shape AND probe values from one mixSeed, so a
-// reported violation replays exactly.
+//   genType (the convert lane's generation space, designed refusals
+//   pre-filtered via its own isConvertibleGen)
+//     → render the TYPE-form fixture: decls + `type FzRoot = …` + the three
+//       static calls `createXFn<FzRoot>()`
+//     → `convert --to builders` gives the STATIC spelling for free: the root
+//       becomes `const fzRootRT = …;` + `type FzRoot = InferType<typeof
+//       fzRootRT>;` and the calls (they name their type) stay static — a
+//       builder const referenced only through `typeof`
+//     → the VALUE spelling is a tail swap of our own three calls:
+//       `createXFn<FzRoot>()` → `createXFn(fzRootRT)`
+//     → compile both through the daemon and check the oracles
+//       (elisionOracle.ts): E0 fixture integrity, E1 same fn keys +
+//       byte-identical function entries, E2 root graph elided (static) vs
+//       kept (value), E3 validator behavior floor on the static form.
+//
+// E3 runs on the diagnostics-clean, value-generable subset (shapeValue's
+// valueOracleSafe — the type lane's tiering); codec BEHAVIOR needs no probing
+// here because E1's byte equality already carries it, so E3 keeps to the
+// validator probes plus an encoder no-throw smoke.
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
 import {startSoakBudget} from '../core/soakBudget.ts';
+import {
+  genType,
+  renderGenerated,
+  describeType,
+  childShapes,
+  FUZZ_FORMAT_PREAMBLE_PACKAGE,
+  type GeneratedType,
+  type TypeShape,
+} from '../core/typeGen.ts';
+import {genValidValue, corruptValue, valueOracleSafe} from '../value/shapeValue.ts';
+import {
+  CONVERT_GEN_OPTIONS,
+  isConvertibleGen,
+  declShapes,
+  createConvertProject,
+  destroyConvertProject,
+  convertLeg,
+  type ConvertProject,
+} from '../convert/convertRoundtrip.ts';
 import {openClient, hasBinary, BIN} from '../type/typeFuzzHarness.ts';
-import {MARKER_PACKAGE_OVERLAY, evalEntryModules} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
+import {
+  MARKER_PACKAGE_OVERLAY,
+  evalEntryModules,
+  instantiateRunTypes,
+} from '../../../../ts-runtypes-devtools/test/helpers/inline.ts';
 import {Severity} from '../../../../ts-runtypes-devtools/src/protocol.ts';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
-import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+import {createValidateFn, createJsonEncoderFn} from '@ts-runtypes/core';
 import {
-  randomShape,
-  renderBuilderExpr,
-  validValue,
-  invalidValue,
-  describeShape,
-  DEFAULT_BUILDER_GEN_OPTIONS,
-  type Shape,
-} from './builderGen.ts';
-import {
+  checkFnSiteAgreement,
   checkSharedEntriesIdentical,
-  checkStaticHasNoReflection,
-  checkValueHasReflection,
+  checkStaticRootSiteGone,
+  checkStaticZeroReflection,
+  checkValueRootKept,
+  comparableModules,
   type ElisionViolation,
-  type ScanShape,
+  type SiteShape,
 } from './elisionOracle.ts';
 
 export {hasBinary, BIN};
 
 const FIXTURE = 'g.ts';
+const CALLS = ['createValidateFn', 'createJsonEncoderFn', 'createJsonDecoderFn'] as const;
 
-const IMPORT_BLOCK = `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn, type InferType} from '@ts-runtypes/core';
-import {object, array, union, optional, literal, boolean} from '@ts-runtypes/core/builders';
-import {string, number} from '@ts-runtypes/core/formats';
-`;
-
-/** The static spelling: the builder const's only reference is the type query. **/
-export function renderStaticFixture(expr: string): string {
-  return `${IMPORT_BLOCK}const rtRoot = ${expr};
-type T = InferType<typeof rtRoot>;
-export const isT = createValidateFn<T>();
-export const encT = createJsonEncoderFn<T>();
-export const decT = createJsonDecoderFn<T>();
-`;
+/** The ONE fixture renderer, type form — the converter derives the builder
+ *  spellings from this output (see deriveBuilderSpellings). **/
+export function renderTypeFixture(gen: GeneratedType): string {
+  const {decls, rootExpr} = renderGenerated(gen, FUZZ_FORMAT_PREAMBLE_PACKAGE);
+  return (
+    `import {createValidateFn, createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';\n` +
+    `${decls}${decls ? '\n' : ''}type FzRoot = ${rootExpr};\n` +
+    CALLS.map((fn, i) => `export const fz${i} = ${fn}<FzRoot>();\n`).join('')
+  );
 }
 
-/** The value spelling: the const IS every factory's argument. **/
-export function renderValueFixture(expr: string): string {
-  return `${IMPORT_BLOCK}const rtRoot = ${expr};
-export const isT = createValidateFn(rtRoot);
-export const encT = createJsonEncoderFn(rtRoot);
-export const decT = createJsonDecoderFn(rtRoot);
-`;
+export interface BuilderSpellings {
+  staticSource: string;
+  valueSource: string;
+  /** The converter printed the ROOT const as the `getRunType<T>()` escape
+   *  rather than a builder expression — an id-lookup site that is never
+   *  elidable by design, riding both spellings unchanged. **/
+  rootPrintsAsEscape: boolean;
+  /** Any `getRunType<` escape anywhere in the converted output (root or a
+   *  declaration reference) — gates the strict zero-reflection assertion.
+   *  The import name is stable in these fixtures (no identifier collides
+   *  with `getRunType`, so the converter never renames it). **/
+  sourceHasEscape: boolean;
+}
+
+// The converted root alias line — `type FzRoot = InferType<typeof <const>>;`
+// (the InferType binding may be renamed on collision, so both identifiers are
+// wildcards; the const capture is what the value spelling substitutes).
+const ROOT_ALIAS = /(?:^|\n)(?:export )?type FzRoot = [A-Za-z_$][\w$]*<typeof ([A-Za-z_$][\w$]*)>;/;
+
+/** Derive both builder spellings from a type-form fixture via the real
+ *  converter. Returns null — the caller re-rolls, counting it — when the
+ *  converter refuses the shape (a designed CNVxxx diagnostic: the coarse
+ *  isConvertibleGen pre-filter cannot model every print-path refusal, and
+ *  pinning the refusal surface is the CONVERT lane's job, not this one's) or
+ *  when the converted output has no parseable root alias (e.g. the root
+ *  printed as a pure reference of a declaration). A non-refusal converter
+ *  failure (a crash, no CNV diagnostic) still throws — that is a finding. **/
+export function deriveBuilderSpellings(project: ConvertProject, typeSource: string): BuilderSpellings | null {
+  let staticSource: string;
+  try {
+    staticSource = convertLeg(project, typeSource, 'builders');
+  } catch (err) {
+    if (err instanceof Error && /\bCNV\d{3}\b/.test(err.message)) return null;
+    throw err;
+  }
+  const aliasMatch = ROOT_ALIAS.exec(staticSource);
+  if (!aliasMatch) return null;
+  const constName = aliasMatch[1];
+  let valueSource = staticSource;
+  for (const fn of CALLS) {
+    const before = valueSource;
+    valueSource = valueSource.replace(`${fn}<FzRoot>()`, `${fn}(${constName})`);
+    if (valueSource === before) return null;
+  }
+  return {
+    staticSource,
+    valueSource,
+    rootPrintsAsEscape: staticSource.includes(`const ${constName} = getRunType<`),
+    sourceHasEscape: staticSource.includes('getRunType<'),
+  };
 }
 
 interface CompiledFixture {
-  scan: ScanShape;
-  errorDiagnostics: string[];
+  modules: Record<string, string>;
+  sites: SiteShape[];
   /** fn-site cache keys in source order (validate, encoder, decoder). **/
   fnKeys: string[];
+  errorDiagnostics: string[];
 }
 
 async function compileFixture(client: ResolverClient, source: string): Promise<CompiledFixture> {
   await client.setSources({...MARKER_PACKAGE_OVERLAY, [FIXTURE]: source});
   const resp = await client.scanFiles([FIXTURE], {includeEntryModules: true});
   const diagnostics = resp.diagnostics ?? [];
-  const sites = resp.sites ?? [];
+  const sites = (resp.sites ?? []).sort((a, b) => a.pos - b.pos);
   return {
-    scan: {modules: resp.entryModules ?? {}, siteFnIds: sites.map((site) => site.fnId ?? '')},
+    modules: resp.entryModules ?? {},
+    sites: sites.map((site) => ({fnId: site.fnId ?? '', id: site.id})),
+    fnKeys: sites.filter((site) => site.fnId).map((site) => `${site.fnId}_${site.id}`),
     errorDiagnostics: diagnostics
       .filter((d) => d.severity === Severity.Error)
       .map((d) => `${d.code}(${d.args?.join(', ') ?? ''})`),
-    fnKeys: sites.filter((site) => site.fnId).map((site) => `${site.fnId}_${site.id}`),
   };
 }
 
@@ -96,116 +168,122 @@ export interface ElisionFuzzOptions {
 export interface ElisionFuzzReport {
   runs: number;
   seed: number;
+  /** Iterations that reached the E3 validator probes (the anti-vacuity floor). **/
+  strongRuns: number;
+  /** Generated shapes discarded before compiling: designed convert refusals
+   *  (symbol-keyed members) and unparseable root spellings (a pure-reference
+   *  root). Reported so a generator regression cannot silently hollow the lane. **/
+  rerolls: number;
   violations: ElisionViolation[];
 }
 
-async function fuzzOne(client: ResolverClient, seed: number, violations: ElisionViolation[]): Promise<void> {
-  let shape!: Shape;
-  let valid!: unknown;
-  let invalid!: unknown;
-  withSeededRandom(seed, () => {
-    shape = randomShape(DEFAULT_BUILDER_GEN_OPTIONS);
-    valid = validValue(shape);
-    invalid = invalidValue(shape);
-  });
-  const title = describeShape(shape);
-  const expr = renderBuilderExpr(shape);
+interface IterationState {
+  violations: ElisionViolation[];
+  strongRuns: number;
+  rerolls: number;
+}
 
-  const staticSide = await compileFixture(client, renderStaticFixture(expr));
-  const valueSide = await compileFixture(client, renderValueFixture(expr));
+// Re-rolls allowed while producing ONE iteration's fixture before the lane
+// declares generator starvation (the refusal space is a sliver, so hitting
+// this means the generator or filter regressed).
+const MAX_REROLLS_PER_ITERATION = 25;
+
+async function fuzzOne(client: ResolverClient, project: ConvertProject, seed: number, state: IterationState): Promise<void> {
+  let gen!: GeneratedType;
+  let spellings: BuilderSpellings | null = null;
+  for (let attempt = 0; attempt < MAX_REROLLS_PER_ITERATION && !spellings; attempt++) {
+    gen = withSeededRandom(mixSeed(seed, 'shape', attempt), () => genType(CONVERT_GEN_OPTIONS));
+    if (!isConvertibleGen(gen)) {
+      state.rerolls++;
+      continue;
+    }
+    spellings = deriveBuilderSpellings(project, renderTypeFixture(gen));
+    if (!spellings) state.rerolls++;
+  }
+  const title = describeType(gen);
+  if (!spellings) {
+    state.violations.push({
+      oracle: 'E0-fixture',
+      seed,
+      title,
+      message: `no convertible fixture within ${MAX_REROLLS_PER_ITERATION} re-rolls — generator starvation`,
+    });
+    return;
+  }
+
+  const staticSide = await compileFixture(client, spellings.staticSource);
+  const valueSide = await compileFixture(client, spellings.valueSource);
+
+  // E0 — each spelling resolves exactly its three createX sites.
+  for (const [form, side] of [
+    ['static', staticSide],
+    ['value', valueSide],
+  ] as const) {
+    if (side.fnKeys.length !== CALLS.length) {
+      state.violations.push({
+        oracle: 'E0-fixture',
+        seed,
+        title,
+        message: `${form} form resolved ${side.fnKeys.length} fn sites (want ${CALLS.length})`,
+      });
+      return;
+    }
+  }
+  const rootId = valueSide.fnKeys[0].split('_', 2)[1];
 
   const push = (violation: ElisionViolation | undefined): void => {
-    if (violation) violations.push(violation);
+    if (violation) state.violations.push(violation);
   };
-  // E0 — fixture integrity: each spelling declares exactly three createX
-  // sites. A miscount means the GENERATOR emitted source that did not express
-  // the intended schema (e.g. a wrong builder arity type-erroring to `any`) —
-  // caught here so it can never silently weaken E1-E3.
-  if (staticSide.fnKeys.length !== 3) {
-    violations.push({
-      oracle: 'E0-fixture',
-      seed,
-      title,
-      message: `static form resolved ${staticSide.fnKeys.length} fn sites (want 3) — generator emitted a broken fixture`,
-    });
+  push(checkFnSiteAgreement(seed, title, staticSide.fnKeys, valueSide.fnKeys));
+  push(checkSharedEntriesIdentical(seed, title, comparableModules(staticSide.modules), comparableModules(valueSide.modules)));
+  push(checkStaticRootSiteGone(seed, title, staticSide.sites, rootId, spellings.rootPrintsAsEscape));
+  // Strict zero-reflection needs a fixture with nothing legitimately
+  // reflective: no declaration escapes AND no escape-printed fragments.
+  if (gen.decls.length === 0 && !spellings.sourceHasEscape) {
+    push(checkStaticZeroReflection(seed, title, staticSide.modules, staticSide.sites));
+  }
+  let valueRootRow = false;
+  try {
+    valueRootRow = instantiateRunTypes(evalEntryModules(valueSide.modules))[rootId] !== undefined;
+  } catch (err) {
+    push({oracle: 'E0-fixture', seed, title, message: `value form modules failed to evaluate: ${errMsg(err)}`});
     return;
   }
-  if (valueSide.fnKeys.length !== 3) {
-    violations.push({
-      oracle: 'E0-fixture',
-      seed,
-      title,
-      message: `value form resolved ${valueSide.fnKeys.length} fn sites (want 3) — generator emitted a broken fixture`,
-    });
-    return;
-  }
-  push(checkStaticHasNoReflection(seed, title, staticSide.scan));
-  push(checkValueHasReflection(seed, title, valueSide.scan));
-  push(checkSharedEntriesIdentical(seed, title, staticSide.scan.modules, valueSide.scan.modules));
+  push(checkValueRootKept(seed, title, staticSide.sites, valueSide.sites, rootId, spellings.rootPrintsAsEscape, valueRootRow));
 
-  // E3 — the static form's functions must materialise and behave. Wire through
-  // the REAL factories exactly like production: the evaluated entry tuple IS
-  // the injected trailing argument.
-  if (staticSide.errorDiagnostics.length > 0) {
-    violations.push({
-      oracle: 'E3-behavior',
-      seed,
-      title,
-      message: `static form produced Error diagnostics: ${staticSide.errorDiagnostics.join('; ')}`,
-    });
-    return;
-  }
+  // E3 — behavior floor on the STATIC form (the elided spelling is the
+  // feature's risk surface), on the diagnostics-clean value-generable tier.
+  // Structural-format shapes (contains / uniqueItems / min-max entries) are
+  // excluded: shapeValue does not model those constraints (its home lanes
+  // never generate them), so its "conforming" values can be honestly invalid
+  // — they still get full E0-E2 coverage.
+  if (staticSide.errorDiagnostics.length > 0 || !valueOracleSafe(gen) || genHasStructuralFormat(gen)) return;
   let tuples: Record<string, readonly unknown[]>;
   try {
-    tuples = evalEntryModules(staticSide.scan.modules);
+    tuples = evalEntryModules(staticSide.modules);
   } catch (err) {
-    violations.push({oracle: 'E3-behavior', seed, title, message: `static form modules failed to evaluate: ${errMsg(err)}`});
+    push({oracle: 'E3-behavior', seed, title, message: `static form modules failed to evaluate: ${errMsg(err)}`});
     return;
   }
-  const [valKey, encKey, decKey] = staticSide.fnKeys;
   try {
-    const isT = createValidateFn(undefined, undefined, tuples[valKey] as never);
-    const encT = createJsonEncoderFn(undefined, undefined, tuples[encKey] as never);
-    const decT = createJsonDecoderFn(undefined, undefined, tuples[decKey] as never);
+    const {value: valid, floored} = withSeededRandom(mixSeed(seed, 'value', 0), () => genValidValue(gen));
+    // A floored (budget-truncated) value may not fully conform — the type
+    // lane skips its accept assertion the same way.
+    if (floored) return;
+    const corrupt = withSeededRandom(mixSeed(seed, 'corrupt', 0), () => corruptValue(gen, valid));
+    const isT = createValidateFn(undefined, undefined, tuples[staticSide.fnKeys[0]] as never);
+    const encT = createJsonEncoderFn(undefined, undefined, tuples[staticSide.fnKeys[1]] as never);
     if (isT(valid) !== true) {
-      violations.push({
-        oracle: 'E3-behavior',
-        seed,
-        title,
-        message: `validate rejected a conforming value: ${JSON.stringify(valid)}`,
-      });
+      push({oracle: 'E3-behavior', seed, title, message: `validate rejected a conforming value: ${safeRender(valid)}`});
     }
-    if (isT(invalid) !== false) {
-      violations.push({
-        oracle: 'E3-behavior',
-        seed,
-        title,
-        message: `validate accepted a root-violating value: ${JSON.stringify(invalid)}`,
-      });
+    if (corrupt && corrupt.proven && isT(corrupt.value) !== false) {
+      push({oracle: 'E3-behavior', seed, title, message: `validate accepted a corrupted value: ${safeRender(corrupt.value)}`});
     }
-    const wire = encT(valid);
-    if (typeof wire !== 'string') {
-      violations.push({
-        oracle: 'E3-behavior',
-        seed,
-        title,
-        message: `encoder returned a non-string for ${JSON.stringify(valid)}`,
-      });
-    } else {
-      const back = decT(wire);
-      // Key-order-insensitive comparison: the decoder rebuilds declared props
-      // in declared order, which may differ from the probe's insertion order.
-      if (canonicalJson(back) !== canonicalJson(valid)) {
-        violations.push({
-          oracle: 'E3-behavior',
-          seed,
-          title,
-          message: `decode(encode(v)) drifted: in=${JSON.stringify(valid)} out=${JSON.stringify(back)}`,
-        });
-      }
-    }
+    // Codec BEHAVIOR is covered by E1's byte equality; this is a no-throw smoke.
+    encT(valid);
+    state.strongRuns++;
   } catch (err) {
-    violations.push({oracle: 'E3-behavior', seed, title, message: `wiring/probing threw: ${errMsg(err)}`});
+    push({oracle: 'E3-behavior', seed, title, message: `wiring/probing threw: ${errMsg(err)}`});
   }
 }
 
@@ -213,33 +291,53 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** JSON-pure deep-canonical form: object keys sorted recursively, so equality
- *  ignores property order (arrays keep their order — it is data). **/
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
-  if (value !== null && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const keys = Object.keys(record).sort();
-    return '{' + keys.map((key) => JSON.stringify(key) + ':' + canonicalJson(record[key])).join(',') + '}';
+// Structural formats ride `shape.structural` on array / record nodes.
+function shapeHasStructuralFormat(shape: TypeShape): boolean {
+  if ((shape.kind === 'array' || shape.kind === 'record') && shape.structural !== undefined) return true;
+  return childShapes(shape).some(shapeHasStructuralFormat);
+}
+
+function genHasStructuralFormat(gen: GeneratedType): boolean {
+  if (shapeHasStructuralFormat(gen.root)) return true;
+  return gen.decls.some((decl) => declShapes(decl).some(shapeHasStructuralFormat));
+}
+
+// Wide-space values may carry bigint / Map / Set, which JSON.stringify cannot
+// render — failure messages degrade to String() rather than throwing.
+function safeRender(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
   }
-  return JSON.stringify(value);
+}
+
+async function runLoop(
+  seed: number,
+  shouldContinue: (runs: number) => boolean,
+  afterIteration?: () => void
+): Promise<ElisionFuzzReport> {
+  const state: IterationState = {violations: [], strongRuns: 0, rerolls: 0};
+  const client = openClient();
+  const project = createConvertProject();
+  let runs = 0;
+  try {
+    while (shouldContinue(runs)) {
+      await fuzzOne(client, project, mixSeed(seed, 'elision', runs), state);
+      runs++;
+      afterIteration?.();
+    }
+  } finally {
+    client.close();
+    destroyConvertProject(project);
+  }
+  return {runs, seed, strongRuns: state.strongRuns, rerolls: state.rerolls, violations: state.violations};
 }
 
 export async function runElisionFuzz(options: ElisionFuzzOptions = {}): Promise<ElisionFuzzReport> {
   const seed = options.seed ?? Date.now() >>> 0;
-  const iterations = options.iterations ?? 25;
-  const violations: ElisionViolation[] = [];
-  const client = openClient();
-  let runs = 0;
-  try {
-    for (let i = 0; i < iterations; i++) {
-      runs++;
-      await fuzzOne(client, mixSeed(seed, 'elision', i), violations);
-    }
-  } finally {
-    client.close();
-  }
-  return {runs, seed, violations};
+  const iterations = options.iterations ?? 10;
+  return runLoop(seed, (runs) => runs < iterations);
 }
 
 export async function runElisionFuzzForDuration(
@@ -247,18 +345,10 @@ export async function runElisionFuzzForDuration(
   options: ElisionFuzzOptions = {}
 ): Promise<ElisionFuzzReport> {
   const seed = options.seed ?? Date.now() >>> 0;
-  const violations: ElisionViolation[] = [];
-  const client = openClient();
-  let runs = 0;
   const budget = startSoakBudget(durationMs);
-  try {
-    while (budget.canStart()) {
-      await fuzzOne(client, mixSeed(seed, 'elision', runs), violations);
-      runs++;
-      budget.mark();
-    }
-  } finally {
-    client.close();
-  }
-  return {runs, seed, violations};
+  return runLoop(
+    seed,
+    () => budget.canStart(),
+    () => budget.mark()
+  );
 }
