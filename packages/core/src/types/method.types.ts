@@ -91,6 +91,10 @@ export interface HeadersMethodWithJitFns extends HeadersMetaData {
 export interface MethodWithJitFns extends MethodMetadata {
     paramsJitFns: JitCompiledFunctions;
     returnJitFns: JitCompiledFunctions;
+    /** Compile-time binary size estimates (bytes) from the `tb` entry tuples, used to size a cold
+     *  binary buffer to the type. Server-side only — not part of the MethodMetadata wire shape. */
+    paramsBinarySizeEstimate?: number;
+    returnBinarySizeEstimate?: number;
     headersParam?: HeadersMethodWithJitFns;
     headersReturn?: HeadersMethodWithJitFns;
 }

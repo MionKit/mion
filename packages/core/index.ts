@@ -34,6 +34,8 @@ export * from './src/types/general.types.ts';
 export * from './src/types/method.types.ts';
 export * from './src/types/pureFunctions.types.ts';
 export * from './src/binary/dataView.ts';
+export * from './src/binary/bufferPool.ts';
+export * from './src/binary/sizeStats.ts';
 export * from './src/binary/bodySerializer.ts';
 export * from './src/binary/bodyDeserializer.ts';
 export * from './src/constants.ts';
