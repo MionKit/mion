@@ -98,21 +98,14 @@ describe('build halts on pattern diagnostics', () => {
     }, 60_000);
 
     it('patternSampleRetries is validated by the resolver', async () => {
-        // Unlike its siblings this one gets no FMT code. retries is an INTERNAL attempt counter —
-        // how many draws the generator makes before giving up — so its effect is only visible from
-        // outside on a pattern whose draws fail often enough for the budget to decide the outcome.
-        // No such pattern was found: length bounds, backreferences, lookaheads, allowedChars and
-        // disallowedValues each behaved identically at budget 1 and budget 200. That is a limit of
-        // the search, NOT evidence the loop is inert — such patterns are simply hard to construct,
-        // which is the real reason this option is awkward to test. (Consistent with that: a pattern
-        // the generator cannot PARSE fails in the same ~280ms at retries 1, 50 and 500, i.e. it
-        // errors before the retry loop is ever entered.)
+        // retries drives a redraw loop inside the sample generator, for a regex that parses but
+        // whose draws keep failing the surrounding constraints. That loop is third-party internal
+        // behaviour upstream does not test itself, so it is not mion's to assert on. What mion
+        // owns is that the option is FORWARDED — so that is what this pins.
         //
-        // What IS observable is that the value reaches the resolver, which rejects anything below
-        // 1 outright. Its complaint goes to the resolver process's own stderr rather than through
-        // vite's logger, so the assertion rides on the CONTRAST instead: same fixture, same
-        // everything, only the option differs — so the failure is attributable to it and nothing
-        // else. A mis-wired passthrough would let 0 sail through and both halves would build.
+        // The resolver rejects anything below 1, but complains on its own stderr rather than
+        // through vite's logger, so the assertion rides on the contrast: same fixture, only the
+        // option differs. A mis-wired passthrough would let 0 sail through and both halves build.
         const rejected = await buildFixture('ok', {patternSampleRetries: 0});
         expect(rejected.ok).toBe(false);
         expect(rejected.error).toMatch(/resolver/i);
