@@ -760,8 +760,10 @@ export function resolveEntryTupleFn<F extends AnyFn>(
       );
     }
     // Schema-form without an injected tuple (plugin inactive): the schema
-    // still names a runtype; degrade to the identity fallback if registered.
-    if (utils.hasRunType(runTypeId)) return identityFn;
+    // still names a type the build knows; degrade to the identity fallback.
+    // knowsType (not hasRunType): the reflection graph is demand-driven, so
+    // "known" must also count fn entries registered for the id.
+    if (utils.knowsType(runTypeId)) return identityFn;
     throw new Error(`${fnName}(): no RTCompiledFn entry for run-type id "${runTypeId}" in rtUtils.`);
   }
   initFromTuple(injected);
@@ -774,7 +776,12 @@ export function resolveEntryTupleFn<F extends AnyFn>(
   // whose body self-guards (via rt::findCycle). The runtime factory reads
   // nothing here — like noLiterals, the option is already baked into `key`.
   if (entry) return entry.fn as F;
-  if (utils.hasRunType(typeId)) return identityFn;
+  // Key miss on a KNOWN type (only reachable via runtime id substitution — the
+  // schema form — since the build always renders the injected tuple's own key):
+  // degrade to the family identity. knowsType counts fn entries as well as the
+  // reflection graph, so the decision is independent of whether anything
+  // happened to reflect the type.
+  if (utils.knowsType(typeId)) return identityFn;
   throw new Error(
     `${fnName}(): no RTCompiledFn entry for "${key}" in rtUtils. The build pipeline didn't emit a factory for that runtype.`
   );

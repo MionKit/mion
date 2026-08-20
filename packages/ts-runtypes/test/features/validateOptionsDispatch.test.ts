@@ -11,8 +11,8 @@
 //      variant accepts the base kind beyond the exact literal; the
 //      `noIsArrayCheck` variant skips the leading `Array.isArray` guard.
 //   4. Schema-form (`createValidateFn`) converges with marker-form for
-//      the same `T + options` — both go through `buildVariantKey` and
-//      resolve to a factory that exhibits the same behaviour.
+//      the same `T + options` — both resolve the same `<fnHash>_<typeId>`
+//      cache key and get a factory that exhibits the same behaviour.
 //
 // Style mirrors the existing reference-identity guards in
 // `tupleStructuralId.test.ts` and the id-integrity suite —
