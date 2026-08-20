@@ -46,7 +46,8 @@ function measureOnce(path: string, chain: MethodWithJitFns[], routeId: string, v
     const {serializer} = serializeBinaryBody(path, chain, {[routeId]: value}, true);
     const payload = serializer.getLength();
     const final = serializer.buffer.byteLength;
-    return {predicted, payload, final, grew: final > predicted};
+    // serializeBinaryBody no longer slices an owned copy; the view the adapters read is free.
+    return {predicted, payload, final, grew: final > predicted, copies: 0};
 }
 
 function pct(sorted: number[], p: number): number {
@@ -61,15 +62,16 @@ function profile(name: string, path: string, make: (i: number) => unknown, n = 2
     const payloads: number[] = [];
     let grows = 0;
     let allocated = 0;
-    let copied = 0;
+    let payloadCopies = 0;
     for (let i = 0; i < n; i++) {
         const m = measureOnce(path, chain, routeId, make(i));
         payloads.push(m.payload);
         if (m.grew) grows++;
-        // every request allocates its working buffer, plus the getBuffer() slice copy the
-        // router currently makes, plus whatever growth added on top
+        // bytes actually allocated for this request: the working buffer, including whatever
+        // growth added on top. Full-payload copies are counted separately — the serialize path
+        // should make none (adapters read a zero-copy getBufferView()).
         allocated += m.final;
-        copied += m.payload;
+        payloadCopies += m.copies;
     }
     const sorted = [...payloads].sort((a, b) => a - b);
     const mean = payloads.reduce((a, b) => a + b, 0) / payloads.length;
@@ -77,7 +79,14 @@ function profile(name: string, path: string, make: (i: number) => unknown, n = 2
         `${name.padEnd(10)} n=${n} payload(mean/p50/p90/p99/max)=` +
             `${mean.toFixed(0)}/${pct(sorted, 50)}/${pct(sorted, 90)}/${pct(sorted, 99)}/${sorted[sorted.length - 1]}` +
             ` grows=${grows} (${((grows / n) * 100).toFixed(1)}%)` +
-            ` allocKB=${(allocated / 1024).toFixed(0)} copyKB=${(copied / 1024).toFixed(0)}`
+            ` allocKB=${(allocated / 1024).toFixed(0)} payloadCopies=${payloadCopies}` +
+            ` overAlloc=${(
+                allocated /
+                Math.max(
+                    1,
+                    payloads.reduce((a, b) => a + b, 0)
+                )
+            ).toFixed(1)}x`
     );
 }
 

@@ -114,19 +114,15 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
     }
 }
 
-/** Serializes response body to binary format using the core serializeBinaryBody function */
+/** Serializes response body to binary format using the core serializeBinaryBody function.
+ *  The payload is read from `binSerializer` (getBufferView/getLength) by every platform adapter;
+ *  rawBody is deliberately NOT set for binary — it used to hold a full getBuffer() copy of the
+ *  payload that nothing consumed. */
 function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
     // For routesFlow, use routesFlowRouteIds from context for proper buffer sizing
-    const {serializer, buffer} = coreSerializeBinaryBody(
-        context.path,
-        executionChain,
-        respBody,
-        true,
-        context.routesFlowRouteIds
-    );
+    const {serializer} = coreSerializeBinaryBody(context.path, executionChain, respBody, true, context.routesFlowRouteIds);
     response.binSerializer = serializer;
-    response.rawBody = new Uint8Array(buffer);
 }
 
 function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {
