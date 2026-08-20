@@ -55,7 +55,12 @@ tree shake them like any other code.
 
 **Only what you ask for.** Generation is driven by demand. A call site says exactly which
 operations it needs for which type, and nothing else is produced. A file that only asks
-for a type id generates no validator, no JSON converter, and no binary converter.
+for a type id generates no validator, no JSON converter, and no binary converter. Two
+call sites carry a small extra beyond the obvious: `registerClassSerializer` needs only
+the class's build-time name, so it generates a tiny name card instead of the type's
+reflection graph, and `createMockDataFn` also demands the format-transform entry for its
+type so generated mock values honor declared transforms (lowercase, trim, and so on)
+without a separate `createFormatTransformFn` call.
 
 **Data only.** Validators and converters work on the JSON shaped projection of your type.
 Members that cannot survive that trip (functions, symbols, promises) are dropped, and
@@ -368,8 +373,10 @@ small, because the specialised code is generated. What ships here is:
   mock data walker, and the friendly message renderer. Note that mock data is the one
   feature that walks the type at run time rather than using generated code.
 - **Extension points**: `overrideX` to replace the generated function for one specific
-  type, `registerClassSerializer` to rebuild real class instances, plus hooks for custom
-  formats, mock functions, and helper functions.
+  type, `registerClassSerializer` to rebuild real class instances (its registration site
+  is keyed by a generated name card carrying the type id and the source class name, so
+  registering a class never pulls its reflection graph into the bundle), plus hooks for
+  custom formats, mock functions, and helper functions.
 
 There are two ways to describe a type, and they both meet in the same place. Type first
 uses plain TypeScript (`createValidateFn<User>()`). Type builders come from the

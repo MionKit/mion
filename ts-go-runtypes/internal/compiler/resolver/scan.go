@@ -627,20 +627,27 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 	if len(injecting) == 0 {
 		return nil, diags
 	}
-	// CompTimeHints slot: read the literal mock.seed hint when a marked
-	// options parameter was actually filled. Runs only on genuine marker
-	// calls (the injecting gate above), so plain calls never pay the
-	// per-parameter annotation walk. Lenient by the marker's contract — a
-	// dynamic bag simply yields no hint, never a diagnostic.
+	// CompTimeHints slot: a marked options parameter identifies a
+	// createMockDataFn-shaped signature (CompTimeHints' only reader — wrappers
+	// redeclaring the bag inherit the shape). Detection walks the SIGNATURE, so
+	// an argument-less `createMockDataFn<T>()` still counts; the literal
+	// mock.seed hint is read only when the slot was actually filled. Runs only
+	// on genuine marker calls (the injecting gate above), so plain calls never
+	// pay the per-parameter annotation walk. Lenient by the marker's contract —
+	// a dynamic bag simply yields no hint, never a diagnostic.
 	mockSeed := ""
-	for paramIndex := 0; paramIndex <= lastIndex && paramIndex < argsCount; paramIndex++ {
-		if parameters[paramIndex] == nil || callExpression == nil || callExpression.Arguments == nil {
+	mockShaped := false
+	for paramIndex := 0; paramIndex <= lastIndex && paramIndex < len(parameters); paramIndex++ {
+		if parameters[paramIndex] == nil {
 			continue
 		}
 		if !comptimeargs.IsCompTimeHintsParamNode(state.scanChecker, parameters[paramIndex], state.sess.marker) {
 			continue
 		}
-		mockSeed = extractMockSeedHint(state.scanChecker, callExpression.Arguments.Nodes[paramIndex])
+		mockShaped = true
+		if paramIndex < argsCount && callExpression != nil && callExpression.Arguments != nil {
+			mockSeed = extractMockSeedHint(state.scanChecker, callExpression.Arguments.Nodes[paramIndex])
+		}
 		break
 	}
 	// SINGLE TRAILING MARKER — the full path (reflect-form, comptime options,
@@ -653,6 +660,16 @@ func (state scanState) analyzeCall(file string, call *ast.Node) ([]pendingCall, 
 			return nil, diags
 		}
 		pending.mockSeed = mockSeed
+		// A mock site is reflection-only (bare-id injection, no fnId) but its
+		// generated values must still pass through the type's declared format
+		// transforms (lowercase / trim / …) to be canonical — the walker resolves
+		// the compiled formatTransform fn at generation time (mockType.ts
+		// lookupFormatTransform). Demand the fmt family alongside the runtype
+		// graph so that entry exists without a separate createFormatTransformFn
+		// call site; entries.go rides it on the facade's SoftDeps.
+		if pending.fnId == "" && len(pending.fnIds) == 0 && mockShaped {
+			pending.demand = mockFormatTransformDemand()
+		}
 		return []pendingCall{pending}, diags
 	}
 	// MULTI-SLOT INJECTION — several marker parameters (or a single non-trailing
@@ -1048,6 +1065,19 @@ func dedupeFnKeys(keys []string) (deduped []string, firstDup string, hadDup bool
 // operations.Canonical reads only the axis-relevant input (strategy for JSON,
 // option names for it/te, neither otherwise), so one call covers every axis.
 // Empty fnKey (a reflection-only InjectRunTypeId site) yields ("", nil).
+// mockFormatTransformDemand is the fmt-family demand a createMockDataFn-shaped
+// reflection site carries: the plain formatTransform entry for the site's type,
+// so generated mocks resolve the same compiled transform a
+// createFormatTransformFn<T>() site would compile. The site's FnId stays empty
+// (the injection is still the bare runtype tuple); entries.go loads the entry
+// through the facade's SoftDeps.
+func mockFormatTransformDemand() []protocol.SiteDemand {
+	return []protocol.SiteDemand{{
+		FamilyTag: "fmt",
+		FnHash:    operations.PlainHash("formatTransform"),
+	}}
+}
+
 func computeSiteFn(typeChecker *checker.Checker, fnKey string, options validateOptions, call *ast.Node, lastIndex, argsCount int) (string, []protocol.SiteDemand) {
 	if fnKey == "" {
 		return "", nil
