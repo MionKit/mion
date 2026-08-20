@@ -2,7 +2,7 @@
 
 **Status:** done — every TYPE mirror is gone. The one remaining item is NOT a mirror but a
 deliberate public-API decision (`setSerializationOptions` / the DataView creation signatures),
-now owned by [../todos/binary-buffer-strategy-redesign.md](../todos/binary-buffer-strategy-redesign.md).
+now owned by [binary-buffer-strategy-redesign.md](binary-buffer-strategy-redesign.md).
 **Created:** 2026-07-22
 **Updated:** 2026-07-27 (split out of the retired `docs/partially/`)
 

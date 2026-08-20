@@ -216,7 +216,7 @@ function isCapacityOverflow(err: unknown): boolean {
     return err instanceof RangeError;
 }
 
-function toRpcError(err: any, isResponse: boolean): RpcError {
+function toRpcError(err: any, isResponse: boolean): RpcError<string> {
     if (err instanceof RpcError) return err;
     return new RpcError({
         statusCode: StatusCodes.UNEXPECTED_ERROR,
