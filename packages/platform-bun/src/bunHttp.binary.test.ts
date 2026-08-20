@@ -54,7 +54,7 @@ describe('bun router binary serialization should', () => {
 
         // Serialize request body to binary
         const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
+        const requestBuffer = serializeBinaryBody('/api/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
@@ -78,7 +78,12 @@ describe('bun router binary serialization should', () => {
 
         // Serialize request body to binary
         const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionChain, requestBody, false);
+        const requestBuffer = serializeBinaryBody(
+            '/api/changeUserName',
+            executionChain,
+            requestBody,
+            false
+        ).serializer.getBuffer();
 
         const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
             method: 'POST',
@@ -103,7 +108,7 @@ describe('bun router binary serialization should', () => {
 
         // Serialize request body with no parameters (optional)
         const requestBody = {getDate: []};
-        const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
+        const requestBuffer = serializeBinaryBody('/api/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
