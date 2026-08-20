@@ -90,16 +90,18 @@ export type DeserializeClassFn<C> = (deserialized: DataOnly<C>) => C;
 
 /** Optional custom (de)serializer pair for one user-defined class. Both
  *  halves are optional; the type-system overloads on `registerClassSerializer`
- *  make `deserialize` mandatory for classes whose constructor takes args. */
+ *  make `deserialize` mandatory for classes whose constructor takes args.
+ *  Function-property signatures, not method ones: both halves are stored on
+ *  the entry and invoked standalone, never as methods with a `this`. */
 export interface ClassSerializerHandler<T> {
   /** Optional. Omit to serialize structurally (like any interface). When
    *  provided, the user owns the wire shape (on the JSON path, keep it to the
    *  declared object properties — see the custom-wire-shape follow-up). */
-  serialize?(instance: T): unknown;
+  serialize?: (instance: T) => unknown;
   /** Optional for a zero-arg class (default: `Object.assign(new cls(), data)`).
    *  Receives the data-only projection a structural decode produced (methods
    *  already gone) and returns a real instance. */
-  deserialize?(data: DataOnly<T>): T;
+  deserialize?: (data: DataOnly<T>) => T;
 }
 
 /** A stored registry entry. The emitted factory bodies read `.serialize` /
@@ -225,7 +227,7 @@ export function registerClassSerializer<T>(
 // Non-empty constructor: `deserialize` is REQUIRED (auto `new cls()` is unavailable).
 export function registerClassSerializer<T>(
   cls: AnyClass<T>,
-  handler: ClassSerializerHandler<T> & {deserialize(data: DataOnly<T>): T},
+  handler: ClassSerializerHandler<T> & {deserialize: (data: DataOnly<T>) => T},
   id?: InjectTypeFnArgs<T, 'csr'>
 ): void;
 /** Register a custom (de)serializer for a user-defined class. Pass the class

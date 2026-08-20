@@ -142,6 +142,10 @@ function expandOneProperty(escape: string, inClass: boolean): string {
   } catch {
     return escape;
   }
+  // Code points on purpose, like every other spread here. The rule's `allow: ['string']` option
+  // covers the sites typed `string` but cannot name a string LITERAL type, which is what a
+  // `const x = '…'` alphabet is — hence the one inline exception.
+  // oxlint-disable-next-line typescript/no-misused-spread
   const members = [...PROPERTY_ALPHABET].filter((char) => probe.test(char)).map(classEscape);
   if (members.length === 0) return escape;
   return inClass ? members.join('') : '[' + members.join('') + ']';

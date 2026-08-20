@@ -1,32 +1,39 @@
 ---
 type: chore
 spec: full-plan
-status: blocked
+status: done
 created: 2026-07-04
-updated: 2026-08-19
+updated: 2026-08-20
 ---
 
 # Adopt `oxlint --type-aware` for this repo's own source
 
-**Status: BLOCKED until 2026-08-20 23:21 UTC — do not start before then.** The adoption needs
-`oxlint@1.75.0` (the first stable type-aware line) plus its paired `oxlint-tsgolint@7.0.2001`,
-and the repo's `minimumReleaseAge: 43200` (30 days) in
-[`pnpm-workspace.yaml`](../../pnpm-workspace.yaml) blocks installing them until each is 30 days
-old:
+**Shipped 2026-08-20.** `oxlint --type-aware` is on by default via `options.typeAware` in
+[`.oxlintrc.json`](../../.oxlintrc.json), powered by `oxlint@1.75.0` +
+`oxlint-tsgolint@7.0.2001`, with all 14 findings resolved and the suite green. See
+[What shipped](#what-shipped) for where the outcome differed from the plan.
+
+**The wait was the whole blocker.** The adoption needed `oxlint@1.75.0` (the first stable
+type-aware line) plus its paired `oxlint-tsgolint@7.0.2001`, and the repo's
+`minimumReleaseAge: 43200` (30 days) in [`pnpm-workspace.yaml`](../../pnpm-workspace.yaml)
+blocked installing them until each turned 30 days old:
 
 | Package | Published | Installable from |
 |---------|-----------|------------------|
-| `oxlint-tsgolint@7.0.2001` | 2026-07-21 14:33 UTC | **2026-08-20 14:33 UTC** |
-| `oxlint@1.75.0` | 2026-07-21 23:21 UTC | **2026-08-20 23:21 UTC** |
+| `oxlint-tsgolint@7.0.2001` | 2026-07-21 14:33 UTC | 2026-08-20 14:33 UTC |
+| `oxlint@1.75.0` | 2026-07-21 23:21 UTC | 2026-08-20 23:21 UTC |
 
-Checked 2026-08-19: `pnpm add -Dw oxlint@1.75.0 oxlint-tsgolint@7.0.2001` still fails with
+Checked 2026-08-19, one day early, the install still failed with
 `ERR_PNPM_NO_MATURE_MATCHING_VERSION — Version 7.0.2001 (released 29 days ago) of
-oxlint-tsgolint does not meet the minimumReleaseAge constraint`. No newer oxlint helps: 1.76.0
-ages in 2026-08-26, and every oxlint ≥ 1.75.0 pins the same `oxlint-tsgolint >= 7.0.2001`, so
-1.75.0 + 7.0.2001 is the pair regardless.
+oxlint-tsgolint does not meet the minimumReleaseAge constraint`. No newer oxlint would have
+helped: 1.76.0 ages in 2026-08-26, and every oxlint ≥ 1.75.0 pins the same
+`oxlint-tsgolint >= 7.0.2001`, so 1.75.0 + 7.0.2001 was the pair regardless. It installed
+cleanly on 2026-08-20, resolving as `oxlint@1.75.0(oxlint-tsgolint@7.0.2001)` with no
+collateral bumps in the lockfile.
 
-After that timestamp this is a turnkey spec: the full scope was re-measured **on the stable
-engine** on 2026-08-19 and every resolution is written out below.
+The full scope was re-measured **on the stable engine** on 2026-08-19 (a throwaway install
+outside the repo, no policy relaxation) and every resolution written out below before the
+engine was installable — so the run itself was turnkey.
 
 **History:** the last surviving item of the OXC toolchain migration follow-ups
 (parent: [`docs/done/oxc-toolchain-migration.md`](../done/oxc-toolchain-migration.md); points 1
@@ -67,7 +74,7 @@ the 2026-07-24 pre-stable measurement below.
 | `unbound-method` ×2 | `packages/ts-runtypes/src/runtypes/classSerializerRegistry.ts:225,226` | **Real fix.** The public `ClassSerializerHandler<T>` interface (`:85`) declares `serialize?(instance)` / `deserialize?(data)` as **method** signatures, but they are stored on the entry and later invoked as standalone functions (never as methods with `this`). Align them to function-property signatures (`serialize?: (instance: T) => unknown`), matching the sibling `ClassSerializerEntry` (`:98`) which already uses that form; carry the same form into the overload at `:199`. Type-only; validate the public-API variance shift (method params are bivariant, property params contravariant) against typecheck + tests. |
 | `no-implied-eval` ×2 | `packages/ts-runtypes/src/runtypes/rtUtils.ts:274,310` | Correct detection of the **intentional** `new Function(...)` code-mode reconstruction (`buildPureFnFactoryFromCode`, `buildFactoryFromCode`). These are the only two runtime `new Function` call sites; the rest are comments. → justified inline `// oxlint-disable-next-line typescript/no-implied-eval` at both, which keeps the rule live as a tripwire for accidental `eval`. |
 | `no-base-to-string` ×1 | `packages/ts-runtypes/src/mocking/mockType.ts:871` | **Real fix.** `String(span.literal)` where `TemplateLiteralPlaceholder.literal` (`:860`) is `unknown`. A TS template-literal placeholder value is always a primitive literal — narrow the field to `string \| number \| bigint \| boolean`. Type-only change. |
-| `no-base-to-string` ×1 | `packages/ts-runtypes/src/standard/jsonSchemaDoc.ts:75` | **Real fix, new.** `String(raw)` where `raw` comes from `libraryOptions?: Record<string, unknown>` ([`spec.ts:114`](../../packages/ts-runtypes/src/standard/spec.ts)), so it genuinely is `unknown` — a user passing an object gets `[object Object]` in the error. Use `JSON.stringify(raw)` instead. |
+| `no-base-to-string` ×1 | `packages/ts-runtypes/src/standard/jsonSchemaDoc.ts:75` | **Real fix, new.** `String(raw)` where `raw` comes from `libraryOptions?: Record<string, unknown>` ([`spec.ts:114`](../../packages/ts-runtypes/src/standard/spec.ts)), so it genuinely is `unknown` — a user passing an object gets `[object Object]` in the error. Quote the string case (the realistic one, a typo) and name the type otherwise. |
 | `no-misused-spread` ×7 | `mocking/mockStringFormat.ts:263`, `formats/string/string-formats-pure-fns.ts:206,269,327,329`, `ts-runtypes-go-be-sidecar/src/jobs.ts:145,216` | **All intentional, new.** Every site is `[...str]` used deliberately for **code-point** iteration — the JSON Schema `minLength`/`maxLength` semantics the emitted validators check, plus punycode/IDNA processing. The rule's own warning (that spreading splits emoji into code points) is precisely the behaviour these sites want. → configure `"typescript/no-misused-spread": ["error", {"allow": ["string"]}]`, verified on a probe to clear all string spreads while still catching the dangerous half (spreading a `Map` into an object literal). Cheaper and more honest than 7 inline suppressions. |
 | `restrict-template-expressions` ×1 | `packages/ts-runtypes-devtools/src/unplugin.ts:389` | **Real fix — this is NOT the false positive the 2026-07-24 run recorded.** The stable engine labels it `Type: never` on the interpolated `MODULE_MODE_ALL_MODULES`, and **`tsc` agrees**: after `moduleMode !== MODULE_MODE_DEFAULT && … !== MODULE_MODE_ALL_SINGLE` the checked value is already `never`, and the third comparison narrows the *constant itself* to `never`. Confirmed with a reduced probe — inside that branch `const probe: number = C` compiles clean (so `C` is `never`) while the same line against the first constant errors with `Type 'string' is not assignable to type 'number'`. → hoist the three modes into a module-level `as const` tuple, validate with `.includes(...)`, and build the "expected" list from that tuple; the narrowing and the triplicated literals both go away. |
 
@@ -101,7 +108,40 @@ That run is why the adoption waited: baking suppressions around **engine bugs** 
 issues is a bad thing to commit, so the chosen path was to wait for the stable engine to age past
 `minimumReleaseAge` and adopt cleanly — no supply-chain-policy relaxation, no workarounds.
 
-## Plan (execute on/after 2026-08-20 23:21 UTC)
+## What shipped
+
+Executed 2026-08-20, in one pass, on branch `chore/adopt-oxlint-type-aware`. The plan below
+held; four things came out differently and are worth knowing:
+
+1. **`no-misused-spread` needed the config option AND one inline suppression.** The
+   `{"allow": ["string"]}` option clears 6 of the 7 code-point spreads, but not
+   `jobs.ts:145` — `PROPERTY_ALPHABET` is a `const x = '…'`, so its type is a string
+   *literal*, and the option's type specifier cannot name one. Verified against the engine
+   with three specifier shapes (`"string"`, `"String"`, `{from: 'lib', name: 'String'}`);
+   all leave a literal-typed spread flagged. The site therefore carries a justified inline
+   suppression explaining why it is the exception, rather than widening the constant's type
+   to satisfy a linter. Final tally: **3 suppressions** (2 × `no-implied-eval`,
+   1 × `no-misused-spread`) and 4 code fixes.
+2. **The `mockType.ts` narrowing is `string | number | boolean`**, not the
+   `string | number | bigint | boolean` the plan guessed. `templateSpanWireShape` in
+   [`cachegen/runtype/serialize.go`](../../ts-go-runtypes/internal/cachegen/runtype/serialize.go)
+   emits a `literal` field for string, number and boolean literal spans only; a bigint span
+   gets `KindBigInt` with no value, and a bigint *literal* falls through to the string-shaped
+   fallback. The field is typed to exactly what the emitter can write.
+3. **The moduleMode guard moved into its own module** rather than being restructured in
+   place. It ran inside `ensureResolver`, a closure that needs a real resolver child, so it
+   was extracted to `packages/ts-runtypes-devtools/src/module-mode.ts` (exporting
+   `MODULE_MODES` and `assertValidModuleMode`) and unit-tested directly — the same pattern
+   `buildResolverArgs` uses for `resolver-args.test.ts`. Keeping it out of `unplugin.ts` also
+   keeps the published `./unplugin` entry's surface unchanged.
+4. **The test is `module-mode-guard.test.ts`**, because `module-mode.test.ts` already exists
+   and covers what each mode emits. The new file covers only the option guard.
+
+Verified: `pnpm run lint` clean (108 files, 115 rules — up from 100 without type-aware),
+`pnpm test` 277 files / 9332 tests passing, `pnpm run check-format` clean, and
+`pnpm install --frozen-lockfile` clean. No Go source changed.
+
+## Plan as written (executed 2026-08-20)
 
 1. **Deps** — root [`package.json`](../../package.json) devDependencies (exact-pinned per
    policy): bump `oxlint` `1.68.0` → `1.75.0` and add `oxlint-tsgolint@7.0.2001`, via
@@ -133,14 +173,16 @@ issues is a bad thing to commit, so the chosen path was to wait for the stable e
    ~line 192 that enumerates what the oxlint pass covers). Then reconcile this spec with what
    actually shipped and `git mv` it into `docs/done/`.
 
-## Done when
+## Done when — all met
 
-- `oxlint --type-aware` is on by default in `.oxlintrc.json` and green across `pnpm run lint`,
-  `ci.yml`, and `release-gate.yml`.
-- All 14 findings are resolved: 4 real code fixes, 2 justified inline suppressions at the
-  `new Function` sites, and the `no-misused-spread` string allowance covering the 7 code-point
-  spreads.
-- `pnpm test` and `pnpm run check-format` stay green.
+- ✅ `oxlint --type-aware` is on by default in `.oxlintrc.json` and green under
+  `pnpm run lint`. `ci.yml` and `release-gate.yml` both call that same script and need no
+  change of their own — the runner picks the engine up through the existing
+  `pnpm install --frozen-lockfile`.
+- ✅ All 14 findings resolved: 4 code fixes, 2 justified suppressions at the `new Function`
+  sites, the `no-misused-spread` string allowance covering 6 of the 7 code-point spreads, and
+  1 suppression for the seventh (see [What shipped](#what-shipped)).
+- ✅ `pnpm test` and `pnpm run check-format` green.
 
 ## Out of scope
 
@@ -161,6 +203,8 @@ scope the hook away from it.
 
 Mostly a lint-config chore whose acceptance is the existing suite staying green with the rules
 active, and four of the six resolutions are type-only. One exception: the `moduleMode` validation
-in `unplugin.ts` has **no test at all** today and this change rewrites it, so add a small Vitest
-under [`packages/ts-runtypes-devtools/test/`](../../packages/ts-runtypes-devtools/test/) covering
-an accepted mode and a rejected one (whose message should name all three valid modes).
+in `unplugin.ts` had **no test at all** and this change rewrote it, so
+[`module-mode-guard.test.ts`](../../packages/ts-runtypes-devtools/test/module-mode-guard.test.ts)
+was added — 4 cases: every declared mode accepted, `undefined` accepted, an unknown mode rejected
+with a message naming all three valid modes, and a `satisfies` guard so the `MODULE_MODES` tuple
+cannot silently stop covering the `ModuleMode` union.

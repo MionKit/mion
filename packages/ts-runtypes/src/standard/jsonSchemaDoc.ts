@@ -72,7 +72,10 @@ function encoderStrategyOf(options?: StandardJSONSchemaOptions): JsonEncoderStra
   const raw = options?.libraryOptions?.encoderStrategy;
   if (raw === undefined) return undefined;
   if (!ENCODER_STRATEGIES.has(raw as JsonEncoderStrategy)) {
-    throw new RangeError(`unknown encoderStrategy '${String(raw)}' (expected 'clone' | 'mutate' | 'direct')`);
+    // `raw` is unknown (libraryOptions is Record<string, unknown>): quote the string case (the
+    // real one, a typo) and name the type otherwise, rather than stringifying to [object Object].
+    const shown = typeof raw === 'string' ? `'${raw}'` : `a ${typeof raw}`;
+    throw new RangeError(`unknown encoderStrategy ${shown} (expected 'clone' | 'mutate' | 'direct')`);
   }
   if (raw === 'compact') {
     throw new RangeError(

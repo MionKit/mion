@@ -3,6 +3,9 @@
   "categories": {
     "correctness": "error"
   },
+  "options": {
+    "typeAware": true
+  },
   "plugins": ["typescript", "oxc", "unicorn"],
   "jsPlugins": ["./packages/ts-runtypes-devtools/dist/eslint/index.js"],
   "rules": {
@@ -13,7 +16,8 @@
     "no-empty-function": "off",
     "typescript/no-empty-function": "off",
     "typescript/no-explicit-any": "off",
-    "typescript/no-empty-object-type": "error"
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-misused-spread": ["error", {"allow": ["string"]}]
   },
   "ignorePatterns": [
     "node_modules/**",

@@ -6,12 +6,8 @@ import {renderHeadline} from './diagnosticCatalog.ts';
 import {ResolverClient} from './resolver-client.ts';
 import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type Diagnostic, type PureFnSite} from './protocol.ts';
-import {
-  MODULE_MODE_ALL_MODULES,
-  MODULE_MODE_ALL_SINGLE,
-  MODULE_MODE_DEFAULT,
-  type ModuleMode,
-} from './go-generated/runtypes-constants.generated.ts';
+import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
+import {assertValidModuleMode} from './module-mode.ts';
 
 // PluginOptions is the host-plugin surface. The CANONICAL place to configure
 // the compiler's PROJECT knobs (emitMode, moduleMode, inlineMode, cacheDir,
@@ -393,16 +389,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     //
     // Surface a config typo at the host boundary (the binary validates the
     // merged value too) — only when the user actually set moduleMode.
-    if (
-      options.moduleMode !== undefined &&
-      options.moduleMode !== MODULE_MODE_DEFAULT &&
-      options.moduleMode !== MODULE_MODE_ALL_SINGLE &&
-      options.moduleMode !== MODULE_MODE_ALL_MODULES
-    ) {
-      throw new Error(
-        `[@ts-runtypes/devtools] unknown moduleMode ${JSON.stringify(options.moduleMode)} — expected '${MODULE_MODE_DEFAULT}' | '${MODULE_MODE_ALL_SINGLE}' | '${MODULE_MODE_ALL_MODULES}'`
-      );
-    }
+    assertValidModuleMode(options.moduleMode);
     // Explicit path wins; otherwise resolve the host-platform binary from the
     // ts-runtypes-bin launcher (throws with a clear message if none is installed).
     const binaryPath = options.binary ?? getExePath();
