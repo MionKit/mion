@@ -79,11 +79,15 @@ function isConvertibleShape(shape: TypeShape): boolean {
   return childShapes(shape).every(isConvertibleShape);
 }
 
-function isConvertibleGen(gen: GeneratedType): boolean {
+/** Exported for sibling lanes that feed the converter (the elision lane
+ *  pre-filters its generated shapes with the same designed-refusal list). **/
+export function isConvertibleGen(gen: GeneratedType): boolean {
   return isConvertibleShape(gen.root) && gen.decls.every((decl) => declShapes(decl).every(isConvertibleShape));
 }
 
-function declShapes(decl: Decl): TypeShape[] {
+/** Exported alongside isConvertibleGen for sibling lanes walking a generated
+ *  type's full shape set (root + declarations). **/
+export function declShapes(decl: Decl): TypeShape[] {
   switch (decl.kind) {
     case 'interface':
       return [...decl.props.map((prop) => prop.shape), ...(decl.calls ?? []).flatMap((sig) => [...sig.params, sig.ret])];

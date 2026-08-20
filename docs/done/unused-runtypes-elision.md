@@ -142,18 +142,21 @@ update its expectations or give it a real use — surface anything surprising.
 New `elision` lane under `packages/ts-runtypes/test/fuzz/elision/`
 (`pnpm rtx core fuzz elision`, quick/soak via `RT_FUZZ_ELISION_SOAK_MS`, wired
 into the rt.mjs FUZZ registry / env registry / .env.sample / ci.yml /
-fuzz-soak.yml, all pinned by fuzz-lane-contracts). Per generated builder schema
-(a deliberately narrow JSON-pure generator, `builderGen.ts`) both spellings
-compile through the real resolver and the oracles check: E0 fixture integrity
-(exactly three createX sites per spelling), E1 entry equivalence (every module
-the static form emits exists BYTE-IDENTICALLY in the value form's output —
-stronger than probing values, since both spellings share type id + fnHashes),
-E2 emission split (static: no bundle, no reflection site; value: both kept),
-E3 behavior floor on the static form (validate accepts/rejects correctly, JSON
-round-trip, no Error diagnostics). Negative controls in
-`elisionOracle.unit.test.ts` prove every oracle fires on broken output. The
-lane's first run caught a generator bug (wrong union arity typing to `any`) —
-E0 exists because of it.
+fuzz-soak.yml, all pinned by fuzz-lane-contracts). Coverage runs over the FULL
+generated type space with ONE generator: each iteration draws from `typeGen`
+(the convert lane's space) and derives the builder spellings with the REAL
+`ts-runtypes convert --to builders` CLI — no hand-written builder printer, so
+nothing can drift from the product converter, and the converted output IS the
+static spelling (const + InferType alias + static calls); the value spelling
+is a tail swap of the lane's own three calls. Oracles: E0 fixture integrity,
+E1 same fn keys + byte-identical function-side modules (positions in
+alwaysThrow messages normalized), E2 differential escape-aware emission split
+(a `getRunType` escape is never elidable and rides both spellings), E3
+validator behavior floor on the provably-modelable tier. Designed converter
+refusals re-roll and are reported; negative controls prove every oracle fires
+on broken output. (An earlier narrow hand-rolled generator, `builderGen.ts`,
+was replaced by this converter-backed design in the same PR — its first run
+had already caught its own wrong-arity fixture bug, which is why E0 exists.)
 
 ## Out of scope
 
