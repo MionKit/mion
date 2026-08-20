@@ -165,9 +165,11 @@ bugs, both fixed in the same PR with pinned regression tests:
   patternProperties / propertyNames splice over a base that had degraded to
   the unsupported-sentinel `CodeNS` hard-failed the resolver instead of
   propagating the sentinel to the alwaysThrow lane
-  (`validate_ns_splice_test.go`). The lane grew the E4 oracle from it: a
-  hard resolver error is captured as a replayable finding (seed included)
-  instead of crashing the soak.
+  (`validate_ns_splice_test.go`). The crash also motivated a GENERIC
+  mechanism, `test/fuzz/core/crashGuard.ts`: every lane's loop now wraps its
+  iteration body in a guard that records a hard failure as a replayable
+  `{seed, message}` crash on the report instead of killing the soak (with a
+  consecutive-crash ceiling so a broken harness still fails fast).
 - `internal/convert/print.go` — a builders conversion of a recursive named
   type whose cycle needs a getRunType escape kept the partner's NAME inside
   the escape's type text; after conversion that name resolves through an

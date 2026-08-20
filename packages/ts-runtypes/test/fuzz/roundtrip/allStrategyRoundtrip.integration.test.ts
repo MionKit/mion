@@ -13,6 +13,7 @@ import {hasBinary} from './roundtripHarness.ts';
 import {runRoundtripFuzz, runRoundtripFuzzForDuration} from './roundtripRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {entrySeed} from '../core/fuzzPolicy.ts';
+import {renderCrashes} from '../core/crashGuard.ts';
 
 describe('fuzz / all-strategy round-trip — every codec agrees over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -21,15 +22,16 @@ describe('fuzz / all-strategy round-trip — every codec agrees over generated t
     'finds no oracle violations across a batch of generated types',
     async () => {
       const report = await runRoundtripFuzz({seed: entrySeed('roundtrip'), iterations: 100});
-      if (report.violations.length > 0) {
+      if (report.violations.length > 0 || report.crashes.length > 0) {
         const summary = report.violations
           .slice(0, 25)
           .map((v) => `  [${v.oracle}/${v.lane}] ${v.target} (seed=${v.seed}): ${v.message}\n      ${v.value}`)
           .join('\n');
         throw new Error(
-          `${report.violations.length} oracle violation(s) over ${report.runs} generated types ` +
+          `${report.violations.length} oracle violation(s) + ${report.crashes.length} crash(es) over ${report.runs} generated types ` +
             `(${report.checked} checked, ${report.skipped} skipped, ${report.skippedInvalidTypes} invalid-TS filtered):\n${summary}` +
-            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '')
+            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '') +
+            (report.crashes.length > 0 ? `\n${renderCrashes(report.crashes)}` : '')
         );
       }
       expect(report.runs).toBe(100);
@@ -53,6 +55,7 @@ describe('fuzz / all-strategy round-trip — every codec agrees over generated t
           `${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
       expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
+      if (report.crashes.length > 0) throw new Error(renderCrashes(report.crashes));
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

@@ -14,6 +14,7 @@ import {hasBinary} from './typeFuzzHarness.ts';
 import {runTypeFuzz, runTypeFuzzForDuration} from './typeFuzzRunner.ts';
 import {soakTestTimeout, pathologyReport} from '../core/soakBudget.ts';
 import {entrySeed, SUPPRESSION_CEILING, STRONG_ORACLE_FLOOR} from '../core/fuzzPolicy.ts';
+import {renderCrashes} from '../core/crashGuard.ts';
 
 describe('fuzz / type-generation — oracle sweep over generated types', () => {
   const register = hasBinary() ? it : it.skip;
@@ -22,14 +23,15 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
     'finds no oracle violations across a batch of generated types',
     async () => {
       const report = await runTypeFuzz({seed: entrySeed('types'), iterations: 100});
-      if (report.violations.length > 0) {
+      if (report.violations.length > 0 || report.crashes.length > 0) {
         const summary = report.violations
           .slice(0, 25)
           .map((v) => `  [${v.oracle}/${v.phase}] ${v.target} (seed=${v.seed}): ${v.message}\n      ${v.value}`)
           .join('\n');
         throw new Error(
-          `${report.violations.length} oracle violation(s) over ${report.runs} generated types:\n${summary}` +
-            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '')
+          `${report.violations.length} oracle violation(s) + ${report.crashes.length} crash(es) over ${report.runs} generated types:\n${summary}` +
+            (report.violations.length > 25 ? `\n  …and ${report.violations.length - 25} more` : '') +
+            (report.crashes.length > 0 ? `\n${renderCrashes(report.crashes)}` : '')
         );
       }
       expect(report.runs).toBe(100);
@@ -65,6 +67,7 @@ describe('fuzz / type-generation — oracle sweep over generated types', () => {
         `[type-fuzz] soak finished: ${report.runs} types, ${report.violations.length} violation(s), ${report.skippedInvalidTypes} invalid-TS false positive(s) filtered`
       );
       expect(pathologyReport(report.slowestIterationMs, report.slowestIterationRound)).toBeNull();
+      if (report.crashes.length > 0) throw new Error(renderCrashes(report.crashes));
       expect(report.violations).toHaveLength(0);
     },
     soakTestTimeout(soakMs)

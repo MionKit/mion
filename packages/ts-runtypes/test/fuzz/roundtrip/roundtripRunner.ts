@@ -18,6 +18,7 @@ import {genValidValue, valueOracleSafe} from '../value/shapeValue.ts';
 import {isValidTypeScript} from '../type/tsValidate.ts';
 import {compileCodecs, openClient, renderFixture, type CompiledCodecs} from './roundtripHarness.ts';
 import {checkRoundtrip, snapshot, type RoundtripViolation} from './roundtripOracle.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import type {ResolverClient} from '../../../../ts-runtypes-devtools/src/resolver-client.ts';
 
 export interface RoundtripFuzzOptions {
@@ -31,6 +32,9 @@ export interface RoundtripFuzzReport {
   iterations: number;
   seed: number;
   violations: RoundtripViolation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts), each with
+   *  its replay seed. **/
+  crashes: CrashRecord[];
   /** Types that round-tripped through at least one lane (the oracle ran). **/
   checked: number;
   /** Types skipped before the oracle (resolver/eval error, error diagnostics,
@@ -88,16 +92,18 @@ export async function runRoundtripFuzz(options: RoundtripFuzzOptions = {}): Prom
   const violations: RoundtripViolation[] = [];
   const stats: FuzzStats = {checked: 0, skipped: 0, skippedInvalidTypes: 0};
   const holder = new ClientHolder();
+  const guard = startCrashGuard();
   let runs = 0;
   try {
     for (let i = 0; i < iterations; i++) {
       runs++;
-      await fuzzOne(holder, mixSeed(seed, 'roundtrip', i), gen, violations, stats);
+      const iterSeed = mixSeed(seed, 'roundtrip', i);
+      await guard.run(iterSeed, () => fuzzOne(holder, iterSeed, gen, violations, stats));
     }
   } finally {
     holder.close();
   }
-  return {runs, iterations, seed, violations, ...stats};
+  return {runs, iterations, seed, violations, crashes: guard.crashes, ...stats};
 }
 
 export async function runRoundtripFuzzForDuration(
@@ -110,6 +116,7 @@ export async function runRoundtripFuzzForDuration(
   const violations: RoundtripViolation[] = [];
   const stats: FuzzStats = {checked: 0, skipped: 0, skippedInvalidTypes: 0};
   const holder = new ClientHolder();
+  const guard = startCrashGuard();
   let runs = 0;
   let round = 0;
   const budget = startSoakBudget(durationMs);
@@ -117,7 +124,8 @@ export async function runRoundtripFuzzForDuration(
     while (budget.canStart()) {
       runs++;
       const before = violations.length;
-      await fuzzOne(holder, mixSeed(seed, 'roundtrip', round), gen, violations, stats);
+      const iterSeed = mixSeed(seed, 'roundtrip', round);
+      await guard.run(iterSeed, () => fuzzOne(holder, iterSeed, gen, violations, stats));
       if (onViolation) for (let k = before; k < violations.length; k++) onViolation(violations[k]);
       round++;
       budget.mark();
@@ -130,6 +138,7 @@ export async function runRoundtripFuzzForDuration(
     iterations: round,
     seed,
     violations,
+    crashes: guard.crashes,
     ...stats,
     slowestIterationMs: budget.slowestIterationMs(),
     slowestIterationRound: budget.slowestIterationRound(),

@@ -11,6 +11,7 @@
 // and as a standalone long-running soak (see runFuzzForDuration).
 
 import {mixSeed, withSeededRandom} from '../core/seededRng.ts';
+import {startCrashGuard, type CrashRecord} from '../core/crashGuard.ts';
 import {startSoakBudget} from '../core/soakBudget.ts';
 import {mutateToInvalid} from './invalidValue.ts';
 import {
@@ -36,6 +37,9 @@ export interface FuzzReport {
   iterations: number;
   seed: number;
   violations: Violation[];
+  /** Hard failures captured by the crash guard (core/crashGuard.ts), each with
+   *  its replay seed. **/
+  crashes: CrashRecord[];
   /** Duration runs only: the slowest single iteration and its zero-based round,
    *  for the soak pathology tripwire (SOAK_ITERATION_CEILING_MS). **/
   slowestIterationMs?: number;
@@ -49,18 +53,21 @@ export function runFuzz(targets: FuzzTarget[], options: FuzzOptions = {}): FuzzR
   const seed = options.seed ?? 0x1234abcd;
   const iterations = options.iterations ?? DEFAULT_ITERATIONS;
   const violations: Violation[] = [];
+  const guard = startCrashGuard();
   let runs = 0;
 
   for (const target of targets) {
     for (let i = 0; i < iterations; i++) {
       const iterSeed = mixSeed(seed, target.title, i);
-      withSeededRandom(iterSeed, () => {
-        runs++;
-        fuzzOneIteration(target, iterSeed, violations);
-      });
+      guard.runSync(iterSeed, () =>
+        withSeededRandom(iterSeed, () => {
+          runs++;
+          fuzzOneIteration(target, iterSeed, violations);
+        })
+      );
     }
   }
-  return {runs, iterations, seed, violations};
+  return {runs, iterations, seed, violations, crashes: guard.crashes};
 }
 
 /** Soak mode: keep fuzzing until `durationMs` elapses, logging violations as
@@ -74,6 +81,7 @@ export function runFuzzForDuration(
 ): FuzzReport {
   const seed = options.seed ?? Date.now() >>> 0;
   const violations: Violation[] = [];
+  const guard = startCrashGuard();
   let runs = 0;
   let round = 0;
   // One "iteration" is a full round over every target — the budget refuses to
@@ -84,12 +92,14 @@ export function runFuzzForDuration(
   while (budget.canStart()) {
     for (const target of targets) {
       const iterSeed = mixSeed(seed, target.title, round);
-      withSeededRandom(iterSeed, () => {
-        runs++;
-        const before = violations.length;
-        fuzzOneIteration(target, iterSeed, violations);
-        if (onViolation) for (let i = before; i < violations.length; i++) onViolation(violations[i]);
-      });
+      guard.runSync(iterSeed, () =>
+        withSeededRandom(iterSeed, () => {
+          runs++;
+          const before = violations.length;
+          fuzzOneIteration(target, iterSeed, violations);
+          if (onViolation) for (let i = before; i < violations.length; i++) onViolation(violations[i]);
+        })
+      );
     }
     round++;
     budget.mark();
@@ -98,6 +108,7 @@ export function runFuzzForDuration(
     runs,
     iterations: round,
     seed,
+    crashes: guard.crashes,
     violations,
     slowestIterationMs: budget.slowestIterationMs(),
     slowestIterationRound: budget.slowestIterationRound(),
