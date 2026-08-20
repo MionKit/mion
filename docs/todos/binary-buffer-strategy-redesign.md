@@ -251,7 +251,31 @@ open by [../done/dewrapper-core-ts-runtypes-proxies.md](../done/dewrapper-core-t
 
 Each phase is independently shippable and independently measurable.
 
-**Phase 0 — benchmark first.** `packages/core/src/binary/binary.bench.ts` (vitest bench) plus a
+**Phase 0 — benchmark first. DONE** (`packages/router/src/routes/binaryBuffer.bench.ts`, run with
+`pnpm exec vitest bench --project router binaryBuffer`). Baseline on current code:
+
+| profile | payload mean/p50/p90/p99/max | grows | allocated | payload copied |
+| --- | --- | --- | --- | --- |
+| `tiny` (number) | 17/17/17/17/17 B | 0.0% | 49 KB / 2000 req | 33 KB |
+| `small` (object) | 35/36/36/36/36 B | 0.1% | 87 KB / 2000 req | 69 KB |
+| `skewed` (fat-tailed list) | 541/87/112/11973/13713 B | **4.9%** | **4929 KB / 1000 req** | 528 KB |
+
+Two things the numbers settle:
+
+- **E4 is real and expensive.** On the fat-tailed profile `mean + 2σ` allocates **~9.3× the bytes
+  actually written** (4929 KB for 528 KB of payload) *and still* misses 4.9% of the time. That is the
+  characteristic failure of a symmetric predictor on a skewed distribution: it pays for headroom on
+  every request and buys accuracy on none. A p90 predictor would size the 95% small responses at
+  ~112 B and let the fat tail grow.
+- **The flat cold start is a one-request cost, not a per-request one.** `tiny`'s 49 KB is 16 KiB of
+  cold start plus ~17 B × 2000; upstream's warm prediction is already tight. So the compile-time
+  estimate matters most for **short-lived / serverless** processes where history never warms — which
+  is exactly what upstream's own comment says it is for.
+
+`copied` is the wasted `getBuffer()` slice from E2 — a full second copy of every payload, which
+Phase 1 removes outright.
+
+**Phase 0 harness (original scope).** `packages/core/src/binary/binary.bench.ts` (vitest bench) plus a
 metrics harness reporting **allocations, grow count** (derived honestly: final `buffer.byteLength`
 vs. the size requested), **retry count, predicted-vs-actual spread, string-cache hit rate, ns/op** —
 over payload profiles: small/uniform, medium, right-skewed with a fat tail, and a routesFlow
