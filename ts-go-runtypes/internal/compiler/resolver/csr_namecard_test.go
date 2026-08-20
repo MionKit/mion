@@ -25,8 +25,11 @@ registerClassSerializer(WireThing);
 	if !strings.Contains(source, "WireThing") {
 		t.Errorf("the csr card must carry the build-time class name, got: %s", source)
 	}
+	// The bundle's module basename is the fixed `runtypes`
+	// (entrymodules.ModuleName special-cases KindRunTypeBundle); check the
+	// entry-key prefix too so either representation trips the assertion.
 	for basename := range resp.EntryModules {
-		if strings.HasPrefix(basename, "rts_") {
+		if basename == "runtypes" || strings.HasPrefix(basename, "rts_") {
 			t.Errorf("a registration-only file must not emit the runtype data bundle, got %s", basename)
 		}
 	}
