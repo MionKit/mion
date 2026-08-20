@@ -30,7 +30,7 @@ describe('Binary Serialization at Router Level', () => {
 
         // Serialize request body to binary
         const requestBody = {[routeId]: params};
-        const {buffer: requestBuffer} = serializeBinaryBody(path, executionChain, requestBody, false);
+        const requestBuffer = serializeBinaryBody(path, executionChain, requestBody, false).serializer.getBuffer();
 
         // Dispatch the request
         const response = await dispatchRoute(
@@ -44,7 +44,7 @@ describe('Binary Serialization at Router Level', () => {
         );
 
         // Deserialize binary response
-        const {body: responseBody} = deserializeBinaryBody(path, response.rawBody as ArrayBuffer, true);
+        const {body: responseBody} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
 
         return {response, responseBody};
     }
@@ -247,7 +247,7 @@ describe('Binary Serialization at Router Level', () => {
                 echo: ['test'],
                 session: ['valid-token'],
             };
-            const {buffer: requestBuffer} = serializeBinaryBody(path, executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody(path, executionChain, requestBody, false).serializer.getBuffer();
 
             // Dispatch the request
             const response = await dispatchRoute(
@@ -261,7 +261,7 @@ describe('Binary Serialization at Router Level', () => {
             );
 
             // Deserialize binary response
-            const {body: responseBody} = deserializeBinaryBody(path, response.rawBody as ArrayBuffer, true);
+            const {body: responseBody} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
 
             expect(responseBody.echo).toBe('test');
             expect(responseBody.session).toEqual({valid: true, userId: 'user-123'});
@@ -276,7 +276,7 @@ describe('Binary Serialization at Router Level', () => {
                 echo: ['test'],
                 session: [],
             };
-            const {buffer: requestBuffer} = serializeBinaryBody(path, executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody(path, executionChain, requestBody, false).serializer.getBuffer();
 
             // Dispatch the request
             const response = await dispatchRoute(
@@ -290,7 +290,7 @@ describe('Binary Serialization at Router Level', () => {
             );
 
             // Deserialize binary response
-            const {body: responseBody} = deserializeBinaryBody(path, response.rawBody as ArrayBuffer, true);
+            const {body: responseBody} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
 
             expect(responseBody.echo).toBe('test');
             expect(responseBody.session).toBeNull();
@@ -305,7 +305,7 @@ describe('Binary Serialization at Router Level', () => {
                 echo: ['test'],
                 session: ['invalid'],
             };
-            const {buffer: requestBuffer} = serializeBinaryBody(path, executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody(path, executionChain, requestBody, false).serializer.getBuffer();
 
             // Dispatch the request
             const response = await dispatchRoute(
@@ -319,7 +319,7 @@ describe('Binary Serialization at Router Level', () => {
             );
 
             // Deserialize binary response
-            const {body: responseBody} = deserializeBinaryBody(path, response.rawBody as ArrayBuffer, true);
+            const {body: responseBody} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
 
             expect(responseBody.echo).toBe('test');
             expect(responseBody.session).toEqual({valid: false});

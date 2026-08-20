@@ -174,8 +174,6 @@ function reply(
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });
-            // Mark buffer as ended immediately - Bun copies the buffer to the response
-            serializer.markAsEnded();
             return response;
         }
         default: {

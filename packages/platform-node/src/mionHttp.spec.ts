@@ -225,7 +225,7 @@ describe('node http router', () => {
 
             // Serialize request body to binary
             const requestBody = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody('/api/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
                 method: 'POST',
@@ -249,7 +249,12 @@ describe('node http router', () => {
 
             // Serialize request body to binary
             const requestBody = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/changeUserName', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody(
+                '/api/changeUserName',
+                executionChain,
+                requestBody,
+                false
+            ).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port}/api/changeUserName`, {
                 method: 'POST',
@@ -274,7 +279,7 @@ describe('node http router', () => {
 
             // Serialize request body with no params (optional dataPoint)
             const requestBody = {getDate: [undefined]};
-            const {buffer: requestBuffer} = serializeBinaryBody('/api/getDate', executionChain, requestBody, false);
+            const requestBuffer = serializeBinaryBody('/api/getDate', executionChain, requestBody, false).serializer.getBuffer();
 
             const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
                 method: 'POST',

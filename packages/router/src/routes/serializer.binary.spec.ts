@@ -93,9 +93,9 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        // rawBody should be a Uint8Array for binary
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
-        expect((response.rawBody as Uint8Array).length).toBeGreaterThan(0);
+        // binary payload is read from binSerializer, not rawBody
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getLength()).toBeGreaterThan(0);
     });
 
     it('should serialize number response to binary', async () => {
@@ -108,7 +108,7 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     });
 
     it('should serialize complex object response to binary', async () => {
@@ -128,8 +128,8 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
-        expect((response.rawBody as Uint8Array).length).toBeGreaterThan(0);
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getLength()).toBeGreaterThan(0);
     });
 
     it('should serialize array response to binary', async () => {
@@ -142,7 +142,7 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     });
 
     it('should handle void return (no return data) in binary mode', async () => {
@@ -156,7 +156,7 @@ describe('Binary Serialization - Router', () => {
         serializeResponseBody(context, opts);
 
         // Should still produce binary output even for void
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     });
 
     it('should follow the binary protocol format for responses', async () => {
@@ -168,7 +168,7 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        const rawBody = response.rawBody as BinaryInput;
+        const rawBody = response.binSerializer!.getBufferView() as BinaryInput;
         const deserializer = createDataViewDeserializer('test-response', rawBody);
 
         // Read number of methods
@@ -195,7 +195,7 @@ describe('Binary Serialization - Router', () => {
 
         serializeResponseBody(context, opts);
 
-        const rawBody = response.rawBody as BinaryInput;
+        const rawBody = response.binSerializer!.getBufferView() as BinaryInput;
         const deserializer = createDataViewDeserializer('test-response', rawBody);
 
         // Read number of methods (should be 1 - only sayHello has return data)
@@ -211,7 +211,7 @@ describe('Binary Serialization - Router', () => {
 
         // Serialize
         const originalBody = {sayHello: 'Hello, World!'};
-        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, true);
+        const buffer = serializeBinaryBody('/sayHello', executionChain, originalBody, true).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/sayHello', buffer, true);
@@ -225,7 +225,7 @@ describe('Binary Serialization - Router', () => {
 
         // Serialize
         const originalBody = {addNumbers: 42};
-        const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, true);
+        const buffer = serializeBinaryBody('/addNumbers', executionChain, originalBody, true).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', buffer, true);
@@ -239,7 +239,7 @@ describe('Binary Serialization - Router', () => {
 
         // Serialize
         const originalBody = {processArray: [1, 2, 3, 4, 5]};
-        const {buffer} = serializeBinaryBody('/processArray', executionChain, originalBody, true);
+        const buffer = serializeBinaryBody('/processArray', executionChain, originalBody, true).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/processArray', buffer, true);
@@ -261,7 +261,7 @@ describe('Binary Serialization - Router', () => {
                 createdAt: originalDate,
             },
         };
-        const {buffer} = serializeBinaryBody('/getUser', executionChain, originalBody, true);
+        const buffer = serializeBinaryBody('/getUser', executionChain, originalBody, true).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/getUser', buffer, true);
@@ -278,7 +278,7 @@ describe('Binary Serialization - Router', () => {
 
         // Serialize request params (isResponse = false)
         const originalBody = {sayHello: ['World']};
-        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, false);
+        const buffer = serializeBinaryBody('/sayHello', executionChain, originalBody, false).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/sayHello', buffer, false);
@@ -292,7 +292,7 @@ describe('Binary Serialization - Router', () => {
 
         // Serialize request params (isResponse = false)
         const originalBody = {addNumbers: [10, 25]};
-        const {buffer} = serializeBinaryBody('/addNumbers', executionChain, originalBody, false);
+        const buffer = serializeBinaryBody('/addNumbers', executionChain, originalBody, false).serializer.getBuffer();
 
         // Deserialize (uses routesCache internally)
         const {body: deserializedBody} = deserializeBinaryBody('/addNumbers', buffer, false);
@@ -306,7 +306,7 @@ describe('Binary Serialization - Router', () => {
 
         // Create binary request body using core serializeBinaryBody
         const originalBody = {sayHello: ['World']};
-        const {buffer} = serializeBinaryBody('/sayHello', executionChain, originalBody, false);
+        const buffer = serializeBinaryBody('/sayHello', executionChain, originalBody, false).serializer.getBuffer();
 
         const context = getNewBinaryContext('/sayHello', buffer);
 
@@ -375,8 +375,8 @@ describe('Binary Serialization - Router', () => {
 
         // Should use binary content-type
         expect(response.headers.get('content-type')).toBe('application/octet-stream');
-        // rawBody should be a Uint8Array
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        // binary payload is read from binSerializer, not rawBody
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     });
 
     it('should use router default when route does not specify serializer option', async () => {
@@ -394,7 +394,7 @@ describe('Binary Serialization - Router', () => {
 
         // Should use binary content-type
         expect(response.headers.get('content-type')).toBe('application/octet-stream');
-        expect(response.rawBody).toBeInstanceOf(Uint8Array);
+        expect(response.binSerializer!.getBufferView()).toBeInstanceOf(Uint8Array);
     });
 
     it('should store serializer option in route executable', async () => {
