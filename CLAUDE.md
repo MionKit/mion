@@ -126,12 +126,25 @@ concrete fix plan. Use kebab-case filenames.
 
 ### Workflow
 
-- **Found a defect or gap outside your current task's scope? Tell the user AND file it.** Any
-  latent bug, doc-vs-code drift, or adopted-with-a-caveat compromise discovered along the way
-  gets BOTH: (1) surfaced in your reply (what it is, where it came from, whether it predates your
-  change — bisect if cheap), and (2) recorded as a spec file under [`docs/todos/`](docs/todos/)
-  with evidence + a fix plan, so it survives the session. Never let an out-of-scope finding live
-  only in chat, and never silently widen your task to fix it without asking.
+- **⚠️ Found a defect or gap outside your current task's scope? Surface it, then SOLVE it — a
+  finding is never merely recorded.** Any latent bug, doc-vs-code drift, or
+  adopted-with-a-caveat compromise discovered along the way is first **surfaced in your reply**:
+  what it is, where it came from, and whether it predates your change (bisect if cheap). Then see
+  it through:
+  - **Default: FIX IT in the current task / PR**, even when unrelated, with its own commit and its
+    own test where the change is testable. Size and importance buy no automatic exemption — a big
+    finding usually means a bigger PR, not a deferred one.
+  - **A [`docs/todos/`](docs/todos/) spec is a commitment to solve it, never a way to close the
+    loop.** File one only when the fix genuinely cannot land in this task (it needs an upstream
+    release, or a decision only the user can make), say plainly why, and give it the evidence plus
+    a concrete fix plan. Filing does not mean "immediately", but it does mean the work is still
+    owed. A spec that is filed and then left is the exact failure this rule exists to prevent: a
+    backlog nobody drains, and a load of post-merge cleanup.
+  - **Blocked on a decision only the user can make? ASK, in the same session**, then carry out the
+    answer.
+
+  Absolute: never let a finding live only in chat, and never let one end up neither fixed nor
+  genuinely tracked toward a fix.
 - **When a change implements a [`docs/todos/`](docs/todos/) spec, `git mv` it into
   [`docs/done/`](docs/done/)** and update it to match what shipped (set `**Status:** done`, note
   the commit/PR).
