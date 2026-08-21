@@ -105,7 +105,96 @@ func (sess *Session) buildProvenanceSites() map[string][]diagnostics.Site {
 			StartCol:  col,
 		})
 	}
+	return sess.inheritProvenanceToDescendants(out)
+}
+
+// inheritedProvenanceDepthCap bounds the descent through ID-LESS inline nodes.
+// Every interned node is memoized by id (the common case, and the only way a
+// cycle can close, since a circular type is always interned), so this only
+// backstops a pathological un-interned inline subtree.
+const inheritedProvenanceDepthCap = 32
+
+// inheritProvenanceToDescendants gives every type REACHED BY a marker call site
+// the provenance of that site, not just the type named at the call.
+//
+// # The bug this fixes
+//
+// A child type gets its own cache entry, keyed by its own structural id — an id
+// that was never a marker call argument. So a map built only from call sites has
+// no entry for it, and `Walker.EmitDiagnostic` drops anything it cannot
+// attribute rather than render a diagnostic with an empty filePath. The result
+// was silent: `createJsonEncoderFn<Pet>()` warned that `Pet` serializes
+// structurally, while `createJsonEncoderFn<{pet: Pet}>()` and
+// `createJsonEncoderFn<Pet | Owner>()` said nothing at all — for the exact same
+// class, compiled by the exact same emitter. Nesting is the NORMAL case, so most
+// occurrences of every child-position diagnostic never reached anyone.
+//
+// # Why "every site that reaches it" is the right attribution
+//
+// The established rule for a root type is one diagnostic per CALL SITE, not one
+// per type id. Inheriting provenance keeps that rule intact one level down: a
+// site is told about the types it actually pulls in. A shared child legitimately
+// reports at each site that demands it, exactly as a shared root already does.
+//
+// Repeats collapse later: identical (code, args, site) tuples are folded by
+// diagnostics.Dedupe, so a child reached by several paths from one site — or by
+// several cache families — still yields one line.
+func (sess *Session) inheritProvenanceToDescendants(rooted map[string][]diagnostics.Site) map[string][]diagnostics.Site {
+	refTable := sess.fullRefTable()
+	if len(rooted) == 0 || len(refTable) == 0 {
+		return rooted
+	}
+	out := make(map[string][]diagnostics.Site, len(rooted)*2)
+	for id, sites := range rooted {
+		out[id] = sites
+	}
+	// Reused across roots: cleared per root so a node visited under one root is
+	// still attributed under the next.
+	seen := make(map[string]struct{}, 64)
+	for rootID, sites := range rooted {
+		root := refTable[rootID]
+		if root == nil {
+			continue
+		}
+		clear(seen)
+		seen[rootID] = struct{}{}
+		inheritFrom(root, sites, rootID, refTable, seen, 0, out)
+	}
 	return out
+}
+
+// inheritFrom walks one root's ref slots, appending the root's sites to every
+// interned descendant. Children arrive as KindRef sentinels carrying an id but
+// no slots of their own, so each id is re-resolved against the full table before
+// descending — the same resolve-then-descend shape the other graph walks use.
+func inheritFrom(
+	node *reflection.RunType,
+	sites []diagnostics.Site,
+	rootID string,
+	refTable map[string]*reflection.RunType,
+	seen map[string]struct{},
+	depth int,
+	out map[string][]diagnostics.Site,
+) {
+	if node == nil || depth > inheritedProvenanceDepthCap {
+		return
+	}
+	node.EachRefSlot(func(child *reflection.RunType) {
+		resolved := child
+		if id := child.ID; id != "" {
+			if _, visited := seen[id]; visited {
+				return
+			}
+			seen[id] = struct{}{}
+			if full := refTable[id]; full != nil {
+				resolved = full
+			}
+			if id != rootID {
+				out[id] = append(out[id], sites...)
+			}
+		}
+		inheritFrom(resolved, sites, rootID, refTable, seen, depth+1, out)
+	})
 }
 
 // extractProgramPureFns walks every source file in the program through the
