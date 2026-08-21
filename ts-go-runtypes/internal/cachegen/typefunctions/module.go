@@ -468,6 +468,14 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		}
 	}
 
+	// Where this entry's diagnostics start in the shared sink. The walk appends
+	// to it, so the tail from here on is exactly what THIS entry produced —
+	// which is what gets persisted so a warm build can replay it.
+	diagStart := 0
+	if opts.DiagSink != nil {
+		diagStart = len(*opts.DiagSink)
+	}
+
 	walker := NewWalker(runType, innerName, emitter)
 	walker.inlineCtx.InlineAllInternal = opts.InlineMode.AllInternal()
 	walker.RefTable = refTable
@@ -537,7 +545,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 				if variantSuffix == "" && !rejectCircular {
 					// alwaysThrow entries emit no dep calls — no same-family
 					// or cross-family edges to persist.
-					writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, false, opts)
+					writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, false, entryDiagnostics(diagStart, opts), opts)
 				}
 				return entryRender{argsText: argsText}
 			}
@@ -591,7 +599,7 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 		if variantSuffix == "" && !rejectCircular {
 			// A noop body emits no dep calls, so no same-family or
 			// cross-family lookups are registered.
-			writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, true, opts)
+			writeCachedEntry(runType, settings, innerPrefix, argsText, nil, nil, nil, true, entryDiagnostics(diagStart, opts), opts)
 		}
 		return entryRender{argsText: argsText, isNoop: true}
 	}
@@ -662,9 +670,33 @@ func renderEntryWithDeps(runType *reflection.RunType, settings constants.CacheMo
 	pureFnDeps := pureFnDepKeys(walker.PureFnDependencies)
 	argsText := joinArgs(args)
 	if variantSuffix == "" && !rejectCircular {
-		writeCachedEntry(runType, settings, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, opts)
+		writeCachedEntry(runType, settings, innerPrefix, argsText, deps, crossFamilyDeps, pureFnDeps, false, entryDiagnostics(diagStart, opts), opts)
 	}
 	return entryRender{argsText: argsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps}
+}
+
+// entryDiagnostics slices the findings THIS entry's walk appended to the shared
+// sink (everything from diagStart on) down to the code + args pair the cache
+// persists. The site is dropped on purpose: it belongs to the build that
+// produced it, and a later build re-attaches its own provenance on the hit.
+func entryDiagnostics(diagStart int, opts RenderOpts) []diskcache.CachedDiagnostic {
+	if opts.DiagSink == nil || len(*opts.DiagSink) <= diagStart {
+		return nil
+	}
+	emitted := (*opts.DiagSink)[diagStart:]
+	// One finding can already be fanned out across several call sites; the cache
+	// wants each DISTINCT finding once, and the replay re-fans it.
+	seen := make(map[string]bool, len(emitted))
+	out := make([]diskcache.CachedDiagnostic, 0, len(emitted))
+	for _, diagnostic := range emitted {
+		key := diagnostic.Code + "\x00" + strings.Join(diagnostic.Args, "\x01")
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, diskcache.CachedDiagnostic{Code: diagnostic.Code, Args: append([]string(nil), diagnostic.Args...)})
+	}
+	return out
 }
 
 // pureFnDepKeys projects the walker's recorded PureFnDep triples down to the
@@ -738,7 +770,33 @@ func tryReadCachedEntry(runType *reflection.RunType, settings constants.CacheMod
 	// Pure-fn edges rebuild verbatim from the persisted stable keys — no hash
 	// drift to check (the delivery target is content-addressed by key, not id).
 	pureFnDeps := append([]string(nil), entry.PureFnRefs...)
+	replayCachedDiagnostics(runType, entry.Diagnostics, opts)
 	return entryRender{argsText: entry.ArgsText, deps: deps, crossFamilyDeps: crossFamilyDeps, pureFnDeps: pureFnDeps, isNoop: entry.IsNoop}, true
+}
+
+// replayCachedDiagnostics re-emits an entry's persisted findings on a cache hit,
+// against THIS build's provenance. Without it the walker's silence on a hit
+// meant a project's warnings disappeared from the second build onward and only
+// came back after wiping node_modules/.cache/ts-runtypes — a stale-looking
+// clean build that was really just a cached one.
+//
+// Provenance comes from the live call sites, never from the cache: the same type
+// can be demanded from different places on the next build, and a stale file:line
+// would point at nothing. An entry whose call sites are gone emits nothing here,
+// matching the fresh-walk behaviour.
+func replayCachedDiagnostics(runType *reflection.RunType, cached []diskcache.CachedDiagnostic, opts RenderOpts) {
+	if len(cached) == 0 || opts.DiagSink == nil || runType == nil {
+		return
+	}
+	sites := opts.ProvenanceSites[runType.ID]
+	if len(sites) == 0 {
+		return
+	}
+	for _, entryDiag := range cached {
+		for _, site := range sites {
+			*opts.DiagSink = append(*opts.DiagSink, diagnostics.New(entryDiag.Code, site, entryDiag.Args...))
+		}
+	}
 }
 
 // splitNamespacedHash splits a namespaced cache hash into its family
@@ -770,7 +828,7 @@ func splitNamespacedHash(namespaced string) (prefix string, bareHash string, ok 
 // structural id, and store the triple as a CrossFamilyRef. As with
 // ChildRefs, an unresolvable ref aborts the write cleanly rather than
 // persisting a record the reader can't verify.
-func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, opts RenderOpts) {
+func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModuleSettings, innerPrefix string, argsText string, deps []string, crossFamilyDeps []string, pureFnDeps []string, isNoop bool, entryDiags []diskcache.CachedDiagnostic, opts RenderOpts) {
 	if opts.Store == nil || opts.Lookup == nil || runType == nil || runType.ID == "" {
 		return
 	}
@@ -824,6 +882,8 @@ func writeCachedEntry(runType *reflection.RunType, settings constants.CacheModul
 		// Pure-fn keys are stable strings — persist verbatim, no structural-id
 		// translation (contrast ChildRefs / CrossFamilyRefs).
 		PureFnRefs: append([]string(nil), pureFnDeps...),
+		// So a warm build reports the same findings a cold one does.
+		Diagnostics: entryDiags,
 	}
 	if err := opts.Store.WriteRT(runType.ID, settings.Tag, entry); err != nil {
 		// Best-effort: report once per session would be ideal, but

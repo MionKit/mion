@@ -466,6 +466,14 @@ holding it open. It is not orphaned either, since losing the parent closes its s
 Go serve loop exits on EOF. A bundler host must NOT do this, where a pending resolver
 response can be the build's only live handle.
 
+**Diagnostics survive the cache.** The walker is what produces build-time findings, and a
+cache hit skips the walker — so for a long time a project's warnings showed up on the first
+build and then quietly disappeared on every build after it, returning only when someone
+cleared the cache. Each cached entry now carries the findings its walk produced, and a hit
+re-emits them. Only the code and its arguments are stored: the source location comes from the
+CURRENT build's call sites, because the same type can be demanded from somewhere else next
+time and a remembered file:line would point at nothing.
+
 **Codegen.** It writes the generated modules as real files under `<genDir>/types/`, one per
 entry, and prunes the ones no longer used. That directory is generated and git ignored. It
 regenerates at build start, again if a file introduced something new, and per edit in watch
