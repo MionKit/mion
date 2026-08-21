@@ -10,9 +10,11 @@ const p2 = routes.utils.sum(5, 2).call();
 // cancel ALL in-flight requests (e.g. user navigated away)
 client.abort();
 
-// both return 'request-aborted' errors
-const [, err1] = await p1; // err1.type === 'request-aborted'
-const [, err2] = await p2; // err2.type === 'request-aborted'
+// both surface 'request-aborted' in the unexpected slot
+const [, , unexpected1] = await p1;
+const [, , unexpected2] = await p2;
+if (unexpected1?.type === 'request-aborted') console.log('first request canceled');
+if (unexpected2?.type === 'request-aborted') console.log('second request canceled');
 
 // new requests work normally after abort
 const [greeting] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call();
