@@ -1,6 +1,6 @@
 import {Routes, initMionRouter, route} from '@mionjs/router';
-import {userRepository} from 'MyModels';
-import type {User} from 'MyModels';
+import {userRepository} from './myModels.ts';
+import type {User} from './myModels.ts';
 
 const getUser = route(async (ctx, entity: {id: number}): Promise<User> => {
     const user = await userRepository.getUserById(entity.id);

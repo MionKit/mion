@@ -57,8 +57,9 @@ Verified: 718 tests / 46 files, cold lint green across 13 projects, format clean
 ## What did NOT ship
 
 Item 5 (the CI lane that would stop this drift recurring) is unchanged — it still depends on
-[examples-precompile-debt.md](../todos/examples-precompile-debt.md). A cheaper, narrower check is now
-proposed in [broken-code-import-paths.md](../todos/broken-code-import-paths.md).
+[examples-precompile-debt.md](examples-precompile-debt.md). The cheaper, narrower check proposed
+in [broken-code-import-paths.md](broken-code-import-paths.md) has since shipped as
+`scripts/check-code-imports.mjs`.
 
 ## Original fix plan
 
@@ -73,7 +74,7 @@ proposed in [broken-code-import-paths.md](../todos/broken-code-import-paths.md).
 3. **Removed lint rule** — delete the `type-formats-imports` section from
    `website/content/5.devtools/2.eslint-rules.md`, and delete or repoint the three fixtures above.
    ⚠️ That page also needs the `runtypes/*` rule set documented
-   ([eslint-rules-tuning-and-docs.md](../todos/eslint-rules-tuning-and-docs.md) item 4) — **do both in one
+   ([eslint-rules-tuning-and-docs.md](eslint-rules-tuning-and-docs.md) item 4) — **do both in one
    pass** rather than editing the page twice.
 4. **Friendly-errors pages ARE in scope.** The FriendlyText swap itself shipped
    ([friendlyerrors-to-friendlytext-feasibility.md](../done/friendlyerrors-to-friendlytext-feasibility.md)),
@@ -85,7 +86,7 @@ proposed in [broken-code-import-paths.md](../todos/broken-code-import-paths.md).
 5. **Stop the drift** — wire an examples typecheck lane into CI so "the examples compile" is
    enforced rather than promised. A `check-types` script + `tsconfig.check.json` already exist but
    are NOT a gate; the pre-existing debt blocking that gate is tracked in
-   [examples-precompile-debt.md](../todos/examples-precompile-debt.md). Land that first, then turn this on.
+   [examples-precompile-debt.md](examples-precompile-debt.md). Land that first, then turn this on.
 
 ## Acceptance
 

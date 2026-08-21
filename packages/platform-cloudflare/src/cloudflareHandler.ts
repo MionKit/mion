@@ -15,7 +15,7 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_CLOUDFLARE_OPTIONS} from './constants.ts';
 import type {CloudflareHandlerOptions, CloudflareExecutionContext, CloudflarePlatformContext} from './types.ts';
-import {SerializerModes} from '@mionjs/core';
+import {SerializerModes, toResponseBody} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 
@@ -125,7 +125,7 @@ function reply(mionResp: MionResponse, responseHeaders: any): Response {
         case SerializerModes.binary: {
             const serializer = mionResp.binSerializer!;
             responseHeaders.set('content-length', String(serializer.getLength()));
-            const response = new Response(serializer.getBufferView(), {
+            const response = new Response(toResponseBody(serializer.getBufferView()), {
                 status: mionResp.statusCode,
                 headers: responseHeaders,
             });

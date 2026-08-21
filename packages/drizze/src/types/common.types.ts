@@ -17,13 +17,18 @@ export type DatabaseType = 'postgres' | 'mysql' | 'sqlite';
  * aliases were deleted along with the rest of its type-format surface — formats belong to
  * @ts-runtypes) and @ts-runtypes has no equivalent.
  *
- * ⚠️ This whole lane is DEAD and should be replaced, not maintained — see
- * docs/todos/drizzle-column-mapping-on-type-formats.md. The `*ColumnType` types that consume these
- * maps match on a `{brand: string}` property that nothing produces any more, so every format-typed
- * property falls through to a primitive column and the type lane disagrees with the runtime mapper
- * (`email: Email` types as text, runtime emits varchar(254)). The `_Missing*` / `_Extra*` aliases
- * do not catch it either: they compute a type and never assert on it. The fix is to key on
- * upstream's FormatName + __rtFormatParams instead of on brands. */
+ * ⚠️ This whole lane is DEAD. The `*ColumnType` types that consume these maps match on a
+ * `{brand: string}` property that nothing produces any more (mion's `Brand<Base, Name>` helper was
+ * deleted in 0c37809d; upstream `TypeFormat` carries symbol-keyed `__rtFormatName` /
+ * `__rtFormatParams` sentinels instead). So every format-typed property falls through to a
+ * primitive column and the type lane disagrees with the runtime mapper — `email: Email` types as
+ * `text` while the runtime emits `varchar(254)`. The `_Missing*` / `_Extra*` aliases do not catch
+ * it: they compute a type and never assert on it.
+ *
+ * Not worth patching in place — @mionjs/drizzle is slated for a rewrite from scratch, and the
+ * column mapping should be rebuilt on upstream's format metadata then. Until that lands, treat the
+ * inferred column types as unreliable and the RUNTIME mapper as the source of truth.
+ */
 export type AllBrandNames =
     | 'email'
     | 'uuid'

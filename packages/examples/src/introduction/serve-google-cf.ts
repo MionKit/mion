@@ -1,5 +1,5 @@
 import {GoogleCFOptions, createGoogleCFHandler} from '@mionjs/platform-gcloud';
-import './myApi.routes';
+import './myApi.routes.ts';
 
 // set options specific for GC Cloud Functions
 const gcfOptions: Partial<GoogleCFOptions> = {};

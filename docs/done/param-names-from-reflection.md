@@ -116,8 +116,8 @@ unnecessary.
 
 ## Follow-up
 
-The broader idea behind the review comment — carrying `paramsRunType` / `returnRunType` so future
-questions do not each need a bespoke field — is
-[carry-runtypes-on-method-reflection.md](../todos/carry-runtypes-on-method-reflection.md). Note it cannot be
-done by extending `CompiledTypeFn` (an upstream type mion cannot modify), and a RunType graph is
-recursive/circular so it is almost certainly not wire material.
+The broader idea behind the review comment — that future shape questions should not each need a
+bespoke field plus a hand-written graph walk — is tracked as an upstream ask:
+[upstream-compile-fn-metadata-emission.md](../todos/upstream-compile-fn-metadata-emission.md). Have
+`@ts-runtypes/core` emit the build-time metadata (tuple labels, param names, optionality, return
+shape) next to the compiled function, so `paramNames` and friends are read, not derived.
