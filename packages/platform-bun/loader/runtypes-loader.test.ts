@@ -10,7 +10,8 @@ import {runTypesLoader} from './runtypes-loader';
 
 // The deepkit type-compiler loader is gone. runTypesLoader now wraps @ts-runtypes/devtools's Bun
 // plugin (unplugin.bun) — the Bun counterpart of mionVitePlugin — plus the onStart/onLoad shims
-// Bun's runtime plugin API needs (see the file docblock).
+// Bun's runtime plugin API needs (see the file docblock). Those shims are slated to collapse onto
+// the upstream @ts-runtypes/devtools/bun entry: docs/todos/platform-bun-adopt-upstream-adapter.md.
 
 test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
     const plugin = runTypesLoader({});
@@ -19,8 +20,18 @@ test('runTypesLoader builds a Bun plugin with a name and setup hook', () => {
     expect(typeof plugin.setup).toBe('function');
 });
 
-// End-to-end route registration under the transparent `bun test`/`bun run` preload is blocked
-// upstream: the resolver does not inject cross-package internal-route type ids on-demand, so
-// initRouter() throws MissingRtFnsError. Tracked in docs/todos/platform-bun-runtypes-lane.md —
-// promote this to a real test once the lane injects.
-test.todo('registers a typed route without MissingRtFnsError (blocked: cross-package injection)');
+// End-to-end route registration under the transparent `bun test`/`bun run` preload WORKS and is
+// covered by src/bunHttp.test.ts, which boots a real server through initRouter() + registerRoutes()
+// and round-trips requests. This file stays a unit test of the plugin's shape.
+//
+// It was previously a test.todo claiming the lane was blocked on cross-package injection. That
+// diagnosis was wrong: the resolver's program follows imports, so router source was always
+// scanned. The actual cause was bun-preload.ts not awaiting Bun.plugin() — see
+// docs/done/platform-bun-runtypes-lane.md.
+test('the plugin exposes the two hooks Bun.plugin() drives', () => {
+    const plugin = runTypesLoader({});
+    // Bun calls setup(build) and the plugin registers onLoad/onResolve on it; nothing else is
+    // part of the contract, so assert the shape rather than re-testing the transform here.
+    expect(plugin.setup.length).toBeLessThanOrEqual(1);
+    expect(Object.keys(plugin)).toEqual(expect.arrayContaining(['name', 'setup']));
+});
