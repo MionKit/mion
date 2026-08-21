@@ -4,8 +4,9 @@ import {join} from 'path';
 
 const tsConfig = join(__dirname, './tsconfig.json');
 
-// MUST be awaited: Bun.plugin() returns a promise for an async setup but does NOT wait for it before
-// loading modules. Without the await the resolver is still spawning when the first files load, the
-// transform bails on a null resolver, and cross-package route() sites register with no injected type
-// info (MissingRtFnsError at initRouter). It fails silently — no warning, just missing injections.
+// Belt-and-braces. Bun.plugin() returns a promise for an async setup but does NOT wait for it before
+// loading modules, so an un-awaited registration races the resolver's startup and files load with no
+// injected type info (MissingRtFnsError at initRouter, with no warning). @ts-runtypes/devtools/bun
+// makes that safe on its own by gating every load on the resolver being ready, so this await is no
+// longer load-bearing — but it costs nothing and keeps the ordering obvious.
 await plugin(runTypesLoader({tsConfig}));

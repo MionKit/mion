@@ -1,6 +1,7 @@
 # platform-bun: collapse the local Bun shims onto `@ts-runtypes/devtools/bun`
 
-**Status:** todo — **DRY-RUN VERIFIED** (2026-08-21), blocked on an upstream release only.
+**Status:** done — shipped 2026-08-21 against `@ts-runtypes/devtools` 0.12.1. Both local shims
+deleted; `runtypes-loader.ts` is a thin wrapper over `@ts-runtypes/devtools/bun`.
 **Type:** chore (delete local code once upstream ships)
 **Created:** 2026-08-21 (split from
 [../done/platform-bun-runtypes-lane.md](../done/platform-bun-runtypes-lane.md))
@@ -26,7 +27,7 @@ Upstream additionally unrefs the resolver child on the runtime host (`detachReso
 that only because `bun test` force-exits the process — a plain `bun run` of a mion server
 would hang at shutdown today.
 
-## Fix plan
+## Fix plan — completed
 
 1. Upgrade `@ts-runtypes/devtools` to the release carrying `./bun`.
 2. Replace the body of `loader/runtypes-loader.ts` with a thin wrapper over

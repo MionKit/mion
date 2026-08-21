@@ -1,7 +1,7 @@
 # Upstream: CLS001 (`runtypes/class-serializer`) is reported twice per site
 
-**Status:** todo — **fixed upstream and VERIFIED against mion** (2026-08-21); waiting on a release
-+ a mion upgrade to close. Nothing to change on mion's side.
+**Status:** done — shipped in `@ts-runtypes/core` 0.12.1, mion upgraded 2026-08-21.
+No mion code change was needed; the fix was entirely upstream.
 **Type:** bug (diagnostic noise)
 **Created:** 2026-08-20 (concluded while closing
 [../done/eslint-rules-tuning-and-docs.md](../done/eslint-rules-tuning-and-docs.md))
@@ -105,7 +105,19 @@ warnings silently disappeared and only returned after wiping the cache. Fixed up
 branch (entries now persist their findings and re-emit them against the current build's call
 sites); verified 29 cold / 29 warm / 29 warm again.
 
-## Fix plan (mion side)
+## Outcome on 0.12.1
+
+Measured on mion's router suite after the upgrade, exactly as predicted:
+
+| | cold | warm |
+| --- | --- | --- |
+| 0.12.0 | 148 | **0** |
+| 0.12.1 | **29** | **29** |
+
+Both upstream bugs are closed: the count drops ~5x (duplicates gone, nested/union classes now
+reporting), and diagnostics no longer vanish on a warm cache.
+
+## Fix plan (mion side) — completed
 
 1. Do **not** work around it here — deduping in mion's config would hide the upstream bug.
 2. Upgrade `@ts-runtypes/devtools` once the fix is released.

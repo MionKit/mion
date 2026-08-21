@@ -13,7 +13,6 @@ import {
     getReflectionFromMarkers,
     getParamCountFromRunType,
     getParamsFromRunType,
-    readBinarySizeEstimate,
     resolveInjectedRunType,
     resolveCompiledPureFn,
     RtMarkerPayload,
@@ -107,31 +106,20 @@ describe('mionAdapter: reflection from injected markers', () => {
 
     // ############# compile-time binary size estimate #############
     //
-    // This test is the tripwire for a deliberate coupling. The estimate lives at a fixed slot of the
-    // `tb` entry tuple; upstream exports neither the reader nor the value on the cache entry, so mion
-    // reads the slot directly (see readBinarySizeEstimate). If a version bump moves or drops that
-    // slot the read silently returns undefined and every cold binary buffer quietly reverts to the
-    // flat fallback — a performance regression with no failing test anywhere. So assert it loudly.
-    it('reads the compile-time binary size estimate off the tb tuple', () => {
-        const estimate = readBinarySizeEstimate(savePet.rtFns.returnFns);
-        expect(estimate).toBeDefined();
-        // a small object: a real byte count, not a placeholder or a whole default buffer
-        expect(estimate).toBeGreaterThan(0);
-        expect(estimate).toBeLessThan(4096);
-        // and it rides the reflection, which is what the serializer sizes from
+    // Read off the registered cache entry (CompiledFnData.binarySizeEstimate, @ts-runtypes/core
+    // 0.12.1+) instead of indexing a tuple slot by position.
+    //
+    // Still assert the value is PRESENT and plausible, not merely that the read compiles: if the
+    // field ever stops being populated the read returns undefined, every cold binary buffer
+    // quietly reverts to MIN_COLD_START_BYTES, and nothing else in the suite would notice. A
+    // silent performance regression needs a loud test.
+    it('carries the compile-time binary size estimate on the reflection', () => {
         const reflection = getReflectionFromMarkers(savePet.rtFns, savePet.handler, 'savePet');
-        expect(reflection.returnBinarySizeEstimate).toBe(estimate);
+        // a small object: a real byte count, not a placeholder or a whole default buffer
+        expect(reflection.returnBinarySizeEstimate).toBeDefined();
+        expect(reflection.returnBinarySizeEstimate).toBeGreaterThan(0);
+        expect(reflection.returnBinarySizeEstimate).toBeLessThan(4096);
         expect(reflection.paramsBinarySizeEstimate).toBeGreaterThan(0);
-    });
-
-    it('degrades to undefined (never throws) when no usable estimate is present', () => {
-        expect(readBinarySizeEstimate(undefined)).toBeUndefined();
-        expect(readBinarySizeEstimate([])).toBeUndefined();
-        // a tb tuple of the right width but a nonsense payload
-        expect(readBinarySizeEstimate([['tb', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, 'nope']])).toBeUndefined();
-        expect(readBinarySizeEstimate([['tb', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, -5]])).toBeUndefined();
-        // a non-tb family is never mistaken for one
-        expect(readBinarySizeEstimate([['val', undefined, undefined, 'h', 't', '', 0, 0, 0, 0, 0, 99]])).toBeUndefined();
     });
 
     it('resolves full jit entries (code/hash) from the ts-runtypes cache via mion jit hashes', () => {
