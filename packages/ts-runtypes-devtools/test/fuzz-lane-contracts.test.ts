@@ -21,7 +21,7 @@
 
 import {describe, it, expect} from 'vitest';
 import {spawnSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 
@@ -188,6 +188,57 @@ describe('ci.yml runs every lane at its quick budget on every PR', () => {
   it('the race lane runs through rtx at its quick budget', () => {
     expect(ciStep('Concurrent CLI race fuzz (RT_FUZZ_RACE gate)')).toContain('pnpm rtx core fuzz race --quick');
   });
+});
+
+describe('a pnpm-free job can actually start', () => {
+  // Both pickers run bare node on the zero-dep CLI and never install pnpm, but
+  // setup-node@v5 defaults package-manager-cache to true, auto-detects the
+  // `packageManager` field, and dies with "Unable to locate executable file:
+  // pnpm" before any step runs. That killed the whole v0.12.1 soak matrix on
+  // the first release gate that reached it — the pickers were added in the same
+  // release and nothing had exercised them (the gate's runs only on a PR into
+  // prod, fuzz-soak.yml's only on manual dispatch).
+  //
+  // The invariant, over every workflow: a job that checks the repo out and sets
+  // node up without bringing pnpm along must opt out of the cache.
+  const workflowsDir = join(REPO_ROOT, '.github/workflows');
+  const workflows = readdirSync(workflowsDir).filter((file) => file.endsWith('.yml'));
+
+  // Split a workflow into its jobs — `jobs:` at column 0, one job per 2-space key.
+  const jobsOf = (source: string): Array<{name: string; body: string}> => {
+    const at = source.indexOf('\njobs:\n');
+    if (at === -1) return [];
+    const lines = source.slice(at + '\njobs:\n'.length).split('\n');
+    const jobs: Array<{name: string; body: string}> = [];
+    for (const line of lines) {
+      const header = /^ {2}([\w-]+):\s*$/.exec(line);
+      if (header) jobs.push({name: header[1], body: ''});
+      else if (jobs.length > 0) jobs[jobs.length - 1].body += line + '\n';
+    }
+    return jobs;
+  };
+
+  const pnpmFreeJobs = workflows.flatMap((file) =>
+    jobsOf(read(`.github/workflows/${file}`))
+      .filter((job) => job.body.includes('actions/setup-node@'))
+      .filter((job) => job.body.includes('actions/checkout@')) // no checkout, nothing to auto-detect
+      .filter((job) => !job.body.includes('pnpm/action-setup@') && !job.body.includes('.github/actions/bootstrap'))
+      .map((job) => ({file, ...job}))
+  );
+
+  it('the scan finds the pnpm-free jobs it is meant to guard', () => {
+    // Guards the parser: a rewrite that stopped matching would make the
+    // assertion below pass over an empty list.
+    const found = pnpmFreeJobs.map((job) => `${job.file}:${job.name}`);
+    expect(found).toContain('release-gate.yml:pick');
+    expect(found).toContain('fuzz-soak.yml:pick');
+  });
+
+  for (const job of pnpmFreeJobs) {
+    it(`${job.file}'s \`${job.name}\` job opts out of the pnpm cache`, () => {
+      expect(job.body).toContain('package-manager-cache: false');
+    });
+  }
 });
 
 describe('a soak run can always be replayed', () => {

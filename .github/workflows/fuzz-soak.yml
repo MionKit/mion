@@ -74,6 +74,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 26
+          # Deliberately pnpm-free, so the default pnpm cache probe would fail
+          # with "Unable to locate executable file: pnpm".
+          package-manager-cache: false
       # `all` derives the list from the FUZZ registry — bare node on the
       # zero-dep CLI, no pnpm install, no submodules, no build.
       - id: pick
