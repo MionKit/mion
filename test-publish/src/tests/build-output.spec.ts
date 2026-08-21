@@ -1,0 +1,59 @@
+/* ########
+ * 2026 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {describe, it, expect} from 'vitest';
+import {existsSync, readFileSync} from 'fs';
+import {resolve} from 'path';
+
+// Runs AFTER `pnpm run build`, against the production bundle a consumer would deploy.
+//
+// This replaces the old "AOT Build Verification" spec, which asserted the bundle contained
+// addAOTCaches / jitFnsCache / routerCache / serverPureFnsCache — every one of those symbols was
+// deleted in the ts-runtypes migration, so the spec could not pass, and since it runs from
+// scripts/pre-publish-test.sh under `set -e` it had been failing the whole release gate closed.
+//
+// The intent it was guarding is still worth guarding, just against the current engine: the types
+// must be COMPILED INTO the bundle at build time. If injection silently no-ops, the server still
+// starts and only fails later, per request, on the first validation.
+
+const rootDir = resolve(__dirname, '../..');
+const distFile = resolve(rootDir, 'dist/server.js');
+
+describe('production build output', () => {
+    it('builds dist/server.js', () => {
+        expect(existsSync(distFile)).toBe(true);
+    });
+
+    it('inlines compiled ts-runtypes fn bodies rather than deferring them to runtime', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        // compiled fn bodies ship as code strings that resolve their helpers out of the pure-fn
+        // registry — the shape @ts-runtypes emits for every validator/serializer it precompiles.
+        expect(content).toMatch(/getPureFn\('rt::/);
+        // ...each carrying its trailing pure-fn dependency-key array
+        expect(content).toMatch(/\["rt::[^"]+"(, "rt::[^"]+")*\]/);
+    });
+
+    it('compiles the fixture routes, not just the library', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        for (const routeName of ['sayHello', 'calculateAge', 'getCustomerById', 'getPreferencesById']) {
+            expect(content, `route ${routeName} missing from the bundle`).toContain(routeName);
+        }
+    });
+
+    it('is self-contained — no cache file read from disk at runtime', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        // an artifact that reads node:fs at boot is not deployable to edge/lambda
+        expect(content).not.toContain('node:fs');
+    });
+
+    it('carries no residue of the deleted AOT/deepkit engine', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        for (const gone of ['addAOTCaches', 'serverPureFnsCache', 'jitFnsCache', 'pureServerFn']) {
+            expect(content, `${gone} is gone from mion — a bundle containing it means stale packages`).not.toContain(gone);
+        }
+    });
+});

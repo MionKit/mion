@@ -6,10 +6,13 @@
  * ######## */
 
 import {RpcError, HeadersSubset} from '@mionjs/core';
-import '@mionjs/core/aot-caches';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
-import {serverPureFnsCache} from '@mionjs/core/server-pure-fns';
+// serverMapFrom transport: registers the mappers the CLIENT build harvested out of the flow code
+// in json.spec.ts (manifest path configured in vite.server.config.ts / vite.build.config.ts).
+// Side-effect import — this is the packaged devtools plugin's virtual module, so it also proves
+// the transport survives being consumed from a published tarball.
+import 'virtual:mion/server-mappers';
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.
@@ -72,12 +75,18 @@ const routes = {
         sumTwo: route((_ctx, a: number): number => a + 2),
     },
 
-    // Pure function route
-    getGreetingsPureFnResult: route((): string => {
-        const pureFn = serverPureFnsCache.pureServerFn?.greeting;
-        if (!pureFn?.fn) throw new RpcError({publicMessage: 'Pure function greeting not found', type: 'pure-fn-not-found'});
-        return pureFn.fn();
-    }),
+    // routesFlow serverMapFrom pair: the client maps this route's output into the next one's
+    // input, with the mapper body executing HERE (see the flow test in src/tests/json.spec.ts).
+    getCustomerById: route((_ctx, customerId: number): {id: number; name: string; preferenceId: number} => ({
+        id: customerId,
+        name: 'Test Customer',
+        preferenceId: customerId + 100,
+    })),
+    getPreferencesById: route((_ctx, prefId: number): {id: number; userId: number; theme: string} => ({
+        id: prefId,
+        userId: prefId - 100,
+        theme: prefId % 2 === 0 ? 'dark' : 'light',
+    })),
 
     // Binary routes
     binary: binaryRoutes,

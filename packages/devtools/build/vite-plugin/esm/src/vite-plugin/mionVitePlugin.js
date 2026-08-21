@@ -1,6 +1,7 @@
 import path from "node:path";
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 let legacyBinEnvNoticeShown = false;
 const REMOVED_PLUGIN_OPTIONS = {
@@ -172,15 +173,22 @@ const serverReady = new Promise((resolve, reject) => {
   serverReadyResolve = resolve;
   serverReadyReject = reject;
 });
+function resolveViteNodeCli() {
+  const manifestPath = createRequire(import.meta.url).resolve("vite-node/package.json");
+  const bin = JSON.parse(readFileSync(manifestPath, "utf8")).bin;
+  const relative = typeof bin === "string" ? bin : bin?.["vite-node"];
+  if (!relative) throw new Error("[mionVitePlugin] vite-node is installed but declares no `vite-node` bin.");
+  return path.resolve(path.dirname(manifestPath), relative);
+}
 function startManagedServer(server) {
   if (serverStarted) return;
   serverStarted = true;
   const port = parseInt(server.env?.MION_TEST_PORT ?? process.env.MION_TEST_PORT ?? "8076", 10);
   const waitTimeout = server.waitTimeout ?? 3e4;
-  const args = ["exec", "vite-node"];
+  const args = [resolveViteNodeCli()];
   if (server.viteConfig) args.push("--config", server.viteConfig);
   args.push(server.startScript);
-  const child = spawn("pnpm", args, {
+  const child = spawn(process.execPath, args, {
     cwd: server.viteConfig ? path.dirname(server.viteConfig) : path.dirname(server.startScript),
     env: { ...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: "true" },
     stdio: ["ignore", "inherit", "inherit"]
