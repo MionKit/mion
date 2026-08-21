@@ -71,14 +71,14 @@ cd test-publish
 rm -rf node_modules dist
 pnpm install --no-frozen-lockfile --config.minimum-release-age=0
 
-# 5e. Run E2E tests (JSON + binary serialization + pure functions)
+# 5e. Run E2E tests (JSON + binary serialization + the serverMapFrom transport)
 pnpm run test
 
-# 5f. Build with AOT caches
+# 5f. Build the production server bundle
 pnpm run build
 
-# 5g. Verify AOT caches are inlined in build output
-pnpm run test:aot
+# 5g. Verify the compiled runtypes + harvested mappers are inlined in the build output
+pnpm run test:build-output
 
 cd ..
 

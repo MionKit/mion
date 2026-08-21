@@ -49,7 +49,13 @@ Four independent breakages, in firing order:
 ## Verified
 
 The gate was run for real, not reasoned about: pack all 11 tarballs → clean install → `pnpm run test`
-(60 passed, 1 skipped) → `pnpm run build` → `pnpm run test:build-output` (5 passed).
+→ `pnpm run build` → `pnpm run test:build-output`. After the follow-up fixes it reaches step 5g with
+test-publish at 62/62 and nothing skipped.
+
+One caveat remains, and it is NOT this repair: a SECOND consecutive gate run fails at step 2, because
+step 4's `pnpm run build` regenerates `packages/test-server/build/*` and a fresh build of those two
+bundles is broken. Pre-existing, fully characterised in
+[stale-test-server-edge-bundles.md](../todos/stale-test-server-edge-bundles.md).
 
 ## The two defects this gate surfaced — both since fixed
 
