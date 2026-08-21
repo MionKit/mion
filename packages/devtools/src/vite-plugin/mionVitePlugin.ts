@@ -10,6 +10,7 @@ import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {spawn, type ChildProcess} from 'node:child_process';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
+import type {Plugin, PluginOption} from 'vite';
 
 /** One report record from the ts-runtypes pure-fn build report (structural subset). */
 type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];
@@ -21,8 +22,8 @@ type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnRepo
 // function tuples and writes the generated cache modules under <srcDir>/__runtypes/.
 //
 // This wrapper keeps the old `mionVitePlugin({runTypes: {tsConfig}})` call shape so the
-// existing vite/vitest configs across the monorepo keep working unchanged. Legacy
-// deepkit/AOT/pure-fn options are accepted and ignored (with a one-time notice).
+// existing vite/vitest configs across the monorepo keep working unchanged. The legacy
+// deepkit/AOT/pure-fn options are REMOVED — see the migration guard below.
 
 /** Options for the ts-runtypes powered type transformation. */
 export interface MionRunTypesOptions {
@@ -70,11 +71,6 @@ export interface MionRunTypesOptions {
      *  point at another runtime. When no runtime can be started the build fails closed
      *  with FMT004 rather than shipping unverified patterns. */
     jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
-    /** LEGACY (deepkit) — accepted and ignored. */
-    compilerOptions?: unknown;
-    include?: string | string[];
-    exclude?: string | string[];
-    reflectionMode?: unknown;
 }
 
 /** Managed mion server process (client test/e2e builds): spawned via vite-node so the
@@ -84,8 +80,10 @@ export interface MionServerOptions {
     startScript: string;
     /** Vite config used to transform the server (defaults to vite-node's lookup from cwd). */
     viteConfig?: string;
-    /** Only 'childProcess' is supported since the ts-runtypes migration (server keeps running). */
-    runMode?: 'childProcess' | 'middleware' | 'buildOnly';
+    /** Only 'childProcess' is supported since the ts-runtypes migration (server keeps running).
+     *  'middleware' (in-process dev-server mode) warns and falls back — restoring it is tracked in
+     *  docs/todos/vite-plugin-ssr-middleware-mode.md. 'buildOnly' is gone: it WAS the AOT harvest mode. */
+    runMode?: 'childProcess' | 'middleware';
     /** Max ms to wait for the server port to accept connections (default 30000). */
     waitTimeout?: number;
     /** Extra env vars for the server process (e.g. MION_TEST_PORT). */
@@ -110,23 +108,55 @@ export interface MionServerMappersOptions {
     consume?: string | string[];
 }
 
-/** Options for the unified mion vite plugin (legacy sections accepted and ignored). */
+/** Options for the unified mion vite plugin. */
 export interface MionPluginOptions {
     /** ts-runtypes type transformation options. */
     runTypes?: MionRunTypesOptions;
     /** serverMapFrom mapper transport between the client and server builds. */
     serverMappers?: MionServerMappersOptions;
-    /** LEGACY pure function extraction — handled by the serverMappers transport now. Ignored. */
-    serverPureFunctions?: unknown;
-    /** LEGACY AOT cache generation — obsolete, ts-runtypes output IS the AOT artifact. Ignored. */
-    aotCaches?: unknown;
     /** Managed mion server process for client tests/e2e (spawned with vite-node, awaited via serverReady). */
     server?: MionServerOptions;
 }
 
-let legacyOptionsNoticeShown = false;
-
 let legacyBinEnvNoticeShown = false;
+
+// ############# removed-option migration guard (0.8 → 0.9) #############
+// These deepkit/AOT-era options were accepted-and-ignored through the ts-runtypes migration and are
+// now gone from the types. Deleting them from the interfaces alone only fails a TYPED config; a plain
+// vite.config.js would silently drop them, which is worse than the notice it replaces. So the keys are
+// still detected at config time and throw with what to do instead — loud in both lanes, which is the
+// end state the deprecation was aiming at. Remove this guard at 1.0.
+const REMOVED_PLUGIN_OPTIONS: Record<string, string> = {
+    aotCaches: 'AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.',
+    serverPureFunctions:
+        'pure-fn extraction moved to the serverMapFrom transport. Use `serverMappers: {emit}` on the client build and `serverMappers: {consume}` on the server build.',
+};
+const REMOVED_RUNTYPES_OPTIONS: Record<string, string> = {
+    compilerOptions: 'the deepkit type-compiler is gone; there is nothing to configure. Delete this option.',
+    include: 'scan scope comes from the tsconfig program — narrow `include` in the tsconfig instead.',
+    exclude: 'scan scope comes from the tsconfig program — narrow `exclude` in the tsconfig instead.',
+    reflectionMode: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
+    reflection: 'deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.',
+};
+
+/** Throws on any deepkit/AOT-era option a stale config still passes, naming the replacement.
+ *  Reads through an index signature so untyped JS/JSON configs are caught too, not just typed ones. */
+function assertNoRemovedOptions(options: MionPluginOptions): void {
+    const found: string[] = [];
+    const root = options as Record<string, unknown>;
+    for (const [key, hint] of Object.entries(REMOVED_PLUGIN_OPTIONS)) {
+        if (root[key] !== undefined) found.push(`  - ${key}: ${hint}`);
+    }
+    const rt = (options.runTypes ?? {}) as Record<string, unknown>;
+    for (const [key, hint] of Object.entries(REMOVED_RUNTYPES_OPTIONS)) {
+        if (rt[key] !== undefined) found.push(`  - runTypes.${key}: ${hint}`);
+    }
+    if (found.length === 0) return;
+    throw new Error(
+        `[mionVitePlugin] removed option${found.length > 1 ? 's' : ''} in your config (they stopped doing anything ` +
+            `at the ts-runtypes migration and are now gone):\n${found.join('\n')}`
+    );
+}
 
 /** Resolves the ts-runtypes resolver binary: explicit option → @ts-runtypes/bin getExePath(),
  *  which honours the RT_BIN env var and then the published platform package.
@@ -168,25 +198,9 @@ export function resolveRtBinary(explicit?: string): string | undefined {
  * });
  * ```
  */
-export function mionVitePlugin(options: MionPluginOptions = {}) {
+export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
     const rt = options.runTypes ?? {};
-    const legacyRt = rt as MionRunTypesOptions & {reflection?: unknown};
-    if (
-        !legacyOptionsNoticeShown &&
-        (options.serverPureFunctions ||
-            options.aotCaches ||
-            rt.compilerOptions ||
-            rt.include ||
-            rt.exclude ||
-            rt.reflectionMode ||
-            legacyRt.reflection)
-    ) {
-        legacyOptionsNoticeShown = true;
-        console.warn(
-            '[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions/' +
-                'include/exclude/reflectionMode) are ignored since the ts-runtypes migration. See docs/ at the repo root.'
-        );
-    }
+    assertNoRemovedOptions(options);
     if (options.server && options.server.runMode && options.server.runMode !== 'childProcess') {
         console.warn(
             `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes ` +
@@ -245,7 +259,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
     // Always serve virtual:mion/server-mappers — a server entry importing it must keep
     // resolving in pipelines WITHOUT `consume` configured (e.g. specs importing the
     // test-server module for its route types); those get an inert empty module.
-    const extraPlugins: unknown[] = [serverMappersConsumePlugin(options.serverMappers?.consume)];
+    const extraPlugins: Plugin[] = [serverMappersConsumePlugin(options.serverMappers?.consume)];
     if (options.server) {
         const server = options.server;
         // Server startup is deferred to buildStart so only the project actually RUNNING
@@ -255,9 +269,9 @@ export function mionVitePlugin(options: MionPluginOptions = {}) {
             buildStart() {
                 startManagedServer(server);
             },
-        });
+        } satisfies Plugin);
     }
-    return extraPlugins.length > 0 ? [...extraPlugins, plugins] : plugins;
+    return [...extraPlugins, plugins];
 }
 
 // ############# serverMapFrom manifest transport #############
@@ -295,7 +309,7 @@ const RESOLVED_SERVER_MAPPERS_ID = '\0' + SERVER_MAPPERS_ID;
  *    before the client build finished harvesting (first unresolved mapping re-reads).
  *  Without `consume` paths it serves an inert empty module so the import never breaks a
  *  pipeline that did not configure the transport. */
-function serverMappersConsumePlugin(consume: string | string[] | undefined) {
+function serverMappersConsumePlugin(consume: string | string[] | undefined): Plugin {
     const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
     let isBuildCommand = false;
     return {

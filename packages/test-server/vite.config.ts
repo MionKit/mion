@@ -11,7 +11,7 @@ export default defineConfig({
             // consume the client build's harvested serverMapFrom mappers (registered via
             // the virtual:mion/server-mappers side-effect import in test-server.ts)
             serverMappers: {consume: resolve(__dirname, '../client/.mion/server-mappers.json')},
-        }) as any,
+        }),
     ],
     resolve: {conditions: ['source']},
     ssr: {resolve: {conditions: ['source']}},
