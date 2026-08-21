@@ -1,7 +1,7 @@
 # Upstream: CLS001 (`runtypes/class-serializer`) is reported twice per site
 
-**Status:** todo — **upstream bug in `@ts-runtypes/devtools`.** Investigated and localised here;
-nothing left to fix on mion's side. Needs an issue filed in `ts-run-types`.
+**Status:** todo — **root cause confirmed and FIXED upstream**; waiting on a release + a mion
+upgrade to close. Nothing to change on mion's side.
 **Type:** bug (diagnostic noise)
 **Created:** 2026-08-20 (concluded while closing
 [../done/eslint-rules-tuning-and-docs.md](../done/eslint-rules-tuning-and-docs.md))
@@ -48,15 +48,39 @@ CLS001 is a warning users are meant to **act on** — it says a class will decod
 rather than a real instance unless `registerClassSerializer` is called. Doubling every instance
 makes a real signal read as noise, and inflates any "warnings count" gate a consumer sets up.
 
-## Fix plan
+## Root cause (confirmed upstream, 2026-08-21)
 
-1. File the issue upstream in `ts-run-types` with the reproduction above (both the eslint and the
-   vite-plugin surface, since the duplication is common to them).
-2. Do **not** work around it in mion — deduping in the config would hide a real upstream bug and
-   would silently swallow a genuine second diagnostic at the same position if one ever existed.
-3. Once fixed and mion upgrades, re-run `pnpm run lint` and confirm the CLS001 count halves.
+Two layers stack, and **the bug is not CLS001-specific** — it hits any diagnostic emitted from
+a code path shared across cache families:
+
+- `Walker.EmitDiagnostic` dedupes per code **per walk** — but a walk is per cache FAMILY. The
+  resolver fans out one Walker, and one diagnostic sink, per family, so each family's latch is
+  blind to its siblings.
+- Each walk then emits against **every** provenance site of the root type. So a class the JSON
+  encoder family and the decoder family both walk reports twice at BOTH call sites.
+
+Reproduced minimally: one class, two call sites (`createJsonEncoderFn<Pet>()` +
+`createJsonDecoderFn<Pet>()`) produced **four** identical CLS001s. The per-family-prefixed
+codes (`PJ001`, `SJ001`, `TB001`) escaped this only because their codes differ per family.
+
+The per-family codes were never affected, which is why this looked like a class-serializer
+problem rather than a general one.
+
+## Fixed upstream
+
+`diagnostics.Dedupe`, applied once in `Session.Dispatch` — the single point every operation
+returns through, so it covers the marker, pure-fn and enrich lanes too. Keyed on the full wire
+identity (code, family, severity, args, site, related), so only diagnostics that would render
+byte-identically collapse; two findings at one position with different args both survive.
+
+Branch: `feature/devtools-bun-lane-and-diagnostics` in `ts-run-types`.
+
+## Fix plan (mion side)
+
+1. Do **not** work around it here — deduping in mion's config would hide the upstream bug.
+2. Upgrade `@ts-runtypes/devtools` once the fix is released.
+3. Re-run `pnpm run lint` and confirm the CLS001 count roughly halves (114 → ~57).
 
 ## Done when
 
-- Upstream issue filed, and its outcome recorded here.
-- After the upgrade, each CLS001 site reports exactly once.
+- mion is on a release carrying the fix, and each CLS001 site reports exactly once.

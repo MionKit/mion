@@ -16,15 +16,6 @@
 
 # `@mionjs/platform-bun`
 
-> ⚠️ **Temporarily unsupported since the ts-runtypes migration.** The deepkit loader is gone —
-> `loader/runtypes-loader.ts` now wraps the ts-runtypes resolver (`@ts-runtypes/devtools`'s Bun
-> plugin, the counterpart of `mionVitePlugin`) — but the transparent `bun test`/`bun run` preload
-> lane does not yet inject types for cross-package internal routes, so route registration still
-> throws `MissingRtFnsError`. The precise blocker and the remaining paths (upstream Bun.plugin
-> adapter, or a `Bun.build`/`ts-runtypes --compile` ahead-of-time lane) are tracked in
-> [`docs/todos/platform-bun-runtypes-lane.md`](../../docs/todos/platform-bun-runtypes-lane.md).
-> Do not publish this package until that lands.
-
 This package contains a Bun server to run mion APIs!
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
