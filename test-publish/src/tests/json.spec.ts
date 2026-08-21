@@ -148,13 +148,7 @@ describe('JSON Serialization E2E', () => {
         middleFns.auth(authHeaders).removePrefill();
     });
 
-    // SKIPPED — this passes in the monorepo (packages/client routesFlow.spec.ts) but NOT against
-    // packaged tarballs: the consumer's server process loads @mionjs/core twice (mion prints its own
-    // "loaded 2 times" warning at boot), so the mapper registers into one core instance and the
-    // router looks it up in the other. Root cause + evidence in
-    // docs/todos/packaged-consumer-dual-core-load.md. Un-skip with that fix — the harvest half
-    // already works here (.mion/server-mappers.json is written with the mapper body).
-    it.skip('serverMapFrom should run a client-authored mapper on the server, mid-flow', async () => {
+    it('serverMapFrom should run a client-authored mapper on the server, mid-flow', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 

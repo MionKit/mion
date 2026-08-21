@@ -44,6 +44,18 @@ describe('production build output', () => {
         }
     });
 
+    it('inlines the serverMapFrom mappers harvested from the client build', () => {
+        const content = readFileSync(distFile, 'utf-8');
+        // The mapper body is authored in client flow code (src/tests/json.spec.ts), harvested into
+        // .mion/server-mappers.json, and compiled into the generated module the plugin imports for us.
+        // This used to be served as `virtual:mion/server-mappers`, which rollup externalized — the
+        // bundle shipped an unresolvable `import "virtual:mion/server-mappers"` and the mappers never
+        // travelled at all. Nothing virtual may survive into the artifact.
+        expect(content).toContain('registerServerMappers');
+        expect(content).toContain('customerValue');
+        expect(content).not.toContain('virtual:');
+    });
+
     it('is self-contained — no cache file read from disk at runtime', () => {
         const content = readFileSync(distFile, 'utf-8');
         // an artifact that reads node:fs at boot is not deployable to edge/lambda

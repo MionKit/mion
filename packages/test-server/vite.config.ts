@@ -8,8 +8,8 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-            // consume the client build's harvested serverMapFrom mappers (registered via
-            // the virtual:mion/server-mappers side-effect import in test-server.ts)
+            // consume the client build's harvested serverMapFrom mappers (the plugin generates
+            // .mion/server-mappers.generated.js and imports it from the module calling initMionRouter)
             serverMappers: {consume: resolve(__dirname, '../client/.mion/server-mappers.json')},
         }),
     ],
