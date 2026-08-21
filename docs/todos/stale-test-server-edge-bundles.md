@@ -1,8 +1,9 @@
 # The committed `packages/test-server/build/*` bundles are stale, and a fresh build of them fails
 
-**Status:** todo — PRE-EXISTING, not caused by the branch that found it (verified below). The
-platform-cloudflare and platform-vercel edge suites currently pass only because the committed bundle
-is old.
+**Status:** todo — PRE-EXISTING, not caused by the branch that found it (verified below). **Blocks
+back-to-back runs of the release gate**: `scripts/pre-publish-test.sh` runs tests (step 2) before
+build (step 4), so a first run from a clean tree passes — but that run leaves regenerated, broken
+artifacts behind, and the next run fails at step 2. Observed, not theorised.
 **Created:** 2026-08-21
 
 ## Problem
@@ -41,17 +42,54 @@ and predates this work.
   single clean run passes — but any developer who builds and then tests sees 7 failures, and a
   reordering of the gate would turn it red.
 
+## What the failure actually is
+
+The route call sites in the entry file are **not injected**. In the freshly built bundle:
+
+```
+const changeUserName = route((ctx, user) => {        // no marker arguments
+```
+
+while `@mionjs/router`'s own internal routes, bundled into the same file, are:
+
+```
+route(mionGetRemoteMethodsDataById, {serializer: "stringifyJson"}, [__rt_nPZ_l9TXj7P, …])
+```
+
+So the ts-runtypes runtime and 21 generated fns are present in the bundle; what is missing is the
+injection at `src/test-server-edge.ts`'s own `route()` calls. That is precisely what
+`MissingRtFnsError` reports (`packages/router/src/lib/reflection.ts:29`).
+
+The committed artifact predates all of this: `grep -c rtFns` gives **0** on the committed
+`test-server-edge.js` and 31 on a fresh build. The two suites have been validating a pre-migration
+bundle.
+
+## Ruled out (each tested directly)
+
+- **The `const x: Route = route(…)` annotation.** `packages/platform-gcloud/src/googleCF.spec.ts:39-47`
+  uses the identical pattern and injects fine.
+- **`resolve.alias` vs the `source` condition.** Replacing the alias map with
+  `resolve.conditions: ['source']` (what `packages/test-server/vite.config.ts` uses) changes nothing.
+- **The `iife` output format.** Building the same entry as `es` changes nothing.
+- **A stale generated cache.** `rm -rf packages/test-server/__runtypes` then rebuilding changes nothing.
+- **The tsconfig scan scope.** `include: ["."]` covers the file, and the NODE lib build
+  (`vite.config.ts`) of the same package, with the same tsconfig, injects correctly —
+  `.dist/esm/src/test-server-json.js` has fully injected call sites.
+
+So the differentiator is something about the edge/cloudflare build configs beyond format and
+resolution, and the plugin emits no diagnostic at all — it transforms 284 modules silently and skips
+these call sites. Next step is likely an upstream question for `@ts-runtypes/devtools`: what makes it
+decline to inject a `route()` call site, silently, in one vite config but not another over the same
+tsconfig program. A `failOnError`-style diagnostic for "tracked callee found, not injected" would have
+made this a one-minute diagnosis instead of an afternoon.
+
 ## Fix plan
 
-1. Reproduce and read the real error out of the workerd runtime (the spec only surfaces the response
-   body). `packages/test-server/vite.edge.config.ts` / `vite.cloudflare.config.ts` build
-   `src/test-server-edge.ts` as a single IIFE with `resolve.alias` pointing at workspace source.
-2. Most likely candidates, in order: the generated `__runtypes/` cache modules not being pulled into
-   the IIFE (aliased/externalized away), the alias map bypassing the plugin's transform for
-   `@mionjs/*` sources, or a fn-key mismatch between the aliased source copy and the generated cache.
-3. Once fixed, **regenerate and commit the artifacts**, and add a guard so they cannot silently rot
-   again — either rebuild them as part of the specs' setup, or assert in CI that a rebuild produces
-   no diff.
-4. Consider whether committing these bundles is right at all: `.gitignore:79` documents the committed
-   `build/` exception for `devtools` only ("eslint needs compiled JS"). test-server's may be tracked
-   by accident, in which case generating them in a pretest step is the better answer.
+1. Answer the question above, fix the cause.
+2. **Regenerate and commit the artifacts**, and add a guard so they cannot silently rot again — either
+   rebuild them in the specs' setup, or assert in CI that a rebuild produces no diff.
+3. Consider whether committing these bundles is right at all: `.gitignore:79` documents the committed
+   `build/` exception for `devtools` only ("eslint needs compiled JS"). test-server's may be tracked by
+   accident, in which case generating them in a pretest step is the better answer.
+4. Until it is fixed, `git checkout -- packages/test-server/build/` after running `pnpm run build`, or
+   the next test run is red.
