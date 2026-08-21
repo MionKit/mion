@@ -3,7 +3,7 @@
 **Status:** done — R35 of [migration-review-findings.md](migration-review-findings.md). Shipped across
 PR3 (self-contained buckets), PR #126 (`MION_COMPILE`/`isMionCompileMode`), and the eslint-cleanup PR
 (dead eslint surface). The one intentional deferral — the plugin-option deprecation sunset — is tracked
-separately in [plugin-legacy-option-sunset.md](../todos/plugin-legacy-option-sunset.md).
+separately in [plugin-legacy-option-sunset.md](plugin-legacy-option-sunset.md) (now done).
 **Created:** 2026-07-20
 
 ## Shipped in PR3
@@ -54,5 +54,6 @@ Full suite green after the sweep (core/run-types/type-formats/devtools/router/cl
   green (224 tests), `build/` rebuilt.
 
 The one deliberately deferred item — the accepted-and-ignored `aotCaches`/`serverPureFunctions`
-plugin-option sunset (a deprecation window, not dead code) — moved to its own spec:
-[plugin-legacy-option-sunset.md](../todos/plugin-legacy-option-sunset.md).
+plugin-option sunset — moved to its own spec and has since shipped:
+[plugin-legacy-option-sunset.md](plugin-legacy-option-sunset.md). The deprecation window was dropped
+on evidence (no published release ever carried the notice); that spec records why.
