@@ -36,6 +36,10 @@ Candidate v1 metadata — chosen because it is exactly what mion reads today (se
 - **tuple member labels** — `[pet: Pet, notes?: string]` → member `name` + `optional`
 - **function signature shape** — parameter names, arity, optional/rest flags
 - **return shape hint** — whether the type is `void` / `never` / `undefined` (mion's `hasReturnData`)
+- **`binarySizeEstimate`** (`tb` family only) — already emitted into the `tb` entry tuple, but
+  deliberately kept off the cache entry, so it is unreachable via `getRT()`. mion reads the tuple slot
+  directly today; see [drop-binary-estimate-slot-read.md](drop-binary-estimate-slot-read.md), which can
+  either land as a ~2-line standalone fix or fold into this channel.
 - possibly **format name/params per member** (drizzle reads these from the graph too, see
   [drizzle-column-mapping-on-type-formats.md](drizzle-column-mapping-on-type-formats.md), though that
   spec solves its half in the *type* lane)
