@@ -27,7 +27,10 @@ import (
 func entrySeed(t *testing.T, lane string) int64 {
 	t.Helper()
 	if raw := os.Getenv("RT_FUZZ_SEED"); raw != "" {
-		parsed, parseErr := strconv.ParseInt(raw, 10, 64)
+		// Base 0, not 10: the JS lanes accept decimal OR 0x-prefixed hex and
+		// PRINT their replay command in hex, so a decimal-only parse here
+		// rejects the very seed a JS finding tells you to replay with.
+		parsed, parseErr := strconv.ParseInt(raw, 0, 64)
 		if parseErr != nil {
 			t.Fatalf("RT_FUZZ_SEED: %v", parseErr)
 		}
@@ -40,6 +43,30 @@ func entrySeed(t *testing.T, lane string) int64 {
 	seed := int64(digest.Sum32())
 	t.Logf("[%s-fuzz] seed %d from version %s (replay: RT_FUZZ_SEED=%d)", lane, seed, version, seed)
 	return seed
+}
+
+// A seed spelled the way the JS lanes spell it must replay here. Their
+// fuzzPolicy.ts accepts decimal or 0x-hex and renders every replay command in
+// hex, so copying a JS finding's command into a Go sweep has to work; a
+// decimal-only parse used to fail it with "invalid syntax". CI never caught it
+// because the workflows seed from github.run_id, which is decimal.
+func TestEntrySeed_AcceptsTheSpellingsTheJSLanesEmit(t *testing.T) {
+	for _, probe := range []struct {
+		name string
+		raw  string
+		want int64
+	}{
+		{"hex as the JS lanes print it", "0x90f3baf6", 0x90f3baf6},
+		{"decimal as the workflows set it", "2431106294", 2431106294},
+		{"uppercase hex", "0XFF", 255},
+	} {
+		t.Run(probe.name, func(t *testing.T) {
+			t.Setenv("RT_FUZZ_SEED", probe.raw)
+			if got := entrySeed(t, "probe"); got != probe.want {
+				t.Fatalf("RT_FUZZ_SEED=%s: seed = %d, want %d", probe.raw, got, probe.want)
+			}
+		})
+	}
 }
 
 // The lockstep version every package and the published binary share. `go test`
