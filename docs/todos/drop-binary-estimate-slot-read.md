@@ -1,7 +1,7 @@
 # Drop the `tb` slot read once `@ts-runtypes/core` exposes the binary size estimate
 
-**Status:** todo — UNBLOCKED upstream (2026-08-21), waiting on a release. The current slot read is
-safe, tested and staying until `@ts-runtypes/core` ships the field.
+**Status:** todo — UNBLOCKED upstream and **DRY-RUN VERIFIED** (2026-08-21). Waiting on a release
+only. The current slot read is safe, tested and staying until `@ts-runtypes/core` ships the field.
 **Type:** cleanup
 **Spec:** full-plan
 **Created:** 2026-08-20
@@ -68,6 +68,29 @@ Two things that were true when this spec was written and are worth correcting:
 4. Nothing else changes: `coldStartSize` in `packages/core/src/binary/bodySerializer.ts` already
    consumes `paramsBinarySizeEstimate` / `returnBinarySizeEstimate` off `MethodWithJitFns` and does
    not care where they came from.
+
+
+## Dry-run result (2026-08-21) — the plan below is CORRECT as written
+
+Applied against a locally packed upstream build (recipe in
+[platform-bun-adopt-upstream-adapter.md](platform-bun-adopt-upstream-adapter.md)) and reverted
+afterwards. Steps 1, 2 and 4 worked verbatim; step 3 (the version bump) is the only part that
+cannot be done until the release.
+
+**It is a pure refactor, measured rather than assumed.** The same route reports the same bytes
+through both paths:
+
+| | params | return |
+| --- | --- | --- |
+| old (tuple slot 11) | 58 | 35 |
+| new (`toBinary?.binarySizeEstimate`) | 58 | 35 |
+
+One detail worth knowing before you start: `buildJitFnsFromMarker` already resolves the entry
+and exposes it as `jitFns.toBinary`, so the two `buildJitFnsFromMarker(...)` calls in
+`getReflectionFromMarkers` need hoisting into locals first, then the estimates read off those.
+No other call-site change.
+
+Full suite green with the refactor applied (700 vitest + 12 bun, lint clean).
 
 ## Done when
 
