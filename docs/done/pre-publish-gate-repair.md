@@ -51,10 +51,10 @@ Four independent breakages, in firing order:
 The gate was run for real, not reasoned about: pack all 11 tarballs → clean install → `pnpm run test`
 (60 passed, 1 skipped) → `pnpm run build` → `pnpm run test:build-output` (5 passed).
 
-## Still open — two defects this gate surfaced, each tracked separately
+## The two defects this gate surfaced — both since fixed
 
-- [devtools-cjs-vite-plugin-unusable.md](../todos/devtools-cjs-vite-plugin-unusable.md) — the last
-  remaining gate failure. `@mionjs/platform-bun` ships no declarations because its own build cannot
-  run.
-- [packaged-consumer-dual-core-load.md](../todos/packaged-consumer-dual-core-load.md) — why the
-  `serverMapFrom` flow test is skipped rather than passing.
+- [devtools-cjs-vite-plugin-unusable.md](devtools-cjs-vite-plugin-unusable.md) — the last remaining
+  gate failure: `@mionjs/platform-bun` shipped no declarations because its own build could not run.
+- [virtual-module-retired-and-dual-core-load.md](virtual-module-retired-and-dual-core-load.md) — why
+  the `serverMapFrom` flow test was skipped. The virtual module turned out to be the cause of both
+  the lost transport and the duplicated `@mionjs/core`; the test now passes.

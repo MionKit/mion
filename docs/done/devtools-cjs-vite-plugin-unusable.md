@@ -1,7 +1,7 @@
 # `@mionjs/devtools/vite-plugin` advertises a `require` condition that cannot load
 
-**Status:** todo — BLOCKS the release. Needs a packaging decision (see the options below); everything
-else in [pre-publish-gate-repair.md](../done/pre-publish-gate-repair.md) is fixed and verified.
+**Status:** done — shipped in `1269691` (option 1 + 2 below). Was the last blocker on
+[pre-publish-gate-repair.md](pre-publish-gate-repair.md).
 **Created:** 2026-08-21
 
 ## Problem
@@ -61,5 +61,11 @@ Note this is masked in a piped shell: `pnpm run build | tail` reports exit 0 whi
    `mionVitePlugin` (vite accepts `Promise<PluginOption>` in `plugins`). Keeps the advertised CJS
    support genuinely working; largest change.
 
-Recommendation: 1 + 2 together — stop advertising a lane that cannot work, and move platform-bun onto
-the ESM lane every other package already uses.
+**Shipped: 1 + 2 together** — stopped advertising a lane that cannot work, and moved platform-bun onto
+the ESM lane every other package already uses. `.` and `./eslint` keep their `require` condition: that
+is the ESLint plugin, where CJS is genuinely needed and works.
+
+Verified: `pnpm run build` now reports "Successfully ran target build for 13 projects" (it had been
+dying at platform-bun); platform-bun builds for the first time; `pnpm run test:bun` green (12 tests
+across 3 files, including the loader test), so bun's preload and its `__dirname` use survive the type
+change.

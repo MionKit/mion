@@ -19,7 +19,7 @@ import {getOrCreateGlobal} from '../utils.ts';
 // - INLINE (vite builds): the client writes `serverMapFrom(order, (o) => o.userId)`. The mapper
 //   carries ts-runtypes' PureFunction/InjectPureFnHash markers, so the mion vite plugin harvests
 //   it from the build report, content-hashes it (`rt::<hash>`) and bakes the body into the server
-//   bundle via the generated `virtual:mion/server-mappers` module → registerServerMappers below.
+//   bundle via the generated `.mion/server-mappers.generated.js` module → registerServerMappers below.
 //
 // - BY NAME (non-vite / CDN clients): the client writes `serverMapFrom(order, 'toUserId')`; the
 //   server registers the mapper itself with @ts-runtypes' own registrar and opts the key into
@@ -86,7 +86,7 @@ const mapperReaderStore = getOrCreateGlobal('mion.runTypes.serverMapperReader', 
 }));
 
 /** Registers harvested mapper entries into the ts-runtypes pure-fn cache (idempotent).
- *  Called by the generated `virtual:mion/server-mappers` module in the server bundle. */
+ *  Called by the generated `.mion/server-mappers.generated.js` module in the server bundle. */
 export function registerServerMappers(entries: ServerMapperEntry[]): void {
     const utl = getRTUtils();
     for (const entry of entries) {

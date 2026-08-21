@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": ".dist/esm",
     "rootDir": ".",
-    "types": ["@mionjs/devtools/virtual-modules", "@types/node"]
+    "types": ["@types/node"]
   },
   "references": [{"path": "../core"}, {"path": "../test-server"}],
   "include": ["."],

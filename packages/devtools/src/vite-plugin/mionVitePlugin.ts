@@ -93,19 +93,19 @@ export interface MionServerOptions {
 
 /** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
  *  ts-runtypes pure-fn build report) into a manifest; server builds CONSUME it through
- *  the `virtual:mion/server-mappers` module. Wire carries only the `rt::<hash>` key —
+ *  the generated `.mion/server-mappers.generated.js` module. Wire carries only the `rt::<hash>` key —
  *  the server registers exactly the mappers its own build baked in. */
 export interface MionServerMappersOptions {
     /** CLIENT builds: write harvested serverMapFrom mappers to this manifest path.
      *  `true` resolves '.mion/server-mappers.json' against the process cwd — pass an
      *  absolute path in monorepo/vitest-workspace setups. */
     emit?: boolean | string;
-    /** SERVER builds: manifest path(s) served through `virtual:mion/server-mappers`
-     *  (import it once, side-effect, from the server entry). In `vite build` the entries
-     *  are INLINED into the bundle at build time (missing manifests fail the build; no
-     *  node:fs in the artifact — edge/lambda safe). In dev/serve the module reads the
-     *  files at runtime, tolerating missing ones with a lazy re-read on the first
-     *  unresolved mapping (covers the client-build race). */
+    /** SERVER builds: manifest path(s) compiled into `<root>/.mion/server-mappers.generated.js`,
+     *  which the plugin imports for you from whichever module calls initMionRouter — nothing to
+     *  import by hand. In `vite build` the entries are INLINED into the bundle at build time
+     *  (missing manifests fail the build; no node:fs in the artifact — edge/lambda safe). In
+     *  dev/serve the module reads the files at runtime, tolerating missing ones with a lazy
+     *  re-read on the first unresolved mapping (covers the client-build race). */
     consume?: string | string[];
 }
 
@@ -257,10 +257,11 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
         ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),
     });
-    // Always serve virtual:mion/server-mappers — a server entry importing it must keep
-    // resolving in pipelines WITHOUT `consume` configured (e.g. specs importing the
-    // test-server module for its route types); those get an inert empty module.
-    const extraPlugins: Plugin[] = [serverMappersConsumePlugin(options.serverMappers?.consume)];
+    // Only wired when `consume` is configured: with no transport there is nothing to generate
+    // and nothing to inject, so pipelines that merely import a server module for its route types
+    // (specs, client builds) are untouched.
+    const extraPlugins: Plugin[] = [];
+    if (options.serverMappers?.consume) extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume));
     if (options.server) {
         const server = options.server;
         // Server startup is deferred to buildStart so only the project actually RUNNING
@@ -298,58 +299,89 @@ function writeMapperManifest(manifestPath: string, mappers: Map<string, ServerMa
     writeFileSync(manifestPath, JSON.stringify(entries, null, 2) + '\n');
 }
 
-const SERVER_MAPPERS_ID = 'virtual:mion/server-mappers';
-const RESOLVED_SERVER_MAPPERS_ID = '\0' + SERVER_MAPPERS_ID;
+/** Filename of the module generated from the consumed manifests, written into `<root>/.mion/`
+ *  (already gitignored, and the same directory the harvest writes its JSON to). */
+const GENERATED_MAPPERS_FILE = 'server-mappers.generated.js';
 
-/** Serves virtual:mion/server-mappers to SERVER builds. Two modes:
- *  - `vite build` (production bundles): the manifests are read AT BUILD TIME and the entries
- *    are inlined into the generated module as static data — no `node:fs`, no build-machine
- *    paths in the artifact, deployable to lambda/docker/edge like every other build output.
- *  - dev/serve (vitest, vite-node managed server): the module reads the manifest files at
- *    runtime and installs the lazy re-reader, covering the race where the server boots
- *    before the client build finished harvesting (first unresolved mapping re-reads).
- *  Without `consume` paths it serves an inert empty module so the import never breaks a
- *  pipeline that did not configure the transport. */
-function serverMappersConsumePlugin(consume: string | string[] | undefined): Plugin {
-    const manifests = (Array.isArray(consume) ? consume : consume ? [consume] : []).map((manifest) => path.resolve(manifest));
+/** Matches a module that pulls initMionRouter out of @mionjs/router — the injection target. */
+const ROUTER_INIT_IMPORT = /import\s*\{[^}]*\binitMionRouter\b[^}]*\}\s*from\s*['"]@mionjs\/router['"]/;
+
+/** Generates a REAL module registering the harvested serverMapFrom mappers, and injects a
+ *  side-effect import of it into the server entry.
+ *
+ *  This used to be a `virtual:mion/server-mappers` module served from resolveId/load. Virtual
+ *  modules lose to `rollupOptions.external`: rollup tests external against the RESOLVED id, and
+ *  `\0virtual:mion/server-mappers` still matches a catch-all like /^[^./]/ — so the import was
+ *  externalized and survived verbatim into production bundles, where nothing can resolve it. The
+ *  build-time inlining this module documents therefore never happened. A real file on disk has no
+ *  such failure mode, needs no ambient module declaration, is inspectable when a mapper goes
+ *  missing, and matches where @ts-runtypes already landed with its own generated output.
+ *
+ *  Two modes, unchanged:
+ *  - `vite build`: manifests are read AT BUILD TIME and inlined as static data — no node:fs, no
+ *    build-machine paths in the artifact, deployable to lambda/docker/edge.
+ *  - dev/serve: the module reads the manifests at runtime and installs the lazy re-reader, covering
+ *    the race where the server boots before the client build finished harvesting. */
+function serverMappersConsumePlugin(consume: string | string[]): Plugin {
+    const manifests = (Array.isArray(consume) ? consume : [consume]).map((manifest) => path.resolve(manifest));
     let isBuildCommand = false;
+    let generatedFile = '';
     return {
         name: 'mion-server-mappers',
-        configResolved(config: {command?: string}) {
-            isBuildCommand = config?.command === 'build';
+        configResolved(config) {
+            isBuildCommand = config.command === 'build';
+            generatedFile = path.resolve(config.root, '.mion', GENERATED_MAPPERS_FILE);
         },
-        resolveId(id: string) {
-            if (id === SERVER_MAPPERS_ID) return RESOLVED_SERVER_MAPPERS_ID;
+        buildStart() {
+            // written before any transform runs, so the injected import always resolves
+            mkdirSync(path.dirname(generatedFile), {recursive: true});
+            writeFileSync(generatedFile, renderMappersModule(manifests, isBuildCommand));
         },
-        load(id: string) {
-            if (id !== RESOLVED_SERVER_MAPPERS_ID) return;
-            if (manifests.length === 0) return 'export {};';
-            if (isBuildCommand) {
-                const entries = readMapperManifests(manifests);
-                return [
-                    `import {registerServerMappers} from '@mionjs/core';`,
-                    `registerServerMappers(${JSON.stringify(entries)});`,
-                ].join('\n');
-            }
-            return [
-                `import {installServerMapperReader} from '@mionjs/core';`,
-                `import {existsSync, readFileSync} from 'node:fs';`,
-                `const MANIFESTS = ${JSON.stringify(manifests)};`,
-                `installServerMapperReader(() => {`,
-                `    const entries = [];`,
-                `    for (const manifestPath of MANIFESTS) {`,
-                `        if (!existsSync(manifestPath)) continue;`,
-                `        try {`,
-                `            entries.push(...JSON.parse(readFileSync(manifestPath, 'utf8')));`,
-                `        } catch {`,
-                `            // partial write: the lazy on-miss re-read retries`,
-                `        }`,
-                `    }`,
-                `    return entries;`,
-                `});`,
-            ].join('\n');
+        transform(code, id) {
+            if (id === generatedFile || id.includes('node_modules')) return;
+            if (!ROUTER_INIT_IMPORT.test(code)) return;
+            const from = path.relative(path.dirname(id), generatedFile).split(path.sep).join('/');
+            const specifier = from.startsWith('.') ? from : `./${from}`;
+            return {code: `import '${specifier}';\n${code}`, map: null};
         },
     };
+}
+
+/** Renders the generated module's source for the active mode (see serverMappersConsumePlugin). */
+function renderMappersModule(manifests: string[], isBuildCommand: boolean): string {
+    const header = '// GENERATED by @mionjs/devtools — serverMapFrom transport. Do not edit.\n';
+    if (isBuildCommand) {
+        const entries = readMapperManifests(manifests);
+        return (
+            header +
+            [
+                `import {registerServerMappers} from '@mionjs/core';`,
+                `registerServerMappers(${JSON.stringify(entries)});`,
+                '',
+            ].join('\n')
+        );
+    }
+    return (
+        header +
+        [
+            `import {installServerMapperReader} from '@mionjs/core';`,
+            `import {existsSync, readFileSync} from 'node:fs';`,
+            `const MANIFESTS = ${JSON.stringify(manifests)};`,
+            `installServerMapperReader(() => {`,
+            `    const entries = [];`,
+            `    for (const manifestPath of MANIFESTS) {`,
+            `        if (!existsSync(manifestPath)) continue;`,
+            `        try {`,
+            `            entries.push(...JSON.parse(readFileSync(manifestPath, 'utf8')));`,
+            `        } catch {`,
+            `            // partial write: the lazy on-miss re-read retries`,
+            `        }`,
+            `    }`,
+            `    return entries;`,
+            `});`,
+            '',
+        ].join('\n')
+    );
 }
 
 /** Reads + merges the mapper manifests at BUILD time (missing files fail loud in build mode —
