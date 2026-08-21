@@ -1,6 +1,7 @@
 {
     "name": "@mionjs/platform-bun",
     "version": "0.8.10",
+    "type": "module",
     "description": "mion server for bun runtime",
     "keywords": [
         "typescript",
