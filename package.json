@@ -13,7 +13,6 @@
     "format": "prettier --write 'packages/**/*.{ts,md}'",
     "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
-    "check-format": "prettier --check 'packages/**/*.{ts,md}'",
         "check-code-imports": "node scripts/check-code-imports.mjs",
         "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
     "lint": "lerna run lint",
