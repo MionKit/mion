@@ -7,9 +7,6 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {
-                    sourceMap: true,
-                },
             },
             // consume the client build's harvested serverMapFrom mappers (registered via
             // the virtual:mion/server-mappers side-effect import in test-server.ts)

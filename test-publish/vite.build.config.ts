@@ -8,17 +8,6 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-            aotCaches: {
-                cache: true,
-            },
-            serverPureFunctions: {
-                clientSrcPath: resolve(__dirname, 'src/client'),
-            },
-            server: {
-                startScript: resolve(__dirname, 'src/server/server.ts'),
-                viteConfig: resolve(__dirname, 'vite.server.config.ts'),
-                runMode: 'buildOnly',
-            },
         }) as any,
     ],
     build: {

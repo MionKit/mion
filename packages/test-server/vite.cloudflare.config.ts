@@ -8,21 +8,6 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {
-                    sourceMap: true,
-                },
-            },
-            serverPureFunctions: {
-                clientSrcPath: resolve(__dirname, '../client/src'),
-            },
-            aotCaches: {
-                cache: false, // Disable disk caching for test builds
-                excludeReflection: true,
-            },
-            server: {
-                startScript: resolve(__dirname, 'src/test-server-cloudflare.ts'),
-                viteConfig: resolve(__dirname, 'vite.cloudflare.config.ts'),
-                runMode: 'buildOnly',
             },
         }) as any,
     ],

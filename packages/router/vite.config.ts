@@ -40,17 +40,6 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {sourceMap: true},
-                exclude: [
-                    '**/dispatch.ts',
-                    '**/headers.ts',
-                    '**/dispatchError.ts',
-                    '**/callContext.ts',
-                    '**/workflows.ts',
-                    '**/router.ts',
-                    '**/lib/handlers.ts',
-                    '**/lib/remoteMethods.ts',
-                ],
             },
         }),
         dts({
