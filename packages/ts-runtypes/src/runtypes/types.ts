@@ -232,6 +232,12 @@ export interface CompiledFnData {
    * normal and noop entries. See docs/ARCHITECTURE.md (cache format v10).
    */
   readonly alwaysThrowMessage?: string;
+  /** `tb` (binary-encoder) entries only: the compile-time cold-start buffer-size
+   *  estimate in bytes. Absent on every other family — the Go side emits the slot
+   *  only for an un-varianted `toBinary` entry. `createBinaryEncoderFn`'s
+   *  `dynamic` strategy seeds the buffer with it so a cold encode is sized to the
+   *  type instead of the flat `defaultBufferSize`. **/
+  readonly binarySizeEstimate?: number;
 }
 
 export interface CompiledTypeFn<Fn extends AnyFn = AnyFn> extends CompiledFnData {
