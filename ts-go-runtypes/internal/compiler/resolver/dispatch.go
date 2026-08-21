@@ -89,15 +89,24 @@ var familyAddedFlags = []familyAddedFlag{
 // dispatch: total wall time, Go memory deltas/snapshots, tsgo
 // extendedDiagnostics counters (read off the live Program), and the
 // per-phase times the inner handler recorded.
+// Every op returns through here, so this is also where the response's
+// diagnostics are deduped — the ONE choke point that covers the runtype,
+// marker, pure-fn and enrich lanes alike (they assemble their diagnostics on
+// different branches of dispatch, so deduping inside collectFamilies would
+// only cover the runtype fan-out). See diagnostics.Dedupe for why the
+// walker's own per-walk latch cannot catch these.
 func (sess *Session) Dispatch(request protocol.Request) protocol.Response {
 	if !request.IncludeMetrics {
-		return sess.dispatch(request, nil)
+		response := sess.dispatch(request, nil)
+		response.Diagnostics = diagnostics.Dedupe(response.Diagnostics)
+		return response
 	}
 	var memBefore runtime.MemStats
 	runtime.ReadMemStats(&memBefore)
 	metrics := &protocol.Metrics{RenderMs: map[string]float64{}}
 	start := time.Now()
 	response := sess.dispatch(request, metrics)
+	response.Diagnostics = diagnostics.Dedupe(response.Diagnostics)
 	metrics.TotalMs = elapsedMs(start)
 	var memAfter runtime.MemStats
 	runtime.ReadMemStats(&memAfter)

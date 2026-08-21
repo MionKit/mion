@@ -453,6 +453,48 @@ export const _e = createJsonEncoderFn<S>(undefined, {strategy: 'mutate'});
   });
 
   // The default emit mode (no inline createRTFn) keeps the cache
+  // Regression: one diagnostic per CALL SITE, never one per cache family.
+  //
+  // A class demanded by two families (the JSON encoder walks it, the decoder
+  // walks it) used to report CLS001 FOUR times for two call sites: each family
+  // gets its own Walker — so its own per-code latch — and each walk emits
+  // against EVERY provenance site of the root type. mion saw 114 CLS001 lines
+  // per lint run, roughly half of them exact duplicates.
+  //
+  // Nothing about this was class-serializer specific; it hit any code emitted
+  // from a family-shared path. The fix (diagnostics.Dedupe, applied once in
+  // Session.Dispatch) is keyed on the FULL identity, so the sibling assertion
+  // below — two different classes at two sites — must still report four.
+  register('reports CLS001 once per call site, not once per cache family', async () => {
+    const sources = {
+      'cls.ts': `import {createJsonEncoderFn, createJsonDecoderFn} from '@ts-runtypes/core';
+export class Pet { name: string = 'x'; }
+export const enc = createJsonEncoderFn<Pet>();
+export const dec = createJsonDecoderFn<Pet>();
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      expect(cls.length, `expected one CLS001 per call site, got:\n${JSON.stringify(cls, null, 2)}`).toBe(2);
+      // Both sites are represented — dedup must not collapse ACROSS sites.
+      const lines = cls.map((d) => d.site.startLine).sort((a, b) => a - b);
+      expect(lines).toEqual([3, 4]);
+      for (const diagnostic of cls) {
+        expect(diagnostic.severity).toBe(Severity.Warning);
+        expect(diagnostic.args).toEqual(['Pet']);
+      }
+    });
+  });
+
+  // The matching NEGATIVE case — same code and site, different args, both
+  // surviving — is covered by TestDedupe_KeepsSameSiteDifferentArgs in
+  // internal/diagnostics/dedupe_test.go rather than here, because the pipeline
+  // cannot currently produce that shape end-to-end: Walker.EmitDiagnostic's
+  // per-walk latch is keyed on the CODE alone, so a single walk emits any given
+  // code at most once whatever its args. Asserting it at this layer would pin
+  // that incidental limitation instead of the dedup contract.
+
   // module compact by leaving the validator body in arg-3 only and
   // trimming the all-default tail (isNoop false, empty dep lists, the
   // createRTFn placeholder) — non-noop dep-less entries end at the
