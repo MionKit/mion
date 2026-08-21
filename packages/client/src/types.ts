@@ -20,11 +20,12 @@ export type UnexpectedError = RpcError<string>;
 // type-result-start
 /** Result type for call() - 4-tuple pattern:
  * [routeResult, routeError (declared | ValidationError), unexpected, middleFnResults] **/
-export type Result<
-    RouteSuccess,
-    RouteError,
-    MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
-> = [RouteSuccess | undefined, RouteError | undefined, UnexpectedError | undefined, MiddleFnsResults | undefined];
+export type Result<RouteSuccess, RouteError, MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>> = [
+    RouteSuccess | undefined,
+    RouteError | undefined,
+    UnexpectedError | undefined,
+    MiddleFnsResults | undefined,
+];
 // type-result-end
 
 /** Extract success type from a MiddleFnSubRequest */
