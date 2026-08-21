@@ -31,7 +31,7 @@ emitted twice at the identical position. It doubles in the **vite plugin's** out
 the diagnostic stream, not either consumer.
 
 Nothing to fix here. Filed as
-[../todos/upstream-cls001-duplicate-diagnostic.md](../todos/upstream-cls001-duplicate-diagnostic.md)
+[upstream-cls001-duplicate-diagnostic.md](upstream-cls001-duplicate-diagnostic.md)
 with the reproduction, and explicitly **not** worked around in mion's config.
 
 ## 3. `no-type-imports` — deleted. `enforce-type-imports` — kept.

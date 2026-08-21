@@ -141,7 +141,7 @@ actually ran rather than passing without exercising it.
 
 ## Follow-up
 
-- [../todos/drop-binary-estimate-slot-read.md](../todos/drop-binary-estimate-slot-read.md) — retire the
+- [drop-binary-estimate-slot-read.md](drop-binary-estimate-slot-read.md) — retire the
   `tb` tuple-slot read once `@ts-runtypes/core` exposes the estimate on the fn cache entry. Blocked on
   that upstream change; a pure cleanup with no behaviour change, so the lane above is complete without it.
 

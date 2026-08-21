@@ -291,41 +291,6 @@ export function getParamsFromRunType(paramsRunType: RunType<unknown>): {name?: s
     });
 }
 
-// ############# compile-time binary size estimate #############
-
-/** Slot of the trailing `binarySizeEstimate` field on a `tb` (binary-encoder) entry tuple, and the
- *  full tuple width. Mirrors upstream's FN_TYPE_TUPLE_KEYS layout. */
-const TB_TUPLE_LENGTH = 12;
-const TB_ESTIMATE_SLOT = 11;
-const MAX_BUFFER_BYTES = 2 ** 32;
-
-/**
- * The compile-time per-type size estimate the plugin bakes into a `tb` entry tuple, used to size a
- * cold buffer to the TYPE instead of a flat default (a `number` return estimates 8 bytes, a small
- * object ~35, a nested one ~2.8 KiB).
- *
- * Upstream keeps this on the tuple only: `binarySizeEstimateFromTuple` lives in an un-exported
- * module, and `registerTypeFnTuple` drops the value when building the cache entry, so it cannot be
- * read back from `getRT()`. Reading the slot here is the same guarded-internal-read compromise as
- * `resolveCompiledPureFn` above, and is validated rather than trusted: a `tb` tuple of the expected
- * width carrying a plausible byte count, or nothing. Never throws — an unreadable estimate just
- * means the caller uses its configured default.
- *
- * `mionAdapter.spec.ts` asserts a real compiled route still yields an estimate, so if upstream
- * moves the slot the build fails loudly instead of silently reverting to the default.
- */
-export function readBinarySizeEstimate(injected: unknown): number | undefined {
-    if (!Array.isArray(injected)) return undefined;
-    for (const entry of injected) {
-        if (!Array.isArray(entry) || entry.length !== TB_TUPLE_LENGTH || entry[0] !== 'tb') continue;
-        const estimate = entry[TB_ESTIMATE_SLOT];
-        if (typeof estimate !== 'number' || !Number.isFinite(estimate)) return undefined;
-        if (estimate <= 0 || estimate >= MAX_BUFFER_BYTES) return undefined;
-        return estimate;
-    }
-    return undefined;
-}
-
 const NO_DATA_KINDS: unknown[] = [RunTypeKind.void, RunTypeKind.never, RunTypeKind.undefined];
 
 /** True when a return RunType carries actual data (not void/never/undefined). */
@@ -357,17 +322,21 @@ export function getReflectionFromMarkers(
     const returnRunType = resolveInjectedRunType(rtFns.returnId);
     const params = getParamsFromRunType(resolveInjectedRunType(rtFns.paramsId));
     const paramsArity = params.length;
+    const paramsJitFns = buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`);
+    const returnJitFns = buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`);
     const reflection: RtMethodReflection = {
         paramsCount: paramsArity,
         paramNames: params.map((param) => param.name),
-        paramsJitFns: buildJitFnsFromMarker(rtFns.paramsFns, paramsTypeId, `${methodId}#params`),
-        returnJitFns: buildJitFnsFromMarker(rtFns.returnFns, returnTypeId, `${methodId}#return`),
+        paramsJitFns,
+        returnJitFns,
         paramsJitHash: paramsTypeId,
         returnJitHash: returnTypeId,
         hasReturnData: runTypeHasData(returnRunType),
         isAsync: isAsyncHandler(handler),
-        paramsBinarySizeEstimate: readBinarySizeEstimate(rtFns.paramsFns),
-        returnBinarySizeEstimate: readBinarySizeEstimate(rtFns.returnFns),
+        // Read off the registered cache entry: @ts-runtypes/core 0.12.1 carries the compile-time
+        // estimate on CompiledFnData, so this is a named field rather than a tuple slot index.
+        paramsBinarySizeEstimate: paramsJitFns.toBinary?.binarySizeEstimate,
+        returnBinarySizeEstimate: returnJitFns.toBinary?.binarySizeEstimate,
     };
     // any handler returning a HeadersSubset (directly or in a union) sets response headers:
     // expose the declared names + validation fns so dispatch can apply/validate them

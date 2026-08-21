@@ -54,7 +54,7 @@ loader. They have since been fixed upstream in `@ts-runtypes/devtools/bun`, whic
 the missing `await` harmless by gating every load on the resolver being ready. **When mion
 next upgrades, `runtypes-loader.ts` should collapse to a thin wrapper over that entry** and
 the local shims deleted. Filed as
-[../todos/platform-bun-adopt-upstream-adapter.md](../todos/platform-bun-adopt-upstream-adapter.md).
+[platform-bun-adopt-upstream-adapter.md](platform-bun-adopt-upstream-adapter.md).
 
 Also shipped in the same pass: the bun suites now run in CI (`pnpm run test:bun`, its own
 step in [pull-requests.yml](../../.github/workflows/pull-requests.yml) since `bun:test` cannot
