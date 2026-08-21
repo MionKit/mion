@@ -15,7 +15,7 @@ export default defineConfig({
                 waitTimeout: 30000,
                 env: {MION_TEST_PORT: '8086'},
             },
-        }) as any,
+        }),
     ],
     test: {
         environment: 'node',

@@ -1,4 +1,5 @@
 import { PluginOptions as TsRuntypesPluginOptions } from '@ts-runtypes/devtools';
+import { PluginOption } from 'vite';
 export interface MionRunTypesOptions {
     tsConfig?: string;
     binary?: string;
@@ -12,15 +13,11 @@ export interface MionRunTypesOptions {
     patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
     patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
     jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
-    compilerOptions?: unknown;
-    include?: string | string[];
-    exclude?: string | string[];
-    reflectionMode?: unknown;
 }
 export interface MionServerOptions {
     startScript: string;
     viteConfig?: string;
-    runMode?: 'childProcess' | 'middleware' | 'buildOnly';
+    runMode?: 'childProcess' | 'middleware';
     waitTimeout?: number;
     env?: Record<string, string>;
 }
@@ -31,11 +28,9 @@ export interface MionServerMappersOptions {
 export interface MionPluginOptions {
     runTypes?: MionRunTypesOptions;
     serverMappers?: MionServerMappersOptions;
-    serverPureFunctions?: unknown;
-    aotCaches?: unknown;
     server?: MionServerOptions;
 }
 export declare function resolveRtBinary(explicit?: string): string | undefined;
-export declare function mionVitePlugin(options?: MionPluginOptions): unknown[] | import('vite').Plugin<any>;
+export declare function mionVitePlugin(options?: MionPluginOptions): PluginOption[];
 export declare const serverReady: Promise<void>;
 //# sourceMappingURL=mionVitePlugin.d.ts.map
