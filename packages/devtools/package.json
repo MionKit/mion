@@ -30,8 +30,7 @@
         "./vite-plugin": {
             "source": "./src/vite-plugin/index.ts",
             "types": "./build/vite-plugin/esm/src/vite-plugin/index.d.ts",
-            "import": "./build/vite-plugin/esm/index.js",
-            "require": "./build/vite-plugin/cjs/index.cjs"
+            "import": "./build/vite-plugin/esm/index.js"
         },
         "./virtual-modules": {
             "types": "./src/vite-plugin/virtual-modules.d.ts"
