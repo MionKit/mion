@@ -105,7 +105,13 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
         timeout?: number
     ): Promise<any> {
         const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
-        const [results, errors, unexpected, mfR] = await this.client.execute(undefined, allRoutes, middleFns ?? {}, signal, timeout);
+        const [results, errors, unexpected, mfR] = await this.client.execute(
+            undefined,
+            allRoutes,
+            middleFns ?? {},
+            signal,
+            timeout
+        );
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
         return [results ?? emptyResults, errors ?? emptyErrors, unexpected, mfR];
