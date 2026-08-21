@@ -22,15 +22,13 @@ middleFns
         redirectToLogin();
     });
 
-// call() returns a 4-tuple with middleFnResults and middleFnErrors
-// These are NOT strongly typed - they contain generic RpcError types
-const [sum, error, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call();
+// call() returns a 4-tuple: [result, error, unexpected, middleFnResults]
+// A middleFn error reaches BOTH channels: its typed onError handler (above) and the
+// `unexpected` slot (an untyped RpcError<string>)
+const [sum, error, unexpected, middleFnResults] = await routes.utils.sum(5, 2).call();
 
-// Both TypedEvent handlers AND 4-tuple receive the same middleFn data:
-// - TypedEvent handlers were already called above (if auth succeeded/failed)
-// - middleFnResults/middleFnErrors also contain the auth result/error
-if (middleFnErrors?.auth) {
-    console.log('Auth error (generic type):', middleFnErrors.auth.publicMessage);
+if (unexpected) {
+    console.log('Something the route did not declare failed:', unexpected.publicMessage);
 }
 if (middleFnResults?.auth) {
     console.log('Session from tuple:', middleFnResults.auth);

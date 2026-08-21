@@ -7,22 +7,22 @@ import type {MyApi} from './server.routes.ts';
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // calls sumTwo route in the server using call with middleFns API
-// Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
-const [sumResult, sumError, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call({
+// Returns 4-tuple: [routeResult, routeError, unexpected, middleFnResults]
+const [sumResult, sumError, unexpected, middleFnResults] = await routes.utils.sum(5, 2).call({
     middleFns: {
         auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
     },
 });
 console.log(sumResult); // 7
-console.log(sumError); // undefined
+console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
+console.log(unexpected); // undefined (anything the route did not declare: middleFn or fatal errors)
 console.log(middleFnResults); // { auth: ... }
-console.log(middleFnErrors); // {}
 
 // prefills the token for any future requests, value is stored in localStorage
 middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 
 // calls sumTwo route in the server (auth is prefilled, so call() works)
-// Returns 4-tuple: [routeResult, routeError, middleFnsResults, middleFnsErrors]
+// Returns 4-tuple: [routeResult, routeError, unexpected, middleFnsResults]
 const [sumTwoResponse, sumTwoError] = await routes.utils.sum(5, 2).call();
 if (!sumTwoError) {
     console.log(sumTwoResponse); // 7
