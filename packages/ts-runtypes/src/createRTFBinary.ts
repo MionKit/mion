@@ -226,6 +226,12 @@ export function createBinaryEncoderFn<T>(
   // for short-lived/serverless where history never warms). Every write reserves
   // via `Ser.ensureCapacity?.(n)`, so the buffer still grows in place if a
   // payload outruns the estimate.
+  // Read from the TUPLE, not from the registered entry's `binarySizeEstimate`.
+  // The entry now carries the same value (for consumers reaching it via getRT),
+  // but going through it here would cost a cache lookup on every factory
+  // creation AND would lose the estimate for an entry restored from a
+  // serialized cache, where a host that copies fields explicitly may not have
+  // carried it. The tuple is the authoritative local source.
   const coldStartSize = binarySizeEstimateFromTuple(id);
   const fn: BinaryEncoderFn = (value) => {
     const ser = createDataViewSerializer(cacheKey, {grow: true, coldStartSize});

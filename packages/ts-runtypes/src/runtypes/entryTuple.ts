@@ -704,6 +704,10 @@ function registerTypeFnTuple(utils: RTUtils, tuple: FnTypeTuple): boolean {
         : record.createRTFn,
     fn: isNoop ? (meta.noop as CompiledTypeFn['fn']) : undefined,
     alwaysThrowMessage: record.alwaysThrowMessage,
+    // `tb` entries only; undefined everywhere else. Carried onto the entry so
+    // the estimate is reachable through getRT(rtFnHash) like every other field
+    // the tuple ships, instead of only from createBinaryEncoderFn's closure.
+    binarySizeEstimate: record.binarySizeEstimate,
   };
   utils.addToRTCache(entry);
   return true;
