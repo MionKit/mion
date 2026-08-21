@@ -29,6 +29,21 @@ const [result, error, middleFnResults, middleFnErrors] = await routes.users.getB
 const [result, error, unexpected, middleFnResults] = await routes.users.getById(id).call();
 ```
 
+`routesFlow` gets the same slot, request-scoped:
+
+```ts
+// before
+const [[user, order], [userErr, orderErr], middleFnResults, middleFnErrors] = await routesFlow([
+  routes.users.getById('1'),
+  routes.orders.getById('9'),
+]).call();
+// after
+const [[user, order], [userErr, orderErr], unexpected, middleFnResults] = await routesFlow([
+  routes.users.getById('1'),
+  routes.orders.getById('9'),
+]).call();
+```
+
 Same arity, **different meaning at indexes 2 and 3** — see Breaking changes.
 
 ## How errors flow today (measured, not inferred)
@@ -180,6 +195,16 @@ type WorkflowResult<Routes, MiddleFns> = [
   UnexpectedError | undefined, // 2 unexpected — request-scoped, ONE slot
   MiddleFnsResults | undefined, // 3 middleFn results
 ];
+```
+
+From the caller's side:
+
+```ts
+const [[user, order], [userErr, orderErr], unexpected] = await routesFlow([
+  routes.users.getById('1'),
+  routes.orders.getById('9'),
+]).call();
+if (unexpected) retryLater(); // one check covers transport, platform, middleFns, undeclared throws
 ```
 
 ### Dispatch rules
