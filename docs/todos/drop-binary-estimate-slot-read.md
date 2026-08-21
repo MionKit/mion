@@ -64,6 +64,24 @@ task). When a release carries it:
 - Full suite + lint + format green, and the binary bench shows the same cold-start size as today
   (80 bytes on the bench route) — this must be a pure refactor.
 
+## Relationship to the broader upstream ask
+
+[upstream-compile-fn-metadata-emission.md](upstream-compile-fn-metadata-emission.md) asks upstream for
+a general channel that emits build-time metadata alongside a compiled fn, so mion stops hand-walking
+the runtype graph. **`binarySizeEstimate` is the same kind of thing** — a build-time fact the compiler
+already computed, emitted next to one compiled fn, that a consumer gates real work on. It is arguably
+just a `tb`-family member of that spec's v1 metadata set.
+
+The two are still worth keeping separate, because the cost and risk differ sharply:
+
+- **This one is ~2 lines** (`binarySizeEstimate` onto `CompiledFnData`, and carried through
+  `registerTypeFnTuple`), unblocks a concrete mion cleanup, and needs no design discussion beyond
+  "should a public type carry a field only one of nine families populates".
+- **That one is a design conversation** — shape, opt-in, wire safety, which metadata makes v1.
+
+If upstream builds the general channel first, fold this into it and close this spec. If the small fix
+lands first, it is a data point for the larger one: the same channel, widened.
+
 ## Worth weighing before doing it
 
 The measured baseline showed upstream's WARM prediction was already tight, so the estimate mainly
