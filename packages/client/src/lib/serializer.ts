@@ -165,8 +165,8 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
         // Extract & process metadata if present and delete entries after processing (does not use jit functions)
         extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
         extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
-        // Unwrap unexpected errors (move them from [MION_ROUTES.thrownErrors] to root)
-        const platformError = unwrapUnexpectedErrors(parsedBody);
+        // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
+        const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
         if (platformError) return {[MION_ROUTES.platformError]: platformError};
         // Deserialize the body using jit functions
         const deserializedBody: ResponseBody = {};
@@ -174,6 +174,7 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
             const method = routesCache.useMethodJitFns(methodId);
             deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
         });
+        if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
         return deserializedBody;
     } catch (err: any) {
         throw new RpcError({
@@ -187,23 +188,34 @@ async function deserializeJsonResponseBody(response: Response, options: ClientOp
 async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
     const arrayBuffer = await response.arrayBuffer();
     const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
-    // Unwrap unexpected errors (move them from [MION_ROUTES.thrownErrors] to root)
-    const platformError = unwrapUnexpectedErrors(body);
+    // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
+    const {platformError, thrownErrors} = extractThrownErrors(body);
     if (platformError) return {[MION_ROUTES.platformError]: platformError};
+    if (thrownErrors) body[MION_ROUTES.thrownErrors] = thrownErrors as any;
     return body;
 }
 
-/** Unwraps unexpected errors from the response body into parsedBody. Returns a platformError if present as a special case. */
-function unwrapUnexpectedErrors(parsedBody: any): RpcError<string> | undefined {
-    if (!(MION_ROUTES.thrownErrors in parsedBody)) return;
-    const unexpectedErrors = parsedBody[MION_ROUTES.thrownErrors];
-    // if platform error is present that means the router never executed (just the platform wrapper)
-    if (MION_ROUTES.platformError in unexpectedErrors) {
-        const globalErrorValue = unexpectedErrors[MION_ROUTES.platformError];
-        return isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
-    }
-    Object.assign(parsedBody, unexpectedErrors);
+/** Extracts thrown (unexpected) errors from [MION_ROUTES.thrownErrors] WITHOUT flattening them into the
+ * body, so the wire's returned-vs-thrown split survives for error classification. Thrown errors are not
+ * strongly typed and deserialize as RpcError<string>. Returns a platformError as a special case. */
+function extractThrownErrors(parsedBody: any): {
+    platformError?: RpcError<string>;
+    thrownErrors?: Record<string, RpcError<string>>;
+} {
+    if (!(MION_ROUTES.thrownErrors in parsedBody)) return {};
+    const rawThrownErrors = parsedBody[MION_ROUTES.thrownErrors];
     delete parsedBody[MION_ROUTES.thrownErrors];
+    // if platform error is present that means the router never executed (just the platform wrapper)
+    if (MION_ROUTES.platformError in rawThrownErrors) {
+        const globalErrorValue = rawThrownErrors[MION_ROUTES.platformError];
+        const platformError = isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
+        return {platformError};
+    }
+    const thrownErrors: Record<string, RpcError<string>> = {};
+    Object.entries(rawThrownErrors).forEach(([id, value]) => {
+        thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
+    });
+    return {thrownErrors};
 }
 
 /** Determines the serializer mode to use for a request */

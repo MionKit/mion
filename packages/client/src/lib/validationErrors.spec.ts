@@ -137,15 +137,16 @@ describe('client-side validation errors', () => {
     });
 
     describe('middleFn validation errors', () => {
-        it('should return middleFn errors when required auth header is missing', async () => {
+        it('missing required auth header surfaces in the unexpected slot, not the route slot', async () => {
             const {routes} = initClient<MyApi>({baseURL});
 
-            // Call without required auth middleFn - should return error in the tuple
-            const [, , , middleFnErrors] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
+            // Call without required auth middleFn - the auth validation error is not the route's
+            // declared error, so it lands in the unexpected slot
+            const [, routeError, unexpected] = await routes.sayHello({name: 'John', surname: 'Doe'}).call();
 
-            // MiddleFn error should be present for the auth middleFn
-            expect(middleFnErrors?.auth).toBeDefined();
-            expect(middleFnErrors?.auth?.type).toBe('validation-error');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected?.type).toBe('validation-error');
         });
     });
 });
