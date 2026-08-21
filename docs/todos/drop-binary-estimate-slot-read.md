@@ -1,7 +1,7 @@
 # Drop the `tb` slot read once `@ts-runtypes/core` exposes the binary size estimate
 
-**Status:** todo — OPTIONAL cleanup, blocked on an upstream change to `@ts-runtypes/core` that has
-not been committed to. The current slot read is safe, tested and staying until then.
+**Status:** todo — UNBLOCKED upstream (2026-08-21), waiting on a release. The current slot read is
+safe, tested and staying until `@ts-runtypes/core` ships the field.
 **Type:** cleanup
 **Spec:** full-plan
 **Created:** 2026-08-20
@@ -17,10 +17,10 @@ versus a flat 16 KiB default). Upstream offers no supported way to read it:
 
 - `binarySizeEstimateFromTuple` lives in `runtypes/entryTuple`, which is not in the package's
   `exports` map.
-- `registerTypeFnTuple` decodes the value into its `record` but does not put it on the cache entry —
-  and that is **by design, not an oversight**: `CompiledFnData` / `CompiledTypeFn` never declare
-  `binarySizeEstimate`, while `FnTypeRecord` adds it *on top of* a `Pick<CompiledTypeFn, …>`, i.e.
-  "on the wire tuple, not on the entry". So `getRT(rtFnHash)` cannot see it.
+- `registerTypeFnTuple` decodes the value into its `record` but does not put it on the cache entry,
+  so `getRT(rtFnHash)` cannot see it. This was read as deliberate (`FnTypeRecord` adds the field *on
+  top of* a `Pick<CompiledTypeFn, …>`, i.e. "wire tuple, not entry"); upstream has since confirmed
+  it was simply not copied through, and fixed it — see below.
 - `createBinarySizerFn` **is** exported but is the wrong tool: it computes an EXACT size by running a
   measure pass over a value, and takes `InjectTypeFnArgs<T, 'tb'>`, which the scanner requires at a
   literal call site (the same CTA003 constraint that forced `resolveCompiledPureFn`).
@@ -28,10 +28,22 @@ versus a flat 16 KiB default). Upstream offers no supported way to read it:
 So mion reads tuple slot 11 directly, guarded and validated, in
 `readBinarySizeEstimate` (`packages/core/src/runtypes/mionAdapter.ts`).
 
-## What to do once upstream exposes it
+## Upstream has landed it (unreleased)
 
-Upstream needs `binarySizeEstimate` on the registered fn cache entry (see the companion ts-runtypes
-task). When a release carries it:
+`binarySizeEstimate` is now declared on `CompiledFnData` and copied onto the entry in
+`registerTypeFnTuple`, so `getRTUtils().getRT(rtFnHash).binarySizeEstimate` works. Branch
+`feature/devtools-bun-lane-and-diagnostics` in `ts-run-types`.
+
+Two things that were true when this spec was written and are worth correcting:
+
+- The omission was read here as deliberate (`FnTypeRecord` adding the field *on top of* a
+  `Pick<CompiledTypeFn, …>`, i.e. "wire tuple, not entry"). It was not: the record already decoded
+  the value and the entry builder simply did not copy it through.
+- `createRTFBinary` deliberately keeps reading the TUPLE rather than the entry, so nothing about
+  mion's current slot read is at risk from the change. The tuple layout is unchanged and
+  `binarySizeEstimate` is still slot 11.
+
+## What to do once a release carries it
 
 1. **`packages/core/src/runtypes/mionAdapter.ts`** — delete `readBinarySizeEstimate` and the
    `TB_TUPLE_LENGTH` / `TB_ESTIMATE_SLOT` / `MAX_BUFFER_BYTES` constants. Populate the reflection
