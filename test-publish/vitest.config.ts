@@ -8,6 +8,8 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
+            // harvest the inline serverMapFrom mappers authored in src/tests/json.spec.ts
+            serverMappers: {emit: resolve(__dirname, '.mion/server-mappers.json')},
             server: {
                 startScript: resolve(__dirname, 'src/server/server.ts'),
                 viteConfig: resolve(__dirname, 'vite.server.config.ts'),

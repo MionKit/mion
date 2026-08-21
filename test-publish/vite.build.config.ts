@@ -8,6 +8,8 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
+            // production server bundle: the manifest entries are INLINED at build time
+            serverMappers: {consume: resolve(__dirname, '.mion/server-mappers.json')},
         }),
     ],
     build: {

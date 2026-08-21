@@ -3,7 +3,9 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 const path = require("node:path");
 const node_fs = require("node:fs");
 const node_child_process = require("node:child_process");
+const node_module = require("node:module");
 const tsRuntypes = require("@ts-runtypes/devtools/vite");
+var _documentCurrentScript = typeof document !== "undefined" ? document.currentScript : null;
 let legacyBinEnvNoticeShown = false;
 const REMOVED_PLUGIN_OPTIONS = {
   aotCaches: "AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.",
@@ -174,15 +176,22 @@ const serverReady = new Promise((resolve, reject) => {
   serverReadyResolve = resolve;
   serverReadyReject = reject;
 });
+function resolveViteNodeCli() {
+  const manifestPath = node_module.createRequire(typeof document === "undefined" ? require("url").pathToFileURL(__filename).href : _documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === "SCRIPT" && _documentCurrentScript.src || new URL("src/vite-plugin/mionVitePlugin.cjs", document.baseURI).href).resolve("vite-node/package.json");
+  const bin = JSON.parse(node_fs.readFileSync(manifestPath, "utf8")).bin;
+  const relative = typeof bin === "string" ? bin : bin?.["vite-node"];
+  if (!relative) throw new Error("[mionVitePlugin] vite-node is installed but declares no `vite-node` bin.");
+  return path.resolve(path.dirname(manifestPath), relative);
+}
 function startManagedServer(server) {
   if (serverStarted) return;
   serverStarted = true;
   const port = parseInt(server.env?.MION_TEST_PORT ?? process.env.MION_TEST_PORT ?? "8076", 10);
   const waitTimeout = server.waitTimeout ?? 3e4;
-  const args = ["exec", "vite-node"];
+  const args = [resolveViteNodeCli()];
   if (server.viteConfig) args.push("--config", server.viteConfig);
   args.push(server.startScript);
-  const child = node_child_process.spawn("pnpm", args, {
+  const child = node_child_process.spawn(process.execPath, args, {
     cwd: server.viteConfig ? path.dirname(server.viteConfig) : path.dirname(server.startScript),
     env: { ...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: "true" },
     stdio: ["ignore", "inherit", "inherit"]

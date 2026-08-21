@@ -10,10 +10,10 @@
     "sourceMap": true,
     "isolatedModules": true,
     "skipLibCheck": true,
+    "types": ["@mionjs/devtools/virtual-modules"],
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "reflection": true,
   "include": ["src/**/*.ts", "globalSetup.ts"],
   "exclude": ["node_modules", "dist", "tarballs"]
 }

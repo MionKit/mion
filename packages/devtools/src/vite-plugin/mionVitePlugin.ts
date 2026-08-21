@@ -8,6 +8,7 @@
 import path from 'node:path';
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {spawn, type ChildProcess} from 'node:child_process';
+import {createRequire} from 'node:module';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
 import type {Plugin, PluginOption} from 'vite';
@@ -382,16 +383,33 @@ export const serverReady: Promise<void> = new Promise((resolve, reject) => {
     serverReadyReject = reject;
 });
 
+/** Resolves vite-node's CLI from THIS package's own dependency tree.
+ *
+ *  Not `pnpm exec vite-node`: vite-node is a dependency of @mionjs/devtools, not of the consumer,
+ *  so under a strict (non-hoisting) install it never reaches the consumer's node_modules/.bin and
+ *  the spawn dies with "Command vite-node not found". It also assumed every consumer runs pnpm.
+ *  Resolving from here and spawning it with the current node binary is package-manager agnostic
+ *  and finds the exact vite-node this package was published against. */
+function resolveViteNodeCli(): string {
+    // via package.json + its `bin` field: vite-node's exports map does not expose the CLI file
+    // (only './package.json' and the library subpaths), so a direct subpath resolve is refused.
+    const manifestPath = createRequire(import.meta.url).resolve('vite-node/package.json');
+    const bin = (JSON.parse(readFileSync(manifestPath, 'utf8')) as {bin?: string | Record<string, string>}).bin;
+    const relative = typeof bin === 'string' ? bin : bin?.['vite-node'];
+    if (!relative) throw new Error('[mionVitePlugin] vite-node is installed but declares no `vite-node` bin.');
+    return path.resolve(path.dirname(manifestPath), relative);
+}
+
 /** Spawns the server entry through vite-node (its own vite config → its own marker injection). */
 function startManagedServer(server: MionServerOptions): void {
     if (serverStarted) return;
     serverStarted = true;
     const port = parseInt(server.env?.MION_TEST_PORT ?? process.env.MION_TEST_PORT ?? '8076', 10);
     const waitTimeout = server.waitTimeout ?? 30000;
-    const args = ['exec', 'vite-node'];
+    const args = [resolveViteNodeCli()];
     if (server.viteConfig) args.push('--config', server.viteConfig);
     args.push(server.startScript);
-    const child = spawn('pnpm', args, {
+    const child = spawn(process.execPath, args, {
         cwd: server.viteConfig ? path.dirname(server.viteConfig) : path.dirname(server.startScript),
         env: {...process.env, ...server.env, MION_TEST_SERVER_AUTO_START: 'true'},
         stdio: ['ignore', 'inherit', 'inherit'],
