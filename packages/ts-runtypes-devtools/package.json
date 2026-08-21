@@ -31,6 +31,10 @@
       "types": "./dist/rspack.d.ts",
       "import": "./dist/rspack.js"
     },
+    "./bun": {
+      "types": "./dist/bun.d.ts",
+      "import": "./dist/bun.js"
+    },
     "./esbuild": {
       "types": "./dist/esbuild.d.ts",
       "import": "./dist/esbuild.js"

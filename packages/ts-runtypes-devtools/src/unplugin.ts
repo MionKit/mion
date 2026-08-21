@@ -27,6 +27,10 @@ import {
 // `enrich --i18n`, while this one drives the plugin's per-locale
 // translation-mirror auto-sync. `strict` is accepted for shape-parity; the
 // auto-sync never gates on it (it only scaffolds + reconciles).
+// The plugin's host-facing name, shared by every adapter entry (the bun one
+// needs it before it constructs the inner plugin).
+export const PLUGIN_NAME = '@ts-runtypes/devtools';
+
 export interface EnrichI18nSyncOptions {
   sourceLocale?: string;
   locales?: string[];
@@ -220,6 +224,16 @@ export interface PluginOptions {
   // this plugin's own process.execPath, so the serve lane always has a
   // runtime with zero configuration; set it only to pin a different one.
   jsRuntime?: string;
+  // Unref the resolver child once it is up, so it never holds the host process
+  // open. Host bootstrap, not a project semantic — no tsconfig key.
+  //
+  // Set by @ts-runtypes/devtools/bun for Bun's RUNTIME loader, which keeps one
+  // resolver for the whole process lifetime and gets no buildEnd to close it:
+  // without this a `bun run` script finishes its work and then hangs forever on
+  // the live child. Leave it off for a bundler host, where the pending read of a
+  // resolver response can be the build's only live handle and an unref'd child
+  // would let the process exit mid-build.
+  detachResolver?: boolean;
   // Pure-fn build report — the structured, layout-independent record of every
   // pure fn this build generated (call-site span, callee attribution, registry
   // key, and the self-contained entry payload). For host tooling that relocates
@@ -434,6 +448,11 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
       ...(enrichLocales.length > 0 ? {enrichLocales} : {}),
       ...(enrichSourceLocale ? {enrichSourceLocale} : {}),
     });
+    // Runtime-loader hosts (Bun's Bun.plugin preload) keep the resolver for the
+    // whole process and never get a buildEnd, so the live child would keep the
+    // host alive forever. Unref right after spawn — the resolver stays usable,
+    // and losing the parent closes its stdin so the Go serve loop exits on EOF.
+    if (options.detachResolver) resolver.unref();
   }
 
   // siteKey canonicalizes a source path for the siteFiles set. The resolver
@@ -640,7 +659,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   }
 
   return {
-    name: '@ts-runtypes/devtools',
+    name: PLUGIN_NAME,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform. The
     // resolver returns byte offsets into the ORIGINAL source — if the
     // plugin saw code after esbuild stripped type syntax, every offset

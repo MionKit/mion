@@ -640,6 +640,26 @@ export class ResolverClient extends ResolverClientBase {
     return this.child.pid;
   }
 
+  // Releases the host process from the resolver child: the child and its stdio
+  // pipes stop counting toward the event loop's keep-alive set, so the host can
+  // exit whenever ITS OWN work is done, while the resolver stays fully usable
+  // until then. The child is not orphaned — losing the parent closes its stdin,
+  // and the Go `serve` loop breaks on EOF and exits.
+  //
+  // For a BUNDLER host this would be wrong: the pending read of a resolver
+  // response can be the build's only live handle, so an unref'd child would let
+  // the process exit mid-build. It exists for Bun's RUNTIME loader, which keeps
+  // one resolver for the whole process and never gets a buildEnd to close it —
+  // see the `detachResolver` plugin option and @ts-runtypes/devtools/bun.
+  unref(): void {
+    this.child?.unref();
+    // The stdio pipes are their own libuv handles and keep the loop alive on
+    // their own, so the child handle alone is not enough. They are Sockets at
+    // runtime; the stream types don't declare unref, hence the cast.
+    unrefHandle(this.child?.stdin);
+    unrefHandle(this.child?.stdout);
+  }
+
   override close(): void {
     this.intentionalClose = true;
     super.close();
@@ -752,4 +772,12 @@ export class ResolverStreamClient extends ResolverClientBase {
   markClosed(reason: string): void {
     this.transport.markClosed(reason);
   }
+}
+
+// unrefHandle releases one stdio pipe from the event loop's keep-alive set.
+// Node backs a piped stdio stream with a Socket (which has unref); the declared
+// Readable/Writable types don't, and a future runtime might not either — so
+// this probes for the method instead of assuming it.
+function unrefHandle(stream: Readable | Writable | null | undefined): void {
+  (stream as {unref?: () => void} | null | undefined)?.unref?.();
 }

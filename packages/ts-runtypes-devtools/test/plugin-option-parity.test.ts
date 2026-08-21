@@ -25,6 +25,9 @@ const JS_ONLY = new Set([
   'onPureFnReport',
   'enrich',
   'jsRuntime',
+  // Host bootstrap: unrefs the resolver child so Bun's runtime loader host can
+  // exit. Never a project semantic.
+  'detachResolver',
 ]);
 // Keys settable ONLY in the tsconfig plugin entry: `name` is the plugin identifier
 // in the tsconfig `plugins` array (not a project option), and `i18n` is

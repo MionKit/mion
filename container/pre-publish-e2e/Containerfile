@@ -43,6 +43,13 @@ ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 ARG PNPM_VERSION=11.1.1
 RUN npm install -g pnpm@${PNPM_VERSION}
 
+# bun: the e2e's Bun lanes (apps/smoke-bun via Bun.build, apps/smoke-bun-preload
+# via the Bun.plugin runtime loader) need a real bun. Pinned like the others.
+# Adds ~100 MB to this image — acceptable here because the light smoke /
+# benchmark / website lanes pull tsrt-website instead and never see it.
+ARG BUN_VERSION=1.3.11
+RUN npm install -g bun@${BUN_VERSION}
+
 # verdaccio: the in-container npm registry the e2e publishes the release tarballs
 # to (its untrusted dependency tree never touches the host). Global install.
 RUN npm install -g verdaccio@6.7.2
