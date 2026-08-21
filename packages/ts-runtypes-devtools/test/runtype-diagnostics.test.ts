@@ -487,6 +487,82 @@ export const dec = createJsonDecoderFn<Pet>();
     });
   });
 
+  // A child type gets its OWN cache entry, keyed by its own structural id — an
+  // id no marker call ever named. Provenance was built from call sites alone, so
+  // a child entry had none, and EmitDiagnostic drops what it cannot attribute
+  // (rather than render an empty filePath). The effect was silent and backwards:
+  // a class warned at the ROOT of an encoder but said nothing when nested or in
+  // a union — the normal way people write types.
+  //
+  // Provenance is now inherited by every type a call site reaches, so the site
+  // is told about the types it actually pulls in.
+  register('warns for a class nested inside the encoded type, not just at the root', async () => {
+    const sources = {
+      'nested.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+export class Pet { name: string = 'x'; }
+export class Owner { email: string = 'y'; }
+export const enc = createJsonEncoderFn<{pet: Pet; owner: Owner}>();
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      // BOTH nested classes, each once, attributed to the call site that pulled
+      // them in. Each is its own child entry, so the per-walk code latch (which
+      // would allow only one CLS001 per walk) does not merge them.
+      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
+      for (const diagnostic of cls) expect(diagnostic.site.startLine).toBe(4);
+    });
+  });
+
+  register('warns for a class reached through a union arm', async () => {
+    const sources = {
+      'union.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+export class Pet { name: string = 'x'; }
+export class Owner { email: string = 'y'; }
+export const enc = createJsonEncoderFn<Pet | Owner>();
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      expect(cls.map((d) => d.args?.[0]).sort()).toEqual(['Owner', 'Pet']);
+    });
+  });
+
+  register('warns for a class buried several levels down', async () => {
+    const sources = {
+      'deep.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+export class Pet { name: string = 'x'; }
+export const enc = createJsonEncoderFn<{a: {b: {c: Pet}}}>();
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      expect(cls).toHaveLength(1);
+      expect(cls[0]!.args).toEqual(['Pet']);
+      expect(cls[0]!.site.startLine).toBe(3);
+    });
+  });
+
+  // A recursive type must not send the provenance walk into a loop, and must not
+  // multiply the diagnostic by however many times the cycle is traversed.
+  register('a self-referencing type warns once, without looping', async () => {
+    const sources = {
+      'cycle.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+export class Node { name: string = 'x'; next?: Node; }
+export const enc = createJsonEncoderFn<{root: Node}>();
+`,
+    };
+    await withInlineSources(sources, async ({client}) => {
+      const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+      const cls = runtypeDiagsOf(response).filter((d) => d.code === 'CLS001');
+      expect(cls).toHaveLength(1);
+      expect(cls[0]!.args).toEqual(['Node']);
+    });
+  });
+
   // The matching NEGATIVE case — same code and site, different args, both
   // surviving — is covered by TestDedupe_KeepsSameSiteDifferentArgs in
   // internal/diagnostics/dedupe_test.go rather than here, because the pipeline
