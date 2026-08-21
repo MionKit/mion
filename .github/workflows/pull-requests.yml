@@ -32,7 +32,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prettier check
-        run: pnpm run check-format-pre-commit
+        # Must pass a scope. `check-format-pre-commit` is the lint-staged helper:
+        # bare `prettier --check` with no file arguments prints "no parser and no
+        # file path given" and then EXITS 0, so this step silently checked nothing.
+        # `check-format` mirrors the `format` script's scope, so CI now gates on
+        # exactly what `pnpm run format` would rewrite.
+        run: pnpm run check-format
 
       - name: Lint
         run: pnpm run lint
