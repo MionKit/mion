@@ -78,8 +78,28 @@ the 2026-07-24 pre-stable measurement below.
 | `no-misused-spread` ×7 | `mocking/mockStringFormat.ts:263`, `formats/string/string-formats-pure-fns.ts:206,269,327,329`, `ts-runtypes-go-be-sidecar/src/jobs.ts:145,216` | **All intentional, new.** Every site is `[...str]` used deliberately for **code-point** iteration — the JSON Schema `minLength`/`maxLength` semantics the emitted validators check, plus punycode/IDNA processing. The rule's own warning (that spreading splits emoji into code points) is precisely the behaviour these sites want. → configure `"typescript/no-misused-spread": ["error", {"allow": ["string"]}]`, verified on a probe to clear all string spreads while still catching the dangerous half (spreading a `Map` into an object literal). Cheaper and more honest than 7 inline suppressions. |
 | `restrict-template-expressions` ×1 | `packages/ts-runtypes-devtools/src/unplugin.ts:389` | **Real fix — this is NOT the false positive the 2026-07-24 run recorded.** The stable engine labels it `Type: never` on the interpolated `MODULE_MODE_ALL_MODULES`, and **`tsc` agrees**: after `moduleMode !== MODULE_MODE_DEFAULT && … !== MODULE_MODE_ALL_SINGLE` the checked value is already `never`, and the third comparison narrows the *constant itself* to `never`. Confirmed with a reduced probe — inside that branch `const probe: number = C` compiles clean (so `C` is `never`) while the same line against the first constant errors with `Type 'string' is not assignable to type 'number'`. → hoist the three modes into a module-level `as const` tuple, validate with `.includes(...)`, and build the "expected" list from that tuple; the narrowing and the triplicated literals both go away. |
 
-The headline safety rules (`no-floating-promises`, `no-misused-promises`, `await-thenable`) fire
-**zero** — the codebase's promise handling is already clean.
+The headline safety rules `no-floating-promises` and `await-thenable` fire **zero** — the
+codebase's promise handling is already clean. (`no-misused-promises` is NOT among the rules this
+turns on: it sits outside the `correctness` category, so `categories.correctness` alone never
+enables it. Earlier drafts of this spec listed it as a rule that "fired zero", which was
+misleading — it never ran.)
+
+### The 15 rules this turns on
+
+Measured, not assumed: switching each one off drops the active-rule count, and switching all 15
+off lands exactly on the 100-rule core baseline.
+
+| Area | Rules |
+|------|-------|
+| Promises | `await-thenable`, `no-floating-promises` |
+| Strings | `no-base-to-string`, `restrict-template-expressions` |
+| Arrays | `no-array-delete`, `no-for-in-array`, `require-array-sort-compare`, `no-misused-spread` |
+| Types / unions | `no-duplicate-type-constituents`, `no-redundant-type-constituents`, `no-unsafe-declaration-merging` |
+| Other | `no-implied-eval`, `unbound-method`, `no-meaningless-void-operator`, `no-unnecessary-parameter-property-assignment` |
+
+Five of the fifteen found something here (`unbound-method`, `no-implied-eval`,
+`no-base-to-string`, `no-misused-spread`, `restrict-template-expressions`); the other ten are
+clean and stay on as tripwires.
 
 ### What changed versus the pre-stable measurement
 
