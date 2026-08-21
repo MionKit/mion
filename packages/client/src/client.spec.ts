@@ -39,6 +39,11 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
+            events: expect.any(Function),
+            onError: expect.any(Function),
+            offError: expect.any(Function),
+            onSuccess: expect.any(Function),
+            offSuccess: expect.any(Function),
         };
 
         const expectedSayHelloSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
@@ -50,6 +55,11 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
+            events: expect.any(Function),
+            onError: expect.any(Function),
+            offError: expect.any(Function),
+            onSuccess: expect.any(Function),
+            offSuccess: expect.any(Function),
         };
 
         const expectedSumTwoSubRequest: RouteSubRequest<any> & MiddlewareSubRequest<any> = {
@@ -61,6 +71,11 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
+            events: expect.any(Function),
+            onError: expect.any(Function),
+            offError: expect.any(Function),
+            onSuccess: expect.any(Function),
+            offSuccess: expect.any(Function),
         };
 
         expect(middleFns.auth(authHeaders)).toEqual(expect.objectContaining(expectedAuthSubRequest));
@@ -78,6 +93,11 @@ describe('client', () => {
             prefill: expect.any(Function),
             removePrefill: expect.any(Function),
             typeErrors: expect.any(Function),
+            events: expect.any(Function),
+            onError: expect.any(Function),
+            offError: expect.any(Function),
+            onSuccess: expect.any(Function),
+            offSuccess: expect.any(Function),
         };
         expect((routes as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
         expect((middleFns as any).abcd(1, 'a')).toEqual(expect.objectContaining(expectedUnknownSubRequest));
@@ -87,27 +107,27 @@ describe('client', () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, error, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+        const [greeting, error, unexpected, middleFnResults] = await routes.sayHello(someUser).call({
             middleFns: {auth: middleFns.auth(authHeaders)},
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(error).toBeUndefined();
+        expect(unexpected).toBeUndefined();
         expect(middleFnResults).toBeDefined();
-        expect(middleFnErrors).toBeDefined();
     });
 
     it('make a route call with middleFns', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, , middleFnErrors] = await routes.sayHello(someUser).call({
+        const [greeting, routeError, unexpected] = await routes.sayHello(someUser).call({
             middleFns: {auth: middleFns.auth(authHeaders)},
         });
 
         expect(greeting).toEqual(`Hello John Doe`); // Test server returns: Hello ${user.name} ${user.surname}
         expect(routeError).toBeUndefined();
-        expect(middleFnErrors?.auth).toBeUndefined();
+        expect(unexpected).toBeUndefined();
     });
 
     it('return error in result if a route call fails', async () => {
@@ -151,13 +171,16 @@ describe('client', () => {
 
         request.removePrefill();
 
-        const [, error] = await routes.sayHello(someUser).call();
+        const [, routeError, unexpected] = await routes.sayHello(someUser).call();
 
-        // After removing prefill, the auth middleFn is not sent, so server returns headers validation error
-        expect(error).toBeDefined();
-        expect(isRpcError(error)).toBe(true);
-        expect(error?.['mion@isΣrrθr']).toBe(true);
-        expect(error?.publicMessage).toContain('auth');
+        // After removing prefill, the auth middleFn is not sent, so the server returns a headers
+        // validation error for auth. It is not the route's declared error, so it lands in the
+        // unexpected slot, never in the route's typed error slot.
+        expect(routeError).toBeUndefined();
+        expect(unexpected).toBeDefined();
+        expect(isRpcError(unexpected)).toBe(true);
+        expect(unexpected?.['mion@isΣrrθr']).toBe(true);
+        expect(unexpected?.publicMessage).toContain('auth');
     });
 
     // ========== Result Pattern Tests (using call() with prefilled auth) ==========
@@ -418,16 +441,16 @@ describe('client', () => {
             // Prefill auth middleFn
             middleFns.auth(authHeaders).prefill();
 
-            // call() should return both route result AND middleFn results/errors in the 4-tuple
-            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call();
+            // call() should return both route result AND middleFn results in the 4-tuple
+            const [greeting, routeError, unexpected, middleFnResults] = await routes.sayHello(someUser).call();
 
             // Route should succeed
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
+            expect(unexpected).toBeUndefined();
 
             // MiddleFn results should be available in the 4-tuple (from prefilled middleFns)
             expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
 
             // TypedEvent handler should ALSO have been called
             expect(typedEventSuccessCalled).toBe(true);
@@ -439,7 +462,7 @@ describe('client', () => {
             await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('call() with prefilled middleFns should return middleFnErrors AND trigger TypedEvent error handlers', async () => {
+        it('call() with prefilled middleFns should surface the middleFn error in the unexpected slot AND trigger TypedEvent error handlers', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -458,12 +481,12 @@ describe('client', () => {
             // Prefill auth middleFn
             middleFns.auth(authHeaders).prefill();
 
-            // call() should return middleFn errors in the 4-tuple
-            const [, , middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call();
+            // the middleFn error is not the route's declared error -> unexpected slot (untyped)
+            const [, routeError, unexpected] = await routes.sayHello(someUser).call();
 
-            // MiddleFn errors should be available in the 4-tuple
-            expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected?.type).toBe('session-expired');
 
             // TypedEvent error handler should ALSO have been called
             expect(typedEventErrorCalled).toBe(true);
@@ -495,17 +518,17 @@ describe('client', () => {
             middleFns.auth(authHeaders).prefill();
 
             // Call a route that always fails - middleFns still execute and succeed, but route returns error
-            const [result, routeError, middleFnResults, middleFnErrors] = await routes.alwaysFails(someUser).call();
+            const [result, routeError, unexpected, middleFnResults] = await routes.alwaysFails(someUser).call();
 
-            // Route should fail
+            // Route should fail with its DECLARED error in the typed slot; nothing is unexpected
             expect(result).toBeUndefined();
             expect(routeError).toBeDefined();
             expect(routeError?.type).toBe('unknown-error');
             expect(routeError?.publicMessage).toBe('Something fails');
+            expect(unexpected).toBeUndefined();
 
             // MiddleFn results should be available (middleFns succeeded even though route failed)
             expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
 
             // TypedEvent success handler SHOULD be called for the middleFn (middleFn succeeded independently)
             // This is the correct behavior - each middleFn is processed individually, not based on route success
@@ -526,21 +549,21 @@ describe('client', () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+            const [greeting, routeError, unexpected, middleFnResults] = await routes.sayHello(someUser).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
             });
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
+            expect(unexpected).toBeUndefined();
             expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
         });
 
         it('call({middleFns}) should return middleFn data on success', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+            const [greeting, routeError, unexpected, middleFnResults] = await routes.sayHello(someUser).call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     session: middleFns.session('valid-token'),
@@ -549,7 +572,7 @@ describe('client', () => {
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(unexpected).toBeUndefined();
             expect(middleFnResults?.session).toBeDefined();
             expect(middleFnResults?.session?.userId).toBe('user-123');
         });
@@ -567,20 +590,21 @@ describe('client', () => {
             expect(routeError?.type).toBe('unknown-error');
         });
 
-        it('call({middleFns}) should return middleFn error on middleFn failure', async () => {
+        it('call({middleFns}) should surface a middleFn failure in the unexpected slot', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , , middleFnErrors] = await routes.sayHello(someUser).call({
+            const [, routeError, unexpected] = await routes.sayHello(someUser).call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     session: middleFns.session('expired'), // This will fail
                 },
             });
 
-            // Route may or may not have data depending on middleFn execution order
-            expect(middleFnErrors?.session).toBeDefined();
-            expect(middleFnErrors?.session?.type).toBe('session-expired');
+            // A middleFn error is not the route's declared error: unexpected slot, never the typed route slot
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected?.type).toBe('session-expired');
         });
 
         it('call({middleFns}) should never throw', async () => {
@@ -606,24 +630,26 @@ describe('client', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Session middleFn with expired token will fail
-            const [, , , middleFnErrors] = await routes.sayHello(someUser).call({
+            const [result, routeError, unexpected] = await routes.sayHello(someUser).call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     session: middleFns.session('expired'),
                 },
             });
 
-            // Route may or may not succeed depending on middleFn execution order
-            // But session middleFn should definitely have an error
-            expect(middleFnErrors?.session).toBeDefined();
-            expect(middleFnErrors?.session?.type).toBe('session-expired');
+            // The middleFn failure lands in the unexpected slot; whatever result the route produced
+            // is preserved in slot 0 (never masked by another subrequest's error)
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected?.type).toBe('session-expired');
+            if (result !== undefined) expect(result).toBe('Hello John Doe');
         });
 
         it('call({middleFns}) should return all middleFn results', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [, , middleFnResults] = await routes.sayHello(someUser).call({
+            const [, , , middleFnResults] = await routes.sayHello(someUser).call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     session: middleFns.session('valid-token'),
@@ -639,7 +665,7 @@ describe('client', () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+            const [greeting, routeError, unexpected, middleFnResults] = await routes.sayHello(someUser).call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     session: middleFns.session('valid-token'),
@@ -648,7 +674,7 @@ describe('client', () => {
 
             expect(greeting).toBe('Hello John Doe');
             expect(routeError).toBeUndefined();
-            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(unexpected).toBeUndefined();
             expect(middleFnResults?.session).toBeDefined();
         });
 
@@ -688,59 +714,46 @@ describe('client', () => {
         });
     });
 
-    // ========== Server-side MiddleFn Errors Tests (@thrownErrors) ==========
+    // ========== Route validation errors (part of every route's expected union) ==========
 
-    describe('Server-side middleFn errors (@thrownErrors)', () => {
-        it('validation error should be included in middleFnErrors when sending wrong param type', async () => {
+    describe('Route validation errors', () => {
+        it('validation error for wrong param type lands in the typed route error slot', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send a string instead of a number to calculateAge route
-            // This should trigger a validation error from the server
             // We need to bypass TypeScript type checking to send wrong type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, middleFnResults, middleFnErrors] = await routes.calculateAge(wrongParams).call({
+            const [result, routeError, unexpected] = await routes.calculateAge(wrongParams).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
             });
 
-            // The request should fail due to validation error
+            // ValidationError is part of the route's expected union: slot 1, not the unexpected slot
             expect(result).toBeUndefined();
-
-            // Either routeError or middleFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
-            expect(hasError).toBe(true);
-
-            // middleFnResults should be defined (even if empty)
-            expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
+            expect(routeError).toBeDefined();
+            expect(routeError?.type).toBe('validation-error');
+            expect(unexpected).toBeUndefined();
         });
 
-        it('validation error should be included in middleFnErrors when sending wrong object structure', async () => {
+        it('validation error for wrong object structure lands in the typed route error slot', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             // Send an object with wrong structure (missing surname)
-            // We need to bypass TypeScript type checking to send wrong type
             const wrongUser = {name: 'John'} as unknown as {name: string; surname: string};
 
-            const [result, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(wrongUser).call({
+            const [result, routeError, unexpected] = await routes.sayHello(wrongUser).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
             });
 
-            // The request should fail due to validation error
             expect(result).toBeUndefined();
-
-            // Either routeError or middleFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
-            expect(hasError).toBe(true);
-
-            // middleFnResults should be defined (even if empty)
-            expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
+            expect(routeError).toBeDefined();
+            expect(routeError?.type).toBe('validation-error');
+            expect(unexpected).toBeUndefined();
         });
 
-        it('validation error should be included in middleFnErrors for call() with prefilled middleFns', async () => {
+        it('validation error lands in the typed route error slot for call() with prefilled middleFns', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
@@ -750,18 +763,14 @@ describe('client', () => {
             // Send wrong param type
             const wrongParams = 'not-a-number' as unknown as number;
 
-            const [result, routeError, middleFnResults, middleFnErrors] = await routes.calculateAge(wrongParams).call();
+            const [result, routeError, unexpected, middleFnResults] = await routes.calculateAge(wrongParams).call();
 
-            // The request should fail due to validation error
             expect(result).toBeUndefined();
-
-            // Either routeError or middleFnErrors should contain the validation error
-            const hasError = routeError !== undefined || (middleFnErrors && Object.keys(middleFnErrors).length > 0);
-            expect(hasError).toBe(true);
-
-            // middleFnResults and middleFnErrors should always be defined in 4-tuple
+            expect(routeError).toBeDefined();
+            expect(routeError?.type).toBe('validation-error');
+            expect(unexpected).toBeUndefined();
+            // middleFn results record is always present in the 4-tuple
             expect(middleFnResults).toBeDefined();
-            expect(middleFnErrors).toBeDefined();
 
             // Clean up
             await middleFns.auth(authHeaders).removePrefill();
@@ -997,9 +1006,11 @@ describe('client', () => {
         it('call() without auth should fail in optimistic mode (auth required by server)', async () => {
             const {routes} = initClient<MyApi>({baseURL, serializer: 'optimistic'});
 
-            const [, error] = await routes.sayHello(someUser).call();
-            expect(error).toBeDefined();
-            expect(isRpcError(error)).toBe(true);
+            // the missing auth middleFn's error is not the route's declared error -> unexpected slot
+            const [, routeError, unexpected] = await routes.sayHello(someUser).call();
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(isRpcError(unexpected)).toBe(true);
         });
 
         it('removing prefill should cause subsequent optimistic calls to fail', async () => {
@@ -1015,10 +1026,10 @@ describe('client', () => {
             // Remove prefill
             middleFns.auth(authHeaders).removePrefill();
 
-            // Call should now fail (no auth)
-            const [, error2] = await routes.sayHello(someUser).call();
-            expect(error2).toBeDefined();
-            expect(isRpcError(error2)).toBe(true);
+            // Call should now fail (no auth) -> the auth error lands in the unexpected slot
+            const [, , unexpected2] = await routes.sayHello(someUser).call();
+            expect(unexpected2).toBeDefined();
+            expect(isRpcError(unexpected2)).toBe(true);
         });
 
         it('optimistic mode with simple types should work without retry (no auth required route)', async () => {
@@ -1073,10 +1084,11 @@ describe('client', () => {
             middleFns.auth(authHeaders).prefill();
 
             const signal = AbortSignal.abort();
-            const [result, error] = await routes.sleep(5000).call({signal});
+            const [result, routeError, unexpected] = await routes.sleep(5000).call({signal});
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(error!.type).toBe('request-aborted');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-aborted');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1091,11 +1103,12 @@ describe('client', () => {
             const promise = routes.sleep(5000).call({signal: controller.signal});
             setTimeout(() => controller.abort(), 50);
 
-            const [result, error] = await promise;
+            const [result, routeError, unexpected] = await promise;
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(isRpcError(error)).toBe(true);
-            expect(error!.type).toBe('request-aborted');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(isRpcError(unexpected)).toBe(true);
+            expect(unexpected!.type).toBe('request-aborted');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1106,11 +1119,12 @@ describe('client', () => {
             middleFns.auth(authHeaders).prefill();
 
             // sleep(5000) ensures the request outlasts the 100ms timeout
-            const [result, error] = await routes.sleep(5000).call({timeout: 100});
+            const [result, routeError, unexpected] = await routes.sleep(5000).call({timeout: 100});
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(isRpcError(error)).toBe(true);
-            expect(error!.type).toBe('request-timeout');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(isRpcError(unexpected)).toBe(true);
+            expect(unexpected!.type).toBe('request-timeout');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1120,10 +1134,11 @@ describe('client', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             middleFns.auth(authHeaders).prefill();
 
-            const [result, error] = await routes.sleep(5000).call();
+            const [result, routeError, unexpected] = await routes.sleep(5000).call();
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(error!.type).toBe('request-timeout');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-timeout');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1134,10 +1149,10 @@ describe('client', () => {
             middleFns.auth(authHeaders).prefill();
 
             // Client has 30s default, but per-request 100ms should take effect
-            const [result, error] = await routes.sleep(5000).call({timeout: 100});
+            const [result, , unexpected] = await routes.sleep(5000).call({timeout: 100});
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(error!.type).toBe('request-timeout');
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-timeout');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1151,12 +1166,12 @@ describe('client', () => {
             const p2 = routes.sleep(5000).call();
             setTimeout(() => client.abort(), 50);
 
-            const [, err1] = await p1;
-            const [, err2] = await p2;
-            expect(err1).toBeDefined();
-            expect(err1!.type).toBe('request-aborted');
-            expect(err2).toBeDefined();
-            expect(err2!.type).toBe('request-aborted');
+            const [, , unexpected1] = await p1;
+            const [, , unexpected2] = await p2;
+            expect(unexpected1).toBeDefined();
+            expect(unexpected1!.type).toBe('request-aborted');
+            expect(unexpected2).toBeDefined();
+            expect(unexpected2!.type).toBe('request-aborted');
 
             middleFns.auth(authHeaders).removePrefill();
         });
@@ -1183,9 +1198,9 @@ describe('client', () => {
             const p1 = routes.sleep(5000).call();
             setTimeout(() => client.destroy(), 50);
 
-            const [, error] = await p1;
-            expect(error).toBeDefined();
-            expect(error!.type).toBe('request-aborted');
+            const [, , unexpected] = await p1;
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-aborted');
         });
 
         it('cancellation works with middleFns in call setup', async () => {
@@ -1193,13 +1208,14 @@ describe('client', () => {
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
             const signal = AbortSignal.abort();
-            const [result, error] = await routes.sleep(5000).call({
+            const [result, routeError, unexpected] = await routes.sleep(5000).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
                 signal,
             });
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(error!.type).toBe('request-aborted');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-aborted');
         });
 
         it('cancellation works with routesFlow', async () => {
@@ -1210,76 +1226,81 @@ describe('client', () => {
             const {routesFlow} = await import('./routesFlow.ts');
             const signal = AbortSignal.abort();
 
-            const [, errors] = await routesFlow([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
+            const [, errors, unexpected] = await routesFlow([routes.sleep(5000), routes.utils.sumTwo(5)]).call({signal});
 
-            // With an already-aborted signal, all routes get abort errors
-            expect(errors).toBeDefined();
+            // The abort is request-scoped: ONE unexpected error, per-route slots stay empty
+            expect(errors).toEqual([undefined, undefined]);
+            expect(unexpected).toBeDefined();
+            expect(unexpected!.type).toBe('request-aborted');
 
             middleFns.auth(authHeaders).removePrefill();
         });
     });
 
-    // ========== Platform Error Propagation Tests ==========
+    // ========== Platform Error Dispatch Tests ==========
     // A "platform error" is set by the platform adapter (e.g. payload too large) BEFORE the router
-    // ever runs. The client's contract is to surface this error in EVERY positional slot of the
-    // returned tuple — single-route, routesFlow routes, and middleFns alike — so callers always
-    // see the failure regardless of which slot they read. This describe block locks in that contract.
-    describe('platform error propagation', () => {
+    // ever runs. It is request-scoped and nobody's declared response, so the client's contract
+    // (dispatch rules R4/R6) is to surface it ONCE, in the unexpected slot — never in the route's
+    // typed error slot, never in per-route flow slots, and never keyed to a middleFn. This describe
+    // block locks in that single-slot contract (it deliberately reverses the previous fan-out-to-
+    // every-slot behaviour).
+    describe('platform error dispatch', () => {
         // Test server uses platform-node's default maxBodySize (256KB).
         // A 300_000-char string in a JSON body comfortably exceeds it and reliably triggers
         // a 'request-payload-too-large' platform error returned by the platform adapter.
         const HUGE_PAYLOAD = 'x'.repeat(300_000);
 
-        it('platform error appears as routeError on a single route call', async () => {
+        it('platform error appears in the unexpected slot on a single route call', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             middleFns.auth(authHeaders).prefill();
 
-            const [result, error] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
+            const [result, routeError, unexpected] = await routes.getRequestInfo(HUGE_PAYLOAD).call();
 
             expect(result).toBeUndefined();
-            expect(error).toBeDefined();
-            expect(isRpcError(error)).toBe(true);
-            expect(error?.type).toBe('request-payload-too-large');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(isRpcError(unexpected)).toBe(true);
+            expect(unexpected?.type).toBe('request-payload-too-large');
 
             await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('platform error propagates to every route position in a routesFlow', async () => {
+        it('platform error in a routesFlow is ONE unexpected error, not one per route', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
             middleFns.auth(authHeaders).prefill();
 
             const {routesFlow} = await import('./routesFlow.ts');
-            // Mix the oversized-payload route with a normal one — both should receive the same
-            // platform error in their positional slots
-            const [results, errors] = await routesFlow([routes.getRequestInfo(HUGE_PAYLOAD), routes.utils.sumTwo(5)]).call();
+            // Mix the oversized-payload route with a normal one — the request-scoped platform error
+            // must not leak into any route's positional slot
+            const [results, errors, unexpected] = await routesFlow([
+                routes.getRequestInfo(HUGE_PAYLOAD),
+                routes.utils.sumTwo(5),
+            ]).call();
 
             expect(results).toEqual([undefined, undefined]);
-            expect(errors).toBeDefined();
-            expect(Array.isArray(errors)).toBe(true);
-            expect(errors?.length).toBe(2);
-            expect(isRpcError(errors?.[0])).toBe(true);
-            expect(isRpcError(errors?.[1])).toBe(true);
-            expect(errors?.[0]?.type).toBe('request-payload-too-large');
-            expect(errors?.[1]?.type).toBe('request-payload-too-large');
+            expect(errors).toEqual([undefined, undefined]);
+            expect(unexpected).toBeDefined();
+            expect(isRpcError(unexpected)).toBe(true);
+            expect(unexpected?.type).toBe('request-payload-too-large');
 
             await middleFns.auth(authHeaders).removePrefill();
         });
 
-        it('platform error also appears in middleFnErrors when calling with explicit middleFns', async () => {
+        it('platform error is never keyed to a middleFn when calling with explicit middleFns', async () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [result, routeError, , middleFnErrors] = await routes.getRequestInfo(HUGE_PAYLOAD).call({
+            const [result, routeError, unexpected, middleFnResults] = await routes.getRequestInfo(HUGE_PAYLOAD).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
             });
 
             expect(result).toBeUndefined();
-            expect(routeError).toBeDefined();
-            expect(routeError?.type).toBe('request-payload-too-large');
-            expect(middleFnErrors?.auth).toBeDefined();
-            expect(middleFnErrors?.auth?.type).toBe('request-payload-too-large');
+            expect(routeError).toBeUndefined();
+            expect(unexpected).toBeDefined();
+            expect(unexpected?.type).toBe('request-payload-too-large');
+            expect(middleFnResults).toEqual({});
         });
     });
 });

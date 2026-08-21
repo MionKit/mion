@@ -47,13 +47,36 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
 
     /** Prefills MiddleFn's parameters and returns TypedEvent for event handler registration */
     prefill(): TypedEvent<S, E> {
-        const typedEvent = new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
-
         this.client.prefill(this as MiddlewareSubRequest<any>).catch((errors: RequestErrors) => {
             console.error('Prefill error:', findSubRequestError(this, errors));
         });
 
-        return typedEvent;
+        return this.events();
+    }
+
+    /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
+    events(): TypedEvent<S, E> {
+        return new TypedEvent<S, E>(this.id, this.client.handlersRegistry);
+    }
+
+    /** Registers a persistent typed error handler for this middleFn, no prefill required */
+    onError<T extends E['type']>(errorType: T, handler: (error: Extract<E, {type: T}>) => void): TypedEvent<S, E> {
+        return this.events().onError(errorType, handler);
+    }
+
+    /** Removes a previously registered error handler */
+    offError<T extends E['type']>(errorType: T): TypedEvent<S, E> {
+        return this.events().offError(errorType);
+    }
+
+    /** Registers a persistent success handler for this middleFn, no prefill required */
+    onSuccess(handler: (result: S) => void): TypedEvent<S, E> {
+        return this.events().onSuccess(handler);
+    }
+
+    /** Removes a previously registered success handler */
+    offSuccess(): TypedEvent<S, E> {
+        return this.events().offSuccess();
     }
 
     /** Removes prefilled value and clears any registered error handlers for this middleFn */
@@ -82,10 +105,10 @@ export class MionSubRequest<S = any, E extends RpcError<string, any> = any>
         timeout?: number
     ): Promise<any> {
         const allRoutes = [this as unknown as RouteSubRequest<any>, ...otherRoutes];
-        const [results, errors, mfR, mfE] = await this.client.execute(undefined, allRoutes, middleFns ?? {}, signal, timeout);
+        const [results, errors, unexpected, mfR] = await this.client.execute(undefined, allRoutes, middleFns ?? {}, signal, timeout);
         const emptyResults = allRoutes.map(() => undefined);
         const emptyErrors = allRoutes.map(() => undefined);
-        return [results ?? emptyResults, errors ?? emptyErrors, mfR, mfE];
+        return [results ?? emptyResults, errors ?? emptyErrors, unexpected, mfR];
     }
 
     /** Validates parameters and returns type errors */

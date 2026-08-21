@@ -22,12 +22,14 @@ import {fetchRemoteMethodsMetadata} from './lib/fetchRemoteMethodsMetadata.ts';
 import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
-import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH} from './constants.ts';
+import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
 
 export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
     readonly path: string;
     readonly requestId: string;
     readonly subRequestList: {[key: string]: SubRequest<any>} = {};
+    /** ids in the RequestErrors map whose error is thrown/undeclared (unexpected) rather than a declared response */
+    readonly thrownErrorIds = new Set<string>();
     response: Response | undefined;
 
     constructor(
@@ -152,18 +154,19 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
 
     /** Checks if the response contains errors that require retry with proper JIT serialization */
     private shouldRetryWithProperSerialization(deserialized: ResponseBody): boolean {
-        return Object.values(deserialized).some(
-            (value) =>
-                isRpcError(value) &&
-                (value.type === 'serialization-error' ||
-                    value.type === 'validation-error' ||
-                    value.type === 'parsing-json-request-error')
-        );
+        const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
+        const isRetryError = (value: any): boolean =>
+            isRpcError(value) &&
+            (value.type === 'serialization-error' ||
+                value.type === 'validation-error' ||
+                value.type === 'parsing-json-request-error');
+        return Object.values(deserialized).some(isRetryError) || Object.values(thrownErrors).some(isRetryError);
     }
 
     /** Retries the request with proper JIT serialization after metadata has been cached */
     private async retryWithProperSerialization(originalSerializer: SerializerMode): Promise<ResponseBody> {
         delete this.subRequestList[MION_ROUTES.methodsMetadata];
+        this.thrownErrorIds.clear();
         Object.values(this.subRequestList).forEach((sr) => {
             sr.isResolved = false;
             sr.resolvedValue = undefined;
@@ -181,7 +184,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             await fetchRemoteMethodsMetadata(subRequestIds, this.options);
             validateSubRequests(subRequestIds, this, errors, false);
             return Object.values(this.subRequestList)
-                .map((subRequest) => subRequest.error?.errorData || [])
+                .map((subRequest) => subRequest.error?.errorData?.typeErrors || [])
                 .flat();
         } catch (error: any) {
             this.onError(error, 'Error preparing request', errors);
@@ -223,22 +226,40 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         this.subRequestList[subRequest.id] = subRequest;
     }
 
-    /** Checks for platform-level errors and propagates them to all subrequests. Returns true if a platform error was found */
+    /** Checks for platform-level errors. A platform error is request-scoped and unexpected: it is recorded
+     * ONCE under CLIENT_REQUEST_ERROR_ID instead of being fanned out to every subrequest. Returns true if found */
     private handlePlatformError(deserialized: ResponseBody, errors: RequestErrors): boolean {
         if (!(MION_ROUTES.platformError in deserialized)) return false;
         const platformError = deserialized[MION_ROUTES.platformError];
-        Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-            methodMeta.isResolved = true;
-            methodMeta.error = platformError as RpcError<string>;
-            errors.set(id, platformError as RpcError<string>);
-        });
+        Object.values(this.subRequestList).forEach((methodMeta) => (methodMeta.isResolved = true));
+        this.setUnexpectedError(CLIENT_REQUEST_ERROR_ID, platformError as RpcError<string>, errors);
         return true;
     }
 
-    /** Resolves sub request values from the deserialized response body and collects errors */
+    /** Records an error as unexpected (thrown/undeclared) in the errors map */
+    private setUnexpectedError(id: string, error: RpcError<string>, errors: RequestErrors): void {
+        errors.set(id, error);
+        this.thrownErrorIds.add(id);
+    }
+
+    /** Resolves sub request values from the deserialized response body and collects errors, preserving
+     * the wire's returned-vs-thrown split: body entries are declared responses, [MION_ROUTES.thrownErrors]
+     * entries are unexpected (except 'validation-error', which is thrown server-side but is by design part
+     * of every handler's expected union) */
     private resolveSubRequests(deserialized: ResponseBody, errors: RequestErrors, skipId?: string): void {
+        const thrownErrors = (deserialized[MION_ROUTES.thrownErrors] ?? {}) as Record<string, RpcError<string>>;
+        Object.entries(thrownErrors).forEach(([id, thrownError]) => {
+            const subRequest = this.subRequestList[id];
+            if (subRequest) {
+                subRequest.isResolved = true;
+                subRequest.error = thrownError;
+            }
+            errors.set(id, thrownError);
+            if (thrownError.type !== 'validation-error') this.thrownErrorIds.add(id);
+        });
+
         Object.entries(this.subRequestList).forEach(([id, methodMeta]) => {
-            if (id === skipId) return;
+            if (id === skipId || errors.has(id)) return;
             const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
             methodMeta.isResolved = true;
             if (isRpcError(resp)) {
@@ -250,9 +271,9 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         });
 
         Object.entries(deserialized).forEach(([id, value]) => {
-            if (!(id in this.subRequestList) && isRpcError(value)) {
-                errors.set(id, value);
-            }
+            if (id === MION_ROUTES.thrownErrors) return;
+            // an error for an id this request never asked for is nobody's declared response
+            if (!(id in this.subRequestList) && isRpcError(value)) this.setUnexpectedError(id, value, errors);
         });
     }
 
@@ -263,40 +284,43 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         const reason = this.signal?.aborted ? this.signal.reason : undefined;
         if (reason instanceof DOMException) {
             if (reason.name === 'TimeoutError') {
-                errors.set(
-                    this.requestId,
+                this.setUnexpectedError(
+                    CLIENT_REQUEST_ERROR_ID,
                     new RpcError({
                         type: 'request-timeout',
                         publicMessage: 'Request timed out',
                         originalError: error instanceof Error ? error : undefined,
-                    })
+                    }),
+                    errors
                 );
                 return;
             }
             if (reason.name === 'AbortError') {
-                errors.set(
-                    this.requestId,
+                this.setUnexpectedError(
+                    CLIENT_REQUEST_ERROR_ID,
                     new RpcError({
                         type: 'request-aborted',
                         publicMessage: 'Request was aborted',
                         originalError: error instanceof Error ? error : undefined,
-                    })
+                    }),
+                    errors
                 );
                 return;
             }
         }
         if (isRpcError(error)) {
-            errors.set(this.requestId, error);
+            this.setUnexpectedError(CLIENT_REQUEST_ERROR_ID, error, errors);
             return;
         }
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
-        errors.set(
-            this.requestId,
+        this.setUnexpectedError(
+            CLIENT_REQUEST_ERROR_ID,
             new RpcError({
                 type: error?.name || 'unknown-error',
                 publicMessage: message,
                 originalError: error instanceof Error ? error : undefined,
-            })
+            }),
+            errors
         );
     }
 
@@ -316,12 +340,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
             if (errors) {
-                errors.set(
+                this.setUnexpectedError(
                     this.requestId,
                     new RpcError({
                         type: 'route-metadata-not-found',
                         publicMessage: `Metadata for Route '${this.requestId} not found.'.`,
-                    })
+                    }),
+                    errors
                 );
             }
             return;
@@ -352,12 +377,13 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             const methodMeta = routesCache.getMetadata(routeSubRequest.id);
             if (!methodMeta) {
                 if (errors) {
-                    errors.set(
+                    this.setUnexpectedError(
                         routeSubRequest.id,
                         new RpcError({
                             type: 'route-metadata-not-found',
                             publicMessage: `Metadata for Route '${routeSubRequest.id}' not found.`,
-                        })
+                        }),
+                        errors
                     );
                 }
                 continue;
