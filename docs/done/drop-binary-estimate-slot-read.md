@@ -1,7 +1,7 @@
 # Drop the `tb` slot read once `@ts-runtypes/core` exposes the binary size estimate
 
-**Status:** todo — UNBLOCKED upstream and **DRY-RUN VERIFIED** (2026-08-21). Waiting on a release
-only. The current slot read is safe, tested and staying until `@ts-runtypes/core` ships the field.
+**Status:** done — shipped 2026-08-21 against `@ts-runtypes/core` 0.12.1. The tuple-slot read is
+gone; the estimate comes off the registered cache entry by name.
 **Type:** cleanup
 **Spec:** full-plan
 **Created:** 2026-08-20
@@ -43,7 +43,7 @@ Two things that were true when this spec was written and are worth correcting:
   mion's current slot read is at risk from the change. The tuple layout is unchanged and
   `binarySizeEstimate` is still slot 11.
 
-## What to do once a release carries it
+## What shipped
 
 1. **`packages/core/src/runtypes/mionAdapter.ts`** — delete `readBinarySizeEstimate` and the
    `TB_TUPLE_LENGTH` / `TB_ESTIMATE_SLOT` / `MAX_BUFFER_BYTES` constants. Populate the reflection
@@ -63,7 +63,7 @@ Two things that were true when this spec was written and are worth correcting:
    stops being populated, and the failure mode stays silent (cold buffers quietly revert to
    `MIN_COLD_START_BYTES`, no test fails).
 
-3. Bump `@ts-runtypes/core` in `packages/core/package.json` to the release that carries it.
+3. Bumped every `@ts-runtypes/*` pin to 0.12.1.
 
 4. Nothing else changes: `coldStartSize` in `packages/core/src/binary/bodySerializer.ts` already
    consumes `paramsBinarySizeEstimate` / `returnBinarySizeEstimate` off `MethodWithJitFns` and does
