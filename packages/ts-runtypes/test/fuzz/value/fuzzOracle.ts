@@ -229,7 +229,20 @@ export function checkBinaryStable(target: FuzzTarget, value: unknown, ctx: Check
  *  representation differences between the wires don't register as a mismatch):
  *  `jsonEncode(binaryDecode(binaryEncode v))` must equal `jsonEncode(v)`. Needs
  *  no projection oracle — a divergence means one wire lost or reshaped data the
- *  other kept. Throws are left to O5/O6/O7. **/
+ *  other kept. Throws are left to O5/O6/O7.
+ *
+ *  Textual equality is the fast path, not the contract. O5 compares the wire
+ *  TEXT on purpose (it sidesteps the optional-`undefined` vs dropped-key
+ *  mismatch), which is sound there because both its wires come out of the same
+ *  encoder and so carry the same key order. Across wires that does not hold:
+ *  the binary layout partitions an object's properties into required-then-
+ *  optional (the presence bitmap depends on that split), so binaryDecode
+ *  rebuilds in LAYOUT order while jsonEncode emits DECLARATION order. Any type
+ *  declaring an optional property before a required one therefore round-trips
+ *  to the same value spelled with a different key order — `{p0?, p1}` comes back
+ *  as `{p1, p0}`. That is by design, and key order carries no meaning in JSON,
+ *  so differing text falls through to a structural comparison and only a real
+ *  value difference is a violation. **/
 export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx): Violation | null {
   if (!target.jsonEncode || !target.binaryEncode || !target.binaryDecode) return null;
   let jsonWire: string | undefined;
@@ -241,7 +254,7 @@ export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx
   } catch {
     return null; // encode/decode throws are O5/O6/O7's job, not double-counted here
   }
-  if (jsonWire !== viaBinaryWire) {
+  if (jsonWire !== viaBinaryWire && !sameJsonValue(jsonWire, viaBinaryWire)) {
     return violation(
       'O12',
       target,
@@ -251,6 +264,18 @@ export function checkCrossWire(target: FuzzTarget, value: unknown, ctx: CheckCtx
     );
   }
   return null;
+}
+
+/** Do two JSON wires carry the same value, ignoring key order alone? Anything
+ *  that fails to parse is NOT treated as equal — a malformed wire is a real
+ *  finding, so it must reach the violation path rather than be excused here. **/
+function sameJsonValue(left: string, right: string | undefined): boolean {
+  if (right === undefined) return false;
+  try {
+    return isDeepStrictEqual(JSON.parse(left), JSON.parse(right));
+  } catch {
+    return false;
+  }
 }
 
 function errMsg(err: unknown): string {
