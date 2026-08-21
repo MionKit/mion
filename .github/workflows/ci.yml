@@ -155,6 +155,13 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/bootstrap
+      # bun is NOT a workspace dependency — the devtools Bun adapter's tests
+      # spawn it and skip themselves when it is absent, so without this step the
+      # whole @ts-runtypes/devtools/bun lane would silently never run in CI.
+      # Only this job needs it, hence not in the shared bootstrap action.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
       # Fail-fast ordering — cheap checks before the suite.
       - name: Check formatting (no build needed — runs first)
         run: pnpm run check-format

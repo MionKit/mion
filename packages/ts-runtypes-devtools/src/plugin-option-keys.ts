@@ -28,6 +28,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   sourcesContent: true,
   failOnError: true,
   jsRuntime: true,
+  detachResolver: true,
   pureFnReport: true,
   onPureFnReport: true,
   enrich: true,

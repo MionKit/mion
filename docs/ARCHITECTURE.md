@@ -425,8 +425,8 @@ removing it from either breaks development whenever the build output is missing 
 ### `ts-runtypes-devtools`
 
 Published as `@ts-runtypes/devtools`. The build time half, and the piece that talks to the
-Go program. It plugs into Vite, Rollup, Rolldown, webpack, Rspack, and esbuild from one
-shared implementation, and it has four jobs.
+Go program. It plugs into Vite, Rollup, Rolldown, webpack, Rspack, esbuild, and Bun from
+one shared implementation, and it has four jobs.
 
 **Transform.** It hooks the bundler early, before types are stripped, so the positions the
 Go program reports still line up. It spawns the resolver once and keeps it alive for the
@@ -436,6 +436,35 @@ no configuration. By default the Go side returns just a list of edits and the pl
 applies them, which keeps the messages small; a fallback mode lets Go return the whole
 rewritten file instead. A checksum guards against another plugin having changed the file
 underneath.
+
+**The Bun entry is the one adapter with real logic of its own.** Every other entry is a
+one line re-export of the unplugin instance, because every other host is a bundler. Bun has
+two plugin hosts: `Bun.build` (a bundler, which unplugin's Bun context already targets) and
+`Bun.plugin` from a preload module, the RUNTIME loader that transforms each file as Bun
+imports it with no bundle step. The runtime host is a strict subset and needs three things
+bridged, all of them in `src/bun.ts`:
+
+1. It has no `onStart` / `onEnd`. The resolver's `buildStart` is registered through
+   `build.onStart`, so a preload throws before anything transforms. The adapter captures the
+   callbacks and drives them itself.
+2. Its `onLoad` must return an object; `undefined` (the resolver left a file alone) is a
+   default load in the bundler but a `TypeError` at runtime. The adapter falls back to the
+   file's original source.
+3. **`Bun.plugin()` does not await an async `setup`.** It returns a promise but starts
+   importing immediately, so registration races the resolver's startup. This is the
+   dangerous one: it fails silently. A file that names the marker package survives anyway
+   (the transform gate's textual fallback sends it straight to the resolver), but a WRAPPER
+   call site does not, because only the whole program scan knows it holds a site, and that
+   scan finishes at the end of `buildStart`. Load it early and it is passed through
+   untransformed. The adapter gates every `onLoad` on an internal readiness promise, so a
+   host that forgets `await` is still correct.
+
+The runtime host also never gets a `buildEnd`, so nothing closes the resolver and the live
+child would keep the process alive forever. The adapter passes `detachResolver` on that host
+only, which unrefs the child: the resolver stays usable for the whole process, but stops
+holding it open. It is not orphaned either, since losing the parent closes its stdin and the
+Go serve loop exits on EOF. A bundler host must NOT do this, where a pending resolver
+response can be the build's only live handle.
 
 **Codegen.** It writes the generated modules as real files under `<genDir>/types/`, one per
 entry, and prunes the ones no longer used. That directory is generated and git ignored. It

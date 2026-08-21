@@ -50,7 +50,7 @@ function rtOptions(appDir) {
 
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
-// ── the apps: six bundler adapters over seven builds ────────────────────────
+// ── the apps: seven bundler adapters over nine builds ───────────────────────
 // build-vite carries the FULL feature matrix (imports the shared index); every
 // light smoke imports apps/shared/src/minimal.ts. smoke-source is the seventh
 // build but not a seventh bundler — it reuses the esbuild adapter to cover a
@@ -67,6 +67,12 @@ const APP_LIST = [
   // internals. Guards the first-party diagnostic scoping — without it the build
   // halts on the library's own CTA001/CTA003.
   {name: 'smoke-source', adapter: 'esbuild'},
+  // Bun has TWO plugin hosts and they are different code paths, so each gets an
+  // app: `Bun.build` (bundler, produces a dist like every other adapter) and the
+  // `Bun.plugin` RUNTIME loader (no bundle step, transforms on import). Both run
+  // under bun, which build-all.mjs cannot call in-process — see buildBun.
+  {name: 'smoke-bun', adapter: 'bun'},
+  {name: 'smoke-bun-preload', adapter: 'bunPreload'},
 ];
 
 async function buildVite(app) {
@@ -183,7 +189,25 @@ async function buildRspack(app) {
   });
 }
 
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack};
+// Bun's plugin API only exists inside a bun process, and this script runs under
+// node — so both bun lanes shell out. Each app owns its own bun-side script so
+// everything the e2e needs stays under apps/ (the container copy is `cp -a apps`).
+function runBun(appDir, args) {
+  execFileSync('bun', args, {cwd: appDir, stdio: 'inherit', env: process.env});
+}
+
+async function buildBun(app) {
+  runBun(path.join(APPS, app.name), ['build.ts']);
+}
+
+// The runtime lane has nothing to BUILD: registering the plugin and importing
+// the entry IS the test. Running it here (rather than only in the assertions)
+// keeps a failure attributed to this app, like every other build failure.
+async function buildBunPreload(app) {
+  runBun(path.join(APPS, app.name), ['--preload', './rt-preload.ts', 'src/run.ts']);
+}
+
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload};
 
 async function main() {
   const requested = process.argv.slice(2);

@@ -5,6 +5,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -15,7 +16,7 @@ const APPS = path.join(HERE, '..', 'apps');
 // build-vite runs the full matrix (13 families); each light smoke runs the lean
 // minimal subset.
 const HEAVY = 'build-vite';
-const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source'];
+const SMOKES = ['smoke-esbuild', 'smoke-rollup', 'smoke-rolldown', 'smoke-webpack', 'smoke-rspack', 'smoke-source', 'smoke-bun'];
 
 async function loadEntry(app) {
   const dist = path.join(APPS, app, 'dist/entry.js');
@@ -43,3 +44,31 @@ for (const app of SMOKES) {
     assert.ok(results.length >= 5, `${app}: expected the lean subset, got ${results.length} checks`);
   });
 }
+
+// smoke-bun-preload has no dist to import: it runs the shared subset through
+// Bun's RUNTIME plugin host, where transformation happens per import with no
+// bundle step. So the assertion re-runs it and reads the report it prints.
+//
+// This is the strongest lane in the matrix. The others prove a rewrite survived
+// a bundler; this one proves a Bun project is wired, compiled AND executing —
+// and it registers the plugin WITHOUT awaiting Bun.plugin(), which is the shape
+// that silently loses injections if the adapter's readiness gate regresses.
+test('smoke-bun-preload: the shared subset passes under Bun\'s runtime loader', () => {
+  const appDir = path.join(APPS, 'smoke-bun-preload');
+  const run = spawnSync('bun', ['--preload', './rt-preload.ts', 'src/run.ts'], {
+    cwd: appDir,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+  assert.equal(run.status, 0, `bun exited ${run.status}:\n${output}`);
+  const line = output.split('\n').find((l) => l.startsWith('RT_PRELOAD_REPORT '));
+  assert.ok(line, `no report line in bun output:\n${output}`);
+  const report = JSON.parse(line.slice('RT_PRELOAD_REPORT '.length));
+  const detail = report.results
+    .filter((result) => !result.ok)
+    .map((result) => result.name)
+    .join('\n');
+  assert.ok(report.ok, `smoke-bun-preload selfCheck failed:\n${detail}`);
+  assert.ok(report.results.length >= 5, `expected the lean subset, got ${report.results.length} checks`);
+});
