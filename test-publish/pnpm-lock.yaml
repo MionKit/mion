@@ -362,7 +362,7 @@ packages:
     version: 0.8.10
 
   '@mionjs/devtools@file:tarballs/mionjs-devtools.tgz':
-    resolution: {integrity: sha512-quXF8YDSsfWMzUzjcWOrViPrvoL5PcuSdlMhvRnH02xmuortPCbRC10cgFvOzD8tETGO7MRAXjJY/F0o1LzZlw==, tarball: file:tarballs/mionjs-devtools.tgz}
+    resolution: {integrity: sha512-YAkooFqRO7RqdtepyFfgBzBC6V1/X4cD9K5VLShRq3fQ7JtMwM+XRYshJ7am1+PtAKTKJdfboo67rTd3CaI8Zw==, tarball: file:tarballs/mionjs-devtools.tgz}
     version: 0.8.10
     peerDependencies:
       typescript: '>=6.0.0'
@@ -380,7 +380,7 @@ packages:
     version: 0.8.10
 
   '@mionjs/platform-bun@file:tarballs/mionjs-platform-bun.tgz':
-    resolution: {integrity: sha512-f+7XD8s9Brec/BzAvGoo5MEu5F4OAsL1Sngx0dnt0tNGBIKCnyLKTCF3SDiJ8II7yl+wjbpmyIB8ey899nBq5w==, tarball: file:tarballs/mionjs-platform-bun.tgz}
+    resolution: {integrity: sha512-uZM21K0loRN0ZgNnUJMZQeSFXrA444x5P5kt8xHcBZ7oOQwcMYtZBkH9NpqG785mz1CaNXnf949fSvy0uqkHxg==, tarball: file:tarballs/mionjs-platform-bun.tgz}
     version: 0.8.10
     engines: {bun: '>=1.0.1'}
     peerDependencies:

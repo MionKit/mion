@@ -8,11 +8,6 @@
 import {RpcError, HeadersSubset} from '@mionjs/core';
 import {PublicApi, Routes, initMionRouter, route, headersFn, middleFn} from '@mionjs/router';
 import {setNodeHttpOpts, startNodeServer} from '@mionjs/platform-node';
-// serverMapFrom transport: registers the mappers the CLIENT build harvested out of the flow code
-// in json.spec.ts (manifest path configured in vite.server.config.ts / vite.build.config.ts).
-// Side-effect import — this is the packaged devtools plugin's virtual module, so it also proves
-// the transport survives being consumed from a published tarball.
-import 'virtual:mion/server-mappers';
 
 // ============ Types ============
 // NOTE: Regular imports only! Never use `import type` for types that need reflection.

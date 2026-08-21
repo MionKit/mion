@@ -42,9 +42,17 @@ The old implementation was tangled with AOT-cache generation
 AOT and would be **simpler** now: types are injected at build time, so no cache-generation step.
 
 Related dropped SSR pieces (R28, same wave): the plugin no longer auto-adds
-`ssr.noExternal: [/@mionjs\//]` (SSR users get duplicated `@mionjs/core` instances → split
-registries) and no longer transforms `.vue?vue&type=script` blocks (typed mion code in `.vue` SFCs
-silently untransformed). A restored SSR/middleware story should re-add these together.
+`ssr.noExternal: [/@mionjs\//]` and no longer transforms `.vue?vue&type=script` blocks (typed mion
+code in `.vue` SFCs silently untransformed). A restored SSR/middleware story should re-add these
+together.
+
+⚠️ **Re-check the `noExternal` half before acting on it.** The duplicated-`@mionjs/core` symptom that
+motivated it was reproduced in a packaged consumer and traced to a different cause entirely — the
+`virtual:mion/server-mappers` module, whose bare imports did not dedupe with the SSR graph. Retiring
+that module fixed the duplication, and adding `ssr.noExternal` by hand did NOT clear it. See
+[virtual-module-retired-and-dual-core-load.md](../done/virtual-module-retired-and-dual-core-load.md).
+Whether a real Nuxt/SSR setup still needs `noExternal` is untested — treat it as unproven, not as a
+known bug.
 
 ## Fix plan (decision made — implement)
 

@@ -8,8 +8,8 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-            // consume the mappers the test lane harvested (registered via the
-            // virtual:mion/server-mappers side-effect import in src/server/server.ts)
+            // consume the mappers the test lane harvested (the plugin generates
+            // .mion/server-mappers.generated.js and imports it for us)
             serverMappers: {consume: resolve(__dirname, '.mion/server-mappers.json')},
         }),
     ],

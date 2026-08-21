@@ -10,7 +10,6 @@
     "sourceMap": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "types": ["@mionjs/devtools/virtual-modules"],
     "allowImportingTsExtensions": true,
     "noEmit": true
   },

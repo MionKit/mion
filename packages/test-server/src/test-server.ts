@@ -14,9 +14,6 @@ import {String, Email, UUIDv4} from '@ts-runtypes/core/formats';
 import {Number} from '@ts-runtypes/core/formats';
 import {registerPureFn} from '@ts-runtypes/core';
 import {allowServerMapper, serverMapperKey} from '@mionjs/core';
-// serverMapFrom transport: registers the client build's harvested inline mappers
-// (manifest path configured in vite.config.ts serverMappers.consume)
-import 'virtual:mion/server-mappers';
 
 // The serverMapFrom NAME lane. Registration is @ts-runtypes' job — a literal key plus an inline
 // function literal keeps the scanner happy. allowServerMapper is mion's half: it opts the key into
