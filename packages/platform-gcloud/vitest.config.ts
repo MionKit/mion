@@ -9,9 +9,6 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {
-                    sourceMap: true,
-                },
             },
         }),
     ],

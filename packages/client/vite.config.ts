@@ -44,11 +44,6 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-            server: {
-                startScript: resolve(__dirname, '../router/src/defaultRoutes.ts'),
-                viteConfig: resolve(__dirname, '../router/vite.config.ts'),
-                runMode: 'buildOnly',
-            },
         }),
         dts({
             outDir: ['.dist/cjs', '.dist/esm'],

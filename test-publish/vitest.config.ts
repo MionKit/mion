@@ -7,9 +7,6 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
-                compilerOptions: {
-                    sourceMap: true,
-                },
             },
             server: {
                 startScript: resolve(__dirname, 'src/server/server.ts'),
