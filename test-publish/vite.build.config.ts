@@ -8,7 +8,7 @@ export default defineConfig({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
             },
-        }) as any,
+        }),
     ],
     build: {
         outDir: 'dist',

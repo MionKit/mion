@@ -8,7 +8,7 @@ export default defineConfig({
             runTypes: {tsConfig: resolve(__dirname, 'tsconfig.json')},
             // Register the inline serverMapFrom mappers the CLIENT build harvested into this manifest.
             serverMappers: {consume: resolve(__dirname, '../client/.mion/server-mappers.json')},
-        }) as any,
+        }),
     ],
     build: {
         lib: {

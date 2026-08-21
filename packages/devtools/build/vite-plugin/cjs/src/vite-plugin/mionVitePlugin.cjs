@@ -4,8 +4,34 @@ const path = require("node:path");
 const node_fs = require("node:fs");
 const node_child_process = require("node:child_process");
 const tsRuntypes = require("@ts-runtypes/devtools/vite");
-let legacyOptionsNoticeShown = false;
 let legacyBinEnvNoticeShown = false;
+const REMOVED_PLUGIN_OPTIONS = {
+  aotCaches: "AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.",
+  serverPureFunctions: "pure-fn extraction moved to the serverMapFrom transport. Use `serverMappers: {emit}` on the client build and `serverMappers: {consume}` on the server build."
+};
+const REMOVED_RUNTYPES_OPTIONS = {
+  compilerOptions: "the deepkit type-compiler is gone; there is nothing to configure. Delete this option.",
+  include: "scan scope comes from the tsconfig program — narrow `include` in the tsconfig instead.",
+  exclude: "scan scope comes from the tsconfig program — narrow `exclude` in the tsconfig instead.",
+  reflectionMode: "deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option.",
+  reflection: "deepkit reflection is gone; types are resolved at build time and always compiled. Delete this option."
+};
+function assertNoRemovedOptions(options) {
+  const found = [];
+  const root = options;
+  for (const [key, hint] of Object.entries(REMOVED_PLUGIN_OPTIONS)) {
+    if (root[key] !== void 0) found.push(`  - ${key}: ${hint}`);
+  }
+  const rt = options.runTypes ?? {};
+  for (const [key, hint] of Object.entries(REMOVED_RUNTYPES_OPTIONS)) {
+    if (rt[key] !== void 0) found.push(`  - runTypes.${key}: ${hint}`);
+  }
+  if (found.length === 0) return;
+  throw new Error(
+    `[mionVitePlugin] removed option${found.length > 1 ? "s" : ""} in your config (they stopped doing anything at the ts-runtypes migration and are now gone):
+${found.join("\n")}`
+  );
+}
 function resolveRtBinary(explicit) {
   if (explicit) return explicit;
   if (process.env.TS_RUNTYPES_BIN && !process.env.RT_BIN && !legacyBinEnvNoticeShown) {
@@ -18,13 +44,7 @@ function resolveRtBinary(explicit) {
 }
 function mionVitePlugin(options = {}) {
   const rt = options.runTypes ?? {};
-  const legacyRt = rt;
-  if (!legacyOptionsNoticeShown && (options.serverPureFunctions || options.aotCaches || rt.compilerOptions || rt.include || rt.exclude || rt.reflectionMode || legacyRt.reflection)) {
-    legacyOptionsNoticeShown = true;
-    console.warn(
-      "[mionVitePlugin] legacy options (serverPureFunctions/aotCaches/runTypes.compilerOptions/include/exclude/reflectionMode) are ignored since the ts-runtypes migration. See docs/ at the repo root."
-    );
-  }
+  assertNoRemovedOptions(options);
   if (options.server && options.server.runMode && options.server.runMode !== "childProcess") {
     console.warn(
       `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes migration — only 'childProcess' exists; the managed server will be spawned as a child process.`
@@ -80,7 +100,7 @@ function mionVitePlugin(options = {}) {
       }
     });
   }
-  return extraPlugins.length > 0 ? [...extraPlugins, plugins] : plugins;
+  return [...extraPlugins, plugins];
 }
 function resolveManifestPath(emit) {
   if (!emit) return void 0;

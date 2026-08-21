@@ -22,6 +22,6 @@ export default defineConfig({
                 waitTimeout: 30000,
                 env: {PORT: '3000'},
             },
-        }) as any,
+        }),
     ],
 });
