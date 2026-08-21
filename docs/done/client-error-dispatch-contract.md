@@ -1,8 +1,17 @@
 # Client error dispatch: define the contract, then make the runtime obey it
 
-**Status:** todo
+**Status:** done — implemented 2026-08-21 on `claude/client-transport-error-types-u2hd0j`
+(runtime + tests: `feat(client)!: dispatch errors per the contract`; examples and website docs in
+the two follow-up commits on the same branch).
 **Type:** bug (several) + public API change
 **Created:** 2026-08-21
+
+Implementation notes vs the plan: all of R1–R7, D1–D8 and the tests landed as specified. The
+contract tests live in `packages/client/src/errorDispatch.spec.ts` (T1–T18, with T2b covering the
+server-side validation carve-out) and the type-level assertions in
+`packages/examples/src/client/client-error-slots.ts` (T19–T23). Step 6b landed as
+`events()`/`onError`/`offError`/`onSuccess`/`offSuccess` on `MiddlewareSubRequest`. The test
+server gained `throwsUnexpectedly` (T9) and the `runOnError` `audit` middleFn (T17).
 
 ## Summary
 
