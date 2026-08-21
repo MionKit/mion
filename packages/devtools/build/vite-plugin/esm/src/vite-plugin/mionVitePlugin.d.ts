@@ -23,6 +23,7 @@ export interface MionServerOptions {
 }
 export interface MionServerMappersOptions {
     emit?: boolean | string;
+    injectInto?: string | string[];
     consume?: string | string[];
 }
 export interface MionPluginOptions {
