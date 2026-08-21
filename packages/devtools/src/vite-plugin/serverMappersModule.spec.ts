@@ -21,13 +21,13 @@ const ENTRY = `import {Routes, initMionRouter, route} from '@mionjs/router';\naw
 const MAPPER = {key: 'rt::abc123', code: 'return (order) => order.userId;'};
 
 /** Drives the plugin's hooks the way vite would, and returns what it generated/injected. */
-function run(root: string, manifest: string, command: 'build' | 'serve', entryCode = ENTRY, entryDir = 'src') {
-    const plugins = mionVitePlugin({serverMappers: {consume: manifest}}) as any[];
+function run(root: string, manifest: string, command: 'build' | 'serve', entryCode = ENTRY, injectInto?: string | string[]) {
+    const plugins = mionVitePlugin({serverMappers: {consume: manifest, injectInto}}) as any[];
     const plugin = plugins.flat().find((p) => p?.name === 'mion-server-mappers');
     plugin.configResolved({root, command});
     plugin.buildStart.call({});
     const generatedFile = path.resolve(root, '.mion/server-mappers.generated.js');
-    const entryId = path.resolve(root, entryDir, 'server.ts');
+    const entryId = path.resolve(root, 'src', 'server.ts');
     return {
         plugin,
         generatedFile,
@@ -76,9 +76,54 @@ describe('serverMapFrom generated module', () => {
 
     it('injects the import into the module that calls initMionRouter', () => {
         const {transformed, generatedFile} = run(root, manifest, 'build');
-        expect(transformed.code).toMatch(/^import '\.\.\/\.mion\/server-mappers\.generated\.js';/);
+        expect(transformed.code).toContain("import '../.mion/server-mappers.generated.js';");
         expect(transformed.code).toContain('initMionRouter');
         expect(existsSync(generatedFile)).toBe(true);
+    });
+
+    it('appends rather than prepends, so map: null does not lie about moved code', () => {
+        const {transformed} = run(root, manifest, 'build');
+        // ESM imports are hoisted and evaluated before the module body wherever they sit, so appending
+        // still registers the mappers first — while every original line keeps its number, which is the
+        // only thing that makes `map: null` ("this transform did not move code") true.
+        expect(transformed.code.startsWith(ENTRY)).toBe(true);
+        expect(transformed.map).toBeNull();
+    });
+
+    it.each([
+        ['namespace import', `import * as router from '@mionjs/router';\nawait router.initMionRouter({});\n`],
+        ['aliased named import', `import {initMionRouter as init} from '@mionjs/router';\nawait init({});\n`],
+        [
+            'multi-line import list',
+            `import {\n    Routes,\n    route,\n    initMionRouter,\n} from '@mionjs/router';\nawait initMionRouter({});\n`,
+        ],
+    ])('detects the router entry through a %s', (_label, code) => {
+        // each of these silently got NO injection, and no warning, when detection required one
+        // specific braced-named-import shape
+        expect(run(root, manifest, 'build', code).transformed?.code).toContain('server-mappers.generated.js');
+    });
+
+    it('injects into an explicit injectInto target, whatever it imports', () => {
+        const opaque = `export const routes = buildFromSomeLocalBarrel();\n`;
+        const {transformed} = run(root, manifest, 'build', opaque, 'src/server.ts');
+        expect(transformed.code).toContain('server-mappers.generated.js');
+    });
+
+    it('fails the build when nothing was injected, instead of shipping mappers nobody registers', () => {
+        const plugins = mionVitePlugin({serverMappers: {consume: manifest}}) as any[];
+        const plugin = plugins.flat().find((p: any) => p?.name === 'mion-server-mappers');
+        plugin.configResolved({root, command: 'build'});
+        plugin.buildStart.call({});
+        plugin.transform.call({}, 'export const x = 1;\n', path.resolve(root, 'src/unrelated.ts'));
+        expect(() => plugin.buildEnd.call({})).toThrow(/injectInto/);
+    });
+
+    it('stays quiet in serve mode, where a miss surfaces immediately as a rejected flow', () => {
+        const plugins = mionVitePlugin({serverMappers: {consume: manifest}}) as any[];
+        const plugin = plugins.flat().find((p: any) => p?.name === 'mion-server-mappers');
+        plugin.configResolved({root, command: 'serve'});
+        plugin.buildStart.call({});
+        expect(() => plugin.buildEnd.call({})).not.toThrow();
     });
 
     it('leaves modules that never touch the router alone', () => {

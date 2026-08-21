@@ -90,7 +90,8 @@ function mionVitePlugin(options = {}) {
     ...manifestPath ? { pureFnReport: "callback", onPureFnReport: harvestReport } : {}
   });
   const extraPlugins = [];
-  if (options.serverMappers?.consume) extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume));
+  if (options.serverMappers?.consume)
+    extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
   if (options.server) {
     const server = options.server;
     extraPlugins.unshift({
@@ -112,28 +113,43 @@ function writeMapperManifest(manifestPath, mappers) {
   writeFileSync(manifestPath, JSON.stringify(entries, null, 2) + "\n");
 }
 const GENERATED_MAPPERS_FILE = "server-mappers.generated.js";
-const ROUTER_INIT_IMPORT = /import\s*\{[^}]*\binitMionRouter\b[^}]*\}\s*from\s*['"]@mionjs\/router['"]/;
-function serverMappersConsumePlugin(consume) {
+const ROUTER_IMPORT = /from\s*['"]@mionjs\/router['"]/;
+const ROUTER_INIT_NAME = /\binitMionRouter\b/;
+function serverMappersConsumePlugin(consume, injectInto) {
   const manifests = (Array.isArray(consume) ? consume : [consume]).map((manifest) => path.resolve(manifest));
   let isBuildCommand = false;
   let generatedFile = "";
+  let targets = [];
+  let injected = 0;
   return {
     name: "mion-server-mappers",
     configResolved(config) {
       isBuildCommand = config.command === "build";
       generatedFile = path.resolve(config.root, ".mion", GENERATED_MAPPERS_FILE);
+      const explicit = Array.isArray(injectInto) ? injectInto : injectInto ? [injectInto] : [];
+      targets = explicit.map((target) => path.resolve(config.root, target));
     },
     buildStart() {
+      injected = 0;
       mkdirSync(path.dirname(generatedFile), { recursive: true });
       writeFileSync(generatedFile, renderMappersModule(manifests, isBuildCommand));
     },
     transform(code, id) {
-      if (id === generatedFile || id.includes("node_modules")) return;
-      if (!ROUTER_INIT_IMPORT.test(code)) return;
+      if (id === generatedFile) return;
+      const isTarget = targets.length ? targets.includes(id) : !id.includes("node_modules") && ROUTER_IMPORT.test(code) && ROUTER_INIT_NAME.test(code);
+      if (!isTarget) return;
+      injected++;
       const from = path.relative(path.dirname(id), generatedFile).split(path.sep).join("/");
       const specifier = from.startsWith(".") ? from : `./${from}`;
-      return { code: `import '${specifier}';
-${code}`, map: null };
+      return { code: `${code}
+import '${specifier}';
+`, map: null };
+    },
+    buildEnd() {
+      if (!isBuildCommand || injected > 0) return;
+      throw new Error(
+        `[mionVitePlugin] serverMappers.consume is configured but no module was found to register the mappers into: nothing in this build imports @mionjs/router and calls initMionRouter. Point serverMappers.injectInto at your server entry (it also covers entries reached through a local barrel, or from node_modules).`
+      );
     }
   };
 }

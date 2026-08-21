@@ -100,6 +100,11 @@ export interface MionServerMappersOptions {
      *  `true` resolves '.mion/server-mappers.json' against the process cwd — pass an
      *  absolute path in monorepo/vitest-workspace setups. */
     emit?: boolean | string;
+    /** SERVER builds: entry file(s) to inject the generated module's import into, bypassing detection.
+     *  Only needed when the module calling `initMionRouter` cannot be spotted from its source — it
+     *  re-exports the router through a local barrel, or the entry lives under node_modules. Absolute,
+     *  or relative to the vite root. */
+    injectInto?: string | string[];
     /** SERVER builds: manifest path(s) compiled into `<root>/.mion/server-mappers.generated.js`,
      *  which the plugin imports for you from whichever module calls initMionRouter — nothing to
      *  import by hand. In `vite build` the entries are INLINED into the bundle at build time
@@ -261,7 +266,8 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // and nothing to inject, so pipelines that merely import a server module for its route types
     // (specs, client builds) are untouched.
     const extraPlugins: Plugin[] = [];
-    if (options.serverMappers?.consume) extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume));
+    if (options.serverMappers?.consume)
+        extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
     if (options.server) {
         const server = options.server;
         // Server startup is deferred to buildStart so only the project actually RUNNING
@@ -303,8 +309,13 @@ function writeMapperManifest(manifestPath: string, mappers: Map<string, ServerMa
  *  (already gitignored, and the same directory the harvest writes its JSON to). */
 const GENERATED_MAPPERS_FILE = 'server-mappers.generated.js';
 
-/** Matches a module that pulls initMionRouter out of @mionjs/router — the injection target. */
-const ROUTER_INIT_IMPORT = /import\s*\{[^}]*\binitMionRouter\b[^}]*\}\s*from\s*['"]@mionjs\/router['"]/;
+// Detecting the injection target: the module that imports @mionjs/router AND names initMionRouter.
+// Deliberately two loose tests rather than one regex over a specific import shape — a namespace import
+// (`import * as router from '@mionjs/router'`), an alias (`{initMionRouter as init}`) and a multi-line
+// import list all have to match, and matching only braced named imports silently skipped them. Kept
+// text-based: this runs on every transformed module, so no AST parse.
+const ROUTER_IMPORT = /from\s*['"]@mionjs\/router['"]/;
+const ROUTER_INIT_NAME = /\binitMionRouter\b/;
 
 /** Generates a REAL module registering the harvested serverMapFrom mappers, and injects a
  *  side-effect import of it into the server entry.
@@ -322,27 +333,52 @@ const ROUTER_INIT_IMPORT = /import\s*\{[^}]*\binitMionRouter\b[^}]*\}\s*from\s*[
  *    build-machine paths in the artifact, deployable to lambda/docker/edge.
  *  - dev/serve: the module reads the manifests at runtime and installs the lazy re-reader, covering
  *    the race where the server boots before the client build finished harvesting. */
-function serverMappersConsumePlugin(consume: string | string[]): Plugin {
+function serverMappersConsumePlugin(consume: string | string[], injectInto?: string | string[]): Plugin {
     const manifests = (Array.isArray(consume) ? consume : [consume]).map((manifest) => path.resolve(manifest));
     let isBuildCommand = false;
     let generatedFile = '';
+    let targets: string[] = [];
+    let injected = 0;
     return {
         name: 'mion-server-mappers',
         configResolved(config) {
             isBuildCommand = config.command === 'build';
             generatedFile = path.resolve(config.root, '.mion', GENERATED_MAPPERS_FILE);
+            const explicit = Array.isArray(injectInto) ? injectInto : injectInto ? [injectInto] : [];
+            targets = explicit.map((target) => path.resolve(config.root, target));
         },
         buildStart() {
+            injected = 0;
             // written before any transform runs, so the injected import always resolves
             mkdirSync(path.dirname(generatedFile), {recursive: true});
             writeFileSync(generatedFile, renderMappersModule(manifests, isBuildCommand));
         },
         transform(code, id) {
-            if (id === generatedFile || id.includes('node_modules')) return;
-            if (!ROUTER_INIT_IMPORT.test(code)) return;
+            if (id === generatedFile) return;
+            const isTarget = targets.length
+                ? targets.includes(id)
+                : !id.includes('node_modules') && ROUTER_IMPORT.test(code) && ROUTER_INIT_NAME.test(code);
+            if (!isTarget) return;
+            injected++;
             const from = path.relative(path.dirname(id), generatedFile).split(path.sep).join('/');
             const specifier = from.startsWith('.') ? from : `./${from}`;
-            return {code: `import '${specifier}';\n${code}`, map: null};
+            // APPENDED, not prepended: ESM import declarations are hoisted and evaluated before the
+            // importing module's body wherever they sit, so the mappers still register before any route
+            // runs — and no existing line moves, which is what makes `map: null` (rollup's "this
+            // transform did not move code, keep the existing map") true rather than a one-line lie.
+            return {code: `${code}\nimport '${specifier}';\n`, map: null};
+        },
+        buildEnd() {
+            // Build mode only: serve has no meaningful end, and a dev miss surfaces immediately as a
+            // rejected flow. A BUILD miss ships an artifact whose mappers are silently absent, which is
+            // the exact failure the whole transport rewrite exists to remove — so fail loud here.
+            if (!isBuildCommand || injected > 0) return;
+            throw new Error(
+                `[mionVitePlugin] serverMappers.consume is configured but no module was found to register the ` +
+                    `mappers into: nothing in this build imports @mionjs/router and calls initMionRouter. ` +
+                    `Point serverMappers.injectInto at your server entry (it also covers entries reached ` +
+                    `through a local barrel, or from node_modules).`
+            );
         },
     };
 }
