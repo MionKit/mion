@@ -53,3 +53,10 @@ jobs:
         # OOMs the runner since programs grew with the ts-runtypes migration.
         # The client batch runs alone because it spawns the managed test server.
         run: pnpm run test:ci
+
+      - name: Test platform-bun
+        # platform-bun's suites are bun:test, so they cannot join the vitest
+        # projects above and need their own step. Without this the whole bun
+        # injection lane is unverified in CI -- which is how it silently rotted
+        # after the deepkit removal.
+        run: pnpm run test:bun

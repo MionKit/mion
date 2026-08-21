@@ -1,9 +1,40 @@
 # Upstream ask: `compile*Fn` — emit type metadata alongside the compiled function
 
-**Status:** todo — **upstream change request for `@ts-runtypes/core`.** Nothing to build in mion
-until upstream agrees a shape. Needs an issue filed in `ts-run-types` first.
-**Type:** feature (upstream), then a mion cleanup
+**Status:** done — **DECLINED, not implemented.** Closed 2026-08-21 by the user's decision.
+**Type:** feature (upstream) — withdrawn
 **Created:** 2026-08-20
+**Closed:** 2026-08-21
+
+## Outcome: declined
+
+The premise was that reading `isNoop` and the parameter names off emitted metadata would let
+mion stop materializing run-type graphs at runtime. It does not, because **mion needs the
+graph anyway for header functions** (see the correction below). Once the graph is being built
+regardless, a metadata card saves nothing and costs something real: a SECOND source of truth
+for `isNoop`, which seven hot paths already gate on. mion keeps reading the run-type caches.
+
+Nothing was filed upstream and nothing changed in mion. `RtNodeLike` and the graph walks in
+`packages/core/src/runtypes/mionAdapter.ts` stay as they are, deliberately.
+
+### Correction: what `getHeaderNamesFromRunType` actually does
+
+This spec listed `getHeaderNamesFromRunType` alongside the parameter-name walks, implying one
+kind of question. It is not. Parameter names come from a tuple's member labels; header names
+are **string literals that began life as type arguments**:
+
+```ts
+headersFn((ctx, h: HeadersSubset<'Authorization'>): void => { ... })
+```
+
+`'Authorization'` becomes a mapped-type key on `HeadersSubset`'s `headers` property, and mion
+needs it as a runtime value to know which response headers a handler declares. Recovering it
+means walking unions, matching the class, and reading its property keys — genuinely a
+reflection question, which mion already answers with `getRunType`. No emitted signature
+metadata would have covered it, and it was never the right thing to ask upstream for.
+
+---
+
+_Original proposal below, kept for the reasoning it records._
 
 Every new type-shape question mion needs answering (param names, optionality, return shape) costs a
 bespoke field plus a hand-written walk over upstream's runtype graph. Retaining the `RunType`s

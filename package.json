@@ -9,6 +9,7 @@
   "scripts": {
     "test": "vitest run",
     "test:ci": "vitest run --project core --project router && vitest run --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
+    "test:bun": "bun --cwd packages/platform-bun test",
     "format": "prettier --write 'packages/**/*.{ts,md}'",
     "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",

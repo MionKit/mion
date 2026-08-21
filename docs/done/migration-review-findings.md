@@ -14,7 +14,7 @@ RECORD — the open work lives in the linked specs, not here.
 - **R1** — `@mionjs/run-types` promoted to client `dependencies` (`workspace:*`).
 - **R2 (interim)** — root deepkit devDeps + `deepkit-install` script deleted; platform-bun
   README carries a "temporarily unsupported / do not publish" warning; port tracked in
-  [platform-bun-runtypes-lane.md](../todos/platform-bun-runtypes-lane.md).
+  [platform-bun-runtypes-lane.md](platform-bun-runtypes-lane.md).
 - **R3** — `aotSSR.e2e.test.ts`, the `test:e2e:ssr` script and the vitest exclude deleted;
   `pnpm --filter @mionjs/client run test` works again.
 - **R7** — dead `RouterOptions.runTypeOptions` removed (type + default).
@@ -49,7 +49,7 @@ RECORD — the open work lives in the linked specs, not here.
   [review-hardening-followups.md](review-hardening-followups.md).
 - **R20** (getFriendlyErrors verification + Brand story decision) →
   [engine-consumer-verification.md](engine-consumer-verification.md).
-- **R2** (bun lane port) → [platform-bun-runtypes-lane.md](../todos/platform-bun-runtypes-lane.md).
+- **R2** (bun lane port) → [platform-bun-runtypes-lane.md](platform-bun-runtypes-lane.md).
 
 **Documentation wave** (R4 file lists + R5/R6/R10–R16/R19/R21–R29/R36 notes) → folded into
 [examples-and-website-refresh.md](examples-and-website-refresh.md).
