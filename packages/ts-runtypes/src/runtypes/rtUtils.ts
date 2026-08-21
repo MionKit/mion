@@ -80,9 +80,6 @@ const rtUtils = {
   // (familyTag, typeId) — cold path (mock generation), but called once per
   // format-annotated node of a generated value, so repeats must be O(1).
   findRTForType(familyTag: string, typeId: string): InitializedTypeFn | undefined {
-    // NUL as the separator (written as an escape, never a raw byte: a literal NUL makes
-    // git treat the whole file as binary, so it cannot be diffed or merged). It cannot
-    // occur in either part, so the key stays unambiguous.
     const memoKey = familyTag + '\u0000' + typeId;
     const hit = findRTForTypeMemo.get(memoKey);
     if (hit !== undefined) {
@@ -290,7 +287,6 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is C
  *  (type fns): a pure fn's params are its recorded `paramNames`, not a fixed
  *  `utl`. **/
 export function buildPureFnFactoryFromCode(paramNames: string[], code: string): PureFunctionFactory {
-  // Deliberate: code-mode reconstruction of a compiler-emitted body. The rule stays on so an accidental eval still trips it.
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function(...paramNames, `'use strict'; ${code}`) as PureFunctionFactory;
 }
@@ -303,7 +299,6 @@ export function pureFnKey(namespace: string, fnName: string): string {
 /** Builds a fresh factory closure from a serialized code body via
  *  `new Function('utl', code)`. Forces strict mode. **/
 export function buildFactoryFromCode(code: string): (utl: RTUtils) => (...args: any[]) => any {
-  // Deliberate: code-mode reconstruction of a compiler-emitted body. The rule stays on so an accidental eval still trips it.
   // oxlint-disable-next-line typescript/no-implied-eval
   return new Function('utl', `'use strict'; ${code}`) as (utl: RTUtils) => (...args: any[]) => any;
 }

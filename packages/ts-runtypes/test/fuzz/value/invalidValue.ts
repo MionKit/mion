@@ -121,7 +121,6 @@ function invalidForClass(subKind: number | undefined): InvalidValue {
 /** A different value of a different type from the literal — guaranteed not to
  *  `===` the only accepted value. **/
 function invalidForLiteral(literal: unknown): InvalidValue {
-  // NUL written as an escape, never a raw byte (a literal NUL makes git treat the file as binary).
   if (typeof literal === 'string') return {value: literal + '\u0000__fuzz', proven: true};
   if (typeof literal === 'number') return {value: literal + 1, proven: true};
   if (typeof literal === 'bigint') return {value: literal + 1n, proven: true};

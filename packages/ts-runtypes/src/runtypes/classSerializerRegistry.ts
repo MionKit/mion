@@ -90,9 +90,7 @@ export type DeserializeClassFn<C> = (deserialized: DataOnly<C>) => C;
 
 /** Optional custom (de)serializer pair for one user-defined class. Both
  *  halves are optional; the type-system overloads on `registerClassSerializer`
- *  make `deserialize` mandatory for classes whose constructor takes args.
- *  Function-property signatures, not method ones: both halves are stored on
- *  the entry and invoked standalone, never as methods with a `this`. */
+ *  make `deserialize` mandatory for classes whose constructor takes args. */
 export interface ClassSerializerHandler<T> {
   /** Optional. Omit to serialize structurally (like any interface). When
    *  provided, the user owns the wire shape (on the JSON path, keep it to the

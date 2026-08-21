@@ -859,8 +859,6 @@ interface TemplateLiteralEnvelope {
 
 interface TemplateLiteralPlaceholder {
   kind?: number;
-  // Only literal spans carry a value, and the emitter writes exactly these
-  // three shapes (see templateSpanWireShape in cachegen/runtype/serialize.go).
   literal?: string | number | boolean;
 }
 

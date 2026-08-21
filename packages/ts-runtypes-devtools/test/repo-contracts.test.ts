@@ -444,11 +444,8 @@ describe('website-test-counts', () => {
 });
 
 describe('tracked sources carry no raw NUL byte', () => {
-  // A literal NUL in a source file makes git classify the whole file as BINARY: no line
-  // diffs in review, and no auto-merge — a rebase over it stops dead and has to be resolved
-  // by hand. Two files had one (rtUtils.ts used NUL as a memo-key separator, invalidValue.ts
-  // appended one to force an invalid string) and the rtUtils one did block a rebase. Both now
-  // spell it '\u0000': the same character to the runtime, plain text to git.
+  // A literal NUL makes git classify the file as BINARY: no line diffs, no auto-merge.
+  // Two files carried one, and the rtUtils.ts one blocked a rebase.
   const SCANNED = ['*.ts', '*.tsx', '*.js', '*.mjs', '*.cjs', '*.go', '*.json', '*.md'];
 
   it('no tracked source file contains a literal NUL', () => {
@@ -461,8 +458,6 @@ describe('tracked sources carry no raw NUL byte', () => {
       .toString('utf8')
       .split('\u0000')
       .filter(Boolean)
-      // Vendored tsgolint / typescript-go is off-limits, and the Go golden fixtures under
-      // testdata are allowed to pin whatever bytes they pin.
       .filter((file) => !file.startsWith('ts-go-runtypes/third_party/') && !file.includes('/testdata/'));
     expect(files.length).toBeGreaterThan(500);
 
