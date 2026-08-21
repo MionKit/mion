@@ -2,7 +2,6 @@ import {defineConfig} from 'vite';
 import {resolve} from 'path';
 import {readdirSync, statSync} from 'fs';
 import dts from 'vite-plugin-dts';
-import {cjsPackageJsonPlugin} from './src/vite-plugin/cjsPackageJsonPlugin';
 
 // Get all TypeScript files from a directory (excluding spec/test files)
 function getSourceFiles(dir: string, base = ''): Record<string, string> {
@@ -36,9 +35,8 @@ export default defineConfig({
         legalComments: 'none',
     },
     plugins: [
-        cjsPackageJsonPlugin('build/vite-plugin/cjs'),
         dts({
-            outDir: ['build/vite-plugin/cjs', 'build/vite-plugin/esm'],
+            outDir: ['build/vite-plugin/esm'],
             include: ['src/vite-plugin/**/*.ts', 'src/pureFns/**/*.ts'],
             exclude: ['**/*.spec.ts', '**/*.test.ts'],
             pathsToAliases: false,
@@ -47,7 +45,7 @@ export default defineConfig({
     build: {
         lib: {
             entry,
-            formats: ['es', 'cjs'],
+            formats: ['es'],
         },
         outDir: 'build/vite-plugin',
         emptyOutDir: true,
@@ -55,18 +53,13 @@ export default defineConfig({
         minify: false,
         ssr: true, // Build for Node.js environment
         rollupOptions: {
+            // ESM only: the plugin's own dependency @ts-runtypes/devtools exports './vite'
+            // with no `require` condition, so a CJS build of this package cannot load at all.
             output: [
                 {
                     format: 'es',
                     dir: 'build/vite-plugin/esm',
                     entryFileNames: '[name].js',
-                    preserveModules: true,
-                    preserveModulesRoot: '.',
-                },
-                {
-                    format: 'cjs',
-                    dir: 'build/vite-plugin/cjs',
-                    entryFileNames: '[name].cjs',
                     preserveModules: true,
                     preserveModulesRoot: '.',
                 },
