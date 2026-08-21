@@ -1,7 +1,7 @@
 # Upstream: CLS001 (`runtypes/class-serializer`) is reported twice per site
 
-**Status:** todo — **root cause confirmed and FIXED upstream**; waiting on a release + a mion
-upgrade to close. Nothing to change on mion's side.
+**Status:** todo — **fixed upstream and VERIFIED against mion** (2026-08-21); waiting on a release
++ a mion upgrade to close. Nothing to change on mion's side.
 **Type:** bug (diagnostic noise)
 **Created:** 2026-08-20 (concluded while closing
 [../done/eslint-rules-tuning-and-docs.md](../done/eslint-rules-tuning-and-docs.md))
@@ -74,6 +74,36 @@ identity (code, family, severity, args, site, related), so only diagnostics that
 byte-identically collapse; two findings at one position with different args both survive.
 
 Branch: `feature/devtools-bun-lane-and-diagnostics` in `ts-run-types`.
+
+
+## Verified against mion (2026-08-21)
+
+Measured on mion's router suite with a locally built resolver (overlay recipe in
+[platform-bun-adopt-upstream-adapter.md](platform-bun-adopt-upstream-adapter.md)), caches cleared
+between runs:
+
+| resolver | CLS001 lines |
+| --- | --- |
+| published 0.12.0 | 148 |
+| + per-family dedupe | 15 |
+| + nested-type provenance | **29** |
+
+So the count drops ~5x while COVERAGE goes up: nested and union-member classes now report at all,
+which they never did before (a class only warned when it sat at the root of an encoder). The
+remaining 29 are one per call site, no duplicates.
+
+⚠️ **Measure with a cold cache.** RT diagnostics are cached per package under
+`node_modules/.cache/ts-runtypes`, and until the upstream cache fix (below) a warm cache reported
+ZERO of them. Comparing a warm run against a cold one gives meaningless numbers — that cost an
+hour of confusion here.
+
+## A second upstream bug this uncovered
+
+Diagnostics used to vanish entirely on a warm cache: the walker emits them, and a cache hit skips
+the walker. Published 0.12.0 shows 148 cold and **0** warm, so from the second build onward mion's
+warnings silently disappeared and only returned after wiping the cache. Fixed upstream in the same
+branch (entries now persist their findings and re-emit them against the current build's call
+sites); verified 29 cold / 29 warm / 29 warm again.
 
 ## Fix plan (mion side)
 
