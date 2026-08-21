@@ -80,12 +80,14 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     }
     expect(rtFiles.length).toBeGreaterThan(0);
     const parsed = JSON.parse(fs.readFileSync(rtFiles[0], 'utf8'));
-    // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go). Bumped to 15
-    // when PureFnRefs was added so a warm entry rebuilds its demand-driven built-in
-    // pure-fn edges (v14 payloads lack the field and must miss). Earlier: v14 dropped
-    // constants.Version from the fnHash salt, so a same-version rebuild misses stale
-    // payloads keyed by the old fnHash prefix.
-    expect(parsed.version).toBe(15);
+    // Mirrors disk.FormatVersion (internal/cachegen/diskcache/format.go). Bumped to 16
+    // when Diagnostics was added so a warm entry re-emits the findings its walk
+    // produced (v15 payloads carry none and must miss, or a cached build stays
+    // silent). Earlier: v15 added PureFnRefs so a warm entry rebuilds its
+    // demand-driven built-in pure-fn edges; v14 dropped constants.Version from the
+    // fnHash salt, so a same-version rebuild misses stale payloads keyed by the old
+    // fnHash prefix.
+    expect(parsed.version).toBe(16);
     expect(typeof parsed.structuralID).toBe('string');
     expect(parsed.structuralID.length).toBeGreaterThan(0);
     expect(typeof parsed.argsText).toBe('string');
@@ -154,5 +156,42 @@ skipUnlessBinary('disk RT cache (end-to-end)', () => {
     // Empty alt dir would also have been created if we'd run the alt
     // config; leaving the assertion to the Go-side fingerprint test.
     expect(fs.existsSync(cacheDirAlt)).toBe(false);
+  });
+
+  // Diagnostics survive a cache HIT.
+  //
+  // The walker is what emits build-time findings, and a hit skips the walker —
+  // so a project's warnings used to appear on the first build and then silently
+  // vanish on every build after it, coming back only when someone wiped
+  // node_modules/.cache/ts-runtypes. Measured on mion before the fix: 148
+  // CLS001 lines cold, 0 warm. Entries now persist their findings and re-emit
+  // them against the CURRENT build's call sites.
+  it("re-emits an entry's diagnostics on a warm cache hit", async () => {
+    const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-cache-diag-'));
+    const sources = {
+      'warm.ts': `import {createJsonEncoderFn} from '@ts-runtypes/core';
+export class Pet { name: string = 'x'; }
+export const enc = createJsonEncoderFn<Pet>();
+`,
+    };
+    const clsCodes = async (): Promise<string[]> => {
+      const client = spawnWithCache(cacheDir);
+      try {
+        await client.setSources({...MARKER_PACKAGE_OVERLAY, ...sources});
+        const response = await client.scanFiles(Object.keys(sources), {includeEntryModules: true});
+        return (response.diagnostics ?? []).filter((d) => d.code === 'CLS001').map((d) => d.args?.[0] ?? '');
+      } finally {
+        client.close();
+      }
+    };
+
+    const cold = await clsCodes();
+    expect(cold, 'cold build must report the class-serializer advisory').toEqual(['Pet']);
+    // Same sources, same cache dir — every entry is now a hit, so this is the
+    // run that used to come back empty.
+    const warm = await clsCodes();
+    expect(warm, 'a cached build must report exactly what the cold one did').toEqual(cold);
+    // And it must stay stable, not just survive one extra build.
+    expect(await clsCodes()).toEqual(cold);
   });
 });

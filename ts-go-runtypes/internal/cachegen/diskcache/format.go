@@ -128,7 +128,23 @@ package diskcache
 // CrossFamilyRefs the keys are stable `<ns>::<fn>` strings (not structural-id
 // derived), so no drift check is needed; v14 payloads simply lack the field and
 // must miss so the walk re-derives it. ArgsText is unchanged.
-const FormatVersion = 15
+// v16 persists each entry's build-time DIAGNOSTICS. The walker is what emits
+// them, and a cache hit skips the walker — so from the second build onward a
+// project's warnings silently vanished, and came back only after a cache wipe.
+// Only the code + args are stored: the SITE is deliberately not, because
+// provenance is a property of the current build's call sites, not of the cached
+// type. A hit re-emits each finding against the live provenance. v15 payloads
+// carry no diagnostics and must miss so the walk re-derives them.
+const FormatVersion = 16
+
+// CachedDiagnostic is one build-time finding an entry's walk produced, stored
+// so a cache hit can re-emit it. Code + args only, matching the wire contract
+// where the message text is rendered JS-side from the catalog; the source
+// location comes from the CURRENT build's provenance, never from the cache.
+type CachedDiagnostic struct {
+	Code string   `json:"code"`
+	Args []string `json:"args,omitempty"`
+}
 
 // ChildRef captures one (structuralID, hash) pair referenced inside a
 // cached factory body. Stored alongside the body so the reader can
@@ -200,4 +216,9 @@ type RTEntry struct {
 	// pure-fn module off these. The keys are stable strings (no structural-id
 	// translation, no drift check). Empty for entries that reach no pure fn.
 	PureFnRefs []string `json:"pureFnRefs,omitempty"`
+	// Diagnostics is every build-time finding this entry's walk emitted, so a
+	// warm build reports the same warnings a cold one does. Re-emitted against
+	// the live provenance sites (see the FormatVersion note above). Empty for
+	// the overwhelming majority of entries, hence omitempty.
+	Diagnostics []CachedDiagnostic `json:"diagnostics,omitempty"`
 }
