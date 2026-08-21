@@ -70,7 +70,7 @@ function getTypeErrors(id: string, params: any[]): void | RpcError<'validation-e
             return new RpcError({
                 type: 'validation-error',
                 publicMessage: `Invalid params for Route or MiddleFn '${method.id}', validation failed.`,
-                errorData: errors,
+                errorData: {typeErrors: errors},
             });
         }
     } catch (e: any | Error) {

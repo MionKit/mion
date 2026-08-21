@@ -74,13 +74,13 @@ describe('routesFlow', () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting], [greetingError], , middleFnErrors] = await routesFlow([routes.sayHello(someUser)]).call({
+            const [[greeting], [greetingError], unexpected] = await routesFlow([routes.sayHello(someUser)]).call({
                 middleFns: {auth: middleFns.auth(authHeaders)},
             });
 
             expect(greeting).toEqual('Hello John Doe');
             expect(greetingError).toBeUndefined();
-            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(unexpected).toBeUndefined();
         });
 
         it('should handle route errors in routesFlow', async () => {
@@ -136,7 +136,7 @@ describe('routesFlow', () => {
             const {routes, middleFns} = initClient<MyApi>({baseURL});
             const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-            const [[greeting, age], [greetingError, ageError], , middleFnErrors] = await routes
+            const [[greeting, age], [greetingError, ageError], unexpected] = await routes
                 .sayHello(someUser)
                 .call({otherRoutes: [routes.calculateAge(1990)], middleFns: {auth: middleFns.auth(authHeaders)}});
 
@@ -144,7 +144,7 @@ describe('routesFlow', () => {
             expect(age).toEqual(new Date().getFullYear() - 1990);
             expect(greetingError).toBeUndefined();
             expect(ageError).toBeUndefined();
-            expect(middleFnErrors?.auth).toBeUndefined();
+            expect(unexpected).toBeUndefined();
         });
     });
 
@@ -370,15 +370,15 @@ describe('serverMapFrom e2e in routesFlow', () => {
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
         const customer = routes.getCustomerById(42);
-        const [[customerData, prefs], [customerError, prefsError]] = await routesFlow([
+        const [[customerData, prefs], [customerError, prefsError], unexpected] = await routesFlow([
             customer,
             routes.getPreferencesById(serverMapFrom<typeof customer, number>(customer, 'nonexistentMapper').asArg()),
         ]).call({middleFns: {auth: middleFns.auth(authHeaders)}});
 
         // the whole flow is rejected while building the chain (routesFlow-mapping-missing-pure-fn
-        // server-side; surfaced through the generic error envelope) — nothing executes
-        const surfacedError = prefsError ?? customerError;
-        expect(surfacedError).toBeTruthy();
+        // server-side) — nothing executes. The failure is nobody's declared response, so it
+        // surfaces once in the unexpected slot, never in the per-route typed slots.
+        expect(unexpected ?? prefsError ?? customerError).toBeTruthy();
         expect(prefs).toBeUndefined();
         expect(customerData).toBeUndefined();
     });

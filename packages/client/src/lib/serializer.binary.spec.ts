@@ -252,7 +252,7 @@ describe('Binary Serialization E2E', () => {
 
     describe('MiddleFns with Binary Serialization', () => {
         it('should handle middleFn with optional parameter (with value)', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+            const [result, error, , middleFnsResults] = await routes.binary.echo('test').call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     binarySession: middleFns.binary.session('valid-token'),
@@ -265,7 +265,7 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle middleFn with optional parameter (without value)', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+            const [result, error, , middleFnsResults] = await routes.binary.echo('test').call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     binarySession: middleFns.binary.session(),
@@ -278,7 +278,7 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle middleFn returning error-like object', async () => {
-            const [result, error, middleFnsResults] = await routes.binary.echo('test').call({
+            const [result, error, , middleFnsResults] = await routes.binary.echo('test').call({
                 middleFns: {
                     auth: middleFns.auth(authHeaders),
                     binarySession: middleFns.binary.session('invalid'),
@@ -422,7 +422,7 @@ describe('Binary Serialization E2E', () => {
         });
 
         it('should handle routesFlow with middleFns in binary mode', async () => {
-            const [[result1, result2], [error1, error2], middleFnResults] = await routesFlow([
+            const [[result1, result2], [error1, error2], , middleFnResults] = await routesFlow([
                 routes.binary.echo('workflow test'),
                 routes.binary.addNumbers(1, 2),
             ]).call({

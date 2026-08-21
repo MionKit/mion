@@ -19,12 +19,12 @@ import {
     WorkflowResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import {registerErrorDeserializers} from '@mionjs/core';
+import {registerErrorDeserializers, type RpcError} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
 import {HandlersRegistry} from './lib/handlersRegistry.ts';
-import {MionSubRequest, findSubRequestError} from './subRequest.ts';
+import {MionSubRequest} from './subRequest.ts';
 
 export function initClient<RM extends RemoteApi>(
     options: InitClientOptions
@@ -113,13 +113,25 @@ export class MionClient {
             await request.call();
             const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
             const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
-            this.processMiddleFnsResponses(allMiddleFns, undefined);
-            return this.buildResult(routeSubRequest, workflowSubRequests, middleFnsRecord || allMiddleFns, undefined);
+            this.processMiddleFnsResponses(allMiddleFns, undefined, request.thrownErrorIds);
+            return this.buildResult(
+                routeSubRequest,
+                workflowSubRequests,
+                middleFnsRecord || allMiddleFns,
+                undefined,
+                request.thrownErrorIds
+            );
         } catch (errors: any) {
             const routeIds = this.getRouteIds(routeSubRequest, workflowSubRequests);
             const allMiddleFns = this.getAllMiddleFnsFromRequest(request, routeIds);
-            this.processMiddleFnsResponses(allMiddleFns, errors);
-            return this.buildResult(routeSubRequest, workflowSubRequests, middleFnsRecord || allMiddleFns, errors);
+            this.processMiddleFnsResponses(allMiddleFns, errors, request.thrownErrorIds);
+            return this.buildResult(
+                routeSubRequest,
+                workflowSubRequests,
+                middleFnsRecord || allMiddleFns,
+                errors,
+                request.thrownErrorIds
+            );
         }
     }
 
@@ -144,92 +156,99 @@ export class MionClient {
             .map(([, subRequest]) => subRequest as MiddlewareSubRequest<any>);
     }
 
-    /** Process all middleFn responses - call success or error handlers for each middleFn individually */
-    private processMiddleFnsResponses(middleFnSubRequests: MiddlewareSubRequest<any>[], errors: RequestErrors | undefined): void {
+    /** Process all middleFn responses - call success or error handlers for each middleFn individually.
+     * onError listeners are the typed channel: they fire only for a middleFn's declared (returned) errors,
+     * never for thrown/undeclared ones, which reach the unexpected slot only */
+    private processMiddleFnsResponses(
+        middleFnSubRequests: MiddlewareSubRequest<any>[],
+        errors: RequestErrors | undefined,
+        thrownErrorIds: ReadonlySet<string>
+    ): void {
         for (const middleFn of middleFnSubRequests) {
             const middleFnError = errors?.get(middleFn.id);
             if (middleFnError) {
-                this.handlersRegistry.executeHandler(middleFn.id, middleFnError);
+                if (!thrownErrorIds.has(middleFn.id)) this.handlersRegistry.executeHandler(middleFn.id, middleFnError);
             } else if (middleFn.resolvedValue !== undefined) {
                 this.handlersRegistry.executeSuccessHandler(middleFn.id, middleFn.resolvedValue);
             }
         }
     }
 
-    /** Build the result 4-tuple from the request results. middleFns can be a named record or an array of subrequests */
+    /** Build the result 4-tuple [result, error, unexpected, middleFnResults] per the dispatch contract:
+     * - slot 1 gets ONLY the route's own declared errors | ValidationError (thrown route errors do not qualify)
+     * - slot 2 (unexpected) gets everything the route did not declare: middleFn errors, the route's own
+     *   thrown errors, and request-scoped transport/platform/framework errors. When several exist it holds
+     *   the first in execution order (middleFns run before the route)
+     * - slot 0 keeps the route result whatever else failed; no error ever crosses into another slot */
     private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         routeSubRequest: RouteSubRequest<any> | undefined,
         workflowSubRequests: Routes | undefined,
         middleFns: H | MiddlewareSubRequest<any>[],
-        errors: RequestErrors | undefined
+        errors: RequestErrors | undefined,
+        thrownErrorIds: ReadonlySet<string>
     ): WorkflowResult<Routes, H> | Result<any, any> {
         const middleFnsResults = {} as Record<string, any>;
-        const middleFnsErrors = {} as Record<string, any>;
         const processedIds = new Set<string>();
+        const expectedErrorFor = (id: string): RpcError<string> | undefined => {
+            const error = errors?.get(id);
+            return error && !thrownErrorIds.has(id) ? error : undefined;
+        };
 
         let routeResultPart: any;
         let routeErrorPart: any;
+        const routeIds: string[] = [];
 
         if (routeSubRequest) {
-            processedIds.add(routeSubRequest.id);
-            const routeError =
-                errors?.get(routeSubRequest.id) || (errors ? findSubRequestError(routeSubRequest, errors) : undefined);
-            routeResultPart = routeError ? undefined : routeSubRequest.resolvedValue;
-            routeErrorPart = routeError;
+            routeIds.push(routeSubRequest.id);
+            routeErrorPart = expectedErrorFor(routeSubRequest.id);
+            routeResultPart = routeSubRequest.resolvedValue;
         } else if (workflowSubRequests) {
             const routeResults: (any | undefined)[] = [];
             const routeErrors: (any | undefined)[] = [];
-            for (const routeSubRequest of workflowSubRequests) {
-                processedIds.add(routeSubRequest.id);
-                const routeError = errors?.get(routeSubRequest.id);
-                if (routeError) {
-                    routeResults.push(undefined);
-                    routeErrors.push(routeError);
-                } else {
-                    routeResults.push(routeSubRequest.resolvedValue);
-                    routeErrors.push(undefined);
-                }
+            for (const workflowRoute of workflowSubRequests) {
+                routeIds.push(workflowRoute.id);
+                routeErrors.push(expectedErrorFor(workflowRoute.id));
+                routeResults.push(workflowRoute.resolvedValue);
             }
-            const hasAnyResult = routeResults.some((r) => r !== undefined);
-            const hasAnyError = routeErrors.some((e) => e !== undefined);
-            routeResultPart = hasAnyResult ? routeResults : undefined;
-            routeErrorPart = hasAnyError ? routeErrors : undefined;
+            routeResultPart = routeResults.some((r) => r !== undefined) ? routeResults : undefined;
+            routeErrorPart = routeErrors.some((e) => e !== undefined) ? routeErrors : undefined;
         }
+        routeIds.forEach((id) => processedIds.add(id));
 
         // middleFns can be a named record (from callWithMiddleFns/routesFlow) or an array (from executeCall)
-        if (Array.isArray(middleFns)) {
-            // Array of subrequests - use IDs as keys
-            for (const middleFn of middleFns) {
-                processedIds.add(middleFn.id);
-                const middleFnError = errors?.get(middleFn.id);
-                if (middleFnError) {
-                    middleFnsErrors[middleFn.id] = middleFnError;
-                } else if (middleFn.resolvedValue !== undefined) {
-                    middleFnsResults[middleFn.id] = middleFn.resolvedValue;
-                }
-            }
-        } else {
-            // Named record - use names as keys
-            for (const [name, middleFn] of Object.entries(middleFns)) {
-                processedIds.add(middleFn.id);
-                const middleFnError = errors?.get(middleFn.id);
-                if (middleFnError) {
-                    middleFnsErrors[name] = middleFnError;
-                } else if (middleFn.resolvedValue !== undefined) {
-                    middleFnsResults[name] = middleFn.resolvedValue;
+        let unexpectedPart: RpcError<string> | undefined;
+        const middleFnEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middleFns)
+            ? middleFns.map((middleFn) => [middleFn.id, middleFn])
+            : Object.entries(middleFns);
+        for (const [name, middleFn] of middleFnEntries) {
+            processedIds.add(middleFn.id);
+            if (middleFn.resolvedValue !== undefined) middleFnsResults[name] = middleFn.resolvedValue;
+            const middleFnError = errors?.get(middleFn.id);
+            if (middleFnError && unexpectedPart === undefined) unexpectedPart = middleFnError;
+        }
+
+        if (errors && unexpectedPart === undefined) {
+            // the route's own thrown/undeclared error
+            for (const id of routeIds) {
+                const routeThrownError = errors.get(id);
+                if (routeThrownError && thrownErrorIds.has(id)) {
+                    unexpectedPart = routeThrownError;
+                    break;
                 }
             }
         }
-
-        if (errors) {
+        if (errors && unexpectedPart === undefined) {
+            // request-scoped errors (transport, platform, framework) and errors from ids outside this
+            // request (restored prefilled middleFns, foreign response entries)
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
-                    middleFnsErrors[id] = error;
+                    unexpectedPart = error;
+                    break;
                 }
             }
         }
 
-        return [routeResultPart, routeErrorPart, middleFnsResults, middleFnsErrors] as any;
+        return [routeResultPart, routeErrorPart, unexpectedPart, middleFnsResults] as any;
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {

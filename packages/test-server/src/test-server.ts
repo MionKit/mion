@@ -246,6 +246,20 @@ const routes = {
 
     log: middleFn((ctx): void => undefined, {runOnError: true}),
 
+    // Route that THROWS an undeclared error (never returns it) - pins thrown -> unexpected-slot dispatch
+    throwsUnexpectedly: route((_ctx, msg: string): string => {
+        throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
+    }),
+
+    // runOnError middleFn that can fail - pins unexpected-slot precedence when several errors exist
+    audit: middleFn(
+        (_ctx, fail?: boolean): string | RpcError<'audit-failed'> => {
+            if (fail) return new RpcError({publicMessage: 'Audit failed', type: 'audit-failed'});
+            return 'audited';
+        },
+        {runOnError: true}
+    ),
+
     // Routes for testing pure functions with UUID validation
     validateUUID: route((_ctx, uuid: UUIDv4): string => `Valid UUID: ${uuid}`),
     getUserById: route((_ctx, userId: UUIDv4): {id: UUIDv4; name: string} => ({id: userId, name: 'Test User'})),

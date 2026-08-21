@@ -10,14 +10,21 @@ import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, Validati
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
+// type-unexpected-error-start
+/** Any error not declared by the route: a middleFn's error, transport, platform, framework, or an
+ * undeclared throw. Open by nature, the code can be anything. Typed access to a middleFn's declared
+ * errors is via its onError listeners. **/
+export type UnexpectedError = RpcError<string>;
+// type-unexpected-error-end
+
 // type-result-start
-/** Result type for call() - 4-tuple pattern */
+/** Result type for call() - 4-tuple pattern:
+ * [routeResult, routeError (declared | ValidationError), unexpected, middleFnResults] **/
 export type Result<
     RouteSuccess,
     RouteError,
     MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
-    MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
-> = [RouteSuccess | undefined, RouteError | undefined, MiddleFnsResults | undefined, MiddleFnsErrors | undefined];
+> = [RouteSuccess | undefined, RouteError | undefined, UnexpectedError | undefined, MiddleFnsResults | undefined];
 // type-result-end
 
 /** Extract success type from a MiddleFnSubRequest */
@@ -27,15 +34,16 @@ export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? Hand
 export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 // type-routesFlow-result-start
-/** Result type for routesFlow() function - 4-tuple pattern matching array input */
+/** Result type for routesFlow() function - 4-tuple pattern:
+ * [routeResults[], routeErrors[] (declared | ValidationError), unexpected (request-scoped, ONE slot), middleFnResults] **/
 export type WorkflowResult<
     Routes extends RouteSubRequest<any>[],
     MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
 > = [
     WorkflowRouteResults<Routes>,
     WorkflowRouteErrors<Routes>,
+    UnexpectedError | undefined,
     {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
-    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
 // type-routesFlow-result-end
 
@@ -100,9 +108,6 @@ export type RequestErrors = Map<string, RpcError<string>>;
 
 /** Handler function for a specific error type */
 export type ErrorHandler<E extends RpcError<string, any>> = (error: E) => void;
-
-/** Handler function for unknown/unhandled errors */
-export type UnknownErrorHandler = (error: RpcError<string, any>) => void;
 
 /** Handler function for successful results */
 export type SuccessHandler<S> = (result: S) => void;
@@ -174,14 +179,7 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
         otherRoutes?: never;
         signal?: AbortSignal;
         timeout?: number;
-    }): Promise<
-        Result<
-            HandlerSuccessResponse<PH>,
-            Simplify<HandlerErrors<PH>>,
-            {[K in keyof H]?: MiddleFnSuccess<H[K]>},
-            {[K in keyof H]?: MiddleFnError<H[K]>}
-        >
-    >;
+    }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, {[K in keyof H]?: MiddleFnSuccess<H[K]>}>>;
 
     /** Calls this route with other routes in a single HTTP request */
     call<
@@ -205,6 +203,16 @@ export interface MiddlewareSubRequest<PH extends PublicHandler> extends SubReque
     prefill: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
     /** Removes prefilled value */
     removePrefill: () => Promise<void>;
+    /** Returns the TypedEvent for this middleFn so typed handlers can be registered without prefilling */
+    events: () => TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>;
+    /** Registers a persistent typed error handler for this middleFn, no prefill required */
+    onError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onError'];
+    /** Removes a previously registered error handler */
+    offError: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offError'];
+    /** Registers a persistent success handler for this middleFn, no prefill required */
+    onSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['onSuccess'];
+    /** Removes a previously registered success handler */
+    offSuccess: TypedEvent<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>>['offSuccess'];
 }
 // type-middleware-sub-request-end
 
