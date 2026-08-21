@@ -1,7 +1,7 @@
 # Drop the `tb` slot read once `@ts-runtypes/core` exposes the binary size estimate
 
-**Status:** todo — BLOCKED on an upstream change (tracked separately, to be implemented in
-`@ts-runtypes/core` itself).
+**Status:** todo — OPTIONAL cleanup, blocked on an upstream change to `@ts-runtypes/core` that has
+not been committed to. The current slot read is safe, tested and staying until then.
 **Type:** cleanup
 **Spec:** full-plan
 **Created:** 2026-08-20
@@ -64,23 +64,21 @@ task). When a release carries it:
 - Full suite + lint + format green, and the binary bench shows the same cold-start size as today
   (80 bytes on the bench route) — this must be a pure refactor.
 
-## Relationship to the broader upstream ask
+## Direction: reading the caches is the sanctioned approach
 
-[upstream-compile-fn-metadata-emission.md](upstream-compile-fn-metadata-emission.md) asks upstream for
-a general channel that emits build-time metadata alongside a compiled fn, so mion stops hand-walking
-the runtype graph. **`binarySizeEstimate` is the same kind of thing** — a build-time fact the compiler
-already computed, emitted next to one compiled fn, that a consumer gates real work on. It is arguably
-just a `tb`-family member of that spec's v1 metadata set.
+There was a parallel idea to have upstream emit build-time metadata alongside each compiled fn, so
+mion could stop reading the runtype caches at all. **That was withdrawn on 2026-08-20** — the caches
+turned out to be used extensively across mion, so replacing that channel is not worth the cost.
 
-The two are still worth keeping separate, because the cost and risk differ sharply:
+`getRunType()` graph reads and entry-tuple reads are therefore the accepted way for mion to get
+build-time type facts, not a stopgap. That materially lowers the value of this spec: it is no longer
+"escape an unsupported hack", only "prefer a named field over a positional slot".
 
-- **This one is ~2 lines** (`binarySizeEstimate` onto `CompiledFnData`, and carried through
-  `registerTypeFnTuple`), unblocks a concrete mion cleanup, and needs no design discussion beyond
-  "should a public type carry a field only one of nine families populates".
-- **That one is a design conversation** — shape, opt-in, wire safety, which metadata makes v1.
-
-If upstream builds the general channel first, fold this into it and close this spec. If the small fix
-lands first, it is a data point for the larger one: the same channel, widened.
+What still argues for doing it: this read indexes tuple **slot 11 by position**, whereas mion's other
+cache reads (`getRunType()` walks, `getRT()` entries) go by property NAME. Position is the fragile
+subcase — a reordered tuple silently returns the wrong number or nothing, which is exactly why the
+tripwire test exists. A named field on the entry removes that specific hazard without changing the
+"mion reads the caches" posture at all.
 
 ## Worth weighing before doing it
 
