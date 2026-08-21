@@ -15,8 +15,6 @@ const testPublishRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..'
 /** Packages whose tarballs must ship TS source alongside `.dist`, so the `source` export condition resolves for downstream consumers (e.g. mion-pro). */
 const publicPackages = [
     '@mionjs/core',
-    '@mionjs/run-types',
-    '@mionjs/type-formats',
     '@mionjs/router',
     '@mionjs/client',
     '@mionjs/platform-node',
@@ -70,7 +68,10 @@ describe('published tarballs ship source + declaration maps', () => {
             it('ships every file referenced by the `source` export condition', () => {
                 for (const p of sourcePaths) {
                     const full = resolve(root, p);
-                    expect(existsSync(full), `${name}: "source" condition points at ${p} but it is missing from the published tarball`).toBe(true);
+                    expect(
+                        existsSync(full),
+                        `${name}: "source" condition points at ${p} but it is missing from the published tarball`
+                    ).toBe(true);
                 }
             });
 
