@@ -6,9 +6,10 @@
  * ######## */
 
 // End-to-end behaviour of the POOLED binary strategy: it must be byte-identical to the growing
-// strategy, must never expose bytes from a previous response, and must recover from a payload that
-// outruns the borrowed buffer (a pooled buffer cannot grow — upstream refuses to resize a buffer it
-// does not own).
+// strategy, must never expose bytes from a previous response, must size itself from a measure pass
+// whenever the recent-size window cannot be trusted to pick the right class, and must still recover
+// if a buffer turns out too small anyway (a pooled buffer cannot grow — upstream refuses to resize a
+// buffer it does not own).
 
 import {describe, expect, it, beforeEach, afterEach} from 'vitest';
 import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
@@ -27,9 +28,14 @@ import {
 } from '@mionjs/core';
 import type {MethodWithJitFns} from '@mionjs/core';
 
+interface Named {
+    name: string;
+}
+
 const routes = {
     echo: route((ctx: any, msg: string): string => msg),
     shout: route((ctx: any, msg: string): string => msg.toUpperCase()),
+    named: route((ctx: any, name: string): Named => ({name})),
 } satisfies Routes;
 
 /** enough requests for a route's size stats to settle */
@@ -97,12 +103,27 @@ describe('binary pooled strategy', () => {
         expect(getBufferPoolStats().hits).toBeGreaterThan(before);
     });
 
-    it('does not pool a cold route (the type estimate is too tight to risk it)', () => {
+    it('pools a cold route by MEASURING it — there is no history to predict from', () => {
         configureBufferPool({enabled: true});
-        // first request on a cold route: nothing may be taken from the pool
         const result = serialize('cold');
+        // no window to trust, so the size is exact rather than guessed, and cannot be too small
+        expect(getBinaryStrategyStats().measured).toBe(1);
+        expect(getBinaryStrategyStats().pooled).toBe(1);
+        expect(getBinaryStrategyStats().retries).toBe(0);
         result.release();
-        expect(getBufferPoolStats().hits).toBe(0);
+        // and the buffer it borrowed is now in the pool for the next request
+        serialize('cold again').release();
+        expect(getBufferPoolStats().hits).toBe(1);
+    });
+
+    it('stops measuring once a steady window can pick the class on its own', () => {
+        configureBufferPool({enabled: true});
+        warmUp('steady payload');
+        resetBinaryStrategyStats();
+        for (let i = 0; i < 5; i++) serialize('steady payload').release();
+        // the typical and worst-case envelopes land in the same class, so the measure pass is skipped
+        expect(getBinaryStrategyStats().measured).toBe(0);
+        expect(getBinaryStrategyStats().pooled).toBe(5);
     });
 
     it('never exposes stale bytes from a previous, larger response', () => {
@@ -125,39 +146,64 @@ describe('binary pooled strategy', () => {
         small.release();
     });
 
-    it('recovers from a payload that outruns its pooled class', () => {
+    it('costs ONE miss when a steady route jumps, then measures from then on', () => {
         configureBufferPool({enabled: true});
-        // warm up on a small payload so the predicted class is small...
+        // a steady window is trusted, and it cannot see a payload it has never been shown...
         warmUp('small');
-        // (the warm-up itself ran on the adaptive path, so nothing is pooled yet)
-        expect(getBufferPoolStats().held).toBe(0);
-        // ...then send one that cannot possibly fit it
+        resetBinaryStrategyStats();
         const huge = 'Y'.repeat(50_000);
-        const result = serialize(huge);
-
-        // the pooled attempt must have been abandoned and re-encoded, not merely succeeded
+        const first = serialize(huge);
+        expect(getBinaryStrategyStats().measured).toBe(0);
         expect(getBinaryStrategyStats().retries).toBe(1);
-        // the borrowed buffer went back to the pool rather than being lost with the attempt
-        expect(getBufferPoolStats().held).toBe(1);
-        const {body} = deserializeBinaryBody('/echo', new Uint8Array(result.view), true);
+        const {body} = deserializeBinaryBody('/echo', new Uint8Array(first.view), true);
         expect(body.echo).toBe(huge);
-        result.release();
+        first.release();
+
+        // ...but that request put 50 KB in the window, which now straddles size classes, so every
+        // later request is sized exactly and none of them can miss
+        resetBinaryStrategyStats();
+        for (let i = 0; i < 4; i++) serialize(huge).release();
+        expect(getBinaryStrategyStats().measured).toBe(4);
+        expect(getBinaryStrategyStats().retries).toBe(0);
     });
 
-    it('stops missing once the recent-size window has seen the bigger payload', () => {
+    it('keeps round-tripping a volatile route request after request', () => {
         configureBufferPool({enabled: true});
         warmUp('small');
-        const huge = 'Z'.repeat(50_000);
-        // the first oversize request re-encodes; subsequent ones must round-trip from the pool
-        for (let i = 0; i < 5; i++) {
-            const result = serialize(huge);
+        // the first jump is the only one allowed to miss; after that the window knows it is volatile
+        serialize('Z'.repeat(50_000)).release();
+        resetBinaryStrategyStats();
+
+        for (const size of [30, 12_000, 40, 80_000, 25, 60_000]) {
+            const payload = 'Z'.repeat(size);
+            const result = serialize(payload);
             const {body} = deserializeBinaryBody('/echo', new Uint8Array(result.view), true);
-            expect(body.echo).toBe(huge);
+            expect(body.echo).toBe(payload);
             result.release();
         }
-        // one miss, then steady state — the real bytes it observed sized the next request
+        expect(getBinaryStrategyStats().retries).toBe(0);
+        expect(getBinaryStrategyStats().measured).toBe(6);
+    });
+
+    it('recovers when a value CHANGES between the measure pass and the write', () => {
+        // the one way a measured size can still be wrong: the encoder reads a value twice and is
+        // given different bytes. The pooled attempt must be abandoned, not truncated.
+        configureBufferPool({enabled: true});
+        let reads = 0;
+        const shifty: Named = {
+            get name(): string {
+                // small on the measure pass, far too big on the write
+                return reads++ === 0 ? 'small' : 'W'.repeat(9000);
+            },
+        };
+        const chain = chainFor('/named');
+        const result = serializeBinaryBody('/named', chain, {named: shifty}, true);
+
         expect(getBinaryStrategyStats().retries).toBe(1);
-        expect(getBinaryStrategyStats().pooled).toBe(4);
+        expect(getBinaryStrategyStats().adaptive).toBe(1);
+        const {body} = deserializeBinaryBody('/named', new Uint8Array(result.view), true);
+        expect(body.named.name).toBe('W'.repeat(9000));
+        result.release();
     });
 
     it('release is idempotent end-to-end', () => {
@@ -174,8 +220,7 @@ describe('binary pooled strategy', () => {
         const flow = () =>
             serializeBinaryBody('/routesFlow', mergedChain('/echo', '/shout'), {echo: big, shout: big.toUpperCase()}, true);
         const warmUpShout = (msg: string) => {
-            for (let i = 0; i < WARMUP; i++)
-                serializeBinaryBody('/shout', chainFor('/shout'), {shout: msg}, true).release();
+            for (let i = 0; i < WARMUP; i++) serializeBinaryBody('/shout', chainFor('/shout'), {shout: msg}, true).release();
         };
 
         it('pools a merged envelope sized from the member routes it has already served', () => {
@@ -220,14 +265,20 @@ describe('binary pooled strategy', () => {
             result.release();
         });
 
-        it('holds a merged envelope back until EVERY member route is warm', () => {
+        it('measures a merged envelope whose members are not all warm yet', () => {
             configureBufferPool({enabled: true});
             warmUp(big); // only /echo is warm
             resetBinaryStrategyStats();
 
-            flow().release();
-            expect(getBinaryStrategyStats().pooled).toBe(0);
-            expect(getBinaryStrategyStats().adaptive).toBe(1);
+            const result = flow();
+            // /shout has no window, so the envelope is sized exactly rather than guessed — and it
+            // still pools, which the old warm-up gate would not have allowed
+            expect(getBinaryStrategyStats().measured).toBe(1);
+            expect(getBinaryStrategyStats().pooled).toBe(1);
+            expect(getBinaryStrategyStats().retries).toBe(0);
+            const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+            expect(body.shout).toBe(big.toUpperCase());
+            result.release();
         });
     });
 });
