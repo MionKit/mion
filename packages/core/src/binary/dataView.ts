@@ -44,6 +44,87 @@ export function createPooledDataViewSerializer(routeId: string, buffer: ArrayBuf
     return rtCreateDataViewSerializer(routeId, {buffer});
 }
 
+// ############# measure pass #############
+//
+// Upstream builds one of these internally for `sizeStrategy: 'precalculate'` but does not export it,
+// so mion assembles the same thing from the PUBLIC DataViewSerializer surface:
+//
+//   - created with {size: 0, grow: false}, so `ensureCapacity` is undefined and every inherited
+//     writer's reserve short-circuits — the measure pass never allocates;
+//   - `view` points at a sink whose writes are no-ops, so the Go-emitted body's fused writes
+//     (`Ser.view.setFloat64(Ser.index, v, 1, (Ser.index += 8))`) still advance the cursor and touch
+//     nothing. `getUint8` returns 0 for setBitMask's read-modify-write;
+//   - `serString` / `serLength` are the only methods that would otherwise touch the buffer, so they
+//     are replaced by their exact byte-width equivalents.
+//
+// Everything else — framing, formats, Temporal packing, union arms — runs the SAME emitted code as
+// the real encode, which is what makes the count exact rather than an estimate. mion only
+// reimplements the two methods that would touch the buffer, so drift can only come from the LEB128
+// width or the UTF-8 count — `packages/router/src/routes/measurePass.spec.ts` pins measured ==
+// written on real compiled encoders across both, so a change upstream fires the tripwire instead of
+// silently handing out a buffer that comes up short.
+
+const sizingView = {
+    setUint8() {},
+    setUint16() {},
+    setUint32() {},
+    setInt8() {},
+    setInt16() {},
+    setInt32() {},
+    setFloat64() {},
+    setBigInt64() {},
+    setBigUint64() {},
+    getUint8() {
+        return 0;
+    },
+} as unknown as DataView;
+
+/** Byte width of the unsigned LEB128 encoding of `n` — the wire's length-prefix width. */
+function varintLen(n: number): number {
+    if (n < 0x80) return 1;
+    if (n < 0x4000) return 2;
+    if (n < 0x200000) return 3;
+    if (n < 0x10000000) return 4;
+    return 5;
+}
+
+/** UTF-8 byte length of `str` WITHOUT encoding it — matches TextEncoder exactly (a surrogate pair
+ *  counts as one 4-byte code point). */
+function utf8ByteLength(str: string): number {
+    let bytes = 0;
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i);
+        if (code < 0x80) bytes += 1;
+        else if (code < 0x800) bytes += 2;
+        else if (code >= 0xd800 && code <= 0xdbff) {
+            // High surrogate: pair with the next unit into one 4-byte code point.
+            bytes += 4;
+            i++;
+        } else bytes += 3;
+    }
+    return bytes;
+}
+
+function sizingSerString(this: DataViewSerializer, str: string): void {
+    const bytes = utf8ByteLength(str);
+    this.index += varintLen(bytes) + bytes;
+}
+
+function sizingSerLength(this: DataViewSerializer, value: number): void {
+    this.index += varintLen(value);
+}
+
+/** Creates a measure-pass serializer: running a compiled `toBinary` against it leaves `getLength()`
+ *  holding EXACTLY the bytes the real encoder would write, having allocated and written nothing. */
+export function createSizingSerializer(): DataViewSerializer {
+    const serializer = rtCreateDataViewSerializer('mion-sizing', {size: 0, grow: false});
+    serializer.view = sizingView;
+    serializer.resize = () => {};
+    serializer.serString = sizingSerString;
+    serializer.serLength = sizingSerLength;
+    return serializer;
+}
+
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
 export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
     return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer);

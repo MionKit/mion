@@ -11,13 +11,14 @@
 // Three strategies are run over IDENTICAL traffic — a routesFlow whose composition and payload sizes
 // change every request, which is the case that makes a single predicted buffer hard:
 //
-//   single-predicted — one buffer for the whole envelope, sized by summing each member's own
-//                      recent-size quantile (what ships today).
+//   core-hybrid      — whatever packages/core currently does: one buffer for the whole envelope,
+//                      sized from the per-method size statistics and measured exactly when that
+//                      window straddles a size class.
 //   per-route-merge  — one buffer PER ROUTE, each sized from that route's own stats, concatenated
 //                      into an exactly-sized output buffer at the end.
-//   single-exact     — one buffer for the whole envelope, sized by a MEASURE PASS: the same emitted
-//                      toBinary runs against a no-op sink that only advances the cursor, so the byte
-//                      count is exact and no prediction is involved at all.
+//   single-exact     — one buffer for the whole envelope, always sized by the MEASURE PASS.
+//   single-predicted — one buffer, ALWAYS sized from the statistics (the pre-hybrid behaviour),
+//                      kept so the over-allocation the hybrid removes stays visible.
 //
 // Reported per strategy: fresh allocations, bytes allocated, peak bytes held concurrently within one
 // request, bytes memcpy'd, pool reuse, and prediction misses. Run with:
@@ -29,7 +30,9 @@ import {route} from '../lib/handlers.ts';
 import {Routes} from '../types/general.ts';
 import {
     acquireBuffer,
+    sizeClassFor,
     createDataViewSerializer,
+    createSizingSerializer,
     getBinaryStrategyStats,
     resetBinaryStrategyStats,
     createPooledDataViewSerializer,
@@ -105,70 +108,6 @@ function coldFor(method: MethodWithJitFns): number {
 function writePair(ser: DataViewSerializer, method: MethodWithJitFns, value: unknown): void {
     ser.serString(method.id);
     method.returnJitFns.toBinary!.fn(value, ser);
-}
-
-// ############# measure pass #############
-//
-// Upstream builds one of these internally for `sizeStrategy: 'precalculate'` but does not export it.
-// It is reconstructible from the PUBLIC DataViewSerializer surface: a serializer created with
-// {size: 0, grow: false} has `ensureCapacity` undefined, so every inherited writer's reserve
-// short-circuits and never allocates; pointing `view` at a no-op sink leaves the emitted body's
-// fused writes (`Ser.view.setFloat64(Ser.index, v, 1, (Ser.index += 8))`) advancing the cursor and
-// touching nothing. serString/serLength are the only methods that would still touch the buffer, so
-// they are replaced by their exact byte-width equivalents.
-
-const noopView = {
-    setUint8() {},
-    setUint16() {},
-    setUint32() {},
-    setInt8() {},
-    setInt16() {},
-    setInt32() {},
-    setFloat64() {},
-    setBigInt64() {},
-    setBigUint64() {},
-    getUint8() {
-        return 0;
-    },
-} as unknown as DataView;
-
-function varintLen(n: number): number {
-    if (n < 0x80) return 1;
-    if (n < 0x4000) return 2;
-    if (n < 0x200000) return 3;
-    if (n < 0x10000000) return 4;
-    return 5;
-}
-
-/** UTF-8 byte length without encoding — matches TextEncoder exactly (a surrogate pair is one
- *  4-byte code point). */
-function utf8ByteLength(str: string): number {
-    let bytes = 0;
-    for (let i = 0; i < str.length; i++) {
-        const code = str.charCodeAt(i);
-        if (code < 0x80) bytes += 1;
-        else if (code < 0x800) bytes += 2;
-        else if (code >= 0xd800 && code <= 0xdbff) {
-            bytes += 4;
-            i++;
-        } else bytes += 3;
-    }
-    return bytes;
-}
-
-function createSizingSerializer(): DataViewSerializer {
-    const ser = createDataViewSerializer('mion-sizing', 0);
-    ser.ensureCapacity = undefined;
-    ser.view = noopView;
-    ser.resize = () => {};
-    ser.serString = function (str: string): void {
-        const bytes = utf8ByteLength(str);
-        this.index += varintLen(bytes) + bytes;
-    };
-    ser.serLength = function (value: number): void {
-        this.index += varintLen(value);
-    };
-    return ser;
 }
 
 // ############# accounting #############
@@ -293,6 +232,101 @@ function perRouteMerge(chain: MethodWithJitFns[], body: Record<string, any>, run
     return copy;
 }
 
+/** Writes the whole envelope and records each method's real byte span, as core does. */
+function writeEnvelopeInto(ser: DataViewSerializer, writing: MethodWithJitFns[], body: Record<string, any>): void {
+    ser.index = ENVELOPE_HEADER_BYTES;
+    for (const method of writing) {
+        const start = ser.index;
+        writePair(ser, method, body[method.id]);
+        recordSize(method.id, ser.index - start, true);
+    }
+    ser.view.setUint32(0, writing.length, true);
+}
+
+/** Predicted envelope size, the way core computes it. */
+function predictEnvelope(writing: MethodWithJitFns[]): number {
+    let total = ENVELOPE_HEADER_BYTES;
+    for (const method of writing) total += predictSize(method.id, true, POOLED_QUANTILE, POOLED_PAD, coldFor(method));
+    return total;
+}
+
+/** Exact envelope size from the measure pass. */
+function measureEnvelope(writing: MethodWithJitFns[], body: Record<string, any>): number {
+    const sizer = createSizingSerializer();
+    sizer.index = ENVELOPE_HEADER_BYTES;
+    for (const method of writing) writePair(sizer, method, body[method.id]);
+    return sizer.index;
+}
+
+/** HYBRID: predict cheaply, and only pay the measure pass when the predicted buffer is big enough
+ *  for exactness to change which size class we land in. Below the pool's smallest class the buffer
+ *  is the same either way, so measuring there is pure cost. */
+function makeHybrid(threshold: number): Strategy {
+    return (chain, body, run) => {
+        const held = {now: 0};
+        const writing = writers(chain, body);
+        const predicted = predictEnvelope(writing);
+        const size = predicted > threshold ? measureEnvelope(writing, body) : predicted;
+        const exact = predicted > threshold;
+
+        const lease = chargedAcquire(size, run, held);
+        const ser = createPooledDataViewSerializer('/routesFlow', lease.buffer);
+        try {
+            writeEnvelopeInto(ser, writing, body);
+            if (ser.index > ser.buffer.byteLength) throw new RangeError('overflow');
+        } catch {
+            if (exact) throw new Error('an exactly-sized buffer must never overflow');
+            run.misses++;
+            lease.release();
+            const grow = createDataViewSerializer('/routesFlow', measureEnvelope(writing, body));
+            writeEnvelopeInto(grow, writing, body);
+            return new Uint8Array(grow.getBufferView());
+        }
+        run.payloadBytes += ser.index;
+        const copy = new Uint8Array(ser.getBufferView());
+        lease.release();
+        return copy;
+    };
+}
+
+/** HYBRID, straddle gate: the measure pass only earns its cost when exactness can change which
+ *  SIZE CLASS the request lands in. Compare the typical envelope (per-method medians) with the
+ *  worst-case one (per-method maxima): if both fall in the same class, the buffer is the same either
+ *  way and the cheap prediction is used. They only diverge for genuinely volatile payloads — which
+ *  is exactly where summing maxima over-allocates. */
+function hybridStraddle(chain: MethodWithJitFns[], body: Record<string, any>, run: Run): Uint8Array {
+    const held = {now: 0};
+    const writing = writers(chain, body);
+
+    let typical = ENVELOPE_HEADER_BYTES;
+    let worst = ENVELOPE_HEADER_BYTES;
+    for (const method of writing) {
+        const cold = coldFor(method);
+        typical += predictSize(method.id, true, 0.5, 1, cold);
+        worst += predictSize(method.id, true, POOLED_QUANTILE, POOLED_PAD, cold);
+    }
+    const straddles = sizeClassFor(typical) !== sizeClassFor(worst);
+    const size = straddles ? measureEnvelope(writing, body) : worst;
+
+    const lease = chargedAcquire(size, run, held);
+    const ser = createPooledDataViewSerializer('/routesFlow', lease.buffer);
+    try {
+        writeEnvelopeInto(ser, writing, body);
+        if (ser.index > ser.buffer.byteLength) throw new RangeError('overflow');
+    } catch {
+        if (straddles) throw new Error('an exactly-sized buffer must never overflow');
+        run.misses++;
+        lease.release();
+        const grow = createDataViewSerializer('/routesFlow', measureEnvelope(writing, body));
+        writeEnvelopeInto(grow, writing, body);
+        return new Uint8Array(grow.getBufferView());
+    }
+    run.payloadBytes += ser.index;
+    const copy = new Uint8Array(ser.getBufferView());
+    lease.release();
+    return copy;
+}
+
 /** ONE buffer for the whole envelope, sized by a MEASURE PASS — exact, no prediction, no overflow. */
 function singleExact(chain: MethodWithJitFns[], body: Record<string, any>, run: Run): Uint8Array {
     const held = {now: 0};
@@ -323,7 +357,7 @@ function singleExact(chain: MethodWithJitFns[], body: Record<string, any>, run: 
  *  exactly the same sequence. */
 function makeRequest(i: number): {paths: string[]; body: Record<string, any>} {
     let seed = (i * 1103515245 + 12345) & 0x7fffffff;
-    const next = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 
     const all = ['/getCount', '/getUser', '/listItems', '/getBlob'];
     const count = 2 + Math.floor(next() * 3); // 2..4 members
@@ -355,7 +389,7 @@ function makeRequest(i: number): {paths: string[]; body: Record<string, any>} {
  *  per-route maxima should over-allocate every request that is not on the fat tail. */
 function makeVolatileRequest(i: number): {paths: string[]; body: Record<string, any>} {
     let seed = (i * 1103515245 + 12345) & 0x7fffffff;
-    const next = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const next = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
     const paths = ['/getCount', '/getUser', '/getBlob'];
     const roll = next();
     // 1 in 20 requests is 100x the size of the rest
@@ -367,6 +401,15 @@ function makeVolatileRequest(i: number): {paths: string[]; body: Record<string, 
             getUser: {id: `u-${i}`, name: 'name', tags: ['a'], score: i},
             getBlob: 'x'.repeat(len),
         },
+    };
+}
+
+/** The common case: fixed membership, steady payload sizes. Nothing here needs measuring — the
+ *  window never straddles a class — so this is where a measure-always policy would be pure loss. */
+function makeSteadyRequest(i: number): {paths: string[]; body: Record<string, any>} {
+    return {
+        paths: ['/getCount', '/getUser'],
+        body: {getCount: i, getUser: {id: `u-${i}`, name: 'name', tags: ['a', 'b'], score: i}},
     };
 }
 
@@ -434,18 +477,29 @@ describe('routesFlow buffer model', () => {
             accounting = true;
             assertIdenticalOutput();
             console.log(`\n--- A: varying membership (2-4 routes), right-skewed sizes  (n=${N}) ---`);
-            profile('single-predicted', singlePredicted, makeRequest, N);
+            profile('core-hybrid', singlePredicted, makeRequest, N);
             profile('per-route-merge', perRouteMerge, makeRequest, N);
             profile('single-exact', singleExact, makeRequest, N);
             console.log(`\n--- B: fixed membership, ONE volatile route (100x swings)  (n=${N}) ---`);
-            profile('single-predicted', singlePredicted, makeVolatileRequest, N);
+            profile('core-hybrid', singlePredicted, makeVolatileRequest, N);
             profile('per-route-merge', perRouteMerge, makeVolatileRequest, N);
             profile('single-exact', singleExact, makeVolatileRequest, N);
+            console.log(`\n--- C: fixed membership, steady sizes — the common case  (n=${N}) ---`);
+            profile('core-hybrid', singlePredicted, makeSteadyRequest, N);
+            profile('single-exact', singleExact, makeSteadyRequest, N);
+            profile('hybrid-straddle', hybridStraddle, makeSteadyRequest, N);
+            console.log(`\n--- hybrid gates, profile A then B ---`);
+            for (const threshold of [1024, 4096]) {
+                profile(`hybrid-${threshold / 1024}k A`, makeHybrid(threshold), makeRequest, N);
+                profile(`hybrid-${threshold / 1024}k B`, makeHybrid(threshold), makeVolatileRequest, N);
+            }
+            profile('hybrid-straddle A', hybridStraddle, makeRequest, N);
+            profile('hybrid-straddle B', hybridStraddle, makeVolatileRequest, N);
         },
         {iterations: 1, warmupIterations: 0, time: 0}
     );
 
-    bench('single-predicted (throughput)', () => {
+    bench('core-hybrid (throughput)', () => {
         accounting = false;
         const run = newRun();
         for (let i = 0; i < 200; i++) {
@@ -469,6 +523,42 @@ describe('routesFlow buffer model', () => {
         for (let i = 0; i < 200; i++) {
             const {paths, body} = makeRequest(i);
             singleExact(mergedChain(paths), body, run);
+        }
+    });
+
+    bench('hybrid-straddle (throughput)', () => {
+        accounting = false;
+        const run = newRun();
+        for (let i = 0; i < 200; i++) {
+            const {paths, body} = makeRequest(i);
+            hybridStraddle(mergedChain(paths), body, run);
+        }
+    });
+
+    bench('core-hybrid STEADY (throughput)', () => {
+        accounting = false;
+        const run = newRun();
+        for (let i = 0; i < 200; i++) {
+            const {paths, body} = makeSteadyRequest(i);
+            singlePredicted(mergedChain(paths), body, run);
+        }
+    });
+
+    bench('single-exact STEADY (throughput)', () => {
+        accounting = false;
+        const run = newRun();
+        for (let i = 0; i < 200; i++) {
+            const {paths, body} = makeSteadyRequest(i);
+            singleExact(mergedChain(paths), body, run);
+        }
+    });
+
+    bench('hybrid-straddle STEADY (throughput)', () => {
+        accounting = false;
+        const run = newRun();
+        for (let i = 0; i < 200; i++) {
+            const {paths, body} = makeSteadyRequest(i);
+            hybridStraddle(mergedChain(paths), body, run);
         }
     });
 });
