@@ -28,6 +28,14 @@ export interface NodeHttpOptions {
      * allocating one per request. Turn it off with `{pool: {enabled: false}}`.
      */
     binary: BinaryOptionsPatch;
+    /**
+     * The HOST owns the socket: `startNodeServer()` builds the server and publishes the platform
+     * config but never calls `listen()`, and installs no SIGINT/SIGTERM handlers (they would exit
+     * the host's process). Mount `httpRequestHandler` wherever the host wants it — a vite dev
+     * server (this is what `mionVitePlugin({server: {runMode: 'middleware'}})` sets for you), an
+     * express/connect app, or your own `http.createServer`.
+     */
+    asMiddleware: boolean;
 }
 // type-node-http-options-end
 

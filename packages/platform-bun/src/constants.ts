@@ -17,4 +17,5 @@ export const DEFAULT_BUN_HTTP_OPTIONS: BunHttpOptions = {
      * */
     maxBodySize: 256000, // 256KB
     binary: {},
+    asMiddleware: false,
 };

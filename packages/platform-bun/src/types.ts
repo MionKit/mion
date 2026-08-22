@@ -30,5 +30,13 @@ export interface BunHttpOptions {
      * soon as the Response is constructed. Turn it off with `{pool: {enabled: false}}`.
      */
     binary: BinaryOptionsPatch;
+    /**
+     * The HOST owns the socket: `startBunServer()` registers everything and publishes the platform
+     * config but never calls `Bun.serve()`, and installs no SIGINT/SIGTERM handlers (they would exit
+     * the host's process). Mount `bunRequestHandler` wherever the host wants it — your own
+     * `Bun.serve({fetch})`, or a vite dev server through
+     * `mionVitePlugin({server: {runMode: 'middleware', platform: '@mionjs/platform-bun'}})`.
+     */
+    asMiddleware: boolean;
 }
 // type-bun-http-options-end
