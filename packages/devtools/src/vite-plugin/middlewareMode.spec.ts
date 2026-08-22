@@ -248,6 +248,38 @@ setPlatformConfig({port: 8076, asMiddleware: false});
         expect(resets()).toBe(0);
     });
 
+    it('survives a broken API instead of taking the dev server down with it', async () => {
+        // Through the REAL plugin, so the real `serverReady` signals are wired: its rejection has no
+        // consumer in a plain `vite dev`, and an unhandled one kills the process — which is exactly
+        // what a single bad import in the API used to do. Vitest fails this test on any unhandled
+        // rejection, which is the assertion.
+        const plugins = (
+            mionVitePlugin({
+                server: {startScript: path.join(root, 'src', 'entry.ts'), platform: '/nope.js'},
+            }) as unknown as Plugin[]
+        )
+            .flat()
+            .filter((plugin) => (plugin as Plugin)?.name === 'mion-middleware-server');
+        writeFileSync(path.join(root, 'src', 'entry.ts'), `throw new Error('broken API');\n`);
+
+        vite = await createServer({
+            root,
+            configFile: false,
+            logLevel: 'silent',
+            appType: 'custom',
+            server: {middlewareMode: true},
+            plugins,
+        });
+        const devServer = vite;
+        http = createHttpServer((req, res) => devServer.middlewares(req, res));
+        await new Promise<void>((resolve) => http!.listen(0, resolve));
+        const port = (http!.address() as {port: number}).port;
+
+        const res = await fetch(`http://127.0.0.1:${port}/anything`);
+        expect(res.status).toBe(503);
+        await new Promise((resolve) => setTimeout(resolve, 50)); // let any stray rejection surface
+    });
+
     it('keeps @mionjs/* in one SSR instance', () => {
         const plugin = mionMiddlewarePlugin({startScript: '/srv.ts'}, {onReady: () => {}, onError: () => {}});
         const config = (plugin.config as (c: unknown, e: unknown) => {ssr: {noExternal: RegExp[]}}).call(
