@@ -90,7 +90,7 @@ also what makes the `asMiddleware` handoff between plugin and entry reliable.
 
 ## Verified
 
-- `packages/devtools/src/vite-plugin/middlewareMode.spec.ts` — 17 cases against a **real** vite dev
+- `packages/devtools/src/vite-plugin/middlewareMode.spec.ts` — 18 cases against a **real** vite dev
   server over temp fixtures (router/adapter stubbed via `resolve.alias`): basePath forwarding and its
   boundary, the no-basePath + exclude lane, the node↔web bridge in both directions, lazy loading,
   503-with-cause, the duplicate-adapter guard, hot reload through `resetRouter`, and the
@@ -103,6 +103,18 @@ also what makes the `asMiddleware` handoff between plugin and entry reliable.
   `packages/platform-bun/src/bunHttpMiddleware.test.ts` — not listening, platform config still
   published, no exit handlers, the flag surviving a later `start…({port})`, and the handler still
   serving mounted on a host.
+- A real `vite dev` run of a scratch fullstack app (frontend + `api/` routes, one config): the route
+  answers on vite's port, the frontend and its modules still serve, `/apidocs` falls through to the
+  app while `/api/nope` gets mion's 404 envelope, editing a route file changes the response with no
+  restart, **nothing is listening on the port the entry configured**, and no `@mionjs/core has been
+  loaded 2 times` warning appears.
+
+That last run is also what caught the one bug the test suite could not: an unresolvable import in the
+server entry **killed the whole dev server**. `serverReady` is a module-level promise nobody awaits in
+a plain dev run, so rejecting it on an init failure was an unhandled rejection and node exited. Fixed
+by marking it handled at the declaration (`void serverReady.catch(() => {})`), which swallows nothing
+for real consumers, plus a regression test that drives the real plugin against a throwing entry. The
+childProcess lane carried the same hazard on a failed spawn.
 
 ## Not shipped here
 
