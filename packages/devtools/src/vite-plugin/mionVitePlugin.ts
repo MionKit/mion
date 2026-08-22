@@ -41,6 +41,14 @@ export interface MionRunTypesOptions {
     outDir?: string;
     /** What generated fn entries ship: 'code' (default) | 'both'.
      *
+     *  ⚠️ EDGE TARGETS MUST USE 'both'. With 'code' an entry carries only the compiled fn's SOURCE
+     *  STRING, which @ts-runtypes/core turns into a real function with `new Function` on first use.
+     *  Cloudflare Workers (workerd), Vercel Edge and any CSP without 'unsafe-eval' refuse that, so
+     *  initMionRouter dies on the first route with "Code generation from strings disallowed for this
+     *  context". 'both' emits the live factory ALONGSIDE the code string: nothing is compiled at
+     *  runtime (also a faster cold start), and the string is still there for the methods-metadata
+     *  route to serialize to clients. Cost is bundle size — roughly +30% raw, +15% gzipped.
+     *
      *  mion deliberately does NOT support @ts-runtypes' third mode, 'functions'. That mode ships a
      *  live `createRTFn` closure and omits `code` — but mion's whole client story is serializing
      *  compiled fns to the browser as strings and rebuilding them there, so an entry with no body
