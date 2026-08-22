@@ -422,11 +422,8 @@ func demandedEntryKeys(sites []protocol.Site) ([]string, map[string]string) {
 			}
 			seen[key] = true
 			keys = append(keys, key)
-			for _, demand := range site.Demand {
-				if demand.FnHash == fnId {
-					tags[key] = demand.FamilyTag
-					break
-				}
+			if tag := siteFamilyTag(site, fnId); tag != "" {
+				tags[key] = tag
 			}
 		}
 	}
@@ -567,15 +564,42 @@ func (sess *Session) moduleGrouping() entrymodules.Grouping {
 	}
 }
 
+// siteFamilyTag is the family tag one fnId of a site renders under: the Demand
+// entry that fnHash keys. "" when the site demands nothing under that fnId.
+// Shared by the two callers that must agree on the mapping — stampSiteModules
+// (which bundle the rewrite imports the binding FROM) and demandedEntryKeys
+// (which bundle a dropped key's stub is placed IN); a disagreement between them
+// is an unresolvable import.
+func siteFamilyTag(site protocol.Site, fnId string) string {
+	for _, demand := range site.Demand {
+		if demand.FnHash == fnId {
+			return demand.FamilyTag
+		}
+	}
+	return ""
+}
+
 // stampSiteModules annotates sites with the bundle basename their entry rides
-// in under allSingle mode (Site.Module). The mapping is mode-static —
-// reflection sites point at the runtypes bundle, createX sites at their
-// demand family's bundle — so the plain transform scan (no entry-module
-// collection) stamps identically to the dump path. Returns a copy when
-// stamping occurs; other modes pass sites through untouched.
+// in under allSingle mode (Site.Module, plus Site.Modules for a multi-function
+// site). The mapping is mode-static — reflection sites point at the runtypes
+// bundle, createX sites at their demand family's bundle — so the plain
+// transform scan (no entry-module collection) stamps identically to the dump
+// path. Returns a copy when stamping occurs; other modes pass sites through
+// untouched.
+//
+// A multi-fn site (createStandardSchema's <T,'val','verr','jsonSchema'>) spans
+// SEVERAL families, and allSingle gives each family its own bundle — so the
+// scalar Module cannot address them all. Every fnId gets its own basename in
+// Modules; Module keeps mirroring FnIds[0] so the single-fn wire is unchanged.
 func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 	if sess.opts.ModuleMode != constants.ModuleModeAllSingle || len(sites) == 0 {
 		return sites
+	}
+	bundleFor := func(site protocol.Site, fnId string) string {
+		if tag := siteFamilyTag(site, fnId); tag != "" {
+			return constants.FnsBundleDir + "/" + tag
+		}
+		return ""
 	}
 	out := make([]protocol.Site, len(sites))
 	copy(out, sites)
@@ -587,12 +611,15 @@ func (sess *Session) stampSiteModules(sites []protocol.Site) []protocol.Site {
 			out[i].Module = constants.RunTypesBundleBasename
 			continue
 		}
-		for _, demand := range out[i].Demand {
-			if demand.FnHash == out[i].FnId {
-				out[i].Module = constants.FnsBundleDir + "/" + demand.FamilyTag
-				break
-			}
+		out[i].Module = bundleFor(out[i], out[i].FnId)
+		if len(out[i].FnIds) < 2 {
+			continue
 		}
+		modules := make([]string, len(out[i].FnIds))
+		for j, fnId := range out[i].FnIds {
+			modules[j] = bundleFor(out[i], fnId)
+		}
+		out[i].Modules = modules
 	}
 	return out
 }

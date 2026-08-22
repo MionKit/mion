@@ -303,3 +303,152 @@ func moduleNames(resp protocol.Response) []string {
 	}
 	return names
 }
+
+// entryModuleExports maps each emitted entry module to the set of binding names
+// it exports (`export const __rt_…=`), for the import-resolvability check below.
+func entryModuleExports(modules map[string]string) map[string]map[string]bool {
+	exports := make(map[string]map[string]bool, len(modules))
+	for name, source := range modules {
+		names := make(map[string]bool)
+		for _, part := range strings.Split(source, "export const ")[1:] {
+			if end := strings.IndexByte(part, '='); end > 0 {
+				names[strings.TrimSpace(part[:end])] = true
+			}
+		}
+		exports[name] = names
+	}
+	return exports
+}
+
+// assertImportsResolve is the invariant every module mode owes: a binding is
+// never imported from a module that does not export it. Unresolvable names fail
+// unreadably downstream — rollup reports an EMPTY error thousands of columns
+// into the single-line import block, and esbuild / vite-node do not check at
+// all, so the binding is silently undefined until it is read. The Go twin of
+// the devtools check in test/module-mode.test.ts.
+func assertImportsResolve(t *testing.T, code string, modules map[string]string) {
+	t.Helper()
+	exports := entryModuleExports(modules)
+	seen := 0
+	for _, statement := range strings.Split(strings.ReplaceAll(code, "\n", " "), "; ") {
+		statement = strings.TrimSpace(statement)
+		if !strings.HasPrefix(statement, "import {") {
+			continue
+		}
+		clauseEnd := strings.IndexByte(statement, '}')
+		specifierStart := strings.IndexByte(statement[clauseEnd:], '\'') + clauseEnd + 1
+		specifierEnd := strings.IndexByte(statement[specifierStart:], '\'') + specifierStart
+		specifier := statement[specifierStart:specifierEnd]
+		if !strings.HasPrefix(specifier, constants.EntryModulePrefix) {
+			continue
+		}
+		basename := strings.TrimSuffix(strings.TrimPrefix(specifier, constants.EntryModulePrefix), constants.EntryModuleSuffix)
+		names, ok := exports[basename]
+		if !ok {
+			t.Errorf("the rewrite imports from %q, which the build did not emit", basename)
+			continue
+		}
+		for _, binding := range strings.Split(statement[len("import {"):clauseEnd], ",") {
+			binding = strings.TrimSpace(binding)
+			seen++
+			if !names[binding] {
+				t.Errorf("%q is imported from %q, which does not export it", binding, basename)
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatalf("the rewrite injected no entry-module imports:\n%s", code)
+	}
+}
+
+// transformWithModules runs OpTransform plus an entry-module scan for one file,
+// so a test can hold the rewritten code and the modules it imports side by side.
+func transformWithModules(t *testing.T, r *resolver.Session, file string) (string, map[string]string) {
+	t.Helper()
+	scan := scanWithModules(t, r, []string{file})
+	tr := r.Dispatch(protocol.Request{Op: protocol.OpTransform, Files: []string{file}})
+	if tr.Error != "" {
+		t.Fatalf("transform: %s", tr.Error)
+	}
+	return tr.Transformed[file].Code, scan.EntryModules
+}
+
+// TestModuleMode_AllSingle_MultiFnSitePerFamilyImports is the regression cover
+// for the allSingle import-grouping bug: a MULTI-function site
+// (createStandardSchema's <T,'val','verr'>) injects bindings that live in
+// DIFFERENT family bundles, so the rewrite must emit one import per bundle.
+// It previously emitted a single import naming FnIds[0]'s bundle for all of
+// them, leaving every other family's binding unresolvable.
+func TestModuleMode_AllSingle_MultiFnSitePerFamilyImports(t *testing.T) {
+	const code = `import {createStandardSchema} from '@ts-runtypes/core';
+export const schema = createStandardSchema<string>();
+`
+	r := setupInlineMode(t, map[string]string{"runtypes.d.ts": standardSchemaDTS, "call.ts": code}, constants.ModuleModeAllSingle)
+	out, modules := transformWithModules(t, r, "call.ts")
+	assertImportsResolve(t, out, modules)
+
+	scan := r.Dispatch(protocol.Request{Op: protocol.OpScanFiles, Files: []string{"call.ts"}})
+	if scan.Error != "" {
+		t.Fatalf("scanFiles: %s", scan.Error)
+	}
+	var site protocol.Site
+	for _, candidate := range scan.Sites {
+		if len(candidate.FnIds) > 1 {
+			site = candidate
+		}
+	}
+	if site.ID == "" {
+		t.Fatalf("expected a multi-function site; got %+v", scan.Sites)
+	}
+	// One stamped bundle per fnId, positionally — and the scalar still mirrors
+	// FnIds[0] so the single-fn wire is untouched.
+	if len(site.Modules) != len(site.FnIds) {
+		t.Fatalf("Modules = %v, want one per fnId %v", site.Modules, site.FnIds)
+	}
+	if site.Module != site.Modules[0] {
+		t.Errorf("Module = %q, want the Modules[0] mirror %q", site.Module, site.Modules[0])
+	}
+	distinct := map[string]bool{}
+	for _, module := range site.Modules {
+		if !strings.HasPrefix(module, constants.FnsBundleDir+"/") {
+			t.Errorf("Modules entry %q is not an %s/ bundle", module, constants.FnsBundleDir)
+		}
+		distinct[module] = true
+	}
+	if len(distinct) != len(site.FnIds) {
+		t.Errorf("Modules = %v, want one DISTINCT family bundle per fnId", site.Modules)
+	}
+	// The rewrite emits one import statement per bundle, never one for all.
+	for _, module := range site.Modules {
+		specifier := constants.EntryModulePrefix + module + constants.EntryModuleSuffix
+		if !strings.Contains(out, "from '"+specifier+"'") {
+			t.Errorf("no import emitted for %q:\n%s", specifier, out)
+		}
+	}
+}
+
+// TestModuleMode_AllSingle_MultiSlotPerFamilyImports covers the same bug in the
+// multi-SLOT shape (mion's route(): several markers on one call, each naming
+// its own families) — two sites at one Pos, whose fnIds span three families.
+func TestModuleMode_AllSingle_MultiSlotPerFamilyImports(t *testing.T) {
+	const code = `import {twoSlot} from '@ts-runtypes/core';
+export const handler = twoSlot(() => 1);
+`
+	r := setupInlineMode(t, map[string]string{"runtypes.d.ts": multiSlotDTS, "call.ts": code}, constants.ModuleModeAllSingle)
+	out, modules := transformWithModules(t, r, "call.ts")
+	assertImportsResolve(t, out, modules)
+}
+
+// TestModuleMode_ImportsResolveEveryMode pins the invariant as MODE-INDEPENDENT
+// across both marker forms (static getRunTypeId<T>() and reflection
+// getRunTypeId(value), per the marker coverage rule) plus a createX site.
+// default and allModules already held it; allSingle did not.
+func TestModuleMode_ImportsResolveEveryMode(t *testing.T) {
+	for _, mode := range []string{constants.ModuleModeDefault, constants.ModuleModeAllSingle, constants.ModuleModeAllModules} {
+		t.Run(mode, func(t *testing.T) {
+			r := setupInlineMode(t, map[string]string{"a.ts": pairedSource}, mode)
+			out, modules := transformWithModules(t, r, "a.ts")
+			assertImportsResolve(t, out, modules)
+		})
+	}
+}

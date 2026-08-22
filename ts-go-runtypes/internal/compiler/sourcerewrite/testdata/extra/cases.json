@@ -167,6 +167,44 @@
     }
   },
   {
+    "name": "bundle_module_multi_fn",
+    "file": "a.ts",
+    "code": "const schema = createStandardSchema<T>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 39,
+        "id": "BunMul1",
+        "paramIndex": 2,
+        "fnId": "val",
+        "fnIds": [
+          "val",
+          "verr",
+          "jsonSchema"
+        ],
+        "module": "fns/val",
+        "modules": [
+          "fns/val",
+          "fns/verr",
+          "fns/jsonSchema"
+        ]
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_jsonSchema_BunMul1} from 'rtmod:/fns/jsonSchema.js'; import {__rt_val_BunMul1} from 'rtmod:/fns/val.js'; import {__rt_verr_BunMul1} from 'rtmod:/fns/verr.js';\nconst schema = createStandardSchema<T>(undefined, undefined, [__rt_val_BunMul1, __rt_verr_BunMul1, __rt_jsonSchema_BunMul1]);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const schema = createStandardSchema<T>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,oBAAoB,CAAC,CAAC,CAAC,qFAAC,CAAC;"
+    }
+  },
+  {
     "name": "dup_specifier",
     "file": "a.ts",
     "code": "regA('x', AAA); regB('y', BBB);\n",

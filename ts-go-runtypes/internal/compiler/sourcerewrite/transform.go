@@ -179,13 +179,29 @@ func siteFnIds(site protocol.Site) []string {
 	return []string{site.FnId}
 }
 
+// siteModuleFor is the module basename ONE fnId of a site is imported from:
+// the per-fnId bundle when the site is multi-function (its fnIds span several
+// families, each its own bundle under allSingle), else the site-wide stamp,
+// else the entry's own module. A binding must never be imported from a module
+// that does not export it, so this tracks fnIds positionally — Modules mirrors
+// FnIds index-for-index.
+func siteModuleFor(site protocol.Site, index int, fnId string) string {
+	if index < len(site.Modules) && site.Modules[index] != "" {
+		return site.Modules[index]
+	}
+	if site.Module != "" {
+		return site.Module
+	}
+	return entryBasename(site.ID, fnId)
+}
+
 // buildImportBlock collects every entry-module import the rewritten file needs
 // and renders the deduped import statements as a SINGLE physical line. One
 // clause shape everywhere: every module exports each entry under its binding
 // name, so clauses import it directly (`{__rt_X}`, never renamed); only the
-// specifier differs (the bundle when site.Module is stamped, the entry's own
-// module otherwise). Deterministic order (sorted by specifier, clauses sorted
-// within) keeps rewrites byte-stable.
+// specifier differs (the bundle when site.Module/Modules is stamped, the
+// entry's own module otherwise). Deterministic order (sorted by specifier,
+// clauses sorted within) keeps rewrites byte-stable.
 func buildImportBlock(sites []protocol.Site, replacements []protocol.Replacement) string {
 	bySpecifier := make(map[string]map[string]bool)
 	addClause := func(specifier, clause string) {
@@ -200,11 +216,8 @@ func buildImportBlock(sites []protocol.Site, replacements []protocol.Replacement
 		if site.ID == "" {
 			continue
 		}
-		for _, fnId := range siteFnIds(site) {
-			basename := site.Module
-			if basename == "" {
-				basename = entryBasename(site.ID, fnId)
-			}
+		for index, fnId := range siteFnIds(site) {
+			basename := siteModuleFor(site, index, fnId)
 			specifier := constants.EntryModulePrefix + basename + constants.EntryModuleSuffix
 			addClause(specifier, entryBinding(site.ID, fnId))
 		}

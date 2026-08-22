@@ -1,11 +1,15 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-22
 ---
 
 # allSingle: a multi-function site imports every binding from the FIRST family's bundle
+
+**Shipped in PR [#361](https://github.com/MionKit/ts-run-types/pull/361).** The record below keeps
+the original problem statement and diagnosis; **What shipped** at the end states what actually
+landed.
 
 ## Problem
 
@@ -92,59 +96,61 @@ Make the module stamp per-fnId, keeping the scalar wire byte-stable for single-f
 4. **[protocol.ts](../../packages/ts-runtypes-devtools/src/protocol.ts):205** — mirror the new field
    as `modules?: string[]` next to `module?: string`.
 
-## Tests
+## What shipped
 
-**The front-end reproduction is already committed and RED** (commit `0c4d8d4`) — make it green
-first, then add the Go-side cover below.
+Exactly the fix direction above, plus the tests and the fixture.
 
-- **[module-mode.test.ts](../../packages/ts-runtypes-devtools/test/module-mode.test.ts) — landed.**
-  `allSingle multi-fn: each binding is imported from the family bundle that EXPORTS it` drives the
-  real binary and the real package, and asserts (a) every injected `rtmod:` import name is exported
-  by its target module and (b) one import per family bundle. It currently fails with
-  `'__rt_UMi_bn9j9Ft' is imported from 'fns/val', which does not export it` — the readable
-  diagnostic rollup never gives. The same file also pins the containment invariant for both
-  `getRunTypeId` call shapes under `allSingle` (marker coverage rule) and for `default` /
-  `allModules`, so the invariant is mode-independent. Those four pass today.
-- **modulemode_test.go** — Go twin of the multi-fn case (`standardSchemaDTS`) plus the multi-slot
-  shape (`multislot_test.go`'s `twoSlot`, `verr` + `jsonDecoder` / `jsonEncoder`), which fails today
-  too. Assert the site carries a `Modules` entry per fnId and that the transform emits one import
-  per bundle. Add the Go twin of the containment guardrail across all three modes.
-- **[sourcerewrite/testdata](../../ts-go-runtypes/internal/compiler/sourcerewrite/testdata)** — add
-  the missing intersection fixture: `allSingle` + multi-fn.
-  [gen-sourcerewrite-fixtures/main.go](../../ts-go-runtypes/cmd/gen-sourcerewrite-fixtures/main.go):206
-  already builds an `allSingle` single-fn case and `testdata/multi_fn.json` a default-mode multi-fn
-  case; the combination is absent. Extend the generator and regenerate
-  (`go -C ts-go-runtypes run ./cmd/gen-sourcerewrite-fixtures`), then review the diff —
-  `TestApply_Fixtures` is a reviewed snapshot. This fixture also pins the `edits` wire path via
-  `TestComputeEdits_MatchesApply`, so the Go⇄JS twin is covered.
-- Run `go -C ts-go-runtypes test ./internal/...` and, after rebuilding the resolver, `pnpm test`.
+**Production change — four files.**
 
-## Docs
+- `protocol.Site` gained `Modules []string`, positionally mirroring `FnIds`. It is populated only
+  for a multi-fn site under allSingle, so single-fn and reflection payloads are byte-identical to
+  before; `Module` keeps its meaning and now mirrors `Modules[0]`.
+- `stampSiteModules` resolves a bundle **per fnId** instead of once per site. The demand lookup that
+  both it and `demandedEntryKeys` need is now the shared `siteFamilyTag` helper — the two must agree
+  on the family mapping (one decides which bundle a binding is imported FROM, the other which bundle
+  a dropped key's stub is placed IN), and a disagreement between them is exactly an unresolvable
+  import, so they no longer open-code it separately.
+- `buildImportBlock` indexes its loop and takes the basename from the new `siteModuleFor`
+  (`Modules[i]` → `Module` → the entry's own module). Specifier dedup was already there, so the
+  result is one import statement per bundle.
+- `protocol.ts` mirrors the field as `modules?: string[]`.
 
-No user-facing change: the fix restores the behaviour
+**Tests.**
+
+- **Front end** ([module-mode.test.ts](../../packages/ts-runtypes-devtools/test/module-mode.test.ts)) —
+  written FIRST and committed red (`0c4d8d4`), green with the fix. `allSingle multi-fn: each binding
+  is imported from the family bundle that EXPORTS it` drives the real binary and the real package;
+  it failed with `'__rt_UMi_bn9j9Ft' is imported from 'fns/val', which does not export it`. The
+  containment check is also applied to both `getRunTypeId` call shapes under allSingle and to
+  `default` / `allModules`, so the invariant is pinned mode-independently.
+- **Go** ([modulemode_test.go](../../ts-go-runtypes/internal/compiler/resolver/modulemode_test.go)) —
+  `TestModuleMode_AllSingle_MultiFnSitePerFamilyImports` (multi-function site),
+  `TestModuleMode_AllSingle_MultiSlotPerFamilyImports` (multi-SLOT — mion's `route()` shape), and
+  `TestModuleMode_ImportsResolveEveryMode` (the containment guardrail across all three modes, both
+  marker forms). Both new allSingle tests were confirmed to FAIL with the behavioural fix reverted:
+  `"__rt_pBb_yywSYgI" is imported from "fns/val", which does not export it` and
+  `"__rt_fDV_yywSYgI" is imported from "fns/verr", which does not export it`.
+- **Fixture** — `bundle_module_multi_fn` in
+  [testdata/extra/cases.json](../../ts-go-runtypes/internal/compiler/sourcerewrite/testdata/extra/cases.json),
+  the allSingle + multi-fn intersection that was missing. It pins three separate imports, one per
+  bundle, and covers the `edits` wire path via `TestComputeEdits_MatchesApply`. Regenerating added
+  **only** the new case — no existing fixture byte changed, confirming the fix is inert for every
+  shape that already worked.
+
+**Docs.** None needed: the fix restores the behaviour
 [04.configuration.md](../../container/website/content/01.introduction/04.configuration.md):17
-already describes. Touch [docs/ARCHITECTURE.md](../ARCHITECTURE.md) only if the fix changes how the
-moduleMode grouping is described there.
+already describes, and it does not change how ARCHITECTURE.md describes the moduleMode grouping.
 
-## Out of scope
+## Out of scope (unchanged)
 
-- **The grouping itself.** `moduleGrouping` (dispatch.go:549) is correct — the bundles hold the
-  right entries; only the import specifiers are wrong.
-- **`default` / `allModules`**, which are unaffected (now pinned by the landed FE tests).
-- **Making rollup's error message readable.** Worth its own todo if it recurs; the containment
-  guardrail catches this class before a bundler ever sees it.
-- **mion's side.** Once a fixed version ships they drop their `allSingle` guard and run the
-  end-to-end verification it currently blocks. Tracked in their repo.
+- **The grouping itself.** `moduleGrouping` is correct — the bundles held the right entries all
+  along; only the import specifiers were wrong.
+- **Making rollup's error message readable.** The containment guardrail now catches this class
+  before a bundler ever sees it. Worth its own todo if the unreadable-trace problem recurs for
+  another reason.
 
-## Done when
+## Still owed downstream
 
-- The landed FE test `allSingle multi-fn: each binding is imported from the family bundle that
-  EXPORTS it` passes.
-- A multi-function site under `allSingle` emits one import per family bundle, and every imported
-  binding is exported by its target module.
-- The multi-slot shape (several markers on one call, different families) does the same.
-- The containment guardrail holds across all three module modes on both sides (JS landed, Go added).
-- The `allSingle` + multi-fn sourcerewrite fixture is committed and `edits` mode matches `go` mode
-  over it.
-- `go -C ts-go-runtypes test ./internal/...` and `pnpm test` are green.
-- The fix ships in a release, so mion can drop its guard.
+mion drops its `allSingle` guard once a fixed version ships, and runs the end-to-end verification
+that guard currently blocks (their `docs/todos/upstream-allsingle-import-grouping.md`). Tracked in
+their repo, not here.
