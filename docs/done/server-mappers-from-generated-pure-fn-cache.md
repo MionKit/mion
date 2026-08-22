@@ -50,8 +50,15 @@ The pure-fn report already carries the module path, so nothing assumes a `pf/<ns
 | `default` / `allModules` | `types/pf/rt/e86nWQ4Uzet9jZ.js` | `pf/rt/e86nWQ4Uzet9jZ` | 1 |
 | `allSingle` | `types/pf.js` | `pf` | 8 |
 
-`<genDir>/types/${site.module}.js` is correct in both. `PURE_FN_MODULE_DIR = 'pf'` is *not* publicly
-exported (unlike `ENTRY_MODULE_PREFIX`/`ENTRY_MODULE_SUFFIX`/`ENTRY_BINDING_PREFIX`/`CACHE_MODULES`),
+`<genDir>/types/${site.module}.js` is correct in both, and the harvest was verified under `allSingle`
+to write `types/pf.js` into the manifest. **End-to-end verification under `allSingle` is blocked**: no
+route registers at all in that mode, because upstream injects 1 of 9 compiled fns per marker — a
+pre-existing bug this work uncovered, filed as
+[../todos/module-mode-allsingle-broken.md](../todos/module-mode-allsingle-broken.md). The transport's
+handling of the mode is therefore correct-by-construction and unit-tested, not proven in a running
+server.
+
+`PURE_FN_MODULE_DIR = 'pf'` is *not* publicly exported (unlike `ENTRY_MODULE_PREFIX`/`ENTRY_MODULE_SUFFIX`/`ENTRY_BINDING_PREFIX`/`CACHE_MODULES`),
 so following the report is the only sound option anyway.
 
 **The tuple is matched on its key slot, not taken by export name.** The export name encodes the
@@ -152,3 +159,6 @@ no plugin option, marker, or config to change it. Filed as an upstream ask.
   managed test-server consumes → `routesFlow.spec.ts` exercises `serverMapFrom` over the wire).
 - The built `packages/test-server/.dist/esm/` artifact registers the mapper from the imported tuple,
   executes it, and still refuses `rt::newRunTypeErr`.
+- `allowJs: true` on the consuming package's tsconfig — the generated module never names
+  `registerPureFn`, so PFN001 cannot reach it and the build stays clean. The one aliased marker call
+  lives in `@mionjs/core` instead, where it is commented and covered by tests.
