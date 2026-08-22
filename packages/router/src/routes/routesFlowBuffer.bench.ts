@@ -41,6 +41,7 @@ import {
     getBufferPoolStats,
     resetSizeStats,
     predictSize,
+    configureSizeStats,
     recordSize,
     serializeBinaryBody,
     deserializeBinaryBody,
@@ -416,11 +417,12 @@ function makeSteadyRequest(i: number): {paths: string[]; body: Record<string, an
 type Strategy = (chain: MethodWithJitFns[], body: Record<string, any>, run: Run) => Uint8Array;
 type Traffic = (i: number) => {paths: string[]; body: Record<string, any>};
 
-function profile(name: string, strategy: Strategy, traffic: Traffic, n: number): Run {
+function profile(name: string, strategy: Strategy, traffic: Traffic, n: number, ringSize?: number): Run {
     resetBufferPool();
     resetSizeStats();
     resetBinaryStrategyStats();
     configureBufferPool({enabled: true});
+    if (ringSize !== undefined) configureSizeStats({ringSize});
     const run = newRun();
     for (let i = 0; i < n; i++) {
         const {paths, body} = traffic(i);
@@ -435,6 +437,7 @@ function profile(name: string, strategy: Strategy, traffic: Traffic, n: number):
             ` bufferKB=${kb(run.bufferBytes).padStart(7)}` +
             ` overAlloc=${(run.bufferBytes / Math.max(1, run.payloadBytes)).toFixed(1)}x`.padStart(15) +
             ` copiedKB=${kb(run.copiedBytes).padStart(7)}` +
+            ` measured=${String(getBinaryStrategyStats().measured).padStart(5)}` +
             ` reuses=${String(pool.hits).padStart(5)} misses=${String(run.misses).padStart(4)}` +
             ` retainedKB=${kb(pool.bytesHeld).padStart(5)}`
     );
@@ -488,6 +491,14 @@ describe('routesFlow buffer model', () => {
             profile('core-hybrid', singlePredicted, makeSteadyRequest, N);
             profile('single-exact', singleExact, makeSteadyRequest, N);
             profile('hybrid-straddle', hybridStraddle, makeSteadyRequest, N);
+            // How long the window should remember a spike. Shortening it makes the worst case
+            // forget sooner, which sounds like it should cut the exact-measure passes — measured, it
+            // trades them for RE-ENCODES, which cost more and leave a grown adaptive buffer behind.
+            console.log(`\n--- ringSize sweep: how long the window remembers a spike ---`);
+            for (const w of [8, 16, 32, 64]) {
+                profile(`ring=${w} A`, singlePredicted, makeRequest, N, w);
+                profile(`ring=${w} B`, singlePredicted, makeVolatileRequest, N, w);
+            }
             console.log(`\n--- hybrid gates, profile A then B ---`);
             for (const threshold of [1024, 4096]) {
                 profile(`hybrid-${threshold / 1024}k A`, makeHybrid(threshold), makeRequest, N);
