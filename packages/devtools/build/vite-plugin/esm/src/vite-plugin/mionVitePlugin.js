@@ -74,7 +74,7 @@ function mionVitePlugin(options = {}) {
   }
   if (rt.moduleMode === "allSingle") {
     throw new Error(
-      `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). The transform injects only 1 of the 9 compiled type functions each route needs, so every route fails to register with MissingRtFnsError at server boot. Use 'default' or 'allModules'. See docs/done/module-mode-allsingle-broken.md.`
+      `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). It splits the compiled-fn cache into per-family modules but emits an import for only the first of them, so most fn bindings resolve to nothing — the build fails in rollup, or every route fails to register with MissingRtFnsError. Use 'default' or 'allModules'. See docs/done/module-mode-allsingle-broken.md.`
     );
   }
   const plugins = tsRuntypes({
