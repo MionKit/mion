@@ -72,6 +72,11 @@ function mionVitePlugin(options = {}) {
       `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as code strings, and 'functions' omits the code, so every client would fail on first validate. Use 'code' (default) or 'both'.`
     );
   }
+  if (rt.moduleMode === "allSingle") {
+    throw new Error(
+      `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). The transform injects only 1 of the 9 compiled type functions each route needs, so every route fails to register with MissingRtFnsError at server boot. Use 'default' or 'allModules'. See docs/done/module-mode-allsingle-broken.md.`
+    );
+  }
   const plugins = tsRuntypes({
     binary: resolveRtBinary(rt.binary),
     tsconfig: rt.tsConfig,
