@@ -1,9 +1,20 @@
 # `moduleMode: 'allSingle'` breaks every route: 1 of 9 compiled fns is injected
 
-**Status:** todo — upstream bug in @ts-runtypes/devtools@0.12.1. Pre-existing, not caused by the
+**Status:** done — the mode is now rejected at config time. The underlying bug is upstream's
+(@ts-runtypes/devtools@0.12.1) and stays theirs; nothing is owed here. Pre-existing, not caused by the
 server-mapper transport work; found while verifying that transport against every module mode
-([../done/server-mappers-from-generated-pure-fn-cache.md](../done/server-mappers-from-generated-pure-fn-cache.md)).
-**Created:** 2026-08-22
+([server-mappers-from-generated-pure-fn-cache.md](server-mappers-from-generated-pure-fn-cache.md)).
+**Created:** 2026-08-22 · **Shipped:** 2026-08-22
+
+## What shipped
+
+`mionVitePlugin` throws on `runTypes.moduleMode: 'allSingle'`, next to the existing
+`emitMode: 'functions'` guard, so the failure names its own cause at config time instead of surfacing
+as a `MissingRtFnsError` on a route the user never wrote. Covered in `removedOptions.spec.ts`, which
+also pins that `'default'` and `'allModules'` still pass.
+
+Deliberately NOT done: the two workarounds below. If upstream fixes the transform, delete the guard —
+that is the whole remedy, and this record is the reason it exists.
 
 ## Evidence
 
@@ -61,22 +72,17 @@ the transform, not in what mion asks for.
 
 ## Fix plan
 
-Upstream: report the inconsistency — a marker requesting N fn families should inject N tuples (or
+Upstream owns the real fix: report the inconsistency — a marker requesting N fn families should inject N tuples (or
 import the family bundles that hold them) in every module mode.
 
-mion-side, pick one, in order of preference:
+Rejected alternatives, recorded so they are not re-attempted:
 
-1. **Wait for the upstream fix.** Nothing in mion is wrong; the guard is doing its job.
-2. **Reject the mode loudly.** Have `mionVitePlugin` throw on `moduleMode: 'allSingle'` with a link to
-   this spec, so the failure names the cause instead of surfacing as `MissingRtFnsError` on a route
-   the user did not write. Cheap, and strictly better than the current silent-until-boot behaviour.
-   This is the recommended interim step.
-3. **Import the family bundles.** mion could import all of `types/fns/*.js` when `allSingle` is set
-   and let `initFromTuple` register everything. Rejected: it pulls every compiled fn in the program
-   into every build, and it depends on the `types/fns/` layout, which is not publicly exported (same
-   gap as [upstream-pure-fn-tuple-registrar.md](upstream-pure-fn-tuple-registrar.md) item 3).
-
-Do **not** relax the `val/verr/pj/rj/sj` check in `buildJitFnsFromMarker` — see the probe above.
+- **Import the family bundles.** mion could import all of `types/fns/*.js` when `allSingle` is set and
+  let `initFromTuple` register everything. It pulls every compiled fn in the program into every build,
+  and depends on the `types/fns/` layout, which is not publicly exported.
+- **Relax the `val/verr/pj/rj/sj` check in `buildJitFnsFromMarker`.** See the probe above: the other
+  eight families are absent from the cache, so this would swap identity fallbacks in for validation
+  and serialization instead of fixing anything.
 
 ## Consequence for the server-mapper transport
 

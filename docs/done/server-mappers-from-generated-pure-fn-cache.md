@@ -7,9 +7,6 @@ is gone: the server build now imports the pure-fn module @ts-runtypes already ge
 mapper.
 **Created:** 2026-08-21 · **Shipped:** 2026-08-22
 
-Remaining upstream-blocked work split out to
-[../todos/upstream-pure-fn-tuple-registrar.md](../todos/upstream-pure-fn-tuple-registrar.md).
-
 ## What shipped
 
 `.mion/server-mappers.generated.js` in **build mode** now emits, per allowed key:
@@ -54,7 +51,7 @@ The pure-fn report already carries the module path, so nothing assumes a `pf/<ns
 to write `types/pf.js` into the manifest. **End-to-end verification under `allSingle` is blocked**: no
 route registers at all in that mode, because upstream injects 1 of 9 compiled fns per marker — a
 pre-existing bug this work uncovered, filed as
-[../todos/module-mode-allsingle-broken.md](../todos/module-mode-allsingle-broken.md). The transport's
+[module-mode-allsingle-broken.md](module-mode-allsingle-broken.md). The transport's
 handling of the mode is therefore correct-by-construction and unit-tested, not proven in a running
 server.
 
@@ -147,7 +144,11 @@ registry lookup, so `allowedMapperKeys` is the only gate (see the security-bound
 A mion-owned namespace would turn that gate into a prefix check and make the marker intrinsic to the
 key — but `rt` is hardcoded upstream as a *builtin* namespace (`isBuiltinPureFnNamespace` returns true
 for `'rt'` and `'rtFormats'`), the anonymous marker lane always emits `rt::<contentHash>`, and there is
-no plugin option, marker, or config to change it. Filed as an upstream ask.
+no plugin option, marker, or config to change it. Not tracked as a todo: it is upstream's to add, and
+mion has a working equivalent (the report's callee attribution yields exactly the same set). If
+@ts-runtypes ever lets a consumer name the namespace for anonymous pure fns emitted from its own
+marker wrappers, mion's allow-list collapses from a manifest-fed `Set` to a prefix check and the
+build lane stops needing a manifest at all.
 
 ## Verified
 
