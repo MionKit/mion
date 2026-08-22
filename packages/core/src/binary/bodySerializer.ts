@@ -1,10 +1,10 @@
 import {createDataViewSerializer, createPooledDataViewSerializer, createSizingSerializer} from './dataView.ts';
 import {acquireBuffer, isBufferPoolEnabled, sizeClassFor, type BufferLease} from './bufferPool.ts';
 import {observationCount, predictSize, recordSize} from './sizeStats.ts';
-import {MION_ROUTES, StatusCodes} from '../constants.ts';
+import {StatusCodes} from '../constants.ts';
 import {RpcError} from '../errors.ts';
 import {getOrCreateGlobal} from '../utils.ts';
-import type {DataViewSerializer} from '../types/general.types.ts';
+import type {DataViewSerializer, MionTypeFn, ToBinaryFn} from '../types/general.types.ts';
 import type {MethodWithJitFns} from '../types/method.types.ts';
 
 // ############# buffer strategy #############
@@ -109,6 +109,70 @@ function coldStartSize(method: MethodWithJitFns, isResponse: boolean): number {
     return (estimate ?? 0) + KEY_OVERHEAD_BYTES;
 }
 
+/** The methods that will actually put bytes on the wire for THIS request, resolved once.
+ *
+ *  `willSerialize` is not expensive per method, but it was being re-evaluated on every walk over the
+ *  chain — plan, measure and write — on a lane whose whole purpose is per-request cost. Resolving it
+ *  once also caches what each walk would otherwise re-derive: the `toBinary` function for the
+ *  direction, and the value out of `body`. Caching the VALUE additionally guarantees the measure
+ *  pass and the write pass see the same object, which a getter that does not return the same thing
+ *  twice could otherwise break — that was the one way a MEASURED pooled size could still overflow. */
+interface WriteList {
+    /** contributing methods, `length` entries valid */
+    methods: MethodWithJitFns[];
+    /** each method's compiled `toBinary` for this direction, same index */
+    fns: ToBinaryFn[];
+    /** each method's value out of `body`, same index */
+    values: any[];
+    length: number;
+    /** the direction the list was resolved for */
+    isResponse: boolean;
+}
+
+// Reused so the common request costs no allocation — the buffer pool exists to avoid exactly this
+// kind of per-request garbage. Serialization is synchronous, so the only way a second list can be
+// live at once is a compiled `toBinary` re-entering serializeBinaryBody; `inUse` catches that and
+// hands the inner call a fresh list rather than letting it clobber the outer walk. Module-local on
+// purpose: under a dual core load each copy gets its own scratch, which is still correct.
+const scratchList: WriteList = {methods: [], fns: [], values: [], length: 0, isResponse: true};
+let scratchInUse = false;
+
+/** Resolves the contributing methods for this request into a reusable list. */
+function acquireWriteList(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): WriteList {
+    let list: WriteList;
+    if (scratchInUse) list = {methods: [], fns: [], values: [], length: 0, isResponse};
+    else {
+        scratchInUse = true;
+        list = scratchList;
+    }
+    let n = 0;
+    for (let i = 0; i < executionChain.length; i++) {
+        const method = executionChain[i];
+        const value = body[method.id];
+        const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
+        if (!willSerialize(method, value, toBinary, isResponse)) continue;
+        list.methods[n] = method;
+        list.fns[n] = toBinary!.fn as ToBinaryFn;
+        list.values[n] = value;
+        n++;
+    }
+    list.length = n;
+    list.isResponse = isResponse;
+    return list;
+}
+
+/** Returns the scratch list, dropping the request's value references so nothing is retained. */
+function releaseWriteList(list: WriteList): void {
+    if (list !== scratchList) return;
+    for (let i = 0; i < list.length; i++) {
+        list.methods[i] = undefined as any;
+        list.fns[i] = undefined as any;
+        list.values[i] = undefined;
+    }
+    list.length = 0;
+    scratchInUse = false;
+}
+
 /** How this envelope will be sized, decided in ONE pass over the chain. */
 interface BufferPlan {
     /** bytes to ask for */
@@ -127,20 +191,14 @@ interface BufferPlan {
  *  summed blindly: a binary route's chain carries the metadata middleFn, whose union return type
  *  estimates ~80 KiB but whose value is undefined on every normal request, so `willSerialize` skips
  *  it. Including it made a cold request allocate 82 KB for a 17-byte payload. */
-function planBuffer(
-    executionChain: MethodWithJitFns[],
-    body: Record<string, any>,
-    isResponse: boolean,
-    pooled: boolean
-): BufferPlan {
+function planBuffer(list: WriteList, isResponse: boolean, pooled: boolean): BufferPlan {
     const quantile = pooled ? POOLED_QUANTILE : ADAPTIVE_QUANTILE;
     const pad = pooled ? POOLED_PAD : ADAPTIVE_PAD;
     let worst = ENVELOPE_HEADER_BYTES;
     let typical = ENVELOPE_HEADER_BYTES;
     let warm = true;
-    for (let i = 0; i < executionChain.length; i++) {
-        const method = executionChain[i];
-        if (!willSerialize(method.id, method, body[method.id], isResponse)) continue;
+    for (let i = 0; i < list.length; i++) {
+        const method = list.methods[i];
         const cold = coldStartSize(method, isResponse);
         worst += predictSize(method.id, isResponse, quantile, pad, cold);
         typical += predictSize(method.id, isResponse, TYPICAL_QUANTILE, 1, cold);
@@ -155,15 +213,15 @@ function planBuffer(
     // A steady window puts both ends in the same size class, so an exact count would buy the same
     // buffer: only measure when the two disagree, or when there is no history to disagree with.
     if (warm && sizeClassFor(typical) === sizeClassFor(worst)) return {size: worst, measured: false, warm};
-    const measured = measureEnvelope(executionChain, body, isResponse);
+    const measured = measureEnvelope(list);
     strategyStats.measured++;
     return {size: measured, measured: true, warm};
 }
 
 /** Exact byte count for this envelope, from a measure pass over the same emitted encoders. */
-function measureEnvelope(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): number {
+function measureEnvelope(list: WriteList): number {
     const sizer = createSizingSerializer();
-    writeEnvelope(sizer, executionChain, body, isResponse, false);
+    writeEnvelope(sizer, list, false);
     return sizer.index;
 }
 
@@ -181,47 +239,47 @@ export function serializeBinaryBody(
     body: Record<string, any>,
     isResponse: boolean
 ): BinaryBodyResult {
-    if (isBufferPoolEnabled()) {
-        const plan = planBuffer(executionChain, body, isResponse, true);
-        // a measured size cannot be too small, so it needs no warm-up: a cold route pools at once
-        if (plan.measured || plan.warm) {
-            const pooledResult = serializePooled(path, executionChain, body, isResponse, plan);
-            if (pooledResult) return pooledResult;
-            // The pooled attempt could not produce the envelope. It is an OPTIMISATION, so it never
-            // decides the response: fall through and encode again on a growing buffer, which is the
-            // reference path and cannot overflow. A failure there is the real failure and is what
-            // surfaces. The sizes the failed attempt observed are real bytes, so the next request is
-            // already sized for this payload — no fabricated escalation needed.
-            strategyStats.retries++;
-        }
-    }
-
-    const plan = planBuffer(executionChain, body, isResponse, false);
-    const serializer = createDataViewSerializer(path, plan.size);
+    const list = acquireWriteList(executionChain, body, isResponse);
     try {
-        writeEnvelope(serializer, executionChain, body, isResponse, true);
-    } catch (err: any) {
-        throw toRpcError(err, isResponse);
+        if (isBufferPoolEnabled()) {
+            const plan = planBuffer(list, isResponse, true);
+            // a measured size cannot be too small, so it needs no warm-up: a cold route pools at once
+            if (plan.measured || plan.warm) {
+                const pooledResult = serializePooled(path, list, plan);
+                if (pooledResult) return pooledResult;
+                // The pooled attempt could not produce the envelope. It is an OPTIMISATION, so it
+                // never decides the response: fall through and encode again on a growing buffer,
+                // which is the reference path and cannot overflow. A failure there is the real
+                // failure and is what surfaces. The sizes the failed attempt observed are real
+                // bytes, so the next request is already sized for this payload — no fabricated
+                // escalation needed.
+                strategyStats.retries++;
+            }
+        }
+
+        const plan = planBuffer(list, isResponse, false);
+        const serializer = createDataViewSerializer(path, plan.size);
+        try {
+            writeEnvelope(serializer, list, true);
+        } catch (err: any) {
+            throw toRpcError(err, isResponse);
+        }
+        strategyStats.adaptive++;
+        return finish(serializer, undefined);
+    } finally {
+        releaseWriteList(list);
     }
-    strategyStats.adaptive++;
-    return finish(serializer, undefined);
 }
 
 /** One attempt on a borrowed, non-growing buffer. Returns undefined (having returned the buffer) if
  *  the envelope could not be written — the caller re-encodes on the adaptive path rather than this
  *  code guessing from an error type whether the buffer was merely too small, which it cannot tell:
  *  a RangeError raised inside a compiled `toBinary` looks exactly like an out-of-bounds write. */
-function serializePooled(
-    path: string,
-    executionChain: MethodWithJitFns[],
-    body: Record<string, any>,
-    isResponse: boolean,
-    plan: BufferPlan
-): BinaryBodyResult | undefined {
+function serializePooled(path: string, list: WriteList, plan: BufferPlan): BinaryBodyResult | undefined {
     const lease = acquireBuffer(plan.size);
     const serializer = createPooledDataViewSerializer(path, lease.buffer);
     try {
-        writeEnvelope(serializer, executionChain, body, isResponse, true);
+        writeEnvelope(serializer, list, true);
     } catch {
         lease.release();
         return undefined;
@@ -256,9 +314,7 @@ function finish(serializer: DataViewSerializer, lease: BufferLease | undefined):
 /** Writes the multi-method envelope: [uint32 item count, (key, value)...]. */
 function writeEnvelope(
     serializer: DataViewSerializer,
-    executionChain: MethodWithJitFns[],
-    body: Record<string, any>,
-    isResponse: boolean,
+    list: WriteList,
     /** false for the measure pass — it writes nothing, so it has nothing to observe */
     record: boolean
 ): DataViewSerializer {
@@ -267,23 +323,20 @@ function writeEnvelope(
     serializer.ensureCapacity?.(ENVELOPE_HEADER_BYTES);
     serializer.index += ENVELOPE_HEADER_BYTES;
 
-    let itemsLength = 0;
-    // serialize each method's value (return value for responses, params for requests)
-    for (let i = 0; i < executionChain.length; i++) {
-        const method = executionChain[i];
-        const key = method.id;
-        const value = body[key];
+    // every method in the list contributes, so the count is known before the loop
+    const isResponse = list.isResponse;
+    for (let i = 0; i < list.length; i++) {
+        const key = list.methods[i].id;
         const start = serializer.index;
-        if (serializeMethod(key, method, value, serializer, isResponse)) {
-            itemsLength++;
-            // Recorded HERE, per method and inline, so the next request benefits immediately rather
-            // than waiting on the socket to drain — and so a routesFlow envelope teaches every
-            // route it carried, not just the combination it happened to be.
-            if (record) recordSize(key, serializer.index - start, isResponse);
-        }
+        serializer.serString(key);
+        list.fns[i](list.values[i], serializer);
+        // Recorded HERE, per method and inline, so the next request benefits immediately rather
+        // than waiting on the socket to drain — and so a routesFlow envelope teaches every route it
+        // carried, not just the combination it happened to be.
+        if (record) recordSize(key, serializer.index - start, isResponse);
     }
     // Write items length at reserved index 0
-    serializer.view.setUint32(itemsLengthIndex, itemsLength, true);
+    serializer.view.setUint32(itemsLengthIndex, list.length, true);
     return serializer;
 }
 
@@ -297,33 +350,19 @@ function toRpcError(err: any, isResponse: boolean): RpcError<string> {
     });
 }
 
-/**
- * Serializes a single method's value to binary format.
- * Returns true if the method was serialized, false if it was skipped.
- */
-function serializeMethod(
-    key: string,
+/** Whether a method contributes bytes to the envelope. Evaluated ONCE per request, when the write
+ *  list is resolved, so the plan, measure and write passes cannot disagree about what is on the
+ *  wire — they all read the same list. */
+function willSerialize(
     method: MethodWithJitFns,
     value: any,
-    serializer: DataViewSerializer,
+    toBinary: MionTypeFn<ToBinaryFn> | undefined,
     isResponse: boolean
 ): boolean {
-    if (!willSerialize(key, method, value, isResponse)) return false;
-    const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
-    // serialize key
-    serializer.serString(key);
-    // serialize value
-    toBinary!.fn(value, serializer);
-    return true;
-}
-
-/** Whether a method contributes bytes to the envelope. Single source of truth, shared by the write
- *  loop and the size prediction so the two can never disagree about what is on the wire. */
-function willSerialize(key: string, method: MethodWithJitFns, value: any, isResponse: boolean): boolean {
-    const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
     if (!toBinary?.fn || toBinary.isNoop) return false;
-    // skip @thrownErrors - should be handled separately by the caller if needed
-    if (key === MION_ROUTES.thrownErrors) return false;
+    // `@thrownErrors` is NOT skipped: it is not a member of any execution chain, so it reaches this
+    // point only when the caller deliberately appended it (see the router's serializeBinaryBody),
+    // and dropping it there is what left a binary client with an empty envelope for a thrown error.
     // skip methods without return data or undefined values (for responses)
     if (isResponse && (!method.hasReturnData || typeof value === 'undefined')) return false;
     // skip methods with no params (for requests) or noop serialization
