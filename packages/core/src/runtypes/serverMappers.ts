@@ -89,9 +89,15 @@ export function allowServerMapper(pureFnId: string): void {
 // The alias below IS that door: the scanner matches the callee at the call site, so routing through a
 // local const takes this one call out of its view while keeping upstream's real runtime behaviour —
 // registerPureFn recognises an entry tuple, hands it to initFromTuple, and walks the tuple's whole dep
-// closure. Kept here, once, commented, instead of spread across generated files. Upstream has no
-// supported tuple registrar (initFromTuple is not exported and @ts-runtypes/core has no deep-path
-// exports); see docs/todos/upstream-pure-fn-tuple-registrar.md.
+// closure. Kept here, once, commented, instead of spread across generated files.
+//
+// There is no supported alternative to remove it in favour of: initFromTuple, which does the actual
+// work, is not exported, and @ts-runtypes/core publishes no deep paths (only `.`, `./formats`,
+// `./formats/temporal`, `./builders`, `./schema`). If upstream ever ships a tuple registrar outside
+// the marker contract, this alias is what to replace. If instead its scanner starts resolving through
+// local aliases, this line is what will fail PFN001 — swapping it for `getRTUtils().addPureFn` with a
+// record projected off the tuple works too, and costs only the dep-closure walk (no mapper needs one
+// today: every generated pure-fn tuple in this repo has an empty deps slot).
 const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple: unknown) => unknown;
 
 /** Registers a serverMapFrom mapper from @ts-runtypes' own generated pure-fn tuple and opts the key

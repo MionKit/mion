@@ -48,7 +48,11 @@ export interface MionRunTypesOptions {
      *  Guaranteeing `code` here is what lets `MionTypeFn` type it as required (see
      *  packages/core/src/types/general.types.ts). Passing 'functions' throws at config time. */
     emitMode?: 'code' | 'both';
-    /** Cache-module grouping, see @ts-runtypes/devtools docs. */
+    /** Cache-module grouping, see @ts-runtypes/devtools docs. 'default' | 'allModules'.
+     *
+     *  'allSingle' throws at config time: that mode injects only 1 of the 9 compiled type functions a
+     *  mion route marker needs, so every route fails to register at server boot. See
+     *  docs/done/module-mode-allsingle-broken.md. */
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
@@ -226,7 +230,6 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // does not pass it to onPureFnReport, so mion mirrors the resolution: `cwd` defaults to the vite
     // root, and an unset genDir defaults to `<cwd>/__runtypes`. Pass `runTypes.genDir` explicitly if
     // your setup moves it — the manifest then carries the right paths and nothing else changes.
-    // Tracked upstream in docs/todos/upstream-pure-fn-tuple-registrar.md.
     let viteRoot = '';
     const resolveGenDir = (): string => path.resolve(viteRoot || process.cwd(), rt.genDir ?? rt.outDir ?? '__runtypes');
     const harvestReport = (sites: RtPureFnSite[], phase: 'build' | 'update'): void => {
@@ -250,6 +253,21 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
             `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as ` +
                 `code strings, and 'functions' omits the code, so every client would fail on first validate. ` +
                 `Use 'code' (default) or 'both'.`
+        );
+    }
+    // Fail at config time rather than at server boot. Under 'allSingle' the transform injects ONE of
+    // the nine compiled fns a mion marker asks for and nothing imports the family bundles holding the
+    // rest, so every route dies in buildJitFnsFromMarker with a MissingRtFnsError naming a route the
+    // user never wrote (`mion@methodsMetadata`). The fns ARE generated — `types/fns/<family>.js` holds
+    // all nine hashes for the failing type — they just never reach the registry, which is why mion's
+    // fail-closed guard is right to reject the payload: the alternative is silently swapping identity
+    // fallbacks in for validation and serialization. Nothing mion can fix; see the shipped record.
+    if ((rt.moduleMode as string) === 'allSingle') {
+        throw new Error(
+            `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). The transform ` +
+                `injects only 1 of the 9 compiled type functions each route needs, so every route fails to ` +
+                `register with MissingRtFnsError at server boot. Use 'default' or 'allModules'. ` +
+                `See docs/done/module-mode-allsingle-broken.md.`
         );
     }
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
