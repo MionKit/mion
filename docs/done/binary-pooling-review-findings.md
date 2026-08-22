@@ -112,9 +112,10 @@ And where that is not good enough, the measure pass gives the exact count with n
 
 - **`serializeBinaryBody` walks the execution chain more times than it needs** (plan pass + write
   pass, with `willSerialize` evaluated twice per method). Worth ~9% on tiny steady payloads against a
-  hand-rolled single pass. Not fixed here: collapsing it needs a per-request writers array, which is
-  the allocation this whole lane exists to avoid. See
-  [serialize-chain-single-pass.md](../todos/serialize-chain-single-pass.md).
+  hand-rolled single pass. Not fixed here: collapsing it looked like it needed a per-request writers
+  array, which is the allocation this whole lane exists to avoid. FIXED since, with a reused scratch
+  list rather than either option — see
+  [serialize-chain-single-pass.md](serialize-chain-single-pass.md).
 - **mion no longer exposes upstream's serialization config.** `setSerializationOptions` was removed as
   unused in `b3e585c` (E7 of the redesign record). `defaultBufferSize` / `sizeMultiplier` are indeed
   inert for mion — it always passes an explicit size — but `maxStrCacheLength` / `maxCacheSize` still
