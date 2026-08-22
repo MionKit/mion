@@ -53,3 +53,19 @@ function assertBuiltFromSource(target: TestBundleTarget): void {
             `runtimes this bundle targets forbid. Keep resolution pinned to the 'source' condition.`
     );
 }
+
+// ############ CLI ############
+
+/**
+ * `node buildTestBundle.ts <edge|cloudflare>` — the package's build scripts run this rather than
+ * `vite build --config` directly, so `assertBuiltFromSource` guards EVERY path that produces a
+ * bundle, not just the vitest globalSetup one.
+ */
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const target = process.argv[2] as TestBundleTarget;
+    if (target !== 'edge' && target !== 'cloudflare') {
+        console.error(`[test-server] usage: node buildTestBundle.ts <edge|cloudflare> (got "${target ?? ''}")`);
+        process.exit(1);
+    }
+    await buildTestBundle(target);
+}
