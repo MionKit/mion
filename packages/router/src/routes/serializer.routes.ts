@@ -122,9 +122,24 @@ function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[
     const response = context.response as Mutable<MionResponse>;
     // routesFlow needs no special casing: the buffer is sized by summing the chain's own methods,
     // whatever route each of them came from
-    const {serializer, release} = coreSerializeBinaryBody(context.path, executionChain, respBody, true);
+    const chain = withThrownErrors(executionChain, respBody);
+    const {serializer, release} = coreSerializeBinaryBody(context.path, chain, respBody, true);
     response.binSerializer = serializer;
     response.releaseBinBuffer = release;
+}
+
+/** Appends the `@thrownErrors` executable to the chain when the body carries thrown errors.
+ *
+ *  Thrown errors are added to the response body by `serializeResponseBody`, but `@thrownErrors` is
+ *  not a member of any execution chain — the JSON lanes therefore serialize it as an explicit extra
+ *  entry, and the binary lane, which walks the chain and nothing else, used to drop it entirely: a
+ *  binary client got an EMPTY envelope for a request that threw, while its deserializer was already
+ *  looking for exactly this key. Allocating here is fine — it only happens on an error response. */
+function withThrownErrors(executionChain: RemoteMethod[], respBody: ResponseBody): RemoteMethod[] {
+    if (!respBody[MION_ROUTES.thrownErrors]) return executionChain;
+    const method = getRouteExecutable(MION_ROUTES.thrownErrors);
+    if (!method) return executionChain;
+    return [...executionChain, method];
 }
 
 function stringifyBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): string {
