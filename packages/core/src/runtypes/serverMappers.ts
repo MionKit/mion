@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRTUtils} from '@ts-runtypes/core';
+import {getRTUtils, registerPureFn} from '@ts-runtypes/core';
 import {getOrCreateGlobal} from '../utils.ts';
 
 // ############# routesFlow server mappers — a transport with a security boundary #############
@@ -17,9 +17,17 @@ import {getOrCreateGlobal} from '../utils.ts';
 // Two lanes reach a mapper, both landing in the shared ts-runtypes pure-fn registry:
 //
 // - INLINE (vite builds): the client writes `serverMapFrom(order, (o) => o.userId)`. The mapper
-//   carries ts-runtypes' PureFunction/InjectPureFnHash markers, so the mion vite plugin harvests
-//   it from the build report, content-hashes it (`rt::<hash>`) and bakes the body into the server
-//   bundle via the generated `.mion/server-mappers.generated.js` module → registerServerMappers below.
+//   carries ts-runtypes' PureFunction/InjectPureFnHash markers, so ts-runtypes already compiles it
+//   into its OWN generated module (`__runtypes/types/pf/rt/<hash>.js`) and content-hashes the call
+//   site to `rt::<hash>`. The mion vite plugin harvests that site from the build report and records
+//   which keys the client asked the server to run, plus where each one's generated module is. The
+//   generated `.mion/server-mappers.generated.js` then IMPORTS those modules and registers each tuple
+//   through registerServerMapperTuple below — mion no longer keeps a copy of any mapper body.
+//
+//   Dev/serve is the exception: the server can boot before the client build has finished harvesting,
+//   so that lane keeps reading the manifest (code payload included) through installServerMapperReader
+//   → registerServerMappers. A static import cannot resolve a module that does not exist yet, and the
+//   on-miss re-read is synchronous because getServerMapper sits on the router's request path.
 //
 // - BY NAME (non-vite / CDN clients): the client writes `serverMapFrom(order, 'toUserId')`; the
 //   server registers the mapper itself with @ts-runtypes' own registrar and opts the key into
@@ -70,6 +78,35 @@ export function allowServerMapper(pureFnId: string): void {
     allowedMapperKeys.add(pureFnId);
 }
 
+// @ts-runtypes' registrars are BUILD-TIME markers: the scanner reads the inline function literal at
+// the call site, emits it as a generated pure-fn module, and rewrites the call to pass that module's
+// entry tuple. So `registerPureFn(key, tuple)` is the shape the transform PRODUCES, and passing a
+// tuple from source is rejected as `error PFN001: PureFunction<F> argument must be an INLINE arrow or
+// function expression`. mion's inline lane has neither half a marker call needs — its key is a content
+// hash read from a build manifest and its body is a tuple imported from the client's generated tree —
+// so it needs the untracked door, exactly as the wire-driven lookup already uses getPureFnByKey.
+//
+// The alias below IS that door: the scanner matches the callee at the call site, so routing through a
+// local const takes this one call out of its view while keeping upstream's real runtime behaviour —
+// registerPureFn recognises an entry tuple, hands it to initFromTuple, and walks the tuple's whole dep
+// closure. Kept here, once, commented, instead of spread across generated files. Upstream has no
+// supported tuple registrar (initFromTuple is not exported and @ts-runtypes/core has no deep-path
+// exports); see docs/todos/upstream-pure-fn-tuple-registrar.md.
+const registerPureFnUntracked = registerPureFn as unknown as (key: string, tuple: unknown) => unknown;
+
+/** Registers a serverMapFrom mapper from @ts-runtypes' own generated pure-fn tuple and opts the key
+ *  into wire-reachability. Called by the generated `.mion/server-mappers.generated.js` in build mode,
+ *  which imports the tuple straight from the client build's `__runtypes/types/pf/` tree — so the body
+ *  has ONE source of truth and arrives with its real bodyHash, never a copy mion rehydrates. */
+export function registerServerMapperTuple(key: string, tuple: unknown): void {
+    if (!key || !Array.isArray(tuple)) {
+        console.warn(`[mion serverMappers] mapper '${key}' has no generated pure-fn tuple — skipped.`);
+        return;
+    }
+    registerPureFnUntracked(key, tuple);
+    allowedMapperKeys.add(key);
+}
+
 /** One harvested serverMapFrom mapper (subset of the ts-runtypes PureFnSite report record). */
 export interface ServerMapperEntry {
     /** Full registry key, e.g. `rt::<contentHash>`. */
@@ -103,7 +140,15 @@ export function registerServerMappers(entries: ServerMapperEntry[]): void {
         const compiled = {
             namespace: sep > 0 ? entry.key.slice(0, sep) : '',
             fnName: sep > 0 ? entry.key.slice(sep + 2) : entry.key,
-            bodyHash: sep > 0 ? entry.key.slice(sep + 2) : '',
+            // EMPTY, never the key's fn-name half. Upstream's `bodyHash` is a content hash of the
+            // function BODY; mion's wire `bodyHash` (PureFnRef) is the full registry key — same name,
+            // different things, and conflating them wrote a value that is neither. The manifest cannot
+            // supply the real one: the pure-fn build report (PureFnSite) does not expose it.
+            // Empty is the honest value AND the safe one — upstream's addPureFn only compares hashes
+            // when both are non-empty, and on a mismatch it warns and REPLACES the existing entry. The
+            // hasPureFnByKey guard above already returns before that can happen from here, so this was
+            // never live; empty means it cannot become live if that guard ever moves.
+            bodyHash: '',
             paramNames: entry.paramNames ?? [],
             code: entry.code,
             pureFnDependencies: entry.pureFnDependencies ?? [],

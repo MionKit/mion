@@ -13,6 +13,7 @@ import {
     getServerMapper,
     hasServerMapper,
     installServerMapperReader,
+    registerServerMapperTuple,
     registerServerMappers,
     serverMapperKey,
 } from './serverMappers.ts';
@@ -84,5 +85,67 @@ describe('wire keys cannot reach registry entries outside a mion lane', () => {
         expect(getRTUtils().hasPureFnByKey('mionjs::notOptedIn')).toBe(true);
         expect(hasServerMapper('mionjs::notOptedIn')).toBe(false);
         expect(getServerMapper('mionjs::notOptedIn')).toBeUndefined();
+    });
+});
+
+// ############# the inline lane registers @ts-runtypes' own generated tuple #############
+// This is what the generated `.mion/server-mappers.generated.js` does in build mode: it imports the
+// pure-fn module @ts-runtypes emitted for the mapper and hands mion the tuple inside it. mion keeps
+// no copy of the body, so the entry carries upstream's real bodyHash and its whole dep closure.
+describe('registerServerMapperTuple', () => {
+    // shape of a generated pure-fn module's export, per PURE_FN_TUPLE_KEYS:
+    // [entryKind, deps, ini, key, bodyHash, paramNames, code, pureFnDependencies, createPureFn]
+    const tupleFor = (key: string, bodyHash: string, code: string) => [2, undefined, undefined, key, bodyHash, [], code, []];
+
+    it('registers the tuple, keeps its real bodyHash, and opts the key in', () => {
+        registerServerMapperTuple('rt::fromTuple', tupleFor('rt::fromTuple', 'REALBODYHASH', 'return (v) => v * 2;'));
+        expect(getRTUtils().getCompiledPureFn('rt::fromTuple')?.bodyHash).toBe('REALBODYHASH');
+        expect(getServerMapper('rt::fromTuple')?.(21)).toBe(42);
+    });
+
+    it('skips a key whose module carried no tuple instead of registering a broken entry', () => {
+        // Object.values(mod).find(...) returns undefined when the module does not hold that key —
+        // a stale manifest pointing at a regenerated tree. Better a rejected flow than a bad entry.
+        registerServerMapperTuple('rt::missingTuple', undefined);
+        expect(hasServerMapper('rt::missingTuple')).toBe(false);
+    });
+
+    it('does not make the key reachable under a namespace it was not registered with', () => {
+        registerServerMapperTuple('rt::scopedTuple', tupleFor('rt::scopedTuple', 'H', 'return (v) => v;'));
+        expect(hasServerMapper('mionjs::scopedTuple')).toBe(false);
+    });
+});
+
+// ############# mion never fabricates upstream's bodyHash #############
+// Upstream's CompiledPureFunction.bodyHash is a content hash of the function BODY. mion's wire
+// `bodyHash` (PureFnRef) is the full registry key. registerServerMappers used to write the key's
+// fn-name half into upstream's field, which is neither of those. The second case below is what makes
+// the wrong value harmless today — registerServerMappers returns early on an existing key, so it
+// never reaches the addPureFn hash comparison that would warn and replace. Both are pinned: the value
+// is honest, and the deference to a generated entry that supplies the real hash is deliberate.
+describe('harvested entries do not fabricate upstream bodyHash', () => {
+    it('leaves bodyHash empty rather than reusing the key', () => {
+        registerServerMappers([{key: 'rt::noFabricatedHash', paramNames: [], code: 'return (v) => v;'}]);
+        expect(getRTUtils().getCompiledPureFn('rt::noFabricatedHash')?.bodyHash).toBe('');
+    });
+
+    it('does not clobber an entry already registered from a generated pure-fn tuple', () => {
+        // What upstream's tuple lane installs for a generated pf/<ns>/<key>.js module: the real body
+        // and the real body hash. Written through addPureFn rather than `registerPureFn(key, tuple)`
+        // because the ts-runtypes scanner rejects a non-literal 2nd argument (PFN001) anywhere inside
+        // the TS program — that lane is reachable only from generated .js outside it.
+        getRTUtils().addPureFn('rt::generatedWins', {
+            namespace: 'rt',
+            fnName: 'generatedWins',
+            bodyHash: 'REALBODYHASH',
+            paramNames: [],
+            code: 'return (v) => v * 2;',
+            pureFnDependencies: [],
+        } as never);
+        // a stale manifest row for the same key must not replace it
+        registerServerMappers([{key: 'rt::generatedWins', paramNames: [], code: 'return (v) => v;'}]);
+        const compiled = getRTUtils().getCompiledPureFn('rt::generatedWins');
+        expect(compiled?.bodyHash).toBe('REALBODYHASH');
+        expect(getServerMapper('rt::generatedWins')?.(21)).toBe(42);
     });
 });
