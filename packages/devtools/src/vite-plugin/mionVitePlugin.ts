@@ -50,9 +50,9 @@ export interface MionRunTypesOptions {
     emitMode?: 'code' | 'both';
     /** Cache-module grouping, see @ts-runtypes/devtools docs. 'default' | 'allModules'.
      *
-     *  'allSingle' throws at config time: that mode injects only 1 of the 9 compiled type functions a
-     *  mion route marker needs, so every route fails to register at server boot. See
-     *  docs/done/module-mode-allsingle-broken.md. */
+     *  'allSingle' throws at config time: that mode emits an import for only the first of its nine
+     *  per-family fn modules while referencing bindings from all nine, so most fn bindings resolve to
+     *  nothing. See docs/done/module-mode-allsingle-broken.md. */
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
@@ -255,18 +255,21 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
                 `Use 'code' (default) or 'both'.`
         );
     }
-    // Fail at config time rather than at server boot. Under 'allSingle' the transform injects ONE of
-    // the nine compiled fns a mion marker asks for and nothing imports the family bundles holding the
-    // rest, so every route dies in buildJitFnsFromMarker with a MissingRtFnsError naming a route the
-    // user never wrote (`mion@methodsMetadata`). The fns ARE generated — `types/fns/<family>.js` holds
-    // all nine hashes for the failing type — they just never reach the registry, which is why mion's
-    // fail-closed guard is right to reject the payload: the alternative is silently swapping identity
-    // fallbacks in for validation and serialization. Nothing mion can fix; see the shipped record.
+    // Fail at config time, because both of this mode's real failures are unreadable where they land.
+    // 'allSingle' splits the fn cache into nine per-family modules (types/fns/{val,verr,pj,rj,…}.js)
+    // but emits ONE import for the first of them while listing bindings from all nine: in test-server
+    // that is 605 names imported from val.js, which exports 99. The other 537 live in the eight
+    // sibling bundles and nothing imports those files at all. Rollup then fails to trace a binding
+    // (an empty error at a 6000-column offset), while esbuild/vite-node happily leaves the names
+    // undefined and mion sees a 1-of-9 marker payload, dying later as MissingRtFnsError on
+    // `mion@methodsMetadata` — a route the user never wrote. One upstream defect, two bad messages.
+    // Nothing mion can fix: mion does not emit that import block. See the shipped record.
     if ((rt.moduleMode as string) === 'allSingle') {
         throw new Error(
-            `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). The transform ` +
-                `injects only 1 of the 9 compiled type functions each route needs, so every route fails to ` +
-                `register with MissingRtFnsError at server boot. Use 'default' or 'allModules'. ` +
+            `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). It splits the ` +
+                `compiled-fn cache into per-family modules but emits an import for only the first of them, ` +
+                `so most fn bindings resolve to nothing — the build fails in rollup, or every route fails ` +
+                `to register with MissingRtFnsError. Use 'default' or 'allModules'. ` +
                 `See docs/done/module-mode-allsingle-broken.md.`
         );
     }
