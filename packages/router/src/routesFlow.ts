@@ -159,14 +159,17 @@ export function getRoutesFlowExecutionChain(
         });
     }
 
+    // Convert paths to route IDs (remove leading slash)
+    const routeIds = routePaths.map((path) => (path.startsWith('/') ? path.slice(1) : path));
+
     // Check cache first
     let executionChain = routesFlowCache.get(urlQuery);
-    if (executionChain) return {executionChain, mappings};
+    if (executionChain) return {executionChain, routesFlowRouteIds: routeIds, mappings};
 
     // Build merged execution chain
     executionChain = buildMergedExecutionChain(routePaths, rawRequest, opts, mappings);
     addToRoutesFlowCache(urlQuery, executionChain);
-    return {executionChain, mappings};
+    return {executionChain, routesFlowRouteIds: routeIds, mappings};
 }
 
 /**

@@ -27,6 +27,10 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly executionChain: MethodsExecutionChain;
     /** Query string from URL, used for routesFlow routes */
     readonly urlQuery?: string;
+    /** Route IDs a routesFlow request is running, in call order. Exposed for consumers (logging,
+     *  metrics, middleFns that branch on the flow); mion itself no longer needs it — binary buffers
+     *  are sized from the execution chain's own methods. */
+    readonly routesFlowRouteIds?: string[];
 }
 // type-call-context-end
 
@@ -115,6 +119,8 @@ export interface ResponseBody extends Record<string, any> {
 /** Result of getRoutesFlowExecutionChain */
 export interface RoutesFlowExecutionResult {
     executionChain: MethodsExecutionChain;
+    /** Route IDs of the routesFlow, surfaced on the CallContext for consumers */
+    routesFlowRouteIds?: string[];
     /** Mappings from the routesFlow query, used for mapping route outputs to inputs */
     mappings?: RoutesFlowMapping[];
 }

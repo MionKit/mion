@@ -4,6 +4,18 @@
 **Type:** feature (redesign) + fix
 **Created:** 2026-07-26 · **Completed:** 2026-08-20
 
+> **Partly superseded (2026-08-22).** The sizing model described below was reviewed and reworked in
+> [binary-pooling-review-findings.md](binary-pooling-review-findings.md). Still true: mion owns the
+> buffer, ts-runtypes owns the encoding; the pool, the lease and the per-adapter release points; the
+> ring of recent sizes; the compile-time cold-start estimate. Changed: sizes are keyed by METHOD and
+> direction rather than by route path (so routesFlow sums the parts instead of using `relatedKeys`);
+> the pooled quantile is the window max stated as quantile 1, not a `floorAtMax` flag over 0.99; a
+> pooled attempt that fails is re-encoded without classifying the error and without escalating a
+> fabricated size class; and when a method's size window straddles a size class the buffer is sized
+> by an exact MEASURE PASS instead of the statistics, which also lets a cold route pool immediately.
+> The measured reason for that last one: summing per-method maxima was carrying 24-44x the payload
+> in buffer bytes.
+
 The DataView codec moved to `@ts-runtypes/core` during the migration, but the performance machinery
 around the buffer was never re-reviewed on mion's side: mion took upstream's defaults wholesale (a
 flat 16 KiB cold start, a `mean + 2σ` predictor, one fresh `ArrayBuffer` per response, no reuse), and

@@ -49,7 +49,7 @@ export function createCallContext(
     urlQuery?: string
 ): CallContext {
     const transformedPath = opts.pathTransform?.(rawRequest, path) || path;
-    const {executionChain} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+    const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
     return {
         path: transformedPath,
         request: {
@@ -72,6 +72,7 @@ export function createCallContext(
         executionChain,
         shared: opts.contextDataFactory ? opts.contextDataFactory() : {},
         urlQuery,
+        routesFlowRouteIds,
     } as CallContext;
 }
 
@@ -112,9 +113,10 @@ export function acquireCallContext(
         resp.serializer = SerializerModes.json;
         resp.binSerializer = undefined;
         resp.releaseBinBuffer = undefined;
-        // Reset execution chain
-        const {executionChain} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
+        // Reset execution chain and routesFlow route IDs
+        const {executionChain, routesFlowRouteIds} = getExecutionChain(path, transformedPath, urlQuery, rawRequest, opts);
         ctx.executionChain = executionChain;
+        ctx.routesFlowRouteIds = routesFlowRouteIds;
         // Reset shared data
         ctx.shared = opts.contextDataFactory ? opts.contextDataFactory() : {};
         // Reset urlQuery
@@ -149,6 +151,7 @@ export function releaseCallContext(ctx: CallContext, maxPoolSize: number): void 
         };
         mutableCtx.shared = null as any;
         mutableCtx.executionChain = null as any;
+        mutableCtx.routesFlowRouteIds = undefined;
         contextPool.push(ctx);
     }
     // If pool is full, let the context be garbage collected

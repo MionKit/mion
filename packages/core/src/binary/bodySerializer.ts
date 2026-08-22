@@ -1,5 +1,5 @@
-import {createDataViewSerializer, createPooledDataViewSerializer} from './dataView.ts';
-import {acquireBuffer, isBufferPoolEnabled, type BufferLease} from './bufferPool.ts';
+import {createDataViewSerializer, createPooledDataViewSerializer, createSizingSerializer} from './dataView.ts';
+import {acquireBuffer, isBufferPoolEnabled, sizeClassFor, type BufferLease} from './bufferPool.ts';
 import {observationCount, predictSize, recordSize} from './sizeStats.ts';
 import {MION_ROUTES, StatusCodes} from '../constants.ts';
 import {RpcError} from '../errors.ts';
@@ -9,17 +9,34 @@ import type {MethodWithJitFns} from '../types/method.types.ts';
 
 // ############# buffer strategy #############
 //
-// Two strategies, both sized from mion's own per-METHOD statistics (see ./sizeStats.ts):
+// The buffer for a request comes from one of two places, and its SIZE from one of two methods.
 //
-//   adaptive — allocate an exact-size GROWING buffer. An underestimate costs one in-place grow
-//              copy and can never throw, so this is the default and the fallback for everything.
-//   pooled   — borrow a size-classed buffer from ./bufferPool.ts. Upstream disables growth on a
-//              buffer it does not own, so an underestimate fails and we re-encode once through the
-//              adaptive path. Only used where the platform gives us a safe release point.
+// Where the bytes live:
+//   adaptive — a freshly allocated GROWING buffer. An underestimate costs one in-place grow copy and
+//              can never throw, so this is the fallback for everything.
+//   pooled   — a size-classed buffer borrowed from ./bufferPool.ts. Upstream disables growth on a
+//              buffer it does not own, so an underestimate fails and the envelope is re-encoded once
+//              on the adaptive path. Only used where the platform gives us a safe release point.
 //
-// A method is only pooled once it has enough observations to support a high quantile: the
-// compile-time cold-start estimate is tight (8 bytes for a `number` return), so pooling a cold
-// route would guarantee a miss on its first requests.
+// How the size is decided:
+//   predicted — sum of each contributing method's own recent-size quantile (see ./sizeStats.ts).
+//               One pass over the chain, no allocation, but it sizes for the worst recent case.
+//   measured  — a MEASURE PASS (./dataView.ts) runs the same emitted toBinary against a no-op sink,
+//               so the byte count is exact. Costs one extra traversal of the value graph.
+//
+// Measuring is gated on VOLATILITY, not on size: if a method's recent window is steady enough that
+// its typical and worst-case envelopes land in the SAME pool size class, the buffer is identical
+// either way and measuring is pure cost. They only diverge for payloads that swing across classes —
+// which is exactly where summing per-method maxima over-allocates. Measured over a routesFlow whose
+// membership and sizes both vary (packages/router/src/routes/routesFlowBuffer.bench.ts):
+//
+//   predicted-only  24.6x the payload in buffer bytes, 80 KB peak per request
+//   measured-only    2.6x,  32 KB peak — but a measure pass on every response, ~30% slower
+//   straddle gate    2.7x,  32 KB peak, and steady traffic never measures at all
+//
+// The same bench answers the other open question: giving each route its own buffer and merging them
+// on the way out is worse on every axis (3.8x the allocations, 1.6x the peak, an extra memcpy of the
+// whole payload, 10% slower), because every part rounds up to the pool's smallest class.
 //
 // Sizing is per METHOD, never per request path. A routesFlow request merges several routes into ONE
 // envelope, and the combination is usually new even when every member route is well observed — only
@@ -32,7 +49,9 @@ const ADAPTIVE_PAD = 1.25;
  *  anyway, so size for the largest payload in the window */
 const POOLED_QUANTILE = 1;
 const POOLED_PAD = 1.25;
-/** observations a method needs before it may be written into a pooled (non-growing) buffer */
+/** the typical envelope, used ONLY to decide whether the window straddles a size class */
+const TYPICAL_QUANTILE = 0.5;
+/** observations a method needs before its size window can be trusted to size a buffer at all */
 const POOL_WARMUP_OBSERVATIONS = 8;
 /** per-method framing allowance for the cold-start estimate: the key string + its varint prefix */
 const KEY_OVERHEAD_BYTES = 24;
@@ -48,6 +67,8 @@ export interface BinaryStrategyStats {
     pooled: number;
     /** envelopes written into a freshly allocated growing buffer */
     adaptive: number;
+    /** envelopes whose size came from a measure pass rather than from the size statistics */
+    measured: number;
     /** pooled attempts that outran the borrowed buffer and were re-encoded on a growing one */
     retries: number;
 }
@@ -56,6 +77,7 @@ export interface BinaryStrategyStats {
 const strategyStats = getOrCreateGlobal<BinaryStrategyStats>('mion.core.binary.strategyStats', () => ({
     pooled: 0,
     adaptive: 0,
+    measured: 0,
     retries: 0,
 }));
 
@@ -66,6 +88,7 @@ export function getBinaryStrategyStats(): BinaryStrategyStats {
 export function resetBinaryStrategyStats(): void {
     strategyStats.pooled = 0;
     strategyStats.adaptive = 0;
+    strategyStats.measured = 0;
     strategyStats.retries = 0;
 }
 
@@ -86,41 +109,62 @@ function coldStartSize(method: MethodWithJitFns, isResponse: boolean): number {
     return (estimate ?? 0) + KEY_OVERHEAD_BYTES;
 }
 
-/** Predicted envelope size for this request: the header plus every method that will actually be
- *  written, each predicted from its OWN recent sizes.
+/** How this envelope will be sized, decided in ONE pass over the chain. */
+interface BufferPlan {
+    /** bytes to ask for */
+    size: number;
+    /** true when `size` came from the measure pass, and so cannot be too small */
+    measured: boolean;
+    /** true when every contributing method has enough history to size a non-growing buffer */
+    warm: boolean;
+}
+
+/** Plans the buffer for this request: the header plus every method that will actually be written,
+ *  each predicted from its OWN recent sizes.
  *
  *  Summing per method is what makes routesFlow work — its merged chain is a combination the router
- *  may never have served before, but its parts have been. It is also why the whole chain must not
- *  be summed blindly: a binary route's chain carries the metadata middleFn, whose union return type
+ *  may never have served before, but its parts have been. It is also why the whole chain must not be
+ *  summed blindly: a binary route's chain carries the metadata middleFn, whose union return type
  *  estimates ~80 KiB but whose value is undefined on every normal request, so `willSerialize` skips
  *  it. Including it made a cold request allocate 82 KB for a 17-byte payload. */
-function predictBufferSize(
+function planBuffer(
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
     isResponse: boolean,
     pooled: boolean
-): number {
+): BufferPlan {
     const quantile = pooled ? POOLED_QUANTILE : ADAPTIVE_QUANTILE;
     const pad = pooled ? POOLED_PAD : ADAPTIVE_PAD;
-    let total = ENVELOPE_HEADER_BYTES;
+    let worst = ENVELOPE_HEADER_BYTES;
+    let typical = ENVELOPE_HEADER_BYTES;
+    let warm = true;
     for (let i = 0; i < executionChain.length; i++) {
         const method = executionChain[i];
         if (!willSerialize(method.id, method, body[method.id], isResponse)) continue;
-        total += predictSize(method.id, isResponse, quantile, pad, coldStartSize(method, isResponse));
+        const cold = coldStartSize(method, isResponse);
+        worst += predictSize(method.id, isResponse, quantile, pad, cold);
+        typical += predictSize(method.id, isResponse, TYPICAL_QUANTILE, 1, cold);
+        if (observationCount(method.id, isResponse) < POOL_WARMUP_OBSERVATIONS) warm = false;
     }
-    return Math.max(total, MIN_COLD_START_BYTES);
+    worst = Math.max(worst, MIN_COLD_START_BYTES);
+    // The adaptive buffer GROWS, so an underestimate there costs one in-place copy and an
+    // overestimate is freed with the request — neither is worth an extra traversal to avoid.
+    // Measuring is for the pooled buffer, which has to be right first time and whose over-allocation
+    // is retained in a size class across requests.
+    if (!pooled) return {size: worst, measured: false, warm};
+    // A steady window puts both ends in the same size class, so an exact count would buy the same
+    // buffer: only measure when the two disagree, or when there is no history to disagree with.
+    if (warm && sizeClassFor(typical) === sizeClassFor(worst)) return {size: worst, measured: false, warm};
+    const measured = measureEnvelope(executionChain, body, isResponse);
+    strategyStats.measured++;
+    return {size: measured, measured: true, warm};
 }
 
-/** True when every method this envelope will carry has enough history to size a non-growing buffer.
- *  Per method, so a routesFlow envelope is pool-eligible as soon as its members are — the merged
- *  combination itself never needs to have been served before. */
-function isWarm(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): boolean {
-    for (let i = 0; i < executionChain.length; i++) {
-        const method = executionChain[i];
-        if (!willSerialize(method.id, method, body[method.id], isResponse)) continue;
-        if (observationCount(method.id, isResponse) < POOL_WARMUP_OBSERVATIONS) return false;
-    }
-    return true;
+/** Exact byte count for this envelope, from a measure pass over the same emitted encoders. */
+function measureEnvelope(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): number {
+    const sizer = createSizingSerializer();
+    writeEnvelope(sizer, executionChain, body, isResponse, false);
+    return sizer.index;
 }
 
 /**
@@ -137,21 +181,25 @@ export function serializeBinaryBody(
     body: Record<string, any>,
     isResponse: boolean
 ): BinaryBodyResult {
-    if (isBufferPoolEnabled() && isWarm(executionChain, body, isResponse)) {
-        const pooledResult = serializePooled(path, executionChain, body, isResponse);
-        if (pooledResult) return pooledResult;
-        // The pooled attempt could not produce the envelope. It is an OPTIMISATION, so it never
-        // decides the response: fall through and encode again on a growing buffer, which is the
-        // reference path and cannot overflow. A failure there is the real failure and is what
-        // surfaces. The sizes the failed attempt observed are real bytes, so the next request is
-        // already sized for this payload — no fabricated escalation needed.
-        strategyStats.retries++;
+    if (isBufferPoolEnabled()) {
+        const plan = planBuffer(executionChain, body, isResponse, true);
+        // a measured size cannot be too small, so it needs no warm-up: a cold route pools at once
+        if (plan.measured || plan.warm) {
+            const pooledResult = serializePooled(path, executionChain, body, isResponse, plan);
+            if (pooledResult) return pooledResult;
+            // The pooled attempt could not produce the envelope. It is an OPTIMISATION, so it never
+            // decides the response: fall through and encode again on a growing buffer, which is the
+            // reference path and cannot overflow. A failure there is the real failure and is what
+            // surfaces. The sizes the failed attempt observed are real bytes, so the next request is
+            // already sized for this payload — no fabricated escalation needed.
+            strategyStats.retries++;
+        }
     }
 
-    const size = predictBufferSize(executionChain, body, isResponse, false);
-    const serializer = createDataViewSerializer(path, size);
+    const plan = planBuffer(executionChain, body, isResponse, false);
+    const serializer = createDataViewSerializer(path, plan.size);
     try {
-        writeEnvelope(serializer, executionChain, body, isResponse);
+        writeEnvelope(serializer, executionChain, body, isResponse, true);
     } catch (err: any) {
         throw toRpcError(err, isResponse);
     }
@@ -167,20 +215,22 @@ function serializePooled(
     path: string,
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
-    isResponse: boolean
+    isResponse: boolean,
+    plan: BufferPlan
 ): BinaryBodyResult | undefined {
-    const size = predictBufferSize(executionChain, body, isResponse, true);
-    const lease = acquireBuffer(size);
+    const lease = acquireBuffer(plan.size);
     const serializer = createPooledDataViewSerializer(path, lease.buffer);
     try {
-        writeEnvelope(serializer, executionChain, body, isResponse);
+        writeEnvelope(serializer, executionChain, body, isResponse, true);
     } catch {
         lease.release();
         return undefined;
     }
     // Not every overflow throws: upstream's varint writer drops out-of-range byte writes while the
     // cursor advances past the end, so a payload can outrun the buffer silently. This is the exact
-    // signal for that, and it is checked BEFORE the view is taken (getBufferView would throw).
+    // signal for that, and it is checked BEFORE the view is taken (getBufferView would throw). A
+    // MEASURED size can only land here if the value changed between the two passes — a getter that
+    // does not return the same thing twice — which is exactly when the re-encode is what saves it.
     if (serializer.index > serializer.buffer.byteLength) {
         lease.release();
         return undefined;
@@ -208,7 +258,9 @@ function writeEnvelope(
     serializer: DataViewSerializer,
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
-    isResponse: boolean
+    isResponse: boolean,
+    /** false for the measure pass — it writes nothing, so it has nothing to observe */
+    record: boolean
 ): DataViewSerializer {
     // Reserve space for items length at index 0 (will be written after counting)
     const itemsLengthIndex = serializer.index;
@@ -227,7 +279,7 @@ function writeEnvelope(
             // Recorded HERE, per method and inline, so the next request benefits immediately rather
             // than waiting on the socket to drain — and so a routesFlow envelope teaches every
             // route it carried, not just the combination it happened to be.
-            recordSize(key, serializer.index - start, isResponse);
+            if (record) recordSize(key, serializer.index - start, isResponse);
         }
     }
     // Write items length at reserved index 0
