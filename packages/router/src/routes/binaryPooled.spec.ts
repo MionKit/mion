@@ -6,8 +6,9 @@
  * ######## */
 
 // End-to-end behaviour of the POOLED binary strategy: it must be byte-identical to the growing
-// strategy, must never expose bytes from a previous response, and must recover from an overflow
-// (a pooled buffer cannot grow — upstream refuses to resize a buffer it does not own).
+// strategy, must never expose bytes from a previous response, and must recover from a payload that
+// outruns the borrowed buffer (a pooled buffer cannot grow — upstream refuses to resize a buffer it
+// does not own).
 
 import {describe, expect, it, beforeEach, afterEach} from 'vitest';
 import {initMionRouter, resetRouter, getRouteExecutionChain} from '../router.ts';
@@ -20,6 +21,7 @@ import {
     resetBufferPool,
     getBufferPoolStats,
     resetSizeStats,
+    observationCount,
     getBinaryStrategyStats,
     resetBinaryStrategyStats,
 } from '@mionjs/core';
@@ -27,20 +29,35 @@ import type {MethodWithJitFns} from '@mionjs/core';
 
 const routes = {
     echo: route((ctx: any, msg: string): string => msg),
+    shout: route((ctx: any, msg: string): string => msg.toUpperCase()),
 } satisfies Routes;
 
-/** enough requests to clear the pool warm-up threshold */
+/** enough requests for a route's size stats to settle */
 const WARMUP = 8;
 
 function chainFor(path: string): MethodWithJitFns[] {
     return getRouteExecutionChain(path)!.methods as unknown as MethodWithJitFns[];
 }
 
+/** The merged, id-deduplicated chain a routesFlow request runs — several routes, ONE envelope. */
+function mergedChain(...paths: string[]): MethodWithJitFns[] {
+    const seen = new Set<string>();
+    const merged: MethodWithJitFns[] = [];
+    for (const path of paths) {
+        for (const method of chainFor(path)) {
+            if (seen.has(method.id)) continue;
+            seen.add(method.id);
+            merged.push(method);
+        }
+    }
+    return merged;
+}
+
 function serialize(msg: string) {
     return serializeBinaryBody('/echo', chainFor('/echo'), {echo: msg}, true);
 }
 
-/** Runs enough requests that the route becomes pool-eligible. */
+/** Runs enough requests for the route's recent-size window to settle. */
 function warmUp(msg: string) {
     for (let i = 0; i < WARMUP; i++) serialize(msg).release();
 }
@@ -108,34 +125,39 @@ describe('binary pooled strategy', () => {
         small.release();
     });
 
-    it('recovers from an overflow when a payload outruns its pooled class', () => {
+    it('recovers from a payload that outruns its pooled class', () => {
         configureBufferPool({enabled: true});
         // warm up on a small payload so the predicted class is small...
         warmUp('small');
+        // (the warm-up itself ran on the adaptive path, so nothing is pooled yet)
+        expect(getBufferPoolStats().held).toBe(0);
         // ...then send one that cannot possibly fit it
         const huge = 'Y'.repeat(50_000);
         const result = serialize(huge);
 
-        // the pooled attempt must have overflowed and been re-encoded, not merely succeeded
+        // the pooled attempt must have been abandoned and re-encoded, not merely succeeded
         expect(getBinaryStrategyStats().retries).toBe(1);
+        // the borrowed buffer went back to the pool rather than being lost with the attempt
+        expect(getBufferPoolStats().held).toBe(1);
         const {body} = deserializeBinaryBody('/echo', new Uint8Array(result.view), true);
         expect(body.echo).toBe(huge);
         result.release();
     });
 
-    it('stops overflowing after the class escalates', () => {
+    it('stops missing once the recent-size window has seen the bigger payload', () => {
         configureBufferPool({enabled: true});
         warmUp('small');
         const huge = 'Z'.repeat(50_000);
-        // the first oversize request escalates; subsequent ones must round-trip cleanly
+        // the first oversize request re-encodes; subsequent ones must round-trip from the pool
         for (let i = 0; i < 5; i++) {
             const result = serialize(huge);
             const {body} = deserializeBinaryBody('/echo', new Uint8Array(result.view), true);
             expect(body.echo).toBe(huge);
             result.release();
         }
-        // one escalation, then steady state — not a retry on every request
-        expect(getBinaryStrategyStats().retries).toBeLessThanOrEqual(2);
+        // one miss, then steady state — the real bytes it observed sized the next request
+        expect(getBinaryStrategyStats().retries).toBe(1);
+        expect(getBinaryStrategyStats().pooled).toBe(4);
     });
 
     it('release is idempotent end-to-end', () => {
@@ -145,5 +167,67 @@ describe('binary pooled strategy', () => {
         result.release();
         result.release();
         expect(getBufferPoolStats().held).toBeGreaterThan(0);
+    });
+
+    describe('routesFlow (several routes, one envelope)', () => {
+        const big = 'A'.repeat(4000);
+        const flow = () =>
+            serializeBinaryBody('/routesFlow', mergedChain('/echo', '/shout'), {echo: big, shout: big.toUpperCase()}, true);
+        const warmUpShout = (msg: string) => {
+            for (let i = 0; i < WARMUP; i++)
+                serializeBinaryBody('/shout', chainFor('/shout'), {shout: msg}, true).release();
+        };
+
+        it('pools a merged envelope sized from the member routes it has already served', () => {
+            configureBufferPool({enabled: true});
+            // ordinary single-route traffic on each member — the merged COMBINATION is never seen
+            warmUp(big);
+            warmUpShout(big.toUpperCase());
+            resetBinaryStrategyStats();
+
+            const result = flow();
+            // sized by summing the parts, so the first merged request pools AND fits
+            expect(getBinaryStrategyStats().pooled).toBe(1);
+            expect(getBinaryStrategyStats().retries).toBe(0);
+            const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+            expect(body.echo).toBe(big);
+            expect(body.shout).toBe(big.toUpperCase());
+            result.release();
+        });
+
+        it('teaches every route it carried, not just the combination', () => {
+            configureBufferPool({enabled: true});
+            expect(observationCount('echo', true)).toBe(0);
+            expect(observationCount('shout', true)).toBe(0);
+
+            flow().release();
+
+            // a routesFlow request is real traffic for each member route
+            expect(observationCount('echo', true)).toBe(1);
+            expect(observationCount('shout', true)).toBe(1);
+        });
+
+        it('warms up on routesFlow traffic alone', () => {
+            configureBufferPool({enabled: true});
+            for (let i = 0; i < WARMUP; i++) flow().release();
+            resetBinaryStrategyStats();
+
+            const result = flow();
+            expect(getBinaryStrategyStats().pooled).toBe(1);
+            expect(getBinaryStrategyStats().retries).toBe(0);
+            const {body} = deserializeBinaryBody('/routesFlow', new Uint8Array(result.view), true);
+            expect(body.echo).toBe(big);
+            result.release();
+        });
+
+        it('holds a merged envelope back until EVERY member route is warm', () => {
+            configureBufferPool({enabled: true});
+            warmUp(big); // only /echo is warm
+            resetBinaryStrategyStats();
+
+            flow().release();
+            expect(getBinaryStrategyStats().pooled).toBe(0);
+            expect(getBinaryStrategyStats().adaptive).toBe(1);
+        });
     });
 });
