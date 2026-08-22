@@ -10,5 +10,9 @@ export {mionVitePlugin, serverReady, resolveRtBinary} from './mionVitePlugin.ts'
 // (deriveRuntypesTsconfig workaround removed — the resolver now ignores tsconfig project references itself)
 export type {MionPluginOptions, MionRunTypesOptions, MionServerOptions, MionServerMappersOptions} from './mionVitePlugin.ts';
 
+/** Paths middleware mode leaves to vite when the router has no basePath — extend it, don't replace
+ *  it, unless you know every vite-internal URL you are taking over. */
+export {DEFAULT_MIDDLEWARE_EXCLUDE} from './middlewareMode.ts';
+
 /** Vite plugin that writes {"type":"commonjs"} package.json in CJS output dirs */
 export {cjsPackageJsonPlugin} from './cjsPackageJsonPlugin.ts';

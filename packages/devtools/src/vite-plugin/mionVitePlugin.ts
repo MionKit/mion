@@ -10,6 +10,7 @@ import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {spawn, type ChildProcess} from 'node:child_process';
 import {createRequire} from 'node:module';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
+import {mionMiddlewarePlugin} from './middlewareMode.ts';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
 import type {Plugin, PluginOption} from 'vite';
 
@@ -86,21 +87,40 @@ export interface MionRunTypesOptions {
     jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
 }
 
-/** Managed mion server process (client test/e2e builds): spawned via vite-node so the
- *  server code gets its own vite pipeline (marker injection under its own tsconfig). */
+/** The mion server that backs a vite dev/test run — either mounted INSIDE the vite process
+ *  ('middleware', the default) or spawned beside it via vite-node ('childProcess'). */
 export interface MionServerOptions {
     /** Absolute path to the server entry script. */
     startScript: string;
-    /** Vite config used to transform the server (defaults to vite-node's lookup from cwd). */
+    /** Vite config used to transform the server (defaults to vite-node's lookup from cwd).
+     *  childProcess mode only — in middleware mode the entry rides THIS vite config's pipeline. */
     viteConfig?: string;
-    /** Only 'childProcess' is supported since the ts-runtypes migration (server keeps running).
-     *  'middleware' (in-process dev-server mode) warns and falls back — restoring it is tracked in
-     *  docs/todos/vite-plugin-ssr-middleware-mode.md. 'buildOnly' is gone: it WAS the AOT harvest mode. */
-    runMode?: 'childProcess' | 'middleware';
-    /** Max ms to wait for the server port to accept connections (default 30000). */
+    /** How the API runs (default 'middleware'):
+     *  - 'middleware': loaded in the SAME vite process through `ssrLoadModule` and mounted as
+     *    dev-server middleware. One process, one port, shared module graph — the idiomatic
+     *    Nuxt/SSR/fullstack setup, and the only mode where the API sees vite's SSR pipeline.
+     *  - 'childProcess': spawned beside vite with vite-node and awaited through `serverReady`
+     *    (port polling). Separate process and port — for e2e/client tests that need a real socket.
+     *  ('buildOnly' is gone: it WAS the AOT harvest mode, and AOT is gone.) */
+    runMode?: 'middleware' | 'childProcess';
+    /** Max ms to wait for the server port to accept connections (default 30000). childProcess only. */
     waitTimeout?: number;
-    /** Extra env vars for the server process (e.g. MION_TEST_PORT). */
+    /** Extra env vars for the server process (e.g. MION_TEST_PORT). childProcess only. */
     env?: Record<string, string>;
+    /** MIDDLEWARE mode: mount prefix for the API. Defaults to the router's own `basePath`, which is
+     *  what route paths already carry — set this only to mount somewhere else. With no basePath at
+     *  all mion serves at the root and `exclude` decides what reaches vite instead. */
+    basePath?: string;
+    /** MIDDLEWARE mode: platform adapter module to take the request handler from
+     *  (default '@mionjs/platform-node' — node-style, no Request is materialized). A fetch-style
+     *  adapter (e.g. '@mionjs/platform-bun') is bridged from node req/res automatically. */
+    platform?: string;
+    /** MIDDLEWARE mode + no basePath: paths NOT served by mion, so vite's own internals and static
+     *  assets still work. Defaults to DEFAULT_MIDDLEWARE_EXCLUDE. */
+    exclude?: RegExp[];
+    /** MIDDLEWARE mode: re-load the API when its sources change (default true). The reload resets
+     *  the router first, since `initMionRouter` refuses to run twice. */
+    hotReload?: boolean;
 }
 
 /** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
@@ -222,12 +242,6 @@ export function resolveRtBinary(explicit?: string): string | undefined {
 export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] {
     const rt = options.runTypes ?? {};
     assertNoRemovedOptions(options);
-    if (options.server && options.server.runMode && options.server.runMode !== 'childProcess') {
-        console.warn(
-            `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes ` +
-                `migration — only 'childProcess' exists; the managed server will be spawned as a child process.`
-        );
-    }
     // serverMapFrom harvest (CLIENT builds): consume the ts-runtypes pure-fn build report,
     // keep only sites attributed to @mionjs/client's serverMapFrom wrapper, and write the
     // manifest after every report phase ('build' replaces, 'update' merges the HMR delta).
@@ -320,14 +334,36 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
     if (options.server) {
         const server = options.server;
-        // Server startup is deferred to buildStart so only the project actually RUNNING
-        // spawns it (in vitest workspace mode every project config gets evaluated).
-        extraPlugins.unshift({
-            name: 'mion-server-orchestrator',
-            buildStart() {
-                startManagedServer(server);
-            },
-        } satisfies Plugin);
+        const runMode = server.runMode ?? 'middleware';
+        // Read through the union rather than trusting it: a plain vite.config.js still carrying
+        // 'buildOnly' would otherwise fall into the childProcess branch and silently spawn a server
+        // the config never asked for.
+        if (runMode !== 'middleware' && runMode !== 'childProcess') {
+            throw new Error(
+                `[mionVitePlugin] unknown server.runMode '${runMode}'. Use 'middleware' (default: the API runs inside ` +
+                    `the vite dev server) or 'childProcess' (spawned beside it for e2e). 'buildOnly' is gone — it WAS ` +
+                    `the AOT harvest mode, and AOT is gone.`
+            );
+        }
+        if (runMode === 'middleware') {
+            // In-process: the API is loaded through THIS vite server's SSR pipeline and mounted as
+            // dev-server middleware. Nothing is spawned, and nothing happens outside `vite dev`.
+            extraPlugins.unshift(
+                mionMiddlewarePlugin(server, {
+                    onReady: () => serverReadyResolve?.(),
+                    onError: (err) => serverReadyReject?.(err),
+                })
+            );
+        } else {
+            // Server startup is deferred to buildStart so only the project actually RUNNING
+            // spawns it (in vitest workspace mode every project config gets evaluated).
+            extraPlugins.unshift({
+                name: 'mion-server-orchestrator',
+                buildStart() {
+                    startManagedServer(server);
+                },
+            } satisfies Plugin);
+        }
     }
     return [...extraPlugins, plugins];
 }

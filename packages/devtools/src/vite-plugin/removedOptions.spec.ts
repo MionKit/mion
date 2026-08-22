@@ -50,11 +50,17 @@ describe('mionVitePlugin removed options', () => {
         expect(() => mionVitePlugin({aotCaches: undefined, runTypes: {exclude: undefined}} as never)).not.toThrow();
     });
 
-    it("still only WARNS on server.runMode 'middleware' — that mode is coming back", () => {
+    it("no longer warns on server.runMode 'middleware' — that mode is back, and is the default", () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'middleware'}})).not.toThrow();
-        expect(String(warn.mock.calls[0]?.[0])).toContain('middleware');
+        expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'childProcess'}})).not.toThrow();
+        expect(warn).not.toHaveBeenCalled();
         warn.mockRestore();
+    });
+
+    it("still rejects 'buildOnly' — it WAS the AOT harvest mode", () => {
+        // Typed configs get this from the union; the runtime half is what covers a plain vite.config.js.
+        expect(() => mionVitePlugin({server: {startScript: '/srv.ts', runMode: 'buildOnly'}} as never)).toThrow(/buildOnly/);
     });
 });
 
