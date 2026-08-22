@@ -104,6 +104,10 @@ GENERATED and gitignored: the specs rebuild their own in a vitest `globalSetup`,
 stale. Both set `emitMode: 'both'`, which edge runtimes require (see
 `docs/done/stale-test-server-edge-bundles.md`).
 
+Both build scripts run `buildTestBundle.ts` rather than `vite build` directly, so its
+`assertBuiltFromSource` guard — the bundle must inline sibling packages from source, never from a
+sibling `.dist` — covers every path that produces a bundle, not only the `globalSetup` one.
+
 The `.dist/` ESM library build is a separate, opt-in script:
 
 ```bash
