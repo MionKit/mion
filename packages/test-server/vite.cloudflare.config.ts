@@ -8,6 +8,21 @@ export default defineConfig({
         mionVitePlugin({
             runTypes: {
                 tsConfig: resolve(__dirname, 'tsconfig.json'),
+                // 'both' is REQUIRED for edge targets. The default 'code' ships each compiled fn
+                // as a source STRING that @ts-runtypes/core materializes with `new Function` on
+                // first use — and workerd / Vercel's EdgeVM refuse that ("Code generation from
+                // strings disallowed for this context"), so initMionRouter dies on the very first
+                // route. 'both' also emits the live factory, so nothing is compiled at runtime;
+                // the code string stays in the bundle because the methods-metadata route
+                // serializes it to mion clients.
+                emitMode: 'both',
+                // own genDir: the node lib build (vite.config.ts) and the two bundle builds share this
+                // package, and they DISAGREE on emitMode. One `__runtypes` for all three means the last
+                // writer wins — and when they run concurrently (vitest workspace) the bundle gets rolled
+                // up against another build's generated modules.
+                // NOT nested under `__runtypes`: that dir IS the node build's genDir, and RunTypes
+                // refuses to generate into a genDir holding entries it did not write.
+                genDir: resolve(__dirname, '__runtypes-cloudflare'),
             },
         }),
     ],

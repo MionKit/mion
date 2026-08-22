@@ -17,6 +17,8 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['src/**/*.spec.ts'],
+        // the workers bundle is GENERATED per run — never load a committed copy (it goes stale silently)
+        globalSetup: ['./globalSetup.ts'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],

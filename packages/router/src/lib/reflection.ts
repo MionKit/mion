@@ -37,6 +37,35 @@ export class MissingRtFnsError extends Error {
     }
 }
 
+/**
+ * Error thrown when the injected type information IS present but cannot be materialized because
+ * the host runtime forbids building functions from strings (workerd, Vercel's EdgeVM, any CSP
+ * without 'unsafe-eval'). This is a BUILD-CONFIG problem, not a missing-plugin one.
+ */
+export class RuntimeCodeGenBlockedError extends Error {
+    constructor(routeId: string, cause?: string) {
+        super(
+            `Route/middleFn "${routeId}" carries build-time type information, but this runtime forbids ` +
+                `compiling functions from strings.\n` +
+                `Build with \`mionVitePlugin({runTypes: {emitMode: 'both'}})\`: the default 'code' ships each ` +
+                `compiled fn as a source string that is turned into a function on first use, which edge ` +
+                `runtimes (Cloudflare Workers / workerd, Vercel Edge) refuse. 'both' also emits the live ` +
+                `factory, so nothing is compiled at runtime.` +
+                (cause ? `\nCause: ${cause}` : '')
+        );
+        this.name = 'RuntimeCodeGenBlockedError';
+    }
+}
+
+// workerd: "Code generation from strings disallowed for this context"; V8/EdgeVM with a CSP:
+// "Code generation from strings disallowed"/"unsafe-eval". Matched on the shared stem so both land.
+const CODE_GEN_BLOCKED = /code generation from strings|unsafe-eval/i;
+
+/** True when an error from the ts-runtypes runtime is a blocked `new Function`, not a missing payload. */
+function isCodeGenBlocked(message?: string): boolean {
+    return !!message && CODE_GEN_BLOCKED.test(message);
+}
+
 /** No-op since the ts-runtypes migration (kept so existing specs/utilities keep working). */
 export function resetRunTypesCache(): void {}
 
@@ -100,6 +129,7 @@ export async function getHandlerReflection(
             ? getHeadersReflectionFromMarkers(def.rtFns, def.handler, routeId)
             : getReflectionFromMarkers(def.rtFns, def.handler, routeId);
     } catch (error: any) {
+        if (isCodeGenBlocked(error?.message)) throw new RuntimeCodeGenBlockedError(routeId, error.message);
         throw new MissingRtFnsError(routeId, error?.message);
     }
 }
