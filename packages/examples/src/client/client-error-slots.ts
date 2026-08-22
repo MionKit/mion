@@ -1,17 +1,18 @@
 import {initClient} from '@mionjs/client';
-import type {UnexpectedError} from '@mionjs/client';
+import type {FatalError} from '@mionjs/client';
 import type {MyApi} from './server.routes.ts';
 
-const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
+const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
-// The result tuple is [result, error, unexpected, middleFnResults]:
+// The result tuple is [result, error, fatal, middleFnResults, middleFnErrors]:
 // - slot 1 (error) is the route's DECLARED errors | ValidationError - a CLOSED, strongly typed union
-// - slot 2 (unexpected) is anything the route did not declare - an OPEN RpcError<string>
-const [user, error, unexpected] = await routes.users.getById('USER-123').call();
+// - slot 2 (fatal) is anything NOBODY declared - an OPEN RpcError<string>
+// - slot 4 (middleFnErrors) is each middleFn's DECLARED errors, strongly typed by name
+const [user, error, fatal] = await routes.users.getById('USER-123').call();
 
 // slot 2 is open: transport/framework codes narrow with NO cast
-if (unexpected?.type === 'request-timeout') console.log('took too long');
-if (unexpected?.type === 'request-aborted') console.log('canceled');
+if (fatal?.type === 'request-timeout') console.log('took too long');
+if (fatal?.type === 'request-aborted') console.log('canceled');
 
 // slot 1 stays CLOSED: a transport code can never be part of the route's typed union
 // @ts-expect-error -- shown on purpose; the assertion fails the build if this ever stops erroring
@@ -40,9 +41,17 @@ if (user === undefined && error) {
 if (error?.type === 'user-not-found') console.log(error.errorData?.bogus);
 
 // slot 2's type is exported for signatures
-const lastFailure: UnexpectedError | undefined = unexpected;
+const lastFailure: FatalError | undefined = fatal;
 console.log(lastFailure?.publicMessage);
 
-// slot 2 is the unexpected error, NOT the middleFn record the old tuple kept there
-// @ts-expect-error -- an RpcError has no per-middleFn keys
-console.log(unexpected?.auth);
+// slot 4 is a typed record keyed by the names YOU passed - each middleFn's declared errors narrow
+const [, , , , middleFnErrors] = await routes.users.getById('USER-123').call({
+    middleFns: {auth: middleFns.auth({headers: {Authorization: 'Bearer token'}}, true)},
+});
+if (middleFnErrors?.auth?.type === 'not-authorized') {
+    // errorData is strongly typed as NotAuthorizedData
+    console.log('auth failed:', middleFnErrors.auth.errorData?.reason);
+}
+// only the middleFn names you passed exist on the record
+// @ts-expect-error -- no middleFn named `bogus` was passed to this call
+console.log(middleFnErrors?.bogus);

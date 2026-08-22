@@ -47,7 +47,7 @@ middleFns
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
-// call() returns 4-tuple: [routeResult, routeError, unexpected, middleFnsResults]
+// call() returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 const [user1, error1] = await routes.users.getById('USER-123').call();
 if (error1 && error1.type === 'user-not-found') {
     // error1.errorData is strongly typed as UserNotFoundData!
@@ -81,13 +81,12 @@ console.log(result); // Hello John Doe
 
 // ========== Example 5: Using call() with middleFns for per-request middleFns ==========
 // Use call({middleFns: {...}}) when you need to pass middleFns for a SINGLE request
-// Returns 4-tuple: [routeResult, routeError, unexpected, middleFnsResults]
+// Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 
 // Create a middleFn with temporary credentials for this specific request
 const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization: 'Bearer temp-token-ABC'}};
 
-// STRONGLY TYPED access to a middleFn's errors is via its onError handlers,
-// which register without prefilling (persistent, keyed by the middleFn id)
+// onError handlers register without prefilling (persistent, keyed by the middleFn id)
 const tempAuth = middleFns.auth(tempAuthHeaders, true);
 tempAuth.onError('not-authorized', (error) => {
     // error.errorData is strongly typed as NotAuthorizedData!
@@ -96,8 +95,8 @@ tempAuth.onError('not-authorized', (error) => {
     }
 });
 
-// call({middleFns: {...}}) takes a record of middleFns and returns a typed 4-tuple
-const [user4, routeError4, unexpected4, middleFnResults4] = await routes.users.getById('USER-123').call({
+// call({middleFns: {...}}) takes a record of middleFns and returns a typed 5-tuple
+const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').call({
     middleFns: {
         auth: tempAuth,
     },
@@ -106,35 +105,38 @@ const [user4, routeError4, unexpected4, middleFnResults4] = await routes.users.g
 if (routeError4?.type === 'user-not-found') {
     console.log('User not found:', routeError4.errorData?.requestedId);
 }
-// Anything the route did not declare (a middleFn error, transport, platform...) lands here, untyped
-if (unexpected4) {
-    console.log('Request failed:', unexpected4.type, unexpected4.publicMessage);
+// Each middleFn's DECLARED errors arrive by name, strongly typed - same data the handler above got
+if (middleFnErrors4?.auth?.type === 'not-authorized') {
+    console.log('Auth failed:', middleFnErrors4.auth.errorData?.reason);
+}
+// Anything NOBODY declared (transport, platform, an undeclared throw) lands here, untyped
+if (fatal4) {
+    console.log('Request failed:', fatal4.type, fatal4.publicMessage);
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
 if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.auth.userId);
 
 // ========== Example 6: Multiple MiddleFns with call({middleFns: {...}}) ==========
-// Pass multiple middleFns in the record - each gets its own typed result
-const [user5, , unexpected5, middleFnResults5] = await routes.users.getById('USER-123').call({
+// Pass multiple middleFns in the record - each gets its own typed result AND its own error slot
+const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').call({
     middleFns: {
         auth: middleFns.auth(tempAuthHeaders),
         // session: middleFns.session('session-token'), // If you have a session middleFn
     },
 });
-// The first failing middleFn surfaces in the unexpected slot; use onError handlers (see
-// Example 5) when you need each middleFn's errors independently and strongly typed
-if (unexpected5) {
-    console.log('Request failed:', unexpected5.publicMessage);
+// Handle each middleFn's errors independently - nothing is dropped when several fail
+if (middleFnErrors5?.auth) {
+    console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
 }
 // Access success data
 if (user5) console.log('User:', user5.name);
 console.log(middleFnResults5); // { auth: ... }
 
 // ========== Example 7: Using call() with async/await (recommended) ==========
-// call() returns 4-tuple: [routeResult, routeError, unexpected, middleFnsResults]
+// call() returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 // This is the standard pattern for all route calls
-// call() never throws - returns a 4-tuple
+// call() never throws - returns a 5-tuple
 // Partial destructuring still works for backward compatibility
 const [user6, error6] = await routes.users.getById('USER-999').call();
 if (error6) {

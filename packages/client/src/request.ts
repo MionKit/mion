@@ -232,12 +232,12 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         if (!(MION_ROUTES.platformError in deserialized)) return false;
         const platformError = deserialized[MION_ROUTES.platformError];
         Object.values(this.subRequestList).forEach((methodMeta) => (methodMeta.isResolved = true));
-        this.setUnexpectedError(CLIENT_REQUEST_ERROR_ID, platformError as RpcError<string>, errors);
+        this.setFatalError(CLIENT_REQUEST_ERROR_ID, platformError as RpcError<string>, errors);
         return true;
     }
 
-    /** Records an error as unexpected (thrown/undeclared) in the errors map */
-    private setUnexpectedError(id: string, error: RpcError<string>, errors: RequestErrors): void {
+    /** Records an error as fatal (thrown/undeclared) in the errors map */
+    private setFatalError(id: string, error: RpcError<string>, errors: RequestErrors): void {
         errors.set(id, error);
         this.thrownErrorIds.add(id);
     }
@@ -273,7 +273,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         Object.entries(deserialized).forEach(([id, value]) => {
             if (id === MION_ROUTES.thrownErrors) return;
             // an error for an id this request never asked for is nobody's declared response
-            if (!(id in this.subRequestList) && isRpcError(value)) this.setUnexpectedError(id, value, errors);
+            if (!(id in this.subRequestList) && isRpcError(value)) this.setFatalError(id, value, errors);
         });
     }
 
@@ -284,7 +284,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         const reason = this.signal?.aborted ? this.signal.reason : undefined;
         if (reason instanceof DOMException) {
             if (reason.name === 'TimeoutError') {
-                this.setUnexpectedError(
+                this.setFatalError(
                     CLIENT_REQUEST_ERROR_ID,
                     new RpcError({
                         type: 'request-timeout',
@@ -296,7 +296,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
                 return;
             }
             if (reason.name === 'AbortError') {
-                this.setUnexpectedError(
+                this.setFatalError(
                     CLIENT_REQUEST_ERROR_ID,
                     new RpcError({
                         type: 'request-aborted',
@@ -309,11 +309,11 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             }
         }
         if (isRpcError(error)) {
-            this.setUnexpectedError(CLIENT_REQUEST_ERROR_ID, error, errors);
+            this.setFatalError(CLIENT_REQUEST_ERROR_ID, error, errors);
             return;
         }
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
-        this.setUnexpectedError(
+        this.setFatalError(
             CLIENT_REQUEST_ERROR_ID,
             new RpcError({
                 type: error?.name || 'unknown-error',
@@ -340,7 +340,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
         const methodMeta = routesCache.getMetadata(this.requestId);
         if (!methodMeta) {
             if (errors) {
-                this.setUnexpectedError(
+                this.setFatalError(
                     this.requestId,
                     new RpcError({
                         type: 'route-metadata-not-found',
@@ -377,7 +377,7 @@ export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequests
             const methodMeta = routesCache.getMetadata(routeSubRequest.id);
             if (!methodMeta) {
                 if (errors) {
-                    this.setUnexpectedError(
+                    this.setFatalError(
                         routeSubRequest.id,
                         new RpcError({
                             type: 'route-metadata-not-found',
