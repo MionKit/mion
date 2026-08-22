@@ -72,16 +72,52 @@ code at runtime on the edge … no special AOT step is required."_
    bump would redden unrelated PRs.
 5. **Docs corrected** — the Cloudflare caution rewritten, a matching one added to the Vercel page, the
    `emitMode` line annotated in the devtools reference, and the plugin's own `emitMode` JSDoc expanded.
+6. **Resolution pinned to the `source` condition**, replacing the `resolve.alias` maps — see below.
 
-Verification: `rm -rf packages/test-server/build packages/test-server/__runtypes*` then `pnpm run test`
-→ 54 files / 748 tests, no skips (the 6 previously-skipped edge tests now run). Negative check: drop
-`emitMode: 'both'`, rebuild, `--project platform-vercel` fails with `RuntimeCodeGenBlockedError`
-naming the fix, not `MissingRtFnsError`.
+## A second, bigger bug the emitMode fix exposed: the bundles inlined `.dist`
+
+Both configs aliased each `@mionjs/*` to its package **directory**. An alias to a directory resolves
+through that package's `package.json`, so the moment a sibling `.dist` existed — i.e. for anyone who
+had run `pnpm run build` — the bundle silently inlined **built** output instead of source. That output
+is compiled with the default `emitMode: 'code'`, so its fns need `new Function`, and the whole
+emitMode fix above applied only to test-server's own three routes. Everything else in the bundle —
+all of `@mionjs/core` and `@mionjs/router` — went back to being un-runnable on the edge.
+
+It surfaced the first time the full suite ran _after_ a `pnpm run build` in the same tree: 174 modules
+in the edge bundle came from `core/.dist/esm/**`, and the edge specs failed with the very
+`RuntimeCodeGenBlockedError` added in point 3. Every green run before that was green only because
+`.dist` did not exist yet.
+
+Worth noting against the original spec, which listed _"`resolve.alias` vs the `source` condition —
+replacing the alias map with `resolve.conditions: ['source']` changes nothing"_ under **Ruled out**.
+That was true when it was measured, and wrong as a conclusion: it was measured in a tree with no
+`.dist`, which is the only state where the two are equivalent.
+
+Fixed by using `resolve: {conditions: ['source']}` + the matching `ssr` block, exactly like every
+other config in the repo — resolution no longer depends on whether anyone has built. Guarded by
+`assertBuiltFromSource` in `buildTestBundle.ts`, which reads the emitted sourcemap and fails the run
+if any `/.dist/` module was inlined. The specs alone were not enough of a guard: they only catch it for
+whoever happens to build first, which is the same ordering trap as everything else here. Verified by
+restoring the alias map — the guard fires with the offending module named.
+
+## Verification
+
+Both orderings, because order-independence is the actual property at stake:
+
+- clean tree (`rm -rf packages/*/.dist packages/test-server/build packages/test-server/__runtypes*
+packages/client/.mion`) → `pnpm run test` 57 files / 785 tests, no skips (the 6 previously-skipped
+  edge tests now run), and `pnpm run build` exits 0.
+- after a full `pnpm run build`, so every sibling `.dist` exists → `pnpm run test` green again. This is
+  the ordering that was red before point 6.
+
+Negative checks, both confirmed to fail as intended: dropping `emitMode: 'both'` makes
+`--project platform-vercel` fail with `RuntimeCodeGenBlockedError` naming the fix rather than
+`MissingRtFnsError`; restoring the alias map trips `assertBuiltFromSource`.
 
 ## Found on the way, NOT fixed here
 
-`pnpm run build` fails on a clean tree — see
-[pnpm-build-fails-on-clean-tree.md](../todos/pnpm-build-fails-on-clean-tree.md). Unrelated in cause, but its
-fix lands on the `serverMappers` build lane that
-[server-mappers-from-generated-pure-fn-cache.md](../todos/server-mappers-from-generated-pure-fn-cache.md) is
-currently rewriting, so it waits for that.
+`pnpm run build` failed on a clean tree — unrelated in cause, but its fix landed on the
+`serverMappers` build lane that
+[server-mappers-from-generated-pure-fn-cache.md](server-mappers-from-generated-pure-fn-cache.md) was
+rewriting at the time, so it waited for that to merge. Fixed in this same PR once it did — see
+[pnpm-build-fails-on-clean-tree.md](pnpm-build-fails-on-clean-tree.md).
