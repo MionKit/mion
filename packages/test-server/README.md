@@ -95,10 +95,26 @@ The `TestServerManager` class:
 ## Building
 
 ```bash
-npm run build -w @mionjs/test-server
+pnpm --filter @mionjs/test-server run build
 ```
 
-This compiles the servers with runtime type reflection, producing output in `.dist/`.
+`build` produces the two standalone runtime bundles under `build/` — `test-server-edge.js` and
+`test-server-cloudflare.js` — used by the platform-vercel and platform-cloudflare specs. Both are
+GENERATED and gitignored: the specs rebuild their own in a vitest `globalSetup`, so they cannot go
+stale. Both set `emitMode: 'both'`, which edge runtimes require (see
+`docs/done/stale-test-server-edge-bundles.md`).
+
+The `.dist/` ESM library build is a separate, opt-in script:
+
+```bash
+pnpm --filter @mionjs/test-server run build:lib
+```
+
+It is NOT part of `build`, because it consumes `packages/client/.mion/server-mappers.json` — an
+artifact only the client's **test** run writes — which made `pnpm run build` fail on a clean clone.
+Nothing consumes `.dist`: every workspace config resolves this package through its `source` export
+condition. Run `build:lib` only after the client suite has run. See
+`docs/done/pnpm-build-fails-on-clean-tree.md`.
 
 ## Important Notes
 

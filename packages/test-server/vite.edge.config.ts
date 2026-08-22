@@ -26,14 +26,14 @@ export default defineConfig({
             },
         }),
     ],
-    resolve: {
-        alias: {
-            '@mionjs/test-server': resolve(__dirname, '.'),
-            '@mionjs/core': resolve(__dirname, '../core'),
-            '@mionjs/router': resolve(__dirname, '../router'),
-            '@mionjs/platform-vercel': resolve(__dirname, '../platform-vercel'),
-        },
-    },
+    // `conditions: ['source']` — NOT a directory alias map. An alias to a package DIRECTORY
+    // resolves through its package.json, so the moment a `.dist` exists (anyone who ran
+    // `pnpm run build`) this bundle silently inlined BUILT output compiled with the default
+    // emitMode: 'code' — code-only fns that `new Function` on first use, which is exactly what
+    // this bundle must never contain. Pinning the source condition makes it independent of
+    // whether anyone has built, and matches every other config in the repo.
+    resolve: {conditions: ['source']},
+    ssr: {resolve: {conditions: ['source']}},
     build: {
         lib: {
             entry: resolve(__dirname, 'src/test-server-edge.ts'),
