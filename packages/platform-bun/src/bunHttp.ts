@@ -49,7 +49,87 @@ function applyBinaryOptions(binary: BinaryOptionsPatch): void {
     configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
-export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
+/** Dispatches one web Request through the router. Exported so the same handler mion serves can be
+ *  mounted in a host that owns the socket: your own `Bun.serve({fetch: bunRequestHandler})`, or a
+ *  vite dev server in middleware mode (see `asMiddleware`). */
+export async function bunRequestHandler(req: Request): Promise<Response> {
+    const reqUrl = req.url;
+    const pathStart = reqUrl.indexOf('/', 8);
+    const queryStart = reqUrl.indexOf('?', pathStart);
+    const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
+    const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
+    const contentType = req.headers.get('content-type') || '';
+    const isBinary = contentType.startsWith('application/octet-stream');
+    let rawBody: any = req.body
+        ? isBinary
+            ? await req.arrayBuffer()
+            : ((await req.json()) as Record<string, unknown>)
+        : undefined;
+    let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
+    const queryBody = decodeQueryBody(urlQuery, rawBody);
+    if (queryBody) {
+        rawBody = queryBody.rawBody;
+        reqBodyType = queryBody.bodyType;
+    }
+    const responseHeaders = new Headers(defaultHeaders);
+
+    try {
+        const platformResp = await dispatchRoute(
+            path,
+            rawBody,
+            req.headers,
+            responseHeaders,
+            req,
+            undefined,
+            reqBodyType,
+            urlQuery
+        );
+        return reply(platformResp, responseHeaders);
+    } catch (e) {
+        const error =
+            e instanceof RpcError
+                ? e
+                : new RpcError({
+                      publicMessage: 'Unknown Error',
+                      type: 'unknown-error',
+                      originalError: e as Error,
+                  });
+        return fatalFail(error, responseHeaders);
+    }
+}
+
+/** Bun's connection-level error hook (never a route error — those are handled in the dispatch). */
+function bunErrorHandler(errReq: Error): Response {
+    const responseHeaders = new Headers({
+        server: '@mionjs',
+        ...httpOptions.defaultResponseHeaders,
+    });
+    const error =
+        errReq instanceof RpcError
+            ? errReq
+            : new RpcError({
+                  publicMessage: 'Connection Error',
+                  type: 'response-connection-error',
+                  originalError: errReq,
+              });
+    return fatalFail(error, responseHeaders);
+}
+
+/** The platform config the router publishes: everything but Bun's native serve options. */
+function serializablePlatformConfig(): Record<string, unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {options: _nativeOpts, ...serializableConfig} = httpOptions;
+    return serializableConfig;
+}
+
+/** Starts the bun server. With `asMiddleware` it registers everything and returns UNDEFINED instead:
+ *  in that mode there is no server to hand back — the host owns the socket and mounts
+ *  `bunRequestHandler` itself. Typed through overloads so the ordinary call keeps returning a
+ *  `Server` (setting the flag through `setBunHttpOpts` instead of the argument is the plugin's own
+ *  path, where the return value is discarded). */
+export async function startBunServer(options: Partial<BunHttpOptions> & {asMiddleware: true}): Promise<undefined>;
+export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>>;
+export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any> | undefined> {
     const isTest = getENV('NODE_ENV') === 'test';
 
     if (options) setBunHttpOpts(options);
@@ -57,72 +137,20 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
+    // The host owns the socket: no Bun.serve(), and NO shutdown handlers — theirs calls
+    // process.exit(0), which in middleware mode would kill the host on a signal it already handles.
+    if (httpOptions.asMiddleware) {
+        if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
+        setPlatformConfig(serializablePlatformConfig());
+        return undefined;
+    }
     if (!isTest) console.log(`mion bun server running on ${url}`);
     const server = Bun.serve({
         maxRequestBodySize: httpOptions.maxBodySize,
         port: httpOptions.port,
         ...httpOptions.options,
-
-        async fetch(req) {
-            const reqUrl = req.url;
-            const pathStart = reqUrl.indexOf('/', 8);
-            const queryStart = reqUrl.indexOf('?', pathStart);
-            const path = queryStart === -1 ? reqUrl.slice(pathStart) : reqUrl.slice(pathStart, queryStart);
-            const urlQuery = queryStart === -1 ? undefined : reqUrl.slice(queryStart + 1);
-            const contentType = req.headers.get('content-type') || '';
-            const isBinary = contentType.startsWith('application/octet-stream');
-            let rawBody: any = req.body
-                ? isBinary
-                    ? await req.arrayBuffer()
-                    : ((await req.json()) as Record<string, unknown>)
-                : undefined;
-            let reqBodyType: SerializerCode = isBinary ? SerializerModes.binary : SerializerModes.json;
-            const queryBody = decodeQueryBody(urlQuery, rawBody);
-            if (queryBody) {
-                rawBody = queryBody.rawBody;
-                reqBodyType = queryBody.bodyType;
-            }
-            const responseHeaders = new Headers(defaultHeaders);
-
-            try {
-                const platformResp = await dispatchRoute(
-                    path,
-                    rawBody,
-                    req.headers,
-                    responseHeaders,
-                    req,
-                    undefined,
-                    reqBodyType,
-                    urlQuery
-                );
-                return reply(platformResp, responseHeaders);
-            } catch (e) {
-                const error =
-                    e instanceof RpcError
-                        ? e
-                        : new RpcError({
-                              publicMessage: 'Unknown Error',
-                              type: 'unknown-error',
-                              originalError: e as Error,
-                          });
-                return fatalFail(error, responseHeaders);
-            }
-        },
-        error(errReq) {
-            const responseHeaders = new Headers({
-                server: '@mionjs',
-                ...httpOptions.defaultResponseHeaders,
-            });
-            const error =
-                errReq instanceof RpcError
-                    ? errReq
-                    : new RpcError({
-                          publicMessage: 'Connection Error',
-                          type: 'response-connection-error',
-                          originalError: errReq,
-                      });
-            return fatalFail(error, responseHeaders);
-        },
+        fetch: bunRequestHandler,
+        error: bunErrorHandler,
     });
 
     const shutdownHandler = function () {
@@ -134,9 +162,7 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
     process.on('SIGINT', shutdownHandler);
     process.on('SIGTERM', shutdownHandler);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const {options: _nativeOpts, ...serializableConfig} = httpOptions;
-    setPlatformConfig(serializableConfig);
+    setPlatformConfig(serializablePlatformConfig());
 
     // Hint to Bun's GC after initialization to clean up any temporary allocations
     if (typeof Bun !== 'undefined' && Bun.gc) {
