@@ -13,6 +13,7 @@ export interface MionRunTypesOptions {
     patternSampleCount?: TsRuntypesPluginOptions['patternSampleCount'];
     patternSampleRetries?: TsRuntypesPluginOptions['patternSampleRetries'];
     jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
+    sfc?: boolean;
 }
 export interface MionServerOptions {
     startScript: string;
