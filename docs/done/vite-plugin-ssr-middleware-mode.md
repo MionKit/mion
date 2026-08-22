@@ -4,7 +4,7 @@
 (`feat(platform-node,platform-bun)!: asMiddleware` + `feat(devtools)!: restore runMode 'middleware'`).
 `middleware` is now the DEFAULT run mode; `buildOnly` stays gone. Sibling of R28 in
 [migration-review-findings.md](migration-review-findings.md) — its SSR half shipped here, its Vue-SFC
-half is split out to [../todos/vue-sfc-runtypes-transform.md](../todos/vue-sfc-runtypes-transform.md).
+half shipped alongside it — see [vue-sfc-runtypes-transform.md](vue-sfc-runtypes-transform.md).
 **Created:** 2026-07-21
 
 ## Problem (as filed)
@@ -116,11 +116,9 @@ by marking it handled at the declaration (`void serverReady.catch(() => {})`), w
 for real consumers, plus a regression test that drives the real plugin against a throwing entry. The
 childProcess lane carried the same hazard on a failed spawn.
 
-## Not shipped here
+## R28's other half also shipped
 
-The Vue-SFC transform half of R28 — typed mion code inside `.vue` `<script>` blocks is still silently
-untransformed. It cannot be fixed from mion: `@ts-runtypes/devtools` rejects non-TS ids in its
-transform hook and exposes no filter option, and its resolver is private to that plugin. Probing the
-resolver directly showed the ENGINE can already transform a virtual, not-in-program path, so this is
-a plugin-surface gap rather than an architectural limit — split out with the measurements into
-[../todos/vue-sfc-runtypes-transform.md](../todos/vue-sfc-runtypes-transform.md).
+The Vue-SFC transform was split out of this spec and then implemented in the same PR — typed mion
+code inside a `.vue` `<script>` is no longer silently untransformed. See
+[vue-sfc-runtypes-transform.md](vue-sfc-runtypes-transform.md), which also corrects this spec's
+claim that it was upstream-blocked. Nothing from R28 is outstanding.

@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 import { mionMiddlewarePlugin } from "./middlewareMode.js";
+import { mionSfcPlugins } from "./sfcTransform.js";
 let legacyBinEnvNoticeShown = false;
 const REMOVED_PLUGIN_OPTIONS = {
   aotCaches: "AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.",
@@ -103,6 +104,7 @@ function mionVitePlugin(options = {}) {
     });
   if (options.serverMappers?.consume)
     extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
+  extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false));
   if (options.server) {
     const server = options.server;
     const runMode = server.runMode ?? "middleware";
@@ -128,6 +130,15 @@ function mionVitePlugin(options = {}) {
     }
   }
   return [...extraPlugins, plugins];
+}
+function findRtPlugin(created) {
+  const queue = [created];
+  while (queue.length) {
+    const next = queue.shift();
+    if (Array.isArray(next)) queue.push(...next);
+    else if (typeof next?.transform === "function") return next;
+  }
+  return void 0;
 }
 function resolveManifestPath(emit) {
   if (!emit) return void 0;
