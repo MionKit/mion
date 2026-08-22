@@ -13,8 +13,8 @@
     "format": "prettier --write 'packages/**/*.{ts,md}'",
     "check-format": "prettier --check 'packages/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
-        "check-code-imports": "node scripts/check-code-imports.mjs",
-        "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
+    "check-code-imports": "node scripts/check-code-imports.mjs",
+    "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
     "lint": "lerna run lint",
     "lint:spec": "eslint --fix packages/**/*.spec.ts",
     "lint-pre-committ": "eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
@@ -69,6 +69,7 @@
     "@playwright/mcp": "0.0.56",
     "@types/aws-lambda": "8.10.161",
     "@types/node": "24.12.2",
+    "@vitejs/plugin-vue": "6.0.8",
     "eslint": "9.39.4",
     "husky": "9.1.7",
     "lerna": "9.0.7",
@@ -83,7 +84,8 @@
     "vite": "7.3.2",
     "vite-node": "5.3.0",
     "vite-plugin-dts": "4.5.4",
-    "vitest": "4.1.4"
+    "vitest": "4.1.4",
+    "vue": "3.5.40"
   },
   "dependencies": {
     "typescript": "6.0.2"

@@ -11,6 +11,7 @@ import {spawn, type ChildProcess} from 'node:child_process';
 import {createRequire} from 'node:module';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
+import {mionSfcPlugins} from './sfcTransform.ts';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
 import type {Plugin, PluginOption} from 'vite';
 
@@ -85,6 +86,12 @@ export interface MionRunTypesOptions {
      *  point at another runtime. When no runtime can be started the build fails closed
      *  with FMT004 rather than shipping unverified patterns. */
     jsRuntime?: TsRuntypesPluginOptions['jsRuntime'];
+    /** Transform typed mion code inside Vue SFC `<script>` blocks (default true). The script is
+     *  registered with the resolver under a virtual path next to the .vue file and injected before
+     *  @vitejs/plugin-vue compiles it — see sfcTransform.ts. Turn it off only to rule the SFC pass
+     *  out while debugging: with it off, a marker call inside an SFC gets no compiled fns and fails
+     *  at runtime. */
+    sfc?: boolean;
 }
 
 /** The mion server that backs a vite dev/test run — either mounted INSIDE the vite process
@@ -332,6 +339,10 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         } satisfies Plugin);
     if (options.serverMappers?.consume)
         extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
+    // Vue SFCs: the ts-runtypes plugin only transforms plain TS/JS ids, so an SFC's <script> needs
+    // to be handed to it under a virtual path. Wired off the SAME plugin instance — one resolver,
+    // one program, one generated tree.
+    extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false));
     if (options.server) {
         const server = options.server;
         const runMode = server.runMode ?? 'middleware';
@@ -366,6 +377,19 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         }
     }
     return [...extraPlugins, plugins];
+}
+
+/** The ts-runtypes plugin instance out of whatever `tsRuntypes()` returned (one plugin, or an
+ *  array of them). The SFC pass delegates to its transform, so it must be the very instance vite
+ *  runs — a second one would mean a second resolver process and a second program scan. */
+function findRtPlugin(created: unknown): Plugin | undefined {
+    const queue: unknown[] = [created];
+    while (queue.length) {
+        const next = queue.shift();
+        if (Array.isArray(next)) queue.push(...(next as unknown[]));
+        else if (typeof (next as Plugin | undefined)?.transform === 'function') return next as Plugin;
+    }
+    return undefined;
 }
 
 // ############# serverMapFrom manifest transport #############
