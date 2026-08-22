@@ -16,9 +16,55 @@ import {
   MODULE_MODE_ALL_SINGLE,
   RUNTYPES_BUNDLE_BASENAME,
   ENTRY_MODULE_PREFIX,
+  ENTRY_MODULE_SUFFIX,
+  MODULE_MODE_DEFAULT,
 } from '../src/go-generated/runtypes-constants.generated.ts';
 
 const register = hasBinary() ? it : it.skip;
+
+// One injected entry-module import: the module BASENAME the rewrite pointed at
+// and the binding names it pulled from there.
+interface InjectedImport {
+  basename: string;
+  bindings: string[];
+}
+
+/** Parses the rewrite's injected import block for `rtmod:` entry-module imports. **/
+function injectedEntryImports(out: string): InjectedImport[] {
+  const found: InjectedImport[] = [];
+  for (const match of out.matchAll(/import\s*\{([^}]*)\}\s*from\s*'([^']+)'/g)) {
+    const specifier = match[2];
+    if (!specifier.startsWith(ENTRY_MODULE_PREFIX)) continue;
+    const basename = specifier.slice(ENTRY_MODULE_PREFIX.length, -ENTRY_MODULE_SUFFIX.length);
+    const bindings = match[1]
+      .split(',')
+      .map((binding) => binding.trim())
+      .filter(Boolean);
+    found.push({basename, bindings});
+  }
+  return found;
+}
+
+// The invariant every moduleMode owes: a binding is never imported from a
+// module that does not export it. Unresolvable names fail unreadably downstream
+// — rollup reports an empty error thousands of columns into the single-line
+// import block, and esbuild / vite-node do not check at all, so the binding is
+// silently `undefined` at runtime.
+async function expectEveryImportResolves(client: ResolverClient, file: string, out: string): Promise<void> {
+  const scan = await client.scanFiles([file], {includeEntryModules: true});
+  const modules = scan.entryModules ?? {};
+  const imports = injectedEntryImports(out);
+  expect(imports.length, 'the rewrite injected no entry-module imports').toBeGreaterThan(0);
+  for (const {basename, bindings} of imports) {
+    const source = modules[basename];
+    expect(source, `the rewrite imports from '${basename}', which the build did not emit`).toBeDefined();
+    for (const binding of bindings) {
+      expect(source, `'${binding}' is imported from '${basename}', which does not export it`).toContain(
+        `export const ${binding}=`
+      );
+    }
+  }
+}
 
 async function withModeClient<T>(
   mode: string,
@@ -145,6 +191,77 @@ export const d = getRunTypeId<D>();
       expect(registry[rootId]).toBeDefined();
     });
   });
+
+  // A MULTI-FUNCTION site: the real createStandardSchema<T>() carries
+  // `InjectTypeFnArgs<T, 'val', 'verr', 'jsonSchema'>`, so ONE call injects
+  // bindings for THREE families — which under allSingle live in three
+  // DIFFERENT `fns/<family>` bundles. The rewrite must therefore emit three
+  // imports, one per bundle. Regression cover for the allSingle import
+  // grouping bug (docs/todos/allsingle-multifn-import-grouping.md), reported
+  // downstream by mion.
+  register('allSingle multi-fn: each binding is imported from the family bundle that EXPORTS it', async () => {
+    const code = `import {createStandardSchema} from '@ts-runtypes/core';
+interface User { id: string; name: string }
+export const schema = createStandardSchema<User>();
+`;
+    await withModeClient(MODULE_MODE_ALL_SINGLE, {'schema.ts': code}, async (client) => {
+      const {code: out, sites} = await rewrite('schema.ts', code, client);
+      const site = sites.find((candidate) => (candidate.fnIds?.length ?? 0) > 1);
+      expect(site, 'createStandardSchema must yield a multi-function site').toBeDefined();
+      expect(site!.fnIds!.length).toBeGreaterThan(1);
+
+      await expectEveryImportResolves(client, 'schema.ts', out);
+
+      // The bindings span several families, so they cannot all ride one bundle.
+      const bundles = new Set(
+        injectedEntryImports(out)
+          .map((entry) => entry.basename)
+          .filter((basename) => basename.startsWith(`${FNS_BUNDLE_DIR}/`))
+      );
+      expect(bundles.size, `expected one import per family bundle, got ${[...bundles].join(', ')}`).toBe(site!.fnIds!.length);
+    });
+  });
+
+  // Same invariant, both getRunTypeId call shapes (marker coverage rule): the
+  // static form supplies T, the reflection form infers it from a value.
+  register('allSingle static: getRunTypeId<T>() imports resolve against the emitted modules', async () => {
+    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+type Account = {ref: string; total: number};
+export const staticId = getRunTypeId<Account>();
+`;
+    await withModeClient(MODULE_MODE_ALL_SINGLE, {'account.ts': code}, async (client) => {
+      const {code: out} = await rewrite('account.ts', code, client);
+      await expectEveryImportResolves(client, 'account.ts', out);
+    });
+  });
+
+  register('allSingle reflect: getRunTypeId(value) imports resolve against the emitted modules', async () => {
+    const code = `import {getRunTypeId} from '@ts-runtypes/core';
+type Account = {ref: string; total: number};
+const account: Account = {ref: 'a', total: 1};
+export const reflectedId = getRunTypeId(account);
+`;
+    await withModeClient(MODULE_MODE_ALL_SINGLE, {'account-reflect.ts': code}, async (client) => {
+      const {code: out} = await rewrite('account-reflect.ts', code, client);
+      await expectEveryImportResolves(client, 'account-reflect.ts', out);
+    });
+  });
+
+  // The invariant is mode-independent: default and allModules must hold it too
+  // (they do today — this pins them so a future grouping change cannot regress
+  // them the way allSingle did).
+  for (const mode of [MODULE_MODE_DEFAULT, MODULE_MODE_ALL_MODULES]) {
+    register(`${mode} multi-fn: each binding is imported from the module that EXPORTS it`, async () => {
+      const code = `import {createStandardSchema} from '@ts-runtypes/core';
+interface Order { sku: string; qty: number }
+export const schema = createStandardSchema<Order>();
+`;
+      await withModeClient(mode, {'order.ts': code}, async (client) => {
+        const {code: out} = await rewrite('order.ts', code, client);
+        await expectEveryImportResolves(client, 'order.ts', out);
+      });
+    });
+  }
 
   register('allModules static: getRunTypeId<T>() imports a per-node module (kind 0) with child imports', async () => {
     const code = `import {getRunTypeId} from '@ts-runtypes/core';
