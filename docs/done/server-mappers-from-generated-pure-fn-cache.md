@@ -48,9 +48,10 @@ The pure-fn report already carries the module path, so nothing assumes a `pf/<ns
 | `allSingle` | `types/pf.js` | `pf` | 8 |
 
 `<genDir>/types/${site.module}.js` is correct in both, and the harvest was verified under `allSingle`
-to write `types/pf.js` into the manifest. **End-to-end verification under `allSingle` is blocked**: no
-route registers at all in that mode, because upstream injects 1 of 9 compiled fns per marker — a
-pre-existing bug this work uncovered, filed as
+to write `types/pf.js` into the manifest. **End-to-end verification under `allSingle` is blocked**:
+that mode does not build at all, because it emits an import for only the first of its nine per-family
+fn modules while referencing bindings from all nine — a pre-existing upstream bug this work uncovered,
+recorded in
 [module-mode-allsingle-broken.md](module-mode-allsingle-broken.md). The transport's
 handling of the mode is therefore correct-by-construction and unit-tested, not proven in a running
 server.
