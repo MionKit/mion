@@ -1,8 +1,11 @@
 # `moduleMode: 'allSingle'` emits an import for 1 of its 9 fn modules, so most bindings resolve to nothing
 
-**Status:** done — the mode is rejected at config time. The defect is upstream's
-(@ts-runtypes/devtools@0.12.1) and stays theirs; nothing is owed here. Pre-existing, not caused by the
-server-mapper transport work; found while verifying that transport against every module mode
+**Status:** done — the mode is rejected at config time, which is the whole mion-side remedy. The defect
+itself is upstream's (@ts-runtypes/devtools@0.12.1); reporting it and removing the guard once a fixed
+version ships is tracked in
+[../todos/upstream-allsingle-import-grouping.md](../todos/upstream-allsingle-import-grouping.md).
+Pre-existing, not caused by the server-mapper transport work; found while verifying that transport
+against every module mode
 ([server-mappers-from-generated-pure-fn-cache.md](server-mappers-from-generated-pure-fn-cache.md)).
 **Created:** 2026-08-22 · **Shipped:** 2026-08-22
 
@@ -69,7 +72,9 @@ Relaxing the check would silently substitute identity fallbacks for validation a
 pins that `'default'` and `'allModules'` still pass.
 
 **If upstream fixes the transform, delete the guard — that is the whole remedy**, and this record is
-the reason it exists.
+the reason it exists. Reporting it and doing that removal is tracked in
+[../todos/upstream-allsingle-import-grouping.md](../todos/upstream-allsingle-import-grouping.md),
+which carries the report body ready to paste.
 
 Rejected alternative, recorded so it is not re-attempted: mion could import all of `types/fns/*.js`
 itself when `allSingle` is set, so the bindings resolve. It pulls every compiled fn in the program
@@ -91,6 +96,8 @@ To see the mismatch directly, add a `transform` hook after `mionVitePlugin` that
 
 ## Upstream report
 
-A marker requesting N fn families must import from every family module that holds them. `allSingle`
-currently emits one import for `fns/val.js` and references bindings from all nine family modules; the
-other eight are never imported. `default` and `allModules` are unaffected.
+Written up ready to file in
+[../todos/upstream-allsingle-import-grouping.md](../todos/upstream-allsingle-import-grouping.md), with
+the `default`-vs-`allSingle` generated code side by side. In one line: emitted bindings must be grouped
+by the family module that holds them, one import per group — `allSingle` emits a single import for
+`fns/val.js` while referencing bindings from all nine family modules.
