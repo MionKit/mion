@@ -6,10 +6,14 @@
  * ######## */
 
 import {describe, expect, it, beforeEach} from 'vitest';
-import {configureSizeStats, observationCount, predictSize, recordSize, resetSizeStats} from './sizeStats.ts';
+import {observationCount, predictSize, recordSize, resetSizeStats} from './sizeStats.ts';
+import {configureBinary, resetBinaryOptions} from './options.ts';
 
 describe('binary sizeStats', () => {
-    beforeEach(() => resetSizeStats());
+    beforeEach(() => {
+        resetSizeStats();
+        resetBinaryOptions();
+    });
 
     it('falls back to the given cold-start size (padded) until the key is observed', () => {
         expect(observationCount('cold', true)).toBe(0);
@@ -31,7 +35,7 @@ describe('binary sizeStats', () => {
     });
 
     it('honours the quantile it is given', () => {
-        configureSizeStats({ringSize: 10});
+        configureBinary({sizeStats: {ringSize: 10}});
         for (let i = 1; i <= 10; i++) recordSize('q', i * 100, true);
         expect(predictSize('q', true, 0, 1, 0)).toBe(100);
         expect(predictSize('q', true, 0.5, 1, 0)).toBe(600);
@@ -44,7 +48,7 @@ describe('binary sizeStats', () => {
     });
 
     it('ages a regime shift out within the ring window', () => {
-        configureSizeStats({ringSize: 8});
+        configureBinary({sizeStats: {ringSize: 8}});
         for (let i = 0; i < 8; i++) recordSize('shift', 10, true);
         expect(predictSize('shift', true, 0.9, 1, 0)).toBe(10);
 
@@ -54,7 +58,7 @@ describe('binary sizeStats', () => {
     });
 
     it('caps observations at the ring size', () => {
-        configureSizeStats({ringSize: 4});
+        configureBinary({sizeStats: {ringSize: 4}});
         for (let i = 0; i < 50; i++) recordSize('cap', 1, true);
         expect(observationCount('cap', true)).toBe(4);
     });
@@ -72,7 +76,7 @@ describe('binary sizeStats', () => {
     it('keeps the window ordered through wrap-around, for every quantile', () => {
         // the sorted view is maintained on insert (no per-call sort), so eviction has to remove the
         // value that actually aged out — cross-checked against the naive implementation
-        configureSizeStats({ringSize: 16});
+        configureBinary({sizeStats: {ringSize: 16}});
         const seen: number[] = [];
         let seed = 7;
         for (let i = 0; i < 200; i++) {
@@ -89,7 +93,7 @@ describe('binary sizeStats', () => {
     });
 
     it('evicts keys once the cap is hit, without throwing', () => {
-        configureSizeStats({maxKeys: 10});
+        configureBinary({sizeStats: {maxKeys: 10}});
         for (let i = 0; i < 40; i++) recordSize(`route-${i}`, 100, true);
         expect(stats_size()).toBeLessThanOrEqual(10);
         // the most recent key survives and still predicts

@@ -118,8 +118,9 @@ And where that is not good enough, the measure pass gives the exact count with n
 - **mion no longer exposes upstream's serialization config.** `setSerializationOptions` was removed as
   unused in `b3e585c` (E7 of the redesign record). `defaultBufferSize` / `sizeMultiplier` are indeed
   inert for mion — it always passes an explicit size — but `maxStrCacheLength` / `maxCacheSize` still
-  govern the string bytes cache, and through it whether a string write reserves exactly or 3x. See
-  [expose-string-cache-config.md](../todos/expose-string-cache-config.md).
+  govern the string bytes cache, and through it whether a string write reserves exactly or 3x. FIXED
+  in the same PR: they are inherited by the single options object, see
+  [binary-options-single-object.md](binary-options-single-object.md).
 
 ## Cleared during the same review (recorded so nobody re-checks)
 

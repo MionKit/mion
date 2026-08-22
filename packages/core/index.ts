@@ -33,6 +33,7 @@ if (__mionLoadCounter.count > 1 && typeof process !== 'undefined' && !process.en
 export * from './src/types/general.types.ts';
 export * from './src/types/method.types.ts';
 export * from './src/types/pureFunctions.types.ts';
+export * from './src/binary/options.ts';
 export * from './src/binary/dataView.ts';
 export * from './src/binary/bufferPool.ts';
 export * from './src/binary/sizeStats.ts';

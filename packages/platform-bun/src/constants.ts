@@ -16,5 +16,5 @@ export const DEFAULT_BUN_HTTP_OPTIONS: BunHttpOptions = {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: 256000, // 256KB
-    binaryBufferPool: {},
+    binary: {},
 };

@@ -25,6 +25,7 @@
 // same method id — and a single process can write both (a mion client inside a mion server) — so
 // each direction keeps its own key space.
 
+import {getBinaryOptions} from './options.ts';
 import {getOrCreateGlobal} from '../utils.ts';
 
 /** Recent observed sizes for one key. `ring` holds the last `ring.length` observations in ARRIVAL
@@ -40,27 +41,16 @@ interface SizeStats {
     idx: number;
 }
 
-export interface SizeStatsConfig {
-    /** observations retained per key. Larger = steadier quantiles, slower to follow a regime shift. */
-    ringSize: number;
-    /** hard cap on tracked keys per direction; oldest-inserted are dropped first (FILO, as routesFlow's chain cache) */
-    maxKeys: number;
-}
-
-const DEFAULTS: SizeStatsConfig = {ringSize: 64, maxKeys: 500};
-
 interface SizeStatsState {
-    config: SizeStatsConfig;
     /** response-return sizes, keyed by method id */
     res: Map<string, SizeStats>;
     /** request-param sizes, keyed by method id */
     req: Map<string, SizeStats>;
 }
 
-// process-wide singleton: `configureSizeStats` and the serializer must land on the same state even
-// under a dual load of @mionjs/core (see docs/done/virtual-module-retired-and-dual-core-load.md)
+// process-wide singleton: every copy of @mionjs/core under a dual load must record into the same
+// rings the serializer reads (see docs/done/virtual-module-retired-and-dual-core-load.md)
 const state = getOrCreateGlobal<SizeStatsState>('mion.core.binary.sizeStats', () => ({
-    config: {...DEFAULTS},
     res: new Map<string, SizeStats>(),
     req: new Map<string, SizeStats>(),
 }));
@@ -70,22 +60,11 @@ function statsFor(isResponse: boolean): Map<string, SizeStats> {
     return isResponse ? state.res : state.req;
 }
 
-/** Patches the statistics config. Resets tracked keys when the ring size changes, since existing
- *  rings are sized to the old value. */
-export function configureSizeStats(patch: Partial<SizeStatsConfig>): void {
-    const ringChanged = patch.ringSize !== undefined && patch.ringSize !== state.config.ringSize;
-    state.config = {...state.config, ...patch};
-    if (ringChanged) {
-        state.res.clear();
-        state.req.clear();
-    }
-}
-
-/** Drops all tracked sizes. For tests and for tenant teardown. */
+/** Drops all tracked sizes. For tests and for tenant teardown; the OPTIONS are reset separately
+ *  through `resetBinaryOptions`. */
 export function resetSizeStats(): void {
     state.res.clear();
     state.req.clear();
-    state.config = {...DEFAULTS};
 }
 
 /** How many observations a key has, in the given direction. */
@@ -95,13 +74,16 @@ export function observationCount(key: string, isResponse: boolean): number {
 
 /** Records one observed payload size for a method, in the given direction. */
 export function recordSize(key: string, bytes: number, isResponse: boolean): void {
+    const {ringSize, maxKeys} = getBinaryOptions().sizeStats;
     const stats = statsFor(isResponse);
     let entry = stats.get(key);
+    // A ring sized to a since-changed `ringSize` is rebuilt rather than read at the wrong length, so
+    // the statistics heal themselves whenever the options change, from wherever they change.
+    if (entry !== undefined && entry.ring.length !== ringSize) entry = undefined;
     if (entry === undefined) {
         // Binary serialization only runs on a MATCHED route, so the key space is bounded by the
         // route table. The cap is a backstop against that invariant breaking, not a working limit.
-        if (stats.size >= state.config.maxKeys) evictOldest(stats);
-        const ringSize = state.config.ringSize;
+        if (stats.size >= maxKeys) evictOldest(stats);
         entry = {ring: new Float64Array(ringSize), sorted: new Float64Array(ringSize), count: 0, idx: 0};
         stats.set(key, entry);
     }

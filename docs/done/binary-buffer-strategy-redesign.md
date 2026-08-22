@@ -99,7 +99,8 @@ at its own proven-safe point:
 | gcloud | immediately — `Buffer.from` already copied | no |
 | vercel / cloudflare | immediately | no |
 
-Pooling is enabled per-platform (`binaryBufferPool` on `NodeHttpOptions` / `BunHttpOptions`) rather
+Pooling is enabled per-platform (`binaryBufferPool` on `NodeHttpOptions` / `BunHttpOptions`; since
+[binary-options-single-object.md](binary-options-single-object.md) it is `binary: {pool: {...}}`) rather
 than via `RouterOptions`, because the router is initialised separately from the server and only the
 platform knows whether its release point is safe.
 
