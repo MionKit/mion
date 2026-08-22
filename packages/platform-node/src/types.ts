@@ -22,9 +22,10 @@ export interface NodeHttpOptions {
      * */
     maxBodySize: number; // default 256KB
     /**
-     * Binary response buffer pooling. Enabled by default on this platform: node's 'finish'/'close'
-     * events give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
-     * allocating one per request. Pass `false` to disable, or an object to tune the size classes.
+     * Binary serialization options: buffer pooling, response-size statistics, and the ts-runtypes
+     * string cache. Pooling is armed by default on this platform — node's 'finish'/'close' events
+     * give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
+     * allocating one per request. Turn it off with `{pool: {enabled: false}}`.
      */
     binary: BinaryOptionsPatch;
 }
