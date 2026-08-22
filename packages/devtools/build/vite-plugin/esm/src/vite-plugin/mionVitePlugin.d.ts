@@ -17,9 +17,13 @@ export interface MionRunTypesOptions {
 export interface MionServerOptions {
     startScript: string;
     viteConfig?: string;
-    runMode?: 'childProcess' | 'middleware';
+    runMode?: 'middleware' | 'childProcess';
     waitTimeout?: number;
     env?: Record<string, string>;
+    basePath?: string;
+    platform?: string;
+    exclude?: RegExp[];
+    hotReload?: boolean;
 }
 export interface MionServerMappersOptions {
     emit?: boolean | string;

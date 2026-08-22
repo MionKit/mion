@@ -1,8 +1,9 @@
 import path from "node:path";
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
+import { mionMiddlewarePlugin } from "./middlewareMode.js";
 let legacyBinEnvNoticeShown = false;
 const REMOVED_PLUGIN_OPTIONS = {
   aotCaches: "AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.",
@@ -44,11 +45,6 @@ function resolveRtBinary(explicit) {
 function mionVitePlugin(options = {}) {
   const rt = options.runTypes ?? {};
   assertNoRemovedOptions(options);
-  if (options.server && options.server.runMode && options.server.runMode !== "childProcess") {
-    console.warn(
-      `[mionVitePlugin] server.runMode '${options.server.runMode}' is not supported since the ts-runtypes migration — only 'childProcess' exists; the managed server will be spawned as a child process.`
-    );
-  }
   const manifestPath = resolveManifestPath(options.serverMappers?.emit);
   const harvestedMappers = /* @__PURE__ */ new Map();
   let viteRoot = "";
@@ -109,12 +105,21 @@ function mionVitePlugin(options = {}) {
     extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
   if (options.server) {
     const server = options.server;
-    extraPlugins.unshift({
-      name: "mion-server-orchestrator",
-      buildStart() {
-        startManagedServer(server);
-      }
-    });
+    if ((server.runMode ?? "middleware") === "middleware") {
+      extraPlugins.unshift(
+        mionMiddlewarePlugin(server, {
+          onReady: () => serverReadyResolve?.(),
+          onError: (err) => serverReadyReject?.(err)
+        })
+      );
+    } else {
+      extraPlugins.unshift({
+        name: "mion-server-orchestrator",
+        buildStart() {
+          startManagedServer(server);
+        }
+      });
+    }
   }
   return [...extraPlugins, plugins];
 }
