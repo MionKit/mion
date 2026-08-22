@@ -45,7 +45,7 @@ export function routesFlow<Routes extends RouteSubRequest<any>[]>(routeSubReques
     return {
         async call(setup?: {middleFns?: Record<string, MiddlewareSubRequest<any>>; signal?: AbortSignal; timeout?: number}) {
             const middleFns = setup?.middleFns ?? {};
-            const [results, errors, unexpected, middleFnResults] = await client.execute(
+            const [results, errors, fatal, middleFnResults, middleFnErrors] = await client.execute(
                 undefined,
                 routeSubRequests as any,
                 middleFns as any,
@@ -54,7 +54,7 @@ export function routesFlow<Routes extends RouteSubRequest<any>[]>(routeSubReques
             );
             const emptyResults = routeSubRequests.map(() => undefined);
             const emptyErrors = routeSubRequests.map(() => undefined);
-            return [results ?? emptyResults, errors ?? emptyErrors, unexpected, middleFnResults] as any;
+            return [results ?? emptyResults, errors ?? emptyErrors, fatal, middleFnResults, middleFnErrors] as any;
         },
     };
 }

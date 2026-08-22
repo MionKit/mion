@@ -117,7 +117,7 @@ export class MionClient {
             return this.buildResult(
                 routeSubRequest,
                 workflowSubRequests,
-                middleFnsRecord || allMiddleFns,
+                this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
                 undefined,
                 request.thrownErrorIds
             );
@@ -128,11 +128,24 @@ export class MionClient {
             return this.buildResult(
                 routeSubRequest,
                 workflowSubRequests,
-                middleFnsRecord || allMiddleFns,
+                this.mergeMiddleFns(middleFnsRecord, allMiddleFns),
                 errors,
                 request.thrownErrorIds
             );
         }
+    }
+
+    /** Named record entries keep their names; middleFns that took part in the request but are not in the
+     * record (restored prefills) are added under their id, so their results/errors are never dropped */
+    private mergeMiddleFns(
+        middleFnsRecord: Record<string, MiddlewareSubRequest<any>> | undefined,
+        allMiddleFns: MiddlewareSubRequest<any>[]
+    ): Record<string, MiddlewareSubRequest<any>> | MiddlewareSubRequest<any>[] {
+        if (!middleFnsRecord) return allMiddleFns;
+        const recordIds = new Set(Object.values(middleFnsRecord).map((middleFn) => middleFn.id));
+        const merged: Record<string, MiddlewareSubRequest<any>> = {...middleFnsRecord};
+        for (const middleFn of allMiddleFns) if (!recordIds.has(middleFn.id)) merged[middleFn.id] = middleFn;
+        return merged;
     }
 
     /** Get route IDs from single route or routesFlow routes */
@@ -174,11 +187,13 @@ export class MionClient {
         }
     }
 
-    /** Build the result 4-tuple [result, error, unexpected, middleFnResults] per the dispatch contract:
+    /** Build the result 5-tuple [result, error, fatal, middleFnResults, middleFnErrors] per the dispatch contract:
      * - slot 1 gets ONLY the route's own declared errors | ValidationError (thrown route errors do not qualify)
-     * - slot 2 (unexpected) gets everything the route did not declare: middleFn errors, the route's own
-     *   thrown errors, and request-scoped transport/platform/framework errors. When several exist it holds
-     *   the first in execution order (middleFns run before the route)
+     * - slot 4 gets each middleFn's DECLARED errors | ValidationError, keyed by name - one entry per middleFn,
+     *   so no information is lost when several fail
+     * - slot 2 (fatal) gets what NOBODY declared: a thrown/undeclared error (route or middleFn), request-scoped
+     *   transport/platform/framework errors, and errors for middleFns that were not part of this request. When
+     *   several exist it holds the first in execution order (middleFns run before the route)
      * - slot 0 keeps the route result whatever else failed; no error ever crosses into another slot */
     private buildResult<Routes extends RouteSubRequest<any>[], H extends Record<string, MiddlewareSubRequest<any>>>(
         routeSubRequest: RouteSubRequest<any> | undefined,
@@ -216,7 +231,8 @@ export class MionClient {
         routeIds.forEach((id) => processedIds.add(id));
 
         // middleFns can be a named record (from callWithMiddleFns/routesFlow) or an array (from executeCall)
-        let unexpectedPart: RpcError<string> | undefined;
+        const middleFnsErrors = {} as Record<string, any>;
+        let fatalPart: RpcError<string> | undefined;
         const middleFnEntries: [string, MiddlewareSubRequest<any>][] = Array.isArray(middleFns)
             ? middleFns.map((middleFn) => [middleFn.id, middleFn])
             : Object.entries(middleFns);
@@ -224,31 +240,37 @@ export class MionClient {
             processedIds.add(middleFn.id);
             if (middleFn.resolvedValue !== undefined) middleFnsResults[name] = middleFn.resolvedValue;
             const middleFnError = errors?.get(middleFn.id);
-            if (middleFnError && unexpectedPart === undefined) unexpectedPart = middleFnError;
+            if (!middleFnError) continue;
+            if (thrownErrorIds.has(middleFn.id)) {
+                // a middleFn's thrown/undeclared error is fatal - its typed record cannot carry it
+                if (fatalPart === undefined) fatalPart = middleFnError;
+            } else {
+                middleFnsErrors[name] = middleFnError;
+            }
         }
 
-        if (errors && unexpectedPart === undefined) {
+        if (errors && fatalPart === undefined) {
             // the route's own thrown/undeclared error
             for (const id of routeIds) {
                 const routeThrownError = errors.get(id);
                 if (routeThrownError && thrownErrorIds.has(id)) {
-                    unexpectedPart = routeThrownError;
+                    fatalPart = routeThrownError;
                     break;
                 }
             }
         }
-        if (errors && unexpectedPart === undefined) {
-            // request-scoped errors (transport, platform, framework) and errors from ids outside this
-            // request (restored prefilled middleFns, foreign response entries)
+        if (errors && fatalPart === undefined) {
+            // request-scoped errors (transport, platform, framework) and errors keyed to ids that were
+            // not part of this request (e.g. a required middleFn the caller never sent)
             for (const [id, error] of errors) {
                 if (!processedIds.has(id)) {
-                    unexpectedPart = error;
+                    fatalPart = error;
                     break;
                 }
             }
         }
 
-        return [routeResultPart, routeErrorPart, unexpectedPart, middleFnsResults] as any;
+        return [routeResultPart, routeErrorPart, fatalPart, middleFnsResults, middleFnsErrors] as any;
     }
 
     typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {

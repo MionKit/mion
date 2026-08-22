@@ -10,21 +10,27 @@ import type {CoreRouterOptions, Prettify, RunTypeError, SerializerMode, Validati
 import type {PublicHeadersFn, PublicMiddleFn, RemoteApi, PublicRoute} from '@mionjs/router';
 import type {TypedEvent} from './lib/typedEvent.ts';
 
-// type-unexpected-error-start
-/** Any error not declared by the route: a middleFn's error, transport, platform, framework, or an
- * undeclared throw. Open by nature, the code can be anything. Typed access to a middleFn's declared
- * errors is via its onError listeners. **/
-export type UnexpectedError = RpcError<string>;
-// type-unexpected-error-end
+// type-fatal-error-start
+/** Any error that is not part of a declared response: transport, platform, framework, or an
+ * undeclared throw (a middleFn's DECLARED errors are not fatal - they land in the middleFnErrors
+ * record and its onError listeners). Open by nature, the code can be anything. **/
+export type FatalError = RpcError<string>;
+// type-fatal-error-end
 
 // type-result-start
-/** Result type for call() - 4-tuple pattern:
- * [routeResult, routeError (declared | ValidationError), unexpected, middleFnResults] **/
-export type Result<RouteSuccess, RouteError, MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>> = [
+/** Result type for call() - 5-tuple pattern:
+ * [routeResult, routeError (declared | ValidationError), fatal, middleFnResults, middleFnErrors] **/
+export type Result<
+    RouteSuccess,
+    RouteError,
+    MiddleFnsResults extends Record<string, unknown> = Record<string, unknown>,
+    MiddleFnsErrors extends Record<string, unknown> = Record<string, RpcError<string, unknown>>,
+> = [
     RouteSuccess | undefined,
     RouteError | undefined,
-    UnexpectedError | undefined,
+    FatalError | undefined,
     MiddleFnsResults | undefined,
+    MiddleFnsErrors | undefined,
 ];
 // type-result-end
 
@@ -35,16 +41,17 @@ export type MiddleFnSuccess<H> = H extends MiddlewareSubRequest<infer PH> ? Hand
 export type MiddleFnError<H> = H extends MiddlewareSubRequest<infer PH> ? Simplify<HandlerErrors<PH>> : never;
 
 // type-routesFlow-result-start
-/** Result type for routesFlow() function - 4-tuple pattern:
- * [routeResults[], routeErrors[] (declared | ValidationError), unexpected (request-scoped, ONE slot), middleFnResults] **/
+/** Result type for routesFlow() function - 5-tuple pattern:
+ * [routeResults[], routeErrors[] (declared | ValidationError), fatal (request-scoped, ONE slot), middleFnResults, middleFnErrors] **/
 export type WorkflowResult<
     Routes extends RouteSubRequest<any>[],
     MiddleFns extends Record<string, MiddlewareSubRequest<any>> = Record<string, MiddlewareSubRequest<any>>,
 > = [
     WorkflowRouteResults<Routes>,
     WorkflowRouteErrors<Routes>,
-    UnexpectedError | undefined,
+    FatalError | undefined,
     {[K in keyof MiddleFns]?: MiddleFnSuccess<MiddleFns[K]>} | undefined,
+    {[K in keyof MiddleFns]?: MiddleFnError<MiddleFns[K]>} | undefined,
 ];
 // type-routesFlow-result-end
 
@@ -166,7 +173,7 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
     /** Validates Route's parameters and returns type errors */
     typeErrors: () => Promise<RunTypeError[]>;
 
-    /** Calls a remote route and returns a Result 4-tuple */
+    /** Calls a remote route and returns a Result 5-tuple */
     call(setup?: {
         middleFns?: never;
         otherRoutes?: never;
@@ -180,7 +187,14 @@ export interface RouteSubRequest<PH extends PublicHandler> extends SubRequest<PH
         otherRoutes?: never;
         signal?: AbortSignal;
         timeout?: number;
-    }): Promise<Result<HandlerSuccessResponse<PH>, Simplify<HandlerErrors<PH>>, {[K in keyof H]?: MiddleFnSuccess<H[K]>}>>;
+    }): Promise<
+        Result<
+            HandlerSuccessResponse<PH>,
+            Simplify<HandlerErrors<PH>>,
+            {[K in keyof H]?: MiddleFnSuccess<H[K]>},
+            {[K in keyof H]?: MiddleFnError<H[K]>}
+        >
+    >;
 
     /** Calls this route with other routes in a single HTTP request */
     call<

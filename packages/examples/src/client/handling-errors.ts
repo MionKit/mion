@@ -7,33 +7,34 @@ import {isRpcError} from '@mionjs/core';
 const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // ========== Result pattern (never throws) ==========
-// call() always returns a 4-tuple, never throws
-// [routeResult, routeError, unexpected, middleFnsResults]
+// call() always returns a 5-tuple, never throws
+// [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 // - routeError: the route's DECLARED errors | ValidationError (strongly typed, CLOSED union)
-// - unexpected: anything the route did not declare - a middleFn error, transport,
-//   platform or an undeclared throw (untyped RpcError<string>, OPEN)
+// - fatal: anything NOBODY declared - transport, platform, framework, an undeclared throw,
+//   or an error for a middleFn that was not part of the request (untyped RpcError<string>, OPEN)
+// - middleFnErrors: each middleFn's DECLARED errors, by name (strongly typed)
 
 // calls sayHello route in the server
-const [sayHello, error, unexpected] = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
+const [sayHello, error, fatal] = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
 
 if (error) {
     // the route's own declared error or a validation error for its params
     console.log(error.type);
-} else if (unexpected) {
-    // in this case the request has failed because the authorization middleFn is missing:
-    // that is not the route's error, so it surfaces here
-    console.log(unexpected); // { type: 'validation-error', message: `Invalid params for Route or MiddleFn 'auth'.`}
+} else if (fatal) {
+    // in this case the request has failed because the authorization middleFn was never sent:
+    // an error for a middleFn that is not part of the request is fatal
+    console.log(fatal); // { type: 'validation-error', message: `Invalid params for Route or MiddleFn 'auth'.`}
 
-    if (isRpcError(unexpected)) {
+    if (isRpcError(fatal)) {
         // ... handle the error as required
     }
 } else {
     console.log(sayHello); // Hello John Doe
 }
 
-// ========== Full 4-tuple with middleFns ==========
-// call({middleFns: {...}}) returns [routeResult, routeError, unexpected, middleFnsResults]
-const [greeting, routeError, unexpectedError, middleFnResults] = await routes.users
+// ========== Full 5-tuple with middleFns ==========
+// call({middleFns: {...}}) returns [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
+const [greeting, routeError, fatalError, middleFnResults, middleFnErrors] = await routes.users
     .sayHello({id: '123', name: 'John', surname: 'Doe'})
     .call({
         middleFns: {
@@ -43,11 +44,16 @@ const [greeting, routeError, unexpectedError, middleFnResults] = await routes.us
 
 if (routeError) {
     console.log('Route failed:', routeError.type);
-} else if (unexpectedError) {
-    // a middleFn failure (e.g. auth) or any undeclared error lands here
-    console.log('Request failed:', unexpectedError.type);
+} else if (fatalError) {
+    // transport, platform or any undeclared error lands here
+    console.log('Request failed:', fatalError.type);
 } else {
     console.log(greeting); // Hello John Doe
+}
+
+// Each middleFn's declared errors arrive by name, strongly typed
+if (middleFnErrors?.auth) {
+    console.log('Auth middleFn failed:', middleFnErrors.auth.type);
 }
 
 // Access middleFn results

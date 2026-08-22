@@ -1,6 +1,11 @@
 # Client error dispatch: define the contract, then make the runtime obey it
 
 **Status:** done — implemented 2026-08-21 on `claude/client-transport-error-types-u2hd0j`
+(**revised 2026-08-22**: middleFn errors were separated back OUT of the single unexpected slot into
+their own typed `middleFnErrors` record — the tuple is `[result, error, fatal, middleFnResults,
+middleFnErrors]`. The single-slot fold silently dropped information: several middleFns can fail at
+once, and a middleFn failure can coexist with a fatal error, but one slot can hold only one error.
+The contract below is updated to the 5-tuple; the fatal slot keeps only what NOBODY declared.)
 (runtime + tests: `feat(client)!: dispatch errors per the contract`; examples and website docs in
 the two follow-up commits on the same branch).
 **Type:** bug (several) + public API change
@@ -25,17 +30,18 @@ failure is reachable at runtime but unreachable through the public types.
 This spec (a) states the intended contract, (b) lists the defects that violate it, (c) plans the
 fix, and (d) specifies the tests that pin each rule.
 
-The headline API change: **slot 2 becomes a single `unexpected` error, and the `middleFnsErrors`
-record leaves the tuple.** Only the route's own declared errors (and `ValidationError`) are
-strongly typed; _everything_ else — a middleFn's error, a transport failure, a platform error, an
-undeclared throw — is, from the route caller's point of view, unexpected, and lands untyped in one
-slot. MiddleFn errors keep their strongly typed channel: the prefill `onError` listeners.
+The headline API change: **the tuple gains a `fatal` slot at index 2.** Declared responses stay
+strongly typed in their own slots — the route's errors in slot 1, each middleFn's errors by name in
+slot 4 — and everything _nobody_ declared (transport, platform, framework, undeclared throws, and
+errors for middleFns that were not part of the request) lands untyped in `fatal`. MiddleFn errors
+additionally keep their strongly typed listener channel (`onError`, now registrable without
+prefill).
 
 ```ts
 // before
 const [result, error, middleFnResults, middleFnErrors] = await routes.users.getById(id).call();
 // after
-const [result, error, unexpected, middleFnResults] = await routes.users.getById(id).call();
+const [result, error, fatal, middleFnResults, middleFnErrors] = await routes.users.getById(id).call();
 ```
 
 `routesFlow` gets the same slot, request-scoped:
@@ -47,13 +53,13 @@ const [[user, order], [userErr, orderErr], middleFnResults, middleFnErrors] = aw
   routes.orders.getById('9'),
 ]).call();
 // after
-const [[user, order], [userErr, orderErr], unexpected, middleFnResults] = await routesFlow([
+const [[user, order], [userErr, orderErr], fatal, middleFnResults, middleFnErrors] = await routesFlow([
   routes.users.getById('1'),
   routes.orders.getById('9'),
 ]).call();
 ```
 
-Same arity, **different meaning at indexes 2 and 3** — see Breaking changes.
+Arity 4 → 5, `fatal` inserted at index 2 — see Breaking changes.
 
 ## How errors flow today (measured, not inferred)
 
@@ -121,7 +127,7 @@ places on the wire:
 > other executables. thrown Errors are **not strongly typed** and are all serialized/deserialized as
 > `RpcError<string>`.
 
-That is precisely the `unexpected` slot's type: _not strongly typed_, `RpcError<string>`. (The
+That is precisely the `fatal` slot's type: _not strongly typed_, `RpcError<string>`. (The
 client even names the concept already: the function that receives the split is called
 `unwrapUnexpectedErrors`.)
 
@@ -151,7 +157,7 @@ The split matters in two places under the new contract:
 
 **One carve-out.** Server-side `validation-error` is _thrown_
 (`dispatch.ts:187`, `:207`, `:220`) but is by design part of the expected union — `ValidationError`
-is an explicit member of `HandlerErrors`. So the classification rule is "thrown ⇒ unexpected,
+is an explicit member of `HandlerErrors`. So the classification rule is "thrown ⇒ fatal,
 **except** `validation-error`". The cleaner alternative — making the server _return_ validation
 errors instead of throwing — is a larger change to how the execution chain short-circuits and is
 deliberately out of scope here; the carve-out is one condition in one function.
@@ -160,92 +166,84 @@ deliberately out of scope here; the carve-out is one condition in one function.
 
 ### Slots
 
-Only the route's declared response is strongly typed. Everything the route did not declare —
-including another subrequest's declared error — is `unexpected` from the caller's point of view.
+Only declared responses are strongly typed: the route's in slots 0–1, each middleFn's in slots
+3–4. Everything **nobody** declared is `fatal`.
 
 ```ts
-type Result<RouteSuccess, RouteError, MiddleFnsResults> = [
+type Result<RouteSuccess, RouteError, MiddleFnsResults, MiddleFnsErrors> = [
   RouteSuccess | undefined, // 0 result — what the route returned
   RouteError | undefined, // 1 error — the route's DECLARED errors | ValidationError (CLOSED)
-  UnexpectedError | undefined, // 2 unexpected — a middleFn error or a fatal/unknown error (OPEN)
-  MiddleFnsResults | undefined, // 3 middleFn results
+  FatalError | undefined, // 2 fatal — anything NOBODY declared (OPEN)
+  MiddleFnsResults | undefined, // 3 middleFn results, by name
+  MiddleFnsErrors | undefined, // 4 middleFn DECLARED errors | ValidationError, by name (typed)
 ];
 
-/** any error that is not part of the route's declared response: a middleFn's error (typed access
- *  via its prefill onError listener), transport, platform, framework, or an undeclared throw.
- *  Open by nature — the code can be anything. */
-type UnexpectedError = RpcError<string>;
+/** any error that is not part of a declared response: transport, platform, framework, an
+ *  undeclared throw (route or middleFn), or an error for a middleFn that was not part of the
+ *  request. Open by nature — the code can be anything. */
+type FatalError = RpcError<string>;
 ```
 
-There is **no `middleFnsErrors` slot**. A middleFn's errors have exactly two outlets: its
-`onError` listener (the strongly typed channel, per-middleFn) and the shared `unexpected` slot
-(untyped). This is deliberate: keeping a typed per-middleFn error record in every route's return
-type re-imports the union-widening problem this spec exists to avoid — only the route's declared
-response stays strongly typed — and the listener is the typed API for middleFn concerns.
+The `middleFnErrors` record is **typed per middleFn** (`{[K in keyof H]?: MiddleFnError<H[K]>}`)
+and holds one slot per middleFn — several middleFns failing, or a middleFn failing while the route
+throws, loses **no information** (this is why the earlier revision's single shared slot was
+reverted). A middleFn's declared errors therefore have two outlets: its slot in the record and its
+`onError` listener (registrable without prefill — `events()`/`onError` on the subrequest). A
+middleFn's **thrown/undeclared** error cannot appear in its typed record slot: it is fatal.
 
-**Consequence to own: inline middleFns lose their typed record.** Today the record is genuinely
-typed per middleFn (`{[K in keyof H]?: MiddleFnError<H[K]>}`, `types.ts:183`) and examples narrow
-on it (`middleFnErrors.auth.type === 'not-authorized'`, `client.ts` example `:100`). But `onError`
-listeners are only reachable through `prefill()` (`subRequest.ts:49` is the sole `TypedEvent`
-constructor call) — so a middleFn passed inline via `call({middleFns: {auth}})` currently has **no
-listener**, and once the record is gone its errors are only visible untyped in slot 2. The fix is
-small and this spec includes it (plan step 6b): expose the middleFn's `TypedEvent` without
-prefilling, so `auth.onError('not-authorized', …)` works before passing it inline. Dispatch already
-supports it — `processMiddleFnsResponses` fires the registry by subrequest id for _every_ middleFn
-in the request, prefilled or not (`client.ts:148`); only registration is gated on `prefill()`.
-
-`routesFlow` mirrors it, with **one** unexpected slot rather than an array or record — the flow
-shares one transport, one platform, one middleFn chain:
+`routesFlow` mirrors it, with **one** fatal slot — the flow shares one transport, one platform,
+one middleFn chain:
 
 ```ts
 type WorkflowResult<Routes, MiddleFns> = [
   WorkflowRouteResults<Routes>, // 0 per-route results
   WorkflowRouteErrors<Routes>, // 1 per-route DECLARED errors (each index closed)
-  UnexpectedError | undefined, // 2 unexpected — request-scoped, ONE slot
-  MiddleFnsResults | undefined, // 3 middleFn results
+  FatalError | undefined, // 2 fatal — request-scoped, ONE slot
+  MiddleFnsResults | undefined, // 3 middleFn results, by name
+  MiddleFnsErrors | undefined, // 4 middleFn DECLARED errors, by name
 ];
 ```
 
 From the caller's side:
 
 ```ts
-const [[user, order], [userErr, orderErr], unexpected] = await routesFlow([
+const [[user, order], [userErr, orderErr], fatal] = await routesFlow([
   routes.users.getById('1'),
   routes.orders.getById('9'),
 ]).call();
-if (unexpected) retryLater(); // one check covers transport, platform, middleFns, undeclared throws
+if (fatal) retryLater(); // one check covers transport, platform, framework, undeclared throws
 ```
 
 ### Dispatch rules
 
-| #   | error                                                                           | goes to                                                                                                       |
-| --- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| R1  | route returned its own declared error                                           | slot 1 (that route's index in a flow)                                                                         |
-| R2  | param validation failed for a route (client- or server-side)                    | slot 1 (that route's index)                                                                                   |
-| R3  | middleFn returned its own declared error, or its params failed validation       | its `onError` listener (typed) **and** slot 2 (untyped)                                                       |
-| R4  | anything thrown / undeclared — transport, platform, framework, undeclared throw | slot 2 only; **no** listener fires                                                                            |
-| R5  | route produced a result                                                         | slot 0 keeps it, whatever else failed                                                                         |
-| R6  | an error the route did not declare                                              | **never** appears in slot 1                                                                                   |
-| R7  | more than one non-route error exists                                            | slot 2 holds the **first in execution order**; every middleFn's declared error still reaches its own listener |
+| #   | error                                                                                                                                  | goes to                                                                                             |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| R1  | route returned its own declared error                                                                                                  | slot 1 (that route's index in a flow)                                                               |
+| R2  | param validation failed for a route (client- or server-side)                                                                           | slot 1 (that route's index)                                                                         |
+| R3  | middleFn returned its own declared error, or its params failed validation                                                              | slot 4 under its name (typed) **and** its `onError` listener (typed)                                |
+| R4  | anything thrown / undeclared — transport, platform, framework, an undeclared throw, or an error for a middleFn not part of the request | slot 2 (`fatal`) only; **no** listener fires. Several fatals: the **first in execution order** wins |
+| R5  | route produced a result                                                                                                                | slot 0 keeps it, whatever else failed                                                               |
+| R6  | an error the route did not declare                                                                                                     | **never** appears in slot 1                                                                         |
 
-R7 exists because slot 2 is a single value. In practice multiple candidates are rare: the server
-short-circuits the chain at the first error (`dispatch.ts:79`), a transport failure means no server
-errors at all, and a platform error precludes body errors — the realistic overlap is a `runOnError`
-executable failing after an earlier error. "First in execution order" is the error that actually
-aborted the chain, which is the one the caller needs.
+The first-in-execution-order rule inside R4 exists because slot 2 is a single value, and applies
+only among genuinely fatal errors. In practice multiple candidates are rare: the server
+short-circuits the chain at the first thrown error (`dispatch.ts:79`), a transport failure means no
+server errors at all, and a platform error precludes body errors.
 
-R4 covers what today scatters across three places: the route slot (single call),
+R4 covers what previously scattered across three places: the route slot (single call),
 `middleFnsErrors['mion-routes-flow']` (flow), and `middleFnsErrors['mion@methodsMetadata']`
-(internal route ids leaking into a user-facing record).
+(internal route ids leaking into a user-facing record). Internal ids can no longer leak: an error
+keyed to an id that is not a middleFn of the request is fatal, never a record entry.
 
-Note R5 means **result and error slots can both be populated** in the same tuple — a flow where one
-route succeeds and another fails, or a single call where the route succeeds and a middleFn fails.
-The client's job is correct per-slot assignment. Callers may use the shorthand
+Note R3/R5 mean **several slots can be populated at once** — a flow where one route succeeds and
+another fails, a route succeeding while a middleFn fails, or a middleFn failing while the route
+throws (each error keeps its own slot). The client's job is correct per-slot assignment. Callers
+may use the shorthand
 
 ```ts
 if (result) …
 else if (error) …
-else 'unexpected error, try again later'
+else 'fatal error, try again later'
 ```
 
 but that is a caller's choice, **not an invariant the client guarantees**, and no test should
@@ -261,7 +259,7 @@ Each is a violation of a rule above; each gets a failing test written first.
 - **D2 — a foreign error hijacks the typed route slot (violates R6).** `findSubRequestError`
   returns the **first error in the map** when nothing is keyed to the route. Measured: a middleFn's
   `session-expired` in the route slot, typed as the route's own union. Under the contract that
-  error belongs in slot 2 (R3) — same reachability, honest type.
+  error belongs in its own `middleFnErrors` slot (R3) — same reachability, honest type.
 - **D3 — single-route and routesFlow disagree.** The flow branch of `buildResult` has no such
   fallback. Same failure, different slot, depending on call shape. The contract removes the
   fallback entirely, so both converge.
@@ -270,7 +268,7 @@ Each is a violation of a rule above; each gets a failing test written first.
 - **D5 — the declared union cannot express undeclared errors, forcing casts.** Symptom that started
   this: `packages/examples/src/client/cancellation-timeout.ts` ships an `as string` cast because
   `error?.type === 'request-timeout'` does not compile (`TS2367`, union is
-  `'validation-error' | undefined`). The `unexpected` slot removes the need for the cast _and_
+  `'validation-error' | undefined`). The `fatal` slot removes the need for the cast _and_
   keeps slot 1 closed.
 - **D6 — `validation-error` carries two different payload shapes.** `ValidationError` is declared
   `RpcError<'validation-error', {typeErrors: RunTypeError[]}>`. The server honours it
@@ -279,18 +277,19 @@ Each is a violation of a rule above; each gets a failing test written first.
   client-side — the common case, since `validateParams` defaults to `true`. Sole consumer of the
   bad shape is `request.ts:184`, backing the public `typeErrors()` API.
 - **D7 — internal route ids leak into the user-facing middleFn errors record.** Measured:
-  `middleFnsErrors['mion@methodsMetadata']` on a platform error. Removing the record from the tuple
-  eliminates the leak surface entirely; under R4 these errors become the `unexpected` slot.
+  `middleFnsErrors['mion@methodsMetadata']` on a platform error. Under R4 an error keyed to
+  anything that is not a middleFn of the request is fatal — the record only ever carries the
+  middleFns the caller knows about.
 - **D8 — `UnknownErrorHandler` is dead.** `types.ts:105` declares and exports it; a repo-wide grep
   finds no reader. It is the vestige of the untyped channel this spec finally builds. Delete it
-  (its role is now the `unexpected` slot, not a handler).
+  (its role is now the `fatal` slot, not a handler).
 
 ## Implementation plan
 
 1. **Preserve the wire distinction.** `lib/serializer.ts` `unwrapUnexpectedErrors` must stop
    flattening. Return the `@thrownErrors` map to the caller alongside the body instead of
    `Object.assign`-ing it into the root. Platform errors keep their existing special case but are
-   classified as unexpected rather than fanned out to every subrequest (kills D7's cause).
+   classified as fatal rather than fanned out to every subrequest (kills D7's cause).
 2. **Classify on the way in.** `request.ts` keeps errors keyed by subrequest id but tags each as
    `returned` or `thrown`:
    - server body entry → returned, keyed by id
@@ -299,30 +298,30 @@ Each is a violation of a rule above; each gets a failing test written first.
    - client transport error (timeout, abort, fetch failure, serialization, header extraction) →
      thrown, request-scoped. **Stop keying these to `this.requestId`** — that is what made them
      indistinguishable from the route's own errors.
-3. **Distribute per the contract.** Rewrite `buildResult`: no `findSubRequestError` fallback, no
-   middleFn errors record at all, result slot preserved independently of the error slots.
+3. **Distribute per the contract.** Rewrite `buildResult`: no `findSubRequestError` fallback,
+   result slot preserved independently of the error slots.
    - slot 1 ← the route's id, `returned` only
-   - slot 2 ← first (execution order, R7) of: the route's `thrown` error, any middleFn's error
-     (returned or thrown), any request-scoped error
+   - slot 4 ← each request middleFn's `returned` error, under its record name
+   - slot 2 ← first (execution order) of: any middleFn's `thrown` error, the route's `thrown`
+     error, any request-scoped error, any error keyed to an id that is not part of the request
+     (middleFns restored from prefill while a record was passed are merged into the record under
+     their id, so their results/errors are never dropped)
    - Single-route and flow branches share the same rules.
-4. **Reshape the tuple.** `Result` keeps arity 4 but index 2 becomes `UnexpectedError | undefined`
-   and index 3 becomes the middleFn **results**. The `MiddleFnsErrors` type parameter and the
-   record disappear from `Result` (`types.ts:15`), `WorkflowResult` (`types.ts:31`), the
-   `RouteSubRequest.call` overloads (`types.ts:171` builds `{[K in keyof H]?: MiddleFnError<H[K]>}`
-   today), `RoutesFlowBuilder.call`, and `routesFlow()`'s result padding. `MiddleFnError<H>` itself
-   stays — the listener typing still needs it.
+4. **Reshape the tuple.** `Result` and `WorkflowResult` gain `FatalError | undefined` at index 2;
+   the middleFn results and typed errors records shift to indexes 3 and 4. The
+   `RouteSubRequest.call` overloads, `RoutesFlowBuilder.call` and `routesFlow()`'s result padding
+   follow.
 5. **Keep slot 1 closed.** `HandlerErrors` stays `declared | ValidationError`. No widening — that
    was the earlier proposal and it is explicitly rejected: it dilutes route typing, and with the
-   `unexpected` slot it is unnecessary.
+   `fatal` slot it is unnecessary.
 6. **Scope the listeners.** `processMiddleFnsResponses` fires `onError` only for a middleFn's
-   _returned_ (declared) errors, matching `TypedEvent<S, E>`'s declared `E`. The listener is now
-   the **only** typed channel for middleFn errors — pin that in tests, since the record that used
-   to duplicate it is gone.
+   _returned_ (declared) errors, matching `TypedEvent<S, E>`'s declared `E`. Fatals never fire
+   listeners.
    **6b — listeners without prefill.** Expose the middleFn subrequest's `TypedEvent` so inline
-   middleFns can register typed handlers without prefilling (today `prefill()` is the only path to
-   one, `subRequest.ts:49`). Registration is the only missing piece — dispatch is already id-keyed
-   for every middleFn in the request. Without 6b, inline middleFns would have no typed error
-   channel at all after the record is removed.
+   middleFns can register typed handlers without prefilling (previously `prefill()` was the only
+   path to one). Registration was the only missing piece — dispatch is already id-keyed for every
+   middleFn in the request. Landed as `events()`/`onError`/`offError`/`onSuccess`/`offSuccess` on
+   `MiddlewareSubRequest`.
 7. **Fix D6.** `lib/validation.ts:73` → `errorData: {typeErrors: errors}`; `request.ts:184` reads
    `.errorData?.typeErrors ?? []`. Own commit.
 8. **Delete D8.** Remove `UnknownErrorHandler`.
@@ -337,10 +336,10 @@ Written **first**, failing, one per rule. Client suite unless noted.
 - **T1 (R1)** route returns its declared error → slot 1 holds it; slots 0 and 2 `undefined`.
 - **T2 (R2)** route params invalid → slot 1 holds `validation-error`; slot 2 `undefined`.
 - **T3 (R5+R3, pins D1)** route succeeds while a middleFn fails → **slot 0 holds the route
-  result**, slot 1 `undefined`, slot 2 holds the middleFn error, listener fires. This is the
-  regression test for the discarded-result bug.
-- **T4 (R6, pins D2)** middleFn returns its declared error → slot 1 stays `undefined`, slot 2
-  holds the error. Asserts the error does **not** appear in the typed route slot.
+  result**, slot 1 and 2 `undefined`, slot 4 holds the middleFn error under its name, listener
+  fires. This is the regression test for the discarded-result bug.
+- **T4 (R6, pins D2)** middleFn returns its declared error → slot 1 stays `undefined`, slot 4
+  holds the error. Asserts the error does **not** appear in the typed route slot nor in `fatal`.
 - **T5 (R4)** timeout → slot 2 holds `request-timeout`; slots 0 and 1 `undefined`.
 - **T6 (R4)** abort → slot 2 holds `request-aborted`.
 - **T7 (R4)** platform error (oversized payload) → slot 2 only. Replaces the current
@@ -358,24 +357,24 @@ Written **first**, failing, one per rule. Client suite unless noted.
   route's value in slot 0 at its own index; slot 2 `undefined`.
 - **T11 (R4, pins D4)** flow timeout → slot 2 holds `request-timeout`; per-route slots all
   `undefined`.
-- **T12 (R3)** flow + failing middleFn → slot 2 holds the middleFn error, listener fires,
-  per-route error slots `undefined`.
+- **T12 (R3)** flow + failing middleFn → slot 4 holds the middleFn error under its name, listener
+  fires, per-route error slots and `fatal` `undefined`.
 - **T13** single-route and flow agree: the same failure yields the same slot in both shapes.
 
 ### Listener tests
 
-- **T14 (R3)** middleFn's declared error → listener fires **and** slot 2 is populated (both
-  channels; updates the "two ways" claim in `1.error-handling.md:56` — the record is gone, the
-  second way is now slot 2).
+- **T14 (R3)** middleFn's declared error → listener fires **and** its `middleFnErrors` slot is
+  populated (both channels, matching the "two ways" claim in `1.error-handling.md`).
 - **T15 (R4)** transport failure → **no** listener fires, even one registered for that code.
 - **T15b (6b)** an **inline** (non-prefilled) middleFn with a registered `onError` → the listener
   fires with the typed error when that middleFn fails.
 - **T16 (D7)** platform error → slot 2 holds it; no internal id (`mion@methodsMetadata`) is
-  observable anywhere in the tuple.
-- **T17 (R7)** an error plus a failing `runOnError` middleFn → slot 2 holds the first in execution
-  order; **both** listeners' typed errors still reach their own `onError`. Needs a test-server
-  fixture with a `runOnError` middleFn that fails; if the test server cannot express one, say so in
-  the PR and pin R7 with the closest reachable scenario instead of dropping it silently.
+  observable anywhere in the tuple (slots 3 and 4 both empty).
+- **T17** a failing `runOnError` middleFn plus a route that throws → **no information is lost**:
+  slot 4 holds the middleFn's declared error under its name, `fatal` holds the route's undeclared
+  throw, and the middleFn's listener still fires. (This is the scenario that killed the
+  single-shared-slot revision.) Uses the test-server `audit` (`runOnError`) middleFn and the
+  `throwsUnexpectedly` route.
 
 ### Payload test
 
@@ -388,15 +387,16 @@ The examples package is the only `tsc` gate in CI (`.github/workflows/pull-reque
 `check-types-examples`), and there is no `expectTypeOf`/vitest-typecheck setup — so type assertions
 live in a compiled example:
 
-- **T19** `unexpected.type === 'request-timeout'` compiles with **no cast** (this is D5's
+- **T19** `fatal.type === 'request-timeout'` compiles with **no cast** (this is D5's
   done-when).
 - **T20** slot 1 stays closed: `error.type === 'request-timeout'` is a compile error, asserted with
   `@ts-expect-error` (precedent: `_homepage/home-client.ts:25`).
 - **T21** an exhaustive `switch` over slot 1 ending in `const _n: never = error` compiles.
 - **T22** declared payloads survive narrowing (`error.errorData?.until` typed, unknown fields
   rejected) and `ValidationError` keeps `ValidationErrorData` rather than collapsing to `any`.
-- **T23** slot 3 is the middleFn **results** record; the old errors record is not addressable
-  (`@ts-expect-error` on the removed shape).
+- **T23** slot 4 is the typed middleFn **errors** record: a declared code narrows
+  (`middleFnErrors.auth.type === 'not-authorized'` gives typed `errorData`), and a name that was
+  not passed to the call is a compile error (`@ts-expect-error`).
 
 ## Website docs
 
@@ -405,14 +405,14 @@ updated ahead of the implementation without documenting behaviour that does not 
 below lands in the same PR as the change.
 
 - **[`website/content/3.client/1.error-handling.md`](../../website/content/3.client/1.error-handling.md)**
-  - "The Result Pattern" section lists the 4 tuple elements — rewrite for the new meaning of
-    indexes 2 and 3, describing each slot's guarantee (closed vs open) rather than just naming it.
-  - Add a section documenting the dispatch rules (the R1–R7 table, in prose) — this is the piece
+  - "The Result Pattern" section — rewrite for the 5 slots, describing each slot's guarantee
+    (closed vs open) rather than just naming it.
+  - Add a section documenting the dispatch rules (the R1–R6 table, in prose) — this is the piece
     that has never been written down and is the root of the whole problem.
-  - The "two ways to read a middleFn error" passage: the two ways are now the typed `onError`
-    listener and the untyped `unexpected` slot (T14 pins it).
+  - The "two ways to read a middleFn error" passage: the typed `onError` listener and the typed
+    `middleFnErrors` record (T14 pins it).
   - Type Reference: the `Result` entry is a `code-import` over the
-    `// type-result-start/end` markers, so it follows automatically; add an `UnexpectedError` entry
+    `// type-result-start/end` markers, so it follows automatically; add a `FatalError` entry
     with new markers.
 - **[`website/content/3.client/0.client-overview.md`](../../website/content/3.client/0.client-overview.md)**
   - The features list and two prose passages name the tuple's elements explicitly — update.
@@ -421,19 +421,18 @@ below lands in the same PR as the change.
   - Names `middleFnsErrors` in its flow description — update to the new slots.
 - **[`website/content/3.client/4.cancellation-timeouts.md`](../../website/content/3.client/4.cancellation-timeouts.md)**
   - Prose says aborted/timed-out requests "return an error with `type === 'request-aborted'`" —
-    correct but now it is the **unexpected** slot; say so.
+    correct but now it is the **fatal** slot; say so.
 - **Examples** (each is code-imported by the pages above, and each is a CI-gated typecheck):
   - `cancellation-timeout.ts` — drop the `as string` cast and its explanatory comment; read
-    `unexpected` instead. This file is D5's acceptance criterion.
+    `fatal` instead. This file is D5's acceptance criterion.
   - `cancellation-abort-signal.ts`, `cancellation-global-abort.ts` — their
     `// error.type === 'request-aborted'` trailing comments are comments _because_ the real code did
-    not compile. Promote them to real narrowing on `unexpected`.
+    not compile. Promote them to real narrowing on `fatal`.
   - Verified readers of the errors record (grep 2026-08-21): `client.ts`, `client-usage.ts`,
     `client-using-middleFns.ts`, `client-prefill-middleFns.ts`, `handling-errors.ts`,
-    `workflow-vs-single.ts`, `workflow-with-middleFns.ts` — each moves its record read to a typed
-    listener (6b) or to `unexpected`. Every other client example destructures the tuple
-    positionally and must move to the new slot meanings. Audit with
-    `grep -rn "\.call(" packages/examples/src/client`.
+    `workflow-vs-single.ts`, `workflow-with-middleFns.ts` — their record reads stay valid (the
+    record moved to index 4); every client example destructures the tuple positionally and moves
+    to the new slot order. Audit with `grep -rn "\.call(" packages/examples/src/client`.
   - New `client-error-slots.ts` carrying T19–T23, code-imported into the new dispatch-rules
     section.
 - Run `pnpm run check-code-imports` — a dangling marker renders an error placeholder on the site
@@ -441,17 +440,16 @@ below lands in the same PR as the change.
 
 ## Breaking changes
 
-- **Tuple arity stays 4 but indexes 2 and 3 change meaning**: index 2 was the middleFn results
-  record, now `unexpected`; index 3 was the middleFn errors record, now the middleFn results.
-  This is _more_ dangerous than an arity change — old positional destructuring still compiles
-  wherever the record types overlap structurally — so the release notes must lead with it, and T23
-  makes the old shape a compile error where possible.
-- **The middleFn errors record is gone from the public API.** Callers that read
-  `middleFnErrors.session` move to an `onError` listener (typed — available without prefill once
-  6b lands) or the `unexpected` slot (untyped).
+- **Tuple arity 4 → 5**, with `fatal` inserted at index 2: the middleFn results and errors records
+  shift to indexes 3 and 4. Positional destructuring past index 1 breaks. Appending `fatal` at the
+  end would be non-breaking but puts the most important error slot last; on 0.x the insert is
+  worth it. The release notes must lead with it.
 - **Errors move between slots.** A middleFn's declared error no longer appears in the route slot; a
-  transport/platform error moves from the route slot to `unexpected`. Callers reading only slot 1
-  will see `undefined` where they previously saw an error — they must read `unexpected`.
+  transport/platform error moves from the route slot to `fatal`. Callers reading only slot 1 will
+  see `undefined` where they previously saw an error — they must read `fatal` and/or
+  `middleFnErrors`.
+- **An error for a middleFn that was not part of the request is now fatal**, not a raw-id entry in
+  the record.
 - **A successful route result now survives a middleFn failure** (D1). Callers using `if (!result)`
   as a proxy for "something failed" need to check the error slots instead.
 - Versions are lerna-unified with `forcePublish` (`lerna.json`), so no `package.json` edits; this is
@@ -459,13 +457,14 @@ below lands in the same PR as the change.
 
 ## Done when
 
-- Every rule R1–R7 has a passing test, and each of D1–D8 has a test that fails before the fix.
+- Every rule R1–R6 has a passing test, and each of D1–D8 has a test that fails before the fix.
 - `cancellation-timeout.ts` compiles with no cast and no explanatory comment.
 - Slot 1's union is unchanged (`declared | ValidationError`) and a transport code in it is still a
   compile error.
-- No error the route did not declare ever appears in slot 1.
-- The middleFn errors record is gone: no internal mion route id, and no key at all, is reachable
-  through the tuple — `middleFnsErrors['mion-routes-flow']` no longer exists anywhere.
+- No error the route did not declare ever appears in slot 1; no error nobody declared ever appears
+  in slot 4.
+- No internal mion route id is reachable through the tuple — `middleFnsErrors['mion-routes-flow']`
+  and `middleFnsErrors['mion@methodsMetadata']` no longer exist anywhere.
 - The dispatch rules are documented on the website, not just in this spec.
 - Full suite + `pnpm run lint` + `pnpm run format` + `pnpm run check-code-imports` +
   `pnpm run check-types-examples` green.

@@ -7,7 +7,7 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 const controller = new AbortController();
 
 // cancellation works with middleFns
-const [result, error, unexpected, mfResults] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call({
+const [result, error, fatal, mfResults, mfErrors] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call({
     middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
     timeout: 5000,
     signal: controller.signal,

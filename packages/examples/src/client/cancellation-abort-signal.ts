@@ -12,7 +12,7 @@ const resultPromise = routes.users.sayHello({id: '1', name: 'John', surname: 'Do
 // cancel the request (e.g. on component unmount or user action)
 controller.abort();
 
-const [result, , unexpected] = await resultPromise;
-if (unexpected?.type === 'request-aborted') {
+const [result, , fatal] = await resultPromise;
+if (fatal?.type === 'request-aborted') {
     console.log('Request was canceled');
 }
