@@ -10,7 +10,7 @@ import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants.ts';
 import type {NodeHttpOptions} from './types.ts';
-import {configureBufferPool, type BufferPoolConfig} from '@mionjs/core';
+import {configureBinary, type BinaryOptionsPatch} from '@mionjs/core';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionHeaders, MionResponse} from '@mionjs/router';
@@ -39,18 +39,18 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
     return httpOptions;
 }
 
-/** Arms mion's binary buffer pool. Safe here because this adapter releases the buffer on the
- *  response's 'finish'/'close' events, once node is done with the view. */
-function applyBinaryBufferPool(pool: false | Partial<BufferPoolConfig>): void {
-    if (pool === false) return configureBufferPool({enabled: false});
-    configureBufferPool({...pool, enabled: true});
+/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
+ *  because this adapter releases the buffer on the response's 'finish'/'close' events, once node is
+ *  done with the view. */
+function applyBinaryOptions(binary: BinaryOptionsPatch): void {
+    configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
     const isTest = getENV('NODE_ENV') === 'test';
 
     if (options) setNodeHttpOpts(options);
-    applyBinaryBufferPool(httpOptions.binaryBufferPool);
+    applyBinaryOptions(httpOptions.binary);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
     if (!isTest)

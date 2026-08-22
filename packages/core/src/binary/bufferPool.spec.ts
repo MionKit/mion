@@ -6,10 +6,10 @@
  * ######## */
 
 import {describe, expect, it, beforeEach} from 'vitest';
+import {configureBinary, resetBinaryOptions} from './options.ts';
 import {
     acquireBuffer,
     clearBufferPool,
-    configureBufferPool,
     getBufferPoolStats,
     isBufferPoolEnabled,
     resetBufferPool,
@@ -19,11 +19,13 @@ import {
 describe('binary bufferPool', () => {
     beforeEach(() => {
         resetBufferPool();
-        configureBufferPool({enabled: true});
+        resetBinaryOptions();
+        configureBinary({pool: {enabled: true}});
     });
 
     it('is disabled until a platform arms it', () => {
         resetBufferPool();
+        resetBinaryOptions();
         expect(isBufferPoolEnabled()).toBe(false);
         const lease = acquireBuffer(100);
         lease.release();
@@ -62,7 +64,7 @@ describe('binary bufferPool', () => {
     });
 
     it('never retains a buffer above the pooled ceiling', () => {
-        configureBufferPool({enabled: true, maxClassBytes: 4096});
+        configureBinary({pool: {enabled: true, maxClassBytes: 4096}});
         const lease = acquireBuffer(1_000_000);
         expect(lease.buffer.byteLength).toBe(1_000_000);
         lease.release();
@@ -70,7 +72,7 @@ describe('binary bufferPool', () => {
     });
 
     it('respects the per-class depth cap', () => {
-        configureBufferPool({enabled: true, maxPerClass: 2});
+        configureBinary({pool: {enabled: true, maxPerClass: 2}});
         const leases = [acquireBuffer(2000), acquireBuffer(2000), acquireBuffer(2000), acquireBuffer(2000)];
         leases.forEach((l) => l.release());
         expect(getBufferPoolStats().held).toBe(2);
@@ -78,7 +80,7 @@ describe('binary bufferPool', () => {
     });
 
     it('respects the total byte cap', () => {
-        configureBufferPool({enabled: true, maxTotalBytes: 4096});
+        configureBinary({pool: {enabled: true, maxTotalBytes: 4096}});
         const leases = [acquireBuffer(2000), acquireBuffer(2000), acquireBuffer(2000)];
         leases.forEach((l) => l.release());
         expect(getBufferPoolStats().bytesHeld).toBeLessThanOrEqual(4096);
@@ -101,7 +103,7 @@ describe('binary bufferPool', () => {
 
     it('disabling the pool releases what it held', () => {
         acquireBuffer(2000).release();
-        configureBufferPool({enabled: false});
+        configureBinary({pool: {enabled: false}});
         expect(getBufferPoolStats().held).toBe(0);
     });
 });

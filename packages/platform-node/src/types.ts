@@ -6,7 +6,7 @@
  * ######## */
 
 import {ServerOptions} from 'https';
-import type {BufferPoolConfig} from '@mionjs/core';
+import type {BinaryOptionsPatch} from '@mionjs/core';
 
 // type-node-http-options-start
 export interface NodeHttpOptions {
@@ -26,7 +26,7 @@ export interface NodeHttpOptions {
      * events give a proven-safe point to hand the buffer back, so responses reuse buffers instead of
      * allocating one per request. Pass `false` to disable, or an object to tune the size classes.
      */
-    binaryBufferPool: false | Partial<BufferPoolConfig>;
+    binary: BinaryOptionsPatch;
 }
 // type-node-http-options-end
 

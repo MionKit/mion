@@ -15,8 +15,8 @@ import {
 } from '@mionjs/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants.ts';
 import type {BunHttpOptions} from './types.ts';
-import {getENV, SerializerModes, configureBufferPool, toResponseBody} from '@mionjs/core';
-import type {BufferPoolConfig} from '@mionjs/core';
+import {getENV, SerializerModes, configureBinary, toResponseBody} from '@mionjs/core';
+import type {BinaryOptionsPatch} from '@mionjs/core';
 import type {SerializerCode} from '@mionjs/core';
 import {RpcError} from '@mionjs/core';
 import {Server} from 'bun';
@@ -42,18 +42,18 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
     return httpOptions;
 }
 
-/** Arms mion's binary buffer pool. Safe here because Bun copies the response bytes synchronously,
- *  so the buffer is released as soon as the Response is constructed. */
-function applyBinaryBufferPool(pool: false | Partial<BufferPoolConfig>): void {
-    if (pool === false) return configureBufferPool({enabled: false});
-    configureBufferPool({...pool, enabled: true});
+/** Applies the binary options, arming the buffer pool unless the caller turned it off. Safe here
+ *  because Bun copies the response bytes synchronously, so the buffer is released as soon as the
+ *  Response is constructed. */
+function applyBinaryOptions(binary: BinaryOptionsPatch): void {
+    configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server<any>> {
     const isTest = getENV('NODE_ENV') === 'test';
 
     if (options) setBunHttpOpts(options);
-    applyBinaryBufferPool(httpOptions.binaryBufferPool);
+    applyBinaryOptions(httpOptions.binary);
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;

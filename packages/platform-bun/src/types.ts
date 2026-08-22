@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {BufferPoolConfig} from '@mionjs/core';
+import type {BinaryOptionsPatch} from '@mionjs/core';
 
 /** Bun serve options without fetch/error handlers (those are provided by mion) */
 type BunServeOptions = Omit<Bun.Serve.BaseServeOptions<unknown>, 'error'> &
@@ -28,6 +28,6 @@ export interface BunHttpOptions {
      * the Response synchronously (proven in bunHttp.binary.test.ts), so the buffer can be handed back
      * as soon as the Response is constructed. Pass `false` to disable, or an object to tune classes.
      */
-    binaryBufferPool: false | Partial<BufferPoolConfig>;
+    binary: BinaryOptionsPatch;
 }
 // type-bun-http-options-end
