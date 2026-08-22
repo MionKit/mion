@@ -210,6 +210,19 @@ var extraCases = []fixtureCase{
 		s.Module = "fns/val"
 		return []protocol.Site{s}, nil
 	}},
+	// A MULTI-FUNCTION site under allSingle: its fnIds span three families, each
+	// its OWN bundle, so site.Modules addresses them positionally and the block
+	// must carry one import per bundle. The single scalar site.Module cannot
+	// express this — it used to send every binding to FnIds[0]'s bundle.
+	{"bundle_module_multi_fn", "a.ts", "const schema = createStandardSchema<T>();\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
+		s := site(byteIndexOf(code, ")", 0), "BunMul1")
+		s.ParamIndex = 2
+		s.FnId = "val"
+		s.FnIds = []string{"val", "verr", "jsonSchema"}
+		s.Module = "fns/val"
+		s.Modules = []string{"fns/val", "fns/verr", "fns/jsonSchema"}
+		return []protocol.Site{s}, nil
+	}},
 	// Two replacements importing from the SAME specifier — clause dedupe.
 	{"dup_specifier", "a.ts", "regA('x', AAA); regB('y', BBB);\n", func(code string) ([]protocol.Site, []protocol.Replacement) {
 		s1 := byteIndexOf(code, "AAA", 0)

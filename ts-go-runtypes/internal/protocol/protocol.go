@@ -371,8 +371,17 @@ type Site struct {
 	// shape is identical either way (export name == the binding). Empty in
 	// default/allModules mode. Derived statically from mode + site shape, so
 	// it is present on every scanFiles response — including the plain
-	// transform path that skips entry-module collection.
+	// transform path that skips entry-module collection. Mirrors Modules[0]
+	// when both are set.
 	Module string `json:"module,omitempty"`
+	// Modules carries the bundle basename of EVERY fnId a multi-function site
+	// injects, positionally mirroring FnIds. A multi-fn site's fnIds span
+	// several families, and under allSingle each family is its OWN bundle — so
+	// one basename cannot address them all and the rewrite must emit one import
+	// per bundle. Present only when the site is multi-fn under allSingle;
+	// single-fn / reflection sites leave it nil and carry the lone value in
+	// Module (the byte-stable 1-fn wire).
+	Modules []string `json:"modules,omitempty"`
 	// MockSeed is the literal `mock.seed` hint read from a CompTimeHints
 	// options slot (createMockDataFn), as canonical decimal text; "" when the
 	// site carries none (no options, dynamic bag, or non-numeric seed). It

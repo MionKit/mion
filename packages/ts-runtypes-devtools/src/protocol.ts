@@ -201,8 +201,15 @@ export interface Site {
   // module, when present, is the bundle-module BASENAME this site's entry
   // rides in (allSingle module mode): the rewrite imports the binding from
   // `rtmod:/<module>.js` instead of the entry's own module. The clause
-  // shape is identical either way (export name == the binding).
+  // shape is identical either way (export name == the binding). Mirrors
+  // modules[0] when both are set.
   module?: string;
+  // modules carries the bundle basename of EVERY fnId a multi-function site
+  // injects, positionally mirroring fnIds — a multi-fn site's fnIds span
+  // several families and allSingle gives each family its own bundle, so one
+  // basename cannot address them all. Present only for multi-fn allSingle
+  // sites; single-fn / reflection sites carry the lone value in module.
+  modules?: string[];
 }
 
 // SiteDemand mirrors Go protocol.SiteDemand — emit metadata only; the plugin
