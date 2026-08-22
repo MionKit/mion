@@ -49,8 +49,9 @@ function chainFor(path: string): MethodWithJitFns[] {
 /** One serialization, capturing what it cost. */
 function measureOnce(path: string, chain: MethodWithJitFns[], routeId: string, value: unknown) {
     // What the adaptive strategy will allocate. Accurate for every warm request (the cold-start
-    // fallback only applies while the key has no observations at all).
-    const predicted = predictSize(path, 0.9, 1.25, 0, false);
+    // fallback only applies while the key has no observations at all). Sizes are keyed by METHOD,
+    // so the route id is the key, not the path.
+    const predicted = predictSize(routeId, true, 0.9, 1.25, 0);
     const {serializer, release} = serializeBinaryBody(path, chain, {[routeId]: value}, true);
     const payload = serializer.getLength();
     const final = serializer.buffer.byteLength;

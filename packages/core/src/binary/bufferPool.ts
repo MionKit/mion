@@ -16,6 +16,8 @@
 // Failure mode is deliberately benign: a lease that is never released is simply not returned to the
 // free list and gets collected as before. A lost reuse, never a corrupted response.
 
+import {getOrCreateGlobal} from '../utils.ts';
+
 export interface BufferPoolConfig {
     /** smallest size class in bytes; requests below this round up to it */
     minClassBytes: number;
@@ -54,50 +56,70 @@ const DEFAULTS: BufferPoolConfig = {
     maxTotalBytes: 64 * 1024 * 1024, // 64 MiB
 };
 
-let config: BufferPoolConfig = {...DEFAULTS};
-let enabled = false;
-const freeLists = new Map<number, ArrayBuffer[]>();
-const stats = {hits: 0, misses: 0, dropped: 0};
-let bytesHeld = 0;
+interface BufferPoolState {
+    config: BufferPoolConfig;
+    enabled: boolean;
+    freeLists: Map<number, ArrayBuffer[]>;
+    stats: {hits: number; misses: number; dropped: number};
+    bytesHeld: number;
+}
+
+// process-wide singleton: under a dual load of @mionjs/core (see
+// docs/done/virtual-module-retired-and-dual-core-load.md) `configureBufferPool` and
+// `serializeBinaryBody` would otherwise land on different pools, and pooling would be silently off
+// while the configuration appeared to apply.
+const state = getOrCreateGlobal<BufferPoolState>('mion.core.binary.bufferPool', () => ({
+    config: {...DEFAULTS},
+    enabled: false,
+    freeLists: new Map<number, ArrayBuffer[]>(),
+    stats: {hits: 0, misses: 0, dropped: 0},
+    bytesHeld: 0,
+}));
 
 /** Enables/configures the pool. Platform adapters that own a safe release point call this. */
 export function configureBufferPool(patch: Partial<BufferPoolConfig> & {enabled?: boolean}): void {
     const {enabled: nextEnabled, ...rest} = patch;
-    config = {...config, ...rest};
-    if (nextEnabled !== undefined) enabled = nextEnabled;
-    if (!enabled) clearBufferPool();
+    // Held buffers are filed under a size class derived from the current boundaries. Changing one
+    // would orphan them: filed under a key nothing looks up any more, yet still counted in
+    // bytesHeld, permanently shrinking maxTotalBytes. Drain instead.
+    const classesChanged =
+        (rest.minClassBytes !== undefined && rest.minClassBytes !== state.config.minClassBytes) ||
+        (rest.maxClassBytes !== undefined && rest.maxClassBytes !== state.config.maxClassBytes);
+    state.config = {...state.config, ...rest};
+    if (nextEnabled !== undefined) state.enabled = nextEnabled;
+    if (!state.enabled || classesChanged) clearBufferPool();
 }
 
 /** True when pooled serialization should be attempted at all. */
 export function isBufferPoolEnabled(): boolean {
-    return enabled;
+    return state.enabled;
 }
 
 /** Drops every retained buffer. For tests and shutdown. */
 export function clearBufferPool(): void {
-    freeLists.clear();
-    bytesHeld = 0;
+    state.freeLists.clear();
+    state.bytesHeld = 0;
 }
 
 /** Resets pool state AND config. Tests only. */
 export function resetBufferPool(): void {
     clearBufferPool();
-    config = {...DEFAULTS};
-    enabled = false;
-    stats.hits = 0;
-    stats.misses = 0;
-    stats.dropped = 0;
+    state.config = {...DEFAULTS};
+    state.enabled = false;
+    state.stats.hits = 0;
+    state.stats.misses = 0;
+    state.stats.dropped = 0;
 }
 
 export function getBufferPoolStats(): BufferPoolStats {
     let held = 0;
-    for (const list of freeLists.values()) held += list.length;
-    return {hits: stats.hits, misses: stats.misses, held, bytesHeld, dropped: stats.dropped};
+    for (const list of state.freeLists.values()) held += list.length;
+    return {hits: state.stats.hits, misses: state.stats.misses, held, bytesHeld: state.bytesHeld, dropped: state.stats.dropped};
 }
 
 /** Rounds up to the next power-of-two size class, floored at minClassBytes. */
 export function sizeClassFor(bytes: number): number {
-    const min = config.minClassBytes;
+    const min = state.config.minClassBytes;
     if (bytes <= min) return min;
     // next power of two at or above `bytes`
     return 2 ** Math.ceil(Math.log2(bytes));
@@ -105,7 +127,7 @@ export function sizeClassFor(bytes: number): number {
 
 /** A lease over a buffer the pool does not retain (oversized, or pooling disabled). */
 function unpooledLease(bytes: number): BufferLease {
-    stats.misses++;
+    state.stats.misses++;
     return {buffer: new ArrayBuffer(bytes), release: () => {}};
 }
 
@@ -114,19 +136,19 @@ function unpooledLease(bytes: number): BufferLease {
  * caller must size the payload by the serializer's own index, never by buffer.byteLength.
  */
 export function acquireBuffer(minBytes: number): BufferLease {
-    if (!enabled) return unpooledLease(minBytes);
+    if (!state.enabled) return unpooledLease(minBytes);
     const cls = sizeClassFor(minBytes);
     // Above the ceiling: serve it, but never retain it.
-    if (cls > config.maxClassBytes) return unpooledLease(minBytes);
+    if (cls > state.config.maxClassBytes) return unpooledLease(minBytes);
 
-    const list = freeLists.get(cls);
+    const list = state.freeLists.get(cls);
     const pooled = list?.pop();
     if (pooled !== undefined) {
-        bytesHeld -= cls;
-        stats.hits++;
+        state.bytesHeld -= cls;
+        state.stats.hits++;
         return makeLease(pooled, cls);
     }
-    stats.misses++;
+    state.stats.misses++;
     return makeLease(new ArrayBuffer(cls), cls);
 }
 
@@ -143,16 +165,19 @@ function makeLease(buffer: ArrayBuffer, cls: number): BufferLease {
 }
 
 function returnToPool(buffer: ArrayBuffer, cls: number): void {
-    if (!enabled) return;
-    let list = freeLists.get(cls);
+    if (!state.enabled) return;
+    // a reconfigure may have moved the class boundaries under a lease taken before it: only file a
+    // buffer whose byte length still IS its class, so nothing lands under a stale key
+    if (cls !== sizeClassFor(buffer.byteLength) || cls > state.config.maxClassBytes) return;
+    let list = state.freeLists.get(cls);
     if (list === undefined) {
         list = [];
-        freeLists.set(cls, list);
+        state.freeLists.set(cls, list);
     }
-    if (list.length >= config.maxPerClass || bytesHeld + cls > config.maxTotalBytes) {
-        stats.dropped++;
+    if (list.length >= state.config.maxPerClass || state.bytesHeld + cls > state.config.maxTotalBytes) {
+        state.stats.dropped++;
         return;
     }
     list.push(buffer);
-    bytesHeld += cls;
+    state.bytesHeld += cls;
 }

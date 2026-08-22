@@ -27,8 +27,6 @@ export interface CallContext<ContextData extends Record<string, any> = any> {
     readonly executionChain: MethodsExecutionChain;
     /** Query string from URL, used for routesFlow routes */
     readonly urlQuery?: string;
-    /** Route IDs for routesFlow calls, used for binary serialization buffer sizing */
-    readonly routesFlowRouteIds?: string[];
 }
 // type-call-context-end
 
@@ -114,11 +112,9 @@ export interface ResponseBody extends Record<string, any> {
 }
 // type-response-body-end
 
-/** Result of getRoutesFlowExecutionChain including the route IDs for buffer sizing */
+/** Result of getRoutesFlowExecutionChain */
 export interface RoutesFlowExecutionResult {
     executionChain: MethodsExecutionChain;
-    /** Route IDs for binary serialization buffer sizing */
-    routesFlowRouteIds?: string[];
     /** Mappings from the routesFlow query, used for mapping route outputs to inputs */
     mappings?: RoutesFlowMapping[];
 }
