@@ -11,6 +11,8 @@ import {dispatchRoute} from './dispatch.ts';
 import {headersFromRecord} from './lib/headers.ts';
 import {serializeBinaryBody, deserializeBinaryBody, isRpcError, SerializerModes} from '@mionjs/core';
 import {binaryTestRoutes, ComplexUser, NestedData} from '@mionjs/test-server';
+import {route} from './lib/handlers.ts';
+import {RpcError, MION_ROUTES} from '@mionjs/core';
 
 // THIS TESTS ARE INTENDED TO TEST BINARY SERIALIZATION AT ROUTER LEVEL USING DISPATCH
 
@@ -348,5 +350,46 @@ describe('Binary Serialization at Router Level', () => {
             expect(objectResult.getSimpleUser).toEqual({name: 'Test', age: 25});
             expect(arrayResult.doubleArray).toEqual([2, 4, 6]);
         });
+    });
+});
+
+// A route that THROWS rather than returning an RpcError: the thrown error is put in the response
+// body under `@thrownErrors`, which is not a member of any execution chain. The binary lane walks
+// the chain and nothing else, so it used to drop the key entirely and hand the client an EMPTY
+// envelope for a failed request — while the client's own deserializer was already looking for it.
+describe('Thrown errors on the binary wire', () => {
+    const throwingRoutes = {
+        boom: route((_ctx: any, msg: string): string => {
+            throw new RpcError({publicMessage: msg, type: 'db-connection-lost'});
+        }),
+    };
+
+    beforeEach(async () => {
+        resetRouter();
+        await initRouter({serializer: 'binary'});
+        await registerRoutes(throwingRoutes);
+    });
+
+    it('should carry a thrown error through to the client', async () => {
+        const path = '/boom';
+        const executionChain = getRouteExecutionChain(path)!.methods;
+        const requestBuffer = serializeBinaryBody(path, executionChain, {boom: ['kaboom']}, false).serializer.getBuffer();
+
+        const response = await dispatchRoute(
+            path,
+            requestBuffer,
+            headersFromRecord({'content-type': 'application/octet-stream'}),
+            headersFromRecord({}),
+            {headers: headersFromRecord({}), body: requestBuffer},
+            {},
+            SerializerModes.binary
+        );
+
+        const {body} = deserializeBinaryBody(path, response.binSerializer!.getBufferView(), true);
+        const thrown = body[MION_ROUTES.thrownErrors];
+        expect(thrown).toBeDefined();
+        expect(isRpcError(thrown.boom)).toBe(true);
+        expect(thrown.boom.type).toBe('db-connection-lost');
+        expect(thrown.boom.publicMessage).toBe('kaboom');
     });
 });
