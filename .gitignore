@@ -78,6 +78,9 @@ nbproject
 .dist
 # Note: build folder is committed for devtools package (eslint needs compiled JS)
 # build
+# test-server's edge/workers bundles ARE generated: the platform specs rebuild them in their
+# vitest globalSetup, so a committed copy could only ever be a stale one.
+packages/test-server/build/
 dist
 .tmp
 tmp
@@ -85,8 +88,11 @@ tmp
 coverage
 .nx
 
-# ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin)
+# ts-runtypes generated cache modules (per-package, emitted by mionVitePlugin).
+# `__runtypes-<target>/` are the extra genDirs test-server's edge/cloudflare builds need,
+# because those builds disagree with the node build on emitMode and must not share one dir.
 __runtypes/
+__runtypes-*/
 
 # serverMapFrom harvested mapper manifests (build artifact, regenerated every build)
 .mion/
