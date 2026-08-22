@@ -47,9 +47,9 @@
     "format": "prettier --write src/**/*.ts",
     "build": "pnpm run build:edge && pnpm run build:cloudflare",
     "build:lib": "vite build",
-    "build:edge": "vite build --config vite.edge.config.ts",
-    "build:cloudflare": "vite build --config vite.cloudflare.config.ts",
-    "clean": "rimraf .dist & rimraf .coverage",
+    "build:edge": "node buildTestBundle.ts edge",
+    "build:cloudflare": "node buildTestBundle.ts cloudflare",
+    "clean": "rimraf .dist .coverage build __runtypes __runtypes-edge __runtypes-cloudflare .mion",
     "fresh-start": "pnpm run clean && rimraf node_modules"
   },
   "bugs": {

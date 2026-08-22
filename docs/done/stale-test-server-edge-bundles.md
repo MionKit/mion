@@ -121,3 +121,21 @@ Negative checks, both confirmed to fail as intended: dropping `emitMode: 'both'`
 [server-mappers-from-generated-pure-fn-cache.md](server-mappers-from-generated-pure-fn-cache.md) was
 rewriting at the time, so it waited for that to merge. Fixed in this same PR once it did — see
 [pnpm-build-fails-on-clean-tree.md](pnpm-build-fails-on-clean-tree.md).
+
+## Follow-ups landed after the record above
+
+Both found while re-verifying this spec end to end (clean tree and post-`pnpm run build` tree; both
+orderings green, 57 files / 785 tests, and the negative check still fires — restoring the alias map
+trips `assertBuiltFromSource` naming 174 `.dist` modules).
+
+- **The guard only covered the test path.** `build:edge` / `build:cloudflare` ran `vite build --config`
+  directly, so `assertBuiltFromSource` — the whole reason a `.dist`-inlined bundle cannot ship
+  unnoticed — ran only under the vitest `globalSetup`. `buildTestBundle.ts` now doubles as a CLI
+  (`node buildTestBundle.ts <edge|cloudflare>`) and both scripts go through it, so every path that
+  produces a bundle is guarded.
+- **`clean` left the generated artifacts behind.** Making the bundles generated moved them into the
+  set of things `pnpm run clean` is expected to remove, and it removed neither them nor the
+  `__runtypes*` genDirs — repo-wide, no package cleaned its `__runtypes/` at all. Every package's
+  `clean` now takes all its generated dirs in one `rimraf` (`.dist .coverage __runtypes`, plus
+  `build`, the two extra genDirs and `.mion` where they exist), instead of backgrounding a second
+  `rimraf` with a stray `&`.
