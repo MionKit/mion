@@ -93,8 +93,9 @@ export interface MionServerOptions {
 
 /** serverMapFrom build-time transport: client builds HARVEST inline mappers (from the
  *  ts-runtypes pure-fn build report) into a manifest; server builds CONSUME it through
- *  the generated `.mion/server-mappers.generated.js` module. Wire carries only the `rt::<hash>` key —
- *  the server registers exactly the mappers its own build baked in. */
+ *  the generated `.mion/server-mappers.generated.js` module, which registers the pure-fn modules
+ *  @ts-runtypes already emitted for them. Wire carries only the `rt::<hash>` key — the server
+ *  registers exactly the mappers its own build baked in, and never runs code received over it. */
 export interface MionServerMappersOptions {
     /** CLIENT builds: write harvested serverMapFrom mappers to this manifest path.
      *  `true` resolves '.mion/server-mappers.json' against the process cwd — pass an
@@ -107,10 +108,12 @@ export interface MionServerMappersOptions {
     injectInto?: string | string[];
     /** SERVER builds: manifest path(s) compiled into `<root>/.mion/server-mappers.generated.js`,
      *  which the plugin imports for you from whichever module calls initMionRouter — nothing to
-     *  import by hand. In `vite build` the entries are INLINED into the bundle at build time
-     *  (missing manifests fail the build; no node:fs in the artifact — edge/lambda safe). In
-     *  dev/serve the module reads the files at runtime, tolerating missing ones with a lazy
-     *  re-read on the first unresolved mapping (covers the client-build race). */
+     *  import by hand. In `vite build` the generated module IMPORTS each mapper's pure-fn module out
+     *  of the client build's `__runtypes/types/` tree, so that tree must be reachable at server-BUILD
+     *  time (missing manifests fail the build) — the bundle itself stays self-contained, with no
+     *  node:fs and no runtime dependency on it. In dev/serve the module reads the manifests at
+     *  runtime, tolerating missing ones with a lazy re-read on the first unresolved mapping (covers
+     *  the race where the server boots before the client build finished harvesting). */
     consume?: string | string[];
 }
 
@@ -218,12 +221,21 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // manifest after every report phase ('build' replaces, 'update' merges the HMR delta).
     const manifestPath = resolveManifestPath(options.serverMappers?.emit);
     const harvestedMappers = new Map<string, ServerMapperManifestEntry>();
+    // Where @ts-runtypes wrote its generated tree, so a report `module` can be turned into a path the
+    // SERVER build can import. The resolver reports its own genDir back (unplugin's `gen.outDir`) but
+    // does not pass it to onPureFnReport, so mion mirrors the resolution: `cwd` defaults to the vite
+    // root, and an unset genDir defaults to `<cwd>/__runtypes`. Pass `runTypes.genDir` explicitly if
+    // your setup moves it — the manifest then carries the right paths and nothing else changes.
+    // Tracked upstream in docs/todos/upstream-pure-fn-tuple-registrar.md.
+    let viteRoot = '';
+    const resolveGenDir = (): string => path.resolve(viteRoot || process.cwd(), rt.genDir ?? rt.outDir ?? '__runtypes');
     const harvestReport = (sites: RtPureFnSite[], phase: 'build' | 'update'): void => {
         if (phase === 'build') harvestedMappers.clear();
         for (const site of sites) {
             if (site.calleeName !== 'serverMapFrom' || site.calleeModule !== '@mionjs/client') continue;
             harvestedMappers.set(site.key, {
                 key: site.key,
+                module: site.module ? path.resolve(resolveGenDir(), 'types', `${site.module}.js`) : undefined,
                 paramNames: site.paramNames,
                 code: site.code,
                 pureFnDependencies: site.pureFnDependencies,
@@ -266,6 +278,15 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // and nothing to inject, so pipelines that merely import a server module for its route types
     // (specs, client builds) are untouched.
     const extraPlugins: Plugin[] = [];
+    // configResolved runs for every plugin before any buildStart, so the root is set before the
+    // ts-runtypes report callback fires and resolveGenDir() can never read a stale value.
+    if (manifestPath)
+        extraPlugins.push({
+            name: 'mion-server-mappers-root',
+            configResolved(config) {
+                viteRoot = config.root;
+            },
+        } satisfies Plugin);
     if (options.serverMappers?.consume)
         extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
     if (options.server) {
@@ -287,7 +308,14 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
 /** Manifest row: one harvested serverMapFrom mapper (mirrors @mionjs/core ServerMapperEntry). */
 interface ServerMapperManifestEntry {
     key: string;
+    /** Absolute path to the pure-fn module @ts-runtypes generated for this mapper. The BUILD-mode
+     *  transport imports this and registers the tuple inside it, so the body has one source of
+     *  truth and arrives with its real bodyHash. Resolved from the report's `module` field, never
+     *  from an assumed `pf/<ns>/<key>` layout — under `moduleMode: 'allSingle'` every pure fn
+     *  collapses into a single `types/pf.js` and that assumption breaks. */
+    module?: string;
     paramNames?: string[];
+    /** Factory body. Kept for the DEV/SERVE lane only — see renderMappersModule. */
     code?: string;
     pureFnDependencies?: string[];
 }
@@ -383,19 +411,44 @@ function serverMappersConsumePlugin(consume: string | string[], injectInto?: str
     };
 }
 
-/** Renders the generated module's source for the active mode (see serverMappersConsumePlugin). */
+/** Renders the generated module's source for the active mode (see serverMappersConsumePlugin).
+ *
+ *  BUILD mode imports each mapper's generated pure-fn module out of the CLIENT build's
+ *  `__runtypes/types/` tree and registers the tuple inside it. mion keeps no copy of any body: the
+ *  entry arrives with @ts-runtypes' real bodyHash and its whole dep closure, and rollup inlines the
+ *  tuple into the artifact, so the client's generated tree is a BUILD-time input only — the bundle
+ *  stays self-contained and edge/lambda safe, with no node:fs.
+ *
+ *  The tuple is matched on its key slot rather than taken by export name. `PURE_FN_TUPLE_KEYS[3]` is
+ *  `key`, which holds in every module mode, whereas the export name is a mangled encoding of the
+ *  module's logical path (`__rt_pf$2Frt$2F<hash>`) whose escaping rules are not public — and "the
+ *  single export" only holds until someone sets `moduleMode: 'allSingle'`, which puts every pure fn
+ *  in one file. */
 function renderMappersModule(manifests: string[], isBuildCommand: boolean): string {
     const header = '// GENERATED by @mionjs/devtools — serverMapFrom transport. Do not edit.\n';
     if (isBuildCommand) {
         const entries = readMapperManifests(manifests);
-        return (
-            header +
-            [
-                `import {registerServerMappers} from '@mionjs/core';`,
-                `registerServerMappers(${JSON.stringify(entries)});`,
-                '',
-            ].join('\n')
-        );
+        const lines = [`import {registerServerMapperTuple, registerServerMappers} from '@mionjs/core';`];
+        const withoutModule: ServerMapperManifestEntry[] = [];
+        entries.forEach((entry, index) => {
+            if (!entry.module) {
+                withoutModule.push(entry);
+                return;
+            }
+            lines.push(`import * as __mionMapper${index} from ${JSON.stringify(toImportSpecifier(entry.module))};`);
+        });
+        entries.forEach((entry, index) => {
+            if (!entry.module) return;
+            const key = JSON.stringify(entry.key);
+            lines.push(
+                `registerServerMapperTuple(${key}, Object.values(__mionMapper${index}).find((t) => Array.isArray(t) && t[3] === ${key}));`
+            );
+        });
+        // A row with no `module` means the harvest ran against a report that carried no module path
+        // (older @ts-runtypes, or a hand-written manifest). Fall back to the code payload rather than
+        // dropping the mapper, which would only surface as a rejected flow at request time.
+        if (withoutModule.length) lines.push(`registerServerMappers(${JSON.stringify(withoutModule)});`);
+        return header + lines.join('\n') + '\n';
     }
     return (
         header +
@@ -420,10 +473,16 @@ function renderMappersModule(manifests: string[], isBuildCommand: boolean): stri
     );
 }
 
+/** Absolute path → an import specifier rollup will resolve. Windows separators become '/', and a
+ *  path is left absolute so it resolves regardless of where the generated module ends up. */
+function toImportSpecifier(absolutePath: string): string {
+    return absolutePath.split(path.sep).join('/');
+}
+
 /** Reads + merges the mapper manifests at BUILD time (missing files fail loud in build mode —
  *  a production bundle silently missing its mappers would only fail at request time). */
-function readMapperManifests(manifests: string[]): unknown[] {
-    const entries: unknown[] = [];
+function readMapperManifests(manifests: string[]): ServerMapperManifestEntry[] {
+    const entries: ServerMapperManifestEntry[] = [];
     for (const manifestPath of manifests) {
         if (!existsSync(manifestPath)) {
             throw new Error(
@@ -431,7 +490,7 @@ function readMapperManifests(manifests: string[]): unknown[] {
                     `Run the client build (serverMappers.emit) before the server build, or fix the configured path.`
             );
         }
-        entries.push(...(JSON.parse(readFileSync(manifestPath, 'utf8')) as unknown[]));
+        entries.push(...(JSON.parse(readFileSync(manifestPath, 'utf8')) as ServerMapperManifestEntry[]));
     }
     return entries;
 }

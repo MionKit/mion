@@ -19,6 +19,12 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 
 const ENTRY = `import {Routes, initMionRouter, route} from '@mionjs/router';\nawait initMionRouter({} as Routes);\n`;
 const MAPPER = {key: 'rt::abc123', code: 'return (order) => order.userId;'};
+// A harvested row as it looks since the transport stopped copying bodies: it points at the pure-fn
+// module @ts-runtypes generated in the CLIENT build, and the server imports the tuple out of it.
+const MAPPER_WITH_MODULE = {
+    ...MAPPER,
+    module: '/abs/client/__runtypes/types/pf/rt/abc123.js',
+};
 
 /** Drives the plugin's hooks the way vite would, and returns what it generated/injected. */
 function run(root: string, manifest: string, command: 'build' | 'serve', entryCode = ENTRY, injectInto?: string | string[]) {
@@ -57,12 +63,35 @@ describe('serverMapFrom generated module', () => {
         expect(generated).not.toContain('virtual:');
     });
 
-    it('inlines the manifest entries as static data in build mode', () => {
+    it('imports the generated pure-fn module and registers its tuple in build mode', () => {
+        writeFileSync(manifest, JSON.stringify([MAPPER_WITH_MODULE]));
+        const {generated} = run(root, manifest, 'build');
+        // the body is @ts-runtypes' to own: mion imports the module it already generated rather than
+        // shipping a second copy of the same source, so the entry carries its real bodyHash
+        expect(generated).toContain(`import * as __mionMapper0 from "${MAPPER_WITH_MODULE.module}"`);
+        expect(generated).toContain('registerServerMapperTuple');
+        expect(generated).not.toContain(MAPPER.code);
+        // an artifact that reads a cache off disk at boot is not edge/lambda deployable
+        expect(generated).not.toContain('node:fs');
+    });
+
+    it('matches the tuple by key slot, not by the mangled export name', () => {
+        writeFileSync(manifest, JSON.stringify([MAPPER_WITH_MODULE]));
+        const {generated} = run(root, manifest, 'build');
+        // The export name encodes the module's logical path (`__rt_pf$2Frt$2Fabc123`) with an escaping
+        // rule that is not public, and "take the single export" holds only until someone sets
+        // moduleMode: 'allSingle', which puts every pure fn in ONE module. PURE_FN_TUPLE_KEYS[3] is
+        // `key` in every mode, so the slot is the stable handle.
+        expect(generated).toContain(`t[3] === "${MAPPER.key}"`);
+        expect(generated).not.toContain('__rt_pf');
+    });
+
+    it('falls back to the code payload for a row with no module path', () => {
+        // older @ts-runtypes reports, or a hand-written manifest: dropping the mapper would only
+        // surface as a rejected flow at request time, so the old lane still registers it
         const {generated} = run(root, manifest, 'build');
         expect(generated).toContain('registerServerMappers');
-        expect(generated).toContain(MAPPER.key);
         expect(generated).toContain(MAPPER.code);
-        // an artifact that reads a cache off disk at boot is not edge/lambda deployable
         expect(generated).not.toContain('node:fs');
     });
 
