@@ -36,12 +36,12 @@ import {
     getBinaryStrategyStats,
     resetBinaryStrategyStats,
     createPooledDataViewSerializer,
-    configureBufferPool,
+    configureBinary,
+    resetBinaryOptions,
     resetBufferPool,
     getBufferPoolStats,
     resetSizeStats,
     predictSize,
-    configureSizeStats,
     recordSize,
     serializeBinaryBody,
     deserializeBinaryBody,
@@ -420,9 +420,10 @@ type Traffic = (i: number) => {paths: string[]; body: Record<string, any>};
 function profile(name: string, strategy: Strategy, traffic: Traffic, n: number, ringSize?: number): Run {
     resetBufferPool();
     resetSizeStats();
+    resetBinaryOptions();
     resetBinaryStrategyStats();
-    configureBufferPool({enabled: true});
-    if (ringSize !== undefined) configureSizeStats({ringSize});
+    configureBinary({pool: {enabled: true}});
+    if (ringSize !== undefined) configureBinary({sizeStats: {ringSize}});
     const run = newRun();
     for (let i = 0; i < n; i++) {
         const {paths, body} = traffic(i);
@@ -451,15 +452,15 @@ function assertIdenticalOutput(): void {
         const chain = mergedChain(paths);
         resetBufferPool();
         resetSizeStats();
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         const a = singlePredicted(chain, body, newRun());
         resetBufferPool();
         resetSizeStats();
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         const b = perRouteMerge(chain, body, newRun());
         resetBufferPool();
         resetSizeStats();
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         const c = singleExact(chain, body, newRun());
         if (a.byteLength !== b.byteLength || a.byteLength !== c.byteLength)
             throw new Error(`length mismatch at ${i}: single=${a.byteLength} merge=${b.byteLength} exact=${c.byteLength}`);

@@ -18,7 +18,8 @@ import {Routes} from '../types/general.ts';
 import {
     serializeBinaryBody,
     deserializeBinaryBody,
-    configureBufferPool,
+    configureBinary,
+    resetBinaryOptions,
     resetBufferPool,
     getBufferPoolStats,
     resetSizeStats,
@@ -72,6 +73,7 @@ describe('binary pooled strategy', () => {
     beforeEach(async () => {
         resetRouter();
         resetBufferPool();
+        resetBinaryOptions();
         resetSizeStats();
         resetBinaryStrategyStats();
         await initMionRouter(routes, {serializer: 'binary'});
@@ -88,7 +90,7 @@ describe('binary pooled strategy', () => {
         unpooled.release();
 
         resetSizeStats();
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         warmUp(msg);
         const pooled = serialize(msg);
         expect(Array.from(pooled.view)).toEqual(Array.from(expected));
@@ -96,7 +98,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('actually reuses buffers once the route is warm', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         warmUp('steady payload');
         const before = getBufferPoolStats().hits;
         for (let i = 0; i < 5; i++) serialize('steady payload').release();
@@ -104,7 +106,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('pools a cold route by MEASURING it — there is no history to predict from', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         const result = serialize('cold');
         // no window to trust, so the size is exact rather than guessed, and cannot be too small
         expect(getBinaryStrategyStats().measured).toBe(1);
@@ -117,7 +119,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('stops measuring once a steady window can pick the class on its own', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         warmUp('steady payload');
         resetBinaryStrategyStats();
         for (let i = 0; i < 5; i++) serialize('steady payload').release();
@@ -127,7 +129,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('never exposes stale bytes from a previous, larger response', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         const big = 'X'.repeat(400);
         warmUp(big);
         // a large response settles a large size class...
@@ -147,7 +149,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('costs ONE miss when a steady route jumps, then measures from then on', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         // a steady window is trusted, and it cannot see a payload it has never been shown...
         warmUp('small');
         resetBinaryStrategyStats();
@@ -168,7 +170,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('keeps round-tripping a volatile route request after request', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         warmUp('small');
         // the first jump is the only one allowed to miss; after that the window knows it is volatile
         serialize('Z'.repeat(50_000)).release();
@@ -188,7 +190,7 @@ describe('binary pooled strategy', () => {
     it('recovers when a value CHANGES between the measure pass and the write', () => {
         // the one way a measured size can still be wrong: the encoder reads a value twice and is
         // given different bytes. The pooled attempt must be abandoned, not truncated.
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         let reads = 0;
         const shifty: Named = {
             get name(): string {
@@ -207,7 +209,7 @@ describe('binary pooled strategy', () => {
     });
 
     it('release is idempotent end-to-end', () => {
-        configureBufferPool({enabled: true});
+        configureBinary({pool: {enabled: true}});
         warmUp('payload');
         const result = serialize('payload');
         result.release();
@@ -224,7 +226,7 @@ describe('binary pooled strategy', () => {
         };
 
         it('pools a merged envelope sized from the member routes it has already served', () => {
-            configureBufferPool({enabled: true});
+            configureBinary({pool: {enabled: true}});
             // ordinary single-route traffic on each member — the merged COMBINATION is never seen
             warmUp(big);
             warmUpShout(big.toUpperCase());
@@ -241,7 +243,7 @@ describe('binary pooled strategy', () => {
         });
 
         it('teaches every route it carried, not just the combination', () => {
-            configureBufferPool({enabled: true});
+            configureBinary({pool: {enabled: true}});
             expect(observationCount('echo', true)).toBe(0);
             expect(observationCount('shout', true)).toBe(0);
 
@@ -253,7 +255,7 @@ describe('binary pooled strategy', () => {
         });
 
         it('warms up on routesFlow traffic alone', () => {
-            configureBufferPool({enabled: true});
+            configureBinary({pool: {enabled: true}});
             for (let i = 0; i < WARMUP; i++) flow().release();
             resetBinaryStrategyStats();
 
@@ -266,7 +268,7 @@ describe('binary pooled strategy', () => {
         });
 
         it('measures a merged envelope whose members are not all warm yet', () => {
-            configureBufferPool({enabled: true});
+            configureBinary({pool: {enabled: true}});
             warmUp(big); // only /echo is warm
             resetBinaryStrategyStats();
 

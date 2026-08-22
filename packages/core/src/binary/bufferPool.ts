@@ -15,20 +15,12 @@
 //
 // Failure mode is deliberately benign: a lease that is never released is simply not returned to the
 // free list and gets collected as before. A lost reuse, never a corrupted response.
+//
+// Configuration lives in ./options.ts (`configureBinary({pool: {...}})`); this module owns only the
+// STATE — the free lists and their counters.
 
+import {getBinaryOptions, type BufferPoolOptions} from './options.ts';
 import {getOrCreateGlobal} from '../utils.ts';
-
-export interface BufferPoolConfig {
-    /** smallest size class in bytes; requests below this round up to it */
-    minClassBytes: number;
-    /** largest POOLED size class; anything above is allocated directly and never retained, so a
-     *  single huge response cannot hold megabytes hostage */
-    maxClassBytes: number;
-    /** free-list depth per size class */
-    maxPerClass: number;
-    /** ceiling on total bytes held across all classes */
-    maxTotalBytes: number;
-}
 
 export interface BufferPoolStats {
     /** leases served from the free list */
@@ -49,50 +41,51 @@ export interface BufferLease {
     release(): void;
 }
 
-const DEFAULTS: BufferPoolConfig = {
-    minClassBytes: 1024, // 1 KiB
-    maxClassBytes: 1024 * 1024, // 1 MiB
-    maxPerClass: 32,
-    maxTotalBytes: 64 * 1024 * 1024, // 64 MiB
-};
-
 interface BufferPoolState {
-    config: BufferPoolConfig;
-    enabled: boolean;
     freeLists: Map<number, ArrayBuffer[]>;
     stats: {hits: number; misses: number; dropped: number};
     bytesHeld: number;
+    /** the options the retained buffers were filed under; -1 until the first reconcile */
+    filedEnabled: boolean;
+    filedMin: number;
+    filedMax: number;
 }
 
-// process-wide singleton: under a dual load of @mionjs/core (see
-// docs/done/virtual-module-retired-and-dual-core-load.md) `configureBufferPool` and
-// `serializeBinaryBody` would otherwise land on different pools, and pooling would be silently off
-// while the configuration appeared to apply.
+// process-wide singleton: under a dual load of @mionjs/core the free lists must be the same ones the
+// serializer borrows from (see docs/done/virtual-module-retired-and-dual-core-load.md)
 const state = getOrCreateGlobal<BufferPoolState>('mion.core.binary.bufferPool', () => ({
-    config: {...DEFAULTS},
-    enabled: false,
     freeLists: new Map<number, ArrayBuffer[]>(),
     stats: {hits: 0, misses: 0, dropped: 0},
     bytesHeld: 0,
+    filedEnabled: false,
+    filedMin: -1,
+    filedMax: -1,
 }));
 
-/** Enables/configures the pool. Platform adapters that own a safe release point call this. */
-export function configureBufferPool(patch: Partial<BufferPoolConfig> & {enabled?: boolean}): void {
-    const {enabled: nextEnabled, ...rest} = patch;
-    // Held buffers are filed under a size class derived from the current boundaries. Changing one
-    // would orphan them: filed under a key nothing looks up any more, yet still counted in
-    // bytesHeld, permanently shrinking maxTotalBytes. Drain instead.
-    const classesChanged =
-        (rest.minClassBytes !== undefined && rest.minClassBytes !== state.config.minClassBytes) ||
-        (rest.maxClassBytes !== undefined && rest.maxClassBytes !== state.config.maxClassBytes);
-    state.config = {...state.config, ...rest};
-    if (nextEnabled !== undefined) state.enabled = nextEnabled;
-    if (!state.enabled || classesChanged) clearBufferPool();
+/**
+ * Reconciles the retained buffers with the current options, and is called from every entry point of
+ * this module so the pool heals itself whenever the options change, from wherever they change —
+ * rather than `configureBinary` having to know the pool exists.
+ *
+ * Two changes invalidate what is held: pooling being turned OFF, which must not leave megabytes
+ * retained for a pool nobody is drawing from; and a class boundary MOVING, which would leave every
+ * retained buffer filed under a key nothing looks up any more while still counting against
+ * `maxTotalBytes`.
+ */
+function reconcile(pool: BufferPoolOptions): void {
+    if (pool.enabled === state.filedEnabled && pool.minClassBytes === state.filedMin && pool.maxClassBytes === state.filedMax)
+        return;
+    state.filedEnabled = pool.enabled;
+    state.filedMin = pool.minClassBytes;
+    state.filedMax = pool.maxClassBytes;
+    clearBufferPool();
 }
 
 /** True when pooled serialization should be attempted at all. */
 export function isBufferPoolEnabled(): boolean {
-    return state.enabled;
+    const pool = getBinaryOptions().pool;
+    reconcile(pool);
+    return pool.enabled;
 }
 
 /** Drops every retained buffer. For tests and shutdown. */
@@ -101,17 +94,17 @@ export function clearBufferPool(): void {
     state.bytesHeld = 0;
 }
 
-/** Resets pool state AND config. Tests only. */
+/** Drops every retained buffer and zeroes the counters. Tests and shutdown; the OPTIONS are reset
+ *  separately through `resetBinaryOptions`. */
 export function resetBufferPool(): void {
     clearBufferPool();
-    state.config = {...DEFAULTS};
-    state.enabled = false;
     state.stats.hits = 0;
     state.stats.misses = 0;
     state.stats.dropped = 0;
 }
 
 export function getBufferPoolStats(): BufferPoolStats {
+    reconcile(getBinaryOptions().pool);
     let held = 0;
     for (const list of state.freeLists.values()) held += list.length;
     return {hits: state.stats.hits, misses: state.stats.misses, held, bytesHeld: state.bytesHeld, dropped: state.stats.dropped};
@@ -119,7 +112,7 @@ export function getBufferPoolStats(): BufferPoolStats {
 
 /** Rounds up to the next power-of-two size class, floored at minClassBytes. */
 export function sizeClassFor(bytes: number): number {
-    const min = state.config.minClassBytes;
+    const min = getBinaryOptions().pool.minClassBytes;
     if (bytes <= min) return min;
     // next power of two at or above `bytes`
     return 2 ** Math.ceil(Math.log2(bytes));
@@ -136,10 +129,12 @@ function unpooledLease(bytes: number): BufferLease {
  * caller must size the payload by the serializer's own index, never by buffer.byteLength.
  */
 export function acquireBuffer(minBytes: number): BufferLease {
-    if (!state.enabled) return unpooledLease(minBytes);
+    const pool = getBinaryOptions().pool;
+    reconcile(pool);
+    if (!pool.enabled) return unpooledLease(minBytes);
     const cls = sizeClassFor(minBytes);
     // Above the ceiling: serve it, but never retain it.
-    if (cls > state.config.maxClassBytes) return unpooledLease(minBytes);
+    if (cls > pool.maxClassBytes) return unpooledLease(minBytes);
 
     const list = state.freeLists.get(cls);
     const pooled = list?.pop();
@@ -165,16 +160,18 @@ function makeLease(buffer: ArrayBuffer, cls: number): BufferLease {
 }
 
 function returnToPool(buffer: ArrayBuffer, cls: number): void {
-    if (!state.enabled) return;
+    const pool = getBinaryOptions().pool;
+    reconcile(pool);
+    if (!pool.enabled) return;
     // a reconfigure may have moved the class boundaries under a lease taken before it: only file a
     // buffer whose byte length still IS its class, so nothing lands under a stale key
-    if (cls !== sizeClassFor(buffer.byteLength) || cls > state.config.maxClassBytes) return;
+    if (cls !== sizeClassFor(buffer.byteLength) || cls > pool.maxClassBytes) return;
     let list = state.freeLists.get(cls);
     if (list === undefined) {
         list = [];
         state.freeLists.set(cls, list);
     }
-    if (list.length >= state.config.maxPerClass || state.bytesHeld + cls > state.config.maxTotalBytes) {
+    if (list.length >= pool.maxPerClass || state.bytesHeld + cls > pool.maxTotalBytes) {
         state.stats.dropped++;
         return;
     }

@@ -17,7 +17,7 @@ import {Routes} from '../types/general.ts';
 import {
     serializeBinaryBody,
     predictSize,
-    configureBufferPool,
+    configureBinary,
     resetBufferPool,
     getBufferPoolStats,
     getBinaryStrategyStats,
@@ -69,7 +69,7 @@ function pct(sorted: number[], p: number): number {
 function profile(name: string, routeId: string, path: string, make: (i: number) => unknown, n = 2000, pooled = false) {
     resetBufferPool();
     resetBinaryStrategyStats();
-    if (pooled) configureBufferPool({enabled: true});
+    if (pooled) configureBinary({pool: {enabled: true}});
     const chain = chainFor(path);
     const payloads: number[] = [];
     let grows = 0;
