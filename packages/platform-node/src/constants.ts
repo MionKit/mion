@@ -26,4 +26,5 @@ export const DEFAULT_HTTP_OPTIONS: NodeHttpOptions = {
      * */
     maxBodySize: 256000, // 256KB
     binary: {},
+    asMiddleware: false,
 };

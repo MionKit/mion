@@ -46,6 +46,13 @@ function applyBinaryOptions(binary: BinaryOptionsPatch): void {
     configureBinary({...binary, pool: {enabled: true, ...binary.pool}});
 }
 
+/** The platform config the router publishes: everything but node's native ServerOptions. */
+function serializablePlatformConfig(): Record<string, unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const {options: _nativeOpts, ...serializableConfig} = httpOptions;
+    return serializableConfig;
+}
+
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
     const isTest = getENV('NODE_ENV') === 'test';
 
@@ -53,7 +60,7 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
     applyBinaryOptions(httpOptions.binary);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest)
+    if (!isTest && !httpOptions.asMiddleware)
         console.log(`mion node server running on ${url}`, {
             port: httpOptions.port,
             httpOptions,
@@ -65,14 +72,21 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
                 ? createHttps(httpOptions.options, httpRequestHandler)
                 : createHttp(httpOptions.options, httpRequestHandler);
 
+        // The host owns the socket: no listen(), and NO shutdown handlers — theirs calls
+        // process.exit(0), which in middleware mode would kill the host (a vite dev server, an
+        // express app) on the first Ctrl-C it was already handling itself.
+        if (httpOptions.asMiddleware) {
+            if (!isTest) console.log('mion running as middleware: routes are registered, mion did NOT open a port.');
+            setPlatformConfig(serializablePlatformConfig());
+            return resolve(server);
+        }
+
         server.on('error', (e) => {
             reject(e);
         });
 
         server.listen(httpOptions.port, () => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {options: _nativeOpts, ...serializableConfig} = httpOptions;
-            setPlatformConfig(serializableConfig);
+            setPlatformConfig(serializablePlatformConfig());
             resolve(server);
         });
 
