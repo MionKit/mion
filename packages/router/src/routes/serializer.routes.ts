@@ -120,14 +120,9 @@ export function serializeResponseBody(context: CallContext, opts: RouterOptions)
  *  payload that nothing consumed. */
 function serializeBinaryBody(context: CallContext, executionChain: RemoteMethod[], respBody: ResponseBody): void {
     const response = context.response as Mutable<MionResponse>;
-    // For routesFlow, use routesFlowRouteIds from context for proper buffer sizing
-    const {serializer, release} = coreSerializeBinaryBody(
-        context.path,
-        executionChain,
-        respBody,
-        true,
-        context.routesFlowRouteIds
-    );
+    // routesFlow needs no special casing: the buffer is sized by summing the chain's own methods,
+    // whatever route each of them came from
+    const {serializer, release} = coreSerializeBinaryBody(context.path, executionChain, respBody, true);
     response.binSerializer = serializer;
     response.releaseBinBuffer = release;
 }

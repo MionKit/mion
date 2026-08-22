@@ -30,7 +30,16 @@ export function createDataViewSerializer(routeId: string, size: number): DataVie
 }
 
 /** Creates a NON-growing serializer over a caller-owned (pooled) buffer. Upstream cannot resize a
- *  buffer it does not own, so overflow throws — callers must be prepared to re-encode. */
+ *  buffer it does not own, so a payload that outruns the buffer fails instead of growing — callers
+ *  must be prepared to re-encode (see serializeBinaryBody).
+ *
+ *  mion deliberately does NOT install its own grow reserve here, even though it owns the buffer and
+ *  could move the serializer off it: upstream reserves the WORST-CASE UTF-8 size for a string it has
+ *  not cached (`MAX_VARINT + charLength * 3`, since `encodeInto` must not be allowed to truncate).
+ *  A reserve-driven grow would therefore fire on any payload carrying a string of 64 chars or more —
+ *  measured: a 50 KB string reserves 150 KB and grows off a 64 KiB class that its real bytes fit in
+ *  three times over, on every single request. The optimistic non-growing write keeps the pooled
+ *  buffer for every payload that genuinely fits, and the rare miss costs one re-encode. */
 export function createPooledDataViewSerializer(routeId: string, buffer: ArrayBuffer): DataViewSerializer {
     return rtCreateDataViewSerializer(routeId, {buffer});
 }

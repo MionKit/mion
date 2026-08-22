@@ -122,10 +122,9 @@ function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
         executionChain.push(method);
     }
 
-    const workflowRouteIds = req.workflowSubRequests?.map((sr) => sr.id);
     // getBufferView() is a zero-copy view of the serializer's own buffer, which nothing else
     // references once this returns — so the request body needs no defensive copy.
-    const {serializer} = coreSerializeBinaryBody(req.path, executionChain, body, false, workflowRouteIds);
+    const {serializer} = coreSerializeBinaryBody(req.path, executionChain, body, false);
     return serializer.getBufferView();
 }
 

@@ -1,32 +1,38 @@
 import {createDataViewSerializer, createPooledDataViewSerializer} from './dataView.ts';
-import {acquireBuffer, isBufferPoolEnabled, sizeClassFor, type BufferLease} from './bufferPool.ts';
+import {acquireBuffer, isBufferPoolEnabled, type BufferLease} from './bufferPool.ts';
 import {observationCount, predictSize, recordSize} from './sizeStats.ts';
 import {MION_ROUTES, StatusCodes} from '../constants.ts';
 import {RpcError} from '../errors.ts';
+import {getOrCreateGlobal} from '../utils.ts';
 import type {DataViewSerializer} from '../types/general.types.ts';
 import type {MethodWithJitFns} from '../types/method.types.ts';
 
 // ############# buffer strategy #############
 //
-// Two strategies, both sized from mion's own per-route statistics (see ./sizeStats.ts):
+// Two strategies, both sized from mion's own per-METHOD statistics (see ./sizeStats.ts):
 //
 //   adaptive — allocate an exact-size GROWING buffer. An underestimate costs one in-place grow
 //              copy and can never throw, so this is the default and the fallback for everything.
 //   pooled   — borrow a size-classed buffer from ./bufferPool.ts. Upstream disables growth on a
-//              buffer it does not own, so an underestimate THROWS and we re-encode once through
-//              the adaptive path. Only used where the platform gives us a safe release point.
+//              buffer it does not own, so an underestimate fails and we re-encode once through the
+//              adaptive path. Only used where the platform gives us a safe release point.
 //
-// A route is only pooled once it has enough observations to support a high quantile: the
+// A method is only pooled once it has enough observations to support a high quantile: the
 // compile-time cold-start estimate is tight (8 bytes for a `number` return), so pooling a cold
-// route would guarantee an overflow-retry on its first requests.
+// route would guarantee a miss on its first requests.
+//
+// Sizing is per METHOD, never per request path. A routesFlow request merges several routes into ONE
+// envelope, and the combination is usually new even when every member route is well observed — only
+// per-method statistics can size it, by summing the parts.
 
 /** quantile + headroom for the growing strategy — a miss is cheap, so size for the common case */
 const ADAPTIVE_QUANTILE = 0.9;
 const ADAPTIVE_PAD = 1.25;
-/** quantile + headroom for the pooled strategy — a miss costs a re-encode, so cover the tail */
-const POOLED_QUANTILE = 0.99;
+/** quantile + headroom for the pooled strategy — a miss costs a re-encode and the buffer is reused
+ *  anyway, so size for the largest payload in the window */
+const POOLED_QUANTILE = 1;
 const POOLED_PAD = 1.25;
-/** observations required before a route may use a pooled (non-growing) buffer */
+/** observations a method needs before it may be written into a pooled (non-growing) buffer */
 const POOL_WARMUP_OBSERVATIONS = 8;
 /** per-method framing allowance for the cold-start estimate: the key string + its varint prefix */
 const KEY_OVERHEAD_BYTES = 24;
@@ -42,11 +48,16 @@ export interface BinaryStrategyStats {
     pooled: number;
     /** envelopes written into a freshly allocated growing buffer */
     adaptive: number;
-    /** pooled attempts that overflowed and were re-encoded on a growing buffer */
+    /** pooled attempts that outran the borrowed buffer and were re-encoded on a growing one */
     retries: number;
 }
 
-const strategyStats: BinaryStrategyStats = {pooled: 0, adaptive: 0, retries: 0};
+// process-wide singleton, like the pool and the size stats it reports on
+const strategyStats = getOrCreateGlobal<BinaryStrategyStats>('mion.core.binary.strategyStats', () => ({
+    pooled: 0,
+    adaptive: 0,
+    retries: 0,
+}));
 
 export function getBinaryStrategyStats(): BinaryStrategyStats {
     return {...strategyStats};
@@ -68,55 +79,48 @@ export interface BinaryBodyResult {
     release(): void;
 }
 
-/** Cold-start size from the compile-time per-type estimates the `tb` tuples carry, so an unseen
- *  route is sized to its TYPE rather than to a flat default.
+/** Cold-start size for ONE method, from the compile-time per-type estimate its `tb` tuple carries,
+ *  so an unseen method is sized to its TYPE rather than to a flat default. */
+function coldStartSize(method: MethodWithJitFns, isResponse: boolean): number {
+    const estimate = isResponse ? method.returnBinarySizeEstimate : method.paramsBinarySizeEstimate;
+    return (estimate ?? 0) + KEY_OVERHEAD_BYTES;
+}
+
+/** Predicted envelope size for this request: the header plus every method that will actually be
+ *  written, each predicted from its OWN recent sizes.
  *
- *  Counts ONLY the methods that will actually be written — using the same predicate the write loop
- *  uses. Summing the whole chain blindly is badly wrong: a binary route's chain carries the metadata
- *  middleFn, whose union return type estimates ~80 KiB but whose value is undefined on every normal
- *  request, so it is skipped. Including it made a cold request allocate 82 KB for a 17-byte payload. */
-function coldStartSize(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): number {
+ *  Summing per method is what makes routesFlow work — its merged chain is a combination the router
+ *  may never have served before, but its parts have been. It is also why the whole chain must not
+ *  be summed blindly: a binary route's chain carries the metadata middleFn, whose union return type
+ *  estimates ~80 KiB but whose value is undefined on every normal request, so `willSerialize` skips
+ *  it. Including it made a cold request allocate 82 KB for a 17-byte payload. */
+function predictBufferSize(
+    executionChain: MethodWithJitFns[],
+    body: Record<string, any>,
+    isResponse: boolean,
+    pooled: boolean
+): number {
+    const quantile = pooled ? POOLED_QUANTILE : ADAPTIVE_QUANTILE;
+    const pad = pooled ? POOLED_PAD : ADAPTIVE_PAD;
     let total = ENVELOPE_HEADER_BYTES;
     for (let i = 0; i < executionChain.length; i++) {
         const method = executionChain[i];
         if (!willSerialize(method.id, method, body[method.id], isResponse)) continue;
-        const estimate = isResponse ? method.returnBinarySizeEstimate : method.paramsBinarySizeEstimate;
-        if (estimate === undefined) continue;
-        total += estimate + KEY_OVERHEAD_BYTES;
+        total += predictSize(method.id, isResponse, quantile, pad, coldStartSize(method, isResponse));
     }
     return Math.max(total, MIN_COLD_START_BYTES);
 }
 
-/** Predicted buffer size for this request, from mion's own recent-size ring. For routesFlow the
- *  member routes are summed — upstream's relatedKeys path would fall back to a full default buffer
- *  PER cold member. */
-function predictBufferSize(
-    path: string,
-    executionChain: MethodWithJitFns[],
-    body: Record<string, any>,
-    isResponse: boolean,
-    pooled: boolean,
-    workflowRouteIds?: string[]
-): number {
-    const quantile = pooled ? POOLED_QUANTILE : ADAPTIVE_QUANTILE;
-    const pad = pooled ? POOLED_PAD : ADAPTIVE_PAD;
-    const cold = coldStartSize(executionChain, body, isResponse);
-    if (workflowRouteIds?.length) {
-        let total = ENVELOPE_HEADER_BYTES;
-        for (const routeId of workflowRouteIds) total += predictSize(routeId, quantile, pad, cold, pooled);
-        return total;
+/** True when every method this envelope will carry has enough history to size a non-growing buffer.
+ *  Per method, so a routesFlow envelope is pool-eligible as soon as its members are — the merged
+ *  combination itself never needs to have been served before. */
+function isWarm(executionChain: MethodWithJitFns[], body: Record<string, any>, isResponse: boolean): boolean {
+    for (let i = 0; i < executionChain.length; i++) {
+        const method = executionChain[i];
+        if (!willSerialize(method.id, method, body[method.id], isResponse)) continue;
+        if (observationCount(method.id, isResponse) < POOL_WARMUP_OBSERVATIONS) return false;
     }
-    return predictSize(path, quantile, pad, cold, pooled);
-}
-
-/** True when this route may use a pooled, non-growing buffer. */
-function shouldPool(path: string, workflowRouteIds?: string[]): boolean {
-    if (!isBufferPoolEnabled()) return false;
-    // routesFlow spans several keys; require every member to be warm before trusting the sum
-    if (workflowRouteIds?.length) {
-        return workflowRouteIds.every((id) => observationCount(id) >= POOL_WARMUP_OBSERVATIONS);
-    }
-    return observationCount(path) >= POOL_WARMUP_OBSERVATIONS;
+    return true;
 }
 
 /**
@@ -131,45 +135,62 @@ export function serializeBinaryBody(
     path: string,
     executionChain: MethodWithJitFns[],
     body: Record<string, any>,
-    isResponse: boolean,
-    workflowRouteIds?: string[]
+    isResponse: boolean
 ): BinaryBodyResult {
-    if (shouldPool(path, workflowRouteIds)) {
-        const size = predictBufferSize(path, executionChain, body, isResponse, true, workflowRouteIds);
-        const lease = acquireBuffer(size);
-        const capacity = lease.buffer.byteLength;
-        try {
-            const serializer = createPooledDataViewSerializer(path, lease.buffer);
-            const result = finish(path, writeEnvelope(serializer, executionChain, body, isResponse), lease);
-            strategyStats.pooled++;
-            return result;
-        } catch (err: any) {
-            lease.release();
-            // An overflow means the prediction was too tight for THIS payload. Anything else is a
-            // real failure and must not be retried into silence.
-            if (!isCapacityOverflow(err)) throw toRpcError(err, isResponse);
-            // Escalate the route's class so the next request does not repeat the miss, then fall
-            // through and re-encode once on a growing buffer, which cannot overflow.
-            strategyStats.retries++;
-            recordSize(path, sizeClassFor(capacity + 1));
-        }
+    if (isBufferPoolEnabled() && isWarm(executionChain, body, isResponse)) {
+        const pooledResult = serializePooled(path, executionChain, body, isResponse);
+        if (pooledResult) return pooledResult;
+        // The pooled attempt could not produce the envelope. It is an OPTIMISATION, so it never
+        // decides the response: fall through and encode again on a growing buffer, which is the
+        // reference path and cannot overflow. A failure there is the real failure and is what
+        // surfaces. The sizes the failed attempt observed are real bytes, so the next request is
+        // already sized for this payload — no fabricated escalation needed.
+        strategyStats.retries++;
     }
 
-    const size = predictBufferSize(path, executionChain, body, isResponse, false, workflowRouteIds);
+    const size = predictBufferSize(executionChain, body, isResponse, false);
+    const serializer = createDataViewSerializer(path, size);
     try {
-        const serializer = createDataViewSerializer(path, size);
-        const result = finish(path, writeEnvelope(serializer, executionChain, body, isResponse), undefined);
-        strategyStats.adaptive++;
-        return result;
+        writeEnvelope(serializer, executionChain, body, isResponse);
     } catch (err: any) {
         throw toRpcError(err, isResponse);
     }
+    strategyStats.adaptive++;
+    return finish(serializer, undefined);
 }
 
-/** Records the observed size and builds the result. Recording happens HERE, not in release(), so
- *  the next request benefits immediately rather than waiting on the socket to drain. */
-function finish(path: string, serializer: DataViewSerializer, lease: BufferLease | undefined): BinaryBodyResult {
-    recordSize(path, serializer.getLength());
+/** One attempt on a borrowed, non-growing buffer. Returns undefined (having returned the buffer) if
+ *  the envelope could not be written — the caller re-encodes on the adaptive path rather than this
+ *  code guessing from an error type whether the buffer was merely too small, which it cannot tell:
+ *  a RangeError raised inside a compiled `toBinary` looks exactly like an out-of-bounds write. */
+function serializePooled(
+    path: string,
+    executionChain: MethodWithJitFns[],
+    body: Record<string, any>,
+    isResponse: boolean
+): BinaryBodyResult | undefined {
+    const size = predictBufferSize(executionChain, body, isResponse, true);
+    const lease = acquireBuffer(size);
+    const serializer = createPooledDataViewSerializer(path, lease.buffer);
+    try {
+        writeEnvelope(serializer, executionChain, body, isResponse);
+    } catch {
+        lease.release();
+        return undefined;
+    }
+    // Not every overflow throws: upstream's varint writer drops out-of-range byte writes while the
+    // cursor advances past the end, so a payload can outrun the buffer silently. This is the exact
+    // signal for that, and it is checked BEFORE the view is taken (getBufferView would throw).
+    if (serializer.index > serializer.buffer.byteLength) {
+        lease.release();
+        return undefined;
+    }
+    strategyStats.pooled++;
+    return finish(serializer, lease);
+}
+
+/** Builds the result over whatever buffer the serializer ended up on. */
+function finish(serializer: DataViewSerializer, lease: BufferLease | undefined): BinaryBodyResult {
     let released = false;
     return {
         serializer,
@@ -191,7 +212,8 @@ function writeEnvelope(
 ): DataViewSerializer {
     // Reserve space for items length at index 0 (will be written after counting)
     const itemsLengthIndex = serializer.index;
-    serializer.index += 4;
+    serializer.ensureCapacity?.(ENVELOPE_HEADER_BYTES);
+    serializer.index += ENVELOPE_HEADER_BYTES;
 
     let itemsLength = 0;
     // serialize each method's value (return value for responses, params for requests)
@@ -199,21 +221,18 @@ function writeEnvelope(
         const method = executionChain[i];
         const key = method.id;
         const value = body[key];
+        const start = serializer.index;
         if (serializeMethod(key, method, value, serializer, isResponse)) {
             itemsLength++;
+            // Recorded HERE, per method and inline, so the next request benefits immediately rather
+            // than waiting on the socket to drain — and so a routesFlow envelope teaches every
+            // route it carried, not just the combination it happened to be.
+            recordSize(key, serializer.index - start, isResponse);
         }
     }
     // Write items length at reserved index 0
     serializer.view.setUint32(itemsLengthIndex, itemsLength, true);
     return serializer;
-}
-
-/** True for the out-of-bounds errors a non-growing buffer raises when the payload outruns it.
- *  Deliberately narrow — a failure from anywhere else must surface, not be retried away. Upstream
- *  raises RangeError from DataView/TypedArray out-of-bounds writes and from its own encodeInto
- *  truncation guard; all of them mean "this buffer was too small". */
-function isCapacityOverflow(err: unknown): boolean {
-    return err instanceof RangeError;
 }
 
 function toRpcError(err: any, isResponse: boolean): RpcError<string> {
@@ -247,7 +266,7 @@ function serializeMethod(
 }
 
 /** Whether a method contributes bytes to the envelope. Single source of truth, shared by the write
- *  loop and the cold-start estimate so the two can never disagree about what is on the wire. */
+ *  loop and the size prediction so the two can never disagree about what is on the wire. */
 function willSerialize(key: string, method: MethodWithJitFns, value: any, isResponse: boolean): boolean {
     const toBinary = isResponse ? method.returnJitFns.toBinary : method.paramsJitFns.toBinary;
     if (!toBinary?.fn || toBinary.isNoop) return false;
