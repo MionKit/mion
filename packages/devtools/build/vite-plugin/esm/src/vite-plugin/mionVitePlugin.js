@@ -105,7 +105,13 @@ function mionVitePlugin(options = {}) {
     extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
   if (options.server) {
     const server = options.server;
-    if ((server.runMode ?? "middleware") === "middleware") {
+    const runMode = server.runMode ?? "middleware";
+    if (runMode !== "middleware" && runMode !== "childProcess") {
+      throw new Error(
+        `[mionVitePlugin] unknown server.runMode '${runMode}'. Use 'middleware' (default: the API runs inside the vite dev server) or 'childProcess' (spawned beside it for e2e). 'buildOnly' is gone — it WAS the AOT harvest mode, and AOT is gone.`
+      );
+    }
+    if (runMode === "middleware") {
       extraPlugins.unshift(
         mionMiddlewarePlugin(server, {
           onReady: () => serverReadyResolve?.(),
@@ -237,6 +243,8 @@ let serverChild;
 const serverReady = new Promise((resolve, reject) => {
   serverReadyResolve = resolve;
   serverReadyReject = reject;
+});
+void serverReady.catch(() => {
 });
 function resolveViteNodeCli() {
   const manifestPath = createRequire(import.meta.url).resolve("vite-node/package.json");

@@ -574,6 +574,12 @@ export const serverReady: Promise<void> = new Promise((resolve, reject) => {
     serverReadyResolve = resolve;
     serverReadyReject = reject;
 });
+// Nobody awaits this in a plain `vite dev` — it exists for test/e2e globalSetups. Without a handler
+// attached HERE, a rejection has no consumer and node kills the process: in middleware mode that
+// means one broken import in the API takes the whole dev server down instead of showing a 503 (seen
+// for real). Attaching a no-op handler swallows nothing — a consumer's own `await serverReady`
+// still rejects.
+void serverReady.catch(() => {});
 
 /** Resolves vite-node's CLI from THIS package's own dependency tree.
  *

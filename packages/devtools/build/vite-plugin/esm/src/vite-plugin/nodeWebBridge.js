@@ -32,9 +32,22 @@ async function serveFetchHandler(handler, req, res, isSecure) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
+    let size = 0;
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+      size += chunk.byteLength;
+    });
     req.on("error", reject);
-    req.on("end", () => resolve(chunks.length ? Buffer.concat(chunks) : void 0));
+    req.on("end", () => {
+      if (!size) return resolve(void 0);
+      const body = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      resolve(body);
+    });
   });
 }
 export {
