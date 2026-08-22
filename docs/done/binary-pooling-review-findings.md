@@ -91,6 +91,25 @@ And where that is not good enough, the measure pass gives the exact count with n
   the WORST-CASE UTF-8 size for an uncached string (`MAX_VARINT + charLength * 3`), so a 50 KB string
   reserves 150 KB and grows off a 64 KiB class its real bytes fit in three times over — on every
   request. Reverted; the reason is a comment on `createPooledDataViewSerializer` so nobody retries it.
+- **A shorter size window is worse, not cheaper.** After a spike, the straddle gate keeps measuring
+  until that observation ages out of the ring, which reads like wasted CPU — so shortening the window
+  (making the worst case forget sooner) looks like a free win. Measured over the same two profiles,
+  it loses on every axis, memory included:
+
+  | ringSize | A misses | A buffer÷payload | B misses | B buffer÷payload | B peak/req |
+  | --- | --- | --- | --- | --- | --- |
+  | 8 | 62 | 2.8x | 82 | 3.0x | 175 KB |
+  | 16 | 29 | 2.6x | 82 | 3.0x | 175 KB |
+  | 32 | 10 | 2.6x | 1 | 1.8x | 64 KB |
+  | **64 (default)** | **0** | **2.6x** | **1** | **1.8x** | **64 KB** |
+
+  Forgetting a spike does not save the measure pass, it converts it into a RE-ENCODE: the gate stops
+  straddling, the cheap predicted buffer is used, it misses, and the retry runs on the growing
+  adaptive path — which allocates and grows, leaving a bigger buffer behind than the exact one would
+  have been. A measure pass is one traversal; a miss is a whole second encode plus that buffer. The
+  sweep lives in `routesFlowBuffer.bench.ts` so the trade stays visible; `ringSize` remains tunable
+  through `configureSizeStats` for a workload that disagrees.
+
 - **`serializeBinaryBody` walks the execution chain more times than it needs** (plan pass + write
   pass, with `willSerialize` evaluated twice per method). Worth ~9% on tiny steady payloads against a
   hand-rolled single pass. Not fixed here: collapsing it needs a per-request writers array, which is
