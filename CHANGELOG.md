@@ -83,6 +83,10 @@ has drifted.
 
 ### Testing
 
+- **cli:** A crash in a spawned `ts-runtypes` process now leaves a full report behind
+  instead of a truncated one. The failure message keeps the first, most useful part
+  (what went wrong and where), and the complete output is saved to a file that CI
+  keeps, so one failed run is enough to work out the cause.
 - **e2e:** The pre-publish matrix covers the Next.js adapter with a real `next build`,
   which is the only place that path can be exercised.
 - **devtools:** A test pins that the Next invalidation stamp moves on a type change,
