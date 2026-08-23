@@ -77,6 +77,9 @@ const APP_LIST = [
   // driven by `withRunTypes` in next.config (one broker) plus a loader in
   // turbopack.rules, not by a bundler plugin. It also cannot be built in-process
   // — `next build` is a CLI — so it runs out-of-process like the bun apps.
+  // It is also the repo's ONLY `next build` coverage (next is ~202MB and not a
+  // workspace dep, so a vitest equivalent would never run) — see
+  // packages/ts-runtypes-devtools/src/next/CLAUDE.md.
   {name: 'smoke-next', adapter: 'next'},
 ];
 

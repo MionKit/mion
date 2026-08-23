@@ -8,6 +8,12 @@
 //
 // The page prerenders the shared selfCheck() at build time, so a passing build
 // proves the rewrite survived Turbopack AND the transformed code actually ran.
+//
+// This app is the ONLY `next build` coverage in the repo: `next` is ~202MB and is not a
+// workspace dependency, so an equivalent vitest test would be permanently skipped. The
+// unit-testable half of the adapter lives in
+// packages/ts-runtypes-devtools/test/next-broker.test.ts; the rules are in
+// packages/ts-runtypes-devtools/src/next/CLAUDE.md.
 import path from 'node:path';
 import {withRunTypes} from '@ts-runtypes/devtools/next';
 

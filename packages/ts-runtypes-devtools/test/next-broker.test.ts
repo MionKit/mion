@@ -7,6 +7,16 @@
 // would start four of them and pay for four whole-program tsgo builds per build.
 // Measured before the broker: 4 resolvers, buildStarts of 310/307/528/522ms.
 // After: 1 resolver, one 323ms buildStart.
+//
+// # Why there is no `next build` test in this file
+//
+// `next` is ~202MB and is NOT a workspace dependency, so a vitest test that shells out to
+// it would be permanently skipped here and in CI — a test that never runs, which is worse
+// than no test. This file covers what can be proven WITHOUT Next; the real Turbopack build
+// is covered in the e2e container, where Next is installed:
+// container/pre-publish-e2e/apps/smoke-next (+ its entry in build-all.mjs and its
+// assertions in test/build-outputs.test.mjs). A change to the adapter needs BOTH.
+// See src/next/CLAUDE.md.
 import {describe, expect, it} from 'vitest';
 import fs from 'node:fs';
 import net from 'node:net';
