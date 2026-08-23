@@ -49,7 +49,9 @@ Both clones were unshallowed and compared on 2026-08-23:
   (lerna, interactive OTP). ts-run-types has the full automated flow: verdaccio in
   the `tsrt-e2e` podman image, `rtx release e2e`, release-gate/publish workflows,
   staged npm publish with 2FA approval.
-- **mion carries dead weight** that should not travel through the merge: stale
+- **mion carried dead weight** that should not travel through the merge. All of the
+  following was cleared by step 1 (see its record) except the npm package name, which
+  stays live by decision 1: stale
   npm-era `setup.sh`, dead `jest.config.js`, stale `AGENTS.md` + `.augment*`
   (contains the reversed deepkit-era `import type` warning), `plans/` specs
   written against removed APIs (`aotCaches`, `virtual:client-mion-aot`),
@@ -135,27 +137,20 @@ commit itself). Order is load-bearing: every step leaves the repo green
 (install, build, both test suites, lint) so the migration can pause safely at
 any boundary.
 
-### Step 1 — Pre-merge cleanup of mion
+### Step 1 — Pre-merge cleanup of mion ✅ DONE
 
-Shrink the collision surface and stop dead weight from traveling through the
-merge. In the mion repo, on a normal PR:
+Shipped 2026-08-23 — record in
+[../done/premerge-cleanup-of-mion.md](../done/premerge-cleanup-of-mion.md). It went
+further than planned: besides the listed deletions and config/doc fixes, it removed
+the dead AOT/deepkit-era type vocabulary still exported by `@mionjs/core` and
+`@mionjs/router`, three unused root devDependencies, the last jest dependency, twelve
+orphaned example files, and `website/.vscode-extension/`. It also fixed a red publish
+gate (`test-publish` specs still using the client's old 4-tuple result) and a second
+failure hidden behind it. `plans/` and `assets/` were left untouched.
 
-- Delete: `setup.sh`, `jest.config.js`, `AGENTS.md`, `.augment-guidelines.md`,
-  `.augment/`, stale `@mionjs/run-types` / `@mionjs/type-formats` /
-  `@deepkit/type-compiler` remnants in `test-publish/pnpm-workspace.yaml` and its
-  lockfile, the stale `packages/test-publish/**` eslint ignore, the hardcoded
-  macOS paths in `.claude/settings.local.json`. `plans/` is NOT touched
-  (decision 6); CLAUDE.md gets a line marking it as an ideas folder.
-- Create `docs/todos/` (this file lives there) and fix CLAUDE.md's stale links
-  (`docs/todos/`, `@mionjs/run-types` in the peer-deps line) and
-  `migration-overview.md`'s 0.12.0 → 0.12.2 note. Fix `test-publish/CLAUDE.md`'s
-  references to scripts/specs that no longer exist.
-- `@mionjs/run-types` on npm stays live and undeprecated (possible future home
-  of `@ts-runtypes/core`, per decision 1).
-- After the owner renames the default branch `master` → `main` in GitHub
-  settings, update the in-repo references: `nuxtjs.yml` trigger, `nx.json`
-  `defaultBase`, the `raw.githubusercontent.com/.../master/...` image URLs in
-  the package READMEs and root README.
+The `master` → `main` reference updates did NOT ship — they are blocked on the owner
+rename and are tracked in
+[default-branch-rename-references.md](default-branch-rename-references.md).
 
 ### Step 2 — Freeze ts-run-types and land the join commit
 
@@ -221,8 +216,8 @@ merge. In the mion repo, on a normal PR:
 - The merged `packages/examples` feeds code-import for both sites; port mion's
   `check-links` / `check-unused-examples` into the container scripts if they
   differ.
-- Delete `website/` (including its stale docus-starter README/name and the
-  `.vscode-extension`, which moves only if still wanted), delete `pages-build` /
+- Delete `website/` (including its stale docus-starter README/name; the
+  `.vscode-extension` was already deleted in step 1), delete `pages-build` /
   `copy-benchmarks` root scripts (step 8 re-homes the benchmark data), retire
   `nuxtjs.yml`.
 - Deploy: `website-deploy.yml` builds and deploys BOTH sites to Cloudflare Pages
