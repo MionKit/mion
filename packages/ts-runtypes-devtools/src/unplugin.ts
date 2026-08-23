@@ -634,6 +634,127 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     }
   }
 
+  // The in-memory mirror of the project's sources, seeded lazily on the FIRST
+  // incremental update (never at buildStart, which would tax every production
+  // build for something only a watch session needs) and kept current from there.
+  const sourceOverlay = new Map<string, string>();
+  let overlaySeeded = false;
+
+  function overlayKey(rel: string): string {
+    return rel.split(path.sep).join('/');
+  }
+
+  function seedOverlay(): void {
+    if (overlaySeeded) return;
+    overlaySeeded = true;
+    const skip = new Set(['node_modules', '.git', '.next', 'dist', 'coverage']);
+    const walk = (dir: string): void => {
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, {withFileTypes: true});
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (skip.has(entry.name)) continue;
+        const full = path.join(dir, entry.name);
+        if (genDirAbs && full === genDirAbs) continue;
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.[mc]?[jt]sx?$/.test(entry.name)) continue;
+        try {
+          sourceOverlay.set(overlayKey(path.relative(cwdAbs, full)), fs.readFileSync(full, 'utf8'));
+        } catch {
+          // unreadable file — leave it to the on-disk program
+        }
+      }
+    };
+    walk(cwdAbs || process.cwd());
+  }
+
+  // applyHotUpdate is the SHARED incremental-update leaf: push changed sources
+  // into the resolver, re-scan them, regenerate the cache modules, then surface
+  // diagnostics. Vite's handleHotUpdate hook and the Next broker's watcher both
+  // call it, so the two hosts can never drift in how an edit is absorbed.
+  //
+  // It takes a BATCH, and that is load-bearing rather than a convenience. Doing
+  // one file at a time means one setSources + one generate PER FILE, so a single
+  // edit that touches several files rewrites the generated module set several
+  // times over. Each of those rewrites is a window in which a module another
+  // file's rewrite already imports is briefly absent from disk, and a bundler
+  // resolving in that window fails with "can't resolve <hash>.js". One batch is
+  // one regenerate, which closes the window.
+  async function applyHotUpdate(ctx: any, updates: {file: string; content?: string}[]): Promise<void> {
+    if (!resolver) return;
+    const relevant = updates.filter((update) => /\.[mc]?[jt]sx?$/.test(update.file));
+    if (relevant.length === 0) return;
+    const rels = relevant.map((update) => path.relative(cwdAbs || process.cwd(), update.file));
+
+    // setSources gets the WHOLE overlay, never just the edited files. OpSetSources
+    // REPLACES the overlay and rebuilds the Program against exactly what it is
+    // handed, so pushing one file collapses the Program to that file: the next
+    // generate() then emits only its demand and DELETES every other entry's
+    // module from disk, and any other marker file fails with "source file not in
+    // program". Measured on a 63-module project, a one-file update took it to 2.
+    seedOverlay();
+    relevant.forEach((update, index) => {
+      if (typeof update.content === 'string') sourceOverlay.set(overlayKey(rels[index]), update.content);
+    });
+    const sources: Record<string, string> = Object.fromEntries(sourceOverlay);
+    if (Object.keys(sources).length > 0) {
+      try {
+        await resolver.setSources(sources);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // A CFG001-tagged failure is the project tsconfig refusing to load
+        // (strict like tsc) — say so loudly instead of silently skipping
+        // updates; the daemon re-parses on the next edit, so a fixed config
+        // heals without a dev-server restart.
+        if (message.includes('CFG001')) console.error(`[@ts-runtypes/devtools] HMR update skipped — ${message}`);
+        // Otherwise the changed file is outside the resolver's known set (e.g. a
+        // config file) — nothing for the resolver to do here.
+        return;
+      }
+    }
+
+    let result;
+    try {
+      result = await resolver.scanFiles(rels);
+    } catch {
+      return;
+    }
+    // Keep the transform gate current: an edit may have added a file's first
+    // marker site (files created after buildStart enter the set here) or
+    // removed its last one. scanFiles reports sites across the whole batch, so
+    // membership is decided per file from the reported site paths.
+    const withSites = new Set((result.sites ?? []).map((site) => siteKey(site.file)));
+    for (const rel of rels) {
+      if (withSites.has(siteKey(rel))) siteFiles.add(siteKey(rel));
+      else siteFiles.delete(siteKey(rel));
+    }
+    // Pure-fn report update lane: fire the callback with the changed sites
+    // before regenerating, so an in-process consumer learns of a body edit as it
+    // happens. The JSON file is rewritten by the generate() below.
+    if (reportEnabled && options.onPureFnReport && result.pureFnSites) options.onPureFnReport(result.pureFnSites, 'update');
+    // Regenerate so any new/changed modules hit disk before anything resolves them.
+    try {
+      await resolver.generate();
+    } catch {
+      // A regenerate failure shouldn't tear down the dev server mid-edit.
+    }
+
+    // Sync the changed files' demanded enrichment mirrors (opt-in). Runs AFTER
+    // generate so the resolver's Program already reflects the edit.
+    if (anyEnrichFamily) await syncEnrich(rels);
+
+    // Re-emit diagnostics so the editor's problem panel updates as the user
+    // types. `halt: false` because HMR shouldn't tear down the dev server on a
+    // single bad type — the user is mid-edit.
+    surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false});
+  }
+
   // isUnderEnrichedDir reports whether an absolute file path lives under
   // <genDirAbs>/enriched/ — the committed enrichment mirror tree the plugin writes
   // (and the CLI / a developer may hand-edit). Its changes are write-only outputs,
@@ -647,6 +768,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
 
   return {
     name: PLUGIN_NAME,
+    // Not an unplugin hook: the escape hatch a host with no HMR hook of its own
+    // uses to absorb an edit. Turbopack gives loaders no update callback, so the
+    // Next broker watches the source tree and calls this itself.
+    rtHotUpdate: applyHotUpdate,
     // Must run BEFORE vite/esbuild's built-in TypeScript transform. The
     // resolver returns byte offsets into the ORIGINAL source — if the
     // plugin saw code after esbuild stripped type syntax, every offset
@@ -792,62 +917,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         // this is what keeps the auto-sync writes from triggering reload loops.
         if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
-
-        const rel = path.relative(cwdAbs || process.cwd(), file);
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
-        if (typeof content === 'string') {
-          try {
-            await resolver.setSources({[rel]: content});
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            // A CFG001-tagged failure is the project tsconfig refusing to
-            // load (strict like tsc) — say so loudly instead of silently
-            // skipping updates; the daemon re-parses on the next edit, so a
-            // fixed config heals without a dev-server restart.
-            if (message.includes('CFG001')) {
-              console.error(`[@ts-runtypes/devtools] HMR update skipped — ${message}`);
-            }
-            // Otherwise setSources failed because the changed file is outside
-            // the resolver's known set (e.g. a config file). Fall through to
-            // default HMR — nothing for the resolver to do here.
-            return;
-          }
-        }
-
-        let result;
-        try {
-          result = await resolver.scanFiles([rel]);
-        } catch {
-          return;
-        }
-        // Keep the transform gate current: the edit may have added this
-        // file's first marker site (files created after buildStart enter the
-        // set here) or removed its last one.
-        if (result.sites.length > 0) siteFiles.add(siteKey(rel));
-        else siteFiles.delete(siteKey(rel));
-        // Pure-fn report update lane: fire the callback with THIS file's delta
-        // (the changed sites) before regenerating, so an in-process consumer
-        // learns of a body edit as it happens. The JSON file is rewritten by
-        // the generate() below.
-        if (reportEnabled && options.onPureFnReport && result.pureFnSites) options.onPureFnReport(result.pureFnSites, 'update');
-        // Regenerate so any new/changed modules hit disk; the watcher reloads
-        // them (the folder lives in the project root, which Vite watches).
-        try {
-          await resolver.generate();
-        } catch {
-          // A regenerate failure shouldn't tear down the dev server mid-edit.
-        }
-
-        // Sync this changed file's demanded enrichment mirrors (opt-in). Runs
-        // AFTER generate so the resolver's Program already reflects the edit; the
-        // resulting mirror writes are HMR-suppressed above, so this never loops.
-        if (anyEnrichFamily) await syncEnrich([rel]);
-
-        // Re-emit diagnostics so the editor's problem panel updates as the user
-        // types. `halt: false` because HMR shouldn't tear down the dev server on
-        // a single bad type — the user is mid-edit; the runtime alwaysThrow
-        // factory still carries source context if the type stays bad.
-        surfaceDiagnostics(this, result.diagnostics ?? [], () => true, {halt: false});
+        await applyHotUpdate(this, [{file, content}]);
       },
     },
   };
