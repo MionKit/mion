@@ -50,7 +50,7 @@ function rtOptions(appDir) {
 
 const isCore = (request) => CORE_EXTERNAL.test(request);
 
-// ── the apps: seven bundler adapters over nine builds ───────────────────────
+// ── the apps: eight bundler adapters over ten builds ────────────────────────
 // build-vite carries the FULL feature matrix (imports the shared index); every
 // light smoke imports apps/shared/src/minimal.ts. smoke-source is the seventh
 // build but not a seventh bundler — it reuses the esbuild adapter to cover a
@@ -73,6 +73,11 @@ const APP_LIST = [
   // under bun, which build-all.mjs cannot call in-process — see buildBun.
   {name: 'smoke-bun', adapter: 'bun'},
   {name: 'smoke-bun-preload', adapter: 'bunPreload'},
+  // Next.js is the odd one out: Turbopack has no plugin API, so this app is
+  // driven by `withRunTypes` in next.config (one broker) plus a loader in
+  // turbopack.rules, not by a bundler plugin. It also cannot be built in-process
+  // — `next build` is a CLI — so it runs out-of-process like the bun apps.
+  {name: 'smoke-next', adapter: 'next'},
 ];
 
 async function buildVite(app) {
@@ -207,7 +212,16 @@ async function buildBunPreload(app) {
   runBun(path.join(APPS, app.name), ['--preload', './rt-preload.ts', 'src/run.ts']);
 }
 
-const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload};
+// Next owns its own output layout (.next/), so there is no dist/entry.js to
+// assert against; the page prerenders selfCheck() and the assertions read the
+// built HTML instead.
+async function buildNext(app) {
+  const appDir = path.join(APPS, app.name);
+  const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
+  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+}
+
+const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};
 
 async function main() {
   const requested = process.argv.slice(2);

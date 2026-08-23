@@ -4,7 +4,7 @@
 // correct AFTER that bundler mangled it (ESM/CJS, tree-shaking, minification).
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync} from 'node:fs';
+import {existsSync, readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import path from 'node:path';
@@ -43,6 +43,40 @@ for (const app of SMOKES) {
     assert.ok(ok, `${app} selfCheck failed:\n${detail}`);
     assert.ok(results.length >= 5, `${app}: expected the lean subset, got ${results.length} checks`);
   });
+}
+
+// smoke-next has no dist/entry.js either: Next owns its output layout, and the
+// shared subset runs during the STATIC PRERENDER rather than at import time. So
+// the assertion reads the prerendered HTML, which is the artifact proving the
+// transform survived Turbopack and the rewritten code actually executed.
+//
+// This is the only lane where RunTypes reaches the bundler without a plugin at
+// all — Turbopack has none — so it is the one that would break first if the
+// broker or the loader regressed.
+test('smoke-next: the shared subset passes after the Turbopack build', () => {
+  const html = path.join(APPS, 'smoke-next', '.next/server/app/index.html');
+  assert.ok(existsSync(html), 'smoke-next: prerendered index.html is missing — did build-all.mjs run for it?');
+  const rendered = readFileSync(html, 'utf8');
+  const results = JSON.parse(decodeEntities(rendered.match(/id="rt-results">(.*?)<\/div>/s)?.[1] ?? '[]'));
+  const detail = results
+    .filter((result) => !result.ok)
+    .map((result) => `${result.name}${result.detail ? ` — ${result.detail}` : ''}`)
+    .join('\n');
+  assert.ok(results.length >= 5, `smoke-next: expected the lean subset, got ${results.length} checks`);
+  assert.ok(
+    results.every((result) => result.ok),
+    `smoke-next selfCheck failed:\n${detail}`
+  );
+});
+
+// React escapes the JSON it renders into the page; undo just enough to parse it.
+function decodeEntities(text) {
+  return text
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#x27;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&');
 }
 
 // smoke-bun-preload has no dist to import: it runs the shared subset through

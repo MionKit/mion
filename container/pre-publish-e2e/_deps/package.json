@@ -2,7 +2,7 @@
   "name": "ts-runtypes-pre-publish-e2e-deps",
   "private": true,
   "type": "module",
-  "description": "Builder toolchains baked into the shared image for the pre-publish e2e feature matrix. Only these (never-changing) toolchains are baked; each e2e run installs just the changing @ts-runtypes/* from verdaccio ON TOP of this node_modules. vite is aliased to rolldown-vite (Vite-on-Rolldown, the modern consumer stack build-vite exercises). The assertion tests use node:test (built-in), so no test runner is baked. Versions are exact-pinned to releases older than the 30-day minimumReleaseAge cutoff.",
+  "description": "Builder toolchains baked into the shared image for the pre-publish e2e feature matrix. Only these (never-changing) toolchains are baked; each e2e run installs just the changing @ts-runtypes/* from verdaccio ON TOP of this node_modules. next/react are baked for the Turbopack app (Next has no plugin API, so it is driven by a loader + broker instead); vite is aliased to rolldown-vite (Vite-on-Rolldown, the modern consumer stack build-vite exercises). The assertion tests use node:test (built-in), so no test runner is baked. Versions are exact-pinned to releases older than the 30-day minimumReleaseAge cutoff.",
   "dependencies": {
     "vite": "npm:rolldown-vite@7.3.1",
     "esbuild": "0.28.0",
@@ -16,6 +16,9 @@
     "oxlint": "1.68.0",
     "eslint": "9.39.4",
     "@typescript-eslint/parser": "8.60.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "next": "16.3.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   }
 }
