@@ -7,15 +7,17 @@
 
 import {describe, it, expect} from 'vitest';
 import {RpcError, TypedError, setErrorOptions, isTypedError, isRpcError} from './errors.ts';
+import {DEFAULT_CORE_OPTIONS} from './constants.ts';
 
 describe('Route errors should', () => {
     it('automatically generate an id when RouteOptions autoGenerateErrorId is set to true', () => {
-        setErrorOptions({autoGenerateErrorId: true});
+        // setErrorOptions REPLACES the options object, so pass a complete one
+        setErrorOptions({...DEFAULT_CORE_OPTIONS, autoGenerateErrorId: true});
         const error = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(typeof error.id).toEqual('string');
         expect((error.id as string).length).toEqual(36);
 
-        setErrorOptions({autoGenerateErrorId: false});
+        setErrorOptions({...DEFAULT_CORE_OPTIONS, autoGenerateErrorId: false});
         const error2 = new RpcError({publicMessage: 'error', type: 'test-error'});
         expect(error2.id).toEqual(undefined);
     });
