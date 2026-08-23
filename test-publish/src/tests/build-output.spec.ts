@@ -51,7 +51,10 @@ describe('production build output', () => {
         // This used to be served as `virtual:mion/server-mappers`, which rollup externalized — the
         // bundle shipped an unresolvable `import "virtual:mion/server-mappers"` and the mappers never
         // travelled at all. Nothing virtual may survive into the artifact.
-        expect(content).toContain('registerServerMappers');
+        // Every mapper here resolves to a generated pure-fn module, so it registers through the
+        // tuple lane; registerServerMappers is the fallback for mappers that have no module, and
+        // rollup tree-shakes that import when nothing calls it.
+        expect(content).toContain('registerServerMapperTuple');
         expect(content).toContain('customerValue');
         expect(content).not.toContain('virtual:');
     });
