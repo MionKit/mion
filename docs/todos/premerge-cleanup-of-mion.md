@@ -71,11 +71,10 @@ it or deploys/nx will look at a branch that no longer receives pushes.
 
 ### npm
 
-- Deprecate the orphaned `@mionjs/run-types@0.8.10` (still live, package removed
-  from the repo long ago):
-  `npm deprecate @mionjs/run-types "Superseded by @ts-runtypes/core. See https://github.com/MionKit/mion"`.
-  Needs npm auth for the @mionjs scope (owner runs it, or an agent session with
-  the token).
+- Do NOT deprecate `@mionjs/run-types` (still live at 0.8.10). Settled with the
+  maintainer 2026-08-23: the name may become the future home of
+  `@ts-runtypes/core` if the packages are ever re-unified under it, so it stays
+  exactly as it is.
 
 ## Done criteria
 

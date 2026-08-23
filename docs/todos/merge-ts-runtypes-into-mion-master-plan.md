@@ -95,7 +95,9 @@ joining the same `packages/` workspace:
 ## Decisions (settled with the maintainer, 2026-08-23)
 
 1. **npm package names: keep `@ts-runtypes/*`** published from the mion repo. A
-   rebrand, if ever, is a separate later project.
+   rebrand, if ever, is a separate later project — one candidate being a return
+   to the `@mionjs/run-types` name, which therefore stays live and undeprecated
+   on npm.
 2. **One version train.** `bump-version.mjs` stamps every
    `packages/*/package.json`; `@mionjs/*` jumps from 0.8.10 to the next unified
    version at the first joint release.
@@ -148,8 +150,8 @@ merge. In the mion repo, on a normal PR:
   (`docs/todos/`, `@mionjs/run-types` in the peer-deps line) and
   `migration-overview.md`'s 0.12.0 → 0.12.2 note. Fix `test-publish/CLAUDE.md`'s
   references to scripts/specs that no longer exist.
-- `npm deprecate @mionjs/run-types` (still live at 0.8.10) with a pointer to
-  `@ts-runtypes/core`.
+- `@mionjs/run-types` on npm stays live and undeprecated (possible future home
+  of `@ts-runtypes/core`, per decision 1).
 - After the owner renames the default branch `master` → `main` in GitHub
   settings, update the in-repo references: `nuxtjs.yml` trigger, `nx.json`
   `defaultBase`, the `raw.githubusercontent.com/.../master/...` image URLs in
