@@ -1,5 +1,5 @@
-import {describe, expect, it} from 'vitest';
-import {handleRequestLine, runJobs} from '../src/jobs.ts';
+import {afterEach, describe, expect, it} from 'vitest';
+import {handleRequestLine, MATCH_TIMED_OUT, runJobs, setPatternMatcher} from '../src/jobs.ts';
 
 describe('runJobs', () => {
   it('reports the samples that do not match the pattern', () => {
@@ -170,5 +170,43 @@ describe('handleRequestLine', () => {
     const response = JSON.parse(handleRequestLine('not json'));
     expect(response.v).toBe(1);
     expect(response.error).toBeTruthy();
+  });
+});
+
+// A host that can bound a runaway match reports it through the matcher; these
+// pin what a bounded verdict turns into, without depending on a host that can
+// actually interrupt one (see index.ts).
+describe('bounded pattern matching', () => {
+  afterEach(() => setPatternMatcher((tester, sample) => tester.test(sample)));
+
+  it('reports a timed-out validate sample as a compileError, not as an offender', () => {
+    setPatternMatcher(() => MATCH_TIMED_OUT);
+    const [result] = runJobs([{id: 1, op: 'validate', source: '(x|y)+.*.*', samples: ['x'.repeat(2110)]}]);
+    expect(result.id).toBe(1);
+    expect(result.compileError).toMatch(/timed out .* may backtrack catastrophically/);
+    // Never an offender: the sample was not judged, so calling it a mismatch
+    // would be a lie, and never `error`, which kills the engine Go-side.
+    expect(result.offenders).toBeUndefined();
+    expect(result.error).toBeUndefined();
+  });
+
+  it('counts the sample in code points when naming its size', () => {
+    setPatternMatcher(() => MATCH_TIMED_OUT);
+    const [result] = runJobs([{id: 2, op: 'validate', source: 'a', samples: ['😀😀']}]);
+    expect(result.compileError).toMatch(/on a 2-character sample/);
+  });
+
+  it('reports a timed-out generate self-check as a generateError', () => {
+    setPatternMatcher(() => MATCH_TIMED_OUT);
+    const [result] = runJobs([{id: 3, op: 'generate', source: '[a-z]{3}', count: 1}]);
+    expect(result.id).toBe(3);
+    expect(result.generateError).toMatch(/timed out/);
+    expect(result.values).toBeUndefined();
+  });
+
+  it('leaves ordinary verdicts alone when the matcher never times out', () => {
+    setPatternMatcher((tester, sample) => tester.test(sample));
+    const [result] = runJobs([{id: 4, op: 'validate', source: '^[a-z]+$', samples: ['ok', 'NOPE']}]);
+    expect(result).toEqual({id: 4, offenders: ['NOPE']});
   });
 });

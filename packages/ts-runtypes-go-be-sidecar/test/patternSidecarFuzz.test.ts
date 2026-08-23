@@ -168,3 +168,34 @@ describe('sidecar robustness fuzz (committed bundle under real node)', () => {
     }
   }, 30000);
 });
+
+// The exact shape the fuzz lane found at v0.12.2 (seed 0xbe882a45), pinned as
+// a regression: a catastrophically backtracking pattern used to never return
+// from `.test`, so the request was never answered and the batch was lost.
+// Asserts the contract the fuzz asserts, on one known-hostile job.
+describe('runaway pattern', () => {
+  it('answers a catastrophically backtracking job instead of wedging the process', async () => {
+    const child = spawn(process.execPath, [BUNDLE], {stdio: ['pipe', 'pipe', 'ignore']});
+    const lines = createInterface({input: child.stdout, terminal: false});
+    try {
+      const answered = new Promise<string>((resolveLine, reject) => {
+        lines.once('line', resolveLine);
+        setTimeout(() => reject(new Error('sidecar response timed out')), 15000).unref();
+      });
+      const job = {id: 1, op: 'validate', source: '(x|y)+.*.*\\p{L}?', flags: '', samples: ['x'.repeat(2110)]};
+      child.stdin.write(encodeRequestLine({v: 1, jobs: [job]}) + '\n');
+      const response = JSON.parse(await answered) as {v: number; results?: SidecarVerdict[]};
+      expect(response.v).toBe(1);
+      expect(response.results).toHaveLength(1);
+      const [result] = response.results!;
+      expect(result!.id).toBe(1);
+      // Bounded out rather than judged, and never through the `error` channel,
+      // which Go treats as an engine failure.
+      expect(result!.compileError).toMatch(/timed out/);
+      expect(result!.error).toBeUndefined();
+    } finally {
+      child.stdin.end();
+      child.kill();
+    }
+  }, 30000);
+});
