@@ -72,7 +72,8 @@ modules a changed type file affects. The resolver knows the site graph (`scanFil
 file), but the vite plugin surfaces no "these site files' fn ids changed" signal, so the options are:
 
 1. **Upstream**: have `@ts-runtypes/devtools` report the site files whose generated fns changed on an
-   HMR update, and invalidate exactly those. Correct and cheap at runtime.
+   HMR update, and invalidate exactly those. Correct and cheap at runtime — written up as
+   [upstream-hmr-invalidate-site-files.md](upstream-hmr-invalidate-site-files.md).
 2. **In mion, invalidate what carries markers.** On a `.ts`/`.vue` change, walk vite's module graph
    and invalidate every module whose last transform result contains an injected `__rt_` reference
    (`ModuleNode.transformResult.code` holds it), then let vite re-transform them. This needs no
@@ -82,6 +83,32 @@ file), but the vite plugin surfaces no "these site files' fn ids changed" signal
    ts-runtypes plugin, not mion, transformed.
 
 That is a call for the maintainer (and probably an upstream ask), not a mechanical follow-up.
+
+## What mion has to do once upstream fixes it
+
+Not zero — and the third item will not fix itself, so it is written down here rather than
+rediscovered when the bump lands:
+
+1. **Bump + lockfile.** Every dependency here is exact-pinned (`@ts-runtypes/devtools: 0.12.1`), so
+   nothing arrives until the version is raised.
+2. **Re-verify the delegation contract.** mion's SFC pass calls upstream's `handleHotUpdate` with a
+   fabricated context (`{file, read, modules: [], timestamp: 0}`) purely to get
+   setSources → scanFiles → generate. If the fix adds invalidation _inside_ that hook, it may start
+   reaching for things mion does not pass (`ctx.server`, a real `modules` array). This is what
+   `packages/devtools/src/vite-plugin/sfcTransform.spec.ts` and the runtime audit exist for — a
+   broken delegation fails the suite and warns in dev rather than going quiet — but the fix may be
+   as small as adding a field to that context.
+3. **Map virtual site files back to real modules.** mion registers an SFC's script under a VIRTUAL
+   path (`Comp.vue.ts`); the module vite serves is `Comp.vue`. Upstream invalidating by site-file
+   path would hit nothing for SFCs — `.ts` files would recover while `.vue` files stayed stale. mion
+   must translate, which needs upstream to REPORT what changed (see
+   [upstream-hmr-invalidate-site-files.md](upstream-hmr-invalidate-site-files.md), point 3). On the
+   mion side it is a `Map<virtualPath, realFile>` in `sfcTransform.ts` — the plugin already tracks
+   the real file per injection — plus the handler for whatever hook upstream exposes.
+
+Optional afterwards: if upstream grows a first-class "transform this virtual source" API (an id
+filter plus `setSources`), parts of `sfcTransform.ts` can be deleted in favour of it. The current
+path keeps working either way.
 
 ## Interim
 
