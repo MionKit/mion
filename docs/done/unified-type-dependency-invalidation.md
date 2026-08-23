@@ -1,11 +1,33 @@
 ---
 type: fix
 spec: full-plan
-status: ready
+status: done
 created: 2026-08-23
 ---
 
 # One type-dependency mechanism for every plugin host
+
+## Outcome
+
+Shipped in [#363](https://github.com/MionKit/ts-run-types/pull/363): `Cache.declFiles` keyed by wire
+id, the `TransformResult.typeDeps` field, the shared `src/type-deps.ts` leaf, `addWatchFile` for
+every unplugin host, Vite dev's `handleHotUpdate` invalidation, the Next loader's `addDependency`
+(stamp kept as the unknown-means-unknown fallback), and `onSiteFilesChanged` for virtual sources.
+Covered by `internal/compiler/resolver/typedeps_test.go` (warm-cache reporting and the marker rule's
+both-call-shapes included), `test/type-deps.test.ts`, `test/type-deps-invalidation.test.ts`, and a
+`typeDeps` assertion in `test/next-broker.test.ts`.
+
+**Still open, in mion, not here.** Rollout phases 3 to 5 are mion-side and stay tracked by mion's
+own `type-only-dep-hmr-staleness.md`: wiring `onSiteFilesChanged`, the
+`Map<virtualPath, realFile>` in `sfcTransform.ts`, and reverting the temporary `file:` refs. Nothing
+in this repo is waiting on them.
+
+**One deviation from the plan.** The e2e image pins `next@16.2.11`, not 16.3, because 16.3 was too
+young for the workspace's 30-day `minimumReleaseAge` floor (see
+[republish-e2e-image-with-next](republish-e2e-image-with-next.md)). That changes nothing about what
+is proven: the caveat under **Done when** already records that the `next build` lane picks up a type
+change either way and so "proves nothing" on its own. The invariant is pinned in `next dev` by
+`test/type-deps-invalidation.test.ts`, which is unaffected by the pin.
 
 ## Problem
 
