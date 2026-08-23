@@ -1,6 +1,6 @@
 ---
 name: release-to-prod
-description: Cut and publish a RunTypes release end-to-end — decide the bump, curate CHANGELOG.md, open the chore(release) PR into main, then promote main into prod with a MERGE-COMMIT pull request, watch every workflow, and fix failures forward via PRs into main. Use whenever the user wants to release, publish, cut/bump a version, promote main to prod, ship to npm, finish or unblock a release, or asks why a release workflow is red — even for just one phase (a bump PR, a promotion PR, a failed gate). The agent drives all PRs and CI watching; the developer reviews and clicks the merges.
+description: Cut and publish a RunTypes release end-to-end — decide the bump, curate CHANGELOG.md, open the chore(release) PR into main, then promote main into prod with a MERGE-COMMIT pull request, watch every workflow, and fix failures forward via PRs into main. Use whenever the user wants to release, publish, cut/bump a version, promote main to prod, ship to npm, finish or unblock a release, or asks why a release workflow is red — even for just one phase (a bump PR, a promotion PR, a failed gate). The agent drives all PRs and CI watching, and merges every PR itself when the release is clean; if anything went red it fixes forward, gets back to green, then hands the final merge to the developer with a report of every fix applied.
 ---
 
 # Release to prod
@@ -15,10 +15,40 @@ stage-approval; the docs site deploys manually after that. Version source of tru
 ## Roles — who does what
 
 **The agent (you):** decide the bump, write the changelog, open every PR, watch every
-workflow, diagnose failures, and fix them with new PRs into `main`. **The developer:**
-reviews PRs, clicks the merge buttons, runs the 2FA approval, dispatches the website
-deploy. Never merge PRs yourself, never push to `prod`, never push `v*` tags (CI owns
-them).
+workflow, diagnose failures, fix them with new PRs into `main`, and **merge the PRs**
+under the rule below. **The developer:** runs the 2FA approval, dispatches the website
+deploy, and makes the call on any release that needed fixing. Never push to `prod`
+outside a PR, never push `v*` tags (CI owns them).
+
+### When you merge, and when you ask
+
+**Clean run → you merge.** If every check went green on the first attempt and you
+applied no fixes, merge the PR yourself as soon as it is mergeable. Do not park a green
+release waiting for a click.
+
+**Anything went red → you fix, then ask.** If any check failed at any point in the
+cycle, you fix it forward, re-cut, and drive it back to green — but you do **not** merge
+the final promotion. Bring it to a ready-to-merge state and hand it over with a report:
+
+- every failure, what caused it, and the fix that landed (PR number + one line each)
+- the current check state, and that the PR is mergeable
+- anything you deliberately did not fix, and why
+
+The developer merges from there. The reasoning: a release that needed repair is a
+release where someone should look at *what* was repaired before it ships to npm. A
+clean one has nothing to review.
+
+**Merge methods are not yours to choose** — into `main` rebase, into `prod` a merge
+commit. Use the explicit flag so no default can bite you:
+
+```bash
+gh pr merge <n> --rebase        # any PR into main
+gh pr merge <n> --merge         # the promotion PR into prod — merge commit, always
+```
+
+Never pass `--admin`, and never merge past a red **required** check. A red
+*non-required* check is a judgement call: say plainly that it is red, why it is red,
+and why it does not block, before merging. If you cannot explain it, ask.
 
 ## The one rule that keeps releases mergeable
 
@@ -71,8 +101,11 @@ six files: version.json, four package.json, CHANGELOG.md):
    `git add CHANGELOG.md && git commit --amend --no-edit`
 
 Push, open the PR into `main` (`gh pr create --base main --title "chore(release): vX.Y.Z"`,
-body = bump summary + changelog highlights), and tell the developer it merges the
-normal way (**rebase**). Watch until it lands; address review feedback by amending.
+body = bump summary + changelog highlights). Watch the checks; address review feedback by
+amending. When it is green and mergeable, **merge it yourself** with
+`gh pr merge <n> --rebase` — this is a PR into `main`, so rebase, and the clean/red rule
+above applies to the promotion in Phase 2, not to this one. A bump PR that needed a fix
+is worth a line in the Phase-2 report, not a separate handoff.
 
 ## Phase 2 — release PR (release/vX.Y.Z → prod)
 
@@ -119,7 +152,18 @@ git push --force-with-lease origin release/vX.Y.Z
 The PR updates and the gate reruns. Deliberately **no cherry-picking onto the branch** —
 a copied commit would land clean but put a non-`main` SHA into prod's ancestry;
 re-cutting keeps the branch a literal prefix of `main` (and `main-ancestor` green).
-Then hand the green PR to the developer to merge — with the merge-commit reminder.
+
+Then apply the clean/red rule from **Roles**:
+
+- **No fix was needed anywhere in the cycle** → merge it yourself,
+  `gh pr merge <n> --merge`. Confirm afterwards that prod's new HEAD has two parents.
+- **Anything went red** → leave it mergeable and hand it over with the report: each
+  failure, its cause, the fix PR that landed, and the current check state. The developer
+  merges.
+
+The `prod` ruleset permits only `merge` as a merge method, so the wrong method cannot be
+selected by either of you — but keep passing `--merge` explicitly rather than relying on
+that.
 
 ### A red `fuzz soak` lane blocks the release
 
@@ -173,9 +217,44 @@ When it succeeds, hand the developer the finishing steps, in order:
 | `version-fresh` red on the PR | version.json already published | Land the Phase-1 bump PR on main, then re-cut `release/vX.Y.Z` at a main commit that includes the bump. |
 | `main-ancestor` red on the PR | The release head isn't a prefix of `main` (a commit was authored on the release branch) | Land the change on `main` via a normal PR, then re-cut the branch forward (`git branch -f release/vX.Y.Z origin/main && git push --force-with-lease`). Never commit on the branch. |
 | Gate red (PR or publish run) | A real build/test/e2e problem | Fix forward on `main` (normal PR). PR-time: re-cut `release/vX.Y.Z` once the fix lands and the gate reruns. Post-merge: land the fix on main, re-cut the branch, open a fresh release PR and repeat Phase 2 (same version — nothing was staged). |
-| `merge-shape` red | The PR was rebase- or squash-merged | Open a NEW `main → prod` PR — it shows **zero file changes**, which is expected (head=`main` passes `main-ancestor`, since `main` is its own ancestor) — and merge it with "Create a merge commit". The empty merge reunifies the histories; publish.yml reruns on it. No force-push. |
+| `merge-shape` red | The PR was rebase- or squash-merged | Open a NEW `main → prod` PR and merge it with "Create a merge commit". If `main` has not moved since, it shows **zero file changes** — expected, and head=`main` passes `main-ancestor`. If GitHub reports a **conflict**, the empty merge is not available: use the forced-tree reunification below. No force-push either way. |
 | publish preflight "already on npm" | Version bumped nowhere / re-run of an old version | Phase 1, then a new promotion PR. |
 | Stage-approve interrupted | Some packages live, some staged | `pnpm rtx release stage-approve` again — it resumes leaves-first. |
+
+### Forced-tree reunification (when `main → prod` conflicts)
+
+Needed when a wrong-method merge is compounded by `main` being rewritten or moving on:
+`prod` and `main` then share only an ancient merge-base, so the recovery PR is not empty
+and cannot auto-merge. Resolving the conflict by hand is a trap — beyond the visible
+`CHANGELOG.md` clash, files `main` *moved* (a `docs/todos/` spec promoted to
+`docs/done/`) get **silently resurrected**, because the merge base predates them.
+
+Build the merge commit locally with the tree forced to `main`'s, so both problems are
+fixed by construction:
+
+```bash
+git fetch origin && git checkout prod && git reset --hard origin/prod
+git merge --no-commit --no-ff origin/main || true     # conflict expected, do not resolve
+git read-tree -u --reset origin/main                  # tree := main's tree, exactly
+git -c core.hooksPath=/dev/null commit --no-edit      # hooks off: lint-staged would
+                                                      # re-run pnpm and can rewrite files
+[ "$(git rev-parse HEAD^{tree})" = "$(git rev-parse origin/main^{tree})" ] && echo IDENTICAL
+git log -1 --format='%P' | wc -w                      # must print 2
+```
+
+`prod` requires a PR (no bypass actors), so this cannot be pushed directly. Push it as a
+branch and promote it:
+
+```bash
+git push origin HEAD:refs/heads/release/vX.Y.Z-reunify
+gh pr create --base prod --head release/vX.Y.Z-reunify --title "release: vX.Y.Z (reunify prod ancestry)"
+```
+
+**`main-ancestor` will go red and cannot be made green** — the head is a merge commit, so
+it does not live on `main`. It is not a required check, so it does not block; the
+invariant it guards is satisfied by the identical tree. Verify after merging: prod's HEAD
+has two parents, its tree equals `origin/main`'s, and `git merge-base --is-ancestor
+origin/main origin/prod` succeeds.
 
 ## Hard rules (recap)
 
@@ -186,4 +265,5 @@ When it succeeds, hand the developer the finishing steps, in order:
 - Every fix lands on `main` first — `prod` receives it via a promotion.
 - **A red `fuzz soak` lane blocks the release** — fix it forward, never re-roll the seed to get green; only the failing seed replayed clean counts.
 - The changelog is curated, not raw generator output — and only ever prepended.
-- One-time setup: the `prod` ruleset must require the `main-ancestor` check (`release head is an ancestor of main`) alongside the gate and `version-fresh`.
+- **Clean release → you merge it. A release that needed any fix → you get it green, then the developer merges, with your report of every fix.** Explicit flags always: `--rebase` into `main`, `--merge` into `prod`. Never `--admin`, never past a red required check.
+- Ruleset setup on `prod`: `allowed_merge_methods` is `["merge"]`, so rebase and squash are not offered at all — the guard rail that actually prevents the wrong-method merge, rather than catching it afterwards. Required checks are the gate jobs plus `version-fresh`. **Do not add `main-ancestor` to the required set:** it is the right check for a normal promotion but goes permanently red on a forced-tree reunification, which would leave a broken release line with no legal way to repair it.
