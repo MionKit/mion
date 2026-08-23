@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import tsRuntypes from "@ts-runtypes/devtools/vite";
 import { mionMiddlewarePlugin } from "./middlewareMode.js";
-import { mionSfcPlugins } from "./sfcTransform.js";
+import { mionSfcPlugins, createVirtualSiteMap } from "./sfcTransform.js";
 let legacyBinEnvNoticeShown = false;
 const REMOVED_PLUGIN_OPTIONS = {
   aotCaches: "AOT caches are obsolete — the ts-runtypes generated modules ARE the compiled artifact. Delete this option.",
@@ -74,6 +74,17 @@ function mionVitePlugin(options = {}) {
       `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). It splits the compiled-fn cache into per-family modules but emits an import for only the first of them, so most fn bindings resolve to nothing — the build fails in rollup, or every route fails to register with MissingRtFnsError. Use 'default' or 'allModules'. See docs/done/module-mode-allsingle-broken.md.`
     );
   }
+  const virtualSites = createVirtualSiteMap();
+  let devServer;
+  const invalidateStaleSites = (siteFiles) => {
+    const graph = devServer?.moduleGraph;
+    if (!graph?.getModuleById || !graph.invalidateModule) return;
+    for (const siteFile of siteFiles) {
+      const id = virtualSites.resolve(siteFile) ?? siteFile;
+      const mod = graph.getModuleById(id);
+      if (mod) graph.invalidateModule(mod);
+    }
+  };
   const plugins = tsRuntypes({
     binary: resolveRtBinary(rt.binary),
     tsconfig: rt.tsConfig,
@@ -92,7 +103,12 @@ function mionVitePlugin(options = {}) {
     jsRuntime: rt.jsRuntime,
     // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
     // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
-    ...manifestPath ? { pureFnReport: "callback", onPureFnReport: harvestReport } : {}
+    ...manifestPath ? { pureFnReport: "callback", onPureFnReport: harvestReport } : {},
+    // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for
+    // the old shape, because the import that named it was erased and vite has no edge to
+    // follow. ts-runtypes works out which files went stale and reports them here; mion maps
+    // its virtual SFC paths back to the real .vue modules and invalidates those.
+    onSiteFilesChanged: invalidateStaleSites
   });
   const extraPlugins = [];
   if (manifestPath)
@@ -104,7 +120,13 @@ function mionVitePlugin(options = {}) {
     });
   if (options.serverMappers?.consume)
     extraPlugins.push(serverMappersConsumePlugin(options.serverMappers.consume, options.serverMappers.injectInto));
-  extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false));
+  extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false, virtualSites));
+  extraPlugins.push({
+    name: "mion-rt-invalidate",
+    configureServer(server) {
+      devServer = server;
+    }
+  });
   if (options.server) {
     const server = options.server;
     const runMode = server.runMode ?? "middleware";
