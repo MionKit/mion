@@ -82,7 +82,7 @@ export const TEST_PORT_MAPPING = {
 
 ## How It Works
 
-1. **During development** - Uses `ts-node` with `tsconfig-paths` to run TypeScript source files directly
+1. **During development** - Runs TypeScript source files directly through Vite
 2. **With built packages** - Can also run from compiled `.dist` files
 
 The `TestServerManager` class:

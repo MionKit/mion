@@ -51,8 +51,7 @@
         "format": "prettier --write src/**/*.ts",
         "build": "vite build",
         "clean": "rimraf .dist .coverage __runtypes .mion",
-        "fresh-start": "pnpm run clean && rimraf node_modules",
-        "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
+        "fresh-start": "pnpm run clean && rimraf node_modules"
     },
     "bugs": {
         "url": "https://github.com/MionKit/mion/issues"
@@ -62,8 +61,7 @@
         "@mionjs/devtools": "workspace:*",
         "@mionjs/platform-node": "workspace:*",
         "@mionjs/router": "workspace:*",
-        "@mionjs/test-server": "workspace:*",
-        "jest-environment-jsdom": "29.7.0"
+        "@mionjs/test-server": "workspace:*"
     },
     "dependencies": {
         "@mionjs/core": "workspace:*",

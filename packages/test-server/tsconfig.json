@@ -15,9 +15,6 @@
       "@mionjs/platform-vercel": ["../platform-vercel/index.ts"]
     }
   },
-  "ts-node": {
-    "esm": true
-  },
   "references": [
     {"path": "../core"},
     {"path": "../router"},
