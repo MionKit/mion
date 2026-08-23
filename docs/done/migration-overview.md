@@ -23,13 +23,16 @@ are discrete, non-blocking follow-ups tracked under [`../todos/`](../todos/).
 | [ts-runtypes-0.9.2-upgrade.md](ts-runtypes-0.9.2-upgrade.md) | The 0.9.2 upgrade (prefixes, config passthroughs, examples) |
 | [error-envelope-non-enumerable-props.md](error-envelope-non-enumerable-props.md) | TypedError/RpcError keep internal message/name off the wire |
 
-## Open follow-ups (`../todos/`)
+## Follow-ups (all landed)
+
+Every follow-up this record once tracked has since shipped and lives in `../done/`:
 
 - [examples + website refresh](examples-and-website-refresh.md)
 - [failOnError adapter pure-fn scanning](failonerror-adapter-pure-fn-scanning.md)
+- [JIT_FUNCTION_IDS version pinning](jit-function-ids-version-pinning.md) — resolved by the
+  0.9.3 `getFnHash` derivation.
 
-Landed: [JIT_FUNCTION_IDS version pinning](jit-function-ids-version-pinning.md) — resolved by the
-0.9.3 `getFnHash` derivation (moved to `../done/`).
+Open follow-ups, if any, live in [`../todos/`](../todos/).
 
 See the root [`CLAUDE.md`](../../CLAUDE.md) → "Docs & follow-up tracking (`docs/`)" for the
 `todos/` → `done/` workflow.
@@ -39,11 +42,12 @@ See the root [`CLAUDE.md`](../../CLAUDE.md) → "Docs & follow-up tracking (`doc
 - mion adapts to ts-runtypes, not the other way round — only touch ts-run-types for actual bugs/gaps.
 - As little modification to `@mionjs/router` as possible; `@mionjs/run-types` is a proxy over `@ts-runtypes/core`.
 
-## Version status (2026-08-20)
+## Version status (2026-08-23)
 
-mion consumes **`@ts-runtypes/{core,devtools,bin}@0.12.0`** from npm — see
-[ts-runtypes-0.12.0-upgrade.md](ts-runtypes-0.12.0-upgrade.md) for that bump's surface audit and the
-breaking `allowUncheckedPatterns` removal.
+mion consumes **`@ts-runtypes/{core,devtools,bin}@0.12.2`** from npm. The surface audit and the
+breaking `allowUncheckedPatterns` removal came with the 0.12.0 bump — see
+[ts-runtypes-0.12.0-upgrade.md](ts-runtypes-0.12.0-upgrade.md); 0.12.1 and 0.12.2 were patch
+bumps on top of it with no surface change on mion's side.
 
 Since 0.9.3 the per-family fn-hash prefixes are version-STABLE (the salt no longer folds the binary
 version — only the `<typeId>` half of each `<fnHash>_<typeId>` key does), so `JIT_FUNCTION_IDS` is
