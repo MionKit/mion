@@ -64,9 +64,9 @@ $ podman run --rm ghcr.io/mionkit/tsrt-e2e:latest sh -c 'ls /e2e/node_modules | 
 
 ## What was NOT done
 
-The original spec's "Preventing the repeat" section did not ship. The underlying gap is unchanged
-and is now tracked on its own in
-[detect-e2e-image-manifest-drift](../todos/detect-e2e-image-manifest-drift.md): a `_deps` change
-still does not force a republish, so the published image can silently drift from the manifest it
-is built from. This episode is the argument for it — the drift went unnoticed until a release
-gate failed, and then cost three separate debugging rounds.
+The original spec's "Preventing the repeat" section did not ship with the republish itself. It was
+picked up immediately after, in the same PR, as
+[detect-e2e-image-manifest-drift](detect-e2e-image-manifest-drift.md): the images now carry a
+content hash of their baked manifests, and a run that would have used a drifted image rebuilds
+locally instead. This episode is what motivated it — the drift went unnoticed until a release gate
+failed, and then cost three separate debugging rounds.

@@ -24,6 +24,7 @@
 // network / CA knobs are SHARED across both images; only the tsrt-website tag + ref
 // are env-overridable (the maintainer/CI-only tsrt-e2e uses fixed GHCR coordinates).
 
+import {createHash} from 'node:crypto';
 import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
@@ -167,7 +168,7 @@ function prepareContext(cfg) {
 // Optional build-arg overrides: RT_WEBSITE_BASE_IMAGE swaps the Node 26 base;
 // RT_WEBSITE_PNPM_VERSION overrides the pinned pnpm. Honored by build + push.
 function buildArgFlags(cfg) {
-  const flags = [];
+  const flags = ['--build-arg', `DEPS_HASH=${depsHash(cfg)}`];
   if (cfg.baseImage) flags.push('--build-arg', `BASE_IMAGE=${cfg.baseImage}`);
   if (cfg.pnpmVersion) flags.push('--build-arg', `PNPM_VERSION=${cfg.pnpmVersion}`);
   return flags;
@@ -211,6 +212,15 @@ export function ensureImage(opts = {}) {
   const cfg = config(opts.env, opts.target);
   requireEngine(cfg.engine);
   if (cfg.useLocal) return ensureImageLocal(cfg);
+  resolvePublishedImage(cfg);
+  // Whatever we settled on, refuse to RUN an image whose baked manifests are not
+  // the tree's. A `_deps` change does not force a republish, so the published
+  // image drifts silently; without this the run just fails somewhere downstream
+  // (or worse, passes against the wrong toolchain).
+  if (imageExists(cfg.engine, cfg.image) && depsStampState(cfg) === 'drift') buildImage(cfg);
+}
+
+function resolvePublishedImage(cfg) {
   if (imageExists(cfg.engine, cfg.image)) {
     const index = capture(cfg.engine, ['manifest', 'inspect', cfg.remoteImage]).stdout.trim();
     if (!index) {
@@ -234,25 +244,61 @@ export function ensureImage(opts = {}) {
   buildImage(cfg);
 }
 
-// Max mtime (epoch seconds) of the inputs baked into a target's image: its
-// Containerfile plus the manifests / assets it COPYs. Drives the local rebuild gate.
-function targetSrcEpoch(cfg) {
-  const mtimeSec = (f) => Math.floor(statSync(f).mtimeMs / 1000);
-  let epoch = 0;
+// Every file baked into a target's image: its Containerfile plus the manifests /
+// assets it COPYs. Sorted, so the hash below is stable across filesystems. The
+// ONE definition of "what makes this image out of date" — both the mtime gate
+// and the deps stamp read it, so they can never disagree about the input set.
+function targetSrcFiles(cfg) {
   const files = [join(cfg.dir, 'Containerfile')];
   if (cfg.target === 'website') files.push(join(DEPS_DIR, 'package.json'), join(DEPS_DIR, 'pnpm-lock.yaml'), join(DEPS_DIR, 'pnpm-workspace.yaml'), join(DEPS_DIR, '.npmrc'));
-  for (const f of files) if (existsSync(f)) epoch = Math.max(epoch, mtimeSec(f));
   // Directory inputs the image bakes (website: benchmark manifests; e2e: toolchain
   // manifests + registry assets). A bump to any must rebuild the image.
   const dirs = cfg.target === 'website' ? [BENCH_DEPS_SRC] : [E2E_DEPS_SRC, E2E_REGISTRY_SRC];
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
-    for (const rel of globSync('**/*', {cwd: dir})) {
-      const full = join(dir, rel);
-      if (statSync(full).isFile()) epoch = Math.max(epoch, mtimeSec(full));
-    }
+    for (const rel of globSync('**/*', {cwd: dir})) files.push(join(dir, rel));
   }
+  return files.filter((f) => existsSync(f) && statSync(f).isFile()).sort();
+}
+
+// Max mtime (epoch seconds) of those inputs. The LEGACY staleness gate: only
+// sound on the local-build path, and only for an image with no deps stamp — a
+// fresh clone has arbitrary mtimes, which is why the stamp supersedes it.
+function targetSrcEpoch(cfg) {
+  let epoch = 0;
+  for (const f of targetSrcFiles(cfg)) epoch = Math.max(epoch, Math.floor(statSync(f).mtimeMs / 1000));
   return epoch;
+}
+
+// Content hash of the baked inputs, stamped into the image as DEPS_LABEL at build
+// time and compared against the tree before any run. Content, never mtime, so it
+// survives a clone and means the same thing on every host.
+function depsHash(cfg) {
+  const digest = createHash('sha256');
+  for (const f of targetSrcFiles(cfg)) {
+    digest.update(f.slice(cfg.dir.length + 1));
+    digest.update('\0');
+    digest.update(readFileSync(f));
+    digest.update('\0');
+  }
+  return digest.digest('hex').slice(0, 16);
+}
+
+// The label carrying depsHash(). Absent on any image built before stamping — that
+// is 'unknown', which must NOT be read as drift: forcing a local build on a
+// missing label would make every CI lane rebuild these images from scratch.
+const DEPS_LABEL = 'org.mionkit.deps-hash';
+
+function depsStampState(cfg) {
+  const want = depsHash(cfg);
+  const got = capture(cfg.engine, ['image', 'inspect', cfg.image, '--format', `{{index .Labels "${DEPS_LABEL}"}}`]).stdout.trim();
+  if (!got || got === '<no value>') {
+    noteErr(`image ${cfg.image} carries no ${DEPS_LABEL} (built before deps stamping) - cannot verify it matches ${cfg.target}'s manifests; push it to stamp one`);
+    return 'unknown';
+  }
+  if (got === want) return 'match';
+  noteErr(`image ${cfg.image} was built from DIFFERENT ${cfg.target} manifests (stamped ${got}, tree is ${want}) - building locally instead of running a stale image`);
+  return 'drift';
 }
 
 // Local-image path: build when missing, and rebuild when any baked manifest (or the
@@ -260,6 +306,10 @@ function targetSrcEpoch(cfg) {
 // rebuild (mounted live).
 function ensureImageLocal(cfg) {
   if (!imageExists(cfg.engine, cfg.image)) return buildImage(cfg);
+  const stamp = depsStampState(cfg);
+  if (stamp === 'drift') return buildImage(cfg);
+  if (stamp === 'match') return; // content-exact: mtimes cannot add anything
+  // No stamp to compare (image predates stamping): fall back to the mtime gate.
   const imgEpoch = Number(capture(cfg.engine, ['image', 'inspect', cfg.image, '--format', '{{.Created.Unix}}']).stdout.trim()) || 0;
   if (targetSrcEpoch(cfg) > imgEpoch) {
     note('image is stale (Containerfile or a manifest newer than image) - rebuilding');

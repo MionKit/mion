@@ -72,5 +72,13 @@ RUN chmod +x /usr/local/bin/e2e-serve.sh
 
 EXPOSE 4873
 
+# Stamp the manifests this image was baked from. scripts/container/image.mjs
+# hashes the same inputs before a run and refuses to use the image when they
+# disagree, so a `_deps` bump that was never republished is caught HERE instead
+# of surfacing as a missing module halfway through the matrix. LAST so it only
+# ever invalidates this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
 # No CMD: scripts/release/e2e.mjs supplies /usr/local/bin/e2e-serve.sh (registry)
 # and `podman exec`s the feature matrix against the bind-mounted /e2e-src.
