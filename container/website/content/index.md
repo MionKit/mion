@@ -89,7 +89,7 @@ GitHub
 class: home-features
 ---
 #title
-One Type, Multiple functionality.
+One type, many functions.
 
 #root
 :::gradient-bg
@@ -106,7 +106,7 @@ blur: 140px
 ::::div{class="rt-standard-split"}
 :::::div{class="rt-feature-card rt-standard-prose"}
 ### The whole toolbelt, in one box
-Stop gluing many libraries together. RunTypes shares a single type graph across everything it generates, so the validator and the serializer always agree on what your type means.
+Stop gluing many libraries together. Every function RunTypes generates comes from the same type, so they all agree on what your data looks like.
 
 [One type in, multiple compiled functions out →](/guide/json-serialization)
 :::::
@@ -118,7 +118,7 @@ Stop gluing many libraries together. RunTypes shares a single type graph across 
 :::div{class="rt-object-fns"}
 ::::div{class="rt-row-intro"}
 ### Validation
-The job you hire a validator for, with nothing to write: your TypeScript type is the schema. At build time RunTypes compiles it into a plain standalone check, which is how it matches the fastest JIT validators with zero runtime compilation. [See the benchmarks →](/benchmarks/validation)
+Your TypeScript type is the schema, there is nothing extra to write. At build time RunTypes compiles it into a plain standalone check, so it is as fast as the fastest validators with no compilation at runtime. [See the benchmarks →](/benchmarks/validation)
 
 The same type is also a Standard Schema, the shared `~standard` contract that tRPC, TanStack Form and Router, Hono and many more accept directly. One call, no adapter to write.
 ::::
@@ -141,9 +141,9 @@ The same type is also a Standard Schema, the shared `~standard` contract that tR
 :::div{class="rt-object-fns"}
 ::::div{class="rt-row-intro"}
 ### JSON roundtrip
-Your type compiles into two functions, one that serializes to JSON and one that restores it, so Date, bigint, Temporal and almost any other type that describes data survive the round trip.
+Your type compiles into two functions, one that writes JSON and one that reads it back. Date, bigint, Set, Temporal and more come back as real values, with no coerce or transform code to write by hand.
 
-**Json roundtrip transparently enables RPC function calls in JavaScript, and free devs from hand writing coerce and transform logic.**
+**No hand written coercion, no transforms to keep in sync. It also makes RPC calls in JavaScript just work.**
 ::::
 
 ::::div{class="rt-object-fn"}
@@ -180,6 +180,8 @@ const back = sessionSchema.parse(JSON.parse(wire));
 :::div{class="rt-object-fns rt-section-titles"}
 ::::div{class="rt-object-fn"}
 ### Mocking that conforms to your types
+Sample data generated from your type, so every value always has the right shape. Great for tests, demos and seeding a database.
+
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-mock" commentEnd="// end-mock" />
 
 [Mock data from your types →](/guide/mocking)
@@ -187,6 +189,8 @@ const back = sessionSchema.parse(JSON.parse(wire));
 
 ::::div{class="rt-object-fn"}
 ### Binary serialization
+A compact binary format as an alternative to JSON. It shines when your data is heavy on numbers and floats, where it saves the most space and time.
+
 <code-import path="packages/examples/src/_homepage/showcase.ts" lang="ts" commentStart="// start-binary" commentEnd="// end-binary" />
 
 [Compact bytes on the wire →](/guide/binary-serialization)
@@ -197,7 +201,7 @@ const back = sessionSchema.parse(JSON.parse(wire));
 
 ::u-page-section
 #title
-Two ways to describe a shape, One source of truth.
+Two ways to describe a shape, one source of truth.
 
 #body
 We support **native TypeScript types** (fastest, zero ceremony) **or** the `RT.*` type builders if you like the Zod / TypeBox feel. Both compile to the exact same validator, so pick whichever you fancy and mix them in the same file. And when you only take the type back out of a builder, the schema itself adds nothing to your bundle.
@@ -249,15 +253,15 @@ Full TC39 Temporal (`PlainDate`, `ZonedDateTime`, `Duration` and the rest), vali
 
 ::u-page-section
 #title
-The reflection TypeScript never shipped
+Your types, available at runtime
 
 #body
 :::div{class="rt-feature-row rt-stack-reverse"}
 <code-import path="packages/examples/src/_homepage/reflection.ts" lang="ts" />
 
 ::::card{class="rt-feature-card"}
-### Recover the type graph
-Get back a traversable RunType node, the same graph the library walks internally: kind, property names, nested children, format annotations and more. Bring a type or infer it from a runtime value, then read it however you need, to drive codegen, build forms, or power your own tooling.
+### Walk your type's structure
+Get back a RunType node you can walk, the same one the library uses internally: kind, property names, nested children, format annotations and more. Bring a type or infer it from a value, then read it however you need, to drive codegen, build forms, or power your own tooling.
 
 <br>
 
@@ -269,7 +273,7 @@ Get back a traversable RunType node, the same graph the library walks internally
 <code-import path="packages/examples/src/_homepage/reflection-value.ts" lang="ts" commentStart="// start-value" commentEnd="// end-value" />
 
 ::::card{class="rt-feature-card"}
-### Infer types from a values
+### Infer types from values
 You don't have to write the type out. Hand `getRunType` any value and it reflects that value's static type, so `getRunType(order)` returns the same node as `getRunType<Order>()`. Reach for it when you already hold the data and just want its shape.
 ::::
 :::
@@ -283,7 +287,7 @@ High performance compiled code
 :::div{class="rt-feature-row rt-feature-row--top"}
 ::::card{class="rt-feature-card"}
 ### Every library says they are the fastest, we back it up!
-Our performance matches and surpass the fastest validators (AJV, TypeBox, Typia) 
+Our performance matches and surpasses the fastest validators (AJV, TypeBox, Typia) 
 and we have the most comprehensive benchmark suite to back it up.
 
 :::::perf-bars
