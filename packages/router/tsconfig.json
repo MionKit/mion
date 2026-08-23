@@ -7,11 +7,5 @@
   },
   "references": [{"path": "../core"}, {"path": "../test-server"}],
   "include": ["."],
-  "exclude": [
-    "node_modules",
-    ".dist",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "examples/eslint-rule-test.routes.ts"
-  ]
+  "exclude": ["node_modules", ".dist", "vite.config.ts", "vitest.config.ts"]
 }
