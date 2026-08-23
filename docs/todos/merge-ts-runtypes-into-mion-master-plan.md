@@ -80,8 +80,9 @@ joining the same `packages/` workspace:
   `ts-runtypes-go-be-sidecar`, `examples` (merged) + `core`, `router`, `client`,
   `devtools`, `drizzle`, `platform-*`, `test-server`. `@mionjs/*` packages depend
   on `@ts-runtypes/*` via `workspace:*`, not npm pins.
-- One Nuxt install (`container/website/`) serving both documentation sets; the
-  host-run `website/` directory is gone.
+- One Nuxt install (`container/website/`) building TWO separate sites from two
+  content trees — mion.pages.dev and runtypes.pages.dev, both on Cloudflare
+  Pages; the host-run `website/` directory and the GitHub Pages deploy are gone.
 - One e2e gate: verdaccio in the `tsrt-e2e` image publishes and exercises the
   `@ts-runtypes/*` AND `@mionjs/*` tarballs; `test-publish/` is gone.
 - One release train: `version.json` lockstep across every published package,
@@ -91,35 +92,39 @@ joining the same `packages/` workspace:
   mion guidance (AGENTS.md and friends) deleted.
 - The ts-run-types GitHub repo archived with a pointer README.
 
-## Decisions needed (blocking or shaping specific steps)
+## Decisions (settled with the maintainer, 2026-08-23)
 
-1. **npm package names.** Recommendation: keep publishing `@ts-runtypes/*` from
-   the mion repo for now; a rebrand (e.g. into `@mionjs/*`) is a separate later
-   project (it touches binary package names, the version hash embedding, and
-   every consumer). Blocks nothing if the recommendation is accepted.
-2. **One version train or two.** Recommendation: one. `bump-version.mjs` already
-   stamps every `packages/*/package.json`, so `@mionjs/*` jumps from 0.8.10 to
-   the next unified version (e.g. 0.13.0). Shapes step 6.
-3. **Website domain + deploy target.** ts-run-types deploys to Cloudflare Pages
-   (runtypes.pages.dev, pinned to `prod`); mion deploys to GitHub Pages (with a
-   commented-out plan for mion.io). One Nuxt install means one deploy — which
-   domain serves it, and does the other redirect? Shapes step 4.
-4. **Default branch rename `master` → `main` + creation of `prod`.** Required for
-   the ts-run-types CI/release flow to apply unchanged. Needs a GitHub settings
-   change (owner action). Shapes steps 1 and 6.
-5. **Landing the join commit.** The unrelated-histories merge commit cannot land
-   via rebase-merge (it would be flattened). It needs either a direct push to the
-   default branch or a one-off merge-commit PR (repo setting). Owner action in
-   step 2.
-6. **Fate of `plans/`.** `01`/`02` (AOT-era) and `vercel-adapter-spec.md`
-   (shipped) look deletable; `mion-ui-spec.md` and `client-missing-features.md`
-   may still be wanted — if so they are rewritten from scratch as fresh
-   `docs/todos/` specs (per the replacement-spec rule), never moved as-is.
-   Shapes step 1.
-7. **mion benchmarks.** The website copies benchmark data from a sibling
-   `mion-benchmarks` repo (`copy-benchmarks` script). Fold that repo into
-   `container/benchmarks/` later, keep the copy flow, or drop the page? Shapes
-   step 4 (can be deferred without blocking it).
+1. **npm package names: keep `@ts-runtypes/*`** published from the mion repo. A
+   rebrand, if ever, is a separate later project.
+2. **One version train.** `bump-version.mjs` stamps every
+   `packages/*/package.json`; `@mionjs/*` jumps from 0.8.10 to the next unified
+   version at the first joint release.
+3. **Two sites from one Nuxt install.** The same `container/website/` codebase
+   builds two separate static sites from two content trees: mion.pages.dev and
+   runtypes.pages.dev, both Cloudflare Pages. mion's GitHub Pages deploy is
+   retired.
+4. **Default branch renames to `main`; `prod` is created for the release line.**
+   The rename itself is a one-click GitHub settings action (owner); everything
+   in-repo is handled inside the migration steps.
+5. **The join commit** lands via a one-off merge-commit PR or a direct push to
+   `main` — the owner either flips the "allow merge commits" repo setting for
+   that PR or green-lights the direct push at step 2 time.
+6. **`plans/` stays untouched.** It is an ideas folder, not a todo backlog;
+   CLAUDE.md gets a line saying so, so nobody keeps flagging it as stale.
+7. **mion benchmarks move into `container/benchmarks/`** (from the sibling
+   `mion-benchmarks` repo) — deliberately LAST, only after everything else works
+   and the first unified release is published. This is step 8.
+
+### Owner-only actions (everything else is agent work)
+
+- Before step 2: rename the default branch `master` → `main` in GitHub settings.
+- At step 2: allow the one merge commit to land (setting flip or direct-push OK).
+- At step 4: create the Cloudflare Pages project for mion.pages.dev and make
+  sure the existing `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` secrets
+  cover it.
+- At step 6: branch protections for `main`/`prod` (merge-commit-only promotion,
+  required checks) — recommended, and only the owner can set them.
+- At release time: the npm 2FA stage-approve, exactly as ts-run-types does today.
 
 ## Steps
 
@@ -134,19 +139,21 @@ Shrink the collision surface and stop dead weight from traveling through the
 merge. In the mion repo, on a normal PR:
 
 - Delete: `setup.sh`, `jest.config.js`, `AGENTS.md`, `.augment-guidelines.md`,
-  `.augment/`, dead `plans/` files (per decision 6; wanted ones become fresh
-  `docs/todos/` specs), stale `@mionjs/run-types` / `@mionjs/type-formats` /
+  `.augment/`, stale `@mionjs/run-types` / `@mionjs/type-formats` /
   `@deepkit/type-compiler` remnants in `test-publish/pnpm-workspace.yaml` and its
   lockfile, the stale `packages/test-publish/**` eslint ignore, the hardcoded
-  macOS paths in `.claude/settings.local.json`.
+  macOS paths in `.claude/settings.local.json`. `plans/` is NOT touched
+  (decision 6); CLAUDE.md gets a line marking it as an ideas folder.
 - Create `docs/todos/` (this file lives there) and fix CLAUDE.md's stale links
   (`docs/todos/`, `@mionjs/run-types` in the peer-deps line) and
-  `migration-overview.md`'s 0.12.0 → 0.12.2 note.
+  `migration-overview.md`'s 0.12.0 → 0.12.2 note. Fix `test-publish/CLAUDE.md`'s
+  references to scripts/specs that no longer exist.
 - `npm deprecate @mionjs/run-types` (still live at 0.8.10) with a pointer to
   `@ts-runtypes/core`.
-- Rename the default branch `master` → `main` (decision 4) and update the
-  in-repo references: `nuxtjs.yml` trigger, `nx.json` `defaultBase`, the
-  `raw.githubusercontent.com/.../master/...` image URLs in package READMEs.
+- After the owner renames the default branch `master` → `main` in GitHub
+  settings, update the in-repo references: `nuxtjs.yml` trigger, `nx.json`
+  `defaultBase`, the `raw.githubusercontent.com/.../master/...` image URLs in
+  the package READMEs and root README.
 
 ### Step 2 — Freeze ts-run-types and land the join commit
 
@@ -191,25 +198,34 @@ merge. In the mion repo, on a normal PR:
 - Green bar: full `pnpm test` + `go test` + `rtx core smoke` from one clean
   clone bootstrapped by the ts-runtypes-setup skill.
 
-### Step 4 — Website merge (one Nuxt install)
+### Step 4 — Website merge (one Nuxt install, two sites)
 
 - Fold mion's `website/` into `container/website/` (the containerized install is
-  the base: playground, bench tables, twoslash server, agent-heartbeat). Merge
-  mion's content dirs (`introduction`, `server`, `drizzle-orm`, `client`,
-  `run-types`, `devtools`, `platforms`, `benchmarks`, `articles`) into the
-  combined Docus nav next to the runtypes docs; reconcile the duplicated
-  `run-types` topic pages against the authoritative runtypes guide.
+  the base: playground, bench tables, twoslash server, agent-heartbeat). The one
+  codebase builds TWO separate static sites (decision 3): a site selector (e.g.
+  an `RT_SITE=mion|runtypes` env var read by `nuxt.config.ts` / the build
+  scripts) picks the content tree, app.config (nav, socials, github block,
+  branding) and public assets per site; components, server utils, layouts and
+  the code-import pipeline are shared.
+- The two content trees stay separate (no nav merging): the runtypes docs as
+  they are today, and mion's content dirs (`introduction`, `server`,
+  `drizzle-orm`, `client`, `run-types`, `devtools`, `platforms`, `benchmarks`,
+  `articles`) as the mion site. Reconcile mion's `run-types` section so it
+  introduces the topic and links across to the runtypes site rather than
+  duplicating its guide.
 - Merge mion's app components/utils into the container app; dependency lists are
   near-identical (same Nuxt/Docus/content/ui/shiki versions), so the image's
   `_deps` grows by the mion-only extras. Rebuild + push `tsrt-website`.
-- The merged `packages/examples` feeds code-import for both doc sets; port
-  mion's `check-links` / `check-unused-examples` into the container scripts if
-  they differ.
+- The merged `packages/examples` feeds code-import for both sites; port mion's
+  `check-links` / `check-unused-examples` into the container scripts if they
+  differ.
 - Delete `website/` (including its stale docus-starter README/name and the
   `.vscode-extension`, which moves only if still wanted), delete `pages-build` /
-  `copy-benchmarks` root scripts (decision 7 may re-home the benchmark data
-  later), retire `nuxtjs.yml`.
-- Deploy per decision 3 (single deploy from `website-deploy.yml`).
+  `copy-benchmarks` root scripts (step 8 re-homes the benchmark data), retire
+  `nuxtjs.yml`.
+- Deploy: `website-deploy.yml` builds and deploys BOTH sites to Cloudflare Pages
+  (runtypes.pages.dev stays; mion.pages.dev is a new Pages project the owner
+  creates); mion's GitHub Pages deploy is retired.
 
 ### Step 5 — e2e unification on verdaccio
 
@@ -254,6 +270,17 @@ merge. In the mion repo, on a normal PR:
   session-start hook extended to cover the mion packages (they only need pnpm on
   top of the existing bootstrap).
 - docs merge hygiene: mion's 63 `docs/done` specs + runtypes' specs coexist;
-  `docs/maybe/` keeps its parked specs; this master plan moves to `docs/done/`
-  when the last step lands.
+  `docs/maybe/` keeps its parked specs; `plans/` stays as the ideas folder.
 - Archive `MionKit/ts-run-types` on GitHub with a README pointing at mion.
+
+### Step 8 — Fold mion-benchmarks into the container (last)
+
+Only after everything above works and the first unified release is published:
+
+- Move the sibling `mion-benchmarks` repo into `container/benchmarks/` alongside
+  the validation benchmarks, following the same isolation pattern (each heavy
+  dependency set as its own pnpm project under `_deps/`, baked into the
+  `tsrt-website` image, results generated at website-build time).
+- Wire the mion site's benchmarks pages to the generated data, replacing the old
+  `copy-benchmarks`-from-sibling-repo flow for good; archive `mion-benchmarks`.
+- This master plan moves to `docs/done/` when this step lands.
