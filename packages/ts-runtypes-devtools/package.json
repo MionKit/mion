@@ -35,6 +35,14 @@
       "types": "./dist/bun.d.ts",
       "import": "./dist/bun.js"
     },
+    "./next": {
+      "types": "./dist/next/index.d.ts",
+      "import": "./dist/next/index.js"
+    },
+    "./next/loader": {
+      "types": "./dist/next/loader.d.ts",
+      "default": "./dist/next/loader.js"
+    },
     "./esbuild": {
       "types": "./dist/esbuild.d.ts",
       "import": "./dist/esbuild.js"
