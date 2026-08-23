@@ -3,7 +3,7 @@
   "description": "mion is framework to build full stack APIs at the speed of light",
   "version": "0.1.0",
   "type": "module",
-  "main": "index.js",
+  "private": true,
   "homepage": "https://github.com/MionKit/mion#readme",
   "packageManager": "pnpm@11.1.1",
   "scripts": {
@@ -39,7 +39,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com:MionKit/mion.git"
+    "url": "git+https://github.com/MionKit/mion.git"
   },
   "keywords": [
     "typescript",
@@ -56,7 +56,7 @@
   "author": "ma-jerez",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/MionKit/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "engines": {
     "node": ">= 24.0.0",
