@@ -11,7 +11,7 @@ Security posture (see `pnpm-workspace.yaml`):
 - `frozenLockfile: true` — prefers exact-lockfile installs (CI uses `pnpm install --frozen-lockfile` to fail loudly on drift)
 - `minimumReleaseAge: 43200` (30 days) — refuses to _resolve_ package versions younger than 30 days. Lockfile-frozen entries are not re-checked; this fires only on fresh resolution (pnpm add / pnpm update / fresh resolve)
 - `ignoreScripts: true` — blocks all preinstall/install/postinstall scripts from dependencies. Per-package allowlist via `allowBuilds: { pkg: true }` (replaces deprecated `onlyBuiltDependencies`)
-- `allowNonRegistryProtocols: false` — refuses git/github/file/http specifiers (workspace:\* is exempt)
+- `blockExoticSubdeps: true` — TRANSITIVE deps must resolve from a trusted source (registry, workspace links, local file paths, node/bun/deno mirrors). Direct deps may declare any source; PR review covers that surface (`workspace:*` is always exempt)
 - `savePrefix: ''` — `pnpm add` writes exact versions, never `^` or `~`
 - `strictPeerDependencies: true` — peer-dep mismatches fail the install instead of warning
 - All `dependencies` and `devDependencies` across the monorepo are exact-pinned. `peerDependencies` of publishable libs (`@mionjs/devtools`, `@mionjs/platform-bun`, `@mionjs/run-types`) stay as caret ranges so consumers can dedupe.
