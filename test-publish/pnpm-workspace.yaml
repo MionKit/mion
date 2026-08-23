@@ -14,11 +14,9 @@ packages: []
 # Pinning every @mionjs/* to file: forces consistent resolution.
 overrides:
   '@mionjs/core': file:./tarballs/mionjs-core.tgz
-  '@mionjs/run-types': file:./tarballs/mionjs-run-types.tgz
   '@mionjs/router': file:./tarballs/mionjs-router.tgz
   '@mionjs/platform-node': file:./tarballs/mionjs-platform-node.tgz
   '@mionjs/client': file:./tarballs/mionjs-client.tgz
-  '@mionjs/type-formats': file:./tarballs/mionjs-type-formats.tgz
   '@mionjs/drizzle': file:./tarballs/mionjs-drizzle.tgz
   '@mionjs/platform-aws': file:./tarballs/mionjs-platform-aws.tgz
   '@mionjs/platform-bun': file:./tarballs/mionjs-platform-bun.tgz
@@ -31,16 +29,11 @@ overrides:
 # SECURITY: Explicitly deny lifecycle scripts for these packages.
 # Without these explicit entries, pnpm 11 nags on every install with a
 # "set this to true or false" placeholder.
-# - @deepkit/type-compiler's postinstall patches node_modules/typescript/lib/tsc.js
-#   to inject deepkit's reflection transformer for direct `tsc` CLI usage. mion
-#   never invokes tsc directly — its Vite plugin calls `ts.transpileModule(...,
-#   { transformers })` programmatically — so this patch is unused dead weight.
 # - esbuild's postinstall validates/locates the native binary. The binary
 #   already ships inside the platform-specific optional dep (e.g.
 #   @esbuild/darwin-arm64), so esbuild works fine without the postinstall —
 #   install already runs under `ignoreScripts: true` and nothing breaks.
 allowBuilds:
-  '@deepkit/type-compiler': false
   esbuild: false
 
 # ── Lockfile / install integrity ─────────────────────────
