@@ -11,7 +11,7 @@ import {spawn, type ChildProcess} from 'node:child_process';
 import {createRequire} from 'node:module';
 import tsRuntypes from '@ts-runtypes/devtools/vite';
 import {mionMiddlewarePlugin} from './middlewareMode.ts';
-import {mionSfcPlugins} from './sfcTransform.ts';
+import {createVirtualSiteMap, mionSfcPlugins} from './sfcTransform.ts';
 import type {PluginOptions as TsRuntypesPluginOptions} from '@ts-runtypes/devtools';
 import type {Plugin, PluginOption} from 'vite';
 
@@ -302,6 +302,28 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
                 `See docs/done/module-mode-allsingle-broken.md.`
         );
     }
+    // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
+    // while the module vite serves is `Comp.vue`. ts-runtypes reports stale site files by the
+    // path it knows, so mion has to translate before invalidating — see onSiteFilesChanged below.
+    // Built here because the ts-runtypes plugin (which takes the handler) and the SFC pass (which
+    // fills the map) are both constructed further down.
+    const virtualSites = createVirtualSiteMap();
+    let devServer:
+        | {moduleGraph?: {getModuleById?: (id: string) => unknown; invalidateModule?: (mod: unknown) => void}}
+        | undefined;
+
+    /** Re-transforms the files whose compiled fns just changed, after a type edit elsewhere. */
+    const invalidateStaleSites = (siteFiles: string[]): void => {
+        const graph = devServer?.moduleGraph;
+        if (!graph?.getModuleById || !graph.invalidateModule) return;
+        for (const siteFile of siteFiles) {
+            // A virtual site file resolves to the real .vue module; a real one is already the id.
+            const id = virtualSites.resolve(siteFile) ?? siteFile;
+            const mod = graph.getModuleById(id);
+            if (mod) graph.invalidateModule(mod);
+        }
+    };
+
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
     const plugins = tsRuntypes({
@@ -323,6 +345,11 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         // Pure-fn build report feeds the serverMapFrom transport; in-process only (the
         // mion manifest is the artifact, no need for ts-runtypes' own JSON file).
         ...(manifestPath ? {pureFnReport: 'callback' as const, onPureFnReport: harvestReport} : {}),
+        // Editing a type in ANOTHER file leaves every file reflecting it serving a validator for
+        // the old shape, because the import that named it was erased and vite has no edge to
+        // follow. ts-runtypes works out which files went stale and reports them here; mion maps
+        // its virtual SFC paths back to the real .vue modules and invalidates those.
+        onSiteFilesChanged: invalidateStaleSites,
     });
     // Only wired when `consume` is configured: with no transport there is nothing to generate
     // and nothing to inject, so pipelines that merely import a server module for its route types
@@ -342,7 +369,15 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
     // Vue SFCs: the ts-runtypes plugin only transforms plain TS/JS ids, so an SFC's <script> needs
     // to be handed to it under a virtual path. Wired off the SAME plugin instance — one resolver,
     // one program, one generated tree.
-    extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false));
+    extraPlugins.push(...mionSfcPlugins(findRtPlugin(plugins), rt.sfc !== false, virtualSites));
+    // Captures the dev server so invalidateStaleSites can reach the module graph. Build lanes
+    // never call configureServer, where a single transform pass makes staleness impossible.
+    extraPlugins.push({
+        name: 'mion-rt-invalidate',
+        configureServer(server) {
+            devServer = server as unknown as typeof devServer;
+        },
+    } satisfies Plugin);
     if (options.server) {
         const server = options.server;
         const runMode = server.runMode ?? 'middleware';

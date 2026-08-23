@@ -3,7 +3,19 @@ import { createRequire } from "node:module";
 const MARKER_PROBE = /['"]@ts-runtypes\/core|['"]@mionjs\/|registerPureFn/;
 const BLOCK_SPLIT = "\n// #mion-sfc-block\n";
 const VUE_PLUGIN_NAME = "vite:vue";
-function mionSfcPlugins(rt, inject = true) {
+function createVirtualSiteMap() {
+  const toReal = /* @__PURE__ */ new Map();
+  const key = (file) => file.split(path.sep).join("/");
+  return {
+    register(virtualPath, realFile) {
+      toReal.set(key(virtualPath), realFile);
+    },
+    resolve(siteFile) {
+      return toReal.get(key(siteFile));
+    }
+  };
+}
+function mionSfcPlugins(rt, inject = true, virtualSites) {
   let root = "";
   let vuePlugins = [];
   let fallbackCompiler;
@@ -72,6 +84,7 @@ function mionSfcPlugins(rt, inject = true) {
       if (!blocks.length) return null;
       const lang = blocks.find((block) => block.lang)?.lang ?? "js";
       const virtualPath = `${file}.${lang}`;
+      virtualSites?.register(virtualPath, file);
       const source = blocks.map((block) => block.content).join(BLOCK_SPLIT);
       const result = await injectFns(this, source, virtualPath);
       if (!result) return null;
@@ -120,6 +133,7 @@ function foldImportBlock(source, transformed) {
   return rest.join("\n");
 }
 export {
+  createVirtualSiteMap,
   mionSfcPlugins
 };
 //# sourceMappingURL=sfcTransform.js.map
