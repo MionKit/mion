@@ -14,7 +14,7 @@ Security posture (see `pnpm-workspace.yaml`):
 - `blockExoticSubdeps: true` — TRANSITIVE deps must resolve from a trusted source (registry, workspace links, local file paths, node/bun/deno mirrors). Direct deps may declare any source; PR review covers that surface (`workspace:*` is always exempt)
 - `savePrefix: ''` — `pnpm add` writes exact versions, never `^` or `~`
 - `strictPeerDependencies: true` — peer-dep mismatches fail the install instead of warning
-- All `dependencies` and `devDependencies` across the monorepo are exact-pinned. `peerDependencies` of publishable libs (`@mionjs/devtools`, `@mionjs/platform-bun`, `@mionjs/run-types`) stay as caret ranges so consumers can dedupe.
+- All `dependencies` and `devDependencies` across the monorepo are exact-pinned. `peerDependencies` of publishable libs (`@mionjs/devtools`, `@mionjs/platform-bun`) stay as caret ranges so consumers can dedupe.
 
 Updating dependencies:
 
@@ -114,6 +114,11 @@ one of the two subdirs — nothing loose in `docs/` itself:**
 - [`docs/done/`](docs/done/) — implemented follow-ups + completed-work records (e.g. the whole
   run-types → `@ts-runtypes/*` migration record — see
   [`docs/done/migration-overview.md`](docs/done/migration-overview.md)).
+
+**[`plans/`](plans/) is a separate, loose IDEAS folder — not part of this workflow.** It holds
+exploratory specs and design sketches that were never committed to, so some describe APIs that
+have since changed or been removed. It is deliberately exempt from the `todos/`/`done/` rules
+above: nothing in it is an open commitment, and it should not be flagged as stale.
 
 **There is NO "partially" state — a spec is either done or open.** Work that only partly shipped
 gets SPLIT: the shipped part becomes a `done/` record, and each unshipped part becomes its own

@@ -71,3 +71,13 @@ used in marker signatures, while the callable `(...args: any[]) => any` version 
 would silently change the contract.
 
 `grep -rn jitUtils packages/ --include='*.ts'` now returns nothing outside generated build output.
+
+## Superseded (2026-08-23)
+
+The ⚠️ note above is now historical: the pre-merge cleanup **deleted** mion's `PureFunction` and
+`PureFunctionFactory` outright, because nothing imported either from `@mionjs/core` —
+`PureFunctionFactory` had no consumers at all, and mion's `PureFunction` only fed it. The one real
+consumer (`packages/client/src/routesFlow.ts`) imports the upstream root-exported brand
+`PureFunction` from `@ts-runtypes/core` directly, which is the correct type for its use. Deleting
+the shadowing pair is not the swap this note warned against; it removes the name collision that
+made the swap tempting in the first place.

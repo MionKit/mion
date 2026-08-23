@@ -31,20 +31,20 @@
 ## Running Tests & Build
 
 - `pnpm run test`: runs JSON and binary serialization E2E tests (uses mionVitePlugin + IPC server)
-- `pnpm run build`: builds with AOT caches via `vite.build.config.ts`
-- `pnpm run test:aot`: verifies AOT caches are inlined in build output
-- `pnpm run verify`: runs test + build + test:aot in sequence
+- `pnpm run build`: builds the server bundle via `vite.build.config.ts`
+- `pnpm run test:build-output`: verifies the compiled fn bodies and server mappers are inlined in the build output
+- `pnpm run verify`: runs test + build + test:build-output in sequence
 - `pnpm run clean`: removes dist and node_modules
 
 ## Project Structure
 
 - `src/server/server.ts`: mion server used by tests
-- `src/client/pureFns.ts`: client pure functions for AOT verification
 - `src/tests/json.spec.ts`, `binary.spec.ts`: E2E serialization tests
-- `src/tests/aot-build.spec.ts`: verifies AOT output after build
+- `src/tests/packaged-sources.spec.ts`: checks the packed tarballs ship the sources they declare
+- `src/tests/build-output.spec.ts`: verifies the build output after build
 
 ## Dependencies
 
 - All `@mionjs/*` dependencies come from local tarballs (`file:./tarballs/*.tgz`), not npm
-- Uses `@mionjs/devtools/vite-plugin` (mionVitePlugin) for type reflection, AOT caches, and pure function injection
+- Uses `@mionjs/devtools/vite-plugin` (mionVitePlugin) for type reflection and pure function injection
 - Must re-run `../scripts/pack-and-install.sh` after any mion package changes to pick up updates
