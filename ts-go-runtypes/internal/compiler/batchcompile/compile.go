@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/microsoft/typescript-go/shim/compiler"
 	"github.com/mionkit/ts-runtypes/internal/compiler/program"
@@ -36,6 +37,27 @@ import (
 	"github.com/mionkit/ts-runtypes/internal/diagnostics"
 	"github.com/mionkit/ts-runtypes/internal/protocol"
 )
+
+// emitCapture collects the files tsgo emits. Emit runs its per-file work in a
+// PARALLEL work group, so WriteFile is invoked from several goroutines at once
+// and the map MUST be guarded: an unsynchronized write here is not a benign
+// race but a fatal "concurrent map writes" runtime error that kills the whole
+// compile, which is how it surfaced (an intermittent `convert-cli` panic under
+// full-suite load).
+type emitCapture struct {
+	mu    sync.Mutex
+	files map[string]string
+}
+
+func newEmitCapture() *emitCapture {
+	return &emitCapture{files: make(map[string]string)}
+}
+
+func (capture *emitCapture) add(fileName, text string) {
+	capture.mu.Lock()
+	defer capture.mu.Unlock()
+	capture.files[fileName] = text
+}
 
 // Options configures a compile run. Cwd + TsconfigPath locate the project;
 // GenDir is where the generated cache modules land (the emitted .js import
@@ -152,10 +174,10 @@ func Run(opts Options) (*Result, error) {
 
 	// Capture every emitted file; tsgo calls WriteFile INSTEAD of writing to
 	// disk, so we transform the bytes before writing them ourselves.
-	captured := make(map[string]string)
+	capture := newEmitCapture()
 	emitResult := p2.TS.Emit(context.Background(), compiler.EmitOptions{
 		WriteFile: func(fileName, text string, _ *compiler.WriteFileData) error {
-			captured[fileName] = text
+			capture.add(fileName, text)
 			return nil
 		},
 	})
@@ -164,8 +186,8 @@ func Run(opts Options) (*Result, error) {
 	}
 
 	// Process outputs into a new map so we never mutate while ranging.
-	final := make(map[string]string, len(captured))
-	for outPath, text := range captured {
+	final := make(map[string]string, len(capture.files))
+	for outPath, text := range capture.files {
 		switch {
 		case strings.HasSuffix(outPath, ".js.map"):
 			final[outPath] = composeEmittedMap(text, outPath, mapAByAbs)
