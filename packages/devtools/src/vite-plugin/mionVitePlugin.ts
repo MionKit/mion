@@ -18,6 +18,17 @@ import type {Plugin, PluginOption} from 'vite';
 /** One report record from the ts-runtypes pure-fn build report (structural subset). */
 type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];
 
+/** ts-runtypes plugin options plus `onSiteFilesChanged`, which lands in the release AFTER 0.12.1.
+ *
+ *  Declared here rather than waiting for the bump so mion still typechecks against the currently
+ *  pinned version, whose `PluginOptions` does not know the key. Passing it is safe either way: a
+ *  plugin that has never heard of the option simply ignores it and never calls back, which is
+ *  exactly today's behaviour. Drop this alias when the pin is raised — see
+ *  docs/todos/next-ts-runtypes-bump.md. */
+type RtPluginOptions = TsRuntypesPluginOptions & {
+    onSiteFilesChanged?: (siteFiles: string[]) => void;
+};
+
 // ############# mion vite plugin — ts-runtypes migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
 // generation. All of that is replaced by @ts-runtypes/devtools: the resolver binary
@@ -326,7 +337,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
 
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
-    const plugins = tsRuntypes({
+    const rtPluginOptions: RtPluginOptions = {
         binary: resolveRtBinary(rt.binary),
         tsconfig: rt.tsConfig,
         genDir: rt.genDir ?? rt.outDir,
@@ -350,7 +361,8 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
         // follow. ts-runtypes works out which files went stale and reports them here; mion maps
         // its virtual SFC paths back to the real .vue modules and invalidates those.
         onSiteFilesChanged: invalidateStaleSites,
-    });
+    };
+    const plugins = tsRuntypes(rtPluginOptions);
     // Only wired when `consume` is configured: with no transport there is nothing to generate
     // and nothing to inject, so pipelines that merely import a server module for its route types
     // (specs, client builds) are untouched.
