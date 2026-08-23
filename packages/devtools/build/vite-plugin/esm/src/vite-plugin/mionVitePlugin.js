@@ -85,7 +85,7 @@ function mionVitePlugin(options = {}) {
       if (mod) graph.invalidateModule(mod);
     }
   };
-  const plugins = tsRuntypes({
+  const rtPluginOptions = {
     binary: resolveRtBinary(rt.binary),
     tsconfig: rt.tsConfig,
     genDir: rt.genDir ?? rt.outDir,
@@ -109,7 +109,8 @@ function mionVitePlugin(options = {}) {
     // follow. ts-runtypes works out which files went stale and reports them here; mion maps
     // its virtual SFC paths back to the real .vue modules and invalidates those.
     onSiteFilesChanged: invalidateStaleSites
-  });
+  };
+  const plugins = tsRuntypes(rtPluginOptions);
   const extraPlugins = [];
   if (manifestPath)
     extraPlugins.push({
