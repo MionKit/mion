@@ -65,3 +65,23 @@ Overlaying beats repointing the deps at `file:` tarballs: it needs no re-resolut
 leaves `package.json` and the lockfile untouched, so nothing temporary can leak into a commit.
 `RT_BIN` is the single override honoured by `@ts-runtypes/bin` for both the vite transform and the
 ESLint lane, so they cannot end up on different binaries.
+
+## Not required, but worth deciding at the same time
+
+One optional upstream simplification is available, and the bump is the natural moment to weigh it
+because it is the only time `sfcTransform.ts` gets re-read.
+
+**mion fabricates an HMR context to register a virtual source.** `injectFns` calls upstream's
+`handleHotUpdate` with `{file, read, modules: [], timestamp: 0}` purely to reach
+setSources → scanFiles → generate, then calls `transform` on the same virtual path. It works, and
+the upstream fix reads that context defensively so it keeps working, but it is a hook used for
+something other than what it is named for.
+
+If `@ts-runtypes/devtools` ever exposed a first-class "transform this virtual source" API (an id
+filter plus `setSources`), part of `sfcTransform.ts` could be deleted in favour of it. **The current
+path keeps working either way**, so this is a cleanup, not a blocker: nothing in mion needs it, and
+it must not hold up the bump.
+
+Carried over from the original spec text (it was lost when that spec was rewritten into
+[../done/type-only-dep-hmr-staleness.md](../done/type-only-dep-hmr-staleness.md); recorded here so
+it stays in the open lane rather than only in a closed record).
