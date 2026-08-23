@@ -11,11 +11,11 @@
 //   - --out-dir converts a copy (assets carried along, sources untouched);
 //   - flag validation exits non-zero.
 import {describe, expect, it} from 'vitest';
-import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {BIN, hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {hasBinary, writeMarkerPackage} from './helpers/inline.ts';
+import {runCli} from './helpers/cliCrash.ts';
 
 const register = hasBinary() ? it : it.skip;
 
@@ -54,30 +54,19 @@ function makeProject(): string {
   return dir;
 }
 
-interface RunResult {
-  status: number;
-  stdout: string;
-  stderr: string;
-}
-
-function runConvert(dir: string, args: string[]): RunResult {
-  const result = spawnSync(BIN, ['convert', '--tsconfig', path.join(dir, 'tsconfig.json'), ...args], {
-    encoding: 'utf8',
-    cwd: dir,
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  return {status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
+function runConvert(dir: string, args: string[]) {
+  return runCli(['convert', '--tsconfig', path.join(dir, 'tsconfig.json'), ...args], {cwd: dir, label: 'convert'});
 }
 
 function compileInjectedIds(dir: string): string[] {
   fs.rmSync(path.join(dir, 'dist'), {recursive: true, force: true});
   fs.rmSync(path.join(dir, '__runtypes'), {recursive: true, force: true});
-  const result = spawnSync(
-    BIN,
-    ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')],
-    {encoding: 'utf8', maxBuffer: 32 * 1024 * 1024}
-  );
-  expect(result.status, result.stderr).toBe(0);
+  const result = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+    label: 'compile-injected-ids',
+  });
+  // result.report, not result.stderr: a panicking child dumps a whole Go stack
+  // and log pipelines truncate away the header that names the defect.
+  expect(result.status, result.report).toBe(0);
   const emitted = fs.readFileSync(path.join(dir, 'dist', 'api.js'), 'utf8');
   return [...new Set(emitted.match(/__rt_[A-Za-z0-9_$]+/g) ?? [])].sort();
 }
@@ -101,7 +90,7 @@ describe('ts-runtypes convert (CLI e2e)', () => {
     try {
       const apiBefore = fs.readFileSync(path.join(dir, 'src', 'api.ts'), 'utf8');
       const first = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
-      expect(first.status, first.stderr).toBe(0);
+      expect(first.status, first.report).toBe(0);
       const models = fs.readFileSync(path.join(dir, 'src', 'models.ts'), 'utf8');
       expect(models).toContain('RT.object({id: TF.number(), name: RT.optional(TF.string())})');
       expect(models).toContain('export type User = InferType<typeof userRT>;');
@@ -110,7 +99,7 @@ describe('ts-runtypes convert (CLI e2e)', () => {
       expect(fs.readFileSync(path.join(dir, 'src', 'api.ts'), 'utf8')).toBe(apiBefore);
 
       const second = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
-      expect(second.status, second.stderr).toBe(0);
+      expect(second.status, second.report).toBe(0);
       expect(second.stdout).not.toContain('rewrote');
     } finally {
       fs.rmSync(dir, {recursive: true, force: true});
@@ -124,7 +113,7 @@ describe('ts-runtypes convert (CLI e2e)', () => {
       // Both call shapes (type argument / inferred value) share one id.
       expect(idsBefore).toHaveLength(1);
       const converted = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
-      expect(converted.status, converted.stderr).toBe(0);
+      expect(converted.status, converted.report).toBe(0);
       const idsAfter = compileInjectedIds(dir);
       expect(idsAfter).toEqual(idsBefore);
     } finally {
@@ -137,8 +126,8 @@ describe('ts-runtypes convert (CLI e2e)', () => {
     try {
       const modelsBefore = fs.readFileSync(path.join(dir, 'src', 'models.ts'), 'utf8');
       const outDir = path.join(dir, 'converted');
-      const {status, stderr} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src'), '--out-dir', outDir]);
-      expect(status, stderr).toBe(0);
+      const {status, report} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src'), '--out-dir', outDir]);
+      expect(status, report).toBe(0);
       expect(fs.readFileSync(path.join(dir, 'src', 'models.ts'), 'utf8')).toBe(modelsBefore);
       expect(fs.readFileSync(path.join(outDir, 'models.ts'), 'utf8')).toContain('RT.object(');
       expect(fs.readFileSync(path.join(outDir, 'notes.txt'), 'utf8')).toBe('asset\n');
@@ -183,8 +172,8 @@ describe('ts-runtypes convert (CLI e2e)', () => {
     try {
       fs.writeFileSync(path.join(dir, 'src', 'ambient.d.ts'), 'declare interface AmbientMeta { a: string; b: number }\n');
       fs.writeFileSync(path.join(dir, 'src', 'holder.ts'), 'export type Holder = {value: AmbientMeta};\n');
-      const {status, stderr} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
-      expect(status, stderr).toBe(0);
+      const {status, report} = runConvert(dir, ['--to', 'builders', path.join(dir, 'src')]);
+      expect(status, report).toBe(0);
       const holder = fs.readFileSync(path.join(dir, 'src', 'holder.ts'), 'utf8');
       expect(holder).not.toContain('RT.any()');
       expect(holder).toContain('RT.object');

@@ -14,7 +14,6 @@
 //     its rootDir-relative sub-path instead of collapsing to its base name.
 
 import {describe, it, expect, beforeAll} from 'vitest';
-import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname, join} from 'node:path';
 import {
@@ -29,21 +28,17 @@ import {
   symlinkSync,
 } from 'node:fs';
 import {tmpdir} from 'node:os';
+import {runCli, type CliResult} from './helpers/cliCrash.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '../../..');
 const BIN = resolve(REPO_ROOT, 'bin/ts-runtypes');
 const hasBinary = existsSync(BIN);
 
-interface RunResult {
-  status: number;
-  stdout: string;
-  stderr: string;
-}
+type RunResult = CliResult;
 
 function run(args: string[], cwd?: string): RunResult {
-  const result = spawnSync(BIN, args, {encoding: 'utf8', cwd, maxBuffer: 32 * 1024 * 1024});
-  return {status: result.status ?? -1, stdout: result.stdout ?? '', stderr: result.stderr ?? ''};
+  return runCli(args, {cwd, label: `cli-${args[0] ?? 'surface'}`});
 }
 
 // snapshot maps every file under dir to its content (sorted keys), so a test can
@@ -90,7 +85,7 @@ describe.skipIf(!hasBinary)('CLI surface — help golden', () => {
 
 describe.skipIf(!hasBinary)('CLI surface — routing + exit codes', () => {
   it('unknown command -> exit 2 + usage', () => {
-    const {status, stderr} = run(['definitely-not-a-command']);
+    const {status, stderr, report} = run(['definitely-not-a-command']);
     expect(status).toBe(2);
     expect(stderr).toContain('unknown command');
   });
@@ -118,7 +113,7 @@ describe.skipIf(!hasBinary)('CLI surface — routing + exit codes', () => {
   it('enrich <file> without a Type (no --no-emit) -> disambiguation error, exit 1', () => {
     const dir = makeFixture();
     try {
-      const {status, stderr} = run(['enrich', 'models.ts'], dir);
+      const {status, stderr, report} = run(['enrich', 'models.ts'], dir);
       expect(status).toBe(1);
       expect(stderr).toContain('--no-emit');
     } finally {
@@ -254,11 +249,11 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
   it('an absolute source spelled through a symlink keeps its rootDir-relative sub-path', () => {
     const {base, real, linked} = makeSymlinkedFixture();
     try {
-      const {status, stderr} = run(
+      const {status, stderr, report} = run(
         ['enrich', join(linked, 'src', 'models.ts'), 'User', '--gen-dir', join(linked, 'gen')],
         join(linked, 'src')
       );
-      expect(status, stderr).toBe(0);
+      expect(status, report).toBe(0);
       expect(existsSync(join(real, 'gen/enriched/friendly/src/models.ts')), 'nested sub-path must survive').toBe(true);
       expect(existsSync(join(real, 'gen/enriched/friendly/models.ts')), 'must not collapse to the base name').toBe(false);
     } finally {
@@ -271,11 +266,11 @@ describe.skipIf(!hasBinary || !symlinksAvailable)('CLI surface — symlinked pro
     try {
       for (const sub of ['src', 'lib']) {
         const typeName = sub === 'src' ? 'User' : 'Account';
-        const {status, stderr} = run(
+        const {status, stderr, report} = run(
           ['enrich', join(linked, sub, 'models.ts'), typeName, '--gen-dir', join(linked, 'gen')],
           join(linked, sub)
         );
-        expect(status, stderr).toBe(0);
+        expect(status, report).toBe(0);
       }
       // Collapsing to the base name would have let the second run overwrite the first.
       const friendly = join(real, 'gen/enriched/friendly');

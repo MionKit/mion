@@ -183,6 +183,18 @@ jobs:
         run: pnpm run lint
       - name: JS suite (everything except test/fuzz)
         run: pnpm exec vitest run --exclude '**/test/fuzz/**'
+      # A spawned resolver that PANICS writes its full stdout+stderr here (the
+      # assertion message only carries the crash header, so a log pipeline
+      # cannot truncate away the frame that names the defect). Keep it on
+      # failure so one red run is enough to diagnose the crash.
+      - name: Upload spawned-CLI crash dumps
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-crash-dumps-ci
+          path: logs/cli-crashes/
+          if-no-files-found: ignore
+          retention-days: 14
       # The seven TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing
       # each; the release soak gives them 60s). ONE invocation: rtx pays vitest's
       # startup once (~2min here vs separate per-lane runs) and, because

@@ -85,6 +85,18 @@ jobs:
         run: pnpm rtx core codegen all --check
       - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
         run: pnpm test
+      # A spawned resolver that PANICS writes its full stdout+stderr here (the
+      # assertion message only carries the crash header, so a log pipeline
+      # cannot truncate away the frame that names the defect). Keep it on
+      # failure so one red run is enough to diagnose the crash.
+      - name: Upload spawned-CLI crash dumps
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-crash-dumps-gate
+          path: logs/cli-crashes/
+          if-no-files-found: ignore
+          retention-days: 14
       # pnpm test above never sets RT_FUZZ_RACE, so enrichRace self-skips there;
       # the concurrency coverage rides here. Equivalent to `pnpm rtx core fuzz race`.
       - name: Concurrent CLI race fuzz (RT_FUZZ_RACE gate)

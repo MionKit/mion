@@ -5,11 +5,11 @@
 // import-shifted rewritten line), and (3) the generated cache module actually
 // materializes a WORKING validator at runtime.
 import {describe, expect, it} from 'vitest';
-import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {BIN, hasBinary} from './helpers/inline.ts';
+import {runCli} from './helpers/cliCrash.ts';
 import {decodeMappings} from './helpers/sourcemap.ts';
 
 const register = hasBinary() ? it : it.skip;
@@ -50,12 +50,10 @@ describe('ts-runtypes compile (tsc-like CLI)', () => {
       fs.writeFileSync(path.join(dir, 'src', 'runtypes.d.ts'), RUNTYPES_DTS);
       fs.writeFileSync(path.join(dir, 'src', 'user.ts'), USER_TS);
 
-      const run = spawnSync(
-        BIN,
-        ['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')],
-        {encoding: 'utf8'}
-      );
-      expect(run.status, run.stderr).toBe(0);
+      const run = runCli(['compile', '--cwd', dir, '--tsconfig', 'tsconfig.json', '--gen-dir', path.join(dir, '__runtypes')], {
+        label: 'compile-cli',
+      });
+      expect(run.status, run.report).toBe(0);
 
       // (1) Emitted .js: types stripped, binding import relativized, call rewritten.
       const js = fs.readFileSync(path.join(dir, 'dist', 'user.js'), 'utf8');
