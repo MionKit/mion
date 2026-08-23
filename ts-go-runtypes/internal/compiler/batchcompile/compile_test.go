@@ -2,10 +2,12 @@ package batchcompile
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	// Register the concrete format emitters — the in-process test never runs
@@ -220,5 +222,39 @@ func TestCompile_ValidatesJsOnlyPatternSamples(t *testing.T) {
 	}
 	if len(fmt001.Args) == 0 || fmt001.Args[0] != "nope" {
 		t.Errorf("expected offending sample 'nope' in args, got %+v", fmt001.Args)
+	}
+}
+
+// tsgo emits from a parallel work group, so the WriteFile callback runs on many
+// goroutines at once. An unguarded map there is a FATAL "concurrent map writes"
+// runtime error, not a recoverable one, so it takes the whole compile down: it
+// surfaced as an intermittent convert-cli panic under full-suite load.
+// Unsynchronized, this hammering reliably trips the runtime's concurrent-write
+// detector even without -race.
+func TestEmitCapture_ConcurrentWritesAreSafe(t *testing.T) {
+	const writers = 32
+	const perWriter = 64
+
+	capture := newEmitCapture()
+	var wg sync.WaitGroup
+	for writer := 0; writer < writers; writer++ {
+		wg.Add(1)
+		go func(writer int) {
+			defer wg.Done()
+			for i := 0; i < perWriter; i++ {
+				capture.add(fmt.Sprintf("out/%d-%d.js", writer, i), "emitted")
+			}
+		}(writer)
+	}
+	wg.Wait()
+
+	if len(capture.files) != writers*perWriter {
+		t.Fatalf("captured %d files, want %d", len(capture.files), writers*perWriter)
+	}
+	for writer := 0; writer < writers; writer++ {
+		name := fmt.Sprintf("out/%d-0.js", writer)
+		if capture.files[name] != "emitted" {
+			t.Fatalf("%s missing from the capture", name)
+		}
 	}
 }
