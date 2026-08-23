@@ -19,7 +19,7 @@ import {
     WorkflowResult,
 } from './types.ts';
 import type {RemoteApi} from '@mionjs/router';
-import {registerErrorDeserializers, type RpcError} from '@mionjs/core';
+import type {RpcError} from '@mionjs/core';
 import {getRouterItemId} from '@mionjs/core';
 import {MionClientRequest} from './request.ts';
 import type {RunTypeError} from '@mionjs/core';
@@ -29,7 +29,6 @@ import {MionSubRequest} from './subRequest.ts';
 export function initClient<RM extends RemoteApi>(
     options: InitClientOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; middleFns: ClientMiddleFns<RM>} {
-    registerErrorDeserializers();
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
         ...options,

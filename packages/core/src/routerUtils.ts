@@ -6,16 +6,12 @@
  * ######## */
 
 import {JIT_FUNCTION_IDS, PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT, EMPTY_HASH} from './constants.ts';
-import type {RemoteMethodOpts, MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
+import type {MethodWithOptions, MethodsCache, MethodWithOptsAndJitFns} from './types/method.types.ts';
 import type {CoreRouterOptions, MionTypeFn, JitCompiledFunctions, JitFunctionsHashes} from './types/general.types.ts';
 import {getRTUtils} from '@ts-runtypes/core';
 import {getOrCreateGlobal} from './utils.ts';
 
 const methodsCache: MethodsCache = getOrCreateGlobal('mion.routerUtils.methodsCache', () => ({}) as MethodsCache);
-const methodsOptionsCache: Record<string, RemoteMethodOpts> = getOrCreateGlobal(
-    'mion.routerUtils.methodsOptionsCache',
-    () => ({}) as Record<string, RemoteMethodOpts>
-);
 
 // Cache for JitCompiledFunctions objects keyed by jitHash
 const jitFunctionsCache = getOrCreateGlobal('mion.routerUtils.jitFunctionsCache', () => new Map<string, JitCompiledFunctions>());
@@ -123,15 +119,6 @@ export const routesCache = {
      */
     setMethodJitFns(id: string, MethodWithOptsAndJitFns: MethodWithOptsAndJitFns): void {
         methodsCache[id] = MethodWithOptsAndJitFns as any;
-    },
-};
-
-export const methodOptsCache = {
-    getMethodOptions(id: string): RemoteMethodOpts | undefined {
-        return methodsOptionsCache[id];
-    },
-    setMethodOptions(id: string, options: RemoteMethodOpts): void {
-        methodsOptionsCache[id] = options;
     },
 };
 

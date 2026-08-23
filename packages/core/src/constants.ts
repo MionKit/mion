@@ -18,7 +18,6 @@ export const DEFAULT_CORE_OPTIONS: CoreRouterOptions = {
 export const PATH_SEPARATOR = '/';
 export const ROUTE_PATH_ROOT = PATH_SEPARATOR;
 export const ROUTER_ITEM_SEPARATOR_CHAR = '/';
-export const MAX_UNKNOWN_KEYS = 10;
 export const MAX_STACK_DEPTH = 50;
 
 /**
