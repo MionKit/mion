@@ -229,7 +229,7 @@ async function buildNext(app) {
   // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge
   // to it). The loader declares its type dependencies via addDependency; this
   // proves declaring them does not break a Turbopack build and that the edit is
-  // picked up, with Next 16.3's persistent build cache in play.
+  // picked up, with Next's persistent build cache in play.
   //
   // NB: `next build` re-runs loaders on every build, so this lane cannot fail
   // for a MISSING declaration — the stale case lives in `next dev`. It is
