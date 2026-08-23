@@ -65,13 +65,26 @@ Each of these was a real failure before it was a rule.
 6. **Loader options cross into the worker as plain JSON.** No functions. That is why
    `onPureFnReport` cannot be forwarded through the rules and has to be set on the broker
    (which runs in the `next.config` process, so it still works there).
-7. **The loader must declare the invalidation stamp** (`addDependency(reply.stamp)`).
-   Turbopack only knows the import graph, so it cannot see that a rewrite depends on a type
-   declared elsewhere. Verified by A/B on an AMBIENT type (declared in a `.d.ts`, so there
-   is genuinely no import edge to follow): with the stamp removed, editing it under
-   `next dev` left a cached rewrite importing a generated module that had just been pruned
-   and the dev server returned 500 with `Can't resolve ../__runtypes/types/<hash>.js`; with
-   it, the same edit re-transformed cleanly with zero resolve errors.
+7. **The loader must declare its type dependencies** (`addDependency`), and that means
+   **`reply.typeDeps` AND `reply.stamp`, both, every time**. Turbopack only knows the import
+   graph, so it cannot see that a rewrite depends on a type declared elsewhere.
+
+   `typeDeps` names the files that actually declare the reflected types, so a type edit
+   re-runs only the files reflecting it. It comes from the resolver
+   (`TransformResult.typeDeps`) via the shared transform hook's `addWatchFile`, which the
+   broker's plugin context collects — the same mechanism every bundler host uses, so this
+   lane cannot drift from them.
+
+   **An empty `typeDeps` means UNKNOWN, not "no dependencies"** (a type the resolver could
+   not attribute, or an older resolver on the other end of the socket). The stamp is the
+   coarse fallback that keeps that case correct: one path every rewritten file declares, so
+   any type change re-runs all of them. Dropping it because "typeDeps covers it now" turns
+   an unknown into a silently stale rewrite. Verified by A/B on an AMBIENT type (declared in
+   a `.d.ts`, so there is genuinely no import edge to follow): with the stamp removed and
+   before typeDeps existed, editing it under `next dev` left a cached rewrite importing a
+   generated module that had just been pruned and the dev server returned 500 with
+   `Can't resolve ../__runtypes/types/<hash>.js`; with it, the same edit re-transformed
+   cleanly with zero resolve errors.
 
    Note the asymmetry, because it is easy to test the wrong lane and conclude the stamp is
    dead code: **`next build` re-runs loaders on every build**, so a type change is picked up

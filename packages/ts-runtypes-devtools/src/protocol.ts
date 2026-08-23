@@ -295,6 +295,18 @@ export interface TransformResult {
   // (setSources) and re-requests rather than misplacing every offset.
   sourceHash?: string;
   emittedModules?: string[];
+  // The source files that DECLARE the types this file's call sites reflect —
+  // the edges no bundler can see, because `import type` (and a plain import
+  // used only in type position) is erased and an ambient `.d.ts` type never had
+  // an import edge at all. A host declares these to its bundler
+  // (`addWatchFile` / `addDependency`) so editing a type re-runs the files that
+  // reflect it. Absolute program paths, sorted and deduplicated.
+  //
+  // EMPTY MEANS UNKNOWN, NOT 'no dependencies'. Reading it as "nothing to
+  // declare" ships a validator for a type that no longer exists — silently,
+  // because a stale validator does not error, it accepts data the current type
+  // rejects. Fall back to coarse invalidation instead.
+  typeDeps?: string[];
 }
 
 // Edit mirrors Go protocol.Edit — one point insertion (start === end) or span

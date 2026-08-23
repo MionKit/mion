@@ -438,6 +438,27 @@ applies them, which keeps the messages small; a fallback mode lets Go return the
 rewritten file instead. A checksum guards against another plugin having changed the file
 underneath.
 
+**Type dependencies.** A rewritten file's correctness depends on types declared in OTHER
+files, and no bundler can see those edges: a type only import is erased at compile time, a
+plain import used only in type position is erased too, and an ambient `.d.ts` type never had
+an import edge at all. Left alone, editing a type changes nothing the bundler notices, and
+the dev server keeps serving a validator for the old shape. It does not error, it accepts
+data the current type now rejects.
+
+So the resolver reports them. While resolving a call site it records the source files that
+declare every type it reaches, and returns that set per file as `TransformResult.typeDeps`.
+The plugin declares each one through `addWatchFile`, which is unplugin's universal shape:
+it becomes `addWatchFile` on Rollup and Vite and `addDependency` on the webpack and Rspack
+loaders, so one call covers every host. Vite's dev server ignores it for source module HMR,
+so the incremental update path additionally invalidates the affected modules through the
+module graph, and reports the whole set through the `onSiteFilesChanged` option for hosts
+whose site files are virtual and therefore absent from that graph.
+
+The recording is keyed by the type's cache id, not by the walk, because the walk is skipped
+on a warm cache. Empty means UNKNOWN, never "no dependencies" — every host falls back to
+coarse invalidation there, since over invalidating costs milliseconds and under invalidating
+ships a validator for a type that no longer exists.
+
 **The Bun entry is the one adapter with real logic of its own.** Every other entry is a
 one line re-export of the unplugin instance, because every other host is a bundler. Bun has
 two plugin hosts: `Bun.build` (a bundler, which unplugin's Bun context already targets) and

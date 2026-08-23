@@ -31,6 +31,7 @@ const PLUGIN_OPTION_KEY_TABLE = {
   detachResolver: true,
   pureFnReport: true,
   onPureFnReport: true,
+  onSiteFilesChanged: true,
   enrich: true,
 } satisfies Record<keyof PluginOptions, true>;
 

@@ -516,6 +516,18 @@ type TransformResult struct {
 	// 'edits' mode only.
 	SourceHash     string   `json:"sourceHash,omitempty"`
 	EmittedModules []string `json:"emittedModules,omitempty"`
+	// TypeDeps is the set of source files that DECLARE the types this file's
+	// call sites reflect — the edges no bundler can see, because `import type`
+	// (and a plain import used only in type position) is erased and an ambient
+	// `.d.ts` type never had an import edge at all. A host declares these to its
+	// bundler (`addWatchFile` / `addDependency`) so editing a type re-runs the
+	// files that reflect it. Absolute program paths, sorted and deduplicated.
+	//
+	// ⚠️ EMPTY MEANS UNKNOWN, NOT "no dependencies". A host that reads it as
+	// "nothing to declare" ships a validator for a type that no longer exists —
+	// silently, since a stale validator does not error, it just accepts data the
+	// current type rejects. Fall back to coarse invalidation instead.
+	TypeDeps []string `json:"typeDeps,omitempty"`
 }
 
 // Edit is one point insertion (Start == End) or span replacement (Start < End)

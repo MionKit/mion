@@ -110,6 +110,16 @@ describe('@ts-runtypes/devtools / next broker', () => {
         expect(reply.code).toContain('__runtypes/types/');
         // The stamp is what makes a type edit elsewhere re-run this file.
         expect(reply.stamp).toBeTruthy();
+        // typeDeps names the files actually declaring the reflected types, so
+        // the loader can declare those instead of re-running every
+        // marker-bearing file on any type change. The broker collects them
+        // through the shared transform hook's addWatchFile, so this also pins
+        // that the Next lane and the bundler lanes share ONE mechanism.
+        expect(reply.typeDeps?.map((file: string) => path.basename(file))).toContain('entry.ts');
+        // Both still ride: an EMPTY typeDeps means "unknown", not "no
+        // dependencies", and the stamp is what keeps that case correct rather
+        // than silently stale (src/next/CLAUDE.md invariant 7).
+        expect(reply.stamp).toBeTruthy();
       } finally {
         await first.close();
         await second.close();

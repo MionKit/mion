@@ -167,6 +167,11 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
   // loader so Turbopack can attribute them; anything raised outside a request
   // (the whole-program buildStart) has no loader to own it and goes to stderr.
   let collecting: string[] | null = null;
+  // Type dependencies for the file currently being rewritten. The shared
+  // transform hook declares them through `addWatchFile` (unplugin's universal
+  // shape), so the broker collects them here rather than reaching into the
+  // plugin: one mechanism, every host, no Next-specific plumbing in the leaf.
+  let collectingDeps: string[] | null = null;
   const context = {
     warn: (message: unknown) => {
       const text = String(message);
@@ -175,6 +180,9 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
     },
     error: (message: unknown) => {
       throw new Error(String(message));
+    },
+    addWatchFile: (file: unknown) => {
+      if (collectingDeps && typeof file === 'string') collectingDeps.push(file);
     },
   };
 
@@ -332,21 +340,31 @@ export async function startBroker(root: string, options: NextOptions = {}): Prom
       // through writing.
       await hotUpdate;
       collecting = warnings;
+      const deps: string[] = [];
+      collectingDeps = deps;
       const result = (await built.transform?.call(context, request.code, request.file)) as
         | {code?: string; map?: unknown}
         | null
         | undefined;
       collecting = null;
+      collectingDeps = null;
       refreshStamp();
       reply = {
         id: request.id,
         ok: true,
         ...(result && typeof result.code === 'string' ? {code: result.code, map: result.map} : {}),
         ...(warnings.length ? {warnings} : {}),
+        ...(deps.length ? {typeDeps: [...new Set(deps)].sort()} : {}),
+        // The stamp still rides along, ALWAYS. It is the fallback for the case
+        // typeDeps is empty — which means "unknown", not "no dependencies" (a
+        // file whose types the resolver could not attribute, or an older
+        // resolver). Dropping it there would turn a coarse invalidation into a
+        // silently stale rewrite. See src/next/CLAUDE.md invariant 7.
         stamp: stampPath,
       };
     } catch (error) {
       collecting = null;
+      collectingDeps = null;
       reply = {
         id: request.id,
         ok: false,
