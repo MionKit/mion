@@ -6,6 +6,16 @@
 
 For setup, build, test, and publish workflows, see [SETUP.md](SETUP.md) — the single setup document. **To set up or repair a local dev environment (submodules + patches, `bin/ts-runtypes`, workspace deps, package dists), run the [ts-runtypes-setup skill](.claude/skills/ts-runtypes-setup/) — it drives the whole host bootstrap end-to-end. Don't hand-roll a bootstrap.** ([scripts/setup-claude-web.sh](scripts/setup-claude-web.sh) is the Linux web-container variant only — never for local/macOS; it hard-exits off Linux and redirects you to the skill.)
 
+## ⚠️ THE RULE: a finding is FIXED in the current PR, not filed for later
+
+**This is the rule broken most often, so it comes first.** Anything you discover while doing something else — a fuzzer finding, a soundness tripwire in test output, a latent bug a new test exposes, a doc-vs-code contradiction, a bug in code you were only reading — is **surfaced to the user in your reply** (what it is, where it came from, whether it predates your change; bisect if cheap), and then **fixed in the SAME task and the SAME pull request**, with its own commit and its own test.
+
+- **"Unrelated to my task" is not a reason to defer.** Neither is size. A big finding means a bigger PR, not a later one.
+- **A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop.** File one ONLY when the fix genuinely cannot land in this task, and say plainly why, with the evidence and a concrete fix plan. Filing does not mean "immediately", but the work is still owed. A spec filed and then left is the exact failure this rule exists to prevent: a backlog nobody drains.
+- **Blocked on a decision only the user can make? ASK, in the same session**, then carry out the answer.
+
+**Absolute: never let a finding live only in chat, and never let one end up neither fixed nor genuinely tracked toward a fix.**
+
 ## Setup
 
 - Go ≥ 1.26
@@ -105,13 +115,6 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 - Prefer `pnpm` scripts from `package.json` over raw `pnpm exec <cmd>` when a script exists.
 - Pre-commit hook ([.husky/pre-commit](.husky/pre-commit)) runs `lint-staged` automatically — activated by `pnpm install` via the root `prepare` script.
 - **TWO podman images**, both owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container <cmd> [website|e2e]`; shared podman/GHCR helpers in [scripts/lib/engine.mjs](scripts/lib/engine.mjs)): **`tsrt-website`** ([container/website/Containerfile](container/website/Containerfile)) bakes the docs site (`/app`) + benchmark deps (`/bench`); **`tsrt-e2e`** ([container/pre-publish-e2e/Containerfile](container/pre-publish-e2e/Containerfile)) bakes verdaccio + the multi-bundler builder toolchains (`/e2e`). The e2e toolchains live in their OWN image so the lightweight smoke / benchmark / website-build lanes never pull them — only the release gate's e2e lane does (splitting them fixed a runner-disk-exhaustion failure: the merged image had grown to 6.25 GB). `pnpm rtx container push` (no target) builds + pushes BOTH. [scripts/website/site.mjs](scripts/website/site.mjs) (`pnpm rtx website …`) runs the site, [scripts/website/bench-data/bench.mjs](scripts/website/bench-data/bench.mjs) (`pnpm rtx bench …`) runs the bench half under `/bench`, and [scripts/release/e2e.mjs](scripts/release/e2e.mjs) (`pnpm rtx release e2e`) runs the e2e registry — all delegating image ops to image.mjs. See [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
-- **⚠️ Found a bug outside your current task's scope? Surface it, then SOLVE it — a finding is never merely recorded.** Any defect discovered along the way (a fuzzer finding, a soundness-tripwire message in test output, a latent bug a new test exposes, a doc-vs-code contradiction) is first **surfaced to the user in your reply**: what it is, where it came from, and whether it predates your change (bisect if cheap). Then see it through:
-  - **Default: FIX IT in the current task / PR**, even when unrelated, with its own commit and its own test where the change is testable. Size and importance buy no automatic exemption — a big finding usually means a bigger PR, not a deferred one.
-  - **A [docs/todos/](docs/todos/) spec is a commitment to solve it, never a way to close the loop.** File one only when the fix genuinely cannot land in this task, say plainly why, and give it the evidence plus a concrete fix plan. Filing does not mean "immediately", but it does mean the work is still owed and expected to be picked up. A spec that is filed and then left is the exact failure this rule exists to prevent: a backlog nobody drains, and a load of post-merge cleanup.
-  - **Blocked on a decision only the user can make? ASK, in the same session**, then carry out the answer.
-
-  Absolute: never let a finding live only in chat, and never let one end up neither fixed nor genuinely tracked toward a fix.
-
 ## PR readiness
 
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
