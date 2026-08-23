@@ -144,6 +144,9 @@ export const REGISTRY = [
   // — lint knobs (the ts-runtypes-devtools OXlint/ESLint plugin) —
   {name: 'RT_LINT_PRESPAWN', scope: 'dev', task: '-', desc: "Set 0 to skip the lint plugin's load-time resolver pre-spawn (small hosts)"},
 
+  // — Next.js / Turbopack adapter knobs (@ts-runtypes/devtools/next) —
+  {name: 'RT_NEXT_DEBUG', scope: 'dev', task: '-', desc: "Set 1 to trace the Next broker: owner election, buildStart, each absorbed edit batch, each stamp change. Turbopack gives the adapter no plugin log of its own, so a misbehaving dev loop is otherwise opaque"},
+
   // — pre-publish e2e knobs (scripts/release/e2e.mjs + the fixture) —
   {name: 'RT_E2E_BINARY', scope: 'dev', task: '-', desc: 'Override the RunTypes plugin binary for the e2e apps (host iteration; unset in-container / in CI to test the published @ts-runtypes/bin launcher). The lint lanes take no binary option, so their spawners forward it as RT_BIN'},
 
