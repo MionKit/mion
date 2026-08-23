@@ -9,7 +9,7 @@
 // plugin resolves the host binary via the published @ts-runtypes/bin launcher
 // (no binary option); set RT_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync} from 'node:child_process';
-import {readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -239,12 +239,20 @@ async function buildNext(app) {
   const probe = path.join(appDir, 'typeDep.ts');
   const original = readFileSync(probe, 'utf8');
   const html = path.join(appDir, '.next/server/app/index.html');
-  const firstId = /id="rt-typedep">([^<]*)</.exec(readFileSync(html, 'utf8'))?.[1];
+  // Capture word characters only. The injected id is [A-Za-z0-9_], and React can
+  // emit comment separators (`<!-- -->`) inside a div, which a lazy match up to
+  // </div> would swallow into the captured value.
+  const injectedId = () => {
+    if (!existsSync(html)) throw new Error(`smoke-next: no prerendered HTML at ${html} — did the build emit it?`);
+    const id = /id="rt-typedep">(\w+)/.exec(readFileSync(html, 'utf8'))?.[1];
+    if (!id) throw new Error(`smoke-next: no rt-typedep id in ${html} — did the page stop rendering the probe?`);
+    return id;
+  };
+  const firstId = injectedId();
   try {
     writeFileSync(probe, original.replace('label: string;', 'label: string;\n  country: string;'));
     run();
-    const secondId = /id="rt-typedep">([^<]*)</.exec(readFileSync(html, 'utf8'))?.[1];
-    if (!firstId || !secondId) throw new Error(`smoke-next: no rt-typedep id in the prerender (${firstId} -> ${secondId})`);
+    const secondId = injectedId();
     if (firstId === secondId) {
       throw new Error(`smoke-next: the injected id did not move after a type edit (${firstId}) — the rewrite is stale`);
     }
