@@ -1,17 +1,6 @@
-import type {RTUtils} from '@ts-runtypes/core';
 import type {PureFunctionData, CompiledPureFunction} from '@ts-runtypes/core';
 
 // ########################################### PURE FNs ##########################################
-/**
- * Functions that can be used by jitCode.
- * These function must not have external dependencies, use variables from outside the function scope, do not have side effects, etc.
- * These function can be correctly serialized/deserialized using function.toString() method.
- * These function can not be anonym and must have an unique name.
- */
-
-export type PureFunction = (...args: any[]) => any;
-
-export type PureFunctionFactory = (rtUtils: RTUtils) => PureFunction;
 
 /** Pure-fn data + its compiled form are @ts-runtypes' own types, re-exported rather than mirrored.
  *  mion's former copies declared `code` and `createPureFn` as REQUIRED where upstream has both

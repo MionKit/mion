@@ -6,9 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ############### */
 
-import {MIME_TYPES} from '../constants.ts';
 import type {RTValidationError, DataOnly as RtDataOnly} from '@ts-runtypes/core';
-import {PureFunctionData, SerializablePureFunction} from './pureFunctions.types.ts';
+import {SerializablePureFunction} from './pureFunctions.types.ts';
 
 // ########################################## Serialization Modes ##########################################
 
@@ -128,9 +127,6 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
  *  assertion is only sound because of the emitMode restriction above. */
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
-/** Jit Functions serialized to src code file: the data form without the live fn. */
-export type PersistedJitFn = Omit<CompiledTypeFn, 'fn'> & {readonly fn: undefined};
-
 export interface JitCompiledFunctions {
     isType: MionTypeFn<IsTypeFn>;
     typeErrors: MionTypeFn<TypeErrorsFn>;
@@ -143,15 +139,6 @@ export interface JitCompiledFunctions {
     unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
     toBinary?: MionTypeFn<ToBinaryFn>;
     fromBinary?: MionTypeFn<FromBinaryFn>;
-}
-export interface SerializableJITFunctions {
-    isType: CompiledFnData;
-    typeErrors: CompiledFnData;
-    prepareForJson: CompiledFnData;
-    restoreFromJson: CompiledFnData;
-    stringifyJson: CompiledFnData;
-    toBinary?: CompiledFnData;
-    fromBinary?: CompiledFnData;
 }
 export interface JitFunctionsHashes {
     isType: string;
@@ -170,20 +157,12 @@ export type PrepareForJsonFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type HasUnknownKeysFn = (value: any) => boolean;
-export type ToCodeFn = (value: any) => string;
 /** Binary serialization function - serializes value to the serializer context */
 export type ToBinaryFn = (value: any, serializer: DataViewSerializer) => void;
 /** Binary deserialization function - deserializes from the deserializer context and returns the value */
 export type FromBinaryFn = (value: undefined, deserializer: DataViewDeserializer) => any;
 
 // ############################# JIT CACHES ###################################
-
-// jit and pure functions at runtime, contains both createRTFn and fn
-export type JitFunctionsCache = Record<string, CompiledTypeFn>;
-
-// jit and pure functions persisted to src code, contains createRTFn but not fn
-// this allow usage in environments that can not use eval or new Function()
-export type PersistedJitFunctionsCache = Record<string, PersistedJitFn>;
 
 // jit and pure functions data, does not contain createRTFn or fn
 // this is used to serialize over the network, but requires using new Function() to restore functionality
@@ -193,44 +172,11 @@ export type FnsDataCache = Record<string, CompiledFnData>;
  *  client-side is `new Function(...paramNames, code)` and nothing else. */
 export type PureFnsDataCache = Record<string, Record<string, SerializablePureFunction>>;
 
-// ########################################### JIT SRC CODE ####################################
-
-export interface SrcCodeJitCompiledFn extends CompiledFnData {
-    /** The closure function that contains the jit function, this one contains the context code */
-    readonly createRTFn: (utl: unknown) => AnyFn;
-    /** The Jit Generated function once the compilation is finished */
-    readonly fn: undefined;
-}
-export interface SrcCodeCompiledPureFunction extends PureFunctionData {
-    /** The closure function that contains the pure function, this one contains the context code */
-    readonly createPureFn: (utl: unknown) => AnyFn;
-    /** The Jit Generated function once the compilation is finished */
-    readonly fn: undefined;
-}
-export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
-export type SrcCodePureFunctionsCache = Record<string, Record<string, SrcCodeCompiledPureFunction>>;
-
-/** Client version of SrcCodeJitCompiledFn - strips unused properties to reduce bundle size */
-export type ClientSrcCodeJitCompiledFn = Omit<SrcCodeJitCompiledFn, 'code' | 'args' | 'defaultParamValues' | 'fnID'>;
-/** Client version of SrcCodeCompiledPureFunction - strips unused properties to reduce bundle size */
-export type ClientSrcCodeCompiledPureFunction = Omit<SrcCodeCompiledPureFunction, 'code' | 'paramNames'>;
-export type ClientSrcCodeJITCompiledFnsCache = Record<string, ClientSrcCodeJitCompiledFn>;
-export type ClientSrcCodePureFunctionsCache = Record<string, Record<string, ClientSrcCodeCompiledPureFunction>>;
-
 // ########################################## other #########################################
 
 export type StrNumber = string | number;
 export type AnyFn = (...args: any[]) => any;
 export type AnyObject = Record<string, unknown>;
-export interface AnyClass<T = any> {
-    new (...args: any[]): T;
-}
-
-export interface SerializableClass<T = any> {
-    new (): T;
-}
-
-export type DeserializeClassFn<C extends InstanceType<AnyClass>> = (deserialized: DataOnly<C>) => C;
 
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
@@ -249,37 +195,6 @@ export type JSONString = string;
  *  DataOnly matches decoder output. (mion's former hand-rolled mirror was removed.) */
 export type DataOnly<T> = RtDataOnly<T>;
 
-// TEST TYPES FOR PlainObject
-
-// class A {
-//     n1?: number;
-//     s?: string;
-//     d?: Date;
-//     map?: Map<string, RegExp>;
-//     set?: Set<URL>;
-//     arr?: A[];
-//     method() {
-//         return 'hello';
-//     }
-//     arrow = () => 'hello';
-// }
-
-// type PlainInterface = PlainObject<{
-//     n1: number;
-//     s: string;
-//     d: Date;
-//     a: A;
-//     map: Map<string, A>;
-//     set: Set<A>;
-//     arr: A[];
-//     method(): string;
-//     arrow: () => string;
-// }>;
-
-// type PlainClass = PlainObject<A>;
-// type PlainSet = PlainObject<Set<A>>;
-// type PlainMap = PlainObject<Map<string, A>>;
-
 // ################# BINARY SERIALIZATION - IMPORTANT NOTE ##################################
 // DO NOT CHANGE THE INTERFACE NAMES AS THEY ARE HARDCODED IN THE JIT GENERATED CODE
 // ##########################################################################################
@@ -289,5 +204,3 @@ export type DataOnly<T> = RtDataOnly<T>;
 // subset mirrors were deleted; every member it declared exists upstream verbatim.
 import type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer} from '@ts-runtypes/core';
 export type {StrictArrayBuffer, BinaryInput, DataViewSerializer, DataViewDeserializer};
-
-export type MimeTypes = (typeof MIME_TYPES)[keyof typeof MIME_TYPES];
