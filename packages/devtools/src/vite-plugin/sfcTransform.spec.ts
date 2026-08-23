@@ -238,3 +238,48 @@ const ok = validate({a: 'x'});
         rmSync(root, {recursive: true, force: true});
     }, 180_000);
 });
+
+// ############# type-dependency invalidation #############
+// A .vue <script> reflecting a type from ANOTHER file, imported with `import type`, has no
+// module-graph edge back to that file: the import is erased. Editing the type used to leave the
+// SFC serving its previously compiled fn, validating the OLD shape, until the .vue file itself was
+// touched. It never errored, it just accepted data the current type rejects.
+//
+// ts-runtypes reports which site files went stale (docs/todos/type-only-dep-hmr-staleness.md and
+// the upstream spec it links). mion's part is the translation: the SFC is registered under a
+// VIRTUAL path (`Setup.vue.ts`) while the module vite serves is `Setup.vue`, so invalidating by
+// the reported path alone would silently miss every .vue file.
+describe('type-dependency invalidation', () => {
+    let root = '';
+    let server: ViteDevServer | undefined;
+
+    beforeAll(async () => {
+        root = writeFixture();
+        server = await devServer(root);
+    }, 180_000);
+
+    afterAll(async () => {
+        await closeQuietly(server);
+        rmSync(root, {recursive: true, force: true});
+    });
+
+    it('re-injects a .vue script after its type changes in another file', async () => {
+        const first = await server!.transformRequest('/src/Setup.vue');
+        const firstId = /__rt_(\w+)/.exec(first?.code ?? '')?.[1];
+        expect(firstId).toBeTruthy();
+
+        // Add a required property, then tell vite the file changed — exactly what the watcher does.
+        // `Setup.vue` is deliberately NOT touched: that is the whole point.
+        const models = path.join(root, 'src/models.ts');
+        writeFileSync(models, `export type User = {name: string; age: number; country: string};\n`);
+        server!.watcher.emit('change', models);
+        // handleHotUpdate is async and the watcher call is not awaited, so give it a beat to run
+        // setSources -> scanFiles -> generate -> invalidate before re-requesting.
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const second = await server!.transformRequest('/src/Setup.vue');
+        const secondId = /__rt_(\w+)/.exec(second?.code ?? '')?.[1];
+        expect(secondId).toBeTruthy();
+        expect(secondId).not.toBe(firstId);
+    }, 180_000);
+});

@@ -64,7 +64,33 @@ const VUE_PLUGIN_NAME = 'vite:vue';
  *  The audit is wired even when the injector is off — an SFC shipping a marker with no compiled fns
  *  is precisely the silent failure this feature exists to end, and turning the pass off does not
  *  make it safe, only quiet. */
-export function mionSfcPlugins(rt: Plugin | undefined, inject = true): Plugin[] {
+/** Maps the virtual script path an SFC is registered under back to the real `.vue` file. */
+export interface VirtualSiteMap {
+    /** Records that `virtualPath` stands in for `realFile`. */
+    register(virtualPath: string, realFile: string): void;
+    /** The real module id for a site file, or undefined when it is already real. */
+    resolve(siteFile: string): string | undefined;
+}
+
+/** Builds the virtual->real map shared by the SFC pass and the invalidation handler.
+ *
+ *  It has to exist BEFORE the ts-runtypes plugin is constructed (the handler is one of its
+ *  options) and before the SFC pass runs (it fills the map), so neither can own it. Paths are
+ *  normalised to forward slashes because ts-runtypes reports site files that way. */
+export function createVirtualSiteMap(): VirtualSiteMap {
+    const toReal = new Map<string, string>();
+    const key = (file: string): string => file.split(path.sep).join('/');
+    return {
+        register(virtualPath, realFile) {
+            toReal.set(key(virtualPath), realFile);
+        },
+        resolve(siteFile) {
+            return toReal.get(key(siteFile));
+        },
+    };
+}
+
+export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSites?: VirtualSiteMap): Plugin[] {
     let root = '';
     let vuePlugins: {api?: {options?: {compiler?: SfcCompiler}}}[] = [];
     let fallbackCompiler: SfcCompiler | undefined;
@@ -146,6 +172,11 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true): Plugin[] 
 
             const lang = blocks.find((block) => block.lang)?.lang ?? 'js';
             const virtualPath = `${file}.${lang}`;
+            // Record the stand-in BEFORE delegating: ts-runtypes reports stale site files by the
+            // path it knows them under (the virtual one), and the module vite actually serves is
+            // `file`. Without this the .ts files in a project recover from a type edit while the
+            // .vue files keep serving a validator for the old shape.
+            virtualSites?.register(virtualPath, file);
             const source = blocks.map((block) => block.content).join(BLOCK_SPLIT);
             const result = await injectFns(this, source, virtualPath);
             if (!result) return null;
