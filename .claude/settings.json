@@ -1,4 +1,5 @@
 {
+  "outputStyle": "Plain talk",
   "hooks": {
     "SessionStart": [
       {
