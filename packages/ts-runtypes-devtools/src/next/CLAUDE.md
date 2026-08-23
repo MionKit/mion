@@ -65,6 +65,19 @@ Each of these was a real failure before it was a rule.
 6. **Loader options cross into the worker as plain JSON.** No functions. That is why
    `onPureFnReport` cannot be forwarded through the rules and has to be set on the broker
    (which runs in the `next.config` process, so it still works there).
+7. **The loader must declare the invalidation stamp** (`addDependency(reply.stamp)`).
+   Turbopack only knows the import graph, so it cannot see that a rewrite depends on a type
+   declared elsewhere. Verified by A/B on an AMBIENT type (declared in a `.d.ts`, so there
+   is genuinely no import edge to follow): with the stamp removed, editing it under
+   `next dev` left a cached rewrite importing a generated module that had just been pruned
+   and the dev server returned 500 with `Can't resolve ../__runtypes/types/<hash>.js`; with
+   it, the same edit re-transformed cleanly with zero resolve errors.
+
+   Note the asymmetry, because it is easy to test the wrong lane and conclude the stamp is
+   dead code: **`next build` re-runs loaders on every build**, so a type change is picked up
+   there even with the stamp disabled (confirmed against the persistent build cache, both
+   for an ordinary imported type and an ambient one). The stamp is belt-and-braces for
+   builds and load-bearing for dev. Test it in **dev**, with a type that has no import edge.
 
 ## Gotchas when testing by hand
 

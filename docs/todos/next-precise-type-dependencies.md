@@ -60,6 +60,19 @@ rather than a plugin change.
 
 ## Notes
 
-Verify against Turbopack's persistent build cache
-(`turbopackFileSystemCacheForBuild`, new in 16.3), not just an in-process dev
-session: the whole point is surviving a cache that outlives the process.
+Turbopack's persistent build cache (`turbopackFileSystemCacheForBuild`, new in
+16.3) has been checked and is NOT a problem. `next build` re-runs loaders on
+every build, so a type change is picked up even with the stamp disabled, for an
+ordinary imported type and an ambient one alike. Two warm builds over a
+byte-identical source file produced different injected ids, with the cache
+demonstrably in use (16.6s cold, 5.6s warm, 3.7s on a no-change rebuild).
+
+Where the stamp IS load-bearing is `next dev`, and only for a type the bundler
+sees no import edge to. A/B on an ambient type (declared in a `.d.ts`, never
+imported): with `addDependency(stamp)` removed the dev server returned 500 with
+`Can't resolve ../__runtypes/types/<hash>.js`, because the cached rewrite still
+pointed at a generated module that had just been pruned; with it, the same edit
+re-transformed cleanly with zero resolve errors.
+
+So whatever replaces the stamp must be verified in **dev**, against a type with
+no import edge. A build-lane test passes either way and proves nothing.

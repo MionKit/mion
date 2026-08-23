@@ -120,6 +120,48 @@ describe('@ts-runtypes/devtools / next broker', () => {
   );
 
   register(
+    'moves the invalidation stamp when a type changes',
+    async () => {
+      // The stamp is what re-runs a file whose rewrite depends on a type the
+      // BUNDLER cannot see a dependency on. Proven load-bearing by A/B: with the
+      // loader's addDependency(stamp) removed, editing an AMBIENT type under
+      // `next dev` left a cached rewrite importing a generated module that had
+      // just been pruned, and the dev server returned 500 with
+      // "Can't resolve ../__runtypes/types/<hash>.js". With it, the same edit
+      // re-transformed cleanly. (`next build` re-runs loaders anyway, so the
+      // stamp is belt-and-braces there and essential in dev.)
+      //
+      // A stamp that never moved would be silently useless, so pin that it does.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-next-broker-'));
+      writeProject(root);
+      const handle = await startBroker(root, {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes'});
+      try {
+        const entry = path.join(root, 'src/entry.ts');
+        const first = await askBroker(handle.socketPath, entry, fs.readFileSync(entry, 'utf8'));
+        expect(first.ok).toBe(true);
+        const before = fs.readFileSync(first.stamp, 'utf8');
+
+        const widened = fs
+          .readFileSync(entry, 'utf8')
+          .replace(
+            'export interface Account { id: number; label: string }',
+            'export interface Account { id: number; label: string; extra: string }'
+          )
+          .replace("const sample: Account = {id: 1, label: 'a'};", "const sample: Account = {id: 1, label: 'a', extra: 'x'};");
+        fs.writeFileSync(entry, widened);
+        const second = await askBroker(handle.socketPath, entry, widened);
+        expect(second.ok).toBe(true);
+        expect(second.code).not.toBe(first.code);
+        expect(fs.readFileSync(second.stamp, 'utf8')).not.toBe(before);
+      } finally {
+        await handle.close();
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
+
+  register(
     'resolves both getRunTypeId call shapes to the same id',
     async () => {
       // The marker coverage rule: static getRunTypeId<T>() and reflection
