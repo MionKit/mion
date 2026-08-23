@@ -5,7 +5,7 @@ const BLOCK_SPLIT = "\n// #mion-sfc-block\n";
 const VUE_PLUGIN_NAME = "vite:vue";
 function createVirtualSiteMap() {
   const toReal = /* @__PURE__ */ new Map();
-  const key = (file) => file.split(path.sep).join("/");
+  const key = (file) => file.replace(/\\/g, "/");
   return {
     register(virtualPath, realFile) {
       toReal.set(key(virtualPath), realFile);

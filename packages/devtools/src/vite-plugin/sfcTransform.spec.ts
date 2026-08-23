@@ -12,6 +12,7 @@ import {fileURLToPath} from 'node:url';
 import {build, createServer, type ViteDevServer} from 'vite';
 import vue from '@vitejs/plugin-vue';
 import {mionVitePlugin} from './mionVitePlugin.ts';
+import {createVirtualSiteMap} from './sfcTransform.ts';
 
 // Typed mion code inside a .vue <script> used to be silently untransformed. These run the REAL
 // pipeline — real vite, real @vitejs/plugin-vue, the real ts-runtypes resolver — because the whole
@@ -245,11 +246,60 @@ const ok = validate({a: 'x'});
 // SFC serving its previously compiled fn, validating the OLD shape, until the .vue file itself was
 // touched. It never errored, it just accepted data the current type rejects.
 //
-// ts-runtypes reports which site files went stale (docs/todos/type-only-dep-hmr-staleness.md and
+// ts-runtypes reports which site files went stale (docs/done/type-only-dep-hmr-staleness.md and
 // the upstream spec it links). mion's part is the translation: the SFC is registered under a
 // VIRTUAL path (`Setup.vue.ts`) while the module vite serves is `Setup.vue`, so invalidating by
 // the reported path alone would silently miss every .vue file.
-describe('type-dependency invalidation', () => {
+//
+// Two layers, deliberately split by what each can prove with the CURRENTLY PINNED upstream:
+//   - the map is mion's own logic and is tested unconditionally, below;
+//   - the end-to-end proof needs upstream to report at all, so it runs only when the installed
+//     @ts-runtypes/devtools supports it (see upstreamReportsStaleSites).
+
+/** Whether the INSTALLED @ts-runtypes/devtools reports stale site files after a hot update.
+ *
+ *  The reporting lands in the release after 0.12.1, which is what mion pins today, so the
+ *  end-to-end test below cannot pass until the pin is raised — a plugin that has never heard of
+ *  the callback simply never calls it, and the SFC keeps its previously compiled fn.
+ *
+ *  Probing the installed build rather than hardcoding a skip keeps this SELF-HEALING: the moment
+ *  the bump lands (docs/todos/next-ts-runtypes-bump.md) the test starts running on its own, so it
+ *  cannot rot into a permanently-skipped test nobody notices. */
+function upstreamReportsStaleSites(): boolean {
+    // import.meta.resolve, not createRequire().resolve: the package's exports map declares only an
+    // `import` condition, so require-resolution throws ERR_PACKAGE_PATH_NOT_EXPORTED and a
+    // try/catch probe would answer "unsupported" forever — a gate that silently never opens.
+    const entry = fileURLToPath(import.meta.resolve('@ts-runtypes/devtools/unplugin'));
+    return readFileSync(entry, 'utf8').includes('onSiteFilesChanged');
+}
+
+describe('virtual site map', () => {
+    // mion's own half, and the piece upstream cannot test: it does not know that `Comp.vue.ts` is
+    // a stand-in for `Comp.vue`. Runs against any installed version.
+    it('resolves a virtual script path back to the real .vue file', () => {
+        const map = createVirtualSiteMap();
+        map.register('/project/src/Comp.vue.ts', '/project/src/Comp.vue');
+        expect(map.resolve('/project/src/Comp.vue.ts')).toBe('/project/src/Comp.vue');
+    });
+
+    it('returns undefined for a path it never registered, so real site files pass through', () => {
+        // The handler falls back to the reported path itself for these — a plain .ts site file is
+        // already the module id vite serves, and must not be dropped.
+        const map = createVirtualSiteMap();
+        map.register('/project/src/Comp.vue.ts', '/project/src/Comp.vue');
+        expect(map.resolve('/project/src/plain.ts')).toBeUndefined();
+    });
+
+    it('matches regardless of path separator', () => {
+        // ts-runtypes reports forward-slashed paths; mion builds its virtual path with node's
+        // path.join, which is backslashed on Windows. A lookup that misses there would leave every
+        // Windows .vue file stale while .ts files recovered.
+        const map = createVirtualSiteMap();
+        map.register('C:\\project\\src\\Comp.vue.ts', 'C:\\project\\src\\Comp.vue');
+        expect(map.resolve('C:/project/src/Comp.vue.ts')).toBe('C:\\project\\src\\Comp.vue');
+    });
+});
+describe.skipIf(!upstreamReportsStaleSites())('type-dependency invalidation (needs the upstream bump)', () => {
     let root = '';
     let server: ViteDevServer | undefined;
 

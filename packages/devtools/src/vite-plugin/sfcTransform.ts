@@ -79,7 +79,11 @@ export interface VirtualSiteMap {
  *  normalised to forward slashes because ts-runtypes reports site files that way. */
 export function createVirtualSiteMap(): VirtualSiteMap {
     const toReal = new Map<string, string>();
-    const key = (file: string): string => file.split(path.sep).join('/');
+    // Normalise BOTH separators, not just this platform's. The two sides come from different
+    // producers — mion builds the virtual path from a vite id, ts-runtypes reports its own program
+    // paths — so keying on `path.sep` alone leaves the match dependent on which of them happened to
+    // use which separator. A miss here is silent: the .vue file just stays stale.
+    const key = (file: string): string => file.replace(/\\/g, '/');
     return {
         register(virtualPath, realFile) {
             toReal.set(key(virtualPath), realFile);
