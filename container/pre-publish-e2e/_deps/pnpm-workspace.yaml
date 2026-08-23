@@ -8,6 +8,7 @@ packages: []
 # esbuild ships its platform binary via a postinstall fetch.
 allowBuilds:
   esbuild: true
+  sharp: false # next's optional image-optimization dep; smoke-next renders no images
 
 # Refuse to resolve package versions younger than 30 days (defeats
 # fast-spreading malicious releases). Applies on fresh resolve. The
