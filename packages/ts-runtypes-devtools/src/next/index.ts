@@ -9,6 +9,12 @@
 // The pieces are exported individually, not just as one sealed wrapper, because
 // downstream tools (mion's devtools) build their own Next integration on top of
 // this one and need to compose the parts rather than nest wrappers.
+//
+// ⚠️ READ ./CLAUDE.md BEFORE CHANGING ANYTHING HERE. It records the invariants
+// that look like cleanups and are not (per-invocation socket key, accepting
+// connections before buildStart, the `default` export condition the loader
+// subpath needs), and why the real `next build` coverage lives in the e2e
+// container rather than in the vitest suite.
 import {unplugin} from '../unplugin.ts';
 import {startBroker, socketPathFor, ownsBroker, type BrokerHandle, type NextOptions} from './broker.ts';
 
