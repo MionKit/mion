@@ -9,7 +9,7 @@
 // plugin resolves the host binary via the published @ts-runtypes/bin launcher
 // (no binary option); set RT_E2E_BINARY=<abs path> for host iteration.
 import {execFileSync} from 'node:child_process';
-import {rmSync} from 'node:fs';
+import {readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -221,7 +221,36 @@ async function buildBunPreload(app) {
 async function buildNext(app) {
   const appDir = path.join(APPS, app.name);
   const nextBin = path.join(HERE, 'node_modules/next/dist/bin/next');
-  execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  const run = () =>
+    execFileSync(process.execPath, [nextBin, 'build'], {cwd: appDir, stdio: 'inherit', env: {...process.env, NODE_ENV: 'production'}});
+  run();
+
+  // Second build, after editing a type the page reflects through an ERASED
+  // import (apps/smoke-next/typeDep.ts — `import type`, so Turbopack has no edge
+  // to it). The loader declares its type dependencies via addDependency; this
+  // proves declaring them does not break a Turbopack build and that the edit is
+  // picked up, with Next 16.3's persistent build cache in play.
+  //
+  // NB: `next build` re-runs loaders on every build, so this lane cannot fail
+  // for a MISSING declaration — the stale case lives in `next dev`. It is
+  // covered where it can actually be driven, in
+  // packages/ts-runtypes-devtools/test/type-deps-invalidation.test.ts, which
+  // re-transforms after a type edit and asserts the injected id moved.
+  const probe = path.join(appDir, 'typeDep.ts');
+  const original = readFileSync(probe, 'utf8');
+  const html = path.join(appDir, '.next/server/app/index.html');
+  const firstId = /id="rt-typedep">([^<]*)</.exec(readFileSync(html, 'utf8'))?.[1];
+  try {
+    writeFileSync(probe, original.replace('label: string;', 'label: string;\n  country: string;'));
+    run();
+    const secondId = /id="rt-typedep">([^<]*)</.exec(readFileSync(html, 'utf8'))?.[1];
+    if (!firstId || !secondId) throw new Error(`smoke-next: no rt-typedep id in the prerender (${firstId} -> ${secondId})`);
+    if (firstId === secondId) {
+      throw new Error(`smoke-next: the injected id did not move after a type edit (${firstId}) — the rewrite is stale`);
+    }
+  } finally {
+    writeFileSync(probe, original);
+  }
 }
 
 const BUILDERS = {vite: buildVite, esbuild: buildEsbuild, rollup: buildRollup, rolldown: buildRolldown, webpack: buildWebpack, rspack: buildRspack, bun: buildBun, bunPreload: buildBunPreload, next: buildNext};

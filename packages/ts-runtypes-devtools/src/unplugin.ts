@@ -476,16 +476,46 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // Vite's dev server ignores it for src-module HMR, which is why
   // handleHotUpdate additionally invalidates through the module graph.
   function declareTypeDeps(ctx: any, rel: string, deps: string[] | undefined): void {
+    // The index records EVERY dep, virtual ones included — they are real
+    // dependency edges for invalidation, even when no bundler can watch them.
     typeDeps.record(rel, deps);
     if (!deps || deps.length === 0) return;
     for (const dep of deps) {
+      // ⚠️ Only declare deps that EXIST ON DISK. A source registered through
+      // setSources may be virtual — a host can hand us a Vue SFC's <script> as
+      // `Comp.vue.ts`, a path with no file behind it — and a type declared in
+      // that script is reported as a dep on the virtual path. Vite's dev-mode
+      // addWatchFile records the path as an extra IMPORT of the module being
+      // transformed, so declaring one fails the request outright with
+      // "Failed to resolve import ./Comp.vue.ts ... Does the file exist?".
+      // Watching a path that cannot change on disk buys nothing anyway.
+      if (!fileExists(dep)) continue;
       try {
         ctx.addWatchFile?.(dep);
       } catch {
-        // A host that exposes the hook but rejects the path (outside its root,
-        // a virtual id) must never break the build over a watch edge.
+        // A host that exposes the hook but rejects the path (outside its root)
+        // must never break the build over a watch edge.
       }
     }
+  }
+
+  // fileExists memoizes existsSync per path. A transform declares the same deps
+  // on every re-run, and a dev session re-transforms constantly, so the check
+  // must not become a stat per dep per transform. Entries are only ever added:
+  // a dep that vanishes stops mattering the moment the file that named it is
+  // re-transformed, which is exactly when the resolver stops reporting it.
+  const fileExistsCache = new Map<string, boolean>();
+  function fileExists(file: string): boolean {
+    const cached = fileExistsCache.get(file);
+    if (cached !== undefined) return cached;
+    let exists = false;
+    try {
+      exists = fs.existsSync(file);
+    } catch {
+      exists = false;
+    }
+    fileExistsCache.set(file, exists);
+    return exists;
   }
 
   function siteKey(file: string): string {
