@@ -210,4 +210,64 @@ export const staticId = getRunTypeId<Ambient>();
     },
     120_000
   );
+
+  register(
+    'never declares a virtual source as a bundler dependency',
+    async () => {
+      // A host may register a source that exists NOWHERE on disk — mion hands the
+      // resolver a Vue SFC's <script> as `Comp.vue.ts`. A type declared inside that
+      // script is reported as a dep on the virtual path, and Vite's dev-mode
+      // addWatchFile records whatever it is given as an extra IMPORT of the module
+      // being transformed. Declaring one fails the request outright:
+      //   Failed to resolve import "/abs/Comp.vue.ts" from "Comp.vue". Does the file exist?
+      // Watching a path that cannot change on disk buys nothing, so it is filtered.
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-type-deps-virtual-'));
+      fs.mkdirSync(path.join(root, 'src'), {recursive: true});
+      fs.writeFileSync(path.join(root, 'tsconfig.json'), TSCONFIG);
+      // A real in-program site, so the resolver has something to scan first.
+      fs.writeFileSync(
+        path.join(root, 'src/seed.ts'),
+        `import {getRunTypeId} from '@ts-runtypes/core';\nexport const seed = getRunTypeId<{seeded: boolean}>();\n`
+      );
+      const scope = path.join(root, 'node_modules/@ts-runtypes');
+      fs.mkdirSync(scope, {recursive: true});
+      fs.symlinkSync(MARKER_PKG, path.join(scope, 'core'), 'dir');
+
+      const raw = unplugin.raw(
+        {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
+        {framework: 'webpack'}
+      );
+      const plugin = (Array.isArray(raw) ? raw[0] : raw) as Plugin;
+      const watched: string[] = [];
+      const ctx = {
+        warn: () => {},
+        error: (message: unknown) => {
+          throw new Error(String(message));
+        },
+        addWatchFile: (file: string) => watched.push(file),
+      };
+
+      // The virtual script: registered under a path with no file behind it, and
+      // declaring the very type its own marker call reflects.
+      const virtualPath = path.join(root, 'src/Comp.vue.ts');
+      const script = `import {getRunTypeId} from '@ts-runtypes/core';
+interface Local { inVirtual: string }
+export const staticId = getRunTypeId<Local>();
+`;
+
+      try {
+        await plugin.buildStart?.call(ctx);
+        await plugin.rtHotUpdate?.(ctx, [{file: virtualPath, content: script}]);
+        const result = await plugin.transform?.call(ctx, script, virtualPath);
+        expect(result?.code).toContain('__rt_');
+        // The dep on the virtual path itself must NOT reach the bundler.
+        expect(watched).not.toContain(virtualPath);
+        for (const file of watched) expect(fs.existsSync(file)).toBe(true);
+      } finally {
+        plugin.buildEnd?.call(ctx);
+        fs.rmSync(root, {recursive: true, force: true});
+      }
+    },
+    120_000
+  );
 });
