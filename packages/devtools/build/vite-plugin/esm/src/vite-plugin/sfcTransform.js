@@ -42,15 +42,17 @@ function mionSfcPlugins(rt, inject = true, virtualSites) {
   };
   async function injectFns(ctx, source, virtualPath) {
     const plugin = rt;
-    const register = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
-    if (typeof register !== "function" || typeof plugin?.transform !== "function") {
+    const absorb = plugin?.rtHotUpdate;
+    const legacyRegister = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
+    if (typeof absorb !== "function" && typeof legacyRegister !== "function" || typeof plugin?.transform !== "function") {
       warnOnce(
         "no-delegate",
-        `the ts-runtypes plugin exposes no transform/handleHotUpdate — Vue SFCs cannot be type-transformed.`
+        `the ts-runtypes plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`
       );
       return void 0;
     }
-    await register.call(ctx, { file: virtualPath, read: async () => source, modules: [], timestamp: 0 });
+    if (typeof absorb === "function") await absorb(ctx, [{ file: virtualPath, content: source }]);
+    else await legacyRegister.call(ctx, { file: virtualPath, read: async () => source, modules: [], timestamp: 0 });
     const result = await plugin.transform.call(ctx, source, virtualPath);
     const code = typeof result === "string" ? result : result?.code;
     return typeof code === "string" ? foldImportBlock(source, code) : void 0;

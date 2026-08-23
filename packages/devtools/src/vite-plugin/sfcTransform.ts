@@ -125,18 +125,27 @@ export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSit
         return fallbackCompiler;
     };
 
-    /** Registers the script with the resolver, then transforms it through the ts-runtypes plugin. */
+    /** Registers the script with the resolver, then transforms it through the ts-runtypes plugin.
+     *
+     *  `rtHotUpdate` is ts-runtypes' documented escape hatch for exactly this: "the escape hatch a
+     *  host with no HMR hook of its own uses to absorb an edit" — it takes {file, content} pairs and
+     *  runs setSources → scanFiles → generate, which is all mion needs to make a source that exists
+     *  nowhere on disk visible to the resolver. mion used to fabricate a vite HMR context and call
+     *  `handleHotUpdate` instead, which reached the same shared leaf but used a hook for something
+     *  other than what it is named for. Kept as a fallback so an older plugin still works. */
     async function injectFns(ctx: unknown, source: string, virtualPath: string): Promise<string | undefined> {
         const plugin = rt as unknown as Record<string, any>;
-        const register = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
-        if (typeof register !== 'function' || typeof plugin?.transform !== 'function') {
+        const absorb = plugin?.rtHotUpdate;
+        const legacyRegister = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
+        if ((typeof absorb !== 'function' && typeof legacyRegister !== 'function') || typeof plugin?.transform !== 'function') {
             warnOnce(
                 'no-delegate',
-                `the ts-runtypes plugin exposes no transform/handleHotUpdate — Vue SFCs cannot be type-transformed.`
+                `the ts-runtypes plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`
             );
             return undefined;
         }
-        await register.call(ctx, {file: virtualPath, read: async () => source, modules: [], timestamp: 0});
+        if (typeof absorb === 'function') await absorb(ctx, [{file: virtualPath, content: source}]);
+        else await legacyRegister.call(ctx, {file: virtualPath, read: async () => source, modules: [], timestamp: 0});
         const result = await plugin.transform.call(ctx, source, virtualPath);
         const code = typeof result === 'string' ? result : result?.code;
         return typeof code === 'string' ? foldImportBlock(source, code) : undefined;
