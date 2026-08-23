@@ -85,6 +85,36 @@ function statelessFlags(flags: string | undefined): string {
   return (flags ?? '').replace(/[gy]/g, '');
 }
 
+// A pattern can backtrack catastrophically — `(x|y)+.*.*` against a long run
+// of `x` never returns from `.test` — and this runner is single-threaded, so
+// one such job wedges the whole process: the request it arrived in is never
+// answered and the resolver waits out its round-trip timeout, then kills the
+// child and gives up on pattern checks for the rest of the build.
+//
+// The guard cannot live in this module. It is shared with the browser hook,
+// whose contract is a SYNCHRONOUS host callback, and no host can interrupt a
+// running match from inside its own thread. So a host that CAN bound one
+// installs its own matcher (the stdio shell does, under a vm timeout); every
+// other host keeps the plain test and behaves exactly as before.
+export const MATCH_TIMED_OUT = Symbol('match-timed-out');
+
+export type PatternMatcher = (tester: RegExp, sample: string) => boolean | typeof MATCH_TIMED_OUT;
+
+let matchSample: PatternMatcher = (tester, sample) => tester.test(sample);
+
+export function setPatternMatcher(matcher: PatternMatcher): void {
+  matchSample = matcher;
+}
+
+// Reported as compileError, never as `error`: `error` is the protocol channel
+// and Go treats it as an engine failure, killing the sidecar and disabling
+// pattern checks for the whole build. A pattern nobody can evaluate is one
+// job's verdict, which is what FMT002 already says.
+function runawayMessage(sample: string): string {
+  const size = [...sample].length;
+  return `pattern evaluation timed out on a ${size}-character sample; the pattern may backtrack catastrophically`;
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -155,7 +185,12 @@ function runValidate(job: SidecarJob): SidecarResult {
   } catch (err) {
     return {id: job.id, compileError: errorMessage(err)};
   }
-  const offenders = (job.samples ?? []).filter((sample) => !tester.test(sample));
+  const offenders: string[] = [];
+  for (const sample of job.samples ?? []) {
+    const verdict = matchSample(tester, sample);
+    if (verdict === MATCH_TIMED_OUT) return {id: job.id, compileError: runawayMessage(sample)};
+    if (!verdict) offenders.push(sample);
+  }
   return offenders.length > 0 ? {id: job.id, offenders} : {id: job.id};
 }
 
@@ -212,7 +247,9 @@ function runGenerate(job: SidecarJob): SidecarResult {
     } catch (err) {
       return {id: job.id, generateError: errorMessage(err)};
     }
-    if (!tester.test(candidate)) continue;
+    const verdict = matchSample(tester, candidate);
+    if (verdict === MATCH_TIMED_OUT) return {id: job.id, generateError: runawayMessage(candidate)};
+    if (!verdict) continue;
     // Code points, matching the bounds the emitted validator checks.
     const size = [...candidate].length;
     if (size < minLength) continue;
