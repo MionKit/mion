@@ -69,11 +69,6 @@ function mionVitePlugin(options = {}) {
       `[mion] emitMode: 'functions' is not supported. mion serializes compiled fns to the client as code strings, and 'functions' omits the code, so every client would fail on first validate. Use 'code' (default) or 'both'.`
     );
   }
-  if (rt.moduleMode === "allSingle") {
-    throw new Error(
-      `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). It splits the compiled-fn cache into per-family modules but emits an import for only the first of them, so most fn bindings resolve to nothing — the build fails in rollup, or every route fails to register with MissingRtFnsError. Use 'default' or 'allModules'. See docs/done/module-mode-allsingle-broken.md.`
-    );
-  }
   const virtualSites = createVirtualSiteMap();
   let devServer;
   const invalidateStaleSites = (siteFiles) => {

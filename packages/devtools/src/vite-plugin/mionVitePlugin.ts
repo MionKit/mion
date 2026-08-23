@@ -18,17 +18,6 @@ import type {Plugin, PluginOption} from 'vite';
 /** One report record from the ts-runtypes pure-fn build report (structural subset). */
 type RtPureFnSite = Parameters<NonNullable<TsRuntypesPluginOptions['onPureFnReport']>>[0][number];
 
-/** ts-runtypes plugin options plus `onSiteFilesChanged`, which lands in the release AFTER 0.12.1.
- *
- *  Declared here rather than waiting for the bump so mion still typechecks against the currently
- *  pinned version, whose `PluginOptions` does not know the key. Passing it is safe either way: a
- *  plugin that has never heard of the option simply ignores it and never calls back, which is
- *  exactly today's behaviour. Drop this alias when the pin is raised — see
- *  docs/todos/next-ts-runtypes-bump.md. */
-type RtPluginOptions = TsRuntypesPluginOptions & {
-    onSiteFilesChanged?: (siteFiles: string[]) => void;
-};
-
 // ############# mion vite plugin — ts-runtypes migration #############
 // The old plugin ran the deepkit type-compiler + pure-fn extraction + AOT cache
 // generation. All of that is replaced by @ts-runtypes/devtools: the resolver binary
@@ -69,11 +58,12 @@ export interface MionRunTypesOptions {
      *  Guaranteeing `code` here is what lets `MionTypeFn` type it as required (see
      *  packages/core/src/types/general.types.ts). Passing 'functions' throws at config time. */
     emitMode?: 'code' | 'both';
-    /** Cache-module grouping, see @ts-runtypes/devtools docs. 'default' | 'allModules'.
+    /** Cache-module grouping, see @ts-runtypes/devtools docs. 'default' | 'allModules' | 'allSingle'.
      *
-     *  'allSingle' throws at config time: that mode emits an import for only the first of its nine
-     *  per-family fn modules while referencing bindings from all nine, so most fn bindings resolve to
-     *  nothing. See docs/done/module-mode-allsingle-broken.md. */
+     *  'allSingle' was rejected at config time until @ts-runtypes 0.12.2: that mode emits one import
+     *  per family bundle, and the transform used to name them all from the first bundle, so most fn
+     *  bindings resolved to nothing. Fixed upstream, so the mode is usable again. See
+     *  docs/done/module-mode-allsingle-broken.md. */
     moduleMode?: TsRuntypesPluginOptions['moduleMode'];
     inlineMode?: TsRuntypesPluginOptions['inlineMode'];
     transformMode?: TsRuntypesPluginOptions['transformMode'];
@@ -295,24 +285,6 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
                 `Use 'code' (default) or 'both'.`
         );
     }
-    // Fail at config time, because both of this mode's real failures are unreadable where they land.
-    // 'allSingle' splits the fn cache into nine per-family modules (types/fns/{val,verr,pj,rj,…}.js)
-    // but emits ONE import for the first of them while listing bindings from all nine: in test-server
-    // that is 605 names imported from val.js, which exports 99. The other 537 live in the eight
-    // sibling bundles and nothing imports those files at all. Rollup then fails to trace a binding
-    // (an empty error at a 6000-column offset), while esbuild/vite-node happily leaves the names
-    // undefined and mion sees a 1-of-9 marker payload, dying later as MissingRtFnsError on
-    // `mion@methodsMetadata` — a route the user never wrote. One upstream defect, two bad messages.
-    // Nothing mion can fix: mion does not emit that import block. See the shipped record.
-    if ((rt.moduleMode as string) === 'allSingle') {
-        throw new Error(
-            `[mion] moduleMode: 'allSingle' is not usable with mion (@ts-runtypes 0.12.1). It splits the ` +
-                `compiled-fn cache into per-family modules but emits an import for only the first of them, ` +
-                `so most fn bindings resolve to nothing — the build fails in rollup, or every route fails ` +
-                `to register with MissingRtFnsError. Use 'default' or 'allModules'. ` +
-                `See docs/done/module-mode-allsingle-broken.md.`
-        );
-    }
     // Vue SFC scripts are registered with the resolver under a VIRTUAL path (`Comp.vue.ts`),
     // while the module vite serves is `Comp.vue`. ts-runtypes reports stale site files by the
     // path it knows, so mion has to translate before invalidating — see onSiteFilesChanged below.
@@ -337,7 +309,7 @@ export function mionVitePlugin(options: MionPluginOptions = {}): PluginOption[] 
 
     // NOTE: project `references` in the tsconfig are fine — the ts-runtypes resolver
     // drops them when building its scan program (they are a tsc --build concept).
-    const rtPluginOptions: RtPluginOptions = {
+    const rtPluginOptions: TsRuntypesPluginOptions = {
         binary: resolveRtBinary(rt.binary),
         tsconfig: rt.tsConfig,
         genDir: rt.genDir ?? rt.outDir,
