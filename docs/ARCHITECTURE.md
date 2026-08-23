@@ -426,7 +426,8 @@ removing it from either breaks development whenever the build output is missing 
 
 Published as `@ts-runtypes/devtools`. The build time half, and the piece that talks to the
 Go program. It plugs into Vite, Rollup, Rolldown, webpack, Rspack, esbuild, and Bun from
-one shared implementation, and it has four jobs.
+one shared implementation, plus a Next.js entry that reaches Turbopack without a plugin at
+all. It has four jobs.
 
 **Transform.** It hooks the bundler early, before types are stripped, so the positions the
 Go program reports still line up. It spawns the resolver once and keeps it alive for the
@@ -465,6 +466,56 @@ only, which unrefs the child: the resolver stays usable for the whole process, b
 holding it open. It is not orphaned either, since losing the parent closes its stdin and the
 Go serve loop exits on EOF. A bundler host must NOT do this, where a pending resolver
 response can be the build's only live handle.
+
+**The Next entry is the other adapter with real logic, and for the opposite reason: there
+is no plugin host to adapt to.** Turbopack, the bundler Next 16 uses by default, has no
+plugin API and does not run webpack plugins, which is why unplugin cannot support it
+(unjs/unplugin#302, open since 2023). What Turbopack does run is webpack style LOADERS,
+declared in `turbopack.rules`, and a loader is the same shape as our transform hook. Files
+mode is what makes this viable at all: the generated modules are real files with relative
+imports, so Turbopack resolves them natively and no virtual module hook is needed.
+
+The problem is where the whole program work goes. Turbopack runs loaders in a POOL OF NODE
+WORKER PROCESSES, four on a typical machine, and they are ephemeral. A loader that started
+the resolver itself would start four of them and pay for four whole program tsgo builds
+every build (measured: buildStarts of 310/307/528/522ms).
+
+So the loader owns nothing. `next.config` is plain Node and runs before any bundler worker
+exists, which makes it the natural host for the real `buildStart`: `withRunTypes` starts a
+BROKER there, the broker owns the single resolver, and each worker connects over a unix
+socket (a named pipe on Windows) and asks for one file at a time. That took the same build
+to one resolver and one 323ms buildStart. Three details are load bearing:
+
+1. **Ownership is decided by atomic socket bind**, not a flag. `next.config` is evaluated
+   more than once per build, and the socket key includes the process id. Keying on the
+   project root alone makes the socket a global rendezvous that any config evaluation can
+   claim, including Next's detached telemetry flush, which loads the config, outlives the
+   dev server, and gets reparented to init. A later run then joins THAT resolver and every
+   file comes back "source file not in program" from a Program belonging to a build that
+   ended minutes ago. It fails silently and gives no hint of the cause.
+2. **Connections are accepted before `buildStart` finishes**, with each request waiting on a
+   readiness promise. Attaching the handler afterwards drops any connection that arrived
+   during startup, because an EventEmitter discards events with no listener.
+3. **Turbopack cannot see that a file's rewrite depends on types in another file**, and the
+   resolver wire carries no per file dependency graph. The broker tracks the generated
+   module set instead: those names are content addressed, so a changed type means a changed
+   listing, and every rewritten file declares that stamp through `this.addDependency`. Coarse
+   but bounded, since only files the scan found sites in are transformed at all.
+
+Turbopack also gives loaders no update callback, so the broker watches the source tree
+itself and absorbs a whole edit as one batch, ahead of Turbopack re-running any loader.
+Doing it one loader call at a time regenerates the module set once PER FILE, and a file
+resolved during one of those rewrites fails on a module that exists moments later.
+
+**Incremental updates must push the WHOLE overlay.** `setSources` replaces the resolver's
+overlay and rebuilds the Program against exactly what it receives, so pushing only the
+edited files collapses the Program to those files: the next `generate()` emits only their
+demand and DELETES every other entry's module from disk. Measured on a 62 module project, a
+single two file edit took it to 2, and the bundler then reported ~180 unresolvable imports
+for modules that had existed moments earlier. Both hosts share one leaf (`rtHotUpdate`) that
+keeps a lazily seeded mirror of the project's sources and always sends all of it. A host
+that resolves lazily can re-transform its way out of a collapsed Program; one that resolves
+the whole graph eagerly cannot.
 
 **Diagnostics survive the cache.** The walker is what produces build-time findings, and a
 cache hit skips the walker — so for a long time a project's warnings showed up on the first
