@@ -64,16 +64,12 @@ describe('mionVitePlugin removed options', () => {
     });
 });
 
-// 'allSingle' is one of @ts-runtypes' three module modes, but the transform injects 1 of the 9
-// compiled fns a mion marker requests, so every route dies at boot with a MissingRtFnsError naming
-// a route the user never wrote. Rejecting at config time makes the failure name its own cause.
-describe('unusable ts-runtypes module modes', () => {
-    it("rejects moduleMode 'allSingle' at config time rather than at server boot", () => {
-        expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle'}} as never)).toThrow(/allSingle/);
-        expect(() => mionVitePlugin({runTypes: {moduleMode: 'allSingle'}} as never)).toThrow(/MissingRtFnsError/);
-    });
-
-    it.each(['default', 'allModules'])("accepts moduleMode '%s'", (moduleMode) => {
+// 'allSingle' used to be rejected at config time: the transform named every binding from the FIRST
+// family bundle, so a mion marker got 1 of the 9 compiled fns it asked for and every route died at
+// boot with a MissingRtFnsError naming a route the user never wrote. Fixed in @ts-runtypes 0.12.2
+// (each fnId is now imported from the bundle that exports it), so all three modes are accepted.
+describe('ts-runtypes module modes', () => {
+    it.each(['default', 'allModules', 'allSingle'])("accepts moduleMode '%s'", (moduleMode) => {
         expect(() => mionVitePlugin({runTypes: {moduleMode}} as never)).not.toThrow();
     });
 });
