@@ -28,7 +28,16 @@ export interface BrokerReply {
   warnings?: string[];
   // The invalidation stamp path (see broker.ts). The loader declares it as a
   // loader dependency so a type edit anywhere re-runs this file's rewrite.
+  // Always present on a successful reply: it is the FALLBACK for an empty
+  // typeDeps, which means "unknown", not "no dependencies".
   stamp?: string;
+  // The source files declaring the types this file's call sites reflect.
+  // Turbopack only knows the import graph, and these edges are not in it — a
+  // type-only import is erased and an ambient `.d.ts` type was never imported.
+  // The loader declares each one so editing a type re-runs exactly the files
+  // that reflect it, instead of every marker-bearing file (the stamp's blast
+  // radius). Absolute paths.
+  typeDeps?: string[];
   error?: string;
 }
 

@@ -1064,6 +1064,7 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 					ImportBlock: importBlock,
 					Edits:       edits,
 					SourceHash:  sourcerewrite.SourceHash(source),
+					TypeDeps:    sess.cache.DeclFilesForFiles([]string{file}),
 				}
 				continue
 			}
@@ -1087,7 +1088,12 @@ func (sess *Session) dispatch(request protocol.Request, metrics *protocol.Metric
 			// from the resolver's view and would otherwise clobber that edit
 			// silently. The plugin warns on mismatch; the transform itself is
 			// unaffected either way.
-			transformed[file] = protocol.TransformResult{Code: code, Map: sourceMap, SourceHash: sourcerewrite.SourceHash(source)}
+			transformed[file] = protocol.TransformResult{
+				Code:       code,
+				Map:        sourceMap,
+				SourceHash: sourcerewrite.SourceHash(source),
+				TypeDeps:   sess.cache.DeclFilesForFiles([]string{file}),
+			}
 		}
 		combinedDiagnostics := append(append(append([]diagnostics.Diagnostic{}, pureFnDiagnostics...), markerDiagnostics...), sess.overrideDiagnostics...)
 		response := protocol.Response{

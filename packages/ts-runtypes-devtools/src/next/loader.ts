@@ -82,8 +82,16 @@ export default function runTypesNextLoader(this: LoaderContext, source: string):
 
     for (const warning of reply.warnings ?? []) emitWarning?.(new Error(warning));
     if (!reply.ok) throw new Error(reply.error ?? 'ts-runtypes broker failed');
-    // Declaring the stamp is what makes a type edit in ANOTHER file re-run this
-    // one; without it Turbopack would happily serve a cached, stale rewrite.
+    // Declaring these is what makes a type edit in ANOTHER file re-run this one;
+    // without them Turbopack would happily serve a cached, stale rewrite.
+    //
+    // typeDeps names the exact files whose types this rewrite depends on. The
+    // stamp is the coarse fallback — one path every rewritten file declares, so
+    // ANY type change re-runs ALL of them. Declare BOTH: an empty typeDeps means
+    // "unknown" (a type the resolver could not attribute), not "no
+    // dependencies", and the stamp is what keeps that case correct rather than
+    // silently stale. Declaring both costs one extra dependency edge per file.
+    for (const dep of reply.typeDeps ?? []) addDependency?.(dep);
     if (reply.stamp && addDependency) addDependency(reply.stamp);
     // No rewrite for this file: hand back the original source untouched.
     if (typeof reply.code !== 'string') return callback(null, source);

@@ -80,6 +80,11 @@ type Cache struct {
 	// "scanned files" from empty.
 	fileTypeIDs map[string]map[string]struct{}
 
+	// declFiles records, per wire id, the source files that DECLARE that type —
+	// the raw material for a host's type-dependency declaration. Local per node;
+	// transitivity comes from fileTypeIDs above. See declfiles.go.
+	declFiles map[string][]string
+
 	dict        *hashid.Dict
 	typeChecker *checker.Checker
 	idComputer  *typeid.Computer
@@ -145,6 +150,7 @@ func NewCache(typeChecker *checker.Checker, opts Options) *Cache {
 		byID:         make(map[string]string),
 		nodes:        make(map[string]*reflection.RunType),
 		fileTypeIDs:  make(map[string]map[string]struct{}),
+		declFiles:    make(map[string][]string),
 		dict:         hashid.New(),
 		typeChecker:  typeChecker,
 		idComputer:   typeid.New(typeChecker),
@@ -190,6 +196,7 @@ func (cache *Cache) Clear() {
 	cache.nodes = make(map[string]*reflection.RunType)
 	cache.insertOrder = cache.insertOrder[:0]
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
+	cache.declFiles = make(map[string][]string)
 	cache.dict = hashid.New()
 	cache.foreignComputers = nil
 	cache.inProgress = make(map[string]bool)
@@ -238,6 +245,7 @@ func (cache *Cache) Rebind(typeChecker *checker.Checker) {
 	// Program swap invalidates every key. Drop the map so the next
 	// scanFiles starts from "no files scanned yet".
 	cache.fileTypeIDs = make(map[string]map[string]struct{})
+	cache.declFiles = make(map[string][]string)
 }
 
 // Dump returns every interned Type sorted by wire id (deterministic across
@@ -580,6 +588,10 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 		// the hit — so its declared pool would otherwise never be looked at.
 		// Reconcile it against the entry's before returning.
 		cache.reconcileSamples(id, tsType)
+		// Same reasoning for the decl files: two files declaring the same shape
+		// collapse to one id, and editing EITHER must invalidate. recordDeclFiles
+		// unions, so this adds the incoming file without dropping the first.
+		cache.recordDeclFiles(id, tsType)
 		return id
 	}
 
@@ -594,6 +606,7 @@ func (cache *Cache) assignID(tsType *checker.Type) string {
 
 	cache.byPtr[tsType] = id
 	cache.intern(structural, id)
+	cache.recordDeclFiles(id, tsType)
 
 	// Reserve the slot before projecting so cycles see the id.
 	cache.putNode(id, &reflection.RunType{ID: id, Kind: typeid.KindOf(cache.typeChecker, tsType)})

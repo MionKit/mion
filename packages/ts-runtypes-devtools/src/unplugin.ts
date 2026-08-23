@@ -8,6 +8,7 @@ import {applyEdits, sourceHash} from './apply-edits.ts';
 import {Family, Severity, type Diagnostic, type PureFnSite} from './protocol.ts';
 import type {ModuleMode} from './go-generated/runtypes-constants.generated.ts';
 import {assertValidModuleMode} from './module-mode.ts';
+import {createTypeDepsIndex, depKey} from './type-deps.ts';
 
 // PluginOptions is the host-plugin surface. The CANONICAL place to configure
 // the compiler's PROJECT knobs (emitMode, moduleMode, inlineMode, cacheDir,
@@ -255,6 +256,20 @@ export interface PluginOptions {
   // (phase 'update'). Fires whenever the report is on ('file' or 'callback');
   // setting it with `pureFnReport` unset implies 'callback' (data, no file).
   onPureFnReport?: (sites: PureFnSite[], phase: 'build' | 'update') => void;
+  // Fired after an incremental update, with the site files whose injected fns
+  // just changed — the ones the host must re-transform so they stop serving a
+  // validator for the previous shape.
+  //
+  // The plugin already invalidates what it can resolve itself (Vite's module
+  // graph), so a plain bundler host needs nothing here. This exists because NOT
+  // EVERY SITE FILE IS A REAL MODULE: sources registered through `setSources`
+  // may be virtual — mion registers a Vue SFC's <script> as `Comp.vue.ts` while
+  // the module Vite serves is `Comp.vue`. Invalidating by site-file path alone
+  // silently misses those (`.ts` files recover, `.vue` files stay stale), so the
+  // set is REPORTED and the host maps its own virtual paths back.
+  //
+  // Paths are absolute and forward-slashed.
+  onSiteFilesChanged?: (siteFiles: string[]) => void;
   // Enrichment auto-sync (opt-in, default OFF — omit for exactly today's
   // behavior). Bundler-plugin-only (a host/dev-loop behavior, so it has no
   // tsconfig counterpart). See EnrichSyncOptions: friendly/mock enable per-family
@@ -447,6 +462,32 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // transform hook use cwd-relative ids — both collapse to one cwd-relative,
   // forward-slashed key so membership checks match across the two shapes
   // (and across platform separators).
+  // The type-dependency index: site file -> the files declaring the types it
+  // reflects, and the reverse. Fed by every transform (the Next broker included,
+  // since it drives the same hook), read by the incremental-update path to work
+  // out exactly which files went stale. See type-deps.ts.
+  const typeDeps = createTypeDepsIndex(cwdAbs || process.cwd());
+
+  // declareTypeDeps records a file's type dependencies and declares them to the
+  // bundler. `addWatchFile` is unplugin's universal shape — it maps to
+  // rollup/vite's addWatchFile and to the webpack/rspack loader's
+  // addDependency — so this single call is what gives webpack, rspack, rollup,
+  // rolldown, esbuild, bun and `vite build --watch` an edge they never had.
+  // Vite's dev server ignores it for src-module HMR, which is why
+  // handleHotUpdate additionally invalidates through the module graph.
+  function declareTypeDeps(ctx: any, rel: string, deps: string[] | undefined): void {
+    typeDeps.record(rel, deps);
+    if (!deps || deps.length === 0) return;
+    for (const dep of deps) {
+      try {
+        ctx.addWatchFile?.(dep);
+      } catch {
+        // A host that exposes the hook but rejects the path (outside its root,
+        // a virtual id) must never break the build over a watch edge.
+      }
+    }
+  }
+
   function siteKey(file: string): string {
     const rel = path.isAbsolute(file) ? path.relative(cwdAbs || process.cwd(), file) : file;
     return rel.split(path.sep).join('/');
@@ -474,6 +515,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     if (result.sites.length === 0 && (result.replacements?.length ?? 0) === 0) return null;
     const fileResult = result.transformed[rel];
     if (!fileResult || typeof fileResult.code !== 'string') return null;
+    declareTypeDeps(ctx, rel, fileResult.typeDeps);
     if (driftCheck && fileResult.sourceHash !== undefined && fileResult.sourceHash !== sourceHash(driftCheck.code)) {
       ctx.warn?.(
         `@ts-runtypes/devtools: transform 'go' source drift on ${rel} — the rewrite was applied to the resolver's copy, not the source another plugin handed us. ` +
@@ -522,6 +564,8 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         return transformViaGo(ctx, rel);
       }
     }
+
+    declareTypeDeps(ctx, rel, fileResult.typeDeps);
 
     try {
       const applied = applyEdits(rel, code, fileResult.importBlock ?? '', fileResult.edits ?? []);
@@ -686,10 +730,10 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
   // file's rewrite already imports is briefly absent from disk, and a bundler
   // resolving in that window fails with "can't resolve <hash>.js". One batch is
   // one regenerate, which closes the window.
-  async function applyHotUpdate(ctx: any, updates: {file: string; content?: string}[]): Promise<void> {
-    if (!resolver) return;
+  async function applyHotUpdate(ctx: any, updates: {file: string; content?: string}[]): Promise<string[]> {
+    if (!resolver) return [];
     const relevant = updates.filter((update) => /\.[mc]?[jt]sx?$/.test(update.file));
-    if (relevant.length === 0) return;
+    if (relevant.length === 0) return [];
     const rels = relevant.map((update) => path.relative(cwdAbs || process.cwd(), update.file));
 
     // setSources gets the WHOLE overlay, never just the edited files. OpSetSources
@@ -714,8 +758,9 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         // heals without a dev-server restart.
         if (message.includes('CFG001')) console.error(`[@ts-runtypes/devtools] HMR update skipped — ${message}`);
         // Otherwise the changed file is outside the resolver's known set (e.g. a
-        // config file) — nothing for the resolver to do here.
-        return;
+        // config file) — nothing for the resolver to do here. Nothing was
+        // regenerated, so nothing went stale.
+        return [];
       }
     }
 
@@ -723,7 +768,7 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     try {
       result = await resolver.scanFiles(rels);
     } catch {
-      return;
+      return [];
     }
     // Keep the transform gate current: an edit may have added a file's first
     // marker site (files created after buildStart enter the set here) or
@@ -753,6 +798,43 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
     // types. `halt: false` because HMR shouldn't tear down the dev server on a
     // single bad type — the user is mid-edit.
     surfaceDiagnostics(ctx, result.diagnostics ?? [], () => true, {halt: false});
+
+    const stale = staleSiteFiles(relevant.map((update) => update.file));
+    // Report from the SHARED leaf, so every host gets it: Vite's
+    // handleHotUpdate, the Next broker's watcher and a direct rtHotUpdate
+    // caller all land here. Reporting from one host's hook only would make the
+    // contract depend on which bundler happened to drive the update.
+    if (stale.length > 0 && options.onSiteFilesChanged) {
+      try {
+        options.onSiteFilesChanged(stale);
+      } catch (error) {
+        ctx.warn?.(`@ts-runtypes/devtools: onSiteFilesChanged threw — ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    return stale;
+  }
+
+  // staleSiteFiles answers the question the whole mechanism exists for: which
+  // ALREADY-TRANSFORMED files are now serving a validator for a type that just
+  // changed? The bundler cannot work this out — the edge from the using file to
+  // the type file is erased (`import type`, or a plain import used only in type
+  // position) or never existed (an ambient `.d.ts`).
+  //
+  // The edited files themselves are excluded: the host invalidates those on its
+  // own, and returning them would be redundant at best.
+  //
+  // ⚠️ A file we transformed but hold no deps for is UNKNOWN, never "no deps" —
+  // the resolver may predate this field, or have reported nothing for a type it
+  // could not attribute. Those files join the stale set, so the worst case
+  // degrades to the coarse behaviour (re-transform every marker-bearing file)
+  // rather than to a silently stale validator.
+  function staleSiteFiles(changed: string[]): string[] {
+    const edited = new Set(changed.map((file) => depKey(file, cwdAbs || process.cwd())));
+    const stale = new Set<string>();
+    for (const siteFile of typeDeps.affectedSiteFiles(changed)) stale.add(siteFile);
+    for (const siteFile of typeDeps.unknownSiteFiles()) stale.add(siteFile);
+    for (const file of edited) stale.delete(file);
+    return [...stale].sort();
   }
 
   // isUnderEnrichedDir reports whether an absolute file path lives under
@@ -918,7 +1000,30 @@ export const unplugin = createUnplugin<PluginOptions | undefined>((rawOptions) =
         if (suppressEnrichHmr && isUnderEnrichedDir(file)) return [];
         if (!/\.[mc]?[jt]sx?$/.test(file)) return;
         const content = typeof ctx.read === 'function' ? await ctx.read() : undefined;
-        await applyHotUpdate(this, [{file, content}]);
+        const stale = await applyHotUpdate(this, [{file, content}]);
+        if (stale.length === 0) return;
+
+        // applyHotUpdate already reported the set through onSiteFilesChanged —
+        // that is the shared leaf's job, and it is what a host with VIRTUAL
+        // sources (mion's `Comp.vue.ts` for a Vue SFC's <script>) relies on,
+        // since those never appear in the module graph below.
+        //
+        // Here we invalidate what we can resolve ourselves. Returning the modules
+        // from handleHotUpdate is the idiomatic Vite shape: it updates exactly
+        // these on top of the ones Vite already worked out for the edited file.
+        // A stale site file with no module here is either not yet served or
+        // virtual — the report above is what covers it.
+        const graph = ctx.server?.moduleGraph;
+        if (!graph?.getModulesByFile) return;
+        const modules = new Map<unknown, unknown>();
+        for (const existing of ctx.modules ?? []) modules.set(existing, existing);
+        for (const siteFile of stale) {
+          for (const mod of graph.getModulesByFile(siteFile) ?? []) {
+            graph.invalidateModule?.(mod);
+            modules.set(mod, mod);
+          }
+        }
+        return [...modules.values()] as any;
       },
     },
   };
