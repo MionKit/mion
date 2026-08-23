@@ -19,20 +19,6 @@ build
 # Documentation
 ########################
 website
-old-website
-
-########################
-# type compiler output
-########################
-_deepkit
-
-########################
-# AI Agent Guidelines
-########################
-.augment-*
-**/AGENTS.md
-
-
 
 ########################
 # Examples

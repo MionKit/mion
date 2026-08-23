@@ -6,7 +6,6 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/jest.config.js',
       '**/fixtures/**',
       '**/shared-fixtures/**',
       '**/coverage/**',
