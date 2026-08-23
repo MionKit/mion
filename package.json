@@ -17,7 +17,7 @@
     "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
     "lint": "lerna run lint",
     "lint:spec": "eslint --fix packages/**/*.spec.ts",
-    "lint-pre-committ": "eslint --quiet --ignore-pattern **/eslint-rule-test.routes.ts",
+    "lint-pre-committ": "eslint --quiet",
     "build": "lerna run build",
     "clean": "nx reset && lerna run clean",
     "fresh-start": "lerna run fresh-start && rimraf node_modules && pnpm install --frozen-lockfile && pnpm --filter @mionjs/devtools run build",
