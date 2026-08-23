@@ -173,6 +173,14 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 
 EXPOSE 3000
 
+# Stamp the manifests this image was baked from — see the twin in
+# container/pre-publish-e2e/Containerfile. scripts/container/image.mjs compares it
+# against the tree before a run, so a `_deps` bump that was never republished is
+# caught instead of silently serving the old toolchain. LAST so it only ever
+# invalidates this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
 # No CMD: scripts/website/site.sh (WORKDIR /app) and scripts/website/bench-data/bench.sh (WORKDIR
 # /bench) each bind-mount their first-party source and supply the command. typia's
 # native ttsc plugin is pre-compiled into /bench/competitors/typia/node_modules/.ttsc
