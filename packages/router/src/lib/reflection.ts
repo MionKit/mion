@@ -66,14 +66,6 @@ function isCodeGenBlocked(message?: string): boolean {
     return !!message && CODE_GEN_BLOCKED.test(message);
 }
 
-/** No-op since the ts-runtypes migration (kept so existing specs/utilities keep working). */
-export function resetRunTypesCache(): void {}
-
-/** Resets reflection caches. Only the raw-middleFn memo remains since the ts-runtypes migration. */
-export function resetReflectionCaches(): void {
-    rawMiddleFnReflectionCache.clear();
-}
-
 // ############ Raw MiddleFn Reflection ############
 
 // Cache for common raw middleFn reflections

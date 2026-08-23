@@ -6,12 +6,9 @@
  * ######## */
 
 import {RouterOptions} from './types/general.ts';
-import {getENV, MION_ROUTES, PATH_SEPARATOR} from '@mionjs/core';
+import {getENV, PATH_SEPARATOR} from '@mionjs/core';
 
-export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
-
-export const ROUTE_DEFAULT_PARAMS = ['context'];
-export const HEADER_HOOK_DEFAULT_PARAMS = ['context', 'headers'];
+export const IS_TEST_ENV = getENV('VITEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
 export const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1. Path separator is added between the prefix and the route */
@@ -35,7 +32,5 @@ export const DEFAULT_ROUTE_OPTIONS = {
 } as Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
-export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
-export const NOT_FOUND_PATH = `${PATH_SEPARATOR}${MION_ROUTES.notFound}`;
 export const WORKFLOW_KEY = `mion-routes-flow`;
 export const WORKFLOW_PATH = `${PATH_SEPARATOR}${WORKFLOW_KEY}`;
