@@ -50,12 +50,13 @@ describe('JSON Serialization E2E', () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
             middleFns: {auth: middleFns.auth(authHeaders)},
         });
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
+        expect(fatal).toBeUndefined();
         expect(middleFnResults).toBeDefined();
         expect(middleFnErrors).toBeDefined();
     });
@@ -102,16 +103,17 @@ describe('JSON Serialization E2E', () => {
 
         middleFns.auth(authHeaders).removePrefill();
 
-        const [, error] = await routes.sayHello(someUser).call();
-        expect(error).toBeDefined();
-        expect(isRpcError(error)).toBe(true);
+        // A missing prefilled middleFn fails request-scoped, so it lands in the fatal slot.
+        const [, , fatal] = await routes.sayHello(someUser).call();
+        expect(fatal).toBeDefined();
+        expect(isRpcError(fatal)).toBe(true);
     });
 
     it('call() with middleFns should return session middleFn data', async () => {
         const {routes, middleFns} = initClient<MyApi>({baseURL});
         const authHeaders = createAuthHeaders('XWYZ-TOKEN');
 
-        const [greeting, routeError, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
+        const [greeting, routeError, fatal, middleFnResults, middleFnErrors] = await routes.sayHello(someUser).call({
             middleFns: {
                 auth: middleFns.auth(authHeaders),
                 session: middleFns.session('valid-token'),
@@ -120,6 +122,7 @@ describe('JSON Serialization E2E', () => {
 
         expect(greeting).toBe('Hello John Doe');
         expect(routeError).toBeUndefined();
+        expect(fatal).toBeUndefined();
         expect(middleFnErrors?.auth).toBeUndefined();
         expect(middleFnResults?.session).toBeDefined();
         expect(middleFnResults?.session?.userId).toBe('user-123');
