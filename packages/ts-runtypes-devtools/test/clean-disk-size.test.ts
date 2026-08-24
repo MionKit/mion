@@ -2,8 +2,9 @@
 // while measuring took the whole clean down with it. Measuring used
 // `readdirSync(path, {recursive: true})`, which materializes a Dirent for every entry
 // under the path first: over a hoisted node_modules (hundreds of thousands of files) that
-// exhausted even a 4 GB heap, so `pnpm run clean`, `fresh-start` and the first step of
-// scripts/pre-publish-test.sh all died. The walk is bounded now; these pin its arithmetic.
+// exhausted even a 4 GB heap, so `pnpm run clean` and `fresh-start` both died — and with
+// them the first step of the release preflight. The walk is bounded now; these pin its
+// arithmetic.
 
 import {describe, it, expect, beforeAll, afterAll} from 'vitest';
 import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';

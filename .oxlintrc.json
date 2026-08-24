@@ -51,8 +51,7 @@
     "**/vite.config.ts",
     "**/vitest.config.ts",
     "**/vitest.workspace.ts",
-    "eslint.config.js",
-    "test-publish/**"
+    "eslint.config.js"
   ],
   "overrides": [
     {
