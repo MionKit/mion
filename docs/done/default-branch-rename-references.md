@@ -1,9 +1,9 @@
 # Update in-repo references after the default branch is renamed to main
 
-**Status:** open
+**Status:** done (2026-08-24)
 **Created:** 2026-08-23
 
-The default branch is still `master`. Renaming it to `main` is an owner-only action in GitHub
+The default branch was renamed to `main` by the owner on 2026-08-24, and every in-repo reference below was updated the same day. Renaming it was an owner-only action in GitHub
 settings (Settings → Branches → rename), and it is a prerequisite of step 2 of
 [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md)
 (decision 4). Several in-repo references hardcode the branch name and must be updated once the
