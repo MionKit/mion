@@ -113,8 +113,9 @@ joining the same `packages/` workspace:
 5. **The join commit** lands via a one-off merge-commit PR or a direct push to
    `main` — the owner either flips the "allow merge commits" repo setting for
    that PR or green-lights the direct push at step 2 time.
-6. **`plans/` stays untouched.** It is an ideas folder, not a todo backlog;
-   CLAUDE.md gets a line saying so, so nobody keeps flagging it as stale.
+6. **`plans/` stays untouched.** It is an ideas folder, not a todo backlog.
+   (CLAUDE.md briefly carried a line saying so; the maintainer removed it on
+   2026-08-24 to keep the doc lean — this decision entry remains the record.)
 7. **mion benchmarks move into `container/benchmarks/`** (from the sibling
    `mion-benchmarks` repo) — deliberately LAST, only after everything else works
    and the first unified release is published. This is step 8.
