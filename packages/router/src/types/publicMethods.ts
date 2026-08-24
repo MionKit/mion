@@ -17,13 +17,13 @@ import {HandlerType} from '@mionjs/core'; // do not import type only
 export type MayReturnError = void | RpcError<string> | Promise<RpcError<string> | void>;
 
 export type MiddleFnsCollection = {
-    [key: string]: MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;
+  [key: string]: MiddleFnDef | HeadersMiddleFnDef | RawMiddleFnDef;
 };
 
 // ####### Private MiddleFns #######
 
 export interface PrivateMiddleFnDef extends MiddleFnDef {
-    handler: (ctx?: any) => void | never | undefined;
+  handler: (ctx?: any) => void | never | undefined;
 }
 
 export type PrivateDef = PrivateMiddleFnDef | RawMiddleFnDef;
@@ -50,29 +50,29 @@ export type PublicApi<Type extends Routes> = Prettify<{
 // type-remote-api-start
 /** Same as Public Api but no type mapping, should be easier to use than PublicApi when non strong types are required. */
 export type RemoteApi = {
-    [key: string]: PublicRoute | PublicMiddleFn | PublicHeadersFn | RemoteApi;
+  [key: string]: PublicRoute | PublicMiddleFn | PublicHeadersFn | RemoteApi;
 };
 // type-remote-api-end
 
 /** Public Routes, handler type is the same as RemoteRoute but does not include the context  */
 export interface PublicRoute<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.route;
-    middleFnIds: string[];
-    headerNames: undefined;
-    handler: H;
+  type: typeof HandlerType.route;
+  middleFnIds: string[];
+  headerNames: undefined;
+  handler: H;
 }
 
 /** Public MiddleFns, handler type is the same as RemoteMiddleFns but does not include the context  */
 export interface PublicMiddleFn<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.middleFn;
-    handler: H;
+  type: typeof HandlerType.middleFn;
+  handler: H;
 }
 
 /** Public HeadersFns, handler type is the same as HeadersFns but does not include the context */
 export interface PublicHeadersFn<H extends Handler = any> extends MethodMetadata {
-    type: typeof HandlerType.headersMiddleFn;
-    headerNames: string[];
-    handler: H;
+  type: typeof HandlerType.headersMiddleFn;
+  headerNames: string[];
+  handler: H;
 }
 
 /** Removes the context from handlers */

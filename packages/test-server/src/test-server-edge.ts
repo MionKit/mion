@@ -12,11 +12,11 @@ import {createVercelHandler, resetVercelHandlerOpts} from '@mionjs/platform-verc
 // ############# Types #############
 
 type SimpleUser = {
-    name: string;
-    surname: string;
+  name: string;
+  surname: string;
 };
 type DataPoint = {
-    date: Date;
+  date: Date;
 };
 type MySharedData = ReturnType<typeof getSharedData>;
 type Context = CallContext<MySharedData>;
@@ -26,16 +26,16 @@ const getSharedData = () => ({auth: {me: null as any}});
 // ############# Routes #############
 
 const changeUserName: Route = route((ctx: Context, user: SimpleUser): SimpleUser => {
-    return {name: 'NewName', surname: user.surname};
+  return {name: 'NewName', surname: user.surname};
 });
 
 const getDate: Route = route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
-    return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
+  return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
 });
 
 const updateHeaders: Route = route((context: Context): void => {
-    context.response.headers.set('x-something', 'true');
-    context.response.headers.set('server', 'my-server');
+  context.response.headers.set('x-something', 'true');
+  context.response.headers.set('server', 'my-server');
 });
 
 const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
@@ -43,31 +43,31 @@ const edgeRoutes = {changeUserName, getDate, updateHeaders} satisfies Routes;
 // ############# Edge Server Setup #############
 
 export interface EdgeSetupOptions {
-    basePath?: string;
-    serializer?: 'stringifyJson' | 'json';
-    defaultResponseHeaders?: Record<string, string>;
+  basePath?: string;
+  serializer?: 'stringifyJson' | 'json';
+  defaultResponseHeaders?: Record<string, string>;
 }
 
 /** Sets up the vercel handler inside the edge runtime. Returns the handler object. */
 export async function setup(options?: EdgeSetupOptions) {
-    resetVercelHandlerOpts();
-    resetRouter();
-    await initMionRouter(edgeRoutes, {
-        contextDataFactory: getSharedData,
-        basePath: 'api/',
-        serializer: options?.serializer,
-    });
-    const handler = createVercelHandler({
-        defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
-    });
-    // Expose handler globally so EdgeVM evaluate() calls can access it
-    (globalThis as any).handler = handler;
-    return handler;
+  resetVercelHandlerOpts();
+  resetRouter();
+  await initMionRouter(edgeRoutes, {
+    contextDataFactory: getSharedData,
+    basePath: 'api/',
+    serializer: options?.serializer,
+  });
+  const handler = createVercelHandler({
+    defaultResponseHeaders: options?.defaultResponseHeaders ?? {},
+  });
+  // Expose handler globally so EdgeVM evaluate() calls can access it
+  (globalThis as any).handler = handler;
+  return handler;
 }
 
 /** Resets all state (router + vercel handler options) */
 export function resetServer() {
-    resetVercelHandlerOpts();
-    resetRouter();
-    (globalThis as any).handler = undefined;
+  resetVercelHandlerOpts();
+  resetRouter();
+  (globalThis as any).handler = undefined;
 }

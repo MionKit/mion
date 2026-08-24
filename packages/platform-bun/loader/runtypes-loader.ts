@@ -9,14 +9,14 @@ import type {BunPlugin} from 'bun';
 import runtypesBunPlugin from '@ts-runtypes/devtools/bun';
 
 export interface RunTypesLoaderOptions {
-    /** Path to the tsconfig.json whose program the resolver scans (absolute, or relative to cwd). */
-    tsConfig?: string;
-    /** RunTypes generated-output root (defaults to <cwd>/__runtypes). */
-    genDir?: string;
-    /** Halt the load on Error-severity ts-runtypes diagnostics. Default false for the Bun preload
-     *  lane so a single diagnostic doesn't abort the whole `bun test`/`bun run` process; genuine
-     *  missing injections still surface at runtime as MissingRtFnsError during route registration. */
-    failOnError?: boolean;
+  /** Path to the tsconfig.json whose program the resolver scans (absolute, or relative to cwd). */
+  tsConfig?: string;
+  /** RunTypes generated-output root (defaults to <cwd>/__runtypes). */
+  genDir?: string;
+  /** Halt the load on Error-severity ts-runtypes diagnostics. Default false for the Bun preload
+   *  lane so a single diagnostic doesn't abort the whole `bun test`/`bun run` process; genuine
+   *  missing injections still surface at runtime as MissingRtFnsError during route registration. */
+  failOnError?: boolean;
 }
 
 /**
@@ -31,10 +31,10 @@ export interface RunTypesLoaderOptions {
  * plain `bun run` exits instead of hanging on the live process.
  */
 export function runTypesLoader(options: RunTypesLoaderOptions = {}): BunPlugin {
-    return runtypesBunPlugin({
-        tsconfig: options.tsConfig,
-        genDir: options.genDir,
-        transformMode: 'go',
-        failOnError: options.failOnError ?? false,
-    }) as unknown as BunPlugin;
+  return runtypesBunPlugin({
+    tsconfig: options.tsConfig,
+    genDir: options.genDir,
+    transformMode: 'go',
+    failOnError: options.failOnError ?? false,
+  }) as unknown as BunPlugin;
 }

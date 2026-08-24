@@ -6,20 +6,20 @@
  * ######## */
 
 import type {
-    PgColumnBuilderBase,
-    text,
-    varchar,
-    uuid,
-    integer,
-    doublePrecision,
-    boolean,
-    bigint,
-    timestamp,
-    date,
-    time,
-    jsonb,
-    inet,
-    pgTable,
+  PgColumnBuilderBase,
+  text,
+  varchar,
+  uuid,
+  integer,
+  doublePrecision,
+  boolean,
+  bigint,
+  timestamp,
+  date,
+  time,
+  jsonb,
+  inet,
+  pgTable,
 } from 'drizzle-orm/pg-core';
 import type {$Type} from 'drizzle-orm/column-builder';
 import type {AllBrandNames} from './common.types.ts';
@@ -32,7 +32,7 @@ import type {AllBrandNames} from './common.types.ts';
 type PgTextColumn<K extends string> = ReturnType<typeof text<K, string, readonly [string, ...string[]]>>;
 /** Gets the return type of varchar(name) */
 type PgVarcharColumn<K extends string> = ReturnType<
-    typeof varchar<K, string, readonly [string, ...string[]], number | undefined>
+  typeof varchar<K, string, readonly [string, ...string[]], number | undefined>
 >;
 /** Gets the return type of uuid(name) */
 type PgUUIDColumn<K extends string> = ReturnType<typeof uuid<K>>;
@@ -62,29 +62,29 @@ type PgJsonbColumn<K extends string> = ReturnType<typeof jsonb<K>>;
 /** Maps brand name strings to their corresponding PostgreSQL column builder types.
  * Adding a new brand = add one line here. Compile-time checks below ensure completeness. */
 type PgBrandColumnMap<K extends string> = {
-    // String brands
-    email: PgVarcharColumn<K>;
-    uuid: PgUUIDColumn<K>;
-    url: PgTextColumn<K>;
-    domain: PgTextColumn<K>;
-    ip: PgInetColumn<K>;
-    date: PgDateColumn<K>;
-    time: PgTimeColumn<K>;
-    dateTime: PgTimestampColumn<K>;
-    // Number brands — integer group
-    integer: PgIntegerColumn<K>;
-    positiveInt: PgIntegerColumn<K>;
-    negativeInt: PgIntegerColumn<K>;
-    int8: PgIntegerColumn<K>;
-    uint8: PgIntegerColumn<K>;
-    int16: PgIntegerColumn<K>;
-    uint16: PgIntegerColumn<K>;
-    int32: PgIntegerColumn<K>;
-    uint32: PgIntegerColumn<K>;
-    // Number brands — float group
-    float: PgDoublePrecisionColumn<K>;
-    positive: PgDoublePrecisionColumn<K>;
-    negative: PgDoublePrecisionColumn<K>;
+  // String brands
+  email: PgVarcharColumn<K>;
+  uuid: PgUUIDColumn<K>;
+  url: PgTextColumn<K>;
+  domain: PgTextColumn<K>;
+  ip: PgInetColumn<K>;
+  date: PgDateColumn<K>;
+  time: PgTimeColumn<K>;
+  dateTime: PgTimestampColumn<K>;
+  // Number brands — integer group
+  integer: PgIntegerColumn<K>;
+  positiveInt: PgIntegerColumn<K>;
+  negativeInt: PgIntegerColumn<K>;
+  int8: PgIntegerColumn<K>;
+  uint8: PgIntegerColumn<K>;
+  int16: PgIntegerColumn<K>;
+  uint16: PgIntegerColumn<K>;
+  int32: PgIntegerColumn<K>;
+  uint32: PgIntegerColumn<K>;
+  // Number brands — float group
+  float: PgDoublePrecisionColumn<K>;
+  positive: PgDoublePrecisionColumn<K>;
+  negative: PgDoublePrecisionColumn<K>;
 };
 
 // Compile-time verification: these resolve to `never` when the map is complete.
@@ -100,22 +100,22 @@ type _ExtraPgBrands = Exclude<keyof PgBrandColumnMap<string>, AllBrandNames>;
 
 /** Maps primitive type names to their corresponding PostgreSQL column builder types. */
 type PgPrimitiveColumnMap<K extends string> = {
-    string: PgTextColumn<K>;
-    number: PgDoublePrecisionColumn<K>;
-    boolean: PgBooleanColumn<K>;
-    bigint: PgBigIntColumn<K>;
+  string: PgTextColumn<K>;
+  number: PgDoublePrecisionColumn<K>;
+  boolean: PgBooleanColumn<K>;
+  bigint: PgBigIntColumn<K>;
 };
 
 /** Resolves a primitive TS type to its PostgreSQL column builder via the primitive map. */
 type PgPrimitiveColumnType<K extends string, T> = T extends string
-    ? PgPrimitiveColumnMap<K>['string']
-    : T extends number
-      ? PgPrimitiveColumnMap<K>['number']
-      : T extends boolean
-        ? PgPrimitiveColumnMap<K>['boolean']
-        : T extends bigint
-          ? PgPrimitiveColumnMap<K>['bigint']
-          : never;
+  ? PgPrimitiveColumnMap<K>['string']
+  : T extends number
+    ? PgPrimitiveColumnMap<K>['number']
+    : T extends boolean
+      ? PgPrimitiveColumnMap<K>['boolean']
+      : T extends bigint
+        ? PgPrimitiveColumnMap<K>['bigint']
+        : never;
 
 // ============================================================================
 // Column Type Mapping
@@ -124,22 +124,22 @@ type PgPrimitiveColumnType<K extends string, T> = T extends string
 /** Maps a TypeScript type to its corresponding PostgreSQL column builder type.
  * Branded types are resolved via PgBrandColumnMap, primitives via PgPrimitiveColumnMap. */
 export type PgColumnType<K extends string, T> =
-    // Branded types → lookup column from map, use $Type to preserve original branded type
-    T extends {brand: infer B extends string}
-        ? B extends keyof PgBrandColumnMap<K>
-            ? $Type<PgBrandColumnMap<K>[B], T>
-            : T extends string
-              ? $Type<PgTextColumn<K>, T>
-              : $Type<PgDoublePrecisionColumn<K>, T>
-        : // Primitives → guard with union check to avoid `never extends keyof Map` trap
-          T extends string | number | boolean | bigint
-          ? PgPrimitiveColumnType<K, T>
-          : // Special types
-            T extends Date
-            ? PgTimestampColumn<K>
-            : T extends any[] | object
-              ? $Type<PgJsonbColumn<K>, T>
-              : PgColumnBuilderBase;
+  // Branded types → lookup column from map, use $Type to preserve original branded type
+  T extends {brand: infer B extends string}
+    ? B extends keyof PgBrandColumnMap<K>
+      ? $Type<PgBrandColumnMap<K>[B], T>
+      : T extends string
+        ? $Type<PgTextColumn<K>, T>
+        : $Type<PgDoublePrecisionColumn<K>, T>
+    : // Primitives → guard with union check to avoid `never extends keyof Map` trap
+      T extends string | number | boolean | bigint
+      ? PgPrimitiveColumnType<K, T>
+      : // Special types
+        T extends Date
+        ? PgTimestampColumn<K>
+        : T extends any[] | object
+          ? $Type<PgJsonbColumn<K>, T>
+          : PgColumnBuilderBase;
 
 // ============================================================================
 // Table Config Type (for tableConfig parameter)
@@ -171,7 +171,7 @@ export type PgColumnType<K extends string, T> =
  * ```
  */
 export type PgTableConfig<T> = {
-    [K in keyof T as K extends string ? K : never]?: PgColumnBuilderBase;
+  [K in keyof T as K extends string ? K : never]?: PgColumnBuilderBase;
 };
 
 // ============================================================================
@@ -185,10 +185,10 @@ export type PgTableConfig<T> = {
  * Optional properties remain nullable.
  */
 export type AutoGeneratedPgColumns<T> = {
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    [K in keyof T as K extends string ? K : never]-?: {} extends Pick<T, K>
-        ? PgColumnType<K & string, NonNullable<T[K]>>
-        : PgColumnType<K & string, T[K]> & {_: {notNull: true}};
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  [K in keyof T as K extends string ? K : never]-?: {} extends Pick<T, K>
+    ? PgColumnType<K & string, NonNullable<T[K]>>
+    : PgColumnType<K & string, T[K]> & {_: {notNull: true}};
 };
 
 // ============================================================================
@@ -204,7 +204,7 @@ export type AutoGeneratedPgColumns<T> = {
  * `pgTable('users', {id: text('id'), name: text('name'), ...})`.
  */
 export type DrizzlePgTableResult<TTableName extends string, TConfig extends Record<string, any>> = ReturnType<
-    typeof pgTable<TTableName, TConfig>
+  typeof pgTable<TTableName, TConfig>
 >;
 
 // ============================================================================
@@ -214,15 +214,15 @@ export type DrizzlePgTableResult<TTableName extends string, TConfig extends Reco
 /** Test interface to verify type mappings */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface _TestUser {
-    id: string;
-    name: string;
-    email: string;
-    age: number;
-    isActive: boolean;
-    balance: bigint;
-    createdAt: Date;
-    tags: string[]; // Array → PgJsonbColumn<'tags'>
-    profile: {bio: string; avatar: string}; // Nested object → PgJsonbColumn<'profile'>
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+  balance: bigint;
+  createdAt: Date;
+  tags: string[]; // Array → PgJsonbColumn<'tags'>
+  profile: {bio: string; avatar: string}; // Nested object → PgJsonbColumn<'profile'>
 }
 
 /** Test: PgTableConfig should map each property to its column type */

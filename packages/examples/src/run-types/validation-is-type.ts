@@ -1,8 +1,8 @@
 import {createValidateFn} from '@ts-runtypes/core';
 
 interface User {
-    name: string;
-    age: number;
+  name: string;
+  age: number;
 }
 
 // createValidateFn is synchronous — the mion vite plugin injects the compiled validator at build time.

@@ -9,9 +9,9 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 // calls sumTwo route in the server using call with middleFns API
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 const [sumResult, sumError, fatal, middleFnResults, middleFnErrors] = await routes.utils.sum(5, 2).call({
-    middleFns: {
-        auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
-    },
+  middleFns: {
+    auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})),
+  },
 });
 console.log(sumResult); // 7
 console.log(sumError); // undefined (the route's DECLARED errors | ValidationError)
@@ -26,7 +26,7 @@ middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill();
 // Returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 const [sumTwoResponse, sumTwoError] = await routes.utils.sum(5, 2).call();
 if (!sumTwoError) {
-    console.log(sumTwoResponse); // 7
+  console.log(sumTwoResponse); // 7
 }
 
 // validate parameters locally without calling the server

@@ -3,8 +3,8 @@ import type {MyApi} from './server.routes.ts';
 
 // all requests timeout after 10 seconds unless overridden per-request
 const {routes} = initClient<MyApi>({
-    baseURL: 'http://localhost:3000',
-    timeout: 10_000,
+  baseURL: 'http://localhost:3000',
+  timeout: 10_000,
 });
 
 // uses the 10s default timeout

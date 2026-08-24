@@ -28,82 +28,82 @@ declare const db: PgDatabase<any, any, any>;
 // -- 1. Full select → assign row to original type ----------------------------
 
 async function getUsers(): Promise<User[]> {
-    const rows = await db.select().from(users);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const first: User = rows[0];
-    return rows;
+  const rows = await db.select().from(users);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const first: User = rows[0];
+  return rows;
 }
 
 // -- 2. Individual branded field access --------------------------------------
 
 async function getUserFields() {
-    const [row] = await db.select().from(users);
-    const id: UUIDv7 = row.id;
-    const email: Email = row.email;
-    const age: Integer = row.age;
-    const score: PositiveInt = row.score;
-    const name: string = row.name;
-    const tags: string[] = row.tags;
-    const profile: {avatar: string; theme: string} = row.profile;
-    return {id, email, age, score, name, tags, profile};
+  const [row] = await db.select().from(users);
+  const id: UUIDv7 = row.id;
+  const email: Email = row.email;
+  const age: Integer = row.age;
+  const score: PositiveInt = row.score;
+  const name: string = row.name;
+  const tags: string[] = row.tags;
+  const profile: {avatar: string; theme: string} = row.profile;
+  return {id, email, age, score, name, tags, profile};
 }
 
 // -- 3. Where clause with branded values -------------------------------------
 
 async function findUserById(userId: UUIDv7): Promise<User | undefined> {
-    const rows = await db.select().from(users).where(eq(users.id, userId));
-    return rows[0];
+  const rows = await db.select().from(users).where(eq(users.id, userId));
+  return rows[0];
 }
 
 async function findUserByEmail(email: Email): Promise<User | undefined> {
-    const rows = await db.select().from(users).where(eq(users.email, email));
-    return rows[0];
+  const rows = await db.select().from(users).where(eq(users.email, email));
+  return rows[0];
 }
 
 // -- 4. Join — both tables preserve branded types ----------------------------
 
 async function getUsersWithPosts() {
-    const rows = await db.select().from(users).innerJoin(posts, eq(users.id, posts.authorId));
+  const rows = await db.select().from(users).innerJoin(posts, eq(users.id, posts.authorId));
 
-    const first = rows[0];
-    const user: User = first.users;
-    const post: Post = first.posts;
+  const first = rows[0];
+  const user: User = first.users;
+  const post: Post = first.posts;
 
-    // Cross-table branded field access
-    const authorId: UUIDv7 = first.users.id;
-    const postId: UUIDv7 = first.posts.id;
-    const postAuthorId: UUIDv7 = first.posts.authorId;
-    const postViews: PositiveInt = first.posts.views;
+  // Cross-table branded field access
+  const authorId: UUIDv7 = first.users.id;
+  const postId: UUIDv7 = first.posts.id;
+  const postAuthorId: UUIDv7 = first.posts.authorId;
+  const postViews: PositiveInt = first.posts.views;
 
-    return {user, post, authorId, postId, postAuthorId, postViews};
+  return {user, post, authorId, postId, postAuthorId, postViews};
 }
 
 // -- 5. Partial select — picked columns preserve brands ----------------------
 
 async function getPartialUser(): Promise<Pick<User, 'id' | 'email'>> {
-    const rows = await db.select({id: users.id, email: users.email}).from(users);
-    const first = rows[0];
-    const id: UUIDv7 = first.id;
-    const email: Email = first.email;
-    return {id, email};
+  const rows = await db.select({id: users.id, email: users.email}).from(users);
+  const first = rows[0];
+  const id: UUIDv7 = first.id;
+  const email: Email = first.email;
+  return {id, email};
 }
 
 // -- 6. Insert with branded values -------------------------------------------
 
 async function insertUser(user: User) {
-    await db.insert(users).values(user);
+  await db.insert(users).values(user);
 }
 
 // -- 7. Optional fields — nullable in select ---------------------------------
 
 async function getOptionalUser() {
-    const [row] = await db.select().from(optionalUsers);
-    // Required fields are NOT nullable
-    const id: UUIDv7 = row.id;
-    const name: string = row.name;
-    // Optional field IS nullable (string | null)
-    const bio: string | null = row.bio;
-    return {id, name, bio};
+  const [row] = await db.select().from(optionalUsers);
+  // Required fields are NOT nullable
+  const id: UUIDv7 = row.id;
+  const name: string = row.name;
+  // Optional field IS nullable (string | null)
+  const bio: string | null = row.bio;
+  return {id, name, bio};
 }
 
 // -- Suppress unused warnings ------------------------------------------------

@@ -2,11 +2,11 @@ import {createMockDataFn} from '@ts-runtypes/core';
 
 // start-basic
 interface User {
-    id: string;
-    name: string;
-    email: string;
-    age: number;
-    createdAt: Date;
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  createdAt: Date;
 }
 
 const mockUser = createMockDataFn<User>();
@@ -26,8 +26,8 @@ import {Email} from '@ts-runtypes/core/formats';
 import {PositiveInt} from '@ts-runtypes/core/formats';
 
 interface ValidatedUser {
-    email: Email;
-    followersCount: PositiveInt;
+  email: Email;
+  followersCount: PositiveInt;
 }
 
 const mockValidatedUser = createMockDataFn<ValidatedUser>();

@@ -13,51 +13,51 @@ const {routes, middleFns} = initClient<MyApi>({baseURL: 'http://localhost:3000'}
 // The auth middleFn returns SessionInfo on success (when returnSession=true) or RpcError<'not-authorized', NotAuthorizedData>
 const authHeaders = new HeadersSubset({Authorization: 'Bearer myToken-XYZ'});
 middleFns
-    .auth(authHeaders, true) // returnSession=true to get SessionInfo back
-    .prefill()
-    // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
-    .onSuccess((sessionInfo) => {
-        // Since we passed returnSession=true, we know sessionInfo is SessionInfo
-        // TypeScript infers: sessionInfo is SessionInfo | void, so we narrow it
-        if (!sessionInfo) return;
-        // Now TypeScript knows sessionInfo is SessionInfo!
-        // sessionInfo.role is 'admin' | 'user' | 'guest'
-        console.log('Logged in as:', sessionInfo.userId);
-        console.log('Role:', sessionInfo.role);
-        // Use session info to configure app state
-        if (sessionInfo.role === 'admin') {
-            console.log('Admin features enabled');
-        }
-    })
-    .onError('not-authorized', (error) => {
-        // error.errorData is strongly typed as NotAuthorizedData!
-        // TypeScript knows: error.errorData?.reason is 'missing-token' | 'invalid-token' | 'expired-token'
-        const reason = error.errorData?.reason;
-        if (reason === 'expired-token') {
-            console.log('Token expired, refreshing...');
-        } else if (reason === 'missing-token') {
-            console.log('No token provided, redirecting to login...');
-        } else {
-            console.log('Invalid token:', error.publicMessage);
-        }
-    })
-    .onError('validation-error', (error) => {
-        console.log('Validation error:', error.errorData?.typeErrors);
-    });
+  .auth(authHeaders, true) // returnSession=true to get SessionInfo back
+  .prefill()
+  // onSuccess receives the strongly typed SessionInfo (or void when returnSession=false)
+  .onSuccess((sessionInfo) => {
+    // Since we passed returnSession=true, we know sessionInfo is SessionInfo
+    // TypeScript infers: sessionInfo is SessionInfo | void, so we narrow it
+    if (!sessionInfo) return;
+    // Now TypeScript knows sessionInfo is SessionInfo!
+    // sessionInfo.role is 'admin' | 'user' | 'guest'
+    console.log('Logged in as:', sessionInfo.userId);
+    console.log('Role:', sessionInfo.role);
+    // Use session info to configure app state
+    if (sessionInfo.role === 'admin') {
+      console.log('Admin features enabled');
+    }
+  })
+  .onError('not-authorized', (error) => {
+    // error.errorData is strongly typed as NotAuthorizedData!
+    // TypeScript knows: error.errorData?.reason is 'missing-token' | 'invalid-token' | 'expired-token'
+    const reason = error.errorData?.reason;
+    if (reason === 'expired-token') {
+      console.log('Token expired, refreshing...');
+    } else if (reason === 'missing-token') {
+      console.log('No token provided, redirecting to login...');
+    } else {
+      console.log('Invalid token:', error.publicMessage);
+    }
+  })
+  .onError('validation-error', (error) => {
+    console.log('Validation error:', error.errorData?.typeErrors);
+  });
 
 // ========== Example 1: Route with strongly-typed errorData ==========
 // getById returns User | RpcError<'user-not-found', UserNotFoundData>
 // call() returns 5-tuple: [routeResult, routeError, fatal, middleFnResults, middleFnErrors]
 const [user1, error1] = await routes.users.getById('USER-123').call();
 if (error1 && error1.type === 'user-not-found') {
-    // error1.errorData is strongly typed as UserNotFoundData!
-    console.log('User not found. Requested ID:', error1.errorData?.requestedId);
-    if (error1.errorData?.suggestedIds?.length) {
-        console.log('Did you mean one of these?', error1.errorData.suggestedIds.join(', '));
-    }
+  // error1.errorData is strongly typed as UserNotFoundData!
+  console.log('User not found. Requested ID:', error1.errorData?.requestedId);
+  if (error1.errorData?.suggestedIds?.length) {
+    console.log('Did you mean one of these?', error1.errorData.suggestedIds.join(', '));
+  }
 } else if (error1) {
-    // Catches any other errors (network errors, middleFn errors, etc.)
-    console.log('Unexpected error:', error1.publicMessage);
+  // Catches any other errors (network errors, middleFn errors, etc.)
+  console.log('Unexpected error:', error1.publicMessage);
 }
 // After error check, user is guaranteed to be User here
 // Use optional chaining for TypeScript strictness
@@ -67,8 +67,8 @@ console.log('Found user:', user1?.name, user1?.surname);
 // Order getById returns Order | RpcError<'order-not-found', OrderNotFoundData>
 const [order, error2] = await routes.orders.getById('ORDER-404').call();
 if (error2 && error2.type === 'order-not-found') {
-    // error2.errorData is strongly typed as OrderNotFoundData!
-    console.log('Order not found. Requested ID:', error2.errorData?.requestedId);
+  // error2.errorData is strongly typed as OrderNotFoundData!
+  console.log('Order not found. Requested ID:', error2.errorData?.requestedId);
 }
 // After error check, order is guaranteed to be Order here
 console.log('Order total:', order?.totalUSD);
@@ -89,29 +89,29 @@ const tempAuthHeaders: HeadersSubset<'Authorization'> = {headers: {Authorization
 // onError handlers register without prefilling (persistent, keyed by the middleFn id)
 const tempAuth = middleFns.auth(tempAuthHeaders, true);
 tempAuth.onError('not-authorized', (error) => {
-    // error.errorData is strongly typed as NotAuthorizedData!
-    if (error.errorData?.reason === 'expired-token') {
-        console.log('Temp token expired, requesting new one...');
-    }
+  // error.errorData is strongly typed as NotAuthorizedData!
+  if (error.errorData?.reason === 'expired-token') {
+    console.log('Temp token expired, requesting new one...');
+  }
 });
 
 // call({middleFns: {...}}) takes a record of middleFns and returns a typed 5-tuple
 const [user4, routeError4, fatal4, middleFnResults4, middleFnErrors4] = await routes.users.getById('USER-123').call({
-    middleFns: {
-        auth: tempAuth,
-    },
+  middleFns: {
+    auth: tempAuth,
+  },
 });
 // Check for route errors (the route's DECLARED errors | ValidationError)
 if (routeError4?.type === 'user-not-found') {
-    console.log('User not found:', routeError4.errorData?.requestedId);
+  console.log('User not found:', routeError4.errorData?.requestedId);
 }
 // Each middleFn's DECLARED errors arrive by name, strongly typed - same data the handler above got
 if (middleFnErrors4?.auth?.type === 'not-authorized') {
-    console.log('Auth failed:', middleFnErrors4.auth.errorData?.reason);
+  console.log('Auth failed:', middleFnErrors4.auth.errorData?.reason);
 }
 // Anything NOBODY declared (transport, platform, an undeclared throw) lands here, untyped
 if (fatal4) {
-    console.log('Request failed:', fatal4.type, fatal4.publicMessage);
+  console.log('Request failed:', fatal4.type, fatal4.publicMessage);
 }
 // Access success data
 if (user4) console.log('Found user:', user4.name);
@@ -120,14 +120,14 @@ if (middleFnResults4?.auth) console.log('Authenticated as:', middleFnResults4.au
 // ========== Example 6: Multiple MiddleFns with call({middleFns: {...}}) ==========
 // Pass multiple middleFns in the record - each gets its own typed result AND its own error slot
 const [user5, , , middleFnResults5, middleFnErrors5] = await routes.users.getById('USER-123').call({
-    middleFns: {
-        auth: middleFns.auth(tempAuthHeaders),
-        // session: middleFns.session('session-token'), // If you have a session middleFn
-    },
+  middleFns: {
+    auth: middleFns.auth(tempAuthHeaders),
+    // session: middleFns.session('session-token'), // If you have a session middleFn
+  },
 });
 // Handle each middleFn's errors independently - nothing is dropped when several fail
 if (middleFnErrors5?.auth) {
-    console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
+  console.log('Auth failed:', middleFnErrors5.auth.publicMessage);
 }
 // Access success data
 if (user5) console.log('User:', user5.name);
@@ -140,14 +140,14 @@ console.log(middleFnResults5); // { auth: ... }
 // Partial destructuring still works for backward compatibility
 const [user6, error6] = await routes.users.getById('USER-999').call();
 if (error6) {
-    // TypeScript knows error is the typed error here
-    // Each error type can be checked
-    if (error6.type === 'user-not-found') {
-        // error6.errorData is still strongly typed!
-        console.log('User not found:', error6.errorData?.requestedId);
-    } else {
-        console.log('Other error:', error6.publicMessage);
-    }
+  // TypeScript knows error is the typed error here
+  // Each error type can be checked
+  if (error6.type === 'user-not-found') {
+    // error6.errorData is still strongly typed!
+    console.log('User not found:', error6.errorData?.requestedId);
+  } else {
+    console.log('Other error:', error6.publicMessage);
+  }
 }
 // After error check, user is guaranteed to be User here
 // Use optional chaining for TypeScript strictness

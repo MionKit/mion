@@ -1,9 +1,9 @@
 import {createJsonDecoderFn} from '@ts-runtypes/core';
 
 interface Event {
-    name: string;
-    timestamp: Date;
-    metadata: Map<string, any>;
+  name: string;
+  timestamp: Date;
+  metadata: Map<string, any>;
 }
 
 // createJsonDecoderFn returns a JSON-string -> value decoder. It parses and revives
