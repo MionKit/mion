@@ -68,7 +68,7 @@ Supplementary apps whose heavy, unrelated dependencies (Nuxt/Docus, competitor v
 
 Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (`pnpm rtx container [website|e2e]`), published to GHCR under `ghcr.io/mionkit/` (`tsrt-website`, `tsrt-e2e`); see [SETUP.md → Containerized apps](SETUP.md#containerized-apps-docs-website--benchmarks).
 
-- [website/](container/website/) — Nuxt/Docus docs site (`/app`), baked into `tsrt-website`.
+- [website/](container/website/) — Nuxt/Docus docs site (`/app`), baked into `tsrt-website`. ONE install builds TWO sites, picked by `RT_SITE=runtypes|mion`: per-site content, app.config and public assets live under [sites/](container/website/sites/); components, layouts, server utils and the playground are shared.
 - [benchmarks/](container/benchmarks/) — per-competitor validation benchmarks + typecost / serialization / transform-wire; each competitor is its own isolated pnpm project under `_deps/`, baked at `/bench` into the same `tsrt-website` image so CI pulls one image.
 - [pre-publish-e2e/](container/pre-publish-e2e/) — `tsrt-e2e` image; verdaccio + multi-bundler builder toolchains at `/e2e` for the release e2e gate, split from `tsrt-website` so the light lanes don't pull the heavy toolchains.
 
@@ -120,7 +120,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 Before opening a PR, confirm the change is **PR ready** — never open one otherwise. For any **new feature, or a significant change to an existing one**, treat all of the following as a hard gate:
 
 - **Front-end tests exist and pass.** Every new or changed behaviour needs Vitest coverage under [packages/](packages/) (`.spec.ts` / `.test.ts`); run the whole JS suite with `pnpm test`. Marker-API work must cover BOTH `getRunTypeId` call shapes (the **Marker test coverage rule** under [Testing](#testing)). Go-side changes also need `go -C ts-go-runtypes test ./internal/...`.
-- **Docs are updated — especially the website.** Reflect the change in [container/website/content/](container/website/content/) (follow the **Website docs style** section below), and update [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) or [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what they describe (CLI flags, execution model, scope, lossy mappings).
+- **Docs are updated — especially the website.** Reflect the change in the site's content tree under [container/website/sites/](container/website/sites/) (follow the **Website docs style** section below), and update [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) or [docs/ROADMAP.md](docs/ROADMAP.md) whenever it touches what they describe (CLI flags, execution model, scope, lossy mappings).
 - **If the PR implements a [docs/todos/](docs/todos/) spec, `git mv` it into [docs/done/](docs/done/) and update it to match what shipped.** Shipped only PART of it? **SPLIT it, never park it**: the moved doc records what actually landed (and why the rest was cut), and the remainder becomes a NEW [docs/todos/](docs/todos/) spec that stands on its own. There is no half-done lane — a spec is either done or open, so nothing can rot in between.
 - **A replacement spec never points back at the one it replaced.** When a spec is dropped, superseded, or rewritten because the situation changed, write the new one from scratch: state the problem, the evidence, and the plan as they stand today, as if the old doc never existed. **This is strictest when none of the old spec was ever built** — there is no history to preserve, only a dead document that sends the reader chasing abandoned ideas and reading rejected plans as decisions. Delete the old spec (or `git mv` it to [docs/done/](docs/done/) if part of it genuinely shipped). Never leave a link, a "supersedes" note, or a summary of what the previous version said.
 
@@ -151,9 +151,9 @@ Deep-dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Load-bearing invariants
 - **Two markers + demand-driven caches** — `InjectRunTypeId<T>` (injects typeId) drives the reflection cache; `InjectTypeFnArgs<T, Fn>` (injects typeId + opaque 3-char fnHash) drives per-family caches that contain ONLY the types their own call sites demand — a `getRunTypeId`-only file emits ZERO function-cache entries.
 - **Validate contract — serializable data only** — validators / decoders operate on the JSON-shaped projection of `T`; non-serialisable members (functions, symbols, getters) silently drop with a build-time **Warning** and decoders return `DataOnly<T>`. Line to remember: **Warning** = expected drop, fine; **Error** = will throw at runtime, build must fail.
 
-## Website Documentation (`container/website/content/`)
+## Website Documentation (`container/website/sites/<site>/content/`)
 
-User-facing docs under [container/website/content/](container/website/content/) (Nuxt + Docus Markdown + MDC) follow a deliberate, reader-first voice. Keep it when editing:
+User-facing docs live in TWO content trees, [container/website/sites/runtypes/content/](container/website/sites/runtypes/content/) and [container/website/sites/mion/content/](container/website/sites/mion/content/) (Nuxt + Docus Markdown + MDC). Both follow a deliberate, reader-first voice. Keep it when editing:
 
 - **Plain, user-focused language.** Say what a feature does for the reader and why it helps, not how it is built; cut deep internals (hashing, byte offsets, "side-channel", "fixpoint", demand-driven cache mechanics). Consumer-facing means CONSUMER-facing: a knob only a RunTypes contributor would set does not belong here at all, however well written.
 - **No dashes chaining clauses or sentences.** No em-dash, en-dash, `--`, or a spaced single `-` as punctuation; use a comma, a period, or parentheses. Hyphenated words (`build-time`) and dashes inside code / flags / URLs are fine.
@@ -202,7 +202,7 @@ merge plan folds it into the document proper.
 - **Lint split:** oxlint covers every package and owns the `runtypes/*` rules; eslint carries only mion's own plugin rules (`strong-typed-routes` and friends) and stops at the mion package dirs. `pnpm run lint` runs both plus typecheck.
 - **`import type` is safe** in routes/middleFns — `@ts-runtypes` resolves types at build time from the program, not from imports (guarded by `packages/router/src/typeOnlyImports.spec.ts`).
 - **⚠️ test-server's edge/cloudflare bundles must stay strict.** They are evaluated as a SCRIPT (EdgeVM / miniflare `initialCode`), where sloppy mode is the default and a failed property assignment silently does nothing instead of throwing — which quietly breaks node-vs-edge error parity. Rolldown does not emit the `"use strict"` prologue rollup did, so both vite configs add it via `output.intro` and `buildTestBundle.ts` asserts it on every build.
-- **Still to be merged:** the mion docs website lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`, and `test-publish/` keeps its own tarball-based e2e until step 5.
+- **The mion docs website is folded in:** it is the `mion` site of the one Nuxt install at [container/website/](container/website/) (content under `sites/mion/`), served/built with `pnpm rtx website … --site mion` and deployed to mion.pages.dev by `website-deploy.yml`. **Still to be merged:** `test-publish/` keeps its own tarball-based e2e until step 5.
 
 ## `plans/` is an ideas folder
 

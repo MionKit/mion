@@ -176,9 +176,32 @@ function loadPackageTypes(): Map<string, string> {
   // Subpath imports (@ts-runtypes/core/formats, /schema) resolve via the
   // per-directory index.d.ts under classic node resolution, and
   // @ts-runtypes/devtools/vite via the sibling vite.d.ts.
+  // `name` MUST be the PUBLISHED npm name, not the packages/ directory name — the
+  // mount path is what an example's bare import resolves against. Both sites share
+  // this list; a runtypes page simply never imports an @mionjs package, and vice versa.
+  // Pinned by `repo-contracts.test.ts`.
   const packageConfigs = [
     { dir: 'ts-runtypes', name: '@ts-runtypes/core', distPath: 'dist' },
     { dir: 'ts-runtypes-devtools', name: '@ts-runtypes/devtools', distPath: 'dist' },
+    { dir: 'core', name: '@mionjs/core', distPath: '.dist/esm' },
+    { dir: 'router', name: '@mionjs/router', distPath: '.dist/esm' },
+    { dir: 'client', name: '@mionjs/client', distPath: '.dist/esm' },
+    { dir: 'drizzle', name: '@mionjs/drizzle', distPath: '.dist/esm' },
+    { dir: 'platform-aws', name: '@mionjs/platform-aws', distPath: '.dist/esm' },
+    { dir: 'platform-bun', name: '@mionjs/platform-bun', distPath: '.dist/esm' },
+    { dir: 'platform-cloudflare', name: '@mionjs/platform-cloudflare', distPath: '.dist/esm' },
+    { dir: 'platform-gcloud', name: '@mionjs/platform-gcloud', distPath: '.dist/esm' },
+    { dir: 'platform-node', name: '@mionjs/platform-node', distPath: '.dist/esm' },
+    { dir: 'platform-vercel', name: '@mionjs/platform-vercel', distPath: '.dist/esm' },
+    // @mionjs/devtools ships one nested build tree per entry point rather than a flat
+    // dist, and classic node resolution ignores the `exports` map, so its entries need
+    // `entries` shims (below) to be reachable as `@mionjs/devtools` / `.../vite-plugin`.
+    {
+      dir: 'devtools',
+      name: '@mionjs/devtools',
+      distPath: 'build',
+      entries: {'.': 'eslint/esm/src/eslint/index', './vite-plugin': 'vite-plugin/esm/src/vite-plugin/index'},
+    },
   ]
 
   for (const pkg of packageConfigs) {
@@ -215,12 +238,40 @@ function loadPackageTypes(): Map<string, string> {
         console.warn(`Failed to read ${dtsFile}:`, e)
       }
     }
+
+    // Entry-point shims for a package whose declarations are not at the paths classic
+    // node resolution looks in. `'.'` becomes index.d.ts, `'./x'` becomes x/index.d.ts,
+    // each just re-exporting the real file that IS mounted above.
+    for (const [subpath, target] of Object.entries(pkg.entries ?? {})) {
+      const virtual = subpath === '.' ? 'index.d.ts' : `${subpath.replace(/^\.\//, '')}/index.d.ts`
+      const depth = virtual.split('/').length - 1
+      const from = `${'../'.repeat(depth) || './'}${target}`
+      fsMap.set(`/node_modules/${pkg.name}/${virtual}`, `export * from '${from}';\n`)
+    }
   }
 
-  // NB: third-party modules are NOT mounted. Examples that import one (today only
-  // the manual-install config example, which imports `vite`) will not type-resolve
-  // here. If that becomes common, mount the dep's .d.ts tree from the repo root's
-  // node_modules the same way the packages above are mounted.
+  // Third-party deps an example imports, mounted from the repo root's node_modules.
+  // Kept to the SHORTEST possible list: every entry copies a whole .d.ts tree into
+  // the VFS on each render. `drizzle-orm` is here because the mion home page and the
+  // drizzle-orm section import `drizzle-orm/pg-core`, and twoslash fails the whole
+  // sample on an unresolved import. A missing dir is skipped, not an error — that is
+  // what a fresh clone without a full install looks like.
+  // Anything NOT listed (e.g. the `vite` import in the manual-install config example)
+  // simply will not type-resolve here.
+  const externalDeps = ['drizzle-orm']
+  for (const dep of externalDeps) {
+    const depDir = join(repoRoot, 'node_modules', dep)
+    if (!existsSync(depDir)) continue
+    for (const dtsFile of findFiles(depDir, /\.d\.ts$/)) {
+      try {
+        fsMap.set(`/node_modules/${dep}/${relative(depDir, dtsFile)}`, readFileSync(dtsFile, 'utf-8'))
+      } catch (e) {
+        console.warn(`Failed to read ${dtsFile}:`, e)
+      }
+    }
+    const depManifest = join(depDir, 'package.json')
+    if (existsSync(depManifest)) fsMap.set(`/node_modules/${dep}/package.json`, readFileSync(depManifest, 'utf-8'))
+  }
 
   // Also load source files from examples package for relative imports
   const examplesDir = join(packagesDir, 'examples', 'src')

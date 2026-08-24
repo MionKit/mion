@@ -22,6 +22,11 @@ export const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..
 // `./internal/...` package specs resolve; binary output stays under REPO_ROOT/bin.
 export const GO_ROOT = join(REPO_ROOT, 'ts-go-runtypes');
 
+// The two docs sites one Nuxt install (container/website/) builds, selected by
+// RT_SITE. Mirrors SITES in container/website/site.config.ts, which is the copy the
+// in-container Nuxt config reads; this one is for the host-side scripts.
+export const SITES = ['runtypes', 'mion'];
+
 let loaded = false;
 // Load the repo-root .env into process.env (dev only), once. No-op when CI is set
 // or .env is absent; safe to call from anywhere (rt.mjs and every leaf footer).
@@ -51,7 +56,8 @@ export const REGISTRY = [
   {name: 'CLOUDFLARE_ACCOUNT_ID', scope: 'secret', task: 'deploy-website', desc: 'Cloudflare account id; .env for a local deploy, a GitHub secret in CI'},
 
   // — deploy config (non-secret) —
-  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name (default runtypes); .env for a local deploy, set in website-deploy.yml for CI'},
+  {name: 'CLOUDFLARE_PAGES_PROJECT', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the RUNTYPES site (default runtypes); .env for a local deploy, set in website-deploy.yml for CI'},
+  {name: 'CLOUDFLARE_PAGES_PROJECT_MION', scope: 'dev', task: 'deploy-website', desc: 'Cloudflare Pages project name for the MION site (default mion); .env for a local deploy, set in website-deploy.yml for CI'},
 
   // — GHCR coordinates (defaults already target this repo) —
   {name: 'GHCR_OWNER', scope: 'dev', task: '-', desc: 'GHCR namespace (default mionkit)'},
@@ -63,6 +69,7 @@ export const REGISTRY = [
   {name: 'RT_BENCH_USE_LOCAL', scope: 'dev', task: '-', desc: 'Build the shared image locally for benchmark runs'},
 
   // — docs website knobs (scripts/website/site.mjs, scripts/container/image.mjs) —
+  {name: 'RT_SITE', scope: 'dev', task: '-', desc: 'Which of the two docs sites to serve/build/check: runtypes (default) or mion. One Nuxt install in container/website/ builds both; RT_SITE picks the content tree, the app.config and the public assets. Read by nuxt.config.ts + content.config.ts inside the container and by every scripts/website/ leaf; `pnpm rtx website --site <name>` sets it'},
   {name: 'RT_WEBSITE_ENGINE', scope: 'dev', task: '-', desc: 'Container engine (default podman)'},
   {name: 'RT_WEBSITE_IMAGE', scope: 'dev', task: '-', desc: 'Local image tag (default tsrt-website:dev)'},
   {name: 'RT_WEBSITE_CONTAINER', scope: 'dev', task: '-', desc: 'Container name prefix (default tsrt-website)'},

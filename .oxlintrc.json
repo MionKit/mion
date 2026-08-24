@@ -52,7 +52,6 @@
     "**/vitest.config.ts",
     "**/vitest.workspace.ts",
     "eslint.config.js",
-    "website/**",
     "test-publish/**"
   ],
   "overrides": [

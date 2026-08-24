@@ -5,15 +5,16 @@
 
 # Source directories — bind-mounted at run time, never baked.
 app/
-content/
+sites/
 public/
 server/
 scripts/
-not-rendered/
 tests/
 
 # First-party config — bind-mounted at run time now (no longer baked).
 nuxt.config.ts
+content.config.ts
+site.config.ts
 tsconfig.json
 eslint.config.mjs
 

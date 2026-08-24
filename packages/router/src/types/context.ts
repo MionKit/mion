@@ -95,6 +95,7 @@ export interface MionResponse {
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Headers
  * Headers names must be case insensitive.
  */
+// type-mion-headers-start
 export interface MionHeaders {
   append(name: string, value: string): void;
   delete(name: string): void;
@@ -105,6 +106,7 @@ export interface MionHeaders {
   keys(): IterableIterator<string>;
   values(): IterableIterator<string>;
 }
+// type-mion-headers-end
 
 /** Function used to create the context data object on each route call  */
 export type ContextDataFactory<ContextData extends Record<string, any>> = () => ContextData;

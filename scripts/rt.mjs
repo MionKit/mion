@@ -262,7 +262,13 @@ function runCore(args) {
 
 // ── website ────────────────────────────────────────────────────────────────
 async function runWebsite(args) {
-  const [sub, ...rest] = args;
+  let [sub, ...rest] = args;
+  // ONE Nuxt install, TWO sites. `--site` sets RT_SITE for the whole command, which
+  // is what every leaf (site.mjs, build.mjs, check-static.mjs, serve.mjs) reads.
+  // `build` additionally accepts `--site both` to do them one after the other.
+  const siteOpt = takeFlag(rest, '--site', {valued: true});
+  rest = siteOpt.rest;
+  if (siteOpt.value && siteOpt.value !== 'both') process.env.RT_SITE = siteOpt.value;
   if (sub === 'dev') {
     const {value: agent, rest: pass} = takeFlag(rest, '--agent');
     const {main} = await import('./website/site.mjs');
@@ -275,7 +281,7 @@ async function runWebsite(args) {
     const skip = takeFlag(a, '--skip-playground');
     if (skip.value) process.env.RT_WEBSITE_SKIP_PLAYGROUND = '1';
     const {main} = await import('./website/build.mjs');
-    return main([target, ...skip.rest]);
+    return main([target, ...(siteOpt.value ? ['--site', siteOpt.value] : []), ...skip.rest]);
   }
   // container-build: the container-only prod build (site.mjs build), NOT the full
   // pipeline (build.mjs). Used by the release gate's website-build job.
@@ -298,7 +304,8 @@ async function runWebsite(args) {
     // benchmark page renders its benchmark. The other two boot the dev container.
     if (hasFlag(rest, '--static')) {
       const {main} = await import('./website/check-static.mjs');
-      return main(takeFlag(rest, '--static').rest);
+      const pass = takeFlag(rest, '--static').rest;
+      return main([...pass, ...(siteOpt.value && siteOpt.value !== 'both' ? ['--site', siteOpt.value] : [])]);
     }
     const {main} = await import('./website/site.mjs');
     return main([hasFlag(rest, '--docs') ? 'verify-docs' : 'smoke']);
@@ -313,7 +320,7 @@ async function runWebsite(args) {
     const {main} = await import('./website/site.mjs');
     return main(['shell']);
   }
-  die('usage: rtx website <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>');
+  die('usage: rtx website [--site runtypes|mion|both] <dev [--agent]|build [--no-bench|--quick|--ssr|--skip-playground]|preview [--no-build]|check [--docs|--static]|test-counts [--check]|container-build|shell>');
 }
 
 // ── bench ────────────────────────────────────────────────────────────────
