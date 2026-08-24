@@ -23,6 +23,7 @@ import {createMetadataSubRequest} from './lib/clientMethodsMetadata.ts';
 import {validateSubRequests} from './lib/validation.ts';
 import {serializeRequestBody, deserializeResponseBody} from './lib/serializer.ts';
 import {ROUTES_FLOW_KEY, MAX_GET_URL_LENGTH, CLIENT_REQUEST_ERROR_ID} from './constants.ts';
+import {headersToRecord} from './lib/headers.ts';
 
 export class MionClientRequest<RR extends RouteSubRequest<any>, MiddleFnRequestsList extends MiddlewareSubRequest<any>[]> {
   readonly path: string;
@@ -469,7 +470,7 @@ function buildFetchOptions(
       return {
         ...options.fetchOptions,
         method: 'GET',
-        headers: {...options.fetchOptions.headers, ...headersFromParams},
+        headers: {...headersToRecord(options.fetchOptions.headers), ...headersFromParams},
         body: undefined,
         signal,
       };
@@ -479,7 +480,7 @@ function buildFetchOptions(
   return {
     ...options.fetchOptions,
     method: 'POST',
-    headers: {...options.fetchOptions.headers, ...headersFromParams, 'Content-Type': serialized.contentType},
+    headers: {...headersToRecord(options.fetchOptions.headers), ...headersFromParams, 'Content-Type': serialized.contentType},
     body: serialized.body as BodyInit,
     signal,
   };
