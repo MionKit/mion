@@ -83,10 +83,10 @@ describe('@ts-runtypes/devtools / incremental update keeps the whole program', (
       writeProject(root);
       const genDir = path.join(root, '__runtypes');
 
-      const raw = unplugin.raw(
-        {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack', versions: {}} as UnpluginContextMeta
-      );
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+        framework: 'webpack',
+        versions: {},
+      } as UnpluginContextMeta);
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as {
         buildStart?: (this: unknown) => Promise<void>;
         buildEnd?: (this: unknown) => void;
@@ -126,10 +126,10 @@ describe('@ts-runtypes/devtools / incremental update keeps the whole program', (
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rt-hot-overlay-'));
       writeProject(root);
 
-      const raw = unplugin.raw(
-        {binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true},
-        {framework: 'webpack', versions: {}} as UnpluginContextMeta
-      );
+      const raw = unplugin.raw({binary: BIN, cwd: root, tsconfig: 'tsconfig.json', genDir: '__runtypes', detachResolver: true}, {
+        framework: 'webpack',
+        versions: {},
+      } as UnpluginContextMeta);
       const plugin = (Array.isArray(raw) ? raw[0] : raw) as {
         buildStart?: (this: unknown) => Promise<void>;
         buildEnd?: (this: unknown) => void;

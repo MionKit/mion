@@ -267,7 +267,11 @@ function isOwnFile(server: ViteDevServer, file: string): boolean {
 /** Invalidates the entry's own source subtree in the given graph so the next load re-evaluates it.
  *  The graph is the ssr environment's when it exists (vite 8) or the legacy mixed graph; their
  *  module nodes name the imported set differently (importedModules vs ssrImportedModules). */
-function invalidateOwnModules(server: ViteDevServer, graph: {invalidateModule: (mod: any) => void}, entryModule: ModuleNode): void {
+function invalidateOwnModules(
+    server: ViteDevServer,
+    graph: {invalidateModule: (mod: any) => void},
+    entryModule: ModuleNode
+): void {
     const seen = new Set<ModuleNode>();
     const walk = (mod: ModuleNode): void => {
         if (seen.has(mod)) return;
