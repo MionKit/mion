@@ -1,7 +1,33 @@
-# RunTypes Documentation Website
+# Documentation Website (two sites, one install)
 
-Nuxt 4 + Docus v5 docs site for **RunTypes**. It is a containerized app: its
-dependencies live only inside the podman image, never in the monorepo lockfile.
+Nuxt 4 + Docus v5 docs site. It is a containerized app: its dependencies live only
+inside the podman image, never in the monorepo lockfile.
+
+**ONE Nuxt install builds TWO separate static sites**, picked by `RT_SITE`:
+
+| `RT_SITE` | Site | Content tree |
+| --- | --- | --- |
+| `runtypes` (default) | runtypes.pages.dev | `sites/runtypes/content/` |
+| `mion` | mion.pages.dev | `sites/mion/content/` |
+
+Per site: the content tree, `app.config.ts` (nav, github block, socials, branding,
+SEO) and `public/` (banners, `_redirects`). Shared: every component, layout, server
+util, the playground, and the top-level `public/` (fonts, favicons, and the generated
+`bench-data/` + `playground-app/`).
+
+How the selection works, and the three files that implement it:
+
+- `site.config.ts` reads and validates `RT_SITE`, and exports `SITE_DIR`.
+- `nuxt.config.ts` aliases `#site` to that dir (so `app/app.config.ts` and the header
+  logo resolve the right one at build time) and layers `sites/<site>/public` over the
+  shared `public/` through nitro's `publicAssets`.
+- `content.config.ts` redefines Docus' `docs` + `landing` collections with the site's
+  content dir as their `cwd`. Docus hardcodes `<rootDir>/content` and offers no knob,
+  but `@nuxt/content` merges each layer's config BY COLLECTION NAME with the project
+  applied last, so redefining those two names is the supported override. **Keep the
+  names** `docs` and `landing`: Docus' own pages, search and sitemap query them literally.
+
+Build output is per site, at `.output/<site>/public`.
 
 - **Prose voice and what a style pass may touch:** the root
   [CLAUDE.md](../../CLAUDE.md) → *Website Documentation* section. That section
@@ -38,11 +64,20 @@ never the raw in-container `pnpm run dev`:
 
 ```bash
 pnpm rtx website dev [--agent]        # hot-reload server (:3000, or :3100 with --agent)
-pnpm rtx website build [--no-bench]   # build the docs site (with benchmarks)
+pnpm rtx website build [--no-bench]   # build BOTH sites (with benchmarks)
 pnpm rtx website preview [--no-build] # serve the static site locally
 pnpm rtx website check [--docs]       # serves-a-page smoke (code-import + twoslash with --docs)
-pnpm rtx website check --static       # serve the BUILT site + assert every benchmark page renders
+pnpm rtx website check --static       # serve the BUILT site + assert it is not hollow
 pnpm rtx website shell                # debug shell inside the container
+```
+
+`--site runtypes|mion` picks the site for any of them (it just sets `RT_SITE`);
+`build` also accepts `--site both`, which is its default. So:
+
+```bash
+pnpm rtx website dev --site mion            # the mion site on :3000
+pnpm rtx website build --site runtypes      # only the runtypes artifact
+pnpm rtx website check --static --site mion # gate the built mion artifact
 ```
 
 **Agents: use `pnpm rtx website dev --agent`** — a separate container
@@ -59,10 +94,12 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
 
 ## Content organization
 
-- Content lives in `content/` as `.md` files using MDC syntax.
-- Sections use numbered prefix directories for ordering. The current tree:
+- Content lives in `sites/<site>/content/` as `.md` files using MDC syntax.
+- Sections use numbered prefix directories for ordering. The runtypes tree:
   `01.introduction/`, `02.guide/`, `03.ai-integration/`, `07.benchmarks/`, plus
-  `08.diagnostics.md` and `index.md` (the home page).
+  `08.diagnostics.md` and `index.md` (the home page). The mion tree:
+  `01.introduction/`, `02.server/`, `03.drizzle-orm/`, `04.client/`, `05.run-types.md`,
+  `06.devtools/`, `07.platforms/`, `08.benchmarks/`, `09.articles/`, plus `index.md`.
 - **Every prefix is TWO digits, including new ones.** Nuxt Content sorts them as
   text, so a single-digit set silently reorders the moment a 10th entry appears
   (`1 < 10 < 2`, which is how `10.linting.md` once rendered second in the guide).
@@ -72,8 +109,8 @@ In-container scripts (what the commands above ultimately run): `pnpm run dev`,
   `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`.
 - Each section directory has a `.navigation.yml` with title, icon, and redirect.
 - Frontmatter supports `title`, `description`, `toc`.
-- `index.md` is hand-tuned: the densest custom-MDC usage in the tree, and off
-  limits to prose-only style passes (API-truth fixes to its examples are still required).
+- Each site's `index.md` is hand-tuned: the densest custom-MDC usage in its tree, and
+  off limits to prose-only style passes (API-truth fixes to its examples are still required).
 - Docus built-in components: `::code-group`, `::note`, `::card`, `::card-group`, `::alert`, `::div{class="..."}`.
 
 ## Code Import component
@@ -107,18 +144,24 @@ script, so doc drift fails CI instead of rotting.
 
 - Server-rendered TypeScript code with interactive type hovers (like VS Code tooltips).
 - Sends code to the `/api/twoslash` endpoint, which uses Shiki + Twoslash to render.
-- Loads `.d.ts` files from the RunTypes packages into a virtual file system for type resolution.
+- Loads `.d.ts` files from the first-party packages into a virtual file system for type resolution.
 - Results are cached to avoid re-rendering on hot reload.
 - Uses MDC block syntax (not HTML tag syntax).
-- **No published page uses it today** — the docs render TypeScript through
-  `<code-import>` fences. The endpoint is live and verified by
-  `pnpm rtx website check --docs`, so the component is ready if a page wants hovers.
-- The virtual file system mounts each package's built `dist/*.d.ts` at
+- **Used by the mion home page** (five cards), and by no runtypes page — those render
+  TypeScript through `<code-import>` fences. The endpoint is also verified directly by
+  `pnpm rtx website check --docs`.
+- The virtual file system mounts each package's built `.d.ts` at
   `/node_modules/<npm name>/`, so the mount list in `server/api/twoslash.post.ts`
-  must use the **published** names (`@ts-runtypes/core`, `@ts-runtypes/devtools`),
-  not the `packages/` directory names. A mismatch is silent here but breaks every
-  example import; `packages/ts-runtypes-devtools/test/repo-contracts.test.ts`
-  guards it.
+  must use the **published** names (`@ts-runtypes/core`, `@mionjs/router`, …), not the
+  `packages/` directory names. A mismatch is silent here but breaks every example
+  import; `packages/ts-runtypes-devtools/test/repo-contracts.test.ts` guards it.
+- **One endpoint serves both sites**, so it mounts both scopes. The `@mionjs/*` mounts
+  read `.dist/esm`, which means those packages must be BUILT: `site.mjs` runs
+  `build:mion` before serving the mion site, because without it every hover card on the
+  mion home page renders an error and the build still exits 0.
+- Third-party `.d.ts` come in through a named allowlist (`externalDeps`, today just
+  `drizzle-orm`), mirrored by `TWOSLASH_EXTERNAL_DEPS` in `scripts/website/site.mjs`,
+  which mounts that one dir into the container. Both ends must move together.
 
 ### Usage
 
@@ -164,8 +207,12 @@ title: reflection.ts
 
 ## Styling
 
-- Global styles: `app/assets/css/mion.css`
-- App config: `app/app.config.ts` (Docus theme, SEO, UI colors, socials)
+- Global styles: `app/assets/css/mion.css` (shared by both sites)
+- App config: `sites/<site>/app.config.ts` (Docus theme, SEO, UI colors, socials).
+  `app/app.config.ts` is a two-line re-export through the `#site` alias. Nuxt merges
+  app configs with `defu` (project first, per key), so Docus' defaults still apply
+  underneath anything a site leaves out.
+- Header wordmark: `sites/<site>/Logo.vue`, behind the shared `AppHeaderLogo.vue`.
 - Dark mode by default, light mode supported via `:root.dark` / `:root.light`
 
 ## Server API endpoints

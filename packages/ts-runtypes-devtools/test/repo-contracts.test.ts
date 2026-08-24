@@ -127,7 +127,9 @@ describe('twoslash VFS mounts the packages the examples import', () => {
   }
 
   // The first-party package roots the docs examples actually import, e.g.
-  // `@ts-runtypes/core/formats` counts as the root `@ts-runtypes/core`.
+  // `@ts-runtypes/core/formats` counts as the root `@ts-runtypes/core`. Covers BOTH
+  // scopes: one Nuxt install serves the runtypes site (@ts-runtypes/* examples) and
+  // the mion site (@mionjs/* examples) from the same twoslash endpoint.
   function importedPackageRoots(): Set<string> {
     const roots = new Set<string>();
     const walk = (dir: string): void => {
@@ -136,7 +138,7 @@ describe('twoslash VFS mounts the packages the examples import', () => {
         if (statSync(full).isDirectory()) walk(full);
         else if (entry.endsWith('.ts')) {
           const source = readFileSync(full, 'utf8');
-          for (const match of source.matchAll(/from\s+'(@ts-runtypes\/[^']+)'/g)) {
+          for (const match of source.matchAll(/from\s+'(@(?:ts-runtypes|mionjs)\/[^']+)'/g)) {
             const [scope, name] = match[1].split('/');
             roots.add(`${scope}/${name}`);
           }
@@ -147,14 +149,14 @@ describe('twoslash VFS mounts the packages the examples import', () => {
     return roots;
   }
 
-  it('mounts every @ts-runtypes package the examples import', () => {
+  it('mounts every first-party package the examples import', () => {
     const mounted = mountedPackageNames();
     const missing = [...importedPackageRoots()].filter((root) => !mounted.has(root)).sort();
     expect(missing).toEqual([]);
   });
 
   it('mounts them under their scoped npm names, not the pre-scope directory names', () => {
-    for (const name of mountedPackageNames()) expect(name.startsWith('@ts-runtypes/')).toBe(true);
+    for (const name of mountedPackageNames()) expect(name).toMatch(/^@(ts-runtypes|mionjs)\//);
   });
 });
 
@@ -379,10 +381,19 @@ describe('the serialization bench mounts the marker tsconfig chain', () => {
 // review cannot catch it. Two digits everywhere makes the trap unreachable, and
 // the prefix is stripped from the URL, so padding costs no route changes.
 describe('website-content-prefixes', () => {
-  const CONTENT_DIR = join(REPO_ROOT, 'container/website/content');
+  // Both sites, discovered rather than listed: one Nuxt install builds them from
+  // container/website/sites/<site>/content, and a new site must not slip the check.
+  const SITES_DIR = join(REPO_ROOT, 'container/website/sites');
+  const CONTENT_DIRS = readdirSync(SITES_DIR)
+    .map((site) => ({site, dir: join(SITES_DIR, site, 'content')}))
+    .filter((entry) => existsSync(entry.dir));
   const PREFIXED = /^(\d+)\./;
 
   const entriesIn = (dir: string): string[] => readdirSync(dir);
+
+  it('checks both sites', () => {
+    expect(CONTENT_DIRS.length).toBe(2);
+  });
 
   it('every numbered content entry uses a two-digit prefix', () => {
     const offenders: string[] = [];
@@ -393,16 +404,16 @@ describe('website-content-prefixes', () => {
         if (statSync(join(dir, name)).isDirectory()) visit(join(dir, name), posix.join(relative, name));
       }
     };
-    visit(CONTENT_DIR, '');
+    for (const {site, dir} of CONTENT_DIRS) visit(dir, site);
     expect(offenders).toEqual([]);
   });
 
   it('finds the numbered pages it claims to be checking', () => {
-    const sections = entriesIn(CONTENT_DIR).filter(
-      (name) => PREFIXED.test(name) && statSync(join(CONTENT_DIR, name)).isDirectory()
-    );
-    expect(sections.length).toBeGreaterThan(2);
-    for (const section of sections) expect(entriesIn(join(CONTENT_DIR, section)).some((name) => PREFIXED.test(name))).toBe(true);
+    for (const {dir} of CONTENT_DIRS) {
+      const sections = entriesIn(dir).filter((name) => PREFIXED.test(name) && statSync(join(dir, name)).isDirectory());
+      expect(sections.length).toBeGreaterThan(2);
+      for (const section of sections) expect(entriesIn(join(dir, section)).some((name) => PREFIXED.test(name))).toBe(true);
+    }
   });
 });
 
@@ -413,7 +424,8 @@ describe('website-content-prefixes', () => {
 describe('website-test-counts', () => {
   const COUNTS_FILE = join(REPO_ROOT, 'container/website/app/data/test-counts.json');
   const STAT_TILES = join(REPO_ROOT, 'container/website/app/components/content/StatTiles.vue');
-  const HOME = join(REPO_ROOT, 'container/website/content/index.md');
+  // The tiles live on the RUNTYPES home page; the mion home page has none.
+  const HOME = join(REPO_ROOT, 'container/website/sites/runtypes/content/index.md');
 
   it('ships a committed count the component can import', () => {
     expect(existsSync(COUNTS_FILE)).toBe(true);

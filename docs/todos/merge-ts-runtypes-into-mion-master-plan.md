@@ -211,36 +211,16 @@ it was a plain object) was found by the widened lint scope and fixed.
 - Green bar: full `pnpm test` + `go test` + `rtx core smoke` from one clean
   clone bootstrapped by the ts-runtypes-setup skill.
 
-### Step 4 — Website merge (one Nuxt install, two sites)
+### Step 4 — Website merge (one Nuxt install, two sites) ✅ DONE
 
-Spec: [merge-websites-one-nuxt-two-sites.md](merge-websites-one-nuxt-two-sites.md)
-
-- Fold mion's `website/` into `container/website/` (the containerized install is
-  the base: playground, bench tables, twoslash server, agent-heartbeat). The one
-  codebase builds TWO separate static sites (decision 3): a site selector (e.g.
-  an `RT_SITE=mion|runtypes` env var read by `nuxt.config.ts` / the build
-  scripts) picks the content tree, app.config (nav, socials, github block,
-  branding) and public assets per site; components, server utils, layouts and
-  the code-import pipeline are shared.
-- The two content trees stay separate (no nav merging): the runtypes docs as
-  they are today, and mion's content dirs (`introduction`, `server`,
-  `drizzle-orm`, `client`, `run-types`, `devtools`, `platforms`, `benchmarks`,
-  `articles`) as the mion site. Reconcile mion's `run-types` section so it
-  introduces the topic and links across to the runtypes site rather than
-  duplicating its guide.
-- Merge mion's app components/utils into the container app; dependency lists are
-  near-identical (same Nuxt/Docus/content/ui/shiki versions), so the image's
-  `_deps` grows by the mion-only extras. Rebuild + push `tsrt-website`.
-- The merged `packages/examples` feeds code-import for both sites; port mion's
-  `check-links` / `check-unused-examples` into the container scripts if they
-  differ.
-- Delete `website/` (including its stale docus-starter README/name; the
-  `.vscode-extension` was already deleted in step 1), delete `pages-build` /
-  `copy-benchmarks` root scripts (step 8 re-homes the benchmark data), retire
-  `nuxtjs.yml`.
-- Deploy: `website-deploy.yml` builds and deploys BOTH sites to Cloudflare Pages
-  (runtypes.pages.dev stays; mion.pages.dev is a new Pages project the owner
-  creates); mion's GitHub Pages deploy is retired.
+Shipped 2026-08-24 — record in
+[../done/merge-websites-one-nuxt-two-sites.md](../done/merge-websites-one-nuxt-two-sites.md).
+It landed BEFORE step 3, which turned out not to be a prerequisite. No new dependency was
+needed (the one mion-only package was already obsolete) so the image was untouched, and the
+benchmark chart data was already committed in the container. Three latent bugs were fixed on
+the way: a broken twoslash caret on the mion home page, a documented `initRouter` API that does
+not exist, and the pull-request code-import gate never checking the runtypes content tree.
+The mion.pages.dev Cloudflare project is still an OPEN OWNER ACTION.
 
 ### Step 5 — e2e unification on verdaccio
 

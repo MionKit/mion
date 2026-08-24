@@ -2,7 +2,7 @@
 /**
  * Script to find example files that are not referenced by any code-import in website docs.
  * Scans packages/examples/src for all TypeScript files and checks if they are used
- * in any <code-import> tag in container/website/content.
+ * in any <code-import> tag in EITHER site's content tree.
  *
  * Usage: node container/website/scripts/check-unused-examples.mts
  */
@@ -10,13 +10,17 @@
 import {readdirSync, readFileSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
-const WEBSITE_CONTENT_DIR = resolve(import.meta.dirname, '../content');
+const SITES_DIR = resolve(import.meta.dirname, '../sites');
 // Same convention as server/utils/repo-root.ts: RT_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
 const MONOREPO_ROOT = process.env.RT_REPO_ROOT
   ? resolve(process.env.RT_REPO_ROOT)
   : resolve(import.meta.dirname, '../../..');
 const EXAMPLES_DIR = resolve(MONOREPO_ROOT, 'packages/examples/src');
+// Discovered, not listed: adding a site cannot silently mark its examples unused.
+const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => join(SITES_DIR, entry.name, 'content'));
 
 function findFiles(dir: string, extension: string): string[] {
   const files: string[] = [];
@@ -39,9 +43,9 @@ function findFiles(dir: string, extension: string): string[] {
   return files;
 }
 
-function extractAllCodeImportPaths(contentDir: string): Set<string> {
+function extractAllCodeImportPaths(contentDirs: string[]): Set<string> {
   const paths = new Set<string>();
-  const mdFiles = findFiles(contentDir, '.md');
+  const mdFiles = contentDirs.flatMap((dir) => findFiles(dir, '.md'));
 
   for (const mdFile of mdFiles) {
     const content = readFileSync(mdFile, 'utf-8');
@@ -60,7 +64,7 @@ function extractAllCodeImportPaths(contentDir: string): Set<string> {
 }
 
 function findUnusedExamples(): string[] {
-  const usedPaths = extractAllCodeImportPaths(WEBSITE_CONTENT_DIR);
+  const usedPaths = extractAllCodeImportPaths(CONTENT_DIRS);
   const exampleFiles = findFiles(EXAMPLES_DIR, '.ts');
   const unusedFiles: string[] = [];
 
@@ -87,7 +91,7 @@ if (unusedExamples.length === 0) {
     console.log(`  📄 ${file}`);
   }
 
-  console.log('\nThese files are not referenced by any <code-import> tag in container/website/content/');
+  console.log('\nThese files are not referenced by any <code-import> tag in either site's content tree');
   process.exit(0); // Exit 0 since unused files are not necessarily errors
 }
 
