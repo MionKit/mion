@@ -149,7 +149,7 @@ importers:
         specifier: 8.58.1
         version: 8.58.1(eslint@9.39.4(jiti@2.6.1))(typescript@6.0.3)
 
-  packages/drizze:
+  packages/drizzle:
     dependencies:
       '@mionjs/core':
         specifier: workspace:*
@@ -171,7 +171,7 @@ importers:
         version: link:../core
       '@mionjs/drizzle':
         specifier: workspace:*
-        version: link:../drizze
+        version: link:../drizzle
       '@mionjs/platform-aws':
         specifier: workspace:*
         version: link:../platform-aws

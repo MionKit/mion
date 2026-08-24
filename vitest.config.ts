@@ -45,7 +45,7 @@ export default defineConfig({
       'packages/platform-gcloud/vitest.config.ts',
       'packages/platform-node/vitest.config.ts',
       'packages/devtools/vitest.config.ts',
-      'packages/drizze/vitest.config.ts',
+      'packages/drizzle/vitest.config.ts',
       'packages/platform-vercel/vitest.config.ts',
       'packages/platform-cloudflare/vitest.config.ts',
     ],

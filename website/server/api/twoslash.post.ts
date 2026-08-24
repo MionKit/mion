@@ -167,12 +167,13 @@ function loadMionPackageTypes(): Map<string, string> {
 
   // Packages to load. `dir` is the directory under packages/, `name` is the
   // @mionjs/<name> npm package name (used to build the virtual node_modules path).
-  // They differ for `drizze` (dir) → `drizzle` (npm).
+  // They are identical for every package today; the pair is kept so a future
+  // directory that does not match its npm name still mounts correctly.
   const packageConfigs = [
     { dir: 'core', name: 'core', distPath: '.dist/esm' },
     { dir: 'router', name: 'router', distPath: '.dist/esm' },
     { dir: 'client', name: 'client', distPath: '.dist/esm' },
-    { dir: 'drizze', name: 'drizzle', distPath: '.dist/esm' },
+    { dir: 'drizzle', name: 'drizzle', distPath: '.dist/esm' },
     { dir: 'platform-aws', name: 'platform-aws', distPath: '.dist/esm' },
     { dir: 'platform-bun', name: 'platform-bun', distPath: '.dist/esm' },
     { dir: 'platform-cloudflare', name: 'platform-cloudflare', distPath: '.dist/esm' },

@@ -29,14 +29,14 @@
     "rtx": "node scripts/rt.mjs",
     "pretest": "pnpm run check:builds",
     "test": "vitest run",
-    "test:ci": "vitest run --config vitest.mion.config.ts --project core --project router && vitest run --config vitest.mion.config.ts --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --config vitest.mion.config.ts --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --config vitest.mion.config.ts --project client",
+    "test:ci": "vitest run --config vitest.mion.config.ts --project core --project router && vitest run --config vitest.mion.config.ts --project drizzle --project devtools --project platform-aws --project platform-gcloud && vitest run --config vitest.mion.config.ts --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --config vitest.mion.config.ts --project client",
     "test:bun": "bun --cwd packages/platform-bun test",
     "check:builds": "node scripts/rt.mjs core build",
     "check:env": "node scripts/rt.mjs env",
     "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
     "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
-    "format:mion": "prettier --write 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
-    "check-format:mion": "prettier --check 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
+    "format:mion": "prettier --write 'packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
+    "check-format:mion": "prettier --check 'packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
     "check-format-pre-commit": "prettier --check",
     "check-code-imports": "node scripts/check-code-imports.mjs",
     "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
@@ -74,11 +74,11 @@
     "**/*.ts": [
       "oxlint --no-error-on-unmatched-pattern"
     ],
-    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+    "packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
       "pnpm run lint-pre-committ --",
       "pnpm run check-format-pre-commit --"
     ],
-    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{spec,test}.ts": [
+    "packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{spec,test}.ts": [
       "pnpm run check-format-pre-commit --"
     ]
   },

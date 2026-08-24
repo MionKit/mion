@@ -27,7 +27,7 @@ function typecheckStubs(): {ok: boolean; output: string} {
     } catch (e: any) {
         // Filter out drizzle-orm internal errors — only report errors from our source files
         const lines: string[] = (e.stdout || e.message || '').split('\n');
-        const ownErrors = lines.filter((l: string) => l.includes('packages/drizze/src/'));
+        const ownErrors = lines.filter((l: string) => l.includes('packages/drizzle/src/'));
         if (ownErrors.length === 0) return {ok: true, output: ''};
         return {ok: false, output: ownErrors.join('\n')};
     }

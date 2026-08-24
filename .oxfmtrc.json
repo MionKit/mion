@@ -10,7 +10,7 @@
     "packages/router/**",
     "packages/client/**",
     "packages/devtools/**",
-    "packages/drizze/**",
+    "packages/drizzle/**",
     "packages/platform-aws/**",
     "packages/platform-bun/**",
     "packages/platform-cloudflare/**",
