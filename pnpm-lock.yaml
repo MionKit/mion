@@ -29,6 +29,9 @@ importers:
       '@serverless/event-mocks':
         specifier: 1.1.1
         version: 1.1.1
+      '@ts-runtypes/devtools':
+        specifier: workspace:*
+        version: link:packages/ts-runtypes-devtools
       '@types/aws-lambda':
         specifier: 8.10.161
         version: 8.10.161
