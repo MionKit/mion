@@ -229,10 +229,16 @@ jobs:
       - name: Install deps (commitlint only needs the JS workspace)
         run: pnpm install --frozen-lockfile
       - name: Lint PR commit messages (Conventional Commits)
-        run: >-
-          pnpm exec commitlint --verbose
-          --from ${{ github.event.pull_request.base.sha }}
-          --to ${{ github.event.pull_request.head.sha }}
+        # First-parent only. A plain base..head range walks EVERY commit the PR
+        # merges in — the history-join merge brought in thousands of historic
+        # ts-run-types commits that predate these rules and would all be
+        # re-linted (and fail). The PR's own work is exactly the first-parent
+        # chain from base to head; merge commits themselves are skipped by
+        # commitlint's default ignores.
+        run: |
+          for sha in $(git rev-list --first-parent ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}); do
+            git log -1 --format=%B "$sha" | pnpm exec commitlint --verbose
+          done
 
   # Decides WHICH heavy jobs run, by path: `smoke` (the website/benchmarks apps +
   # their drivers), `go` (the Go tree), and `pkg` (JS packages + root JS config +
