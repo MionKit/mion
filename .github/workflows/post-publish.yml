@@ -1,0 +1,161 @@
+name: prod · post-publish npm e2e
+
+# Verify the ALREADY-LIVE @ts-runtypes/* on npm by running the SAME consumer suite
+# the pre-publish release gate runs against a throwaway verdaccio — but installed
+# from the REAL registry. It's the mirror image of release-gate.yml's e2e/smoke
+# jobs: instead of building + packing + publishing tarballs to an in-container
+# verdaccio, this installs the published packages straight from registry.npmjs.org
+# (`rtx release e2e --backend npm`, scripts/release/e2e.mjs).
+#
+# What it proves that the pre-publish gate can't: that the bytes actually on npm
+# resolve + run — most importantly the per-OS platform-binary optional-dep chain
+# (@ts-runtypes/bin -> @ts-runtypes/binary-<os>-<arch>) from the real registry, on
+# each OS, plus the side-arch binaries under QEMU.
+#
+# MANUAL trigger by design. The release path stage-publishes to npm (publish.yml)
+# and a maintainer then promotes each package to LIVE with a 2FA challenge
+# (`pnpm rtx release stage-approve`). There is no CI signal for "stage approved ->
+# live", so this can't hang off publish.yml; run it AFTER the stage-ids are
+# approved. It still waits for the version to be resolvable, so an early run just
+# polls rather than failing.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Published version to verify (blank = version.json on the checked-out ref)'
+        required: false
+        default: ''
+      registry:
+        description: 'Registry to install from (blank = https://registry.npmjs.org)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# One post-publish run per version at a time; a second dispatch waits rather than
+# racing the first (never cancels it mid-run).
+concurrency:
+  group: post-publish-${{ github.event.inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  # Resolve the version + registry ONCE (input, else version.json) so every lane
+  # verifies the exact same coordinates — no per-job version.json drift.
+  resolve:
+    name: resolve version + registry
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      registry: ${{ steps.v.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: v
+        shell: bash
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_REGISTRY: ${{ inputs.registry }}
+        run: |
+          version="${IN_VERSION:-$(node -p "require('./version.json').version")}"
+          registry="${IN_REGISTRY:-https://registry.npmjs.org}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "registry=$registry" >> "$GITHUB_OUTPUT"
+          echo "Verifying @ts-runtypes/* @ $version from $registry"
+
+  e2e:
+    name: npm e2e ${{ matrix.pkg }}
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu runs the full multi-bundler feature matrix (in the e2e toolchain
+          # container, pointed at the real registry) PLUS the host-native smoke.
+          # mac/win can't run a Linux container (L2), so they run the host-native
+          # smoke only — the per-OS binary axis (the bundler matrix is OS-agnostic
+          # and does not repeat per-OS).
+          - {runner: ubuntu-latest, pkg: linux-x64, extra: ''}
+          - {runner: macos-14, pkg: darwin-arm64, extra: '--no-matrix'}
+          - {runner: windows-latest, pkg: win32-x64, extra: '--no-matrix'}
+    runs-on: ${{ matrix.runner }}
+    # packages:read lets the ubuntu lane pull the prebuilt e2e toolchain image.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      # Reclaim preinstalled cruft before the image pull (ubuntu matrix lane only).
+      - uses: ./.github/actions/free-disk
+        if: matrix.pkg == 'linux-x64'
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      # CI never builds the images; the ubuntu matrix lane pulls the prebuilt e2e
+      # image (baked builder toolchains). e2e.mjs's ensureImage then sees the digest
+      # already matches and skips a second pull.
+      - name: Pull the prebuilt e2e image (matrix lane only)
+        if: matrix.pkg == 'linux-x64'
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/tsrt-e2e:latest
+          local-tag: tsrt-e2e:dev
+          # tsrt-e2e is private + not granted to the repo, so GITHUB_TOKEN is denied
+          # it; authenticate the pull with the PAT (read:packages).
+          password: ${{ secrets.GHCR_PAT }}
+      # The ONE front door — the same script the pre-publish gate runs, just
+      # --backend npm. Waits for the version to be live, installs it from the real
+      # registry, runs the consumer suite.
+      - name: Post-publish e2e (install the LIVE @ts-runtypes/* from npm)
+        shell: bash
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          REGISTRY: ${{ needs.resolve.outputs.registry }}
+          EXTRA: ${{ matrix.extra }}
+        run: |
+          flags="--backend npm --version $VERSION --registry $REGISTRY $EXTRA"
+          echo "running: pnpm rtx release e2e $flags"
+          pnpm rtx release e2e $flags
+
+  exec-smoke:
+    name: exec-smoke linux/${{ matrix.pkg }}
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {platform: linux/arm64, pkg: linux-arm64}
+          - {platform: linux/arm/v6, pkg: linux-arm}
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - uses: docker/setup-qemu-action@v4
+      # Fetch the PUBLISHED per-arch binary package from npm (no tarballs exist
+      # post-publish) and exec it under QEMU — the post-publish analog of the
+      # release gate's tarball exec-smoke.
+      - name: Fetch the published ${{ matrix.pkg }} binary + exec it under QEMU
+        shell: bash
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+          REGISTRY: ${{ needs.resolve.outputs.registry }}
+          PKG: ${{ matrix.pkg }}
+        run: |
+          pkg="@ts-runtypes/binary-${PKG}@${VERSION}"
+          # Wait for the per-arch binary package to be resolvable (CDN propagation).
+          for i in $(seq 1 60); do
+            if npm view "$pkg" version --registry "$REGISTRY" >/dev/null 2>&1; then break; fi
+            echo "waiting for $pkg to be live ($i/60)"; sleep 5
+          done
+          mkdir -p dl && (cd dl && npm pack "$pkg" --registry "$REGISTRY")
+          # Extract just the binary (package/lib/ts-runtypes) from its tarball.
+          mkdir -p bin-rt
+          tar -xzf dl/ts-runtypes-binary-${PKG}-*.tgz -C bin-rt --strip-components=2 package/lib/ts-runtypes
+          # Static CGO-free binary runs on a minimal image; --version proves it
+          # executes on this arch and prints the embedded version + tsgo revision.
+          # alpine, not debian: the linux-arm package is GOARM=6 and alpine still
+          # publishes a real linux/arm/v6 variant — bookworm-slim's manifest now
+          # carries only arm/v7 + arm64/v8, so an arm/v6 pull no longer resolves.
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/bin-rt:/rt" alpine:3 /rt/ts-runtypes --version

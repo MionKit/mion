@@ -1,0 +1,25 @@
+# Keep the build context tiny and make the isolation boundary explicit: only the
+# toolchain manifests under _deps/, the verdaccio assets under registry/, and
+# .cacerts/ (named in the Containerfile) may enter the image. Everything else is
+# either e2e source/fixtures (bind-mounted at run time) or a build artifact.
+
+# e2e source + fixtures — bind-mounted at run time as /e2e-src, never baked.
+apps/
+test/
+host-smoke/
+build-all.mjs
+lint-all.mjs
+tsconfig.base.json
+package.json
+
+# Build artifacts / caches / installed deps — must never enter the image.
+node_modules/
+**/__runtypes/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.npmrc
+
+# Editor / VCS / misc
+.git/
+*.log
+*.tgz

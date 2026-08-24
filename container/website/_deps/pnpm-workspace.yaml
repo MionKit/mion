@@ -1,0 +1,56 @@
+# Standalone pnpm workspace for the website.
+# Keeps website install isolated from the monorepo root.
+packages: []
+
+# ── Build-script allowlist ───────────────────────────────
+# pnpm 11 blocks every dependency install/postinstall script by default.
+# Only packages set to `true` here may run them. Verified minimum required
+# for `nuxt dev` and `nuxt generate` to function — every other package with
+# install hooks (esbuild, sharp, @parcel/watcher, unrs-resolver, vue-demi)
+# was tested and is NOT needed: their binaries either ship pre-built via
+# optional platform-specific deps (esbuild), or the package falls back to
+# a JS implementation at runtime.
+# Add a new entry only after confirming a real failure without it.
+allowBuilds:
+  better-sqlite3: true     # native sqlite binary — @nuxt/content fails to load without it
+  '@parcel/watcher': false # falls back to polling at runtime
+  esbuild: false           # binary ships in @esbuild/<platform> optional dep
+  sharp: false             # only used at build-time by Nuxt image; JS fallback works
+  unrs-resolver: false     # JS fallback resolver works for our use
+  vue-demi: false          # postinstall just rewrites entrypoints; runtime works without it
+
+# ── Lockfile / install integrity ─────────────────────────
+frozenLockfile: true
+verifyStoreIntegrity: true
+
+# ── Version pinning ────────────────────────────────────
+# Empty savePrefix means exact pinning (replaces legacy save-exact=true).
+savePrefix: ''
+resolutionMode: highest
+
+# ── Supply-chain protection: minimum release age ─────────
+# 30 days — applied to FUTURE bumps (lockfile-frozen entries are not re-checked).
+# Initial lockfile (committed alongside this config) was generated with the
+# policy temporarily off because the Nuxt+Docus stack brings hundreds of
+# UnJS-ecosystem transitives that release weekly. Going forward, any new
+# resolution (pnpm add, pnpm update, fresh resolve) is age-gated.
+# Keep the exclude list empty; add per-package only if a future bump is blocked
+# by a transitive we trust (e.g. `pkg-types`, `ufo` — both UnJS-maintained).
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude: []
+
+# ── Lifecycle scripts ────────────────────────────────────
+# Allowlist-based: only packages set to `true` in `allowBuilds` run scripts.
+# (Equivalent to the root's `ignoreScripts: true` + allowlist combo.)
+
+# ── Block exotic transitive sources ───────────────────────
+# pnpm 11 defaults this to true; setting explicitly for clarity. Direct
+# dependencies may declare any source; all TRANSITIVE deps must resolve
+# from a trusted source. pnpm has no per-package allowlist for direct-dep
+# sources — PR review covers that surface.
+blockExoticSubdeps: true
+
+# ── Peer / hoisting ──────────────────────────────────────
+strictPeerDependencies: false
+autoInstallPeers: false
+nodeLinker: isolated

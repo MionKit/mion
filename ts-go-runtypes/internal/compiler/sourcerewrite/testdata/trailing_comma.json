@@ -1,0 +1,28 @@
+{
+  "file": "a.ts",
+  "code": "const v = createValidateFn<Foo>({\n  noLiterals: true,\n},);\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 56,
+      "id": "Foo5678",
+      "paramIndex": 1,
+      "argsCount": 1,
+      "fnId": "val",
+      "trailingComma": true
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_val_Foo5678} from 'rtmod:/val_Foo5678.js';\nconst v = createValidateFn<Foo>({\n  noLiterals: true,\n},__rt_val_Foo5678);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "const v = createValidateFn<Foo>({\n  noLiterals: true,\n},);\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,GAAG,CAAC,CAAC;AAChC,CAAC,CAAC,UAAU,CAAC,CAAC,IAAI;AAClB,CAAC,iBAAC,CAAC;"
+  }
+}

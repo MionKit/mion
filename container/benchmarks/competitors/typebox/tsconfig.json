@@ -1,0 +1,1 @@
+{"extends": "../../tsconfig.base.json", "include": ["cases.ts", "main.ts", "../../shared"]}

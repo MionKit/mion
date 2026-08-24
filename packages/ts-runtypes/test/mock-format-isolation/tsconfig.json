@@ -1,0 +1,9 @@
+{
+  // Minimal program for the isolated mock-format-registry project: just this
+  // directory's test file as root (its imports pull in the reachable src).
+  // Extends the package test config so customConditions / rootDir /
+  // incremental all match; the narrow include keeps this extra resolver
+  // instance's boot cheap instead of re-compiling the whole test tree.
+  "extends": "../../tsconfig.test.json",
+  "include": ["./*.test.ts"]
+}

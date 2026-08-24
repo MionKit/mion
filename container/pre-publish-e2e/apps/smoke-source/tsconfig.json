@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  // The point of this app: a source-first consumer. `customConditions: ["source"]`
+  // makes @ts-runtypes/core resolve to its published src/ (the tarball ships both
+  // src/ and dist/), so the RT plugin's whole-program scan walks the LIBRARY's own
+  // internal generics (registerPureFnFactory's non-literal CompTimeArgs<PureFnId>).
+  // Those are not consumer call sites — the resolver's first-party diagnostic
+  // scoping must drop them, else the build halts on CTA001/CTA003.
+  "compilerOptions": {
+    "customConditions": ["source"]
+  },
+  "include": ["src", "../shared/src"]
+}

@@ -1,0 +1,103 @@
+{
+  "name": "@ts-runtypes/core",
+  "version": "0.12.2",
+  "description": "Sentinel marker + canonical reflection helper for ts-runtypes. The vite plugin rewrites every call of a function whose trailing parameter type is InjectRunTypeId<T> exported from this package.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./formats": {
+      "source": "./src/formats/index.ts",
+      "import": {
+        "types": "./dist/formats/index.d.ts",
+        "default": "./dist/formats/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/formats/index.d.ts",
+        "default": "./dist/cjs/formats/index.js"
+      }
+    },
+    "./formats/temporal": {
+      "source": "./src/formats/datetime/temporalFormats.ts",
+      "import": {
+        "types": "./dist/formats/datetime/temporalFormats.d.ts",
+        "default": "./dist/formats/datetime/temporalFormats.js"
+      },
+      "require": {
+        "types": "./dist/cjs/formats/datetime/temporalFormats.d.ts",
+        "default": "./dist/cjs/formats/datetime/temporalFormats.js"
+      }
+    },
+    "./builders": {
+      "source": "./src/builders/index.ts",
+      "import": {
+        "types": "./dist/builders/index.d.ts",
+        "default": "./dist/builders/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/builders/index.d.ts",
+        "default": "./dist/cjs/builders/index.js"
+      }
+    },
+    "./schema": {
+      "source": "./src/builders/index.ts",
+      "import": {
+        "types": "./dist/builders/index.d.ts",
+        "default": "./dist/builders/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/builders/index.d.ts",
+        "default": "./dist/cjs/builders/index.js"
+      }
+    }
+  },
+  "bin": {
+    "ts-runtypes-skills": "./bin/skills.mjs"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.ts",
+    "!src/**/*.test.ts",
+    "bin",
+    "skills",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://runtypes.pages.dev",
+  "bugs": {
+    "url": "https://github.com/MionKit/ts-run-types/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/ts-run-types.git",
+    "directory": "packages/ts-runtypes"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json && tsc -p tsconfig.cjs.json && node ../../scripts/lib/emit-cjs-pkg.mjs dist/cjs && node ../../scripts/core/hollow-builtin-purefns.mjs",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "pretest": "pnpm --filter @ts-runtypes/devtools run build",
+    "test": "vitest run",
+    "dev:test": "vitest watch",
+    "clean": "node ../../scripts/lib/rmrf.mjs dist .coverage tsconfig.tsbuildinfo",
+    "fresh-start": "pnpm run clean && node ../../scripts/lib/rmrf.mjs node_modules"
+  },
+  "devDependencies": {
+    "@ts-runtypes/devtools": "workspace:*"
+  }
+}

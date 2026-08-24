@@ -1,0 +1,28 @@
+# Standalone pnpm workspace for the pre-publish e2e — isolated from the monorepo
+# root so the builder toolchains never leak into core dev. Mirrors the benchmark
+# _deps posture.
+packages: []
+
+# ── Supply-chain protection ──────────────────────────────
+# Block all dependency lifecycle scripts; only the packages below may run them.
+# esbuild ships its platform binary via a postinstall fetch.
+allowBuilds:
+  esbuild: true
+  sharp: false # next's optional image-optimization dep; smoke-next renders no images
+
+# Refuse to resolve package versions younger than 30 days (defeats
+# fast-spreading malicious releases). Applies on fresh resolve. The
+# @ts-runtypes/* packages UNDER TEST are exempt: each e2e run publishes them to
+# verdaccio moments before installing, so they are always younger than the cutoff.
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude:
+  - '@ts-runtypes/*'
+
+# Block exotic transitive sources; direct deps may declare any source.
+blockExoticSubdeps: true
+
+# Exact pinning on `pnpm add`; peers non-strict (the many bundlers cross-declare peers).
+savePrefix: ''
+strictPeerDependencies: false
+autoInstallPeers: true
+nodeLinker: hoisted

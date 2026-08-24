@@ -1,0 +1,5 @@
+# Regenerated on every audit run (node _audit/classify.mjs). The committed
+# deliverable is docs/cross-library-validation-alignment-report.md; these are
+# intermediate evidence, reproducible via `pnpm run audit:alignment`.
+findings/
+classification-summary.json

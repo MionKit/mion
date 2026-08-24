@@ -1,0 +1,37 @@
+{
+  "name": "@ts-runtypes/bin",
+  "version": "0.12.2",
+  "description": "Platform launcher for the ts-runtypes resolver binary. Resolves and execs the prebuilt native binary for the host platform; the binary itself rides as a per-platform optional dependency. Ships zero runtime dependencies.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "ts-runtypes-bin": "./bin/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "bin",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://runtypes.pages.dev",
+  "bugs": {
+    "url": "https://github.com/MionKit/ts-run-types/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/ts-run-types.git",
+    "directory": "packages/ts-runtypes-bin"
+  },
+  "comment:tsgo": "Pinned tsgolint / typescript-go revision the published binaries are built against. Pure metadata (not part of semver); refreshed at publish time by scripts/release/build-binaries.mjs.",
+  "tsgo": "5a37e89",
+  "comment:optionalDependencies": "Intentionally EMPTY in source — the dev tree resolves the locally built bin/ts-runtypes. The full per-platform set (@ts-runtypes/binary-<os>-<arch>, pinned exact-equal to this package's version) is injected into the PUBLISHED tarball only, by scripts/release/build-binaries.mjs.",
+  "optionalDependencies": {}
+}

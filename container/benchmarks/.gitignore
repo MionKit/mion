@@ -1,0 +1,11 @@
+# Dependencies & build output (live only inside the container / generated)
+node_modules
+dist
+.vite
+.ttsc
+
+# Per-competitor run artifacts
+results
+
+# Logs
+*.log

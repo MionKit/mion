@@ -1,0 +1,24 @@
+{
+  // Self-contained tsconfig for the playground engine core (plain browser TS,
+  // no Nuxt auto-imports). It exists so the transform toolchain (Vite's oxc, run
+  // from the ts-runtypes playground vitest project) and editors resolve these
+  // files WITHOUT walking up to container/website/tsconfig.json, which extends
+  // ./.nuxt/tsconfig.json and is unloadable until a Nuxt build has generated it.
+  // Bundler resolution + allowImportingTsExtensions match how both Vite (site
+  // build) and vitest consume the `.ts`-extension imports here. noEmit: this is
+  // never tsc-built; Vite/Nuxt bundles it.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}

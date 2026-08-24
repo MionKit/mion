@@ -35,12 +35,14 @@ jobs:
         # Must pass a scope. `check-format-pre-commit` is the lint-staged helper:
         # bare `prettier --check` with no file arguments prints "no parser and no
         # file path given" and then EXITS 0, so this step silently checked nothing.
-        # `check-format` mirrors the `format` script's scope, so CI now gates on
-        # exactly what `pnpm run format` would rewrite.
-        run: pnpm run check-format
+        # `check-format:mion` mirrors `format:mion`'s scope, so CI gates on
+        # exactly what that script would rewrite. (The unsuffixed check-format /
+        # lint are the runtypes-side scripts since the history join — ci.yml
+        # runs those. TODO(step 3): unify.)
+        run: pnpm run check-format:mion
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm run lint:mion
 
       - name: Code-import check
         # A dangling <code-import> path or comment marker does not fail the website build --
