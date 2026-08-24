@@ -19,7 +19,7 @@
     {"path": "../platform-bun"},
     {"path": "../platform-aws"},
     {"path": "../platform-gcloud"},
-    {"path": "../drizze"}
+    {"path": "../drizzle"}
   ],
   "include": ["src", "vite.config.ts"],
   "exclude": [

@@ -150,7 +150,7 @@ failure hidden behind it. `plans/` and `assets/` were left untouched.
 
 The `master` → `main` reference updates did NOT ship — they are blocked on the owner
 rename and are tracked in
-[default-branch-rename-references.md](default-branch-rename-references.md).
+[../done/default-branch-rename-references.md](../done/default-branch-rename-references.md).
 
 ### Step 2 — Freeze ts-run-types and land the join commit ✅ DONE
 
@@ -180,9 +180,16 @@ vite 8 edge-bundle hazard is recorded in
   pre-merge heads of both repos first (e.g. `pre-merge-mion`,
   `pre-merge-ts-run-types`) so the join is easy to find forever.
 
-### Step 3 — Workspace and toolchain unification
+### Step 3 — Workspace and toolchain unification ✅ DONE
 
-Spec: [unify-workspace-and-toolchain.md](unify-workspace-and-toolchain.md)
+Shipped 2026-08-24 — record in
+[../done/unify-workspace-and-toolchain.md](../done/unify-workspace-and-toolchain.md). Everything
+below landed, plus: the step-2 vite 8 hazard was root-caused (rolldown drops the `"use strict"`
+prologue rollup emitted for iife output, so the script-evaluated edge bundles ran sloppy) and
+fixed, so the whole repo is on vite 8; four undeclared `@ts-runtypes` dependencies that only
+resolved through hoisting were declared; `@mionjs/devtools` stopped inlining a second copy of the
+resolver into its published output; and a real client bug (`fetchOptions.headers` dropped unless
+it was a plain object) was found by the widened lint scope and fixed.
 
 - One root `package.json` (ts-run-types base): devDependency union, engines
   node ≥ 26, `rtx` scripts + mion's `test:ci` batching (OOM guard) preserved.

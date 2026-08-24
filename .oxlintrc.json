@@ -6,8 +6,14 @@
   "options": {
     "typeAware": true
   },
-  "plugins": ["typescript", "oxc", "unicorn"],
-  "jsPlugins": ["./packages/ts-runtypes-devtools/dist/eslint/index.js"],
+  "plugins": [
+    "typescript",
+    "oxc",
+    "unicorn"
+  ],
+  "jsPlugins": [
+    "./packages/ts-runtypes-devtools/dist/eslint/index.js"
+  ],
   "rules": {
     "runtypes/no-enrichment-todo": "error",
     "runtypes/no-orphan-carcass": "error",
@@ -17,7 +23,14 @@
     "typescript/no-empty-function": "off",
     "typescript/no-explicit-any": "off",
     "typescript/no-empty-object-type": "error",
-    "typescript/no-misused-spread": ["error", {"allow": ["string"]}]
+    "typescript/no-misused-spread": [
+      "error",
+      {
+        "allow": [
+          "string"
+        ]
+      }
+    ]
   },
   "ignorePatterns": [
     "node_modules/**",
@@ -39,19 +52,30 @@
     "**/vitest.config.ts",
     "**/vitest.workspace.ts",
     "eslint.config.js",
-    "packages/core/**",
-    "packages/router/**",
-    "packages/client/**",
-    "packages/devtools/**",
-    "packages/drizze/**",
-    "packages/platform-aws/**",
-    "packages/platform-bun/**",
-    "packages/platform-cloudflare/**",
-    "packages/platform-gcloud/**",
-    "packages/platform-node/**",
-    "packages/platform-vercel/**",
-    "packages/test-server/**",
     "website/**",
     "test-publish/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "**/*.routes.ts",
+        "**/*.spec.ts",
+        "**/*.test.ts"
+      ],
+      "rules": {
+        "no-unused-vars": [
+          "warn",
+          {
+            "args": "none"
+          }
+        ],
+        "typescript/no-unused-vars": [
+          "warn",
+          {
+            "args": "none"
+          }
+        ]
+      }
+    }
   ]
 }

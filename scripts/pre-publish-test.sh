@@ -84,14 +84,22 @@ cd ..
 
 # ── Step 6: List packages to publish ──
 print_step "Packages that will be published"
-pnpm exec lerna ls --no-private --json
+node -e "
+const {readdirSync, readFileSync} = require('node:fs');
+const {join} = require('node:path');
+const packagesDir = join('$ROOT_DIR', 'packages');
+const manifests = readdirSync(packagesDir, {withFileTypes: true})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => JSON.parse(readFileSync(join(packagesDir, entry.name, 'package.json'), 'utf8')))
+  .filter((manifest) => !manifest.private)
+  .map((manifest) => ({name: manifest.name, version: manifest.version}));
+console.log(JSON.stringify(manifests, null, 2));
+"
 
 echo ""
 echo -e "${GREEN}══════════════════════════════════════════${NC}"
 echo -e "${GREEN}  All pre-publish checks passed!${NC}"
 echo -e "${GREEN}══════════════════════════════════════════${NC}"
 echo ""
-echo "Ready to publish. Run:"
-echo "  pnpm run npm-publish"
-echo ""
-echo "This will check npm auth, bump versions, and publish."
+echo "Ready to publish. The release train lives in rtx:"
+echo "  pnpm rtx release --help"

@@ -12,9 +12,9 @@ await middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'})).prefill(
 // calls sayHello route in the server - call() returns [result, error] tuple
 const [greeting, error] = await routes.users.sayHello(john).call();
 if (error) {
-    console.log('Error:', error.publicMessage);
+  console.log('Error:', error.publicMessage);
 } else {
-    console.log(greeting); // Hello John Doe
+  console.log(greeting); // Hello John Doe
 }
 
 // validate parameters locally without calling the server

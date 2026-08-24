@@ -98,7 +98,7 @@ Two images owned by [scripts/container/image.mjs](scripts/container/image.mjs) (
 ## Environment variables
 
 - **Single source of truth:** the `REGISTRY` array in [scripts/lib/env.mjs](scripts/lib/env.mjs) lists EVERY env var the project consumes (scripts, containers, CI, tests). `pnpm run check:env` prints it. **Any new env var a script / container / CI step / test reads MUST be added there** — the registry is the contract.
-- **Prefix runtypes-owned vars with `RT_`** (`RT_WEBSITE_*`, `RT_BENCH_*`, `RT_FUZZ_*`, `RT_AUDIT_*`, …). External/standard names keep their conventional spelling because the tools that read them require it: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`.
+- **Prefix runtypes-owned vars with `RT_`** (`RT_WEBSITE_*`, `RT_BENCH_*`, `RT_FUZZ_*`, `RT_AUDIT_*`, …) and **mion-owned vars with `MION_`** (`MION_TEST_PORT`, `MION_SUPPRESS_DUAL_LOAD_WARN`, …). External/standard names keep their conventional spelling because the tools that read them require it: `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`, `GHCR_*`, `CI`, `NODE_ENV`, `PORT`. `GENERATE_ROUTER_SPEC` is the one unprefixed exception: it is a public `@mionjs/router` knob read at runtime, so renaming it would break consumers who already set it.
 - **Three scopes** (the registry's `SCOPE` column): `secret` (credential), `dev` (overridable knob with a default), `internal` (set by the scripts themselves — container paths / plumbing). Mark new vars accordingly.
 - **`.env.sample` mirrors the user-settable rows only** (`secret` + `dev`); add new ones there too. NEVER list an `internal` var in `.env.sample` — setting it breaks the run.
 - **One credential, one load path:** secrets live directly in `.env` (loaded by [scripts/lib/env.mjs](scripts/lib/env.mjs)'s `loadEnv()`); no file-path alternates or proxy/duplicate names.
@@ -177,32 +177,32 @@ User-facing docs under [container/website/content/](container/website/content/) 
 
 ---
 
-# ⚠️ TEMPORARY ADDENDUM — the mion packages (history join, merge plan step 2)
+# The mion packages
 
-This repo now also hosts the mion framework packages, merged in from the old
-`MionKit/mion` history (see [docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
-Everything above stays authoritative for the RunTypes side. This section covers the
-mion side ONLY until step 3 (toolchain unification) and step 7 (docs merge) replace it.
+This repo also hosts the mion framework packages, merged in from the old `MionKit/mion`
+history (see [docs/todos/merge-ts-runtypes-into-mion-master-plan.md](docs/todos/merge-ts-runtypes-into-mion-master-plan.md)).
+Everything above applies to them too: one workspace, one formatter, one linter, one test
+run, one script set. This section is the mion-specific detail on top, and step 7 of the
+merge plan folds it into the document proper.
 
 ## mion packages under `packages/`
 
 - `core` — shared framework foundation (`RpcError`/`TypedError`, router metadata, binary body framing, the mion↔ts-runtypes reflection adapter under `src/runtypes/`).
 - `router` — HTTP routing and request handling. `client` — client-side utilities.
 - `devtools` (`@mionjs/devtools`) — Vite plugin (wraps `@ts-runtypes/devtools`) + ESLint plugin.
-- `drizze` (`@mionjs/drizzle`) — drizzle-orm extension (dir name typo is renamed in step 3).
+- `drizzle` (`@mionjs/drizzle`) — drizzle-orm extension.
 - `platform-aws|bun|cloudflare|gcloud|node|vercel` — platform adapters. `test-server` — private e2e fixture server.
 - `examples` — MERGED package: mion examples + runtypes examples share `src/`; mion's program is `tsconfig.json`/`tsconfig.check.json`, the runtypes examples are type-checked by `tsconfig.runtypes.json` (root `typecheck` runs it).
-- The mion packages still consume `@ts-runtypes/*@0.12.2` from npm — the switch to `workspace:*` is step 3. `@ts-runtypes/*` stays in `minimumReleaseAgeExclude` until then.
+- Every `@mionjs/*` dependency on `@ts-runtypes/*` is `workspace:*`, so the mion side builds against the sibling sources and spawns the locally built `bin/ts-runtypes`. That means **the mion tests need the Go toolchain**, exactly like the runtypes ones: bootstrap before running them.
 
-## Temporary split workflows (removed by step 3)
+## mion specifics worth knowing
 
-- **Scripts:** colliding root script names keep the RunTypes meaning; mion's live under `:mion` suffixes — `lint:mion` (lerna eslint), `build:mion`, `clean:mion`, `fresh-start:mion`, `format:mion`/`check-format:mion` (prettier over the mion package dirs only). mion-only scripts (`test:ci`, `test:bun`, `check-code-imports`, `check-types-examples`, `pre-publish-test`, `npm-publish`) are unrenamed.
-- **Formatting/linting is scoped per side:** oxfmt/oxlint ignore the mion package dirs (see `.oxfmtrc.json` / `.oxlintrc.json` ignorePatterns); mion's prettier/eslint only cover the mion dirs. `packages/examples` .ts files are formatting-frozen this step. Markdown is prettier everywhere (identical config).
-- **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, use the mion batching: `pnpm run test:ci` (mion projects, batched) plus `pnpm exec vitest run --project <runtypes projects>`. `test:bun` runs platform-bun's bun:test suites.
-- **⚠️ mion devtools committed-build rule:** `@mionjs/devtools` exports its BUILT `./build/` output (committed to git; eslint needs compiled JS). After editing its source: `pnpm --filter @mionjs/devtools run build` — and its tests import source, so they alone need no rebuild.
+- **⚠️ `@mionjs/devtools` is consumed COMPILED:** the root eslint config loads its `./eslint` entry through node, which never sees the `source` condition. Its `build/` output is a gitignored build artifact that `pnpm run check:builds` rebuilds when stale; its own tests import source, so they need no rebuild.
+- **Tests:** full `pnpm test` runs all 15 vitest projects. If one run OOMs, `pnpm run test:ci` batches them (resolver processes are ~200 MB each). `test:bun` runs platform-bun's bun:test suites, which vitest cannot host.
+- **Lint split:** oxlint covers every package and owns the `runtypes/*` rules; eslint carries only mion's own plugin rules (`strong-typed-routes` and friends) and stops at the mion package dirs. `pnpm run lint` runs both plus typecheck.
 - **`import type` is safe** in routes/middleFns — `@ts-runtypes` resolves types at build time from the program, not from imports (guarded by `packages/router/src/typeOnlyImports.spec.ts`).
-- **mion CI:** `.github/workflows/pull-requests.yml` runs the mion suite (`check-format:mion`, `lint:mion`, `check-code-imports`, `check-types-examples`, `test:ci`, `test:bun`); `ci.yml` runs the RunTypes suite. Step 6 unifies them.
-- **mion docs website** still lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`. `test-publish/` (own tarball-based e2e) survives until step 5.
+- **⚠️ test-server's edge/cloudflare bundles must stay strict.** They are evaluated as a SCRIPT (EdgeVM / miniflare `initialCode`), where sloppy mode is the default and a failed property assignment silently does nothing instead of throwing — which quietly breaks node-vs-edge error parity. Rolldown does not emit the `"use strict"` prologue rollup did, so both vite configs add it via `output.intro` and `buildTestBundle.ts` asserts it on every build.
+- **Still to be merged:** the mion docs website lives in `./website` (own lockfile, NOT in the workspace; deployed by `nuxtjs.yml` to GitHub Pages) until step 4 folds it into `container/website/`, and `test-publish/` keeps its own tarball-based e2e until step 5.
 
 ## `plans/` is an ideas folder
 

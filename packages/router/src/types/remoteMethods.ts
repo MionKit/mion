@@ -6,49 +6,46 @@ import {HandlerType} from '@mionjs/core'; // do not import type only
 
 /** Contains the handlers for middleFns and routes */
 export interface RemoteMethod<H extends AnyHandler = AnyHandler> extends MethodWithJitFns {
-    /** router options */
-    options: RemoteMethodOpts;
-    handler: H;
-    methodCaller?: (...args: any[]) => any;
+  /** router options */
+  options: RemoteMethodOpts;
+  handler: H;
+  methodCaller?: (...args: any[]) => any;
 }
 
 export interface RouteMethod<H extends Handler = any> extends RemoteMethod<H> {
-    type: typeof HandlerType.route;
-    options: RouteOnlyOptions;
+  type: typeof HandlerType.route;
+  options: RouteOnlyOptions;
 }
 export interface MiddleFnMethod<H extends Handler = any> extends RemoteMethod<H> {
-    type: typeof HandlerType.middleFn;
+  type: typeof HandlerType.middleFn;
 }
 export interface HeadersMethod<H extends HeaderHandler = any> extends RemoteMethod<H> {
-    type: typeof HandlerType.headersMiddleFn;
-    headersParam: HeadersMethodWithJitFns;
+  type: typeof HandlerType.headersMiddleFn;
+  headersParam: HeadersMethodWithJitFns;
 }
 export interface RawMethod<H extends RawMiddleFnHandler = any> extends RemoteMethod<H> {
-    type: typeof HandlerType.rawMiddleFn;
-    options: RemoteMethodOpts & {
-        validateParams: false;
-        validateReturn?: false;
-    };
+  type: typeof HandlerType.rawMiddleFn;
+  options: RemoteMethodOpts & {
+    validateParams: false;
+    validateReturn?: false;
+  };
 }
 
 export type RouteOptions = Partial<
-    Pick<
-        RouteMethod['options'],
-        'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'isMutation' | 'strictTypes'
-    >
+  Pick<RouteMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'serializer' | 'isMutation' | 'strictTypes'>
 >;
 export type MiddleFnOptions = Partial<
-    Pick<MiddleFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
+  Pick<MiddleFnMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
 >;
 export type HeadersMiddleFnOptions = Partial<
-    Pick<HeadersMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
+  Pick<HeadersMethod['options'], 'description' | 'validateParams' | 'validateReturn' | 'runOnError' | 'strictTypes'>
 >;
 // RawMiddleFnOptions doesn't need encoding - raw middleFns handle their own serialization
 export type RawMiddleFnOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError'>>;
 
 export interface MethodsExecutionChain {
-    routeIndex: number;
-    methods: RemoteMethod[];
-    /** Precalculated serializer code for the route's response body type */
-    serializer: SerializerCode;
+  routeIndex: number;
+  methods: RemoteMethod[];
+  /** Precalculated serializer code for the route's response body type */
+  serializer: SerializerCode;
 }

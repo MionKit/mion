@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /* ###############
  * 2022 mion
  * Author: Ma-jerez
@@ -12,14 +11,14 @@ import {SerializablePureFunction} from './pureFunctions.types.ts';
 // ########################################## Serialization Modes ##########################################
 
 export const SerializerModes = {
-    /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
-    json: 1,
-    /** Use toBinary JIT function for binary serialization */
-    binary: 2,
-    /** Use stringifyJson JIT function that do not mutates objects. */
-    stringifyJson: 3,
-    /** Client-only: sends plain JSON without JIT, fetches metadata in the same response */
-    optimistic: 4,
+  /** Use prepareForJson (mutates original objects), and leaves JSON.stringify to the platform adapter */
+  json: 1,
+  /** Use toBinary JIT function for binary serialization */
+  binary: 2,
+  /** Use stringifyJson JIT function that do not mutates objects. */
+  stringifyJson: 3,
+  /** Client-only: sends plain JSON without JIT, fetches metadata in the same response */
+  optimistic: 4,
 } as const;
 
 /**
@@ -34,72 +33,72 @@ export type SerializerCode = (typeof SerializerModes)[SerializerMode];
 // ########################################## Options ##########################################
 
 export type CoreRouterOptions = {
-    /** automatically generate and uuid */
-    autoGenerateErrorId: boolean;
-    /** basePath for all routes */
-    basePath: string;
-    /** suffix for all routes, ie file extension etc */
-    suffix: string;
+  /** automatically generate and uuid */
+  autoGenerateErrorId: boolean;
+  /** basePath for all routes */
+  basePath: string;
+  /** suffix for all routes, ie file extension etc */
+  suffix: string;
 };
 
 // ##########################################  Errors ##########################################
 
 /** Base parameters for TypedError */
 export interface TypedErrorParams<ErrType extends StrNumber> {
-    /** Error type, can be used as discriminator in union types switch, etc*/
-    type: ErrType;
-    /** the error message */
-    message?: string;
-    /** original error used to create the TypedError */
-    originalError?: Error;
+  /** Error type, can be used as discriminator in union types switch, etc*/
+  type: ErrType;
+  /** the error message */
+  message?: string;
+  /** original error used to create the TypedError */
+  originalError?: Error;
 }
 
 /** Any error triggered by middleFns or routes must follow this interface, returned errors in the body also follows this interface */
 export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
-    /** Error type, can be used as discriminator in union types switch, etc*/
-    type: ErrType;
-    /** id of the error. */
-    id?: number | string;
-    /** the message that will be returned in the response */
-    publicMessage?: string;
-    /**
-     * the error message, it is private and wont be returned in the response.
-     * If not defined, it is assigned from originalError.message or publicMessage.
-     */
-    message?: string;
-    /** options data related to the error, ie validation data */
-    errorData?: ErrData;
-    /** original error used to create the RpcError */
-    originalError?: Error;
-    /** optional http status code */
-    statusCode?: number;
+  /** Error type, can be used as discriminator in union types switch, etc*/
+  type: ErrType;
+  /** id of the error. */
+  id?: number | string;
+  /** the message that will be returned in the response */
+  publicMessage?: string;
+  /**
+   * the error message, it is private and wont be returned in the response.
+   * If not defined, it is assigned from originalError.message or publicMessage.
+   */
+  message?: string;
+  /** options data related to the error, ie validation data */
+  errorData?: ErrData;
+  /** original error used to create the RpcError */
+  originalError?: Error;
+  /** optional http status code */
+  statusCode?: number;
 }
 
 export interface RpcErrorWithPublic<ErrType extends StrNumber, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
-    publicMessage: string;
+  publicMessage: string;
 }
 
 export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
-    message: string;
+  message: string;
 }
 
 /** Error data returned to the clients  */
 export interface PublicRpcError<ErrType extends StrNumber, ErrData = any> extends Omit<
-    RpcErrorParams<ErrType, ErrData>,
-    'message' | 'originalError'
+  RpcErrorParams<ErrType, ErrData>,
+  'message' | 'originalError'
 > {
-    readonly 'mion@isΣrrθr': true;
-    type: ErrType;
-    errorData?: ErrData;
-    /**
-     * When a RpcError gets sent to client only publicMessage is set.
-     * */
-    publicMessage: string;
+  readonly 'mion@isΣrrθr': true;
+  type: ErrType;
+  errorData?: ErrData;
+  /**
+   * When a RpcError gets sent to client only publicMessage is set.
+   * */
+  publicMessage: string;
 }
 
 export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
-    | RpcErrorWithPublic<ErrType, ErrData>
-    | RpcErrorWithPrivate<ErrType, ErrData>;
+  | RpcErrorWithPublic<ErrType, ErrData>
+  | RpcErrorWithPrivate<ErrType, ErrData>;
 
 /** A validation error from `createGetValidationErrorsFn`, mion's public error-data shape (rides
  *  `ValidationErrorData.typeErrors` and the client error unions). Aliases @ts-runtypes/core's
@@ -128,28 +127,28 @@ export type {CompiledFnData, CompiledTypeFn, CompiledFnArgs, InitializedTypeFn};
 export type MionTypeFn<Fn extends AnyFn = AnyFn> = InitializedTypeFn<Fn> & Required<Pick<CompiledFnData, 'code'>>;
 
 export interface JitCompiledFunctions {
-    isType: MionTypeFn<IsTypeFn>;
-    typeErrors: MionTypeFn<TypeErrorsFn>;
-    prepareForJson: MionTypeFn<PrepareForJsonFn>;
-    restoreFromJson: MionTypeFn<RestoreFromJsonFn>;
-    stringifyJson: MionTypeFn<JsonStringifyFn>;
-    /** strictTypes support: true when the value carries properties not present in the type */
-    hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
-    /** strictTypes support: RunTypeError entries for every unknown property found */
-    unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
-    toBinary?: MionTypeFn<ToBinaryFn>;
-    fromBinary?: MionTypeFn<FromBinaryFn>;
+  isType: MionTypeFn<IsTypeFn>;
+  typeErrors: MionTypeFn<TypeErrorsFn>;
+  prepareForJson: MionTypeFn<PrepareForJsonFn>;
+  restoreFromJson: MionTypeFn<RestoreFromJsonFn>;
+  stringifyJson: MionTypeFn<JsonStringifyFn>;
+  /** strictTypes support: true when the value carries properties not present in the type */
+  hasUnknownKeys?: MionTypeFn<HasUnknownKeysFn>;
+  /** strictTypes support: RunTypeError entries for every unknown property found */
+  unknownKeyErrors?: MionTypeFn<TypeErrorsFn>;
+  toBinary?: MionTypeFn<ToBinaryFn>;
+  fromBinary?: MionTypeFn<FromBinaryFn>;
 }
 export interface JitFunctionsHashes {
-    isType: string;
-    typeErrors: string;
-    prepareForJson: string;
-    restoreFromJson: string;
-    stringifyJson: string;
-    hasUnknownKeys?: string;
-    unknownKeyErrors?: string;
-    toBinary?: string;
-    fromBinary?: string;
+  isType: string;
+  typeErrors: string;
+  prepareForJson: string;
+  restoreFromJson: string;
+  stringifyJson: string;
+  hasUnknownKeys?: string;
+  unknownKeyErrors?: string;
+  toBinary?: string;
+  fromBinary?: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type RestoreFromJsonFn = (value: JSONValue) => any;
@@ -179,11 +178,11 @@ export type AnyFn = (...args: any[]) => any;
 export type AnyObject = Record<string, unknown>;
 
 export type Mutable<T> = {
-    -readonly [P in keyof T]: T[P];
+  -readonly [P in keyof T]: T[P];
 };
 
 export type Prettify<T> = {
-    [P in keyof T]: T[P];
+  [P in keyof T]: T[P];
 } & {};
 
 // StrNumber is already defined at the top of the file

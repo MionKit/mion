@@ -39,11 +39,6 @@ minimumReleaseAge: 43200
 # Keep empty by default; add per-package entries only if a future bump is
 # blocked by a transitive we trust.
 #
-# `@ts-runtypes/*` — the mion packages still consume the registry-published
-# 0.12.2 in this commit (the switch to workspace:* is step 3 of the merge
-# plan); fresh runtypes releases must stay installable meanwhile.
-# TODO(step 3): remove once the mion packages use workspace:*.
-#
 # `@rollup/rollup-*` — platform-specific native binaries for the rollup
 # version vite pulls in. These ship lockstep as a single release, so a
 # fresh rollup point release temporarily blocks any lockfile refresh
@@ -74,7 +69,6 @@ minimumReleaseAge: 43200
 # contained relaxation. Re-verify on future bumps.
 minimumReleaseAgeExclude:
   - 'unplugin'
-  - '@ts-runtypes/*'
   - '@types/node'
   - '@rolldown/binding-darwin-x64'
   - '@rolldown/binding-darwin-arm64'

@@ -9,5 +9,5 @@ const [result, error, fatal] = await routes.users.sayHello({id: '1', name: 'John
 // transport failures are never part of the route's typed error union: they land in the
 // fatal slot, which is an open RpcError<string>
 if (fatal?.type === 'request-timeout') {
-    console.log('Request took too long');
+  console.log('Request took too long');
 }

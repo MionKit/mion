@@ -16,18 +16,16 @@ import {mionVitePlugin} from './mionVitePlugin.ts';
 // (packages/core/src/types/general.types.ts) type `code` as required.
 
 describe('mionVitePlugin emitMode', () => {
-    it("rejects emitMode 'functions' at config time", () => {
-        expect(() => mionVitePlugin({runTypes: {emitMode: 'functions' as never}})).toThrow(
-            /emitMode: 'functions' is not supported/
-        );
-    });
+  it("rejects emitMode 'functions' at config time", () => {
+    expect(() => mionVitePlugin({runTypes: {emitMode: 'functions' as never}})).toThrow(/emitMode: 'functions' is not supported/);
+  });
 
-    it("accepts 'code' and 'both'", () => {
-        expect(() => mionVitePlugin({runTypes: {emitMode: 'code'}})).not.toThrow();
-        expect(() => mionVitePlugin({runTypes: {emitMode: 'both'}})).not.toThrow();
-    });
+  it("accepts 'code' and 'both'", () => {
+    expect(() => mionVitePlugin({runTypes: {emitMode: 'code'}})).not.toThrow();
+    expect(() => mionVitePlugin({runTypes: {emitMode: 'both'}})).not.toThrow();
+  });
 
-    it('accepts an omitted emitMode (defaults to code)', () => {
-        expect(() => mionVitePlugin({})).not.toThrow();
-    });
+  it('accepts an omitted emitMode (defaults to code)', () => {
+    expect(() => mionVitePlugin({})).not.toThrow();
+  });
 });

@@ -17,14 +17,14 @@ export const TEST_SERVER_BASE_URL = `http://localhost:${TEST_SERVER_PORT}`;
  * used (whose serverReady promise would then never resolve here).
  */
 export async function setup(): Promise<void> {
-    const deadline = Date.now() + 60000;
-    while (Date.now() < deadline) {
-        try {
-            await fetch(`http://127.0.0.1:${TEST_SERVER_PORT}/`, {method: 'GET'});
-            return; // any response means the server is listening
-        } catch {
-            await new Promise((resolve) => setTimeout(resolve, 250));
-        }
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    try {
+      await fetch(`http://127.0.0.1:${TEST_SERVER_PORT}/`, {method: 'GET'});
+      return; // any response means the server is listening
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    throw new Error(`mion test server did not accept connections on port ${TEST_SERVER_PORT} within 60s`);
+  }
+  throw new Error(`mion test server did not accept connections on port ${TEST_SERVER_PORT} within 60s`);
 }

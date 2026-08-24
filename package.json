@@ -29,36 +29,28 @@
     "rtx": "node scripts/rt.mjs",
     "pretest": "pnpm run check:builds",
     "test": "vitest run",
-    "test:ci": "vitest run --config vitest.mion.config.ts --project core --project router && vitest run --config vitest.mion.config.ts --project drizze --project devtools --project platform-aws --project platform-gcloud && vitest run --config vitest.mion.config.ts --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --config vitest.mion.config.ts --project client",
+    "test:ci": "vitest run --project core --project router && vitest run --project drizzle --project devtools --project platform-aws --project platform-gcloud && vitest run --project platform-node --project platform-vercel --project platform-cloudflare && vitest run --project client",
     "test:bun": "bun --cwd packages/platform-bun test",
     "check:builds": "node scripts/rt.mjs core build",
     "check:env": "node scripts/rt.mjs env",
     "format": "oxfmt --write 'packages/**/*.ts' && prettier --write 'packages/**/*.md' && gofmt -w ts-go-runtypes/cmd ts-go-runtypes/internal",
     "check-format": "oxfmt --check 'packages/**/*.ts' && prettier --check 'packages/**/*.md' && gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal && test -z \"$(gofmt -l ts-go-runtypes/cmd ts-go-runtypes/internal)\"",
-    "format:mion": "prettier --write 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
-    "check-format:mion": "prettier --check 'packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{ts,md}'",
-    "check-format-pre-commit": "prettier --check",
     "check-code-imports": "node scripts/check-code-imports.mjs",
     "check-types-examples": "pnpm --filter @mionjs/examples run check-types",
-    "lint": "pnpm run lint:runtypes && pnpm run typecheck",
-    "prelint:runtypes": "pnpm run check:builds",
-    "lint:runtypes": "oxlint",
-    "lint:mion": "lerna run lint",
+    "prelint": "pnpm run check:builds",
+    "lint": "pnpm run lint:oxlint && pnpm run lint:eslint && pnpm run typecheck",
+    "lint:oxlint": "oxlint",
+    "lint:eslint": "eslint 'packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.ts'",
     "lint:spec": "eslint --fix packages/**/*.spec.ts",
     "lint-pre-committ": "eslint --quiet",
     "typecheck:test": "pnpm -r run typecheck:test",
     "typecheck": "pnpm run typecheck:test && tsc -p ts-go-runtypes/internal/testfixtures/tsconfig.json --noEmit && tsc -p ts-go-runtypes/internal/testfixtures/atomic/tsconfig.json --noEmit && tsc -p packages/examples/tsconfig.runtypes.json",
     "build": "pnpm -r run build",
-    "build:mion": "lerna run build",
     "clean": "node scripts/core/clean.mjs",
-    "clean:mion": "nx reset && lerna run clean",
     "fresh-start": "pnpm run clean && pnpm install --frozen-lockfile",
-    "fresh-start:mion": "lerna run fresh-start && rimraf node_modules && pnpm install --frozen-lockfile && pnpm --filter @mionjs/devtools run build",
     "pre-publish-test": "bash scripts/pre-publish-test.sh",
-    "npm-publish": "bash scripts/publish.sh",
-    "npm-unpublish": "bash scripts/unpublish.sh",
     "copy-benchmarks": "cp -r ../mion-benchmarks/assets/public/* ./website/app/components/content/charts/ && node scripts/copy-benchmarks.js",
-    "pages-build": "pnpm run build:mion && cd website && pnpm install --frozen-lockfile && pnpm run generate",
+    "pages-build": "pnpm run build && cd website && pnpm install --frozen-lockfile && pnpm run generate",
     "prepare": "husky",
     "commit": "cz",
     "changelog": "git-cliff -o CHANGELOG.md",
@@ -66,20 +58,16 @@
   },
   "lint-staged": {
     "packages/**/!(*.spec|*.test|vitest.config|vite.config).ts": [
-      "oxfmt --check"
+      "oxfmt --check --no-error-on-unmatched-pattern"
     ],
     "packages/**/*.{spec,test}.ts": [
-      "oxfmt --check"
+      "oxfmt --check --no-error-on-unmatched-pattern"
     ],
     "**/*.ts": [
       "oxlint --no-error-on-unmatched-pattern"
     ],
-    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
-      "pnpm run lint-pre-committ --",
-      "pnpm run check-format-pre-commit --"
-    ],
-    "packages/{core,router,client,devtools,drizze,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/*.{spec,test}.ts": [
-      "pnpm run check-format-pre-commit --"
+    "packages/{core,router,client,devtools,drizzle,platform-aws,platform-bun,platform-cloudflare,platform-gcloud,platform-node,platform-vercel,test-server}/**/!(*.spec|*.test|vite.config|vite.*.config|vitest.config).ts": [
+      "pnpm run lint-pre-committ --"
     ]
   },
   "devDependencies": {
@@ -89,17 +77,20 @@
     "@eslint/js": "9.39.4",
     "@mionjs/devtools": "workspace:*",
     "@playwright/cli": "0.1.13",
+    "@serverless/event-mocks": "1.1.1",
+    "@ts-runtypes/devtools": "workspace:*",
     "@types/aws-lambda": "8.10.161",
+    "@types/express": "4.17.25",
     "@types/node": "26.1.0",
+    "@typescript-eslint/rule-tester": "8.58.1",
     "@vitejs/plugin-vue": "6.0.8",
+    "bun-types": "1.3.12",
     "commitizen": "4.3.1",
     "cz-conventional-changelog": "3.3.0",
     "eslint": "9.39.4",
     "husky": "9.1.7",
-    "lerna": "9.0.7",
     "lint-staged": "16.4.0",
     "miniflare": "3.20250718.3",
-    "nx": "22.4.4",
     "oxfmt": "0.53.0",
     "oxlint": "1.75.0",
     "oxlint-tsgolint": "7.0.2001",

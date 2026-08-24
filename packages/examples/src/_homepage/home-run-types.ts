@@ -1,9 +1,9 @@
 import {createValidateFn, createJsonEncoderFn, createBinaryEncoderFn, createMockDataFn} from '@ts-runtypes/core';
 interface User {
-    id: string;
-    name: string;
-    createdAt: Date;
-    tags: Set<string>;
+  id: string;
+  name: string;
+  createdAt: Date;
+  tags: Set<string>;
 }
 // @annotate: Create precompiled functions directly from TypeScript types
 

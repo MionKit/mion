@@ -1,8 +1,8 @@
 import {createBinaryEncoderFn, createBinaryDecoderFn} from '@ts-runtypes/core';
 
 interface User {
-    name: string;
-    age: number;
+  name: string;
+  age: number;
 }
 
 // start-to-binary

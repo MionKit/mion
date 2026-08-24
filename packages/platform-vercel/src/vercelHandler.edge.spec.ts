@@ -16,22 +16,22 @@ const EDGE_BUNDLE_PATH = resolve(__dirname, '../../test-server/build/test-server
 
 /** Serialized response from inside the EdgeVM (avoids cross-context issues) */
 interface EdgeResponse {
-    status: number;
-    body: string;
-    headers: Record<string, string>;
+  status: number;
+  body: string;
+  headers: Record<string, string>;
 }
 
 /** Creates an EdgeVM with the test server bundle loaded */
 function createEdgeVM(): EdgeVM {
-    const bundleCode = readFileSync(EDGE_BUNDLE_PATH, 'utf-8');
-    return new EdgeVM({
-        initialCode: bundleCode,
-        // Vercel edge functions have access to process.env
-        extend: (context) => {
-            context.process = {env: {}};
-            return context;
-        },
-    });
+  const bundleCode = readFileSync(EDGE_BUNDLE_PATH, 'utf-8');
+  return new EdgeVM({
+    initialCode: bundleCode,
+    // Vercel edge functions have access to process.env
+    extend: (context) => {
+      context.process = {env: {}};
+      return context;
+    },
+  });
 }
 
 /**
@@ -40,7 +40,7 @@ function createEdgeVM(): EdgeVM {
  * runs inside the edge runtime sandbox.
  */
 async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POST'): Promise<EdgeResponse> {
-    return vm.evaluate(`
+  return vm.evaluate(`
         (async () => {
             const req = new Request('http://localhost${path}', {
                 method: '${method}',
@@ -58,98 +58,98 @@ async function callHandler(vm: EdgeVM, path: string, body: string, method = 'POS
 }
 
 describe('vercel handler (edge runtime)', () => {
-    let vm: EdgeVM;
+  let vm: EdgeVM;
 
-    describe('with serializer=stringifyJson (default)', () => {
-        beforeAll(async () => {
-            vm = createEdgeVM();
-            await vm.evaluate('EdgeTestServer.setup()');
-        });
+  describe('with serializer=stringifyJson (default)', () => {
+    beforeAll(async () => {
+      vm = createEdgeVM();
+      await vm.evaluate('EdgeTestServer.setup()');
+    });
 
-        it('should get an ok response from a route', async () => {
-            const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-            const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
+    it('should get an ok response from a route', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
 
-            expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-            expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionjs');
-        });
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('@mionjs');
+    });
 
-        it('should get an error when sending invalid parameters', async () => {
-            const requestData = {getDate: ['NOT A DATE POINT']};
-            const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
+    it('should get an error when sending invalid parameters', async () => {
+      const requestData = {getDate: ['NOT A DATE POINT']};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
 
-            const expectedError: PublicRpcError<'serialization-error'> = {
-                'mion@isΣrrθr': true,
-                publicMessage: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
-                type: 'serialization-error',
-                errorData: {deserializeError: expect.any(String)},
-                statusCode: StatusCodes.UNEXPECTED_ERROR,
-            };
-            expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
-            expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionjs');
-        });
+      const expectedError: PublicRpcError<'serialization-error'> = {
+        'mion@isΣrrθr': true,
+        publicMessage: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
+        type: 'serialization-error',
+        errorData: {deserializeError: expect.any(String)},
+        statusCode: StatusCodes.UNEXPECTED_ERROR,
+      };
+      expect(parsedResponse[MION_ROUTES.thrownErrors]).toEqual({getDate: expectedError});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('@mionjs');
+    });
 
-        it('should set response headers from route response', async () => {
-            const requestData = {};
-            const result = await callHandler(vm, '/api/updateHeaders', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
+    it('should set response headers from route response', async () => {
+      const requestData = {};
+      const result = await callHandler(vm, '/api/updateHeaders', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
 
-            expect(parsedResponse).toEqual({});
-            expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('my-server');
-            expect(result.headers['x-something']).toEqual('true');
-        });
+      expect(parsedResponse).toEqual({});
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('my-server');
+      expect(result.headers['x-something']).toEqual('true');
+    });
 
-        it('should include default headers', async () => {
-            // Re-setup with custom default headers
-            vm = createEdgeVM();
-            await vm.evaluate(`EdgeTestServer.setup({
+    it('should include default headers', async () => {
+      // Re-setup with custom default headers
+      vm = createEdgeVM();
+      await vm.evaluate(`EdgeTestServer.setup({
                 defaultResponseHeaders: {
                     'x-app-name': 'MyApp',
                     'x-instance-id': '3089',
                 }
             })`);
 
-            const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-            const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
 
-            expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-            expect(result.headers['x-app-name']).toEqual('MyApp');
-            expect(result.headers['x-instance-id']).toEqual('3089');
-            expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(result.headers['server']).toEqual('@mionjs');
-        });
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['x-app-name']).toEqual('MyApp');
+      expect(result.headers['x-instance-id']).toEqual('3089');
+      expect(result.headers['content-type']).toEqual('application/json; charset=utf-8');
+      expect(result.headers['server']).toEqual('@mionjs');
+    });
+  });
+
+  describe('with serializer=json', () => {
+    beforeAll(async () => {
+      vm = createEdgeVM();
+      await vm.evaluate(`EdgeTestServer.setup({ serializer: 'json' })`);
     });
 
-    describe('with serializer=json', () => {
-        beforeAll(async () => {
-            vm = createEdgeVM();
-            await vm.evaluate(`EdgeTestServer.setup({ serializer: 'json' })`);
-        });
+    it('should get an ok response from a route with Date objects', async () => {
+      const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+      const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
 
-        it('should get an ok response from a route with Date objects', async () => {
-            const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
-            const result = await callHandler(vm, '/api/getDate', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
-
-            expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
-            expect(result.headers['content-type']).toContain('application/json');
-            expect(result.headers['server']).toEqual('@mionjs');
-        });
-
-        it('should get an ok response from a route with complex objects', async () => {
-            const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
-            const result = await callHandler(vm, '/api/changeUserName', JSON.stringify(requestData));
-            const parsedResponse = JSON.parse(result.body);
-
-            expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
-            expect(result.headers['content-type']).toContain('application/json');
-            expect(result.headers['server']).toEqual('@mionjs');
-        });
+      expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+      expect(result.headers['content-type']).toContain('application/json');
+      expect(result.headers['server']).toEqual('@mionjs');
     });
+
+    it('should get an ok response from a route with complex objects', async () => {
+      const requestData = {changeUserName: [{name: 'John', surname: 'Doe'}]};
+      const result = await callHandler(vm, '/api/changeUserName', JSON.stringify(requestData));
+      const parsedResponse = JSON.parse(result.body);
+
+      expect(parsedResponse).toEqual({changeUserName: {name: 'NewName', surname: 'Doe'}});
+      expect(result.headers['content-type']).toContain('application/json');
+      expect(result.headers['server']).toEqual('@mionjs');
+    });
+  });
 });

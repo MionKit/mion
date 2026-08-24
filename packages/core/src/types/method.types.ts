@@ -14,89 +14,89 @@ import {FnsDataCache, PureFnsDataCache, JitCompiledFunctions, SerializerMode} fr
  * Serializable version of MethodMetadata in @/router/types/remoteMethods
  */
 export interface MethodMetadata {
-    /** Method type identifier */
-    type: number;
-    /** Unique identifier for the method (usually the full route path) */
-    id: string;
-    /** whether method is async or might return a promise.
-     * If return type is not know method is considered async  */
-    isAsync: boolean;
-    /** true if method returns data (not void or undefined) */
-    hasReturnData: boolean;
-    /** Number of public method parameters (arity), derived from the params tuple runtype */
-    paramsCount?: number;
-    /** Parameter names from the params tuple's member labels (undefined per unlabelled member).
-     *  Sourced from reflection, never from parsing handler.toString(), so they survive minification.
-     *  Rides the client methods-metadata payload so a client can name the parameter that failed. */
-    paramNames?: (string | undefined)[];
-    /** JIT hash of the method parameters */
-    paramsJitHash: string;
-    /**  JIT  hash of the method return value */
-    returnJitHash: string;
-    /** Information about headers used by the method, used by HeadersFn */
-    headersParam?: HeadersMetaData;
-    /** Information about headers returned by the method, used by HeadersFn and when any other middleFn returns headers */
-    headersReturn?: HeadersMetaData;
-    /** Array of middleFn IDs associated with this method, only available for route methods */
-    middleFnIds?: string[];
-    /** router pointer ie ['users', 'getUser' ]  */
-    pointer: string[];
-    /** router nest level */
-    nestLevel: number;
+  /** Method type identifier */
+  type: number;
+  /** Unique identifier for the method (usually the full route path) */
+  id: string;
+  /** whether method is async or might return a promise.
+   * If return type is not know method is considered async  */
+  isAsync: boolean;
+  /** true if method returns data (not void or undefined) */
+  hasReturnData: boolean;
+  /** Number of public method parameters (arity), derived from the params tuple runtype */
+  paramsCount?: number;
+  /** Parameter names from the params tuple's member labels (undefined per unlabelled member).
+   *  Sourced from reflection, never from parsing handler.toString(), so they survive minification.
+   *  Rides the client methods-metadata payload so a client can name the parameter that failed. */
+  paramNames?: (string | undefined)[];
+  /** JIT hash of the method parameters */
+  paramsJitHash: string;
+  /**  JIT  hash of the method return value */
+  returnJitHash: string;
+  /** Information about headers used by the method, used by HeadersFn */
+  headersParam?: HeadersMetaData;
+  /** Information about headers returned by the method, used by HeadersFn and when any other middleFn returns headers */
+  headersReturn?: HeadersMetaData;
+  /** Array of middleFn IDs associated with this method, only available for route methods */
+  middleFnIds?: string[];
+  /** router pointer ie ['users', 'getUser' ]  */
+  pointer: string[];
+  /** router nest level */
+  nestLevel: number;
 }
 
 export interface RemoteMethodOpts {
-    runOnError?: boolean;
-    validateParams?: boolean;
-    validateReturn?: boolean;
-    description?: string;
-    /** Per-route serializer mode override. If not set, uses router's default serialize option. */
-    serializer?: SerializerMode;
-    /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
-    isMutation?: boolean | undefined;
-    /**
-     * Per-route strictTypes override (resolved to the effective value: route option ?? router option),
-     * so it also rides the methods metadata to the client. When true, objects carrying unknown/extra
-     * properties are rejected via the compiled hasUnknownKeys/unknownKeyErrors fns — enforced on the
-     * server at dispatch and, since R17, client-side in the local pre-validation lane.
-     */
-    strictTypes?: boolean;
+  runOnError?: boolean;
+  validateParams?: boolean;
+  validateReturn?: boolean;
+  description?: string;
+  /** Per-route serializer mode override. If not set, uses router's default serialize option. */
+  serializer?: SerializerMode;
+  /** Whether this route mutates data. Only set for route handlers, undefined for middleFns. */
+  isMutation?: boolean | undefined;
+  /**
+   * Per-route strictTypes override (resolved to the effective value: route option ?? router option),
+   * so it also rides the methods metadata to the client. When true, objects carrying unknown/extra
+   * properties are rejected via the compiled hasUnknownKeys/unknownKeyErrors fns — enforced on the
+   * server at dispatch and, since R17, client-side in the local pre-validation lane.
+   */
+  strictTypes?: boolean;
 }
 
 export interface RouteOnlyOptions extends RemoteMethodOpts {
-    runOnError: false;
-    serializer: SerializerMode;
+  runOnError: false;
+  serializer: SerializerMode;
 }
 export interface MethodWithOptions extends MethodMetadata {
-    options: RemoteMethodOpts;
+  options: RemoteMethodOpts;
 }
 
 export type MethodsCache = Record<string, MethodWithOptions>;
 
 export interface HeadersMetaData {
-    headerNames: string[];
-    jitHash: string;
+  headerNames: string[];
+  jitHash: string;
 }
 
 export interface SerializableMethodsData {
-    methods: MethodsCache;
-    deps: FnsDataCache;
-    purFnDeps: PureFnsDataCache;
+  methods: MethodsCache;
+  deps: FnsDataCache;
+  purFnDeps: PureFnsDataCache;
 }
 
 export interface HeadersMethodWithJitFns extends HeadersMetaData {
-    jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
+  jitFns: Pick<JitCompiledFunctions, 'isType' | 'typeErrors'>;
 }
 
 export interface MethodWithJitFns extends MethodMetadata {
-    paramsJitFns: JitCompiledFunctions;
-    returnJitFns: JitCompiledFunctions;
-    /** Compile-time binary size estimates (bytes) from the `tb` entry tuples, used to size a cold
-     *  binary buffer to the type. Server-side only — not part of the MethodMetadata wire shape. */
-    paramsBinarySizeEstimate?: number;
-    returnBinarySizeEstimate?: number;
-    headersParam?: HeadersMethodWithJitFns;
-    headersReturn?: HeadersMethodWithJitFns;
+  paramsJitFns: JitCompiledFunctions;
+  returnJitFns: JitCompiledFunctions;
+  /** Compile-time binary size estimates (bytes) from the `tb` entry tuples, used to size a cold
+   *  binary buffer to the type. Server-side only — not part of the MethodMetadata wire shape. */
+  paramsBinarySizeEstimate?: number;
+  returnBinarySizeEstimate?: number;
+  headersParam?: HeadersMethodWithJitFns;
+  headersReturn?: HeadersMethodWithJitFns;
 }
 
 export type MethodWithOptsAndJitFns = MethodWithOptions & MethodWithJitFns;

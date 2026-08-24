@@ -17,8 +17,8 @@
 // ./bufferPool.ts.
 
 import {
-    createDataViewSerializer as rtCreateDataViewSerializer,
-    createDataViewDeserializer as rtCreateDataViewDeserializer,
+  createDataViewSerializer as rtCreateDataViewSerializer,
+  createDataViewDeserializer as rtCreateDataViewDeserializer,
 } from '@ts-runtypes/core';
 import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../types/general.types.ts';
 // NOTE: those types ARE @ts-runtypes/core's (re-exported), so no casting is needed below.
@@ -26,7 +26,7 @@ import type {BinaryInput, DataViewSerializer, DataViewDeserializer} from '../typ
 /** Creates a growing serializer over a freshly allocated buffer of exactly `size` bytes.
  *  An underestimate costs one in-place grow copy, never a throw. */
 export function createDataViewSerializer(routeId: string, size: number): DataViewSerializer {
-    return rtCreateDataViewSerializer(routeId, {size, grow: true});
+  return rtCreateDataViewSerializer(routeId, {size, grow: true});
 }
 
 /** Creates a NON-growing serializer over a caller-owned (pooled) buffer. Upstream cannot resize a
@@ -41,7 +41,7 @@ export function createDataViewSerializer(routeId: string, size: number): DataVie
  *  three times over, on every single request. The optimistic non-growing write keeps the pooled
  *  buffer for every payload that genuinely fits, and the rare miss costs one re-encode. */
 export function createPooledDataViewSerializer(routeId: string, buffer: ArrayBuffer): DataViewSerializer {
-    return rtCreateDataViewSerializer(routeId, {buffer});
+  return rtCreateDataViewSerializer(routeId, {buffer});
 }
 
 // ############# measure pass #############
@@ -65,69 +65,69 @@ export function createPooledDataViewSerializer(routeId: string, buffer: ArrayBuf
 // silently handing out a buffer that comes up short.
 
 const sizingView = {
-    setUint8() {},
-    setUint16() {},
-    setUint32() {},
-    setInt8() {},
-    setInt16() {},
-    setInt32() {},
-    setFloat64() {},
-    setBigInt64() {},
-    setBigUint64() {},
-    getUint8() {
-        return 0;
-    },
+  setUint8() {},
+  setUint16() {},
+  setUint32() {},
+  setInt8() {},
+  setInt16() {},
+  setInt32() {},
+  setFloat64() {},
+  setBigInt64() {},
+  setBigUint64() {},
+  getUint8() {
+    return 0;
+  },
 } as unknown as DataView;
 
 /** Byte width of the unsigned LEB128 encoding of `n` — the wire's length-prefix width. */
 function varintLen(n: number): number {
-    if (n < 0x80) return 1;
-    if (n < 0x4000) return 2;
-    if (n < 0x200000) return 3;
-    if (n < 0x10000000) return 4;
-    return 5;
+  if (n < 0x80) return 1;
+  if (n < 0x4000) return 2;
+  if (n < 0x200000) return 3;
+  if (n < 0x10000000) return 4;
+  return 5;
 }
 
 /** UTF-8 byte length of `str` WITHOUT encoding it — matches TextEncoder exactly (a surrogate pair
  *  counts as one 4-byte code point). */
 function utf8ByteLength(str: string): number {
-    let bytes = 0;
-    for (let i = 0; i < str.length; i++) {
-        const code = str.charCodeAt(i);
-        if (code < 0x80) bytes += 1;
-        else if (code < 0x800) bytes += 2;
-        else if (code >= 0xd800 && code <= 0xdbff) {
-            // High surrogate: pair with the next unit into one 4-byte code point.
-            bytes += 4;
-            i++;
-        } else bytes += 3;
-    }
-    return bytes;
+  let bytes = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 0x80) bytes += 1;
+    else if (code < 0x800) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      // High surrogate: pair with the next unit into one 4-byte code point.
+      bytes += 4;
+      i++;
+    } else bytes += 3;
+  }
+  return bytes;
 }
 
 function sizingSerString(this: DataViewSerializer, str: string): void {
-    const bytes = utf8ByteLength(str);
-    this.index += varintLen(bytes) + bytes;
+  const bytes = utf8ByteLength(str);
+  this.index += varintLen(bytes) + bytes;
 }
 
 function sizingSerLength(this: DataViewSerializer, value: number): void {
-    this.index += varintLen(value);
+  this.index += varintLen(value);
 }
 
 /** Creates a measure-pass serializer: running a compiled `toBinary` against it leaves `getLength()`
  *  holding EXACTLY the bytes the real encoder would write, having allocated and written nothing. */
 export function createSizingSerializer(): DataViewSerializer {
-    const serializer = rtCreateDataViewSerializer('mion-sizing', {size: 0, grow: false});
-    serializer.view = sizingView;
-    serializer.resize = () => {};
-    serializer.serString = sizingSerString;
-    serializer.serLength = sizingSerLength;
-    return serializer;
+  const serializer = rtCreateDataViewSerializer('mion-sizing', {size: 0, grow: false});
+  serializer.view = sizingView;
+  serializer.resize = () => {};
+  serializer.serString = sizingSerString;
+  serializer.serLength = sizingSerLength;
+  return serializer;
 }
 
 /** Creates a deserializer from ArrayBuffer or any typed array view (including Node.js Buffer) */
 export function createDataViewDeserializer(routeId: string, input: BinaryInput): DataViewDeserializer {
-    return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer);
+  return rtCreateDataViewDeserializer(routeId, input as ArrayBuffer);
 }
 
 /**
@@ -140,5 +140,5 @@ export function createDataViewDeserializer(routeId: string, input: BinaryInput):
  * this straight into `new Response(...)`.
  */
 export function toResponseBody(view: Uint8Array): Uint8Array<ArrayBuffer> {
-    return view as Uint8Array<ArrayBuffer>;
+  return view as Uint8Array<ArrayBuffer>;
 }

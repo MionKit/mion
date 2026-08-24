@@ -8,16 +8,16 @@ const controller = new AbortController();
 
 // cancellation works with middleFns
 const [result, error, fatal, mfResults, mfErrors] = await routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}).call({
-    middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
-    timeout: 5000,
-    signal: controller.signal,
+  middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
+  timeout: 5000,
+  signal: controller.signal,
 });
 
 // and with routesFlow
 const [[sum, greeting], [sumError, greetingError]] = await routesFlow([
-    routes.utils.sum(5, 2),
-    routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}),
+  routes.utils.sum(5, 2),
+  routes.users.sayHello({id: '1', name: 'John', surname: 'Doe'}),
 ]).call({
-    middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
-    timeout: 10_000,
+  middleFns: {auth: middleFns.auth(new HeadersSubset({Authorization: 'myToken-XYZ'}))},
+  timeout: 10_000,
 });

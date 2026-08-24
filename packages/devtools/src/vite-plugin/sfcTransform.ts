@@ -36,16 +36,16 @@ import type {Plugin} from 'vite';
 
 /** Structural subset of @vue/compiler-sfc that this file uses (borrowed from plugin-vue). */
 interface SfcBlock {
-    content: string;
-    lang?: string;
-    src?: string;
-    loc: {start: {offset: number}; end: {offset: number}};
+  content: string;
+  lang?: string;
+  src?: string;
+  loc: {start: {offset: number}; end: {offset: number}};
 }
 interface SfcParseResult {
-    descriptor: {script: SfcBlock | null; scriptSetup: SfcBlock | null};
+  descriptor: {script: SfcBlock | null; scriptSetup: SfcBlock | null};
 }
 interface SfcCompiler {
-    parse(source: string, options?: {filename?: string}): SfcParseResult;
+  parse(source: string, options?: {filename?: string}): SfcParseResult;
 }
 
 /** Cheap gate before any parsing — mirrors @ts-runtypes/devtools' own marker probes, so an SFC with
@@ -66,10 +66,10 @@ const VUE_PLUGIN_NAME = 'vite:vue';
  *  make it safe, only quiet. */
 /** Maps the virtual script path an SFC is registered under back to the real `.vue` file. */
 export interface VirtualSiteMap {
-    /** Records that `virtualPath` stands in for `realFile`. */
-    register(virtualPath: string, realFile: string): void;
-    /** The real module id for a site file, or undefined when it is already real. */
-    resolve(siteFile: string): string | undefined;
+  /** Records that `virtualPath` stands in for `realFile`. */
+  register(virtualPath: string, realFile: string): void;
+  /** The real module id for a site file, or undefined when it is already real. */
+  resolve(siteFile: string): string | undefined;
 }
 
 /** Builds the virtual->real map shared by the SFC pass and the invalidation handler.
@@ -78,179 +78,173 @@ export interface VirtualSiteMap {
  *  options) and before the SFC pass runs (it fills the map), so neither can own it. Paths are
  *  normalised to forward slashes because ts-runtypes reports site files that way. */
 export function createVirtualSiteMap(): VirtualSiteMap {
-    const toReal = new Map<string, string>();
-    // Normalise BOTH separators, not just this platform's. The two sides come from different
-    // producers — mion builds the virtual path from a vite id, ts-runtypes reports its own program
-    // paths — so keying on `path.sep` alone leaves the match dependent on which of them happened to
-    // use which separator. A miss here is silent: the .vue file just stays stale.
-    const key = (file: string): string => file.replace(/\\/g, '/');
-    return {
-        register(virtualPath, realFile) {
-            toReal.set(key(virtualPath), realFile);
-        },
-        resolve(siteFile) {
-            return toReal.get(key(siteFile));
-        },
-    };
+  const toReal = new Map<string, string>();
+  // Normalise BOTH separators, not just this platform's. The two sides come from different
+  // producers — mion builds the virtual path from a vite id, ts-runtypes reports its own program
+  // paths — so keying on `path.sep` alone leaves the match dependent on which of them happened to
+  // use which separator. A miss here is silent: the .vue file just stays stale.
+  const key = (file: string): string => file.replace(/\\/g, '/');
+  return {
+    register(virtualPath, realFile) {
+      toReal.set(key(virtualPath), realFile);
+    },
+    resolve(siteFile) {
+      return toReal.get(key(siteFile));
+    },
+  };
 }
 
 export function mionSfcPlugins(rt: Plugin | undefined, inject = true, virtualSites?: VirtualSiteMap): Plugin[] {
-    let root = '';
-    let vuePlugins: {api?: {options?: {compiler?: SfcCompiler}}}[] = [];
-    let fallbackCompiler: SfcCompiler | undefined;
-    const warned = new Set<string>();
-    /** Files this run injected into, so the audit only reports what really slipped through. */
-    const injected = new Set<string>();
+  let root = '';
+  let vuePlugins: {api?: {options?: {compiler?: SfcCompiler}}}[] = [];
+  let fallbackCompiler: SfcCompiler | undefined;
+  const warned = new Set<string>();
+  /** Files this run injected into, so the audit only reports what really slipped through. */
+  const injected = new Set<string>();
 
-    const warnOnce = (key: string, message: string): void => {
-        if (warned.has(key)) return;
-        warned.add(key);
-        console.warn(`[mion] ${message}`);
-    };
+  const warnOnce = (key: string, message: string): void => {
+    if (warned.has(key)) return;
+    warned.add(key);
+    console.warn(`[mion] ${message}`);
+  };
 
-    /** plugin-vue's own compiler first (same version the project compiles with), then a plain
-     *  resolve from the vite root. */
-    const resolveCompiler = (): SfcCompiler | undefined => {
-        for (const plugin of vuePlugins) {
-            const compiler = plugin.api?.options?.compiler;
-            if (compiler?.parse) return compiler;
-        }
-        if (fallbackCompiler) return fallbackCompiler;
-        try {
-            const require = createRequire(path.join(root || process.cwd(), 'index.js'));
-            fallbackCompiler = require('vue/compiler-sfc') as SfcCompiler;
-        } catch {
-            return undefined;
-        }
-        return fallbackCompiler;
-    };
-
-    /** Registers the script with the resolver, then transforms it through the ts-runtypes plugin.
-     *
-     *  `rtHotUpdate` is ts-runtypes' documented escape hatch for exactly this: "the escape hatch a
-     *  host with no HMR hook of its own uses to absorb an edit" — it takes {file, content} pairs and
-     *  runs setSources → scanFiles → generate, which is all mion needs to make a source that exists
-     *  nowhere on disk visible to the resolver. mion used to fabricate a vite HMR context and call
-     *  `handleHotUpdate` instead, which reached the same shared leaf but used a hook for something
-     *  other than what it is named for. Kept as a fallback so an older plugin still works. */
-    async function injectFns(ctx: unknown, source: string, virtualPath: string): Promise<string | undefined> {
-        const plugin = rt as unknown as Record<string, any>;
-        const absorb = plugin?.rtHotUpdate;
-        const legacyRegister = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
-        if ((typeof absorb !== 'function' && typeof legacyRegister !== 'function') || typeof plugin?.transform !== 'function') {
-            warnOnce(
-                'no-delegate',
-                `the ts-runtypes plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`
-            );
-            return undefined;
-        }
-        if (typeof absorb === 'function') await absorb(ctx, [{file: virtualPath, content: source}]);
-        else await legacyRegister.call(ctx, {file: virtualPath, read: async () => source, modules: [], timestamp: 0});
-        const result = await plugin.transform.call(ctx, source, virtualPath);
-        const code = typeof result === 'string' ? result : result?.code;
-        return typeof code === 'string' ? foldImportBlock(source, code) : undefined;
+  /** plugin-vue's own compiler first (same version the project compiles with), then a plain
+   *  resolve from the vite root. */
+  const resolveCompiler = (): SfcCompiler | undefined => {
+    for (const plugin of vuePlugins) {
+      const compiler = plugin.api?.options?.compiler;
+      if (compiler?.parse) return compiler;
     }
+    if (fallbackCompiler) return fallbackCompiler;
+    try {
+      const require = createRequire(path.join(root || process.cwd(), 'index.js'));
+      fallbackCompiler = require('vue/compiler-sfc') as SfcCompiler;
+    } catch {
+      return undefined;
+    }
+    return fallbackCompiler;
+  };
 
-    const injector: Plugin = {
-        name: 'mion-sfc',
-        // before @vitejs/plugin-vue: it is the last point where the script still carries its types
-        enforce: 'pre',
+  /** Registers the script with the resolver, then transforms it through the ts-runtypes plugin.
+   *
+   *  `rtHotUpdate` is ts-runtypes' documented escape hatch for exactly this: "the escape hatch a
+   *  host with no HMR hook of its own uses to absorb an edit" — it takes {file, content} pairs and
+   *  runs setSources → scanFiles → generate, which is all mion needs to make a source that exists
+   *  nowhere on disk visible to the resolver. mion used to fabricate a vite HMR context and call
+   *  `handleHotUpdate` instead, which reached the same shared leaf but used a hook for something
+   *  other than what it is named for. Kept as a fallback so an older plugin still works. */
+  async function injectFns(ctx: unknown, source: string, virtualPath: string): Promise<string | undefined> {
+    const plugin = rt as unknown as Record<string, any>;
+    const absorb = plugin?.rtHotUpdate;
+    const legacyRegister = plugin?.handleHotUpdate ?? plugin?.vite?.handleHotUpdate;
+    if ((typeof absorb !== 'function' && typeof legacyRegister !== 'function') || typeof plugin?.transform !== 'function') {
+      warnOnce('no-delegate', `the ts-runtypes plugin exposes no transform/rtHotUpdate — Vue SFCs cannot be type-transformed.`);
+      return undefined;
+    }
+    if (typeof absorb === 'function') await absorb(ctx, [{file: virtualPath, content: source}]);
+    else await legacyRegister.call(ctx, {file: virtualPath, read: async () => source, modules: [], timestamp: 0});
+    const result = await plugin.transform.call(ctx, source, virtualPath);
+    const code = typeof result === 'string' ? result : result?.code;
+    return typeof code === 'string' ? foldImportBlock(source, code) : undefined;
+  }
 
-        configResolved(config) {
-            root = config.root;
-            vuePlugins = config.plugins.filter((plugin) => plugin.name === VUE_PLUGIN_NAME) as typeof vuePlugins;
-        },
+  const injector: Plugin = {
+    name: 'mion-sfc',
+    // before @vitejs/plugin-vue: it is the last point where the script still carries its types
+    enforce: 'pre',
 
-        async transform(code, id) {
-            const file = bareVueFile(id);
-            if (!file || !MARKER_PROBE.test(code)) return null;
-            const relative = path.relative(root, file);
-            if (relative.startsWith('..') || path.isAbsolute(relative)) {
-                warnOnce(file, `${file} is outside the vite root, so its typed mion code cannot be transformed.`);
-                return null;
-            }
-            const compiler = resolveCompiler();
-            if (!compiler) {
-                warnOnce(
-                    'no-compiler',
-                    `@vue/compiler-sfc is not resolvable, so typed mion code in .vue files is NOT transformed.`
-                );
-                return null;
-            }
+    configResolved(config) {
+      root = config.root;
+      vuePlugins = config.plugins.filter((plugin) => plugin.name === VUE_PLUGIN_NAME) as typeof vuePlugins;
+    },
 
-            const {descriptor} = compiler.parse(code, {filename: file});
-            // `src` blocks point at a real file the resolver already sees through the program.
-            const blocks = [descriptor.script, descriptor.scriptSetup].filter((b): b is SfcBlock => !!b && !b.src);
-            if (!blocks.length) return null;
+    async transform(code, id) {
+      const file = bareVueFile(id);
+      if (!file || !MARKER_PROBE.test(code)) return null;
+      const relative = path.relative(root, file);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        warnOnce(file, `${file} is outside the vite root, so its typed mion code cannot be transformed.`);
+        return null;
+      }
+      const compiler = resolveCompiler();
+      if (!compiler) {
+        warnOnce('no-compiler', `@vue/compiler-sfc is not resolvable, so typed mion code in .vue files is NOT transformed.`);
+        return null;
+      }
 
-            const lang = blocks.find((block) => block.lang)?.lang ?? 'js';
-            const virtualPath = `${file}.${lang}`;
-            // Record the stand-in BEFORE delegating: ts-runtypes reports stale site files by the
-            // path it knows them under (the virtual one), and the module vite actually serves is
-            // `file`. Without this the .ts files in a project recover from a type edit while the
-            // .vue files keep serving a validator for the old shape.
-            virtualSites?.register(virtualPath, file);
-            const source = blocks.map((block) => block.content).join(BLOCK_SPLIT);
-            const result = await injectFns(this, source, virtualPath);
-            if (!result) return null;
+      const {descriptor} = compiler.parse(code, {filename: file});
+      // `src` blocks point at a real file the resolver already sees through the program.
+      const blocks = [descriptor.script, descriptor.scriptSetup].filter((b): b is SfcBlock => !!b && !b.src);
+      if (!blocks.length) return null;
 
-            const parts = result.split(BLOCK_SPLIT);
-            if (parts.length !== blocks.length) {
-                warnOnce(`${file}:split`, `could not map the transformed script back onto ${file} — leaving it untransformed.`);
-                return null;
-            }
-            // last block first: splicing from the end keeps the earlier block's offsets valid
-            let next = code;
-            for (let index = blocks.length - 1; index >= 0; index--) {
-                const block = blocks[index];
-                next = next.slice(0, block.loc.start.offset) + parts[index] + next.slice(block.loc.end.offset);
-            }
-            injected.add(file);
-            return {code: next, map: null};
-        },
-    };
+      const lang = blocks.find((block) => block.lang)?.lang ?? 'js';
+      const virtualPath = `${file}.${lang}`;
+      // Record the stand-in BEFORE delegating: ts-runtypes reports stale site files by the
+      // path it knows them under (the virtual one), and the module vite actually serves is
+      // `file`. Without this the .ts files in a project recover from a type edit while the
+      // .vue files keep serving a validator for the old shape.
+      virtualSites?.register(virtualPath, file);
+      const source = blocks.map((block) => block.content).join(BLOCK_SPLIT);
+      const result = await injectFns(this, source, virtualPath);
+      if (!result) return null;
 
-    // Silence is the defect this whole feature fixes, so a marker that reaches the browser without
-    // its compiled fns must be audible — whatever the cause (plugin ordering, a plugin-vue change,
-    // an SFC shape the injector skipped).
-    const audit: Plugin = {
-        name: 'mion-sfc-audit',
-        enforce: 'post',
+      const parts = result.split(BLOCK_SPLIT);
+      if (parts.length !== blocks.length) {
+        warnOnce(`${file}:split`, `could not map the transformed script back onto ${file} — leaving it untransformed.`);
+        return null;
+      }
+      // last block first: splicing from the end keeps the earlier block's offsets valid
+      let next = code;
+      for (let index = blocks.length - 1; index >= 0; index--) {
+        const block = blocks[index];
+        next = next.slice(0, block.loc.start.offset) + parts[index] + next.slice(block.loc.end.offset);
+      }
+      injected.add(file);
+      return {code: next, map: null};
+    },
+  };
 
-        transform(code, id) {
-            const file = bareVueFile(id);
-            if (!file || injected.has(file) || !MARKER_PROBE.test(code)) return null;
-            if (code.includes('__rt_')) return null;
-            warnOnce(
-                `${file}:audit`,
-                `${file} calls a mion/ts-runtypes marker but was compiled WITHOUT its generated functions. ` +
-                    `They would fail at runtime. Make sure @vitejs/plugin-vue is in this vite config and that no ` +
-                    `plugin transforms .vue files before mion does.`
-            );
-            return null;
-        },
-    };
+  // Silence is the defect this whole feature fixes, so a marker that reaches the browser without
+  // its compiled fns must be audible — whatever the cause (plugin ordering, a plugin-vue change,
+  // an SFC shape the injector skipped).
+  const audit: Plugin = {
+    name: 'mion-sfc-audit',
+    enforce: 'post',
 
-    return inject ? [injector, audit] : [audit];
+    transform(code, id) {
+      const file = bareVueFile(id);
+      if (!file || injected.has(file) || !MARKER_PROBE.test(code)) return null;
+      if (code.includes('__rt_')) return null;
+      warnOnce(
+        `${file}:audit`,
+        `${file} calls a mion/ts-runtypes marker but was compiled WITHOUT its generated functions. ` +
+          `They would fail at runtime. Make sure @vitejs/plugin-vue is in this vite config and that no ` +
+          `plugin transforms .vue files before mion does.`
+      );
+      return null;
+    },
+  };
+
+  return inject ? [injector, audit] : [audit];
 }
 
 /** The SFC module itself — not `?vue&type=…` sub-requests, and not framework passes like Nuxt's
  *  `?macro=true`, which are separate transforms of the same file. */
 function bareVueFile(id: string): string | undefined {
-    const [file, query] = id.split('?');
-    if (query !== undefined || !file.endsWith('.vue')) return undefined;
-    return file;
+  const [file, query] = id.split('?');
+  if (query !== undefined || !file.endsWith('.vue')) return undefined;
+  return file;
 }
 
 /** Keeps the injected code on the SAME number of lines as the source it replaces: the transform
  *  prepends its import block, which would otherwise shift every line of the SFC below the script and
  *  break plugin-vue's source map. Folding that block onto the first line keeps every line number. */
 function foldImportBlock(source: string, transformed: string): string {
-    const extra = transformed.split('\n').length - source.split('\n').length;
-    if (extra <= 0) return transformed;
-    const lines = transformed.split('\n');
-    const importBlock = lines.slice(0, extra).join(' ');
-    const rest = lines.slice(extra);
-    rest[0] = `${importBlock} ${rest[0]}`;
-    return rest.join('\n');
+  const extra = transformed.split('\n').length - source.split('\n').length;
+  if (extra <= 0) return transformed;
+  const lines = transformed.split('\n');
+  const importBlock = lines.slice(0, extra).join(' ');
+  const rest = lines.slice(extra);
+  rest[0] = `${importBlock} ${rest[0]}`;
+  return rest.join('\n');
 }

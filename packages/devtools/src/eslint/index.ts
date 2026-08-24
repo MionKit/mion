@@ -26,28 +26,28 @@ import enforceTypeImports from './rules/enforce-type-imports.ts';
 
 // configs is set outside the initial object due to circular reference: recommended config references the plugin itself.
 const plugin: ESLint.Plugin = {
-    rules: {
-        'strong-typed-routes': strongTypedRoutes,
-        'no-unreachable-union-types': noUnreachableUnionTypes,
-        'no-mixed-union-properties': noMixedUnionProperties,
-        'no-vite-client': noViteClient,
-        'enforce-type-imports': enforceTypeImports,
-    } as unknown as ESLint.Plugin['rules'],
-    configs: {},
+  rules: {
+    'strong-typed-routes': strongTypedRoutes,
+    'no-unreachable-union-types': noUnreachableUnionTypes,
+    'no-mixed-union-properties': noMixedUnionProperties,
+    'no-vite-client': noViteClient,
+    'enforce-type-imports': enforceTypeImports,
+  } as unknown as ESLint.Plugin['rules'],
+  configs: {},
 };
 
 // Flat config preset: self-contained with plugin registration and recommended rules.
 // Usage: import mionESLintPlugin from '@mionjs/devtools/eslint'; ... mionESLintPlugin.configs.recommended
 plugin.configs!.recommended = {
-    plugins: {
-        '@mionjs': plugin,
-    },
-    rules: {
-        '@mionjs/strong-typed-routes': 'error',
-        '@mionjs/no-unreachable-union-types': 'error',
-        // disabled as seems is not too useful and overlaps with some ts rules
-        // '@mionjs/no-mixed-union-properties': 'warn',
-    },
+  plugins: {
+    '@mionjs': plugin,
+  },
+  rules: {
+    '@mionjs/strong-typed-routes': 'error',
+    '@mionjs/no-unreachable-union-types': 'error',
+    // disabled as seems is not too useful and overlaps with some ts rules
+    // '@mionjs/no-mixed-union-properties': 'warn',
+  },
 } satisfies Linter.Config;
 
 export default plugin;

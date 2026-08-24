@@ -8,21 +8,21 @@
 import {ClientOptions} from './types.ts';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
-    baseURL: '',
-    fetchOptions: {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-    },
-    /** Prefix for all routes, i.e: api/v1 */
-    basePath: '',
-    /** Suffix for all routes, i.e: .json */
-    suffix: '',
-    /** Enables automatic parameter validation */
-    validateParams: true,
-    /** Set true to automatically generate and id for every error */
-    autoGenerateErrorId: false,
-    /** Default serializer mode - stringifyJson as default native serializer */
-    serializer: 'stringifyJson',
+  baseURL: '',
+  fetchOptions: {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+  },
+  /** Prefix for all routes, i.e: api/v1 */
+  basePath: '',
+  /** Suffix for all routes, i.e: .json */
+  suffix: '',
+  /** Enables automatic parameter validation */
+  validateParams: true,
+  /** Set true to automatically generate and id for every error */
+  autoGenerateErrorId: false,
+  /** Default serializer mode - stringifyJson as default native serializer */
+  serializer: 'stringifyJson',
 };
 
 /** Maximum safe URL length for GET requests with ?data= query param */

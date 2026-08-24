@@ -6,19 +6,6 @@
   "trailingComma": "es5",
   "sortPackageJson": false,
   "ignorePatterns": [
-    "packages/core/**",
-    "packages/router/**",
-    "packages/client/**",
-    "packages/devtools/**",
-    "packages/drizze/**",
-    "packages/platform-aws/**",
-    "packages/platform-bun/**",
-    "packages/platform-cloudflare/**",
-    "packages/platform-gcloud/**",
-    "packages/platform-node/**",
-    "packages/platform-vercel/**",
-    "packages/test-server/**",
-    "packages/examples/**",
     "website/**",
     "test-publish/**"
   ]

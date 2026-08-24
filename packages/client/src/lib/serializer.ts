@@ -7,15 +7,15 @@
 
 import type {ResponseBody} from '@mionjs/router';
 import {
-    type MethodWithJitFns,
-    RpcError,
-    isRpcError,
-    routesCache,
-    MION_ROUTES,
-    HandlerType,
-    type SerializerMode,
-    serializeBinaryBody as coreSerializeBinaryBody,
-    deserializeBinaryBody as coreDeserializeBinaryBody,
+  type MethodWithJitFns,
+  RpcError,
+  isRpcError,
+  routesCache,
+  MION_ROUTES,
+  HandlerType,
+  type SerializerMode,
+  serializeBinaryBody as coreSerializeBinaryBody,
+  deserializeBinaryBody as coreDeserializeBinaryBody,
 } from '@mionjs/core';
 import type {MionClientRequest} from '../request.ts';
 import {DEFAULT_PREFILL_OPTIONS} from '../constants.ts';
@@ -30,229 +30,229 @@ export type ContentType = 'application/json; charset=utf-8' | 'application/octet
 
 /** Result of serializing a request body with its content type */
 export interface SerializedRequest {
-    body: SerializedBody;
-    contentType: ContentType;
+  body: SerializedBody;
+  contentType: ContentType;
 }
 
 // ################################## SERIALIZE ##################################
 
 /** Serializes the request body and returns it with the appropriate content type */
 export function serializeRequestBody(req: MionClientRequest<any, any>): SerializedRequest {
-    const serializerMode = getSerializerMode(req);
-    switch (serializerMode) {
-        case 'json':
-        case 'stringifyJson':
-            return {
-                body: serializeJsonBody(req),
-                contentType: 'application/json; charset=utf-8',
-            };
-        case 'optimistic':
-            return {
-                body: serializeJSonBodyOptimistic(req),
-                contentType: 'application/json; charset=utf-8',
-            };
-        case 'binary':
-            return {
-                body: serializeBinaryBody(req),
-                contentType: 'application/octet-stream',
-            };
-        default:
-            throw new Error(`Invalid serializer mode ${serializerMode}`);
-    }
+  const serializerMode = getSerializerMode(req);
+  switch (serializerMode) {
+    case 'json':
+    case 'stringifyJson':
+      return {
+        body: serializeJsonBody(req),
+        contentType: 'application/json; charset=utf-8',
+      };
+    case 'optimistic':
+      return {
+        body: serializeJSonBodyOptimistic(req),
+        contentType: 'application/json; charset=utf-8',
+      };
+    case 'binary':
+      return {
+        body: serializeBinaryBody(req),
+        contentType: 'application/octet-stream',
+      };
+    default:
+      throw new Error(`Invalid serializer mode ${String(serializerMode)}`);
+  }
 }
 
 function serializeJsonBody(req: MionClientRequest<any, any>): string {
-    const props: string[] = [];
-    const subRequestIds = Object.keys(req.subRequestList);
+  const props: string[] = [];
+  const subRequestIds = Object.keys(req.subRequestList);
 
-    for (let i = 0; i < subRequestIds.length; i++) {
-        const id = subRequestIds[i];
-        const subRequest = req.subRequestList[id];
-        if (!subRequest) continue;
-        let params = subRequest.params;
-        const method = routesCache.useMethodJitFns(id);
-        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
-            params = getParamsWithoutHeadersSubset(params);
-        }
-        try {
-            const jsonValue = stringifyHandlerParams(method, params);
-            if (!jsonValue) continue;
-            props.push(`${JSON.stringify(id)}:${jsonValue}`);
-        } catch (e: any) {
-            const err = new RpcError({
-                type: 'json-stringify-request-error',
-                publicMessage: `Failed to stringify params for handler ${id}`,
-                originalError: e,
-            });
-            throw err;
-        }
+  for (let i = 0; i < subRequestIds.length; i++) {
+    const id = subRequestIds[i];
+    const subRequest = req.subRequestList[id];
+    if (!subRequest) continue;
+    let params = subRequest.params;
+    const method = routesCache.useMethodJitFns(id);
+    if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
+      params = getParamsWithoutHeadersSubset(params);
     }
+    try {
+      const jsonValue = stringifyHandlerParams(method, params);
+      if (!jsonValue) continue;
+      props.push(`${JSON.stringify(id)}:${jsonValue}`);
+    } catch (e: any) {
+      const err = new RpcError({
+        type: 'json-stringify-request-error',
+        publicMessage: `Failed to stringify params for handler ${id}`,
+        originalError: e,
+      });
+      throw err;
+    }
+  }
 
-    return `{${props.join(',')}}`;
+  return `{${props.join(',')}}`;
 }
 
 /** Serializes request body as plain JSON without JIT functions */
 function serializeJSonBodyOptimistic(req: MionClientRequest<any, any>): string {
-    const body: Record<string, any> = {};
-    const subRequestIds = Object.keys(req.subRequestList);
-    for (const id of subRequestIds) {
-        const subRequest = req.subRequestList[id];
-        if (!subRequest) continue;
-        body[id] = subRequest.params;
-    }
-    return JSON.stringify(body);
+  const body: Record<string, any> = {};
+  const subRequestIds = Object.keys(req.subRequestList);
+  for (const id of subRequestIds) {
+    const subRequest = req.subRequestList[id];
+    if (!subRequest) continue;
+    body[id] = subRequest.params;
+  }
+  return JSON.stringify(body);
 }
 
 /** Serializes request body to binary format */
 function serializeBinaryBody(req: MionClientRequest<any, any>): Uint8Array {
-    const subRequestIds = Object.keys(req.subRequestList);
-    const body: Record<string, any> = {};
-    const executionChain: MethodWithJitFns[] = [];
+  const subRequestIds = Object.keys(req.subRequestList);
+  const body: Record<string, any> = {};
+  const executionChain: MethodWithJitFns[] = [];
 
-    for (const id of subRequestIds) {
-        const subRequest = req.subRequestList[id];
-        let params = subRequest.params;
-        const method = routesCache.useMethodJitFns(id);
+  for (const id of subRequestIds) {
+    const subRequest = req.subRequestList[id];
+    let params = subRequest.params;
+    const method = routesCache.useMethodJitFns(id);
 
-        if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
-            params = getParamsWithoutHeadersSubset(params);
-        }
-
-        body[id] = params;
-        executionChain.push(method);
+    if (method.type === HandlerType.headersMiddleFn && method.headersParam) {
+      params = getParamsWithoutHeadersSubset(params);
     }
 
-    // getBufferView() is a zero-copy view of the serializer's own buffer, which nothing else
-    // references once this returns — so the request body needs no defensive copy.
-    const {serializer} = coreSerializeBinaryBody(req.path, executionChain, body, false);
-    return serializer.getBufferView();
+    body[id] = params;
+    executionChain.push(method);
+  }
+
+  // getBufferView() is a zero-copy view of the serializer's own buffer, which nothing else
+  // references once this returns — so the request body needs no defensive copy.
+  const {serializer} = coreSerializeBinaryBody(req.path, executionChain, body, false);
+  return serializer.getBufferView();
 }
 
 function stringifyHandlerParams(method: MethodWithJitFns, params: any[]): string {
-    if (!method.paramsCount) return '';
-    const paramsJit = method.paramsJitFns;
-    if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
-    return paramsJit.stringifyJson.fn(params);
+  if (!method.paramsCount) return '';
+  const paramsJit = method.paramsJitFns;
+  if (paramsJit.prepareForJson.isNoop) return JSON.stringify(params);
+  return paramsJit.stringifyJson.fn(params);
 }
 
 // ################################## DE-SERIALIZE ##################################
 
 /** Deserializes the response body from a fetch Response object. Handles routes metadata if present in json responses. */
 export async function deserializeResponseBody(response: Response, options: ClientOptions): Promise<ResponseBody> {
-    let parsedBody: any;
-    const contentType = response.headers.get('content-type')?.toLowerCase();
-    switch (true) {
-        case !!contentType?.includes('application/json'):
-            parsedBody = await deserializeJsonResponseBody(response, options);
-            break;
-        case !!contentType?.includes('application/octet-stream'):
-            parsedBody = await deserializeBinaryResponseBody(response);
-            break;
-        default:
-            throw new RpcError({
-                type: 'unsupported-content-type',
-                publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
-            });
-    }
-    return parsedBody;
+  let parsedBody: any;
+  const contentType = response.headers.get('content-type')?.toLowerCase();
+  switch (true) {
+    case !!contentType?.includes('application/json'):
+      parsedBody = await deserializeJsonResponseBody(response, options);
+      break;
+    case !!contentType?.includes('application/octet-stream'):
+      parsedBody = await deserializeBinaryResponseBody(response);
+      break;
+    default:
+      throw new RpcError({
+        type: 'unsupported-content-type',
+        publicMessage: `Unsupported response content-type: '${contentType || 'none'}'`,
+      });
+  }
+  return parsedBody;
 }
 
 /** Deserializes JSON response body, Also handles routes metadata if present */
 async function deserializeJsonResponseBody(response: Response, options: ClientOptions) {
-    try {
-        const parsedBody = await response.json();
-        // Extract & process metadata if present and delete entries after processing (does not use jit functions)
-        extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
-        extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
-        // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
-        const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
-        if (platformError) return {[MION_ROUTES.platformError]: platformError};
-        // Deserialize the body using jit functions
-        const deserializedBody: ResponseBody = {};
-        Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
-            const method = routesCache.useMethodJitFns(methodId);
-            deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
-        });
-        if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
-        return deserializedBody;
-    } catch (err: any) {
-        throw new RpcError({
-            type: 'parsing-json-response-error',
-            publicMessage: `Invalid json response body: ${err?.message || 'unknown parsing error.'}`,
-        });
-    }
+  try {
+    const parsedBody = await response.json();
+    // Extract & process metadata if present and delete entries after processing (does not use jit functions)
+    extractAndProcessMetadata(MION_ROUTES.methodsMetadata, parsedBody, options);
+    extractAndProcessMetadata(MION_ROUTES.methodsMetadataById, parsedBody, options);
+    // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
+    const {platformError, thrownErrors} = extractThrownErrors(parsedBody);
+    if (platformError) return {[MION_ROUTES.platformError]: platformError};
+    // Deserialize the body using jit functions
+    const deserializedBody: ResponseBody = {};
+    Object.entries(parsedBody).forEach(([methodId, returnValue]) => {
+      const method = routesCache.useMethodJitFns(methodId);
+      deserializedBody[methodId] = parseHandlerJsonReturnValue(method, returnValue);
+    });
+    if (thrownErrors) deserializedBody[MION_ROUTES.thrownErrors] = thrownErrors as any;
+    return deserializedBody;
+  } catch (err: any) {
+    throw new RpcError({
+      type: 'parsing-json-response-error',
+      publicMessage: `Invalid json response body: ${err?.message || 'unknown parsing error.'}`,
+    });
+  }
 }
 
 /** Deserializes binary response body */
 async function deserializeBinaryResponseBody(response: Response): Promise<ResponseBody> {
-    const arrayBuffer = await response.arrayBuffer();
-    const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
-    // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
-    const {platformError, thrownErrors} = extractThrownErrors(body);
-    if (platformError) return {[MION_ROUTES.platformError]: platformError};
-    if (thrownErrors) body[MION_ROUTES.thrownErrors] = thrownErrors as any;
-    return body;
+  const arrayBuffer = await response.arrayBuffer();
+  const {body} = coreDeserializeBinaryBody('client-response', arrayBuffer, true);
+  // Extract thrown (unexpected) errors, preserving the wire's returned-vs-thrown split
+  const {platformError, thrownErrors} = extractThrownErrors(body);
+  if (platformError) return {[MION_ROUTES.platformError]: platformError};
+  if (thrownErrors) body[MION_ROUTES.thrownErrors] = thrownErrors as any;
+  return body;
 }
 
 /** Extracts thrown (unexpected) errors from [MION_ROUTES.thrownErrors] WITHOUT flattening them into the
  * body, so the wire's returned-vs-thrown split survives for error classification. Thrown errors are not
  * strongly typed and deserialize as RpcError<string>. Returns a platformError as a special case. */
 function extractThrownErrors(parsedBody: any): {
-    platformError?: RpcError<string>;
-    thrownErrors?: Record<string, RpcError<string>>;
+  platformError?: RpcError<string>;
+  thrownErrors?: Record<string, RpcError<string>>;
 } {
-    if (!(MION_ROUTES.thrownErrors in parsedBody)) return {};
-    const rawThrownErrors = parsedBody[MION_ROUTES.thrownErrors];
-    delete parsedBody[MION_ROUTES.thrownErrors];
-    // if platform error is present that means the router never executed (just the platform wrapper)
-    if (MION_ROUTES.platformError in rawThrownErrors) {
-        const globalErrorValue = rawThrownErrors[MION_ROUTES.platformError];
-        const platformError = isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
-        return {platformError};
-    }
-    const thrownErrors: Record<string, RpcError<string>> = {};
-    Object.entries(rawThrownErrors).forEach(([id, value]) => {
-        thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
-    });
-    return {thrownErrors};
+  if (!(MION_ROUTES.thrownErrors in parsedBody)) return {};
+  const rawThrownErrors = parsedBody[MION_ROUTES.thrownErrors];
+  delete parsedBody[MION_ROUTES.thrownErrors];
+  // if platform error is present that means the router never executed (just the platform wrapper)
+  if (MION_ROUTES.platformError in rawThrownErrors) {
+    const globalErrorValue = rawThrownErrors[MION_ROUTES.platformError];
+    const platformError = isRpcError(globalErrorValue) ? new RpcError<string>(globalErrorValue) : globalErrorValue;
+    return {platformError};
+  }
+  const thrownErrors: Record<string, RpcError<string>> = {};
+  Object.entries(rawThrownErrors).forEach(([id, value]) => {
+    thrownErrors[id] = isRpcError(value) ? new RpcError<string>(value) : (value as RpcError<string>);
+  });
+  return {thrownErrors};
 }
 
 /** Determines the serializer mode to use for a request */
 function getSerializerMode(req: MionClientRequest<any, any>): SerializerMode {
-    if (req.options.serializer === 'optimistic') {
-        // When metadata is cached (e.g. after retry), use JIT serialization
-        const subRequestIds = Object.keys(req.subRequestList);
-        const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
-        if (allCached) return 'stringifyJson';
-        return 'optimistic';
-    }
-    const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
-    const method = routesCache.getMethodJitFns(methodId);
-    const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
-    if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
-    return serializerMode;
+  if (req.options.serializer === 'optimistic') {
+    // When metadata is cached (e.g. after retry), use JIT serialization
+    const subRequestIds = Object.keys(req.subRequestList);
+    const allCached = subRequestIds.every((id) => routesCache.hasMetadata(id));
+    if (allCached) return 'stringifyJson';
+    return 'optimistic';
+  }
+  const methodId = req.route?.id ?? req.workflowSubRequests?.[0]?.id;
+  const method = routesCache.getMethodJitFns(methodId);
+  const serializerMode = method?.options.serializer || DEFAULT_PREFILL_OPTIONS.serializer;
+  if (serializerMode === 'json') return DEFAULT_PREFILL_OPTIONS.serializer;
+  return serializerMode;
 }
 
 /** Returns params array without the HeadersSubset (first param) */
 function getParamsWithoutHeadersSubset(params: any[]): any[] {
-    if (!params || params.length === 0) return [];
-    return params.slice(1);
+  if (!params || params.length === 0) return [];
+  return params.slice(1);
 }
 
 function parseHandlerJsonReturnValue(method: MethodWithJitFns, returnValue: any): any {
-    if (!method.hasReturnData) return returnValue;
-    const returnJit = method.returnJitFns;
-    if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
+  if (!method.hasReturnData) return returnValue;
+  const returnJit = method.returnJitFns;
+  if (returnJit.restoreFromJson.isNoop || !returnValue) return returnValue;
 
-    try {
-        if (returnValue instanceof RpcError) return returnValue;
-        if (isRpcError(returnValue)) return new RpcError(returnValue);
-        return returnJit.restoreFromJson.fn(returnValue);
-    } catch (e: any) {
-        return new RpcError({
-            type: 'deserialization-error',
-            publicMessage: `Invalid response from Route or MiddleFn '${method.id}', can not deserialize return value: ${e.message}`,
-            errorData: e?.errors,
-        });
-    }
+  try {
+    if (returnValue instanceof RpcError) return returnValue;
+    if (isRpcError(returnValue)) return new RpcError(returnValue);
+    return returnJit.restoreFromJson.fn(returnValue);
+  } catch (e: any) {
+    return new RpcError({
+      type: 'deserialization-error',
+      publicMessage: `Invalid response from Route or MiddleFn '${method.id}', can not deserialize return value: ${e.message}`,
+      errorData: e?.errors,
+    });
+  }
 }

@@ -56,13 +56,11 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@ts-runtypes/core": "workspace:*",
     "@mionjs/core": "workspace:*",
     "@mionjs/platform-cloudflare": "workspace:*",
     "@mionjs/platform-node": "workspace:*",
     "@mionjs/platform-vercel": "workspace:*",
     "@mionjs/router": "workspace:*"
-  },
-  "devDependencies": {
-    "vite": "7.3.2"
   }
 }

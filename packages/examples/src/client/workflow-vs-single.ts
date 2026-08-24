@@ -13,11 +13,11 @@ const [user, error] = await routes.users.getById('USER-123').call();
 // `user` is User | undefined
 // `error` is RpcError<'user-not-found', UserNotFoundData> | ValidationError | undefined
 if (error) {
-    if (error.type === 'user-not-found') {
-        console.log('User not found:', error.errorData?.requestedId);
-    }
+  if (error.type === 'user-not-found') {
+    console.log('User not found:', error.errorData?.requestedId);
+  }
 } else {
-    console.log('User:', user?.name);
+  console.log('User:', user?.name);
 }
 
 // ============================================
@@ -26,8 +26,8 @@ if (error) {
 // Results and errors are ARRAYS in the same order as the routes
 // Returns: [[results...], [errors...], fatal, middleFnResults, middleFnErrors]
 const [[user2, order], [userError, orderError]] = await routesFlow([
-    routes.users.getById('USER-123'),
-    routes.orders.getById('ORDER-1'),
+  routes.users.getById('USER-123'),
+  routes.orders.getById('ORDER-1'),
 ]).call();
 
 // `user2` is User | undefined (first route result)

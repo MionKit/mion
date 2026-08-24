@@ -41,48 +41,48 @@ type Sku = String<{pattern: {source: '^[a-z]{3}-[0-9]{2}$'}}>;
 /** Reads the build-emitted pattern payload off the reflected format annotation — the same slot
  *  `mockStringParams` -> `patternSampleList` draws from at runtime, so this asserts the real path. */
 function patternOf(rt: {formatAnnotation?: {params?: Record<string, any>}}) {
-    const pattern = rt.formatAnnotation?.params?.pattern as
-        | {source: string; flags?: string; mockSamples?: readonly string[]}
-        | undefined;
-    if (!pattern) throw new Error('no pattern payload on the format annotation');
-    return pattern;
+  const pattern = rt.formatAnnotation?.params?.pattern as
+    | {source: string; flags?: string; mockSamples?: readonly string[]}
+    | undefined;
+  if (!pattern) throw new Error('no pattern payload on the format annotation');
+  return pattern;
 }
 
 describe('ts-runtypes pattern sidecar', () => {
-    it('compiles and validates JS-only regex features RE2 cannot handle', () => {
-        // A backreference: only a real JS engine can compile this, and it is the feature
-        // allowUncheckedPatterns used to wave through unverified.
-        const isDoubled = createValidateFn<DoubledWord>();
-        expect(isDoubled('ab-ab')).toBe(true);
-        expect(isDoubled('ab-cd')).toBe(false);
+  it('compiles and validates JS-only regex features RE2 cannot handle', () => {
+    // A backreference: only a real JS engine can compile this, and it is the feature
+    // allowUncheckedPatterns used to wave through unverified.
+    const isDoubled = createValidateFn<DoubledWord>();
+    expect(isDoubled('ab-ab')).toBe(true);
+    expect(isDoubled('ab-cd')).toBe(false);
 
-        // Lookbehind + lookahead.
-        const isPrice = createValidateFn<PriceTag>();
-        expect(isPrice('$42.00')).toBe(true);
-        expect(isPrice('42.00')).toBe(false);
-    });
+    // Lookbehind + lookahead.
+    const isPrice = createValidateFn<PriceTag>();
+    expect(isPrice('$42.00')).toBe(true);
+    expect(isPrice('42.00')).toBe(false);
+  });
 
-    it('generates a mockSample pool for a pattern that declares none', () => {
-        const pattern = patternOf(getRunType<Sku>());
-        expect(pattern.mockSamples).toBeDefined();
-        expect(pattern.mockSamples!.length).toBeGreaterThan(0);
+  it('generates a mockSample pool for a pattern that declares none', () => {
+    const pattern = patternOf(getRunType<Sku>());
+    expect(pattern.mockSamples).toBeDefined();
+    expect(pattern.mockSamples!.length).toBeGreaterThan(0);
 
-        // Every generated sample must satisfy the pattern it was generated from — that is the
-        // sidecar validating its own output, not just emitting strings.
-        const re = new RegExp(pattern.source, pattern.flags);
-        for (const sample of pattern.mockSamples!) expect(sample).toMatch(re);
-    });
+    // Every generated sample must satisfy the pattern it was generated from — that is the
+    // sidecar validating its own output, not just emitting strings.
+    const re = new RegExp(pattern.source, pattern.flags);
+    for (const sample of pattern.mockSamples!) expect(sample).toMatch(re);
+  });
 
-    it('honours patternSampleCount from the mion plugin options', () => {
-        // The assertion that fails if the passthrough is mis-wired: the pool size is the option's
-        // only observable effect.
-        expect(patternOf(getRunType<Sku>()).mockSamples).toHaveLength(EXPECTED_SAMPLE_COUNT);
-    });
+  it('honours patternSampleCount from the mion plugin options', () => {
+    // The assertion that fails if the passthrough is mis-wired: the pool size is the option's
+    // only observable effect.
+    expect(patternOf(getRunType<Sku>()).mockSamples).toHaveLength(EXPECTED_SAMPLE_COUNT);
+  });
 
-    it('keeps declared mockSamples instead of generating over them', () => {
-        // Declared samples always win — the pool is the author's list verbatim, not a generated
-        // one of EXPECTED_SAMPLE_COUNT entries.
-        expect(patternOf(getRunType<DoubledWord>()).mockSamples).toEqual(['ab-ab', 'x-x']);
-        expect(patternOf(getRunType<PriceTag>()).mockSamples).toEqual(['$42.00', '$7.00']);
-    });
+  it('keeps declared mockSamples instead of generating over them', () => {
+    // Declared samples always win — the pool is the author's list verbatim, not a generated
+    // one of EXPECTED_SAMPLE_COUNT entries.
+    expect(patternOf(getRunType<DoubledWord>()).mockSamples).toEqual(['ab-ab', 'x-x']);
+    expect(patternOf(getRunType<PriceTag>()).mockSamples).toEqual(['$42.00', '$7.00']);
+  });
 });
