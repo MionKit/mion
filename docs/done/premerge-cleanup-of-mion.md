@@ -10,7 +10,7 @@ upcoming unrelated-histories join with ts-run-types.
 
 The default-branch reference updates this spec originally carried did NOT ship — they are
 blocked on an owner action that has not happened yet, and are now tracked on their own in
-[../todos/default-branch-rename-references.md](../todos/default-branch-rename-references.md).
+[default-branch-rename-references.md](default-branch-rename-references.md).
 
 ## What shipped
 
@@ -174,7 +174,7 @@ devtools removed-options guard, spec files and `plans/`), with no config or lock
 ## Not done here
 
 - Every `master` → `main` reference — see
-  [../todos/default-branch-rename-references.md](../todos/default-branch-rename-references.md).
+  [default-branch-rename-references.md](default-branch-rename-references.md).
 - `@mionjs/run-types` on npm stays live and undeprecated (master plan decision 1: it may become
   the future home of `@ts-runtypes/core`).
 - `pages-build` / `copy-benchmarks` — owned by master plan steps 4 and 8, which delete them
