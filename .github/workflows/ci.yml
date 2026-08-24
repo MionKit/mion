@@ -1,0 +1,322 @@
+name: ci
+
+# The gate on main (the stable development branch). Runs on every PR to main and
+# on push to main (post-merge confirmation).
+#
+# The heavy work is split across TWO balanced jobs on their own runners. The Go
+# suite is lighter than the full JS/vitest suite, so JS fuzz work rides the Go
+# runner to even the two out:
+#   go-fuzz — Go suite (gofmt/vet/test) + the count-based JS fuzz sweep + race
+#   js-lint — check-format + lint/typecheck + the rest of the JS suite + the
+#             seven time-boxed fuzz lanes, soaked sequentially
+# Both are PATH-GATED via the `changes` job (dorny/paths-filter), same mechanism
+# as `smoke`: they run only when Go (ts-go-runtypes/**) or JS (packages/** + root
+# JS config + scripts) files change, so a docs-only PR skips both. Inside go-fuzz
+# the gofmt/vet/go-test steps are additionally gated on the Go filter, so a
+# packages-only change runs the fuzz half without re-running the Go suite. (A Go
+# change still runs js-lint too: typecheck compiles the ts-go-runtypes testfixtures.)
+#
+# FUZZ BUDGETS: every lane runs on every PR at its QUICK tier — roughly 2x the
+# near-decorative defaults; see the FUZZ registry in scripts/rt.mjs — so
+# soak-grade findings surface while the causing change is still in review
+# instead of at release time (the gate's 45-min soak stays the release tier).
+# Placement follows the registry's scheduling rule: the seven TIME-BOXED lanes
+# run one at a time on the js-lint runner (contention silently buys less
+# coverage), the COUNT-BASED lanes (fixed coverage, contention only costs wall
+# clock) ride go-fuzz's parallel sweep. Lane names, exclude list and env values
+# here are pinned to the registry by fuzz-lane-contracts.test.ts. Seeds stay
+# version-derived (no RT_FUZZ_SEED): a red lane is attributable to THIS PR and
+# replays locally with the exact command the failing step names.
+#
+# The three vitest slices — go-fuzz's sweep (test/fuzz/ minus the seven
+# time-boxed files), js-lint's per-lane quick soaks (exactly those seven), and
+# js-lint's `--exclude '**/test/fuzz/**'` suite — are a complete, DISJOINT
+# partition of the JS suite, so no test is dropped or double-run — a semantic
+# split by directory instead of a hash shard.
+# (This used to be Go+shard-1 vs lint+shard-2 with `vitest --shard`; once oxlint
+# replaced the much heavier ESLint the lint side went light, so the even shards
+# left the Go job overloaded. Moving the fuzz suite — the JS heavyweight — onto
+# the otherwise-light Go runner rebalances.) Each job re-runs `bootstrap`, which
+# restores the shared, tsgolint-keyed Go build cache, so the tsgo compile is a
+# cache hit and the per-job resolver build is fast, not minutes.
+#
+# A FOURTH job, `smoke`, runs the website serves-a-page + benchmark
+# competitor-build checks. It is path-gated (only when container inputs change,
+# decided by the tiny `changes` job) and runs in PARALLEL with the verify jobs
+# instead of tailing them. It NEVER builds the shared image: it PULLS the
+# prebuilt one (competitor node_modules baked in) and mounts our freshly built
+# binary; if the image can't be pulled the job fails (rebuild + push it from
+# local — it is not a CI artifact). typia is skipped (RT_BENCH_NO_TYPIA) for now
+# because its native plugin compiles ~200s at run time and is not yet baked into
+# the image; the prod gate's `benchmarks` job exercises typia.
+#
+# A FIFTH job, `commitlint`, gates PR commit messages against Conventional
+# Commits. It is PR-only and light (no submodules/Go): the auto-changelog
+# (git-cliff) is generated from those messages, so every commit that lands must
+# conform. This is the SERVER-SIDE gate — the local .husky/commit-msg hook only
+# fires on clones that ran `pnpm exec husky` (ignoreScripts blocks husky's
+# prepare from auto-wiring), so CI is what actually enforces it.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── go-fuzz: Go suite + the count-based JS fuzz lanes ─────────────────────
+  # The Go suite (vet + test) is the wall floor here; the count-based JS fuzz
+  # lanes (the JS heavyweight) ride along on this otherwise-Go-bound runner to
+  # balance it against js-lint, at their quick budgets.
+  go-fuzz:
+    name: go tests + fuzz
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || needs.changes.outputs.pkg == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # Fail-fast: cheap checks first. gofmt is instant; vet compiles (cache-warm)
+      # and warms the compile cache the go-test + resolver-build steps reuse.
+      # Go-specific steps run only when the Go tree changed; a packages-only
+      # change still runs the fuzz half below (which spawns the binary).
+      - name: Go formatting (our code only; never third_party)
+        if: needs.changes.outputs.go == 'true'
+        working-directory: ts-go-runtypes
+        run: |
+          unformatted="$(gofmt -l cmd internal)"
+          if [ -n "$unformatted" ]; then
+            echo "These Go files are not gofmt-clean (run: pnpm run format):" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+      - name: Go vet (our code only; never third_party)
+        if: needs.changes.outputs.go == 'true'
+        working-directory: ts-go-runtypes
+        run: go vet ./cmd/... ./internal/...
+      # Build BEFORE the Go suite: since the real-package migration the Go
+      # tests read packages/ts-runtypes/dist (testfixtures.RealMarkerPackage +
+      # the on-disk fixture tsconfigs' paths), and the fuzz half below spawns
+      # the binary and reads the dists. One build feeds both; the Go compile
+      # is cache-warm from vet.
+      - name: Build the resolver + dists (marker dist read by the Go suite; binary spawned by fuzz)
+        run: pnpm run check:builds
+      # RT_FUZZ_ITER widens both Go fuzz sweeps under internal/convert to the
+      # `convert` lane's quick budget (mirrors the registry, pinned by
+      # fuzz-lane-contracts.test.ts). Local replay: `pnpm rtx core fuzz convert --quick`.
+      - name: Go test suite (fuzz sweeps at quick budgets)
+        if: needs.changes.outputs.go == 'true'
+        working-directory: ts-go-runtypes
+        env:
+          RT_FUZZ_ITER: '30'
+        run: go test ./internal/...
+      # The count-based JS fuzz lanes at their QUICK budgets (fixed coverage, so
+      # vitest's file parallelism only costs wall clock), plus the fuzz-adjacent
+      # regression/smoke/unit tests in the same tree. The seven time-boxed lanes
+      # are excluded — js-lint soaks those sequentially (see the header note).
+      # The env values mirror the registry's quick blocks; values, exclude list
+      # and the trailing slash on `test/fuzz/` (it keeps the devtools
+      # fuzz-lane-contracts test out of this slice) are pinned by that same test.
+      # Local replay: `pnpm rtx core fuzz <enrich|i18n|typemod|convertcli> --quick`.
+      - name: JS fuzz sweep (count-based lanes at quick budgets)
+        env:
+          RT_FUZZ_ENRICH_SEQUENCES: '12'
+          RT_FUZZ_I18N_SEQUENCES: '12'
+          RT_FUZZ_TYPEMOD_SEQUENCES: '12'
+          RT_FUZZ_ITER: '10'
+        run: >-
+          pnpm exec vitest run test/fuzz/
+          --exclude '**/test/fuzz/{value/fuzz,type/typeFuzz,type/nonDataTypeFuzz,cloning/cloneFuzz,roundtrip/allStrategyRoundtrip,binary/binarySizeEstimate,elision/elisionFuzz}.integration.test.ts'
+      # enrichRace self-skips unless RT_FUZZ_RACE=1 (scripts audit §3.4); the
+      # sweep above never sets it, so the concurrency coverage rides here at the
+      # race lane's quick budget (rtx sets RT_FUZZ_RACE=1 itself).
+      - name: Concurrent CLI race fuzz (RT_FUZZ_RACE gate)
+        run: pnpm rtx core fuzz race --quick
+
+  # ── js-lint: the rest of the JS suite + lint/typecheck/format ─────────────
+  # Everything except the fuzz tree runs here, plus the static checks and the
+  # seven time-boxed fuzz lanes (sequential, quick budgets). Together with
+  # go-fuzz this is a complete, disjoint partition of the JS suite.
+  js-lint:
+    name: js tests + lint
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || needs.changes.outputs.pkg == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # bun is NOT a workspace dependency — the devtools Bun adapter's tests
+      # spawn it and skip themselves when it is absent, so without this step the
+      # whole @ts-runtypes/devtools/bun lane would silently never run in CI.
+      # Only this job needs it, hence not in the shared bootstrap action.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      # Fail-fast ordering — cheap checks before the suite.
+      - name: Check formatting (no build needed — runs first)
+        run: pnpm run check-format
+      # `pnpm run lint` runs typecheck, which reads the built dists; the JS suite
+      # also spawns the binary — one build feeds both.
+      - name: Build the resolver + dists (needed by lint + the JS suite)
+        run: pnpm run check:builds
+      # The committed Go→TS mirrors have no other CI drift gate and can silently
+      # rot (scripts audit §3.3): regenerate + format them and fail on any diff.
+      # rtx owns the generator list, so a new mirror is picked up here for free.
+      - name: Codegen drift (Go→TS mirrors must be in sync)
+        run: pnpm rtx core codegen all --check
+      # Same shape as the codegen drift gate, for the other hand-maintained
+      # mirror: every secret/dev row in the env REGISTRY must appear in
+      # .env.sample (and no internal var may). Cheap and dependency-free.
+      - name: Env registry drift (.env.sample must mirror REGISTRY)
+        run: pnpm run check:env
+      - name: Lint + typecheck
+        run: pnpm run lint
+      - name: JS suite (everything except test/fuzz)
+        run: pnpm exec vitest run --exclude '**/test/fuzz/**'
+      # A spawned resolver that PANICS writes its full stdout+stderr here (the
+      # assertion message only carries the crash header, so a log pipeline
+      # cannot truncate away the frame that names the defect). Keep it on
+      # failure so one red run is enough to diagnose the crash.
+      - name: Upload spawned-CLI crash dumps
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-crash-dumps-ci
+          path: logs/cli-crashes/
+          if-no-files-found: ignore
+          retention-days: 14
+      # The seven TIME-BOXED fuzz lanes at their quick budgets (10s of fuzzing
+      # each; the release soak gives them 60s). ONE invocation: rtx pays vitest's
+      # startup once (~2min here vs separate per-lane runs) and, because
+      # the set contains time-boxed lanes, runs the files sequentially itself —
+      # contention would silently cut their coverage (see the FUZZ registry note
+      # in scripts/rt.mjs). They live on THIS runner because go-fuzz already
+      # carries the Go suite + the count-based sweep; measured on real runs the
+      # two jobs land balanced. Their files are excluded from go-fuzz's sweep so
+      # nothing double-runs (pinned by fuzz-lane-contracts.test.ts), and a red
+      # lane replays locally with this exact command.
+      - name: Time-boxed fuzz lanes at quick budgets
+        run: pnpm rtx core fuzz cloning elision nondata roundtrip size types value --quick
+
+  # ── commitlint: Conventional Commits gate on the PR's commits ──────────────
+  # Validates every commit in the PR range against commitlint.config.js. PR-only
+  # (github.event_name gate) — a push to main carries commits already vetted here
+  # via their PR. Deliberately light: no submodules, no Go, no resolver build —
+  # just the deps commitlint needs (ignoreScripts blocks any build scripts).
+  commitlint:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: Install deps (commitlint only needs the JS workspace)
+        run: pnpm install --frozen-lockfile
+      - name: Lint PR commit messages (Conventional Commits)
+        run: >-
+          pnpm exec commitlint --verbose
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+
+  # Decides WHICH heavy jobs run, by path: `smoke` (the website/benchmarks apps +
+  # their drivers), `go` (the Go tree), and `pkg` (JS packages + root JS config +
+  # scripts). Kept as its own tiny job so the gated jobs can `needs:` it without a
+  # bootstrap, and so a docs-only PR never spins up a heavy runner at all.
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      smoke: ${{ steps.filter.outputs.smoke }}
+      go: ${{ steps.filter.outputs.go }}
+      pkg: ${{ steps.filter.outputs.pkg }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            smoke:
+              # Only the two apps the smoke actually builds — NOT the pre-publish-e2e
+              # fixture (that is exercised by release-gate, not ci).
+              - 'container/website/**'
+              - 'container/benchmarks/**'
+              - 'scripts/core/build.mjs'
+              - 'scripts/website/**'
+              - 'scripts/container/**'
+              - 'scripts/lib/**'
+            go:
+              - 'ts-go-runtypes/**'
+              - '.github/actions/bootstrap/**'
+            pkg:
+              - 'packages/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig.json'
+              - 'vitest.config.ts'
+              - '.github/actions/bootstrap/**'
+
+  # Path-gated container smoke, parallel with the verify jobs. Self-contained: it
+  # builds its own resolver + linux binaries for the container mounts, then pulls
+  # the prebuilt shared image (CI never builds it).
+  smoke:
+    name: container smoke
+    needs: changes
+    if: needs.changes.outputs.smoke == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      # Reclaim ~15-25 GB of preinstalled cruft before the multi-GB image pull +
+      # Go build-cache restore, so the runner's root fs doesn't fill up.
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      - name: Build the resolver + linux binaries for the container mounts
+        run: pnpm rtx core build all linux-go linux-extract
+      - name: Pull the prebuilt shared image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+      # Reuse the playground wasm so a PR that only touches the website / playground
+      # UI doesn't pay the ~8-min rebuild.
+      - name: Cache the playground wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - name: Website serves-a-page smoke
+        run: pnpm rtx website check
+      # The competitor maps declare themselves TOTAL over the shared case keys, and
+      # nothing used to compile them (vite/esbuild strip types without checking), so a
+      # dropped key read as an absent column instead of a build failure. This is the
+      # gate. It runs BEFORE the build smoke because it is much cheaper and fails on
+      # the same drift, and it includes typia — no .ttsc plugin is needed to
+      # type-check, only to build, so RT_BENCH_NO_TYPIA is deliberately NOT set here.
+      - name: Benchmark competitor-map typecheck
+        run: pnpm rtx bench typecheck
+      # RT_BENCH_NO_TYPIA stays until the prebuilt image BAKES typia's .ttsc plugin (a
+      # local image change + republish); a no-.ttsc image would otherwise recompile
+      # it ~200s here. Drop this once that image is live.
+      - name: Benchmark competitor-build smoke
+        env:
+          RT_BENCH_NO_TYPIA: '1'
+        run: pnpm rtx bench smoke

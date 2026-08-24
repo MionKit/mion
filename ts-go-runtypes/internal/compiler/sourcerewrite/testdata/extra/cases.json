@@ -1,0 +1,293 @@
+[
+  {
+    "name": "crlf",
+    "file": "a.ts",
+    "code": "const a = 1;\r\nconst id = getRunTypeId<string>();\r\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 46,
+        "id": "Crlf001",
+        "paramIndex": 1
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_Crlf001} from 'rtmod:/Crlf001.js';\nconst a = 1;\r\nconst id = getRunTypeId<string>(undefined, __rt_Crlf001);\r\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const a = 1;\r\nconst id = getRunTypeId<string>();\r\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACZ,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC,CAAC;"
+    }
+  },
+  {
+    "name": "tabs",
+    "file": "a.ts",
+    "code": "\t\tconst id = getRunTypeId<string>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 34,
+        "id": "Tab0001",
+        "paramIndex": 1
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_Tab0001} from 'rtmod:/Tab0001.js';\n\t\tconst id = getRunTypeId<string>(undefined, __rt_Tab0001);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "\t\tconst id = getRunTypeId<string>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,CAAC,CAAC,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+    }
+  },
+  {
+    "name": "heavy_multibyte",
+    "file": "a.ts",
+    "code": "// 🦄 — 🚀 — header\nconst a = getRunTypeId<string>();\n// más\nconst b = getRunTypeId<number>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 59,
+        "id": "Mb00001",
+        "paramIndex": 1
+      },
+      {
+        "file": "a.ts",
+        "pos": 101,
+        "id": "Mb00002",
+        "paramIndex": 1
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_Mb00001} from 'rtmod:/Mb00001.js'; import {__rt_Mb00002} from 'rtmod:/Mb00002.js';\n// 🦄 — 🚀 — header\nconst a = getRunTypeId<string>(undefined, __rt_Mb00001);\n// más\nconst b = getRunTypeId<number>(undefined, __rt_Mb00002);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "// 🦄 — 🚀 — header\nconst a = getRunTypeId<string>();\n// más\nconst b = getRunTypeId<number>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACb,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;AAChC,CAAC,CAAC,CAAC,CAAC,CAAC;AACL,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+    }
+  },
+  {
+    "name": "replace_over_multibyte",
+    "file": "a.ts",
+    "code": "registerPureFnFactory('ns::f', (x) => x /* — */);\n",
+    "sites": [],
+    "replacements": [
+      {
+        "file": "a.ts",
+        "start": 31,
+        "end": 49,
+        "text": "__rt_pf_ns_f",
+        "importFrom": "rtmod:/pf/ns/f.js"
+      }
+    ],
+    "expectedCode": "import {__rt_pf_ns_f} from 'rtmod:/pf/ns/f.js';\nregisterPureFnFactory('ns::f', __rt_pf_ns_f);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "registerPureFnFactory('ns::f', (x) => x /* — */);\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,qBAAqB,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,YAAgB,CAAC;"
+    }
+  },
+  {
+    "name": "big_padding",
+    "file": "a.ts",
+    "code": "const v = createGetValidationErrorsFn<T>(opts);\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 45,
+        "id": "Big0001",
+        "paramIndex": 3,
+        "argsCount": 1,
+        "fnId": "verr"
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_verr_Big0001} from 'rtmod:/verr_Big0001.js';\nconst v = createGetValidationErrorsFn<T>(opts, undefined, undefined, __rt_verr_Big0001);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const v = createGetValidationErrorsFn<T>(opts);\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,2BAA2B,CAAC,CAAC,CAAC,CAAC,6CAAI,CAAC;"
+    }
+  },
+  {
+    "name": "bundle_module",
+    "file": "a.ts",
+    "code": "const v = createValidateFn<T>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 30,
+        "id": "Bun0001",
+        "paramIndex": 1,
+        "fnId": "val",
+        "module": "fns/val"
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_val_Bun0001} from 'rtmod:/fns/val.js';\nconst v = createValidateFn<T>(undefined, __rt_val_Bun0001);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const v = createValidateFn<T>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,gBAAgB,CAAC,CAAC,CAAC,4BAAC,CAAC;"
+    }
+  },
+  {
+    "name": "bundle_module_multi_fn",
+    "file": "a.ts",
+    "code": "const schema = createStandardSchema<T>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 39,
+        "id": "BunMul1",
+        "paramIndex": 2,
+        "fnId": "val",
+        "fnIds": [
+          "val",
+          "verr",
+          "jsonSchema"
+        ],
+        "module": "fns/val",
+        "modules": [
+          "fns/val",
+          "fns/verr",
+          "fns/jsonSchema"
+        ]
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_jsonSchema_BunMul1} from 'rtmod:/fns/jsonSchema.js'; import {__rt_val_BunMul1} from 'rtmod:/fns/val.js'; import {__rt_verr_BunMul1} from 'rtmod:/fns/verr.js';\nconst schema = createStandardSchema<T>(undefined, undefined, [__rt_val_BunMul1, __rt_verr_BunMul1, __rt_jsonSchema_BunMul1]);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const schema = createStandardSchema<T>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,MAAM,CAAC,CAAC,CAAC,oBAAoB,CAAC,CAAC,CAAC,qFAAC,CAAC;"
+    }
+  },
+  {
+    "name": "dup_specifier",
+    "file": "a.ts",
+    "code": "regA('x', AAA); regB('y', BBB);\n",
+    "sites": [],
+    "replacements": [
+      {
+        "file": "a.ts",
+        "start": 10,
+        "end": 13,
+        "text": "__rt_shared_a",
+        "importFrom": "rtmod:/shared.js"
+      },
+      {
+        "file": "a.ts",
+        "start": 26,
+        "end": 29,
+        "text": "__rt_shared_b",
+        "importFrom": "rtmod:/shared.js"
+      }
+    ],
+    "expectedCode": "import {__rt_shared_a, __rt_shared_b} from 'rtmod:/shared.js';\nregA('x', __rt_shared_a); regB('y', __rt_shared_b);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "regA('x', AAA); regB('y', BBB);\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,IAAI,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,aAAG,CAAC,CAAC,CAAC,IAAI,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,aAAG,CAAC;"
+    }
+  },
+  {
+    "name": "no_trailing_newline",
+    "file": "a.ts",
+    "code": "const id = getRunTypeId<string>()",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 32,
+        "id": "Eof0001",
+        "paramIndex": 1
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_Eof0001} from 'rtmod:/Eof0001.js';\nconst id = getRunTypeId<string>(undefined, __rt_Eof0001)",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const id = getRunTypeId<string>()"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC"
+    }
+  },
+  {
+    "name": "word_after_astral",
+    "file": "a.ts",
+    "code": "const w = \"𝕏abc\"; const id = getRunTypeId<string>();\n",
+    "sites": [
+      {
+        "file": "a.ts",
+        "pos": 53,
+        "id": "Ast0001",
+        "paramIndex": 1
+      }
+    ],
+    "replacements": [],
+    "expectedCode": "import {__rt_Ast0001} from 'rtmod:/Ast0001.js';\nconst w = \"𝕏abc\"; const id = getRunTypeId<string>(undefined, __rt_Ast0001);\n",
+    "expectedMap": {
+      "version": 3,
+      "sources": [
+        "a.ts"
+      ],
+      "sourcesContent": [
+        "const w = \"𝕏abc\"; const id = getRunTypeId<string>();\n"
+      ],
+      "names": [],
+      "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+    }
+  }
+]

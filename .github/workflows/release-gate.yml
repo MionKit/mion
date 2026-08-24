@@ -1,0 +1,409 @@
+name: prod · release gate
+
+# Reusable gate shared by pre-publish.yml (PR -> prod) and publish.yml (push ->
+# prod), so a release PR and the merge that lands it run the IDENTICAL checks:
+#   build         - the full main gate (Go suite + gofmt/vet, JS suite incl. fuzz,
+#                   lint, typecheck, format) on Linux, then build every package + the
+#                   7-platform binary matrix and pack the tarballs.
+#   converted-suites - the whole suite tree rewritten into the value forms by
+#                   `ts-runtypes convert` and run against the same assertions.
+#   fuzz-soak     - the SOAK budgets of every fuzz lane, one runner each. The
+#                   suites above run these lanes at their tiny defaults (the
+#                   convert sweep at 6 iterations, its CLI twin at 5); this is
+#                   the only place the `--soak` budgets in rtx's FUZZ registry
+#                   ever execute, and the only place the seed varies.
+#   e2e           - install the PUBLISHED packages from a local verdaccio and run
+#                   the consumer suite, one full run per OS, plus a cheap
+#                   binary-exec sanity check for the Linux side-arches.
+#   benchmarks    - the validation + type-cost benchmarks in the shared podman
+#                   image (locally built, no GHCR auth needed).
+#   website-build - the static docs site builds in the shared podman image.
+#
+# Coverage rationale (e2e): the Go resolver is pure (CGO_ENABLED=0, deterministic,
+# no platform-specific code), so cross-compilation is trusted for the ARCH axis;
+# the real per-platform risk is OS plumbing (launcher .exe/long-path resolution,
+# path handling, process spawn, CRLF) - which is per-OS, not per-arch. So:
+#   - full e2e on one runner per OS: linux-x64, darwin-arm64, win32-x64
+#   - binary-exec (QEMU) on linux-arm64 + linux-arm
+#   - darwin-x64 + win32-arm64 are built + published but not exercised here
+#     (no common runner; Go cross-compile is trusted for the binary itself).
+#
+# The `version` output (read from version.json by the build job) is surfaced to the
+# caller so publish.yml tags the SAME version the gate built - never a fresh
+# version.json read that could drift from the packed artifact.
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: 'Release version read from version.json by the build job'
+        value: ${{ jobs.build.outputs.version }}
+  # On-demand runs of the WHOLE gate (build + e2e + binary-exec + benchmarks +
+  # website-build) on any branch, with NO publish - the "run the full workflow
+  # except the publish task" path. `gh workflow run release-gate.yml --ref <branch>`.
+  # Uses the repo's secrets directly (GHCR_PAT), so the private-image pulls work.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build + full source suite + pack
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      - id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./version.json').version")" >> "$GITHUB_OUTPUT"
+      # The Go suites read the built marker dist (real-package overlay +
+      # fixture tsconfig paths); pnpm test's pretest builds everything too,
+      # but the Go suite runs first — check:builds is staleness-safe and makes
+      # the later pretest a no-op.
+      - name: Build the resolver + dists (marker dist read by the Go suite)
+        run: pnpm run check:builds
+      - name: Go test suite
+        working-directory: ts-go-runtypes
+        run: go test ./internal/...
+      - name: Go formatting + vet (our code only; never third_party)
+        working-directory: ts-go-runtypes
+        run: |
+          unformatted="$(gofmt -l cmd internal)"
+          if [ -n "$unformatted" ]; then
+            echo "These Go files are not gofmt-clean (run: pnpm run format):" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+          go vet ./cmd/... ./internal/...
+      # Prod parity with ci.yml: the committed Go→TS mirrors must stay in sync.
+      # rtx owns the generator list, so a new mirror is picked up here for free.
+      - name: Codegen drift (Go→TS mirrors must be in sync)
+        run: pnpm rtx core codegen all --check
+      - name: Full JS suite (builds the resolver + dists via pretest; runs fuzz)
+        run: pnpm test
+      # A spawned resolver that PANICS writes its full stdout+stderr here (the
+      # assertion message only carries the crash header, so a log pipeline
+      # cannot truncate away the frame that names the defect). Keep it on
+      # failure so one red run is enough to diagnose the crash.
+      - name: Upload spawned-CLI crash dumps
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-crash-dumps-gate
+          path: logs/cli-crashes/
+          if-no-files-found: ignore
+          retention-days: 14
+      # pnpm test above never sets RT_FUZZ_RACE, so enrichRace self-skips there;
+      # the concurrency coverage rides here. Equivalent to `pnpm rtx core fuzz race`.
+      - name: Concurrent CLI race fuzz (RT_FUZZ_RACE gate)
+        run: RT_FUZZ_RACE=1 pnpm exec vitest run enrichRace
+      # Re-run the full main gate here too (lint/typecheck/format) so a prod PR
+      # catches anything that ever slipped onto main; runs after pnpm test so the
+      # dists the typecheck reads are already built.
+      - name: Lint + typecheck
+        run: pnpm run lint
+      - name: Check formatting
+        run: pnpm run check-format
+      - name: Build FE dists (canonical, for packing)
+        run: pnpm run build
+      - name: Cross-compile the 7-platform binary packages
+        run: pnpm rtx release binaries
+      - name: Pack every package into tarballs/
+        run: pnpm rtx release pack
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tarballs
+          path: tarballs/
+          # Long enough that a slow `release` environment approval on the publish
+          # side can still download the exact bytes the e2e validated.
+          retention-days: 14
+
+  # ── converted-suites: the suite tree, in the value forms ──────────────────
+  # `pnpm rtx core converted-suites` converts packages/ts-runtypes/test/suites/
+  # into one tree per target, runs vitest over them and removes them again. The
+  # assertions are identical to the originals, so a failure here means the
+  # CONVERSION changed behaviour — it cannot mean anything else.
+  #
+  # Not in ci.yml: this converts and type-checks 205 files twice over, which is
+  # not a per-PR cost. Here it rides the pre-publish gate, where the question
+  # "do the three notations still agree?" is exactly what wants answering.
+  converted-suites:
+    name: suite tree in the value forms
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # The command spawns bin/ts-runtypes and the vitest project reads both
+      # dists; a build failure should read as a build failure, not a conversion one.
+      - name: Build the resolver + dists
+        run: pnpm run check:builds
+      - name: Convert the suites, run them, remove the trees
+        run: pnpm rtx core converted-suites
+
+  # ── fuzz-soak: the lanes at their SOAK budgets, one runner per lane ────────
+  # Every fuzz lane already runs on every PR: ci.yml executes each at its QUICK
+  # budget (~2x the near-decorative defaults — the convert sweep's default draws
+  # 6 declarations, its CLI twin 5) so findings surface while the causing change
+  # is still in review. The `--soak` budgets in rtx's FUZZ registry
+  # (scripts/rt.mjs) are the RELEASE tier, and this job is its release half;
+  # fuzz-soak.yml is the other half, running the same lanes on demand for the
+  # cost of twelve short jobs instead of the whole gate, so findings can be
+  # drained between releases rather than piling up against one. The gate's
+  # `workflow_dispatch` also makes the whole gate runnable by hand on any
+  # branch (`gh workflow run release-gate.yml --ref <branch>`).
+  #
+  # One job per lane (not one job running all of them) so the wall clock is the
+  # SLOWEST lane rather than their sum — and because the time-boxed lanes must
+  # never share CPU (the registry's scheduling rule) — with `fail-fast: false`
+  # so one lane's finding never hides another's.
+  #
+  # The matrix is DERIVED from the registry via `rtx core fuzz-lanes` (the
+  # `pick` job): giving a lane a `soak` budget there IS the opt-in. A soak
+  # budget is a wall-clock commitment, not a default — but once committed in
+  # the registry, the lane wires itself up here and in fuzz-soak.yml, so the
+  # commitment can no longer decay into a dead or forgotten lane name.
+  # fuzz-lane-contracts.test.ts pins this derivation, and pins the one list
+  # that can never be derived (fuzz-soak.yml's dispatch choice options) to the
+  # same registry.
+  pick:
+    name: pick soak lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      lanes: ${{ steps.pick.outputs.lanes }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          # Deliberately pnpm-free, so the default pnpm cache probe would fail
+          # with "Unable to locate executable file: pnpm".
+          package-manager-cache: false
+      # Bare node on the zero-dep CLI — no pnpm install, no submodules, no build.
+      - id: pick
+        run: |
+          lanes="$(node scripts/rt.mjs core fuzz-lanes)"
+          echo "lanes=$lanes" >> "$GITHUB_OUTPUT"
+          echo "Soaking: $lanes" >> "$GITHUB_STEP_SUMMARY"
+
+  fuzz-soak:
+    name: fuzz soak · ${{ matrix.lane }}
+    needs: pick
+    runs-on: ubuntu-latest
+    # A soak that overruns is a finding too (docs/done/soak-single-iteration-pathology.md),
+    # so bound the job rather than letting a wedged lane hold the gate open.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: ${{ fromJSON(needs.pick.outputs.lanes) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/bootstrap
+      # rtx builds what a lane needs itself, but doing it as its own step keeps a
+      # build failure legible as a build failure rather than a soak failure.
+      - name: Build the resolver + dists (convertcli spawns the binary)
+        run: pnpm run check:builds
+      - name: Soak ${{ matrix.lane }}
+        env:
+          # The lanes pin a FIXED default seed, so repeat runs re-explore the
+          # same ground. Deriving it from the run id gives every gate new
+          # coverage; it is echoed first so a finding replays verbatim. This does
+          # mean the gate can go red on a latent bug the release did not
+          # introduce — which is the point of a pre-release soak.
+          RT_FUZZ_SEED: ${{ github.run_id }}
+        run: |
+          echo "replay this run: RT_FUZZ_SEED=$RT_FUZZ_SEED pnpm rtx core fuzz ${{ matrix.lane }} --soak"
+          pnpm rtx core fuzz ${{ matrix.lane }} --soak
+
+  e2e:
+    name: e2e ${{ matrix.pkg }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu runs the full multi-bundler feature matrix + the host-native
+          # smoke against a CONTAINERIZED verdaccio (the shared image's baked
+          # registry). mac/win can't run a Linux container (L2), so they take the
+          # CI-guarded host-npx fallback: on-runner verdaccio + the per-OS
+          # host-native binary smoke only (the bundler matrix is OS-agnostic and
+          # does not repeat per-OS).
+          - {runner: ubuntu-latest, pkg: linux-x64, backend: container}
+          - {runner: macos-14, pkg: darwin-arm64, backend: host-npx}
+          - {runner: windows-latest, pkg: win32-x64, backend: host-npx}
+    runs-on: ${{ matrix.runner }}
+    # packages:read lets the container backend (ubuntu) pull the prebuilt shared image.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      # Reclaim preinstalled cruft before the image pull (ubuntu container lane only).
+      - uses: ./.github/actions/free-disk
+        if: matrix.backend == 'container'
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - uses: actions/download-artifact@v8
+        with:
+          name: tarballs
+          path: tarballs
+      # CI never builds the images; the container backend pulls the prebuilt e2e
+      # image (verdaccio + the builder toolchains). e2e.mjs's own ensureImage then
+      # sees the digest already matches and skips a second pull.
+      - name: Pull the prebuilt e2e image (container backend only)
+        if: matrix.backend == 'container'
+        uses: ./.github/actions/pull-shared-image
+        with:
+          remote: ghcr.io/mionkit/tsrt-e2e:latest
+          local-tag: tsrt-e2e:dev
+          # tsrt-e2e is a PRIVATE package the repo's GITHUB_TOKEN can't read; the
+          # PAT (read:packages) can. Passed via `secrets: inherit` on the gate call.
+          password: ${{ secrets.GHCR_PAT }}
+      # The ONE front door — same script locally and on every lane, so they can't
+      # drift. tarballs/ is the downloaded artifact, so e2e.mjs skips the build.
+      - name: Pre-publish e2e (${{ matrix.backend }})
+        run: pnpm rtx release e2e --backend ${{ matrix.backend }}
+      # The receipt proves the e2e ran over exactly the tarballs the publish job
+      # will push (scripts/release/receipt.mjs). The tarballs artifact was uploaded
+      # by the BUILD job, so the receipt travels on its own; only the container
+      # lane's counts, since that is the one that runs the full matrix.
+      - name: Upload the e2e receipt (container backend only)
+        if: matrix.backend == 'container'
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-receipt
+          path: tarballs/.e2e-receipt.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # Cross-arch binary sanity: exec the cross-compiled binary (`--version`) under QEMU
+  # on the Linux side-arches. NOT a full e2e (those are the `e2e` jobs; their
+  # "host-native smoke" is a STEP inside them) - named `binary-exec` to avoid that
+  # "smoke" overlap. The Go resolver is CGO-free + deterministic, so the arch axis is
+  # trusted and a bare exec check is enough here.
+  binary-exec:
+    name: binary-exec linux/${{ matrix.pkg }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {platform: linux/arm64, pkg: linux-arm64}
+          - {platform: linux/arm/v6, pkg: linux-arm}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: tarballs
+          path: tarballs
+      - uses: docker/setup-qemu-action@v4
+      - name: Exec the ${{ matrix.pkg }} binary under QEMU
+        run: |
+          # Extract just the binary (package/lib/ts-runtypes) from its tarball.
+          mkdir -p bin-rt
+          tar -xzf tarballs/ts-runtypes-binary-${{ matrix.pkg }}-*.tgz -C bin-rt --strip-components=2 package/lib/ts-runtypes
+          # Static CGO-free binary runs on a minimal image; --version proves it
+          # executes on this arch and prints the embedded version + tsgo revision.
+          # alpine, not debian: the linux-arm package is GOARM=6 and alpine still
+          # publishes a real linux/arm/v6 variant — bookworm-slim's manifest now
+          # carries only arm/v7 + arm64/v8, so an arm/v6 pull no longer resolves.
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/bin-rt:/rt" alpine:3 /rt/ts-runtypes --version
+
+  benchmarks:
+    name: validation + type-cost benchmarks (podman)
+    runs-on: ubuntu-latest
+    # CI never builds the shared image; it pulls the prebuilt one (needs packages:read).
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      - name: podman version
+        run: podman --version
+      # Builds the Go resolver binary + the marker/plugin packages on the runner
+      # (these are mounted into the pulled image at run time).
+      - name: Prep ts-runtypes toolchain
+        run: pnpm rtx bench prep
+      - name: Pull the prebuilt shared image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+        with:
+          # Auth all GHCR pulls with the PAT (via `secrets: inherit`); it falls back
+          # to GITHUB_TOKEN when absent (fork PRs) - tsrt-website is readable either way.
+          password: ${{ secrets.GHCR_PAT }}
+      - name: Run the benchmark (build + run under node AND bun, in the container)
+        run: pnpm rtx bench
+      # Report-only on a SHARED GitHub runner: throughput ratios here are too noisy to
+      # gate a release on, and a flaky release gate is one people learn to bypass. The
+      # hard, noise-free half of this (did the per-engine branch actually fire on each
+      # runtime) is already asserted inside `pnpm rtx bench` by checkEngineBranch.
+      - name: Engine-branch throughput report (counter inversion, node + bun)
+        env:
+          RT_BENCH_ENGINE_ASSERT: '0'
+        run: pnpm rtx bench engine-check
+      - name: Type-checking cost (TS type instantiations)
+        run: pnpm rtx bench typecost
+
+  website-build:
+    name: static docs site build (podman)
+    runs-on: ubuntu-latest
+    # Prove the static site builds. CI never builds the image; it pulls the
+    # prebuilt one. This is a build check only - the real bench-data-baked deploy
+    # happens in publish.yml.
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive # tsgolint submodule - the playground WASM Go build needs it
+      # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
+      - uses: ./.github/actions/free-disk
+      # `container-build` runs on the HOST to drive the podman build AND to prebuild
+      # the playground assets (build-playground.mjs: the resolver WASM + the vendored
+      # ts-runtypes dist that nuxt build imports). bootstrap gives the host Go +
+      # Node + pnpm + deps + the tsgolint patches all of that needs; without it the
+      # WASM `go build` fails and nuxt build dies on the missing vendor dist.
+      - uses: ./.github/actions/bootstrap
+      - name: podman version
+        run: podman --version
+      # Cache the playground WASM so a UI-only change skips the multi-minute rebuild.
+      - name: Cache the playground wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - name: Pull the prebuilt shared image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+        with:
+          # Auth all GHCR pulls with the PAT (via `secrets: inherit`); it falls back
+          # to GITHUB_TOKEN when absent (fork PRs) - tsrt-website is readable either way.
+          password: ${{ secrets.GHCR_PAT }}
+      # The container-only prod build (not the full data pipeline) - produces
+      # container/website/.output.
+      - name: Production build inside the container
+        run: pnpm rtx website container-build
+      # The BUILD passing is the gate check (the step above dies on any build error).
+      # The artifact is incidental evidence, and rootless-podman container->host
+      # extraction of .output is flaky in CI (see buildAndCopyOut) - so a missing
+      # artifact WARNS rather than failing the job. Uploads normally when present.
+      - name: Upload build output (best-effort)
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-output
+          path: container/website/.output
+          if-no-files-found: warn

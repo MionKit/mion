@@ -1,0 +1,27 @@
+{
+  // Type-check config for the CONVERTED suite trees (test/converted-<target>/),
+  // which `pnpm rtx core converted-suites` generates, runs and deletes. They are
+  // gitignored, so this config points at paths that only exist during that
+  // command — every other lane ignores it.
+  //
+  // The trees are siblings of test/suites/ on purpose: the suites import
+  // `../../util/*.ts` and `../../../src/...`, which resolve to the same files
+  // only at that depth. Nest them one level deeper and every converted file
+  // fails to resolve its helpers.
+  //
+  // `test/**/*` in tsconfig.test.json would sweep these in, so tsconfig.test.json
+  // excludes them and this config names them instead.
+  "extends": "./tsconfig.test.json",
+  "include": [
+    "src/**/*",
+    "test/util/**/*",
+    "test/support/**/*",
+    "test/converted-builders/**/*"
+  ],
+  // `exclude` is NOT inherited-and-merged — a base config's exclude applies
+  // wholesale unless the child restates it, and tsconfig.test.json excludes the
+  // converted trees. Restating it without them is what puts the converted files
+  // in this Program at all; without this the resolver found zero call sites and
+  // every converted test threw "no id injected".
+  "exclude": ["node_modules", "dist", "test/playground"]
+}

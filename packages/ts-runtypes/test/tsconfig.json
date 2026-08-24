@@ -1,0 +1,19 @@
+{
+  // EDITOR / IDE config for the test tree. The language server uses the NEAREST
+  // tsconfig.json to a file; the package's own tsconfig.json EXCLUDES `test/`
+  // (it is the src-only build config), which dropped test files into an
+  // "inferred project" using the wrong settings — no `customConditions:
+  // ["source"]` (so the `ts-runtypes` self-import resolved to a
+  // stale `dist/`) and `composite`/`declaration` left ON (so it surfaced
+  // declaration-emit errors like TS4023/TS4025 that are noise for a no-emit
+  // check). This file makes the editor type-check `test/**` (and the `src/**`
+  // it imports) with the SAME settings as `pnpm typecheck:test`, so what you
+  // see in the editor matches the command line.
+  //
+  // It is intentionally NOT part of the `tsc --build` graph (the root
+  // tsconfig.json references the package build config, not this one). The
+  // command-line test type-check still runs via ../tsconfig.test.json, which
+  // this file extends so the two never drift.
+  "extends": "../tsconfig.test.json",
+  "include": ["**/*", "../src/**/*", "../vitest.config.ts"]
+}

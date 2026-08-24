@@ -1,4 +1,8 @@
 {
+  "//": "mion examples program. The runtypes examples live in the same src/ tree but need a",
+  "//2": "different module resolution (bundler + paths to built dists), so they are excluded here",
+  "//3": "and type-checked by tsconfig.runtypes.json instead. The two trees share src/_homepage and",
+  "//4": "src/introduction, hence the explicit file excludes. TODO(step 4): reorganize the trees.",
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": ".dist/esm",
@@ -18,5 +22,28 @@
     {"path": "../drizze"}
   ],
   "include": ["src", "vite.config.ts"],
-  "exclude": ["node_modules", ".dist"]
+  "exclude": [
+    "node_modules",
+    ".dist",
+    "src/enrich",
+    "src/guide",
+    "src/suites",
+    "src/_homepage/define-builder.ts",
+    "src/_homepage/define-type.ts",
+    "src/_homepage/formats-builder.ts",
+    "src/_homepage/formats-type.ts",
+    "src/_homepage/json-roundtrip.ts",
+    "src/_homepage/reflection-value.ts",
+    "src/_homepage/reflection.ts",
+    "src/_homepage/showcase.ts",
+    "src/introduction/manual-install-vite-config.ts",
+    "src/introduction/one-type-one-id.ts",
+    "src/introduction/quick-start-next-config.ts",
+    "src/introduction/quick-start-rollup-config.ts",
+    "src/introduction/quick-start-validate.ts",
+    "src/introduction/quick-start-vite-config.ts",
+    "src/introduction/whatis-duality.ts",
+    "src/introduction/whatis-reflection.ts",
+    "src/introduction/whatis-taste.ts"
+  ]
 }

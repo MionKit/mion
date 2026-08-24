@@ -1,0 +1,30 @@
+name: Free runner disk space
+description: >
+  Remove preinstalled toolchains the ts-runtypes container jobs never use, freeing
+  ~15-25 GB on the GitHub-hosted runner's root filesystem. The prebuilt images we
+  pull are multi-GB and podman holds both the compressed blobs AND the extracted
+  rootfs during a pull; combined with the restored Go build cache + node_modules
+  that can exhaust '/' (the runner worker then dies with "No space left on
+  device"). Deliberately does NOT touch /opt/hostedtoolcache (Go/Node/pnpm live
+  there). No-op on a runner where a path is absent (e.g. non-ubuntu).
+
+runs:
+  using: composite
+  steps:
+    - name: Free disk space (remove unused preinstalled toolchains)
+      shell: bash
+      run: |
+        echo "disk before:"; df -h / | tail -1
+        # Big preinstalled trees no ts-runtypes job uses. hostedtoolcache is left
+        # intact except its CodeQL bundle (setup-go/-node/pnpm read the rest).
+        for path in \
+          /usr/local/lib/android \
+          /usr/share/dotnet \
+          /opt/ghc \
+          /usr/local/.ghcup \
+          /opt/hostedtoolcache/CodeQL \
+          /usr/local/share/boost \
+          /usr/share/swift; do
+          if [ -e "$path" ]; then sudo rm -rf "$path" || true; fi
+        done
+        echo "disk after:"; df -h / | tail -1

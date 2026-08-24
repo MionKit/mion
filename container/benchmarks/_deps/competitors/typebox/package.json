@@ -1,0 +1,4 @@
+{"name":"bench-typebox","private":true,"type":"module",
+ "scripts":{"build":"vite build","bench":"node dist/run.mjs"},
+ "dependencies":{"@sinclair/typebox":"^0.34.0"},
+ "devDependencies":{"vite":"^5.4.0","typescript":"^5.6.0","@types/node":"^22.10.0"}}

@@ -7,12 +7,18 @@ packages:
 # ── Build-script allowlist ───────────────────────────────
 # pnpm 11 blocks every dependency install/postinstall script by default.
 # Only the packages listed here may run them.
+# - esbuild: needed by the mion packages' toolchain (vite 7 still bundles via
+#   esbuild; the runtypes side is on vite 8 / rolldown and does not need it).
+#   TODO(step 3): drop when the mion packages move to the unified toolchain.
 allowBuilds:
   esbuild: true
-  nx: false
-  workerd: false
 
 # ── Lockfile / install integrity ─────────────────────────
+# Strict mode: `pnpm install` never re-resolves or rewrites the lockfile.
+# If the lockfile drifts from package.json, install fails with
+# ERR_PNPM_OUTDATED_LOCKFILE. Devs must opt in explicitly via
+# `pnpm install --no-frozen-lockfile`, `pnpm update`, or `pnpm add`
+# to mutate the lockfile.
 frozenLockfile: true
 verifyStoreIntegrity: true
 
@@ -26,17 +32,91 @@ resolutionMode: highest
 # Refuse to install package versions younger than 30 days (43200 minutes).
 # Defeats fast-spreading malicious releases (TanStack-style).
 minimumReleaseAge: 43200
-# Applied to FUTURE bumps (lockfile-frozen entries are not re-checked).
+# Only enforced when the lockfile is being (re)resolved — i.e. on
+# `pnpm add`, `pnpm update`, or `pnpm install --no-frozen-lockfile`.
+# Locked entries already in pnpm-lock.yaml are NOT re-checked
+# (tracked upstream by pnpm PR #11583, currently unmerged).
 # Keep empty by default; add per-package entries only if a future bump is
-# blocked by a transitive we trust (e.g. UnJS-ecosystem packages).
-# - unplugin: runtime dep of @ts-runtypes/devtools (exact-pinned there at
-#   3.3.0, published 2026-06-29 — younger than 30 days at migration time).
-#   Remove once it ages past the policy window.
-# - '@ts-runtypes/*': needed as soon as mion consumes the registry-published
-#   packages instead of the temporary vendor/ tarballs (see docs/).
+# blocked by a transitive we trust.
+#
+# `@ts-runtypes/*` — the mion packages still consume the registry-published
+# 0.12.2 in this commit (the switch to workspace:* is step 3 of the merge
+# plan); fresh runtypes releases must stay installable meanwhile.
+# TODO(step 3): remove once the mion packages use workspace:*.
+#
+# `@rollup/rollup-*` — platform-specific native binaries for the rollup
+# version vite pulls in. These ship lockstep as a single release, so a
+# fresh rollup point release temporarily blocks any lockfile refresh
+# until 30 days pass. The binaries themselves are precompiled artifacts
+# whose source is the audited `rollup` package (which we already accept);
+# excluding them from the policy is a small, contained relaxation.
+#
+# `@rolldown/binding-*` — platform-specific native binaries for Rolldown, the
+# bundler behind vite@8. Same lockstep story as `@rollup/rollup-*`: Rolldown
+# pins each binding package exact-equal to its own version, so a fresh Rolldown
+# point release (pulled through vite's `rolldown` range) publishes all of them
+# at once and temporarily blocks a lockfile refresh until 30 days pass. The
+# binaries are prebuilt napi-rs artifacts (no install script) of the audited
+# `rolldown` package we already accept. Note: this list is Rolldown's binding
+# set (no riscv64), which differs from oxlint/oxfmt's — re-verify against the
+# resolved rolldown version if vite bumps it.
+#
+# `@types/node` — pure TypeScript declaration files (DefinitelyTyped): no runtime
+# code and no install script (ignoreScripts blocks those anyway), so the 30-day
+# window — which defends against fast-spreading malicious *runtime* releases —
+# buys nothing here. Excluded so the types can track the Node major (26) the repo
+# runs on without lagging a month. Its sole dep, undici-types, is also pure types
+# and ages in on its own.
+#
+# `unplugin` — bumped 3.0.0 → 3.3.0 for the Rolldown adapter (`unplugin.rolldown`),
+# which shipped recently (younger than the 30-day window). The `/rolldown` devtools
+# entry needs it; unplugin is a build dep we already accept, so excluding it is a
+# contained relaxation. Re-verify on future bumps.
 minimumReleaseAgeExclude:
-  - unplugin
+  - 'unplugin'
   - '@ts-runtypes/*'
+  - '@types/node'
+  - '@rolldown/binding-darwin-x64'
+  - '@rolldown/binding-darwin-arm64'
+  - '@rolldown/binding-win32-x64-msvc'
+  - '@rolldown/binding-win32-arm64-msvc'
+  - '@rolldown/binding-linux-x64-gnu'
+  - '@rolldown/binding-linux-x64-musl'
+  - '@rolldown/binding-linux-arm64-gnu'
+  - '@rolldown/binding-linux-arm64-musl'
+  - '@rolldown/binding-linux-arm-gnueabihf'
+  - '@rolldown/binding-linux-s390x-gnu'
+  - '@rolldown/binding-linux-ppc64-gnu'
+  - '@rolldown/binding-freebsd-x64'
+  - '@rolldown/binding-android-arm64'
+  - '@rolldown/binding-openharmony-arm64'
+  - '@rolldown/binding-wasm32-wasi'
+  - '@rollup/rollup-android-arm-eabi'
+  - '@rollup/rollup-android-arm64'
+  - '@rollup/rollup-darwin-arm64'
+  - '@rollup/rollup-darwin-x64'
+  - '@rollup/rollup-freebsd-arm64'
+  - '@rollup/rollup-freebsd-x64'
+  - '@rollup/rollup-linux-arm-gnueabihf'
+  - '@rollup/rollup-linux-arm-musleabihf'
+  - '@rollup/rollup-linux-arm64-gnu'
+  - '@rollup/rollup-linux-arm64-musl'
+  - '@rollup/rollup-linux-loong64-gnu'
+  - '@rollup/rollup-linux-loong64-musl'
+  - '@rollup/rollup-linux-powerpc64le-gnu'
+  - '@rollup/rollup-linux-ppc64-musl'
+  - '@rollup/rollup-linux-riscv64-gnu'
+  - '@rollup/rollup-linux-riscv64-musl'
+  - '@rollup/rollup-linux-s390x-gnu'
+  - '@rollup/rollup-linux-x64-gnu'
+  - '@rollup/rollup-linux-x64-musl'
+  - '@rollup/rollup-openharmony-arm64'
+  - '@rollup/rollup-win32-arm64-msvc'
+  - '@rollup/rollup-win32-ia32-msvc'
+  - '@rollup/rollup-win32-x64-msvc'
+  - '@rollup/rollup-openbsd-x64'
+  - '@rollup/rollup-win32-x64-gnu'
+  - '@rollup/rollup-linux-ppc64-gnu'
 
 # ── Block lifecycle scripts ──────────────────────────────
 # Hard-block ALL build scripts. Specific packages are re-enabled
@@ -44,20 +124,20 @@ minimumReleaseAgeExclude:
 ignoreScripts: true
 sideEffectsCache: false
 
-# ── Block exotic transitive sources ───────────────────────
-# pnpm 11 defaults this to true; setting explicitly for clarity. Direct
-# dependencies may declare any source; all TRANSITIVE deps must resolve
-# from a trusted source: configured registry, workspace links, local file
-# paths, or the node/bun/deno mirrors. pnpm has no per-package allowlist
-# for direct-dep sources — PR review covers that surface.
-# (workspace:* is always exempt — it's the workspace protocol, not external.)
-blockExoticSubdeps: true
+# ── Block non-registry sources ───────────────────────────
+# Refuse git/github/file/http specifiers from dependencies.
+# (workspace:* is exempt — it's the workspace protocol, not external.)
+allowNonRegistryProtocols: false
 
-# ── Strict peer / hoisting ────────────────────────────────
+# ── Log verbosity ────────────────────────────────────────
+# Migrated from .npmrc (pnpm 11 ignores loglevel there — auth/registry only).
+loglevel: warn
+
+# ── Strict peer / hoisting ───────────────────────────────
 strictPeerDependencies: true
 autoInstallPeers: false
-# Use npm-like flat hoisting so transitive deps (esbuild, etc.) remain
-# accessible from sibling packages without each one needing to redeclare
-# them. Security is enforced by the lockfile + minimumReleaseAge +
-# ignoreScripts settings above, NOT by the linker layout.
+# Use npm-like flat hoisting so transitive deps remain accessible from
+# sibling packages without each one needing to redeclare them. Security is
+# enforced by the lockfile + minimumReleaseAge + ignoreScripts settings
+# above, NOT by the linker layout.
 nodeLinker: hoisted

@@ -1,0 +1,8 @@
+{
+  "file": "a.ts",
+  "code": "const noop = 1;\n",
+  "sites": [],
+  "replacements": [],
+  "expectedCode": "const noop = 1;\n",
+  "expectedMap": null
+}

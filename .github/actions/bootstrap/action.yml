@@ -1,0 +1,70 @@
+name: Bootstrap ts-runtypes toolchain
+description: Apply tsgolint patches, set up Go + Node + pnpm, and install workspace deps.
+
+# Requires the caller to have already run actions/checkout with
+# `submodules: recursive` (a local composite action can only run once the repo
+# — including this file — is on disk, and the patches need the submodule).
+runs:
+  using: composite
+  steps:
+    # tsgolint vendors its typescript-go fork as a submodule + patch set; the Go
+    # resolver only builds once the patches are applied to the working tree.
+    # `git apply` (not `git am`) so no committer identity is needed on CI.
+    - name: Apply tsgolint patches to typescript-go
+      shell: bash
+      run: |
+        cd ts-go-runtypes/third_party/tsgolint/typescript-go
+        git apply --3way ../patches/*.patch
+
+    # Read the pinned tsgolint revision so the Go build-cache key tracks it (see
+    # the cache step below).
+    - name: Resolve the tsgolint pin (for the Go build-cache key)
+      id: tsgo
+      shell: bash
+      run: echo "sha=$(git -C ts-go-runtypes/third_party/tsgolint rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+    # setup-go's built-in cache keys ONLY on go.sum, which never moves when the
+    # tsgolint submodule is bumped (every typescript-go dep comes in through a
+    # local `replace` path, not go.sum). That combination silently freezes the
+    # cache on the pre-bump objects and recompiles all of tsgo on every run after
+    # a bump. So we manage the cache ourselves (setup-go: cache:false) and key it
+    # on the tsgolint pin. GOCACHE is content-addressed, so our internal/ + cmd/
+    # code — which changes almost every PR — is a cheap recompile that reuses the
+    # cached tsgo objects; only a real tsgolint bump repopulates them (once, via
+    # the restore-keys prefix fallback, then saved fresh under the new key).
+    #
+    # CACHE SALT (`v2`): GOCACHE action IDs embed the ABSOLUTE source paths of
+    # locally-`replace`d packages — tsgo is compiled from the working tree, not
+    # the module cache, and these dev/CI builds run WITHOUT -trimpath. Relocating
+    # the Go tree into ts-go-runtypes/ (2026-07) moved those paths but NOT this
+    # key (go.mod content + the tsgolint pin were unchanged), so every restore
+    # kept hitting a cache of old-path objects Go could not reuse — a full ~4-min
+    # tsgo recompile in EVERY Go job on EVERY run, un-selfhealing because
+    # actions/cache keys are immutable (the post-step never re-saved under the
+    # already-present key). Bump this salt to cut over to a fresh cache whenever
+    # the Go source tree moves (or add -trimpath so GOCACHE is path-independent).
+    - name: Restore Go build cache (keyed on the tsgolint pin, not our sources)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-gocache-v2-${{ hashFiles('ts-go-runtypes/go.mod', 'ts-go-runtypes/go.sum') }}-${{ steps.tsgo.outputs.sha }}
+        restore-keys: |
+          ${{ runner.os }}-gocache-v2-
+
+    - uses: actions/setup-go@v6
+      with:
+        go-version: '1.26'
+        cache: false
+
+    - uses: pnpm/action-setup@v6
+
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 26
+        cache: pnpm
+
+    - name: Install workspace deps
+      shell: bash
+      run: pnpm install --frozen-lockfile

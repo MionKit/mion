@@ -1,0 +1,154 @@
+name: prod · deploy website
+
+# Manually-triggered docs-site deploy to Cloudflare Pages. Split out of publish.yml
+# because staged publishing means the publish run ends at "packages staged", not
+# "live" — so the deploy can no longer hang off `needs: publish-npm`, and npm fires
+# no usable publish webhook for this account to trigger it automatically.
+#
+# Run this from the Actions UI AFTER the staged packages are approved (2FA,
+# leaves-first via `pnpm rtx release stage-approve`). The docs site builds from the
+# repo, not from an installed npm version, so the optional `version` input is for
+# the run log only. See SETUP.md → Publishing.
+#
+# Dispatch it against EITHER `main` or `prod` — both ship the same live site. The
+# deploy pins `--branch=prod` (the Pages production branch), so the git ref decides
+# only WHICH TREE is built, never whether the result is production. Without that pin
+# wrangler infers the branch from git, and a dispatch from anything but `prod` went
+# green while only publishing a PREVIEW at a branch-alias URL — the live site
+# untouched. `main` is the ref to use for a docs-only fix that must not wait for a
+# release; `prod` for the deploy that follows one.
+#
+# A pre-build guard (`rtx release verify-live`) refuses to deploy unless the checked-out
+# tree matches the LIVE npm release (all @ts-runtypes/* packages, in lockstep) — so a
+# dispatch from a `main` carrying an unreleased bump, or from `prod` before
+# stage-approval, aborts instead of shipping docs for a version nobody can install.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released version being deployed (log only; the site builds from the repo)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# One deploy at a time, whichever ref it was dispatched from — every run targets the
+# same live site, so the group must NOT be per-ref. A newer manual run supersedes an
+# in-flight one (never cancels one mid-deploy).
+concurrency:
+  group: website-deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy-website:
+    name: build + deploy docs to Cloudflare Pages
+    # Dedicated 4-core/16 GB ARM64 larger runner (Team plan). GitHub's Linux ARM64 hosted
+    # runners are Cobalt 100 (Neoverse N2) — a modern core, not the old x64 silicon the
+    # standard runners share. The PUBLISHED benchmark numbers are generated in this job
+    # (pnpm rtx website build -> website-bench): a dedicated VM cuts benchmark VARIANCE vs
+    # the shared 2-core runner, and arm64 matches the Apple-Silicon dev machines +
+    # Graviton/Cobalt prod most consumers actually run on. The pipeline is node/Go with a
+    # multi-arch image (linux/amd64,linux/arm64), so it runs natively on arm64.
+    runs-on: linux-arm64
+    environment: production
+    # contents:read (checkout) + packages:read (pull the prebuilt shared image).
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # Cloudflare Pages project name, from the repo secret (defaults to runtypes).
+      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT || 'runtypes' }}
+    steps:
+      # FIRST, and free: the deploy below pins --branch=prod, so whatever ref this runs
+      # from goes LIVE. Only `main` and `prod` are ever meant to; a dispatch from a
+      # feature branch is a mistake, and it used to be a harmless one (it produced a
+      # preview). Now it would publish that branch's docs to the real site, so refuse
+      # it here rather than rely on verify-live, which only checks the VERSION.
+      - name: Refuse to deploy from a ref that is not main or prod
+        if: github.ref_name != 'main' && github.ref_name != 'prod'
+        run: |
+          echo "::error::website-deploy targets the LIVE site and runs from 'main' or 'prod' only; got '${{ github.ref_name }}'."
+          exit 1
+      - name: Log the version being deployed (informational)
+        if: inputs.version != ''
+        run: echo "Deploying docs after v${{ inputs.version }} went live (site builds from the repo, not npm)."
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive # the Go resolver + playground WASM need the tsgolint submodule
+      # Deploy guard, FIRST and cheap: the docs site builds from THIS repo, so refuse to
+      # ship it unless the checked-out tree is the version actually LIVE on npm — every
+      # @ts-runtypes/* package in lockstep. A wrong-ref dispatch (main with an unpublished
+      # bump, or prod before `pnpm rtx release stage-approve`) aborts here in seconds,
+      # before the multi-minute image pull + site build. node-only (rtx is zero-dep) so it
+      # needs no bootstrap — mirrors publish.yml's pnpm-free `node scripts/rt.mjs` step.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - name: Verify the deploy target is the live npm release (abort otherwise)
+        run: node scripts/rt.mjs release verify-live
+      # Reclaim preinstalled cruft before the image pull + Go build-cache restore.
+      - uses: ./.github/actions/free-disk
+      - uses: ./.github/actions/bootstrap
+      - name: podman version
+        run: podman --version
+      # CI never builds the shared image; pull the prebuilt one (republish from
+      # local if it's stale). the site build then binds our binary + builds the
+      # benchmarks + static site against it.
+      - name: Pull the prebuilt shared image (CI never builds it)
+        uses: ./.github/actions/pull-shared-image
+        with:
+          # Authenticate the GHCR pull with the PAT (read:packages) rather than the
+          # job's GITHUB_TOKEN, matching the release gate.
+          password: ${{ secrets.GHCR_PAT }}
+      # Reuse the playground wasm across deploys when the Go inputs are unchanged.
+      - name: Cache the playground wasm
+        uses: ./.github/actions/cache-playground-wasm
+      - name: Build binary + benchmarks + static site
+        run: pnpm rtx website build
+      # Deploy gate: serve the prerendered artifact and assert every benchmark page
+      # can actually render its benchmark. The bench tables fetch their data client
+      # side and degrade to a "not generated yet" notice when it is missing, so a
+      # benchmark stage that dies mid-run otherwise ships a GREEN build with empty
+      # pages (this is how the serialization pages went out blank). `website build`
+      # already ends with this check; repeating it here keeps the gate explicit and
+      # named in the run, and costs seconds.
+      - name: Check the built site renders every benchmark
+        run: pnpm rtx website check --static
+      - name: Upload static artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-output-deploy
+          path: container/website/.output/public
+          if-no-files-found: error
+      # `--branch=prod` is what makes this a PRODUCTION deploy from any ref. Cloudflare
+      # Pages decides production-vs-preview from the branch wrangler reports, and with
+      # no flag wrangler reads it from git: a dispatch from `main` would upload every
+      # file, print "Deployment complete!", exit 0 — and serve it at a preview alias
+      # nobody visits, leaving the live site on the previous build. Pinning the Pages
+      # production branch decouples that from the git ref (the step above keeps the ref
+      # list honest). Keep this in sync if the Pages project's production branch moves.
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy container/website/.output/public --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }} --branch=prod
+      # AFTER the deploy, on purpose. This runner has real capacity (linux-arm64, not a
+      # shared GitHub runner), so it is the one place a throughput regression in the
+      # per-engine key counter is worth failing a job over. Failing here still ships the
+      # docs: the deploy above already happened, so a regression is loud without holding
+      # the site hostage.
+      #
+      # REPORT-ONLY until the arm64 numbers are read. Every measurement behind the
+      # for-in / Object.keys inversion was taken on x64; this runner is arm64 and has
+      # never been measured. Read a few runs of this step's output, confirm the
+      # inversion holds here, then set RT_BENCH_ENGINE_ASSERT=1 to make it a failure.
+      - name: Engine-branch throughput check (counter inversion, node + bun)
+        env:
+          # Flip to '1' to make a real inversion FAIL this job (the deploy above has
+          # already shipped, so the site still goes out). Left off until the arm64
+          # numbers from this runner have been read at least once.
+          RT_BENCH_ENGINE_ASSERT: '0'
+        run: pnpm rtx bench engine-check

@@ -1,5 +1,31 @@
 {
   "cSpell.words": ["itεm", "Itεms", "pλth", "rεsult", "rεsultλrr", "εrrors"],
   "javascript.preferences.importModuleSpecifier": "project-relative",
-  "typescript.preferences.importModuleSpecifier": "project-relative"
+  "typescript.preferences.importModuleSpecifier": "project-relative",
+  "files.watcherExclude": {
+    "ts-go-runtypes/third_party/**": true
+  },
+  "search.exclude": {
+    "ts-go-runtypes/third_party": true
+  },
+  // The runtypes side moved from ESLint + Prettier to OXC (oxlint + oxfmt).
+  // Format the whole file (not just modified regions) and run lint autofixes
+  // after formatting so the two passes don't undo each other.
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "always"
+  },
+  // Markdown in this repo is MDC (Markdown Components) used by the Docus website
+  // under container/website/content/. A markdown formatter (e.g. Prettier) rewrites the
+  // component syntax -- notably turning `::component` followed by `---` props
+  // into a setext H2 heading -- which breaks the page. Disable format-on-save
+  // for markdown so MDC blocks survive. VS Code can't path-scope format-on-save
+  // to a single subfolder from the workspace root, so this applies to all
+  // markdown in the repo.
+  "[markdown]": {
+    "editor.formatOnSave": false,
+    "editor.defaultFormatter": null
+  }
 }

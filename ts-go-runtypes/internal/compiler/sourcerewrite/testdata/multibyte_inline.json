@@ -1,0 +1,25 @@
+{
+  "file": "a.ts",
+  "code": "const x = '🦄 — y'; const id = getRunTypeId<string>();\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 56,
+      "id": "Inl5555",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_Inl5555} from 'rtmod:/Inl5555.js';\nconst x = '🦄 — y'; const id = getRunTypeId<string>(undefined, __rt_Inl5555);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "const x = '🦄 — y'; const id = getRunTypeId<string>();\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;"
+  }
+}

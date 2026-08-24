@@ -1,0 +1,26 @@
+{
+  "file": "a.ts",
+  "code": "const s = 'hello';\nconst id = getRunTypeId(s);\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 44,
+      "id": "Abc1234",
+      "paramIndex": 1,
+      "argsCount": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_Abc1234} from 'rtmod:/Abc1234.js';\nconst s = 'hello';\nconst id = getRunTypeId(s, __rt_Abc1234);\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "const s = 'hello';\nconst id = getRunTypeId(s);\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,KAAK,CAAC;AACjB,KAAK,CAAC,EAAE,CAAC,CAAC,CAAC,YAAY,CAAC,eAAC,CAAC;"
+  }
+}

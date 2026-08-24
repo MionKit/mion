@@ -1,0 +1,31 @@
+{
+  "file": "a.ts",
+  "code": "const a = getRunTypeId<string>(); const b = getRunTypeId<number>();\nconst c = 3;\n",
+  "sites": [
+    {
+      "file": "a.ts",
+      "pos": 31,
+      "id": "Str1111",
+      "paramIndex": 1
+    },
+    {
+      "file": "a.ts",
+      "pos": 65,
+      "id": "Num2222",
+      "paramIndex": 1
+    }
+  ],
+  "replacements": [],
+  "expectedCode": "import {__rt_Num2222} from 'rtmod:/Num2222.js'; import {__rt_Str1111} from 'rtmod:/Str1111.js';\nconst a = getRunTypeId<string>(undefined, __rt_Str1111); const b = getRunTypeId<number>(undefined, __rt_Num2222);\nconst c = 3;\n",
+  "expectedMap": {
+    "version": 3,
+    "sources": [
+      "a.ts"
+    ],
+    "sourcesContent": [
+      "const a = getRunTypeId<string>(); const b = getRunTypeId<number>();\nconst c = 3;\n"
+    ],
+    "names": [],
+    "mappings": ";AAAA,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC,CAAC,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,YAAY,CAAC,MAAM,CAAC,wBAAC,CAAC;AAClE,KAAK,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;"
+  }
+}

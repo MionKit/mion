@@ -1,0 +1,84 @@
+# syntax=podman
+# -----------------------------------------------------------------------------
+# Pre-publish e2e image: a verdaccio
+# registry + the multi-bundler builder toolchains, kept SEPARATE from the docs
+# website + benchmark image so the lightweight CI smoke never has to pull these
+# heavy toolchains. Only the release gate's e2e lane pulls this image.
+#
+# DEPS-ONLY IMAGE: only the toolchain package-manager manifests (from _deps/) and
+# the verdaccio registry assets (from registry/) are baked. No first-party e2e
+# source lives here: the apps/, test/, build-all.mjs etc. are bind-mounted at run
+# time (scripts/release/e2e.mjs mounts container/pre-publish-e2e as /e2e-src and
+# copies them onto the baked /e2e toolchains). The image is invalidated only when a
+# dependency manifest or a registry asset changes.
+#
+# Build context is THIS dir (container/pre-publish-e2e), so the COPYs read _deps/ +
+# registry/ directly with no host-side staging (.containerignore keeps the context
+# tiny). Contrast the website image, whose bench manifests live in a sibling dir
+# and must be staged in.
+# -----------------------------------------------------------------------------
+# Node 26 matches the runtime the published library + the website/benchmark image
+# target. Pinned to the official image; override BASE_IMAGE to build from a mirror.
+ARG BASE_IMAGE=node:26-bookworm
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.source=https://github.com/MionKit/ts-run-types
+LABEL org.opencontainers.image.description="ts-runtypes pre-publish e2e image - verdaccio registry + multi-bundler builder toolchains under /e2e; e2e source bind-mounted at run time"
+
+ENV DO_NOT_TRACK=1
+
+WORKDIR /e2e
+
+# -- Optional: trust extra CA certs (corporate / MITM egress proxy) -----------
+# MUST come before any network step (npm/pnpm). The .cacerts/ dir is ALWAYS present
+# in the build context (scripts/container/image.mjs creates it) but is empty unless
+# a proxy CA was supplied. An empty dir makes update-ca-certificates a no-op, so
+# this layer costs nothing on a normal build.
+COPY .cacerts/ /usr/local/share/ca-certificates/
+RUN update-ca-certificates >/dev/null 2>&1 || true
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# Node 26 dropped the bundled corepack shim (it ships only npm), so install the
+# repo-pinned pnpm globally. Pinning keeps it deterministic.
+ARG PNPM_VERSION=11.1.1
+RUN npm install -g pnpm@${PNPM_VERSION}
+
+# bun: the e2e's Bun lanes (apps/smoke-bun via Bun.build, apps/smoke-bun-preload
+# via the Bun.plugin runtime loader) need a real bun. Pinned like the others.
+# Adds ~100 MB to this image — acceptable here because the light smoke /
+# benchmark / website lanes pull tsrt-website instead and never see it.
+ARG BUN_VERSION=1.3.11
+RUN npm install -g bun@${BUN_VERSION}
+
+# verdaccio: the in-container npm registry the e2e publishes the release tarballs
+# to (its untrusted dependency tree never touches the host). Global install.
+RUN npm install -g verdaccio@6.7.2
+
+# The e2e builder toolchains (rolldown-vite, esbuild, rollup, rolldown, webpack,
+# rspack, oxlint, eslint + the TS parser/loaders) baked under /e2e. Each e2e run
+# installs ONLY the changing @ts-runtypes/* from verdaccio on top of this
+# node_modules; the e2e's own apps/test are bind-mounted at run time. Copy only the
+# manifests so editing e2e source never invalidates this heavy install layer.
+COPY _deps/package.json _deps/pnpm-workspace.yaml _deps/.npmrc ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile
+
+# The registry config + serve script (starts verdaccio, publishes the mounted
+# /tarballs in dependency order, signals readiness). Kept LAST so a config tweak
+# never invalidates the heavier toolchain-install layer above.
+COPY registry/verdaccio.yaml /etc/verdaccio/config.yaml
+COPY registry/e2e-serve.sh /usr/local/bin/e2e-serve.sh
+RUN chmod +x /usr/local/bin/e2e-serve.sh
+
+EXPOSE 4873
+
+# Stamp the manifests this image was baked from. scripts/container/image.mjs
+# hashes the same inputs before a run and refuses to use the image when they
+# disagree, so a `_deps` bump that was never republished is caught HERE instead
+# of surfacing as a missing module halfway through the matrix. LAST so it only
+# ever invalidates this one-line layer.
+ARG DEPS_HASH=unknown
+LABEL org.mionkit.deps-hash="${DEPS_HASH}"
+
+# No CMD: scripts/release/e2e.mjs supplies /usr/local/bin/e2e-serve.sh (registry)
+# and `podman exec`s the feature matrix against the bind-mounted /e2e-src.
