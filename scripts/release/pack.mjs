@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 // Packs every publishable package into tarballs/ for the verdaccio-backed e2e
 // (and as the exact artifacts the publish job ships):
-//   - FE packages (ts-runtypes, ts-runtypes-devtools) via `pnpm pack`, so the
-//     workspace:* dep on ts-runtypes-bin is rewritten to a concrete version.
+//   - workspace packages (both families: @ts-runtypes/* and @mionjs/*) via
+//     `pnpm pack`, so every workspace:* dep is rewritten to a concrete version.
+//     That rewrite is what makes the e2e meaningful across the families: a packed
+//     @mionjs/core carries an exact @ts-runtypes/core version, and verdaccio has
+//     to serve BOTH from the local publishes.
 //   - launcher + the 7 platform packages from dist-binaries/ (already assembled
 //     by build-binaries.mjs, optionalDependencies filled) via `npm pack`.
+//
+// The workspace set is DERIVED, never hand-listed: every non-private
+// packages/*/package.json minus whatever dist-binaries/publish-order.json already
+// stages (that is where @ts-runtypes/bin comes from). A new public package joins
+// the e2e by existing, not by being remembered here.
+//
+// NOTE: tarballs/ is also what the release publishes from, and the @mionjs/*
+// family is not on the release train yet — publish-tarballs.mjs filters them out
+// until the merge plan's step 6 (one release train). See its `PUBLISHED_PREFIX`.
 //
 // Run AFTER `node scripts/release/build-binaries.mjs` and a JS `build`.
 
@@ -14,11 +26,27 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const PACKAGES = path.join(REPO_ROOT, 'packages');
 const TARBALLS = path.join(REPO_ROOT, 'tarballs');
 const DIST_BINARIES = path.join(REPO_ROOT, 'dist-binaries');
-// Directory names under packages/ — unchanged by the @ts-runtypes/* scope rename
-// (only the package.json "name" fields moved onto the scope).
-const FE_PACKAGE_DIRS = ['ts-runtypes', 'ts-runtypes-devtools'];
+
+// Every publishable workspace package directory, as absolute paths. Non-private,
+// has a name + version, and is not already staged under dist-binaries/ (the
+// launcher lives there with its optionalDependencies filled, so packing it from
+// packages/ would ship an empty one). Sorted, so the packed order is stable.
+function workspacePackageDirs(stagedNames) {
+  const dirs = [];
+  for (const entry of fs.readdirSync(PACKAGES, {withFileTypes: true}).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory()) continue;
+    const manifestFile = path.join(PACKAGES, entry.name, 'package.json');
+    if (!fs.existsSync(manifestFile)) continue;
+    const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'));
+    if (manifest.private || !manifest.name || !manifest.version) continue;
+    if (stagedNames.has(manifest.name)) continue;
+    dirs.push(path.join(PACKAGES, entry.name));
+  }
+  return dirs;
+}
 
 function pack(cmd, dir) {
   // pnpm/npm pack both accept --pack-destination and emit <name>-<version>.tgz.
@@ -54,9 +82,6 @@ function main() {
   fs.rmSync(TARBALLS, {recursive: true, force: true});
   fs.mkdirSync(TARBALLS, {recursive: true});
 
-  // FE packages: pnpm pack rewrites the workspace:* protocol to the version.
-  for (const dir of FE_PACKAGE_DIRS) pack('pnpm', path.join(REPO_ROOT, 'packages', dir));
-
   // Launcher + platform packages: assembled under dist-binaries/<scoped-name>/
   // (nested by npm scope, e.g. @ts-runtypes/binary-linux-x64) and enumerated in
   // publish-order.json. No workspace deps, so plain `npm pack` of each staged dir.
@@ -65,7 +90,11 @@ function main() {
     execFileSync('npm', ['pack', path.join(DIST_BINARIES, name), '--pack-destination', TARBALLS], {cwd: REPO_ROOT, stdio: 'inherit'});
   }
 
-  assertReadmes([...FE_PACKAGE_DIRS.map((dir) => path.join(REPO_ROOT, 'packages', dir)), path.join(DIST_BINARIES, '@ts-runtypes/bin')]);
+  // Workspace packages: pnpm pack rewrites the workspace:* protocol to the version.
+  const workspaceDirs = workspacePackageDirs(new Set(publishOrder));
+  for (const dir of workspaceDirs) pack('pnpm', dir);
+
+  assertReadmes([...workspaceDirs, path.join(DIST_BINARIES, '@ts-runtypes/bin')]);
 
   const tarballs = fs.readdirSync(TARBALLS).filter((file) => file.endsWith('.tgz')).sort();
   console.log(`\nPacked ${tarballs.length} tarballs into ${path.relative(REPO_ROOT, TARBALLS)}/:`);

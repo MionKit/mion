@@ -10,7 +10,9 @@ import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const testPublishRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// The consumer root: `npm install` put every published @mionjs/* under its node_modules,
+// so these assertions read the tarballs verdaccio actually served, unpacked.
+const consumerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 /** Packages whose tarballs must ship TS source alongside `.dist`, so the `source` export condition resolves for downstream consumers (e.g. mion-pro). */
 const publicPackages = [
@@ -28,7 +30,7 @@ const publicPackages = [
 ];
 
 function pkgDir(name: string): string {
-    return resolve(testPublishRoot, 'node_modules', name);
+    return resolve(consumerRoot, 'node_modules', name);
 }
 
 function readManifest(name: string): {exports?: unknown} {

@@ -9,12 +9,12 @@ import {describe, it, expect} from 'vitest';
 import {existsSync, readFileSync} from 'fs';
 import {resolve} from 'path';
 
-// Runs AFTER `pnpm run build`, against the production bundle a consumer would deploy.
+// Runs AFTER `vite build`, against the production bundle a consumer would deploy.
 //
 // This replaces the old "AOT Build Verification" spec, which asserted the bundle contained
 // addAOTCaches / jitFnsCache / routerCache / serverPureFnsCache — every one of those symbols was
-// deleted in the ts-runtypes migration, so the spec could not pass, and since it runs from
-// scripts/pre-publish-test.sh under `set -e` it had been failing the whole release gate closed.
+// deleted in the ts-runtypes migration, so the spec could not pass, and it had been failing the
+// whole release gate closed.
 //
 // The intent it was guarding is still worth guarding, just against the current engine: the types
 // must be COMPILED INTO the bundle at build time. If injection silently no-ops, the server still

@@ -3,16 +3,15 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "noImplicitAny": false,
     "strict": true,
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "sourceMap": true,
     "isolatedModules": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "globalSetup.ts"],
-  "exclude": ["node_modules", "dist", "tarballs"]
+  "include": ["src/**/*.ts", "lint/**/*.ts", "globalSetup.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -9,7 +9,6 @@
       "Bash(xargs kill:*)",
       "Bash(find packages/platform-* -name \"*.spec.ts\" -type f)",
       "Bash(grep -E \"\\\\.\\(ts|tsx|md\\)$\")",
-      "Bash(chmod +x scripts/pack-packages.sh)",
       "Bash(python3 -c ' *)"
     ]
   }

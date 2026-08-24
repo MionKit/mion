@@ -5,7 +5,5 @@
   "printWidth": 130,
   "trailingComma": "es5",
   "sortPackageJson": false,
-  "ignorePatterns": [
-    "test-publish/**"
-  ]
+  "ignorePatterns": []
 }

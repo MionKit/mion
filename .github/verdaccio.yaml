@@ -23,6 +23,13 @@ packages:
     access: $all
     publish: $all
     unpublish: $all
+  # Same posture for the mion family — see the container twin at
+  # container/pre-publish-e2e/registry/verdaccio.yaml. Kept in step with it so the
+  # host-npx backend never resolves a package the container backend serves locally.
+  '@mionjs/*':
+    access: $all
+    publish: $all
+    unpublish: $all
   '@*/*':
     access: $all
     publish: $all

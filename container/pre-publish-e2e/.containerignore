@@ -1,12 +1,15 @@
 # Keep the build context tiny and make the isolation boundary explicit: only the
-# toolchain manifests under _deps/, the verdaccio assets under registry/, and
-# .cacerts/ (named in the Containerfile) may enter the image. Everything else is
-# either e2e source/fixtures (bind-mounted at run time) or a build artifact.
+# toolchain manifests under _deps/ + _deps-mion/, the verdaccio assets under
+# registry/, and .cacerts/ (named in the Containerfile) may enter the image.
+# Everything else is either e2e source/fixtures (bind-mounted at run time) or a
+# build artifact.
 
 # e2e source + fixtures — bind-mounted at run time as /e2e-src, never baked.
 apps/
 test/
 host-smoke/
+mion-consumer/
+mion-bun/
 build-all.mjs
 lint-all.mjs
 tsconfig.base.json
