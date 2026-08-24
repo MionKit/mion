@@ -110,15 +110,33 @@ function findNodeModules(dir, depth = 0) {
 }
 
 // Bytes on disk under a path (files only — directory entries themselves are noise).
-function diskSize(path) {
+// Walks with an explicit stack rather than `readdirSync(..., {recursive: true})`: that
+// call materializes a Dirent for EVERY entry under the path before returning, which a
+// hoisted node_modules (hundreds of thousands of files) turns into an out-of-memory
+// crash — the report is printed before anything is deleted, so the whole clean died.
+export function diskSize(path) {
   const stat = statSync(path, {throwIfNoEntry: false});
   if (!stat) return 0;
   if (!stat.isDirectory()) return stat.size;
   let total = 0;
-  for (const entry of readdirSync(path, {withFileTypes: true, recursive: true})) {
-    if (!entry.isFile()) continue;
-    const file = statSync(join(entry.parentPath, entry.name), {throwIfNoEntry: false});
-    if (file) total += file.size;
+  const pending = [path];
+  while (pending.length > 0) {
+    const dir = pending.pop();
+    let entries;
+    try {
+      entries = readdirSync(dir, {withFileTypes: true});
+    } catch {
+      continue; // vanished mid-walk, or unreadable — it is about to be deleted anyway
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(full);
+      } else if (entry.isFile()) {
+        const file = statSync(full, {throwIfNoEntry: false});
+        if (file) total += file.size;
+      }
+    }
   }
   return total;
 }
