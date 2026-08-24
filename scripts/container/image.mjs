@@ -27,7 +27,7 @@
 import {createHash} from 'node:crypto';
 import {cpSync, copyFileSync, existsSync, globSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {loadEnv, REPO_ROOT} from '../lib/env.mjs';
+import {loadEnv, REPO_ROOT, SITES} from '../lib/env.mjs';
 import {ghcrConfig, ghcrLogin, ghcrPullRetag, ghcrPushMultiarch, ghcrTryPullRetag, imageExists, requireEngine} from '../lib/engine.mjs';
 import {capture, die, hostGoArch, note, noteErr, reportCliError, runOrThrow} from '../lib/proc.mjs';
 
@@ -81,8 +81,9 @@ function config(env = process.env, target = 'website') {
     pnpmVersion: env.RT_WEBSITE_PNPM_VERSION || '',
     useLocal: Boolean(env.RT_WEBSITE_USE_LOCAL),
     // Named volumes hold Nuxt's generated caches (website run side); clean drops them.
-    volNuxt: `${containerBase}-nuxt`,
-    volData: `${containerBase}-data`,
+    // .nuxt and .data are PER SITE (see scripts/website/site.mjs), so clean has to
+    // name every site's pair or the stale ones survive a clean and poison a rebuild.
+    siteVolumes: SITES.flatMap((site) => [`${containerBase}-nuxt-${site}`, `${containerBase}-data-${site}`]),
     volCache: `${containerBase}-cache`,
   };
 }
@@ -352,7 +353,7 @@ export function cmdClean(opts = {}) {
   note(`removing image ${cfg.image}${cfg.target === 'website' ? ' and named volumes' : ''}`);
   capture(cfg.engine, ['rmi', '-f', cfg.image]); // ignore "no such image"
   // Named volumes only belong to the website run side.
-  if (cfg.target === 'website') capture(cfg.engine, ['volume', 'rm', '-f', cfg.volNuxt, cfg.volData, cfg.volCache]);
+  if (cfg.target === 'website') capture(cfg.engine, ['volume', 'rm', '-f', ...cfg.siteVolumes, cfg.volCache]);
 }
 
 // ── pre-publish e2e registry (verdaccio-in-container) ────────────────────────

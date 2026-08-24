@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Script to detect broken code-import links in website content.
- * Scans all markdown files in container/website/content for <code-import> tags
- * and verifies that the referenced files exist.
+ * Scans every markdown file in BOTH sites' content trees
+ * (container/website/sites/<site>/content) for <code-import> tags and verifies
+ * that the referenced files exist.
  *
  * Usage: node container/website/scripts/check-links.mts
  */
@@ -10,7 +11,12 @@
 import {readdirSync, readFileSync, existsSync, statSync} from 'fs';
 import {join, resolve} from 'path';
 
-const WEBSITE_CONTENT_DIR = resolve(import.meta.dirname, '../content');
+const SITES_DIR = resolve(import.meta.dirname, '../sites');
+// Discovered, not listed: adding a site cannot silently leave its pages unchecked.
+const CONTENT_DIRS = readdirSync(SITES_DIR, {withFileTypes: true})
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => join(SITES_DIR, entry.name, 'content'))
+  .filter((dir) => existsSync(dir));
 // Same convention as server/utils/repo-root.ts: RT_REPO_ROOT is the mounted
 // repo context inside the container; the fallback covers host runs.
 const MONOREPO_ROOT = process.env.RT_REPO_ROOT
@@ -57,7 +63,7 @@ function extractCodeImports(content: string): Array<{path: string; line: number}
 
 function checkLinks(): BrokenLink[] {
   const brokenLinks: BrokenLink[] = [];
-  const mdFiles = findMarkdownFiles(WEBSITE_CONTENT_DIR);
+  const mdFiles = CONTENT_DIRS.flatMap(findMarkdownFiles);
 
   for (const mdFile of mdFiles) {
     const content = readFileSync(mdFile, 'utf-8');

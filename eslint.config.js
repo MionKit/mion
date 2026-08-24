@@ -27,7 +27,6 @@ export default tseslint.config(
       '**/eslint.config.mjs',
       '**/bun-preload.ts',
       '**/globalSetup.ts',
-      'website/**',
       'eslint.config.js',
       // The runtypes packages are linted by oxlint, which owns the `runtypes/*`
       // rules for the whole repo; this config carries mion's own plugin rules

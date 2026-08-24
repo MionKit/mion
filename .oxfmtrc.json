@@ -6,7 +6,6 @@
   "trailingComma": "es5",
   "sortPackageJson": false,
   "ignorePatterns": [
-    "website/**",
     "test-publish/**"
   ]
 }
