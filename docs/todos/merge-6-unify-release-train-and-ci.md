@@ -4,10 +4,15 @@
 **Created:** 2026-08-24
 
 Step 6 of [merge-ts-runtypes-into-mion-master-plan.md](merge-ts-runtypes-into-mion-master-plan.md).
-Requires [unify-e2e-on-verdaccio.md](unify-e2e-on-verdaccio.md) landed (and step 4 for the
-website-deploy hook). Goal (settled decision 2): every published package — 10 `@ts-runtypes/*` +
-11 `@mionjs/*` — ships from one `version.json` lockstep train through the `main` → `prod` flow,
-and the ts-run-types CI is THE repo CI.
+Steps 1–5 are landed. Goal (settled decision 2): every published package — 10 `@ts-runtypes/*` +
+11 `@mionjs/*` — ships from one `version.json` lockstep train through the `main` → `prod` flow.
+
+**Scope note (verified against `main`, 2026-08-24):** much of the original step 6 landed during
+steps 3–5 — CI is already unified (`pull-requests.yml` and `nuxtjs.yml` retired, mion lanes in
+`ci.yml`), the lerna-era publish scripts are deleted, and `pack.mjs` packs both families for the
+verdaccio e2e. What remains is the release train itself: the mion packages still sit at 0.8.10,
+and `publish-tarballs.mjs` deliberately filters to `ts-runtypes-*` until this step unifies the
+versions (CLAUDE.md documents that seam).
 
 ## Owner actions
 
@@ -19,11 +24,6 @@ and the ts-run-types CI is THE repo CI.
 
 ## Tasks
 
-- **CI:** extend `ci.yml`'s `js-lint` lane with the mion suites (`test:ci` batches, `test:bun`,
-  mion eslint, `check-code-imports` equivalent) — or a parallel `mion` job if runtime demands it;
-  keep the paths-filter job in sync. Retire `.github/workflows/pull-requests.yml`. Extend
-  `release-gate.yml`'s e2e job expectations to the enlarged matrix from step 5 (mostly free —
-  the gate calls `rtx release e2e`).
 - **Versioning:** `@mionjs/*` joins `version.json` lockstep. `bump-version.mjs` already stamps
   every `packages/*/package.json`; verify it handles the mion set (including private ones like
   `test-server` and `examples`, which move to the same version like the runtypes private
@@ -48,4 +48,3 @@ and the ts-run-types CI is THE repo CI.
 - First unified release ships to npm through `pre-publish.yml` → `publish.yml` →
   stage-approve, and `post-publish.yml`'s live-registry e2e passes including the mion consumer.
 - `verify-live` confirms every package at the unified version; the website deploy gate accepts it.
-- No lerna-era or manual-publish scripts remain.
